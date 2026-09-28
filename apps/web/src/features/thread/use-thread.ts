@@ -47,7 +47,9 @@ function useThreadChat(data: ThreadData, onChange: () => void) {
 }
 
 /**
- * Sends the question the new-thread screen handed over in `?ask=`, once.
+ * Sends the question the new-thread screen handed over in `?ask=`, once. It sends on the next
+ * tick, so a mount that is undone at once (React's strict mode does this in development) cancels
+ * the timer, not the request: unmounting the chat stops its request.
  *
  * @param send - Sends a question.
  * @param empty - Whether the thread has no messages yet.
@@ -55,19 +57,24 @@ function useThreadChat(data: ThreadData, onChange: () => void) {
 function useFirstQuestion(send: (text: string) => void, empty: boolean): void {
   const [search, setSearch] = useSearchParams();
   const sent = useRef(false);
+  const latest = useRef({ send, empty });
+  latest.current = { send, empty };
   const ask = search.get('ask');
   useEffect(() => {
     if (ask === null || sent.current) return;
-    sent.current = true;
-    setSearch(
-      (current) => {
-        current.delete('ask');
-        return current;
-      },
-      { replace: true },
-    );
-    if (empty) send(ask);
-  }, [ask, empty, send, setSearch]);
+    const timer = setTimeout(() => {
+      sent.current = true;
+      setSearch(
+        (current) => {
+          current.delete('ask');
+          return current;
+        },
+        { replace: true },
+      );
+      if (latest.current.empty) latest.current.send(ask);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [ask, setSearch]);
 }
 
 /**
