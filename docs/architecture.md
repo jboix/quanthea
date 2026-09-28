@@ -420,6 +420,28 @@ its settings).
 Failures are `QueryError`s (`invalid`, `guardrail`, `timeout`, `connector`) with a safe message.
 Injection tests cover both binders, and integration tests run the attacks against the dev sources.
 
+### Access gate (`gate/`)
+
+Everything the model receives from a connector passes through `gate/`. Its functions return
+model-ready results and never throw.
+
+| Access level          | `modelSchema` (describe)                                           | `testQueryForModel` (test-run)                                                                      |
+| --------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| 1 schema only         | entities, fields, types, descriptions                              | `{ ok }`, or the safe error message                                                                 |
+| 2 schema and metadata | also row estimates, and distinct counts of fields with ≤ 50 values | also the shape: fields, types, row counts, label names (not values)                                 |
+| 3 aggregates          | same                                                               | also labels with values and per-field summaries: min, max, mean, spikes (> mean + 3σ), top 5 values |
+| 4 full access         | same                                                               | also the rows, at most 500, and the source's own error text                                         |
+
+- Hidden fields (`entity.field`, or a bare `field`) are removed at every level: from the schema, and
+  from results by column name and label name. Results do not say which table a column came from,
+  so a query that renames a hidden column gets past the name match. A database role or view that
+  cannot read the column is the hard guarantee; an integration test shows the limit.
+- Admin-written descriptions replace the source's.
+- `sampleForModel` lists distinct values from level 2 only, never for a hidden field, and never
+  when the field has more than the asked number of values (at most 50).
+- `gate/leak.test.ts` feeds random marker values through levels 1 and 2 (rows, unusual numbers,
+  labels, frame names, error texts) and checks none reaches the model.
+
 Credentials are stored encrypted. A connector config holds everything else: URL, database,
 TLS options, the access level, hidden columns, guardrails, and table and field descriptions.
 

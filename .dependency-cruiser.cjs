@@ -183,6 +183,18 @@ module.exports = {
       to: { path: '^apps/server/src/', pathNot: '^apps/server/src/(query|connectors|lib)/' },
     },
     {
+      name: 'gate-stays-narrow',
+      severity: 'error',
+      comment:
+        'gate/ turns schemas and results into what the model may see. It reads through query/ and ' +
+        'the connector kit, never a connector kind, the database or the layers above it.',
+      from: { path: '^apps/server/src/gate/', pathNot: ['[.]test[.]ts$'] },
+      to: {
+        path: '^apps/server/src/',
+        pathNot: '^apps/server/src/(gate|query|connectors/_shared|settings|lib)/',
+      },
+    },
+    {
       name: 'secrets-is-a-leaf',
       severity: 'error',
       comment:
