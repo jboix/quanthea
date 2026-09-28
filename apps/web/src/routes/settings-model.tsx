@@ -1,20 +1,27 @@
-import { Page } from '../ui/page.tsx';
-import { Placeholder } from '../ui/placeholder.tsx';
+/** The route of the model settings screen. */
+import type { RouteObject } from 'react-router';
+import { guarded } from '../app/route-access.ts';
+import type { SessionLoader } from '../app/session.ts';
+import {
+  loadModelSettings,
+  ModelSettingsScreen,
+  modelSettingsAction,
+} from '../features/settings/index.ts';
+import type { ApiClient } from '../lib/api-client.ts';
 
 /**
- * The Model settings screen: provider, key, capability test and the model for each job.
+ * The model settings route: its loader and its save and test action run for admins only.
  *
- * @returns The screen.
+ * @param loadSession - Loads the current session.
+ * @param api - The API client.
+ * @returns The route object.
  */
-export function SettingsModelRoute() {
-  return (
-    <Page
-      title="Model"
-      subtitle="Bring your own key or point at your own gateway. Pinned dashboards never use it."
-    >
-      <Placeholder title="Provider, capability test, model per job and limits go here.">
-        Pinned dashboards never use the model.
-      </Placeholder>
-    </Page>
-  );
+export function modelSettingsRoute(loadSession: SessionLoader, api: ApiClient): RouteObject {
+  const path = '/settings/model';
+  return {
+    path,
+    loader: guarded(loadSession, path, loadModelSettings(api)),
+    action: guarded(loadSession, path, modelSettingsAction(api)),
+    Component: ModelSettingsScreen,
+  };
 }

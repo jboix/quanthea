@@ -1,4 +1,4 @@
-import { type ReactNode, useId } from 'react';
+import { type CSSProperties, type ReactNode, useId } from 'react';
 import styles from './radio-cards.module.css';
 
 /** One choice of a {@link RadioCards} group. */
@@ -25,6 +25,8 @@ interface RadioCardsProps<Value extends string | number> {
   readonly onChange: (value: Value) => void;
   /** Shows the choice without letting the user change it. */
   readonly disabled?: boolean;
+  /** How many cards sit in a row; two by default. */
+  readonly columns?: number;
 }
 
 /**
@@ -40,10 +42,15 @@ export function RadioCards<Value extends string | number>({
   value,
   onChange,
   disabled = false,
+  columns = 2,
 }: RadioCardsProps<Value>) {
   const name = useId();
   return (
-    <fieldset className={styles.group} disabled={disabled}>
+    <fieldset
+      className={styles.group}
+      disabled={disabled}
+      style={{ '--columns': columns } as CSSProperties}
+    >
       <legend className={styles.legend}>{label}</legend>
       {options.map((option) => (
         <label key={option.value} className={styles.card}>

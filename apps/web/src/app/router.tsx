@@ -16,7 +16,7 @@ import { NewThreadRoute } from '../routes/new-thread.tsx';
 import { NotFoundRoute } from '../routes/not-found.tsx';
 import { SettingsAuthRoute } from '../routes/settings-auth.tsx';
 import { SettingsLayout } from '../routes/settings-layout.tsx';
-import { SettingsModelRoute } from '../routes/settings-model.tsx';
+import { modelSettingsRoute } from '../routes/settings-model.tsx';
 import { SettingsRetentionRoute } from '../routes/settings-retention.tsx';
 import { ThreadRoute } from '../routes/thread.tsx';
 import { UiKitRoute } from '../routes/ui-kit.tsx';
@@ -94,7 +94,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
       Component: SettingsLayout,
       children: [
         { index: true, loader: () => redirect('/settings/model') },
-        screen(loadSession, '/settings/model', SettingsModelRoute),
+        modelSettingsRoute(loadSession, api),
         screen(loadSession, '/settings/auth', SettingsAuthRoute),
         screen(loadSession, '/settings/retention', SettingsRetentionRoute),
       ],

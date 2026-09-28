@@ -44,6 +44,17 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'GET /dashboards/:dashboardId/versions/:version': { version: 1, spec: { panels: [] } },
   'POST /panels/run': { time: { from: 0, to: 1 }, queries: [], markers: [], durationMs: 1 },
   'POST /variables/options': { options: [] },
+  'GET /settings/model': {
+    settings: {
+      provider: 'anthropic',
+      baseUrl: null,
+      models: { build: 'claude-sonnet-5', repair: '', metadata: '' },
+      limits: { threadTokens: 200_000, toolCallsPerTurn: 25, repairAttempts: 3 },
+      behaviour: { planApproval: true, testRun: true },
+    },
+    apiKey: null,
+    usage: { tokens: 0, threads: 0 },
+  },
 };
 
 /** An API client that answers every call from {@link cannedAnswers}. */
