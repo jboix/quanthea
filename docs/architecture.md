@@ -349,15 +349,18 @@ the catalog of the connectors, the current draft, the panels the person mentions
 message's `metadata.mentions`), and their time zone (`metadata.timeZone`), so "yesterday around
 14:00" means their 14:00.
 
-The persona is a calm, direct colleague: a few plain sentences per message, at most one question,
-and a question always offers concrete choices from the catalog. The thread's state sets the phase
+The persona is a calm, direct colleague: a few plain sentences per message, a sentence to the person
+before its tool calls, at most one question, and a question always offers concrete choices from the
+catalog. Before the first plan it asks one question, unless the person already said what to show,
+for which service or table, and over which time. It never asks in words for approval: the plan
+card has the buttons. The thread's state sets the phase
 (`agent/phases.ts`), and each phase offers only its tools:
 
-| Phase    | Thread states          | Tools                                                        | Adds to the instructions                      |
-| -------- | ---------------------- | ------------------------------------------------------------ | --------------------------------------------- |
-| planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`    | propose right away, or ask one question first |
-| building | `building`             | `describe`, `sample_values`, `test_query`, `write_dashboard` | the spec guide, the example, the plan         |
-| editing  | `ready`                | all of the above, and `patch_panel`                          | the spec guide and the example                |
+| Phase    | Thread states          | Tools                                                        | Adds to the instructions                          |
+| -------- | ---------------------- | ------------------------------------------------------------ | ------------------------------------------------- |
+| planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`    | one question before the first plan, then the plan |
+| building | `building`             | `describe`, `sample_values`, `test_query`, `write_dashboard` | the spec guide, the example, the plan             |
+| editing  | `ready`                | all of the above, and `patch_panel`                          | the spec guide and the example                    |
 
 Planning never runs a query: the build test-runs every query anyway. The spec guide and the
 example only come once there is something to write, so planning requests stay short.

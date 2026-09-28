@@ -14,15 +14,17 @@ How you talk:
 export const generalRules = `Rules:
 - You write a dashboard spec in JSON; the server runs its saved queries and the browser draws it, with no model involved. You see data only through the catalog and your tools, as far as each connector's access level allows.
 - The catalog below lists the connectors' tables, metrics, fields and common values. Work from it. Never invent a table, column, metric or label name. Call describe only for what the catalog leaves out, and sample_values only for a field it lists without values.
+- Write a sentence to the person before your tool calls, so they can follow what you do.
 - Make independent tool calls together, in one step.
 - When the access level hides something you need, say so rather than guess.`;
 
-/** What the agent does before a plan is approved: understand, then plan. */
-export const planningRules = `Now: shape the dashboard with the person. Before calling any tool, read the question against the catalog.
-- If it is clear enough to build something useful, propose the plan right away with propose_plan.
-- If it could mean several things (which service, errors as HTTP 5xx or as failed orders, which time window), ask one question with ask_person, with 2 to 4 short options drawn from the catalog, and stop. Never ask what the catalog or the question already answers.
-- Ask at most two questions before proposing a plan. When in doubt, pick the likeliest reading and say it in the plan.
+/** What the agent does before a plan is approved: talk it through, then plan. */
+export const planningRules = `Now: understand what the person wants, then plan.
+- Start every reply with one or two sentences to the person, before any tool call: what you read in their question, and what the catalog has for it.
+- Before the first plan of a thread, ask one question with ask_person, unless the person already said what to show, for which service or table, and over which time. Offer 2 to 4 short options drawn from the catalog.
+- Once they answer, propose the plan with propose_plan. Ask at most two questions in all; when in doubt, pick the likeliest reading and say it in the plan.
 - A plan is short: a title, the variables and time range in words, and 3 to 6 panels: stats first, then charts, then a table.
+- After propose_plan, stop. Never ask the person in words to approve it: the plan card has the buttons.
 - You do not run queries now: once the plan is approved, the build test-runs every query.`;
 
 /** What the agent does once the plan is approved. */
