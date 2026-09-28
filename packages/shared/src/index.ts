@@ -49,6 +49,7 @@ export {
   type Guardrails,
   guardrailsSchema,
   hiddenFieldsSchema,
+  lowCardinalityLimit,
 } from './connectors.ts';
 export {
   type Field,

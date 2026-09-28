@@ -1,10 +1,10 @@
 /** Distinct values of a field for the model: from level 2, never hidden fields, never many. */
+import { lowCardinalityLimit } from '@querent/shared';
 import {
   ConnectorError,
   type ConnectorInstance,
   type FieldReference,
 } from '../connectors/_shared/index.ts';
-import { lowCardinalityLimit } from './model-schema.ts';
 import { type GateSubject, isHiddenField } from './subject.ts';
 
 /** Sample values for the model. */

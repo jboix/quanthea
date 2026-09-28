@@ -1,8 +1,12 @@
 /** Turns stored connectors into what the API returns: masked credentials, schema views. */
-import type { ConnectorDetail, ConnectorSummary, SchemaView } from '@querent/shared';
+import {
+  type ConnectorDetail,
+  type ConnectorSummary,
+  lowCardinalityLimit,
+  type SchemaView,
+} from '@querent/shared';
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
 import type { ConnectorRow } from '../db/connector-repository.ts';
-import { lowCardinalityLimit } from '../gate/model-schema.ts';
 import { type GateSubject, isHiddenField } from '../gate/subject.ts';
 
 /** Shown for a stored secret value. */

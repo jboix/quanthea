@@ -24,6 +24,9 @@ export type AccessLevel = z.infer<typeof accessLevelSchema>;
 /** The access level of a new connector: schema and metadata. */
 export const defaultAccessLevel: AccessLevel = 2;
 
+/** Fields with at most this many distinct values are low cardinality: from level 2 the model gets their values. */
+export const lowCardinalityLimit = 50;
+
 /**
  * Validates the fields removed from everything the model receives, at every access level:
  * `entity.field` (such as `customers.email`), or a bare `field` for every entity.
