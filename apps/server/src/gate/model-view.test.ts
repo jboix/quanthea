@@ -33,6 +33,7 @@ describe('the model view of the connectors', () => {
         name: 'events',
         kind: 'memory',
         language: 'sql',
+        accessLevel: 2,
         access:
           'level 2, schema and metadata: test runs return shapes and row counts, never values',
       },

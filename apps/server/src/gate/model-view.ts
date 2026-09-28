@@ -45,7 +45,9 @@ export interface ModelConnector {
   readonly kind: string;
   /** The query language. */
   readonly language: QuerySource['language'];
-  /** The access level and what it means. */
+  /** The access level. */
+  readonly accessLevel: AccessLevel;
+  /** What the access level lets the model see. */
   readonly access: string;
 }
 
@@ -143,6 +145,7 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
         name: subject.name,
         kind: subject.kind,
         language,
+        accessLevel: subject.accessLevel,
         access: levelMeanings[subject.accessLevel],
       })),
     describe: (name, scope, signal) =>

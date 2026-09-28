@@ -9,6 +9,9 @@ import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
 import { nextState, type ThreadEvent, type ThreadState } from './state.ts';
 
+/** A thread with its conversation, as the service knows it; the HTTP layer adds the rest. */
+export type ThreadConversation = Omit<ThreadDetail, 'model' | 'connectors'>;
+
 /** A message as the AI SDK hands it over: id, role, parts and metadata. */
 export interface StoredMessage {
   /** The message id. */
@@ -53,7 +56,7 @@ export interface Threads {
    * @returns The thread.
    * @throws {AppError} `not_found`.
    */
-  get(id: string): ThreadDetail;
+  get(id: string): ThreadConversation;
   /**
    * Reads a thread's stored row.
    *
@@ -320,7 +323,7 @@ function create(context: Context, actor: string): ThreadSummary {
  * @param id - The thread id.
  * @returns The thread.
  */
-function get(context: Context, id: string): ThreadDetail {
+function get(context: Context, id: string): ThreadConversation {
   const messages = context.repository
     .messages(id)
     .map(({ id: messageId, role, parts, metadata }) => ({

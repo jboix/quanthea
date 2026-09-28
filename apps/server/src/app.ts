@@ -6,6 +6,7 @@ import type { Agent } from './agent/run.ts';
 import type { Authenticator } from './auth/authenticator.ts';
 import type { Connections } from './connections/connections.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
+import type { ModelView } from './gate/model-view.ts';
 import type { AppEnv } from './http/app-env.ts';
 import { authenticate } from './http/authenticate.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
@@ -42,6 +43,8 @@ export interface AppDependencies {
   readonly threads: Threads;
   /** The agent. */
   readonly agent: Agent;
+  /** The connectors as the model sees them. */
+  readonly modelView: ModelView;
 }
 
 /**
@@ -64,7 +67,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   mountConnectorRoutes(app, dependencies.connections);
   mountDashboardEndpoints(app, dependencies.dashboards);
   mountSettingsEndpoints(app, dependencies.modelSettings);
-  mountThreadEndpoints(app, dependencies.threads, dependencies.dashboards);
+  mountThreadEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent);
   mountSpa(app, dependencies.webDir);
 

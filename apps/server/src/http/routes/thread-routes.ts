@@ -10,19 +10,34 @@ import {
 } from '@querent/shared';
 import type { Hono } from 'hono';
 import type { Dashboards } from '../../dashboards/dashboards.ts';
+import type { ModelView } from '../../gate/model-view.ts';
 import { AppError } from '../../lib/errors.ts';
+import type { ModelSettingsService } from '../../settings/model-settings.ts';
 import type { Threads } from '../../threads/threads.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { actorOf } from '../principal.ts';
 
+/** The services the thread endpoints use. */
+export interface ThreadRouteServices {
+  /** The threads. */
+  readonly threads: Threads;
+  /** The dashboards, for Undo. */
+  readonly dashboards: Dashboards;
+  /** The model settings, for the model's name. */
+  readonly modelSettings: ModelSettingsService;
+  /** The model view, for the connectors and their access levels. */
+  readonly modelView: ModelView;
+}
+
 /**
  * Mounts the endpoints that list, create, read and delete threads.
  *
  * @param app - The app.
- * @param threads - The threads service.
+ * @param services - The thread route services.
  */
-function mountThreadRoutes(app: Hono<AppEnv>, threads: Threads): void {
+function mountThreadRoutes(app: Hono<AppEnv>, services: ThreadRouteServices): void {
+  const { threads } = services;
   mountEndpoint(app, listThreadsEndpoint, { access: 'editor', handle: () => threads.list() });
   mountEndpoint(app, createThreadEndpoint, {
     access: 'editor',
@@ -30,7 +45,13 @@ function mountThreadRoutes(app: Hono<AppEnv>, threads: Threads): void {
   });
   mountEndpoint(app, getThreadEndpoint, {
     access: 'editor',
-    handle: ({ params }) => threads.get(params.threadId),
+    handle: async ({ params }) => {
+      const { settings } = await services.modelSettings.resolve();
+      const connectors = services.modelView
+        .connectors()
+        .map(({ name, accessLevel }) => ({ name, accessLevel }));
+      return { ...threads.get(params.threadId), model: settings.models.build, connectors };
+    },
   });
   mountEndpoint(app, deleteThreadEndpoint, {
     access: 'editor',
@@ -74,14 +95,9 @@ function mountDecisionRoutes(app: Hono<AppEnv>, threads: Threads, dashboards: Da
  * Mounts every thread endpoint except the streamed chat.
  *
  * @param app - The app.
- * @param threads - The threads service.
- * @param dashboards - The dashboards service.
+ * @param services - The threads, dashboards, model settings and model view.
  */
-export function mountThreadEndpoints(
-  app: Hono<AppEnv>,
-  threads: Threads,
-  dashboards: Dashboards,
-): void {
-  mountThreadRoutes(app, threads);
-  mountDecisionRoutes(app, threads, dashboards);
+export function mountThreadEndpoints(app: Hono<AppEnv>, services: ThreadRouteServices): void {
+  mountThreadRoutes(app, services);
+  mountDecisionRoutes(app, services.threads, services.dashboards);
 }

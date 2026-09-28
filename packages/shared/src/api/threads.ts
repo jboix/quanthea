@@ -1,5 +1,6 @@
 /** Thread endpoints: list, create, read and delete threads, decide plans, and undo a version. */
 import { z } from 'zod';
+import { accessLevelSchema } from '../connectors.ts';
 import { planViewSchema, threadStates } from '../threads.ts';
 import { defineEndpoint } from './contract.ts';
 
@@ -22,6 +23,10 @@ export const threadDetailSchema = threadSummarySchema.extend({
   /** The AI SDK UI messages, in order. The web app reads them with its message types. */
   messages: z.array(z.unknown()),
   plans: z.array(planViewSchema),
+  /** The model that builds, such as `claude-sonnet-5`, for the composer's chip. */
+  model: z.string(),
+  /** The connectors and their access levels, for the composer's chip. */
+  connectors: z.array(z.object({ name: z.string(), accessLevel: accessLevelSchema })),
 });
 
 /** A thread with its conversation. */
