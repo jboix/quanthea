@@ -10,6 +10,7 @@ import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import type { openDatabase } from './db/database.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
+import { createModelView, type ModelView } from './gate/model-view.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
 import type { SecretBox } from './secrets/secret-box.ts';
@@ -36,6 +37,8 @@ export interface Services {
   readonly dashboards: Dashboards;
   /** The model gateway settings. */
   readonly modelSettings: ModelSettingsService;
+  /** The connectors as the model sees them, through the gate. */
+  readonly modelView: ModelView;
 }
 
 /** How long a query result stays cached, in milliseconds. */
@@ -55,35 +58,50 @@ function monthStart(): number {
 }
 
 /**
- * Creates the services.
+ * The services over the data sources: connectors, the query executor, dashboards and the
+ * model's view of the connectors, which share one executor and its cache.
  *
  * @param dependencies - The database, the connector kinds and the secret box.
- * @returns The services.
+ * @param audit - The audit log.
+ * @returns The data services.
  */
-export function createServices(dependencies: ServiceDependencies): Services {
+function dataServices(
+  dependencies: ServiceDependencies,
+  audit: ReturnType<typeof createAuditRepository>,
+) {
   const { database, kinds, secretBox } = dependencies;
-  const audit = createAuditRepository(database);
-  const connections = createConnections({
-    kinds,
-    repository: createConnectorRepository(database),
-    audit,
-    secretBox,
-  });
+  const repository = createConnectorRepository(database);
+  const connections = createConnections({ kinds, repository, audit, secretBox });
+  const executor = createQueryExecutor(
+    createResultCache({ ttlMs: resultTtlMs, maxEntries: maxCachedResults }),
+  );
   const dashboards = createDashboards({
     repository: createDashboardRepository(database),
     audit,
     lookup: connections.lookup,
     openSource: async (name) => (await connections.open(name)).source,
-    executor: createQueryExecutor(
-      createResultCache({ ttlMs: resultTtlMs, maxEntries: maxCachedResults }),
-    ),
+    executor,
   });
-  const threads = createThreadRepository(database);
+  const { subjects: list, open, snapshot } = connections;
+  const modelView = createModelView({ list, open, snapshot }, executor);
+  return { connections, dashboards, modelView };
+}
+
+/**
+ * Creates the services.
+ *
+ * @param dependencies - The database, the connector kinds, the secret box and the settings.
+ * @returns The services.
+ */
+export function createServices(dependencies: ServiceDependencies): Services {
+  const audit = createAuditRepository(dependencies.database);
+  const data = dataServices(dependencies, audit);
+  const threads = createThreadRepository(dependencies.database);
   const modelSettings = createModelSettings({
     store: dependencies.settings,
-    secretBox,
+    secretBox: dependencies.secretBox,
     audit,
     usage: () => threads.usageSince(monthStart()),
   });
-  return { connections, dashboards, modelSettings };
+  return { ...data, modelSettings };
 }

@@ -145,6 +145,22 @@ export interface Connections {
    */
   lookup(name: string): { language: QuerySource['language']; guardrails: Guardrails } | undefined;
   /**
+   * The schema snapshot of a connector by name: the cached one, or read from the source and
+   * cached when it was never read. For the gate, which decides what the model sees of it.
+   *
+   * @param name - The connector name.
+   * @param signal - Aborted when the caller gives up.
+   * @returns The snapshot.
+   * @throws {AppError} `not_found` for an unknown name, `source_failed` when a read fails.
+   */
+  snapshot(name: string, signal: AbortSignal): Promise<SchemaSnapshot>;
+  /**
+   * The gate's view of every connector whose kind this server offers.
+   *
+   * @returns Each connector's subject and query language.
+   */
+  subjects(): { subject: GateSubject; language: QuerySource['language'] }[];
+  /**
    * Closes every open connection, at shutdown.
    *
    * @returns When they are closed.
@@ -509,6 +525,41 @@ function lookupConnector(context: ServiceContext, name: string) {
 }
 
 /**
+ * The schema snapshot of a connector by name, read and cached when it was never read.
+ *
+ * @param context - The service context.
+ * @param name - The connector name.
+ * @param signal - Aborted when the caller gives up.
+ * @returns The snapshot.
+ */
+async function snapshotByName(
+  context: ServiceContext,
+  name: string,
+  signal: AbortSignal,
+): Promise<SchemaSnapshot> {
+  const row = context.repository.getByName(name);
+  if (!row) throw new AppError('not_found', `No connector is named "${name}".`);
+  const cached = context.repository.readSchema(row.id);
+  if (cached) return snapshotSchema.parse(cached.snapshot);
+  const snapshot = await (await instanceOf(context, row)).describe(signal).catch(asSourceFailure);
+  context.repository.writeSchema(row.id, { snapshot, readAt: context.clock() });
+  return snapshot;
+}
+
+/**
+ * The gate's view of every connector whose kind this server offers.
+ *
+ * @param context - The service context.
+ * @returns Each connector's subject and query language.
+ */
+function subjectsOf(context: ServiceContext) {
+  return context.repository.list().flatMap((row) => {
+    const kind = context.kinds.find((candidate) => candidate.kind === row.kind);
+    return kind ? [{ subject: toSubject(row), language: kind.language }] : [];
+  });
+}
+
+/**
  * Creates the connectors service.
  *
  * @param dependencies - Kinds, repositories, and the secret box.
@@ -536,6 +587,8 @@ export function createConnections(dependencies: ConnectionsDependencies): Connec
     refreshSchema: (id, signal) => refreshSchema(context, id, signal),
     open: (name) => openConnector(context, name),
     lookup: (name) => lookupConnector(context, name),
+    snapshot: (name, signal) => snapshotByName(context, name, signal),
+    subjects: () => subjectsOf(context),
     closeAll: async () => {
       await Promise.all([...context.instances.keys()].map((id) => closeInstance(context, id)));
     },
