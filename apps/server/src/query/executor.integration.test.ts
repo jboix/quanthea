@@ -42,7 +42,8 @@ describe.skipIf(!integrationEnabled)('query executor against the dev sources', (
     guardrails,
   };
 
-  afterAll(() => postgres.close());
+  // Closing waits up to 5 s for a statement still being cancelled; the hook needs longer.
+  afterAll(() => postgres.close(), 10_000);
 
   /**
    * Counts the rows of orders whose status is a value, through the executor (no cache).

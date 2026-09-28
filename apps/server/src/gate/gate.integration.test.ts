@@ -28,7 +28,8 @@ describe.skipIf(!integrationEnabled)('the gate over the dev database', () => {
     instance,
     guardrails: { timeoutMs: 5000, maxRows: 1000, maxRangeDays: 7 },
   };
-  afterAll(() => instance.close());
+  // Closing waits up to 5 s for a statement still being cancelled; the hook needs longer.
+  afterAll(() => instance.close(), 10_000);
 
   /**
    * Runs a query through the gate.
