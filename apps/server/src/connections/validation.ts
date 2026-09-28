@@ -14,6 +14,18 @@ interface SettingIssue {
 }
 
 /**
+ * Names a missing value plainly, instead of Zod's "expected string, received undefined".
+ *
+ * @param issue - The issue Zod is about to report.
+ * @param issue.code - Its code.
+ * @param issue.input - The value it is about.
+ * @returns `Required.` for a missing value, else `undefined` for Zod's own message.
+ */
+function missingIsRequired(issue: { readonly code?: string; readonly input?: unknown }) {
+  return issue.code === 'invalid_type' && issue.input === undefined ? 'Required.' : undefined;
+}
+
+/**
  * Parses one part with a kind's schema, collecting issues. Issues never quote the value, because a
  * secret may be in it.
  *
@@ -29,7 +41,7 @@ function parsePart(
   value: unknown,
   issues: SettingIssue[],
 ): unknown {
-  const parsed = schema.safeParse(value);
+  const parsed = schema.safeParse(value, { error: missingIsRequired });
   if (parsed.success) return parsed.data;
   parsed.error.issues.forEach((issue) => {
     issues.push({ part, path: issue.path.map(String).join('.'), message: issue.message });

@@ -117,6 +117,11 @@ describe('connections', () => {
     expect(JSON.stringify([invalid, taken])).not.toContain(secretToken);
   });
 
+  test('says a missing setting is required', async () => {
+    const missing = await failureOf(createEvents({ secret: {} }));
+    expect(missing.details).toEqual([{ part: 'secret', path: 'token', message: 'Required.' }]);
+  });
+
   test('refuses an unknown kind', async () => {
     expect((await failureOf(createEvents({ kind: 'oracle' }))).message).toBe(
       'Unknown connector kind "oracle".',
