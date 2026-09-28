@@ -1,0 +1,198 @@
+{
+  "specVersion": 1,
+  "title": "Checkout incident",
+  "description": "Error rate, latency and failed orders for checkout around deploy #481.",
+  "time": { "from": "now-2d", "to": "now" },
+  "variables": [
+    { "kind": "custom", "name": "env", "options": ["prod", "staging"], "default": "prod" },
+    {
+      "kind": "query",
+      "name": "service",
+      "source": {
+        "connector": "prometheus-dev",
+        "language": "promql",
+        "instant": true,
+        "expr": "group by (service) (http_requests_total{env=\"$env\"})"
+      },
+      "multi": true,
+      "includeAll": true,
+      "default": ["checkout-svc", "payments-svc"]
+    }
+  ],
+  "annotations": [
+    {
+      "id": "deploys",
+      "label": "deploy",
+      "query": {
+        "refId": "D",
+        "connector": "postgres-orders",
+        "language": "sql",
+        "sql": "SELECT deployed_at AS time, 'deploy #' || id AS text FROM deploys WHERE service IN ('checkout-svc', 'payments-svc') AND deployed_at BETWEEN :__from AND :__to ORDER BY deployed_at"
+      },
+      "timeField": "time",
+      "textField": "text"
+    }
+  ],
+  "panels": [
+    {
+      "id": "error-rate-peak",
+      "title": "Error rate · peak",
+      "grid": { "x": 0, "y": 0, "w": 4, "h": 3 },
+      "queries": [
+        {
+          "refId": "A",
+          "connector": "prometheus-dev",
+          "language": "promql",
+          "step": "1m",
+          "expr": "sum(rate(http_requests_total{service=\"checkout-svc\",env=\"$env\",code=~\"5..\"}[1m])) / sum(rate(http_requests_total{service=\"checkout-svc\",env=\"$env\"}[1m]))"
+        }
+      ],
+      "view": {
+        "kind": "stat",
+        "ref": "A",
+        "reduce": "max",
+        "format": { "$fmt": "percent", "decimals": 1, "input": "ratio" },
+        "compare": { "ref": "A", "reduce": "first", "label": "baseline" }
+      }
+    },
+    {
+      "id": "p95-latency-peak",
+      "title": "p95 latency · peak",
+      "grid": { "x": 4, "y": 0, "w": 4, "h": 3 },
+      "queries": [
+        {
+          "refId": "A",
+          "connector": "prometheus-dev",
+          "language": "promql",
+          "step": "1m",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"checkout-svc\",env=\"$env\"}[5m])))"
+        }
+      ],
+      "view": {
+        "kind": "stat",
+        "ref": "A",
+        "reduce": "max",
+        "format": { "$fmt": "duration", "unit": "s" },
+        "compare": { "ref": "A", "reduce": "first", "label": "baseline" }
+      }
+    },
+    {
+      "id": "failed-orders",
+      "title": "Failed orders",
+      "grid": { "x": 8, "y": 0, "w": 4, "h": 3 },
+      "queries": [
+        {
+          "refId": "A",
+          "connector": "postgres-orders",
+          "language": "sql",
+          "sql": "SELECT count(*) AS failed FROM orders WHERE status = 'failed' AND created_at BETWEEN :__from AND :__to"
+        }
+      ],
+      "view": {
+        "kind": "stat",
+        "ref": "A",
+        "field": "failed",
+        "reduce": "last",
+        "format": { "$fmt": "number", "decimals": 0 },
+        "subtitle": "postgres-orders"
+      }
+    },
+    {
+      "id": "error-rate-by-service",
+      "title": "Error rate by service, 1m",
+      "grid": { "x": 0, "y": 3, "w": 12, "h": 8 },
+      "queries": [
+        {
+          "refId": "A",
+          "connector": "prometheus-dev",
+          "language": "promql",
+          "step": "1m",
+          "expr": "sum by (service) (rate(http_requests_total{service=~\"$service\",env=\"$env\",code=~\"5..\"}[1m])) / sum by (service) (rate(http_requests_total{service=~\"$service\",env=\"$env\"}[1m]))"
+        }
+      ],
+      "view": {
+        "kind": "chart",
+        "datasets": [{ "ref": "A" }],
+        "markers": [{ "annotation": "deploys" }],
+        "option": {
+          "xAxis": { "type": "time" },
+          "yAxis": {
+            "type": "value",
+            "axisLabel": { "formatter": { "$fmt": "percent", "decimals": 1, "input": "ratio" } }
+          },
+          "tooltip": {
+            "trigger": "axis",
+            "valueFormatter": { "$fmt": "percent", "decimals": 2, "input": "ratio" }
+          },
+          "legend": { "top": 0, "right": 0 },
+          "series": [{ "type": "line", "showSymbol": false }]
+        }
+      }
+    },
+    {
+      "id": "top-5xx-codes",
+      "title": "Top 5xx status codes",
+      "grid": { "x": 0, "y": 11, "w": 6, "h": 7 },
+      "queries": [
+        {
+          "refId": "A",
+          "connector": "prometheus-dev",
+          "language": "promql",
+          "instant": true,
+          "expr": "sort_desc(sum by (code) (increase(http_requests_total{env=\"$env\",code=~\"5..\"}[$__range])))"
+        }
+      ],
+      "view": {
+        "kind": "chart",
+        "datasets": [{ "ref": "A" }],
+        "option": {
+          "xAxis": {
+            "type": "value",
+            "axisLabel": { "formatter": { "$fmt": "number", "compact": true } }
+          },
+          "yAxis": { "type": "category", "inverse": true },
+          "tooltip": { "valueFormatter": { "$fmt": "number", "decimals": 0 } },
+          "series": [
+            {
+              "type": "bar",
+              "barMaxWidth": 18,
+              "label": {
+                "show": true,
+                "position": "right",
+                "formatter": { "$fmt": "number", "decimals": 0 }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slowest-endpoints",
+      "title": "Slowest endpoints",
+      "grid": { "x": 6, "y": 11, "w": 6, "h": 7 },
+      "queries": [
+        {
+          "refId": "A",
+          "connector": "prometheus-dev",
+          "language": "promql",
+          "instant": true,
+          "expr": "topk(5, histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket{env=\"$env\"}[$__range]))))"
+        }
+      ],
+      "view": {
+        "kind": "table",
+        "ref": "A",
+        "columns": [
+          { "field": "route", "label": "Endpoint" },
+          {
+            "field": "Value",
+            "label": "p95",
+            "format": { "$fmt": "duration", "unit": "s" },
+            "align": "right"
+          }
+        ],
+        "sort": { "field": "Value", "dir": "desc" }
+      }
+    }
+  ]
+}

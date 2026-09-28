@@ -669,6 +669,10 @@ is editable in the UI.
   `bun --hot apps/server/src/main.ts` (3000).
 - `bun run env:up` starts the local data sources in `dev/docker-compose.yml`, and `bun run env:down`
   deletes them with their data.
+- `bun run dev:seed` adds the dev connectors (`postgres-orders`, `prometheus-dev`) to a running
+  server in open access mode, then creates and pins the checkout incident dashboard
+  (`dev/seed/checkout-incident.json`) with its time range around the incident, and prints its
+  address. `QUERENT_URL` points at the server (`http://localhost:3000` by default).
 
 | Source     | Address          | Contents                                                                                                                                                                                        |
 | ---------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -694,6 +698,8 @@ is editable in the UI.
 - **Integration** (`bun run test:integration`, after `bun run env:up`): each connector against the
   real service, in `*.integration.test.ts` files that run only with `QUERENT_INTEGRATION=1`. Every
   connector kind also runs the conformance suite there. CI runs them in the `integration` job.
+  `dashboards/checkout-fixture.integration.test.ts` pins the seed's fixture and runs every panel as
+  a viewer with no model configured anywhere.
 - **Web:** unit tests for the chart adapter, the panel reductions and tables, and the URL state.
   Component tests for the plan card, diff card and variables bar (happy-dom) and Playwright smoke
   tests later.
