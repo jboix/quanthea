@@ -376,8 +376,20 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   `SET LOCAL statement_timeout`, wrapped in `LIMIT maxRows + 1`. `describe` reads `pg_catalog`
   (comments, `reltuples`, `pg_stats.n_distinct`), never table data. SQLSTATEs map to connector
   errors; data errors (class 22) never quote the value.
-- **OpenSearch:** the official client, verified under Bun early (checked with a spike before the connector is built). The query
-  body is DSL JSON with structural variables. `describe` = index patterns + mappings.
+- **OpenSearch:** the official client (`@opensearch-project/opensearch`), only in
+  `connectors/opensearch/`. The query body is DSL JSON with structural variables. `describe` =
+  index patterns + mappings. A spike (client 3.9.0, Bun 1.3.14, OpenSearch 3.8.0) found:
+  - `info`, `bulk`, `indices.getMapping` on a pattern, and `search` with a range filter, a
+    `date_histogram` and nested `terms` aggregations all work under Bun.
+  - Cancelling works through the returned promise's `abort()` (`RequestAbortedError`); the
+    `signal` and `abortController` request options are ignored, under Node too. The connector
+    wires the execution signal to `abort()`.
+  - `requestTimeout` stops a request on the client side. The `timeout` search parameter is best
+    effort on the server and returns partial results with `timed_out`.
+  - Errors are `ResponseError`s with `meta.statusCode` and `meta.body.error.type`. The reason text
+    quotes query values, so the safe message uses the error type only.
+  - OpenSearch has no read-only transaction: the connector calls read APIs only, and the
+    credentials should hold a read-only role.
 - **HTTP JSON:** GET only by default. The response is mapped to frames with a small declarative
   extractor (JSON pointer paths), not code.
 
