@@ -56,7 +56,12 @@ export {
   type FormatFunction,
   type FormatOptions,
 } from './formatters/format.ts';
-export { type Formatter, formatterSchema, type NamedFormatter } from './formatters/schema.ts';
+export {
+  type Formatter,
+  formatterSchema,
+  type NamedFormatter,
+  namedFormatterSchema,
+} from './formatters/schema.ts';
 export {
   type Field,
   type FieldType,

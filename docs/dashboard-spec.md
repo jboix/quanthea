@@ -160,19 +160,27 @@ they differ from the sketch above, the schemas win:
 
 ## Validation beyond the schema
 
-The Zod schema catches shape errors. `dashboards/validate` also checks:
+The Zod schema catches shape errors. `dashboards/validate` (`validateSpec`) also checks:
 
-- every `connector` exists and the principal may use it;
-- every `$var` / `:var` / `{"$var"}` in a query refers to a declared variable or a built-in;
+- every `connector` exists and runs the query's language;
+- every query binds with the declared variables, exactly as it will at run time: an unknown or
+  misplaced variable, a multi-value variable where one value fits (`env="$services"`), or a SQL
+  template that is not one read statement are all reported when the spec is saved;
 - `refId`s are unique within a panel, and every `ref` in a view points at one of them;
-- panel ids are unique and URL-safe;
-- `option` passes the ECharts allowlist (top-level keys, series types) and contains no string
-  longer than 500 characters (a cheap guard against smuggled payloads);
-- the grid has no overlaps (the validator auto-packs if it finds any, rather than failing);
-- the connector's guardrails are satisfied by the defaults (e.g. the default time range ≤ max range).
+- panel, annotation and variable names are unique, and chart `markers` name an annotation;
+- a variable's default is among its options, and a text variable's pattern compiles and matches
+  its default;
+- `option` passes the ECharts allowlist: top-level keys `xAxis`, `yAxis`, `series`, `legend`,
+  `tooltip`, `visualMap` and `dataZoom`; series types `line`, `bar`, `scatter`, `pie`, `heatmap`
+  and `gauge`; no `data` in a series; no `renderMode`, `appendToBody` or `className`, which the
+  renderer sets; every `$fmt` object is a valid named formatter; no string longer than 500
+  characters (a cheap guard against smuggled payloads);
+- the time zone is known, and the default time range runs forwards and fits the `maxRangeDays` of
+  every connector the spec uses;
+- the grid has no overlaps: the validator moves an overlapping panel down rather than failing.
 
 Validation errors go back to the model as structured tool results
-(`{ path: 'panels[3].view.ref', message: 'unknown refId "C"' }`) so it can repair them.
+(`{ path: 'panels[3].view.ref', message: 'Unknown refId "C".' }`) so it can repair them.
 
 ## Example: "Checkout incident · 26 Sep", v3
 

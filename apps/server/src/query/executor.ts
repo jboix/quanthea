@@ -10,17 +10,11 @@ import {
   type QueryLanguage,
   type TimeRange,
 } from '../connectors/_shared/index.ts';
+import { bindTemplate, maxPromqlPoints, type QueryTemplate } from './bind.ts';
 import { checkTimeRange } from './guardrails.ts';
-import { bindPromql, type PromqlTemplate } from './promql-binder.ts';
 import { QueryError } from './query-error.ts';
 import type { ResultCache } from './result-cache.ts';
-import { bindSql } from './sql-binder.ts';
 import type { Variables } from './variables.ts';
-
-/** A query as a dashboard or the agent writes it: a template in one language. */
-export type QueryTemplate =
-  | { readonly language: 'sql'; readonly sql: string }
-  | ({ readonly language: 'promql' } & PromqlTemplate);
 
 /** A connector ready to run queries, as the caller resolved it. */
 export interface QuerySource {
@@ -60,9 +54,6 @@ export interface QueryResult {
   readonly cached: boolean;
 }
 
-/** The most points one Prometheus series may have, whatever the row limit. */
-const maxPromqlPoints = 11_000;
-
 /**
  * Binds a template for its language.
  *
@@ -79,10 +70,8 @@ function bind(source: QuerySource, request: QueryRequest): BoundQuery {
       `This connector runs ${source.language} queries, not ${template.language}.`,
     );
   }
-  if (template.language === 'sql')
-    return bindSql(template.sql, request.variables, request.timeRange);
   const maxPoints = Math.min(source.guardrails.maxRows, maxPromqlPoints);
-  return bindPromql(template, request.variables, request.timeRange, maxPoints);
+  return bindTemplate(template, request.variables, request.timeRange, maxPoints);
 }
 
 /**

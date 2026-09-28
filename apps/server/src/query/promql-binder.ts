@@ -20,9 +20,9 @@ export interface PromqlTemplate {
   /** The expression. */
   readonly expr: string;
   /** Evaluate once at the end of the time range instead of over it. */
-  readonly instant?: boolean;
+  readonly instant?: boolean | undefined;
   /** The smallest step between points, such as `15s` or `1m`. */
-  readonly step?: string;
+  readonly step?: string | undefined;
 }
 
 /** Where a string literal or a comment may start. */
