@@ -305,7 +305,6 @@ shows depends on the connector's access level.
 
 | Tool                                                | Returns                                                                           | Notes                                                                                  |
 | --------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `list_connectors()`                                 | name, kind, query language, what the access level shows                           |                                                                                        |
 | `describe(connector, scope?)`                       | entities and fields minus hidden ones, at most 60, and how many more matched      | From the schema cache; read from the source when never read.                           |
 | `sample_values(connector, entity, field, limit≤50)` | distinct values                                                                   | Level 2 and up. Refuses hidden and high-cardinality fields.                            |
 | `test_query(connector, query, variables?, time?)`   | L1: ok or error. L2: fields, types, row counts. L3: plus summaries. L4: plus rows | Default range `now-6h` to `now`. Errors are safe messages below L4.                    |
@@ -314,6 +313,19 @@ shows depends on the connector's access level.
 | `patch_panel(panelId, changes, changeSummary)`      | same                                                                              | Changes one existing panel of the latest version; no plan needed in a ready thread.    |
 
 `search_library` and `get_dashboard` arrive with the library and variants.
+
+### The catalog
+
+The model starts every turn knowing the data: the instructions carry a catalog of the connectors
+(`gate/catalog.ts`), built by the gate from the cached schemas. Each connector gets a header with
+its kind, query language and access level, then one line per table (columns, types, row count) or
+metric (label names), at most 80 per connector, with a note to call `describe` for the rest.
+
+From level 2, fields with at most 20 distinct values also list their values, sampled through the
+same gate function as `sample_values`. A Prometheus label is sampled once per connector, since its
+values are counted across metrics. At most 30 fields are sampled per connector, and sampled values
+are kept for ten minutes. Level 1 shows no values and no row counts, and hidden fields never
+appear. The catalog replaces exploring call by call, which cost a model request per step.
 
 ### Writing a version
 
@@ -332,7 +344,7 @@ shows depends on the connector's access level.
 
 The instructions are assembled per turn (`agent/prompt.ts`) from fixed text (the rules, a compact
 description of the spec, the named formatters, a worked example) and the facts of the turn: the
-time now, the connectors with their access levels, the thread's state and approved plan, the
+time now, the catalog of the connectors, the thread's state and approved plan, the
 current draft, the panels the person mentions (the user message's `metadata.mentions`), and
 their time zone (`metadata.timeZone`), so "yesterday around 14:00" means their 14:00.
 

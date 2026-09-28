@@ -6,6 +6,7 @@
 import type { AccessLevel, Frame } from '@querent/shared';
 import type { SchemaSnapshot } from '../connectors/_shared/index.ts';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../query/executor.ts';
+import { buildCatalog, createValueCache, type ValueCache } from './catalog.ts';
 import { type ModelEntity, modelSchema } from './model-schema.ts';
 import { type ModelSample, sampleForModel } from './sample.ts';
 import type { GateSubject } from './subject.ts';
@@ -64,6 +65,14 @@ export interface ModelView {
    * @returns Name, kind, language and access of each.
    */
   connectors(): ModelConnector[];
+  /**
+   * The catalog: every connector's schema in compact lines, with the values of its
+   * low-cardinality fields, as far as each access level allows.
+   *
+   * @param signal - Aborted when the caller gives up.
+   * @returns The catalog text.
+   */
+  catalog(signal: AbortSignal): Promise<string>;
   /**
    * Describes a connector's schema.
    *
@@ -131,6 +140,22 @@ function unreachable(name: string): string {
 }
 
 /**
+ * The connectors in the model's words.
+ *
+ * @param access - The connectors service.
+ * @returns Name, kind, language and access of each.
+ */
+function modelConnectors(access: ConnectorAccess): ModelConnector[] {
+  return access.list().map(({ subject, language }) => ({
+    name: subject.name,
+    kind: subject.kind,
+    language,
+    accessLevel: subject.accessLevel,
+    access: levelMeanings[subject.accessLevel],
+  }));
+}
+
+/**
  * Creates the model's view of the connectors.
  *
  * @param access - What the connectors service provides.
@@ -139,15 +164,10 @@ function unreachable(name: string): string {
  */
 export function createModelView(access: ConnectorAccess, executor: QueryExecutor): ModelView {
   const subjects = () => new Map(access.list().map(({ subject }) => [subject.name, subject]));
+  const values = createValueCache();
   return {
-    connectors: () =>
-      access.list().map(({ subject, language }) => ({
-        name: subject.name,
-        kind: subject.kind,
-        language,
-        accessLevel: subject.accessLevel,
-        access: levelMeanings[subject.accessLevel],
-      })),
+    catalog: (signal) => catalogOf(access, values, signal),
+    connectors: () => modelConnectors(access),
     describe: (name, scope, signal) =>
       describeFor(access, subjects().get(name), name, scope, signal),
     async sample(name, field, limit, signal) {
@@ -168,6 +188,30 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
         : { ok: false, error: outcome.error };
     },
   };
+}
+
+/**
+ * Reads every connector for the catalog: its schema and an instance to sample from.
+ *
+ * @param access - The connectors service.
+ * @param values - The value cache.
+ * @param signal - Aborted when the caller gives up.
+ * @returns The catalog text.
+ */
+async function catalogOf(
+  access: ConnectorAccess,
+  values: ValueCache,
+  signal: AbortSignal,
+): Promise<string> {
+  const sources = await Promise.all(
+    access.list().map(async ({ subject, language }) => {
+      const snapshot = await access.snapshot(subject.name, signal).catch(() => undefined);
+      const opened = await access.open(subject.name).catch(() => undefined);
+      const words = levelMeanings[subject.accessLevel];
+      return { subject, language, access: words, snapshot, instance: opened?.source.instance };
+    }),
+  );
+  return buildCatalog(sources, values, signal);
 }
 
 /**

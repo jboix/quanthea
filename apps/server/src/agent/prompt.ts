@@ -1,10 +1,9 @@
 /**
  * Assembles the agent's instructions for one turn: the fixed rules and spec guide, then what is
- * true now: the time, the connectors, the thread's state and plan, its current draft, and the
- * panels the person mentions.
+ * true now: the time, the connectors' catalog, the thread's state and plan, its current draft,
+ * and the panels the person mentions.
  */
 import type { DashboardSpec, Plan } from '@querent/shared';
-import type { ModelConnector } from '../gate/model-view.ts';
 import type { ThreadState } from '../threads/state.ts';
 import { example, formatterGuide, rules, specGuide } from './prompt-text.ts';
 
@@ -12,8 +11,8 @@ import { example, formatterGuide, rules, specGuide } from './prompt-text.ts';
 export interface TurnFacts {
   /** The current instant. */
   readonly now: number;
-  /** The connectors, as the model view lists them. */
-  readonly connectors: readonly ModelConnector[];
+  /** The connectors' catalog: schemas and common values, as the gate shows them. */
+  readonly catalog: string;
   /** The thread's state. */
   readonly state: ThreadState;
   /** The latest plan of the thread, if any, and its status. */
@@ -77,7 +76,7 @@ function nowLine(now: number, timeZone: string | undefined): string {
 function situation(facts: TurnFacts): string {
   const lines = [
     nowLine(facts.now, facts.timeZone),
-    `Connectors: ${JSON.stringify(facts.connectors)}`,
+    `Connectors and their data (the catalog):\n${facts.catalog}`,
     `Thread: ${stateLine(facts)}`,
   ];
   if (facts.draft)

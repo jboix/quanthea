@@ -1,5 +1,5 @@
 /**
- * The tools that explore data: list the connectors, describe a schema, sample values, and test a
+ * The tools that explore data beyond the catalog: describe a schema, sample values, and test a
  * query. Every answer comes from the model view, so the gate decides what the model sees.
  */
 import { tool } from 'ai';
@@ -36,7 +36,7 @@ function bindingsOf(variables: Readonly<Record<string, string | string[]>> | und
 }
 
 /**
- * The tools that read schemas: the connector list, descriptions and sample values.
+ * The tools that read schemas beyond the catalog: descriptions and sample values.
  *
  * @param context - The run.
  * @returns The tools.
@@ -44,12 +44,6 @@ function bindingsOf(variables: Readonly<Record<string, string | string[]>> | und
 function schemaTools(context: RunContext) {
   const { modelView, signal } = context;
   return {
-    list_connectors: tool({
-      description:
-        'List the connectors: name, kind, query language, and what the access level lets you see.',
-      inputSchema: z.object({}),
-      execute: () => ({ connectors: modelView.connectors() }),
-    }),
     describe: tool({
       description:
         'Describe the schema of a connector: tables and columns, or metrics and labels. Pass a scope to only list entities whose name contains it; large sources need one.',

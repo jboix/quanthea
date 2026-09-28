@@ -201,7 +201,7 @@ function accept(dependencies: AgentDependencies, request: ChatRequest, budget: n
  * @param now - The current instant.
  * @returns The instructions.
  */
-function turnInstructions(
+async function turnInstructions(
   context: RunContext,
   plans: ReturnType<AgentServices['threads']['get']>['plans'],
   hints: MessageHints,
@@ -216,7 +216,7 @@ function turnInstructions(
   const latest = plans.at(-1);
   return instructionsFor({
     now,
-    connectors: context.modelView.connectors(),
+    catalog: await context.modelView.catalog(context.signal),
     state,
     plan: latest ? { body: latest.body, status: latest.status } : undefined,
     draft: spec ? { version, spec } : undefined,
@@ -330,7 +330,7 @@ function respond(
         signal,
         counters,
       };
-      const instructions = turnInstructions(context, turn.plans, turn.hints, now());
+      const instructions = await turnInstructions(context, turn.plans, turn.hints, now());
       await streamTurn(context, turn.model, turn.messages, instructions, now);
     },
     onEnd: ({ messages }) => {

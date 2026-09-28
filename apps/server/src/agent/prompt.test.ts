@@ -10,7 +10,7 @@ const plan: Plan = {
 
 const facts: TurnFacts = {
   now: Date.parse('2026-09-28T14:51:00Z'),
-  connectors: [],
+  catalog: '## events (memory, sql): level 2',
   state: 'idle',
   plan: undefined,
   draft: undefined,

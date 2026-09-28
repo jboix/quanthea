@@ -126,7 +126,7 @@ async function builtThread(): Promise<void> {
 describe('an agent run', () => {
   test('explores through the gate, proposes a plan, and stops for approval', async () => {
     const agent = agentWith(
-      { tool: 'list_connectors', input: {} },
+      { tool: 'describe', input: { connector: 'events' } },
       {
         tool: 'test_query',
         input: { connector: 'events', query: { language: 'sql', sql: 'SELECT * FROM events' } },
@@ -142,7 +142,7 @@ describe('an agent run', () => {
     expect(thread.tokensUsed).toBe(45);
     expect(storedPartTypes()).toEqual([
       ['text'],
-      ['tool-list_connectors', 'tool-test_query', 'tool-propose_plan', 'data-plan'],
+      ['tool-describe', 'tool-test_query', 'tool-propose_plan', 'data-plan'],
     ]);
     const assistant = thread.messages[1] as { parts: { type: string; output?: unknown }[] };
     const tested = assistant.parts.find((part) => part.type === 'tool-test_query');
