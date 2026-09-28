@@ -1,0 +1,83 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.shell {
+  display: flex;
+  flex-grow: 1;
+  min-height: 0;
+}
+
+.main {
+  flex-grow: 1;
+  min-width: 0;
+  overflow: auto;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  width: var(--rail-width);
+  padding: 14px 0;
+  background: var(--color-rail);
+}
+
+.logo {
+  display: flex;
+  margin-bottom: 12px;
+  border-radius: 8px;
+}
+
+.spacer {
+  flex-grow: 1;
+}
+
+.railLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: var(--color-rail-icon);
+}
+
+.railLink:hover {
+  color: #ffffff;
+}
+
+.railLink[aria-current="page"] {
+  background: var(--color-rail-active);
+  color: #ffffff;
+}
+
+.fullPage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  color: var(--color-ink-secondary);
+}
+
+.pulse {
+  display: flex;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}

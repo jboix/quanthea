@@ -1,0 +1,33 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 36px 48px;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-ink-secondary);
+}

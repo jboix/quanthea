@@ -1,0 +1,22 @@
+.list {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  border-bottom-color: var(--color-accent);
+  font-weight: 600;
+  color: var(--color-ink);
+}

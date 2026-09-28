@@ -1,0 +1,116 @@
+import { describe, expect, test } from 'bun:test';
+import { type Principal, type Role, roles } from '@querent/shared';
+import { createMemoryRouter } from 'react-router';
+import { routeAccess } from './route-access.ts';
+import { createRoutes } from './router.tsx';
+import type { Session } from './session.ts';
+
+/**
+ * A session for a user with `role` in `none`-independent terms.
+ *
+ * @param role - The role of the user.
+ * @returns The session.
+ */
+function sessionFor(role: Role): Session {
+  const principal: Principal = { id: `user-${role}`, name: role, role };
+  return { principal, authMode: 'basic' };
+}
+
+/**
+ * Starts a memory router at `path` and waits until its loaders have settled.
+ *
+ * @param path - The initial URL.
+ * @param session - The session every loader sees, or `null` for "not signed in".
+ * @returns The router state once idle.
+ */
+async function navigate(path: string, session: Session | null) {
+  const router = createMemoryRouter(
+    createRoutes(() => Promise.resolve(session)),
+    { initialEntries: [path] },
+  );
+  await new Promise<void>((resolve) => {
+    const isSettled = () => router.state.initialized && router.state.navigation.state === 'idle';
+    if (isSettled()) return resolve();
+    const unsubscribe = router.subscribe(() => {
+      if (!isSettled()) return;
+      unsubscribe();
+      resolve();
+    });
+  });
+  return router.state;
+}
+
+/**
+ * Fills every `:name` segment with a sample value.
+ *
+ * @param pattern - A route pattern such as `/d/:dashboardId`.
+ * @returns A concrete path.
+ */
+function samplePath(pattern: string): string {
+  return pattern.replace(/:([A-Za-z]+)/g, 'sample-$1');
+}
+
+/**
+ * Collects the HTTP statuses of the route errors in a state.
+ *
+ * @param errors - `router.state.errors`.
+ * @returns The statuses, empty when no route failed.
+ */
+function errorStatuses(errors: Record<string, unknown> | null): unknown[] {
+  return Object.values(errors ?? {}).map((error) => (error as { status?: number }).status);
+}
+
+describe('screen access', () => {
+  for (const [pattern, minimum] of Object.entries(routeAccess)) {
+    for (const role of roles) {
+      const allowed = roles.indexOf(role) >= roles.indexOf(minimum);
+      test(`${role} ${allowed ? 'opens' : 'gets 403 on'} ${pattern}`, async () => {
+        const state = await navigate(samplePath(pattern), sessionFor(role));
+        expect(state.location.pathname).toBe(samplePath(pattern));
+        expect(errorStatuses(state.errors)).toEqual(allowed ? [] : [403]);
+      });
+    }
+  }
+});
+
+describe('redirects', () => {
+  test.each([
+    ['viewer', '/library'],
+    ['editor', '/threads/new'],
+    ['admin', '/threads/new'],
+  ] as const)('/ sends a %s to %s', async (role, target) => {
+    expect((await navigate('/', sessionFor(role))).location.pathname).toBe(target);
+  });
+
+  test('a screen without a session sends the user to the login page, remembering the path', async () => {
+    const state = await navigate('/d/abc?from=link', null);
+    expect(state.location.pathname).toBe('/login');
+    expect(state.location.search).toBe(`?next=${encodeURIComponent('/d/abc?from=link')}`);
+  });
+
+  test('the login page sends a signed-in user on to a local path only', async () => {
+    const admin = sessionFor('admin');
+    expect((await navigate('/login?next=/bin', admin)).location.pathname).toBe('/bin');
+    expect((await navigate('/login?next=//evil.example', admin)).location.pathname).toBe(
+      '/threads/new',
+    );
+  });
+
+  test('the login page stays put without a session', async () => {
+    const state = await navigate('/login', null);
+    expect(state.location.pathname).toBe('/login');
+    expect(state.errors).toBeNull();
+  });
+
+  test('/settings opens the model section', async () => {
+    expect((await navigate('/settings', sessionFor('admin'))).location.pathname).toBe(
+      '/settings/model',
+    );
+  });
+
+  test('an unknown path renders the not-found screen without an error', async () => {
+    const state = await navigate('/nowhere', sessionFor('viewer'));
+    expect(state.errors).toBeNull();
+    expect(state.matches.at(-1)?.route.path).toBe('*');
+  });
+});

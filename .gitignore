@@ -1,0 +1,48 @@
+# dependencies (bun install)
+node_modules
+
+# output
+out
+dist
+*.tgz
+
+# code coverage
+coverage
+*.lcov
+
+# logs
+logs
+*.log
+
+# dotenv environment variable files
+.env
+.env.*
+!.env.example
+
+# runtime state (QUERENT_DATA_DIR)
+data/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+
+# caches
+.cache
+*.tsbuildinfo
+
+# secrets
+*.pem
+
+# generated
+dependency-graph.svg
+
+# IntelliJ based IDEs
+.idea
+
+# VisualStudioCode
+.vscode
+.vscode-test
+.history
+
+# Finder (MacOS) folder config
+.DS_Store

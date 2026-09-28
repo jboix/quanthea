@@ -1,0 +1,20 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid;
+}
+
+.warning {
+  background: var(--color-draft-soft);
+  border-color: #f0dcb8;
+  color: var(--color-draft);
+}
+
+.info {
+  background: var(--color-accent-soft);
+  border-color: #d6e0f7;
+  color: var(--color-accent);
+}

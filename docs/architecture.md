@@ -1,0 +1,590 @@
+# Architecture
+
+How querent is laid out and how the pieces talk to each other. The design is deliberately
+simple: one Bun process, one SQLite file, one React SPA. The complexity budget goes to the parts
+that deserve it: the spec, the access gate and the agent loop.
+
+The spec format is in [dashboard-spec.md](dashboard-spec.md).
+
+---
+
+## 1. The big picture
+
+```mermaid
+flowchart LR
+  subgraph Browser["Browser: React SPA"]
+    Thread["Thread (chat stream)"]
+    Dash["Dashboard renderer (ECharts)"]
+    Lib["Library / Bin / Settings"]
+  end
+
+  subgraph Server["Bun process: Hono"]
+    HTTP["http/ routes + auth middleware"]
+    Agent["agent/ AI SDK loop + tools"]
+    Gate["gate/ access levels + redaction"]
+    Query["query/ executor: bind vars, guardrails, cache"]
+    Conn["connectors/ prometheus · postgres · opensearch · http"]
+    Dom["dashboards/ threads/ search/ settings/ auth/"]
+    DB[("SQLite: data dir")]
+    Jobs["jobs/ bin purge"]
+  end
+
+  LLM["Model gateway (Anthropic / OpenAI / OpenAI-compatible)"]
+  Sources[("Prometheus · Postgres · OpenSearch · HTTP APIs")]
+
+  Thread -- "chat stream" --> HTTP
+  Dash -- "run panel {id, vars}" --> HTTP
+  Lib --> HTTP
+  HTTP --> Agent
+  HTTP --> Dom
+  HTTP --> Query
+  Agent -- tools --> Gate
+  Agent -- tools --> Dom
+  Agent <--> LLM
+  Gate --> Query
+  Query --> Conn
+  Conn --> Sources
+  Dom --> DB
+  Jobs --> Dom
+```
+
+The two paths that matter:
+
+- **Authoring** (costs tokens): thread → agent → tools → gate → query → connector. The model only
+  ever receives what the gate returns.
+- **Rendering** (no model): dashboard → `POST /api/panels/run` → query → connector → data frames
+  → browser → ECharts. The gate is not involved because the output goes to a human who is allowed
+  to see it (their role permits opening the dashboard).
+
+## 2. Repository layout
+
+```
+.
+├── apps/
+│   ├── server/                      @querent/server
+│   │   └── src/
+│   │       ├── main.ts              bootstrap: config → migrate → jobs → Bun.serve
+│   │       ├── app.ts               Hono app: middleware, /api routes, static SPA + fallback
+│   │       ├── config/              env parsing (Zod), defaults, data dir
+│   │       ├── lib/                 leaf utilities: errors, logger, ids, clock
+│   │       ├── http/                route modules + middleware (auth, errors, request id)
+│   │       ├── auth/                modes none|basic|oidc, sessions, Principal, role checks
+│   │       ├── agent/               AI SDK: provider factory, prompts, tools, run loop
+│   │       ├── gate/                what the model may see: access levels, hidden columns, error sanitizing
+│   │       ├── query/               executor: variable binding, guardrails, timeouts, result cache
+│   │       ├── connectors/          registry + _shared/ (Frame, interface) + one folder per kind
+│   │       │   ├── _shared/
+│   │       │   ├── prometheus/
+│   │       │   ├── postgres/
+│   │       │   ├── opensearch/
+│   │       │   └── http/
+│   │       ├── dashboards/          versions, validate, pin, variants, bin, diff
+│   │       ├── threads/             threads, messages, plans (state machine)
+│   │       ├── search/              FTS5 queries
+│   │       ├── settings/            typed settings store (auth, gateway, retention)
+│   │       ├── secrets/             encrypt/decrypt credentials at rest
+│   │       ├── jobs/                in-process scheduler; bin purge
+│   │       └── db/                  bun:sqlite client, migrations, repositories
+│   └── web/                         @querent/web
+│       ├── index.html
+│       ├── vite.config.ts           dev proxy /api → :3000
+│       └── src/
+│           ├── main.tsx
+│           ├── app/                 router, session, route guards, layout with nav rail, error page
+│           ├── routes/              thin route modules; compose features
+│           ├── features/
+│           │   ├── thread/          chat stream, plan card, diff cards, composer, @mentions
+│           │   ├── dashboard/       dashboard pane, variables bar, panels, inspector
+│           │   ├── library/         search, tag filters, cards
+│           │   ├── bin/
+│           │   ├── connectors/
+│           │   └── settings/        gateway, auth, retention
+│           ├── charts/              spec + frames → ECharts option; formatter wiring; theme
+│           ├── ui/                  presentational primitives (Button, Card, Pill, Tabs, Switch…), brand
+│           └── lib/                 typed API client (from shared contract), utils
+├── packages/
+│   └── shared/                      @querent/shared  (isomorphic: browser + Bun)
+│       └── src/
+│           ├── spec/                dashboard spec Zod schemas + types
+│           ├── api/                 endpoint contracts (method, path, input, output)
+│           ├── formatters/          named formatter library (pure functions)
+│           ├── frames.ts            result frame types
+│           ├── roles.ts             Role, capability matrix
+│           └── index.ts
+├── dev/                             docker-compose + seed data for local sources
+├── evals/                           prompt → expected-dashboard checks against dev sources
+├── docs/                            architecture, dashboard spec, brand, contributing, security
+├── scripts/                         remark-check-formatted.mjs (the docs:check plugin)
+├── AGENTS.md · CLAUDE.md            conventions for anyone writing code here
+├── Dockerfile · .tool-versions      the image, and the Bun version CI and the image use
+├── biome.json · knip.json · .dependency-cruiser.cjs · tsconfig.base.json
+├── .remarkrc.mjs · commitlint.config.js · .releaserc.json · .husky/
+└── .github/  dependabot.yml · workflows/quality.yml · workflows/release.yml · octocov.yml
+```
+
+## 3. Server modules and who may import whom
+
+The allowed dependencies are enforced by `.dependency-cruiser.cjs`. The table summarizes
+them.
+
+| Module                                            | Responsibility                                             | May import                                                                | Must not import                                 |
+| ------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
+| `lib/`                                            | errors, logger, ids                                        | nothing internal                                                          | everything else                                 |
+| `connectors/<kind>/`                              | talk to one kind of source; return Frames                  | `connectors/_shared`, `lib`, `@querent/shared`, its own driver            | other connector kinds, anything else in the app |
+| `query/`                                          | bind variables, enforce guardrails, run, cache             | `connectors`, `lib`, shared                                               | `agent`, `http`                                 |
+| `gate/`                                           | turn query results and schemas into what the model may see | `query`, `connectors/_shared`, `settings`, `lib`                          | `agent`, `http`                                 |
+| `agent/`                                          | AI SDK loop, prompts, tool definitions                     | `gate`, `dashboards`, `threads`, `search`, `settings`, `lib`              | **`connectors`, `query`, `db`**                 |
+| `dashboards/`, `threads/`, `search/`, `settings/` | domain logic                                               | `db`, `lib`, shared (`dashboards` also calls `query` to test-run on save) | `http`, `agent`                                 |
+| `db/`                                             | the only user of `bun:sqlite`                              | `lib`                                                                     | —                                               |
+| `http/`                                           | validate, authorize, call services, stream                 | services, `agent`, `auth`                                                 | `connectors`, `db`                              |
+| `auth/`                                           | modes, sessions, Principal                                 | `settings`, `db` via repositories, `lib`                                  | `agent`                                         |
+
+Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, only `db/` imports
+`bun:sqlite`, and only `connectors/opensearch/` imports the OpenSearch client. Postgres uses
+`Bun.sql` and Prometheus uses `fetch`.
+
+## 4. Web modules
+
+- `routes/` compose features. Features never import routes (rule `features-not-to-routes`).
+- Features reach each other only through their `index.ts(x)`
+  (`features-talk-through-their-index`). The thread route puts `features/thread` and
+  `features/dashboard` side by side. They share state through the URL (selected version, selected
+  panel) and the TanStack Query cache, not through imports of each other's internals.
+- `charts/` is the only place that imports ECharts (`echarts-only-in-charts`). It exposes
+  `<Chart spec={panel} frames={frames} />` and nothing about ECharts leaks out.
+- `@ai-sdk/react` is used only in `features/thread` (`ai-react-only-in-thread`).
+- `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
+  from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
+
+**Routes** (React Router data mode):
+
+| Path                                                       | Screen                                                     | Min role |
+| ---------------------------------------------------------- | ---------------------------------------------------------- | -------- |
+| `/`                                                        | redirect → `/library` (viewer) or `/threads/new` (editor+) | viewer   |
+| `/threads/new`, `/threads/:threadId`                       | Plan, Build and refine, Variant                            | editor   |
+| `/library`                                                 | Library (3)                                                | viewer   |
+| `/d/:dashboardId`                                          | Pinned view, latest pinned version (4)                     | viewer   |
+| `/d/:dashboardId/v/:version`                               | a specific version                                         | viewer   |
+| `/bin`                                                     | Bin                                                        | editor   |
+| `/connectors`, `/connectors/:connectorId`                  | Connectors (6)                                             | admin    |
+| `/settings/model`, `/settings/auth`, `/settings/retention` | Settings (7)                                               | admin    |
+| `/settings`                                                | redirect → `/settings/model`                               | admin    |
+| `/ui`                                                      | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
+| `/login`                                                   | only in `basic` / `oidc` modes                             | —        |
+
+Route loaders fetch through the typed API client. The root loader loads the session
+(`GET /api/me`, once per page load). Without a session, every screen redirects to
+`/login?next=<path>`. Each screen's loader checks its minimum role (`app/route-access.ts`) and
+throws a 403, which the error page shows as "Your role can't do this" inside the layout, so the
+rail stays. A test drives every screen with every role through the real route tree.
+
+TanStack Query is added with the first screen that caches server data. Until then, the loaders only
+load the session.
+
+## 5. Core flows
+
+### 5.1 Ask → plan → approve → build
+
+```mermaid
+sequenceDiagram
+  actor U as Editor
+  participant W as Web (thread)
+  participant H as http/threads
+  participant A as agent
+  participant G as gate
+  participant Q as query
+  participant D as dashboards
+  participant M as Model
+
+  U->>W: "What happened to checkout yesterday ~14:00?"
+  W->>H: POST /api/threads/:id/chat (stream)
+  H->>A: run(thread, message, principal)
+  A->>M: system prompt + history + tools
+  M->>A: list_connectors / describe / sample_values
+  A->>G: describe(connector)
+  G-->>A: schema minus hidden columns (per access level)
+  M->>A: propose_plan(plan)
+  A->>H: plan saved (status: pending) → streamed as a plan card
+  U->>W: Approve & build
+  W->>H: POST /api/threads/:id/plans/:planId/approve
+  H->>A: continue run
+  M->>A: write_dashboard(spec)
+  A->>D: validate + save as draft vN
+  D->>Q: test-run every panel query
+  Q-->>D: frames
+  D-->>A: per-panel result (shapes, via gate) or validation errors
+  A-->>M: tool result → model repairs if needed (bounded retries)
+  A->>H: draft vN ready → stream part "dashboard-version"
+  H-->>W: stream ends
+  W->>W: dashboard pane loads vN and runs its panels
+```
+
+**The thread state machine is enforced server-side:**
+
+```
+idle ──propose_plan──▶ plan_pending ──approve──▶ building ──done──▶ ready
+  ▲                         │ reject/edit                               │
+  └─────────────────────────┴────────────── new message ◀──────────────┘
+```
+
+`write_dashboard` refuses to run unless the thread is `building`, or `ready` with the change
+scoped to existing panels (the small-edit path). If the AI SDK's tool-approval feature fits this
+flow cleanly, use it for the UX, but the state check in `threads/` stays the source of truth.
+
+### 5.2 Render a panel (no model)
+
+1. The dashboard pane knows `{dashboardId, version}` and the current variable values.
+2. For each panel: `POST /api/panels/run {dashboardId, version, panelId, variables}`.
+3. The server loads the spec, checks the principal can view it, and hands each of the panel's
+   queries plus variables to `query/`.
+4. `query/` validates the variable values against the spec's declarations (allowed options, types),
+   binds them, applies the connector's guardrails, runs with a timeout, and caches for 15 s
+   by `(version, panelId, variables)`.
+5. It returns `{ frames: Frame[], meta }` to the browser. `charts/` builds the ECharts option.
+
+Panels run in parallel. Each panel handles its own loading and error states, and one failing
+panel never blanks the dashboard.
+
+### 5.3 Pin
+
+`POST /api/dashboards/:id/pin {version}` (editor+):
+
+1. Validate the version again and test-run every panel. A dashboard with broken panels can't be
+   pinned.
+2. The _metadata_ model writes the title, description and tags. **This is best effort**: if the
+   model is unavailable, pin anyway with the thread title and let tags be empty.
+3. Mark the version pinned (the SQLite trigger now blocks updates to it), set
+   `dashboards.pinned_version_id`, and upsert the FTS row.
+
+### 5.4 Make variant
+
+`POST /api/dashboards/:id/variants` creates a thread and a new dashboard whose draft v1 is a copy
+of the parent's pinned spec, with `parent_dashboard_id` and `parent_version` set. The agent's system
+prompt for that thread includes "this is a variant of X". The plan tool then describes changes as
+CHANGED / NEW / SAME against the parent, computed server-side by `dashboards/diff`.
+
+### 5.5 Bin and purge
+
+- `POST /api/dashboards/:id/bin` (editor+) sets `deleted_at`, removes the FTS row, and writes an
+  audit event.
+- `POST /api/bin/:id/restore` (editor+) clears `deleted_at` and re-indexes.
+- `DELETE /api/bin/:id` and `DELETE /api/bin` (admin) delete permanently.
+- `jobs/purge` runs hourly (and once at startup): if `retention.binDays` is set, it purges
+  dashboards where `deleted_at < now − binDays`. Purging deletes the dashboard and all its versions
+  in one transaction. Variants keep their `parent_dashboard_id`, and the UI renders "parent deleted".
+
+## 6. The agent
+
+### Tools
+
+Every tool validates its input with Zod, runs as the thread's principal, and returns compact
+JSON. Tool results are what the model sees, so they go through `gate/` whenever they carry
+anything from a source.
+
+| Tool                                        | Returns                                                                                     | Notes                                                           |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `list_connectors()`                         | name, kind, access level, description                                                       |                                                                 |
+| `describe(connector, scope?)`               | schema snapshot (tables/columns/types, metrics/labels, index mappings) minus hidden columns | Served from `schema_cache`. Refreshed on demand or daily.       |
+| `sample_values(connector, field, limit≤50)` | distinct values                                                                             | Level ≥ 2 only. Refuses high-cardinality fields.                |
+| `test_query(connector, query, variables)`   | L1: ok/error. L2: fields, types, row count. L3: plus aggregates. L4: plus rows ≤ cap        | Errors sanitized below L4.                                      |
+| `propose_plan(plan)`                        | `{planId}`                                                                                  | Moves the thread to `plan_pending`. The UI renders a plan card. |
+| `write_dashboard(spec)`                     | per-panel test results or validation errors                                                 | Creates draft vN. Only runs in `building` state.                |
+| `patch_panel(panelId, patch)`               | same                                                                                        | Small-edit path. Creates vN+1.                                  |
+| `search_library(query)`                     | pinned dashboards (title, tags, id)                                                         | Lets the agent suggest a variant instead of starting over.      |
+| `get_dashboard(id, version?)`               | spec                                                                                        | For variants and "ask about this".                              |
+
+### Prompting
+
+The system prompt is assembled per turn from:
+
+- the role and rules: author specs, never invent field names, always test-run, prefer fewer and
+  clearer panels, explain what you can't see at the current access level;
+- the spec schema, as a compact description of the Zod schema, plus 2–3 worked examples;
+- the formatter library names and parameters;
+- the connectors list with access levels and admin-written descriptions (the connector screen says
+  it: good descriptions beat a bigger model);
+- for variant threads, the parent spec;
+- the thread's current draft version, if there is one;
+- `@mentioned` panels, passed as structured context (panel id and title), not just as text.
+
+### Limits
+
+Each turn has a maximum number of tool calls (setting, default 25) and a maximum number of repair
+attempts per panel (3). Each thread has a token budget (setting). When a limit is hit, the run
+stops with a clear message in the thread, not a silent truncation.
+
+### Streaming
+
+`POST /api/threads/:id/chat` returns the AI SDK UI message stream. The web thread uses
+`@ai-sdk/react`. Custom stream parts carry `plan` (for the plan card), `dashboard-version` (to
+move the right pane to vN) and `diff` (for the change card). Messages are persisted when the run
+finishes, including tool parts, so a reload shows the same thread.
+
+## 7. Connectors
+
+```ts
+// connectors/_shared/types.ts (sketch)
+interface Connector {
+  readonly kind: 'prometheus' | 'postgres' | 'opensearch' | 'http'
+  test(signal: AbortSignal): Promise<Health>                     // reachability, read-only check, latency
+  describe(signal: AbortSignal): Promise<SchemaSnapshot>          // shape only
+  sampleValues(field: FieldRef, limit: number, signal: AbortSignal): Promise<string[]>
+  execute(q: BoundQuery, ctx: ExecContext): Promise<Frame[]>      // ctx: signal, timeoutMs, maxRows, timeRange
+}
+```
+
+Every connector returns **Frames** (`packages/shared/src/frames.ts`), a columnar format like
+Grafana's data frames:
+
+```ts
+type Field = { name: string; type: 'time' | 'number' | 'string' | 'boolean'; labels?: Record<string, string>; unit?: string }
+type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][]; meta: { rowCount: number; truncated: boolean; durationMs: number } }
+```
+
+- **Prometheus:** `query_range` over HTTP. One frame per series, with labels on the value field.
+  `describe` = metric names + label keys (from `/api/v1/labels`, `/api/v1/label/__name__/values`).
+- **Postgres:** `Bun.sql` with read-only transactions (`SET TRANSACTION READ ONLY`) and
+  `statement_timeout`. The executor also rejects non-SELECT statements before sending.
+  `describe` reads `information_schema` and `pg_catalog`.
+- **OpenSearch:** the official client, verified under Bun early (checked with a spike before the connector is built). The query
+  body is DSL JSON with structural variables. `describe` = index patterns + mappings.
+- **HTTP JSON:** GET only by default. The response is mapped to frames with a small declarative
+  extractor (JSON pointer paths), not code.
+
+Credentials are stored encrypted. A connector config holds everything else: URL, database,
+TLS options, the access level, hidden columns, guardrails, and table and field descriptions.
+
+## 8. Data model (SQLite)
+
+```sql
+-- settings: typed key/value, validated by Zod in settings/
+CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
+
+CREATE TABLE users (                                   -- basic auth mode only
+  id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, name TEXT,
+  password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('viewer','editor','admin')),
+  disabled INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL);
+
+CREATE TABLE sessions (
+  id TEXT PRIMARY KEY, subject TEXT NOT NULL, name TEXT, role TEXT NOT NULL,
+  mode TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL);
+
+CREATE TABLE connectors (
+  id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL, kind TEXT NOT NULL,
+  config TEXT NOT NULL,             -- JSON, non-secret
+  secret BLOB,                      -- AES-GCM ciphertext
+  access_level INTEGER NOT NULL DEFAULT 2 CHECK (access_level BETWEEN 1 AND 4),
+  hidden_fields TEXT NOT NULL DEFAULT '[]',
+  guardrails TEXT NOT NULL,         -- JSON: timeoutMs, maxRows, maxRangeDays, statements
+  descriptions TEXT NOT NULL DEFAULT '{}',
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+
+CREATE TABLE schema_cache (connector_id TEXT PRIMARY KEY REFERENCES connectors(id) ON DELETE CASCADE,
+  snapshot TEXT NOT NULL, read_at INTEGER NOT NULL);
+
+CREATE TABLE threads (
+  id TEXT PRIMARY KEY, title TEXT, state TEXT NOT NULL DEFAULT 'idle',
+  dashboard_id TEXT,                -- the dashboard this thread authors
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+
+CREATE TABLE messages (
+  id TEXT PRIMARY KEY, thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+  role TEXT NOT NULL, parts TEXT NOT NULL,   -- AI SDK UI message parts, JSON
+  actor TEXT, created_at INTEGER NOT NULL);
+
+CREATE TABLE plans (
+  id TEXT PRIMARY KEY, thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+  body TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('pending','approved','rejected','superseded')),
+  decided_by TEXT, created_at INTEGER NOT NULL, decided_at INTEGER);
+
+CREATE TABLE dashboards (
+  id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT, tags TEXT NOT NULL DEFAULT '[]',
+  parent_dashboard_id TEXT,          -- no FK: parent may be purged
+  parent_version INTEGER,
+  pinned_version_id TEXT,
+  deleted_at INTEGER,                -- bin
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+
+CREATE TABLE dashboard_versions (
+  id TEXT PRIMARY KEY, dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL, spec TEXT NOT NULL, change_summary TEXT,
+  pinned_at INTEGER, actor TEXT, created_at INTEGER NOT NULL,
+  UNIQUE (dashboard_id, version));
+
+-- pinned versions are immutable, whatever the application code does
+CREATE TRIGGER pinned_versions_are_immutable
+BEFORE UPDATE OF spec, version, dashboard_id ON dashboard_versions
+WHEN OLD.pinned_at IS NOT NULL
+BEGIN SELECT RAISE(ABORT, 'pinned dashboard versions are immutable'); END;
+
+CREATE VIRTUAL TABLE dashboards_fts USING fts5(
+  dashboard_id UNINDEXED, title, description, tags, queries, tokenize = 'porter unicode61');
+
+CREATE TABLE audit_log (
+  id TEXT PRIMARY KEY, at INTEGER NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL,
+  target TEXT, detail TEXT);
+```
+
+Migrations are plain numbered `.sql` files in `db/migrations/` (`0001-settings-and-audit-log.sql`).
+At startup each pending file runs in its own transaction, together with its row in the
+`migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
+Timestamps (`at`, `*_at`) are Unix epoch milliseconds. SQLite runs with `journal_mode=WAL`,
+`foreign_keys=ON` and `busy_timeout=5000`. IDs are ULIDs, so they sort by time.
+
+## 9. HTTP API
+
+All endpoints are under `/api` and declared in `packages/shared/src/api/`. The table is
+indicative; the contract files are the source of truth.
+
+| Method + path                                                                                           | Purpose                        | Min role |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------ | -------- |
+| `GET /health`                                                                                           | liveness + version             | public   |
+| `GET /me`                                                                                               | principal, role, auth mode     | public   |
+| `POST /auth/login`, `POST /auth/logout`, `GET /auth/oidc/start`, `GET /auth/oidc/callback`              | sessions                       | public   |
+| `GET /threads`, `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id`                              | threads                        | editor   |
+| `POST /threads/:id/chat`                                                                                | streamed agent run             | editor   |
+| `POST /threads/:id/plans/:planId/approve` · `/reject`                                                   | plan decisions                 | editor   |
+| `GET /dashboards` (search: `q`, `tags`)                                                                 | library                        | viewer   |
+| `GET /dashboards/:id`, `GET /dashboards/:id/versions/:v`                                                | spec                           | viewer   |
+| `POST /dashboards/:id/pin`                                                                              | pin a version                  | editor   |
+| `POST /dashboards/:id/variants`                                                                         | new thread from a copy         | editor   |
+| `POST /dashboards/:id/bin`                                                                              | move to bin                    | editor   |
+| `GET /bin`, `POST /bin/:id/restore`                                                                     | bin                            | editor   |
+| `DELETE /bin/:id`, `DELETE /bin`                                                                        | permanent delete               | admin    |
+| `POST /panels/run`                                                                                      | run one saved panel            | viewer   |
+| `GET/POST/PATCH/DELETE /connectors[/:id]`, `POST /connectors/:id/test`, `POST /connectors/:id/describe` | connectors                     | admin    |
+| `GET/PUT /settings/:section`                                                                            | model, auth, retention, limits | admin    |
+| `POST /settings/model/test`                                                                             | gateway capability test        | admin    |
+| `GET/POST/PATCH /users`                                                                                 | local users (basic mode)       | admin    |
+
+Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
+so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the
+invalid params, query and body fields in `details`), `unauthorized` (401), `forbidden` (403),
+`not_found` (404) and `internal` (500, with the request id and no internal message).
+
+Every endpoint is mounted through `http/endpoint.ts`: it checks the declared access, parses the
+input with the contract's schemas, runs the handler, and parses the result with the output schema,
+so fields the contract does not declare never leave the server. Every response carries an
+`X-Request-Id` header. `GET /api/me` answers 401 when the request has no session.
+
+## 10. Authentication
+
+```
+request → requestId → session cookie? → Principal
+                         │ none mode: Principal{anonymous, admin}
+                         │ basic:     sessions → users
+                         │ oidc:      sessions (created in the callback from ID token claims)
+          → route guard requireRole('editor') → handler
+```
+
+- Each route module declares its minimum role next to its handler. A test walks the router and
+  fails if any `/api` route (except the public ones) has no declared role.
+- Sessions are opaque random IDs in an `HttpOnly; SameSite=Lax; Secure` cookie (Secure when served
+  over https), stored in `sessions`. Changing the auth mode invalidates all sessions.
+- OIDC uses the authorization code flow with PKCE (the `openid-client` library). The role comes
+  from a configurable claim path (e.g. `groups` or `realm_access.roles`) and a value→role map.
+  There is a default role for users with no match (setting; `viewer` by default, or "deny").
+- Mutating requests require the `X-Requested-With` header or same-origin `Origin` as a CSRF check.
+  The web client already sends `X-Requested-With: querent` on every request.
+
+## 11. Rendering
+
+- `charts/` receives a panel spec and its frames. It builds an ECharts `dataset` from the frames
+  (bound by `refId`, never inlined in the spec) and merges it with the spec's `option`.
+- **Formatters:** wherever the spec has `{"$fmt": "percent", "decimals": 1}`, the adapter swaps in
+  the corresponding function from `@querent/shared/formatters`. ECharts string templates pass
+  through unchanged.
+- Import ECharts modularly (`echarts/core` plus the charts and components actually supported) to
+  keep the bundle small. Use the canvas renderer.
+- One theme object built from the design tokens in `ui/theme.css`. Dark mode later.
+- **Tooltip safety (open question 5):** ECharts HTML tooltips can render strings as HTML. The
+  adapter must ensure data-derived strings (series names, labels) are escaped. Either force
+  `tooltip.renderMode: 'richText'` or escape in the adapter. Verify against ECharts 6 behaviour and
+  add a test with a series named `<img src=x onerror=alert(1)>`.
+- Stat and table panels are plain React components, not ECharts.
+
+## 12. Security checklist
+
+- The model never receives rows unless the connector is at level 4. `agent/` can't import
+  around the gate (dependency-cruiser).
+- No model-written code runs anywhere. Biome bans `eval` and `dangerouslySetInnerHTML`.
+- The browser never sends queries. Variables are bound, not concatenated.
+- Guardrails are enforced by the executor. Connectors use read-only credentials, verified on
+  test where possible.
+- Secrets are encrypted at rest and never returned by the API (connector GETs show
+  `secret: "••••1234"`).
+- Response headers: CSP `default-src 'self'; connect-src 'self'; img-src 'self' data:;
+  style-src 'self' 'unsafe-inline'` (ECharts sets inline styles), `frame-ancestors 'none'`,
+  `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`.
+- Fonts are self-hosted from `@fontsource` packages, because this CSP blocks Google Fonts. Vite
+  never inlines them as `data:` URIs.
+- The SPA turns off Zod's JIT (`lib/zod-without-eval.ts`), which otherwise probes `new Function`
+  and triggers a CSP violation report.
+- Audit log entries for pin, bin, restore, purge, connector changes and settings changes.
+
+## 13. Configuration
+
+Environment variables handle boot-time concerns. Everything else lives in Settings (SQLite) and
+is editable in the UI.
+
+| Variable             | Default                 | Purpose                                                                |
+| -------------------- | ----------------------- | ---------------------------------------------------------------------- |
+| `QUERENT_PORT`       | `3000`                  | HTTP port                                                              |
+| `QUERENT_DATA_DIR`   | `./data`                | SQLite database, generated key                                         |
+| `QUERENT_SECRET_KEY` | generated into data dir | encryption key for secrets                                             |
+| `QUERENT_AUTH_MODE`  | _(unset)_               | if set, overrides the stored mode. `none` is the lockout escape hatch. |
+| `QUERENT_PUBLIC_URL` | derived from request    | needed for the OIDC redirect URI                                       |
+| `QUERENT_LOG_LEVEL`  | `info`                  | `debug`, `info`, `warn` or `error`. Logs are JSON lines.               |
+| `QUERENT_WEB_DIR`    | `apps/web/dist`         | the built SPA the server serves                                        |
+
+## 14. Local development
+
+- `bun install`, then `bun run dev` runs the Vite dev server (5173, proxying `/api`) and
+  `bun --hot apps/server/src/main.ts` (3000).
+- `dev/docker-compose.yml` starts Postgres (seeded with an `orders` schema: `orders`, `order_items`, `payments`, `customers`, `refunds`, `deploys`), Prometheus
+  scraping a small synthetic metrics generator (a Bun script exposing
+  `http_requests_total{service,env,code,region}` and latency histograms, with a scripted incident),
+  and a single-node OpenSearch with synthetic logs.
+- The seed data should make a "checkout incident" reproducible: an error spike after a deploy. It's the demo,
+  the manual test script and the eval fixture all at once.
+
+## 15. Testing and evals
+
+- **Unit** (`bun test`): spec validation, formatter library, variable binding and escaping (with
+  injection cases), gate redaction per level, error sanitizing, guardrails, diff, the thread state
+  machine, bin retention.
+- **Integration** (`bun test`, needs `dev/` compose): each connector against the real service. The
+  query endpoint end to end.
+- **Web:** component tests for the plan card, diff card, variables bar and chart adapter
+  (happy-dom). Playwright smoke tests later.
+- **Evals** (`evals/`): a set of questions against the dev sources with assertions such as "the
+  dashboard has a timeseries panel whose query references `http_requests_total` and returns
+  data" or "no panel exceeds the row cap". Run manually or nightly with a configured model. They
+  are not part of CI, because they cost tokens and aren't deterministic.
+
+## 16. Quality gates
+
+`bun run verify` runs Biome, remark (`docs:check`: Markdown formatting and links),
+dependency-cruiser, knip, `tsc` in each workspace, `bun test`, then the web build. The pre-push
+hook runs it. CI (`.github/workflows/quality.yml`) runs the same steps, reports coverage, builds
+the Docker image and checks that it serves the app, and lints commit messages on pull requests.
+A PR is mergeable only when the `quality` job is green. Warnings from `no-orphans` are reviewed,
+not ignored. Biome's complexity and length limits are errors.
+
+## 17. Releases
+
+The Release workflow (`.github/workflows/release.yml`) runs on demand:
+
+1. It runs `bun run verify`, then semantic-release reads the Conventional Commits on `main`. `fix`
+   is a patch, `feat` a minor version, `feat!` or `BREAKING CHANGE` a major version. Other types
+   release nothing.
+2. semantic-release writes the version into the root `package.json`, commits it as
+   `chore(release): X.Y.Z [skip ci]`, tags `vX.Y.Z` and creates the GitHub Release with the notes.
+   A GitHub App (the release bot, `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY`) pushes the
+   commit, so the ruleset on `main` can stay closed to everyone else.
+3. The image job builds the image at the tag for `linux/amd64` and `linux/arm64` and pushes it to
+   `ghcr.io/<owner>/querent` as `:vX.Y.Z` and `:latest`. A released image is never rebuilt.
+
+The root `package.json` holds the one version. `/api/health` reports it. The workspace
+`package.json` files stay at `0.0.0`, because `bun.lock` records their versions and a bump there
+would break `bun install --frozen-lockfile`.

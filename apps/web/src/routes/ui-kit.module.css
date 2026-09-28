@@ -1,0 +1,62 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.panel {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius-control);
+  background: var(--color-ground);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.brandGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.brandSurface {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  border-radius: var(--radius-card);
+  background: var(--color-ground);
+}
+
+.inkSurface {
+  background: var(--color-ink);
+  color: #ffffff;
+}
+
+.inkMark {
+  display: flex;
+  color: var(--color-ink);
+}
+
+.accentMark {
+  display: flex;
+  color: var(--color-accent);
+}

@@ -1,0 +1,130 @@
+/** The route tree (React Router data mode) and the browser router built from it. */
+import type { ComponentType } from 'react';
+import {
+  createBrowserRouter,
+  type LoaderFunctionArgs,
+  type RouteObject,
+  redirect,
+} from 'react-router';
+import { BinRoute } from '../routes/bin.tsx';
+import { ConnectorsRoute } from '../routes/connectors.tsx';
+import { DashboardRoute } from '../routes/dashboard.tsx';
+import { LibraryRoute } from '../routes/library.tsx';
+import { LoginRoute } from '../routes/login.tsx';
+import { NewThreadRoute } from '../routes/new-thread.tsx';
+import { NotFoundRoute } from '../routes/not-found.tsx';
+import { SettingsAuthRoute } from '../routes/settings-auth.tsx';
+import { SettingsLayout } from '../routes/settings-layout.tsx';
+import { SettingsModelRoute } from '../routes/settings-model.tsx';
+import { SettingsRetentionRoute } from '../routes/settings-retention.tsx';
+import { ThreadRoute } from '../routes/thread.tsx';
+import { UiKitRoute } from '../routes/ui-kit.tsx';
+import { ErrorPage } from './error-page.tsx';
+import { AppLayout, LoadingScreen } from './layout.tsx';
+import { type GuardedPath, homePathFor, requireRole, routeAccess } from './route-access.ts';
+import type { SessionLoader } from './session.ts';
+
+/**
+ * A screen route whose loader enforces the minimum role listed in {@link routeAccess}.
+ *
+ * @param loadSession - Loads the current session.
+ * @param path - The screen path.
+ * @param Component - The screen.
+ * @returns The route object.
+ */
+function screen(
+  loadSession: SessionLoader,
+  path: GuardedPath,
+  Component: ComponentType,
+): RouteObject {
+  return { path, loader: requireRole(loadSession, routeAccess[path]), Component };
+}
+
+/**
+ * The login route. With a session (always the case in `none` mode) it sends the user onwards.
+ *
+ * @param loadSession - Loads the current session.
+ * @returns The route object.
+ */
+function loginRoute(loadSession: SessionLoader): RouteObject {
+  const loader = async ({ request }: LoaderFunctionArgs) => {
+    if (!(await loadSession())) return null;
+    const next = new URL(request.url).searchParams.get('next');
+    return redirect(next?.startsWith('/') && !next.startsWith('//') ? next : '/');
+  };
+  return {
+    path: '/login',
+    loader,
+    Component: LoginRoute,
+    HydrateFallback: LoadingScreen,
+    ErrorBoundary: ErrorPage,
+  };
+}
+
+/**
+ * The screens inside the layout, with `/` redirecting by role and `/settings` to its first section.
+ *
+ * @param loadSession - Loads the current session.
+ * @returns The child routes of the layout.
+ */
+function screenRoutes(loadSession: SessionLoader): RouteObject[] {
+  const home = async () => {
+    const session = await loadSession();
+    return redirect(session ? homePathFor(session.principal.role) : '/login');
+  };
+  return [
+    { index: true, loader: home },
+    screen(loadSession, '/threads/new', NewThreadRoute),
+    screen(loadSession, '/threads/:threadId', ThreadRoute),
+    screen(loadSession, '/library', LibraryRoute),
+    screen(loadSession, '/d/:dashboardId', DashboardRoute),
+    screen(loadSession, '/d/:dashboardId/v/:version', DashboardRoute),
+    screen(loadSession, '/bin', BinRoute),
+    screen(loadSession, '/connectors', ConnectorsRoute),
+    screen(loadSession, '/connectors/:connectorId', ConnectorsRoute),
+    {
+      path: '/settings',
+      Component: SettingsLayout,
+      children: [
+        { index: true, loader: () => redirect('/settings/model') },
+        screen(loadSession, '/settings/model', SettingsModelRoute),
+        screen(loadSession, '/settings/auth', SettingsAuthRoute),
+        screen(loadSession, '/settings/retention', SettingsRetentionRoute),
+      ],
+    },
+    { path: '/ui', Component: UiKitRoute },
+    { path: '*', Component: NotFoundRoute },
+  ];
+}
+
+/**
+ * The whole route tree. The root loader requires a session, so every screen below it can rely on
+ * one. Screen errors render inside the layout, so the rail stays visible.
+ *
+ * @param loadSession - Loads the current session.
+ * @returns The routes.
+ */
+export function createRoutes(loadSession: SessionLoader): RouteObject[] {
+  return [
+    loginRoute(loadSession),
+    {
+      id: 'root',
+      path: '/',
+      loader: requireRole(loadSession, 'viewer'),
+      Component: AppLayout,
+      HydrateFallback: LoadingScreen,
+      ErrorBoundary: ErrorPage,
+      children: [{ ErrorBoundary: ErrorPage, children: screenRoutes(loadSession) }],
+    },
+  ];
+}
+
+/**
+ * Creates the browser router.
+ *
+ * @param loadSession - Loads the current session.
+ * @returns The router to hand to `RouterProvider`.
+ */
+export function createAppRouter(loadSession: SessionLoader) {
+  return createBrowserRouter(createRoutes(loadSession));
+}

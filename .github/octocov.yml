@@ -1,0 +1,14 @@
+# Coverage reporting. octocov reads the lcov file `bun run test:coverage`
+# writes and comments the result on the pull request.
+#
+# octocov resolves paths from the directory holding this file, so the coverage
+# path climbs out of .github first.
+coverage:
+  paths:
+    - ../coverage/lcov.info
+comment:
+  if: is_pull_request
+  hideFooterLink: true
+  deletePrevious: true
+summary:
+  if: true

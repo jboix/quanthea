@@ -1,0 +1,51 @@
+version: 2
+updates:
+  # --- GitHub Actions ---
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      action-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # --- Bun ---
+  - package-ecosystem: "bun"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      # Groups match in order: a dependency lands in the first group it matches.
+      # `ai` and `@ai-sdk/*` must resolve to one copy of the provider packages,
+      # so they move together in their own PR.
+      ai-sdk:
+        patterns: [ "ai", "@ai-sdk/*" ]
+      react:
+        patterns: [ "react", "react-dom", "react-router", "@types/react", "@types/react-dom" ]
+      bun-dependencies:
+        patterns: [ "*" ]
+        update-types: [ "minor", "patch" ]
+    ignore:
+      # TypeScript 7 (the native compiler) has no stable JS API yet, which
+      # dependency-cruiser needs to parse TypeScript. Staying on 6.x until
+      # dependency-cruiser supports 7.
+      - dependency-name: "typescript"
+        update-types: [ "version-update:semver-major" ]
+      # @types/bun tracks the Bun version in .tool-versions. Bump it when the
+      # runtime moves, not whenever a new Bun minor ships.
+      - dependency-name: "@types/bun"
+        update-types: [ "version-update:semver-minor", "version-update:semver-major" ]
+
+  # --- Docker ---
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # The image runs the Bun version in .tool-versions. Move both together.
+      - dependency-name: "oven/bun"
+        update-types: [ "version-update:semver-minor", "version-update:semver-major" ]

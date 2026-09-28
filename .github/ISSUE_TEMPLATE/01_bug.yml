@@ -1,0 +1,63 @@
+name: 🐛 Bug Report
+description: Report a possible bug or regression
+title: "🐛 <TITLE>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. Please provide a clear and concise
+        description of what the bug is; reports that cannot be reproduced
+        take much longer to fix. Report a security problem privately, as
+        docs/SECURITY.md describes, never in an issue.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment information
+      description: >
+        Paste the querent version (`GET /api/health`), how you run it (the
+        Docker image tag, or from source with `bun --version`), the
+        authentication mode, and the browser (with OS version) where the bug
+        occurs. If the bug involves a data source, state the connector kind
+        (Prometheus, Postgres, OpenSearch, HTTP) and its access level. Remove
+        connection strings, credentials and data before posting.
+      value: |
+        <details>
+
+        ```
+        Paste output here
+        ```
+
+        </details>
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: What happened?
+      description: >
+        Provide the steps that reproduce the issue, including the screen, the
+        question asked in the thread or the dashboard spec, and the server log
+        lines with their request id. The more complete the steps, the quicker
+        the report can be triaged and addressed.
+      placeholder: |
+        1.
+        2.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-result
+    attributes:
+      label: Expected result
+      description: Describe what you expected to happen.
+      placeholder: The pinned dashboard should render every panel.
+    validations:
+      required: true
+  - type: checkboxes
+    id: coc
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/jboix/querent/blob/main/docs/CODE_OF_CONDUCT.md)
+      options:
+        - label: I agree to follow querent's Code of Conduct
+          required: true

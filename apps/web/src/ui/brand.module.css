@@ -1,0 +1,16 @@
+/* Colours of the querent mark (docs/brand). The geometry lives in brand.tsx. */
+.signal {
+  fill: var(--color-brand-signal);
+}
+
+.tileAccent {
+  fill: var(--color-accent);
+}
+
+.tileInk {
+  fill: var(--color-ink);
+}
+
+.logo {
+  display: block;
+}

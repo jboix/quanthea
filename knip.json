@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "ignoreBinaries": ["dot"],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs"]
+    },
+    "apps/server": {
+      "entry": ["src/main.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/web": {
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/shared": {
+      "project": ["src/**/*.ts"]
+    }
+  }
+}

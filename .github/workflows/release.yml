@@ -1,0 +1,128 @@
+name: Release
+
+# Cuts a release and publishes its Docker image, in one run:
+#
+#   release -> semantic-release reads the Conventional Commits on main, bumps
+#              the version in package.json, commits it, tags vX.Y.Z and
+#              creates the GitHub Release
+#   image   -> builds the image at that tag for linux/amd64 and linux/arm64
+#              and pushes it to GHCR as :vX.Y.Z and :latest. A released image
+#              is never rebuilt.
+#
+# When main has no release-worthy commits, no tag is cut and no image is built.
+
+on:
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/querent
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      released: ${{ steps.version.outputs.released }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Mint the release bot token
+        id: bot-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          token: ${{ steps.bot-token.outputs.token }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: '.tool-versions'
+
+      - name: Setup Node.js (semantic-release runs on Node)
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        env:
+          CI: true
+          HUSKY: "0"
+        run: bun install --frozen-lockfile
+
+      - name: Verify the gates one last time
+        run: bun run verify
+
+      - name: Record the latest tag
+        id: before
+        run: echo "tag=$(git describe --tags --abbrev=0 2>/dev/null || true)" >> "$GITHUB_OUTPUT"
+
+      # semantic-release and its plugins are dev dependencies, so the release
+      # runs the exact versions in bun.lock, installed above with
+      # --frozen-lockfile, rather than whatever the registry serves at run time.
+      - name: Semantic Release (version commit + tag + GitHub Release)
+        env:
+          GITHUB_TOKEN: ${{ steps.bot-token.outputs.token }}
+        run: npx semantic-release
+
+      - name: Resolve the released version
+        id: version
+        env:
+          PREVIOUS: ${{ steps.before.outputs.tag }}
+        run: |
+          git fetch --tags --force --quiet
+          latest="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          if [ -n "$latest" ] && [ "$latest" != "$PREVIOUS" ]; then
+            echo "released $latest"
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "version=$latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "nothing to release"
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  image:
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - name: Checkout the released tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.version }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # The Dockerfile runs every RUN on the build platform, so the arm64 image
+      # builds on this amd64 runner without emulation.
+      - name: Build and push the image (linux/amd64, linux/arm64)
+        run: |
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" \
+            --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --tag "$IMAGE:$VERSION" \
+            --tag "$IMAGE:latest" \
+            --push \
+            .
