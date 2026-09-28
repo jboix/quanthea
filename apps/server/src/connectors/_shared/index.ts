@@ -12,8 +12,15 @@ export { createFrameBuilder } from './frame-builder.ts';
 export {
   type BoundQuery,
   type ExecutionContext,
+  type PromqlQuery,
   queryLanguages,
   type SqlQuery,
   type TimeRange,
 } from './queries.ts';
-export type { FieldReference, HealthReport, SchemaEntity, SchemaField } from './schema.ts';
+export type {
+  FieldReference,
+  HealthReport,
+  SchemaEntity,
+  SchemaField,
+  SchemaSnapshot,
+} from './schema.ts';

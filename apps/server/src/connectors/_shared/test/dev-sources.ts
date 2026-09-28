@@ -24,6 +24,12 @@ export const devPostgresOwner = {
   secret: { password: 'querent-dev' },
 };
 
+/** The dev Prometheus, in the Prometheus connector's configuration shape. */
+export const devPrometheus = {
+  config: { url: 'http://127.0.0.1:9091' },
+  secret: {},
+};
+
 /**
  * When the seeded incident starts: yesterday at 12:02 UTC, as in `dev/metrics/incident.ts`.
  *

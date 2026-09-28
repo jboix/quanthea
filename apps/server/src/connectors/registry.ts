@@ -4,9 +4,10 @@
  */
 import type { AnyConnectorKind } from './_shared/index.ts';
 import { postgresConnector } from './postgres/postgres-connector.ts';
+import { prometheusConnector } from './prometheus/prometheus-connector.ts';
 
 /** The connector kinds, in the order the add form lists them. */
-export const connectorKinds: readonly AnyConnectorKind[] = [postgresConnector];
+export const connectorKinds: readonly AnyConnectorKind[] = [postgresConnector, prometheusConnector];
 
 /**
  * Finds a connector kind by identifier.

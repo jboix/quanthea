@@ -364,8 +364,12 @@ type Field = { name: string; type: 'time' | 'number' | 'string' | 'boolean'; lab
 type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][]; meta: { rowCount: number; truncated: boolean; durationMs: number } }
 ```
 
-- **Prometheus:** `query_range` over HTTP. One frame per series, with labels on the value field.
-  `describe` = metric names + label keys (from `/api/v1/labels`, `/api/v1/label/__name__/values`).
+- **Prometheus:** the HTTP API over `fetch`, read endpoints only, with no auth, a bearer token or
+  basic authentication. A range query returns one frame per series (labels on the value field, at
+  most 1000 series); an instant query returns one table with a column per label and `Value`.
+  Non-finite values become `null`. `describe` lists metric names with their type from the metadata
+  API and each metric's label keys with value counts. Quoted literals are removed from the safe
+  message of an error, because label values can be data.
 - **Postgres:** the `postgres` driver. `Bun.sql` 1.3 returns no column names or types (a query with
   no rows has no fields) and cannot cancel a running statement; `postgres` gives the row
   description and sends a real cancel request. Every query runs in a `read only` transaction with
