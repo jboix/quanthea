@@ -18,6 +18,8 @@ export type EndpointRequest<Target extends Endpoint> = ParsedEndpointInput<Targe
   readonly principal: Principal | null;
   /** The request id, also sent back in the `X-Request-Id` header. */
   readonly requestId: string;
+  /** Aborted when the client goes away. */
+  readonly signal: AbortSignal;
 };
 
 /** How a route answers an endpoint. */
@@ -137,6 +139,7 @@ export function mountEndpoint<Target extends Endpoint>(
         ...input,
         principal: context.get('principal'),
         requestId: context.get('requestId'),
+        signal: context.req.raw.signal,
       });
       return context.json(endpoint.output.parse(output));
     },

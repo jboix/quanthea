@@ -529,26 +529,28 @@ Timestamps (`at`, `*_at`) are Unix epoch milliseconds. SQLite runs with `journal
 All endpoints are under `/api` and declared in `packages/shared/src/api/`. The table is
 indicative; the contract files are the source of truth.
 
-| Method + path                                                                                           | Purpose                        | Min role |
-| ------------------------------------------------------------------------------------------------------- | ------------------------------ | -------- |
-| `GET /health`                                                                                           | liveness + version             | public   |
-| `GET /me`                                                                                               | principal, role, auth mode     | public   |
-| `POST /auth/login`, `POST /auth/logout`, `GET /auth/oidc/start`, `GET /auth/oidc/callback`              | sessions                       | public   |
-| `GET /threads`, `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id`                              | threads                        | editor   |
-| `POST /threads/:id/chat`                                                                                | streamed agent run             | editor   |
-| `POST /threads/:id/plans/:planId/approve` · `/reject`                                                   | plan decisions                 | editor   |
-| `GET /dashboards` (search: `q`, `tags`)                                                                 | library                        | viewer   |
-| `GET /dashboards/:id`, `GET /dashboards/:id/versions/:v`                                                | spec                           | viewer   |
-| `POST /dashboards/:id/pin`                                                                              | pin a version                  | editor   |
-| `POST /dashboards/:id/variants`                                                                         | new thread from a copy         | editor   |
-| `POST /dashboards/:id/bin`                                                                              | move to bin                    | editor   |
-| `GET /bin`, `POST /bin/:id/restore`                                                                     | bin                            | editor   |
-| `DELETE /bin/:id`, `DELETE /bin`                                                                        | permanent delete               | admin    |
-| `POST /panels/run`                                                                                      | run one saved panel            | viewer   |
-| `GET/POST/PATCH/DELETE /connectors[/:id]`, `POST /connectors/:id/test`, `POST /connectors/:id/describe` | connectors                     | admin    |
-| `GET/PUT /settings/:section`                                                                            | model, auth, retention, limits | admin    |
-| `POST /settings/model/test`                                                                             | gateway capability test        | admin    |
-| `GET/POST/PATCH /users`                                                                                 | local users (basic mode)       | admin    |
+| Method + path                                                                              | Purpose                        | Min role |
+| ------------------------------------------------------------------------------------------ | ------------------------------ | -------- |
+| `GET /health`                                                                              | liveness + version             | public   |
+| `GET /me`                                                                                  | principal, role, auth mode     | public   |
+| `POST /auth/login`, `POST /auth/logout`, `GET /auth/oidc/start`, `GET /auth/oidc/callback` | sessions                       | public   |
+| `GET /threads`, `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id`                 | threads                        | editor   |
+| `POST /threads/:id/chat`                                                                   | streamed agent run             | editor   |
+| `POST /threads/:id/plans/:planId/approve` · `/reject`                                      | plan decisions                 | editor   |
+| `GET /dashboards` (search: `q`, `tags`)                                                    | library                        | viewer   |
+| `GET /dashboards/:id`, `GET /dashboards/:id/versions/:v`                                   | spec                           | viewer   |
+| `POST /dashboards/:id/pin`                                                                 | pin a version                  | editor   |
+| `POST /dashboards/:id/variants`                                                            | new thread from a copy         | editor   |
+| `POST /dashboards/:id/bin`                                                                 | move to bin                    | editor   |
+| `GET /bin`, `POST /bin/:id/restore`                                                        | bin                            | editor   |
+| `DELETE /bin/:id`, `DELETE /bin`                                                           | permanent delete               | admin    |
+| `POST /panels/run`                                                                         | run one saved panel            | viewer   |
+| `GET /connector-kinds` (with the JSON Schemas of their forms)                              | connector kinds                | admin    |
+| `GET/POST /connectors`, `GET/PATCH/DELETE /connectors/:connectorId`                        | connectors                     | admin    |
+| `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`           | connection test, schema        | admin    |
+| `GET/PUT /settings/:section`                                                               | model, auth, retention, limits | admin    |
+| `POST /settings/model/test`                                                                | gateway capability test        | admin    |
+| `GET/POST/PATCH /users`                                                                    | local users (basic mode)       | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
 so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the

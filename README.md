@@ -62,15 +62,17 @@ Docker image and checks that it serves the app. A git hook runs `bun run verify`
 
 The server reads these environment variables at startup. Everything else will live in Settings.
 
-| Variable            | Default         | Purpose                                                                      |
-| ------------------- | --------------- | ---------------------------------------------------------------------------- |
-| `QUERENT_PORT`      | `3000`          | HTTP port.                                                                   |
-| `QUERENT_DATA_DIR`  | `./data`        | Holds the SQLite database. Created with mode 0700. `/data` in the image.     |
-| `QUERENT_AUTH_MODE` | unset           | Replaces the stored authentication mode. `none` is the lockout escape hatch. |
-| `QUERENT_LOG_LEVEL` | `info`          | `debug`, `info`, `warn` or `error`. Logs are JSON lines.                     |
-| `QUERENT_WEB_DIR`   | `apps/web/dist` | The built SPA the server serves.                                             |
+| Variable             | Default         | Purpose                                                                                                                   |
+| -------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `QUERENT_PORT`       | `3000`          | HTTP port.                                                                                                                |
+| `QUERENT_DATA_DIR`   | `./data`        | Holds the SQLite database. Created with mode 0700. `/data` in the image.                                                  |
+| `QUERENT_AUTH_MODE`  | unset           | Replaces the stored authentication mode. `none` is the lockout escape hatch.                                              |
+| `QUERENT_LOG_LEVEL`  | `info`          | `debug`, `info`, `warn` or `error`. Logs are JSON lines.                                                                  |
+| `QUERENT_WEB_DIR`    | `apps/web/dist` | The built SPA the server serves.                                                                                          |
+| `QUERENT_SECRET_KEY` | generated       | 32 bytes in base64 that encrypt connector credentials. Unset, a key file is created in the data directory with mode 0600. |
 
-`QUERENT_SECRET_KEY` and `QUERENT_PUBLIC_URL` arrive with connectors and OIDC.
+`QUERENT_PUBLIC_URL` arrives with OIDC. Back up the data directory together with its key file, or set
+`QUERENT_SECRET_KEY`: without the key, stored credentials cannot be read.
 
 ## Layout
 

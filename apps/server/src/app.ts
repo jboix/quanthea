@@ -3,10 +3,12 @@ import { apiPrefix } from '@querent/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import type { Authenticator } from './auth/authenticator.ts';
+import type { Connections } from './connections/connections.ts';
 import type { AppEnv } from './http/app-env.ts';
 import { authenticate } from './http/authenticate.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
+import { mountConnectorRoutes } from './http/routes/connector-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
 import { securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
@@ -22,6 +24,8 @@ export interface AppDependencies {
   readonly logger: Logger;
   /** The directory holding the built SPA. */
   readonly webDir: string;
+  /** The configured connectors. */
+  readonly connections: Connections;
 }
 
 /**
@@ -41,6 +45,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
     version: dependencies.version,
     authMode: dependencies.authenticator.mode,
   });
+  mountConnectorRoutes(app, dependencies.connections);
   mountSpa(app, dependencies.webDir);
 
   app.onError(handleErrors(dependencies.logger));

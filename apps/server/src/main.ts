@@ -5,10 +5,16 @@ import { createApp } from './app.ts';
 import { resolveAuthMode } from './auth/auth-mode.ts';
 import { createAuthenticator } from './auth/authenticator.ts';
 import { loadConfig } from './config/config.ts';
+import { createConnections } from './connections/connections.ts';
+import { connectorKinds } from './connectors/registry.ts';
+import { createAuditRepository } from './db/audit-repository.ts';
+import { createConnectorRepository } from './db/connector-repository.ts';
 import { openDatabase } from './db/database.ts';
 import { runMigrations } from './db/migrate.ts';
 import { createSettingsRepository } from './db/settings-repository.ts';
 import { createLogger } from './lib/logger.ts';
+import { createSecretBox } from './secrets/secret-box.ts';
+import { loadSecretKey } from './secrets/secret-key.ts';
 import { createSettingsStore } from './settings/settings-store.ts';
 
 const config = loadConfig(process.env);
@@ -26,11 +32,24 @@ if (authenticator.mode === 'none') {
   logger.warn('Open access: anyone who can reach this URL is an admin.');
 }
 
+const secretKey = await loadSecretKey({
+  configuredKey: config.secretKey,
+  dataDir: config.dataDir,
+  logger,
+});
+const connections = createConnections({
+  kinds: connectorKinds,
+  repository: createConnectorRepository(database),
+  audit: createAuditRepository(database),
+  secretBox: createSecretBox(secretKey),
+});
+
 const app = createApp({
   version: rootPackage.version,
   authenticator,
   logger,
   webDir: config.webDir,
+  connections,
 });
 const server = Bun.serve({ port: config.port, fetch: app.fetch });
 logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir: config.webDir });
@@ -43,6 +62,7 @@ logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir
 async function shutdown(signal: string): Promise<void> {
   logger.info('shutting down', { signal });
   await server.stop();
+  await connections.closeAll();
   database.close();
   process.exit(0);
 }

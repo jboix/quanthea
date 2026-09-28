@@ -4,12 +4,18 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { createApp } from './app.ts';
 import { anonymousAdmin } from './auth/authenticator.ts';
+import type { Connections } from './connections/connections.ts';
 import { listApiRouteAccess } from './http/access.ts';
-import { captureLogs, fixedAuthenticator, temporaryDir } from './test/fixtures.ts';
+import { captureLogs, fixedAuthenticator, temporaryDir, testConnections } from './test/fixtures.ts';
 
 let webDir: ReturnType<typeof temporaryDir>;
+let dataDir: ReturnType<typeof temporaryDir>;
+let connections: Connections;
+let closeConnections: () => Promise<void>;
 
-beforeEach(() => {
+beforeEach(async () => {
+  dataDir = temporaryDir();
+  ({ connections, close: closeConnections } = await testConnections(dataDir.path));
   webDir = temporaryDir();
   mkdirSync(join(webDir.path, 'assets'));
   writeFileSync(join(webDir.path, 'index.html'), '<!doctype html><div id="root"></div>');
@@ -17,7 +23,11 @@ beforeEach(() => {
   writeFileSync(join(webDir.path, 'favicon.svg'), '<svg/>');
 });
 
-afterEach(() => webDir.remove());
+afterEach(async () => {
+  webDir.remove();
+  await closeConnections();
+  dataDir.remove();
+});
 
 /**
  * Builds the real app in `none` mode over the temporary SPA directory.
@@ -30,6 +40,7 @@ function buildApp() {
     authenticator: fixedAuthenticator(anonymousAdmin),
     logger: captureLogs().logger,
     webDir: webDir.path,
+    connections,
   });
 }
 
@@ -44,6 +55,14 @@ describe('route access', () => {
       .filter((route) => route.access === 'public')
       .map((route) => `${route.method} ${route.path}`);
     expect(publicRoutes.sort()).toEqual(['GET /api/health', 'GET /api/me']);
+  });
+
+  test('every connector route needs the admin role', () => {
+    const connectorRoutes = listApiRouteAccess(buildApp()).filter((route) =>
+      /^\/api\/connector/.test(route.path),
+    );
+    expect(connectorRoutes.length).toBe(9);
+    expect(connectorRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 
   test('the audit reports a route mounted without an access declaration', () => {
