@@ -22,6 +22,7 @@ import { AppError } from '../lib/errors.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
 import { askPersonTool } from './ask-tool.ts';
 import { buildTools, currentSpec } from './build-tools.ts';
+import { compactHistory, compactSteps } from './compact.ts';
 import { dataTools } from './data-tools.ts';
 import { languageModel, ModelUnavailableError } from './model.ts';
 import { phaseOf, phaseTools } from './phases.ts';
@@ -253,7 +254,8 @@ async function streamTurn(
   const result = streamText({
     model,
     instructions,
-    messages: await convertToModelMessages(messages, { tools }),
+    messages: await convertToModelMessages(compactHistory(messages), { tools }),
+    prepareStep: ({ messages: next }) => ({ messages: compactSteps(next) }),
     tools,
     activeTools: [...phaseTools[phaseOf(state)]],
     stopWhen: [

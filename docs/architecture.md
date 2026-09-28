@@ -362,6 +362,17 @@ and a question always offers concrete choices from the catalog. The thread's sta
 Planning never runs a query: the build test-runs every query anyway. The spec guide and the
 example only come once there is something to write, so planning requests stay short.
 
+### Keeping requests small
+
+Every request carries the whole conversation, so what the model rereads is compacted
+(`agent/compact.ts`); the stored conversation keeps everything.
+
+- Turns before the person's latest message keep their text, and each tool call becomes one line,
+  such as `[earlier tool call] describe(events): 2 entities`. Data and reasoning parts go.
+- Within a run, before each step, older drafts sent to `write_dashboard` or `patch_panel` are
+  elided and older results over 400 characters become the same one-line summary. The latest call
+  and its results stay whole, so a repair sees exactly what failed.
+
 ### Runs and limits
 
 - `POST /api/threads/:id/chat` takes one message. A user message is appended to the stored

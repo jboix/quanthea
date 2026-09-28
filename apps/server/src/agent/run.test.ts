@@ -155,6 +155,19 @@ describe('an agent run', () => {
     expect(system).not.toContain('The spec (JSON');
   });
 
+  test('rereads an earlier turn’s tool calls as short notes', async () => {
+    const question = { question: 'Which errors?', options: ['HTTP 5xx', 'Failed orders'] };
+    await chat(agentWith({ tool: 'ask_person', input: question }), userMessage('u1', 'Errors'));
+    const model = scriptedStreamModel({ tool: 'propose_plan', input: plan });
+    const agent = createAgent({ ...services, buildModel: () => model });
+    await chat(agent, userMessage('u2', 'HTTP 5xx'));
+    const prompt = JSON.stringify(model.doStreamCalls[0]?.prompt);
+    expect(prompt).toContain(
+      '[earlier tool call] ask_person: \\"Which errors?\\" options [\\"HTTP 5xx\\",\\"Failed orders\\"]',
+    );
+    expect(prompt).not.toContain('"tool-call"');
+  });
+
   test('asks the person a question with options, and stops there', async () => {
     const question = { question: 'Which errors?', options: ['HTTP 5xx', 'Failed orders'] };
     const agent = agentWith(
