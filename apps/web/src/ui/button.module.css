@@ -27,6 +27,7 @@
 
 .primary:hover:not(:disabled) {
   background: var(--color-accent-hover);
+  color: #ffffff;
 }
 
 .secondary {
@@ -37,6 +38,7 @@
 
 .secondary:hover:not(:disabled) {
   background: var(--color-ground);
+  color: var(--color-ink);
 }
 
 .dark {
@@ -47,6 +49,7 @@
 
 .dark:hover:not(:disabled) {
   background: var(--color-rail-active);
+  color: #ffffff;
 }
 
 .danger {
@@ -57,6 +60,7 @@
 
 .danger:hover:not(:disabled) {
   background: var(--color-danger-soft);
+  color: var(--color-danger);
 }
 
 .small {
