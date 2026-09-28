@@ -1,0 +1,102 @@
+# Local data sources for development and integration tests: `bun run env:up`.
+#
+# - postgres: the orders database (dev/postgres), on localhost:5433. Users querent_admin
+#   (password querent-dev) and the read-only dash_ro (password dash-ro-dev).
+# - prometheus: the synthetic metrics, on localhost:9091. The last day and a half is backfilled from
+#   dev/metrics/history.ts, the live metrics come from dev/metrics/serve.ts.
+# - opensearch (profile "opensearch"): a single node without security, on localhost:9202.
+#
+# Postgres and Prometheus tell the same story: deploy #481 of checkout-svc, yesterday at 12:02 UTC,
+# and the errors that follow. `bun run env:down` deletes the data; the next `env:up` seeds it again
+# around the new yesterday.
+
+name: querent-dev
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: querent_admin
+      POSTGRES_PASSWORD: querent-dev
+    ports:
+      - '5433:5432'
+    volumes:
+      - ./postgres:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      # TCP only: during the init scripts the server listens on its socket alone.
+      test: ['CMD', 'pg_isready', '-h', '127.0.0.1', '-U', 'querent_admin', '-d', 'orders']
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+  metrics-history:
+    image: oven/bun:1.3.14-slim
+    working_dir: /metrics
+    volumes:
+      - ./metrics:/metrics:ro
+      - metrics-seed:/seed
+    command: ['sh', '-c', '[ -f /seed/history.om ] || bun history.ts /seed/history.om']
+
+  prometheus-backfill:
+    image: prom/prometheus:v3.15.0
+    depends_on:
+      metrics-history:
+        condition: service_completed_successfully
+    volumes:
+      - metrics-seed:/seed:ro
+      - prometheus-data:/prometheus
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - '[ -f /prometheus/.backfilled ] || (promtool tsdb create-blocks-from openmetrics /seed/history.om /prometheus && touch /prometheus/.backfilled)'
+
+  metrics:
+    image: oven/bun:1.3.14-slim
+    working_dir: /metrics
+    volumes:
+      - ./metrics:/metrics:ro
+    command: ['bun', 'serve.ts']
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    depends_on:
+      prometheus-backfill:
+        condition: service_completed_successfully
+      metrics:
+        condition: service_started
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - '9091:9090'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:9090/-/ready']
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+  opensearch:
+    profiles: [opensearch]
+    image: opensearchproject/opensearch:3.8.0
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: 'true'
+      DISABLE_INSTALL_DEMO_CONFIG: 'true'
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - '9202:9200'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fs http://127.0.0.1:9200/_cluster/health']
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+volumes:
+  postgres-data:
+  metrics-seed:
+  prometheus-data:

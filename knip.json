@@ -15,6 +15,10 @@
     },
     "packages/shared": {
       "project": ["src/**/*.ts"]
+    },
+    "dev": {
+      "entry": ["metrics/history.ts", "metrics/serve.ts"],
+      "project": ["metrics/**/*.ts"]
     }
   }
 }

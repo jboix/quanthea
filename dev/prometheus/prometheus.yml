@@ -1,0 +1,8 @@
+# Scrapes the live synthetic metrics. The history before startup is backfilled by promtool.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: synthetic
+    static_configs:
+      - targets: ['metrics:9464']

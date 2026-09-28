@@ -1,0 +1,62 @@
+-- The orders database of the dev environment: a small shop whose checkout had an incident.
+
+CREATE TABLE customers (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  email text NOT NULL,
+  phone text NOT NULL,
+  name text NOT NULL,
+  country text NOT NULL,
+  created_at timestamptz NOT NULL
+);
+COMMENT ON TABLE customers IS 'Shop customers. email and phone are personal data.';
+
+CREATE TABLE orders (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  customer_id bigint NOT NULL REFERENCES customers (id),
+  status text NOT NULL CHECK (status IN ('paid', 'failed', 'refunded')),
+  failure_reason text,
+  total_cents integer NOT NULL,
+  currency text NOT NULL,
+  service text NOT NULL,
+  created_at timestamptz NOT NULL
+);
+COMMENT ON TABLE orders IS 'One row per order attempt, including failed ones.';
+CREATE INDEX orders_created_at ON orders (created_at);
+
+CREATE TABLE order_items (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  order_id bigint NOT NULL REFERENCES orders (id),
+  sku text NOT NULL,
+  quantity integer NOT NULL,
+  unit_price_cents integer NOT NULL
+);
+
+CREATE TABLE payments (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  order_id bigint NOT NULL REFERENCES orders (id),
+  provider text NOT NULL,
+  status text NOT NULL CHECK (status IN ('authorized', 'declined', 'error')),
+  error_code text,
+  amount_cents integer NOT NULL,
+  card_last4 text NOT NULL,
+  created_at timestamptz NOT NULL
+);
+COMMENT ON TABLE payments IS 'Card authorizations, one per attempt.';
+CREATE INDEX payments_created_at ON payments (created_at);
+
+CREATE TABLE refunds (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  payment_id bigint NOT NULL REFERENCES payments (id),
+  amount_cents integer NOT NULL,
+  reason text NOT NULL,
+  created_at timestamptz NOT NULL
+);
+
+CREATE TABLE deploys (
+  id bigint PRIMARY KEY,
+  service text NOT NULL,
+  version text NOT NULL,
+  deployed_at timestamptz NOT NULL,
+  author text NOT NULL
+);
+COMMENT ON TABLE deploys IS 'One row per production deploy. Good for chart markers.';

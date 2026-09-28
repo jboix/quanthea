@@ -6,7 +6,8 @@
   "type": "module",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "dev"
   ],
   "scripts": {
     "dev": "bun run --filter '*' dev",
@@ -24,7 +25,11 @@
     "test": "bun test",
     "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage",
     "verify": "bun run lint && bun run docs:check && bun run arch && bun run knip && bun run typecheck && bun run test && bun run build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "env:up": "docker compose -f dev/docker-compose.yml up -d --wait postgres prometheus",
+    "env:up:opensearch": "docker compose -f dev/docker-compose.yml --profile opensearch up -d --wait",
+    "env:stop": "docker compose -f dev/docker-compose.yml --profile opensearch stop",
+    "env:down": "docker compose -f dev/docker-compose.yml --profile opensearch down -v"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

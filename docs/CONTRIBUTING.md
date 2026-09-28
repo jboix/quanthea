@@ -37,7 +37,18 @@ Markdown.
 | `apps/server`     | `@querent/server`: Bun + Hono API, SQLite, serves the built SPA   |
 | `apps/web`        | `@querent/web`: React SPA, React Router in data mode, Vite        |
 | `packages/shared` | `@querent/shared`: API contracts and roles, imported by both apps |
+| `dev`             | `@querent/dev`: the local data sources and the synthetic metrics  |
 | `docs`            | Architecture, dashboard spec, brand, contributing, security       |
+
+## Local data sources
+
+```sh
+bun run env:up     # Postgres on :5433 and Prometheus on :9091, seeded with the checkout incident
+bun run env:down   # stop them and delete their data
+```
+
+`bun run env:up:opensearch` also starts OpenSearch on :9202. The sources, their users and the
+incident they share are described in [the architecture](./architecture.md#14-local-development).
 
 ## Git hooks
 

@@ -16,6 +16,7 @@ COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY dev/package.json dev/package.json
 # The root prepare script installs git hooks, which an image has no use for.
 RUN bun install --frozen-lockfile --ignore-scripts
 COPY tsconfig.base.json ./
@@ -30,6 +31,7 @@ COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY dev/package.json dev/package.json
 RUN bun install --frozen-lockfile --ignore-scripts --production --filter @querent/server
 RUN mkdir -p /volume/data && chown 1000:1000 /volume/data && chmod 700 /volume/data
 

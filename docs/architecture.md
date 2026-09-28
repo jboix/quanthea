@@ -541,12 +541,24 @@ is editable in the UI.
 
 - `bun install`, then `bun run dev` runs the Vite dev server (5173, proxying `/api`) and
   `bun --hot apps/server/src/main.ts` (3000).
-- `dev/docker-compose.yml` starts Postgres (seeded with an `orders` schema: `orders`, `order_items`, `payments`, `customers`, `refunds`, `deploys`), Prometheus
-  scraping a small synthetic metrics generator (a Bun script exposing
-  `http_requests_total{service,env,code,region}` and latency histograms, with a scripted incident),
-  and a single-node OpenSearch with synthetic logs.
-- The seed data should make a "checkout incident" reproducible: an error spike after a deploy. It's the demo,
-  the manual test script and the eval fixture all at once.
+- `bun run env:up` starts the local data sources in `dev/docker-compose.yml`, and `bun run env:down`
+  deletes them with their data.
+
+| Source     | Address          | Contents                                                                                                                                                                                        |
+| ---------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Postgres   | `localhost:5433` | Database `orders`: `customers`, `orders`, `order_items`, `payments`, `refunds`, `deploys`. Users `querent_admin` (password `querent-dev`) and the read-only `dash_ro` (password `dash-ro-dev`). |
+| Prometheus | `localhost:9091` | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                 |
+| OpenSearch | `localhost:9202` | A single node without security, started only by `bun run env:up:opensearch`.                                                                                                                    |
+
+- Both sources tell one story, the checkout incident: deploy #481 of `checkout-svc` yesterday at
+  12:02 UTC, 5xx errors of checkout rising to 8.4% and its p95 latency to about 3 s, failed orders
+  and payment errors in Postgres, and the rollback (#482) 36 minutes later. It is the demo, the
+  manual test script and the eval fixture all at once.
+- `dev/metrics/incident.ts` holds the traffic model. `history.ts` writes the metrics from eight
+  hours before the incident until now, which `promtool` backfills into Prometheus on the first
+  start; `serve.ts` serves the same model live. The Postgres seed (`dev/postgres`) computes the
+  incident from the same instant. The seed runs once per data volume, so after `env:down` the next
+  `env:up` moves the incident to the new yesterday.
 
 ## 15. Testing and evals
 

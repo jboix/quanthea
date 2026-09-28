@@ -1,0 +1,10 @@
+{
+  "name": "@querent/dev",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local data sources for development and integration tests: Postgres, Prometheus and a metrics generator.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}

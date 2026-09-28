@@ -40,6 +40,19 @@ updates:
       - dependency-name: "@types/bun"
         update-types: [ "version-update:semver-minor", "version-update:semver-major" ]
 
+  # --- Docker Compose (the local data sources) ---
+  - package-ecosystem: "docker-compose"
+    directory: "/dev"
+    schedule:
+      interval: "weekly"
+    groups:
+      dev-images:
+        patterns: [ "*" ]
+    ignore:
+      # The generator runs the Bun version in .tool-versions. Move both together.
+      - dependency-name: "oven/bun"
+        update-types: [ "version-update:semver-minor", "version-update:semver-major" ]
+
   # --- Docker ---
   - package-ecosystem: "docker"
     directory: "/"
