@@ -3,7 +3,13 @@
  * declarations. Values are bound, never pasted into a query, so a query-backed value is not
  * checked against its options; "All" expands to them.
  */
-import { allValue, type DashboardSpec, type Variable, type VariableValues } from '@querent/shared';
+import {
+  allValue,
+  type DashboardSpec,
+  isMultiValue,
+  type Variable,
+  type VariableValues,
+} from '@querent/shared';
 import { AppError } from '../lib/errors.ts';
 import type { VariableBinding, Variables } from '../query/variables.ts';
 
@@ -49,7 +55,7 @@ function chosenValues(
  * @throws {AppError} `bad_request` for no value, or several for a single-value variable.
  */
 function bindingOf(variable: Variable, values: readonly string[]): VariableBinding {
-  const multi = variable.kind !== 'text' && variable.multi === true;
+  const multi = isMultiValue(variable);
   if (values.length === 0) refuse(variable, 'needs a value.');
   if (!multi && values.length > 1) refuse(variable, 'takes one value.');
   return { value: multi ? values : (values[0] ?? '') };
@@ -72,16 +78,21 @@ function textBinding(variable: Extract<Variable, { kind: 'text' }>, values: read
 }
 
 /**
- * Binds a custom variable, checking every value is an option.
+ * Binds a variable whose options the spec lists, checking every value is an option. An interval
+ * variable's value is marked as a duration, the only kind PromQL takes where a duration goes.
  *
  * @param variable - The variable.
  * @param values - The chosen values.
  * @returns The binding.
  */
-function customBinding(variable: Extract<Variable, { kind: 'custom' }>, values: readonly string[]) {
+function listedBinding(
+  variable: Extract<Variable, { kind: 'custom' | 'interval' }>,
+  values: readonly string[],
+): VariableBinding {
   const unknown = values.find((value) => !variable.options.includes(value));
   if (unknown !== undefined) refuse(variable, `has no option "${unknown}".`);
-  return bindingOf(variable, values);
+  const binding = bindingOf(variable, values);
+  return variable.kind === 'interval' ? { ...binding, duration: true } : binding;
 }
 
 /**
@@ -130,8 +141,9 @@ export async function resolveVariables(
     if (variable.name === until) break;
     const values = chosenValues(variable, picked[variable.name]);
     if (variable.kind === 'text') resolved[variable.name] = textBinding(variable, values);
-    else if (variable.kind === 'custom') resolved[variable.name] = customBinding(variable, values);
-    else resolved[variable.name] = await queryBinding(variable, values, resolved, loadOptions);
+    else if (variable.kind === 'query')
+      resolved[variable.name] = await queryBinding(variable, values, resolved, loadOptions);
+    else resolved[variable.name] = listedBinding(variable, values);
   }
   return resolved;
 }

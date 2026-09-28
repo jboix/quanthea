@@ -55,14 +55,36 @@ describe('bindPromql matcher values', () => {
 describe('bindPromql placement', () => {
   test('refuses a variable outside a matcher value', () => {
     expect(() => bind('rate($metric[5m])', { metric: { value: 'up' } })).toThrow(
-      'label matcher values only',
+      'Variables go in label matcher values',
     );
     expect(() => bind('label_replace(up, "dst", "$1", "src", "(.*)")')).toThrow(
-      'label matcher values only',
+      'Variables go in label matcher values',
     );
     expect(() => bind('up{env=`$env`}', { env: { value: 'prod' } })).toThrow(
-      'label matcher values only',
+      'Variables go in label matcher values',
     );
+  });
+
+  test('puts an interval variable where a duration goes, and nothing else', () => {
+    const interval = { value: '5m', duration: true };
+    expect(bind('rate(http_requests_total[$interval])', { interval })).toBe(
+      'rate(http_requests_total[5m])',
+    );
+    expect(() => bind('rate(up[$window])', { window: { value: '5m' } })).toThrow(
+      'Only an interval variable goes where a duration does',
+    );
+    expect(() =>
+      bind('rate(up[$interval])', { interval: { value: '5m]) or vector(1', duration: true } }),
+    ).toThrow('Variables go in label matcher values');
+  });
+
+  test('takes an interval variable as the step', () => {
+    const interval = { value: '5m', duration: true };
+    const bound = bindPromql({ expr: 'up', step: '$interval' }, { interval }, timeRange, 11_000);
+    expect(bound.stepSeconds).toBe(300);
+    expect(() =>
+      bindPromql({ expr: 'up', step: '$env' }, { env: { value: 'prod' } }, timeRange, 11_000),
+    ).toThrow('The step takes a duration or an interval variable.');
   });
 
   test('names an unknown variable', () => {

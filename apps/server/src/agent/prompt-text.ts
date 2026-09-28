@@ -39,7 +39,8 @@ export const specGuide = `The spec (JSON, no functions, no HTML):
   "time": { "from": "now-6h" | ISO 8601 with offset, "to": "now" | ISO },
   "variables": [ { "kind": "custom", "name": "env", "options": ["prod","staging"], "default": "prod", "multi"?: bool }
                | { "kind": "query", "name": "service", "source": <query without refId>, "multi"?: bool, "includeAll"?: bool, "default"?: string | string[] }
-               | { "kind": "text", "name": "order", "default": string, "pattern"?: regex } ],
+               | { "kind": "text", "name": "order", "default": string, "pattern"?: regex }
+               | { "kind": "interval", "name": "interval", "options": ["1m","5m","15m"], "default": "5m" } ],
   "annotations": [ { "id": slug, "label": "deploy", "query": <query>, "timeField": field, "textField": field } ],
   "panels": [ { "id": slug, "title": string, "description"?: string,
                 "grid": { "x": 0-11, "y": row, "w": 1-12, "h": rows of 40px },
@@ -48,6 +49,7 @@ export const specGuide = `The spec (JSON, no functions, no HTML):
 <query>: { "refId": "A", "connector": name, "language": "promql", "expr": string, "step"?: "1m", "instant"?: bool }
        | { "refId": "A", "connector": name, "language": "sql", "sql": string }
 Variables: SQL uses :name, :__from, :__to (bound parameters). PromQL uses $name only inside label matcher values (env="$env", service=~"$service"), and $__interval, $__range, $__rate_interval in code. A multi-value variable needs =~ in PromQL and IN (:name) in SQL.
+Interval variables: for a window or resolution the person picks, declare { "kind": "interval" } and use it where a duration goes in PromQL (rate(x[$interval]), "step": "$interval"), or in SQL as :interval::interval (date_bin(:interval::interval, created_at, :__from)). No other variable may go there.
 stat: { "kind": "stat", "ref": "A", "field"?: name, "reduce": "last"|"first"|"max"|"min"|"mean"|"sum"|"count", "format": <formatter>, "subtitle"?: string, "compare"?: { "ref", "reduce", "label" } }
 table: { "kind": "table", "ref": "A", "columns": [ { "field", "label"?, "format"?, "align"?: "left"|"right" } ], "sort"?: { "field", "dir" }, "limit"?: ≤500 }
   Columns read fields by name; a Prometheus instant query gives one column per label plus "Value".

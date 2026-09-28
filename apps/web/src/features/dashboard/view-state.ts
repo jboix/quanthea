@@ -6,6 +6,7 @@
 import {
   createFormatter,
   type DashboardSpec,
+  isMultiValue,
   type TimeRangeExpression,
   timeRangeSchema,
   type VariableValues,
@@ -55,7 +56,7 @@ export function choicesFromSearch(search: URLSearchParams, spec: DashboardSpec):
   const entries = spec.variables.flatMap((variable) => {
     const values = search.getAll(`${variablePrefix}${variable.name}`);
     if (values.length === 0) return [];
-    const multi = variable.kind !== 'text' && variable.multi === true;
+    const multi = isMultiValue(variable);
     return [[variable.name, multi ? values : (values[0] ?? '')] as const];
   });
   return { variables: Object.fromEntries(entries), time: time.success ? time.data : undefined };

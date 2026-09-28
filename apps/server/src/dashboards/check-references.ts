@@ -3,7 +3,13 @@
  * views bound to their panel's refIds, markers bound to annotations, and variable defaults among
  * their options.
  */
-import type { DashboardSpec, Panel, Variable, View } from '@querent/shared';
+import {
+  type DashboardSpec,
+  isMultiValue,
+  type Panel,
+  type Variable,
+  type View,
+} from '@querent/shared';
 import type { SpecIssue } from './issues.ts';
 
 /**
@@ -73,11 +79,11 @@ function checkPanel(panel: Panel, path: string, annotations: ReadonlySet<string>
 function checkVariable(variable: Variable, path: string): SpecIssue[] {
   if (variable.kind === 'text') return checkPattern(variable.pattern, variable.default, path);
   const defaults = variable.default === undefined ? [] : [variable.default].flat();
-  if (!variable.multi && defaults.length > 1)
+  if (!isMultiValue(variable) && defaults.length > 1)
     return [
       { path: `${path}.default`, message: 'Only a multi-value variable has several defaults.' },
     ];
-  if (variable.kind !== 'custom') return [];
+  if (variable.kind === 'query') return [];
   const unknown = defaults.find((value) => !variable.options.includes(value));
   return unknown === undefined
     ? []

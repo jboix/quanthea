@@ -11,6 +11,7 @@ import type {
   ResolvedTimeRange,
   Variable,
 } from '@querent/shared';
+import { isMultiValue } from '@querent/shared';
 import { bindTemplate } from '../query/bind.ts';
 import type { QuerySource } from '../query/executor.ts';
 import { checkTimeRange } from '../query/guardrails.ts';
@@ -71,9 +72,10 @@ function queriesOf(spec: DashboardSpec): LocatedQuery[] {
  */
 function sampleBinding(variable: Variable) {
   if (variable.kind === 'text') return { value: variable.default };
+  if (variable.kind === 'interval') return { value: variable.default, duration: true };
   const options = variable.kind === 'custom' ? variable.options : ['a', 'b'];
   const first = options[0] ?? 'a';
-  return { value: variable.multi ? [first, options[1] ?? first] : first };
+  return { value: isMultiValue(variable) ? [first, options[1] ?? first] : first };
 }
 
 /**

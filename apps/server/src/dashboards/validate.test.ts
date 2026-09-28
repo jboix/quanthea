@@ -218,6 +218,30 @@ describe('validateSpec', () => {
     ]);
   });
 
+  test('takes an interval variable in a range and as the step, from its options only', () => {
+    const withInterval = (spec: ReturnType<typeof validSpec>) => {
+      spec.variables.push({
+        kind: 'interval',
+        name: 'interval',
+        options: ['1m', '5m'],
+        default: '5m',
+      } as never);
+      set(spec, 'panels.1.queries.0.expr', 'sum(rate(http_requests_total[$interval]))');
+      set(spec, 'panels.1.queries.0.step', '$interval');
+    };
+    expect(issuesAfter(withInterval)).toEqual([]);
+    expect(
+      issuesAfter((spec) => {
+        withInterval(spec);
+        Object.assign(spec.variables[2] ?? {}, { default: '15m' });
+        set(spec, 'panels.0.queries.0.step', '$env');
+      }),
+    ).toEqual([
+      'variables[2].default: "15m" is not one of the options.',
+      'panels[0].queries[0].expr: The step takes a duration or an interval variable.',
+    ]);
+  });
+
   test('catches a multi-value variable where one value fits, and a write statement', () => {
     expect(
       issuesAfter((spec) => {

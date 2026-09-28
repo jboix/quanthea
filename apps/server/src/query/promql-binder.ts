@@ -46,7 +46,25 @@ const regexMetacharacters = /[\\.+*?()|[\]{}^$]/g;
 const trailingOperator = /(=~|!~|!=|=)\s*$/;
 
 /** The message for a variable where it may not be. */
-const misplacedVariable = 'Variables go in label matcher values only, such as env="$env".';
+const misplacedVariable =
+  'Variables go in label matcher values, such as env="$env". Only an interval variable goes where a duration does, such as [$interval].';
+
+/** A PromQL duration, the only text an interval variable may put into code. */
+const durationPattern = /^\d{1,5}[smhd]$/;
+
+/**
+ * The duration an interval variable binds to, checked again here so nothing else reaches the code.
+ *
+ * @param name - The variable name.
+ * @param variables - The variables.
+ * @returns The duration, or `undefined` when the name is not an interval variable.
+ */
+function intervalValue(name: string, variables: Variables): string | undefined {
+  const binding = variables[name];
+  if (!binding?.duration) return undefined;
+  const [value] = valuesOf(binding);
+  return value !== undefined && durationPattern.test(value) ? value : undefined;
+}
 
 /**
  * Splits PromQL into code, string literals and comments.
@@ -134,16 +152,23 @@ function bindString(literal: string, operator: string | undefined, variables: Va
 }
 
 /**
- * Binds the built-in durations in a run of code. Any other variable in code is an error.
+ * Binds the durations in a run of code: the built-in ones and interval variables. Any other
+ * variable in code is an error.
  *
  * @param code - The code.
  * @param durations - The built-in durations, such as `__interval` → `60s`.
+ * @param variables - The variables, for interval variables.
  * @returns The code with the durations substituted.
  * @throws {QueryError} `invalid` for any other variable.
  */
-function bindCode(code: string, durations: Readonly<Record<string, string>>): string {
+function bindCode(
+  code: string,
+  durations: Readonly<Record<string, string>>,
+  variables: Variables,
+): string {
   return code.replace(reference, (_match, braced?: string, bare?: string) => {
-    const duration = durations[braced ?? bare ?? ''];
+    const name = braced ?? bare ?? '';
+    const duration = durations[name] ?? intervalValue(name, variables);
     if (duration === undefined) throw new QueryError('invalid', misplacedVariable);
     return duration;
   });
@@ -196,7 +221,7 @@ function bindSegment(
   if (segment.kind === 'string') return bindString(segment.text, matcherOperator(state), variables);
   state.braceDepth += braceDelta(segment.text);
   state.previousCode = segment.text;
-  return bindCode(segment.text, durations);
+  return bindCode(segment.text, durations, variables);
 }
 
 /**
@@ -227,6 +252,24 @@ export function parseDuration(text: string): number | undefined {
   if (!match) return undefined;
   const unit = { s: 1, m: 60, h: 3600, d: 86_400 }[match[2] as 's' | 'm' | 'h' | 'd'];
   return Number(match[1]) * unit;
+}
+
+/**
+ * A template's step, with an interval variable replaced by its duration.
+ *
+ * @param step - The step: a duration, or `$name` of an interval variable.
+ * @param variables - The variables.
+ * @returns The duration.
+ * @throws {QueryError} `invalid` for a variable that is not an interval variable.
+ */
+function bindStep(step: string, variables: Variables): string {
+  const match = /^\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))$/.exec(step);
+  if (!match) return step;
+  const duration = intervalValue(match[1] ?? match[2] ?? '', variables);
+  if (duration === undefined) {
+    throw new QueryError('invalid', 'The step takes a duration or an interval variable.');
+  }
+  return duration;
 }
 
 /**
@@ -264,7 +307,8 @@ export function bindPromql(
   timeRange: TimeRange,
   maxPoints: number,
 ): PromqlQuery {
-  const stepSeconds = stepFor(template, timeRange, maxPoints);
+  const step = template.step === undefined ? undefined : bindStep(template.step, variables);
+  const stepSeconds = stepFor({ ...template, step }, timeRange, maxPoints);
   const rangeSeconds = Math.max(
     1,
     Math.round((timeRange.to.getTime() - timeRange.from.getTime()) / 1000),

@@ -1,4 +1,4 @@
-import { allValue, type Variable } from '@querent/shared';
+import { allValue, isMultiValue, type Variable } from '@querent/shared';
 import { useRef, useState } from 'react';
 import { useFetcher } from 'react-router';
 import type { Loaded } from './data.ts';
@@ -40,7 +40,7 @@ function shown(value: string | readonly string[]): string {
 function useOptions(variable: Variable, optionsUrl: string) {
   const fetcher = useFetcher<Loaded<string[]>>();
   const loadedOptions = fetcher.data?.ok ? fetcher.data.value : [];
-  const listed = variable.kind === 'custom' ? variable.options : loadedOptions;
+  const listed = 'options' in variable ? variable.options : loadedOptions;
   const withAll = variable.kind === 'query' && variable.includeAll ? [allValue, ...listed] : listed;
   const load = () => {
     if (variable.kind === 'query' && fetcher.state === 'idle') void fetcher.load(optionsUrl);
@@ -97,7 +97,7 @@ function OptionMenu({ variable, values, state, onChoose }: OptionMenuProps) {
 export function OptionChip({ variable, value, onChange, optionsUrl }: ChipProps) {
   const details = useRef<HTMLDetailsElement>(null);
   const state = useOptions(variable, optionsUrl);
-  const multi = variable.kind !== 'text' && variable.multi === true;
+  const multi = isMultiValue(variable);
   const values = [value].flat();
   const choose = (option: string) => {
     if (!multi || option === allValue) {

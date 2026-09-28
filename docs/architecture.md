@@ -497,9 +497,11 @@ its settings).
      DROP, ALTER, CREATE, GRANT, REVOKE, COPY or INTO outside literals.
    - **PromQL:** `$name` and `${name}` are replaced only inside the string value of a label matcher,
      escaped for the string, and for `=~` and `!~` escaped as a regular expression unless the
-     variable is declared as one. In code only `$__interval`, `$__range` and `$__rate_interval` are
-     allowed. The step is the template's step raised so the range fits in the row limit (at most
-     11000 points).
+     variable is declared as one. In code only `$__interval`, `$__range`, `$__rate_interval` and
+     interval variables are allowed: an interval variable's value must be one of its options and is
+     checked again against the duration pattern (`15s`, `5m`, `1h`) when bound. The step is a
+     duration or an interval variable, raised so the range fits in the row limit (at most 11000
+     points).
 3. The connector runs the bound query with an abort signal that fires at `timeoutMs` or when the
    caller gives up. The executor also races the signal, so a connector that ignores it cannot hold
    the caller.

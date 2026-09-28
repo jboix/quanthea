@@ -168,6 +168,7 @@ export {
 } from './spec/time.ts';
 export {
   allValue,
+  isMultiValue,
   type Variable,
   type VariableValues,
   variableSchema,

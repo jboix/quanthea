@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import { variableNameSchema } from './names.ts';
-import { queryTemplateSchema } from './queries.ts';
+import { durationSchema, queryTemplateSchema } from './queries.ts';
 
 /** Validates one variable value. */
 const valueSchema = z.string().max(200);
@@ -42,15 +42,39 @@ const textVariableSchema = z.strictObject({
   pattern: z.string().min(1).max(200).optional(),
 });
 
+/**
+ * Validates an interval variable: durations to pick from, such as `1m`, `5m` and `1h`. It is the
+ * only variable PromQL takes where a duration goes (`[$interval]`, `step`), and SQL binds it like
+ * any other value (`:interval::interval`).
+ */
+const intervalVariableSchema = z.strictObject({
+  kind: z.literal('interval'),
+  name: variableNameSchema,
+  label: labelSchema,
+  options: z.array(durationSchema).min(1).max(20),
+  default: durationSchema,
+});
+
 /** Validates a variable. */
 export const variableSchema = z.discriminatedUnion('kind', [
   customVariableSchema,
   queryVariableSchema,
   textVariableSchema,
+  intervalVariableSchema,
 ]);
 
 /** A dashboard variable. */
 export type Variable = z.infer<typeof variableSchema>;
+
+/**
+ * Whether a variable takes several values at once.
+ *
+ * @param variable - The variable.
+ * @returns `true` for a custom or query-backed variable marked `multi`.
+ */
+export function isMultiValue(variable: Variable): boolean {
+  return 'multi' in variable && variable.multi === true;
+}
 
 /** Validates the values a viewer picked, by variable name. */
 export const variableValuesSchema = z.record(

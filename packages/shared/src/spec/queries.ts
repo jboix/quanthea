@@ -7,15 +7,23 @@ import { z } from 'zod';
 import { connectorNameSchema } from '../connectors.ts';
 import { refIdSchema } from './names.ts';
 
+/** Validates a duration such as `15s`, `5m` or `1h`. */
+export const durationSchema = z
+  .string()
+  .regex(/^\d{1,5}[smhd]$/, 'Use a duration such as 15s, 1m or 1h.');
+
+/** Validates a step: a duration, or an interval variable such as `$interval`. */
+const stepSchema = z.union(
+  [durationSchema, z.string().regex(/^\$(?:\{[A-Za-z_]\w*\}|[A-Za-z_]\w*)$/)],
+  { error: 'Use a duration such as 15s, 1m or 1h, or an interval variable such as $interval.' },
+);
+
 /** Validates a PromQL template: an expression, and whether it is instant and its minimum step. */
 const promqlQuerySchema = z.strictObject({
   connector: connectorNameSchema,
   language: z.literal('promql'),
   expr: z.string().min(1).max(10_000),
-  step: z
-    .string()
-    .regex(/^\d{1,5}[smhd]$/, 'Use a duration such as 15s, 1m or 1h.')
-    .optional(),
+  step: stepSchema.optional(),
   instant: z.boolean().optional(),
 });
 

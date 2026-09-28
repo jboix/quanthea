@@ -53,6 +53,13 @@ type Variable =
       default: string
       pattern?: string                      // optional regex the value must match
     }
+  | {
+      kind: 'interval'                      // a duration to pick, such as the rate window
+      name: string
+      label?: string
+      options: string[]                     // durations: '1m', '5m', '1h'
+      default: string                       // one of the options
+    }
 
 // The built-in time variable (always present, not listed in `variables`):
 //   default range lives in `time`, values exposed as $__from, $__to, $__range, $__interval (PromQL/HTTP)
@@ -61,7 +68,7 @@ type TimeDefault = { from: string; to: string }   // 'now-7d' | 'now' | ISO 8601
 
 // ---------------------------------------------------------------- queries
 type QueryTemplate =
-  | { refId: string; connector: string; language: 'promql'; expr: string; step?: string; instant?: boolean }
+  | { refId: string; connector: string; language: 'promql'; expr: string; step?: string; instant?: boolean }  // step: '1m' or '$interval'
   | { refId: string; connector: string; language: 'sql'; sql: string }            // named params :var
   | { refId: string; connector: string; language: 'opensearch'; index: string; body: JsonWithVars }
   | { refId: string; connector: string; language: 'http'; path: string; query?: Record<string, string>; extract: HttpExtract }
