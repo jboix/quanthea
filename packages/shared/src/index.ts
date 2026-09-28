@@ -18,6 +18,15 @@ export {
 export { healthEndpoint } from './api/health.ts';
 export { meEndpoint } from './api/me.ts';
 export {
+  type Field,
+  type FieldType,
+  type Frame,
+  fieldSchema,
+  fieldTypes,
+  frameProblems,
+  frameSchema,
+} from './frames.ts';
+export {
   type AuthMode,
   authModeSchema,
   hasRole,

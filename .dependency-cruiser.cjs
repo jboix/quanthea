@@ -159,6 +159,21 @@ module.exports = {
       },
     },
     {
+      name: 'connector-kinds-use-the-kit',
+      severity: 'error',
+      comment:
+        'A connector kind imports connectors/_shared/index.ts and nothing else from _shared, so the ' +
+        'kit can change inside without breaking kinds. Tests may use connectors/_shared/test.',
+      from: {
+        path: '^apps/server/src/connectors/[^_/][^/]*/',
+        pathNot: ['[.]test[.]ts$', '/test/'],
+      },
+      to: {
+        path: '^apps/server/src/connectors/_shared/',
+        pathNot: '^apps/server/src/connectors/_shared/index[.]ts$',
+      },
+    },
+    {
       name: 'http-is-thin',
       severity: 'error',
       comment:

@@ -322,16 +322,39 @@ finishes, including tool parts, so a reload shows the same thread.
 
 ## 7. Connectors
 
+A **connector kind** is a kind of source, such as PostgreSQL. A **connector** is one configured
+source of a kind, such as `postgres-orders`. Kinds are built to be added: each lives in its own
+folder under `connectors/`, declares itself with `defineConnector`, and uses the core only through
+the **connector kit**, `connectors/_shared/index.ts` (dependency-cruiser rule
+`connector-kinds-use-the-kit`).
+
 ```ts
-// connectors/_shared/types.ts (sketch)
-interface Connector {
-  readonly kind: 'prometheus' | 'postgres' | 'opensearch' | 'http'
-  test(signal: AbortSignal): Promise<Health>                     // reachability, read-only check, latency
-  describe(signal: AbortSignal): Promise<SchemaSnapshot>          // shape only
-  sampleValues(field: FieldRef, limit: number, signal: AbortSignal): Promise<string[]>
-  execute(q: BoundQuery, ctx: ExecContext): Promise<Frame[]>      // ctx: signal, timeoutMs, maxRows, timeRange
-}
+// connectors/<kind>/<kind>-connector.ts (shape)
+export const exampleConnector = defineConnector({
+  kind: 'example',                    // stable identifier, stored with each connector
+  displayName: 'Example',
+  description: 'One sentence shown when an admin picks a kind.',
+  language: 'sql',                    // the core binds variables for this language
+  configSchema: z.object({ … }),      // host, database, TLS: plain text; `.meta()` titles the form
+  secretSchema: z.object({ … }),      // credentials: encrypted at rest, never returned
+  open: ({ config, secret }) => ({    // must not contact the source yet
+    test, describe, sampleValues, execute, close,
+  }),
+})
 ```
+
+- The app builds the add and edit forms from the two schemas (JSON Schema), so a kind ships no UI.
+- A kind never sees a query template or raw variable values: `execute` receives a **bound query**
+  (`SqlQuery` or `PromqlQuery`) and an **execution context** with the refId, the abort signal, the
+  timeout, the row limit and the time range. Binding, guardrails and the gate stay in the core,
+  whatever the kind does.
+- Failures are `ConnectorError`s with a code and a `safeMessage` that quotes no data. The model sees
+  only the safe message below access level 4.
+- `createFrameBuilder` lays rows out in columns and handles the row limit and truncation.
+- `connectors/_shared/test/conformance.ts` is the suite every kind runs in its test file: static
+  checks of the declaration, and live checks against a source (health, schema, valid frames, row
+  limit, abort, error messages, sample limit). `test/memory-connector.ts` is an in-memory kind for
+  tests.
 
 Every connector returns **Frames** (`packages/shared/src/frames.ts`), a columnar format like
 Grafana's data frames:
