@@ -10,40 +10,24 @@ import {
   type PanelRun,
   type Role,
 } from '@querent/shared';
-import type { AuditRepository } from '../db/audit-repository.ts';
-import type { DashboardRepository, VersionRow } from '../db/dashboard-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
-import type { ConnectorLookup } from './check-queries.ts';
-import type { SpecIssue } from './issues.ts';
 import {
-  listVariableOptions,
-  type RunChoices,
-  type RunnerDependencies,
-  runPanel,
-} from './run-panel.ts';
-import { validateSpec } from './validate.ts';
-import { canSee, toDetail } from './views.ts';
+  type DashboardsDependencies,
+  get,
+  type RunTarget,
+  refuseSpec,
+  type ServiceContext,
+  specOf,
+  validOrRefuse,
+  visibleVersion,
+} from './context.ts';
+import { listVariableOptions, runPanel } from './run-panel.ts';
+import { type ValidationResult, validateSpec } from './validate.ts';
+import { addVersion, failuresOf, type PanelTest, restoreVersion, testRunSpec } from './versions.ts';
 
-/** What the service needs. */
-export interface DashboardsDependencies extends Omit<RunnerDependencies, 'now'> {
-  /** Stores dashboards. */
-  readonly repository: DashboardRepository;
-  /** Records who did what. */
-  readonly audit: AuditRepository;
-  /** Finds a connector by name, for validation. */
-  readonly lookup: ConnectorLookup;
-  /** The clock; `Date.now` by default. */
-  readonly now?: () => number;
-}
-
-/** What names a saved version to run. */
-export interface RunTarget extends RunChoices {
-  /** The dashboard. */
-  readonly dashboardId: string;
-  /** The version. */
-  readonly version: number;
-}
+export type { DashboardsDependencies, RunTarget } from './context.ts';
+export type { PanelTest } from './versions.ts';
 
 /** The dashboards service. */
 export interface Dashboards {
@@ -111,75 +95,39 @@ export interface Dashboards {
     role: Role,
     signal?: AbortSignal,
   ): Promise<string[]>;
-}
-
-/** The service's dependencies with the clock resolved. */
-type ServiceContext = DashboardsDependencies & { readonly now: () => number };
-
-/**
- * Refuses a spec with its issues.
- *
- * @param message - What went wrong.
- * @param issues - The issues.
- * @returns Never.
- * @throws {AppError} `bad_request`, with the issues as `{ part: 'spec', path, message }`.
- */
-function refuseSpec(message: string, issues: readonly SpecIssue[]): never {
-  throw new AppError(
-    'bad_request',
-    message,
-    issues.map((issue) => ({ part: 'spec', ...issue })),
-  );
-}
-
-/**
- * Validates a spec against the current connectors.
- *
- * @param context - The service context.
- * @param input - The spec, as JSON.
- * @returns The valid spec.
- * @throws {AppError} `bad_request` with the issues.
- */
-function validOrRefuse(context: ServiceContext, input: unknown): DashboardSpec {
-  const result = validateSpec(input, { lookup: context.lookup, now: context.now() });
-  if (!result.ok) refuseSpec('The spec is invalid.', result.issues);
-  return result.spec;
-}
-
-/**
- * Finds a version the role may see.
- *
- * @param context - The service context.
- * @param id - The dashboard id.
- * @param version - The version number.
- * @param role - The role of the request.
- * @returns The version.
- * @throws {AppError} `not_found`.
- */
-function visibleVersion(
-  context: ServiceContext,
-  id: string,
-  version: number,
-  role: Role,
-): VersionRow {
-  const row = context.repository.getVersion(id, version);
-  if (!row || !canSee(row, role))
-    throw new AppError('not_found', `Dashboard ${id} has no version ${version}.`);
-  return row;
-}
-
-/**
- * The spec of a version the role may see.
- *
- * @param context - The service context.
- * @param target - The dashboard and version.
- * @param role - The role of the request.
- * @returns The spec, parsed.
- */
-function specOf(context: ServiceContext, target: RunTarget, role: Role): DashboardSpec {
-  return dashboardSpecSchema.parse(
-    visibleVersion(context, target.dashboardId, target.version, role).spec,
-  );
+  /**
+   * Validates a spec against the current connectors, without saving it.
+   *
+   * @param spec - The spec, as JSON.
+   * @returns The spec with its grid repaired, or the issues.
+   */
+  check(spec: unknown): ValidationResult;
+  /**
+   * Test-runs every panel of a spec with its defaults.
+   *
+   * @param spec - A valid spec.
+   * @returns One run per panel.
+   */
+  testRun(spec: DashboardSpec): Promise<PanelTest[]>;
+  /**
+   * Adds a version to a dashboard.
+   *
+   * @param id - The dashboard id.
+   * @param spec - The spec, as JSON.
+   * @param changeSummary - What changed.
+   * @param actor - Who made the change.
+   * @returns The new version number.
+   */
+  addVersion(id: string, spec: unknown, changeSummary: string, actor: string): number;
+  /**
+   * Restores an older version as a new one.
+   *
+   * @param id - The dashboard id.
+   * @param from - The version to restore.
+   * @param actor - Who restores it.
+   * @returns The new version number.
+   */
+  restore(id: string, from: number, actor: string): number;
 }
 
 /**
@@ -247,40 +195,6 @@ function create(
 }
 
 /**
- * Reads a dashboard.
- *
- * @param context - The service context.
- * @param id - The dashboard id.
- * @param role - The role of the request.
- * @returns The dashboard.
- */
-function get(context: ServiceContext, id: string, role: Role): DashboardDetail {
-  const row = context.repository.get(id);
-  if (!row) throw new AppError('not_found', `No dashboard ${id}.`);
-  return toDetail(row, context.repository.listVersions(id), role);
-}
-
-/**
- * Test-runs every panel of a spec with its defaults.
- *
- * @param context - The service context.
- * @param spec - The spec.
- * @returns An issue for each failing query.
- */
-async function testRun(context: ServiceContext, spec: DashboardSpec): Promise<SpecIssue[]> {
-  const runs = await Promise.all(
-    spec.panels.map((panel) => runPanel(context, spec, panel.id, { variables: {} })),
-  );
-  return runs.flatMap((run, panelIndex) =>
-    run.queries.flatMap((outcome, queryIndex) =>
-      outcome.error
-        ? [{ path: `panels[${panelIndex}].queries[${queryIndex}]`, message: outcome.error.message }]
-        : [],
-    ),
-  );
-}
-
-/**
  * Pins a version.
  *
  * @param context - The service context.
@@ -294,7 +208,7 @@ async function pin(context: ServiceContext, id: string, version: number, actor: 
   if (row.pinnedAt !== null)
     throw new AppError('bad_request', `Version ${version} is pinned already.`);
   const spec = validOrRefuse(context, row.spec);
-  const failures = await testRun(context, spec);
+  const failures = failuresOf(spec, await testRunSpec(context, spec));
   if (failures.length > 0) refuseSpec('Some panels fail. Fix them before pinning.', failures);
   const change = {
     versionId: row.id,
@@ -329,5 +243,10 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
       runPanel(context, specOf(context, target, role), panelId, target, signal),
     variableOptions: (target, name, role, signal) =>
       listVariableOptions(context, specOf(context, target, role), name, target, signal),
+    check: (spec) => validateSpec(spec, { lookup: context.lookup, now: context.now() }),
+    testRun: (spec) => testRunSpec(context, spec),
+    addVersion: (id, spec, changeSummary, actor) =>
+      addVersion(context, id, spec, changeSummary, actor),
+    restore: (id, from, actor) => restoreVersion(context, id, from, actor),
   };
 }

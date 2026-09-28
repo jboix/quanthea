@@ -204,3 +204,42 @@ describe('running panels', () => {
     ).toBe('No panel "nope" in this version.');
   });
 });
+
+describe('versions', () => {
+  test('adds versions and restores an older one as a new version', () => {
+    const { id } = services.dashboards.create(eventsSpec(), 'v1', 'editor-1');
+    const changed = { ...eventsSpec(), title: 'Events, renamed' };
+    expect(services.dashboards.addVersion(id, changed, 'renamed', 'agent')).toBe(2);
+    expect(services.dashboards.restore(id, 1, 'editor-1')).toBe(3);
+    const versions = services.dashboards.get(id, 'editor').versions;
+    expect(versions.map((version) => [version.version, version.changeSummary])).toEqual([
+      [1, 'v1'],
+      [2, 'renamed'],
+      [3, 'restored v1'],
+    ]);
+    expect(services.dashboards.getVersion(id, 3, 'editor').spec.title).toBe('Events');
+  });
+
+  test('refuses an invalid version and an unknown dashboard', async () => {
+    const { id } = services.dashboards.create(eventsSpec(), undefined, 'editor-1');
+    expect(
+      (await failureOf(() => services.dashboards.addVersion(id, { title: 'x' }, 'x', 'agent')))
+        .code,
+    ).toBe('bad_request');
+    expect(
+      (await failureOf(() => services.dashboards.addVersion('nope', eventsSpec(), 'x', 'agent')))
+        .code,
+    ).toBe('not_found');
+  });
+
+  test('checks and test-runs a spec without saving it', async () => {
+    const checked = services.dashboards.check(eventsSpec());
+    expect(checked.ok).toBe(true);
+    if (!checked.ok) return;
+    const tests = await services.dashboards.testRun(checked.spec);
+    expect(tests.map((each) => [each.panelId, each.run.queries[0]?.error])).toEqual([
+      ['errors-peak', null],
+      ['errors-over-time', null],
+    ]);
+  });
+});

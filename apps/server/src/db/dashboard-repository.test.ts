@@ -102,6 +102,22 @@ describe('dashboard repository', () => {
     expect(repository.getVersion(dashboard.id, 1)?.spec).toEqual(firstVersion.spec);
   });
 
+  test('adds versions after the latest one and touches the dashboard', () => {
+    const repository = createDashboardRepository(database);
+    repository.create(dashboard, firstVersion);
+    const { version: _version, ...next } = {
+      ...firstVersion,
+      id: '01K0000000000000000000000W',
+      createdAt: 5000,
+    };
+    expect(repository.addVersion(next)).toBe(2);
+    expect(repository.addVersion({ ...next, id: '01K0000000000000000000000X' })).toBe(3);
+    expect(repository.listVersions(dashboard.id).map((version) => version.version)).toEqual([
+      1, 2, 3,
+    ]);
+    expect(repository.get(dashboard.id)?.updatedAt).toBe(5000);
+  });
+
   test('deletes the versions with their dashboard', () => {
     const repository = createDashboardRepository(database);
     repository.create(dashboard, firstVersion);

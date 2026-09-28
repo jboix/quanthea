@@ -101,6 +101,14 @@ export interface DashboardRepository {
    * @returns `false` when the version was already pinned or does not belong to the dashboard.
    */
   pin(dashboardId: string, change: PinChange): boolean;
+  /**
+   * Adds a version after the latest one and records the change on the dashboard, in one
+   * transaction.
+   *
+   * @param version - The version, without its number.
+   * @returns The new version number.
+   */
+  addVersion(version: Omit<VersionRow, 'version'>): number;
 }
 
 /** A `dashboards` row as SQLite returns it. */
@@ -205,6 +213,10 @@ function writeStatements(database: Database) {
     pinVersion: database.query(
       'UPDATE dashboard_versions SET pinned_at = ? WHERE id = ? AND dashboard_id = ? AND pinned_at IS NULL',
     ),
+    nextVersion: database.query<{ next: number }, [string]>(
+      'SELECT coalesce(max(version), 0) + 1 AS next FROM dashboard_versions WHERE dashboard_id = ?',
+    ),
+    touchDashboard: database.query('UPDATE dashboards SET updated_at = ? WHERE id = ?'),
     pinDashboard: database.query(
       `UPDATE dashboards SET pinned_version_id = ?, title = ?, description = ?, tags = ?,
          updated_at = ? WHERE id = ?`,
@@ -277,6 +289,34 @@ function pinner(
 }
 
 /**
+ * Builds the transaction that adds a version after the latest one.
+ *
+ * @param database - A database the migrations have run on.
+ * @param statements - The prepared statements.
+ * @returns The add method.
+ */
+function versionAdder(
+  database: Database,
+  statements: ReturnType<typeof writeStatements>,
+): DashboardRepository['addVersion'] {
+  return database.transaction((version: Omit<VersionRow, 'version'>): number => {
+    const number = statements.nextVersion.get(version.dashboardId)?.next ?? 1;
+    statements.insertVersion.run(
+      version.id,
+      version.dashboardId,
+      number,
+      JSON.stringify(version.spec),
+      version.changeSummary,
+      version.pinnedAt,
+      version.actor,
+      version.createdAt,
+    );
+    statements.touchDashboard.run(version.createdAt, version.dashboardId);
+    return number;
+  });
+}
+
+/**
  * Creates the repository over an open database.
  *
  * @param database - A database the migrations have run on.
@@ -297,6 +337,7 @@ export function createDashboardRepository(database: Database): DashboardReposito
   return {
     create: creator(database, statements),
     pin: pinner(database, statements),
+    addVersion: versionAdder(database, statements),
     get: (id) => {
       const stored = selectDashboard.get(id);
       return stored ? toDashboard(stored) : undefined;
