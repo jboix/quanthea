@@ -24,7 +24,10 @@ export type AccessLevel = z.infer<typeof accessLevelSchema>;
 /** The access level of a new connector: schema and metadata. */
 export const defaultAccessLevel: AccessLevel = 2;
 
-/** Fields with at most this many distinct values are low cardinality: from level 2 the model gets their values. */
+/**
+ * Fields with at most this many distinct values are low cardinality: from level 2 the model gets
+ * their values.
+ */
 export const lowCardinalityLimit = 50;
 
 /**
@@ -35,9 +38,21 @@ export const hiddenFieldsSchema = z.array(z.string().trim().min(1).max(200)).max
 
 /** Validates the limits the server enforces on every query of a connector. */
 export const guardrailsSchema = z.object({
-  timeoutMs: z.int().min(1000).max(300_000).default(10_000),
-  maxRows: z.int().min(1).max(1_000_000).default(50_000),
-  maxRangeDays: z.int().min(1).max(3650).default(90),
+  timeoutMs: z
+    .int({ error: 'Use a number.' })
+    .min(1000, 'At least 1 second.')
+    .max(300_000, 'At most 300 seconds.')
+    .default(10_000),
+  maxRows: z
+    .int({ error: 'Use a whole number.' })
+    .min(1, 'At least 1 row.')
+    .max(1_000_000, 'At most 1,000,000 rows.')
+    .default(50_000),
+  maxRangeDays: z
+    .int({ error: 'Use a whole number.' })
+    .min(1, 'At least 1 day.')
+    .max(3650, 'At most 3650 days.')
+    .default(90),
 });
 
 /** The limits the server enforces on every query of a connector. */
