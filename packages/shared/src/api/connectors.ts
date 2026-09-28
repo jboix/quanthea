@@ -40,6 +40,8 @@ export type ConnectorSummary = z.infer<typeof connectorSummarySchema>;
 /** Validates a connector with its settings. Credentials are masked. */
 export const connectorDetailSchema = connectorSummarySchema.extend({
   config: z.record(z.string(), z.unknown()),
+  /** Where the connector points, such as `postgres://dash_ro@replica:5432/orders`, when known. */
+  target: z.string().nullable(),
   secret: z.record(z.string(), z.string()),
   hiddenFields: hiddenFieldsSchema,
   guardrails: guardrailsSchema,

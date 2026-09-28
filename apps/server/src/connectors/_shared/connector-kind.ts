@@ -83,6 +83,14 @@ export interface ConnectorKind<
   /** The credentials. Stored encrypted and never returned by the API. */
   readonly secretSchema: SecretSchema;
   /**
+   * Says where a connector points, shown under its name, such as
+   * `postgres://dash_ro@orders-replica:5432/orders`. It must not include credentials.
+   *
+   * @param config - The parsed configuration.
+   * @returns One line.
+   */
+  describeTarget?(config: z.output<ConfigSchema>): string;
+  /**
    * Opens a connection. It must not contact the source; the first call does.
    *
    * @param options - The parsed configuration and credentials.

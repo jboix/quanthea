@@ -52,3 +52,10 @@ describe('prometheus connector credentials', () => {
     ).toBe(true);
   });
 });
+
+describe('prometheus connector target', () => {
+  test('is the URL without the credentials it may carry', () => {
+    const config = prometheusConnector.configSchema.parse({ url: 'https://ops:pw@prom.example/' });
+    expect(prometheusConnector.describeTarget?.(config)).toBe('https://prom.example/');
+  });
+});

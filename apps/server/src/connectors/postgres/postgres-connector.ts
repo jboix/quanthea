@@ -338,6 +338,8 @@ export const postgresConnector = defineConnector({
   language: 'sql',
   configSchema,
   secretSchema,
+  describeTarget: (config) =>
+    `postgres://${config.username}@${config.host}:${config.port}/${config.database}`,
   open({ config, secret }): ConnectorInstance {
     const sql = openPool(config, secret.password);
     return {

@@ -41,11 +41,13 @@ export function toSummary(row: ConnectorRow): ConnectorSummary {
  *
  * @param row - The stored connector.
  * @param secret - The decrypted credentials.
+ * @param target - Where the connector points, from its kind, or `null`.
  * @returns The detail.
  */
 export function toDetail(
   row: ConnectorRow,
   secret: Readonly<Record<string, unknown>>,
+  target: string | null,
 ): ConnectorDetail {
   const masked = Object.fromEntries(
     Object.entries(secret)
@@ -55,6 +57,7 @@ export function toDetail(
   return {
     ...toSummary(row),
     config: (row.config ?? {}) as Record<string, unknown>,
+    target,
     secret: masked,
     hiddenFields: [...row.hiddenFields],
     guardrails: row.guardrails,

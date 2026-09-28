@@ -178,6 +178,17 @@ function kindInfo(kind: AnyConnectorKind): ConnectorKindInfo {
 }
 
 /**
+ * Where a connector points, as its kind describes it.
+ *
+ * @param kind - The connector's kind.
+ * @param config - The stored, parsed configuration.
+ * @returns One line, or `null` when the kind does not describe targets.
+ */
+function targetOf(kind: AnyConnectorKind, config: unknown): string | null {
+  return kind.describeTarget?.(config) ?? null;
+}
+
+/**
  * Finds a kind.
  *
  * @param context - The service context.
@@ -313,7 +324,11 @@ async function createConnector(
   const stored = await save(context, row, settings.secret);
   const detail = { name: stored.name, kind: stored.kind };
   context.audit.append({ actor, action: 'connector.create', target: stored.id, detail });
-  return toDetail(stored, settings.secret as Record<string, unknown>);
+  return toDetail(
+    stored,
+    settings.secret as Record<string, unknown>,
+    targetOf(kind, stored.config),
+  );
 }
 
 /**
@@ -360,7 +375,8 @@ async function updateConnector(
 ): Promise<ConnectorDetail> {
   const row = find(context, id);
   const secret = { ...(await secretOf(context, row)), ...(patch.secret ?? {}) };
-  const settings = validateSettings(kindOf(context, row.kind), patch.config ?? row.config, secret);
+  const kind = kindOf(context, row.kind);
+  const settings = validateSettings(kind, patch.config ?? row.config, secret);
   if (patch.name !== undefined) assertNameFree(context, patch.name, id);
   const updated = await save(
     context,
@@ -372,7 +388,11 @@ async function updateConnector(
     value === undefined ? [] : [key],
   );
   context.audit.append({ actor, action: 'connector.update', target: id, detail: { changed } });
-  return toDetail(updated, settings.secret as Record<string, unknown>);
+  return toDetail(
+    updated,
+    settings.secret as Record<string, unknown>,
+    targetOf(kind, updated.config),
+  );
 }
 
 /**
@@ -469,7 +489,8 @@ export function createConnections(dependencies: ConnectionsDependencies): Connec
     list: () => context.repository.list().map(toSummary),
     get: async (id) => {
       const row = find(context, id);
-      return toDetail(row, await secretOf(context, row));
+      const target = targetOf(kindOf(context, row.kind), row.config);
+      return toDetail(row, await secretOf(context, row), target);
     },
     create: (input, actor) => createConnector(context, input, actor),
     update: (id, patch, actor) => updateConnector(context, id, patch, actor),

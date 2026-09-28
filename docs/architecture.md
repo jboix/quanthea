@@ -143,7 +143,7 @@ them.
 
 Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, only `db/` imports
 `bun:sqlite`, and only `connectors/opensearch/` imports the OpenSearch client. Postgres uses
-`Bun.sql` and Prometheus uses `fetch`.
+the `postgres` driver and Prometheus uses `fetch`.
 
 ## 4. Web modules
 
@@ -339,6 +339,7 @@ export const exampleConnector = defineConnector({
   language: 'sql',                    // the core binds variables for this language
   configSchema: z.object({ … }),      // host, database, TLS: plain text; `.meta()` titles the form
   secretSchema: z.object({ … }),      // credentials: encrypted at rest, never returned
+  describeTarget: (config) => '…',    // optional: where it points, shown under its name
   open: ({ config, secret }) => ({    // must not contact the source yet
     test, describe, sampleValues, execute, close,
   }),
@@ -346,6 +347,8 @@ export const exampleConnector = defineConnector({
 ```
 
 - The app builds the add and edit forms from the two schemas (JSON Schema), so a kind ships no UI.
+- `describeTarget` returns one line such as `postgres://dash_ro@replica:5432/orders`. It never
+  includes credentials.
 - A kind never sees a query template or raw variable values: `execute` receives a **bound query**
   (`SqlQuery` or `PromqlQuery`) and an **execution context** with the refId, the abort signal, the
   timeout, the row limit and the time range. Binding, guardrails and the gate stay in the core,

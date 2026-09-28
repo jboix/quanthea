@@ -92,6 +92,7 @@ describe('connections', () => {
       kind: 'memory',
       accessLevel: 2,
       config: { rowCount: 5 },
+      target: null,
     });
     expect(created.secret).toEqual({ token: '••••••••9f2a' });
     const [stored] = storedSecrets(database);

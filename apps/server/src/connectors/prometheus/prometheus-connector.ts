@@ -183,6 +183,19 @@ function misconfigured(reason: string): ConnectorInstance {
   };
 }
 
+/**
+ * A URL without the user name and password it may carry.
+ *
+ * @param url - The URL.
+ * @returns The URL without credentials.
+ */
+function withoutCredentials(url: string): string {
+  const parsed = new URL(url);
+  parsed.username = '';
+  parsed.password = '';
+  return parsed.href;
+}
+
 /** The Prometheus connector kind. */
 export const prometheusConnector = defineConnector({
   kind: 'prometheus',
@@ -191,6 +204,7 @@ export const prometheusConnector = defineConnector({
   language: 'promql',
   configSchema,
   secretSchema,
+  describeTarget: (config) => withoutCredentials(config.url),
   open({ config, secret }): ConnectorInstance {
     const headers = authHeaders(config, secret);
     if (typeof headers === 'string') return misconfigured(headers);
