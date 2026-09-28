@@ -55,7 +55,8 @@ function writeDashboardTool(context: RunContext) {
       const ids = (value: unknown) =>
         new Set((value as DashboardSpec | undefined)?.panels?.map((panel) => panel.id) ?? []);
       const same = current !== undefined && sameIds(ids(current), ids(spec));
-      return writeVersion(context, spec, changeSummary, same);
+      // There is one spec version, so it is filled in rather than failed on.
+      return writeVersion(context, { ...spec, specVersion: 1 }, changeSummary, same);
     },
   });
 }

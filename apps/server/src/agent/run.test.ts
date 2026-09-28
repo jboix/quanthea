@@ -117,7 +117,13 @@ async function builtThread(): Promise<void> {
   services.threads.decidePlan(threadId, proposed?.id ?? '', 'approve', 'editor-1');
   const assistant = services.threads.get(threadId).messages[1] as { id: string };
   const build = agentWith(
-    { tool: 'write_dashboard', input: { spec: eventsSpec(), changeSummary: 'built from plan' } },
+    {
+      tool: 'write_dashboard',
+      input: {
+        spec: { ...eventsSpec(), specVersion: undefined },
+        changeSummary: 'built from plan',
+      },
+    },
     { text: 'Built.' },
   );
   await chat(build, { id: assistant.id, role: 'assistant', parts: [] });
