@@ -114,6 +114,13 @@ export {
   frameSchema,
 } from './frames.ts';
 export {
+  type GatewayPreset,
+  gatewayPresets,
+  type KnownModel,
+  type ProviderProfile,
+  providerProfiles,
+} from './model-providers.ts';
+export {
   defaultModelSettings,
   type ModelProvider,
   type ModelSettings,

@@ -1,4 +1,4 @@
-import type { ModelSettings, ModelSettingsView } from '@querent/shared';
+import { gatewayPresets, type ModelSettings, type ModelSettingsView } from '@querent/shared';
 import { useState } from 'react';
 import { type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
@@ -131,6 +131,45 @@ function ApiKeyField({ form, stored, issues }: SectionProps & { readonly stored:
 }
 
 /**
+ * The base URL: the provider's own API, filled in, or a gateway's, with the common ones a click
+ * away.
+ *
+ * @param props - The form and the issues.
+ * @returns The field, and the gateway presets for an OpenAI-compatible provider.
+ */
+function BaseUrlField({ form, issues }: SectionProps) {
+  const compatible = form.settings.provider === 'openai-compatible';
+  return (
+    <div className={styles.baseUrl}>
+      <Input
+        label="Base URL"
+        mono
+        autoComplete="off"
+        placeholder={compatible ? 'http://localhost:4000/v1' : 'The provider’s own API'}
+        value={form.settings.baseUrl ?? ''}
+        onChange={(event) =>
+          form.set('baseUrl', event.target.value === '' ? null : event.target.value)
+        }
+        error={issues.baseUrl}
+      />
+      {compatible && (
+        <div className={styles.presets}>
+          {gatewayPresets.map((preset) => (
+            <Button
+              key={preset.name}
+              size="small"
+              onClick={() => form.set('baseUrl', preset.baseUrl)}
+            >
+              {preset.name}
+            </Button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * The provider card: the provider, where it is, the key and the connection test.
  *
  * @param props - The form, the stored key and the issues.
@@ -138,26 +177,16 @@ function ApiKeyField({ form, stored, issues }: SectionProps & { readonly stored:
  * @returns The card.
  */
 function ProviderCard({ form, stored, issues }: SectionProps & { readonly stored: string | null }) {
-  const compatible = form.settings.provider === 'openai-compatible';
   return (
     <Card title="Provider">
       <RadioCards
         label="Provider"
         options={providerOptions}
         value={form.settings.provider}
-        onChange={(provider) => form.set('provider', provider)}
+        onChange={form.chooseProvider}
       />
       <div className={styles.pair}>
-        <Input
-          label={compatible ? 'Base URL' : 'Base URL (optional)'}
-          mono
-          placeholder={compatible ? 'http://localhost:4000/v1' : 'The provider’s own API'}
-          value={form.settings.baseUrl ?? ''}
-          onChange={(event) =>
-            form.set('baseUrl', event.target.value === '' ? null : event.target.value)
-          }
-          error={issues.baseUrl}
-        />
+        <BaseUrlField form={form} issues={issues} />
         <ApiKeyField form={form} stored={stored} issues={issues} />
       </div>
       <ConnectionTest dirty={form.dirty} />

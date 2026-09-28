@@ -2,7 +2,7 @@
  * Lists the models a provider offers, from its own API, so the settings screen can offer them in
  * a dropdown. Only models that can chat are kept.
  */
-import type { ModelProvider } from '@querent/shared';
+import { type ModelProvider, providerProfiles } from '@querent/shared';
 
 /** Where to ask, and with which key. */
 export interface CatalogRequest {
@@ -18,13 +18,6 @@ export interface CatalogRequest {
 export type Catalog =
   | { readonly ok: true; readonly models: readonly string[] }
   | { readonly ok: false; readonly message: string };
-
-/** The default API of each provider that has one. */
-const defaultBaseUrls: Readonly<Partial<Record<ModelProvider, string>>> = {
-  anthropic: 'https://api.anthropic.com/v1',
-  openai: 'https://api.openai.com/v1',
-  mistral: 'https://api.mistral.ai/v1',
-};
 
 /** Model ids that do not chat: embeddings, speech, images, video, music, live audio. */
 const notChat =
@@ -71,10 +64,10 @@ export async function listModels(
   request: CatalogRequest,
   fetchFunction: typeof fetch = fetch,
 ): Promise<Catalog> {
-  const base = request.baseUrl ?? defaultBaseUrls[request.provider];
-  if (base === undefined) return { ok: false, message: 'Enter the gateway’s base URL first.' };
+  const base = request.baseUrl ?? providerProfiles[request.provider].baseUrl;
+  if (base === null) return { ok: false, message: 'Enter the gateway’s base URL first.' };
   if (request.apiKey === null && request.provider !== 'openai-compatible') {
-    return { ok: false, message: 'Enter the API key to list the models.' };
+    return { ok: false, message: 'Enter the API key to list every model the provider offers.' };
   }
   try {
     const response = await fetchFunction(`${base.replace(/\/+$/, '')}/models`, {

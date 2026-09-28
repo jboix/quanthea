@@ -52,7 +52,7 @@ describe('listModels', () => {
       await listModels({ provider: 'openai', baseUrl: null, apiKey: null }, fetchFunction),
     ).toEqual({
       ok: false,
-      message: 'Enter the API key to list the models.',
+      message: 'Enter the API key to list every model the provider offers.',
     });
     expect(
       await listModels(

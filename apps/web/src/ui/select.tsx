@@ -8,6 +8,31 @@ interface SelectOption {
   readonly value: string;
   /** The visible text. */
   readonly label: string;
+  /** The heading it sits under; options without one come first, ungrouped. */
+  readonly group?: string;
+}
+
+/**
+ * The options, the ungrouped ones first, then one `optgroup` per group in order of appearance.
+ *
+ * @param options - The options.
+ * @returns The option elements.
+ */
+function optionElements(options: readonly SelectOption[]) {
+  const element = (option: SelectOption) => (
+    <option key={option.value} value={option.value}>
+      {option.label}
+    </option>
+  );
+  const groups = [...new Set(options.flatMap((option) => option.group ?? []))];
+  return [
+    ...options.filter((option) => option.group === undefined).map(element),
+    ...groups.map((group) => (
+      <optgroup key={group} label={group}>
+        {options.filter((option) => option.group === group).map(element)}
+      </optgroup>
+    )),
+  ];
 }
 
 /** Props of {@link Select}. */
@@ -55,11 +80,7 @@ export function Select({
         {...describedBy(`${selectId}-notes`, hint, error)}
         {...rest}
       >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
+        {optionElements(options)}
       </select>
       <FieldNotes id={`${selectId}-notes`} hint={hint} error={error} />
     </div>
