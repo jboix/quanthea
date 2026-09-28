@@ -73,6 +73,16 @@ describe('route access', () => {
     expect(settingsRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 
+  test('every thread route, the streamed chat too, needs the editor role', () => {
+    const threadRoutes = listApiRouteAccess(buildApp()).filter((route) =>
+      /^\/api\/threads/.test(route.path),
+    );
+    expect(threadRoutes.map((route) => `${route.method} ${route.path}`)).toContain(
+      'POST /api/threads/:threadId/chat',
+    );
+    expect(threadRoutes.every((route) => route.access === 'editor')).toBe(true);
+  });
+
   test('the audit reports a route mounted without an access declaration', () => {
     const app = buildApp();
     app.get('/api/sneaky', (context) => context.json({}));

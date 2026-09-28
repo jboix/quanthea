@@ -2,6 +2,8 @@
  * Builds the services over an open database: the configured connectors, the query executor and
  * the dashboards. The bootstrap and the tests wire them the same way.
  */
+
+import { type Agent, createAgent } from './agent/run.ts';
 import { type Connections, createConnections } from './connections/connections.ts';
 import type { AnyConnectorKind } from './connectors/_shared/index.ts';
 import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
@@ -42,6 +44,8 @@ export interface Services {
   readonly modelView: ModelView;
   /** The threads. */
   readonly threads: Threads;
+  /** The agent that authors dashboards in threads. */
+  readonly agent: Agent;
 }
 
 /** How long a query result stays cached, in milliseconds. */
@@ -106,5 +110,7 @@ export function createServices(dependencies: ServiceDependencies): Services {
     audit,
     usage: () => repository.usageSince(monthStart()),
   });
-  return { ...data, modelSettings, threads: createThreads({ repository, audit }) };
+  const threads = createThreads({ repository, audit });
+  const agent = createAgent({ ...data, threads, modelSettings });
+  return { ...data, modelSettings, threads, agent };
 }

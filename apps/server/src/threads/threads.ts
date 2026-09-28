@@ -121,6 +121,13 @@ export interface Threads {
    */
   attachDashboard(id: string, dashboardId: string, title: string): void;
   /**
+   * Names a thread that has no title yet.
+   *
+   * @param id - The thread id.
+   * @param title - The title, such as the first question.
+   */
+  name(id: string, title: string): void;
+  /**
    * Adds the tokens a run spent.
    *
    * @param id - The thread id.
@@ -371,5 +378,6 @@ export function createThreads(dependencies: ThreadsDependencies): Threads {
       change(context, id, (row) => ({ dashboardId, ...(row.title === null ? { title } : {}) })),
     addTokens: (id, tokens) =>
       change(context, id, (row) => ({ tokensUsed: row.tokensUsed + tokens })),
+    name: (id, title) => change(context, id, (row) => (row.title === null ? { title } : {})),
   };
 }

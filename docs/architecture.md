@@ -294,48 +294,63 @@ CHANGED / NEW / SAME against the parent, computed server-side by `dashboards/dif
 
 ### Tools
 
-Every tool validates its input with Zod, runs as the thread's principal, and returns compact
-JSON. Tool results are what the model sees, so they go through `gate/` whenever they carry
-anything from a source.
+Every tool validates its input with Zod, runs as the thread's person, and returns compact JSON.
+The data tools answer only through the gate's model view (`gate/model-view.ts`), so what a result
+shows depends on the connector's access level.
 
-| Tool                                        | Returns                                                                                     | Notes                                                           |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `list_connectors()`                         | name, kind, access level, description                                                       |                                                                 |
-| `describe(connector, scope?)`               | schema snapshot (tables/columns/types, metrics/labels, index mappings) minus hidden columns | Served from `schema_cache`. Refreshed on demand or daily.       |
-| `sample_values(connector, field, limit≤50)` | distinct values                                                                             | Level ≥ 2 only. Refuses high-cardinality fields.                |
-| `test_query(connector, query, variables)`   | L1: ok/error. L2: fields, types, row count. L3: plus aggregates. L4: plus rows ≤ cap        | Errors sanitized below L4.                                      |
-| `propose_plan(plan)`                        | `{planId}`                                                                                  | Moves the thread to `plan_pending`. The UI renders a plan card. |
-| `write_dashboard(spec)`                     | per-panel test results or validation errors                                                 | Creates draft vN. Only runs in `building` state.                |
-| `patch_panel(panelId, patch)`               | same                                                                                        | Small-edit path. Creates vN+1.                                  |
-| `search_library(query)`                     | pinned dashboards (title, tags, id)                                                         | Lets the agent suggest a variant instead of starting over.      |
-| `get_dashboard(id, version?)`               | spec                                                                                        | For variants and "ask about this".                              |
+| Tool                                                | Returns                                                                           | Notes                                                                                  |
+| --------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `list_connectors()`                                 | name, kind, query language, what the access level shows                           |                                                                                        |
+| `describe(connector, scope?)`                       | entities and fields minus hidden ones, at most 60, and how many more matched      | From the schema cache; read from the source when never read.                           |
+| `sample_values(connector, entity, field, limit≤50)` | distinct values                                                                   | Level 2 and up. Refuses hidden and high-cardinality fields.                            |
+| `test_query(connector, query, variables?, time?)`   | L1: ok or error. L2: fields, types, row counts. L3: plus summaries. L4: plus rows | Default range `now-6h` to `now`. Errors are safe messages below L4.                    |
+| `propose_plan(plan)`                                | `{ planId, status, next }`                                                        | Streams a `data-plan` part and moves the thread to `plan_pending`; the run then stops. |
+| `write_dashboard(spec, changeSummary)`              | the new version and each panel's test result, or the issues and failures to fix   | See "Writing a version".                                                               |
+| `patch_panel(panelId, changes, changeSummary)`      | same                                                                              | Changes one existing panel of the latest version; no plan needed in a ready thread.    |
+
+`search_library` and `get_dashboard` arrive with the library and variants.
+
+### Writing a version
+
+`write_dashboard` and `patch_panel` share one pipeline (`agent/write-version.ts`):
+
+1. The thread's state machine decides: after an approved plan, or in a ready thread when the set of
+   panels stays the same.
+2. The spec is validated (`dashboards.check`), then every panel is test-run with its defaults.
+   The results go back to the model through the gate.
+3. A version is saved only when every query works (with the "test-run every query" switch on).
+   Otherwise the model gets the issues or failures, and a counter of failed writes goes up.
+4. The first version creates the thread's dashboard; later ones add versions. Each streams a
+   `data-version` part, and a `data-diff` part with the changed panels.
 
 ### Prompting
 
-The system prompt is assembled per turn from:
+The instructions are assembled per turn (`agent/prompt.ts`) from fixed text (the rules, a compact
+description of the spec, the named formatters, a worked example) and the facts of the turn: the
+time now, the connectors with their access levels, the thread's state and approved plan, the
+current draft, and the panels the person mentions (the user message's `metadata.mentions`).
 
-- the role and rules: author specs, never invent field names, always test-run, prefer fewer and
-  clearer panels, explain what you can't see at the current access level;
-- the spec schema, as a compact description of the Zod schema, plus 2–3 worked examples;
-- the formatter library names and parameters;
-- the connectors list with access levels and admin-written descriptions (the connector screen says
-  it: good descriptions beat a bigger model);
-- for variant threads, the parent spec;
-- the thread's current draft version, if there is one;
-- `@mentioned` panels, passed as structured context (panel id and title), not just as text.
+### Runs and limits
 
-### Limits
-
-Each turn has a maximum number of tool calls (setting, default 25) and a maximum number of repair
-attempts per panel (3). Each thread has a token budget (setting). When a limit is hit, the run
-stops with a clear message in the thread, not a silent truncation.
+- `POST /api/threads/:id/chat` takes one message. A user message is appended to the stored
+  conversation; an assistant message may only name one the thread already has, to continue it
+  after an approval, and the stored copy is used, so a client cannot forge the agent's side.
+- One run per thread at a time. A run stops when a plan waits for approval, when it has made the
+  maximum number of tool calls (setting, default 25), or when failed writes reach the repair
+  attempts (setting, default 3).
+- Each run adds its tokens to the thread. A thread over its token budget (setting, default 200k)
+  refuses new runs with a message that says so.
+- Plan approval is a separate request (`POST /api/threads/:id/plans/:planId/approve`) that moves the
+  thread to `building`. The client then continues the assistant message, and the turn's
+  instructions tell the model to build the approved plan.
 
 ### Streaming
 
-`POST /api/threads/:id/chat` returns the AI SDK UI message stream. The web thread uses
-`@ai-sdk/react`. Custom stream parts carry `plan` (for the plan card), `dashboard-version` (to
-move the right pane to vN) and `diff` (for the change card). Messages are persisted when the run
-finishes, including tool parts, so a reload shows the same thread.
+The chat endpoint answers with the AI SDK UI message stream (`createUIMessageStream` around
+`streamText`). Custom parts carry `data-plan` (the plan card), `data-version` (the right pane moves
+to that version) and `data-diff` (the change card); their schemas are in `@querent/shared`. The
+whole conversation, tool parts included, is stored when the run ends, even if the person leaves, so
+a reload shows the same thread.
 
 ## 7. Connectors
 

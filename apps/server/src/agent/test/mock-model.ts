@@ -1,4 +1,5 @@
 /** Scripted language models for agent tests: no network, no provider. */
+import { simulateReadableStream } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 
 /** Token usage of one mocked step. */
@@ -48,6 +49,63 @@ export function scriptedModel(...steps: ScriptedStep[]): MockLanguageModelV4 {
       },
       usage,
       warnings: [],
+    })),
+  });
+}
+
+/** One chunk of a mocked model stream, as the mock model's own type says. */
+type StreamPart =
+  Awaited<ReturnType<MockLanguageModelV4['doStream']>>['stream'] extends ReadableStream<infer Part>
+    ? Part
+    : never;
+
+/**
+ * The stream chunks of a scripted answer.
+ *
+ * @param step - The answer: text, or a tool call.
+ * @param index - Its position, for default ids.
+ * @returns The chunks, ending with the finish chunk.
+ */
+function chunksOf(step: ScriptedStep, index: number): StreamPart[] {
+  if ('text' in step) {
+    const id = `text-${index}`;
+    return [
+      { type: 'text-start' as const, id },
+      { type: 'text-delta' as const, id, delta: step.text },
+      { type: 'text-end' as const, id },
+      {
+        type: 'finish' as const,
+        finishReason: { unified: 'stop' as const, raw: undefined },
+        usage,
+      },
+    ];
+  }
+  const toolCallId = step.id ?? `call-${index}`;
+  return [
+    {
+      type: 'tool-call' as const,
+      toolCallId,
+      toolName: step.tool,
+      input: JSON.stringify(step.input),
+    },
+    {
+      type: 'finish' as const,
+      finishReason: { unified: 'tool-calls' as const, raw: undefined },
+      usage,
+    },
+  ];
+}
+
+/**
+ * A model that answers `streamText` steps from a script, one answer per step.
+ *
+ * @param steps - The answers, in order.
+ * @returns The model.
+ */
+export function scriptedStreamModel(...steps: ScriptedStep[]): MockLanguageModelV4 {
+  return new MockLanguageModelV4({
+    doStream: steps.map((step, index) => ({
+      stream: simulateReadableStream({ chunks: chunksOf(step, index) }),
     })),
   });
 }

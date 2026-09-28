@@ -2,6 +2,7 @@
 import { apiPrefix } from '@querent/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
+import type { Agent } from './agent/run.ts';
 import type { Authenticator } from './auth/authenticator.ts';
 import type { Connections } from './connections/connections.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
@@ -9,6 +10,7 @@ import type { AppEnv } from './http/app-env.ts';
 import { authenticate } from './http/authenticate.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
+import { mountChatRoute } from './http/routes/chat-route.ts';
 import { mountConnectorRoutes } from './http/routes/connector-routes.ts';
 import { mountDashboardEndpoints } from './http/routes/dashboard-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
@@ -38,6 +40,8 @@ export interface AppDependencies {
   readonly modelSettings: ModelSettingsService;
   /** The threads. */
   readonly threads: Threads;
+  /** The agent. */
+  readonly agent: Agent;
 }
 
 /**
@@ -61,6 +65,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   mountDashboardEndpoints(app, dependencies.dashboards);
   mountSettingsEndpoints(app, dependencies.modelSettings);
   mountThreadEndpoints(app, dependencies.threads, dependencies.dashboards);
+  mountChatRoute(app, dependencies.agent);
   mountSpa(app, dependencies.webDir);
 
   app.onError(handleErrors(dependencies.logger));
