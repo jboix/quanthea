@@ -4,7 +4,8 @@
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { connectorInputSchema, type PanelRun } from '@querent/shared';
+import { connectorInputSchema, type PanelRun, panelRunSchema } from '@querent/shared';
+import { createApp } from '../app.ts';
 import {
   devIncidentStart,
   devPostgres,
@@ -12,7 +13,7 @@ import {
   integrationEnabled,
 } from '../connectors/_shared/test/dev-sources.ts';
 import { connectorKinds } from '../connectors/registry.ts';
-import { temporaryDir, testServices } from '../test/fixtures.ts';
+import { captureLogs, fixedAuthenticator, temporaryDir, testServices } from '../test/fixtures.ts';
 
 /** The fixture the dev seed pins, read from the dev workspace. */
 const fixturePath = new URL('../../../../dev/seed/checkout-incident.json', import.meta.url);
@@ -98,5 +99,30 @@ describe.skipIf(!integrationEnabled)('the checkout incident fixture, with no mod
     const chart = await run('error-rate-by-service');
     expect(chart.queries[0]?.frames.length).toBe(2);
     expect(chart.markers[0]?.points.map((point) => point.text)).toContain('deploy #481');
+  });
+
+  test('runs through the real HTTP app for a viewer, the way the browser asks', async () => {
+    const viewer = { id: 'viewer-1', name: 'Vera', role: 'viewer' as const };
+    const app = createApp({
+      version: 'test',
+      authenticator: fixedAuthenticator(viewer),
+      logger: captureLogs().logger,
+      webDir: dataDir.path,
+      connections: services.connections,
+      dashboards: services.dashboards,
+    });
+    const response = await app.request('/api/panels/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'querent' },
+      body: JSON.stringify({
+        dashboardId,
+        version: 1,
+        panelId: 'slowest-endpoints',
+        variables: { env: 'prod' },
+      }),
+    });
+    expect(response.status).toBe(200);
+    const run = panelRunSchema.parse(await response.json());
+    expect(run.queries[0]?.frames[0]?.meta.rowCount).toBe(5);
   });
 });
