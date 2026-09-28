@@ -16,6 +16,8 @@ export interface Config {
   readonly logLevel: LogLevel;
   /** Absolute path of the built SPA the server serves. */
   readonly webDir: string;
+  /** The key that encrypts connector credentials, in base64. Unset means a generated key file. */
+  readonly secretKey: string | undefined;
 }
 
 /** Treats an empty variable as unset, so `QUERENT_AUTH_MODE=` means "no override". */
@@ -31,6 +33,7 @@ const environmentSchema = z.object({
   QUERENT_AUTH_MODE: z.preprocess(unsetWhenEmpty, authModeSchema.optional()),
   QUERENT_LOG_LEVEL: z.preprocess(unsetWhenEmpty, z.enum(logLevels).default('info')),
   QUERENT_WEB_DIR: z.preprocess(unsetWhenEmpty, z.string().optional()),
+  QUERENT_SECRET_KEY: z.preprocess(unsetWhenEmpty, z.string().optional()),
 });
 
 /** Where `bun run build` puts the SPA, relative to this file. */
@@ -61,5 +64,6 @@ export function loadConfig(
     webDir: variables.QUERENT_WEB_DIR
       ? resolve(workingDir, variables.QUERENT_WEB_DIR)
       : defaultWebDir,
+    secretKey: variables.QUERENT_SECRET_KEY,
   };
 }

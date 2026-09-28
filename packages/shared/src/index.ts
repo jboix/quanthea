@@ -18,6 +18,16 @@ export {
 export { healthEndpoint } from './api/health.ts';
 export { meEndpoint } from './api/me.ts';
 export {
+  type AccessLevel,
+  accessLevelSchema,
+  connectorNameSchema,
+  defaultAccessLevel,
+  descriptionsSchema,
+  type Guardrails,
+  guardrailsSchema,
+  hiddenFieldsSchema,
+} from './connectors.ts';
+export {
   type Field,
   type FieldType,
   type Frame,

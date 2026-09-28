@@ -395,7 +395,7 @@ CREATE TABLE sessions (
 CREATE TABLE connectors (
   id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL, kind TEXT NOT NULL,
   config TEXT NOT NULL,             -- JSON, non-secret
-  secret BLOB,                      -- AES-GCM ciphertext
+  secret BLOB NOT NULL,             -- AES-GCM sealed, bound to the connector id
   access_level INTEGER NOT NULL DEFAULT 2 CHECK (access_level BETWEEN 1 AND 4),
   hidden_fields TEXT NOT NULL DEFAULT '[]',
   guardrails TEXT NOT NULL,         -- JSON: timeoutMs, maxRows, maxRangeDays, statements

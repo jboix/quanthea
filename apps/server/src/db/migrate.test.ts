@@ -58,9 +58,18 @@ describe('openDatabase', () => {
 
 describe('runMigrations', () => {
   test('applies the shipped migrations once', () => {
-    expect(runMigrations(database)).toEqual(['0001-settings-and-audit-log.sql']);
+    expect(runMigrations(database)).toEqual([
+      '0001-settings-and-audit-log.sql',
+      '0002-connectors.sql',
+    ]);
     expect(runMigrations(database)).toEqual([]);
-    expect(tableNames()).toEqual(['audit_log', 'migrations', 'settings']);
+    expect(tableNames()).toEqual([
+      'audit_log',
+      'connectors',
+      'migrations',
+      'schema_cache',
+      'settings',
+    ]);
   });
 
   test('rolls back a failing migration and keeps the ones before it', () => {

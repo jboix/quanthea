@@ -21,6 +21,7 @@ describe('loadConfig', () => {
         QUERENT_AUTH_MODE: 'none',
         QUERENT_LOG_LEVEL: 'debug',
         QUERENT_WEB_DIR: 'public',
+        QUERENT_SECRET_KEY: 'a2V5',
       },
       '/app',
     );
@@ -30,6 +31,7 @@ describe('loadConfig', () => {
       authModeOverride: 'none',
       logLevel: 'debug',
       webDir: '/app/public',
+      secretKey: 'a2V5',
     });
   });
 
