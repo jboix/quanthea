@@ -72,6 +72,7 @@ The two paths that matter:
 │   │       ├── agent/               AI SDK: provider factory, prompts, tools, run loop
 │   │       ├── gate/                what the model may see: access levels, hidden columns, error sanitizing
 │   │       ├── query/               executor: variable binding, guardrails, timeouts, result cache
+│   │       ├── connections/         configured connectors: CRUD, sealed secrets, open instances, schema cache
 │   │       ├── connectors/          registry + _shared/ (Frame, interface) + one folder per kind
 │   │       │   ├── _shared/
 │   │       │   ├── prometheus/
@@ -127,17 +128,18 @@ The two paths that matter:
 The allowed dependencies are enforced by `.dependency-cruiser.cjs`. The table summarizes
 them.
 
-| Module                                            | Responsibility                                             | May import                                                                | Must not import                                 |
-| ------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
-| `lib/`                                            | errors, logger, ids                                        | nothing internal                                                          | everything else                                 |
-| `connectors/<kind>/`                              | talk to one kind of source; return Frames                  | `connectors/_shared`, `lib`, `@querent/shared`, its own driver            | other connector kinds, anything else in the app |
-| `query/`                                          | bind variables, enforce guardrails, run, cache             | `connectors`, `lib`, shared                                               | `agent`, `http`                                 |
-| `gate/`                                           | turn query results and schemas into what the model may see | `query`, `connectors/_shared`, `settings`, `lib`                          | `agent`, `http`                                 |
-| `agent/`                                          | AI SDK loop, prompts, tool definitions                     | `gate`, `dashboards`, `threads`, `search`, `settings`, `lib`              | **`connectors`, `query`, `db`**                 |
-| `dashboards/`, `threads/`, `search/`, `settings/` | domain logic                                               | `db`, `lib`, shared (`dashboards` also calls `query` to test-run on save) | `http`, `agent`                                 |
-| `db/`                                             | the only user of `bun:sqlite`                              | `lib`                                                                     | —                                               |
-| `http/`                                           | validate, authorize, call services, stream                 | services, `agent`, `auth`                                                 | `connectors`, `db`                              |
-| `auth/`                                           | modes, sessions, Principal                                 | `settings`, `db` via repositories, `lib`                                  | `agent`                                         |
+| Module                                            | Responsibility                                              | May import                                                                | Must not import                                 |
+| ------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
+| `lib/`                                            | errors, logger, ids                                         | nothing internal                                                          | everything else                                 |
+| `connectors/<kind>/`                              | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@querent/shared`, its own driver            | other connector kinds, anything else in the app |
+| `query/`                                          | bind variables, enforce guardrails, run, cache              | `connectors`, `lib`, shared                                               | `agent`, `http`                                 |
+| `gate/`                                           | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                          | `agent`, `http`                                 |
+| `agent/`                                          | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `search`, `settings`, `lib`              | **`connectors`, `query`, `db`**                 |
+| `dashboards/`, `threads/`, `search/`, `settings/` | domain logic                                                | `db`, `lib`, shared (`dashboards` also calls `query` to test-run on save) | `http`, `agent`                                 |
+| `connections/`                                    | configured connectors: CRUD, sealed secrets, open instances | `db`, `secrets`, `connectors`, `gate`, `query` types, `lib`               | `http`, `auth`, `agent`                         |
+| `db/`                                             | the only user of `bun:sqlite`                               | `lib`                                                                     | —                                               |
+| `http/`                                           | validate, authorize, call services, stream                  | services, `agent`, `auth`                                                 | `connectors`, `db`                              |
+| `auth/`                                           | modes, sessions, Principal                                  | `settings`, `db` via repositories, `lib`                                  | `agent`                                         |
 
 Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, only `db/` imports
 `bun:sqlite`, and only `connectors/opensearch/` imports the OpenSearch client. Postgres uses

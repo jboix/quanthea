@@ -195,6 +195,15 @@ module.exports = {
       },
     },
     {
+      name: 'connections-below-http',
+      severity: 'error',
+      comment:
+        'connections/ stores and opens configured connectors. It sits under http/ and never reaches ' +
+        'up to it, to auth/ or to the agent.',
+      from: { path: '^apps/server/src/connections/' },
+      to: { path: '^apps/server/src/(http|auth|agent)/' },
+    },
+    {
       name: 'secrets-is-a-leaf',
       severity: 'error',
       comment:
