@@ -22,7 +22,7 @@ function throwIfAborted(signal: AbortSignal): void {
 }
 
 /**
- * Runs the only query the memory source knows, `events`, over its generated rows.
+ * Runs the only query the memory source knows, `SELECT * FROM events`, over its generated rows.
  *
  * @param text - The query text.
  * @param rowCount - How many rows the table holds.
@@ -31,7 +31,7 @@ function throwIfAborted(signal: AbortSignal): void {
  */
 function runEvents(text: string, rowCount: number, context: ExecutionContext) {
   throwIfAborted(context.signal);
-  if (text.trim() !== 'events') {
+  if (text.trim().replace(/\s+/g, ' ') !== 'SELECT * FROM events') {
     throw new ConnectorError('syntax', 'Unknown query.', `Unknown query "${text}".`);
   }
   const builder = createFrameBuilder({
@@ -50,7 +50,7 @@ function runEvents(text: string, rowCount: number, context: ExecutionContext) {
   return [builder.build(0)];
 }
 
-/** A test connector kind over generated rows. `execute` understands one query: `events`. */
+/** A test connector kind over generated rows. `execute` understands one query: `SELECT * FROM events`. */
 export const memoryConnector = defineConnector({
   kind: 'memory',
   displayName: 'Memory',

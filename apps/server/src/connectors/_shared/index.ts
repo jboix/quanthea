@@ -13,7 +13,9 @@ export {
   type BoundQuery,
   type ExecutionContext,
   type PromqlQuery,
+  type QueryLanguage,
   queryLanguages,
+  type SqlParameter,
   type SqlQuery,
   type TimeRange,
 } from './queries.ts';

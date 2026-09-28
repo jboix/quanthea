@@ -393,6 +393,33 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
 - **HTTP JSON:** GET only by default. The response is mapped to frames with a small declarative
   extractor (JSON pointer paths), not code.
 
+### Query engine (`query/`)
+
+`createQueryExecutor(cache).run(source, request)` runs one template against a connector the caller
+resolved (`QuerySource`: the open instance, its language, guardrails and a version that changes with
+its settings).
+
+1. The time range is checked against `maxRangeDays`.
+2. The template is bound for its language (`query/sql-binder.ts`, `query/promql-binder.ts`):
+   - **SQL:** `:name` becomes `$n`, a list becomes `$n, $m`, an empty list `NULL`; `:__from` and
+     `:__to` are the time range. Strings, quoted identifiers, dollar quotes, comments and `::` casts
+     are never rewritten, and `$1` in a template is refused. The template must be one statement
+     starting with SELECT, WITH, VALUES or TABLE, without INSERT, UPDATE, DELETE, MERGE, TRUNCATE,
+     DROP, ALTER, CREATE, GRANT, REVOKE, COPY or INTO outside literals.
+   - **PromQL:** `$name` and `${name}` are replaced only inside the string value of a label matcher,
+     escaped for the string, and for `=~` and `!~` escaped as a regular expression unless the
+     variable is declared as one. In code only `$__interval`, `$__range` and `$__rate_interval` are
+     allowed. The step is the template's step raised so the range fits in the row limit (at most
+     11000 points).
+3. The connector runs the bound query with an abort signal that fires at `timeoutMs` or when the
+   caller gives up. The executor also races the signal, so a connector that ignores it cannot hold
+   the caller.
+4. Every frame is checked (`frameProblems`); invalid frames are a connector error.
+5. The frames are cached for 15 seconds by connector, version, refId, bound query and time range.
+
+Failures are `QueryError`s (`invalid`, `guardrail`, `timeout`, `connector`) with a safe message.
+Injection tests cover both binders, and integration tests run the attacks against the dev sources.
+
 Credentials are stored encrypted. A connector config holds everything else: URL, database,
 TLS options, the access level, hidden columns, guardrails, and table and field descriptions.
 

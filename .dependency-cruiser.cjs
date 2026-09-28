@@ -174,6 +174,24 @@ module.exports = {
       },
     },
     {
+      name: 'query-stays-below',
+      severity: 'error',
+      comment:
+        'query/ binds and runs queries against a connector the caller resolved. It knows the ' +
+        'connectors, lib and shared, nothing above them: no db, gate, agent or http.',
+      from: { path: '^apps/server/src/query/' },
+      to: { path: '^apps/server/src/', pathNot: '^apps/server/src/(query|connectors|lib)/' },
+    },
+    {
+      name: 'secrets-is-a-leaf',
+      severity: 'error',
+      comment:
+        'secrets/ encrypts and decrypts. It imports lib/ only, so key handling stays auditable. ' +
+        'Its tests may use the shared test helpers in src/test/.',
+      from: { path: '^apps/server/src/secrets/' },
+      to: { path: '^apps/server/src/', pathNot: '^apps/server/src/(secrets|lib|test)/' },
+    },
+    {
       name: 'http-is-thin',
       severity: 'error',
       comment:
