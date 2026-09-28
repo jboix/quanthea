@@ -10,6 +10,7 @@ import {
   createIdGenerator,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  type Instructions,
   type LanguageModel,
   type StopCondition,
   streamText,
@@ -22,11 +23,12 @@ import { AppError } from '../lib/errors.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
 import { askPersonTool } from './ask-tool.ts';
 import { buildTools, currentSpec } from './build-tools.ts';
+import { cachedInstructions, withCachedTail } from './cache.ts';
 import { compactHistory, compactSteps, withPlanDecisions } from './compact.ts';
 import { dataTools } from './data-tools.ts';
 import { languageModel, ModelUnavailableError, reasoningOption } from './model.ts';
 import { phaseOf, phaseTools } from './phases.ts';
-import { instructionsFor } from './prompt.ts';
+import { instructionParts } from './prompt.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
 
 /** What the agent needs. */
@@ -217,7 +219,7 @@ async function turnInstructions(
       ? 0
       : (context.dashboards.get(dashboardId, 'editor').versions.at(-1)?.version ?? 0);
   const latest = plans.at(-1);
-  return instructionsFor({
+  const parts = instructionParts({
     now,
     catalog: await context.modelView.catalog(context.signal),
     state,
@@ -226,6 +228,7 @@ async function turnInstructions(
     mentions: hints.mentions,
     timeZone: hints.timeZone,
   });
+  return cachedInstructions(parts, context.settings.provider);
 }
 
 /**
@@ -241,7 +244,7 @@ async function streamTurn(
   context: RunContext,
   model: LanguageModel,
   messages: ThreadMessage[],
-  instructions: string,
+  instructions: Instructions,
   now: () => number,
 ) {
   const tools = {
@@ -255,7 +258,9 @@ async function streamTurn(
     model,
     instructions,
     messages: await convertToModelMessages(compactHistory(messages), { tools }),
-    prepareStep: ({ messages: next }) => ({ messages: compactSteps(next) }),
+    prepareStep: ({ messages: next }) => ({
+      messages: withCachedTail(compactSteps(next), context.settings.provider),
+    }),
     tools,
     activeTools: [...phaseTools[phaseOf(state)]],
     ...reasoningOption(context.settings),

@@ -1,7 +1,8 @@
 /**
- * Assembles the agent's instructions for one turn: who it is and its rules, the spec guide once it
- * writes, then what is true now: the time, the connectors' catalog, the current draft, the panels
- * the person mentions, and last what the thread's phase asks of it.
+ * Assembles the agent's instructions for one turn. First what lasts from turn to turn, so providers
+ * can cache it: who it is, its rules, the spec guide once it writes, the connectors' catalog. Then
+ * what is true now: the time, the current draft, the panels the person mentions, and last what the
+ * thread's phase asks of it.
  */
 import type { DashboardSpec, Plan } from '@querent/shared';
 import type { ThreadState } from '../threads/state.ts';
@@ -77,16 +78,14 @@ function nowLine(now: number, timeZone: string | undefined): string {
 }
 
 /**
- * The part of the instructions that changes every turn.
+ * The part of the instructions that changes every turn: the time, the draft, the mentions, and
+ * what the phase asks.
  *
  * @param facts - The facts of the turn.
  * @returns The text.
  */
 function situation(facts: TurnFacts): string {
-  const lines = [
-    nowLine(facts.now, facts.timeZone),
-    `Connectors and their data (the catalog):\n${facts.catalog}`,
-  ];
+  const lines = [nowLine(facts.now, facts.timeZone)];
   if (facts.draft)
     lines.push(
       `Current draft, version ${facts.draft.version}:\n${JSON.stringify(facts.draft.spec)}`,
@@ -102,14 +101,37 @@ function situation(facts: TurnFacts): string {
   return [...lines, stateLine(facts)].join('\n\n');
 }
 
+/** A turn's instructions, split where a cache can end. */
+export interface InstructionParts {
+  /** What stays the same from turn to turn: who the agent is, its rules, the guides, the catalog. */
+  readonly lasting: string;
+  /** What changes every turn: the time, the draft, the mentions, what the phase asks. */
+  readonly turn: string;
+}
+
 /**
- * The instructions of a turn. The spec guide and the example come only once there is something to
- * write, so planning turns stay short.
+ * The instructions of a turn, the lasting part first so providers can cache it. The spec guide and
+ * the example come only once there is something to write, so planning turns stay short.
+ *
+ * @param facts - The facts of the turn.
+ * @returns The lasting part and the turn's part.
+ */
+export function instructionParts(facts: TurnFacts): InstructionParts {
+  const writing = phaseOf(facts.state) === 'planning' ? [] : [specGuide, formatterGuide, example];
+  const catalog = `Connectors and their data (the catalog):\n${facts.catalog}`;
+  return {
+    lasting: [persona, generalRules, ...writing, catalog].join('\n\n'),
+    turn: situation(facts),
+  };
+}
+
+/**
+ * The instructions of a turn as one text.
  *
  * @param facts - The facts of the turn.
  * @returns The system instructions.
  */
 export function instructionsFor(facts: TurnFacts): string {
-  const writing = phaseOf(facts.state) === 'planning' ? [] : [specGuide, formatterGuide, example];
-  return [persona, generalRules, ...writing, situation(facts)].join('\n\n');
+  const { lasting, turn } = instructionParts(facts);
+  return `${lasting}\n\n${turn}`;
 }

@@ -376,6 +376,14 @@ Every request carries the whole conversation, so what the model rereads is compa
   elided and older results over 400 characters become the same one-line summary. The latest call
   and its results stay whole, so a repair sees exactly what failed.
 
+Providers bill a repeated start of a request at a fraction of the input price (prompt caching), so
+the instructions put what lasts first: the persona, the rules, the guides and the catalog, then
+the time, the draft, the mentions and the phase's rules (`instructionParts`). OpenAI and Gemini
+cache a stable start on their own. Anthropic caches only up to marked points (`agent/cache.ts`):
+the lasting instructions are a separate system block marked as a cache point, and before each
+step the last message is marked too, so the next step reads the conversation so far from the
+cache. Earlier marks are removed, since Anthropic allows four.
+
 ### Reasoning effort
 
 With the "keep the model's reasoning short" switch on (the default), each call asks for little
