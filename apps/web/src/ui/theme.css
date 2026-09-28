@@ -18,6 +18,10 @@
   --color-accent-hover: #1d3f99;
   --color-accent-soft: #f3f6fd;
   --color-series-2: #d0691c;
+  --color-series-3: #2f8f83;
+  --color-series-4: #8a55c4;
+  --color-series-5: #b8870b;
+  --color-series-6: #c2436b;
   /* The signal dot of the querent mark (docs/brand). Reserved for the brand, not for data. */
   --color-brand-signal: #f29a4a;
 

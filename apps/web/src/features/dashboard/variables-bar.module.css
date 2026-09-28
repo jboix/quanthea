@@ -1,0 +1,137 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.chip {
+  position: relative;
+}
+
+.chipButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  font-size: 14px;
+  color: var(--color-ink);
+  cursor: pointer;
+  list-style: none;
+}
+
+.chipButton::-webkit-details-marker {
+  display: none;
+}
+
+.chip[open] > .chipButton {
+  border-color: var(--color-accent);
+}
+
+.chipName {
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+.textInput {
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.menu {
+  position: absolute;
+  margin: 0;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  max-height: 360px;
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(23 24 28 / 10%);
+}
+
+.option {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13.5px;
+  text-align: left;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--color-surface-muted);
+}
+
+.option[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.menuNote,
+.menuError {
+  margin: 0;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+.menuError {
+  color: var(--color-danger);
+}
+
+.custom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px 10px 4px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.customField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--color-ink-label);
+}
+
+.customField input {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border-control);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+.legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

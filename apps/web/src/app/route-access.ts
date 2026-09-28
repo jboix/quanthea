@@ -10,6 +10,8 @@ export const routeAccess = {
   '/library': 'viewer',
   '/d/:dashboardId': 'viewer',
   '/d/:dashboardId/v/:version': 'viewer',
+  '/d/:dashboardId/v/:version/panels/:panelId': 'viewer',
+  '/d/:dashboardId/v/:version/options/:name': 'viewer',
   '/bin': 'editor',
   '/connectors': 'admin',
   '/connectors/new': 'admin',

@@ -1,29 +1,68 @@
-import { useParams } from 'react-router';
-import { Page } from '../ui/page.tsx';
-import { Pill } from '../ui/pill.tsx';
-import { Placeholder } from '../ui/placeholder.tsx';
+/** The routes of a dashboard: its screen, and the resource routes its panels and variables load. */
+import type { RouteObject, ShouldRevalidateFunctionArgs } from 'react-router';
+import { ErrorPage } from '../app/error-page.tsx';
+import { type GuardedPath, guarded } from '../app/route-access.ts';
+import type { SessionLoader } from '../app/session.ts';
+import {
+  DashboardScreen,
+  loadDashboard,
+  loadPanelRun,
+  loadVariableOptions,
+} from '../features/dashboard/index.ts';
+import type { ApiClient } from '../lib/api-client.ts';
 
 /**
- * The pinned, read-only dashboard: the latest pinned version, or the version in the URL.
+ * Reloads the dashboard only when the address names another dashboard or version. Variables and
+ * the time range live in the search parameters and never need the spec again.
  *
- * @returns The screen.
+ * @param args - The navigation.
+ * @returns Whether to run the loader again.
  */
-export function DashboardRoute() {
-  const { dashboardId = '', version } = useParams();
-  return (
-    <Page
-      title="Dashboard"
-      actions={
-        <Pill tone="ok" mono>
-          {version === undefined
-            ? `${dashboardId} · latest pinned`
-            : `${dashboardId} · v${version}`}
-        </Pill>
-      }
-    >
-      <Placeholder title="The pinned dashboard goes here.">
-        Its saved queries run on the server with no model call.
-      </Placeholder>
-    </Page>
-  );
+function samePathKeepsSpec(args: ShouldRevalidateFunctionArgs): boolean {
+  if (args.formMethod !== undefined) return args.defaultShouldRevalidate;
+  return args.currentUrl.pathname !== args.nextUrl.pathname;
+}
+
+/**
+ * A dashboard screen route.
+ *
+ * @param loadSession - Loads the current session.
+ * @param path - The screen path.
+ * @param api - The API client.
+ * @returns The route object.
+ */
+function screenRoute(loadSession: SessionLoader, path: GuardedPath, api: ApiClient): RouteObject {
+  return {
+    path,
+    loader: guarded(loadSession, path, loadDashboard(api)),
+    shouldRevalidate: samePathKeepsSpec,
+    Component: DashboardScreen,
+    ErrorBoundary: ErrorPage,
+  };
+}
+
+/**
+ * The dashboard routes. The resource routes load only when a panel or a variable menu asks.
+ *
+ * @param loadSession - Loads the current session.
+ * @param api - The API client.
+ * @returns The route objects.
+ */
+export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
+  const panels = '/d/:dashboardId/v/:version/panels/:panelId';
+  const options = '/d/:dashboardId/v/:version/options/:name';
+  return [
+    screenRoute(loadSession, '/d/:dashboardId', api),
+    screenRoute(loadSession, '/d/:dashboardId/v/:version', api),
+    {
+      path: panels,
+      loader: guarded(loadSession, panels, loadPanelRun(api)),
+      shouldRevalidate: () => false,
+    },
+    {
+      path: options,
+      loader: guarded(loadSession, options, loadVariableOptions(api)),
+      shouldRevalidate: () => false,
+    },
+  ];
 }

@@ -9,7 +9,7 @@ import {
 import type { ApiClient } from '../lib/api-client.ts';
 import { BinRoute } from '../routes/bin.tsx';
 import { connectorRoutes } from '../routes/connectors.tsx';
-import { DashboardRoute } from '../routes/dashboard.tsx';
+import { dashboardRoutes } from '../routes/dashboard.tsx';
 import { LibraryRoute } from '../routes/library.tsx';
 import { LoginRoute } from '../routes/login.tsx';
 import { NewThreadRoute } from '../routes/new-thread.tsx';
@@ -86,8 +86,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
     screen(loadSession, '/threads/new', NewThreadRoute),
     screen(loadSession, '/threads/:threadId', ThreadRoute),
     screen(loadSession, '/library', LibraryRoute),
-    screen(loadSession, '/d/:dashboardId', DashboardRoute),
-    screen(loadSession, '/d/:dashboardId/v/:version', DashboardRoute),
+    ...dashboardRoutes(loadSession, api),
     screen(loadSession, '/bin', BinRoute),
     connectorRoutes(loadSession, api),
     {

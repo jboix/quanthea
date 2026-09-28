@@ -14,5 +14,7 @@ export default defineConfig({
     emptyOutDir: true,
     // The CSP allows data: for images only, so fonts must stay separate files.
     assetsInlineLimit: (filePath) => (/\.(woff2?|ttf|otf)$/.test(filePath) ? false : undefined),
+    // ECharts is one lazy chunk of about 670 kB (225 kB gzipped), loaded only by dashboards.
+    chunkSizeWarningLimit: 700,
   },
 });

@@ -8,6 +8,8 @@ test('screen roles match the route table in docs/architecture.md', () => {
     '/library': 'viewer',
     '/d/:dashboardId': 'viewer',
     '/d/:dashboardId/v/:version': 'viewer',
+    '/d/:dashboardId/v/:version/panels/:panelId': 'viewer',
+    '/d/:dashboardId/v/:version/options/:name': 'viewer',
     '/bin': 'editor',
     '/connectors': 'admin',
     '/connectors/new': 'admin',

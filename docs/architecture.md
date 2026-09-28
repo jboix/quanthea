@@ -168,6 +168,8 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/library`                                                 | Library                                                    | viewer   |
 | `/d/:dashboardId`                                          | Pinned view, latest pinned version                         | viewer   |
 | `/d/:dashboardId/v/:version`                               | a specific version                                         | viewer   |
+| `/d/:dashboardId/v/:version/panels/:panelId`               | resource route: one panel's run, for fetchers              | viewer   |
+| `/d/:dashboardId/v/:version/options/:name`                 | resource route: a variable's options, for fetchers         | viewer   |
 | `/bin`                                                     | Bin                                                        | editor   |
 | `/connectors`, `/connectors/:connectorId`                  | Connectors: list, access level, guardrails, schema         | admin    |
 | `/connectors/new`, `/connectors/:connectorId/edit`         | add and edit a connection                                  | admin    |
@@ -601,19 +603,31 @@ request → requestId → session cookie? → Principal
 
 ## 11. Rendering
 
-- `charts/` receives a panel spec and its frames. It builds an ECharts `dataset` from the frames
-  (bound by `refId`, never inlined in the spec) and merges it with the spec's `option`.
-- **Formatters:** wherever the spec has `{"$fmt": "percent", "decimals": 1}`, the adapter swaps in
-  the corresponding function from `@querent/shared/formatters`. ECharts string templates pass
-  through unchanged.
-- Import ECharts modularly (`echarts/core` plus the charts and components actually supported) to
-  keep the bundle small. Use the canvas renderer.
-- One theme object built from the design tokens in `ui/theme.css`. Dark mode later.
-- **Tooltip safety (open question 5):** ECharts HTML tooltips can render strings as HTML. The
-  adapter must ensure data-derived strings (series names, labels) are escaped. Either force
-  `tooltip.renderMode: 'richText'` or escape in the adapter. Verify against ECharts 6 behaviour and
-  add a test with a series named `<img src=x onerror=alert(1)>`.
-- Stat and table panels are plain React components, not ECharts.
+- The dashboard screen (`features/dashboard`) loads the spec once. Variables and the time range
+  live in the URL (`from`, `to`, `var-env=prod`, repeated for several values), so a link shares
+  the view and changing them never reloads the spec.
+- Each panel loads its run through a fetcher from a resource route
+  (`/d/:id/v/:version/panels/:panelId`), so panels load, fail and refresh on their own. A
+  query-backed variable loads its options the same way when its menu opens.
+- `charts/` is the only place that imports ECharts. It registers the allowed series types (line,
+  bar, scatter, pie, heatmap, gauge) and the components they need, draws on a canvas, and is
+  loaded lazily, so pages without a chart never download ECharts.
+- The adapter turns each frame into an ECharts `dataset` and expands each series template into one
+  series per frame (named by its labels, such as `checkout-svc`), and per number field when a frame
+  has several. `pivot`, `filter` and `sort` transforms run first. Categories go on the y axis when
+  the spec's `yAxis` is a category axis.
+- **Formatters:** every `{"$fmt": …}` object becomes a function from
+  `@querent/shared/formatters`. ECharts string templates pass through unchanged. A time axis
+  reads `13:30` in the dashboard's time zone unless the spec gives a formatter.
+- The adapter owns the dataset, the grid, the palette, fonts and axis colours (from the tokens in
+  `ui/theme.css`), and the tooltip's render mode, whatever the spec says.
+- **Tooltip safety:** tooltips are forced to `renderMode: 'richText'`, drawn on the canvas, so a
+  series named `<img src=x onerror=alert(1)>` is shown as text and never parsed as HTML. Legends
+  and marker labels are canvas text too. A test holds this.
+- Annotation markers are dashed vertical lines on the first series, labelled `14:02 deploy #481`.
+- Stat and table panels are plain React components, not ECharts: a stat reduces a column
+  (`last`, `first`, `max`, `min`, `mean`, `sum`, `count`); a table reads columns by field name, or
+  by label name for range series, formats, sorts and shows at most 500 rows.
 
 ## 12. Security checklist
 
@@ -679,10 +693,10 @@ is editable in the UI.
   machine, bin retention.
 - **Integration** (`bun run test:integration`, after `bun run env:up`): each connector against the
   real service, in `*.integration.test.ts` files that run only with `QUERENT_INTEGRATION=1`. Every
-  connector kind also runs the conformance suite there. CI runs them in the `integration` job. The
-  query endpoint end to end.
-- **Web:** component tests for the plan card, diff card, variables bar and chart adapter
-  (happy-dom). Playwright smoke tests later.
+  connector kind also runs the conformance suite there. CI runs them in the `integration` job.
+- **Web:** unit tests for the chart adapter, the panel reductions and tables, and the URL state.
+  Component tests for the plan card, diff card and variables bar (happy-dom) and Playwright smoke
+  tests later.
 - **Evals** (`evals/`): a set of questions against the dev sources with assertions such as "the
   dashboard has a timeseries panel whose query references `http_requests_total` and returns
   data" or "no panel exceeds the row cap". Run manually or nightly with a configured model. They

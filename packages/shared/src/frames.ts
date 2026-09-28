@@ -79,3 +79,15 @@ export function frameProblems(frame: unknown): string[] {
     return wrong === -1 ? [] : [`field "${field.name}" row ${wrong} is not a ${field.type}`];
   });
 }
+
+/**
+ * Orders two values of a frame: numbers by value, anything else as text.
+ *
+ * @param first - One value.
+ * @param second - The other.
+ * @returns Negative, zero or positive.
+ */
+export function compareFrameValues(first: unknown, second: unknown): number {
+  if (typeof first === 'number' && typeof second === 'number') return first - second;
+  return String(first ?? '').localeCompare(String(second ?? ''));
+}

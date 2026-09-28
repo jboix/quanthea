@@ -81,6 +81,7 @@ export {
   namedFormatterSchema,
 } from './formatters/schema.ts';
 export {
+  compareFrameValues,
   type Field,
   type FieldType,
   type Frame,

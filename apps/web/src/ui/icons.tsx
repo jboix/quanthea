@@ -138,3 +138,17 @@ export function CheckIcon() {
     </Icon>
   );
 }
+
+/**
+ * A padlock, for read-only things.
+ *
+ * @returns The icon, drawn at 14 px.
+ */
+export function LockIcon() {
+  return (
+    <Icon size={14}>
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </Icon>
+  );
+}
