@@ -27,6 +27,12 @@ interface PanelCardProps {
   readonly target: RunTarget;
   /** Receives each finished run, for the status line. */
   readonly onRun: (panelId: string, run: Loaded<PanelRun>) => void;
+  /** Whether the inspector shows this panel. */
+  readonly selected?: boolean;
+  /** Whether the conversation is about this panel. */
+  readonly marked?: boolean;
+  /** Called when the person picks the panel, if panels can be picked. */
+  readonly onSelect?: ((panelId: string) => void) | undefined;
 }
 
 /**
@@ -98,31 +104,65 @@ function PanelBody({
 }
 
 /**
+ * The heading of a panel: its title, as a button when panels can be picked, and the "in chat" mark.
+ *
+ * @param props - The panel, whether it is marked, and the pick callback.
+ * @returns The heading.
+ */
+function PanelHeading({
+  panel,
+  marked,
+  onSelect,
+}: Pick<PanelCardProps, 'panel' | 'marked' | 'onSelect'>) {
+  const title = onSelect ? (
+    <button type="button" className={styles.titleButton} onClick={() => onSelect(panel.id)}>
+      {panel.title}
+    </button>
+  ) : (
+    panel.title
+  );
+  return (
+    <div className={styles.heading}>
+      <h3 id={`panel-${panel.id}`} className={styles.title} title={panel.description}>
+        {title}
+      </h3>
+      {marked && <span className={styles.mark}>in chat</span>}
+    </div>
+  );
+}
+
+/**
  * One panel on the grid: its title and its view, loading and failing on its own.
  *
- * @param props - The panel, the spec, what to run, and the run callback.
+ * @param props - The panel, the spec, what to run, the run callback, and its selection.
  * @returns The panel card.
  */
-export function PanelCard({ panel, spec, target, onRun }: PanelCardProps) {
+export function PanelCard({
+  panel,
+  spec,
+  target,
+  onRun,
+  selected = false,
+  marked = false,
+  onSelect,
+}: PanelCardProps) {
   const { run, loading } = usePanelRun(panel, target, onRun);
   const { x, y, w, h } = panel.grid;
+  const place = {
+    '--column': `${x + 1} / span ${w}`,
+    '--row': `${y + 1} / span ${h}`,
+    '--rows': h,
+  } as CSSProperties;
   return (
     <section
       className={styles.panel}
       data-kind={panel.view.kind}
+      data-selected={selected}
       aria-labelledby={`panel-${panel.id}`}
       aria-busy={loading}
-      style={
-        {
-          '--column': `${x + 1} / span ${w}`,
-          '--row': `${y + 1} / span ${h}`,
-          '--rows': h,
-        } as CSSProperties
-      }
+      style={place}
     >
-      <h3 id={`panel-${panel.id}`} className={styles.title} title={panel.description}>
-        {panel.title}
-      </h3>
+      <PanelHeading panel={panel} marked={marked} onSelect={onSelect} />
       <PanelBody panel={panel} spec={spec} run={run} loading={loading} />
     </section>
   );

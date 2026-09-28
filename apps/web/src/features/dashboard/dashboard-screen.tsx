@@ -1,17 +1,12 @@
-import type { PanelRun } from '@querent/shared';
-import { useCallback, useMemo, useState } from 'react';
-import { Link, useLoaderData, useSearchParams } from 'react-router';
+import { useState } from 'react';
+import { Link, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { LockIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
+import { DashboardCanvas } from './canvas.tsx';
 import styles from './dashboard.module.css';
 import { DashboardSidebar } from './dashboard-sidebar.tsx';
-import type { DashboardData, Loaded } from './data.ts';
-import { PanelCard, type RunTarget } from './panel-card.tsx';
-import panelStyles from './panels.module.css';
-import { RunBanner } from './run-banner.tsx';
-import { VariablesBar } from './variables-bar.tsx';
-import { choicesFromSearch } from './view-state.ts';
+import type { DashboardData } from './data.ts';
 
 /**
  * Copies the page's address, and says so for two seconds.
@@ -55,56 +50,6 @@ function DashboardHeader({ version }: DashboardData) {
   );
 }
 
-/** The finished runs of the panels, for one set of choices. */
-interface RunsState {
-  /** The choices the runs belong to. */
-  readonly token: string;
-  /** The finished runs, by panel id. */
-  readonly runs: Readonly<Record<string, Loaded<PanelRun>>>;
-}
-
-/**
- * Collects the finished runs of the panels. Runs belong to a token; a new token starts over.
- *
- * @param token - Changes when the panels run again.
- * @returns The runs of the current token, and the callback the panels report to.
- */
-function useRuns(token: string) {
-  const [state, setState] = useState<RunsState>({ token, runs: {} });
-  const report = useCallback(
-    (panelId: string, run: Loaded<PanelRun>) =>
-      setState((current) => {
-        const runs = current.token === token ? current.runs : {};
-        return runs[panelId] === run ? current : { token, runs: { ...runs, [panelId]: run } };
-      }),
-    [token],
-  );
-  return { runs: state.token === token ? state.runs : {}, report };
-}
-
-/**
- * The state of the screen: the loaded version, the viewer's choices from the URL, the run target
- * and the finished runs.
- *
- * @returns The state and its setters.
- */
-function useDashboardView() {
-  const loaded = useLoaderData() as DashboardData;
-  const { dashboard, version } = loaded;
-  const [search, setSearch] = useSearchParams();
-  const [refresh, setRefresh] = useState(0);
-  const choices = useMemo(() => choicesFromSearch(search, version.spec), [search, version.spec]);
-  const target: RunTarget = {
-    dashboardId: dashboard.id,
-    version: version.version,
-    search: search.toString(),
-    refresh,
-  };
-  const { runs, report } = useRuns(`${version.version}?${target.search}#${refresh}`);
-  const refreshAll = () => setRefresh((count) => count + 1);
-  return { loaded, choices, target, runs, report, refreshAll, setSearch };
-}
-
 /**
  * A dashboard: its variables, its panels running saved queries with no model involved, and its
  * sidebar.
@@ -112,20 +57,19 @@ function useDashboardView() {
  * @returns The screen.
  */
 export function DashboardScreen() {
-  const { loaded, choices, target, runs, report, refreshAll, setSearch } = useDashboardView();
-  const { spec } = loaded.version;
+  const loaded = useLoaderData() as DashboardData;
+  const { dashboard, version } = loaded;
   return (
     <div className={styles.screen}>
       <DashboardHeader {...loaded} />
       <div className={styles.body}>
         <div className={styles.main}>
-          <RunBanner spec={spec} runs={runs} onRefresh={refreshAll} />
-          <VariablesBar spec={spec} choices={choices} target={target} onSearch={setSearch} />
-          <div className={panelStyles.grid}>
-            {spec.panels.map((panel) => (
-              <PanelCard key={panel.id} panel={panel} spec={spec} target={target} onRun={report} />
-            ))}
-          </div>
+          <DashboardCanvas
+            banner
+            dashboardId={dashboard.id}
+            version={version.version}
+            spec={version.spec}
+          />
         </div>
         <DashboardSidebar {...loaded} />
       </div>
