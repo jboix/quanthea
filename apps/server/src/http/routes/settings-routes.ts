@@ -1,6 +1,11 @@
 /** The settings endpoints: the model gateway. Admin only. */
-import { getModelSettingsEndpoint, saveModelSettingsEndpoint } from '@querent/shared';
+import {
+  getModelSettingsEndpoint,
+  saveModelSettingsEndpoint,
+  testModelSettingsEndpoint,
+} from '@querent/shared';
 import type { Hono } from 'hono';
+import { testModelConnection } from '../../agent/connection-test.ts';
 import type { ModelSettingsService } from '../../settings/model-settings.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
@@ -24,5 +29,9 @@ export function mountSettingsEndpoints(
     access: 'admin',
     handle: ({ body, principal }) =>
       modelSettings.save(body.settings, body.apiKey, actorOf(principal)),
+  });
+  mountEndpoint(app, testModelSettingsEndpoint, {
+    access: 'admin',
+    handle: async () => testModelConnection(await modelSettings.resolve()),
   });
 }
