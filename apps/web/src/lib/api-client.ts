@@ -37,11 +37,17 @@ export class ApiError extends Error {
 /** The `fetch` the client sends requests with. */
 type FetchFunction = (url: string, init: RequestInit) => Promise<Response>;
 
+/** Options of one call. */
+interface CallOptions {
+  /** Cancels the request when it fires. */
+  readonly signal?: AbortSignal | undefined;
+}
+
 /** The input argument: optional when the endpoint declares no params, query or body. */
 type CallArguments<Target extends Endpoint> =
   Record<never, never> extends EndpointInput<Target>
-    ? [input?: EndpointInput<Target>]
-    : [input: EndpointInput<Target>];
+    ? [input?: EndpointInput<Target>, options?: CallOptions]
+    : [input: EndpointInput<Target>, options?: CallOptions];
 
 /** Calls API endpoints. */
 export interface ApiClient {
@@ -49,7 +55,7 @@ export interface ApiClient {
    * Calls an endpoint.
    *
    * @param endpoint - The endpoint contract.
-   * @param input - Its params, query and body, when it declares them.
+   * @param input - Its params, query and body, when it declares them, and the call options.
    * @returns The response body, parsed with the endpoint's output schema.
    * @throws {ApiError} When the server answers with an error, or with a body that does not parse.
    */
@@ -91,16 +97,18 @@ function requestUrl(endpoint: Endpoint, input: LooseInput): string {
  *
  * @param endpoint - The endpoint contract.
  * @param input - The call input.
+ * @param options - The call options.
  * @returns The options for `fetch`.
  */
-function requestInit(endpoint: Endpoint, input: LooseInput): RequestInit {
+function requestInit(endpoint: Endpoint, input: LooseInput, options: CallOptions): RequestInit {
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'X-Requested-With': 'querent',
   };
-  if (endpoint.body === undefined) return { method: endpoint.method, headers };
+  const signal = options.signal ? { signal: options.signal } : {};
+  if (endpoint.body === undefined) return { method: endpoint.method, headers, ...signal };
   headers['Content-Type'] = 'application/json';
-  return { method: endpoint.method, headers, body: JSON.stringify(input.body) };
+  return { method: endpoint.method, headers, body: JSON.stringify(input.body), ...signal };
 }
 
 /**
@@ -128,11 +136,11 @@ export function createApiClient(
   fetchFunction: FetchFunction = (url, init) => fetch(url, init),
 ): ApiClient {
   return {
-    async call(endpoint, ...[input = {}]) {
+    async call(endpoint, ...[input = {}, options = {}]) {
       const loose = input as LooseInput;
       const response = await fetchFunction(
         requestUrl(endpoint, loose),
-        requestInit(endpoint, loose),
+        requestInit(endpoint, loose, options),
       );
       if (!response.ok) throw await toApiError(response);
       const parsed = endpoint.output.safeParse(await response.json());

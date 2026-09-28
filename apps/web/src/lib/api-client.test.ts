@@ -62,6 +62,14 @@ describe('createApiClient', () => {
     });
   });
 
+  test('passes the abort signal of a call to fetch', async () => {
+    const { client, sent } = recordingClient(Response.json({ ok: true }));
+    const controller = new AbortController();
+    const input = { params: { thingId: 't1' }, query: {}, body: { title: 'x' } };
+    await client.call(renameEndpoint, input, { signal: controller.signal });
+    expect(sent[0]?.init.signal).toBe(controller.signal);
+  });
+
   test('turns the error shape into an ApiError with the server code', async () => {
     const response = Response.json(
       { error: { code: 'forbidden', message: 'This needs the admin role or higher.' } },
