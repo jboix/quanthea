@@ -153,6 +153,7 @@ describe('an agent run', () => {
     const system = JSON.stringify(call?.prompt[0]);
     expect(system).toContain('service text [checkout-svc, payments-svc, cart-svc]');
     expect(system).not.toContain('The spec (JSON');
+    expect(call?.reasoning).toBe('none');
   });
 
   test('rereads an earlier turn’s tool calls as short notes', async () => {

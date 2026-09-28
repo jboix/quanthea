@@ -71,6 +71,33 @@ const builders: Readonly<
   },
 };
 
+/** The reasoning effort a call asks for. */
+export type ReasoningEffort = 'none' | 'low';
+
+/**
+ * The reasoning effort to ask for, when the settings keep reasoning short. Anthropic models think
+ * only when asked, so they are told not to; OpenAI models and gateways get a low effort. Mistral
+ * maps every effort to its highest, so it is left alone.
+ *
+ * @param settings - The model settings.
+ * @returns The effort, or `undefined` for the provider's default.
+ */
+export function reasoningFor(settings: ModelSettings): ReasoningEffort | undefined {
+  if (!settings.behaviour.shortReasoning || settings.provider === 'mistral') return undefined;
+  return settings.provider === 'anthropic' ? 'none' : 'low';
+}
+
+/**
+ * The reasoning option of a call: set when the settings keep reasoning short.
+ *
+ * @param settings - The model settings.
+ * @returns `{ reasoning }`, or nothing for the provider's default.
+ */
+export function reasoningOption(settings: ModelSettings) {
+  const reasoning = reasoningFor(settings);
+  return reasoning === undefined ? {} : { reasoning };
+}
+
 /**
  * Builds the model of a job. The key is passed explicitly: the providers' environment fallbacks
  * are never used, so what runs is what the settings say.

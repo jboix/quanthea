@@ -24,7 +24,7 @@ import { askPersonTool } from './ask-tool.ts';
 import { buildTools, currentSpec } from './build-tools.ts';
 import { compactHistory, compactSteps } from './compact.ts';
 import { dataTools } from './data-tools.ts';
-import { languageModel, ModelUnavailableError } from './model.ts';
+import { languageModel, ModelUnavailableError, reasoningOption } from './model.ts';
 import { phaseOf, phaseTools } from './phases.ts';
 import { instructionsFor } from './prompt.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
@@ -258,6 +258,7 @@ async function streamTurn(
     prepareStep: ({ messages: next }) => ({ messages: compactSteps(next) }),
     tools,
     activeTools: [...phaseTools[phaseOf(state)]],
+    ...reasoningOption(context.settings),
     stopWhen: [
       toolCallLimit(limits.toolCallsPerTurn),
       () => context.counters.planPending,

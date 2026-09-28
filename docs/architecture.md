@@ -373,6 +373,14 @@ Every request carries the whole conversation, so what the model rereads is compa
   elided and older results over 400 characters become the same one-line summary. The latest call
   and its results stay whole, so a repair sees exactly what failed.
 
+### Reasoning effort
+
+With the "keep the model's reasoning short" switch on (the default), each call asks for little
+reasoning (`reasoningFor` in `agent/model.ts`): `none` for Anthropic, whose models think only when
+asked; `low` for OpenAI and OpenAI-compatible gateways. Mistral maps every effort to its highest,
+so it gets none. The connection test sends the same setting, so a gateway that rejects it fails
+the test; turning the switch off sends the provider's default.
+
 ### Runs and limits
 
 - `POST /api/threads/:id/chat` takes one message. A user message is appended to the stored

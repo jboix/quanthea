@@ -6,10 +6,13 @@ import type { modelTestSchema } from '@querent/shared';
 import { APICallError, generateText, type LanguageModel, Output, tool } from 'ai';
 import { z } from 'zod';
 import type { ResolvedModelSettings } from '../settings/model-settings.ts';
-import { languageModel, modelIdFor } from './model.ts';
+import { languageModel, modelIdFor, reasoningOption } from './model.ts';
 
 /** The result of a test. */
 type ModelTest = z.output<typeof modelTestSchema>;
+
+/** The reasoning option of a call, as the agent's runs set it. */
+type Reasoning = ReturnType<typeof reasoningOption>;
 
 /** The longest one test request may take. */
 const requestTimeoutMs = 20_000;
@@ -18,12 +21,14 @@ const requestTimeoutMs = 20_000;
  * Whether the model calls a tool when told to.
  *
  * @param model - The model.
+ * @param reasoning - The reasoning option the agent's runs use.
  * @returns Whether it called `ping` with the value asked for.
  * @throws {APICallError} When the provider cannot be reached or refuses the request.
  */
-async function callsTools(model: LanguageModel): Promise<boolean> {
+async function callsTools(model: LanguageModel, reasoning: Reasoning): Promise<boolean> {
   try {
     const result = await generateText({
+      ...reasoning,
       model,
       maxRetries: 0,
       timeout: requestTimeoutMs,
@@ -48,11 +53,13 @@ async function callsTools(model: LanguageModel): Promise<boolean> {
  * Whether the model answers in a given JSON shape.
  *
  * @param model - The model.
+ * @param reasoning - The reasoning option the agent's runs use.
  * @returns Whether the answer parsed.
  */
-async function answersStructured(model: LanguageModel): Promise<boolean> {
+async function answersStructured(model: LanguageModel, reasoning: Reasoning): Promise<boolean> {
   try {
     const result = await generateText({
+      ...reasoning,
       model,
       maxRetries: 0,
       timeout: requestTimeoutMs,
@@ -91,9 +98,10 @@ export async function testModelConnection(
   const elapsed = () => Math.round(performance.now() - started);
   try {
     const model = build(resolved, 'build');
-    const toolCalling = await callsTools(model);
+    const reasoning = reasoningOption(resolved.settings);
+    const toolCalling = await callsTools(model, reasoning);
     const latencyMs = elapsed();
-    const structuredOutput = await answersStructured(model);
+    const structuredOutput = await answersStructured(model, reasoning);
     const message = modelIdFor(resolved.settings, 'build');
     return { ok: true, latencyMs, toolCalling, structuredOutput, message };
   } catch (error) {

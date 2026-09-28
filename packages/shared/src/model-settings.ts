@@ -46,6 +46,8 @@ export const modelSettingsSchema = z
       planApproval: z.boolean(),
       /** Test-run every query before showing a panel. */
       testRun: z.boolean(),
+      /** Ask the model to reason briefly: faster and cheaper. Off for gateways that reject it. */
+      shortReasoning: z.boolean().default(true),
     }),
   })
   .refine((settings) => settings.provider !== 'openai-compatible' || settings.baseUrl !== null, {
@@ -62,5 +64,5 @@ export const defaultModelSettings: ModelSettings = {
   baseUrl: null,
   models: { build: 'claude-sonnet-5', repair: '', metadata: 'claude-haiku-4-5' },
   limits: { threadTokens: 200_000, toolCallsPerTurn: 25, repairAttempts: 3 },
-  behaviour: { planApproval: true, testRun: true },
+  behaviour: { planApproval: true, testRun: true, shortReasoning: true },
 };

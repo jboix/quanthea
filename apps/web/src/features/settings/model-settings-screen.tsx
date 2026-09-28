@@ -254,6 +254,12 @@ function BehaviourCard({ form }: SectionProps) {
         onChange={(on) => form.set('behaviour.testRun', on)}
       />
       <Switch
+        label="Keep the model's reasoning short"
+        description="Faster and cheaper. Turn it off if a gateway rejects the reasoning effort."
+        checked={behaviour.shortReasoning}
+        onChange={(on) => form.set('behaviour.shortReasoning', on)}
+      />
+      <Switch
         label="Custom JS formatters"
         description="Not available. Specs format values with named formatters only."
         checked={false}
