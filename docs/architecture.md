@@ -332,7 +332,7 @@ A **connector kind** is a kind of source, such as PostgreSQL. A **connector** is
 source of a kind, such as `postgres-orders`. Kinds are built to be added: each lives in its own
 folder under `connectors/`, declares itself with `defineConnector`, and uses the core only through
 the **connector kit**, `connectors/_shared/index.ts` (dependency-cruiser rule
-`connector-kinds-use-the-kit`).
+`connector-kinds-use-the-kit`). [`connectors.md`](connectors.md) walks through adding a kind.
 
 ```ts
 // connectors/<kind>/<kind>-connector.ts (shape)

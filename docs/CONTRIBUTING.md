@@ -51,6 +51,11 @@ bun run env:down   # stop them and delete their data
 also starts OpenSearch on :9202. The sources, their users and the
 incident they share are described in [the architecture](./architecture.md#14-local-development).
 
+## Adding a connector
+
+A new kind of data source is a folder in `apps/server/src/connectors/` and one line in the
+registry. [Writing a connector](./connectors.md) walks through it.
+
 ## Git hooks
 
 `bun install` installs the hooks (husky):
