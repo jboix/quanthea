@@ -25,6 +25,10 @@
   color: var(--color-ink);
 }
 
+.control[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
 .control:disabled {
   background: var(--color-ground);
   color: var(--color-ink-secondary);
@@ -37,4 +41,18 @@
 
 select.control {
   padding: 0 8px;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.error {
+  font-size: 12px;
+  color: var(--color-danger);
 }

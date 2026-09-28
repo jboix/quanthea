@@ -5,7 +5,9 @@ import { Card } from '../ui/card.tsx';
 import { Input } from '../ui/input.tsx';
 import { Page } from '../ui/page.tsx';
 import { Pill } from '../ui/pill.tsx';
+import { RadioCards } from '../ui/radio-cards.tsx';
 import { Select } from '../ui/select.tsx';
+import { StatusDot } from '../ui/status-dot.tsx';
 import { Switch } from '../ui/switch.tsx';
 import { Tabs } from '../ui/tabs.tsx';
 import styles from './ui-kit.module.css';
@@ -100,6 +102,50 @@ function FormControls() {
   );
 }
 
+/** The choices of the radio cards sample. */
+const levelChoices = [
+  { value: 1, title: 'Schema only', description: 'Tables, columns, types. Nothing else.' },
+  {
+    value: 2,
+    title: 'Schema + metadata',
+    tag: 'default',
+    description: 'Distinct values of small columns.',
+  },
+];
+
+/**
+ * Radio cards, status dots, removable chips and a field with an error, as on the connectors screen.
+ *
+ * @returns The card.
+ */
+function ChoicesAndStatuses() {
+  const [level, setLevel] = useState(2);
+  const [hidden, setHidden] = useState(['customers.email', 'customers.phone']);
+  return (
+    <Card title="Choices and statuses" description="Access levels, health and hidden columns.">
+      <RadioCards label="Access level" options={levelChoices} value={level} onChange={setLevel} />
+      <div className={styles.row}>
+        <StatusDot status="ok" label="Connected" />
+        <StatusDot status="failed" label="The database cannot be reached." />
+        <StatusDot status="unknown" label="Not tested" />
+        {hidden.map((field) => (
+          <Pill
+            key={field}
+            tone="danger"
+            shape="tag"
+            mono
+            onRemove={() => setHidden(hidden.filter((other) => other !== field))}
+            removeLabel={`Stop hiding ${field}`}
+          >
+            {field}
+          </Pill>
+        ))}
+      </div>
+      <Input label="Max rows per query" mono defaultValue="0" error="At least 1 row." />
+    </Card>
+  );
+}
+
 /**
  * The brand on light surfaces: the logo, the blue icon at the sizes it is used, and the bare mark.
  *
@@ -174,6 +220,7 @@ export function UiKitRoute() {
         <ButtonsAndPills />
         <TabsSample />
         <FormControls />
+        <ChoicesAndStatuses />
         <Card
           title="Dashed card"
           variant="dashed"

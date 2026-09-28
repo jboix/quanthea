@@ -1,0 +1,19 @@
+.dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ok {
+  background: var(--color-ok);
+}
+
+.failed {
+  background: var(--color-danger);
+}
+
+.unknown {
+  background: var(--color-switch-off);
+}
