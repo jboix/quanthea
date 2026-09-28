@@ -44,6 +44,20 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'GET /dashboards/:dashboardId/versions/:version': { version: 1, spec: { panels: [] } },
   'POST /panels/run': { time: { from: 0, to: 1 }, queries: [], markers: [], durationMs: 1 },
   'POST /variables/options': { options: [] },
+  'GET /threads': [],
+  'GET /threads/:threadId': {
+    id: 'sample-threadId',
+    title: null,
+    state: 'idle',
+    dashboardId: null,
+    tokensUsed: 0,
+    createdAt: 1,
+    updatedAt: 1,
+    messages: [],
+    plans: [],
+    model: 'claude-sonnet-5',
+    connectors: [],
+  },
   'GET /settings/model': {
     settings: {
       provider: 'anthropic',

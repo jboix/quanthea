@@ -10,9 +10,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
+    "@ai-sdk/react": "^4.0.121",
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@querent/shared": "workspace:*",
+    "ai": "^7.0.118",
     "echarts": "^6.1.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

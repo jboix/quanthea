@@ -167,3 +167,21 @@ export function PanelCard({
     </section>
   );
 }
+
+/**
+ * The latest run of a panel, read from the fetcher its card loads through.
+ *
+ * @param dashboardId - The dashboard.
+ * @param version - The version.
+ * @param panelId - The panel.
+ * @returns The run, if it has finished.
+ */
+export function usePanelRunData(
+  dashboardId: string,
+  version: number,
+  panelId: string,
+): Loaded<PanelRun> | undefined {
+  return useFetcher<Loaded<PanelRun>>({
+    key: `panel-/d/${dashboardId}/v/${version}/panels/${panelId}`,
+  }).data;
+}

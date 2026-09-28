@@ -1,0 +1,93 @@
+.composer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+}
+
+.composer:focus-within {
+  border-color: var(--color-accent);
+}
+
+.input {
+  min-height: 44px;
+  max-height: 200px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  background: transparent;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chip {
+  padding: 3px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  color: var(--color-ink-label);
+  white-space: nowrap;
+}
+
+.send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-ink);
+  font-size: 16px;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 10px;
+  z-index: 5;
+  min-width: 240px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(23 24 28 / 10%);
+}
+
+.menuItem {
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuItem:hover,
+.menuItem:focus-visible {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}

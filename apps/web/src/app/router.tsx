@@ -12,13 +12,12 @@ import { connectorRoutes } from '../routes/connectors.tsx';
 import { dashboardRoutes } from '../routes/dashboard.tsx';
 import { LibraryRoute } from '../routes/library.tsx';
 import { LoginRoute } from '../routes/login.tsx';
-import { NewThreadRoute } from '../routes/new-thread.tsx';
 import { NotFoundRoute } from '../routes/not-found.tsx';
 import { SettingsAuthRoute } from '../routes/settings-auth.tsx';
 import { SettingsLayout } from '../routes/settings-layout.tsx';
 import { modelSettingsRoute } from '../routes/settings-model.tsx';
 import { SettingsRetentionRoute } from '../routes/settings-retention.tsx';
-import { ThreadRoute } from '../routes/thread.tsx';
+import { threadRoutes } from '../routes/thread.tsx';
 import { UiKitRoute } from '../routes/ui-kit.tsx';
 import { ErrorPage } from './error-page.tsx';
 import { AppLayout, LoadingScreen } from './layout.tsx';
@@ -83,8 +82,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
   };
   return [
     { index: true, loader: home },
-    screen(loadSession, '/threads/new', NewThreadRoute),
-    screen(loadSession, '/threads/:threadId', ThreadRoute),
+    ...threadRoutes(loadSession, api),
     screen(loadSession, '/library', LibraryRoute),
     ...dashboardRoutes(loadSession, api),
     screen(loadSession, '/bin', BinRoute),
