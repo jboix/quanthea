@@ -1,6 +1,7 @@
 /** Bootstrap: configuration, database and migrations, then the HTTP server. */
 // The release version lives in the root package.json, which semantic-release bumps.
 import rootPackage from '../../../package.json' with { type: 'json' };
+import { routeModelWarnings } from './agent/warnings.ts';
 import { createApp } from './app.ts';
 import { resolveAuthMode } from './auth/auth-mode.ts';
 import { createAuthenticator } from './auth/authenticator.ts';
@@ -17,6 +18,7 @@ import { createSettingsStore } from './settings/settings-store.ts';
 
 const config = loadConfig(process.env);
 const logger = createLogger(config.logLevel);
+routeModelWarnings(logger);
 
 const database = openDatabase(config.dataDir);
 const appliedMigrations = runMigrations(database);
@@ -49,7 +51,8 @@ const app = createApp({
   webDir: config.webDir,
   ...services,
 });
-const server = Bun.serve({ port: config.port, fetch: app.fetch });
+// A model call or a chat stream can go quiet for longer than Bun's default of 10 seconds.
+const server = Bun.serve({ port: config.port, fetch: app.fetch, idleTimeout: 255 });
 logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir: config.webDir });
 
 /**
