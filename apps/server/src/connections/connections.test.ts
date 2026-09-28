@@ -8,10 +8,10 @@ import { openDatabase } from '../db/database.ts';
 import { runMigrations } from '../db/migrate.ts';
 import { auditActions, storedSecrets } from '../db/test/inspect.ts';
 import type { AppError } from '../lib/errors.ts';
+import { maskSecret } from '../secrets/mask.ts';
 import { createSecretBox } from '../secrets/secret-box.ts';
 import { temporaryDir } from '../test/fixtures.ts';
 import { type Connections, createConnections } from './connections.ts';
-import { maskSecret } from './views.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let database: ReturnType<typeof openDatabase>;

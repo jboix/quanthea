@@ -11,10 +11,12 @@ import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
 import { mountConnectorRoutes } from './http/routes/connector-routes.ts';
 import { mountDashboardEndpoints } from './http/routes/dashboard-routes.ts';
+import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
 import { securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
+import type { ModelSettingsService } from './settings/model-settings.ts';
 
 /** Everything the app needs from the bootstrap. */
 export interface AppDependencies {
@@ -30,6 +32,8 @@ export interface AppDependencies {
   readonly connections: Connections;
   /** The dashboards service. */
   readonly dashboards: Dashboards;
+  /** The model gateway settings. */
+  readonly modelSettings: ModelSettingsService;
 }
 
 /**
@@ -51,6 +55,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   });
   mountConnectorRoutes(app, dependencies.connections);
   mountDashboardEndpoints(app, dependencies.dashboards);
+  mountSettingsEndpoints(app, dependencies.modelSettings);
   mountSpa(app, dependencies.webDir);
 
   app.onError(handleErrors(dependencies.logger));

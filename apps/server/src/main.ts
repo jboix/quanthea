@@ -35,10 +35,11 @@ const secretKey = await loadSecretKey({
   dataDir: config.dataDir,
   logger,
 });
-const { connections, dashboards } = createServices({
+const { connections, dashboards, modelSettings } = createServices({
   database,
   kinds: connectorKinds,
   secretBox: createSecretBox(secretKey),
+  settings,
 });
 
 const app = createApp({
@@ -48,6 +49,7 @@ const app = createApp({
   webDir: config.webDir,
   connections,
   dashboards,
+  modelSettings,
 });
 const server = Bun.serve({ port: config.port, fetch: app.fetch });
 logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir: config.webDir });

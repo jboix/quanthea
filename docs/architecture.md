@@ -128,19 +128,20 @@ The two paths that matter:
 The allowed dependencies are enforced by `.dependency-cruiser.cjs`. The table summarizes
 them.
 
-| Module                             | Responsibility                                              | May import                                                          | Must not import                                 |
-| ---------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------- |
-| `lib/`                             | errors, logger, ids                                         | nothing internal                                                    | everything else                                 |
-| `connectors/<kind>/`               | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@querent/shared`, its own driver      | other connector kinds, anything else in the app |
-| `query/`                           | bind variables, enforce guardrails, run, cache              | `connectors`, `lib`, shared                                         | `agent`, `http`                                 |
-| `gate/`                            | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                    | `agent`, `http`                                 |
-| `agent/`                           | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `search`, `settings`, `lib`        | **`connectors`, `query`, `db`**                 |
-| `dashboards/`                      | validate, store, pin and run specs                          | `db`, `query`, `lib`, shared; connectors through injected functions | `http`, `agent`, `connections`, `connectors`    |
-| `threads/`, `search/`, `settings/` | domain logic                                                | `db`, `lib`, shared                                                 | `http`, `agent`                                 |
-| `connections/`                     | configured connectors: CRUD, sealed secrets, open instances | `db`, `secrets`, `connectors`, `gate`, `query` types, `lib`         | `http`, `auth`, `agent`                         |
-| `db/`                              | the only user of `bun:sqlite`                               | `lib`                                                               | —                                               |
-| `http/`                            | validate, authorize, call services, stream                  | services, `agent`, `auth`                                           | `connectors`, `db`                              |
-| `auth/`                            | modes, sessions, Principal                                  | `settings`, `db` via repositories, `lib`                            | `agent`                                         |
+| Module                | Responsibility                                              | May import                                                          | Must not import                                 |
+| --------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------- |
+| `lib/`                | errors, logger, ids                                         | nothing internal                                                    | everything else                                 |
+| `connectors/<kind>/`  | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@querent/shared`, its own driver      | other connector kinds, anything else in the app |
+| `query/`              | bind variables, enforce guardrails, run, cache              | `connectors`, `lib`, shared                                         | `agent`, `http`                                 |
+| `gate/`               | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                    | `agent`, `http`                                 |
+| `agent/`              | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `search`, `settings`, `lib`        | **`connectors`, `query`, `db`**                 |
+| `dashboards/`         | validate, store, pin and run specs                          | `db`, `query`, `lib`, shared; connectors through injected functions | `http`, `agent`, `connections`, `connectors`    |
+| `threads/`, `search/` | domain logic                                                | `db`, `lib`, shared                                                 | `http`, `agent`                                 |
+| `settings/`           | typed settings sections; the model key, sealed              | `db`, `secrets`, `lib`, shared                                      | `http`, `agent`                                 |
+| `connections/`        | configured connectors: CRUD, sealed secrets, open instances | `db`, `secrets`, `connectors`, `gate`, `query` types, `lib`         | `http`, `auth`, `agent`                         |
+| `db/`                 | the only user of `bun:sqlite`                               | `lib`                                                               | —                                               |
+| `http/`               | validate, authorize, call services, stream                  | services, `agent`, `auth`                                           | `connectors`, `db`                              |
+| `auth/`               | modes, sessions, Principal                                  | `settings`, `db` via repositories, `lib`                            | `agent`                                         |
 
 Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, only `db/` imports
 `bun:sqlite`, and only `connectors/opensearch/` imports the OpenSearch client. Postgres uses
@@ -652,6 +653,11 @@ request → requestId → session cookie? → Principal
 
 Environment variables handle boot-time concerns. Everything else lives in Settings (SQLite) and
 is editable in the UI.
+
+The model gateway (**Settings → Model**) is a settings section: provider (Anthropic, OpenAI or an
+OpenAI-compatible base URL), the model for each job (build, repair, metadata), the limits of a run
+and the behaviour switches. Its API key is sealed with the secret key, bound to `settings.model`,
+stored apart from the section, and returned masked only.
 
 | Variable             | Default                 | Purpose                                                                |
 | -------------------- | ----------------------- | ---------------------------------------------------------------------- |

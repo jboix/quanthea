@@ -9,9 +9,12 @@ import { createAuditRepository } from './db/audit-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import type { openDatabase } from './db/database.ts';
+import { createThreadRepository } from './db/thread-repository.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
 import type { SecretBox } from './secrets/secret-box.ts';
+import { createModelSettings, type ModelSettingsService } from './settings/model-settings.ts';
+import type { SettingsStore } from './settings/settings-store.ts';
 
 /** What the services need. */
 export interface ServiceDependencies {
@@ -19,8 +22,10 @@ export interface ServiceDependencies {
   readonly database: ReturnType<typeof openDatabase>;
   /** The connector kinds on offer. */
   readonly kinds: readonly AnyConnectorKind[];
-  /** Seals connector credentials. */
+  /** Seals connector credentials and the model key. */
   readonly secretBox: SecretBox;
+  /** The settings store. */
+  readonly settings: SettingsStore;
 }
 
 /** The services the HTTP layer calls. */
@@ -29,6 +34,8 @@ export interface Services {
   readonly connections: Connections;
   /** The dashboards. */
   readonly dashboards: Dashboards;
+  /** The model gateway settings. */
+  readonly modelSettings: ModelSettingsService;
 }
 
 /** How long a query result stays cached, in milliseconds. */
@@ -36,6 +43,16 @@ const resultTtlMs = 15_000;
 
 /** How many query results the cache holds. */
 const maxCachedResults = 500;
+
+/**
+ * The first instant of the current month, in UTC.
+ *
+ * @returns Epoch milliseconds.
+ */
+function monthStart(): number {
+  const now = new Date();
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+}
 
 /**
  * Creates the services.
@@ -61,5 +78,12 @@ export function createServices(dependencies: ServiceDependencies): Services {
       createResultCache({ ttlMs: resultTtlMs, maxEntries: maxCachedResults }),
     ),
   });
-  return { connections, dashboards };
+  const threads = createThreadRepository(database);
+  const modelSettings = createModelSettings({
+    store: dependencies.settings,
+    secretBox,
+    audit,
+    usage: () => threads.usageSince(monthStart()),
+  });
+  return { connections, dashboards, modelSettings };
 }

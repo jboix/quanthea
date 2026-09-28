@@ -51,6 +51,14 @@ export {
 export { healthEndpoint } from './api/health.ts';
 export { meEndpoint } from './api/me.ts';
 export {
+  getModelSettingsEndpoint,
+  type ModelSettingsView,
+  modelSettingsViewSchema,
+  modelTestSchema,
+  saveModelSettingsEndpoint,
+  testModelSettingsEndpoint,
+} from './api/model-settings.ts';
+export {
   type MarkerOutcome,
   type PanelRun,
   panelRunSchema,
@@ -90,6 +98,13 @@ export {
   frameProblems,
   frameSchema,
 } from './frames.ts';
+export {
+  defaultModelSettings,
+  type ModelProvider,
+  type ModelSettings,
+  modelProviders,
+  modelSettingsSchema,
+} from './model-settings.ts';
 export {
   type AuthMode,
   authModeSchema,

@@ -8,21 +8,7 @@ import {
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
 import type { ConnectorRow } from '../db/connector-repository.ts';
 import { type GateSubject, isHiddenField } from '../gate/subject.ts';
-
-/** Shown for a stored secret value. */
-const mask = '••••••••';
-
-/**
- * Masks a secret value. Long values, such as API tokens, keep their last four characters so an
- * admin can tell which one is stored; short values, such as passwords, keep nothing.
- *
- * @param value - The secret value.
- * @returns The masked value.
- */
-export function maskSecret(value: unknown): string {
-  const text = typeof value === 'string' ? value : JSON.stringify(value);
-  return text.length >= 16 ? `${mask}${text.slice(-4)}` : mask;
-}
+import { maskSecret } from '../secrets/mask.ts';
 
 /**
  * The list entry of a connector.

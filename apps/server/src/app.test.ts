@@ -65,6 +65,14 @@ describe('route access', () => {
     expect(connectorRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 
+  test('every settings route needs the admin role', () => {
+    const settingsRoutes = listApiRouteAccess(buildApp()).filter((route) =>
+      /^\/api\/settings/.test(route.path),
+    );
+    expect(settingsRoutes.length).toBe(2);
+    expect(settingsRoutes.every((route) => route.access === 'admin')).toBe(true);
+  });
+
   test('the audit reports a route mounted without an access declaration', () => {
     const app = buildApp();
     app.get('/api/sneaky', (context) => context.json({}));

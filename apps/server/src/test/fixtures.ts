@@ -8,9 +8,11 @@ import type { AnyConnectorKind } from '../connectors/_shared/index.ts';
 import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
 import { openDatabase } from '../db/database.ts';
 import { runMigrations } from '../db/migrate.ts';
+import { createSettingsRepository } from '../db/settings-repository.ts';
 import { createLogger, type Logger } from '../lib/logger.ts';
 import { createSecretBox } from '../secrets/secret-box.ts';
 import { createServices, type Services } from '../services.ts';
+import { createSettingsStore } from '../settings/settings-store.ts';
 
 /** A logger that keeps its lines in memory. */
 export interface CapturedLogger {
@@ -74,7 +76,8 @@ export async function testServices(
     'encrypt',
     'decrypt',
   ]);
-  const services = createServices({ database, kinds, secretBox: createSecretBox(key) });
+  const settings = createSettingsStore(createSettingsRepository(database));
+  const services = createServices({ database, kinds, secretBox: createSecretBox(key), settings });
   const close = async (): Promise<void> => {
     await services.connections.closeAll();
     database.close();

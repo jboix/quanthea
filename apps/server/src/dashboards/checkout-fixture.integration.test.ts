@@ -110,6 +110,7 @@ describe.skipIf(!integrationEnabled)('the checkout incident fixture, with no mod
       webDir: dataDir.path,
       connections: services.connections,
       dashboards: services.dashboards,
+      modelSettings: services.modelSettings,
     });
     const response = await app.request('/api/panels/run', {
       method: 'POST',
