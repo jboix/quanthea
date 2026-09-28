@@ -52,6 +52,7 @@ export { healthEndpoint } from './api/health.ts';
 export { meEndpoint } from './api/me.ts';
 export {
   getModelSettingsEndpoint,
+  listModelsEndpoint,
   type ModelSettingsView,
   modelSettingsViewSchema,
   modelTestSchema,

@@ -1,6 +1,6 @@
 /** Model gateway endpoints: read and save the settings, and test the connection. Admin only. */
 import { z } from 'zod';
-import { modelSettingsSchema } from '../model-settings.ts';
+import { modelProviders, modelSettingsSchema } from '../model-settings.ts';
 import { defineEndpoint } from './contract.ts';
 
 /** Validates the settings as the API returns them: the key masked, if one is stored. */
@@ -45,4 +45,19 @@ export const testModelSettingsEndpoint = defineEndpoint({
   method: 'POST',
   path: '/settings/model/test',
   output: modelTestSchema,
+});
+
+/**
+ * Lists the chat models a provider offers. Without a key in the request, the stored key is used
+ * when the provider is the saved one.
+ */
+export const listModelsEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/settings/model/models',
+  body: z.object({
+    provider: z.enum(modelProviders),
+    baseUrl: z.string().max(500).nullable(),
+    apiKey: z.string().min(1).max(2000).optional(),
+  }),
+  output: z.object({ models: z.array(z.string()), message: z.string().nullable() }),
 });

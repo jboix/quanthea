@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.65",
+    "@ai-sdk/mistral": "^4.0.52",
     "@ai-sdk/openai": "^4.0.78",
     "@ai-sdk/openai-compatible": "^3.0.57",
     "@querent/shared": "workspace:*",

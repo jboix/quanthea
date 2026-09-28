@@ -4,8 +4,11 @@
  */
 import { z } from 'zod';
 
-/** The providers the gateway speaks to. OpenAI-compatible covers LiteLLM, Ollama, vLLM and more. */
-export const modelProviders = ['anthropic', 'openai', 'openai-compatible'] as const;
+/**
+ * The providers the gateway speaks to. OpenAI-compatible covers LiteLLM, Ollama, vLLM, Gemini's
+ * OpenAI endpoint and more.
+ */
+export const modelProviders = ['anthropic', 'openai', 'mistral', 'openai-compatible'] as const;
 
 /** A provider. */
 export type ModelProvider = (typeof modelProviders)[number];

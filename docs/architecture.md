@@ -674,9 +674,12 @@ request → requestId → session cookie? → Principal
 Environment variables handle boot-time concerns. Everything else lives in Settings (SQLite) and
 is editable in the UI.
 
-The model gateway (**Settings → Model**) is a settings section: provider (Anthropic, OpenAI or an
-OpenAI-compatible base URL), the model for each job (build, repair, metadata), the limits of a run
-and the behaviour switches. Its API key is sealed with the secret key, bound to `settings.model`,
+The model gateway (**Settings → Model**) is a settings section: provider (Anthropic, OpenAI,
+Mistral, or an OpenAI-compatible base URL such as LiteLLM, Ollama or Gemini's OpenAI endpoint), the
+model for each job (build, repair, metadata), the limits of a run and the behaviour switches. The
+job fields list the chat models the provider's own `/models` API returns
+(`POST /api/settings/model/models`); a key typed in the form is used for that listing, and the
+stored key only for the provider it was saved for. Its API key is sealed with the secret key, bound to `settings.model`,
 stored apart from the section, and returned masked only.
 
 | Variable             | Default                 | Purpose                                                                |

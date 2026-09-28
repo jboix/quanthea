@@ -1,5 +1,5 @@
 import type { ModelSettings, ModelSettingsView } from '@querent/shared';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
@@ -9,8 +9,9 @@ import { Page } from '../../ui/page.tsx';
 import { RadioCards } from '../../ui/radio-cards.tsx';
 import { Switch } from '../../ui/switch.tsx';
 import type { ModelSettingsIntent, ModelSettingsOutcome, ModelTest } from './data.ts';
+import { ModelPicker, useModelList } from './model-picker.tsx';
 import styles from './model-settings.module.css';
-import { suggestedModels, useModelSettingsForm } from './model-settings-form.ts';
+import { useModelSettingsForm } from './model-settings-form.ts';
 
 /** The form state {@link useModelSettingsForm} returns. */
 type Form = ReturnType<typeof useModelSettingsForm>;
@@ -27,6 +28,7 @@ interface SectionProps {
 const providerOptions = [
   { value: 'anthropic' as const, title: 'Anthropic', description: 'API key' },
   { value: 'openai' as const, title: 'OpenAI', description: 'API key' },
+  { value: 'mistral' as const, title: 'Mistral', description: 'API key' },
   {
     value: 'openai-compatible' as const,
     title: 'OpenAI-compatible',
@@ -140,7 +142,6 @@ function ProviderCard({ form, stored, issues }: SectionProps & { readonly stored
   return (
     <Card title="Provider">
       <RadioCards
-        columns={3}
         label="Provider"
         options={providerOptions}
         value={form.settings.provider}
@@ -164,40 +165,35 @@ function ProviderCard({ form, stored, issues }: SectionProps & { readonly stored
   );
 }
 
+/** The jobs, in the order the card lists them. */
+const jobs = [
+  { key: 'build', label: 'Plan and build dashboards' },
+  { key: 'repair', label: 'Repair a failed query' },
+  { key: 'metadata', label: 'Titles, tags and descriptions' },
+] as const;
+
 /**
- * The card that picks the model for each job.
+ * The card that picks the model for each job, from the models the provider lists.
  *
  * @param props - The form and the issues.
  * @returns The card.
  */
 function JobsCard({ form, issues }: SectionProps) {
-  const listId = useId();
-  const jobs = [
-    { key: 'build', label: 'Plan and build dashboards', placeholder: 'claude-sonnet-5' },
-    { key: 'repair', label: 'Repair a failed query', placeholder: 'same as build' },
-    { key: 'metadata', label: 'Titles, tags and descriptions', placeholder: 'same as build' },
-  ] as const;
+  const list = useModelList(form.settings.provider, form.settings.baseUrl, form.apiKey);
   return (
     <Card
       title="Model for each job"
       description="Building needs a strong tool-calling model. Tagging can use a cheap one."
     >
-      <datalist id={listId}>
-        {suggestedModels[form.settings.provider].map((model) => (
-          <option key={model} value={model} />
-        ))}
-      </datalist>
       {jobs.map((job) => (
         <div key={job.key} className={styles.job}>
           <span className={styles.jobLabel}>{job.label}</span>
-          <Input
+          <ModelPicker
             label={job.label}
-            hideLabel
-            mono
-            list={listId}
-            placeholder={job.placeholder}
             value={form.settings.models[job.key]}
-            onChange={(event) => form.set(`models.${job.key}`, event.target.value)}
+            sameAsBuild={job.key !== 'build'}
+            list={list}
+            onChange={(value) => form.set(`models.${job.key}`, value)}
             error={issues[`models.${job.key}`]}
           />
         </div>

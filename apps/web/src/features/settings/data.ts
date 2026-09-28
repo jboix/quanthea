@@ -1,6 +1,8 @@
 /** Loads and saves the model settings, and tests the connection, through the API. */
 import {
   getModelSettingsEndpoint,
+  listModelsEndpoint,
+  type ModelProvider,
   type ModelSettings,
   type ModelSettingsView,
   type modelTestSchema,
@@ -17,7 +19,13 @@ export type ModelTest = z.output<typeof modelTestSchema>;
 /** What the settings screen submits, as JSON. */
 export type ModelSettingsIntent =
   | { readonly intent: 'save'; readonly settings: ModelSettings; readonly apiKey?: string }
-  | { readonly intent: 'test' };
+  | { readonly intent: 'test' }
+  | {
+      readonly intent: 'models';
+      readonly provider: ModelProvider;
+      readonly baseUrl: string | null;
+      readonly apiKey?: string;
+    };
 
 /** What the action returns. */
 export type ModelSettingsOutcome =
@@ -29,7 +37,12 @@ export type ModelSettingsOutcome =
       /** Problems by field path, such as `limits.toolCallsPerTurn`. */
       readonly issues: Readonly<Record<string, string>>;
     }
-  | { readonly intent: 'test'; readonly result: ModelTest };
+  | { readonly intent: 'test'; readonly result: ModelTest }
+  | {
+      readonly intent: 'models';
+      readonly models: readonly string[];
+      readonly message: string | null;
+    };
 
 /**
  * Keys the server's validation issues by settings path.
@@ -86,6 +99,10 @@ export function modelSettingsAction(api: ApiClient) {
     const intent = (await request.json()) as ModelSettingsIntent;
     if (intent.intent === 'test') {
       return { intent: 'test', result: await api.call(testModelSettingsEndpoint) };
+    }
+    if (intent.intent === 'models') {
+      const { intent: _intent, ...body } = intent;
+      return { intent: 'models', ...(await api.call(listModelsEndpoint, { body })) };
     }
     const { settings, apiKey } = intent;
     return save(api, apiKey === undefined ? { settings } : { settings, apiKey });

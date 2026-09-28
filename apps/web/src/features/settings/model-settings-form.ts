@@ -2,13 +2,6 @@
 import type { ModelSettings } from '@querent/shared';
 import { useState } from 'react';
 
-/** Model ids to suggest, by provider. Any id the provider knows works. */
-export const suggestedModels: Readonly<Record<ModelSettings['provider'], readonly string[]>> = {
-  anthropic: ['claude-sonnet-5', 'claude-opus-5-5', 'claude-fable-5-1', 'claude-haiku-4-5'],
-  openai: [],
-  'openai-compatible': [],
-};
-
 /**
  * Sets a value at a dotted path of the settings, returning new settings.
  *

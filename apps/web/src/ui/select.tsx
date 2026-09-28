@@ -22,6 +22,8 @@ interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id'
   readonly hint?: ReactNode;
   /** What is wrong with the value. It replaces the hint. */
   readonly error?: string | undefined;
+  /** Keeps the label for screen readers only, for selects whose purpose the layout shows. */
+  readonly hideLabel?: boolean;
 }
 
 /**
@@ -36,6 +38,7 @@ export function Select({
   mono = false,
   hint,
   error,
+  hideLabel = false,
   className,
   ...rest
 }: SelectProps) {
@@ -43,7 +46,7 @@ export function Select({
   const classes = [styles.control, mono && styles.mono, className].filter(Boolean).join(' ');
   return (
     <div className={styles.field}>
-      <label htmlFor={selectId} className={styles.label}>
+      <label htmlFor={selectId} className={hideLabel ? styles.visuallyHidden : styles.label}>
         {label}
       </label>
       <select
