@@ -62,6 +62,7 @@ describe('runMigrations', () => {
       '0001-settings-and-audit-log.sql',
       '0002-connectors.sql',
       '0003-dashboards.sql',
+      '0004-threads.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
@@ -69,9 +70,12 @@ describe('runMigrations', () => {
       'connectors',
       'dashboard_versions',
       'dashboards',
+      'messages',
       'migrations',
+      'plans',
       'schema_cache',
       'settings',
+      'threads',
     ]);
   });
 
