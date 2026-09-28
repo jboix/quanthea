@@ -47,7 +47,8 @@ bun run env:up     # Postgres on :5433 and Prometheus on :9091, seeded with the 
 bun run env:down   # stop them and delete their data
 ```
 
-`bun run env:up:opensearch` also starts OpenSearch on :9202. The sources, their users and the
+`bun run test:integration` runs the connector tests against them. `bun run env:up:opensearch`
+also starts OpenSearch on :9202. The sources, their users and the
 incident they share are described in [the architecture](./architecture.md#14-local-development).
 
 ## Git hooks

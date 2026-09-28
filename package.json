@@ -29,7 +29,8 @@
     "env:up": "docker compose -f dev/docker-compose.yml up -d --wait postgres prometheus",
     "env:up:opensearch": "docker compose -f dev/docker-compose.yml --profile opensearch up -d --wait",
     "env:stop": "docker compose -f dev/docker-compose.yml --profile opensearch stop",
-    "env:down": "docker compose -f dev/docker-compose.yml --profile opensearch down -v"
+    "env:down": "docker compose -f dev/docker-compose.yml --profile opensearch down -v",
+    "test:integration": "QUERENT_INTEGRATION=1 bun test integration"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

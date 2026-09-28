@@ -97,6 +97,36 @@ jobs:
         if: always()
         run: docker logs querent || true
 
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: '.tool-versions'
+
+      - name: Install dependencies
+        env:
+          CI: true
+          HUSKY: "0"
+        run: bun install --frozen-lockfile
+
+      - name: Start the local data sources
+        run: bun run env:up
+
+      - name: Integration tests against the local data sources
+        run: bun run test:integration
+
+      - name: Data source logs
+        if: failure()
+        run: docker compose -f dev/docker-compose.yml logs --no-color
+
   commitlint:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -129,7 +159,7 @@ jobs:
   # The ruleset on main requires one check named `quality`. commitlint is
   # skipped outside pull requests, and a skipped job counts as passing.
   quality:
-    needs: [verify, image, commitlint]
+    needs: [verify, image, integration, commitlint]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2

@@ -27,6 +27,8 @@ bun run arch         # dependency-cruiser boundary rules
 bun run knip         # unused files, exports and dependencies
 bun run typecheck    # tsc in every workspace
 bun test             # unit tests (bun:test)
+bun run env:up       # the local data sources: Postgres :5433, Prometheus :9091
+bun run test:integration  # connector tests against the local data sources
 bun run build        # build the SPA into apps/web/dist
 bun run start        # run the server, serving the built SPA
 ```

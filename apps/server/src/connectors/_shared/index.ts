@@ -13,6 +13,7 @@ export {
   type BoundQuery,
   type ExecutionContext,
   queryLanguages,
+  type SqlQuery,
   type TimeRange,
 } from './queries.ts';
-export type { FieldReference } from './schema.ts';
+export type { FieldReference, HealthReport, SchemaEntity, SchemaField } from './schema.ts';

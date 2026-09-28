@@ -366,9 +366,12 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
 
 - **Prometheus:** `query_range` over HTTP. One frame per series, with labels on the value field.
   `describe` = metric names + label keys (from `/api/v1/labels`, `/api/v1/label/__name__/values`).
-- **Postgres:** `Bun.sql` with read-only transactions (`SET TRANSACTION READ ONLY`) and
-  `statement_timeout`. The executor also rejects non-SELECT statements before sending.
-  `describe` reads `information_schema` and `pg_catalog`.
+- **Postgres:** the `postgres` driver. `Bun.sql` 1.3 returns no column names or types (a query with
+  no rows has no fields) and cannot cancel a running statement; `postgres` gives the row
+  description and sends a real cancel request. Every query runs in a `read only` transaction with
+  `SET LOCAL statement_timeout`, wrapped in `LIMIT maxRows + 1`. `describe` reads `pg_catalog`
+  (comments, `reltuples`, `pg_stats.n_distinct`), never table data. SQLSTATEs map to connector
+  errors; data errors (class 22) never quote the value.
 - **OpenSearch:** the official client, verified under Bun early (checked with a spike before the connector is built). The query
   body is DSL JSON with structural variables. `describe` = index patterns + mappings.
 - **HTTP JSON:** GET only by default. The response is mapped to frames with a small declarative
@@ -588,7 +591,9 @@ is editable in the UI.
 - **Unit** (`bun test`): spec validation, formatter library, variable binding and escaping (with
   injection cases), gate redaction per level, error sanitizing, guardrails, diff, the thread state
   machine, bin retention.
-- **Integration** (`bun test`, needs `dev/` compose): each connector against the real service. The
+- **Integration** (`bun run test:integration`, after `bun run env:up`): each connector against the
+  real service, in `*.integration.test.ts` files that run only with `QUERENT_INTEGRATION=1`. Every
+  connector kind also runs the conformance suite there. CI runs them in the `integration` job. The
   query endpoint end to end.
 - **Web:** component tests for the plan card, diff card, variables bar and chart adapter
   (happy-dom). Playwright smoke tests later.
