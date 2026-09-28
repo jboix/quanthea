@@ -107,6 +107,14 @@ export {
   gridColumns,
   type Panel,
 } from './spec/dashboard.ts';
+export {
+  type DiffLine,
+  diffLines,
+  diffSpecs,
+  type FieldChange,
+  type PanelDiff,
+  type SpecDiff,
+} from './spec/diff.ts';
 export { refIdSchema, slugSchema, variableNameSchema } from './spec/names.ts';
 export {
   type PanelQuery,
