@@ -33,6 +33,16 @@ export {
   type ParsedEndpointInput,
 } from './api/contract.ts';
 export {
+  createDashboardEndpoint,
+  type DashboardDetail,
+  type DashboardVersion,
+  dashboardDetailSchema,
+  dashboardVersionSchema,
+  getDashboardEndpoint,
+  getDashboardVersionEndpoint,
+  pinDashboardEndpoint,
+} from './api/dashboards.ts';
+export {
   type ApiErrorBody,
   type ApiErrorCode,
   apiErrorBodySchema,
@@ -40,6 +50,14 @@ export {
 } from './api/errors.ts';
 export { healthEndpoint } from './api/health.ts';
 export { meEndpoint } from './api/me.ts';
+export {
+  type MarkerOutcome,
+  type PanelRun,
+  panelRunSchema,
+  type QueryOutcome,
+  runPanelEndpoint,
+  variableOptionsEndpoint,
+} from './api/panels.ts';
 export {
   type AccessLevel,
   accessLevelSchema,

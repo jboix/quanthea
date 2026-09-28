@@ -6,7 +6,7 @@ import {
   captureLogs,
   fixedAuthenticator,
   temporaryDir,
-  testConnections,
+  testServices,
 } from '../../test/fixtures.ts';
 import type { AppEnv } from '../app-env.ts';
 import { authenticate } from '../authenticate.ts';
@@ -17,11 +17,11 @@ const admin: Principal = { id: 'admin-1', name: 'Ada', role: 'admin' };
 const editor: Principal = { id: 'editor-1', name: 'Eddie', role: 'editor' };
 
 let dataDir: ReturnType<typeof temporaryDir>;
-let fixture: Awaited<ReturnType<typeof testConnections>>;
+let fixture: Awaited<ReturnType<typeof testServices>>;
 
 beforeEach(async () => {
   dataDir = temporaryDir();
-  fixture = await testConnections(dataDir.path);
+  fixture = await testServices(dataDir.path);
 });
 
 afterEach(async () => {

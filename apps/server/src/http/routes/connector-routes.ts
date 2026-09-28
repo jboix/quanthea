@@ -6,7 +6,6 @@ import {
   getConnectorSchemaEndpoint,
   listConnectorKindsEndpoint,
   listConnectorsEndpoint,
-  type Principal,
   refreshConnectorSchemaEndpoint,
   testConnectorEndpoint,
   updateConnectorEndpoint,
@@ -15,16 +14,7 @@ import type { Hono } from 'hono';
 import type { Connections } from '../../connections/connections.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
-
-/**
- * The actor recorded in the audit log. Admin routes only run with a principal.
- *
- * @param principal - The request's principal.
- * @returns The principal id.
- */
-function actorOf(principal: Principal | null): string {
-  return principal?.id ?? 'unknown';
-}
+import { actorOf } from '../principal.ts';
 
 /**
  * Mounts the endpoints that read and change connector settings.

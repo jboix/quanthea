@@ -4,18 +4,18 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { createApp } from './app.ts';
 import { anonymousAdmin } from './auth/authenticator.ts';
-import type { Connections } from './connections/connections.ts';
 import { listApiRouteAccess } from './http/access.ts';
-import { captureLogs, fixedAuthenticator, temporaryDir, testConnections } from './test/fixtures.ts';
+import type { Services } from './services.ts';
+import { captureLogs, fixedAuthenticator, temporaryDir, testServices } from './test/fixtures.ts';
 
 let webDir: ReturnType<typeof temporaryDir>;
 let dataDir: ReturnType<typeof temporaryDir>;
-let connections: Connections;
-let closeConnections: () => Promise<void>;
+let services: Services;
+let closeServices: () => Promise<void>;
 
 beforeEach(async () => {
   dataDir = temporaryDir();
-  ({ connections, close: closeConnections } = await testConnections(dataDir.path));
+  ({ close: closeServices, ...services } = await testServices(dataDir.path));
   webDir = temporaryDir();
   mkdirSync(join(webDir.path, 'assets'));
   writeFileSync(join(webDir.path, 'index.html'), '<!doctype html><div id="root"></div>');
@@ -25,7 +25,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   webDir.remove();
-  await closeConnections();
+  await closeServices();
   dataDir.remove();
 });
 
@@ -40,7 +40,7 @@ function buildApp() {
     authenticator: fixedAuthenticator(anonymousAdmin),
     logger: captureLogs().logger,
     webDir: webDir.path,
-    connections,
+    ...services,
   });
 }
 

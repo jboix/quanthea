@@ -4,15 +4,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Principal } from '@querent/shared';
 import type { Authenticator } from '../auth/authenticator.ts';
-import { type Connections, createConnections } from '../connections/connections.ts';
 import type { AnyConnectorKind } from '../connectors/_shared/index.ts';
 import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
-import { createAuditRepository } from '../db/audit-repository.ts';
-import { createConnectorRepository } from '../db/connector-repository.ts';
 import { openDatabase } from '../db/database.ts';
 import { runMigrations } from '../db/migrate.ts';
 import { createLogger, type Logger } from '../lib/logger.ts';
 import { createSecretBox } from '../secrets/secret-box.ts';
+import { createServices, type Services } from '../services.ts';
 
 /** A logger that keeps its lines in memory. */
 export interface CapturedLogger {
@@ -59,31 +57,27 @@ export function temporaryDir(): { readonly path: string; readonly remove: () => 
 }
 
 /**
- * Creates a connectors service over a migrated database in a directory, with a fresh key.
+ * Opens a fresh database in a temporary directory and builds the services over it, wired as the
+ * bootstrap wires them.
  *
- * @param dataDir - The directory for the database.
+ * @param dataDir - The temporary data directory.
  * @param kinds - The connector kinds on offer; the in-memory test kind by default.
- * @returns The service, and a function that closes its connections and the database.
+ * @returns The services, and a function that closes the connections and the database.
  */
-export async function testConnections(
+export async function testServices(
   dataDir: string,
   kinds: readonly AnyConnectorKind[] = [memoryConnector],
-): Promise<{ readonly connections: Connections; readonly close: () => Promise<void> }> {
+): Promise<Services & { readonly close: () => Promise<void> }> {
   const database = openDatabase(dataDir);
   runMigrations(database);
   const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
     'encrypt',
     'decrypt',
   ]);
-  const connections = createConnections({
-    kinds,
-    repository: createConnectorRepository(database),
-    audit: createAuditRepository(database),
-    secretBox: createSecretBox(key),
-  });
+  const services = createServices({ database, kinds, secretBox: createSecretBox(key) });
   const close = async (): Promise<void> => {
-    await connections.closeAll();
+    await services.connections.closeAll();
     database.close();
   };
-  return { connections, close };
+  return { ...services, close };
 }

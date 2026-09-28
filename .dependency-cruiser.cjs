@@ -195,6 +195,18 @@ module.exports = {
       },
     },
     {
+      name: 'dashboards-stay-in-their-lane',
+      severity: 'error',
+      comment:
+        'dashboards/ validates, stores and runs specs. It reaches connectors only through the ' +
+        'functions the bootstrap hands it, so it imports the database, query/ and lib/, nothing else.',
+      from: { path: '^apps/server/src/dashboards/', pathNot: ['[.]test[.]ts$'] },
+      to: {
+        path: '^apps/server/src/',
+        pathNot: '^apps/server/src/(dashboards|db|query|lib)/',
+      },
+    },
+    {
       name: 'connections-below-http',
       severity: 'error',
       comment:

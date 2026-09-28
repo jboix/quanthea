@@ -128,18 +128,19 @@ The two paths that matter:
 The allowed dependencies are enforced by `.dependency-cruiser.cjs`. The table summarizes
 them.
 
-| Module                                            | Responsibility                                              | May import                                                                | Must not import                                 |
-| ------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
-| `lib/`                                            | errors, logger, ids                                         | nothing internal                                                          | everything else                                 |
-| `connectors/<kind>/`                              | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@querent/shared`, its own driver            | other connector kinds, anything else in the app |
-| `query/`                                          | bind variables, enforce guardrails, run, cache              | `connectors`, `lib`, shared                                               | `agent`, `http`                                 |
-| `gate/`                                           | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                          | `agent`, `http`                                 |
-| `agent/`                                          | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `search`, `settings`, `lib`              | **`connectors`, `query`, `db`**                 |
-| `dashboards/`, `threads/`, `search/`, `settings/` | domain logic                                                | `db`, `lib`, shared (`dashboards` also calls `query` to test-run on save) | `http`, `agent`                                 |
-| `connections/`                                    | configured connectors: CRUD, sealed secrets, open instances | `db`, `secrets`, `connectors`, `gate`, `query` types, `lib`               | `http`, `auth`, `agent`                         |
-| `db/`                                             | the only user of `bun:sqlite`                               | `lib`                                                                     | —                                               |
-| `http/`                                           | validate, authorize, call services, stream                  | services, `agent`, `auth`                                                 | `connectors`, `db`                              |
-| `auth/`                                           | modes, sessions, Principal                                  | `settings`, `db` via repositories, `lib`                                  | `agent`                                         |
+| Module                             | Responsibility                                              | May import                                                          | Must not import                                 |
+| ---------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------- |
+| `lib/`                             | errors, logger, ids                                         | nothing internal                                                    | everything else                                 |
+| `connectors/<kind>/`               | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@querent/shared`, its own driver      | other connector kinds, anything else in the app |
+| `query/`                           | bind variables, enforce guardrails, run, cache              | `connectors`, `lib`, shared                                         | `agent`, `http`                                 |
+| `gate/`                            | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                    | `agent`, `http`                                 |
+| `agent/`                           | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `search`, `settings`, `lib`        | **`connectors`, `query`, `db`**                 |
+| `dashboards/`                      | validate, store, pin and run specs                          | `db`, `query`, `lib`, shared; connectors through injected functions | `http`, `agent`, `connections`, `connectors`    |
+| `threads/`, `search/`, `settings/` | domain logic                                                | `db`, `lib`, shared                                                 | `http`, `agent`                                 |
+| `connections/`                     | configured connectors: CRUD, sealed secrets, open instances | `db`, `secrets`, `connectors`, `gate`, `query` types, `lib`         | `http`, `auth`, `agent`                         |
+| `db/`                              | the only user of `bun:sqlite`                               | `lib`                                                               | —                                               |
+| `http/`                            | validate, authorize, call services, stream                  | services, `agent`, `auth`                                           | `connectors`, `db`                              |
+| `auth/`                            | modes, sessions, Principal                                  | `settings`, `db` via repositories, `lib`                            | `agent`                                         |
 
 Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, only `db/` imports
 `bun:sqlite`, and only `connectors/opensearch/` imports the OpenSearch client. Postgres uses
@@ -239,24 +240,31 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
 
 ### 5.2 Render a panel (no model)
 
-1. The dashboard pane knows `{dashboardId, version}` and the current variable values.
-2. For each panel: `POST /api/panels/run {dashboardId, version, panelId, variables}`.
-3. The server loads the spec, checks the principal can view it, and hands each of the panel's
-   queries plus variables to `query/`.
-4. `query/` validates the variable values against the spec's declarations (allowed options, types),
-   binds them, applies the connector's guardrails, runs with a timeout, and caches for 15 s
-   by `(version, panelId, variables)`.
-5. It returns `{ frames: Frame[], meta }` to the browser. `charts/` builds the ECharts option.
+1. The dashboard pane knows `{dashboardId, version}`, the variable values and the time range
+   (`now-6h`, or ISO timestamps).
+2. For each panel: `POST /api/panels/run {dashboardId, version, panelId, variables, time}`.
+3. The server loads the spec. Viewers may run pinned versions only; a draft is "not found" to them.
+4. `dashboards/` resolves the time range and the variables against the spec's declarations: a
+   custom value must be an option, a single-value variable takes one value, a text value must
+   match its pattern. Query-backed values are bound as they come, since binding is safe; "All"
+   (`$__all`) and a missing default run the variable's source query for the options.
+5. Each query goes to `query/`, which binds it, applies the connector's guardrails, runs it with a
+   timeout and caches the frames for 15 s by connector, bound query and time range. The chart's
+   markers run their annotation queries the same way and come back as `{time, text}` points.
+6. The browser receives `{ time, queries: [{ refId, frames, error }], markers, durationMs }`, and
+   `charts/` builds the ECharts option.
 
-Panels run in parallel. Each panel handles its own loading and error states, and one failing
-panel never blanks the dashboard.
+Panels run in parallel. Each query has its own outcome with a safe error message, so one failing
+query never fails the rest of the panel, and one failing panel never blanks the dashboard.
+`POST /api/variables/options` lists a query-backed variable's options the same way.
 
 ### 5.3 Pin
 
 `POST /api/dashboards/:id/pin {version}` (editor+):
 
-1. Validate the version again and test-run every panel. A dashboard with broken panels can't be
-   pinned.
+1. Validate the version again (connectors may have changed) and test-run every panel with the
+   default variables. A dashboard with a failing query can't be pinned; the refusal lists each
+   failing query by path.
 2. The _metadata_ model writes the title, description and tags. **This is best effort**: if the
    model is unavailable, pin anyway with the thread title and let tags be empty.
 3. Mark the version pinned (the SQLite trigger now blocks updates to it), set
@@ -545,13 +553,14 @@ indicative; the contract files are the source of truth.
 | `POST /threads/:id/chat`                                                                   | streamed agent run             | editor   |
 | `POST /threads/:id/plans/:planId/approve` · `/reject`                                      | plan decisions                 | editor   |
 | `GET /dashboards` (search: `q`, `tags`)                                                    | library                        | viewer   |
-| `GET /dashboards/:id`, `GET /dashboards/:id/versions/:v`                                   | spec                           | viewer   |
+| `POST /dashboards` (a spec, becomes draft v1)                                              | create from a spec             | editor   |
+| `GET /dashboards/:id`, `GET /dashboards/:id/versions/:v` (drafts: editor)                  | spec                           | viewer   |
 | `POST /dashboards/:id/pin`                                                                 | pin a version                  | editor   |
 | `POST /dashboards/:id/variants`                                                            | new thread from a copy         | editor   |
 | `POST /dashboards/:id/bin`                                                                 | move to bin                    | editor   |
 | `GET /bin`, `POST /bin/:id/restore`                                                        | bin                            | editor   |
 | `DELETE /bin/:id`, `DELETE /bin`                                                           | permanent delete               | admin    |
-| `POST /panels/run`                                                                         | run one saved panel            | viewer   |
+| `POST /panels/run`, `POST /variables/options`                                              | run one saved panel, options   | viewer   |
 | `GET /connector-kinds` (with the JSON Schemas of their forms)                              | connector kinds                | admin    |
 | `GET/POST /connectors`, `GET/PATCH/DELETE /connectors/:connectorId`                        | connectors                     | admin    |
 | `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`           | connection test, schema        | admin    |

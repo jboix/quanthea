@@ -9,6 +9,7 @@ import type {
   ConnectorSummary,
   connectorInputSchema,
   connectorPatchSchema,
+  Guardrails,
   SchemaView,
 } from '@querent/shared';
 import { z } from 'zod';
@@ -136,6 +137,13 @@ export interface Connections {
    * @returns The connector for the query engine and the gate.
    */
   open(name: string): Promise<OpenConnector>;
+  /**
+   * Says what dashboard validation needs of a connector, without opening it.
+   *
+   * @param name - The connector name.
+   * @returns Its query language and guardrails, or `undefined` when no usable connector has the name.
+   */
+  lookup(name: string): { language: QuerySource['language']; guardrails: Guardrails } | undefined;
   /**
    * Closes every open connection, at shutdown.
    *
@@ -488,6 +496,19 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
 }
 
 /**
+ * What dashboard validation needs of a connector.
+ *
+ * @param context - The service context.
+ * @param name - The connector name.
+ * @returns The language and guardrails, or `undefined` for an unknown name or kind.
+ */
+function lookupConnector(context: ServiceContext, name: string) {
+  const row = context.repository.getByName(name);
+  const kind = row && context.kinds.find((candidate) => candidate.kind === row.kind);
+  return row && kind ? { language: kind.language, guardrails: row.guardrails } : undefined;
+}
+
+/**
  * Creates the connectors service.
  *
  * @param dependencies - Kinds, repositories, and the secret box.
@@ -514,6 +535,7 @@ export function createConnections(dependencies: ConnectionsDependencies): Connec
     schema: (id) => cachedSchema(context, id),
     refreshSchema: (id, signal) => refreshSchema(context, id, signal),
     open: (name) => openConnector(context, name),
+    lookup: (name) => lookupConnector(context, name),
     closeAll: async () => {
       await Promise.all([...context.instances.keys()].map((id) => closeInstance(context, id)));
     },

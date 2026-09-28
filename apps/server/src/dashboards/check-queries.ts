@@ -11,8 +11,8 @@ import type {
   ResolvedTimeRange,
   Variable,
 } from '@querent/shared';
-import type { QueryLanguage } from '../connectors/_shared/index.ts';
 import { bindTemplate } from '../query/bind.ts';
+import type { QuerySource } from '../query/executor.ts';
 import { checkTimeRange } from '../query/guardrails.ts';
 import { QueryError } from '../query/query-error.ts';
 import type { Variables } from '../query/variables.ts';
@@ -21,7 +21,7 @@ import type { SpecIssue } from './issues.ts';
 /** What the validator needs to know of a connector. */
 export interface ConnectorFacts {
   /** The query language of its kind. */
-  readonly language: QueryLanguage;
+  readonly language: QuerySource['language'];
   /** Its guardrails. */
   readonly guardrails: Guardrails;
 }
