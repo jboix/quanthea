@@ -108,9 +108,7 @@ describe.skipIf(!integrationEnabled)('the checkout incident fixture, with no mod
       authenticator: fixedAuthenticator(viewer),
       logger: captureLogs().logger,
       webDir: dataDir.path,
-      connections: services.connections,
-      dashboards: services.dashboards,
-      modelSettings: services.modelSettings,
+      ...services,
     });
     const response = await app.request('/api/panels/run', {
       method: 'POST',

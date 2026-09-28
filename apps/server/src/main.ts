@@ -35,7 +35,7 @@ const secretKey = await loadSecretKey({
   dataDir: config.dataDir,
   logger,
 });
-const { connections, dashboards, modelSettings } = createServices({
+const services = createServices({
   database,
   kinds: connectorKinds,
   secretBox: createSecretBox(secretKey),
@@ -47,9 +47,7 @@ const app = createApp({
   authenticator,
   logger,
   webDir: config.webDir,
-  connections,
-  dashboards,
-  modelSettings,
+  ...services,
 });
 const server = Bun.serve({ port: config.port, fetch: app.fetch });
 logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir: config.webDir });
@@ -62,7 +60,7 @@ logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir
 async function shutdown(signal: string): Promise<void> {
   logger.info('shutting down', { signal });
   await server.stop();
-  await connections.closeAll();
+  await services.connections.closeAll();
   database.close();
   process.exit(0);
 }

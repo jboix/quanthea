@@ -67,6 +67,20 @@ export {
   variableOptionsEndpoint,
 } from './api/panels.ts';
 export {
+  approvePlanEndpoint,
+  createThreadEndpoint,
+  deleteThreadEndpoint,
+  getThreadEndpoint,
+  listThreadsEndpoint,
+  rejectPlanEndpoint,
+  restoreVersionEndpoint,
+  type ThreadDetail,
+  type ThreadSummary,
+  threadChatPath,
+  threadDetailSchema,
+  threadSummarySchema,
+} from './api/threads.ts';
+export {
   type AccessLevel,
   accessLevelSchema,
   connectorNameSchema,
@@ -160,3 +174,15 @@ export {
   type View,
   viewSchema,
 } from './spec/views.ts';
+export {
+  type Plan,
+  type PlanView,
+  planPanelKinds,
+  planSchema,
+  planStatuses,
+  planViewSchema,
+  type ThreadData,
+  type ThreadState,
+  threadDataSchemas,
+  threadStates,
+} from './threads.ts';

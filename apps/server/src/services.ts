@@ -16,6 +16,7 @@ import { createResultCache } from './query/result-cache.ts';
 import type { SecretBox } from './secrets/secret-box.ts';
 import { createModelSettings, type ModelSettingsService } from './settings/model-settings.ts';
 import type { SettingsStore } from './settings/settings-store.ts';
+import { createThreads, type Threads } from './threads/threads.ts';
 
 /** What the services need. */
 export interface ServiceDependencies {
@@ -39,6 +40,8 @@ export interface Services {
   readonly modelSettings: ModelSettingsService;
   /** The connectors as the model sees them, through the gate. */
   readonly modelView: ModelView;
+  /** The threads. */
+  readonly threads: Threads;
 }
 
 /** How long a query result stays cached, in milliseconds. */
@@ -96,12 +99,12 @@ function dataServices(
 export function createServices(dependencies: ServiceDependencies): Services {
   const audit = createAuditRepository(dependencies.database);
   const data = dataServices(dependencies, audit);
-  const threads = createThreadRepository(dependencies.database);
+  const repository = createThreadRepository(dependencies.database);
   const modelSettings = createModelSettings({
     store: dependencies.settings,
     secretBox: dependencies.secretBox,
     audit,
-    usage: () => threads.usageSince(monthStart()),
+    usage: () => repository.usageSince(monthStart()),
   });
-  return { ...data, modelSettings };
+  return { ...data, modelSettings, threads: createThreads({ repository, audit }) };
 }
