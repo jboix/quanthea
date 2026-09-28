@@ -40,6 +40,10 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'GET /connectors/:connectorId': sampleConnector,
   'GET /connectors/:connectorId/schema': { readAt: null, entities: [] },
   'POST /connectors/:connectorId/test': { ok: true, latencyMs: 1, message: 'ok', readOnly: null },
+  'GET /dashboards/:dashboardId': { pinnedVersion: 1, versions: [] },
+  'GET /dashboards/:dashboardId/versions/:version': { version: 1, spec: { panels: [] } },
+  'POST /panels/run': { time: { from: 0, to: 1 }, queries: [], markers: [], durationMs: 1 },
+  'POST /variables/options': { options: [] },
 };
 
 /** An API client that answers every call from {@link cannedAnswers}. */
@@ -87,12 +91,14 @@ function samplePath(pattern: string): string {
  * both refuse the same navigation.
  *
  * @param errors - `router.state.errors`.
- * @returns The statuses, empty when no route failed.
+ * @returns The statuses, empty when no route failed. An error without a status, such as a
+ *   loader that crashed, is reported by its message, so it can never pass for "no error".
  */
 function errorStatuses(errors: Record<string, unknown> | null): unknown[] {
-  const statuses = Object.values(errors ?? {}).map(
-    (error) => (error as { status?: number }).status,
-  );
+  const statuses = Object.values(errors ?? {}).map((error) => {
+    const { status, message } = error as { status?: number; message?: string };
+    return status ?? `no status: ${message}`;
+  });
   return [...new Set(statuses)];
 }
 
