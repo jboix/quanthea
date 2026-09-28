@@ -12,11 +12,12 @@ import type {
   SchemaView,
 } from '@querent/shared';
 import { z } from 'zod';
-import type {
-  AnyConnectorKind,
-  ConnectorInstance,
-  HealthReport,
-  SchemaSnapshot,
+import {
+  type AnyConnectorKind,
+  ConnectorError,
+  type ConnectorInstance,
+  type HealthReport,
+  type SchemaSnapshot,
 } from '../connectors/_shared/index.ts';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { ConnectorRepository, ConnectorRow } from '../db/connector-repository.ts';
@@ -125,6 +126,7 @@ export interface Connections {
    * @param id - The connector id.
    * @param signal - Aborted when the caller gives up.
    * @returns The schema view.
+   * @throws {AppError} `source_failed` when the source fails, with a message that quotes no data.
    */
   refreshSchema(id: string, signal: AbortSignal): Promise<SchemaView>;
   /**
@@ -430,12 +432,25 @@ function cachedSchema(context: ServiceContext, id: string): SchemaView {
 }
 
 /**
+ * Turns a connector's failure into an error the admin can read.
+ *
+ * @param error - What the connector threw.
+ * @returns Never.
+ * @throws {AppError} `source_failed` with the connector's safe message, or the error itself.
+ */
+function asSourceFailure(error: unknown): never {
+  if (!(error instanceof ConnectorError)) throw error;
+  throw new AppError('source_failed', error.safeMessage, { code: error.code });
+}
+
+/**
  * Reads the schema from the source, caches it and returns its view.
  *
  * @param context - The service context.
  * @param id - The connector id.
  * @param signal - Aborted when the caller gives up.
  * @returns The schema view.
+ * @throws {AppError} `source_failed` when the source fails.
  */
 async function refreshSchema(
   context: ServiceContext,
@@ -443,7 +458,7 @@ async function refreshSchema(
   signal: AbortSignal,
 ): Promise<SchemaView> {
   const row = find(context, id);
-  const snapshot = await (await instanceOf(context, row)).describe(signal);
+  const snapshot = await (await instanceOf(context, row)).describe(signal).catch(asSourceFailure);
   const readAt = context.clock();
   context.repository.writeSchema(id, { snapshot, readAt });
   return toSchemaView(row, snapshot, readAt);

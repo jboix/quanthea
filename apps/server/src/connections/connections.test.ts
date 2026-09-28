@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { connectorInputSchema } from '@querent/shared';
+import { ConnectorError, defineConnector } from '../connectors/_shared/index.ts';
 import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
 import { createAuditRepository } from '../db/audit-repository.ts';
 import { createConnectorRepository } from '../db/connector-repository.ts';
@@ -159,6 +160,51 @@ describe('connections', () => {
       { name: 'errors', type: 'integer', hidden: true, modelSees: 'nothing' },
     ]);
     expect(connections.schema(created.id)).toEqual(view);
+  });
+
+  test('reports a source that fails to describe itself with its safe message only', async () => {
+    const brokenConnector = defineConnector({
+      ...memoryConnector,
+      kind: 'broken',
+      open: (options) => ({
+        ...memoryConnector.open(options),
+        describe: () =>
+          Promise.reject(
+            new ConnectorError(
+              'unreachable',
+              'The source did not answer.',
+              'db-7.internal refused',
+            ),
+          ),
+      }),
+    });
+    const broken = createConnections({
+      kinds: [brokenConnector],
+      repository: createConnectorRepository(database),
+      audit: createAuditRepository(database),
+      secretBox: createSecretBox(
+        await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+          'encrypt',
+          'decrypt',
+        ]),
+      ),
+    });
+    const created = await broken.create(
+      connectorInputSchema.parse({
+        name: 'broken',
+        kind: 'broken',
+        config: {},
+        secret: { token: 't' },
+      }),
+      'admin-1',
+    );
+    const failure = await failureOf(broken.refreshSchema(created.id, AbortSignal.timeout(1000)));
+    expect(failure).toMatchObject({
+      code: 'source_failed',
+      message: 'The source did not answer.',
+      details: { code: 'unreachable' },
+    });
+    await broken.closeAll();
   });
 
   test('deletes a connector with its schema, and then knows nothing of it', async () => {

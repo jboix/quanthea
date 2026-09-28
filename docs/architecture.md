@@ -558,7 +558,8 @@ indicative; the contract files are the source of truth.
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
 so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the
 invalid params, query and body fields in `details`), `unauthorized` (401), `forbidden` (403),
-`not_found` (404) and `internal` (500, with the request id and no internal message).
+`not_found` (404), `source_failed` (502, a data source failed; the message quotes no data) and
+`internal` (500, with the request id and no internal message).
 
 Every endpoint is mounted through `http/endpoint.ts`: it checks the declared access, parses the
 input with the contract's schemas, runs the handler, and parses the result with the output schema,

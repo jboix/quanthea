@@ -7,6 +7,7 @@ const statusByCode = {
   unauthorized: 401,
   forbidden: 403,
   not_found: 404,
+  source_failed: 502,
   internal: 500,
 } as const satisfies Record<ApiErrorCode, number>;
 
