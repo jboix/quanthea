@@ -70,10 +70,12 @@ function PanelHead({ schema, refresh }: PanelHeadProps) {
       : `${schemaSummary(schema)} · read ${readTime(schema.readAt)}`;
   return (
     <header className={styles.head}>
-      <h3 id="schema-title" className={styles.title}>
-        Schema the model gets
-      </h3>
-      <span className={styles.meta}>{meta}</span>
+      <div className={styles.headText}>
+        <h3 id="schema-title" className={styles.title}>
+          Schema the model gets
+        </h3>
+        <span className={styles.meta}>{meta}</span>
+      </div>
       <Button
         size="small"
         disabled={refresh.pending}
