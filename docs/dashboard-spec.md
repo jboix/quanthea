@@ -142,6 +142,22 @@ type Annotation = {
 }
 ```
 
+## The schemas
+
+The Zod schemas are in `packages/shared/src/spec/` and `packages/shared/src/formatters/`. Where
+they differ from the sketch above, the schemas win:
+
+- Every object is strict: an unknown key is an error, so nothing rides along in a spec.
+- `option` holds JSON values only (`z.json()`), so a function or `undefined` fails to parse.
+- Queries are `sql` and `promql` for now. `opensearch` and `http` come with their connectors.
+- A query-backed variable's `source` has no `refId`.
+- Time expressions are `now`, `now-<n><unit>` (units `s m h d w M y`) or an ISO 8601 timestamp
+  with an offset.
+- An "All" choice of a query-backed variable with `includeAll` has the value `$__all`.
+- Formatter defaults: `number` 2 decimals, `percent` 1 decimal with `input: 'ratio'`, `bytes`
+  base 1024, `duration`, `si` and `bytes` 1 decimal, `datetime` pattern `datetime`. Numbers use
+  English grouping (`1,284`) and dates read `26 Sep, 14:02`.
+
 ## Validation beyond the schema
 
 The Zod schema catches shape errors. `dashboards/validate` also checks:

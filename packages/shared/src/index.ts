@@ -52,6 +52,12 @@ export {
   lowCardinalityLimit,
 } from './connectors.ts';
 export {
+  createFormatter,
+  type FormatFunction,
+  type FormatOptions,
+} from './formatters/format.ts';
+export { type Formatter, formatterSchema, type NamedFormatter } from './formatters/schema.ts';
+export {
   type Field,
   type FieldType,
   type Frame,
@@ -70,3 +76,40 @@ export {
   roleSchema,
   roles,
 } from './roles.ts';
+export {
+  type Annotation,
+  type DashboardSpec,
+  dashboardSpecSchema,
+  gridColumns,
+  type Panel,
+} from './spec/dashboard.ts';
+export { refIdSchema, slugSchema, variableNameSchema } from './spec/names.ts';
+export {
+  type PanelQuery,
+  panelQuerySchema,
+  type QueryTemplate,
+  queryTemplateSchema,
+} from './spec/queries.ts';
+export {
+  type ResolvedTimeRange,
+  resolveTime,
+  resolveTimeRange,
+  type TimeRangeExpression,
+  timeRangeSchema,
+} from './spec/time.ts';
+export {
+  allValue,
+  type Variable,
+  type VariableValues,
+  variableSchema,
+  variableValuesSchema,
+} from './spec/variables.ts';
+export {
+  type ChartView,
+  type DatasetTransform,
+  type Reduce,
+  type StatView,
+  type TableView,
+  type View,
+  viewSchema,
+} from './spec/views.ts';
