@@ -22,6 +22,8 @@ export interface TurnFacts {
   readonly draft: { readonly version: number; readonly spec: DashboardSpec } | undefined;
   /** Panels the person mentioned in the latest message, by id and title. */
   readonly mentions: readonly { readonly panelId: string; readonly title: string }[];
+  /** The person's IANA time zone, when their browser said. */
+  readonly timeZone?: string | undefined;
 }
 
 /**
@@ -44,6 +46,29 @@ function stateLine(facts: TurnFacts): string {
 }
 
 /**
+ * The current time, in UTC and in the person's zone, so "yesterday around 14:00" reads right.
+ *
+ * @param now - The current instant.
+ * @param timeZone - The person's zone, if known.
+ * @returns The line.
+ */
+function nowLine(now: number, timeZone: string | undefined): string {
+  const utc = `Now: ${new Date(now).toISOString()} (UTC).`;
+  if (timeZone === undefined) return `${utc} The person's time zone is unknown; assume UTC.`;
+  try {
+    const local = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      dateStyle: 'short',
+      timeStyle: 'short',
+      hourCycle: 'h23',
+    }).format(now);
+    return `${utc} The person is in ${timeZone}, where it is ${local}. Times they mention are in their zone unless they say otherwise.`;
+  } catch {
+    return `${utc} The person's time zone is unknown; assume UTC.`;
+  }
+}
+
+/**
  * The part of the instructions that changes every turn.
  *
  * @param facts - The facts of the turn.
@@ -51,7 +76,7 @@ function stateLine(facts: TurnFacts): string {
  */
 function situation(facts: TurnFacts): string {
   const lines = [
-    `Now: ${new Date(facts.now).toISOString()} (UTC).`,
+    nowLine(facts.now, facts.timeZone),
     `Connectors: ${JSON.stringify(facts.connectors)}`,
     `Thread: ${stateLine(facts)}`,
   ];

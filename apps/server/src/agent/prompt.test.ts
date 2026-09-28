@@ -1,0 +1,47 @@
+import { describe, expect, test } from 'bun:test';
+import type { Plan } from '@querent/shared';
+import { instructionsFor, type TurnFacts } from './prompt.ts';
+
+const plan: Plan = {
+  title: 'Checkout',
+  variables: [],
+  panels: [{ kind: 'stat', title: 'Errors', language: 'sql', connector: 'events' }],
+};
+
+const facts: TurnFacts = {
+  now: Date.parse('2026-09-28T14:51:00Z'),
+  connectors: [],
+  state: 'idle',
+  plan: undefined,
+  draft: undefined,
+  mentions: [],
+};
+
+describe('instructionsFor', () => {
+  test('gives the time in UTC and in the person’s zone', () => {
+    expect(instructionsFor({ ...facts, timeZone: 'Europe/Madrid' })).toContain(
+      'The person is in Europe/Madrid, where it is 2026-09-28, 16:51.',
+    );
+    expect(instructionsFor(facts)).toContain("The person's time zone is unknown; assume UTC.");
+    expect(instructionsFor({ ...facts, timeZone: 'Mars/Olympus' })).toContain('assume UTC');
+  });
+
+  test('says what the thread state asks for', () => {
+    expect(instructionsFor(facts)).toContain('No plan yet.');
+    expect(
+      instructionsFor({ ...facts, state: 'plan_pending', plan: { body: plan, status: 'pending' } }),
+    ).toContain('do not write the dashboard');
+    expect(
+      instructionsFor({ ...facts, state: 'building', plan: { body: plan, status: 'approved' } }),
+    ).toContain('The plan "Checkout" is approved. Build it now');
+  });
+
+  test('names the mentioned panels', () => {
+    const text = instructionsFor({
+      ...facts,
+      state: 'ready',
+      mentions: [{ panelId: 'errors', title: 'Errors' }],
+    });
+    expect(text).toContain('The person mentions these panels: errors ("Errors").');
+  });
+});

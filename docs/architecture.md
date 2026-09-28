@@ -328,7 +328,8 @@ shows depends on the connector's access level.
 The instructions are assembled per turn (`agent/prompt.ts`) from fixed text (the rules, a compact
 description of the spec, the named formatters, a worked example) and the facts of the turn: the
 time now, the connectors with their access levels, the thread's state and approved plan, the
-current draft, and the panels the person mentions (the user message's `metadata.mentions`).
+current draft, the panels the person mentions (the user message's `metadata.mentions`), and
+their time zone (`metadata.timeZone`), so "yesterday around 14:00" means their 14:00.
 
 ### Runs and limits
 
@@ -338,7 +339,7 @@ current draft, and the panels the person mentions (the user message's `metadata.
 - One run per thread at a time. A run stops when a plan waits for approval, when it has made the
   maximum number of tool calls (setting, default 25), or when failed writes reach the repair
   attempts (setting, default 3).
-- Each run adds its tokens to the thread. A thread over its token budget (setting, default 200k)
+- Each run adds its tokens to the thread, step by step, so a failed run still counts. A thread over its token budget (setting, default 200k)
   refuses new runs with a message that says so.
 - Plan approval is a separate request (`POST /api/threads/:id/plans/:planId/approve`) that moves the
   thread to `building`. The client then continues the assistant message, and the turn's

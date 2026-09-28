@@ -69,10 +69,17 @@ const incomingSchema = z.object({
   metadata: z.unknown().optional(),
 });
 
-/** Validates the metadata of a user message: the panels it mentions. */
-const mentionsSchema = z.object({
-  mentions: z.array(z.object({ panelId: z.string(), title: z.string() })).max(20),
+/** Validates the metadata of a user message: the panels it mentions, the person's time zone. */
+const hintsSchema = z.object({
+  mentions: z
+    .array(z.object({ panelId: z.string(), title: z.string() }))
+    .max(20)
+    .default([]),
+  timeZone: z.string().max(64).optional(),
 });
+
+/** What a user message tells the agent besides its text. */
+type MessageHints = z.infer<typeof hintsSchema>;
 
 /** New message ids. */
 const newMessageId = createIdGenerator({ prefix: 'msg', size: 16 });
@@ -161,7 +168,7 @@ async function modelFor(dependencies: AgentDependencies) {
  * @param dependencies - The agent's dependencies.
  * @param request - The chat request.
  * @param budget - The thread's token budget.
- * @returns The conversation to run on, and the mentions of the new message.
+ * @returns The conversation to run on, the hints of the new message, and the thread's plans.
  */
 function accept(dependencies: AgentDependencies, request: ChatRequest, budget: number) {
   const { threads } = dependencies;
@@ -179,11 +186,10 @@ function accept(dependencies: AgentDependencies, request: ChatRequest, budget: n
     threads.apply(request.threadId, 'message');
     threads.name(request.threadId, titleOf(message));
   }
-  const mentions =
-    message.role === 'user'
-      ? (mentionsSchema.safeParse(message.metadata).data?.mentions ?? [])
-      : [];
-  return { history: withIncoming(thread.messages, message), mentions, plans: thread.plans };
+  const parsedHints =
+    message.role === 'user' ? hintsSchema.safeParse(message.metadata ?? {}) : undefined;
+  const hints: MessageHints = parsedHints?.data ?? { mentions: [] };
+  return { history: withIncoming(thread.messages, message), hints, plans: thread.plans };
 }
 
 /**
@@ -191,14 +197,14 @@ function accept(dependencies: AgentDependencies, request: ChatRequest, budget: n
  *
  * @param context - The run.
  * @param plans - The thread's plans.
- * @param mentions - The panels the person mentions.
+ * @param hints - The panels the person mentions, and their time zone.
  * @param now - The current instant.
  * @returns The instructions.
  */
 function turnInstructions(
   context: RunContext,
   plans: ReturnType<AgentServices['threads']['get']>['plans'],
-  mentions: readonly { panelId: string; title: string }[],
+  hints: MessageHints,
   now: number,
 ) {
   const spec = currentSpec(context);
@@ -214,7 +220,8 @@ function turnInstructions(
     state,
     plan: latest ? { body: latest.body, status: latest.status } : undefined,
     draft: spec ? { version, spec } : undefined,
-    mentions,
+    mentions: hints.mentions,
+    timeZone: hints.timeZone,
   });
 }
 
@@ -250,7 +257,8 @@ async function streamTurn(
       () => context.counters.failedWrites >= limits.repairAttempts,
     ],
     abortSignal: context.signal,
-    onEnd: ({ usage }) => context.threads.addTokens(context.threadId, usage.totalTokens ?? 0),
+    // Counted per step, so a run that fails halfway still records what it spent.
+    onStepEnd: ({ usage }) => context.threads.addTokens(context.threadId, usage.totalTokens ?? 0),
   });
   context.writer.merge(toUIMessageStream({ stream: result.stream, onError: publicError }));
 }
@@ -263,8 +271,8 @@ interface PreparedTurn {
   readonly settings: RunContext['settings'];
   /** The conversation, validated. */
   readonly messages: ThreadMessage[];
-  /** The panels the new message mentions. */
-  readonly mentions: readonly { panelId: string; title: string }[];
+  /** The panels the new message mentions, and the person's time zone. */
+  readonly hints: MessageHints;
   /** The thread's plans. */
   readonly plans: ReturnType<AgentServices['threads']['get']>['plans'];
 }
@@ -281,12 +289,12 @@ async function prepare(
   request: ChatRequest,
 ): Promise<PreparedTurn> {
   const { model, settings } = await modelFor(dependencies);
-  const { history, mentions, plans } = accept(dependencies, request, settings.limits.threadTokens);
+  const { history, hints, plans } = accept(dependencies, request, settings.limits.threadTokens);
   const messages = await validateUIMessages<ThreadMessage>({
     messages: history,
     dataSchemas: threadDataSchemas,
   });
-  return { model, settings, messages, mentions, plans };
+  return { model, settings, messages, hints, plans };
 }
 
 /**
@@ -320,7 +328,7 @@ function respond(
         signal,
         counters,
       };
-      const instructions = turnInstructions(context, turn.plans, turn.mentions, now());
+      const instructions = turnInstructions(context, turn.plans, turn.hints, now());
       await streamTurn(context, turn.model, turn.messages, instructions, now);
     },
     onEnd: ({ messages }) => {
