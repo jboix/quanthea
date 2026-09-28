@@ -8,7 +8,7 @@ import {
   loadRecentThreads,
   loadThread,
   NewThreadScreen,
-  startThread,
+  newThreadAction,
   ThreadScreen,
 } from '../features/thread/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
@@ -27,7 +27,7 @@ export function threadRoutes(loadSession: SessionLoader, api: ApiClient): RouteO
     {
       path: start,
       loader: guarded(loadSession, start, loadRecentThreads(api)),
-      action: guarded(loadSession, start, startThread(api)),
+      action: guarded(loadSession, start, newThreadAction(api)),
       Component: NewThreadScreen,
       ErrorBoundary: ErrorPage,
     },

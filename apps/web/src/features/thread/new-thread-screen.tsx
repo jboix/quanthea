@@ -1,103 +1,116 @@
-import type { ThreadState, ThreadSummary } from '@querent/shared';
-import { type FormEvent, type KeyboardEvent, useState } from 'react';
-import { Link, type SubmitTarget, useLoaderData, useNavigation, useSubmit } from 'react-router';
-import { Button } from '../../ui/button.tsx';
-import { Page } from '../../ui/page.tsx';
+import type { ThreadSummary } from '@querent/shared';
+import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { type SubmitTarget, useLoaderData, useSubmit } from 'react-router';
+import type { NewThreadIntent } from './data.ts';
+import { HistoryMenu } from './history-menu.tsx';
 import styles from './new-thread.module.css';
 
-/** How each thread state reads in the list. */
-const stateWords: Readonly<Record<ThreadState, string>> = {
-  idle: 'idle',
-  plan_pending: 'plan waiting',
-  building: 'building',
-  ready: 'draft ready',
-};
-
 /**
- * The first question: a text area and Start. Enter starts, Shift+Enter breaks the line.
+ * The question box's behaviour: Enter sends, Shift+Enter breaks the line, and a sent question
+ * stays on screen while the thread starts.
  *
- * @returns The form.
+ * @returns The text, its setter, the question sent (if any), and the handlers.
  */
-function AskForm() {
+function useAsk() {
   const [question, setQuestion] = useState('');
+  const [sent, setSent] = useState<string | undefined>(undefined);
   const submit = useSubmit();
-  const starting = useNavigation().state !== 'idle';
   const start = (event?: FormEvent) => {
     event?.preventDefault();
-    if (question.trim() === '' || starting) return;
-    const body = { question: question.trim() };
-    void submit(body as SubmitTarget, { method: 'post', encType: 'application/json' });
+    const text = question.trim();
+    if (text === '' || sent !== undefined) return;
+    setSent(text);
+    const intent: NewThreadIntent = { intent: 'start', question: text };
+    void submit(intent as SubmitTarget, {
+      method: 'post',
+      encType: 'application/json',
+    });
   };
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== 'Enter' || event.shiftKey) return;
     event.preventDefault();
     start();
   };
+  return { question, setQuestion, sent, start, onKeyDown };
+}
+
+/**
+ * The question box, in the middle of the screen.
+ *
+ * @param props - The box's state.
+ * @param props.ask - What {@link useAsk} returns.
+ * @returns The form.
+ */
+function AskForm({ ask }: { readonly ask: ReturnType<typeof useAsk> }) {
+  const input = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => input.current?.focus(), []);
   return (
-    <form className={styles.ask} onSubmit={start}>
+    <form className={styles.ask} onSubmit={ask.start}>
       <textarea
+        ref={input}
         className={styles.input}
         rows={3}
         aria-label="Question"
         placeholder="What happened to checkout yesterday around 14:00?"
-        value={question}
-        onChange={(event) => setQuestion(event.target.value)}
-        onKeyDown={onKeyDown}
+        value={ask.question}
+        onChange={(event) => ask.setQuestion(event.target.value)}
+        onKeyDown={ask.onKeyDown}
       />
       <div className={styles.bar}>
-        <span className={styles.hint}>The agent explores your sources and proposes a plan.</span>
-        <Button type="submit" variant="primary" disabled={question.trim() === '' || starting}>
-          {starting ? 'Starting…' : 'Start'}
-        </Button>
+        <span className={styles.hint}>Enter to send · Shift+Enter for a new line</span>
+        <button
+          type="submit"
+          className={styles.send}
+          aria-label="Send"
+          disabled={ask.question.trim() === ''}
+        >
+          ↑
+        </button>
       </div>
     </form>
   );
 }
 
 /**
- * The recent threads, the latest first.
+ * The question as sent, while the thread starts.
  *
- * @param props - The threads.
- * @param props.threads - The threads.
- * @returns The list, or nothing when there are none.
+ * @param props - The question.
+ * @param props.question - The question sent.
+ * @returns The bubble and the progress line.
  */
-function RecentThreads({ threads }: { readonly threads: readonly ThreadSummary[] }) {
-  if (threads.length === 0) return null;
-  const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+function Sent({ question }: { readonly question: string }) {
   return (
-    <section className={styles.recent} aria-label="Recent threads">
-      <h2 className={styles.recentTitle}>Recent threads</h2>
-      <ul className={styles.list}>
-        {threads.map((thread) => (
-          <li key={thread.id}>
-            <Link to={`/threads/${thread.id}`} className={styles.item}>
-              <span className={styles.itemTitle}>{thread.title ?? 'Untitled thread'}</span>
-              <span className={styles.state}>{stateWords[thread.state]}</span>
-              <span className={styles.date}>{date.format(thread.updatedAt)}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <div className={styles.sent}>
+      <p className={styles.bubble}>{question}</p>
+      <p className={styles.starting} role="status">
+        Starting the thread…
+      </p>
+    </div>
   );
 }
 
 /**
- * The new-thread screen: ask the first question, or go back to a recent thread.
+ * The new-thread screen: one question box in the middle, and past threads at the top right.
+ * Sending keeps the question on screen until the thread opens and the agent starts on it.
  *
  * @returns The screen.
  */
 export function NewThreadScreen() {
   const threads = useLoaderData() as readonly ThreadSummary[];
+  const ask = useAsk();
   return (
-    <Page
-      title="New thread"
-      subtitle="Describe the dashboard you want, or the question it should answer."
-    >
-      <div className={styles.layout}>
-        <AskForm />
-        <RecentThreads threads={threads} />
+    <div className={styles.screen}>
+      <header className={styles.top}>
+        <HistoryMenu threads={threads} />
+      </header>
+      <div className={styles.center}>
+        <h1 className={styles.heading}>What do you want to see?</h1>
+        {ask.sent === undefined ? <AskForm ask={ask} /> : <Sent question={ask.sent} />}
+        <p className={styles.note}>
+          The agent explores your connectors, proposes a plan, then builds a live dashboard you can
+          refine and pin.
+        </p>
       </div>
-    </Page>
+    </div>
   );
 }

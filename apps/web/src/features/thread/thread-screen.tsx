@@ -1,5 +1,5 @@
 import type { AccessLevel, ThreadDetail } from '@querent/shared';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Composer } from './composer.tsx';
 import { Conversation } from './conversation.tsx';
 import { DraftPane } from './draft-pane.tsx';
@@ -57,13 +57,44 @@ function useStickToEnd(messages: readonly ThreadMessage[]) {
 }
 
 /**
- * The line under the conversation: working, a refused decision, or the run's error.
+ * The seconds since the agent started working, counted while it works.
+ *
+ * @param running - Whether the agent is working.
+ * @returns The whole seconds, 0 when idle.
+ */
+function useElapsedSeconds(running: boolean): number {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    setSeconds(0);
+    if (!running) return;
+    const started = Date.now();
+    const timer = setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [running]);
+  return seconds;
+}
+
+/**
+ * What the agent is doing, in the words of the progress line.
+ *
+ * @param state - The screen's state.
+ * @returns Such as `Thinking`, before anything streams, or `Working` after.
+ */
+function activityOf(state: ScreenState): string {
+  const last = state.chat.messages.at(-1);
+  return state.chat.status === 'submitted' || last?.role === 'user' ? 'Thinking' : 'Working';
+}
+
+/**
+ * The line under the conversation: what the agent is doing and for how long, a refused decision,
+ * or the run's error.
  *
  * @param props - The screen's state.
  * @param props.state - The screen's state.
  * @returns The line, or nothing.
  */
 function StatusLine({ state }: { readonly state: ScreenState }) {
+  const seconds = useElapsedSeconds(state.running);
   const outcome = state.intents.outcome;
   const error = state.chat.error?.message ?? (outcome?.ok === false ? outcome.message : undefined);
   if (error !== undefined) {
@@ -76,22 +107,42 @@ function StatusLine({ state }: { readonly state: ScreenState }) {
   if (!state.running) return null;
   return (
     <p className={styles.working} role="status">
-      Working…
+      <span className={styles.dot} />
+      {activityOf(state)}… {seconds >= 3 ? `${seconds} s` : ''}
     </p>
   );
 }
 
 /**
- * The thread's title and the connectors it can use.
+ * The text of the first question.
  *
- * @param props - The thread.
+ * @param messages - The messages.
+ * @returns The text, or `undefined` before the first question.
+ */
+function firstQuestion(messages: readonly ThreadMessage[]): string | undefined {
+  const first = messages.find((message) => message.role === 'user');
+  return first?.parts.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join(' ');
+}
+
+/**
+ * The thread's title, or its first question until the server names it, and the connectors it can
+ * use.
+ *
+ * @param props - The thread and its messages.
  * @param props.thread - The thread.
+ * @param props.messages - The messages, as the chat holds them.
  * @returns The header.
  */
-function ThreadHeader({ thread }: { readonly thread: ThreadDetail }) {
+function ThreadHeader({
+  thread,
+  messages,
+}: {
+  readonly thread: ThreadDetail;
+  readonly messages: readonly ThreadMessage[];
+}) {
   return (
     <header className={styles.head}>
-      <h1 className={styles.title}>{thread.title ?? 'New thread'}</h1>
+      <h1 className={styles.title}>{thread.title ?? firstQuestion(messages) ?? 'New thread'}</h1>
       <span className={styles.connectors}>
         {thread.connectors.map((connector) => connector.name).join(' · ')}
       </span>
@@ -139,7 +190,7 @@ function ThreadPane({ state }: { readonly state: ScreenState }) {
   const levels = Object.fromEntries(thread.connectors.map((item) => [item.name, item.accessLevel]));
   return (
     <section className={styles.thread} aria-label="Thread">
-      <ThreadHeader thread={thread} />
+      <ThreadHeader thread={thread} messages={chat.messages} />
       <div ref={scroller} className={styles.scroller}>
         <Conversation
           messages={chat.messages}

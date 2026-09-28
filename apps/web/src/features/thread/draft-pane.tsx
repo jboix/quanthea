@@ -79,10 +79,8 @@ function statusOf(
   if (shown !== undefined) return { tone: 'draft', text: `v${shown} · draft` } as const;
   if (state === 'plan_pending')
     return { tone: 'neutral', text: 'waiting for plan approval' } as const;
-  return {
-    tone: 'neutral',
-    text: running || state === 'building' ? 'building…' : 'no dashboard yet',
-  } as const;
+  if (state === 'building') return { tone: 'neutral', text: 'building…' } as const;
+  return { tone: 'neutral', text: running ? 'exploring…' : 'no dashboard yet' } as const;
 }
 
 /**
@@ -142,7 +140,9 @@ function PaneBody(props: DraftPaneProps) {
   if (plan) return <PlanSkeleton plan={plan} />;
   return (
     <p className={styles.empty}>
-      Ask a question. The dashboard appears here as the agent builds it.
+      {props.running
+        ? 'The agent is exploring your connectors. Its plan appears in the thread, and the dashboard here once you approve it.'
+        : 'Ask a question. The dashboard appears here as the agent builds it.'}
     </p>
   );
 }

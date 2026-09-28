@@ -7,6 +7,7 @@ import {
   createThreadEndpoint,
   type DashboardDetail,
   type DashboardVersion,
+  deleteThreadEndpoint,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
   getThreadEndpoint,
@@ -115,17 +116,27 @@ export function loadRecentThreads(api: ApiClient) {
     (await api.call(listThreadsEndpoint, undefined, { signal: request.signal })).slice(0, 12);
 }
 
+/** What the new-thread screen submits, as JSON: a first question, or a past thread to delete. */
+export type NewThreadIntent =
+  | { readonly intent: 'start'; readonly question: string }
+  | { readonly intent: 'delete'; readonly threadId: string };
+
 /**
- * The action of the new-thread screen: starts a thread and hands the first question over.
+ * The action of the new-thread screen: starts a thread and hands the first question over, or
+ * deletes a past thread.
  *
  * @param api - The API client.
- * @returns The action. It redirects to the thread, which sends the question.
+ * @returns The action. Starting redirects to the thread, which sends the question.
  */
-export function startThread(api: ApiClient) {
-  return async ({ request }: ActionFunctionArgs): Promise<Response> => {
-    const { question } = (await request.json()) as { question: string };
+export function newThreadAction(api: ApiClient) {
+  return async ({ request }: ActionFunctionArgs): Promise<Response | ThreadOutcome> => {
+    const intent = (await request.json()) as NewThreadIntent;
+    if (intent.intent === 'delete') {
+      await api.call(deleteThreadEndpoint, { params: { threadId: intent.threadId } });
+      return { ok: true };
+    }
     const thread = await api.call(createThreadEndpoint, { body: {} });
-    return redirect(`/threads/${thread.id}?ask=${encodeURIComponent(question)}`);
+    return redirect(`/threads/${thread.id}?ask=${encodeURIComponent(intent.question)}`);
   };
 }
 
