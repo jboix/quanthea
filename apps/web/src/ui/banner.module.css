@@ -18,3 +18,28 @@
   border-color: #d6e0f7;
   color: var(--color-accent);
 }
+
+.message {
+  flex-grow: 1;
+}
+
+.dismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.dismiss:hover {
+  opacity: 1;
+}

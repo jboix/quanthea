@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Outlet, useLoaderData } from 'react-router';
 import { Banner } from '../ui/banner.tsx';
 import { BrandMark } from '../ui/brand.tsx';
@@ -7,16 +8,18 @@ import { NavRail } from './nav-rail.tsx';
 import type { Session } from './session.ts';
 
 /**
- * The app frame: the open-access banner in `none` mode, the navigation rail, and the screen.
+ * The app frame: the open-access banner in `none` mode, the navigation rail, and the screen. The
+ * banner can be dismissed until the next page load.
  *
  * @returns The layout around the current screen.
  */
 export function AppLayout() {
   const session = useLoaderData<Session>();
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   return (
     <div className={styles.app}>
-      {session.authMode === 'none' && (
-        <Banner icon={<WarningIcon />}>
+      {session.authMode === 'none' && !bannerDismissed && (
+        <Banner icon={<WarningIcon />} onDismiss={() => setBannerDismissed(true)}>
           Open access: anyone who can reach this URL is an admin.
         </Banner>
       )}
