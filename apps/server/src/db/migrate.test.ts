@@ -61,11 +61,14 @@ describe('runMigrations', () => {
     expect(runMigrations(database)).toEqual([
       '0001-settings-and-audit-log.sql',
       '0002-connectors.sql',
+      '0003-dashboards.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
       'audit_log',
       'connectors',
+      'dashboard_versions',
+      'dashboards',
       'migrations',
       'schema_cache',
       'settings',
