@@ -200,6 +200,19 @@ describe('an agent run', () => {
     ]);
   });
 
+  test('rereads an approved plan as approved when it builds', async () => {
+    await chat(agentWith({ tool: 'propose_plan', input: plan }), userMessage('u1', 'Events?'));
+    const [proposed] = services.threads.get(threadId).plans;
+    services.threads.decidePlan(threadId, proposed?.id ?? '', 'approve', 'editor-1');
+    const assistant = services.threads.get(threadId).messages[1] as { id: string };
+    const model = scriptedStreamModel({ text: 'Building.' });
+    const agent = createAgent({ ...services, buildModel: () => model });
+    await chat(agent, { id: assistant.id, role: 'assistant', parts: [] });
+    const prompt = JSON.stringify(model.doStreamCalls[0]?.prompt);
+    expect(prompt).toContain('The person approved this plan. Build it now.');
+    expect(prompt).not.toContain('Waiting for the person to approve');
+  });
+
   test('patches a mentioned panel of a ready thread without a plan, and streams the diff', async () => {
     await builtThread();
     const patch = {

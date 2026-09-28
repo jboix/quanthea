@@ -22,7 +22,7 @@ import { AppError } from '../lib/errors.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
 import { askPersonTool } from './ask-tool.ts';
 import { buildTools, currentSpec } from './build-tools.ts';
-import { compactHistory, compactSteps } from './compact.ts';
+import { compactHistory, compactSteps, withPlanDecisions } from './compact.ts';
 import { dataTools } from './data-tools.ts';
 import { languageModel, ModelUnavailableError, reasoningOption } from './model.ts';
 import { phaseOf, phaseTools } from './phases.ts';
@@ -301,11 +301,11 @@ async function prepare(
 ): Promise<PreparedTurn> {
   const { model, settings } = await modelFor(dependencies);
   const { history, hints, plans } = accept(dependencies, request, settings.limits.threadTokens);
-  const messages = await validateUIMessages<ThreadMessage>({
+  const validated = await validateUIMessages<ThreadMessage>({
     messages: history,
     dataSchemas: threadDataSchemas,
   });
-  return { model, settings, messages, hints, plans };
+  return { model, settings, messages: withPlanDecisions(validated, plans), hints, plans };
 }
 
 /**

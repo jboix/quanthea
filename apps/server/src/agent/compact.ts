@@ -4,6 +4,7 @@
  * older drafts shrink the same way. The stored conversation keeps everything; only what is sent
  * to the model is compacted.
  */
+import type { PlanView } from '@querent/shared';
 import type { ModelMessage } from 'ai';
 import type { ThreadMessage } from './run-context.ts';
 
@@ -56,8 +57,8 @@ const summaries: Readonly<Record<string, (input: Loose, output: Loose) => string
     )}`,
   test_query: (input, output) =>
     `test_query(${String(input?.connector ?? '')}): ${outcome(output, () => 'ok')}`,
-  propose_plan: (input) =>
-    `propose_plan: "${String(input?.title ?? '')}", ${counted((input?.panels as unknown[] | undefined)?.length ?? 0, 'panel')}`,
+  propose_plan: (input, output) =>
+    `propose_plan: "${String(input?.title ?? '')}", ${counted((input?.panels as unknown[] | undefined)?.length ?? 0, 'panel')}, ${String(output?.status ?? 'pending')}`,
   ask_person: (input) =>
     `ask_person: "${String(input?.question ?? '')}" options ${JSON.stringify(input?.options ?? [])}`,
   write_dashboard: (_input, output) =>
@@ -143,5 +144,51 @@ export function compactSteps(messages: readonly ModelMessage[]): ModelMessage[] 
     if (index >= cut || typeof message.content === 'string') return message;
     const content = (message.content as unknown as LoosePart[]).map(olderPart);
     return { ...message, content } as unknown as ModelMessage;
+  });
+}
+
+/** A plan's status. */
+type PlanStatus = PlanView['status'];
+
+/** What a plan's tool result says next, once the person has decided. */
+const decisionWords: Readonly<Partial<Record<PlanStatus, string>>> = {
+  approved: 'The person approved this plan. Build it now.',
+  rejected: 'The person asked for changes to this plan.',
+  superseded: 'A later plan replaced this one.',
+};
+
+/**
+ * A `propose_plan` part with the plan's current status. Its stored result says the plan waits for
+ * approval; once the person decides, the model must read the decision, not the old wait.
+ *
+ * @param part - The part.
+ * @param statuses - Each plan's status, by id.
+ * @returns The part, with the decision when there is one.
+ */
+function decidedPart(part: LoosePart, statuses: ReadonlyMap<string, PlanStatus>): LoosePart {
+  if (part.type !== 'tool-propose_plan') return part;
+  const output = part.output as { planId?: string } | undefined;
+  const status = statuses.get(output?.planId ?? '');
+  const next = status === undefined ? undefined : decisionWords[status];
+  return next === undefined ? part : { ...part, output: { ...output, status, next } };
+}
+
+/**
+ * The conversation with every proposed plan's current status in its tool result.
+ *
+ * @param messages - The conversation.
+ * @param plans - The thread's plans.
+ * @returns The conversation as the model should read it.
+ */
+export function withPlanDecisions(
+  messages: readonly ThreadMessage[],
+  plans: readonly { readonly id: string; readonly status: PlanStatus }[],
+): ThreadMessage[] {
+  const statuses = new Map(plans.map((plan) => [plan.id, plan.status]));
+  return messages.map((message) => {
+    const parts = (message.parts as unknown as LoosePart[]).map((part) =>
+      decidedPart(part, statuses),
+    );
+    return { ...message, parts: parts as unknown as ThreadMessage['parts'] };
   });
 }
