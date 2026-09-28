@@ -20,9 +20,11 @@ import {
 import { z } from 'zod';
 import { AppError } from '../lib/errors.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
+import { askPersonTool } from './ask-tool.ts';
 import { buildTools, currentSpec } from './build-tools.ts';
 import { dataTools } from './data-tools.ts';
 import { languageModel, ModelUnavailableError } from './model.ts';
+import { phaseOf, phaseTools } from './phases.ts';
 import { instructionsFor } from './prompt.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
 
@@ -244,16 +246,20 @@ async function streamTurn(
   const tools = {
     ...dataTools(context, (expression) => resolveTime(expression, now())),
     ...buildTools(context),
+    ask_person: askPersonTool(context),
   };
+  const { state } = context.threads.row(context.threadId);
   const { limits } = context.settings;
   const result = streamText({
     model,
     instructions,
     messages: await convertToModelMessages(messages, { tools }),
     tools,
+    activeTools: [...phaseTools[phaseOf(state)]],
     stopWhen: [
       toolCallLimit(limits.toolCallsPerTurn),
       () => context.counters.planPending,
+      () => context.counters.asked,
       () => context.counters.failedWrites >= limits.repairAttempts,
     ],
     abortSignal: context.signal,
@@ -319,7 +325,7 @@ function respond(
     originalMessages: turn.messages,
     generateId: newMessageId,
     execute: async ({ writer }) => {
-      const counters = { planPending: false, failedWrites: 0 };
+      const counters = { planPending: false, asked: false, failedWrites: 0 };
       const { threadId, actor, signal } = request;
       const context: RunContext = {
         ...dependencies,

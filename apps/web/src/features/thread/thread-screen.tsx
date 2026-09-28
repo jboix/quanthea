@@ -202,6 +202,7 @@ function ThreadPane({ state }: { readonly state: ScreenState }) {
           onEditPlan={(planId) => void actions.editPlan(planId)}
           onUndo={(target) => void actions.undo(target)}
           onCompare={state.showVersion}
+          onAnswer={(answer) => state.composer.send(answer)}
         />
         <StatusLine state={state} />
       </div>

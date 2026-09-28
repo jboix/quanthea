@@ -30,10 +30,19 @@ describe('instructionsFor', () => {
     expect(instructionsFor(facts)).toContain('No plan yet.');
     expect(
       instructionsFor({ ...facts, state: 'plan_pending', plan: { body: plan, status: 'pending' } }),
-    ).toContain('do not write the dashboard');
+    ).toContain('A plan waits for the person to approve it.');
     expect(
       instructionsFor({ ...facts, state: 'building', plan: { body: plan, status: 'approved' } }),
-    ).toContain('The plan "Checkout" is approved. Build it now');
+    ).toContain('The approved plan "Checkout"');
+  });
+
+  test('gives the spec guide only once there is something to write', () => {
+    expect(instructionsFor(facts)).not.toContain('The spec (JSON');
+    expect(instructionsFor({ ...facts, state: 'ready' })).toContain('The spec (JSON');
+  });
+
+  test('ends with what the phase asks for', () => {
+    expect(instructionsFor(facts).endsWith('No plan yet.')).toBe(true);
   });
 
   test('names the mentioned panels', () => {

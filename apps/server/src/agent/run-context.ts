@@ -34,6 +34,8 @@ export interface RunContext extends AgentServices {
   readonly counters: {
     /** Whether a plan now waits for approval, which ends the run. */
     planPending: boolean;
+    /** Whether the agent asked the person a question, which ends the run. */
+    asked: boolean;
     /** How many writes failed their checks or test runs in this run. */
     failedWrites: number;
   };

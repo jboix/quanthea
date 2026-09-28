@@ -124,13 +124,10 @@ async function builtThread(): Promise<void> {
 }
 
 describe('an agent run', () => {
-  test('explores through the gate, proposes a plan, and stops for approval', async () => {
+  test('looks up what the catalog leaves out, proposes a plan, and stops for approval', async () => {
     const agent = agentWith(
       { tool: 'describe', input: { connector: 'events' } },
-      {
-        tool: 'test_query',
-        input: { connector: 'events', query: { language: 'sql', sql: 'SELECT * FROM events' } },
-      },
+      { tool: 'sample_values', input: { connector: 'events', entity: 'events', field: 'service' } },
       { tool: 'propose_plan', input: plan },
       { text: 'This step never runs.' },
     );
@@ -142,11 +139,32 @@ describe('an agent run', () => {
     expect(thread.tokensUsed).toBe(45);
     expect(storedPartTypes()).toEqual([
       ['text'],
-      ['tool-describe', 'tool-test_query', 'tool-propose_plan', 'data-plan'],
+      ['tool-describe', 'tool-sample_values', 'tool-propose_plan', 'data-plan'],
     ]);
-    const assistant = thread.messages[1] as { parts: { type: string; output?: unknown }[] };
-    const tested = assistant.parts.find((part) => part.type === 'tool-test_query');
-    expect(JSON.stringify(tested?.output)).not.toContain('checkout-svc');
+  });
+
+  test('plans with the catalog in hand, the planning tools only, and no spec guide', async () => {
+    const model = scriptedStreamModel({ tool: 'propose_plan', input: plan });
+    const agent = createAgent({ ...services, buildModel: () => model });
+    await chat(agent, userMessage('u1', 'What happened to events?'));
+    const [call] = model.doStreamCalls;
+    const tools = (call?.tools ?? []).map((each) => each.name).sort();
+    expect(tools).toEqual(['ask_person', 'describe', 'propose_plan', 'sample_values']);
+    const system = JSON.stringify(call?.prompt[0]);
+    expect(system).toContain('service text [checkout-svc, payments-svc, cart-svc]');
+    expect(system).not.toContain('The spec (JSON');
+  });
+
+  test('asks the person a question with options, and stops there', async () => {
+    const question = { question: 'Which errors?', options: ['HTTP 5xx', 'Failed orders'] };
+    const agent = agentWith(
+      { tool: 'ask_person', input: question },
+      { text: 'This step never runs.' },
+    );
+    const stream = await chat(agent, userMessage('u1', 'Show me errors'));
+    expect(stream).not.toContain('This step never runs.');
+    expect(services.threads.get(threadId).state).toBe('idle');
+    expect(storedPartTypes()).toEqual([['text'], ['tool-ask_person']]);
   });
 
   test('builds the approved plan when the person continues, and marks the thread ready', async () => {
@@ -190,13 +208,13 @@ describe('an agent run', () => {
     ).toBe('Errors, worst minute');
   });
 
-  test('refuses to write a dashboard before a plan is approved', async () => {
+  test('does not offer write_dashboard before a plan is approved', async () => {
     const agent = agentWith(
       { tool: 'write_dashboard', input: { spec: eventsSpec(), changeSummary: 'x' } },
       { text: 'I need a plan.' },
     );
     const stream = await chat(agent, userMessage('u1', 'Build it'));
-    expect(stream).toContain('Propose a plan with propose_plan first.');
+    expect(stream).toContain("unavailable tool 'write_dashboard'");
     expect(services.threads.get(threadId).dashboardId).toBeNull();
   });
 

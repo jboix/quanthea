@@ -303,14 +303,15 @@ Every tool validates its input with Zod, runs as the thread's person, and return
 The data tools answer only through the gate's model view (`gate/model-view.ts`), so what a result
 shows depends on the connector's access level.
 
-| Tool                                                | Returns                                                                           | Notes                                                                                  |
-| --------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `describe(connector, scope?)`                       | entities and fields minus hidden ones, at most 60, and how many more matched      | From the schema cache; read from the source when never read.                           |
-| `sample_values(connector, entity, field, limit≤50)` | distinct values                                                                   | Level 2 and up. Refuses hidden and high-cardinality fields.                            |
-| `test_query(connector, query, variables?, time?)`   | L1: ok or error. L2: fields, types, row counts. L3: plus summaries. L4: plus rows | Default range `now-6h` to `now`. Errors are safe messages below L4.                    |
-| `propose_plan(plan)`                                | `{ planId, status, next }`                                                        | Streams a `data-plan` part and moves the thread to `plan_pending`; the run then stops. |
-| `write_dashboard(spec, changeSummary)`              | the new version and each panel's test result, or the issues and failures to fix   | See "Writing a version".                                                               |
-| `patch_panel(panelId, changes, changeSummary)`      | same                                                                              | Changes one existing panel of the latest version; no plan needed in a ready thread.    |
+| Tool                                                | Returns                                                                           | Notes                                                                                    |
+| --------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `describe(connector, scope?)`                       | entities and fields minus hidden ones, at most 60, and how many more matched      | From the schema cache; read from the source when never read.                             |
+| `sample_values(connector, entity, field, limit≤50)` | distinct values                                                                   | Level 2 and up. Refuses hidden and high-cardinality fields.                              |
+| `test_query(connector, query, variables?, time?)`   | L1: ok or error. L2: fields, types, row counts. L3: plus summaries. L4: plus rows | Default range `now-6h` to `now`. Errors are safe messages below L4.                      |
+| `ask_person(question, options)`                     | `{ asked, next }`                                                                 | 2 to 4 options, shown as buttons; the run then stops and the answer is the next message. |
+| `propose_plan(plan)`                                | `{ planId, status, next }`                                                        | Streams a `data-plan` part and moves the thread to `plan_pending`; the run then stops.   |
+| `write_dashboard(spec, changeSummary)`              | the new version and each panel's test result, or the issues and failures to fix   | See "Writing a version".                                                                 |
+| `patch_panel(panelId, changes, changeSummary)`      | same                                                                              | Changes one existing panel of the latest version; no plan needed in a ready thread.      |
 
 `search_library` and `get_dashboard` arrive with the library and variants.
 
@@ -342,20 +343,33 @@ appear. The catalog replaces exploring call by call, which cost a model request 
 
 ### Prompting
 
-The instructions are assembled per turn (`agent/prompt.ts`) from fixed text (the rules, a compact
-description of the spec, the named formatters, a worked example) and the facts of the turn: the
-time now, the catalog of the connectors, the thread's state and approved plan, the
-current draft, the panels the person mentions (the user message's `metadata.mentions`), and
-their time zone (`metadata.timeZone`), so "yesterday around 14:00" means their 14:00.
+The instructions are assembled per turn (`agent/prompt.ts`): a persona, the rules that always
+hold, the facts of the turn, and last what the thread's phase asks for. The facts are the time now,
+the catalog of the connectors, the current draft, the panels the person mentions (the user
+message's `metadata.mentions`), and their time zone (`metadata.timeZone`), so "yesterday around
+14:00" means their 14:00.
+
+The persona is a calm, direct colleague: a few plain sentences per message, at most one question,
+and a question always offers concrete choices from the catalog. The thread's state sets the phase
+(`agent/phases.ts`), and each phase offers only its tools:
+
+| Phase    | Thread states          | Tools                                                        | Adds to the instructions                      |
+| -------- | ---------------------- | ------------------------------------------------------------ | --------------------------------------------- |
+| planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`    | propose right away, or ask one question first |
+| building | `building`             | `describe`, `sample_values`, `test_query`, `write_dashboard` | the spec guide, the example, the plan         |
+| editing  | `ready`                | all of the above, and `patch_panel`                          | the spec guide and the example                |
+
+Planning never runs a query: the build test-runs every query anyway. The spec guide and the
+example only come once there is something to write, so planning requests stay short.
 
 ### Runs and limits
 
 - `POST /api/threads/:id/chat` takes one message. A user message is appended to the stored
   conversation; an assistant message may only name one the thread already has, to continue it
   after an approval, and the stored copy is used, so a client cannot forge the agent's side.
-- One run per thread at a time. A run stops when a plan waits for approval, when it has made the
-  maximum number of tool calls (setting, default 25), or when failed writes reach the repair
-  attempts (setting, default 3).
+- One run per thread at a time. A run stops when a plan waits for approval, when the agent asked
+  the person a question, when it has made the maximum number of tool calls (setting, default 25),
+  or when failed writes reach the repair attempts (setting, default 3).
 - Each run adds its tokens to the thread, step by step, so a failed run still counts. A thread over its token budget (setting, default 200k)
   refuses new runs with a message that says so.
 - Plan approval is a separate request (`POST /api/threads/:id/plans/:planId/approve`) that moves the

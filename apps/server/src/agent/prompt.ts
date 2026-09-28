@@ -1,11 +1,21 @@
 /**
- * Assembles the agent's instructions for one turn: the fixed rules and spec guide, then what is
- * true now: the time, the connectors' catalog, the thread's state and plan, its current draft,
- * and the panels the person mentions.
+ * Assembles the agent's instructions for one turn: who it is and its rules, the spec guide once it
+ * writes, then what is true now: the time, the connectors' catalog, the current draft, the panels
+ * the person mentions, and last what the thread's phase asks of it.
  */
 import type { DashboardSpec, Plan } from '@querent/shared';
 import type { ThreadState } from '../threads/state.ts';
-import { example, formatterGuide, rules, specGuide } from './prompt-text.ts';
+import { phaseOf } from './phases.ts';
+import {
+  buildingRules,
+  editingRules,
+  example,
+  formatterGuide,
+  generalRules,
+  persona,
+  planningRules,
+  specGuide,
+} from './prompt-text.ts';
 
 /** What the instructions of a turn depend on. */
 export interface TurnFacts {
@@ -29,19 +39,18 @@ export interface TurnFacts {
  * What the thread's state asks of the agent now.
  *
  * @param facts - The facts of the turn.
- * @returns One or two sentences.
+ * @returns The phase's rules, with the approved plan when building.
  */
 function stateLine(facts: TurnFacts): string {
   const { state, plan } = facts;
   if (state === 'plan_pending') {
-    return 'A plan waits for the person to approve it. Answer questions, and propose a new plan if they ask for changes, but do not write the dashboard.';
+    return `${planningRules}\nA plan waits for the person to approve it. Answer questions about it, and propose a new plan if they ask for changes.`;
   }
   if (state === 'building' && plan?.status === 'approved') {
-    return `The plan "${plan.body.title}" is approved. Build it now with write_dashboard, following the plan:\n${JSON.stringify(plan.body)}`;
+    return `${buildingRules}\nThe approved plan "${plan.body.title}":\n${JSON.stringify(plan.body)}`;
   }
-  if (state === 'ready')
-    return 'The dashboard is built. Small edits to existing panels need no plan; new panels need a new plan.';
-  return 'No plan yet. Explore, test your queries, then propose a plan.';
+  if (state === 'ready') return editingRules;
+  return `${planningRules}\nNo plan yet.`;
 }
 
 /**
@@ -52,7 +61,7 @@ function stateLine(facts: TurnFacts): string {
  * @returns The line.
  */
 function nowLine(now: number, timeZone: string | undefined): string {
-  const utc = `Now: ${new Date(now).toISOString()} (UTC).`;
+  const utc = `Current time: ${new Date(now).toISOString()} (UTC).`;
   if (timeZone === undefined) return `${utc} The person's time zone is unknown; assume UTC.`;
   try {
     const local = new Intl.DateTimeFormat('en-CA', {
@@ -77,7 +86,6 @@ function situation(facts: TurnFacts): string {
   const lines = [
     nowLine(facts.now, facts.timeZone),
     `Connectors and their data (the catalog):\n${facts.catalog}`,
-    `Thread: ${stateLine(facts)}`,
   ];
   if (facts.draft)
     lines.push(
@@ -91,15 +99,17 @@ function situation(facts: TurnFacts): string {
       `The person mentions these panels: ${named}. Change only those unless they ask for more.`,
     );
   }
-  return lines.join('\n\n');
+  return [...lines, stateLine(facts)].join('\n\n');
 }
 
 /**
- * The instructions of a turn.
+ * The instructions of a turn. The spec guide and the example come only once there is something to
+ * write, so planning turns stay short.
  *
  * @param facts - The facts of the turn.
  * @returns The system instructions.
  */
 export function instructionsFor(facts: TurnFacts): string {
-  return [rules, specGuide, formatterGuide, example, situation(facts)].join('\n\n');
+  const writing = phaseOf(facts.state) === 'planning' ? [] : [specGuide, formatterGuide, example];
+  return [persona, generalRules, ...writing, situation(facts)].join('\n\n');
 }

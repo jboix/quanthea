@@ -216,3 +216,50 @@
   padding: 8px 12px;
   border-top: 1px solid var(--color-divider);
 }
+
+.ask {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 25%, var(--color-surface));
+  border-radius: var(--radius-panel);
+  background: var(--color-accent-soft);
+}
+
+.askQuestion {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.askOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.option {
+  padding: 7px 12px;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: 13px;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.option:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent-hover);
+}
+
+.option:disabled {
+  color: var(--color-ink-secondary);
+  cursor: default;
+}
+
+.ask .hint {
+  margin-left: 0;
+}

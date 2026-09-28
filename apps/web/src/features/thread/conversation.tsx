@@ -1,5 +1,6 @@
 import type { AccessLevel, PlanView, ThreadData } from '@querent/shared';
 import type { ReactNode } from 'react';
+import { AskCard } from './ask-card.tsx';
 import styles from './conversation.module.css';
 import { DiffCard } from './diff-card.tsx';
 import {
@@ -34,6 +35,14 @@ export interface ConversationContext {
   readonly onUndo: (version: number) => void;
   /** Shows a version in the right pane. */
   readonly onCompare: (version: number) => void;
+  /** Sends an answer to the agent's question. */
+  readonly onAnswer: (answer: string) => void;
+}
+
+/** The conversation context of one message's parts. */
+interface PartContext extends ConversationContext {
+  /** Whether a question in this message still waits for an answer. */
+  readonly answerable: boolean;
 }
 
 /**
@@ -84,6 +93,24 @@ function diffCard(data: ThreadData['diff'], key: string, context: ConversationCo
 }
 
 /**
+ * Renders a tool call that shows on its own: a question card, or a build log.
+ *
+ * @param part - The tool part.
+ * @param key - Its key.
+ * @param context - The conversation context.
+ * @returns The element, or nothing for tools that show no card.
+ */
+function toolView(part: ToolPart, key: string, context: PartContext): ReactNode {
+  const name = toolName(part);
+  if (name === 'ask_person') {
+    return (
+      <AskCard key={key} part={part} answerable={context.answerable} onAnswer={context.onAnswer} />
+    );
+  }
+  return buildTools.has(name) ? <BuildLog key={key} part={part} /> : null;
+}
+
+/**
  * Renders one non-explore part.
  *
  * @param part - The part.
@@ -91,14 +118,13 @@ function diffCard(data: ThreadData['diff'], key: string, context: ConversationCo
  * @param context - The conversation context.
  * @returns The element, or nothing for parts that show no card.
  */
-function partView(part: ThreadPart, key: string, context: ConversationContext): ReactNode {
+function partView(part: ThreadPart, key: string, context: PartContext): ReactNode {
   if (part.type === 'text') {
     return readableText(part.text) === '' ? null : <TextBlock key={key} text={part.text} />;
   }
   if (part.type === 'data-plan') return planCard(part.data, key, context);
   if (part.type === 'data-diff') return diffCard(part.data, key, context);
-  if (isToolPart(part) && buildTools.has(toolName(part))) return <BuildLog key={key} part={part} />;
-  return null;
+  return isToolPart(part) ? toolView(part, key, context) : null;
 }
 
 /**
@@ -109,7 +135,7 @@ function partView(part: ThreadPart, key: string, context: ConversationContext): 
  * @param context - The conversation context.
  * @returns The elements.
  */
-function assistantParts(message: ThreadMessage, context: ConversationContext): ReactNode[] {
+function assistantParts(message: ThreadMessage, context: PartContext): ReactNode[] {
   const nodes: ReactNode[] = [];
   let explored: ToolPart[] = [];
   const flush = () => {
@@ -173,12 +199,15 @@ interface ConversationProps extends ConversationContext {
 export function Conversation({ messages, ...context }: ConversationProps) {
   return (
     <ol className={styles.messages}>
-      {messages.map((message) => (
+      {messages.map((message, index) => (
         <li key={message.id} className={styles.message} data-role={message.role}>
           {message.role === 'user' ? (
             <UserBubble message={message} />
           ) : (
-            assistantParts(message, context)
+            assistantParts(message, {
+              ...context,
+              answerable: index === messages.length - 1 && !context.busy,
+            })
           )}
         </li>
       ))}
