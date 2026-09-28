@@ -164,12 +164,14 @@ the `postgres` driver and Prometheus uses `fetch`.
 | ---------------------------------------------------------- | ---------------------------------------------------------- | -------- |
 | `/`                                                        | redirect → `/library` (viewer) or `/threads/new` (editor+) | viewer   |
 | `/threads/new`, `/threads/:threadId`                       | Plan, Build and refine, Variant                            | editor   |
-| `/library`                                                 | Library (3)                                                | viewer   |
-| `/d/:dashboardId`                                          | Pinned view, latest pinned version (4)                     | viewer   |
+| `/library`                                                 | Library                                                    | viewer   |
+| `/d/:dashboardId`                                          | Pinned view, latest pinned version                         | viewer   |
 | `/d/:dashboardId/v/:version`                               | a specific version                                         | viewer   |
 | `/bin`                                                     | Bin                                                        | editor   |
-| `/connectors`, `/connectors/:connectorId`                  | Connectors (6)                                             | admin    |
-| `/settings/model`, `/settings/auth`, `/settings/retention` | Settings (7)                                               | admin    |
+| `/connectors`, `/connectors/:connectorId`                  | Connectors: list, access level, guardrails, schema         | admin    |
+| `/connectors/new`, `/connectors/:connectorId/edit`         | add and edit a connection                                  | admin    |
+| `/connectors/:connectorId/health`                          | resource route: the connection test, for fetchers          | admin    |
+| `/settings/model`, `/settings/auth`, `/settings/retention` | Settings                                                   | admin    |
 | `/settings`                                                | redirect → `/settings/model`                               | admin    |
 | `/ui`                                                      | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
 | `/login`                                                   | only in `basic` / `oidc` modes                             | —        |
@@ -180,8 +182,10 @@ Route loaders fetch through the typed API client. The root loader loads the sess
 throws a 403, which the error page shows as "Your role can't do this" inside the layout, so the
 rail stays. A test drives every screen with every role through the real route tree.
 
-TanStack Query is added with the first screen that caches server data. Until then, the loaders only
-load the session.
+Screens change data through route actions: forms and fetchers submit JSON, the action calls the
+API, and React Router reloads the route data afterwards. A refusal the user can act on
+(`bad_request`, `source_failed`) comes back as action data with the issues by field; other errors
+go to the error page. TanStack Query is added with the first screen that caches server data.
 
 ## 5. Core flows
 

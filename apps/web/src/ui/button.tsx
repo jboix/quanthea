@@ -13,6 +13,22 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /**
+ * The class names of a button style, for a link that looks like a button.
+ *
+ * @param variant - The style.
+ * @param size - The height.
+ * @returns The class names.
+ */
+export function buttonClassName(
+  variant: ButtonVariant = 'secondary',
+  size: ButtonProps['size'] = 'default',
+): string {
+  return [styles.button, styles[variant], size === 'default' ? '' : styles[size]]
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
  * A button in one of the visual language's styles. It defaults to `type="button"` so it never submits a
  * form by accident.
  *
@@ -26,11 +42,6 @@ export function Button({
   className,
   ...rest
 }: ButtonProps) {
-  const classes = [
-    styles.button,
-    styles[variant],
-    size === 'default' ? '' : styles[size],
-    className,
-  ];
-  return <button type={type} className={classes.filter(Boolean).join(' ')} {...rest} />;
+  const classes = [buttonClassName(variant, size), className].filter(Boolean).join(' ');
+  return <button type={type} className={classes} {...rest} />;
 }

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { type Principal, type Role, roles } from '@querent/shared';
 import { createMemoryRouter } from 'react-router';
+import type { ApiClient } from '../lib/api-client.ts';
 import { routeAccess } from './route-access.ts';
 import { createRoutes } from './router.tsx';
 import type { Session } from './session.ts';
@@ -16,6 +17,37 @@ function sessionFor(role: Role): Session {
   return { principal, authMode: 'basic' };
 }
 
+/** A connector as the fake API returns it. */
+const sampleConnector = {
+  id: 'sample-connectorId',
+  name: 'events',
+  kind: 'memory',
+  accessLevel: 2,
+  updatedAt: 1,
+  createdAt: 1,
+  config: {},
+  target: null,
+  secret: {},
+  hiddenFields: [],
+  guardrails: { timeoutMs: 10_000, maxRows: 50_000, maxRangeDays: 90 },
+  descriptions: {},
+};
+
+/** What the fake API answers, by method and path. */
+const cannedAnswers: Readonly<Record<string, unknown>> = {
+  'GET /connectors': [],
+  'GET /connector-kinds': [],
+  'GET /connectors/:connectorId': sampleConnector,
+  'GET /connectors/:connectorId/schema': { readAt: null, entities: [] },
+  'POST /connectors/:connectorId/test': { ok: true, latencyMs: 1, message: 'ok', readOnly: null },
+};
+
+/** An API client that answers every call from {@link cannedAnswers}. */
+const fakeApi = {
+  call: (endpoint: { method: string; path: string }) =>
+    Promise.resolve(cannedAnswers[`${endpoint.method} ${endpoint.path}`]),
+} as ApiClient;
+
 /**
  * Starts a memory router at `path` and waits until its loaders have settled.
  *
@@ -25,7 +57,7 @@ function sessionFor(role: Role): Session {
  */
 async function navigate(path: string, session: Session | null) {
   const router = createMemoryRouter(
-    createRoutes(() => Promise.resolve(session)),
+    createRoutes({ loadSession: () => Promise.resolve(session), api: fakeApi }),
     { initialEntries: [path] },
   );
   await new Promise<void>((resolve) => {
@@ -51,13 +83,17 @@ function samplePath(pattern: string): string {
 }
 
 /**
- * Collects the HTTP statuses of the route errors in a state.
+ * Collects the distinct HTTP statuses of the route errors in a state. A layout and its child can
+ * both refuse the same navigation.
  *
  * @param errors - `router.state.errors`.
  * @returns The statuses, empty when no route failed.
  */
 function errorStatuses(errors: Record<string, unknown> | null): unknown[] {
-  return Object.values(errors ?? {}).map((error) => (error as { status?: number }).status);
+  const statuses = Object.values(errors ?? {}).map(
+    (error) => (error as { status?: number }).status,
+  );
+  return [...new Set(statuses)];
 }
 
 describe('screen access', () => {

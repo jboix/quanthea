@@ -125,3 +125,16 @@ export function WarningIcon() {
     </Icon>
   );
 }
+
+/**
+ * A check mark, for a passed check.
+ *
+ * @returns The icon, drawn at 16 px.
+ */
+export function CheckIcon() {
+  return (
+    <Icon size={16}>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </Icon>
+  );
+}

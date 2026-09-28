@@ -1,0 +1,54 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 640px;
+  padding: 28px 32px 48px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  color: var(--color-ink-secondary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--color-danger-soft);
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.danger {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+}

@@ -14,7 +14,8 @@ import { createApiClient } from './lib/api-client.ts';
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('index.html has no #root element.');
 
-const router = createAppRouter(createSessionLoader(createApiClient()));
+const api = createApiClient();
+const router = createAppRouter({ loadSession: createSessionLoader(api), api });
 
 createRoot(rootElement).render(
   <StrictMode>

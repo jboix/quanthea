@@ -1,0 +1,182 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.target {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+  overflow-wrap: anywhere;
+}
+
+.failure {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.headerActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 28px;
+  padding: 24px 28px;
+}
+
+.settings {
+  display: flex;
+  flex: 1 1 480px;
+  flex-direction: column;
+  gap: 32px;
+  min-width: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sectionSubtitle {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--color-ink-secondary);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cardNote {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-ink-secondary);
+}
+
+.cardNote code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.addChip {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px dashed var(--color-switch-off);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--color-ink-label);
+  cursor: pointer;
+}
+
+.addChip:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.addField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.addField > div:first-child {
+  width: 240px;
+}
+
+.guardrails {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+}
+
+.checkOk,
+.checkWarning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.checkOk {
+  color: var(--color-ok-ink);
+}
+
+.checkWarning {
+  color: var(--color-draft);
+}
+
+.formActions {
+  display: flex;
+}

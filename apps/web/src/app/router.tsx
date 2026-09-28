@@ -6,8 +6,9 @@ import {
   type RouteObject,
   redirect,
 } from 'react-router';
+import type { ApiClient } from '../lib/api-client.ts';
 import { BinRoute } from '../routes/bin.tsx';
-import { ConnectorsRoute } from '../routes/connectors.tsx';
+import { connectorRoutes } from '../routes/connectors.tsx';
 import { DashboardRoute } from '../routes/dashboard.tsx';
 import { LibraryRoute } from '../routes/library.tsx';
 import { LoginRoute } from '../routes/login.tsx';
@@ -61,13 +62,21 @@ function loginRoute(loadSession: SessionLoader): RouteObject {
   };
 }
 
+/** What the routes need from the app: the session and the API. */
+interface RouteDependencies {
+  /** Loads the current session. */
+  readonly loadSession: SessionLoader;
+  /** Calls the API. */
+  readonly api: ApiClient;
+}
+
 /**
  * The screens inside the layout, with `/` redirecting by role and `/settings` to its first section.
  *
- * @param loadSession - Loads the current session.
+ * @param dependencies - The session loader and the API client.
  * @returns The child routes of the layout.
  */
-function screenRoutes(loadSession: SessionLoader): RouteObject[] {
+function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
   const home = async () => {
     const session = await loadSession();
     return redirect(session ? homePathFor(session.principal.role) : '/login');
@@ -80,8 +89,7 @@ function screenRoutes(loadSession: SessionLoader): RouteObject[] {
     screen(loadSession, '/d/:dashboardId', DashboardRoute),
     screen(loadSession, '/d/:dashboardId/v/:version', DashboardRoute),
     screen(loadSession, '/bin', BinRoute),
-    screen(loadSession, '/connectors', ConnectorsRoute),
-    screen(loadSession, '/connectors/:connectorId', ConnectorsRoute),
+    connectorRoutes(loadSession, api),
     {
       path: '/settings',
       Component: SettingsLayout,
@@ -101,10 +109,11 @@ function screenRoutes(loadSession: SessionLoader): RouteObject[] {
  * The whole route tree. The root loader requires a session, so every screen below it can rely on
  * one. Screen errors render inside the layout, so the rail stays visible.
  *
- * @param loadSession - Loads the current session.
+ * @param dependencies - The session loader and the API client.
  * @returns The routes.
  */
-export function createRoutes(loadSession: SessionLoader): RouteObject[] {
+export function createRoutes(dependencies: RouteDependencies): RouteObject[] {
+  const { loadSession } = dependencies;
   return [
     loginRoute(loadSession),
     {
@@ -114,7 +123,7 @@ export function createRoutes(loadSession: SessionLoader): RouteObject[] {
       Component: AppLayout,
       HydrateFallback: LoadingScreen,
       ErrorBoundary: ErrorPage,
-      children: [{ ErrorBoundary: ErrorPage, children: screenRoutes(loadSession) }],
+      children: [{ ErrorBoundary: ErrorPage, children: screenRoutes(dependencies) }],
     },
   ];
 }
@@ -122,9 +131,9 @@ export function createRoutes(loadSession: SessionLoader): RouteObject[] {
 /**
  * Creates the browser router.
  *
- * @param loadSession - Loads the current session.
+ * @param dependencies - The session loader and the API client.
  * @returns The router to hand to `RouterProvider`.
  */
-export function createAppRouter(loadSession: SessionLoader) {
-  return createBrowserRouter(createRoutes(loadSession));
+export function createAppRouter(dependencies: RouteDependencies) {
+  return createBrowserRouter(createRoutes(dependencies));
 }

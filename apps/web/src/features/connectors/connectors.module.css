@@ -1,0 +1,130 @@
+.screen {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 300px;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow-y: auto;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebarTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 12px 10px;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-card);
+  color: inherit;
+  text-decoration: none;
+}
+
+.item:hover {
+  background: var(--color-surface-muted);
+}
+
+.item[aria-current="page"] {
+  background: var(--color-accent-soft);
+}
+
+.badge {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.badge[data-tone="accent"] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.badge[data-tone="draft"] {
+  background: var(--color-draft-soft);
+  color: var(--color-draft);
+}
+
+.badge[data-tone="ok"] {
+  background: var(--color-ok-soft);
+  color: var(--color-ok-ink);
+}
+
+.badge[data-tone="plain"] {
+  background: var(--color-ground);
+  color: var(--color-ink-label);
+}
+
+.itemText {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.itemName {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemMeta {
+  font-size: 12.5px;
+  color: var(--color-ink-secondary);
+}
+
+.note {
+  margin: 8px 20px 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-secondary);
+}
+
+.content {
+  flex-grow: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.empty {
+  padding: 36px 40px;
+}
