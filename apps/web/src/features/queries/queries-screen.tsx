@@ -96,7 +96,7 @@ function Detail({ form, data }: DetailProps) {
  * @returns The line.
  */
 function saveNote(form: QueriesForm): string {
-  if (form.editing !== null) return 'Finish the recipe you are editing first.';
+  if (form.editing !== null) return 'Finish the query you are editing first.';
   return form.dirty ? 'Unsaved changes.' : 'Everything is saved.';
 }
 

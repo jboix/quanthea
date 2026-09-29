@@ -53,7 +53,7 @@ export interface AppDependencies {
   readonly modelView: ModelView;
   /** The usage ledger. */
   readonly usage: Usage;
-  /** The recipe settings. */
+  /** The query settings. */
   readonly querySettings: QuerySettingsService;
   /** The chart settings. */
   readonly chartSettings: ChartSettingsService;

@@ -85,7 +85,7 @@ function ProviderMenu({
  *
  * @param props - The box's state.
  * @param props.ask - What {@link useAsk} returns.
- * @param props.choice - The provider menu, when there is a choice, and the recipe menu.
+ * @param props.choice - The provider menu, when there is a choice, and the queries menu.
  * @returns The form.
  */
 function AskForm({

@@ -120,7 +120,7 @@ export interface InstructionParts {
 }
 
 /**
- * The instructions of a turn, the lasting part first so providers can cache it. The recipe guide
+ * The instructions of a turn, the lasting part first so providers can cache it. The panel guide
  * comes only once there is something to write, so planning turns stay short.
  *
  * @param facts - The facts of the turn.

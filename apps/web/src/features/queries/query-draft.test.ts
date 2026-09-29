@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { draftOf, guessKind, idOf, newDraft, paramsOf, recipeOf } from './query-draft.ts';
 
-describe('recipe drafts', () => {
+describe('saved query drafts', () => {
   test('guess each placeholder’s kind from its name', () => {
     expect(paramsOf(newDraft)).toEqual([
       { name: 'label', kind: 'label', description: '' },
@@ -15,7 +15,7 @@ describe('recipe drafts', () => {
     expect(idOf(' Queue depth (p95)! ')).toBe('queue-depth-p95');
   });
 
-  test('check a draft and come back to it from the recipe', () => {
+  test('check a draft and come back to it from the saved query', () => {
     const draft = {
       ...newDraft,
       id: 'rate-by',

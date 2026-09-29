@@ -1,4 +1,4 @@
-/** A panel as a recipe expands it, before it gets an id and a place on the grid. */
+/** A panel as its request expands, before it gets an id and a place on the grid. */
 import type { PanelQuery, View } from '@querent/shared';
 import type { Width } from './request.ts';
 
