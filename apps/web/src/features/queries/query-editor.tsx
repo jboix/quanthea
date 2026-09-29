@@ -1,9 +1,4 @@
-import {
-  panelUnits,
-  type RecipeParamKind,
-  recipeParamKinds,
-  type SavedRecipe,
-} from '@querent/shared';
+import { panelUnits, type QueryParamKind, queryParamKinds, type SavedQuery } from '@querent/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
@@ -11,12 +6,12 @@ import { Input } from '../../ui/input.tsx';
 import { Select } from '../../ui/select.tsx';
 import { TextArea } from '../../ui/text-area.tsx';
 import type { PreviewConnector } from './data.ts';
-import { idOf, paramsOf, type RecipeDraft, recipeOf } from './recipe-draft.ts';
-import styles from './recipes.module.css';
+import styles from './queries.module.css';
+import { idOf, paramsOf, type QueryDraft, recipeOf } from './query-draft.ts';
 import { SavedPreview } from './saved-preview.tsx';
 
 /** What a placeholder of each kind may hold, for the admin. */
-const kindHints: Readonly<Record<RecipeParamKind, string>> = {
+const kindHints: Readonly<Record<QueryParamKind, string>> = {
   metric: 'a metric name',
   label: 'a label name (PromQL) or a column (SQL)',
   table: 'a table, or schema.table',
@@ -38,9 +33,9 @@ const showOptions = [
 /** Props of the editor's parts. */
 interface PartProps {
   /** The draft. */
-  readonly draft: RecipeDraft;
+  readonly draft: QueryDraft;
   /** Changes the draft. */
-  readonly change: (patch: Partial<RecipeDraft>) => void;
+  readonly change: (patch: Partial<QueryDraft>) => void;
   /** The problems by field. */
   readonly issues: Readonly<Record<string, string>>;
 }
@@ -104,7 +99,7 @@ function QueryFields({ draft, change, issues }: PartProps) {
           { value: 'promql', label: 'PromQL' },
           { value: 'sql', label: 'SQL' },
         ]}
-        onChange={(event) => change({ language: event.target.value as SavedRecipe['language'] })}
+        onChange={(event) => change({ language: event.target.value as SavedQuery['language'] })}
       />
       <TextArea
         label="Query"
@@ -120,7 +115,7 @@ function QueryFields({ draft, change, issues }: PartProps) {
 }
 
 /** One placeholder. */
-type Param = SavedRecipe['params'][number];
+type Param = SavedQuery['params'][number];
 
 /**
  * One placeholder's row: its kind and what it is.
@@ -135,7 +130,7 @@ function ParamRow({
   set,
 }: {
   readonly param: Param;
-  readonly set: (patch: Partial<RecipeDraft['params'][string]>) => void;
+  readonly set: (patch: Partial<QueryDraft['params'][string]>) => void;
 }) {
   return (
     <div className={styles.param}>
@@ -145,8 +140,8 @@ function ParamRow({
         hideLabel
         value={param.kind}
         hint={kindHints[param.kind]}
-        options={recipeParamKinds.map((kind) => ({ value: kind, label: kind }))}
-        onChange={(event) => set({ kind: event.target.value as RecipeParamKind })}
+        options={queryParamKinds.map((kind) => ({ value: kind, label: kind }))}
+        onChange={(event) => set({ kind: event.target.value as QueryParamKind })}
       />
       <Input
         label={`What ${param.name} is`}
@@ -168,7 +163,7 @@ function ParamRow({
 function ParamFields({ draft, change, issues }: PartProps) {
   const params = paramsOf(draft);
   if (params.length === 0) return <p className={styles.hint}>This query has no placeholders.</p>;
-  const setter = (param: Param) => (patch: Partial<RecipeDraft['params'][string]>) => {
+  const setter = (param: Param) => (patch: Partial<QueryDraft['params'][string]>) => {
     const { kind, description } = { ...param, ...patch };
     change({ params: { ...draft.params, [param.name]: { kind, description } } });
   };
@@ -195,13 +190,13 @@ function ViewFields({ draft, change, issues }: PartProps) {
         label="Shows as"
         value={draft.show}
         options={showOptions}
-        onChange={(event) => change({ show: event.target.value as SavedRecipe['show'] })}
+        onChange={(event) => change({ show: event.target.value as SavedQuery['show'] })}
       />
       <Select
         label="Unit"
         value={draft.unit}
         options={panelUnits.map((unit) => ({ value: unit, label: unit }))}
-        onChange={(event) => change({ unit: event.target.value as SavedRecipe['unit'] })}
+        onChange={(event) => change({ unit: event.target.value as SavedQuery['unit'] })}
       />
       {draft.show === 'table' && (
         <Input
@@ -217,16 +212,16 @@ function ViewFields({ draft, change, issues }: PartProps) {
   );
 }
 
-/** Props of {@link RecipeEditor}. */
-interface RecipeEditorProps {
+/** Props of {@link QueryEditor}. */
+interface QueryEditorProps {
   /** The recipe to start from. */
-  readonly start: RecipeDraft;
+  readonly start: QueryDraft;
   /** Whether it is a new recipe, whose id follows its name. */
   readonly isNew: boolean;
   /** Ids other recipes already have. */
   readonly taken: readonly string[];
   /** Called with the checked recipe. */
-  readonly onDone: (recipe: SavedRecipe) => void;
+  readonly onDone: (recipe: SavedQuery) => void;
   /** Called to drop the changes. */
   readonly onCancel: () => void;
   /** The connectors a preview can run on. */
@@ -239,11 +234,11 @@ interface RecipeEditorProps {
  * @param props - The recipe, whether it is new, the ids taken, the callbacks and the connectors.
  * @returns The card.
  */
-export function RecipeEditor(props: RecipeEditorProps) {
+export function QueryEditor(props: QueryEditorProps) {
   const { start, isNew, taken, onDone, onCancel } = props;
   const [draft, setDraft] = useState(start);
   const [issues, setIssues] = useState<Record<string, string>>({});
-  const change = (patch: Partial<RecipeDraft>) => setDraft((current) => ({ ...current, ...patch }));
+  const change = (patch: Partial<QueryDraft>) => setDraft((current) => ({ ...current, ...patch }));
   const done = () => {
     const checked = recipeOf(draft);
     if (!checked.ok) return setIssues(checked.issues);

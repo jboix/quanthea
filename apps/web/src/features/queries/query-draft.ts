@@ -4,13 +4,13 @@
  */
 import {
   placeholdersOf,
-  type RecipeParamKind,
-  type SavedRecipe,
-  savedRecipeSchema,
+  type QueryParamKind,
+  type SavedQuery,
+  savedQuerySchema,
 } from '@querent/shared';
 
 /** A saved recipe being edited. */
-export interface RecipeDraft {
+export interface QueryDraft {
   /** The id, as the agent names it. */
   readonly id: string;
   /** The name. */
@@ -18,21 +18,21 @@ export interface RecipeDraft {
   /** What it shows. */
   readonly description: string;
   /** The query language. */
-  readonly language: SavedRecipe['language'];
+  readonly language: SavedQuery['language'];
   /** The query, with `{{placeholders}}`. */
   readonly query: string;
   /** Each placeholder's kind and description, by name. */
-  readonly params: Readonly<Record<string, { kind: RecipeParamKind; description: string }>>;
+  readonly params: Readonly<Record<string, { kind: QueryParamKind; description: string }>>;
   /** How the panel shows. */
-  readonly show: SavedRecipe['show'];
+  readonly show: SavedQuery['show'];
   /** The unit. */
-  readonly unit: SavedRecipe['unit'];
+  readonly unit: SavedQuery['unit'];
   /** A table's columns, separated by commas. */
   readonly columns: string;
 }
 
 /** A new recipe, with a PromQL example to start from. */
-export const newDraft: RecipeDraft = {
+export const newDraft: QueryDraft = {
   id: '',
   name: '',
   description: '',
@@ -45,7 +45,7 @@ export const newDraft: RecipeDraft = {
 };
 
 /** The kind a placeholder's name suggests, tried in order. */
-const kindHints: readonly [RegExp, RecipeParamKind][] = [
+const kindHints: readonly [RegExp, QueryParamKind][] = [
   [/metric/, 'metric'],
   [/table/, 'table'],
   [/column|field/, 'column'],
@@ -59,7 +59,7 @@ const kindHints: readonly [RegExp, RecipeParamKind][] = [
  * @param name - Such as `metric` or `window`.
  * @returns The kind; `value` when nothing matches.
  */
-export function guessKind(name: string): RecipeParamKind {
+export function guessKind(name: string): QueryParamKind {
   return kindHints.find(([pattern]) => pattern.test(name))?.[1] ?? 'value';
 }
 
@@ -69,7 +69,7 @@ export function guessKind(name: string): RecipeParamKind {
  * @param draft - The draft.
  * @returns The placeholders, in the order the query names them.
  */
-export function paramsOf(draft: RecipeDraft): SavedRecipe['params'] {
+export function paramsOf(draft: QueryDraft): SavedQuery['params'] {
   return placeholdersOf(draft.query).map((name) => ({
     name,
     kind: draft.params[name]?.kind ?? guessKind(name),
@@ -83,7 +83,7 @@ export function paramsOf(draft: RecipeDraft): SavedRecipe['params'] {
  * @param recipe - The recipe.
  * @returns The draft.
  */
-export function draftOf(recipe: SavedRecipe): RecipeDraft {
+export function draftOf(recipe: SavedQuery): QueryDraft {
   const params = Object.fromEntries(
     recipe.params.map(({ name, kind, description }) => [name, { kind, description }]),
   );
@@ -111,14 +111,14 @@ export function idOf(name: string): string {
  * @returns The recipe, or the problems by field.
  */
 export function recipeOf(
-  draft: RecipeDraft,
-): { ok: true; recipe: SavedRecipe } | { ok: false; issues: Record<string, string> } {
+  draft: QueryDraft,
+): { ok: true; recipe: SavedQuery } | { ok: false; issues: Record<string, string> } {
   const columns = draft.columns
     .split(',')
     .map((column) => column.trim())
     .filter((column) => column !== '');
   const { params: _params, columns: _columns, ...fields } = draft;
-  const parsed = savedRecipeSchema.safeParse({
+  const parsed = savedQuerySchema.safeParse({
     ...fields,
     params: paramsOf(draft),
     ...(draft.show === 'table' ? { columns } : {}),

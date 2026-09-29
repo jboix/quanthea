@@ -1,8 +1,8 @@
-import { builtInRecipes } from '@querent/shared';
+import { queryBuilders } from '@querent/shared';
 import type { ReactNode } from 'react';
 import { Button } from '../../ui/button.tsx';
-import styles from './recipes.module.css';
-import type { RecipesForm } from './recipes-form.ts';
+import styles from './queries.module.css';
+import type { QueriesForm } from './queries-form.ts';
 
 /** Props of {@link ListRow}. */
 interface ListRowProps {
@@ -55,7 +55,7 @@ function BuiltInGroup({
   language,
   heading,
 }: {
-  readonly form: RecipesForm;
+  readonly form: QueriesForm;
   readonly language: 'sql' | 'promql';
   readonly heading: string;
 }) {
@@ -64,7 +64,7 @@ function BuiltInGroup({
     <>
       <h3 className={styles.listHeading}>{heading}</h3>
       <ul className={styles.list}>
-        {builtInRecipes
+        {queryBuilders
           .filter((recipe) => recipe.language === language)
           .map((recipe) => {
             const off = form.settings.disabled.includes(recipe.id);
@@ -93,7 +93,7 @@ function BuiltInGroup({
  * @param props.form - The form state.
  * @returns The list.
  */
-export function RecipeList({ form }: { readonly form: RecipesForm }) {
+export function QueryList({ form }: { readonly form: QueriesForm }) {
   const { selected, editing } = form;
   return (
     <nav className={styles.side} aria-label="Recipes">

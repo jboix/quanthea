@@ -1,13 +1,13 @@
-import type { SavedRecipe } from '@querent/shared';
+import type { SavedQuery } from '@querent/shared';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import type { PreviewConnector } from './data.ts';
-import styles from './recipes.module.css';
+import styles from './queries.module.css';
 import { SavedPreview } from './saved-preview.tsx';
 
 /** How each view kind reads. */
-const showLabels: Readonly<Record<SavedRecipe['show'], string>> = {
+const showLabels: Readonly<Record<SavedQuery['show'], string>> = {
   line: 'a line over time',
   bar: 'bars over time',
   'category-bar': 'bars by category',
@@ -23,7 +23,7 @@ const showLabels: Readonly<Record<SavedRecipe['show'], string>> = {
  * @param props.recipe - The recipe.
  * @returns The card.
  */
-function TemplateCard({ recipe }: { readonly recipe: SavedRecipe }) {
+function TemplateCard({ recipe }: { readonly recipe: SavedQuery }) {
   const columns = recipe.columns?.length ? `, columns ${recipe.columns.join(', ')}` : '';
   return (
     <Card
@@ -51,7 +51,7 @@ function TemplateCard({ recipe }: { readonly recipe: SavedRecipe }) {
 /** Props of {@link SavedDetail}. */
 interface SavedDetailProps {
   /** The recipe. */
-  readonly recipe: SavedRecipe;
+  readonly recipe: SavedQuery;
   /** The connectors a preview can run on. */
   readonly connectors: readonly PreviewConnector[];
   /** Opens it in the editor. */

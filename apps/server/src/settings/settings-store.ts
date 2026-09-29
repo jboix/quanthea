@@ -5,7 +5,7 @@ import {
   type ModelProvider,
   modelGatewaySchema,
   modelSettingsSchema,
-  recipeSettingsSchema,
+  querySettingsSchema,
 } from '@querent/shared';
 import { z } from 'zod';
 import type { SettingsRepository } from '../db/settings-repository.ts';
@@ -44,7 +44,7 @@ const sectionSchemas = {
   /** Each provider's API key, sealed and base64-encoded, by provider id. */
   'model-keys': z.object({ sealed: z.record(z.string(), z.string()) }),
   /** Built-in recipes switched off, and the saved recipes. */
-  recipes: recipeSettingsSchema,
+  recipes: querySettingsSchema,
 };
 
 /** A settings section name. */

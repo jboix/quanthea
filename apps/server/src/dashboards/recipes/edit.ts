@@ -3,7 +3,7 @@
  * placed below, and deploy markers on the time charts. The result is a spec to check, test-run
  * and save like any other.
  */
-import type { Annotation, DashboardSpec, Panel, SavedRecipe } from '@querent/shared';
+import type { Annotation, DashboardSpec, Panel, SavedQuery } from '@querent/shared';
 import type { PanelDraft } from './draft.ts';
 import { expandPanel, isTimeChart } from './expand.ts';
 import { panelId, placeBelow } from './layout.ts';
@@ -94,7 +94,7 @@ function panelOf(draft: PanelDraft, id: string, grid: Panel['grid']): Panel {
 function editedPanels(
   panels: readonly Panel[],
   request: EditRequest,
-  saved: readonly SavedRecipe[],
+  saved: readonly SavedQuery[],
 ): Panel[] {
   const rebuilt = new Map(
     request.panels.flatMap((panel) =>
@@ -180,7 +180,7 @@ function withMarkers(panels: readonly Panel[], marked: boolean): Panel[] {
 export function applyEdit(
   current: DashboardSpec | undefined,
   request: EditRequest,
-  saved: readonly SavedRecipe[] = [],
+  saved: readonly SavedQuery[] = [],
 ): DashboardSpec {
   const spec = withSettings(startingSpec(current, request), request);
   const annotations = editedAnnotations(spec.annotations, request.markers);

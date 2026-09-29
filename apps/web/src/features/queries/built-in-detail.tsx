@@ -1,4 +1,4 @@
-import type { BuiltInRecipe, RecipeGuide } from '@querent/shared';
+import type { QueryBuilder, QueryGuide } from '@querent/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
@@ -12,7 +12,7 @@ import {
   RangeSelect,
   usePreview,
 } from './preview.tsx';
-import styles from './recipes.module.css';
+import styles from './queries.module.css';
 
 /**
  * JSON with one top-level field per line, each value on its line in full.
@@ -49,7 +49,7 @@ function previewFields(example: Readonly<Record<string, unknown>>): Record<strin
  * @param props.guide - How the recipe works.
  * @returns The card.
  */
-function FieldsCard({ guide }: { readonly guide: RecipeGuide }) {
+function FieldsCard({ guide }: { readonly guide: QueryGuide }) {
   return (
     <Card
       title="What the agent fills"
@@ -85,7 +85,7 @@ function FieldsCard({ guide }: { readonly guide: RecipeGuide }) {
  * @param props.guide - How the recipe works.
  * @returns The card.
  */
-function ExampleCard({ guide }: { readonly guide: RecipeGuide }) {
+function ExampleCard({ guide }: { readonly guide: QueryGuide }) {
   return (
     <Card title="Example" description="What the agent sends, and the query the server writes.">
       <div className={styles.example}>
@@ -136,8 +136,8 @@ function PreviewCard({
   guide,
   connectors,
 }: {
-  readonly recipe: BuiltInRecipe;
-  readonly guide: RecipeGuide;
+  readonly recipe: QueryBuilder;
+  readonly guide: QueryGuide;
   readonly connectors: readonly PreviewConnector[];
 }) {
   const [text, setText] = useState(() => compactJson(previewFields(guide.example)));
@@ -181,9 +181,9 @@ function PreviewCard({
 /** Props of {@link BuiltInDetail}. */
 interface BuiltInDetailProps {
   /** The recipe. */
-  readonly recipe: BuiltInRecipe;
+  readonly recipe: QueryBuilder;
   /** How it works. */
-  readonly guide: RecipeGuide;
+  readonly guide: QueryGuide;
   /** Whether the default set has it. */
   readonly enabled: boolean;
   /** Switches it on or off. */

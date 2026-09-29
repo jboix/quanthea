@@ -1,5 +1,5 @@
 /** Turns a panel request into a draft: the recipe's expansion, or a custom panel's raw queries. */
-import type { PanelQuery, SavedRecipe, View } from '@querent/shared';
+import type { PanelQuery, SavedQuery, View } from '@querent/shared';
 import type { PanelDraft, PanelShape } from './draft.ts';
 import { gaugeDraft, latencyDraft, rateDraft, ratioDraft, topDraft } from './promql.ts';
 import type { PanelRequest, RecipeOf } from './request.ts';
@@ -124,7 +124,7 @@ const expansions: {
  * @returns The draft.
  * @throws {RecipeError} When the request names something a query cannot use.
  */
-export function expandPanel(request: PanelRequest, saved: readonly SavedRecipe[] = []): PanelDraft {
+export function expandPanel(request: PanelRequest, saved: readonly SavedQuery[] = []): PanelDraft {
   if (request.recipe === 'saved') return savedDraft(request, saved);
   const expand = expansions[request.recipe] as (request: PanelRequest) => PanelDraft;
   return expand(request);

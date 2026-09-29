@@ -12,16 +12,16 @@ import {
   getDashboardVersionEndpoint,
   getThreadEndpoint,
   listProviderChoicesEndpoint,
-  listRecipeChoicesEndpoint,
+  listQueryChoicesEndpoint,
   listThreadsEndpoint,
   type ProviderChoice,
   pinDashboardEndpoint,
-  type RecipeChoice,
+  type QueryChoice,
   rejectPlanEndpoint,
   restoreVersionEndpoint,
   startFromPinnedEndpoint,
   type ThreadDetail,
-  type ThreadRecipes,
+  type ThreadQueries,
   type ThreadSummary,
 } from '@querent/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
@@ -121,7 +121,7 @@ export interface NewThreadData {
   /** The default provider. */
   readonly defaultProviderId: string;
   /** The recipes a thread may use. */
-  readonly recipes: readonly RecipeChoice[];
+  readonly recipes: readonly QueryChoice[];
 }
 
 /**
@@ -136,7 +136,7 @@ export function loadRecentThreads(api: ApiClient) {
     const [threads, choices, { recipes }] = await Promise.all([
       api.call(listThreadsEndpoint, undefined, options),
       api.call(listProviderChoicesEndpoint, undefined, options),
-      api.call(listRecipeChoicesEndpoint, undefined, options),
+      api.call(listQueryChoicesEndpoint, undefined, options),
     ]);
     return { threads: threads.slice(0, 12), ...choices, recipes };
   };
@@ -148,7 +148,7 @@ export type NewThreadIntent =
       readonly intent: 'start';
       readonly question: string;
       readonly providerId?: string;
-      readonly recipes?: ThreadRecipes;
+      readonly recipes?: ThreadQueries;
     }
   | { readonly intent: 'delete'; readonly threadId: string };
 

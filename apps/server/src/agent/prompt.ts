@@ -5,7 +5,7 @@
  * thread's phase asks of it.
  */
 import type { DashboardSpec, Plan } from '@querent/shared';
-import type { AvailableRecipes } from '../dashboards/recipes/index.ts';
+import type { AvailableQueries } from '../dashboards/recipes/index.ts';
 import type { ThreadState } from '../threads/state.ts';
 import { phaseOf } from './phases.ts';
 import {
@@ -36,7 +36,7 @@ export interface TurnFacts {
   /** Whether the person saw pinned dashboards that may answer this, and asked for a new one. */
   readonly declinedMatches?: boolean;
   /** The recipes the thread may use. */
-  readonly recipes: AvailableRecipes;
+  readonly recipes: AvailableQueries;
 }
 
 /**

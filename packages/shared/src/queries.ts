@@ -21,7 +21,7 @@ export const panelUnits = [
 export type PanelUnit = (typeof panelUnits)[number];
 
 /** A built-in recipe as the recipes screen and the agent's guide describe it. */
-export interface BuiltInRecipe {
+export interface QueryBuilder {
   /** The id the agent names it by. */
   readonly id: string;
   /** Its name. */
@@ -33,7 +33,7 @@ export interface BuiltInRecipe {
 }
 
 /** The built-in recipes. */
-export const builtInRecipes: readonly BuiltInRecipe[] = [
+export const queryBuilders: readonly QueryBuilder[] = [
   {
     id: 'rate',
     name: 'Rate',
@@ -92,22 +92,15 @@ export const builtInRecipes: readonly BuiltInRecipe[] = [
 ];
 
 /** What a saved recipe's placeholder may hold, checked and quoted for its language. */
-export const recipeParamKinds = [
-  'metric',
-  'label',
-  'table',
-  'column',
-  'value',
-  'duration',
-] as const;
+export const queryParamKinds = ['metric', 'label', 'table', 'column', 'value', 'duration'] as const;
 
 /** A placeholder kind. */
-export type RecipeParamKind = (typeof recipeParamKinds)[number];
+export type QueryParamKind = (typeof queryParamKinds)[number];
 
 /** Validates a placeholder of a saved recipe. */
 const recipeParamSchema = z.strictObject({
   name: z.string().regex(/^[a-z][a-z0-9_]{0,29}$/, 'Use lowercase letters, digits and _.'),
-  kind: z.enum(recipeParamKinds),
+  kind: z.enum(queryParamKinds),
   description: z.string().max(200).default(''),
 });
 
@@ -125,7 +118,7 @@ export function placeholdersOf(query: string): string[] {
 }
 
 /** Validates a saved recipe: a query with typed placeholders, and how its panel shows. */
-export const savedRecipeSchema = z
+export const savedQuerySchema = z
   .strictObject({
     id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/, 'Use lowercase letters, digits and dashes.'),
     name: z.string().trim().min(1, 'Name the recipe.').max(60),
@@ -163,13 +156,13 @@ export const savedRecipeSchema = z
   });
 
 /** A saved recipe. */
-export type SavedRecipe = z.infer<typeof savedRecipeSchema>;
+export type SavedQuery = z.infer<typeof savedQuerySchema>;
 
 /** Validates the recipe settings: built-in recipes switched off, and the saved recipes. */
-export const recipeSettingsSchema = z
+export const querySettingsSchema = z
   .strictObject({
     disabled: z.array(z.string().max(40)).max(20).default([]),
-    saved: z.array(savedRecipeSchema).max(50).default([]),
+    saved: z.array(savedQuerySchema).max(50).default([]),
   })
   .refine(
     (settings) => new Set(settings.saved.map((recipe) => recipe.id)).size === settings.saved.length,
@@ -177,14 +170,14 @@ export const recipeSettingsSchema = z
   );
 
 /** The recipe settings. */
-export type RecipeSettings = z.infer<typeof recipeSettingsSchema>;
+export type QuerySettings = z.infer<typeof querySettingsSchema>;
 
 /** Validates which recipes a thread uses: the default set, a chosen set, or none. */
-export const threadRecipesSchema = z.discriminatedUnion('mode', [
+export const threadQueriesSchema = z.discriminatedUnion('mode', [
   z.strictObject({ mode: z.literal('default') }),
   z.strictObject({ mode: z.literal('chosen'), ids: z.array(z.string().max(40)).max(60) }),
   z.strictObject({ mode: z.literal('free') }),
 ]);
 
 /** The recipes a thread uses. */
-export type ThreadRecipes = z.infer<typeof threadRecipesSchema>;
+export type ThreadQueries = z.infer<typeof threadQueriesSchema>;

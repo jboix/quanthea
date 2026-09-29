@@ -2,7 +2,7 @@
  * The threads service: threads, their messages and their plans, with the state machine checked on
  * every change. The agent and the HTTP layer both go through it.
  */
-import type { Plan, PlanView, ThreadDetail, ThreadRecipes, ThreadSummary } from '@querent/shared';
+import type { Plan, PlanView, ThreadDetail, ThreadQueries, ThreadSummary } from '@querent/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { MessageRow, PlanRow, ThreadRepository, ThreadRow } from '../db/thread-repository.ts';
 import { AppError } from '../lib/errors.ts';
@@ -48,7 +48,7 @@ export interface Threads {
    * @param actor - Who starts it.
    * @returns The thread.
    */
-  create(actor: string, providerId?: string | null, recipes?: ThreadRecipes): ThreadSummary;
+  create(actor: string, providerId?: string | null, recipes?: ThreadQueries): ThreadSummary;
   /**
    * Reads a thread with its messages and plans.
    *
@@ -314,7 +314,7 @@ function create(
   context: Context,
   actor: string,
   providerId: string | null,
-  recipes: ThreadRecipes,
+  recipes: ThreadQueries,
 ): ThreadSummary {
   const at = context.now();
   const row: ThreadRow = {

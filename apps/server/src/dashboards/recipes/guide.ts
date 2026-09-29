@@ -3,7 +3,7 @@
  * request, and the queries that example becomes. The examples run through the same expansion as
  * the agent's requests, so the queries shown are the queries written.
  */
-import type { PanelQuery, RecipeGuide } from '@querent/shared';
+import type { PanelQuery, QueryGuide } from '@querent/shared';
 import { z } from 'zod';
 import { expandPanel } from './expand.ts';
 import { builtInSchemas, panelRequestSchema } from './request.ts';
@@ -98,7 +98,7 @@ function typeText(schema: Record<string, unknown>): string {
  * @param schema - The recipe's schema.
  * @returns The fields, in the schema's order.
  */
-function fieldsOf(schema: z.ZodObject): RecipeGuide['fields'] {
+function fieldsOf(schema: z.ZodObject): QueryGuide['fields'] {
   return Object.entries(schema.shape)
     .filter(([name]) => !commonFields.has(name))
     .map(([name, field]) => {
@@ -129,7 +129,7 @@ export function queryText(query: PanelQuery): string {
  *
  * @returns One guide per recipe, in the order the schemas list them.
  */
-export function builtInGuides(): RecipeGuide[] {
+export function builderGuides(): QueryGuide[] {
   return Object.entries(builtInSchemas).map(([id, schema]) => {
     const example = examples[id as keyof typeof builtInSchemas];
     const request = panelRequestSchema.parse({ recipe: id, title: 'Example', ...example });

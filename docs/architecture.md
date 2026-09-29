@@ -182,7 +182,7 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/connectors/:connectorId/health`                          | resource route: the connection test, for fetchers            | admin    |
 | `/settings/model`, `/settings/auth`, `/settings/retention` | Settings                                                     | admin    |
 | `/settings/usage`                                          | Usage: tokens, cost and pinned views per day, by model       | admin    |
-| `/settings/recipes`                                        | Recipes: built-in ones on or off, your own with placeholders | admin    |
+| `/settings/queries`                                        | Recipes: built-in ones on or off, your own with placeholders | admin    |
 | `/settings`                                                | redirect → `/settings/model`                                 | admin    |
 | `/ui`                                                      | UI kit: every `ui/` primitive, for checking the visuals      | viewer   |
 | `/login`                                                   | only in `basic` / `oidc` modes                               | —        |
@@ -366,15 +366,15 @@ panel ids to remove, and deploy markers. The server expands it:
   value per placeholder. Each value is checked and written for its kind like the built-in recipes
   write theirs, so the model still writes no query text.
 - **Which recipes.** Admins switch built-in recipes off (`recipes` settings section,
-  `GET/PUT /api/settings/recipes`). A thread uses the default set (the recipes switched on and
+  `GET/PUT /api/settings/queries`). A thread uses the default set (the recipes switched on and
   every saved one), a set chosen when it starts, or none (free style: custom panels only), stored
   on the thread (`POST /api/threads` with `recipes`). The tool schema and the guide list only
   those recipes. The new-thread screen offers the three, with the recipes to tick when choosing.
 - **Recipes screen.** Each built-in recipe shows the fields the agent fills, an example request
-  and the queries it becomes (`GET /api/settings/recipes/guide`, expanded by the same code as the
+  and the queries it becomes (`GET /api/settings/queries/guide`, expanded by the same code as the
   agent's requests). A preview expands one panel request, validates it and test-runs it on a
   chosen connector and time range, with no model and nothing saved
-  (`POST /api/settings/recipes/preview`). A saved recipe being edited goes along with its
+  (`POST /api/settings/queries/preview`). A saved recipe being edited goes along with its
   preview, so it can be tried before it is kept.
 - **Layout.** Existing panels keep their place; a rebuilt panel keeps its id and place; new
   panels are packed in reading order into rows below, as wide as asked or as their kind usually
@@ -735,9 +735,9 @@ indicative; the contract files are the source of truth.
 | `POST /settings/model/test`                                                                | gateway capability test                      | admin    |
 | `GET /settings/usage?days=`                                                                | usage by hour, from the ledger               | admin    |
 | `GET /model-providers`                                                                     | the providers a thread may use, without keys | editor   |
-| `GET/PUT /settings/recipes`                                                                | built-in recipes on or off, saved recipes    | admin    |
-| `GET /recipes`                                                                             | the recipes a thread may use                 | editor   |
-| `GET /settings/recipes/guide`, `POST /settings/recipes/preview`                            | how recipes work, a test run of one panel    | admin    |
+| `GET/PUT /settings/queries`                                                                | built-in recipes on or off, saved recipes    | admin    |
+| `GET /queries`                                                                             | the recipes a thread may use                 | editor   |
+| `GET /settings/queries/guide`, `POST /settings/queries/preview`                            | how recipes work, a test run of one panel    | admin    |
 | `GET/POST/PATCH /users`                                                                    | local users (basic mode)                     | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { draftOf, guessKind, idOf, newDraft, paramsOf, recipeOf } from './recipe-draft.ts';
+import { draftOf, guessKind, idOf, newDraft, paramsOf, recipeOf } from './query-draft.ts';
 
 describe('recipe drafts', () => {
   test('guess each placeholder’s kind from its name', () => {

@@ -16,7 +16,7 @@ beforeEach(async () => {
   const behaviour = { ...defaultModelGateway.behaviour, testRun: false };
   const gateway = { ...defaultModelGateway, behaviour };
   await services.modelSettings.save(gateway, { anthropic: 'sk-test' }, 'admin-1');
-  services.recipeSettings.save(
+  services.querySettings.save(
     {
       disabled: [],
       saved: [

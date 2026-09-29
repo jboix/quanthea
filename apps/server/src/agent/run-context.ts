@@ -2,7 +2,7 @@
 import type { ModelSettings, ThreadData, TurnUsage } from '@querent/shared';
 import type { UIMessage, UIMessageStreamWriter } from 'ai';
 import type { Dashboards } from '../dashboards/dashboards.ts';
-import type { AvailableRecipes } from '../dashboards/recipes/index.ts';
+import type { AvailableQueries } from '../dashboards/recipes/index.ts';
 import type { ModelView } from '../gate/model-view.ts';
 import type { Threads } from '../threads/threads.ts';
 import type { Usage } from '../usage/usage.ts';
@@ -33,7 +33,7 @@ export interface RunContext extends AgentServices {
   /** The model settings, for the limits and the behaviour. */
   readonly settings: ModelSettings;
   /** The recipes the thread may use. */
-  readonly recipes: AvailableRecipes;
+  readonly recipes: AvailableQueries;
   /** Streams custom parts: plan cards, new versions, diffs. */
   readonly writer: UIMessageStreamWriter<ThreadMessage>;
   /** Aborted when the person stops the run or leaves. */

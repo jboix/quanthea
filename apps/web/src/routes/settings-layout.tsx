@@ -5,7 +5,7 @@ import styles from './settings-layout.module.css';
 const sections = [
   { to: '/settings/model', label: 'Model' },
   { to: '/settings/charts', label: 'Charts' },
-  { to: '/settings/recipes', label: 'Recipes' },
+  { to: '/settings/queries', label: 'Queries' },
   { to: '/settings/usage', label: 'Usage' },
   { to: '/settings/auth', label: 'Authentication' },
   { to: '/settings/retention', label: 'Retention' },

@@ -2,7 +2,7 @@
  * Previews one panel request, as the agent would send it: expanded by its recipe, validated, and
  * test-run with its defaults. Nothing is saved.
  */
-import { builtInRecipes, type RecipePreview, type SavedRecipe } from '@querent/shared';
+import { type QueryPreview, queryBuilders, type SavedQuery } from '@querent/shared';
 import { z } from 'zod';
 import type { Dashboards } from './dashboards.ts';
 import { queryText } from './recipes/guide.ts';
@@ -18,10 +18,10 @@ import { applyEdit, editRequestSchemaFor, RecipeError } from './recipes/index.ts
  */
 function specOf(
   panel: Readonly<Record<string, unknown>>,
-  saved: readonly SavedRecipe[],
+  saved: readonly SavedQuery[],
   from: string,
 ) {
-  const available = { builtIn: builtInRecipes.map((recipe) => recipe.id), saved };
+  const available = { builtIn: queryBuilders.map((recipe) => recipe.id), saved };
   const panels = [{ title: 'Preview', ...panel }];
   const edit = { title: 'Preview', summary: 'preview', time: { from, to: 'now' }, panels };
   const parsed = editRequestSchemaFor(available).safeParse(edit);
@@ -46,9 +46,9 @@ function specOf(
 export async function previewPanel(
   dashboards: Pick<Dashboards, 'check' | 'testRun'>,
   panel: Readonly<Record<string, unknown>>,
-  saved: readonly SavedRecipe[],
+  saved: readonly SavedQuery[],
   from = 'now-24h',
-): Promise<RecipePreview> {
+): Promise<QueryPreview> {
   const built = specOf(panel, saved, from);
   if (!built.spec) return { ok: false, message: built.message, queries: [] };
   const queries = built.spec.panels.flatMap((each) => each.queries.map(queryText));

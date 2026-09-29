@@ -3,10 +3,10 @@ import type { RouteObject } from 'react-router';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import {
-  loadRecipeSettings,
-  RecipesScreen,
-  recipeSettingsAction,
-} from '../features/recipes/index.ts';
+  loadQuerySettings,
+  QueriesScreen,
+  querySettingsAction,
+} from '../features/queries/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
 /**
@@ -16,12 +16,12 @@ import type { ApiClient } from '../lib/api-client.ts';
  * @param api - The API client.
  * @returns The route object.
  */
-export function recipeSettingsRoute(loadSession: SessionLoader, api: ApiClient): RouteObject {
-  const path = '/settings/recipes';
+export function querySettingsRoute(loadSession: SessionLoader, api: ApiClient): RouteObject {
+  const path = '/settings/queries';
   return {
     path,
-    loader: guarded(loadSession, path, loadRecipeSettings(api)),
-    action: guarded(loadSession, path, recipeSettingsAction(api)),
-    Component: RecipesScreen,
+    loader: guarded(loadSession, path, loadQuerySettings(api)),
+    action: guarded(loadSession, path, querySettingsAction(api)),
+    Component: QueriesScreen,
   };
 }

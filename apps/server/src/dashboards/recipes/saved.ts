@@ -3,7 +3,7 @@
  * kind and written for the query's language, like the built-in recipes write theirs: names
  * checked and quoted, values escaped or bound, durations checked.
  */
-import type { PanelQuery, RecipeParamKind, SavedRecipe } from '@querent/shared';
+import type { PanelQuery, QueryParamKind, SavedQuery } from '@querent/shared';
 import type { PanelDraft } from './draft.ts';
 import type { RecipeOf } from './request.ts';
 import { metricName, RecipeError, sqlInterval, sqlName, sqlString, variableOf } from './text.ts';
@@ -39,14 +39,14 @@ function checked(value: string, pattern: RegExp, what: string): string {
  * @param language - The query language.
  * @returns Such as `"checkout-svc"` in PromQL or `:service` in SQL.
  */
-function valueText(value: string, language: SavedRecipe['language']): string {
+function valueText(value: string, language: SavedQuery['language']): string {
   const variable = variableOf(value);
   if (language === 'promql') return variable ? `"${value}"` : JSON.stringify(value);
   return variable ? `:${variable}` : sqlString(value);
 }
 
 /** How each kind of placeholder is written, in SQL or in PromQL. */
-const writers: Readonly<Record<RecipeParamKind, (value: string, sql: boolean) => string>> = {
+const writers: Readonly<Record<QueryParamKind, (value: string, sql: boolean) => string>> = {
   value: (value, sql) => valueText(value, sql ? 'sql' : 'promql'),
   duration: (value, sql) => {
     const checkedDuration = checked(value, duration, 'a duration such as 5m');
@@ -79,11 +79,7 @@ const writers: Readonly<Record<RecipeParamKind, (value: string, sql: boolean) =>
  * @returns The text.
  * @throws {RecipeError} When the value does not fit its kind or its language.
  */
-function paramText(
-  kind: RecipeParamKind,
-  language: SavedRecipe['language'],
-  value: string,
-): string {
+function paramText(kind: QueryParamKind, language: SavedQuery['language'], value: string): string {
   return writers[kind](value, language === 'sql');
 }
 
@@ -95,7 +91,7 @@ function paramText(
  * @returns The query text.
  * @throws {RecipeError} When a placeholder has no value or a value does not fit.
  */
-function filled(recipe: SavedRecipe, params: Readonly<Record<string, string>>): string {
+function filled(recipe: SavedQuery, params: Readonly<Record<string, string>>): string {
   return recipe.query.replace(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g, (_match, name: string) => {
     const param = recipe.params.find((each) => each.name === name);
     const value = params[name];
@@ -113,7 +109,7 @@ function filled(recipe: SavedRecipe, params: Readonly<Record<string, string>>): 
  * @returns The draft.
  * @throws {RecipeError} For an unknown recipe or values that do not fit.
  */
-export function savedDraft(request: RecipeOf<'saved'>, saved: readonly SavedRecipe[]): PanelDraft {
+export function savedDraft(request: RecipeOf<'saved'>, saved: readonly SavedQuery[]): PanelDraft {
   const recipe = saved.find((each) => each.id === request.name);
   if (!recipe) throw new RecipeError(`No saved recipe "${request.name}".`);
   const text = filled(recipe, request.params);

@@ -17,7 +17,7 @@ import { SettingsAuthRoute } from '../routes/settings-auth.tsx';
 import { SettingsChartsRoute } from '../routes/settings-charts.tsx';
 import { SettingsLayout } from '../routes/settings-layout.tsx';
 import { modelSettingsRoute } from '../routes/settings-model.tsx';
-import { recipeSettingsRoute } from '../routes/settings-recipes.tsx';
+import { querySettingsRoute } from '../routes/settings-queries.tsx';
 import { SettingsRetentionRoute } from '../routes/settings-retention.tsx';
 import { usageSettingsRoute } from '../routes/settings-usage.tsx';
 import { threadRoutes } from '../routes/thread.tsx';
@@ -97,7 +97,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
         { index: true, loader: () => redirect('/settings/model') },
         modelSettingsRoute(loadSession, api),
         screen(loadSession, '/settings/charts', SettingsChartsRoute),
-        recipeSettingsRoute(loadSession, api),
+        querySettingsRoute(loadSession, api),
         usageSettingsRoute(loadSession, api),
         screen(loadSession, '/settings/auth', SettingsAuthRoute),
         screen(loadSession, '/settings/retention', SettingsRetentionRoute),

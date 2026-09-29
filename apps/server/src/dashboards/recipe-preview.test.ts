@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { builtInRecipes, connectorInputSchema, type SavedRecipe } from '@querent/shared';
+import { connectorInputSchema, queryBuilders, type SavedQuery } from '@querent/shared';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
 import { previewPanel } from './recipe-preview.ts';
-import { builtInGuides } from './recipes/guide.ts';
+import { builderGuides } from './recipes/guide.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let services: Awaited<ReturnType<typeof testServices>>;
@@ -19,7 +19,7 @@ afterEach(async () => {
   dataDir.remove();
 });
 
-const allEvents: SavedRecipe = {
+const allEvents: SavedQuery = {
   id: 'all-events',
   name: 'All events',
   description: 'Every event.',
@@ -57,10 +57,10 @@ describe('previewPanel', () => {
   });
 });
 
-describe('builtInGuides', () => {
+describe('builderGuides', () => {
   test('describe every built-in recipe with its fields and the queries its example writes', () => {
-    const guides = builtInGuides();
-    expect(guides.map((guide) => guide.id)).toEqual(builtInRecipes.map((recipe) => recipe.id));
+    const guides = builderGuides();
+    expect(guides.map((guide) => guide.id)).toEqual(queryBuilders.map((recipe) => recipe.id));
     const rate = guides.find((guide) => guide.id === 'rate');
     expect(rate?.fields.find((field) => field.name === 'window')).toMatchObject({
       required: false,

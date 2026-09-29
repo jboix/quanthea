@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { builtInRecipes, type SavedRecipe } from '@querent/shared';
+import { queryBuilders, type SavedQuery } from '@querent/shared';
 import type { AuditEntry } from '../db/audit-repository.ts';
-import { createRecipeSettings } from './recipe-settings.ts';
+import { createQuerySettings } from './query-settings.ts';
 import { createSettingsStore } from './settings-store.ts';
 
-const saved: SavedRecipe = {
+const saved: SavedQuery = {
   id: 'queue-depth',
   name: 'Queue depth',
   description: 'Messages waiting.',
@@ -20,14 +20,14 @@ const saved: SavedRecipe = {
  *
  * @returns The service and the audit entries.
  */
-function recipeSettings() {
+function querySettings() {
   const rows = new Map<string, string>();
   const store = createSettingsStore({
     read: (key) => rows.get(key),
     write: (key, value) => void rows.set(key, value),
   });
   const entries: AuditEntry[] = [];
-  const service = createRecipeSettings({
+  const service = createQuerySettings({
     store,
     audit: { append: (entry) => void entries.push(entry) },
   });
@@ -36,15 +36,15 @@ function recipeSettings() {
 
 describe('recipe settings', () => {
   test('start with every built-in recipe on and none saved', () => {
-    const { service } = recipeSettings();
+    const { service } = querySettings();
     expect(service.get()).toEqual({ disabled: [], saved: [] });
     expect(service.available({ mode: 'default' }).builtIn).toEqual(
-      builtInRecipes.map((recipe) => recipe.id),
+      queryBuilders.map((recipe) => recipe.id),
     );
   });
 
   test('give a thread the default set, its chosen set, or none', () => {
-    const { service, entries } = recipeSettings();
+    const { service, entries } = querySettings();
     service.save({ disabled: ['top', 'sql-rows'], saved: [saved] }, 'admin-1');
     const byDefault = service.available({ mode: 'default' });
     expect(byDefault.builtIn).not.toContain('top');
@@ -60,7 +60,7 @@ describe('recipe settings', () => {
   });
 
   test('list every recipe with whether the default set has it', () => {
-    const { service } = recipeSettings();
+    const { service } = querySettings();
     service.save({ disabled: ['top'], saved: [saved] }, 'admin-1');
     const choices = service.choices();
     expect(choices.find((choice) => choice.id === 'top')).toMatchObject({ enabled: false });

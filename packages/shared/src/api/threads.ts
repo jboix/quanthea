@@ -1,7 +1,7 @@
 /** Thread endpoints: list, create, read and delete threads, decide plans, and undo a version. */
 import { z } from 'zod';
 import { accessLevelSchema } from '../connectors.ts';
-import { threadRecipesSchema } from '../recipes.ts';
+import { threadQueriesSchema } from '../queries.ts';
 import { planViewSchema, threadStates } from '../threads.ts';
 import { defineEndpoint } from './contract.ts';
 
@@ -15,7 +15,7 @@ export const threadSummarySchema = z.object({
   /** The model provider it uses; `null` for the default. */
   providerId: z.string().nullable(),
   /** The recipes it uses. */
-  recipes: threadRecipesSchema,
+  recipes: threadQueriesSchema,
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -58,7 +58,7 @@ export const createThreadEndpoint = defineEndpoint({
   path: '/threads',
   body: z.object({
     providerId: z.string().max(40).optional(),
-    recipes: threadRecipesSchema.optional(),
+    recipes: threadQueriesSchema.optional(),
   }),
   output: threadSummarySchema,
 });

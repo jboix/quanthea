@@ -1,7 +1,7 @@
 /** The recipes screen's state: the settings as edited, the recipe shown, and the editor. */
-import type { RecipeSettings, SavedRecipe } from '@querent/shared';
+import type { QuerySettings, SavedQuery } from '@querent/shared';
 import { useState } from 'react';
-import { newDraft, type RecipeDraft } from './recipe-draft.ts';
+import { newDraft, type QueryDraft } from './query-draft.ts';
 
 /** The recipe the screen shows: a built-in one by id, or one of yours by its place. */
 export type Selection =
@@ -9,7 +9,7 @@ export type Selection =
   | { readonly kind: 'saved'; readonly index: number };
 
 /** The recipe being edited: a new one, or one of yours by its place. */
-export type Editing = { readonly draft: RecipeDraft; readonly index: number | null } | null;
+export type Editing = { readonly draft: QueryDraft; readonly index: number | null } | null;
 
 /**
  * The settings with a recipe kept: added at the end, or put in its place.
@@ -19,7 +19,7 @@ export type Editing = { readonly draft: RecipeDraft; readonly index: number | nu
  * @param index - Its place, or `null` for a new one.
  * @returns The settings.
  */
-function withRecipe(settings: RecipeSettings, recipe: SavedRecipe, index: number | null) {
+function withRecipe(settings: QuerySettings, recipe: SavedQuery, index: number | null) {
   const saved = [...settings.saved];
   if (index === null) saved.push(recipe);
   else saved[index] = recipe;
@@ -32,7 +32,7 @@ function withRecipe(settings: RecipeSettings, recipe: SavedRecipe, index: number
  * @param saved - The settings as saved.
  * @returns The settings, the selection, the editor, and the changes.
  */
-export function useRecipesForm(saved: RecipeSettings) {
+export function useQueriesForm(saved: QuerySettings) {
   const [settings, setSettings] = useState(saved);
   const [selected, select] = useState<Selection>({ kind: 'built-in', id: 'rate' });
   const [editing, setEditing] = useState<Editing>(null);
@@ -41,7 +41,7 @@ export function useRecipesForm(saved: RecipeSettings) {
       ...current,
       disabled: on ? current.disabled.filter((each) => each !== id) : [...current.disabled, id],
     }));
-  const keep = (recipe: SavedRecipe) => {
+  const keep = (recipe: SavedQuery) => {
     const index = editing?.index ?? settings.saved.length;
     setSettings((current) => withRecipe(current, recipe, editing?.index ?? null));
     setEditing(null);
@@ -60,4 +60,4 @@ export function useRecipesForm(saved: RecipeSettings) {
 }
 
 /** The form state. */
-export type RecipesForm = ReturnType<typeof useRecipesForm>;
+export type QueriesForm = ReturnType<typeof useQueriesForm>;

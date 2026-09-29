@@ -1,4 +1,4 @@
-import type { SavedRecipe } from '@querent/shared';
+import type { SavedQuery } from '@querent/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';
@@ -10,7 +10,7 @@ import {
   RangeSelect,
   usePreview,
 } from './preview.tsx';
-import styles from './recipes.module.css';
+import styles from './queries.module.css';
 
 /**
  * A value for each placeholder, as the agent would give them.
@@ -26,7 +26,7 @@ function ParamInputs({
   values,
   onChange,
 }: {
-  readonly params: SavedRecipe['params'];
+  readonly params: SavedQuery['params'];
   readonly values: Readonly<Record<string, string>>;
   readonly onChange: (values: Record<string, string>) => void;
 }) {
@@ -49,7 +49,7 @@ function ParamInputs({
 /** Props of {@link SavedPreview}. */
 interface SavedPreviewProps {
   /** The recipe, or `undefined` while a draft has problems. */
-  readonly recipe: SavedRecipe | undefined;
+  readonly recipe: SavedQuery | undefined;
   /** The recipe's language, for the connectors offered. */
   readonly language: 'sql' | 'promql';
   /** The connectors a preview can run on. */

@@ -3,28 +3,28 @@
  * the recipes a new thread may use.
  */
 import { z } from 'zod';
-import { recipeSettingsSchema, savedRecipeSchema } from '../recipes.ts';
+import { querySettingsSchema, savedQuerySchema } from '../queries.ts';
 import { panelSchema } from '../spec/dashboard.ts';
 import { defineEndpoint } from './contract.ts';
 import { panelRunSchema } from './panels.ts';
 
 /** The recipe settings, for admins. */
-export const getRecipeSettingsEndpoint = defineEndpoint({
+export const getQuerySettingsEndpoint = defineEndpoint({
   method: 'GET',
-  path: '/settings/recipes',
-  output: recipeSettingsSchema,
+  path: '/settings/queries',
+  output: querySettingsSchema,
 });
 
 /** Saves the recipe settings. */
-export const saveRecipeSettingsEndpoint = defineEndpoint({
+export const saveQuerySettingsEndpoint = defineEndpoint({
   method: 'PUT',
-  path: '/settings/recipes',
-  body: recipeSettingsSchema,
-  output: recipeSettingsSchema,
+  path: '/settings/queries',
+  body: querySettingsSchema,
+  output: querySettingsSchema,
 });
 
 /** A recipe as a new thread may choose it. */
-export const recipeChoiceSchema = z.object({
+export const queryChoiceSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
@@ -36,17 +36,17 @@ export const recipeChoiceSchema = z.object({
 });
 
 /** A recipe a thread may use. */
-export type RecipeChoice = z.infer<typeof recipeChoiceSchema>;
+export type QueryChoice = z.infer<typeof queryChoiceSchema>;
 
 /** The recipes a new thread may use, for editors. */
-export const listRecipeChoicesEndpoint = defineEndpoint({
+export const listQueryChoicesEndpoint = defineEndpoint({
   method: 'GET',
-  path: '/recipes',
-  output: z.object({ recipes: z.array(recipeChoiceSchema) }),
+  path: '/queries',
+  output: z.object({ recipes: z.array(queryChoiceSchema) }),
 });
 
 /** A field the agent fills when it asks for a built-in recipe. */
-export const recipeFieldSchema = z.object({
+export const queryFieldSchema = z.object({
   name: z.string(),
   /** Such as `string`, `string[]` or `"line" | "stat"`. */
   type: z.string(),
@@ -57,9 +57,9 @@ export const recipeFieldSchema = z.object({
 });
 
 /** How a built-in recipe works: what the agent fills, an example, and the queries it writes. */
-export const recipeGuideSchema = z.object({
+export const queryGuideSchema = z.object({
   id: z.string(),
-  fields: z.array(recipeFieldSchema),
+  fields: z.array(queryFieldSchema),
   /** A request the agent could send, without its title. */
   example: z.record(z.string(), z.unknown()),
   /** The queries the example becomes. */
@@ -67,7 +67,7 @@ export const recipeGuideSchema = z.object({
 });
 
 /** How a built-in recipe works. */
-export type RecipeGuide = z.infer<typeof recipeGuideSchema>;
+export type QueryGuide = z.infer<typeof queryGuideSchema>;
 
 /** A connector a preview can run on. */
 export const previewConnectorSchema = z.object({
@@ -76,11 +76,11 @@ export const previewConnectorSchema = z.object({
 });
 
 /** How the built-in recipes work, and the connectors a preview can run on, for admins. */
-export const getRecipeGuideEndpoint = defineEndpoint({
+export const getQueryGuideEndpoint = defineEndpoint({
   method: 'GET',
-  path: '/settings/recipes/guide',
+  path: '/settings/queries/guide',
   output: z.object({
-    recipes: z.array(recipeGuideSchema),
+    recipes: z.array(queryGuideSchema),
     connectors: z.array(previewConnectorSchema),
   }),
 });
@@ -89,7 +89,7 @@ export const getRecipeGuideEndpoint = defineEndpoint({
 export const previewRanges = ['now-1h', 'now-6h', 'now-24h', 'now-7d', 'now-30d'] as const;
 
 /** The outcome of a recipe preview. */
-export const recipePreviewSchema = z.discriminatedUnion('ok', [
+export const queryPreviewSchema = z.discriminatedUnion('ok', [
   z.object({
     ok: z.literal(true),
     panel: panelSchema,
@@ -101,19 +101,19 @@ export const recipePreviewSchema = z.discriminatedUnion('ok', [
 ]);
 
 /** The outcome of a recipe preview. */
-export type RecipePreview = z.infer<typeof recipePreviewSchema>;
+export type QueryPreview = z.infer<typeof queryPreviewSchema>;
 
 /**
  * Expands one panel request as the agent would send it and test-runs it, for admins. A saved
  * recipe being edited comes with it, so it can be tried before it is saved.
  */
-export const previewRecipeEndpoint = defineEndpoint({
+export const previewQueryEndpoint = defineEndpoint({
   method: 'POST',
-  path: '/settings/recipes/preview',
+  path: '/settings/queries/preview',
   body: z.object({
     panel: z.record(z.string(), z.unknown()),
-    saved: savedRecipeSchema.optional(),
+    saved: savedQuerySchema.optional(),
     from: z.enum(previewRanges).default('now-24h'),
   }),
-  output: recipePreviewSchema,
+  output: queryPreviewSchema,
 });

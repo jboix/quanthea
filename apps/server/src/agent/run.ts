@@ -16,7 +16,7 @@ import {
 import { z } from 'zod';
 import { AppError } from '../lib/errors.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
-import type { RecipeSettingsService } from '../settings/recipe-settings.ts';
+import type { QuerySettingsService } from '../settings/query-settings.ts';
 import { withPlanDecisions } from './compact.ts';
 import { firstQuestionMatches, matchesResponse } from './matches.ts';
 import {
@@ -36,7 +36,7 @@ export interface AgentDependencies extends AgentServices {
   /** The model gateway settings. */
   readonly modelSettings: ModelSettingsService;
   /** The recipe settings, for the recipes a thread may use. */
-  readonly recipeSettings: RecipeSettingsService;
+  readonly querySettings: QuerySettingsService;
   /** Builds the model; the real providers by default. */
   readonly buildModel?: typeof languageModel;
   /** The clock; `Date.now` by default. */
@@ -248,7 +248,7 @@ function runContext(
   };
   const { threadId, actor, signal } = request;
   const { settings, providerName } = turn;
-  const recipes = dependencies.recipeSettings.available(dependencies.threads.row(threadId).recipes);
+  const recipes = dependencies.querySettings.available(dependencies.threads.row(threadId).recipes);
   const run = { threadId, actor, settings, providerName, recipes, writer, signal, counters };
   return { ...dependencies, ...run };
 }

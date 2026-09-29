@@ -71,17 +71,17 @@ export {
   variableOptionsEndpoint,
 } from './api/panels.ts';
 export {
-  getRecipeGuideEndpoint,
-  getRecipeSettingsEndpoint,
-  listRecipeChoicesEndpoint,
+  getQueryGuideEndpoint,
+  getQuerySettingsEndpoint,
+  listQueryChoicesEndpoint,
+  previewQueryEndpoint,
   previewRanges,
-  previewRecipeEndpoint,
-  type RecipeChoice,
-  type RecipeGuide,
-  type RecipePreview,
-  recipeChoiceSchema,
-  saveRecipeSettingsEndpoint,
-} from './api/recipes.ts';
+  type QueryChoice,
+  type QueryGuide,
+  type QueryPreview,
+  queryChoiceSchema,
+  saveQuerySettingsEndpoint,
+} from './api/queries.ts';
 export {
   approvePlanEndpoint,
   createThreadEndpoint,
@@ -202,20 +202,20 @@ export {
   turnUsageSchema,
 } from './model-usage.ts';
 export {
-  type BuiltInRecipe,
-  builtInRecipes,
   type PanelUnit,
   panelUnits,
   placeholdersOf,
-  type RecipeParamKind,
-  type RecipeSettings,
-  recipeParamKinds,
-  recipeSettingsSchema,
-  type SavedRecipe,
-  savedRecipeSchema,
-  type ThreadRecipes,
-  threadRecipesSchema,
-} from './recipes.ts';
+  type QueryBuilder,
+  type QueryParamKind,
+  type QuerySettings,
+  queryBuilders,
+  queryParamKinds,
+  querySettingsSchema,
+  type SavedQuery,
+  savedQuerySchema,
+  type ThreadQueries,
+  threadQueriesSchema,
+} from './queries.ts';
 export {
   type AuthMode,
   authModeSchema,

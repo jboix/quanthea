@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import type { SavedRecipe } from '@querent/shared';
-import { savedRecipeSchema } from '@querent/shared';
+import type { SavedQuery } from '@querent/shared';
+import { savedQuerySchema } from '@querent/shared';
 import { z } from 'zod';
 import { applyEdit } from './edit.ts';
 import { editRequestSchemaFor } from './request.ts';
 
-const failedBy: SavedRecipe = savedRecipeSchema.parse({
+const failedBy: SavedQuery = savedQuerySchema.parse({
   id: 'failed-by',
   name: 'Failed by column',
   description: 'Failed rows by a column.',
@@ -20,7 +20,7 @@ const failedBy: SavedRecipe = savedRecipeSchema.parse({
   show: 'category-bar',
 });
 
-const queueDepth: SavedRecipe = savedRecipeSchema.parse({
+const queueDepth: SavedQuery = savedQuerySchema.parse({
   id: 'queue-depth',
   name: 'Queue depth',
   description: 'Messages waiting, averaged over a window.',
@@ -101,7 +101,7 @@ describe('saved recipes', () => {
 
 describe('saved recipe settings', () => {
   test('need every placeholder declared and used, and columns for a table', () => {
-    const result = savedRecipeSchema.safeParse({
+    const result = savedQuerySchema.safeParse({
       ...failedBy,
       query: 'SELECT {{other}} FROM {{table}}',
       show: 'table',

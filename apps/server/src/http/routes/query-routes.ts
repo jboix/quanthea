@@ -1,25 +1,25 @@
 /** The recipe endpoints: the settings, for admins, and the recipes a thread may use, for editors. */
 import {
-  getRecipeGuideEndpoint,
-  getRecipeSettingsEndpoint,
-  listRecipeChoicesEndpoint,
-  previewRecipeEndpoint,
-  saveRecipeSettingsEndpoint,
+  getQueryGuideEndpoint,
+  getQuerySettingsEndpoint,
+  listQueryChoicesEndpoint,
+  previewQueryEndpoint,
+  saveQuerySettingsEndpoint,
 } from '@querent/shared';
 import type { Hono } from 'hono';
 import type { Connections } from '../../connections/connections.ts';
 import type { Dashboards } from '../../dashboards/dashboards.ts';
 import { previewPanel } from '../../dashboards/recipe-preview.ts';
-import { builtInGuides } from '../../dashboards/recipes/guide.ts';
-import type { RecipeSettingsService } from '../../settings/recipe-settings.ts';
+import { builderGuides } from '../../dashboards/recipes/guide.ts';
+import type { QuerySettingsService } from '../../settings/query-settings.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { actorOf } from '../principal.ts';
 
 /** The services the recipe endpoints use. */
-export interface RecipeRouteServices {
+export interface QueryRouteServices {
   /** The recipe settings. */
-  readonly recipeSettings: RecipeSettingsService;
+  readonly querySettings: QuerySettingsService;
   /** The dashboards, which validate and test-run a preview. */
   readonly dashboards: Dashboards;
   /** The connectors, which a preview can run on. */
@@ -32,20 +32,20 @@ export interface RecipeRouteServices {
  * @param app - The app.
  * @param services - The recipe settings, the dashboards and the connectors.
  */
-function mountPreviewRoutes(app: Hono<AppEnv>, services: RecipeRouteServices): void {
-  mountEndpoint(app, getRecipeGuideEndpoint, {
+function mountPreviewRoutes(app: Hono<AppEnv>, services: QueryRouteServices): void {
+  mountEndpoint(app, getQueryGuideEndpoint, {
     access: 'admin',
     handle: () => {
       const connectors = services.connections
         .subjects()
         .map(({ subject, language }) => ({ name: subject.name, language }));
-      return { recipes: builtInGuides(), connectors };
+      return { recipes: builderGuides(), connectors };
     },
   });
-  mountEndpoint(app, previewRecipeEndpoint, {
+  mountEndpoint(app, previewQueryEndpoint, {
     access: 'admin',
     handle: ({ body }) => {
-      const stored = services.recipeSettings.get().saved;
+      const stored = services.querySettings.get().saved;
       const draft = body.saved;
       const saved = draft ? [draft, ...stored.filter((each) => each.id !== draft.id)] : stored;
       return previewPanel(services.dashboards, body.panel, saved, body.from);
@@ -59,19 +59,19 @@ function mountPreviewRoutes(app: Hono<AppEnv>, services: RecipeRouteServices): v
  * @param app - The app.
  * @param services - The recipe settings, the dashboards and the connectors.
  */
-export function mountRecipeEndpoints(app: Hono<AppEnv>, services: RecipeRouteServices): void {
-  const { recipeSettings } = services;
-  mountEndpoint(app, getRecipeSettingsEndpoint, {
+export function mountQueryEndpoints(app: Hono<AppEnv>, services: QueryRouteServices): void {
+  const { querySettings } = services;
+  mountEndpoint(app, getQuerySettingsEndpoint, {
     access: 'admin',
-    handle: () => recipeSettings.get(),
+    handle: () => querySettings.get(),
   });
-  mountEndpoint(app, saveRecipeSettingsEndpoint, {
+  mountEndpoint(app, saveQuerySettingsEndpoint, {
     access: 'admin',
-    handle: ({ body, principal }) => recipeSettings.save(body, actorOf(principal)),
+    handle: ({ body, principal }) => querySettings.save(body, actorOf(principal)),
   });
-  mountEndpoint(app, listRecipeChoicesEndpoint, {
+  mountEndpoint(app, listQueryChoicesEndpoint, {
     access: 'editor',
-    handle: () => ({ recipes: recipeSettings.choices() }),
+    handle: () => ({ recipes: querySettings.choices() }),
   });
   mountPreviewRoutes(app, services);
 }

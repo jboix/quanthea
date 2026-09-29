@@ -2,8 +2,8 @@
  * The guide to edit_dashboard for one thread: only the recipes the thread may use, the saved ones
  * with their placeholders, and custom panels as the fallback or, with no recipes, the only way.
  */
-import { builtInRecipes, type SavedRecipe } from '@querent/shared';
-import type { AvailableRecipes } from '../dashboards/recipes/index.ts';
+import { queryBuilders, type SavedQuery } from '@querent/shared';
+import type { AvailableQueries } from '../dashboards/recipes/index.ts';
 import { builtInHints, customGuide, editIntro, editRules, savedGuide } from './prompt-text.ts';
 
 /**
@@ -15,7 +15,7 @@ import { builtInHints, customGuide, editIntro, editRules, savedGuide } from './p
  * @returns The line, or nothing when it may use none of them.
  */
 function builtInLine(label: string, language: 'sql' | 'promql', ids: readonly string[]) {
-  const listed = builtInRecipes
+  const listed = queryBuilders
     .filter((recipe) => recipe.language === language && ids.includes(recipe.id))
     .map((recipe) => `${recipe.id} (${builtInHints[recipe.id] ?? recipe.description})`);
   return listed.length === 0 ? [] : [`${label}: ${listed.join(', ')}.`];
@@ -27,7 +27,7 @@ function builtInLine(label: string, language: 'sql' | 'promql', ids: readonly st
  * @param recipe - The recipe.
  * @returns Such as `- "errors-by-route" (promql): What it shows. Placeholders: metric (metric).`
  */
-function savedLine(recipe: SavedRecipe): string {
+function savedLine(recipe: SavedQuery): string {
   const params = recipe.params.map((param) => {
     const described = param.description === '' ? '' : `: ${param.description}`;
     return `${param.name} (${param.kind}${described})`;
@@ -42,7 +42,7 @@ function savedLine(recipe: SavedRecipe): string {
  * @param available - The recipes.
  * @returns The guide.
  */
-export function recipeGuideFor(available: AvailableRecipes): string {
+export function recipeGuideFor(available: AvailableQueries): string {
   const none = available.builtIn.length === 0 && available.saved.length === 0;
   const recipes = [
     ...builtInLine('PromQL recipes', 'promql', available.builtIn),

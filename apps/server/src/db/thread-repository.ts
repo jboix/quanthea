@@ -1,6 +1,6 @@
 /** Reads and writes threads, their messages and their plans. */
 import type { Database } from 'bun:sqlite';
-import { type ThreadRecipes, threadRecipesSchema } from '@querent/shared';
+import { type ThreadQueries, threadQueriesSchema } from '@querent/shared';
 
 /** A thread state, as stored. */
 type StoredState = 'idle' | 'plan_pending' | 'building' | 'ready';
@@ -22,7 +22,7 @@ export interface ThreadRow {
   /** The model provider it uses; `null` for the default. */
   readonly providerId: string | null;
   /** The recipes it uses. */
-  readonly recipes: ThreadRecipes;
+  readonly recipes: ThreadQueries;
   /** Creation time, in epoch milliseconds. */
   readonly createdAt: number;
   /** Last change, in epoch milliseconds. */
@@ -283,9 +283,9 @@ function threadStatements(database: Database) {
  * @param stored - The stored JSON, or `null`.
  * @returns The recipes; the default set when none or invalid.
  */
-function recipesOf(stored: string | null): ThreadRecipes {
+function recipesOf(stored: string | null): ThreadQueries {
   if (stored === null) return { mode: 'default' };
-  return threadRecipesSchema.safeParse(JSON.parse(stored)).data ?? { mode: 'default' };
+  return threadQueriesSchema.safeParse(JSON.parse(stored)).data ?? { mode: 'default' };
 }
 
 /**

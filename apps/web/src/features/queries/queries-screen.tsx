@@ -1,22 +1,22 @@
-import { builtInRecipes, type RecipeSettings } from '@querent/shared';
+import { type QuerySettings, queryBuilders } from '@querent/shared';
 import { type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Page } from '../../ui/page.tsx';
 import { BuiltInDetail } from './built-in-detail.tsx';
-import type { RecipesData, RecipesIntent, RecipesOutcome } from './data.ts';
-import { draftOf } from './recipe-draft.ts';
-import { RecipeEditor } from './recipe-editor.tsx';
-import { RecipeList } from './recipe-list.tsx';
-import styles from './recipes.module.css';
-import { type RecipesForm, useRecipesForm } from './recipes-form.ts';
+import type { QueriesData, QueriesIntent, QueriesOutcome } from './data.ts';
+import styles from './queries.module.css';
+import { type QueriesForm, useQueriesForm } from './queries-form.ts';
+import { draftOf } from './query-draft.ts';
+import { QueryEditor } from './query-editor.tsx';
+import { QueryList } from './query-list.tsx';
 import { SavedDetail } from './saved-detail.tsx';
 
 /** Props of the detail parts. */
 interface DetailProps {
   /** The form state. */
-  readonly form: RecipesForm;
+  readonly form: QueriesForm;
   /** The guides and the connectors. */
-  readonly data: RecipesData;
+  readonly data: QueriesData;
 }
 
 /**
@@ -47,7 +47,7 @@ function SavedSelection({ form, data, index }: DetailProps & { readonly index: n
  * @returns The detail, or nothing when there is no such recipe.
  */
 function BuiltInSelection({ form, data, id }: DetailProps & { readonly id: string }) {
-  const recipe = builtInRecipes.find((each) => each.id === id);
+  const recipe = queryBuilders.find((each) => each.id === id);
   const guide = data.guides.find((each) => each.id === id);
   if (!recipe || !guide) return null;
   return (
@@ -77,7 +77,7 @@ function Detail({ form, data }: DetailProps) {
     );
   }
   return (
-    <RecipeEditor
+    <QueryEditor
       key={editing.index ?? 'new'}
       start={editing.draft}
       isNew={editing.index === null}
@@ -95,7 +95,7 @@ function Detail({ form, data }: DetailProps) {
  * @param form - The form state.
  * @returns The line.
  */
-function saveNote(form: RecipesForm): string {
+function saveNote(form: QueriesForm): string {
   if (form.editing !== null) return 'Finish the recipe you are editing first.';
   return form.dirty ? 'Unsaved changes.' : 'Everything is saved.';
 }
@@ -107,12 +107,12 @@ function saveNote(form: RecipesForm): string {
  * @param props.form - The form state.
  * @returns The bar.
  */
-function SaveBar({ form }: { readonly form: RecipesForm }) {
-  const fetcher = useFetcher<RecipesOutcome>();
+function SaveBar({ form }: { readonly form: QueriesForm }) {
+  const fetcher = useFetcher<QueriesOutcome>();
   const refused =
     fetcher.data?.intent === 'save' && !fetcher.data.ok ? fetcher.data.message : undefined;
   const save = () => {
-    const intent: RecipesIntent = { intent: 'save', settings: form.settings };
+    const intent: QueriesIntent = { intent: 'save', settings: form.settings };
     void fetcher.submit(intent as unknown as SubmitTarget, {
       method: 'post',
       encType: 'application/json',
@@ -140,13 +140,13 @@ function SaveBar({ form }: { readonly form: RecipesForm }) {
  * @param props.data - The settings, the guides and the connectors.
  * @returns The list, the detail and the save bar.
  */
-function RecipesBody({ data }: { readonly data: RecipesData }) {
-  const form = useRecipesForm(data.settings);
+function QueriesBody({ data }: { readonly data: QueriesData }) {
+  const form = useQueriesForm(data.settings);
   return (
     <>
       <SaveBar form={form} />
       <div className={styles.layout}>
-        <RecipeList form={form} />
+        <QueryList form={form} />
         <Detail form={form} data={data} />
       </div>
     </>
@@ -158,15 +158,15 @@ function RecipesBody({ data }: { readonly data: RecipesData }) {
  *
  * @returns The screen.
  */
-export function RecipesScreen() {
-  const data = useLoaderData() as RecipesData;
-  const saved: RecipeSettings = data.settings;
+export function QueriesScreen() {
+  const data = useLoaderData() as QueriesData;
+  const saved: QuerySettings = data.settings;
   return (
     <Page
-      title="Recipes"
-      subtitle="The agent names what a panel shows and the server writes and tests the query. Fewer tokens, fewer broken panels."
+      title="Queries"
+      subtitle="Query builders and saved queries: the agent names what data it wants and the server writes and tests the query. Fewer tokens, fewer broken panels."
     >
-      <RecipesBody key={JSON.stringify(saved)} data={data} />
+      <QueriesBody key={JSON.stringify(saved)} data={data} />
     </Page>
   );
 }

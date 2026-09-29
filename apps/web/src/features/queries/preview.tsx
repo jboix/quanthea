@@ -1,10 +1,10 @@
-import type { RecipePreview, SavedRecipe } from '@querent/shared';
+import type { QueryPreview, SavedQuery } from '@querent/shared';
 import { useState } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
 import { Select } from '../../ui/select.tsx';
 import { PanelView } from '../dashboard/index.ts';
-import type { PreviewConnector, PreviewRange, RecipesIntent, RecipesOutcome } from './data.ts';
-import styles from './recipes.module.css';
+import type { PreviewConnector, PreviewRange, QueriesIntent, QueriesOutcome } from './data.ts';
+import styles from './queries.module.css';
 
 /** The time ranges a preview offers. */
 const rangeOptions: readonly { value: PreviewRange; label: string }[] = [
@@ -22,10 +22,10 @@ const rangeOptions: readonly { value: PreviewRange; label: string }[] = [
  *   preview.
  */
 export function usePreview() {
-  const fetcher = useFetcher<RecipesOutcome>();
+  const fetcher = useFetcher<QueriesOutcome>();
   const [from, setFrom] = useState<PreviewRange>('now-24h');
-  const run = (panel: Readonly<Record<string, unknown>>, saved?: SavedRecipe) => {
-    const intent: RecipesIntent = { intent: 'preview', panel, from, ...(saved ? { saved } : {}) };
+  const run = (panel: Readonly<Record<string, unknown>>, saved?: SavedQuery) => {
+    const intent: QueriesIntent = { intent: 'preview', panel, from, ...(saved ? { saved } : {}) };
     void fetcher.submit(intent as unknown as SubmitTarget, {
       method: 'post',
       encType: 'application/json',
@@ -119,7 +119,7 @@ export function connectorFor(
  * @param props.preview - The preview.
  * @returns The result.
  */
-export function PreviewResult({ preview }: { readonly preview: RecipePreview }) {
+export function PreviewResult({ preview }: { readonly preview: QueryPreview }) {
   const failures = preview.ok ? preview.run.queries.filter((query) => query.error) : [];
   const empty =
     preview.ok &&

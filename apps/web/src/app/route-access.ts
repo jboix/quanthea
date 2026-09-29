@@ -22,7 +22,7 @@ export const routeAccess = {
   '/settings/auth': 'admin',
   '/settings/retention': 'admin',
   '/settings/charts': 'admin',
-  '/settings/recipes': 'admin',
+  '/settings/queries': 'admin',
   '/settings/usage': 'admin',
 } as const satisfies Record<string, Role>;
 

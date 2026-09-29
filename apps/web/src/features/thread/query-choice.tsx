@@ -1,12 +1,12 @@
-import type { RecipeChoice, ThreadRecipes } from '@querent/shared';
+import type { QueryChoice, ThreadQueries } from '@querent/shared';
 import { useState } from 'react';
 import { Select } from '../../ui/select.tsx';
-import styles from './recipe-choice.module.css';
+import styles from './query-choice.module.css';
 
 /** The modes a new thread may start in, as the menu names them. */
 const modes = [
-  { value: 'default', label: 'Default recipes' },
-  { value: 'chosen', label: 'Choose recipes…' },
+  { value: 'default', label: 'Default queries' },
+  { value: 'chosen', label: 'Choose queries…' },
   { value: 'free', label: 'Free style' },
 ] as const;
 
@@ -16,8 +16,8 @@ const modes = [
  * @param recipes - Every recipe; the default set starts ticked.
  * @returns The choice as the API takes it, the mode, the ticked ids, and their setters.
  */
-export function useRecipeChoice(recipes: readonly RecipeChoice[]) {
-  const [mode, setMode] = useState<ThreadRecipes['mode']>('default');
+export function useQueryChoice(recipes: readonly QueryChoice[]) {
+  const [mode, setMode] = useState<ThreadQueries['mode']>('default');
   const [ticked, setTicked] = useState(
     () => new Set(recipes.filter((recipe) => recipe.enabled).map((recipe) => recipe.id)),
   );
@@ -27,30 +27,30 @@ export function useRecipeChoice(recipes: readonly RecipeChoice[]) {
       if (!next.delete(id)) next.add(id);
       return next;
     });
-  const value: ThreadRecipes = mode === 'chosen' ? { mode, ids: [...ticked] } : { mode };
+  const value: ThreadQueries = mode === 'chosen' ? { mode, ids: [...ticked] } : { mode };
   return { mode, setMode, ticked, toggle, value };
 }
 
 /** A recipe choice. */
-type Choice = ReturnType<typeof useRecipeChoice>;
+type Choice = ReturnType<typeof useQueryChoice>;
 
 /**
  * The menu of recipe modes.
  *
  * @param props - The choice.
- * @param props.choice - What {@link useRecipeChoice} returns.
+ * @param props.choice - What {@link useQueryChoice} returns.
  * @returns The menu.
  */
-export function RecipeModeMenu({ choice }: { readonly choice: Choice }) {
+export function QueryModeMenu({ choice }: { readonly choice: Choice }) {
   return (
     <Select
-      label="Recipes"
+      label="Queries"
       hideLabel
       compact
-      title="Recipes turn what a panel shows into tested queries, for fewer tokens and fewer broken panels."
+      title="Query builders write tested queries for the agent, for fewer tokens and fewer broken panels."
       options={modes}
       value={choice.mode}
-      onChange={(event) => choice.setMode(event.target.value as ThreadRecipes['mode'])}
+      onChange={(event) => choice.setMode(event.target.value as ThreadQueries['mode'])}
     />
   );
 }
@@ -60,26 +60,26 @@ export function RecipeModeMenu({ choice }: { readonly choice: Choice }) {
  *
  * @param props - The recipes and the choice.
  * @param props.recipes - Every recipe.
- * @param props.choice - What {@link useRecipeChoice} returns.
+ * @param props.choice - What {@link useQueryChoice} returns.
  * @returns The list, the note, or nothing for the default set.
  */
-export function RecipePicker({
+export function QueryPicker({
   recipes,
   choice,
 }: {
-  readonly recipes: readonly RecipeChoice[];
+  readonly recipes: readonly QueryChoice[];
   readonly choice: Choice;
 }) {
   if (choice.mode === 'free')
     return (
       <p className={styles.note}>
-        No recipes: the agent writes every query itself. More tokens, more to repair.
+        No query builders: the agent writes every query itself. More tokens, more to repair.
       </p>
     );
   if (choice.mode === 'default') return null;
   return (
     <fieldset className={styles.picker}>
-      <legend className={styles.legend}>Recipes this thread may use</legend>
+      <legend className={styles.legend}>Queries this thread may use</legend>
       {recipes.map((recipe) => (
         <label key={recipe.id} className={styles.recipe} title={recipe.description}>
           <input

@@ -4,7 +4,7 @@
  * keep the model to it. It stays small: name checks run in code rather than as JSON schema
  * patterns, and the conventions are explained once in the build prompt.
  */
-import { panelUnits, type SavedRecipe, timeRangeSchema, variableSchema } from '@querent/shared';
+import { panelUnits, type SavedQuery, timeRangeSchema, variableSchema } from '@querent/shared';
 import { z } from 'zod';
 
 /**
@@ -263,11 +263,11 @@ const markersSchema = z.strictObject({
 export type MarkersRequest = z.output<typeof markersSchema>;
 
 /** The recipes a run may use. */
-export interface AvailableRecipes {
+export interface AvailableQueries {
   /** The built-in recipes' ids. */
   readonly builtIn: readonly string[];
   /** The saved recipes. */
-  readonly saved: readonly SavedRecipe[];
+  readonly saved: readonly SavedQuery[];
 }
 
 /**
@@ -296,7 +296,7 @@ function editSchemaWith<Panel extends z.ZodType>(panels: Panel) {
  * @param available - The recipes the run may use.
  * @returns The schema. Its output is an {@link EditRequest}.
  */
-export function editRequestSchemaFor(available: AvailableRecipes) {
+export function editRequestSchemaFor(available: AvailableQueries) {
   const builtIn = Object.entries(builtInSchemas)
     .filter(([id]) => available.builtIn.includes(id))
     .map(([, schema]) => schema);

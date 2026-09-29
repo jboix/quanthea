@@ -1,4 +1,4 @@
-import type { ProviderChoice, ThreadRecipes } from '@querent/shared';
+import type { ProviderChoice, ThreadQueries } from '@querent/shared';
 import {
   type FormEvent,
   type KeyboardEvent,
@@ -12,7 +12,7 @@ import { Select } from '../../ui/select.tsx';
 import type { NewThreadData, NewThreadIntent } from './data.ts';
 import { HistoryMenu } from './history-menu.tsx';
 import styles from './new-thread.module.css';
-import { RecipeModeMenu, RecipePicker, useRecipeChoice } from './recipe-choice.tsx';
+import { QueryModeMenu, QueryPicker, useQueryChoice } from './query-choice.tsx';
 
 /**
  * The question box's behaviour: Enter sends, Shift+Enter breaks the line, and a sent question
@@ -22,7 +22,7 @@ import { RecipeModeMenu, RecipePicker, useRecipeChoice } from './recipe-choice.t
  * @param recipes - The recipes the thread uses.
  * @returns The text, its setter, the question sent (if any), and the handlers.
  */
-function useAsk(providerId: string, recipes: ThreadRecipes) {
+function useAsk(providerId: string, recipes: ThreadQueries) {
   const [question, setQuestion] = useState('');
   const [sent, setSent] = useState<string | undefined>(undefined);
   const submit = useSubmit();
@@ -152,14 +152,14 @@ function Sent({ question }: { readonly question: string }) {
 export function NewThreadScreen() {
   const { threads, providers, defaultProviderId, recipes } = useLoaderData() as NewThreadData;
   const [providerId, setProviderId] = useState(defaultProviderId);
-  const recipeChoice = useRecipeChoice(recipes);
-  const ask = useAsk(providerId, recipeChoice.value);
+  const queryChoice = useQueryChoice(recipes);
+  const ask = useAsk(providerId, queryChoice.value);
   const choice = (
     <>
       {providers.length > 1 && (
         <ProviderMenu providers={providers} value={providerId} onChange={setProviderId} />
       )}
-      <RecipeModeMenu choice={recipeChoice} />
+      <QueryModeMenu choice={queryChoice} />
     </>
   );
   return (
@@ -172,7 +172,7 @@ export function NewThreadScreen() {
         {ask.sent === undefined ? (
           <>
             <AskForm ask={ask} choice={choice} />
-            <RecipePicker recipes={recipes} choice={recipeChoice} />
+            <QueryPicker recipes={recipes} choice={queryChoice} />
           </>
         ) : (
           <Sent question={ask.sent} />
