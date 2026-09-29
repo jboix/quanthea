@@ -3,13 +3,12 @@
  * placed below, and deploy markers on the time charts. The result is a spec to check, test-run
  * and save like any other.
  */
-import type { Annotation, DashboardSpec, Panel, SavedQuery } from '@querent/shared';
+import type { Annotation, ChartChoice, DashboardSpec, Panel, SavedQuery } from '@querent/shared';
+import { markersQuery, QueryError } from '../queries/index.ts';
 import type { PanelDraft } from './draft.ts';
 import { expandPanel, isTimeChart } from './expand.ts';
 import { panelId, placeBelow } from './layout.ts';
 import type { EditRequest, MarkersRequest } from './request.ts';
-import { markersQuery } from './sql.ts';
-import { RecipeError } from './text.ts';
 
 /** The id of the deploy markers' annotation. */
 const markersId = 'markers';
@@ -23,11 +22,11 @@ const defaultTime = { from: 'now-6h', to: 'now' };
  * @param current - The current spec, if the dashboard has one.
  * @param request - The edit.
  * @returns The starting spec.
- * @throws {RecipeError} When the first edit gives no title.
+ * @throws {QueryError} When the first edit gives no title.
  */
 function startingSpec(current: DashboardSpec | undefined, request: EditRequest): DashboardSpec {
   if (current) return current;
-  if (request.title === undefined) throw new RecipeError('Give the new dashboard a title.');
+  if (request.title === undefined) throw new QueryError('Give the new dashboard a title.');
   return {
     specVersion: 1,
     title: request.title,
@@ -60,13 +59,13 @@ function withSettings(spec: DashboardSpec, request: EditRequest): DashboardSpec 
  *
  * @param panels - The panels.
  * @param ids - The ids the edit names.
- * @throws {RecipeError} For an unknown id, listing the known ones.
+ * @throws {QueryError} For an unknown id, listing the known ones.
  */
 function checkIds(panels: readonly Panel[], ids: readonly string[]): void {
   const known = new Set(panels.map((panel) => panel.id));
   const unknown = ids.find((id) => !known.has(id));
   if (unknown !== undefined) {
-    throw new RecipeError(`No panel "${unknown}". The panels are: ${[...known].join(', ')}.`);
+    throw new QueryError(`No panel "${unknown}". The panels are: ${[...known].join(', ')}.`);
   }
 }
 
@@ -78,23 +77,32 @@ function checkIds(panels: readonly Panel[], ids: readonly string[]): void {
  * @param grid - Its place.
  * @returns The panel.
  */
-function panelOf(draft: PanelDraft, id: string, grid: Panel['grid']): Panel {
-  const { shape: _shape, width: _width, ...content } = draft;
+function panelOf(
+  draft: PanelDraft & { choice?: ChartChoice },
+  id: string,
+  grid: Panel['grid'],
+): Panel {
+  const { shape: _shape, width: _width, choice: _choice, ...content } = draft;
   return { id, grid, ...content };
 }
+
+/** The chart choices of the panels an edit builds, by panel id, to complete after they run. */
+export type ChartChoices = Map<string, ChartChoice>;
 
 /**
  * The panels after the edit: removed ones gone, replaced ones rebuilt in place, new ones below.
  *
  * @param panels - The current panels.
  * @param request - The edit.
- * @param saved - The saved recipes the run may use.
+ * @param saved - The saved queries the run may use.
+ * @param charts - Receives the chart choice of each panel built.
  * @returns The panels.
  */
 function editedPanels(
   panels: readonly Panel[],
   request: EditRequest,
   saved: readonly SavedQuery[],
+  charts: ChartChoices,
 ): Panel[] {
   const rebuilt = new Map(
     request.panels.flatMap((panel) =>
@@ -106,16 +114,21 @@ function editedPanels(
     .filter((panel) => !request.remove.includes(panel.id))
     .map((panel) => {
       const replacement = rebuilt.get(panel.id);
-      return replacement ? panelOf(expandPanel(replacement, saved), panel.id, panel.grid) : panel;
+      if (!replacement) return panel;
+      const draft = expandPanel(replacement, saved);
+      charts.set(panel.id, draft.choice);
+      return panelOf(draft, panel.id, panel.grid);
     });
   const drafts = request.panels
     .filter((panel) => panel.replaces === undefined)
     .map((panel) => expandPanel(panel, saved));
   const taken = new Set(kept.map((panel) => panel.id));
   const grids = placeBelow(kept, drafts);
-  const added = drafts.map((draft, index) =>
-    panelOf(draft, panelId(draft.title, taken), grids[index] ?? { x: 0, y: 0, w: 12, h: 8 }),
-  );
+  const added = drafts.map((draft, index) => {
+    const id = panelId(draft.title, taken);
+    charts.set(id, draft.choice);
+    return panelOf(draft, id, grids[index] ?? { x: 0, y: 0, w: 12, h: 8 });
+  });
   return [...kept, ...added];
 }
 
@@ -173,21 +186,20 @@ function withMarkers(panels: readonly Panel[], marked: boolean): Panel[] {
  *
  * @param current - The current spec, or `undefined` before the first version.
  * @param request - The edit.
- * @param saved - The saved recipes the run may use.
- * @returns The new spec, to check and test-run before it is saved.
- * @throws {RecipeError} When the edit names a panel that does not exist, or a recipe cannot expand.
+ * @param saved - The saved queries the run may use.
+ * @returns The new spec, to test-run, complete, check and save, and the chart choice of each
+ *   panel it builds.
+ * @throws {QueryError} When the edit names a panel that does not exist, or a panel cannot build.
  */
 export function applyEdit(
   current: DashboardSpec | undefined,
   request: EditRequest,
   saved: readonly SavedQuery[] = [],
-): DashboardSpec {
+): { spec: DashboardSpec; charts: ChartChoices } {
   const spec = withSettings(startingSpec(current, request), request);
   const annotations = editedAnnotations(spec.annotations, request.markers);
   const marked = annotations.some((annotation) => annotation.id === markersId);
-  return {
-    ...spec,
-    annotations,
-    panels: withMarkers(editedPanels(spec.panels, request, saved), marked),
-  };
+  const charts: ChartChoices = new Map();
+  const panels = withMarkers(editedPanels(spec.panels, request, saved, charts), marked);
+  return { spec: { ...spec, annotations, panels }, charts };
 }

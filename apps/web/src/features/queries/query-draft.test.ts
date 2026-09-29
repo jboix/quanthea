@@ -33,12 +33,11 @@ describe('recipe drafts', () => {
   });
 
   test('say what is missing, by field', () => {
-    const checked = recipeOf({ ...newDraft, show: 'table' });
+    const checked = recipeOf(newDraft);
     expect(checked.ok).toBe(false);
     expect(checked.ok ? {} : checked.issues).toMatchObject({
-      name: 'Name the recipe.',
-      description: 'Say what it shows.',
-      columns: 'A table needs its columns.',
+      name: 'Name the query.',
+      description: 'Say what it returns.',
     });
   });
 });

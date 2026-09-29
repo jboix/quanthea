@@ -83,6 +83,11 @@ export interface ConnectorKind<
   /** The credentials. Stored encrypted and never returned by the API. */
   readonly secretSchema: SecretSchema;
   /**
+   * How to get each shape of data in this kind's language, for the agent: about data, never about
+   * charts. Adding a connector kind means adding its guide, with no chart recipe changing.
+   */
+  readonly queryGuide?: string;
+  /**
    * Says where a connector points, shown under its name, such as
    * `postgres://dash_ro@orders-replica:5432/orders`. It must not include credentials.
    *

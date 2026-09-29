@@ -19,10 +19,10 @@ import { QueryModeMenu, QueryPicker, useQueryChoice } from './query-choice.tsx';
  * stays on screen while the thread starts.
  *
  * @param providerId - The provider the thread starts on.
- * @param recipes - The recipes the thread uses.
+ * @param queries - The queries the thread uses.
  * @returns The text, its setter, the question sent (if any), and the handlers.
  */
-function useAsk(providerId: string, recipes: ThreadQueries) {
+function useAsk(providerId: string, queries: ThreadQueries) {
   const [question, setQuestion] = useState('');
   const [sent, setSent] = useState<string | undefined>(undefined);
   const submit = useSubmit();
@@ -31,7 +31,7 @@ function useAsk(providerId: string, recipes: ThreadQueries) {
     const text = question.trim();
     if (text === '' || sent !== undefined) return;
     setSent(text);
-    const intent: NewThreadIntent = { intent: 'start', question: text, providerId, recipes };
+    const intent: NewThreadIntent = { intent: 'start', question: text, providerId, queries };
     void submit(intent as SubmitTarget, {
       method: 'post',
       encType: 'application/json',
@@ -150,9 +150,9 @@ function Sent({ question }: { readonly question: string }) {
  * @returns The screen.
  */
 export function NewThreadScreen() {
-  const { threads, providers, defaultProviderId, recipes } = useLoaderData() as NewThreadData;
+  const { threads, providers, defaultProviderId, queries } = useLoaderData() as NewThreadData;
   const [providerId, setProviderId] = useState(defaultProviderId);
-  const queryChoice = useQueryChoice(recipes);
+  const queryChoice = useQueryChoice(queries);
   const ask = useAsk(providerId, queryChoice.value);
   const choice = (
     <>
@@ -172,7 +172,7 @@ export function NewThreadScreen() {
         {ask.sent === undefined ? (
           <>
             <AskForm ask={ask} choice={choice} />
-            <QueryPicker recipes={recipes} choice={queryChoice} />
+            <QueryPicker queries={queries} choice={queryChoice} />
           </>
         ) : (
           <Sent question={ask.sent} />

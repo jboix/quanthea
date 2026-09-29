@@ -6,20 +6,20 @@ import type { QueriesForm } from './queries-form.ts';
 
 /** Props of {@link ListRow}. */
 interface ListRowProps {
-  /** The recipe's name. */
+  /** The query's name. */
   readonly name: string;
   /** What is shown on the right: the language, or "off". */
   readonly note: ReactNode;
-  /** Whether it is the recipe shown. */
+  /** Whether it is the query shown. */
   readonly current: boolean;
-  /** Whether it is dimmed, as a recipe switched off. */
+  /** Whether it is dimmed, as a query switched off. */
   readonly off?: boolean;
   /** Shows it. */
   readonly onSelect: () => void;
 }
 
 /**
- * One recipe in the list.
+ * One query in the list.
  *
  * @param props - The name, the note, the state and the callback.
  * @returns The row.
@@ -42,7 +42,7 @@ function ListRow({ name, note, current, off = false, onSelect }: ListRowProps) {
 }
 
 /**
- * The built-in recipes of one language.
+ * The query builders of one language.
  *
  * @param props - The form, the language and its heading.
  * @param props.form - The form state.
@@ -87,7 +87,7 @@ function BuiltInGroup({
 }
 
 /**
- * Every recipe, yours first, to pick the one shown.
+ * Every query, yours first, to pick the one shown.
  *
  * @param props - The form.
  * @param props.form - The form state.
@@ -96,9 +96,9 @@ function BuiltInGroup({
 export function QueryList({ form }: { readonly form: QueriesForm }) {
   const { selected, editing } = form;
   return (
-    <nav className={styles.side} aria-label="Recipes">
+    <nav className={styles.side} aria-label="Queries">
       <div className={styles.sideHead}>
-        <h3 className={styles.listHeading}>Your recipes</h3>
+        <h3 className={styles.listHeading}>Your queries</h3>
         <Button size="small" onClick={form.add} disabled={editing !== null}>
           Add
         </Button>
@@ -115,8 +115,8 @@ export function QueryList({ form }: { readonly form: QueriesForm }) {
           />
         ))}
       </ul>
-      <BuiltInGroup form={form} language="promql" heading="Built-in · PromQL" />
-      <BuiltInGroup form={form} language="sql" heading="Built-in · SQL" />
+      <BuiltInGroup form={form} language="promql" heading="Builders · PromQL" />
+      <BuiltInGroup form={form} language="sql" heading="Builders · SQL" />
     </nav>
   );
 }

@@ -47,7 +47,7 @@ function mountThreadRoutes(app: Hono<AppEnv>, services: ThreadRouteServices): vo
       const known = services.modelSettings.gateway().providers.map((config) => config.id);
       if (body.providerId !== undefined && !known.includes(body.providerId))
         throw new AppError('bad_request', `No model provider "${body.providerId}".`);
-      return threads.create(actorOf(principal), body.providerId, body.recipes);
+      return threads.create(actorOf(principal), body.providerId, body.queries);
     },
   });
   mountEndpoint(app, getThreadEndpoint, {

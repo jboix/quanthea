@@ -1,4 +1,10 @@
-import { panelUnits, type QueryParamKind, queryParamKinds, type SavedQuery } from '@querent/shared';
+import {
+  type QueryParamKind,
+  queryParamKinds,
+  type SavedQuery,
+  shapeGuides,
+  shapeKinds,
+} from '@querent/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
@@ -19,16 +25,6 @@ const kindHints: Readonly<Record<QueryParamKind, string>> = {
   value: 'a quoted literal, or a bound $variable',
   duration: 'such as 5m, or $interval',
 };
-
-/** How a panel may show. */
-const showOptions = [
-  { value: 'line', label: 'Line over time' },
-  { value: 'bar', label: 'Bars over time' },
-  { value: 'category-bar', label: 'Bars by category' },
-  { value: 'pie', label: 'Pie' },
-  { value: 'stat', label: 'One number' },
-  { value: 'table', label: 'Table' },
-] as const;
 
 /** Props of the editor's parts. */
 interface PartProps {
@@ -71,7 +67,7 @@ function NameFields({ draft, change, issues, isNew }: PartProps & { readonly isN
       <Input
         label="What it shows"
         value={draft.description}
-        hint="One sentence. The agent reads it to pick the recipe."
+        hint="One sentence. The agent reads it to pick the saved query."
         onChange={(event) => change({ description: event.target.value })}
         error={issues.description}
       />
@@ -178,50 +174,33 @@ function ParamFields({ draft, change, issues }: PartProps) {
 }
 
 /**
- * How the panel shows: the view, the unit, and a table's columns.
+ * The shape of the table the query returns, which decides the charts that can draw it.
  *
- * @param props - The draft, its setter and the issues.
- * @returns The fields.
+ * @param props - The draft and its setter.
+ * @returns The field.
  */
-function ViewFields({ draft, change, issues }: PartProps) {
+function ShapeField({ draft, change }: PartProps) {
   return (
-    <div className={styles.pair}>
-      <Select
-        label="Shows as"
-        value={draft.show}
-        options={showOptions}
-        onChange={(event) => change({ show: event.target.value as SavedQuery['show'] })}
-      />
-      <Select
-        label="Unit"
-        value={draft.unit}
-        options={panelUnits.map((unit) => ({ value: unit, label: unit }))}
-        onChange={(event) => change({ unit: event.target.value as SavedQuery['unit'] })}
-      />
-      {draft.show === 'table' && (
-        <Input
-          label="Columns"
-          mono
-          value={draft.columns}
-          hint="The result's columns, separated by commas."
-          onChange={(event) => change({ columns: event.target.value })}
-          error={issues.columns}
-        />
-      )}
-    </div>
+    <Select
+      label="Returns"
+      value={draft.shape}
+      hint={shapeGuides[draft.shape]}
+      options={shapeKinds.map((shape) => ({ value: shape, label: shape }))}
+      onChange={(event) => change({ shape: event.target.value as SavedQuery['shape'] })}
+    />
   );
 }
 
 /** Props of {@link QueryEditor}. */
 interface QueryEditorProps {
-  /** The recipe to start from. */
+  /** The saved query to start from. */
   readonly start: QueryDraft;
-  /** Whether it is a new recipe, whose id follows its name. */
+  /** Whether it is a new saved query, whose id follows its name. */
   readonly isNew: boolean;
-  /** Ids other recipes already have. */
+  /** Ids other saved queries already have. */
   readonly taken: readonly string[];
-  /** Called with the checked recipe. */
-  readonly onDone: (recipe: SavedQuery) => void;
+  /** Called with the checked saved query. */
+  readonly onDone: (query: SavedQuery) => void;
   /** Called to drop the changes. */
   readonly onCancel: () => void;
   /** The connectors a preview can run on. */
@@ -229,9 +208,9 @@ interface QueryEditorProps {
 }
 
 /**
- * The editor of one saved recipe. Done checks it as the server will.
+ * The editor of one saved query. Done checks it as the server will.
  *
- * @param props - The recipe, whether it is new, the ids taken, the callbacks and the connectors.
+ * @param props - The saved query, whether it is new, the ids taken, the callbacks and the connectors.
  * @returns The card.
  */
 export function QueryEditor(props: QueryEditorProps) {
@@ -243,22 +222,22 @@ export function QueryEditor(props: QueryEditorProps) {
     const checked = recipeOf(draft);
     if (!checked.ok) return setIssues(checked.issues);
     if (isNew && taken.includes(checked.recipe.id))
-      return setIssues({ id: 'Another recipe has this id.' });
+      return setIssues({ id: 'Another saved query has this id.' });
     onDone(checked.recipe);
   };
   const parts = { draft, change, issues };
   const checked = recipeOf(draft);
   return (
     <div className={styles.detail}>
-      <Card title={isNew ? 'New recipe' : `Edit ${start.name}`}>
+      <Card title={isNew ? 'New saved query' : `Edit ${start.name}`}>
         <NameFields {...parts} isNew={isNew} />
         <QueryFields {...parts} />
         <ParamFields {...parts} />
-        <ViewFields {...parts} />
+        <ShapeField {...parts} />
       </Card>
       <Card
         title="Try it"
-        description="Run the recipe as it stands on a connector before you keep it."
+        description="Run the saved query as it stands on a connector before you keep it."
       >
         <SavedPreview
           recipe={checked.ok ? checked.recipe : undefined}

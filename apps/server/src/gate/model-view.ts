@@ -19,7 +19,11 @@ export interface ConnectorAccess {
    *
    * @returns Their subjects and query languages.
    */
-  list(): readonly { readonly subject: GateSubject; readonly language: QuerySource['language'] }[];
+  list(): readonly {
+    readonly subject: GateSubject;
+    readonly language: QuerySource['language'];
+    readonly guide?: string;
+  }[];
   /**
    * Opens a connector by name.
    *
@@ -65,6 +69,12 @@ export interface ModelView {
    * @returns Name, kind, language and access of each.
    */
   connectors(): ModelConnector[];
+  /**
+   * The query guides of the connector kinds in use: how to get each shape of data from them.
+   *
+   * @returns One guide per kind that has one.
+   */
+  guides(): { readonly kind: string; readonly text: string }[];
   /**
    * The catalog: every connector's schema in compact lines, with the values of its
    * low-cardinality fields, as far as each access level allows.
@@ -157,6 +167,18 @@ function modelConnectors(access: ConnectorAccess): ModelConnector[] {
 }
 
 /**
+ * The query guides of the connector kinds in use, once per kind.
+ *
+ * @param access - The connectors.
+ * @returns The guides.
+ */
+function guidesOf(access: ConnectorAccess): { kind: string; text: string }[] {
+  const byKind = new Map<string, string>();
+  for (const { subject, guide } of access.list()) if (guide) byKind.set(subject.kind, guide);
+  return [...byKind].map(([kind, text]) => ({ kind, text }));
+}
+
+/**
  * Creates the model's view of the connectors.
  *
  * @param access - What the connectors service provides.
@@ -169,6 +191,7 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
   return {
     catalog: (signal, question) => catalogOf(access, values, signal, question),
     connectors: () => modelConnectors(access),
+    guides: () => guidesOf(access),
     describe: (name, scope, signal) =>
       describeFor(access, subjects().get(name), name, scope, signal),
     async sample(name, field, limit, signal) {

@@ -1,8 +1,9 @@
 /**
- * Writes a dashboard version for the agent: checks the thread may write, validates the spec,
- * test-runs every panel, and saves only panels that work. New panels whose queries fail are left
- * out of the version and reported, so the model re-adds only those; any other failure keeps the
- * version from being saved. The results the model sees pass through the gate.
+ * Writes a dashboard version for the agent, from the test run the edit made: checks the thread may
+ * write, and saves only panels that work. New panels whose queries fail, or whose chart does not
+ * fit their data, are left out of the version and reported, so the model re-adds only those; any
+ * other failure keeps the version from being saved. The results the model sees pass through the
+ * gate.
  */
 import { type DashboardSpec, diffSpecs, type PanelDiff } from '@querent/shared';
 import type { PanelTest } from '../dashboards/dashboards.ts';
@@ -32,6 +33,16 @@ interface PanelReport {
   readonly panelId: string;
   /** Each query's result, shaped by the gate. */
   readonly queries: readonly ({ readonly refId: string } & ModelTestResult)[];
+  /** What is wrong with the chart for the data the queries returned, if anything. */
+  readonly chart?: readonly string[];
+}
+
+/** The test run an edit made before writing, and the chart problems of each panel. */
+export interface WriteRun {
+  /** The test run of each panel. */
+  readonly tests: readonly PanelTest[];
+  /** What is wrong with each panel's chart, by panel id. */
+  readonly chartProblems: ReadonlyMap<string, readonly string[]>;
 }
 
 /**
@@ -39,15 +50,11 @@ interface PanelReport {
  *
  * @param context - The run.
  * @param spec - The spec, for each query's connector.
- * @param tests - The test runs.
+ * @param run - The test runs and the chart problems.
  * @returns One report per panel.
  */
-function reportsOf(
-  context: RunContext,
-  spec: DashboardSpec,
-  tests: readonly PanelTest[],
-): PanelReport[] {
-  return tests.map((test) => {
+function reportsOf(context: RunContext, spec: DashboardSpec, run: WriteRun): PanelReport[] {
+  return run.tests.map((test) => {
     const panel = spec.panels.find((each) => each.id === test.panelId);
     const queries = test.run.queries.map((outcome) => {
       const connector =
@@ -58,7 +65,8 @@ function reportsOf(
         ...context.modelView.panelResult(connector, { frames: outcome.frames, error }),
       };
     });
-    return { panelId: test.panelId, queries };
+    const chart = run.chartProblems.get(test.panelId);
+    return { panelId: test.panelId, queries, ...(chart ? { chart } : {}) };
   });
 }
 
@@ -153,14 +161,18 @@ function save(context: RunContext, spec: DashboardSpec, changeSummary: string): 
 }
 
 /**
- * The panels whose queries fail.
+ * The panels that do not work: their chart does not fit their data, or, when every query is
+ * test-run, a query fails.
  *
  * @param panels - The reports.
+ * @param testRun - Whether failing queries count.
  * @returns Their ids.
  */
-function failingPanels(panels: readonly PanelReport[]): string[] {
+function failingPanels(panels: readonly PanelReport[], testRun: boolean): string[] {
   return panels
-    .filter((panel) => panel.queries.some((query) => !query.ok))
+    .filter(
+      (panel) => panel.chart !== undefined || (testRun && panel.queries.some((query) => !query.ok)),
+    )
     .map((panel) => panel.panelId);
 }
 
@@ -201,30 +213,32 @@ function saveBuilt(context: RunContext, spec: DashboardSpec, changeSummary: stri
  * Writes a version for the agent.
  *
  * @param context - The run.
- * @param input - The spec, as the model wrote it.
+ * @param spec - The spec the edit made, its charts completed from the test run.
  * @param changeSummary - What changed, in one line.
  * @param onlyExistingPanels - Whether the change keeps the set of panels.
- * @param droppable - New panels that may be left out when their queries fail.
+ * @param droppable - New panels that may be left out when they do not work.
+ * @param run - The test run and the chart problems.
  * @returns The result the model sees.
  */
-export async function writeVersion(
+export function writeVersion(
   context: RunContext,
-  input: unknown,
+  spec: DashboardSpec,
   changeSummary: string,
   onlyExistingPanels: boolean,
-  droppable: ReadonlySet<string> = new Set(),
-): Promise<WriteResult> {
+  droppable: ReadonlySet<string>,
+  run: WriteRun,
+): WriteResult {
   const refused = refusal(context, onlyExistingPanels);
   if (refused !== undefined) return { ok: false, error: refused };
-  const checked = context.dashboards.check(input);
-  if (!checked.ok) return { ...failed(context, 'The spec is invalid.'), issues: checked.issues };
-  const panels = reportsOf(context, checked.spec, await context.dashboards.testRun(checked.spec));
-  const failing = failingPanels(panels);
-  if (failing.length === 0 || !context.settings.behaviour.testRun)
-    return { ok: true, version: saveBuilt(context, checked.spec, changeSummary), panels };
-  const kept = withoutFailing(checked.spec, failing, droppable);
-  if (!kept) return { ...failed(context, 'Some queries fail.'), panels };
-  const next = `These new panels were left out because their queries fail. ${nextAttempt(context, 'Fix them and add them again')}`;
-  const version = saveBuilt(context, kept, changeSummary);
+  const panels = reportsOf(context, spec, run);
+  const failing = failingPanels(panels, context.settings.behaviour.testRun);
+  const kept = failing.length === 0 ? spec : withoutFailing(spec, failing, droppable);
+  if (!kept) return { ...failed(context, 'Some panels do not work.'), panels };
+  const checked = context.dashboards.check(kept);
+  if (!checked.ok)
+    return { ...failed(context, 'The spec is invalid.'), issues: checked.issues, panels };
+  const version = saveBuilt(context, checked.spec, changeSummary);
+  if (failing.length === 0) return { ok: true, version, panels };
+  const next = `These new panels were left out because they do not work. ${nextAttempt(context, 'Fix them and add them again')}`;
   return { ok: true, version, panels, leftOut: { panelIds: failing, next } };
 }

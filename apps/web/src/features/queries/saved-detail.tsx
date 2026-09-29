@@ -1,4 +1,4 @@
-import type { SavedQuery } from '@querent/shared';
+import { type SavedQuery, shapeGuides } from '@querent/shared';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
 import { Pill } from '../../ui/pill.tsx';
@@ -6,30 +6,16 @@ import type { PreviewConnector } from './data.ts';
 import styles from './queries.module.css';
 import { SavedPreview } from './saved-preview.tsx';
 
-/** How each view kind reads. */
-const showLabels: Readonly<Record<SavedQuery['show'], string>> = {
-  line: 'a line over time',
-  bar: 'bars over time',
-  'category-bar': 'bars by category',
-  pie: 'a pie',
-  stat: 'one number',
-  table: 'a table',
-};
-
 /**
  * The query template and its placeholders.
  *
- * @param props - The recipe.
- * @param props.recipe - The recipe.
+ * @param props - The saved query.
+ * @param props.query - The saved query.
  * @returns The card.
  */
 function TemplateCard({ recipe }: { readonly recipe: SavedQuery }) {
-  const columns = recipe.columns?.length ? `, columns ${recipe.columns.join(', ')}` : '';
   return (
-    <Card
-      title="Query"
-      description={`Shows as ${showLabels[recipe.show]}, in ${recipe.unit}${columns}.`}
-    >
+    <Card title="Query" description={`Returns ${recipe.shape} data. ${shapeGuides[recipe.shape]}`}>
       <pre className={styles.code}>{recipe.query}</pre>
       <table className={styles.fields}>
         <tbody>
@@ -50,7 +36,7 @@ function TemplateCard({ recipe }: { readonly recipe: SavedQuery }) {
 
 /** Props of {@link SavedDetail}. */
 interface SavedDetailProps {
-  /** The recipe. */
+  /** The query. */
   readonly recipe: SavedQuery;
   /** The connectors a preview can run on. */
   readonly connectors: readonly PreviewConnector[];
@@ -61,9 +47,9 @@ interface SavedDetailProps {
 }
 
 /**
- * One of your recipes: its query, its placeholders and a preview.
+ * One of your queries: its query, its placeholders and a preview.
  *
- * @param props - The recipe, the connectors and the actions.
+ * @param props - The query, the connectors and the actions.
  * @returns The detail.
  */
 export function SavedDetail({ recipe, connectors, onEdit, onRemove }: SavedDetailProps) {

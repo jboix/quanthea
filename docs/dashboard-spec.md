@@ -111,13 +111,24 @@ type TableView = {
 
 type ChartView = {
   kind: 'chart'
-  // A JSON subset of an ECharts option. The adapter owns: dataset, grid, theme, animation,
-  // tooltip.renderMode and anything security-relevant. Allowed series types (v1):
-  // line, bar, scatter, pie, heatmap, gauge. Anything else fails validation.
+  recipe?: { id: string; variants: string[] }   // where it came from, for people; drawing ignores it
+  prepare: PrepareKind                      // how the adapter prepares the data; default 'cartesian'
+  roles: Record<string, string | string[]>  // the column of each role the option's @role tokens name
+  limit?: number                            // categories kept, for pies, funnels and ranked bars
+  // A JSON subset of an ECharts option, filled from a chart recipe. The adapter owns: dataset,
+  // grid, theme, animation, tooltip.renderMode and anything security-relevant. Allowed series
+  // types: line, bar, scatter, pie, heatmap, gauge, boxplot, candlestick, treemap, sunburst,
+  // sankey, graph, funnel, radar, parallel, map. Anything else fails validation. Series never
+  // hold data: the adapter builds it from the queries, trees and graphs included.
   option: EChartsOptionJson
   datasets: { ref: string; transform?: DatasetTransform }[]   // becomes option.dataset[i]
   markers?: { annotation: string }[]        // show dashboard annotations on this chart
 }
+
+type PrepareKind =
+  | 'cartesian' | 'shares' | 'ranked' | 'groups' | 'items' | 'matrix' | 'bins' | 'boxplot'
+  | 'tree' | 'graph' | 'radar' | 'calendar' | 'gauge' | 'kpi' | 'regions' | 'points'
+  | 'parallel' | 'facets' | 'waterfall' | 'none'
 
 type DatasetTransform =
   | { type: 'pivot'; by: string }           // long → wide, e.g. one column per label value
@@ -156,6 +167,9 @@ they differ from the sketch above, the schemas win:
 
 - Every object is strict: an unknown key is an error, so nothing rides along in a spec.
 - `option` holds JSON values only (`z.json()`), so a function or `undefined` fails to parse.
+- A chart option may use tokens the adapter replaces: `@role` for a role's column, and theme
+  colours such as `@ink`, `@palette.1` or `@scale.low`. Views written before chart recipes have no
+  roles; the adapter then reads the first time or text column as the x and the numbers as values.
 - Queries are `sql` and `promql` for now. `opensearch` and `http` come with their connectors.
 - A query-backed variable's `source` has no `refId`.
 - Time expressions are `now`, `now-<n><unit>` (units `s m h d w M y`) or an ISO 8601 timestamp

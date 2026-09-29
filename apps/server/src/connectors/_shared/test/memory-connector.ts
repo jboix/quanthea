@@ -22,7 +22,8 @@ function throwIfAborted(signal: AbortSignal): void {
 }
 
 /**
- * Runs the only query the memory source knows, `SELECT * FROM events`, over its generated rows.
+ * Runs the only query the memory source knows, `SELECT * FROM events`, the table name quoted or
+ * not, over its generated rows.
  *
  * @param text - The query text.
  * @param rowCount - How many rows the table holds.
@@ -31,7 +32,7 @@ function throwIfAborted(signal: AbortSignal): void {
  */
 function runEvents(text: string, rowCount: number, context: ExecutionContext) {
   throwIfAborted(context.signal);
-  if (text.trim().replace(/\s+/g, ' ') !== 'SELECT * FROM events') {
+  if (text.trim().replace(/\s+/g, ' ').replace('"events"', 'events') !== 'SELECT * FROM events') {
     throw new ConnectorError('syntax', 'Unknown query.', `Unknown query "${text}".`);
   }
   const builder = createFrameBuilder({

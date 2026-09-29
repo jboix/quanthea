@@ -1,4 +1,4 @@
-/** The recipe endpoints: the settings, for admins, and the recipes a thread may use, for editors. */
+/** The query endpoints: the settings, for admins, and the queries a thread may use, for editors. */
 import {
   getQueryGuideEndpoint,
   getQuerySettingsEndpoint,
@@ -9,16 +9,16 @@ import {
 import type { Hono } from 'hono';
 import type { Connections } from '../../connections/connections.ts';
 import type { Dashboards } from '../../dashboards/dashboards.ts';
-import { previewPanel } from '../../dashboards/recipe-preview.ts';
-import { builderGuides } from '../../dashboards/recipes/guide.ts';
+import { builderGuides } from '../../dashboards/queries/index.ts';
+import { previewData } from '../../dashboards/query-preview.ts';
 import type { QuerySettingsService } from '../../settings/query-settings.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { actorOf } from '../principal.ts';
 
-/** The services the recipe endpoints use. */
+/** The services the query endpoints use. */
 export interface QueryRouteServices {
-  /** The recipe settings. */
+  /** The query settings. */
   readonly querySettings: QuerySettingsService;
   /** The dashboards, which validate and test-run a preview. */
   readonly dashboards: Dashboards;
@@ -27,10 +27,10 @@ export interface QueryRouteServices {
 }
 
 /**
- * Mounts the endpoints that describe and preview recipes, for admins.
+ * Mounts the endpoints that describe and preview queries, for admins.
  *
  * @param app - The app.
- * @param services - The recipe settings, the dashboards and the connectors.
+ * @param services - The query settings, the dashboards and the connectors.
  */
 function mountPreviewRoutes(app: Hono<AppEnv>, services: QueryRouteServices): void {
   mountEndpoint(app, getQueryGuideEndpoint, {
@@ -39,7 +39,7 @@ function mountPreviewRoutes(app: Hono<AppEnv>, services: QueryRouteServices): vo
       const connectors = services.connections
         .subjects()
         .map(({ subject, language }) => ({ name: subject.name, language }));
-      return { recipes: builderGuides(), connectors };
+      return { builders: builderGuides(), connectors };
     },
   });
   mountEndpoint(app, previewQueryEndpoint, {
@@ -48,16 +48,21 @@ function mountPreviewRoutes(app: Hono<AppEnv>, services: QueryRouteServices): vo
       const stored = services.querySettings.get().saved;
       const draft = body.saved;
       const saved = draft ? [draft, ...stored.filter((each) => each.id !== draft.id)] : stored;
-      return previewPanel(services.dashboards, body.panel, saved, body.from);
+      return previewData(services.dashboards, {
+        data: body.data,
+        chart: body.chart,
+        saved,
+        from: body.from,
+      });
     },
   });
 }
 
 /**
- * Mounts the recipe endpoints.
+ * Mounts the query endpoints.
  *
  * @param app - The app.
- * @param services - The recipe settings, the dashboards and the connectors.
+ * @param services - The query settings, the dashboards and the connectors.
  */
 export function mountQueryEndpoints(app: Hono<AppEnv>, services: QueryRouteServices): void {
   const { querySettings } = services;
@@ -71,7 +76,7 @@ export function mountQueryEndpoints(app: Hono<AppEnv>, services: QueryRouteServi
   });
   mountEndpoint(app, listQueryChoicesEndpoint, {
     access: 'editor',
-    handle: () => ({ recipes: querySettings.choices() }),
+    handle: () => ({ queries: querySettings.choices() }),
   });
   mountPreviewRoutes(app, services);
 }

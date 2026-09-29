@@ -1,4 +1,5 @@
 /** The PostgreSQL connector kind: read-only transactions, a statement timeout, and a row limit. */
+
 import type { Frame } from '@querent/shared';
 import postgres, { type Sql, type TransactionSql } from 'postgres';
 import { z } from 'zod';
@@ -15,6 +16,7 @@ import {
 import { type CatalogRow, catalogQuery, quoteIdentifier, toEntities } from './catalog.ts';
 import { fieldTypeOf, frameValue } from './columns.ts';
 import { toConnectorError } from './errors.ts';
+import { postgresGuide } from './guide.ts';
 
 /** The configuration of a PostgreSQL connector. */
 const configSchema = z.object({
@@ -336,6 +338,7 @@ export const postgresConnector = defineConnector({
   displayName: 'PostgreSQL',
   description: 'A PostgreSQL database, queried with SQL in read-only transactions.',
   language: 'sql',
+  queryGuide: postgresGuide,
   configSchema,
   secretSchema,
   describeTarget: (config) =>

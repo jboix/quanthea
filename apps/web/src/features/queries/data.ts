@@ -1,4 +1,4 @@
-/** Loads the recipe settings and guide, and saves and previews recipes, through the API. */
+/** Loads the query settings and guide, and saves and previews queries, through the API. */
 import {
   getQueryGuideEndpoint,
   getQuerySettingsEndpoint,
@@ -24,22 +24,23 @@ export interface PreviewConnector {
 /** How far back a preview looks. */
 export type PreviewRange = (typeof previewRanges)[number];
 
-/** What the recipes screen shows. */
+/** What the queries screen shows. */
 export interface QueriesData {
   /** The settings as saved. */
   readonly settings: QuerySettings;
-  /** How each built-in recipe works. */
+  /** How each query builder works. */
   readonly guides: readonly QueryGuide[];
   /** The connectors a preview can run on. */
   readonly connectors: readonly PreviewConnector[];
 }
 
-/** What the recipes screen submits, as JSON. */
+/** What the queries screen submits, as JSON. */
 export type QueriesIntent =
   | { readonly intent: 'save'; readonly settings: QuerySettings }
   | {
       readonly intent: 'preview';
-      readonly panel: Readonly<Record<string, unknown>>;
+      readonly data: Readonly<Record<string, unknown>>;
+      readonly chart?: string;
       readonly saved?: SavedQuery;
       readonly from: PreviewRange;
     };
@@ -51,7 +52,7 @@ export type QueriesOutcome =
   | { readonly intent: 'preview'; readonly preview: QueryPreview };
 
 /**
- * The loader of the recipes screen.
+ * The loader of the queries screen.
  *
  * @param api - The API client.
  * @returns The loader.
@@ -62,7 +63,7 @@ export function loadQuerySettings(api: ApiClient) {
       api.call(getQuerySettingsEndpoint),
       api.call(getQueryGuideEndpoint),
     ]);
-    return { settings, guides: guide.recipes, connectors: guide.connectors };
+    return { settings, guides: guide.builders, connectors: guide.connectors };
   };
 }
 
@@ -84,7 +85,7 @@ async function save(api: ApiClient, settings: QuerySettings): Promise<QueriesOut
 }
 
 /**
- * The action of the recipes screen: save the settings, or preview one panel.
+ * The action of the queries screen: save the settings, or preview one panel.
  *
  * @param api - The API client.
  * @returns The action.
@@ -93,8 +94,13 @@ export function querySettingsAction(api: ApiClient) {
   return async ({ request }: ActionFunctionArgs): Promise<QueriesOutcome> => {
     const intent = (await request.json()) as QueriesIntent;
     if (intent.intent === 'save') return save(api, intent.settings);
-    const { panel, saved, from } = intent;
-    const body = { panel: { ...panel }, from, ...(saved ? { saved } : {}) };
+    const { data, chart, saved, from } = intent;
+    const body = {
+      data: { ...data },
+      from,
+      ...(chart ? { chart: { recipe: chart } } : {}),
+      ...(saved ? { saved } : {}),
+    };
     return { intent: 'preview', preview: await api.call(previewQueryEndpoint, { body }) };
   };
 }

@@ -8,6 +8,7 @@ import { viewDatasets } from './datasets.ts';
 import { wireFormatters } from './formatters.ts';
 import { isObject, type Loose } from './loose.ts';
 import { type Prepared, prepareChart } from './prepare/index.ts';
+import { oneColumn } from './roles.ts';
 import { expandSeries, withMarkers } from './series.ts';
 import type { ChartTheme } from './theme.ts';
 import { replaceTokens, themeColors } from './tokens.ts';
@@ -62,23 +63,28 @@ function merge(base: Loose, over: unknown): Loose {
   return merged;
 }
 
+/** A day, in milliseconds. */
+const day = 86_400_000;
+
+/** A time label pattern. */
+type TimePattern = 'time' | 'date' | 'datetime';
+
 /**
- * The time label pattern that fits the data: hours for a day or two, dates beyond.
+ * The time label pattern that fits the data: dates when points are a day or more apart, dates and
+ * hours over several days, hours within a day.
  *
  * @param dataset - The main dataset.
- * @returns `time` or `date`.
+ * @returns The pattern.
  */
-function timePattern(dataset: Dataset | undefined): 'time' | 'date' {
+function timePattern(dataset: Dataset | undefined): TimePattern {
   const at = dataset?.dimensions.findIndex((column) => column.type === 'time') ?? -1;
-  const times = (dataset?.source ?? [])
-    .map((row) => row[at])
-    .filter((cell): cell is number => typeof cell === 'number');
-  if (times.length === 0) return 'time';
-  const [low, high] = times.reduce(
-    ([min, max], time) => [Math.min(min, time), Math.max(max, time)],
-    [Infinity, -Infinity],
-  );
-  return high - low > 2 * 86_400_000 ? 'date' : 'time';
+  const times = [...new Set((dataset?.source ?? []).map((row) => row[at]))]
+    .filter((cell): cell is number => typeof cell === 'number')
+    .sort((a, b) => a - b);
+  const gaps = times.slice(1).map((time, index) => time - (times[index] ?? time));
+  if (gaps.length > 0 && gaps.every((gap) => gap >= day)) return 'date';
+  const span = (times.at(-1) ?? 0) - (times[0] ?? 0);
+  return span > day ? 'datetime' : 'time';
 }
 
 /**
@@ -88,11 +94,19 @@ function timePattern(dataset: Dataset | undefined): 'time' | 'date' {
  * @param axis - The view's axis or axes.
  * @param theme - The theme.
  * @param pattern - The time label pattern.
+ * @param timeCategories - Whether category axes hold times, as bars per day do.
  * @returns The styled axis or axes.
  */
-function styleAxis(axis: unknown, theme: ChartTheme, pattern: 'time' | 'date'): unknown {
-  if (Array.isArray(axis)) return axis.map((each) => styleAxis(each, theme, pattern));
-  const timeAxis = isObject(axis) && axis.type === 'time';
+function styleAxis(
+  axis: unknown,
+  theme: ChartTheme,
+  pattern: TimePattern,
+  timeCategories: boolean,
+): unknown {
+  if (Array.isArray(axis))
+    return axis.map((each) => styleAxis(each, theme, pattern, timeCategories));
+  const type = isObject(axis) ? axis.type : undefined;
+  const timeAxis = type === 'time' || (type === 'category' && timeCategories);
   const defaults = {
     axisLine: { lineStyle: { color: theme.border } },
     axisTick: { show: false },
@@ -133,9 +147,15 @@ function tooltipOf(spec: unknown, series: readonly Loose[], theme: ChartTheme): 
  * @param option - The option, tokens replaced.
  * @param theme - The theme.
  * @param dataset - The main dataset, for the time labels.
+ * @param timeCategories - Whether category axes hold times.
  * @returns The styled option.
  */
-function styleOption(option: Loose, theme: ChartTheme, dataset: Dataset | undefined): Loose {
+function styleOption(
+  option: Loose,
+  theme: ChartTheme,
+  dataset: Dataset | undefined,
+  timeCategories: boolean,
+): Loose {
   const pattern = timePattern(dataset);
   const series = [option.series ?? []].flat().filter(isObject);
   const legendDefaults = {
@@ -152,8 +172,12 @@ function styleOption(option: Loose, theme: ChartTheme, dataset: Dataset | undefi
   const { legend: _legend, ...rest } = option;
   return {
     ...rest,
-    ...('xAxis' in option ? { xAxis: styleAxis(option.xAxis, theme, pattern) } : {}),
-    ...('yAxis' in option ? { yAxis: styleAxis(option.yAxis, theme, pattern) } : {}),
+    ...('xAxis' in option
+      ? { xAxis: styleAxis(option.xAxis, theme, pattern, timeCategories) }
+      : {}),
+    ...('yAxis' in option
+      ? { yAxis: styleAxis(option.yAxis, theme, pattern, timeCategories) }
+      : {}),
     ...(showLegend ? { legend: merge(legendDefaults, option.legend) } : {}),
     tooltip: tooltipOf(option.tooltip, series, theme),
   };
@@ -213,6 +237,32 @@ function ownedParts(prepared: Prepared, option: Loose, theme: ChartTheme, empty:
 }
 
 /**
+ * The option with its series expanded, the markers on a time chart, and the tokens replaced.
+ *
+ * @param prepared - The prepared data and option.
+ * @param markers - The annotation markers.
+ * @param context - The theme and the time zone.
+ * @returns The resolved option.
+ */
+function resolvedOption(
+  prepared: Prepared,
+  markers: readonly MarkerOutcome[],
+  context: ChartContext,
+): Loose {
+  const expanded = expandSeries(prepared);
+  const onTime = isObject(prepared.option.xAxis) && prepared.option.xAxis.type === 'time';
+  const series = onTime
+    ? withMarkers(expanded, markers, context.theme, context.timeZone)
+    : expanded;
+  const tokens = {
+    colors: themeColors(context.theme),
+    roles: prepared.roles,
+    dataset: prepared.datasets[0],
+  };
+  return replaceTokens({ ...prepared.option, series }, tokens) as Loose;
+}
+
+/**
  * Builds the option.
  *
  * @param input - The view, the datasets and the markers.
@@ -222,25 +272,19 @@ function ownedParts(prepared: Prepared, option: Loose, theme: ChartTheme, empty:
 export function buildChartOption(input: ChartInput, context: ChartContext): Loose {
   const { view } = input;
   const format = { timeZone: context.timeZone };
+  const option = view.option as Loose;
   const prepared = prepareChart(view.prepare, {
-    option: view.option as Loose,
+    option,
     datasets: input.datasets,
     roles: view.roles,
     limit: view.limit,
     format,
   });
-  const expanded = expandSeries(prepared);
-  const onTime = isObject(prepared.option.xAxis) && prepared.option.xAxis.type === 'time';
-  const series = onTime
-    ? withMarkers(expanded, input.markers, context.theme, context.timeZone)
-    : expanded;
-  const context_ = {
-    colors: themeColors(context.theme),
-    roles: prepared.roles,
-    dataset: prepared.datasets[0],
-  };
-  const resolved = replaceTokens({ ...prepared.option, series }, context_) as Loose;
-  const styled = styleOption(resolved, context.theme, prepared.datasets[0]);
+  const resolved = resolvedOption(prepared, input.markers, context);
+  const [main] = prepared.datasets;
+  const x = oneColumn(prepared.roles, 'x');
+  const timeCategories = main?.dimensions.find((column) => column.name === x)?.type === 'time';
+  const styled = styleOption(resolved, context.theme, main, timeCategories);
   const empty = input.datasets.every((dataset) => dataset.source.length === 0);
   return {
     ...(wireFormatters(styled, format) as Loose),

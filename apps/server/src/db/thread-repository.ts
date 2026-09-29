@@ -21,8 +21,8 @@ export interface ThreadRow {
   readonly createdBy: string | null;
   /** The model provider it uses; `null` for the default. */
   readonly providerId: string | null;
-  /** The recipes it uses. */
-  readonly recipes: ThreadQueries;
+  /** The query builders and saved queries it uses. */
+  readonly queries: ThreadQueries;
   /** Creation time, in epoch milliseconds. */
   readonly createdAt: number;
   /** Last change, in epoch milliseconds. */
@@ -171,7 +171,7 @@ interface StoredThread {
   created_by: string | null;
   /** The model provider. */
   provider_id: string | null;
-  /** The recipes, as JSON. */
+  /** The queries, as JSON. */
   recipes: string | null;
   /** Creation time. */
   created_at: number;
@@ -228,7 +228,7 @@ function toThread(stored: StoredThread): ThreadRow {
     tokensUsed: stored.tokens_used,
     createdBy: stored.created_by,
     providerId: stored.provider_id,
-    recipes: recipesOf(stored.recipes),
+    queries: queriesOf(stored.recipes),
     createdAt: stored.created_at,
     updatedAt: stored.updated_at,
   };
@@ -278,12 +278,12 @@ function threadStatements(database: Database) {
 }
 
 /**
- * The recipes of a stored thread.
+ * The queries of a stored thread.
  *
  * @param stored - The stored JSON, or `null`.
- * @returns The recipes; the default set when none or invalid.
+ * @returns The queries; the default set when none or invalid.
  */
-function recipesOf(stored: string | null): ThreadQueries {
+function queriesOf(stored: string | null): ThreadQueries {
   if (stored === null) return { mode: 'default' };
   return threadQueriesSchema.safeParse(JSON.parse(stored)).data ?? { mode: 'default' };
 }
@@ -304,7 +304,7 @@ function threadValues(row: ThreadRow) {
     tokensUsed,
     createdBy,
     providerId,
-    JSON.stringify(row.recipes),
+    JSON.stringify(row.queries),
     row.createdAt,
     row.updatedAt,
   ] as const;

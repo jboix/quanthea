@@ -1,4 +1,4 @@
-import type { QueryPreview, SavedQuery } from '@querent/shared';
+import { chartRecipes, type QueryPreview, type SavedQuery } from '@querent/shared';
 import { useState } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
 import { Select } from '../../ui/select.tsx';
@@ -24,15 +24,58 @@ const rangeOptions: readonly { value: PreviewRange; label: string }[] = [
 export function usePreview() {
   const fetcher = useFetcher<QueriesOutcome>();
   const [from, setFrom] = useState<PreviewRange>('now-24h');
-  const run = (panel: Readonly<Record<string, unknown>>, saved?: SavedQuery) => {
-    const intent: QueriesIntent = { intent: 'preview', panel, from, ...(saved ? { saved } : {}) };
+  const [chart, setChart] = useState('');
+  const run = (data: Readonly<Record<string, unknown>>, saved?: SavedQuery) => {
+    const intent: QueriesIntent = {
+      intent: 'preview',
+      data,
+      from,
+      ...(chart ? { chart } : {}),
+      ...(saved ? { saved } : {}),
+    };
     void fetcher.submit(intent as unknown as SubmitTarget, {
       method: 'post',
       encType: 'application/json',
     });
   };
   const preview = fetcher.data?.intent === 'preview' ? fetcher.data.preview : undefined;
-  return { run, from, setFrom, running: fetcher.state !== 'idle', preview };
+  return { run, from, setFrom, chart, setChart, running: fetcher.state !== 'idle', preview };
+}
+
+/**
+ * The chart a preview draws with: the one that suits the data, or any query.
+ *
+ * @param props - The query chosen, the suggested one and the change callback.
+ * @param props.value - The query chosen, or an empty string for the suggested one.
+ * @param props.suggested - The query that suits the data, if known.
+ * @param props.onChange - Called with another query.
+ * @returns The dropdown.
+ */
+export function ChartSelect({
+  value,
+  suggested,
+  onChange,
+}: {
+  readonly value: string;
+  readonly suggested: string | undefined;
+  readonly onChange: (recipe: string) => void;
+}) {
+  const options = [
+    { value: '', label: suggested ? `Suggested: ${suggested}` : 'Suggested for the data' },
+    ...chartRecipes.map((recipe) => ({
+      value: recipe.id,
+      label: `${recipe.title} · ${recipe.id}`,
+      group: recipe.family,
+    })),
+  ];
+  return (
+    <Select
+      label="Chart"
+      options={options}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  );
 }
 
 /**
@@ -64,7 +107,7 @@ export function RangeSelect({
 interface ConnectorSelectProps {
   /** Every connector. */
   readonly connectors: readonly PreviewConnector[];
-  /** The recipe's language; only its connectors are offered. */
+  /** The query's language; only its connectors are offered. */
   readonly language: 'sql' | 'promql';
   /** The connector chosen. */
   readonly value: string;
@@ -73,7 +116,7 @@ interface ConnectorSelectProps {
 }
 
 /**
- * The connector a preview runs on, among those of the recipe's language.
+ * The connector a preview runs on, among those of the query's language.
  *
  * @param props - The connectors, the language, the value and the change callback.
  * @returns The dropdown, or a note when there is no such connector.
@@ -95,11 +138,11 @@ export function ConnectorSelect({ connectors, language, value, onChange }: Conne
 }
 
 /**
- * The connector a preview runs on: the one chosen when it has the recipe's language, else the
+ * The connector a preview runs on: the one chosen when it has the query's language, else the
  * first one that has it.
  *
  * @param connectors - Every connector.
- * @param language - The recipe's language.
+ * @param language - The query's language.
  * @param chosen - The connector chosen, if any.
  * @returns Its name, or an empty string when no connector has the language.
  */
@@ -126,6 +169,9 @@ export function PreviewResult({ preview }: { readonly preview: QueryPreview }) {
     preview.run.queries.every((query) => query.frames.every((frame) => frame.meta.rowCount === 0));
   return (
     <div className={styles.result}>
+      {preview.ok && preview.columns.length > 0 && (
+        <p className={styles.hint}>Columns: {preview.columns.join(', ')}</p>
+      )}
       {preview.queries.map((query) => (
         <pre key={query} className={styles.code}>
           {query}

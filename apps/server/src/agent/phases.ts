@@ -15,18 +15,20 @@ export type ToolName =
   | 'test_query'
   | 'ask_person'
   | 'propose_plan'
-  | 'edit_dashboard';
+  | 'edit_dashboard'
+  | 'chart_recipe';
 
 /** The tools each phase offers. */
 export const phaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
   planning: ['describe', 'sample_values', 'ask_person', 'propose_plan'],
-  building: ['describe', 'sample_values', 'test_query', 'edit_dashboard'],
+  building: ['describe', 'sample_values', 'test_query', 'chart_recipe', 'edit_dashboard'],
   editing: [
     'describe',
     'sample_values',
     'test_query',
     'ask_person',
     'propose_plan',
+    'chart_recipe',
     'edit_dashboard',
   ],
 };

@@ -35,7 +35,7 @@ import { startingUsage } from './usage.ts';
 export interface AgentDependencies extends AgentServices {
   /** The model gateway settings. */
   readonly modelSettings: ModelSettingsService;
-  /** The recipe settings, for the recipes a thread may use. */
+  /** The query settings, for the queries a thread may use. */
   readonly querySettings: QuerySettingsService;
   /** Builds the model; the real providers by default. */
   readonly buildModel?: typeof languageModel;
@@ -248,8 +248,8 @@ function runContext(
   };
   const { threadId, actor, signal } = request;
   const { settings, providerName } = turn;
-  const recipes = dependencies.querySettings.available(dependencies.threads.row(threadId).recipes);
-  const run = { threadId, actor, settings, providerName, recipes, writer, signal, counters };
+  const queries = dependencies.querySettings.available(dependencies.threads.row(threadId).queries);
+  const run = { threadId, actor, settings, providerName, queries, writer, signal, counters };
   return { ...dependencies, ...run };
 }
 

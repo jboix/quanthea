@@ -48,7 +48,7 @@ export interface Threads {
    * @param actor - Who starts it.
    * @returns The thread.
    */
-  create(actor: string, providerId?: string | null, recipes?: ThreadQueries): ThreadSummary;
+  create(actor: string, providerId?: string | null, queries?: ThreadQueries): ThreadSummary;
   /**
    * Reads a thread with its messages and plans.
    *
@@ -159,8 +159,8 @@ function timesOf(row: ThreadRow) {
  * @returns The summary.
  */
 function toSummary(row: ThreadRow): ThreadSummary {
-  const { id, title, state, dashboardId, tokensUsed, providerId, recipes } = row;
-  return { id, title, state, dashboardId, tokensUsed, providerId, recipes, ...timesOf(row) };
+  const { id, title, state, dashboardId, tokensUsed, providerId, queries } = row;
+  return { id, title, state, dashboardId, tokensUsed, providerId, queries, ...timesOf(row) };
 }
 
 /**
@@ -314,7 +314,7 @@ function create(
   context: Context,
   actor: string,
   providerId: string | null,
-  recipes: ThreadQueries,
+  queries: ThreadQueries,
 ): ThreadSummary {
   const at = context.now();
   const row: ThreadRow = {
@@ -325,7 +325,7 @@ function create(
     tokensUsed: 0,
     createdBy: actor,
     providerId,
-    recipes,
+    queries,
     createdAt: at,
     updatedAt: at,
   };
@@ -383,8 +383,8 @@ export function createThreads(dependencies: ThreadsDependencies): Threads {
   const { repository } = context;
   return {
     list: () => repository.list().map(toSummary),
-    create: (actor, providerId, recipes) =>
-      create(context, actor, providerId ?? null, recipes ?? { mode: 'default' }),
+    create: (actor, providerId, queries) =>
+      create(context, actor, providerId ?? null, queries ?? { mode: 'default' }),
     get: (id) => get(context, id),
     row: (id) => find(context, id),
     remove(id, actor) {

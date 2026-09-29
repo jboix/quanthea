@@ -79,7 +79,8 @@ The two paths that matter:
 │   │       │   ├── postgres/
 │   │       │   ├── opensearch/
 │   │       │   └── http/
-│   │       ├── dashboards/          versions, validate, pin, variants, bin, diff
+│   │       ├── dashboards/          versions, validate, pin, variants, bin, diff; queries/ (builders,
+│   │       │                        saved and raw queries) and panels/ (edits: data + chart, layout)
 │   │       ├── threads/             threads, messages, plans (state machine)
 │   │       ├── search/              FTS5 queries
 │   │       ├── settings/            typed settings store (auth, gateway, retention)
@@ -100,7 +101,7 @@ The two paths that matter:
 │           │   ├── bin/
 │           │   ├── connectors/
 │           │   └── settings/        gateway, auth, retention
-│           ├── charts/              spec + frames → ECharts option; formatter wiring; theme
+│           ├── charts/              view + datasets → ECharts option: preparations, tokens, maps
 │           ├── ui/                  presentational primitives (Button, Card, Pill, Tabs, Switch…), brand
 │           └── lib/                 typed API client (from shared contract), utils
 ├── packages/
@@ -109,6 +110,9 @@ The two paths that matter:
 │           ├── spec/                dashboard spec Zod schemas + types
 │           ├── api/                 endpoint contracts (method, path, input, output)
 │           ├── formatters/          named formatter library (pure functions)
+│           ├── dataset/             the data contract: datasets, shapes, reshaping, from frames
+│           ├── chart-recipes/       chart recipes by family, their schema, fill, samples
+│           ├── queries.ts           query builders, saved queries, a thread's queries
 │           ├── frames.ts            result frame types
 │           ├── roles.ts             Role, capability matrix
 │           └── index.ts
@@ -167,25 +171,26 @@ the `postgres` driver and Prometheus uses `fetch`.
 
 **Routes** (React Router data mode):
 
-| Path                                                       | Screen                                                       | Min role |
-| ---------------------------------------------------------- | ------------------------------------------------------------ | -------- |
-| `/`                                                        | redirect → `/library` (viewer) or `/threads/new` (editor+)   | viewer   |
-| `/threads/new`, `/threads/:threadId`                       | Plan, Build and refine, Variant                              | editor   |
-| `/library`                                                 | Library                                                      | viewer   |
-| `/d/:dashboardId`                                          | Pinned view, latest pinned version                           | viewer   |
-| `/d/:dashboardId/v/:version`                               | a specific version                                           | viewer   |
-| `/d/:dashboardId/v/:version/panels/:panelId`               | resource route: one panel's run, for fetchers                | viewer   |
-| `/d/:dashboardId/v/:version/options/:name`                 | resource route: a variable's options, for fetchers           | viewer   |
-| `/bin`                                                     | Bin                                                          | editor   |
-| `/connectors`, `/connectors/:connectorId`                  | Connectors: list, access level, guardrails, schema           | admin    |
-| `/connectors/new`, `/connectors/:connectorId/edit`         | add and edit a connection                                    | admin    |
-| `/connectors/:connectorId/health`                          | resource route: the connection test, for fetchers            | admin    |
-| `/settings/model`, `/settings/auth`, `/settings/retention` | Settings                                                     | admin    |
-| `/settings/usage`                                          | Usage: tokens, cost and pinned views per day, by model       | admin    |
-| `/settings/queries`                                        | Recipes: built-in ones on or off, your own with placeholders | admin    |
-| `/settings`                                                | redirect → `/settings/model`                                 | admin    |
-| `/ui`                                                      | UI kit: every `ui/` primitive, for checking the visuals      | viewer   |
-| `/login`                                                   | only in `basic` / `oidc` modes                               | —        |
+| Path                                                       | Screen                                                     | Min role |
+| ---------------------------------------------------------- | ---------------------------------------------------------- | -------- |
+| `/`                                                        | redirect → `/library` (viewer) or `/threads/new` (editor+) | viewer   |
+| `/threads/new`, `/threads/:threadId`                       | Plan, Build and refine, Variant                            | editor   |
+| `/library`                                                 | Library                                                    | viewer   |
+| `/d/:dashboardId`                                          | Pinned view, latest pinned version                         | viewer   |
+| `/d/:dashboardId/v/:version`                               | a specific version                                         | viewer   |
+| `/d/:dashboardId/v/:version/panels/:panelId`               | resource route: one panel's run, for fetchers              | viewer   |
+| `/d/:dashboardId/v/:version/options/:name`                 | resource route: a variable's options, for fetchers         | viewer   |
+| `/bin`                                                     | Bin                                                        | editor   |
+| `/connectors`, `/connectors/:connectorId`                  | Connectors: list, access level, guardrails, schema         | admin    |
+| `/connectors/new`, `/connectors/:connectorId/edit`         | add and edit a connection                                  | admin    |
+| `/connectors/:connectorId/health`                          | resource route: the connection test, for fetchers          | admin    |
+| `/settings/model`, `/settings/auth`, `/settings/retention` | Settings                                                   | admin    |
+| `/settings/usage`                                          | Usage: tokens, cost and pinned views per day, by model     | admin    |
+| `/settings/queries`                                        | Queries: builders on or off, your own with placeholders    | admin    |
+| `/settings/charts`                                         | Charts: every chart recipe drawn from its sample           | admin    |
+| `/settings`                                                | redirect → `/settings/model`                               | admin    |
+| `/ui`                                                      | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
+| `/login`                                                   | only in `basic` / `oidc` modes                             | —        |
 
 Route loaders fetch through the typed API client. The root loader loads the session
 (`GET /api/me`, once per page load). Without a session, every screen redirects to
@@ -225,8 +230,8 @@ sequenceDiagram
   U->>W: Approve & build
   W->>H: POST /api/threads/:id/plans/:planId/approve
   H->>A: continue run
-  M->>A: edit_dashboard(panels by recipe)
-  A->>A: expand recipes into a spec
+  M->>A: edit_dashboard(panels: data + chart)
+  A->>A: build queries, fill chart recipes into a spec
   A->>D: validate + save as draft vN
   D->>Q: test-run every panel query
   Q-->>D: frames
@@ -313,7 +318,8 @@ shows depends on the connector's access level.
 | `test_query(connector, query, variables?, time?)`   | L1: ok or error. L2: fields, types, row counts. L3: plus summaries. L4: plus rows                         | Default range `now-6h` to `now`. Errors are safe messages below L4.                      |
 | `ask_person(question, options)`                     | `{ asked, next }`                                                                                         | 2 to 4 options, shown as buttons; the run then stops and the answer is the next message. |
 | `propose_plan(plan)`                                | `{ planId, status, next }`                                                                                | Streams a `data-plan` part and moves the thread to `plan_pending`; the run then stops.   |
-| `edit_dashboard(edit)`                              | the new version, each panel's test result, and the new panels left out; or the issues and failures to fix | Panels by recipe; see "Writing a version".                                               |
+| `edit_dashboard(edit)`                              | the new version, each panel's test result, and the new panels left out; or the issues and failures to fix | Panels of data and a chart; see "Writing a version".                                     |
+| `chart_recipe(id)`                                  | a chart recipe's roles, variants, pitfalls and option template                                            | The instructions list every recipe in one line; this reads one in full.                  |
 
 `search_library` and `get_dashboard` arrive with the library and variants.
 
@@ -353,46 +359,68 @@ catalog stays the same from turn to turn and the providers' cache keeps working.
 
 ### Writing a version
 
-The model never writes a spec. `edit_dashboard` takes an edit (`dashboards/recipes/`): the title,
-time range and variables to set, panels by recipe to add or to rebuild in place (`replaces`),
-panel ids to remove, and deploy markers. The server expands it:
+The model never writes a spec, and rarely a query. Each panel of an `edit_dashboard` edit is
+**data** and a **chart**, two independent layers joined by one data contract: every query result
+becomes a table of typed columns and rows (`Dataset`, `@querent/shared/dataset`), which maps
+directly onto an ECharts `dataset`.
 
-- **Recipes.** PromQL: `rate`, `ratio` (such as 5xx over all requests), `latency` (histogram
-  percentiles), `gauge`, `top`. SQL: `sql-series`, `sql-breakdown`, `sql-stat`, `sql-rows`. A
-  `custom` panel takes raw queries and a view kind for what no recipe says. Names are checked
-  against strict patterns and quoted, literals are escaped, and variables stay bound references.
-- **Saved recipes.** An admin saves a query with typed placeholders (`{{name}}`: metric, label,
-  table, column, value or duration) and how its panel shows. The model asks for it by id with a
-  value per placeholder. Each value is checked and written for its kind like the built-in recipes
-  write theirs, so the model still writes no query text.
-- **Which recipes.** Admins switch built-in recipes off (`recipes` settings section,
-  `GET/PUT /api/settings/queries`). A thread uses the default set (the recipes switched on and
-  every saved one), a set chosen when it starts, or none (free style: custom panels only), stored
-  on the thread (`POST /api/threads` with `recipes`). The tool schema and the guide list only
-  those recipes. The new-thread screen offers the three, with the recipes to tick when choosing.
-- **Recipes screen.** Each built-in recipe shows the fields the agent fills, an example request
-  and the queries it becomes (`GET /api/settings/queries/guide`, expanded by the same code as the
-  agent's requests). A preview expands one panel request, validates it and test-runs it on a
-  chosen connector and time range, with no model and nothing saved
-  (`POST /api/settings/queries/preview`). A saved recipe being edited goes along with its
-  preview, so it can be tried before it is kept.
+- **Data** (`dashboards/queries/`) is a query builder, a saved query or a raw query. Each says
+  what it returns: a shape of table and its columns.
+  - **Query builders.** PromQL: `rate`, `ratio` (such as 5xx over all requests), `latency`
+    (every percentile in one query, labelled `quantile`), `gauge`, `top`. SQL: `sql-series`,
+    `sql-breakdown`, `sql-stat`, `sql-rows`. Names are checked against strict patterns and
+    quoted, literals are escaped, and variables stay bound references.
+  - **Saved queries.** An admin saves a query with typed placeholders (`{{name}}`: metric, label,
+    table, column, value or duration) and the shape it returns. The model asks for it by id with a
+    value per placeholder. Each value is checked and written for its kind like the builders write
+    theirs.
+  - **Raw queries**, for data no builder gives.
+- **Shapes.** `long` (x, series, value), `wide` (x, a column per series), `single`, `values` (raw
+  numbers to bin), `matrix`, `hierarchical`, `graph`, `geo`, `ohlc` and `rows`. A Prometheus
+  range result is long: the time, a column per label, `series` and `value`.
+- **Charts** (`@querent/shared/chart-recipes/`) are presentation only: a recipe names the shape it
+  draws and the role of each column (`x`, `series`, `y`, `category`, `value`…), carries an ECharts
+  option template with `@role`, `@format` and theme tokens, variants as small option patches, its
+  pitfalls, and a small fake sample it draws on its own. No recipe names a connector or a query
+  language; a test checks it. Thirty-two recipes cover trends, comparisons, distributions,
+  composition, relationships, flows, maps, numbers, tables and small multiples.
+- **Filling.** The panel's chart choice (`recipe`, `variants`, `roles`, `unit`, `options`) is
+  filled into the view (`fillView`): variants and the model's option changes merged in order, the
+  unit's named formatter put where the recipe asks. The view keeps the filled option, how the
+  adapter prepares the data (`prepare`) and the column of each role, so a pinned chart draws the
+  same whatever the catalogue becomes.
+- **Which queries.** Admins switch builders off (`GET/PUT /api/settings/queries`). A thread uses
+  the default set (the builders switched on and every saved query), a set chosen when it starts,
+  or none (free style: raw queries only), stored on the thread (`POST /api/threads` with
+  `queries`). The tool schema and the guide list only those. Chart recipes are always offered.
 - **Layout.** Existing panels keep their place; a rebuilt panel keeps its id and place; new
   panels are packed in reading order into rows below, as wide as asked or as their kind usually
-  is (stats a quarter, time charts full width, tables and category charts half).
+  is (numbers a quarter, time charts full width, tables and category charts half).
 - **Markers.** Deploy markers are one annotation (`markers`) put on every time chart.
 
 The edit's schema is the tool's input schema, so providers that constrain tool input keep the model
-to it. The expanded spec then goes through one pipeline (`agent/write-version.ts`):
+to it. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/write-version.ts`):
 
 1. The thread's state machine decides: after an approved plan, or in a ready thread when the set of
    panels stays the same.
-2. The spec is validated (`dashboards.check`), then every panel is test-run with its defaults.
-   The results go back to the model through the gate.
-3. With the "test-run every query" switch on, a version is saved only with panels that work. New
-   panels whose queries fail are left out and reported, so the model re-adds only those. Any other
-   failure saves nothing. Either way the counter of failed writes goes up.
-4. The first version creates the thread's dashboard; later ones add versions. Each streams a
+2. The spec is built and checked, views aside, then every panel is test-run with its defaults.
+3. Each built chart is completed from its first query's result (`dashboards/panels/complete.ts`):
+   roles the model left out take the first fitting columns, and roles naming a column the result
+   has not, or of the wrong type, become the panel's problems.
+4. With the "test-run every query" switch on, a version is saved only with panels that work. New
+   panels whose queries fail or whose chart does not fit their data are left out and reported, so
+   the model re-adds only those. Any other failure saves nothing. Either way the counter of
+   failed writes goes up. The results go back to the model through the gate.
+5. The first version creates the thread's dashboard; later ones add versions. Each streams a
    `data-version` part, and a `data-diff` part with the changed panels.
+
+**Settings → Queries** shows each builder's fields, an example, the query it becomes and what it
+returns (`GET /api/settings/queries/guide`, built by the same code as the agent's requests). A
+preview builds one data request, runs it on a chosen connector and time range, and draws it with
+the chart that suits it or any recipe, with no model and nothing saved
+(`POST /api/settings/queries/preview`). A saved query being edited goes along with its preview.
+**Settings → Charts** draws every recipe and variant from its sample through the dashboards'
+panel code.
 
 ### Prompting
 
@@ -409,14 +437,16 @@ for which service or table, and over which time. It never asks in words for appr
 card has the buttons. The thread's state sets the phase
 (`agent/phases.ts`), and each phase offers only its tools:
 
-| Phase    | Thread states          | Tools                                                       | Adds to the instructions                          |
-| -------- | ---------------------- | ----------------------------------------------------------- | ------------------------------------------------- |
-| planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`   | one question before the first plan, then the plan |
-| building | `building`             | `describe`, `sample_values`, `test_query`, `edit_dashboard` | the guide to its recipes, the plan                |
-| editing  | `ready`                | all of the above, `ask_person` and `propose_plan`           | the guide to its recipes                          |
+| Phase    | Thread states          | Tools                                                                       | Adds to the instructions                          |
+| -------- | ---------------------- | --------------------------------------------------------------------------- | ------------------------------------------------- |
+| planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`                   | one question before the first plan, then the plan |
+| building | `building`             | `describe`, `sample_values`, `test_query`, `chart_recipe`, `edit_dashboard` | the panel guide, the plan                         |
+| editing  | `ready`                | all of the above, `ask_person` and `propose_plan`                           | the panel guide                                   |
 
-Planning never runs a query: the build test-runs every query anyway. The recipe guide only comes
-once there is something to write, so planning requests stay short.
+Planning never runs a query: the build test-runs every query anyway. The panel guide only comes
+once there is something to write, so planning requests stay short. It lists the thread's builders
+with the columns each returns, raw and saved queries, the shapes of data, one line per chart
+recipe, and the query guide of each connector kind in use.
 
 ### Keeping requests small
 
@@ -735,9 +765,9 @@ indicative; the contract files are the source of truth.
 | `POST /settings/model/test`                                                                | gateway capability test                      | admin    |
 | `GET /settings/usage?days=`                                                                | usage by hour, from the ledger               | admin    |
 | `GET /model-providers`                                                                     | the providers a thread may use, without keys | editor   |
-| `GET/PUT /settings/queries`                                                                | built-in recipes on or off, saved recipes    | admin    |
-| `GET /queries`                                                                             | the recipes a thread may use                 | editor   |
-| `GET /settings/queries/guide`, `POST /settings/queries/preview`                            | how recipes work, a test run of one panel    | admin    |
+| `GET/PUT /settings/queries`                                                                | builders on or off, saved queries            | admin    |
+| `GET /queries`                                                                             | the queries a thread may use                 | editor   |
+| `GET /settings/queries/guide`, `POST /settings/queries/preview`                            | how builders work, a test run of a query     | admin    |
 | `GET/POST/PATCH /users`                                                                    | local users (basic mode)                     | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
@@ -779,16 +809,22 @@ request → requestId → session cookie? → Principal
 - Each panel loads its run through a fetcher from a resource route
   (`/d/:id/v/:version/panels/:panelId`), so panels load, fail and refresh on their own. A
   query-backed variable loads its options the same way when its menu opens.
-- `charts/` is the only place that imports ECharts. It registers the allowed series types (line,
-  bar, scatter, pie, heatmap, gauge) and the components they need, draws on a canvas, and is
+- `charts/` is the only place that imports ECharts. It registers the series types the chart
+  recipes use and the components they need (`charts/register.ts`), draws on a canvas, and is
   loaded lazily, so pages without a chart never download ECharts.
-- The adapter turns each frame into an ECharts `dataset` and expands each series template into one
-  series per frame (named by its labels, such as `checkout-svc`), and per number field when a frame
-  has several. `pivot`, `filter` and `sort` transforms run first. Categories go on the y axis when
-  the spec's `yAxis` is a category axis.
+- The adapter reads each query's frames as one dataset, applies the view's `filter` and `sort`,
+  then prepares it the way the view says (`charts/prepare/`): pivoted to one column per series,
+  scaled to shares, ranked, split into groups, binned, summed up for a box plot, built into a
+  tree or a graph, laid on a calendar, a dial or a map, or split into small multiples. Series
+  templates expand to one series per value column or group. `@role` tokens become columns, and
+  theme tokens (`@ink`, `@palette.1`, `@scale.low`…) become colours from `ui/theme.css`.
+- Axes and legends are styled only where a chart has them. Times on an axis read as hours, dates
+  or both, from how far apart the points are, in the dashboard's time zone. An empty result says
+  so on the chart.
+- **Maps:** the world map (`charts/maps/world.geojson`, Natural Earth) is a file of the repository,
+  loaded and registered only when a chart draws a map; no map is fetched from elsewhere.
 - **Formatters:** every `{"$fmt": …}` object becomes a function from
-  `@querent/shared/formatters`. ECharts string templates pass through unchanged. A time axis
-  reads `13:30` in the dashboard's time zone unless the spec gives a formatter.
+  `@querent/shared/formatters`. ECharts string templates pass through unchanged.
 - The adapter owns the dataset, the grid, the palette, fonts and axis colours (from the tokens in
   `ui/theme.css`), and the tooltip's render mode, whatever the spec says.
 - **Tooltip safety:** tooltips are forced to `renderMode: 'richText'`, drawn on the canvas, so a

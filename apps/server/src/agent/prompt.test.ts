@@ -15,7 +15,8 @@ const facts: TurnFacts = {
   plan: undefined,
   draft: undefined,
   mentions: [],
-  recipes: { builtIn: ['rate', 'sql-stat'], saved: [] },
+  queries: { builtIn: ['rate', 'sql-stat'], saved: [] },
+  guides: [{ text: 'PostgreSQL (SQL). Bind the range with :__from and :__to.' }],
 };
 
 describe('instructionsFor', () => {
@@ -37,20 +38,28 @@ describe('instructionsFor', () => {
     ).toContain('The approved plan "Checkout"');
   });
 
-  test('gives the recipe guide only once there is something to write', () => {
+  test('gives the panel guide only once there is something to write', () => {
     expect(instructionsFor(facts)).not.toContain('Building with edit_dashboard');
     expect(instructionsFor({ ...facts, state: 'ready' })).toContain('Building with edit_dashboard');
   });
 
-  test('lists only the thread’s recipes, and its saved ones with their placeholders', () => {
+  test('lists the thread’s builders with their columns, the shapes, the charts and the connector guides', () => {
     const text = instructionsFor({ ...facts, state: 'ready' });
-    expect(text).toContain('PromQL recipes: rate (a counter per second).');
-    expect(text).toContain('SQL recipes: sql-stat (one number).');
-    expect(text).not.toContain('latency');
+    expect(text).toContain(
+      '- rate: a counter per second; columns time, the "by" labels, series, value',
+    );
+    expect(text).toContain('- sql-stat: one number; column value');
+    expect(text).not.toContain('- latency:');
+    expect(text).toContain('- matrix: One row per cell');
+    expect(text).toContain('trend.line (long): A number over time');
+    expect(text).toContain('PostgreSQL (SQL). Bind the range');
+  });
+
+  test('lists saved queries with their placeholders', () => {
     const saved = instructionsFor({
       ...facts,
       state: 'ready',
-      recipes: {
+      queries: {
         builtIn: [],
         saved: [
           {
@@ -60,21 +69,20 @@ describe('instructionsFor', () => {
             language: 'promql',
             query: 'sum({{metric}})',
             params: [{ name: 'metric', kind: 'metric', description: 'A gauge' }],
-            show: 'line',
-            unit: 'number',
+            shape: 'long',
           },
         ],
       },
     });
     expect(saved).toContain(
-      '- "queue-depth" (promql, shows line): Messages waiting in a queue. Placeholders: metric (metric: A gauge).',
+      '- "queue-depth" (promql, long): Messages waiting in a queue. Placeholders: metric (metric: A gauge).',
     );
-    expect(saved).not.toContain('PromQL recipes:');
+    expect(saved).not.toContain('PromQL builders');
   });
 
-  test('says every panel is custom when the thread uses no recipes', () => {
-    const text = instructionsFor({ ...facts, state: 'ready', recipes: { builtIn: [], saved: [] } });
-    expect(text).toContain('This thread uses no recipes: every panel is custom.');
+  test('says every panel’s data is a raw query when the thread uses no builders', () => {
+    const text = instructionsFor({ ...facts, state: 'ready', queries: { builtIn: [], saved: [] } });
+    expect(text).toContain('This thread uses no query builders: every panel');
   });
 
   test('ends with what the phase asks for', () => {

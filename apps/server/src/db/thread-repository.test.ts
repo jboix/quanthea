@@ -27,7 +27,7 @@ const thread: ThreadRow = {
   tokensUsed: 0,
   createdBy: 'editor-1',
   providerId: null,
-  recipes: { mode: 'default' },
+  queries: { mode: 'default' },
   createdAt: 1000,
   updatedAt: 1000,
 };

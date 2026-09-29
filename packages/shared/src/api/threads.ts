@@ -14,8 +14,8 @@ export const threadSummarySchema = z.object({
   tokensUsed: z.number(),
   /** The model provider it uses; `null` for the default. */
   providerId: z.string().nullable(),
-  /** The recipes it uses. */
-  recipes: threadQueriesSchema,
+  /** The query builders and saved queries it uses. */
+  queries: threadQueriesSchema,
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -58,7 +58,7 @@ export const createThreadEndpoint = defineEndpoint({
   path: '/threads',
   body: z.object({
     providerId: z.string().max(40).optional(),
-    recipes: threadQueriesSchema.optional(),
+    queries: threadQueriesSchema.optional(),
   }),
   output: threadSummarySchema,
 });

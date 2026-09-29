@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { connectorInputSchema, defaultModelGateway, type Plan } from '@querent/shared';
+import {
+  connectorInputSchema,
+  defaultModelGateway,
+  type Plan,
+  queryBuilders,
+} from '@querent/shared';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
 import { createAgent } from './run.ts';
 import { type ScriptedStep, scriptedStreamModel } from './test/mock-model.ts';
@@ -12,7 +17,7 @@ beforeEach(async () => {
   services = await testServices(dataDir.path);
   const input = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
   await services.connections.create(connectorInputSchema.parse(input), 'admin-1');
-  // The memory source knows one query, so the saved recipe's query is not test-run.
+  // The memory source knows one query, so the saved query is not test-run.
   const behaviour = { ...defaultModelGateway.behaviour, testRun: false };
   const gateway = { ...defaultModelGateway, behaviour };
   await services.modelSettings.save(gateway, { anthropic: 'sk-test' }, 'admin-1');
@@ -30,8 +35,7 @@ beforeEach(async () => {
             { name: 'table', kind: 'table', description: '' },
             { name: 'level', kind: 'value', description: '' },
           ],
-          show: 'stat',
-          unit: 'number',
+          shape: 'single',
         },
       ],
     },
@@ -73,33 +77,37 @@ async function build(threadId: string, ...steps: ScriptedStep[]) {
   return model;
 }
 
+/** The kinds of data a panel may ask for, as opposed to kinds of variables. */
+const dataKinds = new Set(['raw', 'saved', ...queryBuilders.map((builder) => builder.id)]);
+
 /**
- * The recipes the edit_dashboard tool of a call offers.
+ * The kinds of data the edit_dashboard tool of a call offers.
  *
  * @param model - The model.
- * @returns The recipe names in the tool's input schema.
+ * @returns The kinds in the tool's input schema.
  */
-function offeredRecipes(model: ReturnType<typeof scriptedStreamModel>): string[] {
+function offeredKinds(model: ReturnType<typeof scriptedStreamModel>): string[] {
   const edit = model.doStreamCalls[0]?.tools?.find((each) => each.name === 'edit_dashboard');
   const schema = JSON.stringify(edit && 'inputSchema' in edit ? edit.inputSchema : {});
-  return [...schema.matchAll(/"recipe":\{"type":"string","const":"([a-z-]+)"/g)]
+  return [...schema.matchAll(/"kind":\{"type":"string","const":"([a-z-]+)"/g)]
     .map((match) => match[1] ?? '')
+    .filter((kind) => dataKinds.has(kind))
     .sort();
 }
 
-describe('a thread’s recipes', () => {
-  test('build a panel from a saved recipe, with its values written by the server', async () => {
+describe('a thread’s queries', () => {
+  test('build a panel from a saved query, with its values written by the server', async () => {
     const { id } = services.threads.create('editor-1');
-    const panel = {
-      recipe: 'saved',
+    const data = {
+      kind: 'saved',
       name: 'errors-at',
       connector: 'events',
-      title: 'Errors',
       params: { table: 'events', level: "error' OR 1=1 --" },
     };
+    const panel = { title: 'Errors', data, chart: { recipe: 'kpi.stat' } };
     const edit = { title: 'Events', panels: [panel], summary: 'built' };
     const model = await build(id, { tool: 'edit_dashboard', input: edit }, { text: 'Built.' });
-    expect(offeredRecipes(model)).toContain('saved');
+    expect(offeredKinds(model)).toContain('saved');
     const { dashboardId } = services.threads.get(id);
     const query = services.dashboards.getVersion(dashboardId ?? '', 1, 'editor').spec.panels[0]
       ?.queries[0];
@@ -108,14 +116,14 @@ describe('a thread’s recipes', () => {
     });
   });
 
-  test('offer only the chosen recipes, and none in free style', async () => {
+  test('offer only the chosen builders, and none in free style', async () => {
     const chosen = services.threads.create('editor-1', undefined, {
       mode: 'chosen',
       ids: ['sql-stat'],
     });
     const done = { text: 'Nothing to build.' };
-    expect(offeredRecipes(await build(chosen.id, done))).toEqual(['custom', 'sql-stat']);
+    expect(offeredKinds(await build(chosen.id, done))).toEqual(['raw', 'sql-stat']);
     const free = services.threads.create('editor-1', undefined, { mode: 'free' });
-    expect(offeredRecipes(await build(free.id, done))).toEqual(['custom']);
+    expect(offeredKinds(await build(free.id, done))).toEqual(['raw']);
   });
 });

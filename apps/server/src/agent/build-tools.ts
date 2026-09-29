@@ -1,10 +1,17 @@
 /**
- * The tools that build: propose a plan, and edit the dashboard by recipe. The thread's state
- * machine decides whether each may run, whatever the model tries.
+ * The tools that build: propose a plan, and edit the dashboard with panels of data and charts. The
+ * thread's state machine decides whether each may run, whatever the model tries.
  */
 import { type DashboardSpec, dashboardSpecSchema, planSchema } from '@querent/shared';
 import { tool } from 'ai';
-import { applyEdit, editRequestSchemaFor, RecipeError } from '../dashboards/recipes/index.ts';
+import {
+  applyEdit,
+  type ChartChoices,
+  completeCharts,
+  type EditRequest,
+  editRequestSchemaFor,
+} from '../dashboards/panels/index.ts';
+import { QueryError } from '../dashboards/queries/index.ts';
 import type { RunContext } from './run-context.ts';
 import { type WriteResult, writeVersion } from './write-version.ts';
 
@@ -47,7 +54,59 @@ function idsOf(spec: DashboardSpec): Set<string> {
 }
 
 /**
- * The tool that changes the dashboard: its settings, panels by recipe, and deploy markers.
+ * The spec an edit makes, or why it cannot.
+ *
+ * @param context - The run.
+ * @param current - The current spec, if any.
+ * @param request - The edit.
+ * @returns The spec and the chart choice of each panel it builds, or the error.
+ */
+function edited(context: RunContext, current: DashboardSpec | undefined, request: EditRequest) {
+  try {
+    return applyEdit(current, request, context.queries.saved);
+  } catch (error) {
+    if (!(error instanceof QueryError)) throw error;
+    return { error: error.message };
+  }
+}
+
+/**
+ * The problems of a spec that are not about views: views are completed once the queries have run.
+ *
+ * @param context - The run.
+ * @param spec - The spec.
+ * @returns The problems.
+ */
+function problemsBeforeRun(context: RunContext, spec: DashboardSpec) {
+  const checked = context.dashboards.check(spec);
+  return checked.ok ? [] : checked.issues.filter((issue) => !/(^|\.)view(\.|$)/.test(issue.path));
+}
+
+/**
+ * Makes the edit: builds the spec, test-runs it, completes the charts from the data, and writes the
+ * panels that work.
+ *
+ * @param context - The run.
+ * @param request - The edit.
+ * @returns What the model learns.
+ */
+async function editDashboard(context: RunContext, request: EditRequest): Promise<WriteResult> {
+  const current = currentSpec(context);
+  const result = edited(context, current, request);
+  if ('error' in result) return { ok: false, error: result.error };
+  const issues = problemsBeforeRun(context, result.spec);
+  if (issues.length > 0) return { ok: false, error: 'The dashboard is invalid.', issues };
+  const tests = await context.dashboards.testRun(result.spec);
+  const completion = completeCharts(result.spec, result.charts as ChartChoices, tests);
+  const before = current ? idsOf(current) : new Set<string>();
+  const added = new Set([...idsOf(completion.spec)].filter((id) => !before.has(id)));
+  const samePanels = current !== undefined && sameIds(before, idsOf(completion.spec));
+  const run = { tests, chartProblems: completion.problems };
+  return writeVersion(context, completion.spec, request.summary, samePanels, added, run);
+}
+
+/**
+ * The tool that changes the dashboard: its settings, panels of data and charts, and deploy markers.
  *
  * @param context - The run.
  * @returns The tool.
@@ -55,22 +114,9 @@ function idsOf(spec: DashboardSpec): Set<string> {
 function editDashboardTool(context: RunContext) {
   return tool({
     description:
-      'Change the dashboard in one new version: set its title, time range and variables, add panels by recipe, rebuild a panel in place (replaces), remove panels, set deploy markers. The server writes the queries, places the panels, and test-runs every query; the version is saved only when all of them work, otherwise you get the errors to fix.',
-    inputSchema: editRequestSchemaFor(context.recipes),
-    execute: async (request): Promise<WriteResult> => {
-      const current = currentSpec(context);
-      let spec: DashboardSpec;
-      try {
-        spec = applyEdit(current, request, context.recipes.saved);
-      } catch (error) {
-        if (!(error instanceof RecipeError)) throw error;
-        return { ok: false, error: error.message };
-      }
-      const before = current ? idsOf(current) : new Set<string>();
-      const added = new Set([...idsOf(spec)].filter((id) => !before.has(id)));
-      const samePanels = current !== undefined && sameIds(before, idsOf(spec));
-      return writeVersion(context, spec, request.summary, samePanels, added);
-    },
+      'Change the dashboard in one new version: set its title, time range and variables; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); remove panels; set deploy markers. The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work; otherwise you get the errors to fix.',
+    inputSchema: editRequestSchemaFor(context.queries),
+    execute: (request) => editDashboard(context, request),
   });
 }
 

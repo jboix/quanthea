@@ -1,12 +1,13 @@
 /**
- * How each built-in recipe works, for the recipes screen: the fields the agent fills, an example
- * request, and the queries that example becomes. The examples run through the same expansion as
- * the agent's requests, so the queries shown are the queries written.
+ * How each query builder works, for the queries screen and the agent's guide: the fields the agent
+ * fills, an example request, the query it becomes, and the columns it returns. The examples run
+ * through the same builders as the agent's requests, so the queries shown are the queries written.
  */
-import type { PanelQuery, QueryGuide } from '@querent/shared';
+import type { QueryGuide } from '@querent/shared';
 import { z } from 'zod';
-import { expandPanel } from './expand.ts';
-import { builtInSchemas, panelRequestSchema } from './request.ts';
+import { buildData } from './build.ts';
+import { builderSchemas, dataSchema } from './request.ts';
+import { queryText } from './text.ts';
 
 /** What each field means, in the words the screen uses. */
 const fieldHelp: Readonly<Record<string, string>> = {
@@ -15,8 +16,6 @@ const fieldHelp: Readonly<Record<string, string>> = {
   filters: 'Conditions that must all hold. A value may be a variable such as $service.',
   by: 'What to split the result by: labels in PromQL, a column in SQL.',
   window: 'The window each rate is taken over.',
-  show: 'How the panel draws.',
-  unit: 'How values read.',
   match: 'The conditions that pick the part, such as code =~ "5..".',
   quantiles: 'The percentiles, as fractions.',
   aggregate: 'How series are combined.',
@@ -25,14 +24,11 @@ const fieldHelp: Readonly<Record<string, string>> = {
   time: 'The timestamp column, which keeps rows to the time range.',
   measure: 'What to compute: a count, or a function of a column.',
   bucket: 'The width of each time bucket.',
-  columns: 'The columns to show.',
+  columns: 'The columns to return.',
 };
 
-/** Fields every recipe has, left out of the guide. */
-const commonFields = new Set(['recipe', 'title', 'description', 'width', 'replaces']);
-
-/** An example request of each built-in recipe. */
-const examples: Readonly<Record<keyof typeof builtInSchemas, Record<string, unknown>>> = {
+/** An example request of each builder. */
+const examples: Readonly<Record<keyof typeof builderSchemas, Record<string, unknown>>> = {
   rate: {
     connector: 'prometheus',
     metric: 'http_requests_total',
@@ -61,7 +57,6 @@ const examples: Readonly<Record<keyof typeof builtInSchemas, Record<string, unkn
     by: 'region',
     time: 'created_at',
     measure: { fn: 'sum', column: 'total' },
-    unit: 'EUR',
   },
   'sql-stat': {
     connector: 'postgres',
@@ -81,7 +76,7 @@ const examples: Readonly<Record<keyof typeof builtInSchemas, Record<string, unkn
  * A field's type as the screen writes it.
  *
  * @param schema - The field's JSON schema.
- * @returns Such as `string`, `string[]` or `"line" | "stat"`.
+ * @returns Such as `string`, `string[]` or `"sum" | "avg"`.
  */
 function typeText(schema: Record<string, unknown>): string {
   if (Array.isArray(schema.enum))
@@ -93,14 +88,14 @@ function typeText(schema: Record<string, unknown>): string {
 }
 
 /**
- * The fields of a recipe the agent fills.
+ * The fields of a builder the agent fills.
  *
- * @param schema - The recipe's schema.
+ * @param schema - The builder's schema.
  * @returns The fields, in the schema's order.
  */
 function fieldsOf(schema: z.ZodObject): QueryGuide['fields'] {
   return Object.entries(schema.shape)
-    .filter(([name]) => !commonFields.has(name))
+    .filter(([name]) => name !== 'kind')
     .map(([name, field]) => {
       const json = z.toJSONSchema(field as z.ZodType, { io: 'input', unrepresentable: 'any' });
       const required = !(field as z.ZodType).safeParse(undefined).success;
@@ -115,25 +110,19 @@ function fieldsOf(schema: z.ZodObject): QueryGuide['fields'] {
 }
 
 /**
- * The text of a query.
+ * How each query builder works.
  *
- * @param query - The query.
- * @returns Its SQL or PromQL.
- */
-export function queryText(query: PanelQuery): string {
-  return query.language === 'sql' ? query.sql : query.expr;
-}
-
-/**
- * How each built-in recipe works.
- *
- * @returns One guide per recipe, in the order the schemas list them.
+ * @returns One guide per builder, in the order the schemas list them.
  */
 export function builderGuides(): QueryGuide[] {
-  return Object.entries(builtInSchemas).map(([id, schema]) => {
-    const example = examples[id as keyof typeof builtInSchemas];
-    const request = panelRequestSchema.parse({ recipe: id, title: 'Example', ...example });
-    const queries = expandPanel(request).queries.map(queryText);
-    return { id, fields: fieldsOf(schema), example, queries };
+  return Object.entries(builderSchemas).map(([id, schema]) => {
+    const example = examples[id as keyof typeof builderSchemas];
+    const built = buildData(dataSchema.parse({ kind: id, ...example }));
+    const output = {
+      shape: built.output.shape,
+      columns: [...built.output.columns],
+      chart: built.output.chart,
+    };
+    return { id, fields: fieldsOf(schema), example, queries: built.queries.map(queryText), output };
   });
 }

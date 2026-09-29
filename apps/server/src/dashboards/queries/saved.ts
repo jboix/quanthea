@@ -1,13 +1,12 @@
 /**
- * Saved recipes: an admin's query with typed placeholders. Each placeholder is checked for its
- * kind and written for the query's language, like the built-in recipes write theirs: names
+ * Saved queries: an admin's query with typed placeholders. Each placeholder is checked for its
+ * kind and written for the query's language, like the builders write theirs: names
  * checked and quoted, values escaped or bound, durations checked.
  */
 import type { PanelQuery, QueryParamKind, SavedQuery } from '@querent/shared';
-import type { PanelDraft } from './draft.ts';
-import type { RecipeOf } from './request.ts';
-import { metricName, RecipeError, sqlInterval, sqlName, sqlString, variableOf } from './text.ts';
-import { viewOfKind } from './views.ts';
+import type { BuiltData } from './built.ts';
+import type { DataOf } from './request.ts';
+import { metricName, QueryError, sqlInterval, sqlName, sqlString, variableOf } from './text.ts';
 
 /** A plain label or column name. */
 const plainName = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -25,10 +24,10 @@ const duration = /^(\d{1,5}[smhd]|\$[A-Za-z_]\w*)$/;
  * @param pattern - The pattern.
  * @param what - What the value should be, for the error.
  * @returns The value.
- * @throws {RecipeError} When it does not match.
+ * @throws {QueryError} When it does not match.
  */
 function checked(value: string, pattern: RegExp, what: string): string {
-  if (!pattern.test(value)) throw new RecipeError(`"${value}" is not ${what}.`);
+  if (!pattern.test(value)) throw new QueryError(`"${value}" is not ${what}.`);
   return value;
 }
 
@@ -53,11 +52,11 @@ const writers: Readonly<Record<QueryParamKind, (value: string, sql: boolean) => 
     return sql ? sqlInterval(checkedDuration) : checkedDuration;
   },
   metric: (value, sql) => {
-    if (sql) throw new RecipeError('A SQL recipe has no metrics.');
+    if (sql) throw new QueryError('A SQL query has no metrics.');
     return metricName(value);
   },
   table: (value, sql) => {
-    if (!sql) throw new RecipeError('A PromQL recipe has no tables.');
+    if (!sql) throw new QueryError('A PromQL query has no tables.');
     return sqlName(checked(value, tableName, 'a table name'));
   },
   label: (value, sql) => {
@@ -77,60 +76,62 @@ const writers: Readonly<Record<QueryParamKind, (value: string, sql: boolean) => 
  * @param language - The query language.
  * @param value - The value the agent gave.
  * @returns The text.
- * @throws {RecipeError} When the value does not fit its kind or its language.
+ * @throws {QueryError} When the value does not fit its kind or its language.
  */
 function paramText(kind: QueryParamKind, language: SavedQuery['language'], value: string): string {
   return writers[kind](value, language === 'sql');
 }
 
 /**
- * A saved recipe's query with its placeholders filled.
+ * A saved query's text with its placeholders filled.
  *
- * @param recipe - The recipe.
+ * @param template - The saved query.
  * @param params - The values by placeholder.
  * @returns The query text.
- * @throws {RecipeError} When a placeholder has no value or a value does not fit.
+ * @throws {QueryError} When a placeholder has no value or a value does not fit.
  */
-function filled(recipe: SavedQuery, params: Readonly<Record<string, string>>): string {
-  return recipe.query.replace(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g, (_match, name: string) => {
-    const param = recipe.params.find((each) => each.name === name);
+function filled(template: SavedQuery, params: Readonly<Record<string, string>>): string {
+  return template.query.replace(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g, (_match, name: string) => {
+    const param = template.params.find((each) => each.name === name);
     const value = params[name];
     if (!param || value === undefined)
-      throw new RecipeError(`${recipe.name} needs a value for ${name}.`);
-    return paramText(param.kind, recipe.language, value);
+      throw new QueryError(`${template.name} needs a value for ${name}.`);
+    return paramText(param.kind, template.language, value);
   });
 }
 
+/** A chart that suits each shape, for previews and as a hint. */
+const chartsByShape: Readonly<Record<SavedQuery['shape'], string>> = {
+  long: 'trend.line',
+  wide: 'trend.line',
+  single: 'kpi.stat',
+  values: 'distribution.histogram',
+  matrix: 'relationship.heatmap',
+  hierarchical: 'composition.treemap',
+  graph: 'flow.sankey',
+  geo: 'geo.choropleth',
+  ohlc: 'trend.candlestick',
+  rows: 'table.rows',
+};
+
 /**
- * Expands a saved recipe.
+ * Builds a saved query.
  *
- * @param request - The request: the recipe's id, its connector and its values.
- * @param saved - The saved recipes the run may use.
- * @returns The draft.
- * @throws {RecipeError} For an unknown recipe or values that do not fit.
+ * @param request - The request: the query's id, its connector and its values.
+ * @param saved - The saved queries the run may use.
+ * @returns The query and its output.
+ * @throws {QueryError} For an unknown query or values that do not fit.
  */
-export function savedDraft(request: RecipeOf<'saved'>, saved: readonly SavedQuery[]): PanelDraft {
-  const recipe = saved.find((each) => each.id === request.name);
-  if (!recipe) throw new RecipeError(`No saved recipe "${request.name}".`);
-  const text = filled(recipe, request.params);
+export function savedData(request: DataOf<'saved'>, saved: readonly SavedQuery[]): BuiltData {
+  const template = saved.find((each) => each.id === request.name);
+  if (!template) throw new QueryError(`No saved query "${request.name}".`);
+  const text = filled(template, request.params);
   const query: PanelQuery =
-    recipe.language === 'sql'
+    template.language === 'sql'
       ? { refId: 'A', connector: request.connector, language: 'sql', sql: text }
       : { refId: 'A', connector: request.connector, language: 'promql', expr: text };
-  const view = viewOfKind(recipe.show, recipe.unit, ['A'], recipe.columns, 'last');
-  if (!view) throw new RecipeError(`${recipe.name} shows a table with no columns.`);
-  const shape =
-    view.kind === 'chart'
-      ? recipe.show === 'line' || recipe.show === 'bar'
-        ? 'time'
-        : 'chart'
-      : view.kind;
   return {
-    title: request.title,
-    ...(request.description === undefined ? {} : { description: request.description }),
     queries: [query],
-    view,
-    shape,
-    width: request.width,
+    output: { shape: template.shape, columns: [], chart: chartsByShape[template.shape] },
   };
 }

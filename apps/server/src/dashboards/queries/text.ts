@@ -1,11 +1,12 @@
 /**
- * The query text recipes write: names checked against strict patterns and quoted, literals
+ * The query text builders write: names checked against strict patterns and quoted, literals
  * escaped for their language, and variables left as references the binder fills in.
  */
+import type { PanelQuery } from '@querent/shared';
 import type { Filter } from './request.ts';
 
-/** Why a request cannot be expanded, in words the model can act on. */
-export class RecipeError extends Error {
+/** Why a request cannot be built, in words the model can act on. */
+export class QueryError extends Error {
   /**
    * Creates the error.
    *
@@ -13,7 +14,7 @@ export class RecipeError extends Error {
    */
   constructor(message: string) {
     super(message);
-    this.name = 'RecipeError';
+    this.name = 'QueryError';
   }
 }
 
@@ -35,11 +36,11 @@ export function variableOf(value: string): string | undefined {
  *
  * @param metric - The name.
  * @returns The name.
- * @throws {RecipeError} When it is not a metric name.
+ * @throws {QueryError} When it is not a metric name.
  */
 export function metricName(metric: string): string {
   if (!/^[A-Za-z_:][A-Za-z0-9_:]*$/.test(metric)) {
-    throw new RecipeError(`"${metric}" is not a metric name.`);
+    throw new QueryError(`"${metric}" is not a metric name.`);
   }
   return metric;
 }
@@ -147,4 +148,14 @@ export function sqlWhere(time: string | undefined, filters: readonly Filter[]): 
 export function sqlInterval(duration: string): string {
   const variable = variableOf(duration);
   return variable === undefined ? `${sqlString(duration)}::interval` : `:${variable}::interval`;
+}
+
+/**
+ * The text of a query.
+ *
+ * @param query - The query.
+ * @returns Its SQL or PromQL.
+ */
+export function queryText(query: PanelQuery): string {
+  return query.language === 'sql' ? query.sql : query.expr;
 }

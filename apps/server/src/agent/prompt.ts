@@ -1,12 +1,13 @@
 /**
  * Assembles the agent's instructions for one turn. First what lasts from turn to turn, so providers
- * can cache it: who it is, its rules, the guide to the thread's recipes once it writes, the connectors' catalog. Then
+ * can cache it: who it is, its rules, the panel guide once it writes, the connectors' catalog. Then
  * what is true now: the time, the current draft, the panels the person mentions, and last what the
  * thread's phase asks of it.
  */
 import type { DashboardSpec, Plan } from '@querent/shared';
-import type { AvailableQueries } from '../dashboards/recipes/index.ts';
+import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import type { ThreadState } from '../threads/state.ts';
+import { panelGuideFor } from './panel-guide.ts';
 import { phaseOf } from './phases.ts';
 import {
   buildingRules,
@@ -15,7 +16,6 @@ import {
   persona,
   planningRules,
 } from './prompt-text.ts';
-import { recipeGuideFor } from './recipe-guide.ts';
 
 /** What the instructions of a turn depend on. */
 export interface TurnFacts {
@@ -35,8 +35,10 @@ export interface TurnFacts {
   readonly timeZone?: string | undefined;
   /** Whether the person saw pinned dashboards that may answer this, and asked for a new one. */
   readonly declinedMatches?: boolean;
-  /** The recipes the thread may use. */
-  readonly recipes: AvailableQueries;
+  /** The query builders and saved queries the thread may use. */
+  readonly queries: AvailableQueries;
+  /** The query guides of the connector kinds in use. */
+  readonly guides: readonly { readonly text: string }[];
 }
 
 /**
@@ -123,7 +125,8 @@ export interface InstructionParts {
  * @returns The lasting part and the turn's part.
  */
 export function instructionParts(facts: TurnFacts): InstructionParts {
-  const writing = phaseOf(facts.state) === 'planning' ? [] : [recipeGuideFor(facts.recipes)];
+  const writing =
+    phaseOf(facts.state) === 'planning' ? [] : [panelGuideFor(facts.queries, facts.guides)];
   const catalog = `Connectors and their data (the catalog):\n${facts.catalog}`;
   return {
     lasting: [persona, generalRules, ...writing, catalog].join('\n\n'),

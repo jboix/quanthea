@@ -11,15 +11,15 @@ const modes = [
 ] as const;
 
 /**
- * The recipe choice of a new thread: the mode, and the recipes ticked when choosing.
+ * The query choice of a new thread: the mode, and the queries ticked when choosing.
  *
- * @param recipes - Every recipe; the default set starts ticked.
+ * @param queries - Every query; the default set starts ticked.
  * @returns The choice as the API takes it, the mode, the ticked ids, and their setters.
  */
-export function useQueryChoice(recipes: readonly QueryChoice[]) {
+export function useQueryChoice(queries: readonly QueryChoice[]) {
   const [mode, setMode] = useState<ThreadQueries['mode']>('default');
   const [ticked, setTicked] = useState(
-    () => new Set(recipes.filter((recipe) => recipe.enabled).map((recipe) => recipe.id)),
+    () => new Set(queries.filter((query) => query.enabled).map((query) => query.id)),
   );
   const toggle = (id: string) =>
     setTicked((current) => {
@@ -31,11 +31,11 @@ export function useQueryChoice(recipes: readonly QueryChoice[]) {
   return { mode, setMode, ticked, toggle, value };
 }
 
-/** A recipe choice. */
+/** A query choice. */
 type Choice = ReturnType<typeof useQueryChoice>;
 
 /**
- * The menu of recipe modes.
+ * The menu of query modes.
  *
  * @param props - The choice.
  * @param props.choice - What {@link useQueryChoice} returns.
@@ -56,18 +56,18 @@ export function QueryModeMenu({ choice }: { readonly choice: Choice }) {
 }
 
 /**
- * The recipes to tick, when choosing. Free style says what it means instead.
+ * The queries to tick, when choosing. Free style says what it means instead.
  *
- * @param props - The recipes and the choice.
- * @param props.recipes - Every recipe.
+ * @param props - The queries and the choice.
+ * @param props.queries - Every query.
  * @param props.choice - What {@link useQueryChoice} returns.
  * @returns The list, the note, or nothing for the default set.
  */
 export function QueryPicker({
-  recipes,
+  queries,
   choice,
 }: {
-  readonly recipes: readonly QueryChoice[];
+  readonly queries: readonly QueryChoice[];
   readonly choice: Choice;
 }) {
   if (choice.mode === 'free')
@@ -80,16 +80,16 @@ export function QueryPicker({
   return (
     <fieldset className={styles.picker}>
       <legend className={styles.legend}>Queries this thread may use</legend>
-      {recipes.map((recipe) => (
-        <label key={recipe.id} className={styles.recipe} title={recipe.description}>
+      {queries.map((query) => (
+        <label key={query.id} className={styles.query} title={query.description}>
           <input
             type="checkbox"
-            checked={choice.ticked.has(recipe.id)}
-            onChange={() => choice.toggle(recipe.id)}
+            checked={choice.ticked.has(query.id)}
+            onChange={() => choice.toggle(query.id)}
           />
-          <span>{recipe.name}</span>
+          <span>{query.name}</span>
           <span className={styles.language}>
-            {recipe.origin === 'saved' ? `saved · ${recipe.language}` : recipe.language}
+            {query.origin === 'saved' ? `saved · ${query.language}` : query.language}
           </span>
         </label>
       ))}

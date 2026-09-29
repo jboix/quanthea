@@ -62,14 +62,14 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
     messages: [],
     plans: [],
     providerId: null,
-    recipes: { mode: 'default' },
+    queries: { mode: 'default' },
     model: 'claude-sonnet-5',
     providerName: 'Anthropic',
     connectors: [],
   },
-  'GET /queries': { recipes: [] },
+  'GET /queries': { queries: [] },
   'GET /settings/queries': { disabled: [], saved: [] },
-  'GET /settings/queries/guide': { recipes: [], connectors: [] },
+  'GET /settings/queries/guide': { builders: [], connectors: [] },
   'GET /settings/usage': { from: 0, to: 1, pricesCheckedOn: '2026-09-29', buckets: [] },
   'GET /settings/model': {
     gateway: {

@@ -1,26 +1,13 @@
 /**
- * Recipes: what a panel shows, named, so the agent asks for a recipe and the server writes the
- * queries. The built-in recipes cover common monitoring panels; saved recipes are queries with
- * typed placeholders that admins add. A thread uses the default set, a chosen set, or none.
+ * Queries: the data side of a panel. Query builders write common monitoring queries from a few
+ * fields; saved queries are templates with typed placeholders that admins add. Both return a table
+ * of a known shape, which any chart query for that shape can draw. A thread uses the default set,
+ * a chosen set, or none.
  */
 import { z } from 'zod';
+import { shapeKinds } from './dataset/contract.ts';
 
-/** How a panel's values read; percent expects a ratio from 0 to 1. */
-export const panelUnits = [
-  'number',
-  'percent',
-  'bytes',
-  'seconds',
-  'milliseconds',
-  'per-second',
-  'EUR',
-  'USD',
-] as const;
-
-/** A panel unit. */
-export type PanelUnit = (typeof panelUnits)[number];
-
-/** A built-in recipe as the recipes screen and the agent's guide describe it. */
+/** A query builder as the queries screen and the agent's guide describe it. */
 export interface QueryBuilder {
   /** The id the agent names it by. */
   readonly id: string;
@@ -28,11 +15,11 @@ export interface QueryBuilder {
   readonly name: string;
   /** The query language it writes. */
   readonly language: 'sql' | 'promql';
-  /** What it shows, in one sentence. */
+  /** What it returns, in one sentence. */
   readonly description: string;
 }
 
-/** The built-in recipes. */
+/** The built-in queries. */
 export const queryBuilders: readonly QueryBuilder[] = [
   {
     id: 'rate',
@@ -63,7 +50,7 @@ export const queryBuilders: readonly QueryBuilder[] = [
     id: 'top',
     name: 'Top values',
     language: 'promql',
-    description: "A counter's largest totals over the range, by label, as a table or bars.",
+    description: "A counter's largest totals over the range, by label, largest first.",
   },
   {
     id: 'sql-series',
@@ -75,7 +62,7 @@ export const queryBuilders: readonly QueryBuilder[] = [
     id: 'sql-breakdown',
     name: 'SQL breakdown',
     language: 'sql',
-    description: 'A measure by the values of a column, as bars, a pie or a table.',
+    description: 'A measure by the values of a column, largest first.',
   },
   {
     id: 'sql-stat',
@@ -91,14 +78,14 @@ export const queryBuilders: readonly QueryBuilder[] = [
   },
 ];
 
-/** What a saved recipe's placeholder may hold, checked and quoted for its language. */
+/** What a saved query's placeholder may hold, checked and quoted for its language. */
 export const queryParamKinds = ['metric', 'label', 'table', 'column', 'value', 'duration'] as const;
 
 /** A placeholder kind. */
 export type QueryParamKind = (typeof queryParamKinds)[number];
 
-/** Validates a placeholder of a saved recipe. */
-const recipeParamSchema = z.strictObject({
+/** Validates a placeholder of a saved query. */
+const queryParamSchema = z.strictObject({
   name: z.string().regex(/^[a-z][a-z0-9_]{0,29}$/, 'Use lowercase letters, digits and _.'),
   kind: z.enum(queryParamKinds),
   description: z.string().max(200).default(''),
@@ -117,22 +104,20 @@ export function placeholdersOf(query: string): string[] {
   return [...new Set([...query.matchAll(placeholder)].map((match) => match[1] ?? ''))];
 }
 
-/** Validates a saved recipe: a query with typed placeholders, and how its panel shows. */
+/** Validates a saved query: a template with typed placeholders, and the shape of what it returns. */
 export const savedQuerySchema = z
   .strictObject({
     id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/, 'Use lowercase letters, digits and dashes.'),
-    name: z.string().trim().min(1, 'Name the recipe.').max(60),
-    description: z.string().trim().min(1, 'Say what it shows.').max(300),
+    name: z.string().trim().min(1, 'Name the query.').max(60),
+    description: z.string().trim().min(1, 'Say what it returns.').max(300),
     language: z.enum(['sql', 'promql']),
     query: z.string().min(1, 'Write the query.').max(10_000),
-    params: z.array(recipeParamSchema).max(10).default([]),
-    show: z.enum(['line', 'bar', 'category-bar', 'pie', 'stat', 'table']),
-    unit: z.enum(panelUnits).default('number'),
-    columns: z.array(z.string().min(1).max(200)).max(20).optional(),
+    params: z.array(queryParamSchema).max(10).default([]),
+    shape: z.enum(shapeKinds).default('rows'),
   })
-  .superRefine((recipe, context) => {
-    const declared = new Set(recipe.params.map((param) => param.name));
-    const used = placeholdersOf(recipe.query);
+  .superRefine((query, context) => {
+    const declared = new Set(query.params.map((param) => param.name));
+    const used = placeholdersOf(query.query);
     const undeclared = used.filter((name) => !declared.has(name));
     if (undeclared.length > 0)
       context.addIssue({
@@ -147,37 +132,31 @@ export const savedQuerySchema = z
         path: ['params'],
         message: `Unused: ${unused.join(', ')}.`,
       });
-    if (recipe.show === 'table' && !recipe.columns?.length)
-      context.addIssue({
-        code: 'custom',
-        path: ['columns'],
-        message: 'A table needs its columns.',
-      });
   });
 
-/** A saved recipe. */
+/** A saved query. */
 export type SavedQuery = z.infer<typeof savedQuerySchema>;
 
-/** Validates the recipe settings: built-in recipes switched off, and the saved recipes. */
+/** Validates the query settings: builders switched off, and the saved queries. */
 export const querySettingsSchema = z
   .strictObject({
     disabled: z.array(z.string().max(40)).max(20).default([]),
     saved: z.array(savedQuerySchema).max(50).default([]),
   })
   .refine(
-    (settings) => new Set(settings.saved.map((recipe) => recipe.id)).size === settings.saved.length,
-    { path: ['saved'], message: 'Recipe ids repeat.' },
+    (settings) => new Set(settings.saved.map((query) => query.id)).size === settings.saved.length,
+    { path: ['saved'], message: 'Query ids repeat.' },
   );
 
-/** The recipe settings. */
+/** The query settings. */
 export type QuerySettings = z.infer<typeof querySettingsSchema>;
 
-/** Validates which recipes a thread uses: the default set, a chosen set, or none. */
+/** Validates which queries a thread uses: the default set, a chosen set, or none. */
 export const threadQueriesSchema = z.discriminatedUnion('mode', [
   z.strictObject({ mode: z.literal('default') }),
   z.strictObject({ mode: z.literal('chosen'), ids: z.array(z.string().max(40)).max(60) }),
   z.strictObject({ mode: z.literal('free') }),
 ]);
 
-/** The recipes a thread uses. */
+/** The queries a thread uses. */
 export type ThreadQueries = z.infer<typeof threadQueriesSchema>;

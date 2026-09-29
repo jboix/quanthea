@@ -1,21 +1,21 @@
-/** The recipes screen's state: the settings as edited, the recipe shown, and the editor. */
+/** The queries screen's state: the settings as edited, the query shown, and the editor. */
 import type { QuerySettings, SavedQuery } from '@querent/shared';
 import { useState } from 'react';
 import { newDraft, type QueryDraft } from './query-draft.ts';
 
-/** The recipe the screen shows: a built-in one by id, or one of yours by its place. */
+/** The query the screen shows: a built-in one by id, or one of yours by its place. */
 export type Selection =
   | { readonly kind: 'built-in'; readonly id: string }
   | { readonly kind: 'saved'; readonly index: number };
 
-/** The recipe being edited: a new one, or one of yours by its place. */
+/** The query being edited: a new one, or one of yours by its place. */
 export type Editing = { readonly draft: QueryDraft; readonly index: number | null } | null;
 
 /**
- * The settings with a recipe kept: added at the end, or put in its place.
+ * The settings with a query kept: added at the end, or put in its place.
  *
  * @param settings - The settings.
- * @param recipe - The recipe.
+ * @param query - The query.
  * @param index - Its place, or `null` for a new one.
  * @returns The settings.
  */
@@ -27,7 +27,7 @@ function withRecipe(settings: QuerySettings, recipe: SavedQuery, index: number |
 }
 
 /**
- * The form state of the recipes screen.
+ * The form state of the queries screen.
  *
  * @param saved - The settings as saved.
  * @returns The settings, the selection, the editor, and the changes.

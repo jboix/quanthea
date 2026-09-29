@@ -11,8 +11,7 @@ const saved: SavedQuery = {
   language: 'promql',
   query: 'sum({{metric}})',
   params: [{ name: 'metric', kind: 'metric', description: '' }],
-  show: 'line',
-  unit: 'number',
+  shape: 'long',
 };
 
 /**
@@ -34,12 +33,12 @@ function querySettings() {
   return { service, entries };
 }
 
-describe('recipe settings', () => {
-  test('start with every built-in recipe on and none saved', () => {
+describe('query settings', () => {
+  test('start with every built-in query on and none saved', () => {
     const { service } = querySettings();
     expect(service.get()).toEqual({ disabled: [], saved: [] });
     expect(service.available({ mode: 'default' }).builtIn).toEqual(
-      queryBuilders.map((recipe) => recipe.id),
+      queryBuilders.map((query) => query.id),
     );
   });
 
@@ -59,7 +58,7 @@ describe('recipe settings', () => {
     ]);
   });
 
-  test('list every recipe with whether the default set has it', () => {
+  test('list every query with whether the default set has it', () => {
     const { service } = querySettings();
     service.save({ disabled: ['top'], saved: [saved] }, 'admin-1');
     const choices = service.choices();

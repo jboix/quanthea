@@ -143,10 +143,9 @@ async function failureOf(call: Promise<unknown>): Promise<AppError> {
  */
 function eventsPanel(title: string, show: 'stat' | 'line', sql = 'SELECT * FROM events') {
   return {
-    recipe: 'custom',
     title,
-    queries: [{ connector: 'events', language: 'sql', query: sql }],
-    show,
+    data: { kind: 'raw', connector: 'events', language: 'sql', query: sql },
+    chart: { recipe: show === 'stat' ? 'kpi.stat' : 'trend.line' },
   };
 }
 
@@ -192,7 +191,7 @@ describe('an agent run', () => {
     ]);
   });
 
-  test('plans with the catalog in hand, the planning tools only, and no recipe guide', async () => {
+  test('plans with the catalog in hand, the planning tools only, and no panel guide', async () => {
     const model = scriptedStreamModel({ tool: 'propose_plan', input: plan });
     const agent = createAgent({ ...services, buildModel: () => model });
     await chat(agent, userMessage('u1', 'What happened to events?'));
@@ -399,7 +398,7 @@ describe('an agent run', () => {
       agentWith({ tool: 'edit_dashboard', input: mixed }, { text: 'Fixing the other one.' }),
       userMessage('u1', 'Build it'),
     );
-    expect(stream).toContain('These new panels were left out because their queries fail.');
+    expect(stream).toContain('These new panels were left out because they do not work.');
     const { dashboardId } = services.threads.get(threadId);
     const saved = services.dashboards.getVersion(dashboardId ?? '', 1, 'editor').spec;
     expect(saved.panels.map((panel) => panel.id)).toEqual(['errors']);

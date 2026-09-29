@@ -202,8 +202,6 @@ export {
   turnUsageSchema,
 } from './model-usage.ts';
 export {
-  type PanelUnit,
-  panelUnits,
   placeholdersOf,
   type QueryBuilder,
   type QueryParamKind,

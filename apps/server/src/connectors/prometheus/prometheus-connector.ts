@@ -1,4 +1,5 @@
 /** The Prometheus connector kind: PromQL over the HTTP API, read endpoints only. */
+
 import type { Frame } from '@querent/shared';
 import { z } from 'zod';
 import {
@@ -13,6 +14,7 @@ import {
 import { createPrometheusApi, type PrometheusApi } from './api.ts';
 import { describePrometheus, metricSelector } from './catalog.ts';
 import { type QueryData, toFrames } from './frames.ts';
+import { prometheusGuide } from './guide.ts';
 
 /** The configuration of a Prometheus connector. */
 const configSchema = z.object({
@@ -202,6 +204,7 @@ export const prometheusConnector = defineConnector({
   displayName: 'Prometheus',
   description: 'A Prometheus server or a compatible API, queried with PromQL.',
   language: 'promql',
+  queryGuide: prometheusGuide,
   configSchema,
   secretSchema,
   describeTarget: (config) => withoutCredentials(config.url),

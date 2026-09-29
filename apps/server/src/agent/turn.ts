@@ -15,6 +15,7 @@ import {
 import { askPersonTool } from './ask-tool.ts';
 import { buildTools, currentSpec } from './build-tools.ts';
 import { cachedInstructions, withCachedTail } from './cache.ts';
+import { chartTools } from './chart-tools.ts';
 import { compactHistory, compactSteps } from './compact.ts';
 import { dataTools } from './data-tools.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
@@ -83,7 +84,8 @@ export async function turnInstructions(
     mentions: hints.mentions,
     timeZone: hints.timeZone,
     declinedMatches: messages.at(-1)?.parts.some((part) => part.type === 'data-matches') ?? false,
-    recipes: context.recipes,
+    queries: context.queries,
+    guides: context.modelView.guides(),
   });
   return cachedInstructions(parts, context.settings.provider);
 }
@@ -99,6 +101,7 @@ function turnTools(context: RunContext, now: () => number) {
   return {
     ...dataTools(context, (expression) => resolveTime(expression, now())),
     ...buildTools(context),
+    ...chartTools(),
     ask_person: askPersonTool(context),
   };
 }

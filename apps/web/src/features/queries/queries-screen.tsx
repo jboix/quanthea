@@ -20,11 +20,11 @@ interface DetailProps {
 }
 
 /**
- * One of your recipes, by its place in the list.
+ * One of your queries, by its place in the list.
  *
  * @param props - The form, the data and the place.
- * @param props.index - The recipe's place.
- * @returns The detail, or nothing when there is no such recipe.
+ * @param props.index - The query's place.
+ * @returns The detail, or nothing when there is no such query.
  */
 function SavedSelection({ form, data, index }: DetailProps & { readonly index: number }) {
   const recipe = form.settings.saved[index];
@@ -40,11 +40,11 @@ function SavedSelection({ form, data, index }: DetailProps & { readonly index: n
 }
 
 /**
- * A built-in recipe, by id.
+ * A query builder, by id.
  *
  * @param props - The form, the data and the id.
- * @param props.id - The recipe's id.
- * @returns The detail, or nothing when there is no such recipe.
+ * @param props.id - The query's id.
+ * @returns The detail, or nothing when there is no such query.
  */
 function BuiltInSelection({ form, data, id }: DetailProps & { readonly id: string }) {
   const recipe = queryBuilders.find((each) => each.id === id);
@@ -62,7 +62,7 @@ function BuiltInSelection({ form, data, id }: DetailProps & { readonly id: strin
 }
 
 /**
- * What the right side shows: the editor, one of your recipes, or a built-in one.
+ * What the right side shows: the editor, one of your queries, or a built-in one.
  *
  * @param props - The form and the screen's data.
  * @returns The detail.
@@ -101,7 +101,7 @@ function saveNote(form: QueriesForm): string {
 }
 
 /**
- * The save bar: saves the switches and your recipes together.
+ * The save bar: saves the switches and your queries together.
  *
  * @param props - The form.
  * @param props.form - The form state.
@@ -154,7 +154,7 @@ function QueriesBody({ data }: { readonly data: QueriesData }) {
 }
 
 /**
- * The recipes screen.
+ * The queries screen.
  *
  * @returns The screen.
  */

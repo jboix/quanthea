@@ -4,6 +4,7 @@ import { Button } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';
 import type { PreviewConnector } from './data.ts';
 import {
+  ChartSelect,
   ConnectorSelect,
   connectorFor,
   PreviewResult,
@@ -48,31 +49,31 @@ function ParamInputs({
 
 /** Props of {@link SavedPreview}. */
 interface SavedPreviewProps {
-  /** The recipe, or `undefined` while a draft has problems. */
+  /** The query, or `undefined` while a draft has problems. */
   readonly recipe: SavedQuery | undefined;
-  /** The recipe's language, for the connectors offered. */
+  /** The query's language, for the connectors offered. */
   readonly language: 'sql' | 'promql';
   /** The connectors a preview can run on. */
   readonly connectors: readonly PreviewConnector[];
 }
 
 /**
- * Tries a recipe as edited on a real connector: a value for each placeholder, as the agent would
- * give them, then the queries written and the panel drawn. The recipe goes along with the
+ * Tries a query as edited on a real connector: a value for each placeholder, as the agent would
+ * give them, then the queries written and the panel drawn. The query goes along with the
  * preview, so changes not saved yet are tried too.
  *
- * @param props - The recipe, its language and the connectors.
+ * @param props - The query, its language and the connectors.
  * @returns The preview's fields, its button and its result.
  */
 export function SavedPreview({ recipe, language, connectors }: SavedPreviewProps) {
   const [chosen, setConnector] = useState('');
   const connector = connectorFor(connectors, language, chosen);
   const [values, setValues] = useState<Record<string, string>>({});
-  const { run, from, setFrom, running, preview } = usePreview();
+  const { run, from, setFrom, chart, setChart, running, preview } = usePreview();
   const start = () => {
     if (!recipe) return;
-    const panel = { recipe: 'saved', name: recipe.id, connector, params: values };
-    run(panel, recipe);
+    const data = { kind: 'saved', name: recipe.id, connector, params: values };
+    run(data, recipe);
   };
   return (
     <div className={styles.preview}>
@@ -85,12 +86,13 @@ export function SavedPreview({ recipe, language, connectors }: SavedPreviewProps
         />
         <RangeSelect value={from} onChange={setFrom} />
       </div>
+      <ChartSelect value={chart} suggested={undefined} onChange={setChart} />
       <ParamInputs params={recipe?.params ?? []} values={values} onChange={setValues} />
       <div className={styles.actions}>
         <Button onClick={start} disabled={!recipe || connector === '' || running}>
           {running ? 'Running…' : 'Run preview'}
         </Button>
-        {!recipe && <span className={styles.hint}>Fix the recipe above to try it.</span>}
+        {!recipe && <span className={styles.hint}>Fix the query above to try it.</span>}
       </div>
       {preview && <PreviewResult preview={preview} />}
     </div>

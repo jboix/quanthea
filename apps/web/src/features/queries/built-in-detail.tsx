@@ -6,6 +6,7 @@ import { Switch } from '../../ui/switch.tsx';
 import { TextArea } from '../../ui/text-area.tsx';
 import type { PreviewConnector } from './data.ts';
 import {
+  ChartSelect,
   ConnectorSelect,
   connectorFor,
   PreviewResult,
@@ -46,7 +47,7 @@ function previewFields(example: Readonly<Record<string, unknown>>): Record<strin
  * The fields the agent fills, with their types, defaults and meaning.
  *
  * @param props - The guide.
- * @param props.guide - How the recipe works.
+ * @param props.guide - How the builder works.
  * @returns The card.
  */
 function FieldsCard({ guide }: { readonly guide: QueryGuide }) {
@@ -82,7 +83,7 @@ function FieldsCard({ guide }: { readonly guide: QueryGuide }) {
  * An example request and the queries the server writes for it.
  *
  * @param props - The guide.
- * @param props.guide - How the recipe works.
+ * @param props.guide - How the builder works.
  * @returns The card.
  */
 function ExampleCard({ guide }: { readonly guide: QueryGuide }) {
@@ -106,27 +107,47 @@ function ExampleCard({ guide }: { readonly guide: QueryGuide }) {
 }
 
 /**
+ * What the builder returns: the shape and the columns, and a chart that suits them.
+ *
+ * @param props - The guide.
+ * @param props.guide - How the builder works.
+ * @returns The card.
+ */
+function OutputCard({ guide }: { readonly guide: QueryGuide }) {
+  const { shape, columns, chart } = guide.output;
+  return (
+    <Card title="What it returns" description="Any chart recipe for this shape can draw it.">
+      <p className={styles.hint}>
+        A <strong>{shape}</strong> table:{' '}
+        <code className={styles.fieldType}>{columns.join(', ')}</code>. It suits{' '}
+        <code className={styles.fieldType}>{chart}</code>.
+      </p>
+    </Card>
+  );
+}
+
+/**
  * The request a preview sends: the typed JSON on the chosen connector.
  *
- * @param id - The recipe.
+ * @param id - The builder.
  * @param text - The typed JSON.
  * @param connector - The connector.
- * @returns The panel request, or why the JSON cannot be read.
+ * @returns The data request, or why the JSON cannot be read.
  */
 function requestOf(id: string, text: string, connector: string) {
   try {
     const fields = JSON.parse(text) as Record<string, unknown>;
-    return { panel: { ...fields, recipe: id, connector } };
+    return { data: { ...fields, kind: id, connector } };
   } catch {
     return { error: 'The request is not valid JSON.' };
   }
 }
 
 /**
- * Tries the recipe on a real connector: edit the example, run it, see the panel.
+ * Tries the builder on a real connector: edit the example, run it, and see its data drawn.
  *
- * @param props - The recipe, its guide and the connectors.
- * @param props.recipe - The recipe.
+ * @param props - The builder, its guide and the connectors.
+ * @param props.query - The builder.
  * @param props.guide - How it works, with the example to start from.
  * @param props.connectors - The connectors a preview can run on.
  * @returns The card.
@@ -143,9 +164,9 @@ function PreviewCard({
   const [text, setText] = useState(() => compactJson(previewFields(guide.example)));
   const [chosen, setConnector] = useState('');
   const connector = connectorFor(connectors, recipe.language, chosen);
-  const { run, from, setFrom, running, preview } = usePreview();
+  const { run, from, setFrom, chart, setChart, running, preview } = usePreview();
   const request = requestOf(recipe.id, text, connector);
-  const start = request.panel ? () => run(request.panel) : undefined;
+  const start = request.data ? () => run(request.data) : undefined;
   return (
     <Card
       title="Preview"
@@ -160,6 +181,7 @@ function PreviewCard({
         />
         <RangeSelect value={from} onChange={setFrom} />
       </div>
+      <ChartSelect value={chart} suggested={guide.output.chart} onChange={setChart} />
       <TextArea
         label="Fields"
         mono
@@ -180,7 +202,7 @@ function PreviewCard({
 
 /** Props of {@link BuiltInDetail}. */
 interface BuiltInDetailProps {
-  /** The recipe. */
+  /** The builder. */
   readonly recipe: QueryBuilder;
   /** How it works. */
   readonly guide: QueryGuide;
@@ -193,10 +215,10 @@ interface BuiltInDetailProps {
 }
 
 /**
- * A built-in recipe: whether the default set has it, what the agent fills, an example and a
+ * A query builder: whether the default set has it, what the agent fills, an example and a
  * preview.
  *
- * @param props - The recipe, its guide, its switch and the connectors.
+ * @param props - The builder, its guide, its switch and the connectors.
  * @returns The detail.
  */
 export function BuiltInDetail({
@@ -215,13 +237,14 @@ export function BuiltInDetail({
       <Card>
         <Switch
           label="In the default set"
-          description="Threads started with the default recipes can use it. A thread can still choose it when it starts."
+          description="Threads started with the default queries can use it. A thread can still choose it when it starts."
           checked={enabled}
           onChange={onToggle}
         />
       </Card>
       <FieldsCard guide={guide} />
       <ExampleCard guide={guide} />
+      <OutputCard guide={guide} />
       <PreviewCard key={recipe.id} recipe={recipe} guide={guide} connectors={connectors} />
     </div>
   );

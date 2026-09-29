@@ -159,7 +159,7 @@ export interface Connections {
    *
    * @returns Each connector's subject and query language.
    */
-  subjects(): { subject: GateSubject; language: QuerySource['language'] }[];
+  subjects(): { subject: GateSubject; language: QuerySource['language']; guide?: string }[];
   /**
    * Closes every open connection, at shutdown.
    *
@@ -555,7 +555,9 @@ async function snapshotByName(
 function subjectsOf(context: ServiceContext) {
   return context.repository.list().flatMap((row) => {
     const kind = context.kinds.find((candidate) => candidate.kind === row.kind);
-    return kind ? [{ subject: toSubject(row), language: kind.language }] : [];
+    if (!kind) return [];
+    const guide = kind.queryGuide === undefined ? {} : { guide: kind.queryGuide };
+    return [{ subject: toSubject(row), language: kind.language, ...guide }];
   });
 }
 

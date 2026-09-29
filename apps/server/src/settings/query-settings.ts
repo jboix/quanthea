@@ -1,6 +1,6 @@
 /**
- * The recipe settings: built-in recipes switched on or off, and the recipes admins save. A thread
- * uses the default set (the recipes switched on and every saved one), a set chosen when it was
+ * The query settings: query builders switched on or off, and the queries admins save. A thread
+ * uses the default set (the queries switched on and every saved one), a set chosen when it was
  * started, or none.
  */
 import {
@@ -9,16 +9,16 @@ import {
   queryBuilders,
   type ThreadQueries,
 } from '@querent/shared';
-import type { AvailableQueries } from '../dashboards/recipes/index.ts';
+import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { SettingsStore } from './settings-store.ts';
 
-/** The recipe settings. */
+/** The query settings. */
 export interface QuerySettingsService {
   /**
    * The settings.
    *
-   * @returns The switched-off built-in recipes and the saved ones.
+   * @returns The switched-off query builders and the saved ones.
    */
   get(): QuerySettings;
   /**
@@ -30,21 +30,21 @@ export interface QuerySettingsService {
    */
   save(settings: QuerySettings, actor: string): QuerySettings;
   /**
-   * The recipes a thread may use.
+   * The queries a thread may use.
    *
-   * @param recipes - The thread's choice.
-   * @returns The built-in recipes' ids and the saved recipes.
+   * @param queries - The thread's choice.
+   * @returns The query builders' ids and the saved queries.
    */
-  available(recipes: ThreadQueries): AvailableQueries;
+  available(queries: ThreadQueries): AvailableQueries;
   /**
-   * Every recipe, for choosing when a thread starts.
+   * Every query, for choosing when a thread starts.
    *
-   * @returns The recipes, built-in first, and whether the default set has each.
+   * @returns The queries, built-in first, and whether the default set has each.
    */
   choices(): QueryChoice[];
 }
 
-/** What the recipe settings need. */
+/** What the query settings need. */
 export interface QuerySettingsDependencies {
   /** The settings store. */
   readonly store: SettingsStore;
@@ -53,36 +53,36 @@ export interface QuerySettingsDependencies {
 }
 
 /**
- * The recipes of a thread's choice.
+ * The queries of a thread's choice.
  *
- * @param settings - The recipe settings.
- * @param recipes - The thread's choice.
- * @returns The built-in recipes' ids and the saved recipes.
+ * @param settings - The query settings.
+ * @param queries - The thread's choice.
+ * @returns The query builders' ids and the saved queries.
  */
-function availableFor(settings: QuerySettings, recipes: ThreadQueries): AvailableQueries {
-  if (recipes.mode === 'free') return { builtIn: [], saved: [] };
-  const ids = queryBuilders.map((recipe) => recipe.id);
-  if (recipes.mode === 'chosen') {
-    const chosen = new Set(recipes.ids);
+function availableFor(settings: QuerySettings, queries: ThreadQueries): AvailableQueries {
+  if (queries.mode === 'free') return { builtIn: [], saved: [] };
+  const ids = queryBuilders.map((query) => query.id);
+  if (queries.mode === 'chosen') {
+    const chosen = new Set(queries.ids);
     return {
       builtIn: ids.filter((id) => chosen.has(id)),
-      saved: settings.saved.filter((recipe) => chosen.has(recipe.id)),
+      saved: settings.saved.filter((query) => chosen.has(query.id)),
     };
   }
   return { builtIn: ids.filter((id) => !settings.disabled.includes(id)), saved: settings.saved };
 }
 
 /**
- * Every recipe as a choice.
+ * Every query as a choice.
  *
- * @param settings - The recipe settings.
+ * @param settings - The query settings.
  * @returns The choices.
  */
 function choicesOf(settings: QuerySettings): QueryChoice[] {
-  const builtIn = queryBuilders.map((recipe) => ({
-    ...recipe,
+  const builtIn = queryBuilders.map((query) => ({
+    ...query,
     origin: 'built-in' as const,
-    enabled: !settings.disabled.includes(recipe.id),
+    enabled: !settings.disabled.includes(query.id),
   }));
   const saved = settings.saved.map(({ id, name, description, language }) => ({
     id,
@@ -96,7 +96,7 @@ function choicesOf(settings: QuerySettings): QueryChoice[] {
 }
 
 /**
- * Creates the recipe settings service.
+ * Creates the query settings service.
  *
  * @param dependencies - The store and the audit log.
  * @returns The service.
@@ -109,12 +109,12 @@ export function createQuerySettings(dependencies: QuerySettingsDependencies): Qu
       store.write('recipes', settings);
       const detail = {
         disabled: settings.disabled,
-        saved: settings.saved.map((recipe) => recipe.id),
+        saved: settings.saved.map((query) => query.id),
       };
       audit.append({ actor, action: 'settings.queries', detail });
       return store.read('recipes');
     },
-    available: (recipes) => availableFor(store.read('recipes'), recipes),
+    available: (queries) => availableFor(store.read('recipes'), queries),
     choices: () => choicesOf(store.read('recipes')),
   };
 }

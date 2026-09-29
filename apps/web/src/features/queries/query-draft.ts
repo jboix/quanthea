@@ -1,6 +1,6 @@
 /**
- * A saved recipe as the editor holds it: text fields, the placeholders' kinds by name, and the
- * columns as one line. The placeholders come from the query, so the admin only types kinds.
+ * A saved query as the editor holds it: text fields, and the placeholders' kinds by name. The
+ * placeholders come from the query, so the admin only types kinds.
  */
 import {
   placeholdersOf,
@@ -9,13 +9,13 @@ import {
   savedQuerySchema,
 } from '@querent/shared';
 
-/** A saved recipe being edited. */
+/** A saved query being edited. */
 export interface QueryDraft {
   /** The id, as the agent names it. */
   readonly id: string;
   /** The name. */
   readonly name: string;
-  /** What it shows. */
+  /** What it returns. */
   readonly description: string;
   /** The query language. */
   readonly language: SavedQuery['language'];
@@ -23,15 +23,11 @@ export interface QueryDraft {
   readonly query: string;
   /** Each placeholder's kind and description, by name. */
   readonly params: Readonly<Record<string, { kind: QueryParamKind; description: string }>>;
-  /** How the panel shows. */
-  readonly show: SavedQuery['show'];
-  /** The unit. */
-  readonly unit: SavedQuery['unit'];
-  /** A table's columns, separated by commas. */
-  readonly columns: string;
+  /** The shape of the table it returns. */
+  readonly shape: SavedQuery['shape'];
 }
 
-/** A new recipe, with a PromQL example to start from. */
+/** A new saved query, with a PromQL example to start from. */
 export const newDraft: QueryDraft = {
   id: '',
   name: '',
@@ -39,9 +35,7 @@ export const newDraft: QueryDraft = {
   language: 'promql',
   query: 'sum by ({{label}}) (rate({{metric}}[{{window}}]))',
   params: {},
-  show: 'line',
-  unit: 'number',
-  columns: '',
+  shape: 'long',
 };
 
 /** The kind a placeholder's name suggests, tried in order. */
@@ -78,16 +72,16 @@ export function paramsOf(draft: QueryDraft): SavedQuery['params'] {
 }
 
 /**
- * A saved recipe as a draft.
+ * A saved query as a draft.
  *
- * @param recipe - The recipe.
+ * @param query - The saved query.
  * @returns The draft.
  */
-export function draftOf(recipe: SavedQuery): QueryDraft {
+export function draftOf(query: SavedQuery): QueryDraft {
   const params = Object.fromEntries(
-    recipe.params.map(({ name, kind, description }) => [name, { kind, description }]),
+    query.params.map(({ name, kind, description }) => [name, { kind, description }]),
   );
-  return { ...recipe, params, columns: recipe.columns?.join(', ') ?? '' };
+  return { ...query, params };
 }
 
 /**
@@ -108,21 +102,13 @@ export function idOf(name: string): string {
  * Checks a draft as the server will.
  *
  * @param draft - The draft.
- * @returns The recipe, or the problems by field.
+ * @returns The saved query, or the problems by field.
  */
 export function recipeOf(
   draft: QueryDraft,
 ): { ok: true; recipe: SavedQuery } | { ok: false; issues: Record<string, string> } {
-  const columns = draft.columns
-    .split(',')
-    .map((column) => column.trim())
-    .filter((column) => column !== '');
-  const { params: _params, columns: _columns, ...fields } = draft;
-  const parsed = savedQuerySchema.safeParse({
-    ...fields,
-    params: paramsOf(draft),
-    ...(draft.show === 'table' ? { columns } : {}),
-  });
+  const { params: _params, ...fields } = draft;
+  const parsed = savedQuerySchema.safeParse({ ...fields, params: paramsOf(draft) });
   if (parsed.success) return { ok: true, recipe: parsed.data };
   const issues = parsed.error.issues.map((issue) => [String(issue.path[0] ?? ''), issue.message]);
   return { ok: false, issues: Object.fromEntries(issues.reverse()) };

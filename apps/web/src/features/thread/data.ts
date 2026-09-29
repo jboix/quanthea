@@ -120,8 +120,8 @@ export interface NewThreadData {
   readonly providers: readonly ProviderChoice[];
   /** The default provider. */
   readonly defaultProviderId: string;
-  /** The recipes a thread may use. */
-  readonly recipes: readonly QueryChoice[];
+  /** The query builders and saved queries a thread may use. */
+  readonly queries: readonly QueryChoice[];
 }
 
 /**
@@ -133,12 +133,12 @@ export interface NewThreadData {
 export function loadRecentThreads(api: ApiClient) {
   return async ({ request }: LoaderFunctionArgs): Promise<NewThreadData> => {
     const options = { signal: request.signal };
-    const [threads, choices, { recipes }] = await Promise.all([
+    const [threads, choices, { queries }] = await Promise.all([
       api.call(listThreadsEndpoint, undefined, options),
       api.call(listProviderChoicesEndpoint, undefined, options),
       api.call(listQueryChoicesEndpoint, undefined, options),
     ]);
-    return { threads: threads.slice(0, 12), ...choices, recipes };
+    return { threads: threads.slice(0, 12), ...choices, queries };
   };
 }
 
@@ -148,7 +148,7 @@ export type NewThreadIntent =
       readonly intent: 'start';
       readonly question: string;
       readonly providerId?: string;
-      readonly recipes?: ThreadQueries;
+      readonly queries?: ThreadQueries;
     }
   | { readonly intent: 'delete'; readonly threadId: string };
 
@@ -166,10 +166,10 @@ export function newThreadAction(api: ApiClient) {
       await api.call(deleteThreadEndpoint, { params: { threadId: intent.threadId } });
       return { ok: true };
     }
-    const { providerId, recipes } = intent;
+    const { providerId, queries } = intent;
     const body = {
       ...(providerId === undefined ? {} : { providerId }),
-      ...(recipes === undefined ? {} : { recipes }),
+      ...(queries === undefined ? {} : { queries }),
     };
     const thread = await api.call(createThreadEndpoint, { body });
     return redirect(`/threads/${thread.id}?ask=${encodeURIComponent(intent.question)}`);
