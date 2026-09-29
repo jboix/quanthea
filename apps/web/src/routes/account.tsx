@@ -1,12 +1,21 @@
-/** The route of one's own account. */
-import type { RouteObject } from 'react-router';
+/** The account resource route: one's providers for the account menu, and its actions. */
+import { Navigate, type RouteObject } from 'react-router';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
-import { AccountScreen, accountAction, loadAccount } from '../features/account/index.ts';
+import { accountAction, loadAccount } from '../features/account/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
 /**
- * The account route, for anyone signed in.
+ * What opening `/account` shows: nothing, the account lives in the menu, so it goes home.
+ *
+ * @returns The redirect.
+ */
+function HomeInstead() {
+  return <Navigate to="/" replace />;
+}
+
+/**
+ * The account route, for anyone signed in. The account menu loads and posts to it.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -18,6 +27,6 @@ export function accountRoute(loadSession: SessionLoader, api: ApiClient): RouteO
     path,
     loader: guarded(loadSession, path, loadAccount(api)),
     action: guarded(loadSession, path, accountAction(api)),
-    Component: AccountScreen,
+    Component: HomeInstead,
   };
 }

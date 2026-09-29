@@ -188,7 +188,7 @@ export const providerFlowFailures = {
   provider: 'The provider did not confirm who you are. Try again.',
   'not-invited': 'You have no account here. Ask an admin for an invite.',
   'link-first':
-    'An account with this email exists. Sign in with its password, then link this provider on your account page.',
+    'An account with this email exists. Sign in with its password, then link this provider from the account menu.',
   unverified: 'The provider has no verified email for you.',
   disabled: 'This account is disabled.',
   'linked-elsewhere': 'This provider account is linked to someone else here.',

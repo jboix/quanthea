@@ -1,5 +1,6 @@
 /** Signing in and out, setting a password from a link, and one's own account. */
-export { AccountScreen } from './account-screen.tsx';
+export { AccountMenu } from './account-menu.tsx';
+export { AccountNotice } from './account-notice.tsx';
 export {
   accountAction,
   loadAccount,

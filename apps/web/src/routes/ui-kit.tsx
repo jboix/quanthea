@@ -3,6 +3,7 @@ import { BrandIcon, BrandMark, Logo } from '../ui/brand.tsx';
 import { Button } from '../ui/button.tsx';
 import { Card } from '../ui/card.tsx';
 import { Combobox } from '../ui/combobox.tsx';
+import { Dialog } from '../ui/dialog.tsx';
 import { Drawer } from '../ui/drawer.tsx';
 import { QuestionIcon } from '../ui/icons.tsx';
 import { Input } from '../ui/input.tsx';
@@ -254,20 +255,28 @@ function BrandSample() {
 }
 
 /**
- * A popover and a drawer, each behind its button.
+ * A popover, a drawer and a dialog, each behind its button.
  *
  * @returns The card.
  */
 function Overlays() {
   const [open, setOpen] = useState(false);
+  const [dialog, setDialog] = useState(false);
   return (
-    <Card title="Overlays" description="A bubble by a title, and a drawer for long lists.">
+    <Card
+      title="Overlays"
+      description="A bubble by a title, a drawer for long lists, a dialog for a short form."
+    >
       <div className={styles.row}>
         <Popover label="About this sample" trigger={<QuestionIcon />}>
           A popover closes on Escape or a click outside.
         </Popover>
         <Button onClick={() => setOpen(true)}>Open drawer</Button>
+        <Button onClick={() => setDialog(true)}>Open dialog</Button>
       </div>
+      <Dialog title="Dialog" open={dialog} onClose={() => setDialog(false)}>
+        <p>Over the page, until Escape or the close button.</p>
+      </Dialog>
       <Drawer open={open} onClose={() => setOpen(false)} title="Drawer">
         <p>From the right, or from the top on a phone.</p>
       </Drawer>

@@ -12,6 +12,10 @@ interface PopoverProps {
   readonly shape?: 'icon' | 'button';
   /** Which edge of the button the popover lines up with. */
   readonly align?: 'start' | 'end';
+  /** Where the card opens: below the button, or beside it, rising from its bottom edge. */
+  readonly placement?: 'below' | 'side';
+  /** A class for the button, in place of the shape's, such as a navigation rail link's. */
+  readonly triggerClassName?: string;
   /** The content. */
   readonly children: ReactNode;
 }
@@ -19,7 +23,7 @@ interface PopoverProps {
 /**
  * A button that opens a small floating card of details, closed by a press outside or Escape.
  *
- * @param props - The label, the trigger, its shape, the alignment and the content.
+ * @param props - The label, the trigger, its shape and class, where it opens, and the content.
  * @returns The button and, when open, its card.
  */
 export function Popover({
@@ -27,6 +31,8 @@ export function Popover({
   trigger,
   shape = 'icon',
   align = 'start',
+  placement = 'below',
+  triggerClassName,
   children,
 }: PopoverProps) {
   const popover = useDismiss<HTMLSpanElement>();
@@ -34,7 +40,7 @@ export function Popover({
     <span ref={popover.container} className={styles.popover}>
       <button
         type="button"
-        className={shape === 'icon' ? styles.icon : styles.button}
+        className={triggerClassName ?? (shape === 'icon' ? styles.icon : styles.button)}
         aria-label={shape === 'icon' ? label : undefined}
         aria-expanded={popover.open}
         aria-haspopup="dialog"
@@ -43,7 +49,13 @@ export function Popover({
         {trigger}
       </button>
       {popover.open && (
-        <div role="dialog" aria-label={label} className={styles.card} data-align={align}>
+        <div
+          role="dialog"
+          aria-label={label}
+          className={styles.card}
+          data-align={align}
+          data-placement={placement}
+        >
           {children}
         </div>
       )}

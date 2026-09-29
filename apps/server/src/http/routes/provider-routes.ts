@@ -24,11 +24,11 @@ const flowCookie = 'querent_flow';
 /** The flow cookie's lifetime, in seconds. */
 const flowCookieSeconds = 600;
 
-/** Where each kind of flow sends the person when it fails. */
+/** Where each kind of flow sends the person when it fails, before the failure's code. */
 const failurePages: Readonly<Record<FlowIntent, string>> = {
-  'sign-in': '/login',
-  link: '/account',
-  test: '/settings/auth',
+  'sign-in': '/login?error=',
+  link: '/library?account-error=',
+  test: '/settings/auth?error=',
 };
 
 /**
@@ -40,7 +40,7 @@ const failurePages: Readonly<Record<FlowIntent, string>> = {
  */
 function pageAfter(outcome: FlowOutcome, providerId: string): string {
   if (outcome.kind === 'tested') return `/settings/auth?tested=${encodeURIComponent(providerId)}`;
-  if (outcome.kind === 'linked') return `/account?linked=${encodeURIComponent(providerId)}`;
+  if (outcome.kind === 'linked') return '/library?account=linked';
   return safeNext(outcome.next);
 }
 
@@ -54,7 +54,7 @@ function pageAfter(outcome: FlowOutcome, providerId: string): string {
 function pageAfterFailure(error: unknown): string {
   const failure = error instanceof FlowError ? error.failure : 'provider';
   const page = failurePages[error instanceof FlowError ? (error.intent ?? 'sign-in') : 'sign-in'];
-  return `${page}?error=${failure}`;
+  return `${page}${failure}`;
 }
 
 /**

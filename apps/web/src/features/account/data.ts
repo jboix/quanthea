@@ -102,7 +102,7 @@ export function setPasswordAction(api: ApiClient) {
 export type AccountIdentities = EndpointOutput<typeof myIdentitiesEndpoint>;
 
 /**
- * The loader of the account page: one's providers.
+ * The loader of the account menu: one’s providers.
  *
  * @param api - The API client.
  * @returns The loader.
@@ -131,10 +131,15 @@ export function setupAction(api: ApiClient) {
   };
 }
 
-/** What the account page submits, as JSON. */
+/** What the account menu submits, as JSON. */
 export type AccountIntent =
-  | { readonly intent: 'change-password'; readonly current: string; readonly password: string }
-  | { readonly intent: 'unlink'; readonly providerId: string }
+  | {
+      readonly intent: 'change-password';
+      readonly current: string;
+      readonly password: string;
+      readonly back: string;
+    }
+  | { readonly intent: 'unlink'; readonly providerId: string; readonly back: string }
   | { readonly intent: 'sign-out' }
   | { readonly intent: 'sign-out-everywhere' };
 
@@ -152,16 +157,16 @@ async function runAccountIntent(api: ApiClient, intent: AccountIntent): Promise<
   }
   if (intent.intent === 'unlink') {
     await api.call(unlinkIdentityEndpoint, { params: { providerId: intent.providerId } });
-    return '/account?unlinked=1';
+    return `${safeNext(intent.back)}?account=unlinked`;
   }
   await api.call(changePasswordEndpoint, {
     body: { current: intent.current, password: intent.password },
   });
-  return '/account?changed=1';
+  return `${safeNext(intent.back)}?account=password-changed`;
 }
 
 /**
- * The action of the account page: change the password, unlink a provider, or sign out.
+ * The action of the account menu: change the password, unlink a provider, or sign out.
  *
  * @param api - The API client.
  * @returns The action.

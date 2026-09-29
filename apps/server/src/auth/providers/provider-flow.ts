@@ -7,7 +7,7 @@
  * A person comes in when their provider identity is linked to a user, when they were invited with
  * the verified email the provider gives, or when the provider's join policy lets them in, as a
  * viewer. An account in use is never linked by email alone: its owner links the provider from
- * their account page, signed in.
+ * the account menu, signed in.
  */
 import {
   type Principal,

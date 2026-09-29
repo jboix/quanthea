@@ -1,6 +1,7 @@
-import { hasRole, type Role } from '@querent/shared';
+import { hasRole, type Principal, type Role } from '@querent/shared';
 import type { ReactNode } from 'react';
 import { Link, useMatch } from 'react-router';
+import { AccountMenu } from '../features/account/index.ts';
 import { BrandIcon } from '../ui/brand.tsx';
 import {
   BinIcon,
@@ -61,13 +62,6 @@ const bottomItems: readonly RailItem[] = [
     minimum: 'admin',
     icon: <SettingsIcon />,
   },
-  {
-    label: 'Your account',
-    to: '/account',
-    section: '/account',
-    minimum: 'viewer',
-    icon: <UserIcon />,
-  },
 ];
 
 /**
@@ -94,11 +88,13 @@ function RailLink({ item }: { readonly item: RailItem }) {
 /**
  * The 56 px navigation rail. It shows only the destinations the role can open.
  *
- * @param props - The role of the current user.
+ * @param props - Who is signed in.
+ * @param props.principal - Who is signed in: their role sets the items, and the account menu
+ *   names them.
  * @returns The rail.
  */
-export function NavRail({ role }: { readonly role: Role }) {
-  const visible = (item: RailItem): boolean => hasRole(role, item.minimum);
+export function NavRail({ principal }: { readonly principal: Principal }) {
+  const visible = (item: RailItem): boolean => hasRole(principal.role, item.minimum);
   return (
     <nav aria-label="Primary" className={styles.rail}>
       <Link to="/" aria-label="querent home" className={styles.logo}>
@@ -111,6 +107,11 @@ export function NavRail({ role }: { readonly role: Role }) {
       {bottomItems.filter(visible).map((item) => (
         <RailLink key={item.to} item={item} />
       ))}
+      <AccountMenu
+        principal={principal}
+        trigger={<UserIcon />}
+        triggerClassName={styles.railLink ?? ''}
+      />
     </nav>
   );
 }

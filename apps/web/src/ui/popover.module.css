@@ -68,3 +68,9 @@
   right: 0;
   left: auto;
 }
+
+.card[data-placement="side"] {
+  top: auto;
+  bottom: 0;
+  left: calc(100% + 10px);
+}

@@ -46,15 +46,20 @@
   justify-content: center;
   width: 44px;
   height: 44px;
+  padding: 0;
+  border: 0;
   border-radius: 10px;
+  background: none;
   color: var(--color-rail-icon);
+  cursor: pointer;
 }
 
 .railLink:hover {
   color: #ffffff;
 }
 
-.railLink[aria-current="page"] {
+.railLink[aria-current="page"],
+.railLink[aria-expanded="true"] {
   background: var(--color-rail-active);
   color: #ffffff;
 }

@@ -8,7 +8,7 @@ import type { UserRepository } from '../../db/user-repository.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { SignInSettings } from './sign-in-settings.ts';
 
-/** A provider that is on, as the login page and the account page list it. */
+/** A provider that is on, as the login page and the account menu list it. */
 export interface EnabledProvider {
   /** Its id. */
   readonly id: string;
