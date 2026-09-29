@@ -370,6 +370,12 @@ panel ids to remove, and deploy markers. The server expands it:
   every saved one), a set chosen when it starts, or none (free style: custom panels only), stored
   on the thread (`POST /api/threads` with `recipes`). The tool schema and the guide list only
   those recipes. The new-thread screen offers the three, with the recipes to tick when choosing.
+- **Recipes screen.** Each built-in recipe shows the fields the agent fills, an example request
+  and the queries it becomes (`GET /api/settings/recipes/guide`, expanded by the same code as the
+  agent's requests). A preview expands one panel request, validates it and test-runs it on a
+  chosen connector and time range, with no model and nothing saved
+  (`POST /api/settings/recipes/preview`). A saved recipe being edited goes along with its
+  preview, so it can be tried before it is kept.
 - **Layout.** Existing panels keep their place; a rebuilt panel keeps its id and place; new
   panels are packed in reading order into rows below, as wide as asked or as their kind usually
   is (stats a quarter, time charts full width, tables and category charts half).
@@ -731,6 +737,7 @@ indicative; the contract files are the source of truth.
 | `GET /model-providers`                                                                     | the providers a thread may use, without keys | editor   |
 | `GET/PUT /settings/recipes`                                                                | built-in recipes on or off, saved recipes    | admin    |
 | `GET /recipes`                                                                             | the recipes a thread may use                 | editor   |
+| `GET /settings/recipes/guide`, `POST /settings/recipes/preview`                            | how recipes work, a test run of one panel    | admin    |
 | `GET/POST/PATCH /users`                                                                    | local users (basic mode)                     | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,

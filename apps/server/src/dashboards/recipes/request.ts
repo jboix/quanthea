@@ -216,7 +216,7 @@ const savedSchema = z.strictObject({
 });
 
 /** The built-in recipes' schemas, by id. */
-const builtInSchemas = {
+export const builtInSchemas = {
   rate: rateSchema,
   ratio: ratioSchema,
   latency: latencySchema,

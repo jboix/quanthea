@@ -76,7 +76,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   mountDashboardEndpoints(app, dependencies.dashboards, dependencies.usage.recordPinnedView);
   mountSettingsEndpoints(app, dependencies.modelSettings);
   mountUsageEndpoints(app, dependencies.usage);
-  mountRecipeEndpoints(app, dependencies.recipeSettings);
+  mountRecipeEndpoints(app, dependencies);
   mountThreadEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent);
   mountSpa(app, dependencies.webDir);

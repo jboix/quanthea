@@ -26,7 +26,7 @@ const gridSchema = z
   .refine((grid) => grid.x + grid.w <= gridColumns, 'The panel is wider than the grid.');
 
 /** Validates a panel. */
-const panelSchema = z.strictObject({
+export const panelSchema = z.strictObject({
   id: slugSchema,
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),

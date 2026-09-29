@@ -71,9 +71,14 @@ export {
   variableOptionsEndpoint,
 } from './api/panels.ts';
 export {
+  getRecipeGuideEndpoint,
   getRecipeSettingsEndpoint,
   listRecipeChoicesEndpoint,
+  previewRanges,
+  previewRecipeEndpoint,
   type RecipeChoice,
+  type RecipeGuide,
+  type RecipePreview,
   recipeChoiceSchema,
   saveRecipeSettingsEndpoint,
 } from './api/recipes.ts';

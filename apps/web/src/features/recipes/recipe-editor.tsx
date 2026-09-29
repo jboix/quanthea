@@ -10,8 +10,10 @@ import { Card } from '../../ui/card.tsx';
 import { Input } from '../../ui/input.tsx';
 import { Select } from '../../ui/select.tsx';
 import { TextArea } from '../../ui/text-area.tsx';
+import type { PreviewConnector } from './data.ts';
 import { idOf, paramsOf, type RecipeDraft, recipeOf } from './recipe-draft.ts';
 import styles from './recipes.module.css';
+import { SavedPreview } from './saved-preview.tsx';
 
 /** What a placeholder of each kind may hold, for the admin. */
 const kindHints: Readonly<Record<RecipeParamKind, string>> = {
@@ -227,15 +229,18 @@ interface RecipeEditorProps {
   readonly onDone: (recipe: SavedRecipe) => void;
   /** Called to drop the changes. */
   readonly onCancel: () => void;
+  /** The connectors a preview can run on. */
+  readonly connectors: readonly PreviewConnector[];
 }
 
 /**
  * The editor of one saved recipe. Done checks it as the server will.
  *
- * @param props - The recipe, whether it is new, the ids taken, and the callbacks.
+ * @param props - The recipe, whether it is new, the ids taken, the callbacks and the connectors.
  * @returns The card.
  */
-export function RecipeEditor({ start, isNew, taken, onDone, onCancel }: RecipeEditorProps) {
+export function RecipeEditor(props: RecipeEditorProps) {
+  const { start, isNew, taken, onDone, onCancel } = props;
   const [draft, setDraft] = useState(start);
   const [issues, setIssues] = useState<Record<string, string>>({});
   const change = (patch: Partial<RecipeDraft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -247,18 +252,31 @@ export function RecipeEditor({ start, isNew, taken, onDone, onCancel }: RecipeEd
     onDone(checked.recipe);
   };
   const parts = { draft, change, issues };
+  const checked = recipeOf(draft);
   return (
-    <Card title={isNew ? 'New recipe' : `Edit ${start.name}`}>
-      <NameFields {...parts} isNew={isNew} />
-      <QueryFields {...parts} />
-      <ParamFields {...parts} />
-      <ViewFields {...parts} />
+    <div className={styles.detail}>
+      <Card title={isNew ? 'New recipe' : `Edit ${start.name}`}>
+        <NameFields {...parts} isNew={isNew} />
+        <QueryFields {...parts} />
+        <ParamFields {...parts} />
+        <ViewFields {...parts} />
+      </Card>
+      <Card
+        title="Try it"
+        description="Run the recipe as it stands on a connector before you keep it."
+      >
+        <SavedPreview
+          recipe={checked.ok ? checked.recipe : undefined}
+          language={draft.language}
+          connectors={props.connectors}
+        />
+      </Card>
       <div className={styles.actions}>
         <Button variant="primary" onClick={done}>
           Done
         </Button>
         <Button onClick={onCancel}>Cancel</Button>
       </div>
-    </Card>
+    </div>
   );
 }

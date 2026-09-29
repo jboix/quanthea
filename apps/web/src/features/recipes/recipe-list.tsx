@@ -1,0 +1,122 @@
+import { builtInRecipes } from '@querent/shared';
+import type { ReactNode } from 'react';
+import { Button } from '../../ui/button.tsx';
+import styles from './recipes.module.css';
+import type { RecipesForm } from './recipes-form.ts';
+
+/** Props of {@link ListRow}. */
+interface ListRowProps {
+  /** The recipe's name. */
+  readonly name: string;
+  /** What is shown on the right: the language, or "off". */
+  readonly note: ReactNode;
+  /** Whether it is the recipe shown. */
+  readonly current: boolean;
+  /** Whether it is dimmed, as a recipe switched off. */
+  readonly off?: boolean;
+  /** Shows it. */
+  readonly onSelect: () => void;
+}
+
+/**
+ * One recipe in the list.
+ *
+ * @param props - The name, the note, the state and the callback.
+ * @returns The row.
+ */
+function ListRow({ name, note, current, off = false, onSelect }: ListRowProps) {
+  return (
+    <li>
+      <button
+        type="button"
+        className={styles.listRow}
+        aria-current={current ? 'true' : undefined}
+        data-off={off}
+        onClick={onSelect}
+      >
+        <span className={styles.listName}>{name}</span>
+        <span className={styles.listNote}>{note}</span>
+      </button>
+    </li>
+  );
+}
+
+/**
+ * The built-in recipes of one language.
+ *
+ * @param props - The form, the language and its heading.
+ * @param props.form - The form state.
+ * @param props.language - The language.
+ * @param props.heading - The heading.
+ * @returns The group.
+ */
+function BuiltInGroup({
+  form,
+  language,
+  heading,
+}: {
+  readonly form: RecipesForm;
+  readonly language: 'sql' | 'promql';
+  readonly heading: string;
+}) {
+  const { selected, editing } = form;
+  return (
+    <>
+      <h3 className={styles.listHeading}>{heading}</h3>
+      <ul className={styles.list}>
+        {builtInRecipes
+          .filter((recipe) => recipe.language === language)
+          .map((recipe) => {
+            const off = form.settings.disabled.includes(recipe.id);
+            const current =
+              editing === null && selected.kind === 'built-in' && selected.id === recipe.id;
+            return (
+              <ListRow
+                key={recipe.id}
+                name={recipe.name}
+                note={off ? 'off' : ''}
+                off={off}
+                current={current}
+                onSelect={() => form.select({ kind: 'built-in', id: recipe.id })}
+              />
+            );
+          })}
+      </ul>
+    </>
+  );
+}
+
+/**
+ * Every recipe, yours first, to pick the one shown.
+ *
+ * @param props - The form.
+ * @param props.form - The form state.
+ * @returns The list.
+ */
+export function RecipeList({ form }: { readonly form: RecipesForm }) {
+  const { selected, editing } = form;
+  return (
+    <nav className={styles.side} aria-label="Recipes">
+      <div className={styles.sideHead}>
+        <h3 className={styles.listHeading}>Your recipes</h3>
+        <Button size="small" onClick={form.add} disabled={editing !== null}>
+          Add
+        </Button>
+      </div>
+      {form.settings.saved.length === 0 && <p className={styles.hint}>None yet.</p>}
+      <ul className={styles.list}>
+        {form.settings.saved.map((recipe, index) => (
+          <ListRow
+            key={recipe.id}
+            name={recipe.name}
+            note={recipe.language === 'sql' ? 'SQL' : 'PromQL'}
+            current={editing === null && selected.kind === 'saved' && selected.index === index}
+            onSelect={() => form.select({ kind: 'saved', index })}
+          />
+        ))}
+      </ul>
+      <BuiltInGroup form={form} language="promql" heading="Built-in · PromQL" />
+      <BuiltInGroup form={form} language="sql" heading="Built-in · SQL" />
+    </nav>
+  );
+}

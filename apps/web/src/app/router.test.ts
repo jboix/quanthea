@@ -69,6 +69,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   },
   'GET /recipes': { recipes: [] },
   'GET /settings/recipes': { disabled: [], saved: [] },
+  'GET /settings/recipes/guide': { recipes: [], connectors: [] },
   'GET /settings/usage': { from: 0, to: 1, pricesCheckedOn: '2026-09-29', buckets: [] },
   'GET /settings/model': {
     gateway: {
