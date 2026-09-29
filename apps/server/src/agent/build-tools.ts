@@ -115,7 +115,7 @@ function editDashboardTool(context: RunContext) {
   return tool({
     description:
       'Change the dashboard in one new version: set its title, time range and variables; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); remove panels; set deploy markers. The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work; otherwise you get the errors to fix.',
-    inputSchema: editRequestSchemaFor(context.queries),
+    inputSchema: editRequestSchemaFor(context.queries, context.charts),
     execute: (request) => editDashboard(context, request),
   });
 }

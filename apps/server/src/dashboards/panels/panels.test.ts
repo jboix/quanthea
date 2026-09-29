@@ -223,4 +223,17 @@ describe('the tool schemas', () => {
     );
     expect(full.length).toBeLessThan(16_000);
   });
+
+  test('offer only the chart recipes switched on', () => {
+    const schema = editRequestSchemaFor({ builtIn: [], saved: [] }, ['trend.line', 'kpi.stat']);
+    const json = JSON.stringify(z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }));
+    expect(json).toContain('"trend.line"');
+    expect(json).not.toContain('"geo.choropleth"');
+    const panel = {
+      title: 'x',
+      data: { kind: 'raw', connector: 'shop', language: 'sql', query: 'SELECT 1' },
+      chart: { recipe: 'geo.choropleth' },
+    };
+    expect(schema.safeParse({ title: 'x', panels: [panel], summary: 'x' }).success).toBe(false);
+  });
 });

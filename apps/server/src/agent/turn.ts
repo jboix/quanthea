@@ -85,6 +85,7 @@ export async function turnInstructions(
     timeZone: hints.timeZone,
     declinedMatches: messages.at(-1)?.parts.some((part) => part.type === 'data-matches') ?? false,
     queries: context.queries,
+    charts: context.charts,
     guides: context.modelView.guides(),
   });
   return cachedInstructions(parts, context.settings.provider);
@@ -101,7 +102,7 @@ function turnTools(context: RunContext, now: () => number) {
   return {
     ...dataTools(context, (expression) => resolveTime(expression, now())),
     ...buildTools(context),
-    ...chartTools(),
+    ...chartTools(context.charts),
     ask_person: askPersonTool(context),
   };
 }

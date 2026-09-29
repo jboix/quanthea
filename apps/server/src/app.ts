@@ -11,6 +11,7 @@ import type { AppEnv } from './http/app-env.ts';
 import { authenticate } from './http/authenticate.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
+import { mountChartEndpoints } from './http/routes/chart-routes.ts';
 import { mountChatRoute } from './http/routes/chat-route.ts';
 import { mountConnectorRoutes } from './http/routes/connector-routes.ts';
 import { mountDashboardEndpoints } from './http/routes/dashboard-routes.ts';
@@ -22,6 +23,7 @@ import { mountUsageEndpoints } from './http/routes/usage-routes.ts';
 import { securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
+import type { ChartSettingsService } from './settings/chart-settings.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
 import type { QuerySettingsService } from './settings/query-settings.ts';
 import type { Threads } from './threads/threads.ts';
@@ -53,6 +55,8 @@ export interface AppDependencies {
   readonly usage: Usage;
   /** The recipe settings. */
   readonly querySettings: QuerySettingsService;
+  /** The chart settings. */
+  readonly chartSettings: ChartSettingsService;
 }
 
 /**
@@ -77,6 +81,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   mountSettingsEndpoints(app, dependencies.modelSettings);
   mountUsageEndpoints(app, dependencies.usage);
   mountQueryEndpoints(app, dependencies);
+  mountChartEndpoints(app, dependencies.chartSettings);
   mountThreadEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent);
   mountSpa(app, dependencies.webDir);

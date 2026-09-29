@@ -17,6 +17,7 @@ import { createModelView, type ModelView } from './gate/model-view.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
 import type { SecretBox } from './secrets/secret-box.ts';
+import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
 import { createModelSettings, type ModelSettingsService } from './settings/model-settings.ts';
 import { createQuerySettings, type QuerySettingsService } from './settings/query-settings.ts';
 import type { SettingsStore } from './settings/settings-store.ts';
@@ -53,6 +54,8 @@ export interface Services {
   readonly usage: Usage;
   /** The recipe settings. */
   readonly querySettings: QuerySettingsService;
+  /** The chart settings. */
+  readonly chartSettings: ChartSettingsService;
 }
 
 /** How long a query result stays cached, in milliseconds. */
@@ -110,6 +113,8 @@ export function createServices(dependencies: ServiceDependencies): Services {
   });
   const querySettings = createQuerySettings({ store: dependencies.settings, audit });
   const threads = createThreads({ repository, audit });
-  const agent = createAgent({ ...data, threads, modelSettings, usage, querySettings });
-  return { ...data, modelSettings, threads, agent, usage, querySettings };
+  const chartSettings = createChartSettings({ store: dependencies.settings, audit });
+  const settings = { modelSettings, querySettings, chartSettings };
+  const agent = createAgent({ ...data, threads, usage, ...settings });
+  return { ...data, threads, agent, usage, ...settings };
 }

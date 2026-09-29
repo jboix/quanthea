@@ -5,6 +5,7 @@
  */
 import {
   chartIndex,
+  chartRecipes,
   queryBuilders,
   type SavedQuery,
   shapeGuides,
@@ -55,12 +56,17 @@ function savedLine(query: SavedQuery): string {
  *
  * @param available - The builders and saved queries.
  * @param guides - The query guides of the connector kinds in use.
+ * @param charts - The chart recipes offered, by id; every one when not given.
  * @returns The guide.
  */
 export function panelGuideFor(
   available: AvailableQueries,
   guides: readonly { readonly text: string }[],
+  charts?: readonly string[],
 ): string {
+  const offered = charts
+    ? chartRecipes.filter((recipe) => charts.includes(recipe.id))
+    : chartRecipes;
   const none = available.builtIn.length === 0 && available.saved.length === 0;
   const data = [
     ...builderLines('PromQL builders', 'promql', available.builtIn),
@@ -79,7 +85,7 @@ export function panelGuideFor(
     ...shapes,
     chartGuide,
     'Chart recipes, id (shape): when to use it:',
-    chartIndex(),
+    chartIndex(offered),
     ...guides.map((guide) => guide.text),
     editRules,
   ].join('\n');

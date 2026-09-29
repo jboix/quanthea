@@ -42,6 +42,12 @@
   color: var(--color-accent);
 }
 
+.saveBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .family {
   margin-bottom: 32px;
 }
@@ -96,6 +102,10 @@
   display: flex;
   flex-direction: column;
   height: 240px;
+}
+
+.card[data-off="true"] .chart {
+  opacity: 0.45;
 }
 
 .use {

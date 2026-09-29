@@ -34,6 +34,8 @@ export interface RunContext extends AgentServices {
   readonly settings: ModelSettings;
   /** The query builders and saved queries the thread may use. */
   readonly queries: AvailableQueries;
+  /** The chart recipes the agent is offered, by id. */
+  readonly charts: readonly string[];
   /** Streams custom parts: plan cards, new versions, diffs. */
   readonly writer: UIMessageStreamWriter<ThreadMessage>;
   /** Aborted when the person stops the run or leaves. */

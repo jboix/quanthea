@@ -14,7 +14,7 @@ import { LibraryRoute } from '../routes/library.tsx';
 import { LoginRoute } from '../routes/login.tsx';
 import { NotFoundRoute } from '../routes/not-found.tsx';
 import { SettingsAuthRoute } from '../routes/settings-auth.tsx';
-import { SettingsChartsRoute } from '../routes/settings-charts.tsx';
+import { chartSettingsRoute } from '../routes/settings-charts.tsx';
 import { SettingsLayout } from '../routes/settings-layout.tsx';
 import { modelSettingsRoute } from '../routes/settings-model.tsx';
 import { querySettingsRoute } from '../routes/settings-queries.tsx';
@@ -96,7 +96,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
       children: [
         { index: true, loader: () => redirect('/settings/model') },
         modelSettingsRoute(loadSession, api),
-        screen(loadSession, '/settings/charts', SettingsChartsRoute),
+        chartSettingsRoute(loadSession, api),
         querySettingsRoute(loadSession, api),
         usageSettingsRoute(loadSession, api),
         screen(loadSession, '/settings/auth', SettingsAuthRoute),

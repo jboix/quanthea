@@ -15,6 +15,7 @@ import {
 } from 'ai';
 import { z } from 'zod';
 import { AppError } from '../lib/errors.ts';
+import type { ChartSettingsService } from '../settings/chart-settings.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
 import type { QuerySettingsService } from '../settings/query-settings.ts';
 import { withPlanDecisions } from './compact.ts';
@@ -37,6 +38,8 @@ export interface AgentDependencies extends AgentServices {
   readonly modelSettings: ModelSettingsService;
   /** The query settings, for the queries a thread may use. */
   readonly querySettings: QuerySettingsService;
+  /** The chart settings, for the chart recipes the agent is offered. */
+  readonly chartSettings: ChartSettingsService;
   /** Builds the model; the real providers by default. */
   readonly buildModel?: typeof languageModel;
   /** The clock; `Date.now` by default. */
@@ -249,7 +252,18 @@ function runContext(
   const { threadId, actor, signal } = request;
   const { settings, providerName } = turn;
   const queries = dependencies.querySettings.available(dependencies.threads.row(threadId).queries);
-  const run = { threadId, actor, settings, providerName, queries, writer, signal, counters };
+  const charts = dependencies.chartSettings.enabled();
+  const run = {
+    threadId,
+    actor,
+    settings,
+    providerName,
+    queries,
+    charts,
+    writer,
+    signal,
+    counters,
+  };
   return { ...dependencies, ...run };
 }
 

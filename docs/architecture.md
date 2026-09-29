@@ -392,7 +392,10 @@ directly onto an ECharts `dataset`.
 - **Which queries.** Admins switch builders off (`GET/PUT /api/settings/queries`). A thread uses
   the default set (the builders switched on and every saved query), a set chosen when it starts,
   or none (free style: raw queries only), stored on the thread (`POST /api/threads` with
-  `queries`). The tool schema and the guide list only those. Chart recipes are always offered.
+  `queries`). The tool schema and the guide list only those.
+- **Which charts.** Every chart recipe is offered to the agent until an admin switches it off in
+  Settings → Charts (`charts` settings section, `GET/PUT /api/settings/charts`); at least one
+  stays on. The tool schema, the guide and `chart_recipe` offer only those.
 - **Layout.** Existing panels keep their place; a rebuilt panel keeps its id and place; new
   panels are packed in reading order into rows below, as wide as asked or as their kind usually
   is (numbers a quarter, time charts full width, tables and category charts half).
@@ -420,7 +423,7 @@ preview builds one data request, runs it on a chosen connector and time range, a
 the chart that suits it or any recipe, with no model and nothing saved
 (`POST /api/settings/queries/preview`). A saved query being edited goes along with its preview.
 **Settings → Charts** draws every recipe and variant from its sample through the dashboards'
-panel code.
+panel code, each with its switch for the agent.
 
 ### Prompting
 
@@ -768,6 +771,7 @@ indicative; the contract files are the source of truth.
 | `GET/PUT /settings/queries`                                                                | builders on or off, saved queries            | admin    |
 | `GET /queries`                                                                             | the queries a thread may use                 | editor   |
 | `GET /settings/queries/guide`, `POST /settings/queries/preview`                            | how builders work, a test run of a query     | admin    |
+| `GET/PUT /settings/charts`                                                                 | chart recipes on or off                      | admin    |
 | `GET/POST/PATCH /users`                                                                    | local users (basic mode)                     | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,

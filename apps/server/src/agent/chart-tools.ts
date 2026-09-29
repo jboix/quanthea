@@ -6,9 +6,6 @@ import { type ChartRecipe, chartRecipe, chartRecipes } from '@querent/shared';
 import { tool } from 'ai';
 import { z } from 'zod';
 
-/** Every chart recipe's id, the first apart for Zod's enum. */
-const [firstId = 'trend.line', ...otherIds] = chartRecipes.map((recipe) => recipe.id);
-
 /**
  * A recipe as the agent reads it: what it needs, what it offers, and what to avoid.
  *
@@ -45,9 +42,11 @@ export function recipeCard(recipe: ChartRecipe) {
 /**
  * Creates the chart tools.
  *
+ * @param charts - The chart recipes the agent is offered, by id.
  * @returns The tools.
  */
-export function chartTools() {
+export function chartTools(charts: readonly string[] = chartRecipes.map((recipe) => recipe.id)) {
+  const [firstId = 'trend.line', ...otherIds] = charts;
   return {
     chart_recipe: tool({
       description:

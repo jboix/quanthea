@@ -68,6 +68,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
     connectors: [],
   },
   'GET /queries': { queries: [] },
+  'GET /settings/charts': { disabled: [] },
   'GET /settings/queries': { disabled: [], saved: [] },
   'GET /settings/queries/guide': { builders: [], connectors: [] },
   'GET /settings/usage': { from: 0, to: 1, pricesCheckedOn: '2026-09-29', buckets: [] },

@@ -39,6 +39,8 @@ export interface TurnFacts {
   readonly queries: AvailableQueries;
   /** The query guides of the connector kinds in use. */
   readonly guides: readonly { readonly text: string }[];
+  /** The chart recipes the agent is offered, by id; every one when not given. */
+  readonly charts?: readonly string[];
 }
 
 /**
@@ -126,7 +128,9 @@ export interface InstructionParts {
  */
 export function instructionParts(facts: TurnFacts): InstructionParts {
   const writing =
-    phaseOf(facts.state) === 'planning' ? [] : [panelGuideFor(facts.queries, facts.guides)];
+    phaseOf(facts.state) === 'planning'
+      ? []
+      : [panelGuideFor(facts.queries, facts.guides, facts.charts)];
   const catalog = `Connectors and their data (the catalog):\n${facts.catalog}`;
   return {
     lasting: [persona, generalRules, ...writing, catalog].join('\n\n'),

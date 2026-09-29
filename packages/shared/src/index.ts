@@ -1,6 +1,12 @@
 /** The public surface of `@querent/shared`. */
 
 export {
+  type ChartSettings,
+  chartSettingsSchema,
+  getChartSettingsEndpoint,
+  saveChartSettingsEndpoint,
+} from './api/charts.ts';
+export {
   type ConnectorDetail,
   type ConnectorKindInfo,
   type ConnectorSummary,

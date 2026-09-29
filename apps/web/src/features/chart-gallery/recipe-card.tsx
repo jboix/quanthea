@@ -1,6 +1,7 @@
 import type { ChartRecipe } from '@querent/shared';
 import { useState } from 'react';
 import { Pill } from '../../ui/pill.tsx';
+import { Switch } from '../../ui/switch.tsx';
 import { PanelView } from '../dashboard/index.ts';
 import styles from './gallery.module.css';
 import { samplePanel } from './sample.ts';
@@ -118,22 +119,26 @@ interface RecipeCardProps {
   readonly recipe: ChartRecipe;
   /** A variant to show fixed, as the every-variant view does; otherwise the card switches. */
   readonly variant?: string;
+  /** Whether the agent is offered the recipe. */
+  readonly enabled: boolean;
+  /** Switches it on or off for the agent. */
+  readonly onToggle: (on: boolean) => void;
 }
 
 /**
  * One recipe: its name, its sample drawn, its variants and what the agent reads about it.
  *
- * @param props - The recipe and, optionally, a fixed variant.
+ * @param props - The recipe, a fixed variant if any, and its switch for the agent.
  * @returns The card.
  */
-export function RecipeCard({ recipe, variant }: RecipeCardProps) {
+export function RecipeCard({ recipe, variant, enabled, onToggle }: RecipeCardProps) {
   const [chosen, choose] = useState('');
   const shown = variant ?? chosen;
   const title = shown
     ? `${recipe.title} · ${recipe.variants[shown]?.title ?? shown}`
     : recipe.title;
   return (
-    <article className={styles.card} aria-label={title}>
+    <article className={styles.card} aria-label={title} data-off={!enabled}>
       <header className={styles.cardHead}>
         <h3 className={styles.cardTitle}>{title}</h3>
         <Pill mono>{recipe.id}</Pill>
@@ -145,6 +150,9 @@ export function RecipeCard({ recipe, variant }: RecipeCardProps) {
         {shown ? recipe.variants[shown]?.whenToUse : recipe.whenToUse.join(' ')}
       </p>
       <RecipeDetails recipe={recipe} />
+      {variant === undefined && (
+        <Switch label="Offered to the agent" checked={enabled} onChange={onToggle} />
+      )}
     </article>
   );
 }
