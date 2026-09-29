@@ -69,6 +69,7 @@ describe('runMigrations', () => {
       '0008-library-search.sql',
       '0009-every-version-is-immutable.sql',
       '0010-thread-bin.sql',
+      '0011-users-and-sessions.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
@@ -86,9 +87,11 @@ describe('runMigrations', () => {
       'migrations',
       'plans',
       'schema_cache',
+      'sessions',
       'settings',
       'threads',
       'usage_events',
+      'users',
     ]);
   });
 

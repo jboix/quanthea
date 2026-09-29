@@ -6,6 +6,9 @@
 import type { DashboardSpec } from '@querent/shared';
 import { createMetadataWriter, type PinMetadata } from './agent/metadata.ts';
 import { type Agent, createAgent } from './agent/run.ts';
+import { resealUsers } from './auth/reseal-users.ts';
+import { createSessions, type Sessions } from './auth/sessions.ts';
+import { createUsers, type Users } from './auth/users.ts';
 import { type Connections, createConnections } from './connections/connections.ts';
 import { resealConnectors } from './connections/reseal.ts';
 import type { AnyConnectorKind } from './connectors/_shared/index.ts';
@@ -14,12 +17,16 @@ import { createAuditRepository } from './db/audit-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import type { openDatabase } from './db/database.ts';
+import { createSessionRepository } from './db/session-repository.ts';
 import { createThreadBinRepository } from './db/thread-bin.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
+import { createUserRepository } from './db/user-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
+import type { KeyedHash } from './secrets/keyed-hash.ts';
+import type { SessionHashes } from './secrets/keys.ts';
 import type { SecretBox } from './secrets/secret-box.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
 import {
@@ -47,6 +54,12 @@ export interface ServiceDependencies {
   readonly secretBox: SecretBox;
   /** The settings store. */
   readonly settings: SettingsStore;
+  /** Indexes emails, under a key derived from the secret key. */
+  readonly emailIndex: KeyedHash;
+  /** The session key's hashes; without them there are no sessions, as in `none` mode. */
+  readonly sessionHashes: SessionHashes | undefined;
+  /** The clock of the users and sessions; `Date.now` by default. */
+  readonly now?: () => number;
 }
 
 /** The services the HTTP layer calls. */
@@ -61,6 +74,10 @@ export interface Services {
   readonly modelView: ModelView;
   /** The threads. */
   readonly threads: Threads;
+  /** The people who sign in. */
+  readonly users: Users;
+  /** Sessions, when the session key is set. */
+  readonly sessions: Sessions | undefined;
   /** The bin of threads. */
   readonly bin: ThreadBin;
   /**
@@ -149,11 +166,33 @@ function pinDescriber(
  * @returns How many secrets were sealed again.
  */
 export async function resealSecrets(
-  dependencies: Pick<ServiceDependencies, 'database' | 'secretBox' | 'settings'>,
+  dependencies: Pick<ServiceDependencies, 'database' | 'secretBox' | 'settings' | 'emailIndex'>,
 ): Promise<number> {
-  const { database, secretBox, settings } = dependencies;
+  const { database, secretBox, settings, emailIndex } = dependencies;
   const connectors = await resealConnectors(createConnectorRepository(database), secretBox);
-  return connectors + (await resealModelKeys({ store: settings, secretBox }));
+  const users = await resealUsers(createUserRepository(database), secretBox, emailIndex);
+  return connectors + users + (await resealModelKeys({ store: settings, secretBox }));
+}
+
+/**
+ * The users, and the sessions when the session key is set.
+ *
+ * @param dependencies - The database, the secret box and the keyed hashes.
+ * @param audit - The audit log.
+ * @returns The services.
+ */
+function accountServices(
+  dependencies: ServiceDependencies,
+  audit: ReturnType<typeof createAuditRepository>,
+) {
+  const { database, secretBox, emailIndex, sessionHashes } = dependencies;
+  const clock = dependencies.now ? { now: dependencies.now } : {};
+  const repository = createUserRepository(database);
+  const users = createUsers({ repository, secretBox, emailIndex, audit, ...clock });
+  const sessionRepository = createSessionRepository(database);
+  const sessions =
+    sessionHashes && createSessions({ repository: sessionRepository, ...sessionHashes, ...clock });
+  return { users, sessions };
 }
 
 /**
@@ -175,6 +214,7 @@ export function createServices(dependencies: ServiceDependencies): Services {
   });
   const querySettings = createQuerySettings({ store: dependencies.settings, audit });
   const threads = createThreads({ repository, audit });
+  const accounts = accountServices(dependencies, audit);
   const bin = createThreadBin({
     repository: createThreadBinRepository(dependencies.database),
     audit,
@@ -184,5 +224,5 @@ export function createServices(dependencies: ServiceDependencies): Services {
   const settings = { modelSettings, querySettings, chartSettings, retention };
   const agent = createAgent({ ...data, threads, usage, ...settings });
   const describeForPin = pinDescriber(createMetadataWriter({ modelSettings, usage }), threads, bin);
-  return { ...data, threads, bin, describeForPin, agent, usage, ...settings };
+  return { ...data, threads, ...accounts, bin, describeForPin, agent, usage, ...settings };
 }

@@ -39,10 +39,35 @@ function buildApp() {
     version: '1.2.3',
     authenticator: fixedAuthenticator(anonymousAdmin),
     logger: captureLogs().logger,
+    publicUrl: undefined,
     webDir: webDir.path,
     ...services,
   });
 }
+
+describe('requests from other sites', () => {
+  test('refuses a change without querent’s header, or from another origin', async () => {
+    const app = buildApp();
+    const post = (headers: Record<string, string>) =>
+      app.request('http://querent.test/api/auth/sign-out', { method: 'POST', headers });
+    expect((await post({})).status).toBe(403);
+    expect(
+      (await post({ 'X-Requested-With': 'querent', Origin: 'https://evil.test' })).status,
+    ).toBe(403);
+    const crossSite = { 'X-Requested-With': 'querent', 'Sec-Fetch-Site': 'cross-site' };
+    expect((await post(crossSite)).status).toBe(403);
+    const own = { 'X-Requested-With': 'querent', Origin: 'http://querent.test' };
+    expect((await post(own)).status).toBe(200);
+  });
+
+  test('lets reads through, and marks API answers as never to be cached', async () => {
+    const response = await buildApp().request('http://querent.test/api/health');
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('content-security-policy')).toContain("base-uri 'none'");
+    expect(response.headers.get('strict-transport-security')).toBeNull();
+  });
+});
 
 describe('route access', () => {
   test('every /api route is public or declares a minimum role', () => {
@@ -54,7 +79,11 @@ describe('route access', () => {
     const publicRoutes = listApiRouteAccess(buildApp())
       .filter((route) => route.access === 'public')
       .map((route) => `${route.method} ${route.path}`);
-    expect(publicRoutes.sort()).toEqual(['GET /api/health', 'GET /api/me']);
+    expect(publicRoutes.sort()).toEqual([
+      'GET /api/health',
+      'GET /api/me',
+      'POST /api/auth/sign-out',
+    ]);
   });
 
   test('every connector route needs the admin role', () => {

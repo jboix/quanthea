@@ -32,24 +32,33 @@ const missing = authMode === 'accounts' ? accountsProblems(config, keys) : [];
 if (missing.length > 0) {
   throw new Error(`Accounts mode cannot start:\n- ${missing.join('\n- ')}`);
 }
-const authenticator = createAuthenticator(authMode);
-if (authenticator.mode === 'none') {
-  logger.warn('Open access: anyone who can reach this URL is an admin.');
-}
-
-const dependencies = { database, kinds: connectorKinds, secretBox: keys.secretBox, settings };
+const dependencies = {
+  database,
+  kinds: connectorKinds,
+  secretBox: keys.secretBox,
+  settings,
+  emailIndex: keys.emailIndex,
+  sessionHashes: keys.sessionHashes,
+};
 const resealed = await resealSecrets(dependencies);
 if (resealed > 0) logger.info('sealed secrets again with the current key', { resealed });
 const services = createServices(dependencies);
+
+const { sessions, users } = services;
+const authenticator = createAuthenticator(authMode, sessions && { sessions, users });
+if (authenticator.mode === 'none') {
+  logger.warn('Open access: anyone who can reach this URL is an admin.');
+}
 
 const app = createApp({
   version: rootPackage.version,
   authenticator,
   logger,
   webDir: config.webDir,
+  publicUrl: config.publicUrl,
   ...services,
 });
-const stopPurgeJob = startPurgeJob({ bin: services.bin, retention: services.retention, logger });
+const stopPurgeJob = startPurgeJob({ ...services, logger });
 
 // A model call or a chat stream can go quiet for longer than Bun's default of 10 seconds.
 const server = Bun.serve({ port: config.port, fetch: app.fetch, idleTimeout: 255 });

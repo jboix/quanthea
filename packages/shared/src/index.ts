@@ -1,5 +1,6 @@
 /** The public surface of `@querent/shared`. */
 
+export { signOutEndpoint } from './api/auth.ts';
 export {
   type BinnedThread,
   binnedThreadSchema,

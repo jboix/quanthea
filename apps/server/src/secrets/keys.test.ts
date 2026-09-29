@@ -78,7 +78,7 @@ describe('loading the keys', () => {
       inputs({ secret: { file }, session: { value: randomKey() }, pepper: { value: randomKey() } }),
     );
     expect(ring.secretKeyOrigin).toBe('configured');
-    expect(ring.session?.length).toBe(32);
+    expect(ring.sessionHashes).toBeDefined();
     expect(ring.pepper?.length).toBe(32);
     expect(lines).toEqual([]);
     expect(() => statSync(join(dataDir.path, 'secret.key'))).toThrow();

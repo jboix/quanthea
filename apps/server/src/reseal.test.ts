@@ -1,17 +1,20 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { connectorInputSchema, defaultModelGateway } from '@querent/shared';
-import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
-import { createAuditRepository } from '../db/audit-repository.ts';
-import { createConnectorRepository } from '../db/connector-repository.ts';
-import { openDatabase } from '../db/database.ts';
-import { runMigrations } from '../db/migrate.ts';
-import { createSettingsRepository } from '../db/settings-repository.ts';
-import { openSecretBox } from '../secrets/secret-box.ts';
-import { resealSecrets } from '../services.ts';
-import { createModelSettings } from '../settings/model-settings.ts';
-import { createSettingsStore } from '../settings/settings-store.ts';
-import { temporaryDir } from '../test/fixtures.ts';
-import { createConnections } from './connections.ts';
+import { createUsers } from './auth/users.ts';
+import { createConnections } from './connections/connections.ts';
+import { memoryConnector } from './connectors/_shared/test/memory-connector.ts';
+import { createAuditRepository } from './db/audit-repository.ts';
+import { createConnectorRepository } from './db/connector-repository.ts';
+import { openDatabase } from './db/database.ts';
+import { runMigrations } from './db/migrate.ts';
+import { createSettingsRepository } from './db/settings-repository.ts';
+import { createUserRepository } from './db/user-repository.ts';
+import { keyedHash } from './secrets/keyed-hash.ts';
+import { openSecretBox } from './secrets/secret-box.ts';
+import { resealSecrets } from './services.ts';
+import { createModelSettings } from './settings/model-settings.ts';
+import { createSettingsStore } from './settings/settings-store.ts';
+import { temporaryDir } from './test/fixtures.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let database: ReturnType<typeof openDatabase>;
@@ -61,9 +64,22 @@ describe('sealing secrets again', () => {
     const providerId = defaultModelGateway.defaultProviderId;
     await models.save(defaultModelGateway, { [providerId]: 'sk-a-model-key-9f2a' }, 'admin-1');
 
+    const oldIndex = await keyedHash(oldKey, 'querent/email-index/v1');
+    const newIndex = await keyedHash(newKey, 'querent/email-index/v1');
+    const userRepository = createUserRepository(database);
+    const users = createUsers({
+      repository: userRepository,
+      secretBox: before,
+      emailIndex: oldIndex,
+      audit,
+    });
+    const ada = await users.create({ email: 'Ada@Example.com', name: 'Ada', role: 'admin' }, 'x');
+
     const rotating = await openSecretBox(newKey, oldKey);
-    expect(await resealSecrets({ database, secretBox: rotating, settings })).toBe(2);
-    expect(await resealSecrets({ database, secretBox: rotating, settings })).toBe(0);
+    const reseal = () =>
+      resealSecrets({ database, secretBox: rotating, settings, emailIndex: newIndex });
+    expect(await reseal()).toBe(3);
+    expect(await reseal()).toBe(0);
 
     const after = await openSecretBox(newKey);
     const row = repository.get(id);
@@ -77,5 +93,13 @@ describe('sealing secrets again', () => {
       usage: () => ({ tokens: 0, threads: 0, pinnedViews: 0, dollars: 0 }),
     });
     expect((await reopened.resolve(providerId)).apiKey).toBe('sk-a-model-key-9f2a');
+    const found = createUsers({
+      repository: userRepository,
+      secretBox: after,
+      emailIndex: newIndex,
+      audit,
+    });
+    expect((await found.findByEmail(' ada@example.com'))?.id).toBe(ada.id);
+    expect(await found.get(ada.id)).toMatchObject({ email: 'Ada@Example.com', name: 'Ada' });
   });
 });

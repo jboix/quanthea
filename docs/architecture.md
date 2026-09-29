@@ -862,22 +862,39 @@ so fields the contract does not declare never leave the server. Every response c
 ## 10. Authentication
 
 ```
-request → requestId → session cookie? → Principal
-                         │ none mode: Principal{anonymous, admin}
-                         │ basic:     sessions → users
-                         │ oidc:      sessions (created in the callback from ID token claims)
+request → requestId → security headers → CSRF check → session cookie? → Principal
+                                              │ none:     Principal{anonymous, admin}
+                                              │ accounts: signed cookie → session → user
           → route guard requireRole('editor') → handler
 ```
 
+Two modes: `none`, where every request is an anonymous admin, and `accounts`, where people sign in.
+Modes stored as `basic` or `oidc` by earlier versions read as `accounts`. `accounts` starts only
+with the keys and `QUERENT_PUBLIC_URL` it needs (see "Keys").
+
 - Each route module declares its minimum role next to its handler. A test walks the router and
-  fails if any `/api` route (except the public ones) has no declared role.
-- Sessions are opaque random IDs in an `HttpOnly; SameSite=Lax; Secure` cookie (Secure when served
-  over https), stored in `sessions`. Changing the auth mode invalidates all sessions.
-- OIDC uses the authorization code flow with PKCE (the `openid-client` library). The role comes
-  from a configurable claim path (e.g. `groups` or `realm_access.roles`) and a value→role map.
-  There is a default role for users with no match (setting; `viewer` by default, or "deny").
-- Mutating requests require the `X-Requested-With` header or same-origin `Origin` as a CSRF check.
-  The web client already sends `X-Requested-With: querent` on every request.
+  fails if any `/api` route (except the public ones) has no declared role, and another lists the
+  public ones.
+- **Users** (`auth/users.ts`, table `users`): a role each (viewer, editor, admin). Names and emails
+  are sealed, bound to their user. An email is found through a keyed hash of its normalised form
+  (trimmed, NFKC, lowercase) under a key derived from the secret key, so the database holds no
+  readable email; after a key rotation the hashes are computed again with the reseal. The audit
+  log names users by id only. A disabled user signs nothing in.
+- **Sessions** (`auth/sessions.ts`, table `sessions`): the id is 32 random bytes. The cookie
+  `__Host-querent_session` holds the id and an HMAC signature of it (Secure, HttpOnly,
+  SameSite=Lax, Path=/; the `__Host-` prefix makes browsers refuse it otherwise). The signature
+  is checked in constant time before any lookup, and the database stores only a keyed hash of the
+  id, so a copy of the database gives no usable session. A session ends after 24 hours without a
+  request or 7 days after it began; its last request is written at most once a minute. A cookie
+  that appears twice is refused. The purge job deletes ended sessions every hour.
+- `POST /api/auth/sign-out` (public) ends the session and clears the cookie. Signing out is never
+  a GET, so no link or image can do it.
+- **CSRF** (`http/csrf.ts`): every `/api` request that is not a GET, HEAD or OPTIONS needs
+  `X-Requested-With: querent`, which a cross-site form cannot send without a preflight querent never
+  grants. When the browser sends `Origin`, it must be `QUERENT_PUBLIC_URL` (or, without it, the
+  request's own origin); when it sends `Sec-Fetch-Site`, it must be `same-origin` or `none`. The web
+  client sends the header on every request.
+- Every `/api` answer carries `Cache-Control: no-store`.
 
 ## 11. Rendering
 
@@ -936,8 +953,11 @@ request → requestId → session cookie? → Principal
   `secret: "••••1234"`). See "Keys" below.
 - Audit log entries for pin, bin, restore, purge, connector changes and settings changes.
 - Response headers: CSP `default-src 'self'; connect-src 'self'; img-src 'self' data:;
-  style-src 'self' 'unsafe-inline'` (ECharts sets inline styles), `frame-ancestors 'none'`,
-  `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`.
+  style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'self'` (ECharts
+  sets inline styles), `frame-ancestors 'none'`, `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, a `Permissions-Policy` that
+  turns off the camera, microphone, geolocation, payment and USB, and same-origin opener and
+  resource policies. HSTS for a year when `QUERENT_PUBLIC_URL` is HTTPS.
 - Fonts are self-hosted from `@fontsource` packages, because this CSP blocks Google Fonts. Vite
   never inlines them as `data:` URIs.
 - The SPA turns off Zod's JIT (`lib/zod-without-eval.ts`), which otherwise probes `new Function`

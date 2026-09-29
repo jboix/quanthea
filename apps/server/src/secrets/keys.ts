@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import type { Logger } from '../lib/logger.ts';
+import { type KeyedHash, keyedHash } from './keyed-hash.ts';
 import { openSecretBox, type SecretBox } from './secret-box.ts';
 
 /** A key given in a variable, or in a file named by the variable with `_FILE` appended. */
@@ -52,12 +53,24 @@ export interface KeyRing {
   readonly secretBox: SecretBox;
   /** Whether the secret key was given, or sits in the data directory, where a copy of it goes. */
   readonly secretKeyOrigin: 'configured' | 'data-dir';
-  /** Signs session cookies and keys the hashes of session ids and one-time tokens. */
-  readonly session: Key | undefined;
+  /** Indexes emails, under a key derived from the secret key. */
+  readonly emailIndex: KeyedHash;
+  /** The session key's derived hashes, when it is set. */
+  readonly sessionHashes: SessionHashes | undefined;
   /** Mixed into every password hash. */
   readonly pepper: Key | undefined;
   /** The pepper being rotated out. */
   readonly pepperPrevious: Key | undefined;
+}
+
+/** The keyed hashes derived from the session key. */
+export interface SessionHashes {
+  /** Signs the session cookie. */
+  readonly signature: KeyedHash;
+  /** Hashes session ids for storage. */
+  readonly idHash: KeyedHash;
+  /** Hashes one-time tokens (invite and reset links) for storage. */
+  readonly tokenHash: KeyedHash;
 }
 
 /** Where the keys come from. */
@@ -185,6 +198,20 @@ function refuseSharedKeys(keys: readonly [string, Key | undefined][]): void {
 }
 
 /**
+ * The keyed hashes of the session key, each for one purpose.
+ *
+ * @param session - The session key.
+ * @returns The hashes.
+ */
+async function sessionHashesOf(session: Key): Promise<SessionHashes> {
+  return {
+    signature: await keyedHash(session, 'querent/session-signature/v1'),
+    idHash: await keyedHash(session, 'querent/session-id/v1'),
+    tokenHash: await keyedHash(session, 'querent/one-time-token/v1'),
+  };
+}
+
+/**
  * Reads and checks every key, and opens the secret box.
  *
  * @param sources - The key inputs, the data directory and the logger.
@@ -206,7 +233,8 @@ export async function loadKeys(sources: KeySources): Promise<KeyRing> {
   return {
     secretBox: await openSecretBox(secret, read.secretPrevious),
     secretKeyOrigin: inDataDir ? 'data-dir' : 'configured',
-    session: read.session,
+    emailIndex: await keyedHash(secret, 'querent/email-index/v1'),
+    sessionHashes: read.session ? await sessionHashesOf(read.session) : undefined,
     pepper: read.pepper,
     pepperPrevious: read.pepperPrevious,
   };

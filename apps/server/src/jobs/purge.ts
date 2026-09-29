@@ -1,7 +1,8 @@
 /**
  * The purge job: once at startup and then every hour, it deletes for good the threads that have
- * waited in the bin longer than the retention setting allows.
+ * waited in the bin longer than the retention setting allows, and the sessions that have ended.
  */
+import type { Sessions } from '../auth/sessions.ts';
 import type { Logger } from '../lib/logger.ts';
 import type { RetentionSettingsService } from '../settings/retention-settings.ts';
 import type { ThreadBin } from '../threads/bin.ts';
@@ -12,6 +13,8 @@ export interface PurgeJobDependencies {
   readonly bin: Pick<ThreadBin, 'purgeAll'>;
   /** The retention settings. */
   readonly retention: Pick<RetentionSettingsService, 'get'>;
+  /** The sessions, whose ended rows the job deletes. */
+  readonly sessions?: Pick<Sessions, 'purgeEnded'> | undefined;
   /** Where it reports what it purged, and failures. */
   readonly logger: Logger;
   /** The clock; `Date.now` by default. */
@@ -49,6 +52,7 @@ export function startPurgeJob(dependencies: PurgeJobDependencies): () => void {
   const run = () => {
     try {
       purgeExpired(dependencies);
+      dependencies.sessions?.purgeEnded();
     } catch (error) {
       dependencies.logger.error('the purge job failed', { error: String(error) });
     }

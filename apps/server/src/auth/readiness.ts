@@ -17,7 +17,7 @@ export function accountsProblems(config: Pick<Config, 'publicUrl'>, keys: KeyRin
     keys.secretKeyOrigin === 'data-dir'
       ? 'Set QUERENT_SECRET_KEY, or QUERENT_SECRET_KEY_FILE outside the data directory: a key next to the database is copied with it. An existing data/secret.key can be moved there.'
       : undefined,
-    keys.session === undefined
+    keys.sessionHashes === undefined
       ? 'Set QUERENT_SESSION_KEY (or QUERENT_SESSION_KEY_FILE).'
       : undefined,
     keys.pepper === undefined

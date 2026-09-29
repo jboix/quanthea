@@ -37,7 +37,7 @@ describe('createAuthenticator', () => {
     expect(principal).toEqual({ id: 'anonymous', name: 'Anonymous', role: 'admin' });
   });
 
-  test('refuses modes that are not implemented', () => {
-    expect(() => createAuthenticator('accounts')).toThrow('QUERENT_AUTH_MODE=none');
+  test('refuses accounts mode without sessions', () => {
+    expect(() => createAuthenticator('accounts')).toThrow('QUERENT_SESSION_KEY');
   });
 });

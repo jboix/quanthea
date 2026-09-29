@@ -107,6 +107,7 @@ describe.skipIf(!integrationEnabled)('the checkout incident fixture, with no mod
       version: 'test',
       authenticator: fixedAuthenticator(viewer),
       logger: captureLogs().logger,
+      publicUrl: undefined,
       webDir: dataDir.path,
       ...services,
     });

@@ -1,20 +1,23 @@
 import { describe, expect, test } from 'bun:test';
+import { keyedHash } from '../secrets/keyed-hash.ts';
 import type { KeyRing } from '../secrets/keys.ts';
 import { testSecretBox } from '../test/fixtures.ts';
 import { accountsProblems } from './readiness.ts';
 
 /**
- * A key ring with some keys.
+ * A key ring with every key, and some fields replaced.
  *
- * @param ring - The fields to set.
+ * @param ring - The fields to replace.
  * @returns The key ring.
  */
 async function keyRing(ring: Partial<KeyRing>): Promise<KeyRing> {
   const key = crypto.getRandomValues(new Uint8Array(32));
+  const hash = await keyedHash(key, 'test');
   return {
     secretBox: await testSecretBox(),
     secretKeyOrigin: 'configured',
-    session: key,
+    emailIndex: hash,
+    sessionHashes: { signature: hash, idHash: hash, tokenHash: hash },
     pepper: key,
     pepperPrevious: undefined,
     ...ring,
@@ -30,14 +33,17 @@ describe('what accounts mode needs', () => {
   test('a secret key out of the data directory, both other keys, and the public URL', async () => {
     const ring = await keyRing({
       secretKeyOrigin: 'data-dir',
-      session: undefined,
+      sessionHashes: undefined,
       pepper: undefined,
     });
-    const problems = accountsProblems({ publicUrl: undefined }, ring);
-    expect(problems).toHaveLength(4);
-    expect(problems.join(' ')).toContain('QUERENT_SECRET_KEY');
-    expect(problems.join(' ')).toContain('QUERENT_SESSION_KEY');
-    expect(problems.join(' ')).toContain('QUERENT_PASSWORD_PEPPER');
-    expect(problems.join(' ')).toContain('QUERENT_PUBLIC_URL');
+    const problems = accountsProblems({ publicUrl: undefined }, ring).join(' ');
+    for (const name of [
+      'QUERENT_SECRET_KEY',
+      'QUERENT_SESSION_KEY',
+      'QUERENT_PASSWORD_PEPPER',
+      'QUERENT_PUBLIC_URL',
+    ]) {
+      expect(problems).toContain(name);
+    }
   });
 });

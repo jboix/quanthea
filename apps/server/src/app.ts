@@ -4,13 +4,16 @@ import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import type { Agent } from './agent/run.ts';
 import type { Authenticator } from './auth/authenticator.ts';
+import type { Sessions } from './auth/sessions.ts';
 import type { Connections } from './connections/connections.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
 import type { ModelView } from './gate/model-view.ts';
 import type { AppEnv } from './http/app-env.ts';
 import { authenticate } from './http/authenticate.ts';
+import { refuseCrossSite } from './http/csrf.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
+import { mountAuthRoutes } from './http/routes/auth-routes.ts';
 import { mountBinEndpoints } from './http/routes/bin-routes.ts';
 import { mountChartEndpoints } from './http/routes/chart-routes.ts';
 import { mountChatRoute } from './http/routes/chat-route.ts';
@@ -24,7 +27,7 @@ import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
 import { mountThreadEndpoints } from './http/routes/thread-routes.ts';
 import { mountUsageEndpoints } from './http/routes/usage-routes.ts';
-import { securityHeaders } from './http/security-headers.ts';
+import { noStoreApi, securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
 import type { ChartSettingsService } from './settings/chart-settings.ts';
@@ -41,6 +44,10 @@ export interface AppDependencies {
   readonly version: string;
   /** Identifies the principal of each request. */
   readonly authenticator: Authenticator;
+  /** querent's origin, when configured: the CSRF check and HSTS use it. */
+  readonly publicUrl: string | undefined;
+  /** Sessions, when the session key is set. */
+  readonly sessions: Sessions | undefined;
   /** Receives request and error logs. */
   readonly logger: Logger;
   /** The directory holding the built SPA. */
@@ -78,6 +85,7 @@ export interface AppDependencies {
  * @param dependencies - The services the routes use.
  */
 function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
+  mountAuthRoutes(app, dependencies.sessions);
   mountSystemRoutes(app, {
     version: dependencies.version,
     authMode: dependencies.authenticator.mode,
@@ -106,8 +114,10 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
 export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
   app.use(requestId());
-  app.use(securityHeaders());
+  app.use(securityHeaders(dependencies.publicUrl));
+  app.use(noStoreApi());
   app.use(logRequests(dependencies.logger));
+  app.use(refuseCrossSite(dependencies.publicUrl));
   app.use(`${apiPrefix}/*`, authenticate(dependencies.authenticator));
 
   mountApiRoutes(app, dependencies);
