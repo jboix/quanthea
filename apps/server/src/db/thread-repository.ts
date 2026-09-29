@@ -148,13 +148,6 @@ export interface ThreadRepository {
    * @returns `false` when the plan was not pending.
    */
   decidePlan(id: string, status: PlanStatus, decidedBy: string | null, at: number): boolean;
-  /**
-   * The tokens spent by the threads active since an instant, and how many they are.
-   *
-   * @param since - The instant, in epoch milliseconds.
-   * @returns The tokens and the number of threads.
-   */
-  usageSince(since: number): { tokens: number; threads: number };
 }
 
 /** A `threads` row as SQLite returns it. */
@@ -454,13 +447,9 @@ function planMethods(
  * @returns The repository.
  */
 export function createThreadRepository(database: Database): ThreadRepository {
-  const usage = database.query<{ tokens: number; threads: number }, [number]>(
-    'SELECT coalesce(sum(tokens_used), 0) AS tokens, count(*) AS threads FROM threads WHERE updated_at >= ?',
-  );
   return {
     ...threadMethods(database),
     ...messageMethods(database),
     ...planMethods(database),
-    usageSince: (since) => usage.get(since) ?? { tokens: 0, threads: 0 },
   };
 }

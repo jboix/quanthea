@@ -27,7 +27,7 @@ async function modelSettings() {
     store,
     secretBox: createSecretBox(key),
     audit: { append: (entry) => void entries.push(entry) },
-    usage: () => ({ tokens: 1200, threads: 2 }),
+    usage: () => ({ tokens: 1200, threads: 2, pinnedViews: 3, dollars: 0.01 }),
   });
   return { service, rows, entries };
 }
@@ -38,7 +38,7 @@ describe('model settings', () => {
     expect(await service.view()).toEqual({
       settings: defaultModelSettings,
       apiKey: null,
-      usage: { tokens: 1200, threads: 2 },
+      usage: { tokens: 1200, threads: 2, pinnedViews: 3, dollars: 0.01 },
     });
     expect(await service.resolve()).toEqual({ settings: defaultModelSettings, apiKey: null });
   });

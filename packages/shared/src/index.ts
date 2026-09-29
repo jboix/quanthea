@@ -83,6 +83,13 @@ export {
   threadSummarySchema,
 } from './api/threads.ts';
 export {
+  type UsageBucket,
+  type UsageReport,
+  usageBucketSchema,
+  usageReportEndpoint,
+  usageReportSchema,
+} from './api/usage.ts';
+export {
   type AccessLevel,
   accessLevelSchema,
   connectorNameSchema,

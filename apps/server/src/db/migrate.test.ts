@@ -63,6 +63,7 @@ describe('runMigrations', () => {
       '0002-connectors.sql',
       '0003-dashboards.sql',
       '0004-threads.sql',
+      '0005-usage.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
@@ -76,6 +77,7 @@ describe('runMigrations', () => {
       'schema_cache',
       'settings',
       'threads',
+      'usage_events',
     ]);
   });
 

@@ -4,6 +4,7 @@ import type { UIMessage, UIMessageStreamWriter } from 'ai';
 import type { Dashboards } from '../dashboards/dashboards.ts';
 import type { ModelView } from '../gate/model-view.ts';
 import type { Threads } from '../threads/threads.ts';
+import type { Usage } from '../usage/usage.ts';
 
 /** A thread message as the agent streams and stores it; an answer's metadata holds its usage. */
 export type ThreadMessage = UIMessage<{ usage?: TurnUsage }, ThreadData>;
@@ -16,6 +17,8 @@ export interface AgentServices {
   readonly dashboards: Dashboards;
   /** The connectors as the model sees them. */
   readonly modelView: ModelView;
+  /** The usage ledger, which records every step. */
+  readonly usage: Usage;
 }
 
 /** One run of the agent in one thread. */
@@ -40,6 +43,8 @@ export interface RunContext extends AgentServices {
     failedWrites: number;
     /** The model the next step uses, for its usage. */
     modelId: string;
+    /** The job the next step does, for the ledger. */
+    job: string;
     /** The tokens spent so far, by model, the continued answer's included. */
     usage: TurnUsage;
   };

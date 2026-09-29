@@ -12,6 +12,7 @@ import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import type { openDatabase } from './db/database.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
+import { createUsageRepository } from './db/usage-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
@@ -19,6 +20,7 @@ import type { SecretBox } from './secrets/secret-box.ts';
 import { createModelSettings, type ModelSettingsService } from './settings/model-settings.ts';
 import type { SettingsStore } from './settings/settings-store.ts';
 import { createThreads, type Threads } from './threads/threads.ts';
+import { createUsage, type Usage } from './usage/usage.ts';
 
 /** What the services need. */
 export interface ServiceDependencies {
@@ -46,6 +48,8 @@ export interface Services {
   readonly threads: Threads;
   /** The agent that authors dashboards in threads. */
   readonly agent: Agent;
+  /** The usage ledger. */
+  readonly usage: Usage;
 }
 
 /** How long a query result stays cached, in milliseconds. */
@@ -53,16 +57,6 @@ const resultTtlMs = 15_000;
 
 /** How many query results the cache holds. */
 const maxCachedResults = 500;
-
-/**
- * The first instant of the current month, in UTC.
- *
- * @returns Epoch milliseconds.
- */
-function monthStart(): number {
-  const now = new Date();
-  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
-}
 
 /**
  * The services over the data sources: connectors, the query executor, dashboards and the
@@ -104,13 +98,14 @@ export function createServices(dependencies: ServiceDependencies): Services {
   const audit = createAuditRepository(dependencies.database);
   const data = dataServices(dependencies, audit);
   const repository = createThreadRepository(dependencies.database);
+  const usage = createUsage({ repository: createUsageRepository(dependencies.database) });
   const modelSettings = createModelSettings({
     store: dependencies.settings,
     secretBox: dependencies.secretBox,
     audit,
-    usage: () => repository.usageSince(monthStart()),
+    usage: () => usage.month(),
   });
   const threads = createThreads({ repository, audit });
-  const agent = createAgent({ ...data, threads, modelSettings });
-  return { ...data, modelSettings, threads, agent };
+  const agent = createAgent({ ...data, threads, modelSettings, usage });
+  return { ...data, modelSettings, threads, agent, usage };
 }

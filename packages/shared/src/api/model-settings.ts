@@ -8,8 +8,13 @@ export const modelSettingsViewSchema = z.object({
   settings: modelSettingsSchema,
   /** The stored key, masked such as `••••••••9f2a`, or `null` when none is stored. */
   apiKey: z.string().nullable(),
-  /** Tokens spent by threads this month, and how many threads spent them. */
-  usage: z.object({ tokens: z.number(), threads: z.number() }),
+  /** This month, from the usage ledger: tokens, threads, pinned views, and the list-price cost. */
+  usage: z.object({
+    tokens: z.number(),
+    threads: z.number(),
+    pinnedViews: z.number(),
+    dollars: z.number(),
+  }),
 });
 
 /** The settings as the API returns them. */

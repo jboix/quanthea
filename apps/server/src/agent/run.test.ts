@@ -245,6 +245,16 @@ describe('an agent run', () => {
     });
   });
 
+  test('records every step in the usage ledger, which outlives the thread', async () => {
+    await builtThread();
+    services.threads.remove(threadId, 'editor-1');
+    const steps = services.usage.report(1).buckets.filter((bucket) => bucket.kind === 'model');
+    expect(steps.map((bucket) => [bucket.model, bucket.events])).toEqual([
+      ['claude-haiku-4-5', 1],
+      ['claude-sonnet-5', 2],
+    ]);
+  });
+
   test('hands the steps after a failed write to the repair model', async () => {
     const settings = {
       ...defaultModelSettings,

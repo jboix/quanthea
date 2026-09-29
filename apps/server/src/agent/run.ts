@@ -236,6 +236,7 @@ function runContext(
     asked: false,
     failedWrites: 0,
     modelId: modelIdFor(turn.settings, 'build'),
+    job: 'build',
     usage: startingUsage(turn.messages, continuing),
   };
   const { threadId, actor, signal } = request;

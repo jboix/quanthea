@@ -70,7 +70,6 @@ describe('thread repository', () => {
       thread.id,
       '01K0000000000000000000000U',
     ]);
-    expect(repository.usageSince(2500)).toEqual({ tokens: 1200, threads: 1 });
     expect(repository.remove(thread.id)).toBe(true);
     expect(repository.get(thread.id)).toBeUndefined();
   });

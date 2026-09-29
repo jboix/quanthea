@@ -22,7 +22,7 @@ import { phaseOf, phaseTools } from './phases.ts';
 import { instructionParts } from './prompt.ts';
 import { publicError } from './public-error.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
-import { withStep } from './usage.ts';
+import { tokensOf, withStep } from './usage.ts';
 
 /** What the person's latest message tells the agent besides its text. */
 export interface TurnHints {
@@ -122,7 +122,8 @@ function stopConditions(context: RunContext): StopCondition<ToolSet>[] {
 }
 
 /**
- * Records a step's tokens: on the thread, for its budget, and by model, for the answer's usage.
+ * Records a step's tokens: on the thread, for its budget; by model, for the answer's usage; and
+ * in the ledger.
  * Counted per step, so a run that fails halfway still records what it spent.
  *
  * @param context - The run.
@@ -130,8 +131,17 @@ function stopConditions(context: RunContext): StopCondition<ToolSet>[] {
  */
 function countStep(context: RunContext) {
   return ({ usage }: { usage: LanguageModelUsage }) => {
+    const { modelId: model, job } = context.counters;
     context.threads.addTokens(context.threadId, usage.totalTokens ?? 0);
-    context.counters.usage = withStep(context.counters.usage, context.counters.modelId, usage);
+    context.counters.usage = withStep(context.counters.usage, model, usage);
+    const { threadId, settings } = context;
+    context.usage.recordStep({
+      threadId,
+      provider: settings.provider,
+      model,
+      job,
+      tokens: tokensOf(usage),
+    });
   };
 }
 
@@ -147,6 +157,7 @@ function countStep(context: RunContext) {
 function stepModel(context: RunContext, modelOf: ModelOf, job: ModelJob) {
   const stepJob: ModelJob = context.counters.failedWrites > 0 ? 'repair' : job;
   context.counters.modelId = modelIdFor(context.settings, stepJob);
+  context.counters.job = stepJob;
   return { model: modelOf(stepJob) };
 }
 
@@ -171,6 +182,7 @@ export async function streamTurn(
   const { state } = context.threads.row(context.threadId);
   const job = phaseOf(state) === 'planning' ? 'plan' : 'build';
   context.counters.modelId = modelIdFor(context.settings, job);
+  context.counters.job = job;
   const result = streamText({
     model: modelOf(job),
     instructions,

@@ -666,7 +666,19 @@ CREATE VIRTUAL TABLE dashboards_fts USING fts5(
 CREATE TABLE audit_log (
   id TEXT PRIMARY KEY, at INTEGER NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL,
   target TEXT, detail TEXT);
+
+-- the usage ledger: no foreign keys, it outlives the threads and dashboards it names
+CREATE TABLE usage_events (
+  id TEXT PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL,   -- 'model' | 'pinned_view'
+  thread_id TEXT, dashboard_id TEXT, provider TEXT, model TEXT, job TEXT,
+  input INTEGER, cached_input INTEGER, cache_write INTEGER, output INTEGER,
+  cost_micros INTEGER);                        -- list price when recorded; NULL when unknown
 ```
+
+The usage ledger (`usage/usage.ts`) records every model step, with its provider, model, job,
+tokens and list-price cost at that moment, and every read of a pinned version, which spends no
+tokens. Deleting a thread keeps its history. `GET /api/settings/usage?days=` returns it by hour,
+and the browser adds the hours up into its own days.
 
 Migrations are plain numbered `.sql` files in `db/migrations/` (`0001-settings-and-audit-log.sql`).
 At startup each pending file runs in its own transaction, together with its row in the
@@ -703,6 +715,7 @@ indicative; the contract files are the source of truth.
 | `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`           | connection test, schema        | admin    |
 | `GET/PUT /settings/:section`                                                               | model, auth, retention, limits | admin    |
 | `POST /settings/model/test`                                                                | gateway capability test        | admin    |
+| `GET /settings/usage?days=`                                                                | usage by hour, from the ledger | admin    |
 | `GET/POST/PATCH /users`                                                                    | local users (basic mode)       | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,

@@ -18,8 +18,13 @@ import { actorOf, roleOf } from '../principal.ts';
  *
  * @param app - The app.
  * @param dashboards - The dashboards service.
+ * @param onPinnedView - Called when a pinned version is read, for the usage ledger.
  */
-function mountDashboardRoutes(app: Hono<AppEnv>, dashboards: Dashboards): void {
+function mountDashboardRoutes(
+  app: Hono<AppEnv>,
+  dashboards: Dashboards,
+  onPinnedView: (dashboardId: string) => void,
+): void {
   mountEndpoint(app, createDashboardEndpoint, {
     access: 'editor',
     handle: ({ body, principal }) =>
@@ -31,8 +36,15 @@ function mountDashboardRoutes(app: Hono<AppEnv>, dashboards: Dashboards): void {
   });
   mountEndpoint(app, getDashboardVersionEndpoint, {
     access: 'viewer',
-    handle: ({ params, principal }) =>
-      dashboards.getVersion(params.dashboardId, Number(params.version), roleOf(principal)),
+    handle: ({ params, principal }) => {
+      const version = dashboards.getVersion(
+        params.dashboardId,
+        Number(params.version),
+        roleOf(principal),
+      );
+      if (version.pinnedAt !== null) onPinnedView(params.dashboardId);
+      return version;
+    },
   });
   mountEndpoint(app, pinDashboardEndpoint, {
     access: 'editor',
@@ -67,8 +79,13 @@ function mountRunRoutes(app: Hono<AppEnv>, dashboards: Dashboards): void {
  *
  * @param app - The app.
  * @param dashboards - The dashboards service.
+ * @param onPinnedView - Called when a pinned version is read, for the usage ledger.
  */
-export function mountDashboardEndpoints(app: Hono<AppEnv>, dashboards: Dashboards): void {
-  mountDashboardRoutes(app, dashboards);
+export function mountDashboardEndpoints(
+  app: Hono<AppEnv>,
+  dashboards: Dashboards,
+  onPinnedView: (dashboardId: string) => void = () => undefined,
+): void {
+  mountDashboardRoutes(app, dashboards, onPinnedView);
   mountRunRoutes(app, dashboards);
 }

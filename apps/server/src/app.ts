@@ -17,11 +17,13 @@ import { mountDashboardEndpoints } from './http/routes/dashboard-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
 import { mountThreadEndpoints } from './http/routes/thread-routes.ts';
+import { mountUsageEndpoints } from './http/routes/usage-routes.ts';
 import { securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
 import type { Threads } from './threads/threads.ts';
+import type { Usage } from './usage/usage.ts';
 
 /** Everything the app needs from the bootstrap. */
 export interface AppDependencies {
@@ -45,6 +47,8 @@ export interface AppDependencies {
   readonly agent: Agent;
   /** The connectors as the model sees them. */
   readonly modelView: ModelView;
+  /** The usage ledger. */
+  readonly usage: Usage;
 }
 
 /**
@@ -65,8 +69,9 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
     authMode: dependencies.authenticator.mode,
   });
   mountConnectorRoutes(app, dependencies.connections);
-  mountDashboardEndpoints(app, dependencies.dashboards);
+  mountDashboardEndpoints(app, dependencies.dashboards, dependencies.usage.recordPinnedView);
   mountSettingsEndpoints(app, dependencies.modelSettings);
+  mountUsageEndpoints(app, dependencies.usage);
   mountThreadEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent);
   mountSpa(app, dependencies.webDir);
