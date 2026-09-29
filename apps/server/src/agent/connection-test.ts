@@ -7,6 +7,7 @@ import { APICallError, generateText, type LanguageModel, Output, tool } from 'ai
 import { z } from 'zod';
 import type { ResolvedModelSettings } from '../settings/model-settings.ts';
 import { languageModel, modelIdFor, reasoningOption } from './model.ts';
+import { providerMessage } from './public-error.ts';
 
 /** The result of a test. */
 type ModelTest = z.output<typeof modelTestSchema>;
@@ -80,7 +81,9 @@ async function answersStructured(model: LanguageModel, reasoning: Reasoning): Pr
  */
 function describeFailure(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error);
-  return `Not reachable: ${text.slice(0, 300)}`;
+  const detail = providerMessage(error);
+  const said = detail && !text.includes(detail) ? ` The provider says: ${detail}` : '';
+  return `Not reachable: ${text.slice(0, 300)}${said}`;
 }
 
 /**
