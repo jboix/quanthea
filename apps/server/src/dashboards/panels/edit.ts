@@ -7,7 +7,7 @@ import type { Annotation, DashboardSpec, Panel, SavedQuery } from '@querent/shar
 import { markersQuery, QueryError } from '../queries/index.ts';
 import type { PanelDraft } from './draft.ts';
 import { expandPanel, isTimeChart, type PanelChart } from './expand.ts';
-import { panelId, placeBelow } from './layout.ts';
+import { compactGrid, panelId, placeBelow } from './layout.ts';
 import type { EditRequest, MarkersRequest } from './request.ts';
 
 /** The id of the deploy markers' annotation. */
@@ -200,6 +200,9 @@ export function applyEdit(
   const annotations = editedAnnotations(spec.annotations, request.markers);
   const marked = annotations.some((annotation) => annotation.id === markersId);
   const charts: ChartChoices = new Map();
-  const panels = withMarkers(editedPanels(spec.panels, request, saved, charts), marked);
+  const edited = editedPanels(spec.panels, request, saved, charts);
+  // Removed panels leave holes; the rest move up into them.
+  const placed = request.remove.length > 0 ? compactGrid(edited) : edited;
+  const panels = withMarkers(placed, marked);
   return { spec: { ...spec, annotations, panels }, charts };
 }

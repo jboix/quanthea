@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import type { ChartView, Field, Frame, QueryOutcome } from '@querent/shared';
+import {
+  type ChartView,
+  chartRecipe,
+  type Field,
+  type Frame,
+  fillView,
+  type QueryOutcome,
+} from '@querent/shared';
 import { buildChartOption, chartInputOf } from './build-option.ts';
 
 import { defaultTheme } from './theme.ts';
@@ -259,5 +266,32 @@ describe('buildChartOption', () => {
     const option = buildChartOption(chartInputOf(view, queries, []), { theme: defaultTheme });
     expect(at(option, 'title.text')).toBe('No data in this range');
     expect(at(option, 'dataset.0.source')).toEqual([]);
+  });
+
+  test('drops the numbers and borders of a heatmap too dense to show them', () => {
+    const recipe = chartRecipe('relationship.heatmap');
+    if (!recipe) throw new Error('No heatmap recipe.');
+    const filled = fillView(
+      recipe,
+      { recipe: recipe.id, roles: { x: 'time', y: 'service', value: 'value' } },
+      ['A'],
+    );
+    if (!('view' in filled) || filled.view.kind !== 'chart') throw new Error('Expected a chart.');
+    const source = Array.from({ length: 60 }, (_row, index) => [t0 + index * 60_000, 'api', index]);
+    const dataset = {
+      dimensions: [
+        { name: 'time', type: 'time' as const },
+        { name: 'service', type: 'string' as const },
+        { name: 'value', type: 'number' as const },
+      ],
+      source,
+    };
+    const option = buildChartOption(
+      { view: filled.view, datasets: [dataset], markers: [] },
+      { theme: defaultTheme, timeZone: 'UTC' },
+    );
+    expect(at(option, 'series.0.label')).toEqual({ show: false });
+    expect(at(option, 'series.0.itemStyle.borderWidth')).toBe(0);
+    expect(at(option, 'visualMap.max')).toBe(59);
   });
 });

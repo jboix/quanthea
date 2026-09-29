@@ -232,6 +232,17 @@ describe('completeCharts', () => {
 });
 
 describe('compactGrid', () => {
+  test('closes the hole a removed panel leaves', () => {
+    const built = specOf(undefined, firstBuild);
+    const changed = specOf(built, edit({ remove: ['latency'], summary: 'no latency' }));
+    expect(changed.panels.map((panel) => [panel.id, panel.grid.y])).toEqual([
+      ['error-rate', 0],
+      ['failed-orders', 0],
+      ['orders-by-status', 3],
+      ['top-codes', 11],
+    ]);
+  });
+
   test('moves panels up into the gaps left, keeping their columns', () => {
     const { spec } = applyEdit(undefined, firstBuild);
     const kept = spec.panels.filter((panel) => panel.id !== 'latency');

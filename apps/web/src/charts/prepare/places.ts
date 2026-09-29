@@ -165,5 +165,25 @@ export function matrix(input: PrepareInput): Prepared {
   const values = dataset ? columnValues(dataset, value) : [];
   const x = dataset ? xColumn(input.roles, dataset) : undefined;
   const roles = x ? { ...input.roles, x } : input.roles;
-  return { datasets: input.datasets, option: withVisualRange(input.option, values), roles };
+  const columns = dataset && x ? new Set(columnValues(dataset, x)).size : 0;
+  const option = columns > maxLabelledColumns ? withoutCellMarks(input.option) : input.option;
+  return { datasets: input.datasets, option: withVisualRange(option, values), roles };
+}
+
+/** The most columns a heatmap shows its numbers and cell borders for; past it they crowd. */
+const maxLabelledColumns = 24;
+
+/**
+ * A dense heatmap: no numbers in the cells and no borders, so the colours read.
+ *
+ * @param option - The option.
+ * @returns The option with its series' labels and borders off.
+ */
+function withoutCellMarks(option: Loose): Loose {
+  const series = [option.series ?? []].flat().map((each) => ({
+    ...(each as Loose),
+    label: { show: false },
+    itemStyle: { borderWidth: 0 },
+  }));
+  return { ...option, series };
 }

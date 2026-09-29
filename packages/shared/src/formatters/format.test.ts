@@ -43,7 +43,7 @@ describe('named formatters', () => {
       '1.5 min',
       '2 h',
     ]);
-    expect(format({ $fmt: 'duration', unit: 'ms' }, 640, 0)).toEqual(['640 ms', '0 ns']);
+    expect(format({ $fmt: 'duration', unit: 'ms' }, 640, 0)).toEqual(['640 ms', '0']);
   });
 
   test('bytes and SI prefixes', () => {

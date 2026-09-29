@@ -81,13 +81,14 @@ function exponentOf(value: number, base: number, lowest: number, highest: number
 }
 
 /**
- * Formats a duration in the largest unit it reaches.
+ * Formats a duration in the largest unit it reaches; zero is just `0`.
  *
  * @param seconds - The duration in seconds.
  * @param decimals - The most fraction digits.
  * @returns Such as `2.9 s` or `310 ms`.
  */
 function duration(seconds: number, decimals: number): string {
+  if (seconds === 0) return '0';
   const magnitude = Math.abs(seconds);
   const unit =
     [...durationUnits].reverse().find((candidate) => magnitude >= candidate.seconds) ??
