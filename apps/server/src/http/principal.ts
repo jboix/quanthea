@@ -1,5 +1,6 @@
 /** What routes read from the request's principal. */
-import type { Principal, Role } from '@querent/shared';
+import type { Principal } from '@querent/shared';
+import { AppError } from '../lib/errors.ts';
 
 /**
  * The actor recorded in the audit log. Guarded routes only run with a principal.
@@ -12,11 +13,13 @@ export function actorOf(principal: Principal | null): string {
 }
 
 /**
- * The role a guarded route acts with.
+ * The principal of a request that needs one. Routes with a minimum role always have one.
  *
- * @param principal - The request's principal.
- * @returns Its role; `viewer` when there is none, which guarded routes never see.
+ * @param principal - The request's principal, if any.
+ * @returns The principal.
+ * @throws {AppError} `unauthorized` without one.
  */
-export function roleOf(principal: Principal | null): Role {
-  return principal?.role ?? 'viewer';
+export function signedIn(principal: Principal | null): Principal {
+  if (!principal) throw new AppError('unauthorized', 'Sign in to continue.');
+  return principal;
 }

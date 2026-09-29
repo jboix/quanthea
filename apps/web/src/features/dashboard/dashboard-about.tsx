@@ -5,7 +5,6 @@ import { HistoryIcon, QuestionIcon } from '../../ui/icons.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import styles from './dashboard.module.css';
 import type { DashboardData, DashboardIntent, Loaded } from './data.ts';
-import { useCanEdit } from './use-can-edit.ts';
 import { versionNote } from './version-note.ts';
 
 /**
@@ -78,7 +77,8 @@ function HistoryRow({ dashboard, entry, current, onPin }: HistoryRowProps) {
  * @returns The list and its actions.
  */
 export function History({ dashboard, version }: DashboardData) {
-  const canEdit = useCanEdit();
+  // The server says who may change it: the owner of its thread, or an admin.
+  const canEdit = dashboard.canChange;
   const fetcher = useFetcher<Loaded<unknown>>();
   const submit = (intent: DashboardIntent) =>
     void fetcher.submit(intent as SubmitTarget, { method: 'post', encType: 'application/json' });

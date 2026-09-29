@@ -118,6 +118,7 @@ function BinRow({
       <div className={styles.what}>
         <span className={styles.title}>{title}</span>
         <span className={styles.meta}>
+          {thread.ownerName ? `${thread.ownerName}’s · ` : ''}
           {thread.dashboardTitle ? `Dashboard: ${thread.dashboardTitle} · ` : 'No dashboard · '}
           deleted {when}
           {thread.deletedBy ? ` by ${thread.deletedBy}` : ''}

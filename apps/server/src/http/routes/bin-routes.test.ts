@@ -40,7 +40,7 @@ function client(principal: Principal) {
   const app = new Hono<AppEnv>();
   app.use(requestId());
   app.use(authenticate(fixedAuthenticator(principal)));
-  mountBinEndpoints(app, fixture.bin, fixture.retention);
+  mountBinEndpoints(app, fixture);
   app.onError(handleErrors(captureLogs().logger));
   app.notFound(handleNotFound);
   return async (method: string, path: string, body?: unknown) => {

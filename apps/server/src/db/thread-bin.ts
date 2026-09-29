@@ -18,6 +18,18 @@ export interface BinnedRow {
   readonly deletedAt: number;
   /** Who moved it there. */
   readonly deletedBy: string | null;
+  /** Who owns it. */
+  readonly ownerId: string | null;
+}
+
+/** The thread a dashboard belongs to. */
+export interface ThreadOwner {
+  /** The thread. */
+  readonly threadId: string;
+  /** Whether it is in the bin. */
+  readonly binned: boolean;
+  /** Who owns it. */
+  readonly ownerId: string | null;
 }
 
 /** What moving a thread to the bin did. */
@@ -70,7 +82,7 @@ export interface ThreadBinRepository {
    * @param dashboardId - The dashboard.
    * @returns The thread and whether it is binned, or `undefined`.
    */
-  ownerOf(dashboardId: string): { readonly threadId: string; readonly binned: boolean } | undefined;
+  ownerOf(dashboardId: string): ThreadOwner | undefined;
 }
 
 /** A binned thread as SQLite returns it. */
@@ -87,6 +99,8 @@ interface StoredBinned {
   deleted_at: number;
   /** Who binned it. */
   deleted_by: string | null;
+  /** Who owns it. */
+  created_by: string | null;
 }
 
 /**
@@ -107,7 +121,8 @@ function binStatements(database: Database) {
        WHERE id = ? AND deleted_at IS NOT NULL`,
     ),
     list: database.query<StoredBinned, []>(
-      `SELECT t.id, t.title, t.dashboard_id, d.title AS dashboard_title, t.deleted_at, t.deleted_by
+      `SELECT t.id, t.title, t.dashboard_id, d.title AS dashboard_title, t.deleted_at, t.deleted_by,
+         t.created_by
        FROM threads t LEFT JOIN dashboards d ON d.id = t.dashboard_id
        WHERE t.deleted_at IS NOT NULL ORDER BY t.deleted_at DESC, t.id DESC`,
     ),
@@ -122,8 +137,8 @@ function binStatements(database: Database) {
       `DELETE FROM dashboards WHERE id = ?1 AND pinned_version_id IS NULL
        AND NOT EXISTS (SELECT 1 FROM threads WHERE dashboard_id = ?1)`,
     ),
-    owner: database.query<{ id: string; binned: number }, [string]>(
-      `SELECT id, deleted_at IS NOT NULL AS binned FROM threads WHERE dashboard_id = ?
+    owner: database.query<{ id: string; binned: number; created_by: string | null }, [string]>(
+      `SELECT id, deleted_at IS NOT NULL AS binned, created_by FROM threads WHERE dashboard_id = ?
        ORDER BY deleted_at IS NOT NULL, created_at LIMIT 1`,
     ),
   };
@@ -189,12 +204,15 @@ export function createThreadBinRepository(database: Database): ThreadBinReposito
         dashboardTitle: row.dashboard_title,
         deletedAt: row.deleted_at,
         deletedBy: row.deleted_by,
+        ownerId: row.created_by,
       })),
     binnedBefore: (before) => statements.before.all(before).map((row) => row.id),
     purge: purger(database, statements),
     ownerOf: (dashboardId) => {
       const row = statements.owner.get(dashboardId);
-      return row ? { threadId: row.id, binned: row.binned === 1 } : undefined;
+      return row
+        ? { threadId: row.id, binned: row.binned === 1, ownerId: row.created_by }
+        : undefined;
     },
   };
 }

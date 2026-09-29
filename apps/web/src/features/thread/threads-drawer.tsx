@@ -114,6 +114,7 @@ function ThreadRow({
           <Link to={`/threads/${thread.id}`} className={styles.item}>
             <span className={styles.itemTitle}>{title}</span>
             <span className={styles.itemMeta}>
+              {thread.ownerName && <span className={styles.owner}>{thread.ownerName}</span>}
               {thread.pinned && (
                 <span className={styles.pinned}>
                   <PinIcon /> Pinned
@@ -132,19 +133,22 @@ function ThreadRow({
 }
 
 /**
- * The search box and the pinned-only switch.
+ * The search box, the pinned-only switch, and for admins the everyone's switch.
  *
- * @param props - The filter and its setter.
+ * @param props - The filter, its setter, and whether others' threads are on offer.
  * @param props.filter - The filter.
  * @param props.onChange - Receives the next filter.
+ * @param props.showEveryone - Whether to offer others' threads, as for admins.
  * @returns The controls.
  */
 function ThreadSearch({
   filter,
   onChange,
+  showEveryone,
 }: {
   readonly filter: ThreadFilter;
   readonly onChange: (next: ThreadFilter) => void;
+  readonly showEveryone: boolean;
 }) {
   return (
     <div className={styles.controls}>
@@ -167,6 +171,16 @@ function ThreadSearch({
       >
         <PinIcon /> Pinned only
       </button>
+      {showEveryone && (
+        <button
+          type="button"
+          className={styles.chip}
+          aria-pressed={filter.everyone}
+          onClick={() => onChange({ ...filter, everyone: !filter.everyone })}
+        >
+          Everyone’s
+        </button>
+      )}
     </div>
   );
 }
@@ -218,7 +232,11 @@ function ThreadGroups({
  */
 export function ThreadsDrawer({ threads }: { readonly threads: readonly ThreadListItem[] }) {
   const [open, setOpen] = useState(false);
-  const [filter, setFilter] = useState<ThreadFilter>({ text: '', pinnedOnly: false });
+  const [filter, setFilter] = useState<ThreadFilter>({
+    text: '',
+    pinnedOnly: false,
+    everyone: false,
+  });
   if (threads.length === 0) return null;
   return (
     <>
@@ -227,7 +245,11 @@ export function ThreadsDrawer({ threads }: { readonly threads: readonly ThreadLi
         Past threads
       </button>
       <Drawer open={open} onClose={() => setOpen(false)} title="Past threads">
-        <ThreadSearch filter={filter} onChange={setFilter} />
+        <ThreadSearch
+          filter={filter}
+          onChange={setFilter}
+          showEveryone={threads.some((thread) => thread.ownerName !== null)}
+        />
         <ThreadGroups threads={threads} filter={filter} />
       </Drawer>
     </>

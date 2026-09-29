@@ -7,6 +7,8 @@ export interface ThreadFilter {
   readonly text: string;
   /** Only threads whose dashboard has a pinned version. */
   readonly pinnedOnly: boolean;
+  /** Everyone's threads too, for admins; one's own only otherwise. */
+  readonly everyone: boolean;
 }
 
 /** Threads last changed on the same stretch of days. */
@@ -33,7 +35,7 @@ const groupLimits: readonly [number, string][] = [
  * The threads that pass a filter.
  *
  * @param threads - The threads.
- * @param filter - The words and whether only pinned ones count.
+ * @param filter - The words, whether only pinned ones count, and whether others' count.
  * @returns The threads that pass, in the same order.
  */
 export function filterThreads(
@@ -43,8 +45,9 @@ export function filterThreads(
   const words = filter.text.toLowerCase().split(/\s+/).filter(Boolean);
   return threads.filter((thread) => {
     if (filter.pinnedOnly && !thread.pinned) return false;
-    const title = (thread.title ?? untitled).toLowerCase();
-    return words.every((word) => title.includes(word));
+    if (!filter.everyone && thread.ownerName !== null) return false;
+    const text = `${thread.title ?? untitled} ${thread.ownerName ?? ''}`.toLowerCase();
+    return words.every((word) => text.includes(word));
   });
 }
 

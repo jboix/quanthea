@@ -140,7 +140,8 @@ export function loadRecentThreads(api: ApiClient) {
   return async ({ request }: LoaderFunctionArgs): Promise<NewThreadData> => {
     const options = { signal: request.signal };
     const [threads, choices, { queries }] = await Promise.all([
-      api.call(listThreadsEndpoint, undefined, options),
+      // Admins get everyone's threads, the drawer shows their own first; others get their own.
+      api.call(listThreadsEndpoint, { query: { scope: 'everyone' } }, options),
       api.call(listProviderChoicesEndpoint, undefined, options),
       api.call(listQueryChoicesEndpoint, undefined, options),
     ]);

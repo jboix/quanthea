@@ -3,9 +3,11 @@
  * brings it back. Purging deletes the thread and its dashboard with every version, which frees the
  * space; the usage ledger has no link to either, so usage is kept.
  */
-import type { BinnedThread } from '@querent/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
-import type { ThreadBinRepository } from '../db/thread-bin.ts';
+import type { BinnedRow, ThreadBinRepository, ThreadOwner } from '../db/thread-bin.ts';
+
+export type { ThreadOwner } from '../db/thread-bin.ts';
+
 import { AppError } from '../lib/errors.ts';
 
 /** What the bin needs. */
@@ -41,7 +43,7 @@ export interface ThreadBin {
    *
    * @returns The threads, the most recently binned first.
    */
-  list(): BinnedThread[];
+  list(): BinnedRow[];
   /**
    * Deletes a binned thread for good, with its dashboard.
    *
@@ -64,7 +66,7 @@ export interface ThreadBin {
    * @param dashboardId - The dashboard.
    * @returns The thread and whether it is binned, or `null`.
    */
-  ownerOf(dashboardId: string): { readonly threadId: string; readonly binned: boolean } | null;
+  ownerOf(dashboardId: string): ThreadOwner | null;
 }
 
 /**

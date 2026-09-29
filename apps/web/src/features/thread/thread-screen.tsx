@@ -229,7 +229,7 @@ function ThreadPane({ state }: { readonly state: ScreenState }) {
           plans={thread.plans}
           levels={levels}
           latestVersion={dashboard?.versions.at(-1)?.version ?? 0}
-          busy={running || intents.busy}
+          busy={running || intents.busy || thread.readOnly}
           onApprove={(planId) => void actions.approve(planId)}
           onEditPlan={(planId) => void actions.editPlan(planId)}
           onUndo={(target) => void actions.undo(target)}
@@ -241,7 +241,13 @@ function ThreadPane({ state }: { readonly state: ScreenState }) {
         />
         <StatusLine state={state} />
       </div>
-      <ThreadComposer state={state} />
+      {thread.readOnly ? (
+        <p className={styles.readOnly} role="note">
+          {thread.ownerName}’s thread. Admins can read it; only {thread.ownerName} can write in it.
+        </p>
+      ) : (
+        <ThreadComposer state={state} />
+      )}
     </section>
   );
 }

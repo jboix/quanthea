@@ -16,6 +16,8 @@ export const threadSummarySchema = z.object({
   providerId: z.string().nullable(),
   /** The query builders and saved queries it uses. */
   queries: threadQueriesSchema,
+  /** Who started it, and owns it: a user id, or `anonymous` for threads from open access. */
+  ownerId: z.string().nullable(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -34,6 +36,10 @@ export const threadDetailSchema = threadSummarySchema.extend({
   providerName: z.string(),
   /** The connectors and their access levels, for the composer's chip. */
   connectors: z.array(z.object({ name: z.string(), accessLevel: accessLevelSchema })),
+  /** The owner's name. */
+  ownerName: z.string(),
+  /** Whether the person reading may only read it: an admin in someone else's thread. */
+  readOnly: z.boolean(),
 });
 
 /** A thread with its conversation. */
@@ -47,7 +53,11 @@ export const threadChatPath = '/threads/:threadId/chat';
 
 /** Lists the threads, the most recent first. */
 /** A thread as the list of past threads shows it: whether its dashboard is pinned too. */
-export const threadListItemSchema = threadSummarySchema.extend({ pinned: z.boolean() });
+export const threadListItemSchema = threadSummarySchema.extend({
+  pinned: z.boolean(),
+  /** The owner's name, when it is someone else's thread; `null` for one's own. */
+  ownerName: z.string().nullable(),
+});
 
 /** A thread in the list of past threads. */
 export type ThreadListItem = z.infer<typeof threadListItemSchema>;
@@ -55,6 +65,8 @@ export type ThreadListItem = z.infer<typeof threadListItemSchema>;
 export const listThreadsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/threads',
+  /** `everyone` lists every person's threads, for admins; others always get their own. */
+  query: z.object({ scope: z.enum(['mine', 'everyone']).default('mine') }),
   output: z.array(threadListItemSchema),
 });
 

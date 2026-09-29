@@ -64,7 +64,11 @@ describe('the bin of threads', () => {
     expect(services.bin.list()).toMatchObject([
       { id: threadId, dashboardId, dashboardTitle: 'Events', deletedBy: 'editor-1' },
     ]);
-    expect(services.bin.ownerOf(dashboardId)).toEqual({ threadId, binned: true });
+    expect(services.bin.ownerOf(dashboardId)).toEqual({
+      threadId,
+      binned: true,
+      ownerId: 'editor-1',
+    });
     services.bin.restore(threadId, 'editor-1');
     expect(services.threads.get(threadId).dashboardId).toBe(dashboardId);
     expect(services.bin.list()).toEqual([]);

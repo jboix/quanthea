@@ -117,8 +117,8 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountQueryEndpoints(app, dependencies);
   mountChartEndpoints(app, dependencies.chartSettings);
   mountThreadEndpoints(app, dependencies);
-  mountBinEndpoints(app, dependencies.bin, dependencies.retention);
-  mountChatRoute(app, dependencies.agent);
+  mountBinEndpoints(app, dependencies);
+  mountChatRoute(app, dependencies.agent, dependencies.threads);
 }
 
 /**

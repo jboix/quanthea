@@ -918,6 +918,19 @@ with the keys and `QUERENT_PUBLIC_URL` it needs (see "Keys").
   enabled admin; a disabled user's sessions end at once.
 - `POST /api/auth/sign-out` (public) ends the session and clears the cookie. Signing out is never
   a GET, so no link or image can do it.
+- **Ownership** (`http/ownership.ts`): a thread belongs to whoever started it (`threads.created_by`).
+  Its owner reads and writes it; an admin reads any thread (`readOnly` in `GET /api/threads/:id`)
+  and may delete it, but never writes in it (chat, plan decisions, Undo, start-from: 403). Anyone
+  else gets "not found", so a thread's existence is not given away. `GET /api/threads` lists one's
+  own; `?scope=everyone` lists everyone's for admins, each named by its owner.
+- A dashboard's drafts follow its thread: its owner and admins read every version; everyone else
+  reads it as a viewer does, pinned versions only, for the dashboard, its versions, its panel runs
+  and its variable options. Pinning and unpinning are for the thread's owner and admins
+  (`canChange` in `GET /api/dashboards/:id`). Copying a version checks it is visible first, so
+  no one copies another's draft by its number. A dashboard with no thread is open to editors, as
+  before.
+- The bin keeps to owners: editors list and restore their own binned threads; admins list,
+  restore and delete everyone's. Threads started in `none` mode belong to `anonymous`.
 - **CSRF** (`http/csrf.ts`): every `/api` request that is not a GET, HEAD or OPTIONS needs
   `X-Requested-With: querent`, which a cross-site form cannot send without a preflight querent never
   grants. When the browser sends `Origin`, it must be `QUERENT_PUBLIC_URL` (or, without it, the

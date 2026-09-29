@@ -52,6 +52,8 @@ function ThreadLink({
       </Link>
     );
   }
+  // Someone else's thread: it is theirs to open; a copy is on offer instead.
+  if (dashboard.threadOfOther) return null;
   if (dashboard.threadBinned) {
     return (
       <Link to="/bin" className={buttonClassName('secondary')}>

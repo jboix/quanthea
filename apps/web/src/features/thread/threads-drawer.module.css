@@ -150,6 +150,14 @@
   color: var(--color-ink-secondary);
 }
 
+.owner {
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-divider);
+  font-weight: 500;
+  color: var(--color-ink-label);
+}
+
 .pinned {
   display: inline-flex;
   align-items: center;

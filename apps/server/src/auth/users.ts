@@ -78,6 +78,13 @@ export interface Users {
    */
   list(): Promise<User[]>;
   /**
+   * A user's name, also when they are disabled.
+   *
+   * @param id - The user id.
+   * @returns The name, or `undefined` when there is no such user.
+   */
+  nameOf(id: string): Promise<string | undefined>;
+  /**
    * Who a request acts as, for a signed-in user.
    *
    * @param id - The user id.
@@ -182,6 +189,10 @@ export function createUsers(dependencies: UsersDependencies): Users {
     findByEmail: async (email) =>
       repository.findByEmailIndex(await emailIndex.hash(normalizeEmail(email))),
     list: () => Promise.all(repository.list().map((row) => openUser(secretBox, row))),
+    nameOf: async (id) => {
+      const row = repository.get(id);
+      return row && secretBox.open(row.nameSealed, sealedOwner(id, 'name'));
+    },
     principalOf: async (id) => {
       const row = repository.get(id);
       if (!row || row.disabledAt !== null) return null;

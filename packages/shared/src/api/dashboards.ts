@@ -35,8 +35,14 @@ export type DashboardDetail = z.infer<typeof dashboardDetailSchema>;
  * the bin, and whether its thread is in the bin.
  */
 export const dashboardPageSchema = dashboardDetailSchema.extend({
+  /** The thread that edits it, when the person may open that thread. */
   threadId: z.string().nullable(),
+  /** Whether its thread is in the bin. */
   threadBinned: z.boolean(),
+  /** Whether its thread belongs to someone else, whom the person may not read. */
+  threadOfOther: z.boolean(),
+  /** Whether the person may pin, unpin and edit it: its thread's owner, or an admin. */
+  canChange: z.boolean(),
 });
 
 /** A dashboard as its screen reads it. */

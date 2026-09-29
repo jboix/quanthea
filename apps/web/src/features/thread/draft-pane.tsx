@@ -95,7 +95,7 @@ function statusOf(
 function PinButton(props: DraftPaneProps & { readonly shown: number | undefined }) {
   const { shown, data } = props;
   const disabled = props.busy || props.running;
-  if (shown === undefined) return null;
+  if (shown === undefined || data.thread.readOnly) return null;
   if (shown === data.dashboard?.pinnedVersion) {
     return (
       <Button disabled={disabled} onClick={props.onUnpin}>

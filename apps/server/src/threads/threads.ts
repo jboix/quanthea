@@ -10,7 +10,10 @@ import { newId } from '../lib/ids.ts';
 import { nextState, type ThreadEvent, type ThreadState } from './state.ts';
 
 /** A thread with its conversation, as the service knows it; the HTTP layer adds the rest. */
-export type ThreadConversation = Omit<ThreadDetail, 'model' | 'providerName' | 'connectors'>;
+export type ThreadConversation = Omit<
+  ThreadDetail,
+  'model' | 'providerName' | 'connectors' | 'ownerName' | 'readOnly'
+>;
 
 /** A message as the AI SDK hands it over: id, role, parts and metadata. */
 export interface StoredMessage {
@@ -160,7 +163,8 @@ function timesOf(row: ThreadRow) {
  */
 function toSummary(row: ThreadRow): ThreadSummary {
   const { id, title, state, dashboardId, tokensUsed, providerId, queries } = row;
-  return { id, title, state, dashboardId, tokensUsed, providerId, queries, ...timesOf(row) };
+  const summary = { id, title, state, dashboardId, tokensUsed, providerId, queries };
+  return { ...summary, ownerId: row.createdBy, ...timesOf(row) };
 }
 
 /**

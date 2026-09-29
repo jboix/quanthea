@@ -13,6 +13,8 @@ export const binnedThreadSchema = z.object({
   dashboardTitle: z.string().nullable(),
   deletedAt: z.number(),
   deletedBy: z.string().nullable(),
+  /** The owner's name, when it is someone else's thread; `null` for one's own. */
+  ownerName: z.string().nullable(),
 });
 
 /** A thread in the bin. */
