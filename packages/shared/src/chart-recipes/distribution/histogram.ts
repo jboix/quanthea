@@ -19,7 +19,7 @@ export const histogram: ChartRecipe = {
   render: 'echarts',
   prepare: 'bins',
   option: {
-    xAxis: { type: 'category', name: 'bin', nameLocation: 'middle', nameGap: 24 },
+    xAxis: { type: 'category' },
     yAxis: { type: 'value', axisLabel: { formatter: { $fmt: 'number', compact: true } } },
     series: [{ type: 'bar', barCategoryGap: '4%', encode: { x: 'bin', y: 'count' } }],
     tooltip: { trigger: 'axis' },

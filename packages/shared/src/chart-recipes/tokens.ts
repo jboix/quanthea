@@ -6,6 +6,7 @@ export const themeTokens = [
   '@border',
   '@divider',
   '@scale.low',
+  '@scale.mid',
   '@scale.high',
   '@palette.0',
   '@palette.1',

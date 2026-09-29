@@ -25,7 +25,11 @@ export const scatterColor: ChartRecipe = {
     xAxis: { type: 'value', scale: true, name: '@x', nameLocation: 'middle', nameGap: 24 },
     yAxis: { type: 'value', scale: true, axisLabel: { formatter: '@format' } },
     series: [{ type: 'scatter', symbolSize: 10, encode: { x: '@x', y: '@y' } }],
-    visualMap: { ...bottomVisualMap, dimension: '@color' },
+    visualMap: {
+      ...bottomVisualMap,
+      dimension: '@color',
+      inRange: { color: ['@scale.mid', '@scale.high'] },
+    },
     tooltip: { trigger: 'item' },
   },
   variants: {},

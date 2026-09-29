@@ -29,6 +29,36 @@ function boxes(count: number): { left: string; top: string; width: string; heigh
 }
 
 /**
+ * A round number at or above a value, so shared axes read cleanly: a step such as 2.5 or 4
+ * times a power of ten.
+ *
+ * @param value - The value, above zero.
+ * @returns The round number.
+ */
+function roundUp(value: number): number {
+  const power = 10 ** Math.floor(Math.log10(value));
+  const step = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((factor) => factor * power >= value) ?? 10;
+  return step * power;
+}
+
+/**
+ * The top of the y scale every small chart shares: the largest value, rounded up.
+ *
+ * @param input - The datasets.
+ * @param y - The value column.
+ * @returns The top, or `undefined` when there is no positive value.
+ */
+function sharedMax(input: PrepareInput, y: string | undefined): number | undefined {
+  const [dataset] = input.datasets;
+  const values = dataset && y ? columnValues(dataset, y) : [];
+  const largest = values.reduce<number>(
+    (top, cell) => (typeof cell === 'number' && cell > top ? cell : top),
+    0,
+  );
+  return largest > 0 ? roundUp(largest) : undefined;
+}
+
+/**
  * The axes, titles and series of the small charts.
  *
  * @param input - The option and roles.
@@ -43,8 +73,10 @@ function facetParts(
 ): Loose {
   const [x, y] = [oneColumn(input.roles, 'x'), oneColumn(input.roles, 'y')];
   const template = firstSeries(input.option);
+  const shared = sharedMax(input, y);
   const axis = (key: 'xAxis' | 'yAxis', index: number) => ({
     ...(input.option[key] as Loose),
+    ...(key === 'yAxis' && shared !== undefined ? { max: shared } : {}),
     gridIndex: index,
   });
   const titleTop = (index: number) => `${Number.parseFloat(grid[index]?.top ?? '0') - 7}%`;

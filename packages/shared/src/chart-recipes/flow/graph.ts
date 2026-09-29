@@ -24,8 +24,9 @@ export const graph: ChartRecipe = {
       {
         type: 'graph',
         layout: 'force',
-        force: { repulsion: 220, edgeLength: [60, 140] },
+        force: { repulsion: 180, gravity: 0.2, edgeLength: [50, 110] },
         roam: true,
+        zoom: 0.85,
         label: { show: true, position: 'right', color: '@ink' },
         edgeSymbol: ['none', 'arrow'],
         edgeSymbolSize: 6,

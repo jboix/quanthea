@@ -101,6 +101,7 @@ function styleAxis(axis: unknown, theme: ChartTheme, pattern: 'time' | 'date'): 
       color: theme.inkSecondary,
       fontFamily: theme.monoFamily,
       fontSize: 11,
+      hideOverlap: true,
       ...(timeAxis ? { formatter: { $fmt: 'datetime', pattern } } : {}),
     },
   };
@@ -138,6 +139,8 @@ function styleOption(option: Loose, theme: ChartTheme, dataset: Dataset | undefi
   const pattern = timePattern(dataset);
   const series = [option.series ?? []].flat().filter(isObject);
   const legendDefaults = {
+    top: 0,
+    left: 'center',
     textStyle: { color: theme.inkSecondary },
     icon: 'roundRect',
     itemWidth: 12,

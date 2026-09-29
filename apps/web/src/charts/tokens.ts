@@ -9,17 +9,29 @@ import { oneColumn } from './roles.ts';
 import type { ChartTheme } from './theme.ts';
 
 /**
+ * The red, green and blue of a hex colour, long or short, as stylesheet minifiers write them.
+ *
+ * @param color - Such as `#2a55c9` or `#fff`.
+ * @returns The channels, or `undefined` for anything else.
+ */
+function channelsOf(color: string): number[] | undefined {
+  const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(color);
+  const long = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color);
+  const parts = short ? short.slice(1).map((digit) => digit + digit) : long?.slice(1);
+  return parts?.map((part) => Number.parseInt(part, 16));
+}
+
+/**
  * Mixes two hex colours.
  *
  * @param from - The first colour, such as `#2a55c9`.
  * @param to - The second colour.
  * @param share - How much of the second, from 0 to 1.
- * @returns The mixed colour.
+ * @returns The mixed colour, or `undefined` when either is not a hex colour.
  */
-function mix(from: string, to: string, share: number): string {
-  const channels = (hex: string) =>
-    [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16));
-  const [a, b] = [channels(from), channels(to)];
+function mix(from: string, to: string, share: number): string | undefined {
+  const [a, b] = [channelsOf(from), channelsOf(to)];
+  if (!a || !b) return undefined;
   const mixed = a.map((value, index) => Math.round(value + ((b[index] ?? value) - value) * share));
   return `#${mixed.map((value) => value.toString(16).padStart(2, '0')).join('')}`;
 }
@@ -41,7 +53,8 @@ export function themeColors(theme: ChartTheme): Record<string, string> {
     '@surface': theme.surface,
     '@border': theme.border,
     '@divider': theme.divider,
-    '@scale.low': /^#[0-9a-f]{6}$/i.test(accent) ? mix(theme.surface, accent, 0.12) : theme.divider,
+    '@scale.low': mix(theme.surface, accent, 0.12) ?? theme.divider,
+    '@scale.mid': mix(theme.surface, accent, 0.45) ?? accent,
     '@scale.high': accent,
     ...palette,
   };
