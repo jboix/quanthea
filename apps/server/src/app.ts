@@ -43,6 +43,7 @@ import { noStoreApi, securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
 import type { Managed } from './provisioning/managed.ts';
+import type { ProvisioningStatus } from './provisioning/status.ts';
 import type { ChartSettingsService } from './settings/chart-settings.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
 import type { QuerySettingsService } from './settings/query-settings.ts';
@@ -85,6 +86,8 @@ export interface AppDependencies {
   readonly connections: Connections;
   /** What the configuration file manages, read-only here. */
   readonly managed: Managed;
+  /** What the last application of the configuration file left for admins to see. */
+  readonly provisioningStatus: ProvisioningStatus;
   /** The dashboards service. */
   readonly dashboards: Dashboards;
   /** The model gateway settings. */
@@ -112,12 +115,12 @@ export interface AppDependencies {
 }
 
 /**
- * Mounts every `/api` route.
+ * Mounts the routes of accounts: signing in, users, the authentication mode and providers.
  *
  * @param app - The app.
  * @param dependencies - The services the routes use.
  */
-function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
+function mountAccountRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
   mountAuthRoutes(app, {
     ...dependencies,
     modeOf: () => dependencies.authenticator.mode,
@@ -127,6 +130,36 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountAuthSettingsEndpoints(app, dependencies.authMode);
   mountSignInSettingsEndpoints(app, dependencies);
   mountProviderFlowRoutes(app, dependencies.flows);
+}
+
+/**
+ * Mounts the settings routes: the model gateway, the server, usage, queries and charts.
+ *
+ * @param app - The app.
+ * @param dependencies - The services the routes use.
+ */
+function mountSettingsRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
+  const { managed } = dependencies;
+  mountSettingsEndpoints(app, dependencies.modelSettings, managed);
+  mountServerSettingsEndpoint(
+    app,
+    dependencies.serverSettings,
+    managed,
+    dependencies.provisioningStatus,
+  );
+  mountUsageEndpoints(app, dependencies.usage);
+  mountQueryEndpoints(app, dependencies);
+  mountChartEndpoints(app, dependencies.chartSettings, managed);
+}
+
+/**
+ * Mounts every `/api` route.
+ *
+ * @param app - The app.
+ * @param dependencies - The services the routes use.
+ */
+function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
+  mountAccountRoutes(app, dependencies);
   mountSystemRoutes(app, {
     version: dependencies.version,
     authModeOf: () => dependencies.authenticator.mode,
@@ -137,11 +170,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
     ownerOf: dependencies.bin.ownerOf,
     describe: dependencies.describeForPin,
   });
-  mountSettingsEndpoints(app, dependencies.modelSettings, dependencies.managed);
-  mountServerSettingsEndpoint(app, dependencies.serverSettings, dependencies.managed);
-  mountUsageEndpoints(app, dependencies.usage);
-  mountQueryEndpoints(app, dependencies);
-  mountChartEndpoints(app, dependencies.chartSettings, dependencies.managed);
+  mountSettingsRoutes(app, dependencies);
   mountThreadEndpoints(app, dependencies);
   mountBinEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent, dependencies.threads);

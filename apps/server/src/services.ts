@@ -23,6 +23,7 @@ import { createUsageRepository } from './db/usage-repository.ts';
 import { createUserRepository } from './db/user-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
 import { createManaged, type Managed } from './provisioning/managed.ts';
+import { createProvisioningStatus, type ProvisioningStatus } from './provisioning/status.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
@@ -50,6 +51,8 @@ export interface ServiceDependencies extends AccountDependencies {
 export interface Services extends Accounts {
   /** What the configuration file manages. */
   readonly managed: Managed;
+  /** What the last application of the configuration file left for admins to see. */
+  readonly provisioningStatus: ProvisioningStatus;
   /** The configured connectors. */
   readonly connections: Connections;
   /** The dashboards. */
@@ -162,6 +165,49 @@ export async function resealSecrets(
 }
 
 /**
+ * What the configuration file manages, and what its last application left for admins to see.
+ *
+ * @param dependencies - The database and the email index.
+ * @returns Both.
+ */
+function provisioningParts(
+  dependencies: ServiceDependencies,
+): Pick<Services, 'managed' | 'provisioningStatus'> {
+  const repository = createProvisionedRepository(dependencies.database);
+  return {
+    managed: createManaged(repository, dependencies.emailIndex),
+    provisioningStatus: createProvisioningStatus(),
+  };
+}
+
+/**
+ * The settings sections' services.
+ *
+ * @param dependencies - The settings store and the secret box.
+ * @param audit - The audit log.
+ * @param usage - The usage ledger, for the model settings' monthly view.
+ * @returns The services.
+ */
+function settingsServices(
+  dependencies: ServiceDependencies,
+  audit: ReturnType<typeof createAuditRepository>,
+  usage: Usage,
+): Pick<Services, 'modelSettings' | 'querySettings' | 'chartSettings' | 'retention'> {
+  const store = dependencies.settings;
+  return {
+    modelSettings: createModelSettings({
+      store,
+      secretBox: dependencies.secretBox,
+      audit,
+      usage: () => usage.month(),
+    }),
+    querySettings: createQuerySettings({ store, audit }),
+    chartSettings: createChartSettings({ store, audit }),
+    retention: createRetentionSettings({ store, audit }),
+  };
+}
+
+/**
  * Creates the services.
  *
  * @param dependencies - The database, the connector kinds, the secret box and the settings.
@@ -172,27 +218,26 @@ export function createServices(dependencies: ServiceDependencies): Services {
   const data = dataServices(dependencies, audit);
   const repository = createThreadRepository(dependencies.database);
   const usage = createUsage({ repository: createUsageRepository(dependencies.database) });
-  const modelSettings = createModelSettings({
-    store: dependencies.settings,
-    secretBox: dependencies.secretBox,
-    audit,
-    usage: () => usage.month(),
-  });
-  const querySettings = createQuerySettings({ store: dependencies.settings, audit });
+  const settings = settingsServices(dependencies, audit, usage);
   const threads = createThreads({ repository, audit });
   const accounts = createAccounts(dependencies, audit);
   const bin = createThreadBin({
     repository: createThreadBinRepository(dependencies.database),
     audit,
   });
-  const chartSettings = createChartSettings({ store: dependencies.settings, audit });
-  const retention = createRetentionSettings({ store: dependencies.settings, audit });
-  const settings = { modelSettings, querySettings, chartSettings, retention };
   const agent = createAgent({ ...data, threads, usage, ...settings });
-  const describeForPin = pinDescriber(createMetadataWriter({ modelSettings, usage }), threads, bin);
-  const managed = createManaged(
-    createProvisionedRepository(dependencies.database),
-    dependencies.emailIndex,
-  );
-  return { ...data, threads, ...accounts, bin, describeForPin, agent, usage, ...settings, managed };
+  const writer = createMetadataWriter({ modelSettings: settings.modelSettings, usage });
+  const describeForPin = pinDescriber(writer, threads, bin);
+  const provisioning = provisioningParts(dependencies);
+  return {
+    ...data,
+    threads,
+    ...accounts,
+    bin,
+    describeForPin,
+    agent,
+    usage,
+    ...settings,
+    ...provisioning,
+  };
 }

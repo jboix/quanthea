@@ -1129,7 +1129,8 @@ the directories and logging) come from an environment variable, else the configu
 `server` section, else a default (`config/config.ts`). They are never edited in the UI:
 **Settings → Server** (`GET /api/settings/server`, admin) shows each one read-only, with its
 value and where it comes from, and each key by where it comes from, never its value
-(`config/server-view.ts`). They are read at startup; a change applies at the next restart.
+(`config/server-view.ts`). They are read at startup; a change applies at the next restart, and the
+settings show which ones wait for it.
 
 **The configuration file** (`config/config-file.ts`): `QUERENT_CONFIG` names a YAML or JSON file,
 or a directory whose `*.yaml`, `*.yml` and `*.json` files are read in name order (`/etc/querent`
@@ -1177,8 +1178,12 @@ provisioning:
 
 - A secret is never written in clear: each one is a whole `${VARIABLE}` or `file:/path` (a Docker
   or Kubernetes secret). Anything else stops the server, and no message quotes a secret.
-- The file is applied at startup, after the migrations, with the actor `provisioning` in the audit
-  log. An item is applied when it is new, changed, or deleted meanwhile: the table `provisioned`
+- The file is applied at startup, after the migrations, and again whenever it changes, with the
+  actor `provisioning` in the audit log (`provisioning/start.ts`, `provisioning/watch.ts`). The files
+  are compared by content every 5 seconds, which holds for an editor that replaces a bind-mounted
+  file and for a Kubernetes ConfigMap swapped behind a link, where file events do not. A secret
+  file read through `file:` is read again when the configuration changes or at a restart. Without
+  a file, whatever an earlier file managed is released. An item is applied when it is new, changed, or deleted meanwhile: the table `provisioned`
   keeps a keyed hash of what was last applied (under a key derived from the secret key, so it
   reveals no secret). A connector the file declares that already exists is taken over; its kind
   never changes. A provisioned connector's schema is read in the background.
@@ -1196,7 +1201,10 @@ provisioning:
 - A settings section is managed whole. The model gateway's `apiKey` fields are secrets; `limits`
   and `behaviour` fall back to the defaults when left out.
 - A mistake in the file applies nothing and stops the server with every issue listed. An item that
-  fails to apply stops the server too, after the others are applied.
+  fails to apply stops the server too, after the others are applied. After startup, a change that
+  fails keeps the last good configuration, is logged, and shows admins a warning above the
+  settings. The `server` section is read at startup only: a change there shows a banner naming
+  the settings that wait for a restart.
 - What the file manages is read-only: the API answers 403 naming the file, and the UI shows a
   "managed by" badge and disables the settings. `GET /api/settings/managed` lists the managed
   settings sections; the settings layout shows a banner and disables the section's form. Users

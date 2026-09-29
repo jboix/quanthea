@@ -62,6 +62,10 @@ export type ServerSettingsView = z.infer<typeof serverSettingsSchema>;
 export const managedSettingsSchema = z.object({
   /** The file that manages each section, by section: `model`, `retention`, `charts`, `queries`. */
   sections: z.record(z.string(), z.string()),
+  /** Why the last change to the file was not applied, or `null` when it was. */
+  problem: z.string().nullable(),
+  /** The system settings changed in the file since startup, which apply at the next restart. */
+  restartNeeded: z.array(z.string()),
 });
 
 /** Which settings sections the configuration file manages. */

@@ -128,6 +128,8 @@ export interface Config {
   readonly trustedProxyHops: number;
   /** The configuration files read, in order. */
   readonly configFiles: readonly string[];
+  /** What `QUERENT_CONFIG` names, resolved: a file or a directory. */
+  readonly configPath: string | undefined;
   /** The configuration file's sections, for provisioning; `undefined` without a file. */
   readonly file: ConfigFile | undefined;
   /** Where each system setting comes from. */
@@ -264,10 +266,9 @@ function unknownSettings(file: ConfigFile | undefined): string[] {
  * @throws {Error} Naming every invalid variable and setting.
  */
 export function loadConfig(environment: Environment, workingDir: string = process.cwd()): Config {
-  const configPath = variable(environment, 'QUERENT_CONFIG');
-  const file = configPath
-    ? readConfigFile(resolve(workingDir, configPath), environment)
-    : undefined;
+  const configVariable = variable(environment, 'QUERENT_CONFIG');
+  const configPath = configVariable ? resolve(workingDir, configVariable) : undefined;
+  const file = configPath ? readConfigFile(configPath, environment) : undefined;
   const { values, sources, issues } = resolveSettings(environment, file);
   const problems = [...unknownSettings(file), ...issues];
   if (problems.length > 0) throw new Error(`Invalid configuration:\n- ${problems.join('\n- ')}`);
@@ -284,6 +285,7 @@ export function loadConfig(environment: Environment, workingDir: string = proces
     publicUrl: settings.publicUrl,
     trustedProxyHops: settings.trustedProxyHops,
     configFiles: file?.paths ?? [],
+    configPath,
     file,
     sources,
   };
