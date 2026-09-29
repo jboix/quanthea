@@ -108,6 +108,8 @@ describe('provisioning connectors', () => {
     const clear = apply(`connectors:\n${connector('', 'plain-text-secret-value')}`);
     await expect(clear).rejects.toThrow('connectors.events.secret.token holds a secret in clear');
     await expect(clear).rejects.not.toThrow('plain-text-secret-value');
+    const unquoted = `connectors:\n  events:\n    kind: memory\n    config: {}\n    secret: { token: ${reference('EVENTS_TOKEN')} }\n`;
+    await expect(apply(unquoted)).rejects.toThrow('put the variable reference in quotes');
     await expect(apply(`connectors:\n${connector('    acessLevel: 3\n')}`)).rejects.toThrow(
       'acessLevel',
     );

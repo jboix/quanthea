@@ -6,7 +6,7 @@
  *   shop:
  *     kind: postgres
  *     config: { host: db, database: shop, username: querent_ro }
- *     secret: { password: ${SHOP_PASSWORD} }
+ *     secret: { password: "${SHOP_PASSWORD}" }
  * ```
  *
  * Every field but the name is the API's. A connector's kind never changes. When the file leaves

@@ -1150,7 +1150,7 @@ fields:
 
 ```yaml
 users:
-  ada@example.com: { name: Ada Lovelace, role: admin, password: ${ADMIN_PASSWORD} }
+  ada@example.com: { name: Ada Lovelace, role: admin, password: "${ADMIN_PASSWORD}" }
 signIn:
   passwordSignIn: true
   providers:
@@ -1164,13 +1164,13 @@ connectors:
   orders:
     kind: postgres
     config: { host: db, database: orders, username: dash_ro }
-    secret: { password: ${ORDERS_PASSWORD} }
+    secret: { password: "${ORDERS_PASSWORD}" }
 model:
   defaultProviderId: mistral
   providers:
     - { id: mistral, name: Mistral, provider: mistral, baseUrl: null,
         models: { build: mistral-large-latest, plan: '', repair: '', metadata: '' },
-        apiKey: ${MISTRAL_API_KEY} }
+        apiKey: "${MISTRAL_API_KEY}" }
 retention:
   binDays: 30
 provisioning:

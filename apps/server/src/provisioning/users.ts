@@ -5,7 +5,7 @@
  *
  * ```yaml
  * users:
- *   ada@example.com: { name: Ada Lovelace, role: admin, password: ${ADMIN_PASSWORD} }
+ *   ada@example.com: { name: Ada Lovelace, role: admin, password: "${ADMIN_PASSWORD}" }
  * ```
  *
  * The record of what the file manages names a user by the keyed hash of their email, never the

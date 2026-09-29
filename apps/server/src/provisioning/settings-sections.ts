@@ -8,7 +8,7 @@
  *   providers:
  *     - { id: anthropic, name: Anthropic, provider: anthropic, baseUrl: null,
  *         models: { build: claude-sonnet-5, plan: '', repair: '', metadata: '' },
- *         apiKey: ${ANTHROPIC_API_KEY} }
+ *         apiKey: "${ANTHROPIC_API_KEY}" }
  * ```
  */
 import {
