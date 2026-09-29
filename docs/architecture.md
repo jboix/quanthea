@@ -933,7 +933,8 @@ request → requestId → session cookie? → Principal
 - Guardrails are enforced by the executor. Connectors use read-only credentials, verified on
   test where possible.
 - Secrets are encrypted at rest and never returned by the API (connector GETs show
-  `secret: "••••1234"`).
+  `secret: "••••1234"`). See "Keys" below.
+- Audit log entries for pin, bin, restore, purge, connector changes and settings changes.
 - Response headers: CSP `default-src 'self'; connect-src 'self'; img-src 'self' data:;
   style-src 'self' 'unsafe-inline'` (ECharts sets inline styles), `frame-ancestors 'none'`,
   `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`.
@@ -941,7 +942,40 @@ request → requestId → session cookie? → Principal
   never inlines them as `data:` URIs.
 - The SPA turns off Zod's JIT (`lib/zod-without-eval.ts`), which otherwise probes `new Function`
   and triggers a CSP violation report.
-- Audit log entries for pin, bin, restore, purge, connector changes and settings changes.
+
+### Keys
+
+querent reads three keys, each 32 random bytes in base64 (`openssl rand -base64 32`), from a
+variable or from a file named by the variable with `_FILE` appended (for Docker and Kubernetes
+secrets). `secrets/keys.ts` reads and checks them at startup:
+
+- **The secret key** (`QUERENT_SECRET_KEY`) seals secrets at rest. In `none` mode, when it is not
+  set, a key file is generated in the data directory.
+- **The session key** (`QUERENT_SESSION_KEY`) signs session cookies and keys the hashes of
+  session ids and one-time tokens.
+- **The password pepper** (`QUERENT_PASSWORD_PEPPER`) is mixed into every password hash.
+
+A key must decode to exactly 32 bytes, and is refused when it is too regular to be random or is
+all printable text (a passphrase in disguise). A key set both ways, a file that cannot be read,
+and two roles sharing one key are refused. A key file others can read is warned about. No
+message ever contains a key.
+
+`accounts` mode refuses to start without all three keys, with the secret key outside the data
+directory (a copy of the data directory must never carry a key), and without
+`QUERENT_PUBLIC_URL` (`auth/readiness.ts`).
+
+**Sealing** (`secrets/secret-box.ts`): AES-256-GCM with a random 96-bit IV, bound to the row it
+belongs to through the additional data. The sealing key is derived from the secret key for this
+purpose only (HKDF-SHA-256, `querent/secrets/v1`). A sealed value starts with its format version
+and the id of the key that sealed it (the first four bytes of an HMAC of a fixed label, which
+says nothing about the key). Values sealed before key ids used the secret key itself; they still
+open.
+
+**Rotation:** set the new key, and the old one as `QUERENT_SECRET_KEY_PREVIOUS`, then restart. At
+startup every connector credential and model API key not sealed with the current key is sealed
+again (`resealSecrets`), so the previous key can be removed after that restart. The pepper
+rotates the same way with `QUERENT_PASSWORD_PEPPER_PREVIOUS`: passwords are rehashed at their next
+sign-in.
 
 ## 13. Configuration
 
@@ -968,16 +1002,19 @@ the default when it named none or its provider was removed. Editors see the prov
 build models, never their keys (`GET /api/model-providers`). The usage ledger records the
 provider's name, so two setups of the same vendor stay apart.
 
-| Variable             | Default                 | Purpose                                                                |
-| -------------------- | ----------------------- | ---------------------------------------------------------------------- |
-| `QUERENT_PORT`       | `3000`                  | HTTP port                                                              |
-| `QUERENT_DATA_DIR`   | `./data`                | SQLite database, generated key                                         |
-| `QUERENT_SECRET_KEY` | generated into data dir | encryption key for secrets                                             |
-| `QUERENT_AUTH_MODE`  | _(unset)_               | if set, overrides the stored mode. `none` is the lockout escape hatch. |
-| `QUERENT_PUBLIC_URL` | derived from request    | needed for the OIDC redirect URI                                       |
-| `QUERENT_LOG_LEVEL`  | `info`                  | `debug`, `info`, `warn` or `error`.                                    |
-| `QUERENT_LOG_FORMAT` | `text`                  | `text` for readable lines, `json` for one JSON object per line.        |
-| `QUERENT_WEB_DIR`    | `apps/web/dist`         | the built SPA the server serves                                        |
+| Variable                     | Default                 | Purpose                                                                |
+| ---------------------------- | ----------------------- | ---------------------------------------------------------------------- |
+| `QUERENT_PORT`               | `3000`                  | HTTP port                                                              |
+| `QUERENT_DATA_DIR`           | `./data`                | SQLite database, generated key                                         |
+| `QUERENT_SECRET_KEY`         | generated into data dir | seals secrets at rest; `_PREVIOUS` while rotating; `_FILE` variants    |
+| `QUERENT_SESSION_KEY`        | _(unset)_               | signs session cookies; required in `accounts` mode                     |
+| `QUERENT_PASSWORD_PEPPER`    | _(unset)_               | mixed into password hashes; required in `accounts` mode                |
+| `QUERENT_AUTH_MODE`          | _(unset)_               | if set, overrides the stored mode. `none` is the lockout escape hatch. |
+| `QUERENT_PUBLIC_URL`         | _(unset)_               | the origin people reach querent at; required in `accounts` mode        |
+| `QUERENT_TRUSTED_PROXY_HOPS` | `0`                     | reverse proxies trusted to add `X-Forwarded-For`                       |
+| `QUERENT_LOG_LEVEL`          | `info`                  | `debug`, `info`, `warn` or `error`.                                    |
+| `QUERENT_LOG_FORMAT`         | `text`                  | `text` for readable lines, `json` for one JSON object per line.        |
+| `QUERENT_WEB_DIR`            | `apps/web/dist`         | the built SPA the server serves                                        |
 
 ## 14. Local development
 

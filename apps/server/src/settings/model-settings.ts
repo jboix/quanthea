@@ -103,7 +103,9 @@ function toBase64(bytes: Uint8Array): string {
  *
  * @param dependencies - The store and the secret box.
  */
-async function moveLegacyKey(dependencies: ModelSettingsDependencies): Promise<void> {
+async function moveLegacyKey(
+  dependencies: Pick<ModelSettingsDependencies, 'store' | 'secretBox'>,
+): Promise<void> {
   const { store, secretBox } = dependencies;
   const { sealed } = store.read('model-key');
   if (sealed === null) return;
@@ -113,6 +115,32 @@ async function moveLegacyKey(dependencies: ModelSettingsDependencies): Promise<v
   const moved = keys[target] ?? toBase64(await secretBox.seal(key, ownerOf(target)));
   store.write('model-keys', { sealed: { ...keys, [target]: moved } });
   store.write('model-key', { sealed: null });
+}
+
+/**
+ * Seals the providers' API keys again with the current key: after a key rotation, and for keys
+ * sealed before sealed values carried a key id. A key saved before there were several providers is
+ * moved first.
+ *
+ * @param dependencies - The store and the secret box.
+ * @returns How many keys were sealed again.
+ */
+export async function resealModelKeys(
+  dependencies: Pick<ModelSettingsDependencies, 'store' | 'secretBox'>,
+): Promise<number> {
+  const { store, secretBox } = dependencies;
+  await moveLegacyKey(dependencies);
+  const keys = { ...store.read('model-keys').sealed };
+  let count = 0;
+  for (const [id, sealed] of Object.entries(keys)) {
+    const bytes = Buffer.from(sealed, 'base64');
+    if (secretBox.isCurrent(bytes)) continue;
+    const key = await secretBox.open(bytes, ownerOf(id));
+    keys[id] = toBase64(await secretBox.seal(key, ownerOf(id)));
+    count += 1;
+  }
+  if (count > 0) store.write('model-keys', { sealed: keys });
+  return count;
 }
 
 /**

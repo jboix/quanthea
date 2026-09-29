@@ -10,8 +10,11 @@ export const roleSchema = z.enum(roles);
 /** A role name. */
 export type Role = z.infer<typeof roleSchema>;
 
-/** Validates the authentication mode chosen in Settings, or forced by `QUERENT_AUTH_MODE`. */
-export const authModeSchema = z.enum(['none', 'basic', 'oidc']);
+/**
+ * Validates the authentication mode chosen in Settings, or forced by `QUERENT_AUTH_MODE`: `none`
+ * makes everyone an admin; `accounts` signs people in, by password or through a provider.
+ */
+export const authModeSchema = z.enum(['none', 'accounts']);
 
 /** How users authenticate: `none` makes everyone an admin. */
 export type AuthMode = z.infer<typeof authModeSchema>;

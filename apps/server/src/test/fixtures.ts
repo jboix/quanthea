@@ -10,7 +10,7 @@ import { openDatabase } from '../db/database.ts';
 import { runMigrations } from '../db/migrate.ts';
 import { createSettingsRepository } from '../db/settings-repository.ts';
 import { createLogger, type Logger } from '../lib/logger.ts';
-import { createSecretBox } from '../secrets/secret-box.ts';
+import { openSecretBox, type SecretBox } from '../secrets/secret-box.ts';
 import { createServices, type Services } from '../services.ts';
 import { createSettingsStore } from '../settings/settings-store.ts';
 
@@ -39,13 +39,23 @@ export function captureLogs(): CapturedLogger {
  * Creates an authenticator that returns a fixed principal.
  *
  * @param principal - The principal of every request, or `null` for "no session".
- * @returns The authenticator, reporting mode `basic` when the principal is not the anonymous admin.
+ * @returns The authenticator, reporting mode `accounts` when the principal is not the anonymous
+ *   admin.
  */
 export function fixedAuthenticator(principal: Principal | null): Authenticator {
   return {
-    mode: principal?.id === 'anonymous' ? 'none' : 'basic',
+    mode: principal?.id === 'anonymous' ? 'none' : 'accounts',
     authenticate: () => Promise.resolve(principal),
   };
+}
+
+/**
+ * A secret box over a fresh random key.
+ *
+ * @returns The box.
+ */
+export function testSecretBox(): Promise<SecretBox> {
+  return openSecretBox(crypto.getRandomValues(new Uint8Array(32)));
 }
 
 /**
@@ -72,12 +82,8 @@ export async function testServices(
 ): Promise<Services & { readonly close: () => Promise<void> }> {
   const database = openDatabase(dataDir);
   runMigrations(database);
-  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
-    'encrypt',
-    'decrypt',
-  ]);
   const settings = createSettingsStore(createSettingsRepository(database));
-  const services = createServices({ database, kinds, secretBox: createSecretBox(key), settings });
+  const services = createServices({ database, kinds, secretBox: await testSecretBox(), settings });
   const close = async (): Promise<void> => {
     await services.connections.closeAll();
     database.close();

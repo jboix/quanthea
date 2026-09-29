@@ -18,15 +18,15 @@ function storedMode(mode: AuthMode): SettingsStore {
 describe('resolveAuthMode', () => {
   test('uses the stored mode when there is no override', () => {
     const { logger, lines } = captureLogs();
-    expect(resolveAuthMode(undefined, storedMode('basic'), logger)).toBe('basic');
+    expect(resolveAuthMode(undefined, storedMode('accounts'), logger)).toBe('accounts');
     expect(lines).toEqual([]);
   });
 
   test('lets QUERENT_AUTH_MODE override the stored mode, with a warning', () => {
     const { logger, lines } = captureLogs();
-    expect(resolveAuthMode('none', storedMode('oidc'), logger)).toBe('none');
+    expect(resolveAuthMode('none', storedMode('accounts'), logger)).toBe('none');
     expect(lines).toContainEqual(
-      expect.objectContaining({ level: 'warn', stored: 'oidc', override: 'none' }),
+      expect.objectContaining({ level: 'warn', stored: 'accounts', override: 'none' }),
     );
   });
 });
@@ -38,6 +38,6 @@ describe('createAuthenticator', () => {
   });
 
   test('refuses modes that are not implemented', () => {
-    expect(() => createAuthenticator('oidc')).toThrow('QUERENT_AUTH_MODE=none');
+    expect(() => createAuthenticator('accounts')).toThrow('QUERENT_AUTH_MODE=none');
   });
 });

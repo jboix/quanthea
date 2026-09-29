@@ -5,6 +5,7 @@ import { routeModelWarnings } from './agent/warnings.ts';
 import { createApp } from './app.ts';
 import { resolveAuthMode } from './auth/auth-mode.ts';
 import { createAuthenticator } from './auth/authenticator.ts';
+import { accountsProblems } from './auth/readiness.ts';
 import { loadConfig } from './config/config.ts';
 import { connectorKinds } from './connectors/registry.ts';
 import { openDatabase } from './db/database.ts';
@@ -12,9 +13,8 @@ import { runMigrations } from './db/migrate.ts';
 import { createSettingsRepository } from './db/settings-repository.ts';
 import { startPurgeJob } from './jobs/purge.ts';
 import { createLogger } from './lib/logger.ts';
-import { createSecretBox } from './secrets/secret-box.ts';
-import { loadSecretKey } from './secrets/secret-key.ts';
-import { createServices } from './services.ts';
+import { loadKeys } from './secrets/keys.ts';
+import { createServices, resealSecrets } from './services.ts';
 import { createSettingsStore } from './settings/settings-store.ts';
 
 const config = loadConfig(process.env);
@@ -26,24 +26,21 @@ const appliedMigrations = runMigrations(database);
 if (appliedMigrations.length > 0) logger.info('applied migrations', { appliedMigrations });
 
 const settings = createSettingsStore(createSettingsRepository(database));
-const authenticator = createAuthenticator(
-  resolveAuthMode(config.authModeOverride, settings, logger),
-);
+const authMode = resolveAuthMode(config.authModeOverride, settings, logger);
+const keys = await loadKeys({ keys: config.keys, dataDir: config.dataDir, logger });
+const missing = authMode === 'accounts' ? accountsProblems(config, keys) : [];
+if (missing.length > 0) {
+  throw new Error(`Accounts mode cannot start:\n- ${missing.join('\n- ')}`);
+}
+const authenticator = createAuthenticator(authMode);
 if (authenticator.mode === 'none') {
   logger.warn('Open access: anyone who can reach this URL is an admin.');
 }
 
-const secretKey = await loadSecretKey({
-  configuredKey: config.secretKey,
-  dataDir: config.dataDir,
-  logger,
-});
-const services = createServices({
-  database,
-  kinds: connectorKinds,
-  secretBox: createSecretBox(secretKey),
-  settings,
-});
+const dependencies = { database, kinds: connectorKinds, secretBox: keys.secretBox, settings };
+const resealed = await resealSecrets(dependencies);
+if (resealed > 0) logger.info('sealed secrets again with the current key', { resealed });
+const services = createServices(dependencies);
 
 const app = createApp({
   version: rootPackage.version,

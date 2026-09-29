@@ -9,8 +9,7 @@ import { runMigrations } from '../db/migrate.ts';
 import { auditActions, storedSecrets } from '../db/test/inspect.ts';
 import type { AppError } from '../lib/errors.ts';
 import { maskSecret } from '../secrets/mask.ts';
-import { createSecretBox } from '../secrets/secret-box.ts';
-import { temporaryDir } from '../test/fixtures.ts';
+import { temporaryDir, testSecretBox } from '../test/fixtures.ts';
 import { type Connections, createConnections } from './connections.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
@@ -22,15 +21,11 @@ beforeEach(async () => {
   dataDir = temporaryDir();
   database = openDatabase(dataDir.path);
   runMigrations(database);
-  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
-    'encrypt',
-    'decrypt',
-  ]);
   connections = createConnections({
     kinds: [memoryConnector],
     repository: createConnectorRepository(database),
     audit: createAuditRepository(database),
-    secretBox: createSecretBox(key),
+    secretBox: await testSecretBox(),
     now: () => clock,
   });
 });
@@ -187,12 +182,7 @@ describe('connections', () => {
       kinds: [brokenConnector],
       repository: createConnectorRepository(database),
       audit: createAuditRepository(database),
-      secretBox: createSecretBox(
-        await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
-          'encrypt',
-          'decrypt',
-        ]),
-      ),
+      secretBox: await testSecretBox(),
     });
     const created = await broken.create(
       connectorInputSchema.parse({

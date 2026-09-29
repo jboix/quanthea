@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { defaultModelGateway, defaultModelSettings, type ModelGateway } from '@querent/shared';
 import type { AuditEntry } from '../db/audit-repository.ts';
-import { createSecretBox } from '../secrets/secret-box.ts';
+import { testSecretBox } from '../test/fixtures.ts';
 import { createModelSettings } from './model-settings.ts';
 import { createSettingsStore } from './settings-store.ts';
 
@@ -19,11 +19,7 @@ async function modelSettings(rows = new Map<string, string>()) {
     read: (key) => rows.get(key),
     write: (key, value) => void rows.set(key, value),
   });
-  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
-    'encrypt',
-    'decrypt',
-  ]);
-  const secretBox = createSecretBox(key);
+  const secretBox = await testSecretBox();
   const entries: AuditEntry[] = [];
   const service = createModelSettings({
     store,

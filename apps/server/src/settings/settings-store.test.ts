@@ -28,9 +28,18 @@ describe('settings store', () => {
   test('saves a section as JSON and reads it back', () => {
     const { repository, rows } = memoryRepository();
     const store = createSettingsStore(repository);
-    store.write('auth', { mode: 'basic' });
-    expect(rows.get('auth')).toBe('{"mode":"basic"}');
-    expect(store.read('auth')).toEqual({ mode: 'basic' });
+    store.write('auth', { mode: 'accounts' });
+    expect(rows.get('auth')).toBe('{"mode":"accounts"}');
+    expect(store.read('auth')).toEqual({ mode: 'accounts' });
+  });
+
+  test('reads a mode saved as basic or oidc as accounts', () => {
+    for (const mode of ['basic', 'oidc']) {
+      const store = createSettingsStore(
+        memoryRepository({ auth: JSON.stringify({ mode }) }).repository,
+      );
+      expect(store.read('auth')).toEqual({ mode: 'accounts' });
+    }
   });
 
   test('refuses a stored value that no longer matches the schema', () => {

@@ -14,7 +14,7 @@ import type { Session } from './session.ts';
  */
 function sessionFor(role: Role): Session {
   const principal: Principal = { id: `user-${role}`, name: role, role };
-  return { principal, authMode: 'basic' };
+  return { principal, authMode: 'accounts' };
 }
 
 /** A connector as the fake API returns it. */

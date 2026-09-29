@@ -7,6 +7,7 @@ import type { DashboardSpec } from '@querent/shared';
 import { createMetadataWriter, type PinMetadata } from './agent/metadata.ts';
 import { type Agent, createAgent } from './agent/run.ts';
 import { type Connections, createConnections } from './connections/connections.ts';
+import { resealConnectors } from './connections/reseal.ts';
 import type { AnyConnectorKind } from './connectors/_shared/index.ts';
 import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
@@ -21,7 +22,11 @@ import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
 import type { SecretBox } from './secrets/secret-box.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
-import { createModelSettings, type ModelSettingsService } from './settings/model-settings.ts';
+import {
+  createModelSettings,
+  type ModelSettingsService,
+  resealModelKeys,
+} from './settings/model-settings.ts';
 import { createQuerySettings, type QuerySettingsService } from './settings/query-settings.ts';
 import {
   createRetentionSettings,
@@ -134,6 +139,21 @@ function pinDescriber(
     const providerId = threadId === null ? null : threads.row(threadId).providerId;
     return write({ spec, threadId, providerId });
   };
+}
+
+/**
+ * Seals again every secret not sealed with the current key: connector credentials and model API
+ * keys. Run at startup, so a rotated-out key can be dropped after one restart.
+ *
+ * @param dependencies - The database, the secret box and the settings.
+ * @returns How many secrets were sealed again.
+ */
+export async function resealSecrets(
+  dependencies: Pick<ServiceDependencies, 'database' | 'secretBox' | 'settings'>,
+): Promise<number> {
+  const { database, secretBox, settings } = dependencies;
+  const connectors = await resealConnectors(createConnectorRepository(database), secretBox);
+  return connectors + (await resealModelKeys({ store: settings, secretBox }));
 }
 
 /**
