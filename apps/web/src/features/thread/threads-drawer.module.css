@@ -124,8 +124,8 @@
 
 .item {
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
-  flex-grow: 1;
   gap: 2px;
   min-width: 0;
   padding: 8px 10px;
