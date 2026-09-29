@@ -1,12 +1,12 @@
 /** What one agent run shares between its tools: the services, the thread, and its counters. */
-import type { ModelSettings, ThreadData } from '@querent/shared';
+import type { ModelSettings, ThreadData, TurnUsage } from '@querent/shared';
 import type { UIMessage, UIMessageStreamWriter } from 'ai';
 import type { Dashboards } from '../dashboards/dashboards.ts';
 import type { ModelView } from '../gate/model-view.ts';
 import type { Threads } from '../threads/threads.ts';
 
-/** A thread message as the agent streams and stores it. */
-export type ThreadMessage = UIMessage<{ tokens?: number }, ThreadData>;
+/** A thread message as the agent streams and stores it; an answer's metadata holds its usage. */
+export type ThreadMessage = UIMessage<{ usage?: TurnUsage }, ThreadData>;
 
 /** The services the agent uses. It reaches data only through the model view, which is the gate. */
 export interface AgentServices {
@@ -38,5 +38,9 @@ export interface RunContext extends AgentServices {
     asked: boolean;
     /** How many writes failed their checks or test runs in this run. */
     failedWrites: number;
+    /** The model the next step uses, for its usage. */
+    modelId: string;
+    /** The tokens spent so far, by model, the continued answer's included. */
+    usage: TurnUsage;
   };
 }

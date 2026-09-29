@@ -128,6 +128,19 @@ export {
   modelSettingsSchema,
 } from './model-settings.ts';
 export {
+  addUsage,
+  costOf,
+  type ModelPrice,
+  modelPrices,
+  noUsage,
+  priceOf,
+  pricesCheckedOn,
+  type TokenUsage,
+  type TurnUsage,
+  tokenUsageSchema,
+  turnUsageSchema,
+} from './model-usage.ts';
+export {
   type AuthMode,
   authModeSchema,
   hasRole,

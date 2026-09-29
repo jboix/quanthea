@@ -43,6 +43,12 @@
   white-space: nowrap;
 }
 
+.cost {
+  font-size: 12px;
+  color: var(--color-ink-secondary);
+  white-space: nowrap;
+}
+
 .connectors:empty {
   display: none;
 }

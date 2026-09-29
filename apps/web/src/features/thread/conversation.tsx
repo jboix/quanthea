@@ -16,6 +16,7 @@ import {
 import { PlanCard } from './plan-card.tsx';
 import { TextBlock } from './text-block.tsx';
 import { BuildLog, ExploreLog } from './tool-logs.tsx';
+import { UsageLine } from './usage-line.tsx';
 
 /** What the conversation needs besides the messages: plan statuses and the thread's actions. */
 export interface ConversationContext {
@@ -204,10 +205,13 @@ export function Conversation({ messages, ...context }: ConversationProps) {
           {message.role === 'user' ? (
             <UserBubble message={message} />
           ) : (
-            assistantParts(message, {
-              ...context,
-              answerable: index === messages.length - 1 && !context.busy,
-            })
+            [
+              ...assistantParts(message, {
+                ...context,
+                answerable: index === messages.length - 1 && !context.busy,
+              }),
+              <UsageLine key="usage" usage={message.metadata?.usage} />,
+            ]
           )}
         </li>
       ))}

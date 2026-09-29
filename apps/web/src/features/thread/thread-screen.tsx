@@ -1,10 +1,17 @@
-import type { AccessLevel, ThreadDetail } from '@querent/shared';
+import {
+  type AccessLevel,
+  addUsage,
+  pricesCheckedOn,
+  type ThreadDetail,
+  type TurnUsage,
+} from '@querent/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Composer } from './composer.tsx';
 import { Conversation } from './conversation.tsx';
 import { DraftPane } from './draft-pane.tsx';
 import type { ThreadMessage } from './messages.ts';
 import styles from './thread.module.css';
+import { costText } from './usage-line.tsx';
 import { useThread } from './use-thread.ts';
 
 /** The composer chip's words for each access level. */
@@ -125,6 +132,30 @@ function firstQuestion(messages: readonly ThreadMessage[]): string | undefined {
 }
 
 /**
+ * What the whole thread has cost so far, from its answers' usage.
+ *
+ * @param props - The messages.
+ * @param props.messages - The messages, as the chat holds them.
+ * @returns The cost, or nothing before the first answer with usage.
+ */
+function ThreadCost({ messages }: { readonly messages: readonly ThreadMessage[] }) {
+  const usage = messages.reduce<TurnUsage>(
+    (total, message) =>
+      Object.entries(message.metadata?.usage ?? {}).reduce(
+        (sum, [model, tokens]) => addUsage(sum, model, tokens),
+        total,
+      ),
+    {},
+  );
+  if (Object.keys(usage).length === 0) return null;
+  return (
+    <span className={styles.cost} title={`At list prices checked on ${pricesCheckedOn}.`}>
+      {costText(usage)} so far
+    </span>
+  );
+}
+
+/**
  * The thread's title, or its first question until the server names it, and the connectors it can
  * use.
  *
@@ -143,6 +174,7 @@ function ThreadHeader({
   return (
     <header className={styles.head}>
       <h1 className={styles.title}>{thread.title ?? firstQuestion(messages) ?? 'New thread'}</h1>
+      <ThreadCost messages={messages} />
       <span className={styles.connectors}>
         {thread.connectors.map((connector) => connector.name).join(' · ')}
       </span>

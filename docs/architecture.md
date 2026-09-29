@@ -404,6 +404,11 @@ the test; turning the switch off sends the provider's default.
   that says a quota is spent for the day (Gemini's `PerDay` quotas, OpenAI's `insufficient_quota`)
   is not retried: a middleware on every model (`agent/quota.ts`) turns it into an error that tells
   the person to try later or pick another model.
+- Each answer's metadata holds its usage by model: fresh input, cache reads, cache writes and
+  output (`agent/usage.ts`). A run that continues an answer after an approval adds to it. The
+  thread shows each answer's tokens and cost under it, and the thread's total in its header,
+  priced from the list prices in `@querent/shared` (`modelPrices`, dated). A model without a price
+  is named instead.
 - Each run adds its tokens to the thread, step by step, so a failed run still counts. A thread over its token budget (setting, default 200k)
   refuses new runs with a message that says so.
 - Plan approval is a separate request (`POST /api/threads/:id/plans/:planId/approve`) that moves the

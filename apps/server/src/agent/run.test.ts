@@ -219,6 +219,14 @@ describe('an agent run', () => {
     expect(prompt).not.toContain('Waiting for the person to approve');
   });
 
+  test('stores what the answer cost, the plan and the continued build together', async () => {
+    await builtThread();
+    const answer = services.threads.get(threadId).messages[1] as { metadata?: unknown };
+    expect(answer.metadata).toEqual({
+      usage: { 'claude-sonnet-5': { input: 30, cachedInput: 0, cacheWrite: 0, output: 15 } },
+    });
+  });
+
   test('patches a mentioned panel of a ready thread without a plan, and streams the diff', async () => {
     await builtThread();
     const patch = {

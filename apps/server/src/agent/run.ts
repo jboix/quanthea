@@ -3,33 +3,24 @@
  * calls and custom parts, and stores the conversation when the run ends. The thread's state
  * machine, its token budget and the run limits are checked here, whatever the model does.
  */
-import { resolveTime, threadDataSchemas } from '@querent/shared';
+import { threadDataSchemas } from '@querent/shared';
 import {
   consumeStream,
-  convertToModelMessages,
   createIdGenerator,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  type Instructions,
   type LanguageModel,
-  type StopCondition,
-  streamText,
-  type ToolSet,
-  toUIMessageStream,
+  type UIMessageStreamWriter,
   validateUIMessages,
 } from 'ai';
 import { z } from 'zod';
 import { AppError } from '../lib/errors.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
-import { askPersonTool } from './ask-tool.ts';
-import { buildTools, currentSpec } from './build-tools.ts';
-import { cachedInstructions, withCachedTail } from './cache.ts';
-import { compactHistory, compactSteps, withPlanDecisions } from './compact.ts';
-import { dataTools } from './data-tools.ts';
-import { languageModel, ModelUnavailableError, reasoningOption } from './model.ts';
-import { phaseOf, phaseTools } from './phases.ts';
-import { instructionParts } from './prompt.ts';
+import { withPlanDecisions } from './compact.ts';
+import { languageModel, ModelUnavailableError, modelIdFor } from './model.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
+import { publicError, streamTurn, turnInstructions } from './turn.ts';
+import { startingUsage } from './usage.ts';
 
 /** What the agent needs. */
 export interface AgentDependencies extends AgentServices {
@@ -88,28 +79,6 @@ type MessageHints = z.infer<typeof hintsSchema>;
 
 /** New message ids. */
 const newMessageId = createIdGenerator({ prefix: 'msg', size: 16 });
-
-/**
- * Stops the run once it has made the allowed number of tool calls.
- *
- * @param limit - The most tool calls in a turn.
- * @returns The stop condition.
- */
-function toolCallLimit(limit: number): StopCondition<ToolSet> {
-  return ({ steps }) => steps.reduce((sum, step) => sum + step.toolCalls.length, 0) >= limit;
-}
-
-/**
- * The words a stream error shows the person.
- *
- * @param error - What failed.
- * @returns The message.
- */
-function publicError(error: unknown): string {
-  return error instanceof Error
-    ? `The run failed: ${error.message.slice(0, 300)}`
-    : 'The run failed.';
-}
 
 /**
  * Adds the incoming message to the history. A user message is appended (or replaces one with its
@@ -197,88 +166,6 @@ function accept(dependencies: AgentDependencies, request: ChatRequest, budget: n
   return { history: withIncoming(thread.messages, message), hints, plans: thread.plans };
 }
 
-/**
- * The instructions of this turn.
- *
- * @param context - The run.
- * @param plans - The thread's plans.
- * @param hints - The panels the person mentions, and their time zone.
- * @param now - The current instant.
- * @returns The instructions.
- */
-async function turnInstructions(
-  context: RunContext,
-  plans: ReturnType<AgentServices['threads']['get']>['plans'],
-  hints: MessageHints,
-  now: number,
-) {
-  const spec = currentSpec(context);
-  const { dashboardId, state } = context.threads.row(context.threadId);
-  const version =
-    dashboardId === null
-      ? 0
-      : (context.dashboards.get(dashboardId, 'editor').versions.at(-1)?.version ?? 0);
-  const latest = plans.at(-1);
-  const parts = instructionParts({
-    now,
-    catalog: await context.modelView.catalog(context.signal),
-    state,
-    plan: latest ? { body: latest.body, status: latest.status } : undefined,
-    draft: spec ? { version, spec } : undefined,
-    mentions: hints.mentions,
-    timeZone: hints.timeZone,
-  });
-  return cachedInstructions(parts, context.settings.provider);
-}
-
-/**
- * Streams one turn of the model into the writer.
- *
- * @param context - The run.
- * @param model - The model.
- * @param messages - The conversation.
- * @param instructions - The turn's instructions.
- * @param now - The clock.
- */
-async function streamTurn(
-  context: RunContext,
-  model: LanguageModel,
-  messages: ThreadMessage[],
-  instructions: Instructions,
-  now: () => number,
-) {
-  const tools = {
-    ...dataTools(context, (expression) => resolveTime(expression, now())),
-    ...buildTools(context),
-    ask_person: askPersonTool(context),
-  };
-  const { state } = context.threads.row(context.threadId);
-  const { limits } = context.settings;
-  const result = streamText({
-    model,
-    instructions,
-    messages: await convertToModelMessages(compactHistory(messages), { tools }),
-    prepareStep: ({ messages: next }) => ({
-      messages: withCachedTail(compactSteps(next), context.settings.provider),
-    }),
-    tools,
-    activeTools: [...phaseTools[phaseOf(state)]],
-    ...reasoningOption(context.settings),
-    stopWhen: [
-      toolCallLimit(limits.toolCallsPerTurn),
-      () => context.counters.planPending,
-      () => context.counters.asked,
-      () => context.counters.failedWrites >= limits.repairAttempts,
-    ],
-    abortSignal: context.signal,
-    // Two retries ride out a per-minute limit; a spent daily quota is not retried (quota.ts).
-    maxRetries: 2,
-    // Counted per step, so a run that fails halfway still records what it spent.
-    onStepEnd: ({ usage }) => context.threads.addTokens(context.threadId, usage.totalTokens ?? 0),
-  });
-  context.writer.merge(toUIMessageStream({ stream: result.stream, onError: publicError }));
-}
-
 /** A turn ready to stream: the model, the settings, the conversation and its context. */
 interface PreparedTurn {
   /** The model. */
@@ -314,6 +201,34 @@ async function prepare(
 }
 
 /**
+ * The context of a run: the services, the thread, and fresh counters. A run that continues an
+ * answer starts from that answer's usage.
+ *
+ * @param dependencies - The agent's dependencies.
+ * @param request - The chat request.
+ * @param turn - The prepared turn.
+ * @param writer - The stream writer.
+ * @returns The run context.
+ */
+function runContext(
+  dependencies: AgentDependencies,
+  request: ChatRequest,
+  turn: PreparedTurn,
+  writer: UIMessageStreamWriter<ThreadMessage>,
+): RunContext {
+  const continuing = (request.message as { role?: string }).role === 'assistant';
+  const counters = {
+    planPending: false,
+    asked: false,
+    failedWrites: 0,
+    modelId: modelIdFor(turn.settings, 'build'),
+    usage: startingUsage(turn.messages, continuing),
+  };
+  const { threadId, actor, signal } = request;
+  return { ...dependencies, threadId, actor, settings: turn.settings, writer, signal, counters };
+}
+
+/**
  * Streams a prepared turn and stores the conversation when it ends.
  *
  * @param dependencies - The agent's dependencies.
@@ -333,17 +248,7 @@ function respond(
     originalMessages: turn.messages,
     generateId: newMessageId,
     execute: async ({ writer }) => {
-      const counters = { planPending: false, asked: false, failedWrites: 0 };
-      const { threadId, actor, signal } = request;
-      const context: RunContext = {
-        ...dependencies,
-        threadId,
-        actor,
-        settings: turn.settings,
-        writer,
-        signal,
-        counters,
-      };
+      const context = runContext(dependencies, request, turn, writer);
       const instructions = await turnInstructions(context, turn.plans, turn.hints, now());
       await streamTurn(context, turn.model, turn.messages, instructions, now);
     },

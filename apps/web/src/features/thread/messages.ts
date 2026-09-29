@@ -2,7 +2,7 @@
  * Thread messages as the web app reads them: the AI SDK UI message with querent's custom parts,
  * and the words each tool call shows in the conversation.
  */
-import type { ThreadData } from '@querent/shared';
+import type { ThreadData, TurnUsage } from '@querent/shared';
 import type { UIMessage } from 'ai';
 
 /** Metadata of a user message: the panels it mentions and the person's time zone. */
@@ -13,8 +13,8 @@ export interface UserMetadata {
   readonly timeZone?: string;
 }
 
-/** A thread message. */
-export type ThreadMessage = UIMessage<UserMetadata & { readonly tokens?: number }, ThreadData>;
+/** A thread message; an answer's metadata holds what it cost. */
+export type ThreadMessage = UIMessage<UserMetadata & { readonly usage?: TurnUsage }, ThreadData>;
 
 /** One part of a thread message. */
 export type ThreadPart = ThreadMessage['parts'][number];
