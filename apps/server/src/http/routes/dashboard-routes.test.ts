@@ -51,7 +51,7 @@ function client(principal: Principal) {
   const app = new Hono<AppEnv>();
   app.use(requestId());
   app.use(authenticate(fixedAuthenticator(principal)));
-  mountDashboardEndpoints(app, fixture.dashboards, () => undefined, fixture.bin.ownerOf);
+  mountDashboardEndpoints(app, fixture.dashboards, { ownerOf: fixture.bin.ownerOf });
   app.onError(handleErrors(captureLogs().logger));
   app.notFound(handleNotFound);
   return async (method: string, path: string, body?: unknown) => {

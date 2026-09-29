@@ -3,6 +3,8 @@
  * the dashboards. The bootstrap and the tests wire them the same way.
  */
 
+import type { DashboardSpec } from '@querent/shared';
+import { createMetadataWriter, type PinMetadata } from './agent/metadata.ts';
 import { type Agent, createAgent } from './agent/run.ts';
 import { type Connections, createConnections } from './connections/connections.ts';
 import type { AnyConnectorKind } from './connectors/_shared/index.ts';
@@ -56,6 +58,14 @@ export interface Services {
   readonly threads: Threads;
   /** The bin of threads. */
   readonly bin: ThreadBin;
+  /**
+   * Writes a dashboard's description and tags when it is pinned, with the metadata model of its
+   * thread's provider; `null` when the model could not.
+   */
+  readonly describeForPin: (
+    spec: DashboardSpec,
+    dashboardId: string,
+  ) => Promise<PinMetadata | null>;
   /** The agent that authors dashboards in threads. */
   readonly agent: Agent;
   /** The usage ledger. */
@@ -105,6 +115,28 @@ function dataServices(
 }
 
 /**
+ * The metadata writer for a dashboard being pinned: with its thread's provider, and the usage
+ * recorded against that thread.
+ *
+ * @param write - The metadata writer.
+ * @param threads - The threads, for the provider.
+ * @param bin - The bin, for the dashboard's thread.
+ * @returns The describer.
+ */
+function pinDescriber(
+  write: ReturnType<typeof createMetadataWriter>,
+  threads: Threads,
+  bin: ThreadBin,
+): Services['describeForPin'] {
+  return (spec, dashboardId) => {
+    const owner = bin.ownerOf(dashboardId);
+    const threadId = owner && !owner.binned ? owner.threadId : null;
+    const providerId = threadId === null ? null : threads.row(threadId).providerId;
+    return write({ spec, threadId, providerId });
+  };
+}
+
+/**
  * Creates the services.
  *
  * @param dependencies - The database, the connector kinds, the secret box and the settings.
@@ -131,5 +163,6 @@ export function createServices(dependencies: ServiceDependencies): Services {
   const retention = createRetentionSettings({ store: dependencies.settings, audit });
   const settings = { modelSettings, querySettings, chartSettings, retention };
   const agent = createAgent({ ...data, threads, usage, ...settings });
-  return { ...data, threads, bin, agent, usage, ...settings };
+  const describeForPin = pinDescriber(createMetadataWriter({ modelSettings, usage }), threads, bin);
+  return { ...data, threads, bin, describeForPin, agent, usage, ...settings };
 }

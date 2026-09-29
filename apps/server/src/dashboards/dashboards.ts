@@ -32,6 +32,14 @@ import { addVersion, failuresOf, type PanelTest, restoreVersion, testRunSpec } f
 export type { DashboardsDependencies, RunTarget } from './context.ts';
 export type { PanelTest } from './versions.ts';
 
+/**
+ * Writes a pinned dashboard's description and tags, best effort: `null` when it could not. The
+ * bootstrap hands it the metadata model; the service never imports the agent.
+ */
+export type DescribeForPin = (
+  spec: DashboardSpec,
+) => Promise<{ readonly description: string; readonly tags: readonly string[] } | null>;
+
 /** The dashboards service. */
 export interface Dashboards {
   /**
@@ -70,10 +78,16 @@ export interface Dashboards {
    * @param id - The dashboard id.
    * @param version - The version number.
    * @param actor - Who pins it.
+   * @param describe - Writes the description and tags, once the version passes its checks.
    * @returns The dashboard.
    * @throws {AppError} `bad_request` when it is the one shown already, invalid, or a panel fails.
    */
-  pin(id: string, version: number, actor: string): Promise<DashboardDetail>;
+  pin(
+    id: string,
+    version: number,
+    actor: string,
+    describe?: DescribeForPin,
+  ): Promise<DashboardDetail>;
   /**
    * Stops showing any version: the dashboard leaves the library and viewers can no longer open it.
    *
@@ -211,21 +225,30 @@ function create(
  * @param id - The dashboard id.
  * @param version - The version number.
  * @param actor - Who pins it.
+ * @param describe - Writes the description and tags, once the version passes its checks.
  * @returns The dashboard.
  */
-async function pin(context: ServiceContext, id: string, version: number, actor: string) {
+async function pin(
+  context: ServiceContext,
+  id: string,
+  version: number,
+  actor: string,
+  describe?: DescribeForPin,
+) {
   const row = visibleVersion(context, id, version, 'editor');
   if (context.repository.get(id)?.pinnedVersionId === row.id)
     throw new AppError('bad_request', `Version ${version} is already the one shown.`);
   const spec = validOrRefuse(context, row.spec);
   const failures = failuresOf(spec, await testRunSpec(context, spec));
   if (failures.length > 0) refuseSpec('Some panels fail. Fix them before pinning.', failures);
+  // The spec's own title and description win; the model fills what the spec leaves out.
+  const described = describe ? await describe(spec) : null;
   const change = {
     versionId: row.id,
     at: context.now(),
     title: spec.title,
-    description: spec.description ?? null,
-    tags: [],
+    description: spec.description ?? described?.description ?? null,
+    tags: described?.tags ?? [],
   };
   if (!context.repository.pin(id, change))
     throw new AppError('not_found', `Dashboard ${id} has no version ${version}.`);
@@ -265,7 +288,7 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
       const row = visibleVersion(context, id, version, role);
       return { ...row, spec: dashboardSpecSchema.parse(row.spec) };
     },
-    pin: (id, version, actor) => pin(context, id, version, actor),
+    pin: (id, version, actor, describe) => pin(context, id, version, actor, describe),
     unpin: (id, actor) => unpin(context, id, actor),
     runPanel: (target, panelId, role, signal) =>
       runPanel(context, specOf(context, target, role), panelId, target, signal),

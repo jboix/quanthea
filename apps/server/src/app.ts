@@ -15,7 +15,10 @@ import { mountBinEndpoints } from './http/routes/bin-routes.ts';
 import { mountChartEndpoints } from './http/routes/chart-routes.ts';
 import { mountChatRoute } from './http/routes/chat-route.ts';
 import { mountConnectorRoutes } from './http/routes/connector-routes.ts';
-import { mountDashboardEndpoints } from './http/routes/dashboard-routes.ts';
+import {
+  type DashboardRouteOptions,
+  mountDashboardEndpoints,
+} from './http/routes/dashboard-routes.ts';
 import { mountQueryEndpoints } from './http/routes/query-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
@@ -52,6 +55,8 @@ export interface AppDependencies {
   readonly threads: Threads;
   /** The bin of threads. */
   readonly bin: ThreadBin;
+  /** Writes a dashboard's description and tags when it is pinned. */
+  readonly describeForPin: NonNullable<DashboardRouteOptions['describe']>;
   /** The agent. */
   readonly agent: Agent;
   /** The connectors as the model sees them. */
@@ -78,12 +83,11 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
     authMode: dependencies.authenticator.mode,
   });
   mountConnectorRoutes(app, dependencies.connections);
-  mountDashboardEndpoints(
-    app,
-    dependencies.dashboards,
-    dependencies.usage.recordPinnedView,
-    dependencies.bin.ownerOf,
-  );
+  mountDashboardEndpoints(app, dependencies.dashboards, {
+    onPinnedView: dependencies.usage.recordPinnedView,
+    ownerOf: dependencies.bin.ownerOf,
+    describe: dependencies.describeForPin,
+  });
   mountSettingsEndpoints(app, dependencies.modelSettings);
   mountUsageEndpoints(app, dependencies.usage);
   mountQueryEndpoints(app, dependencies);

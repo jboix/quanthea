@@ -288,9 +288,13 @@ shown.
 1. Validate the version again (connectors may have changed) and test-run every panel with the
    default variables. A dashboard with a failing query can't be pinned; the refusal lists each
    failing query by path.
-2. The _metadata_ model writes the title, description and tags. **This is best effort**: if the
-   model is unavailable, pin anyway with the thread title and let tags be empty.
-3. Set `dashboards.pinned_version_id` and the dashboard's title and description from the version.
+2. The _metadata_ model (`agent/metadata.ts`) writes a one-line description and 3 to 6 lowercase
+   tags, with the provider of the dashboard's thread (the default one without a thread). Its
+   tokens go to the usage ledger as the `metadata` job. **This is best effort**: when the model
+   is not set up, fails or takes more than 20 seconds, the dashboard is pinned without tags.
+   The dashboards service gets it as a function, so `dashboards/` never imports the agent.
+3. Set `dashboards.pinned_version_id`, the title from the version, the description from the
+   version or else the model's, and the tags.
    The version keeps `pinned_at`, the time it was first pinned. A trigger on `dashboards` rewrites
    the dashboard's rows in the library index.
 

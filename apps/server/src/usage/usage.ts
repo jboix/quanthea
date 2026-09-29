@@ -9,8 +9,8 @@ import { newId } from '../lib/ids.ts';
 
 /** A model step to record. */
 export interface ModelStep {
-  /** The thread. */
-  readonly threadId: string;
+  /** The thread; `null` for a call outside one, such as tagging a dashboard at pin time. */
+  readonly threadId: string | null;
   /** The provider, such as `mistral`. */
   readonly provider: string;
   /** The model id. */

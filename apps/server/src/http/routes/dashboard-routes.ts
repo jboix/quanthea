@@ -1,6 +1,7 @@
 /** The dashboard endpoints: create, read, pin and search, and running saved panels. */
 import {
   createDashboardEndpoint,
+  type DashboardSpec,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
   pinDashboardEndpoint,
@@ -10,7 +11,7 @@ import {
   variableOptionsEndpoint,
 } from '@querent/shared';
 import type { Hono } from 'hono';
-import type { Dashboards } from '../../dashboards/dashboards.ts';
+import type { Dashboards, DescribeForPin } from '../../dashboards/dashboards.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
@@ -20,6 +21,16 @@ import { actorOf, roleOf } from '../principal.ts';
 type OwnerOf = (
   dashboardId: string,
 ) => { readonly threadId: string; readonly binned: boolean } | null;
+
+/** What the dashboard endpoints need besides the dashboards service. */
+export interface DashboardRouteOptions {
+  /** Called when a pinned version is read, for the usage ledger. */
+  readonly onPinnedView?: (dashboardId: string) => void;
+  /** The thread a dashboard belongs to, in the bin or not. */
+  readonly ownerOf?: OwnerOf;
+  /** Writes a dashboard's description and tags when it is pinned. */
+  readonly describe?: (spec: DashboardSpec, dashboardId: string) => ReturnType<DescribeForPin>;
+}
 
 /**
  * Mounts the endpoints that create and read dashboards.
@@ -73,15 +84,22 @@ function mountDashboardRoutes(
  *
  * @param app - The app.
  * @param dashboards - The dashboards service.
- * @param ownerOf - The thread a dashboard belongs to, in the bin or not.
+ * @param options - The owner of a dashboard, and the metadata writer.
  */
-function mountPinRoutes(app: Hono<AppEnv>, dashboards: Dashboards, ownerOf: OwnerOf): void {
+function mountPinRoutes(
+  app: Hono<AppEnv>,
+  dashboards: Dashboards,
+  options: DashboardRouteOptions & { readonly ownerOf: OwnerOf },
+): void {
   mountEndpoint(app, pinDashboardEndpoint, {
     access: 'editor',
     handle: ({ params, body, principal }) => {
-      if (ownerOf(params.dashboardId)?.binned)
+      const { dashboardId } = params;
+      if (options.ownerOf(dashboardId)?.binned)
         throw new AppError('bad_request', 'Its thread is in the bin. Restore it before pinning.');
-      return dashboards.pin(params.dashboardId, body.version, actorOf(principal));
+      const { describe } = options;
+      const describeThis = describe && ((spec: DashboardSpec) => describe(spec, dashboardId));
+      return dashboards.pin(dashboardId, body.version, actorOf(principal), describeThis);
     },
   });
   mountEndpoint(app, unpinDashboardEndpoint, {
@@ -116,17 +134,17 @@ function mountRunRoutes(app: Hono<AppEnv>, dashboards: Dashboards): void {
  *
  * @param app - The app.
  * @param dashboards - The dashboards service.
- * @param onPinnedView - Called when a pinned version is read, for the usage ledger.
- * @param ownerOf - The thread a dashboard belongs to, in the bin or not.
+ * @param options - The usage callback, the owner of a dashboard, and the metadata writer.
  */
 export function mountDashboardEndpoints(
   app: Hono<AppEnv>,
   dashboards: Dashboards,
-  onPinnedView: (dashboardId: string) => void = () => undefined,
-  ownerOf: OwnerOf = () => null,
+  options: DashboardRouteOptions = {},
 ): void {
+  const onPinnedView = options.onPinnedView ?? (() => undefined);
+  const ownerOf = options.ownerOf ?? (() => null);
   mountDashboardRoutes(app, dashboards, onPinnedView, ownerOf);
-  mountPinRoutes(app, dashboards, ownerOf);
+  mountPinRoutes(app, dashboards, { ...options, ownerOf });
   mountRunRoutes(app, dashboards);
   mountEndpoint(app, searchLibraryEndpoint, {
     access: 'viewer',
