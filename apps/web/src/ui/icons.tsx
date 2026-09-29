@@ -181,3 +181,31 @@ export function ChevronDownIcon() {
     </Icon>
   );
 }
+
+/**
+ * An i in a circle, for where something comes from.
+ *
+ * @returns The icon.
+ */
+export function InfoIcon() {
+  return (
+    <Icon size={16}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 7.5v.5" />
+    </Icon>
+  );
+}
+
+/**
+ * A question mark in a circle, for what something is about.
+ *
+ * @returns The icon.
+ */
+export function QuestionIcon() {
+  return (
+    <Icon size={18}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.4M12 16.8v.2" />
+    </Icon>
+  );
+}

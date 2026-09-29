@@ -1,11 +1,12 @@
+import { hasRole, type Role } from '@querent/shared';
 import { useState } from 'react';
-import { Link, useLoaderData } from 'react-router';
-import { Button } from '../../ui/button.tsx';
-import { LockIcon } from '../../ui/icons.tsx';
+import { Link, useLoaderData, useRouteLoaderData } from 'react-router';
+import { Button, buttonClassName } from '../../ui/button.tsx';
+import { LockIcon, ThreadsIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import { DashboardCanvas } from './canvas.tsx';
 import styles from './dashboard.module.css';
-import { DashboardSidebar } from './dashboard-sidebar.tsx';
+import { AboutPopover, HistoryPopover } from './dashboard-about.tsx';
 import type { DashboardData } from './data.ts';
 
 /**
@@ -24,12 +25,31 @@ function CopyLinkButton() {
 }
 
 /**
- * The top of the screen: where it sits, its title, its version and whether it is pinned.
+ * The link to the thread that edits the dashboard, for editors, while the thread exists.
+ *
+ * @param props - The thread.
+ * @param props.threadId - The thread, if it still exists.
+ * @returns The link, or nothing.
+ */
+function ThreadLink({ threadId }: { readonly threadId: string | null }) {
+  const session = useRouteLoaderData('root') as { principal: { role: Role } } | undefined;
+  if (threadId === null || !session || !hasRole(session.principal.role, 'editor')) return null;
+  return (
+    <Link to={`/threads/${threadId}`} className={buttonClassName('secondary')}>
+      <ThreadsIcon /> Open thread
+    </Link>
+  );
+}
+
+/**
+ * The top of the screen: where it sits, its title with what it is about, its version and whether
+ * it is pinned, and its history, its thread and its link.
  *
  * @param props - The dashboard and the version shown.
  * @returns The header.
  */
-function DashboardHeader({ version }: DashboardData) {
+function DashboardHeader(props: DashboardData) {
+  const { version, dashboard } = props;
   const pinned = version.pinnedAt !== null;
   return (
     <header className={styles.header}>
@@ -39,20 +59,24 @@ function DashboardHeader({ version }: DashboardData) {
         </nav>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{version.spec.title}</h1>
+          <AboutPopover {...props} />
           <Pill mono tone={pinned ? 'neutral' : 'draft'}>
             {pinned && <LockIcon />}
             {pinned ? `pinned · v${version.version} · read-only` : `draft · v${version.version}`}
           </Pill>
         </div>
       </div>
-      <CopyLinkButton />
+      <div className={styles.headerActions}>
+        <HistoryPopover {...props} />
+        <ThreadLink threadId={dashboard.threadId} />
+        <CopyLinkButton />
+      </div>
     </header>
   );
 }
 
 /**
- * A dashboard: its variables, its panels running saved queries with no model involved, and its
- * sidebar.
+ * A dashboard: its variables, and its panels running saved queries with no model involved.
  *
  * @returns The screen.
  */
@@ -71,7 +95,6 @@ export function DashboardScreen() {
             spec={version.spec}
           />
         </div>
-        <DashboardSidebar {...loaded} />
       </div>
     </div>
   );

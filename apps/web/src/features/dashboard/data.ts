@@ -3,7 +3,7 @@
  * through resource routes, one fetcher each, so every panel loads, fails and refreshes on its own.
  */
 import {
-  type DashboardDetail,
+  type DashboardPage,
   type DashboardVersion,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
@@ -17,7 +17,7 @@ import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 /** What the dashboard screen shows. */
 export interface DashboardData {
   /** The dashboard and the versions the role may see. */
-  readonly dashboard: DashboardDetail;
+  readonly dashboard: DashboardPage;
   /** The version shown, with its spec. */
   readonly version: DashboardVersion;
 }
@@ -38,7 +38,7 @@ const variablePrefix = 'var-';
  * @returns The version number, or `undefined` when there is none to show.
  */
 function versionToShow(
-  dashboard: DashboardDetail,
+  dashboard: DashboardPage,
   requested: string | undefined,
 ): number | undefined {
   if (requested !== undefined) return Number(requested);

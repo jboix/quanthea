@@ -1,34 +1,11 @@
 import type { ThreadSummary } from '@querent/shared';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { BinIcon, HistoryIcon } from '../../ui/icons.tsx';
+import { useDismiss } from '../../ui/use-dismiss.ts';
 import type { NewThreadIntent } from './data.ts';
 import styles from './history-menu.module.css';
-
-/**
- * Whether a menu is open, closing it on a click outside its container or on Escape.
- *
- * @returns The container ref, whether it is open, and the toggle.
- */
-function useMenu() {
-  const container = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: Event) => {
-      const outside = !container.current?.contains(event.target as Node);
-      if (outside || (event as KeyboardEvent).key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('pointerdown', close);
-    document.addEventListener('keydown', close);
-    return () => {
-      document.removeEventListener('pointerdown', close);
-      document.removeEventListener('keydown', close);
-    };
-  }, [open]);
-  return { container, open, toggle: () => setOpen(!open) };
-}
 
 /**
  * One past thread: a link to it, and a delete button that asks before deleting.
@@ -93,7 +70,7 @@ function HistoryRow({
  * @returns The button and its list, or nothing when there are no threads.
  */
 export function HistoryMenu({ threads }: { readonly threads: readonly ThreadSummary[] }) {
-  const menu = useMenu();
+  const menu = useDismiss();
   if (threads.length === 0) return null;
   const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   return (

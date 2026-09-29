@@ -1,5 +1,7 @@
 import { createFormatter, type DashboardSpec } from '@querent/shared';
 import { Link } from 'react-router';
+import { HistoryIcon, QuestionIcon } from '../../ui/icons.tsx';
+import { Popover } from '../../ui/popover.tsx';
 import styles from './dashboard.module.css';
 import type { DashboardData } from './data.ts';
 
@@ -57,31 +59,58 @@ function History({ dashboard, version }: DashboardData) {
 }
 
 /**
- * The sidebar of a dashboard: what it is about, its sources and its history.
+ * What the dashboard is about, behind a question mark by its title: its description, tags and
+ * sources.
  *
  * @param props - The dashboard and the version shown.
- * @returns The sidebar.
+ * @returns The popover.
  */
-export function DashboardSidebar({ dashboard, version }: DashboardData) {
+export function AboutPopover({ dashboard, version }: DashboardData) {
   const { spec } = version;
   return (
-    <aside className={styles.sidebar} aria-label="About this dashboard">
-      <h2 className={styles.sideHeading}>About</h2>
-      {spec.description && <p className={styles.about}>{spec.description}</p>}
-      {dashboard.tags.length > 0 && (
-        <p className={styles.tags}>{dashboard.tags.map((tag) => `#${tag}`).join(' ')}</p>
-      )}
-      <h2 className={styles.sideHeading}>Sources</h2>
-      <dl className={styles.sources}>
-        {sourcesOf(spec).map(([name, usage]) => (
-          <div key={name} className={styles.source}>
-            <dt>{name}</dt>
-            <dd>{usage}</dd>
-          </div>
-        ))}
-      </dl>
-      <h2 className={styles.sideHeading}>History</h2>
-      <History dashboard={dashboard} version={version} />
-    </aside>
+    <Popover label="About this dashboard" trigger={<QuestionIcon />}>
+      <div className={styles.popoverBody}>
+        {spec.description ? (
+          <p className={styles.about}>{spec.description}</p>
+        ) : (
+          <p className={styles.muted}>No description.</p>
+        )}
+        {dashboard.tags.length > 0 && (
+          <p className={styles.tags}>{dashboard.tags.map((tag) => `#${tag}`).join(' ')}</p>
+        )}
+        <h2 className={styles.sideHeading}>Sources</h2>
+        <dl className={styles.sources}>
+          {sourcesOf(spec).map(([name, usage]) => (
+            <div key={name} className={styles.source}>
+              <dt>{name}</dt>
+              <dd>{usage}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </Popover>
+  );
+}
+
+/**
+ * The dashboard's versions, behind a History button in the header.
+ *
+ * @param props - The dashboard and the version shown.
+ * @returns The popover.
+ */
+export function HistoryPopover(props: DashboardData) {
+  return (
+    <Popover
+      label="History"
+      shape="button"
+      align="end"
+      trigger={
+        <>
+          <HistoryIcon /> History
+        </>
+      }
+    >
+      <History {...props} />
+    </Popover>
   );
 }

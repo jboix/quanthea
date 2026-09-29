@@ -30,6 +30,14 @@ export const dashboardDetailSchema = z.object({
 /** A dashboard with its history. */
 export type DashboardDetail = z.infer<typeof dashboardDetailSchema>;
 
+/** A dashboard as its screen reads it: with the thread that edits it, while that thread exists. */
+export const dashboardPageSchema = dashboardDetailSchema.extend({
+  threadId: z.string().nullable(),
+});
+
+/** A dashboard as its screen reads it. */
+export type DashboardPage = z.infer<typeof dashboardPageSchema>;
+
 /** Validates one version with its spec. */
 export const dashboardVersionSchema = versionSummarySchema.extend({
   dashboardId: z.string(),
@@ -58,7 +66,7 @@ export const getDashboardEndpoint = defineEndpoint({
   method: 'GET',
   path: '/dashboards/:dashboardId',
   params: dashboardParams,
-  output: dashboardDetailSchema,
+  output: dashboardPageSchema,
 });
 
 /** Reads one version of a dashboard. Viewers may read pinned versions only. */

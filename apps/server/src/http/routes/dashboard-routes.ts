@@ -19,11 +19,13 @@ import { actorOf, roleOf } from '../principal.ts';
  * @param app - The app.
  * @param dashboards - The dashboards service.
  * @param onPinnedView - Called when a pinned version is read, for the usage ledger.
+ * @param threadOf - The thread that edits a dashboard, while it exists.
  */
 function mountDashboardRoutes(
   app: Hono<AppEnv>,
   dashboards: Dashboards,
   onPinnedView: (dashboardId: string) => void,
+  threadOf: (dashboardId: string) => string | null,
 ): void {
   mountEndpoint(app, createDashboardEndpoint, {
     access: 'editor',
@@ -32,7 +34,10 @@ function mountDashboardRoutes(
   });
   mountEndpoint(app, getDashboardEndpoint, {
     access: 'viewer',
-    handle: ({ params, principal }) => dashboards.get(params.dashboardId, roleOf(principal)),
+    handle: ({ params, principal }) => ({
+      ...dashboards.get(params.dashboardId, roleOf(principal)),
+      threadId: threadOf(params.dashboardId),
+    }),
   });
   mountEndpoint(app, getDashboardVersionEndpoint, {
     access: 'viewer',
@@ -80,12 +85,14 @@ function mountRunRoutes(app: Hono<AppEnv>, dashboards: Dashboards): void {
  * @param app - The app.
  * @param dashboards - The dashboards service.
  * @param onPinnedView - Called when a pinned version is read, for the usage ledger.
+ * @param threadOf - The thread that edits a dashboard, while it exists.
  */
 export function mountDashboardEndpoints(
   app: Hono<AppEnv>,
   dashboards: Dashboards,
   onPinnedView: (dashboardId: string) => void = () => undefined,
+  threadOf: (dashboardId: string) => string | null = () => null,
 ): void {
-  mountDashboardRoutes(app, dashboards, onPinnedView);
+  mountDashboardRoutes(app, dashboards, onPinnedView, threadOf);
   mountRunRoutes(app, dashboards);
 }

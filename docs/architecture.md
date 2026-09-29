@@ -744,37 +744,37 @@ Timestamps (`at`, `*_at`) are Unix epoch milliseconds. SQLite runs with `journal
 All endpoints are under `/api` and declared in `packages/shared/src/api/`. The table is
 indicative; the contract files are the source of truth.
 
-| Method + path                                                                              | Purpose                                      | Min role |
-| ------------------------------------------------------------------------------------------ | -------------------------------------------- | -------- |
-| `GET /health`                                                                              | liveness + version                           | public   |
-| `GET /me`                                                                                  | principal, role, auth mode                   | public   |
-| `POST /auth/login`, `POST /auth/logout`, `GET /auth/oidc/start`, `GET /auth/oidc/callback` | sessions                                     | public   |
-| `GET /threads`, `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id`                 | threads                                      | editor   |
-| `POST /threads/:id/chat`                                                                   | streamed agent run                           | editor   |
-| `POST /threads/:id/plans/:planId/approve` · `/reject`                                      | plan decisions                               | editor   |
-| `POST /threads/:id/start-from` (a pinned dashboard)                                        | draft from a copy, no model                  | editor   |
-| `POST /threads/:id/restore` (a version)                                                    | Undo                                         | editor   |
-| `GET /dashboards` (search: `q`, `tags`)                                                    | library                                      | viewer   |
-| `POST /dashboards` (a spec, becomes draft v1)                                              | create from a spec                           | editor   |
-| `GET /dashboards/:id`, `GET /dashboards/:id/versions/:v` (drafts: editor)                  | spec                                         | viewer   |
-| `POST /dashboards/:id/pin`                                                                 | pin a version                                | editor   |
-| `POST /dashboards/:id/variants`                                                            | new thread from a copy                       | editor   |
-| `POST /dashboards/:id/bin`                                                                 | move to bin                                  | editor   |
-| `GET /bin`, `POST /bin/:id/restore`                                                        | bin                                          | editor   |
-| `DELETE /bin/:id`, `DELETE /bin`                                                           | permanent delete                             | admin    |
-| `POST /panels/run`, `POST /variables/options`                                              | run one saved panel, options                 | viewer   |
-| `GET /connector-kinds` (with the JSON Schemas of their forms)                              | connector kinds                              | admin    |
-| `GET/POST /connectors`, `GET/PATCH/DELETE /connectors/:connectorId`                        | connectors                                   | admin    |
-| `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`           | connection test, schema                      | admin    |
-| `GET/PUT /settings/:section`                                                               | model, auth, retention, limits               | admin    |
-| `POST /settings/model/test`                                                                | gateway capability test                      | admin    |
-| `GET /settings/usage?days=`                                                                | usage by hour, from the ledger               | admin    |
-| `GET /model-providers`                                                                     | the providers a thread may use, without keys | editor   |
-| `GET/PUT /settings/queries`                                                                | builders on or off, saved queries            | admin    |
-| `GET /queries`                                                                             | the queries a thread may use                 | editor   |
-| `GET /settings/queries/guide`, `POST /settings/queries/preview`                            | how builders work, a test run of a query     | admin    |
-| `GET/PUT /settings/charts`                                                                 | chart recipes on or off                      | admin    |
-| `GET/POST/PATCH /users`                                                                    | local users (basic mode)                     | admin    |
+| Method + path                                                                                     | Purpose                                      | Min role |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------- | -------- |
+| `GET /health`                                                                                     | liveness + version                           | public   |
+| `GET /me`                                                                                         | principal, role, auth mode                   | public   |
+| `POST /auth/login`, `POST /auth/logout`, `GET /auth/oidc/start`, `GET /auth/oidc/callback`        | sessions                                     | public   |
+| `GET /threads` (each marked `pinned`), `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id` | threads                                      | editor   |
+| `POST /threads/:id/chat`                                                                          | streamed agent run                           | editor   |
+| `POST /threads/:id/plans/:planId/approve` · `/reject`                                             | plan decisions                               | editor   |
+| `POST /threads/:id/start-from` (a pinned dashboard)                                               | draft from a copy, no model                  | editor   |
+| `POST /threads/:id/restore` (a version)                                                           | Undo                                         | editor   |
+| `GET /dashboards` (search: `q`, `tags`)                                                           | library                                      | viewer   |
+| `POST /dashboards` (a spec, becomes draft v1)                                                     | create from a spec                           | editor   |
+| `GET /dashboards/:id` (with its thread's id), `GET /dashboards/:id/versions/:v` (drafts: editor)  | spec                                         | viewer   |
+| `POST /dashboards/:id/pin`                                                                        | pin a version                                | editor   |
+| `POST /dashboards/:id/variants`                                                                   | new thread from a copy                       | editor   |
+| `POST /dashboards/:id/bin`                                                                        | move to bin                                  | editor   |
+| `GET /bin`, `POST /bin/:id/restore`                                                               | bin                                          | editor   |
+| `DELETE /bin/:id`, `DELETE /bin`                                                                  | permanent delete                             | admin    |
+| `POST /panels/run`, `POST /variables/options`                                                     | run one saved panel, options                 | viewer   |
+| `GET /connector-kinds` (with the JSON Schemas of their forms)                                     | connector kinds                              | admin    |
+| `GET/POST /connectors`, `GET/PATCH/DELETE /connectors/:connectorId`                               | connectors                                   | admin    |
+| `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`                  | connection test, schema                      | admin    |
+| `GET/PUT /settings/:section`                                                                      | model, auth, retention, limits               | admin    |
+| `POST /settings/model/test`                                                                       | gateway capability test                      | admin    |
+| `GET /settings/usage?days=`                                                                       | usage by hour, from the ledger               | admin    |
+| `GET /model-providers`                                                                            | the providers a thread may use, without keys | editor   |
+| `GET/PUT /settings/queries`                                                                       | builders on or off, saved queries            | admin    |
+| `GET /queries`                                                                                    | the queries a thread may use                 | editor   |
+| `GET /settings/queries/guide`, `POST /settings/queries/preview`                                   | how builders work, a test run of a query     | admin    |
+| `GET/PUT /settings/charts`                                                                        | chart recipes on or off                      | admin    |
+| `GET/POST/PATCH /users`                                                                           | local users (basic mode)                     | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
 so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the
@@ -812,6 +812,12 @@ request → requestId → session cookie? → Principal
 - The dashboard screen (`features/dashboard`) loads the spec once. Variables and the time range
   live in the URL (`from`, `to`, `var-env=prod`, repeated for several values), so a link shares
   the view and changing them never reloads the spec.
+- The dashboard header holds the title with an About bubble (description, tags, the connectors
+  and how many panels use each), a History button that lists the versions, and, for editors, a
+  link to the thread that edits the dashboard while that thread exists
+  (`GET /api/dashboards/:id` returns its `threadId`).
+- Each panel has an info bubble: its connector, language and query text, and the chart recipe
+  that draws it. It shows what the saved panel runs, so a viewer can trace a number to its source.
 - Each panel loads its run through a fetcher from a resource route
   (`/d/:id/v/:version/panels/:panelId`), so panels load, fail and refresh on their own. A
   query-backed variable loads its options the same way when its menu opens.

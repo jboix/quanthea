@@ -3,6 +3,7 @@ import {
   apiErrorBodySchema,
   connectorInputSchema,
   dashboardDetailSchema,
+  dashboardPageSchema,
   dashboardVersionSchema,
   type Principal,
   panelRunSchema,
@@ -49,7 +50,7 @@ function client(principal: Principal) {
   const app = new Hono<AppEnv>();
   app.use(requestId());
   app.use(authenticate(fixedAuthenticator(principal)));
-  mountDashboardEndpoints(app, fixture.dashboards);
+  mountDashboardEndpoints(app, fixture.dashboards, () => undefined, fixture.threads.threadOf);
   app.onError(handleErrors(captureLogs().logger));
   app.notFound(handleNotFound);
   return async (method: string, path: string, body?: unknown) => {
@@ -86,6 +87,20 @@ describe('dashboard routes', () => {
       name: 'service',
     });
     expect(options.body).toEqual({ options: ['checkout-svc', 'payments-svc', 'cart-svc'] });
+  });
+
+  test('names the thread that edits a dashboard, while the thread exists', async () => {
+    const asEditor = client(editor);
+    const created = await asEditor('POST', '/api/dashboards', { spec: eventsSpec() });
+    const { id } = dashboardDetailSchema.parse(created.body);
+    const threadOf = async () =>
+      dashboardPageSchema.parse((await asEditor('GET', `/api/dashboards/${id}`)).body).threadId;
+    expect(await threadOf()).toBeNull();
+    const thread = fixture.threads.create('editor-1');
+    fixture.threads.attachDashboard(thread.id, id, 'Events');
+    expect(await threadOf()).toBe(thread.id);
+    fixture.threads.remove(thread.id, 'editor-1');
+    expect(await threadOf()).toBeNull();
   });
 
   test('returns spec issues as details', async () => {

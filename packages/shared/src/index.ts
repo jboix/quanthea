@@ -41,8 +41,10 @@ export {
 export {
   createDashboardEndpoint,
   type DashboardDetail,
+  type DashboardPage,
   type DashboardVersion,
   dashboardDetailSchema,
+  dashboardPageSchema,
   dashboardVersionSchema,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
@@ -98,6 +100,7 @@ export {
   restoreVersionEndpoint,
   startFromPinnedEndpoint,
   type ThreadDetail,
+  type ThreadListItem,
   type ThreadSummary,
   threadChatPath,
   threadDetailSchema,

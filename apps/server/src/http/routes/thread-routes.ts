@@ -33,6 +33,36 @@ export interface ThreadRouteServices {
 }
 
 /**
+ * Whether a thread's dashboard has a pinned version.
+ *
+ * @param dashboards - The dashboards service.
+ * @param dashboardId - The thread's dashboard, if it has one.
+ * @returns Whether it is pinned; `false` when it is gone.
+ */
+function isPinned(dashboards: Dashboards, dashboardId: string | null): boolean {
+  if (dashboardId === null) return false;
+  try {
+    return dashboards.get(dashboardId, 'editor').pinnedVersion !== null;
+  } catch (error) {
+    if (error instanceof AppError && error.code === 'not_found') return false;
+    throw error;
+  }
+}
+
+/**
+ * The threads, each marked with whether its dashboard has a pinned version.
+ *
+ * @param services - The thread route services.
+ * @returns The threads, newest first.
+ */
+function listThreads(services: ThreadRouteServices) {
+  return services.threads.list().map((thread) => ({
+    ...thread,
+    pinned: isPinned(services.dashboards, thread.dashboardId),
+  }));
+}
+
+/**
  * Mounts the endpoints that list, create, read and delete threads.
  *
  * @param app - The app.
@@ -40,7 +70,10 @@ export interface ThreadRouteServices {
  */
 function mountThreadRoutes(app: Hono<AppEnv>, services: ThreadRouteServices): void {
   const { threads } = services;
-  mountEndpoint(app, listThreadsEndpoint, { access: 'editor', handle: () => threads.list() });
+  mountEndpoint(app, listThreadsEndpoint, {
+    access: 'editor',
+    handle: () => listThreads(services),
+  });
   mountEndpoint(app, createThreadEndpoint, {
     access: 'editor',
     handle: ({ body, principal }) => {

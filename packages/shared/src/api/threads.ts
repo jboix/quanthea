@@ -46,10 +46,16 @@ const threadParams = z.object({ threadId: z.string().min(1) });
 export const threadChatPath = '/threads/:threadId/chat';
 
 /** Lists the threads, the most recent first. */
+/** A thread as the list of past threads shows it: whether its dashboard is pinned too. */
+export const threadListItemSchema = threadSummarySchema.extend({ pinned: z.boolean() });
+
+/** A thread in the list of past threads. */
+export type ThreadListItem = z.infer<typeof threadListItemSchema>;
+
 export const listThreadsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/threads',
-  output: z.array(threadSummarySchema),
+  output: z.array(threadListItemSchema),
 });
 
 /** Starts a thread. */

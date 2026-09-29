@@ -2,6 +2,7 @@ import type { DashboardSpec, Panel, PanelRun } from '@querent/shared';
 import { type CSSProperties, useEffect } from 'react';
 import { useFetcher } from 'react-router';
 import type { Loaded } from './data.ts';
+import { PanelInfo } from './panel-info.tsx';
 import { PanelView } from './panel-views.tsx';
 import styles from './panels.module.css';
 
@@ -104,7 +105,8 @@ function PanelBody({
 }
 
 /**
- * The heading of a panel: its title, as a button when panels can be picked, and the "in chat" mark.
+ * The heading of a panel: its title, as a button when panels can be picked, the "in chat" mark,
+ * and where its data comes from.
  *
  * @param props - The panel, whether it is marked, and the pick callback.
  * @returns The heading.
@@ -127,6 +129,7 @@ function PanelHeading({
         {title}
       </h3>
       {marked && <span className={styles.mark}>in chat</span>}
+      <PanelInfo panel={panel} />
     </div>
   );
 }

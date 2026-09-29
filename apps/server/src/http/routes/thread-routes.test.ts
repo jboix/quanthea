@@ -103,4 +103,18 @@ describe('thread routes', () => {
     const again = await call('POST', `/api/threads/${id}/start-from`, { dashboardId: pinned.id });
     expect(again.status).toBe(400);
   });
+
+  test('mark the threads whose dashboard has a pinned version', async () => {
+    const events = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
+    await fixture.connections.create(connectorInputSchema.parse(events), 'admin-1');
+    const pinned = fixture.dashboards.create(eventsSpec(), 'first', 'editor-1');
+    await fixture.dashboards.pin(pinned.id, 1, 'editor-1');
+    const call = client(editor);
+    const { id } = threadSummarySchema.parse((await call('POST', '/api/threads', {})).body);
+    expect((await call('GET', '/api/threads')).body).toMatchObject([{ id, pinned: false }]);
+    fixture.threads.proposePlan(id, plan, false);
+    await call('POST', `/api/threads/${id}/start-from`, { dashboardId: pinned.id });
+    await fixture.dashboards.pin(fixture.threads.get(id).dashboardId ?? '', 1, 'editor-1');
+    expect((await call('GET', '/api/threads')).body).toMatchObject([{ id, pinned: true }]);
+  });
 });

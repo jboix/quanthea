@@ -77,7 +77,12 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
     authMode: dependencies.authenticator.mode,
   });
   mountConnectorRoutes(app, dependencies.connections);
-  mountDashboardEndpoints(app, dependencies.dashboards, dependencies.usage.recordPinnedView);
+  mountDashboardEndpoints(
+    app,
+    dependencies.dashboards,
+    dependencies.usage.recordPinnedView,
+    dependencies.threads.threadOf,
+  );
   mountSettingsEndpoints(app, dependencies.modelSettings);
   mountUsageEndpoints(app, dependencies.usage);
   mountQueryEndpoints(app, dependencies);
