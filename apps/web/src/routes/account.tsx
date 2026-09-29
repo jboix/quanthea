@@ -2,7 +2,7 @@
 import type { RouteObject } from 'react-router';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
-import { AccountScreen, accountAction } from '../features/account/index.ts';
+import { AccountScreen, accountAction, loadAccount } from '../features/account/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
 /**
@@ -16,7 +16,7 @@ export function accountRoute(loadSession: SessionLoader, api: ApiClient): RouteO
   const path = '/account';
   return {
     path,
-    loader: guarded(loadSession, path, async () => null),
+    loader: guarded(loadSession, path, loadAccount(api, loadSession)),
     action: guarded(loadSession, path, accountAction(api)),
     Component: AccountScreen,
   };

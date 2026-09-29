@@ -7,7 +7,8 @@ import { Page } from '../../ui/page.tsx';
 import { RadioCards } from '../../ui/radio-cards.tsx';
 import { Select } from '../../ui/select.tsx';
 import styles from './auth-settings.module.css';
-import type { AuthSettingsIntent, AuthSettingsOutcome } from './data.ts';
+import type { AuthSettingsData, AuthSettingsIntent, AuthSettingsOutcome } from './data.ts';
+import { PasswordCard, ProvidersCard } from './sign-in-cards.tsx';
 
 /** The two modes, as the screen offers them. */
 const modeOptions = [
@@ -34,7 +35,7 @@ function useAuthIntent() {
   const fetcher = useFetcher<AuthSettingsOutcome>();
   const outcome = fetcher.data;
   useEffect(() => {
-    if (outcome?.ok)
+    if (outcome?.ok && outcome.mode)
       window.location.assign(outcome.mode === 'accounts' ? '/login' : '/settings/auth');
   }, [outcome]);
   const submit = (intent: AuthSettingsIntent) =>
@@ -68,8 +69,8 @@ function Readiness({ settings }: { readonly settings: AuthSettingsView }) {
       </ul>
       {settings.signInAdmins.length === 0 && (
         <p className={styles.note}>
-          Invite an admin in <Link to="/settings/users">Settings → Users</Link> and let them set a
-          password.
+          Invite an admin in <Link to="/settings/users">Settings → Users</Link>, then let them set a
+          password or sign in through a provider.
         </p>
       )}
     </>
@@ -186,11 +187,13 @@ function AdoptCard({ settings }: { readonly settings: AuthSettingsView }) {
  * @returns The screen.
  */
 export function AuthSettingsScreen() {
-  const settings = useLoaderData() as AuthSettingsView;
+  const { auth, signIn } = useLoaderData() as AuthSettingsData;
   return (
     <Page title="Authentication" subtitle="Choose who can reach querent, and how they sign in.">
-      <ModeCard settings={settings} />
-      <AdoptCard settings={settings} />
+      <ModeCard settings={auth} />
+      <AdoptCard settings={auth} />
+      <ProvidersCard signIn={signIn} />
+      <PasswordCard signIn={signIn} />
     </Page>
   );
 }

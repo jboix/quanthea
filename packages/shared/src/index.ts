@@ -81,6 +81,32 @@ export {
 } from './api/errors.ts';
 export { healthEndpoint } from './api/health.ts';
 export {
+  enableIdentityProviderEndpoint,
+  getIdentityProvidersEndpoint,
+  type IdentityProvidersView,
+  type IdentityProviderView,
+  identityProviderSchema,
+  identityProvidersSchema,
+  type JoinPolicy,
+  joinPolicySchema,
+  myIdentitiesEndpoint,
+  type ProviderFlowFailure,
+  type ProviderKind,
+  passwordSignInEndpoint,
+  providerCallbackPath,
+  providerFlowFailure,
+  providerFlowFailures,
+  providerFlowIntents,
+  providerKinds,
+  providerStartPath,
+  removeIdentityProviderEndpoint,
+  type StoredProvider,
+  saveIdentityProviderEndpoint,
+  signInOptionsEndpoint,
+  storedSignInSchema,
+  unlinkIdentityEndpoint,
+} from './api/identity-providers.ts';
+export {
   type LibraryEntry,
   type LibrarySearch,
   librarySearchSchema,

@@ -81,6 +81,9 @@ describe('route access', () => {
       .filter((route) => route.access === 'public')
       .map((route) => `${route.method} ${route.path}`);
     expect(publicRoutes.sort()).toEqual([
+      'GET /api/auth/options',
+      'GET /api/auth/providers/:providerId/callback',
+      'GET /api/auth/providers/:providerId/start',
       'GET /api/health',
       'GET /api/me',
       'POST /api/auth/set-password',
@@ -101,7 +104,7 @@ describe('route access', () => {
     const settingsRoutes = listApiRouteAccess(buildApp()).filter((route) =>
       /^\/api\/settings/.test(route.path),
     );
-    expect(settingsRoutes.length).toBe(16);
+    expect(settingsRoutes.length).toBe(21);
     expect(settingsRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 

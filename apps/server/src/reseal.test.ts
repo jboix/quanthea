@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { connectorInputSchema, defaultModelGateway } from '@querent/shared';
+import { createSignInSettings } from './auth/providers/sign-in-settings.ts';
 import { createUsers } from './auth/users.ts';
 import { createConnections } from './connections/connections.ts';
 import { memoryConnector } from './connectors/_shared/test/memory-connector.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
 import { openDatabase } from './db/database.ts';
+import { createIdentityRepository } from './db/identity-repository.ts';
 import { runMigrations } from './db/migrate.ts';
 import { createSettingsRepository } from './db/settings-repository.ts';
 import { createUserRepository } from './db/user-repository.ts';
@@ -78,7 +80,18 @@ describe('sealing secrets again', () => {
     const rotating = await openSecretBox(newKey, oldKey);
     const reseal = () =>
       resealSecrets({ database, secretBox: rotating, settings, emailIndex: newIndex });
-    expect(await reseal()).toBe(3);
+    const signIn = createSignInSettings({
+      store: settings,
+      secretBox: before,
+      identities: createIdentityRepository(database),
+      users: userRepository,
+      publicUrl: 'https://querent.test',
+      audit,
+    });
+    const github = { kind: 'github' as const, name: 'GitHub', baseUrl: null, tenant: null };
+    const join = { mode: 'invite' as const, values: [] };
+    await signIn.save('github', { ...github, join, clientId: 'Iv1', clientSecret: 'gh-9f2a' }, 'x');
+    expect(await reseal()).toBe(4);
     expect(await reseal()).toBe(0);
 
     const after = await openSecretBox(newKey);
@@ -101,5 +114,17 @@ describe('sealing secrets again', () => {
     });
     expect((await found.findByEmail(' ada@example.com'))?.id).toBe(ada.id);
     expect(await found.get(ada.id)).toMatchObject({ email: 'Ada@Example.com', name: 'Ada' });
+    const reopenedSignIn = createSignInSettings({
+      store: settings,
+      secretBox: after,
+      identities: createIdentityRepository(database),
+      users: userRepository,
+      publicUrl: 'https://querent.test',
+      audit,
+    });
+    expect(await reopenedSignIn.credentials('github')).toEqual({
+      clientId: 'Iv1',
+      clientSecret: 'gh-9f2a',
+    });
   });
 });

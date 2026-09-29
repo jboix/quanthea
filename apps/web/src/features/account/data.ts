@@ -4,12 +4,15 @@
  */
 import {
   changePasswordEndpoint,
+  type EndpointOutput,
+  myIdentitiesEndpoint,
   setPasswordEndpoint,
   signInEndpoint,
   signOutEndpoint,
   signOutEverywhereEndpoint,
+  unlinkIdentityEndpoint,
 } from '@querent/shared';
-import type { ActionFunctionArgs } from 'react-router';
+import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 
 /** What an account action answers: where to go next, or why not, by field. */
@@ -94,30 +97,69 @@ export function setPasswordAction(api: ApiClient) {
   };
 }
 
+/** One's linked providers, those one may link, and whether one has a password. */
+export type AccountIdentities = EndpointOutput<typeof myIdentitiesEndpoint>;
+
+/**
+ * The loader of the account page: one's providers, with accounts on.
+ *
+ * @param api - The API client.
+ * @param loadSession - Loads the current session, for its authentication mode.
+ * @returns The loader. It gives `null` in open access, where there is no account.
+ */
+export function loadAccount(
+  api: ApiClient,
+  loadSession: () => Promise<{ readonly authMode: string } | null>,
+) {
+  return async ({ request }: LoaderFunctionArgs): Promise<AccountIdentities | null> => {
+    const session = await loadSession();
+    if (session?.authMode !== 'accounts') return null;
+    return api.call(myIdentitiesEndpoint, undefined, { signal: request.signal });
+  };
+}
+
 /** What the account page submits, as JSON. */
 export type AccountIntent =
   | { readonly intent: 'change-password'; readonly current: string; readonly password: string }
+  | { readonly intent: 'unlink'; readonly providerId: string }
   | { readonly intent: 'sign-out' }
   | { readonly intent: 'sign-out-everywhere' };
 
 /**
- * The action of the account page: change the password, or sign out.
+ * Runs one account intent.
+ *
+ * @param api - The API client.
+ * @param intent - The intent.
+ * @returns The page to load next.
+ */
+async function runAccountIntent(api: ApiClient, intent: AccountIntent): Promise<string> {
+  if (intent.intent === 'sign-out' || intent.intent === 'sign-out-everywhere') {
+    await api.call(intent.intent === 'sign-out' ? signOutEndpoint : signOutEverywhereEndpoint);
+    return '/login';
+  }
+  if (intent.intent === 'unlink') {
+    await api.call(unlinkIdentityEndpoint, { params: { providerId: intent.providerId } });
+    return '/account?unlinked=1';
+  }
+  await api.call(changePasswordEndpoint, {
+    body: { current: intent.current, password: intent.password },
+  });
+  return '/account?changed=1';
+}
+
+/**
+ * The action of the account page: change the password, unlink a provider, or sign out.
  *
  * @param api - The API client.
  * @returns The action.
  */
 export function accountAction(api: ApiClient) {
   return async ({ request }: ActionFunctionArgs): Promise<AccountOutcome> => {
-    const intent = (await request.json()) as AccountIntent;
     try {
-      if (intent.intent === 'sign-out' || intent.intent === 'sign-out-everywhere') {
-        await api.call(intent.intent === 'sign-out' ? signOutEndpoint : signOutEverywhereEndpoint);
-        return { ok: true, next: '/login' };
-      }
-      await api.call(changePasswordEndpoint, {
-        body: { current: intent.current, password: intent.password },
-      });
-      return { ok: true, next: '/account?changed=1' };
+      return {
+        ok: true,
+        next: await runAccountIntent(api, (await request.json()) as AccountIntent),
+      };
     } catch (error) {
       return refusal(error);
     }

@@ -3,17 +3,11 @@
  * the dashboards. The bootstrap and the tests wire them the same way.
  */
 
-import type { AuthMode, DashboardSpec } from '@querent/shared';
+import type { DashboardSpec } from '@querent/shared';
+import { type AccountDependencies, type Accounts, createAccounts } from './accounts.ts';
 import { createMetadataWriter, type PinMetadata } from './agent/metadata.ts';
 import { type Agent, createAgent } from './agent/run.ts';
-import { type AuthModeControl, createAuthModeControl } from './auth/auth-mode-control.ts';
-import { createPasswordAccounts, type PasswordAccounts } from './auth/password-accounts.ts';
-import type { HashCosts } from './auth/passwords.ts';
-import { resealUsers } from './auth/reseal-users.ts';
-import { createSessions, type Sessions } from './auth/sessions.ts';
-import { accountRule, addressRule, createThrottle } from './auth/throttle.ts';
-import type { UserAdminDependencies } from './auth/user-admin.ts';
-import { createUsers, type Users } from './auth/users.ts';
+import { resealIdentities, resealSignInCredentials, resealUsers } from './auth/reseal-users.ts';
 import { type Connections, createConnections } from './connections/connections.ts';
 import { resealConnectors } from './connections/reseal.ts';
 import type { AnyConnectorKind } from './connectors/_shared/index.ts';
@@ -21,20 +15,14 @@ import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
-import type { openDatabase } from './db/database.ts';
-import { createPasswordLinkRepository } from './db/password-link-repository.ts';
-import { createSessionRepository } from './db/session-repository.ts';
+import { createIdentityRepository } from './db/identity-repository.ts';
 import { createThreadBinRepository } from './db/thread-bin.ts';
-import { createThreadOwnershipRepository } from './db/thread-ownership.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
-import { createUserRepository, type UserRepository } from './db/user-repository.ts';
+import { createUserRepository } from './db/user-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
-import type { KeyedHash } from './secrets/keyed-hash.ts';
-import type { Peppers, SessionHashes } from './secrets/keys.ts';
-import type { SecretBox } from './secrets/secret-box.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
 import {
   createModelSettings,
@@ -46,39 +34,18 @@ import {
   createRetentionSettings,
   type RetentionSettingsService,
 } from './settings/retention-settings.ts';
-import type { SettingsStore } from './settings/settings-store.ts';
 import { createThreadBin, type ThreadBin } from './threads/bin.ts';
 import { createThreads, type Threads } from './threads/threads.ts';
 import { createUsage, type Usage } from './usage/usage.ts';
 
 /** What the services need. */
-export interface ServiceDependencies {
-  /** A database the migrations have run on. */
-  readonly database: ReturnType<typeof openDatabase>;
+export interface ServiceDependencies extends AccountDependencies {
   /** The connector kinds on offer. */
   readonly kinds: readonly AnyConnectorKind[];
-  /** Seals connector credentials and the model key. */
-  readonly secretBox: SecretBox;
-  /** The settings store. */
-  readonly settings: SettingsStore;
-  /** Indexes emails, under a key derived from the secret key. */
-  readonly emailIndex: KeyedHash;
-  /** The session key's hashes; without them there are no sessions, as in `none` mode. */
-  readonly sessionHashes: SessionHashes | undefined;
-  /** The peppers; without them there are no passwords. */
-  readonly peppers: Peppers | undefined;
-  /** The argon2id costs; lower in tests only. */
-  readonly passwordCosts?: HashCosts;
-  /** The mode `QUERENT_AUTH_MODE` forces, if set. */
-  readonly authOverride?: AuthMode | undefined;
-  /** What the server lacks for accounts, found at startup; none by default. */
-  readonly accountsProblems?: readonly string[];
-  /** The clock of the users and sessions; `Date.now` by default. */
-  readonly now?: () => number;
 }
 
 /** The services the HTTP layer calls. */
-export interface Services {
+export interface Services extends Accounts {
   /** The configured connectors. */
   readonly connections: Connections;
   /** The dashboards. */
@@ -89,16 +56,6 @@ export interface Services {
   readonly modelView: ModelView;
   /** The threads. */
   readonly threads: Threads;
-  /** The people who sign in. */
-  readonly users: Users;
-  /** Sessions, when the session key is set. */
-  readonly sessions: Sessions | undefined;
-  /** Password accounts, when the session key and the pepper are set. */
-  readonly passwords: PasswordAccounts | undefined;
-  /** What changing a user needs. */
-  readonly userAdmin: UserAdminDependencies;
-  /** The authentication mode, switched without a restart. */
-  readonly authMode: AuthModeControl;
   /** The bin of threads. */
   readonly bin: ThreadBin;
   /**
@@ -192,75 +149,12 @@ export async function resealSecrets(
   const { database, secretBox, settings, emailIndex } = dependencies;
   const connectors = await resealConnectors(createConnectorRepository(database), secretBox);
   const users = await resealUsers(createUserRepository(database), secretBox, emailIndex);
-  return connectors + users + (await resealModelKeys({ store: settings, secretBox }));
-}
-
-/**
- * The users, and the sessions when the session key is set.
- *
- * @param dependencies - The database, the secret box and the keyed hashes.
- * @param audit - The audit log.
- * @returns The services.
- */
-function accountServices(
-  dependencies: ServiceDependencies,
-  audit: ReturnType<typeof createAuditRepository>,
-) {
-  const { database, secretBox, emailIndex, sessionHashes } = dependencies;
-  const clock = dependencies.now ? { now: dependencies.now } : {};
-  const repository = createUserRepository(database);
-  const users = createUsers({ repository, secretBox, emailIndex, audit, ...clock });
-  const sessionRepository = createSessionRepository(database);
-  const sessions =
-    sessionHashes && createSessions({ repository: sessionRepository, ...sessionHashes, ...clock });
-  const passwords = passwordServices(dependencies, { users: repository, sessions, audit });
-  const authMode = createAuthModeControl({
-    settings: dependencies.settings,
-    override: dependencies.authOverride,
-    problems: dependencies.accountsProblems ?? [],
-    users: repository,
-    names: users,
-    threads: createThreadOwnershipRepository(database),
-    sessions,
-    audit,
-  });
-  const userAdmin = { repository, sessions, audit, ...clock };
-  return { users, sessions, passwords, userAdmin, authMode };
-}
-
-/**
- * Password accounts, when the session key and the pepper are set.
- *
- * @param dependencies - The database, the secret box, the keys, the costs and the clock.
- * @param parts - The users, the sessions and the audit log.
- * @param parts.users - The users' repository.
- * @param parts.sessions - The sessions, if any.
- * @param parts.audit - The audit log.
- * @returns The password accounts, or `undefined`.
- */
-function passwordServices(
-  dependencies: ServiceDependencies,
-  parts: {
-    users: UserRepository;
-    sessions: Sessions | undefined;
-    audit: ReturnType<typeof createAuditRepository>;
-  },
-): PasswordAccounts | undefined {
-  const { sessionHashes, peppers, now } = dependencies;
-  if (!sessionHashes || !peppers || !parts.sessions) return undefined;
-  return createPasswordAccounts({
-    ...parts,
-    sessions: parts.sessions,
-    secretBox: dependencies.secretBox,
-    emailIndex: dependencies.emailIndex,
-    links: createPasswordLinkRepository(dependencies.database),
-    tokenHash: sessionHashes.tokenHash,
-    peppers,
-    addresses: createThrottle(addressRule, now),
-    accounts: createThrottle(accountRule, now),
-    ...(dependencies.passwordCosts ? { costs: dependencies.passwordCosts } : {}),
-    ...(now ? { now } : {}),
-  });
+  const identities = createIdentityRepository(database);
+  const linked = await resealIdentities(identities, secretBox, emailIndex);
+  const clients = await resealSignInCredentials(settings, secretBox);
+  return (
+    connectors + users + linked + clients + (await resealModelKeys({ store: settings, secretBox }))
+  );
 }
 
 /**
@@ -282,7 +176,7 @@ export function createServices(dependencies: ServiceDependencies): Services {
   });
   const querySettings = createQuerySettings({ store: dependencies.settings, audit });
   const threads = createThreads({ repository, audit });
-  const accounts = accountServices(dependencies, audit);
+  const accounts = createAccounts(dependencies, audit);
   const bin = createThreadBin({
     repository: createThreadBinRepository(dependencies.database),
     audit,

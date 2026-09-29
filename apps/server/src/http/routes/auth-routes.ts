@@ -31,6 +31,8 @@ const cookieBaseName = sessionCookieName.replace('__Host-', '');
 export interface AuthRouteServices {
   /** Gives the authentication mode in force. */
   readonly modeOf: () => AuthMode;
+  /** Whether passwords sign in. */
+  readonly passwordSignIn: () => boolean;
   /** The sessions, when the session key is set. */
   readonly sessions: Sessions | undefined;
   /** Password accounts, when the session key and the pepper are set. */
@@ -109,6 +111,8 @@ function mountSignInRoutes(app: Hono<AppEnv>, services: AuthRouteServices): void
   app.post(`${apiPrefix}${signInEndpoint.path}`, accessMiddleware('public'), async (context) => {
     if (services.modeOf() === 'none')
       throw new AppError('bad_request', 'Sign-in is off: everyone is an admin on this server.');
+    if (!services.passwordSignIn())
+      throw new AppError('bad_request', 'Password sign-in is off. Use a provider.');
     const body = await bodyOf(context, signInEndpoint.body);
     const address = clientAddress(context, services.trustedProxyHops);
     const signedIn = await passwordsOf(services).signIn({ ...body, address });

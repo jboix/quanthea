@@ -71,6 +71,7 @@ describe('runMigrations', () => {
       '0010-thread-bin.sql',
       '0011-users-and-sessions.sql',
       '0012-password-links.sql',
+      '0013-identities.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
@@ -78,6 +79,7 @@ describe('runMigrations', () => {
       'connectors',
       'dashboard_versions',
       'dashboards',
+      'identities',
       'library_fts',
       'library_fts_config',
       'library_fts_content',

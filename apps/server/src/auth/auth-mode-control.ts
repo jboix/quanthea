@@ -6,7 +6,7 @@
 import type { AuthMode, AuthSettingsView } from '@querent/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { ThreadOwnershipRepository } from '../db/thread-ownership.ts';
-import type { UserRepository } from '../db/user-repository.ts';
+import type { UserRepository, UserRow } from '../db/user-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import type { SettingsStore } from '../settings/settings-store.ts';
 import type { Sessions } from './sessions.ts';
@@ -27,6 +27,8 @@ export interface AuthModeControlDependencies {
   readonly users: UserRepository;
   /** Names users. */
   readonly names: Pick<Users, 'nameOf'>;
+  /** Whether a user can sign in now: a password, or a linked provider that is on. */
+  readonly canSignIn: (row: UserRow) => boolean;
   /** Hands threads over. */
   readonly threads: ThreadOwnershipRepository;
   /** Ends every session on a switch, when there are sessions. */
@@ -73,13 +75,13 @@ export interface AuthModeControl {
 /**
  * The ids of the enabled admins who can sign in.
  *
- * @param users - The users.
+ * @param dependencies - The mode control's dependencies.
  * @returns Their ids, the oldest first.
  */
-function signInAdminIds(users: UserRepository): string[] {
-  return users
+function signInAdminIds(dependencies: AuthModeControlDependencies): string[] {
+  return dependencies.users
     .list()
-    .filter((row) => row.role === 'admin' && row.disabledAt === null && row.passwordHash !== null)
+    .filter((row) => row.role === 'admin' && row.disabledAt === null && dependencies.canSignIn(row))
     .map((row) => row.id);
 }
 
@@ -96,7 +98,7 @@ function checkAccountsReady(dependencies: AuthModeControlDependencies, admins: s
   if (admins.length === 0)
     throw new AppError(
       'bad_request',
-      'Invite an admin in Settings → Users and let them set a password first, so someone can sign in.',
+      'Invite an admin in Settings → Users and let them set a password or link a provider first, so someone can sign in.',
     );
 }
 
@@ -109,7 +111,7 @@ function checkAccountsReady(dependencies: AuthModeControlDependencies, admins: s
  * @returns How many threads changed hands.
  */
 function adopt(dependencies: AuthModeControlDependencies, userId: string, actor: string): number {
-  if (!signInAdminIds(dependencies.users).includes(userId))
+  if (!signInAdminIds(dependencies).includes(userId))
     throw new AppError('bad_request', 'Threads can go only to an admin who can sign in.');
   const adopted = dependencies.threads.handOver(openAccessOwner, userId);
   dependencies.audit.append({
@@ -141,7 +143,7 @@ function switchTo(
       'QUERENT_AUTH_MODE is set on the server. Unset it to change the mode here.',
     );
   if (mode === 'accounts') {
-    const admins = signInAdminIds(dependencies.users);
+    const admins = signInAdminIds(dependencies);
     checkAccountsReady(dependencies, admins);
     const heir = adoptTo ?? admins[0] ?? '';
     if (dependencies.threads.count(openAccessOwner) > 0) adopt(dependencies, heir, actor);
@@ -163,7 +165,7 @@ export function createAuthModeControl(dependencies: AuthModeControlDependencies)
   return {
     current,
     view: async () => {
-      const ids = signInAdminIds(dependencies.users);
+      const ids = signInAdminIds(dependencies);
       const signInAdmins = await Promise.all(
         ids.map(async (id) => ({ id, name: (await dependencies.names.nameOf(id)) ?? id })),
       );

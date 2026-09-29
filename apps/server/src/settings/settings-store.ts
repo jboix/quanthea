@@ -8,6 +8,7 @@ import {
   modelSettingsSchema,
   querySettingsSchema,
   retentionSettingsSchema,
+  storedSignInSchema,
 } from '@querent/shared';
 import { z } from 'zod';
 import type { SettingsRepository } from '../db/settings-repository.ts';
@@ -62,6 +63,10 @@ const sectionSchemas = {
   charts: chartSettingsSchema,
   /** How long deleted threads stay in the bin. */
   retention: retentionSettingsSchema,
+  /** The sign-in providers, and whether passwords sign in. */
+  'sign-in': storedSignInSchema,
+  /** Each provider's client id and secret, sealed together, by provider id. */
+  'sign-in-credentials': z.object({ sealed: z.record(z.string(), z.string()) }),
 };
 
 /** A settings section name. */
@@ -79,6 +84,8 @@ const sectionDefaults: { readonly [Name in SectionName]: SectionValue<Name> } = 
   recipes: { disabled: [], saved: [] },
   charts: { disabled: [] },
   retention: { binDays: 30 },
+  'sign-in': { providers: [], passwordSignIn: true },
+  'sign-in-credentials': { sealed: {} },
 };
 
 /** Reads and writes settings sections. */

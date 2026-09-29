@@ -6,6 +6,9 @@ import type { Agent } from './agent/run.ts';
 import type { AuthModeControl } from './auth/auth-mode-control.ts';
 import type { Authenticator } from './auth/authenticator.ts';
 import type { PasswordAccounts } from './auth/password-accounts.ts';
+import type { LinkedIdentities } from './auth/providers/linked-identities.ts';
+import type { ProviderFlows } from './auth/providers/provider-flow.ts';
+import type { SignInSettings } from './auth/providers/sign-in-settings.ts';
 import type { Sessions } from './auth/sessions.ts';
 import type { UserAdminDependencies } from './auth/user-admin.ts';
 import type { Users } from './auth/users.ts';
@@ -27,8 +30,10 @@ import {
   type DashboardRouteOptions,
   mountDashboardEndpoints,
 } from './http/routes/dashboard-routes.ts';
+import { mountProviderFlowRoutes } from './http/routes/provider-routes.ts';
 import { mountQueryEndpoints } from './http/routes/query-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
+import { mountSignInSettingsEndpoints } from './http/routes/sign-in-settings-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
 import { mountThreadEndpoints } from './http/routes/thread-routes.ts';
 import { mountUsageEndpoints } from './http/routes/usage-routes.ts';
@@ -62,6 +67,12 @@ export interface AppDependencies {
   readonly userAdmin: UserAdminDependencies;
   /** The authentication mode, switched without a restart. */
   readonly authMode: AuthModeControl;
+  /** The sign-in providers, and whether passwords sign in. */
+  readonly signInSettings: SignInSettings;
+  /** One's own linked providers. */
+  readonly linkedIdentities: LinkedIdentities;
+  /** Provider sign-ins, when querent has a public URL and sessions. */
+  readonly flows: ProviderFlows | undefined;
   /** How many proxies in front of querent append to `X-Forwarded-For`. */
   readonly trustedProxyHops: number;
   /** Receives request and error logs. */
@@ -104,9 +115,12 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountAuthRoutes(app, {
     ...dependencies,
     modeOf: () => dependencies.authenticator.mode,
+    passwordSignIn: () => dependencies.signInSettings.passwordSignIn(),
   });
   mountUserEndpoints(app, dependencies);
   mountAuthSettingsEndpoints(app, dependencies.authMode);
+  mountSignInSettingsEndpoints(app, dependencies);
+  mountProviderFlowRoutes(app, dependencies.flows);
   mountSystemRoutes(app, {
     version: dependencies.version,
     authModeOf: () => dependencies.authenticator.mode,

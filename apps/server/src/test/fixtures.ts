@@ -14,7 +14,7 @@ import { createLogger, type Logger } from '../lib/logger.ts';
 import { type KeyedHash, keyedHash } from '../secrets/keyed-hash.ts';
 import type { Peppers, SessionHashes } from '../secrets/keys.ts';
 import { openSecretBox, type SecretBox } from '../secrets/secret-box.ts';
-import { createServices, type Services } from '../services.ts';
+import { createServices, type ServiceDependencies, type Services } from '../services.ts';
 import { createSettingsStore } from '../settings/settings-store.ts';
 
 /** A logger that keeps its lines in memory. */
@@ -104,6 +104,7 @@ export function temporaryDir(): { readonly path: string; readonly remove: () => 
  * @param dataDir - The temporary data directory.
  * @param kinds - The connector kinds on offer; the in-memory test kind by default.
  * @param now - The clock of the users and sessions; `Date.now` by default.
+ * @param extra - A public URL and driver options, for provider sign-ins.
  * @returns The services, the database, and a function that closes the connections and the
  *   database.
  */
@@ -111,6 +112,7 @@ export async function testServices(
   dataDir: string,
   kinds: readonly AnyConnectorKind[] = [memoryConnector],
   now?: () => number,
+  extra: Pick<ServiceDependencies, 'publicUrl' | 'driverOptions'> = {},
 ): Promise<
   Services & {
     readonly close: () => Promise<void>;
@@ -127,6 +129,7 @@ export async function testServices(
     settings,
     ...(await testKeyedHashes()),
     ...(now ? { now } : {}),
+    ...extra,
   });
   const close = async (): Promise<void> => {
     await services.connections.closeAll();

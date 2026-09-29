@@ -43,6 +43,7 @@ const dependencies = {
   peppers: keys.peppers,
   authOverride: config.authModeOverride,
   accountsProblems: problems,
+  publicUrl: config.publicUrl,
 };
 const resealed = await resealSecrets(dependencies);
 if (resealed > 0) logger.info('sealed secrets again with the current key', { resealed });

@@ -33,3 +33,78 @@
   align-items: end;
   gap: 12px;
 }
+
+.done {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ok-ink);
+}
+
+.providers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.provider {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.providerHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.providerName {
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.providerForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+
+.callback {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.code {
+  overflow-wrap: anywhere;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-divider);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}

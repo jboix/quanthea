@@ -724,14 +724,31 @@ TLS options, the access level, hidden columns, guardrails, and table and field d
 -- settings: typed key/value, validated by Zod in settings/
 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
 
-CREATE TABLE users (                                   -- basic auth mode only
-  id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, name TEXT,
-  password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('viewer','editor','admin')),
-  disabled INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL);
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  email_index BLOB NOT NULL UNIQUE,  -- keyed hash of the normalised email
+  email_sealed BLOB NOT NULL, name_sealed BLOB NOT NULL,  -- AES-GCM sealed, bound to the user
+  role TEXT NOT NULL CHECK (role IN ('viewer','editor','admin')),
+  password_hash TEXT, pepper_id TEXT,  -- NULL until a password is set
+  disabled_at INTEGER, last_sign_in_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
 
 CREATE TABLE sessions (
-  id TEXT PRIMARY KEY, subject TEXT NOT NULL, name TEXT, role TEXT NOT NULL,
-  mode TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL);
+  id_hash BLOB PRIMARY KEY,          -- keyed hash of the id, which only the cookie holds
+  public_id TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+
+CREATE TABLE password_links (
+  token_hash BLOB PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  purpose TEXT NOT NULL CHECK (purpose IN ('invite','reset')), expires_at INTEGER NOT NULL,
+  created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
+
+CREATE TABLE identities (            -- accounts at sign-in providers
+  provider_id TEXT NOT NULL,
+  subject_index BLOB NOT NULL,       -- keyed hash of the provider's id of the person
+  subject_sealed BLOB NOT NULL,      -- AES-GCM sealed, bound to the provider
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL, last_used_at INTEGER,
+  PRIMARY KEY (provider_id, subject_index));
 
 CREATE TABLE connectors (
   id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL, kind TEXT NOT NULL,
@@ -829,6 +846,11 @@ indicative; the contract files are the source of truth.
 | `POST /auth/change-password`                                                                      | change one's own password                    | viewer   |
 | `GET/PUT /settings/auth`, `POST /settings/auth/adopt`                                             | switch the mode, hand over threads           | admin    |
 | `POST /auth/sign-out-everywhere`                                                                  | end all one's sessions                       | viewer   |
+| `GET /auth/options`                                                                               | providers that are on, password sign-in      | public   |
+| `GET /auth/providers/:id/start`, `/callback` (full-page redirects)                                | sign in, link or test a provider             | public   |
+| `GET /auth/identities`, `DELETE /auth/identities/:providerId`                                     | one's linked providers                       | viewer   |
+| `GET /settings/identity-providers`, `PUT/DELETE /settings/identity-providers/:id`                 | sign-in providers                            | admin    |
+| `POST /settings/identity-providers/:id/enabled`, `PUT /settings/password-sign-in`                 | turn a provider or passwords on or off       | admin    |
 | `GET/POST /users`, `PATCH /users/:id`, `POST /users/:id/reset-link`, `DELETE /users/:id/sessions` | users                                        | admin    |
 | `GET /threads` (each marked `pinned`), `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id` | threads; delete moves to the bin             | editor   |
 | `POST /threads/:id/chat`                                                                          | streamed agent run                           | editor   |
@@ -854,7 +876,6 @@ indicative; the contract files are the source of truth.
 | `GET /queries`                                                                                    | the queries a thread may use                 | editor   |
 | `GET /settings/queries/guide`, `POST /settings/queries/preview`                                   | how builders work, a test run of a query     | admin    |
 | `GET/PUT /settings/charts`                                                                        | chart recipes on or off                      | admin    |
-| `GET/POST/PATCH /users`                                                                           | local users (basic mode)                     | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
 so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the
@@ -943,6 +964,38 @@ locked-out install, with a warning at startup.
   before.
 - The bin keeps to owners: editors list and restore their own binned threads; admins list,
   restore and delete everyone's. Threads started in `none` mode belong to `anonymous`.
+- **Sign-in providers** (Settings → Authentication, `auth/providers/`): GitHub, Google, GitLab
+  (gitlab.com or a self-managed one) and Microsoft Entra ID (one tenant, never `common`). querent
+  is only their client: an admin registers it with the provider, pastes the client id and secret,
+  and registers the redirect URI querent shows (`QUERENT_PUBLIC_URL` +
+  `/api/auth/providers/:id/callback`, never built from a request's `Host`). The id and secret are
+  sealed together, bound to the provider, and never sent back. A provider stays off until an admin
+  signs in through it once with Test sign-in; changing its kind, address, tenant or client turns
+  it off again. Removing a provider unlinks everyone who signed in through it.
+- **Provider flow** (`auth/providers/provider-flow.ts`, `openid-client`): the authorization code
+  flow with PKCE (S256) and a random state, plus a nonce for OpenID Connect. The verifier, state,
+  nonce, intent and destination live in the `__Host-querent_flow` cookie (sealed, 10 minutes,
+  SameSite=Lax), deleted at the callback, so a callback completes only in the browser that started
+  it, once. Google, GitLab and Entra ID are discovered; the ID token's signature is checked
+  against the provider's published keys, with its issuer, audience, expiry and nonce. GitHub has no
+  ID token: querent reads the person's numeric id and verified primary email from its API. Provider
+  tokens are dropped after the callback. Every failure redirects to the page it came from with a
+  fixed code (`?error=expired`, `not-invited`, `link-first`…), never with what the request
+  carried; the destination goes through the same check as after a password sign-in.
+- **Who comes in**: a person whose provider identity is linked to a user signs in as that user.
+  Otherwise, a pending invite for the verified email the provider gives links them, with the
+  invited role. Otherwise the provider's join rule may let them in as a viewer: a Google Workspace
+  domain (the `hd` claim), a GitLab verified-email domain or group (subgroups included), a GitHub
+  organisation (active membership), or anyone in the Entra tenant. By default a provider lets in
+  invited people only. An account already in use is never linked by email alone: its owner signs
+  in and links the provider from their account page (`?error=link-first` otherwise).
+- **Identities** (table `identities`): the provider's id of the person is stored as a keyed hash,
+  for the lookup, and sealed, so a copy of the database holds no readable provider id. Linking
+  and unlinking are one's own (`/api/auth/identities`); a person cannot unlink their last way to
+  sign in.
+- **Password sign-in** is on by default. An admin may turn it off once an enabled admin can sign
+  in through an enabled provider; the sign-in page then shows the provider buttons only, and
+  `POST /api/auth/sign-in` refuses.
 - **CSRF** (`http/csrf.ts`): every `/api` request that is not a GET, HEAD or OPTIONS needs
   `X-Requested-With: querent`, which a cross-site form cannot send without a preflight querent never
   grants. When the browser sends `Origin`, it must be `QUERENT_PUBLIC_URL` (or, without it, the
@@ -1047,7 +1100,8 @@ open.
 
 **Rotation:** set the new key, and the old one as `QUERENT_SECRET_KEY_PREVIOUS`, then restart. At
 startup every connector credential and model API key not sealed with the current key is sealed
-again (`resealSecrets`), so the previous key can be removed after that restart. The pepper
+again (`resealSecrets`), with users' names and emails, provider credentials and provider
+identities, so the previous key can be removed after that restart. The pepper
 rotates the same way with `QUERENT_PASSWORD_PEPPER_PREVIOUS`: passwords are rehashed at their next
 sign-in.
 
