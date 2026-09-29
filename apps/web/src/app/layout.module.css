@@ -11,6 +11,9 @@
 }
 
 .main {
+  /* Positioned, so absolutely placed descendants (hidden labels, menus) scroll inside it instead
+     of stretching the page past the screen. */
+  position: relative;
   flex-grow: 1;
   min-width: 0;
   overflow: auto;
