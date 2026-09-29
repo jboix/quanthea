@@ -117,12 +117,30 @@ function InviteCard() {
 }
 
 /**
- * A user's state in words.
+ * A user's state in words, and whether the configuration file manages them.
+ *
+ * @param props - The user.
+ * @param props.user - The user.
+ * @returns The pills.
+ */
+function StatePill({ user }: { readonly user: UserView }) {
+  const state = stateOf(user);
+  if (!user.managedBy) return state;
+  return (
+    <span className={styles.states} title={user.managedBy}>
+      {state}
+      <Pill tone="accent">from file</Pill>
+    </span>
+  );
+}
+
+/**
+ * A user's state as a pill.
  *
  * @param user - The user.
  * @returns The pill.
  */
-function StatePill({ user }: { readonly user: UserView }) {
+function stateOf(user: UserView) {
   if (user.disabled) return <Pill tone="danger">disabled</Pill>;
   if (!user.hasPassword) return <Pill tone="draft">invited</Pill>;
   return <Pill tone="ok">active</Pill>;
@@ -166,7 +184,7 @@ function UserActions({
       <Button
         size="small"
         variant={user.disabled ? 'secondary' : 'danger'}
-        disabled={busy}
+        disabled={busy || user.managedBy !== undefined}
         onClick={() => submit({ intent: 'update', userId, disabled: !user.disabled })}
       >
         {user.disabled ? 'Enable' : 'Disable'}
@@ -219,7 +237,7 @@ function UserRow({ user }: { readonly user: UserView }) {
             hideLabel
             options={roleOptions}
             value={user.role}
-            disabled={busy}
+            disabled={busy || user.managedBy !== undefined}
             onChange={(event) => changeRole(event.target.value as Role)}
           />
         </td>

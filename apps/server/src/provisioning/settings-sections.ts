@@ -167,8 +167,12 @@ async function saveSection(
 export function settingsApplier(services: SettingsServices): Applier<DesiredSection> {
   return {
     kind: 'settings',
+    owns: (name) => (settingsSections as readonly string[]).includes(name),
     exists: () => true,
-    apply: (item) => saveSection(services, item),
+    apply: async (item) => {
+      await saveSection(services, item);
+      return 'applied';
+    },
     remove: async () => undefined,
   };
 }

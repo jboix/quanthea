@@ -2,11 +2,12 @@
 import {
   type IdentityProvidersView,
   type IdentityProviderView,
+  type ManagedSettings,
   providerFlowFailure,
   providerStartPath,
 } from '@querent/shared';
 import { useCallback, useState } from 'react';
-import { type SubmitTarget, useFetcher, useSearchParams } from 'react-router';
+import { type SubmitTarget, useFetcher, useRouteLoaderData, useSearchParams } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
 import { Pill } from '../../ui/pill.tsx';
@@ -90,29 +91,19 @@ interface ProviderActionsProps {
 }
 
 /**
- * What an admin can do with a provider: edit it, test it, turn it on or off, remove it.
+ * Turning a provider on or off, and removing it.
  *
- * @param props - The provider, whether it can be tested, and the edit handler.
+ * @param props - The provider.
+ * @param props.provider - The provider.
  * @returns The buttons, and a refusal, if any.
  */
-function ProviderActions({ provider, reachable, onEdit }: ProviderActionsProps) {
+function ChangeButtons({ provider }: { readonly provider: IdentityProviderView }) {
   const { submit, busy, refusal } = useProviderIntent();
   const providerId = provider.id;
   const toggle = () =>
     submit({ intent: 'enable-provider', providerId, enabled: !provider.enabled });
   return (
-    <div className={styles.actions}>
-      <Button size="small" onClick={onEdit}>
-        Edit
-      </Button>
-      {provider.hasCredentials && reachable && (
-        <a
-          className={buttonClassName('secondary', 'small')}
-          href={providerStartPath(providerId, 'test', '/settings/auth')}
-        >
-          Test sign-in
-        </a>
-      )}
+    <>
       <Button
         size="small"
         disabled={busy || (!provider.enabled && provider.testedAt === null)}
@@ -126,6 +117,35 @@ function ProviderActions({ provider, reachable, onEdit }: ProviderActionsProps) 
         onRemove={() => submit({ intent: 'remove-provider', providerId })}
       />
       {refusal && <p className={styles.error}>{refusal}</p>}
+    </>
+  );
+}
+
+/**
+ * What an admin can do with a provider: edit it, test it, turn it on or off, remove it. A
+ * provider the configuration file manages can only be tested.
+ *
+ * @param props - The provider, whether it can be tested, and the edit handler.
+ * @returns The buttons.
+ */
+function ProviderActions({ provider, reachable, onEdit }: ProviderActionsProps) {
+  const editable = !provider.managedBy;
+  return (
+    <div className={styles.actions}>
+      {editable && (
+        <Button size="small" onClick={onEdit}>
+          Edit
+        </Button>
+      )}
+      {provider.hasCredentials && reachable && (
+        <a
+          className={buttonClassName('secondary', 'small')}
+          href={providerStartPath(provider.id, 'test', '/settings/auth')}
+        >
+          Test sign-in
+        </a>
+      )}
+      {editable && <ChangeButtons provider={provider} />}
     </div>
   );
 }
@@ -193,6 +213,11 @@ function ProviderRow({
       <div className={styles.providerHead}>
         <span className={styles.providerName}>{provider.name}</span>
         <Pill tone={provider.enabled ? 'ok' : 'neutral'}>{provider.enabled ? 'on' : 'off'}</Pill>
+        {provider.managedBy && (
+          <span title={provider.managedBy}>
+            <Pill tone="accent">from file</Pill>
+          </span>
+        )}
       </div>
       <span className={styles.note}>{metaOf(provider)}</span>
       <ProviderActions
@@ -286,15 +311,23 @@ export function ProvidersCard({ signIn }: { readonly signIn: IdentityProvidersVi
  */
 export function PasswordCard({ signIn }: { readonly signIn: IdentityProvidersView }) {
   const { submit, busy, refusal } = useProviderIntent();
+  const managedBy = (useRouteLoaderData('settings') as ManagedSettings | undefined)?.sections[
+    'password-sign-in'
+  ];
   return (
     <Card title="Passwords">
       <Switch
         label="Password sign-in"
         description="Off, people sign in through a provider only. Invited people join with the email they were invited at."
         checked={signIn.passwordSignIn}
-        disabled={busy}
+        disabled={busy || managedBy !== undefined}
         onChange={(enabled) => submit({ intent: 'password-sign-in', enabled })}
       />
+      {managedBy && (
+        <p className={styles.note} title={managedBy}>
+          {managedBy.split('/').at(-1)} sets this.
+        </p>
+      )}
       {refusal && <p className={styles.error}>{refusal}</p>}
     </Card>
   );

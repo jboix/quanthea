@@ -145,6 +145,7 @@ export function connectorApplier(
     apply: async (item) => {
       const id = await applyConnector(connections, item);
       readSchemaLater(connections, id, item.name, logger);
+      return 'applied';
     },
     remove: async (name) => {
       const id = idOf(name);

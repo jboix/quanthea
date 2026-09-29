@@ -86,3 +86,9 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.states {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}

@@ -63,6 +63,8 @@ export const identityProviderSchema = z.object({
   testedAt: z.number().nullable(),
   /** The address to register at the provider as the redirect URI. */
   callbackUrl: z.string(),
+  /** The configuration file that manages it, when one does; it is read-only here then. */
+  managedBy: z.string().optional(),
 });
 
 /** A provider as an admin sees it. */

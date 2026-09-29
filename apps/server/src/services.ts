@@ -190,6 +190,9 @@ export function createServices(dependencies: ServiceDependencies): Services {
   const settings = { modelSettings, querySettings, chartSettings, retention };
   const agent = createAgent({ ...data, threads, usage, ...settings });
   const describeForPin = pinDescriber(createMetadataWriter({ modelSettings, usage }), threads, bin);
-  const managed = createManaged(createProvisionedRepository(dependencies.database));
+  const managed = createManaged(
+    createProvisionedRepository(dependencies.database),
+    dependencies.emailIndex,
+  );
   return { ...data, threads, ...accounts, bin, describeForPin, agent, usage, ...settings, managed };
 }

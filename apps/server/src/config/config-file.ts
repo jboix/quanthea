@@ -16,6 +16,8 @@ export const configSections = [
   'retention',
   'charts',
   'queries',
+  'users',
+  'signIn',
 ] as const;
 
 /** A section of the file. */

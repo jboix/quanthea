@@ -47,6 +47,7 @@ interface RouteDependencies {
  */
 function settingsRoute({ loadSession, api }: RouteDependencies): RouteObject {
   return {
+    id: 'settings',
     path: '/settings',
     loader: async (args: LoaderFunctionArgs) => {
       await requireRole(loadSession, 'admin')(args);

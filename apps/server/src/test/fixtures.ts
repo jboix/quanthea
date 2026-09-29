@@ -105,8 +105,8 @@ export function temporaryDir(): { readonly path: string; readonly remove: () => 
  * @param kinds - The connector kinds on offer; the in-memory test kind by default.
  * @param now - The clock of the users and sessions; `Date.now` by default.
  * @param extra - A public URL and driver options, for provider sign-ins.
- * @returns The services, the database, an empty system settings view, and a function that closes
- *   the connections and the database.
+ * @returns The services, the database, an empty system settings view, the keyed hashes, and a
+ *   function that closes the connections and the database.
  */
 export async function testServices(
   dataDir: string,
@@ -118,17 +118,19 @@ export async function testServices(
     readonly close: () => Promise<void>;
     readonly database: ReturnType<typeof openDatabase>;
     readonly serverSettings: ServerSettingsView;
+    readonly hashes: Awaited<ReturnType<typeof testKeyedHashes>>;
   }
 > {
   const database = openDatabase(dataDir);
   runMigrations(database);
   const settings = createSettingsStore(createSettingsRepository(database));
+  const hashes = await testKeyedHashes();
   const services = createServices({
     database,
     kinds,
     secretBox: await testSecretBox(),
     settings,
-    ...(await testKeyedHashes()),
+    ...hashes,
     ...(now ? { now } : {}),
     ...extra,
   });
@@ -137,5 +139,5 @@ export async function testServices(
     database.close();
   };
   const serverSettings = { configFiles: [], settings: [], keys: [] };
-  return { ...services, close, database, serverSettings };
+  return { ...services, close, database, serverSettings, hashes };
 }

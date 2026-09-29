@@ -13,6 +13,23 @@ import type {
 import type { Logger } from '../lib/logger.ts';
 import type { KeyedHash } from '../secrets/keyed-hash.ts';
 
+/**
+ * The issues of a failed parse, each prefixed with where it is in the file.
+ *
+ * @param where - The item's place, such as `connectors.shop`.
+ * @param error - The parse error.
+ * @param error.issues - Its issues.
+ * @returns One sentence per issue.
+ */
+export function issuesAt(
+  where: string,
+  error: { readonly issues: readonly { path: PropertyKey[]; message: string }[] },
+): string[] {
+  return error.issues.map(
+    (issue) => `${[where, ...issue.path.map(String)].join('.')}: ${issue.message}`,
+  );
+}
+
 /** The actor of every change the file makes. */
 export const provisioningActor = 'provisioning';
 
@@ -49,6 +66,13 @@ export interface Applier<Desired> {
   /** The kind. */
   readonly kind: ProvisionedKind;
   /**
+   * Whether a recorded item of the kind is this applier's, when several share a kind.
+   *
+   * @param name - The item.
+   * @returns Whether it is; every item of the kind when omitted.
+   */
+  owns?(name: string): boolean;
+  /**
    * Whether the item exists, so an unchanged one that was deleted meanwhile is made again.
    *
    * @param name - The item.
@@ -59,9 +83,9 @@ export interface Applier<Desired> {
    * Creates or updates the item.
    *
    * @param item - The item as declared.
-   * @returns Once it is applied.
+   * @returns `applied`, or `deferred` when it cannot be yet and a later start retries.
    */
-  apply(item: Planned<Desired>): Promise<void>;
+  apply(item: Planned<Desired>): Promise<'applied' | 'deferred'>;
   /**
    * Deletes an item the file no longer declares, when pruning.
    *
@@ -133,7 +157,7 @@ async function applyOne<Desired>(
   const recorded = context.repository.get(applier.kind, item.name);
   const unchanged = recorded && sameBytes(recorded.fingerprint, fingerprint);
   if (unchanged && recorded.path === item.path && applier.exists(item.name)) return false;
-  await applier.apply(item);
+  if ((await applier.apply(item)) === 'deferred') return false;
   const row: ProvisionedRow = {
     kind: applier.kind,
     name: item.name,
@@ -214,7 +238,11 @@ export async function reconcile<Desired>(
   const issues = await applyAll(context, applier, items);
   const declared = new Set(items.map((item) => item.name));
   for (const row of context.repository.list(applier.kind)) {
-    if (!declared.has(row.name)) await letGo(context, applier, row);
+    if (declared.has(row.name) || applier.owns?.(row.name) === false) continue;
+    await letGo(context, applier, row).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      issues.push(`${applier.kind} ${row.name}: ${message}`);
+    });
   }
   return issues;
 }

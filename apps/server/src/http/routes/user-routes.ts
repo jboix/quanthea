@@ -12,12 +12,34 @@ import type { Sessions } from '../../auth/sessions.ts';
 import { changeUser, type UserAdminDependencies } from '../../auth/user-admin.ts';
 import type { Users } from '../../auth/users.ts';
 import { AppError } from '../../lib/errors.ts';
+import type { Managed } from '../../provisioning/managed.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { actorOf } from '../principal.ts';
 
+/**
+ * Users with the file that manages each, when one does.
+ *
+ * @param managed - What the configuration file manages.
+ * @param list - The users.
+ * @returns The users, marked.
+ */
+async function markManaged<User extends { readonly email: string }>(
+  managed: Managed,
+  list: readonly User[],
+): Promise<User[]> {
+  return Promise.all(
+    list.map(async (user) => {
+      const path = await managed.userPathOf(user.email);
+      return path ? { ...user, managedBy: path } : user;
+    }),
+  );
+}
+
 /** What the users endpoints need. */
 export interface UserRouteServices {
+  /** What the configuration file manages. */
+  readonly managed: Managed;
   /** The users. */
   readonly users: Users;
   /** Password accounts, when the keys are set. */
@@ -73,7 +95,7 @@ export function mountUserEndpoints(app: Hono<AppEnv>, services: UserRouteService
   const { users } = services;
   mountEndpoint(app, listUsersEndpoint, {
     access: 'admin',
-    handle: async () => ({ users: await users.list() }),
+    handle: async () => ({ users: await markManaged(services.managed, await users.list()) }),
   });
   mountEndpoint(app, inviteUserEndpoint, {
     access: 'admin',
@@ -87,6 +109,8 @@ export function mountUserEndpoints(app: Hono<AppEnv>, services: UserRouteService
   mountEndpoint(app, updateUserEndpoint, {
     access: 'admin',
     handle: async ({ params, body, principal }) => {
+      const path = await services.managed.userPathOf((await users.get(params.userId)).email);
+      if (path) throw new AppError('forbidden', `${path} manages this user. Change it there.`);
       changeUser(services.userAdmin, params.userId, body, actorOf(principal));
       return users.get(params.userId);
     },

@@ -13,6 +13,8 @@ export const userSchema = z.object({
   hasPassword: z.boolean(),
   lastSignInAt: z.number().nullable(),
   createdAt: z.number(),
+  /** The configuration file that manages them, when one does; their role and state are its. */
+  managedBy: z.string().optional(),
 });
 
 /** A user as an admin sees them. */

@@ -1134,18 +1134,30 @@ value and where it comes from, and each key by where it comes from, never its va
 **The configuration file** (`config/config-file.ts`): `QUERENT_CONFIG` names a YAML or JSON file,
 or a directory whose `*.yaml`, `*.yml` and `*.json` files are read in name order (`/etc/querent`
 in the image, empty until a file is mounted). YAML is parsed with Bun's built-in parser. Each
-top-level key is a section (`server`, `connectors`, `model`, `retention`, `charts`, `queries`,
-`provisioning`); the keys of `server` are the settings' names
+top-level key is a section (`server`, `users`, `signIn`, `connectors`, `model`, `retention`,
+`charts`, `queries`, `provisioning`); the keys of `server` are the settings' names
 (`publicUrl`, `port`, `dataDir`…). A key is set in one file only. `${NAME}` in a text value is
 replaced by the environment variable `NAME` (`$${` writes a literal `${`), and an unset one stops
 the server. An unknown section or setting, or an invalid value, stops the server with every issue
 listed. Relative paths resolve against the working directory.
 
 **Provisioning** (`provisioning/`): the same file declares what querent stores, so an instance
-can be rebuilt from Git. It declares connectors, keyed by name, and the settings sections
-`model`, `retention`, `charts` and `queries`, each with the API's fields:
+can be rebuilt from Git. It declares users (by email), sign-in providers (by id), connectors (by
+name), and the settings sections `model`, `retention`, `charts` and `queries`, each with the API's
+fields:
 
 ```yaml
+users:
+  ada@example.com: { name: Ada Lovelace, role: admin, password: ${ADMIN_PASSWORD} }
+signIn:
+  passwordSignIn: true
+  providers:
+    google:
+      kind: google
+      name: Google
+      join: { mode: domain, values: [example.com] }
+      clientId: 1234.apps.googleusercontent.com
+      clientSecret: ${GOOGLE_CLIENT_SECRET}
 connectors:
   orders:
     kind: postgres
@@ -1172,13 +1184,24 @@ provisioning:
   never changes. A provisioned connector's schema is read in the background.
 - An item the file no longer declares is released: it stays, editable again. With
   `provisioning.prune: true` a connector is deleted instead; a settings section keeps its values.
+- Sections apply in order: users, providers, password sign-in, settings, connectors.
+- A user the file declares is created invited, with the role and state the file gives. They sign
+  in through a provider with that verified email, or with the `password` the file gives, which is
+  set only while they have none. The record names a user by the keyed hash of their email, never
+  the email. A user's name applies when they are created. Pruning disables a user.
+- A provider's `clientSecret` is a secret; its `clientId` may be written in clear. The file vouches
+  for a provider, so one it declares (enabled unless `enabled: false`) needs no test sign-in.
+  Pruning removes a provider. `passwordSignIn: false` waits until an enabled admin can sign in
+  through a provider; until then each start logs that it is deferred.
 - A settings section is managed whole. The model gateway's `apiKey` fields are secrets; `limits`
   and `behaviour` fall back to the defaults when left out.
 - A mistake in the file applies nothing and stops the server with every issue listed. An item that
   fails to apply stops the server too, after the others are applied.
 - What the file manages is read-only: the API answers 403 naming the file, and the UI shows a
   "managed by" badge and disables the settings. `GET /api/settings/managed` lists the managed
-  settings sections; the settings layout shows a banner and disables the section's form. The fields the file leaves out that the UI edits
+  settings sections; the settings layout shows a banner and disables the section's form. Users
+  and providers the file manages carry `managedBy` in their views: their role, state, settings, on
+  and off are refused, while reset links, signing out and test sign-ins stay open. The fields the file leaves out that the UI edits
   on their own (a connector's `descriptions`) stay editable.
 
 Everything else lives in Settings (SQLite) and is editable in the UI.

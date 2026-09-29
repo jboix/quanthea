@@ -58,8 +58,9 @@ if (config.file) {
     file: config.file,
     repository: createProvisionedRepository(database),
     fingerprints: keys.fingerprints,
-    connections: services.connections,
-    settings: services,
+    emailIndex: keys.emailIndex,
+    peppers: keys.peppers,
+    services,
     audit: createAuditRepository(database),
     logger,
   });

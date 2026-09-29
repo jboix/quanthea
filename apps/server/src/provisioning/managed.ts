@@ -1,6 +1,8 @@
 /** What the configuration file manages, for the routes that must refuse to change it. */
 import type { ProvisionedKind, ProvisionedRepository } from '../db/provisioned-repository.ts';
 import { AppError } from '../lib/errors.ts';
+import type { KeyedHash } from '../secrets/keyed-hash.ts';
+import { userRecordName } from './users.ts';
 
 /** What the file manages. */
 export interface Managed {
@@ -29,16 +31,26 @@ export interface Managed {
    * @throws {AppError} `forbidden` naming the file to change instead.
    */
   refuseChange(kind: ProvisionedKind, name: string, fields?: readonly string[]): void;
+  /**
+   * The file that manages a user.
+   *
+   * @param email - The user's email.
+   * @returns The file's path, or `undefined` when the interface manages them.
+   */
+  userPathOf(email: string): Promise<string | undefined>;
 }
 
 /**
  * Creates the view of what the file manages.
  *
  * @param repository - What the file manages, as recorded.
+ * @param emailIndex - The email index, which names users in the record.
  * @returns The view.
  */
-export function createManaged(repository: ProvisionedRepository): Managed {
+export function createManaged(repository: ProvisionedRepository, emailIndex: KeyedHash): Managed {
   return {
+    userPathOf: async (email) =>
+      repository.get('user', await userRecordName(emailIndex, email))?.path,
     pathOf: (kind, name) => repository.get(kind, name)?.path,
     pathsOf: (kind) => Object.fromEntries(repository.list(kind).map((row) => [row.name, row.path])),
     refuseChange: (kind, name, fields) => {

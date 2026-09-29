@@ -54,8 +54,9 @@ async function apply(yaml: string, environment: Record<string, string> = {}): Pr
     file,
     repository: createProvisionedRepository(services.database),
     fingerprints: await keyedHash(new Uint8Array(32).fill(7), 'test'),
-    connections: services.connections,
-    settings: services,
+    emailIndex: services.hashes.emailIndex,
+    peppers: services.hashes.peppers,
+    services,
     audit: createAuditRepository(services.database),
     logger: captureLogs().logger,
   });
@@ -199,5 +200,74 @@ describe('provisioning settings sections', () => {
     await apply('queries:\n  disabled: []\n');
     expect(services.managed.pathsOf('settings')).toEqual({ queries: path });
     expect(services.retention.get().binDays).toBe(7);
+  });
+});
+
+describe('provisioning users and sign-in', () => {
+  const strong = 'violet harbour lantern 5e1b';
+
+  test('creates an admin with a first password, and never records their email', async () => {
+    const yaml = `users:\n  ada@example.com: { name: Ada Lovelace, role: admin, password: "${reference('ADMIN_PASSWORD')}" }\n`;
+    await apply(yaml, { ADMIN_PASSWORD: strong });
+    const row = await services.users.findByEmail('ada@example.com');
+    expect(row).toMatchObject({ role: 'admin' });
+    expect(row?.passwordHash).toStartWith('$argon2id$');
+    expect(await services.managed.userPathOf('ADA@example.com')).toBe(path);
+    const names = services.database
+      .query<{ name: string }, []>("SELECT name FROM provisioned WHERE kind = 'user'")
+      .all();
+    expect(names[0]?.name).toMatch(/^[0-9a-f]{64}$/);
+    await apply(yaml.replace('role: admin', 'role: admin, disabled: false'), {
+      ADMIN_PASSWORD: `${strong}!`,
+    });
+    expect((await services.users.findByEmail('ada@example.com'))?.passwordHash).toBe(
+      row?.passwordHash ?? '',
+    );
+  });
+
+  test('changes a role, refuses a weak or clear password without quoting it, and disables on prune', async () => {
+    await apply(
+      'users:\n  ada@example.com: { name: Ada, role: admin }\n  bob@example.com: { name: Bob }\n',
+    );
+    await apply(
+      'users:\n  ada@example.com: { name: Ada, role: admin }\n  bob@example.com: { name: Bob, role: editor }\n',
+    );
+    expect((await services.users.findByEmail('bob@example.com'))?.role).toBe('editor');
+    const weak = apply(
+      `users:\n  bob@example.com: { name: Bob, password: "${reference('WEAK')}" }\n`,
+      { WEAK: 'short' },
+    );
+    await expect(weak).rejects.toThrow('Its password is refused');
+    await expect(weak).rejects.not.toThrow('short');
+    await expect(
+      apply('users:\n  bob@example.com: { name: Bob, password: hunter2hunter2 }\n'),
+    ).rejects.toThrow('holds a secret in clear');
+    await apply(
+      'users:\n  ada@example.com: { name: Ada, role: admin }\nprovisioning:\n  prune: true\n',
+    );
+    expect((await services.users.findByEmail('bob@example.com'))?.disabledAt).not.toBeNull();
+  });
+
+  test('turns on a provider the file vouches for, with its secret sealed', async () => {
+    const provider = (secret: string) =>
+      `signIn:\n  providers:\n    github:\n      kind: github\n      name: GitHub\n      clientId: Iv1.abc\n      clientSecret: "${secret}"\n`;
+    await apply(provider(reference('GITHUB_SECRET')), { GITHUB_SECRET: 'github-secret-9d1e' });
+    expect(services.signInSettings.view().providers).toMatchObject([
+      { id: 'github', enabled: true },
+    ]);
+    expect(await services.signInSettings.credentials('github')).toEqual({
+      clientId: 'Iv1.abc',
+      clientSecret: 'github-secret-9d1e',
+    });
+    expect(services.managed.pathOf('provider', 'github')).toBe(path);
+    await expect(apply(provider('in-clear'))).rejects.toThrow(
+      'clientSecret holds a secret in clear',
+    );
+  });
+
+  test('keeps passwords on until an admin can sign in through a provider, without failing', async () => {
+    await apply('signIn:\n  passwordSignIn: false\n');
+    expect(services.signInSettings.passwordSignIn()).toBe(true);
+    expect(services.managed.pathsOf('settings')).toEqual({});
   });
 });
