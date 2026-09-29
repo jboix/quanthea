@@ -239,3 +239,16 @@ export function VariantIcon() {
     </Icon>
   );
 }
+
+/**
+ * A push pin, for a thread whose dashboard is pinned.
+ *
+ * @returns The icon.
+ */
+export function PinIcon() {
+  return (
+    <Icon size={14}>
+      <path d="M9 4h6l-1 6 3 3v2H7v-2l3-3-1-6ZM12 15v5" />
+    </Icon>
+  );
+}

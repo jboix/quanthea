@@ -1,0 +1,103 @@
+.drawer {
+  inset: 0 0 0 auto;
+  width: min(420px, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: -12px 0 32px rgb(23 24 28 / 12%);
+  animation: slide-in-right 0.18s ease-out;
+}
+
+.drawer::backdrop {
+  background: rgb(23 24 28 / 28%);
+  animation: fade-in 0.18s ease-out;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  padding: 18px 20px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--color-ink-secondary);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+}
+
+@media (max-width: 640px) {
+  .drawer {
+    inset: 0 0 auto;
+    width: 100vw;
+    height: auto;
+    max-height: 85dvh;
+    border-left: 0;
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 0 0 var(--radius-panel) var(--radius-panel);
+    box-shadow: 0 12px 32px rgb(23 24 28 / 12%);
+    animation-name: slide-in-top;
+  }
+
+  .panel {
+    height: auto;
+    max-height: 85dvh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  .drawer::backdrop {
+    animation: none;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes slide-in-top {
+  from {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}

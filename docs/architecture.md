@@ -163,7 +163,7 @@ the `postgres` driver and Prometheus uses `fetch`.
 - **Thread screen.** The conversation streams through `useChat`, which posts only the new message
   to `/api/threads/:threadId/chat`; the server holds the conversation. Approving a plan, undoing
   and pinning go through the route action, and approving then continues the assistant message.
-  The version the draft pane shows lives in `?v=`, so a reload or a shared link keeps it. The new-thread screen is one question box in the middle of the screen, with past threads (each deletable) in a menu at the top right. It creates the thread and hands the first question over in `?ask=`, which the thread screen sends
+  The version the draft pane shows lives in `?v=`, so a reload or a shared link keeps it. The new-thread screen is one question box in the middle of the screen, with a Past threads button at the top right. It opens a drawer from the right (from the top on a phone) that searches the titles, can show only threads whose dashboard is pinned (each marked with a pin), groups the threads by day, and deletes one after asking. A link can fill the question box with `?question=`. It creates the thread and hands the first question over in `?ask=`, which the thread screen sends
   once and removes. Each question carries the browser's time zone.
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.

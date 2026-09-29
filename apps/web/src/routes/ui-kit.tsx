@@ -3,9 +3,12 @@ import { BrandIcon, BrandMark, Logo } from '../ui/brand.tsx';
 import { Button } from '../ui/button.tsx';
 import { Card } from '../ui/card.tsx';
 import { Combobox } from '../ui/combobox.tsx';
+import { Drawer } from '../ui/drawer.tsx';
+import { QuestionIcon } from '../ui/icons.tsx';
 import { Input } from '../ui/input.tsx';
 import { Page } from '../ui/page.tsx';
 import { Pill } from '../ui/pill.tsx';
+import { Popover } from '../ui/popover.tsx';
 import { RadioCards } from '../ui/radio-cards.tsx';
 import { Select } from '../ui/select.tsx';
 import { StatusDot } from '../ui/status-dot.tsx';
@@ -251,6 +254,28 @@ function BrandSample() {
 }
 
 /**
+ * A popover and a drawer, each behind its button.
+ *
+ * @returns The card.
+ */
+function Overlays() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card title="Overlays" description="A bubble by a title, and a drawer for long lists.">
+      <div className={styles.row}>
+        <Popover label="About this sample" trigger={<QuestionIcon />}>
+          A popover closes on Escape or a click outside.
+        </Popover>
+        <Button onClick={() => setOpen(true)}>Open drawer</Button>
+      </div>
+      <Drawer open={open} onClose={() => setOpen(false)} title="Drawer">
+        <p>From the right, or from the top on a phone.</p>
+      </Drawer>
+    </Card>
+  );
+}
+
+/**
  * Every `ui/` primitive in querent's visual language, for checking them in one place.
  *
  * @returns The screen.
@@ -264,6 +289,7 @@ export function UiKitRoute() {
         <TabsSample />
         <FormControls />
         <ChoicesAndStatuses />
+        <Overlays />
         <Card
           title="Dashed card"
           variant="dashed"

@@ -21,8 +21,8 @@ import {
   restoreVersionEndpoint,
   startFromPinnedEndpoint,
   type ThreadDetail,
+  type ThreadListItem,
   type ThreadQueries,
-  type ThreadSummary,
 } from '@querent/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
@@ -112,10 +112,10 @@ export function loadThread(api: ApiClient) {
   };
 }
 
-/** What the new-thread screen shows: the recent threads, and the providers a thread may use. */
+/** What the new-thread screen shows: the past threads, and the providers a thread may use. */
 export interface NewThreadData {
-  /** The recent threads, the latest first. */
-  readonly threads: readonly ThreadSummary[];
+  /** Every past thread, the latest first, each marked when its dashboard is pinned. */
+  readonly threads: readonly ThreadListItem[];
   /** The providers a thread may use. */
   readonly providers: readonly ProviderChoice[];
   /** The default provider. */
@@ -125,7 +125,7 @@ export interface NewThreadData {
 }
 
 /**
- * The loader of the new-thread screen: the recent threads and the providers.
+ * The loader of the new-thread screen: the past threads and the providers.
  *
  * @param api - The API client.
  * @returns The loader.
@@ -138,7 +138,7 @@ export function loadRecentThreads(api: ApiClient) {
       api.call(listProviderChoicesEndpoint, undefined, options),
       api.call(listQueryChoicesEndpoint, undefined, options),
     ]);
-    return { threads: threads.slice(0, 12), ...choices, queries };
+    return { threads, ...choices, queries };
   };
 }
 

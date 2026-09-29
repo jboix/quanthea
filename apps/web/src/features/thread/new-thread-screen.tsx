@@ -10,9 +10,9 @@ import {
 import { type SubmitTarget, useLoaderData, useSearchParams, useSubmit } from 'react-router';
 import { Select } from '../../ui/select.tsx';
 import type { NewThreadData, NewThreadIntent } from './data.ts';
-import { HistoryMenu } from './history-menu.tsx';
 import styles from './new-thread.module.css';
 import { QueryModeMenu, QueryPicker, useQueryChoice } from './query-choice.tsx';
+import { ThreadsDrawer } from './threads-drawer.tsx';
 
 /**
  * The question box's behaviour: it starts with `?question=` when a link fills it in, Enter sends,
@@ -166,7 +166,7 @@ export function NewThreadScreen() {
   return (
     <div className={styles.screen}>
       <header className={styles.top}>
-        <HistoryMenu threads={threads} />
+        <ThreadsDrawer threads={threads} />
       </header>
       <div className={styles.center}>
         <h1 className={styles.heading}>What do you want to see?</h1>
