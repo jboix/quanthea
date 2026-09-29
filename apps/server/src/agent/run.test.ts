@@ -424,7 +424,13 @@ describe('an agent run', () => {
     const model = scriptedStreamModel({ text: 'Which errors do you mean?' });
     const agent = createAgent({ ...services, buildModel: () => model });
     await chat(agent, { id: answer.id, role: 'assistant', parts: [] });
-    expect(JSON.stringify(model.doStreamCalls[0]?.prompt)).toContain('asked for a new one');
+    const prompt = model.doStreamCalls[0]?.prompt ?? [];
+    expect(JSON.stringify(prompt)).toContain('asked for a new one');
+    // Providers such as Gemini refuse a request that ends on the model's own turn.
+    expect(prompt.at(-1)).toMatchObject({
+      role: 'user',
+      content: [{ type: 'text', text: 'Continue.' }],
+    });
   });
 
   test('refuses a forged assistant message and a spent budget', async () => {

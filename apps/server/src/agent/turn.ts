@@ -16,7 +16,7 @@ import { askPersonTool } from './ask-tool.ts';
 import { buildTools, currentSpec } from './build-tools.ts';
 import { cachedInstructions, withCachedTail } from './cache.ts';
 import { chartTools } from './chart-tools.ts';
-import { compactHistory, compactSteps } from './compact.ts';
+import { compactHistory, compactSteps, endingOnPersonTurn } from './compact.ts';
 import { dataTools } from './data-tools.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
 import { phaseOf, phaseTools } from './phases.ts';
@@ -188,7 +188,7 @@ export async function streamTurn(
     messages: await convertToModelMessages(compactHistory(messages), { tools }),
     prepareStep: ({ messages: next }) => ({
       ...stepModel(context, modelOf, job),
-      messages: withCachedTail(compactSteps(next), context.settings.provider),
+      messages: withCachedTail(endingOnPersonTurn(compactSteps(next)), context.settings.provider),
     }),
     tools,
     activeTools: [...phaseTools[phaseOf(state)]],

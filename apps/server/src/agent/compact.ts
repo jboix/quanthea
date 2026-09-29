@@ -153,6 +153,19 @@ export function compactSteps(messages: readonly ModelMessage[]): ModelMessage[] 
   });
 }
 
+/**
+ * The messages ending on the person's turn. A run that continues an answer, after a plan
+ * decision or a choice on a card, would end on the model's own turn, which several providers
+ * refuse; the instructions already say what comes next, so the person's turn only says to go on.
+ *
+ * @param messages - The messages a step would send.
+ * @returns The messages, with a short turn of the person when the last one is the model's.
+ */
+export function endingOnPersonTurn(messages: readonly ModelMessage[]): ModelMessage[] {
+  if (messages.at(-1)?.role !== 'assistant') return [...messages];
+  return [...messages, { role: 'user', content: 'Continue.' }];
+}
+
 /** A plan's status. */
 type PlanStatus = PlanView['status'];
 
