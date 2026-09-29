@@ -4,7 +4,10 @@ import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import type { Agent } from './agent/run.ts';
 import type { Authenticator } from './auth/authenticator.ts';
+import type { PasswordAccounts } from './auth/password-accounts.ts';
 import type { Sessions } from './auth/sessions.ts';
+import type { UserAdminDependencies } from './auth/user-admin.ts';
+import type { Users } from './auth/users.ts';
 import type { Connections } from './connections/connections.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
 import type { ModelView } from './gate/model-view.ts';
@@ -27,6 +30,7 @@ import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
 import { mountThreadEndpoints } from './http/routes/thread-routes.ts';
 import { mountUsageEndpoints } from './http/routes/usage-routes.ts';
+import { mountUserEndpoints } from './http/routes/user-routes.ts';
 import { noStoreApi, securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
@@ -48,6 +52,14 @@ export interface AppDependencies {
   readonly publicUrl: string | undefined;
   /** Sessions, when the session key is set. */
   readonly sessions: Sessions | undefined;
+  /** Password accounts, when the session key and the pepper are set. */
+  readonly passwords: PasswordAccounts | undefined;
+  /** The users. */
+  readonly users: Users;
+  /** What changing a user needs. */
+  readonly userAdmin: UserAdminDependencies;
+  /** How many proxies in front of querent append to `X-Forwarded-For`. */
+  readonly trustedProxyHops: number;
   /** Receives request and error logs. */
   readonly logger: Logger;
   /** The directory holding the built SPA. */
@@ -85,7 +97,11 @@ export interface AppDependencies {
  * @param dependencies - The services the routes use.
  */
 function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
-  mountAuthRoutes(app, dependencies.sessions);
+  mountAuthRoutes(app, {
+    ...dependencies,
+    mode: dependencies.authenticator.mode,
+  });
+  mountUserEndpoints(app, dependencies);
   mountSystemRoutes(app, {
     version: dependencies.version,
     authMode: dependencies.authenticator.mode,

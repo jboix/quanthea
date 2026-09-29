@@ -39,6 +39,7 @@ const dependencies = {
   settings,
   emailIndex: keys.emailIndex,
   sessionHashes: keys.sessionHashes,
+  peppers: keys.peppers,
 };
 const resealed = await resealSecrets(dependencies);
 if (resealed > 0) logger.info('sealed secrets again with the current key', { resealed });
@@ -56,6 +57,7 @@ const app = createApp({
   logger,
   webDir: config.webDir,
   publicUrl: config.publicUrl,
+  trustedProxyHops: config.trustedProxyHops,
   ...services,
 });
 const stopPurgeJob = startPurgeJob({ ...services, logger });

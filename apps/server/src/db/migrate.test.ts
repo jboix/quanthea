@@ -70,6 +70,7 @@ describe('runMigrations', () => {
       '0009-every-version-is-immutable.sql',
       '0010-thread-bin.sql',
       '0011-users-and-sessions.sql',
+      '0012-password-links.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
@@ -85,6 +86,7 @@ describe('runMigrations', () => {
       'library_fts_idx',
       'messages',
       'migrations',
+      'password_links',
       'plans',
       'schema_cache',
       'sessions',

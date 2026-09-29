@@ -79,7 +79,7 @@ describe('loading the keys', () => {
     );
     expect(ring.secretKeyOrigin).toBe('configured');
     expect(ring.sessionHashes).toBeDefined();
-    expect(ring.pepper?.length).toBe(32);
+    expect(ring.peppers?.current.id).toHaveLength(8);
     expect(lines).toEqual([]);
     expect(() => statSync(join(dataDir.path, 'secret.key'))).toThrow();
   });

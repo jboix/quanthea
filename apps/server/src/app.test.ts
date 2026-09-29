@@ -40,6 +40,7 @@ function buildApp() {
     authenticator: fixedAuthenticator(anonymousAdmin),
     logger: captureLogs().logger,
     publicUrl: undefined,
+    trustedProxyHops: 0,
     webDir: webDir.path,
     ...services,
   });
@@ -82,6 +83,8 @@ describe('route access', () => {
     expect(publicRoutes.sort()).toEqual([
       'GET /api/health',
       'GET /api/me',
+      'POST /api/auth/set-password',
+      'POST /api/auth/sign-in',
       'POST /api/auth/sign-out',
     ]);
   });

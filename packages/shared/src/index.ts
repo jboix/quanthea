@@ -1,6 +1,11 @@
 /** The public surface of `@querent/shared`. */
 
-export { signOutEndpoint } from './api/auth.ts';
+export {
+  changePasswordEndpoint,
+  setPasswordEndpoint,
+  signInEndpoint,
+  signOutEndpoint,
+} from './api/auth.ts';
 export {
   type BinnedThread,
   binnedThreadSchema,
@@ -136,6 +141,15 @@ export {
   usageReportEndpoint,
   usageReportSchema,
 } from './api/usage.ts';
+export {
+  endUserSessionsEndpoint,
+  inviteUserEndpoint,
+  listUsersEndpoint,
+  resetLinkEndpoint,
+  type UserView,
+  updateUserEndpoint,
+  userSchema,
+} from './api/users.ts';
 export { chartIndex, chartRecipe, chartRecipes } from './chart-recipes/catalogue.ts';
 export { type ChartUnit, chartUnits, unitFormatter } from './chart-recipes/conventions.ts';
 export { type ChartChoice, fillView } from './chart-recipes/fill.ts';

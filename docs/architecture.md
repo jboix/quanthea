@@ -821,7 +821,9 @@ indicative; the contract files are the source of truth.
 | ------------------------------------------------------------------------------------------------- | -------------------------------------------- | -------- |
 | `GET /health`                                                                                     | liveness + version                           | public   |
 | `GET /me`                                                                                         | principal, role, auth mode                   | public   |
-| `POST /auth/login`, `POST /auth/logout`, `GET /auth/oidc/start`, `GET /auth/oidc/callback`        | sessions                                     | public   |
+| `POST /auth/sign-in`, `/auth/set-password`, `/auth/sign-out`                                      | sessions and passwords                       | public   |
+| `POST /auth/change-password`                                                                      | change one's own password                    | viewer   |
+| `GET/POST /users`, `PATCH /users/:id`, `POST /users/:id/reset-link`, `DELETE /users/:id/sessions` | users                                        | admin    |
 | `GET /threads` (each marked `pinned`), `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id` | threads; delete moves to the bin             | editor   |
 | `POST /threads/:id/chat`                                                                          | streamed agent run                           | editor   |
 | `POST /threads/:id/plans/:planId/approve` · `/reject`                                             | plan decisions                               | editor   |
@@ -887,6 +889,30 @@ with the keys and `QUERENT_PUBLIC_URL` it needs (see "Keys").
   id, so a copy of the database gives no usable session. A session ends after 24 hours without a
   request or 7 days after it began; its last request is written at most once a minute. A cookie
   that appears twice is refused. The purge job deletes ended sessions every hour.
+- **Passwords** (`auth/passwords.ts`): a password goes through an HMAC under the pepper, then
+  argon2id (64 MiB, 3 passes). Without the pepper, which never reaches the database, no guess can
+  be checked against a stolen hash. A hash made with other costs or the previous pepper is made
+  again at the next sign-in. A new password needs 12 to 256 characters, at least 5 different ones,
+  must not be a well-known one, and must not hold the person's name or email.
+- **Sign-in** (`auth/password-accounts.ts`, `POST /api/auth/sign-in`, public): every failure
+  answers "Wrong email or password." after the same argon2id work, for an unknown email, a
+  disabled user or a user without a password too (a dummy hash is checked). Failures count
+  against the account and the IP address (`auth/throttle.ts`): past 5 failures for an account, or
+  20 for an address, each attempt waits, from one minute and doubling, up to an hour for an
+  account and 15 minutes for an address. Nothing ever locks an account for good. The throttle is
+  kept in memory. The address comes from the socket, or from `X-Forwarded-For` as far as
+  `QUERENT_TRUSTED_PROXY_HOPS` proxies go.
+- **Links** (table `password_links`): an admin invites a user (`POST /api/users`) or makes a
+  reset link (`POST /api/users/:id/reset-link`). The token is 32 random bytes, stored as a keyed
+  hash, and sits after the `#` of `/set-password#…`, so it never reaches a server log or a
+  `Referer`. An invite works 72 hours, a reset 24; a new link replaces the user's earlier ones.
+  `POST /api/auth/set-password` (public) checks the new password before using the link up, then
+  sets it, ends the user's sessions and signs them in.
+- `POST /api/auth/change-password` (signed in) checks the current password (throttled by
+  account), ends all the person's sessions and starts a new one.
+- **Users admin** (`/api/users`, admin): list, invite, change the role or disable
+  (`auth/user-admin.ts`), make a reset link, end a user's sessions. querent always keeps one
+  enabled admin; a disabled user's sessions end at once.
 - `POST /api/auth/sign-out` (public) ends the session and clears the cookie. Signing out is never
   a GET, so no link or image can do it.
 - **CSRF** (`http/csrf.ts`): every `/api` request that is not a GET, HEAD or OPTIONS needs

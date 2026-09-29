@@ -57,10 +57,24 @@ export interface KeyRing {
   readonly emailIndex: KeyedHash;
   /** The session key's derived hashes, when it is set. */
   readonly sessionHashes: SessionHashes | undefined;
-  /** Mixed into every password hash. */
-  readonly pepper: Key | undefined;
-  /** The pepper being rotated out. */
-  readonly pepperPrevious: Key | undefined;
+  /** The peppers mixed into password hashes, when the pepper is set. */
+  readonly peppers: Peppers | undefined;
+}
+
+/** A pepper: the keyed hash a password goes through before argon2id, and its id. */
+export interface Pepper {
+  /** A short id, stored with each password hash to say which pepper made it. */
+  readonly id: string;
+  /** The keyed hash. */
+  readonly hash: KeyedHash;
+}
+
+/** The current pepper, and the one being rotated out. */
+export interface Peppers {
+  /** The pepper new hashes use. */
+  readonly current: Pepper;
+  /** The pepper being rotated out; its hashes still verify, and are made again. */
+  readonly previous: Pepper | undefined;
 }
 
 /** The keyed hashes derived from the session key. */
@@ -212,6 +226,31 @@ async function sessionHashesOf(session: Key): Promise<SessionHashes> {
 }
 
 /**
+ * A pepper from its key.
+ *
+ * @param key - The pepper key.
+ * @returns The pepper.
+ */
+async function pepperOf(key: Key): Promise<Pepper> {
+  const hash = await keyedHash(key, 'querent/password-pepper/v1');
+  const id = Buffer.from(await hash.hash('querent/pepper-id'))
+    .toString('hex')
+    .slice(0, 8);
+  return { id, hash };
+}
+
+/**
+ * The peppers from their keys.
+ *
+ * @param current - The current pepper key.
+ * @param previous - The pepper key being rotated out, if any.
+ * @returns The peppers.
+ */
+async function peppersOf(current: Key, previous: Key | undefined): Promise<Peppers> {
+  return { current: await pepperOf(current), previous: previous && (await pepperOf(previous)) };
+}
+
+/**
  * Reads and checks every key, and opens the secret box.
  *
  * @param sources - The key inputs, the data directory and the logger.
@@ -235,7 +274,6 @@ export async function loadKeys(sources: KeySources): Promise<KeyRing> {
     secretKeyOrigin: inDataDir ? 'data-dir' : 'configured',
     emailIndex: await keyedHash(secret, 'querent/email-index/v1'),
     sessionHashes: read.session ? await sessionHashesOf(read.session) : undefined,
-    pepper: read.pepper,
-    pepperPrevious: read.pepperPrevious,
+    peppers: read.pepper ? await peppersOf(read.pepper, read.pepperPrevious) : undefined,
   };
 }

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Principal } from '@querent/shared';
 import type { Authenticator } from '../auth/authenticator.ts';
+import type { HashCosts } from '../auth/passwords.ts';
 import type { AnyConnectorKind } from '../connectors/_shared/index.ts';
 import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
 import { openDatabase } from '../db/database.ts';
@@ -11,7 +12,7 @@ import { runMigrations } from '../db/migrate.ts';
 import { createSettingsRepository } from '../db/settings-repository.ts';
 import { createLogger, type Logger } from '../lib/logger.ts';
 import { type KeyedHash, keyedHash } from '../secrets/keyed-hash.ts';
-import type { SessionHashes } from '../secrets/keys.ts';
+import type { Peppers, SessionHashes } from '../secrets/keys.ts';
 import { openSecretBox, type SecretBox } from '../secrets/secret-box.ts';
 import { createServices, type Services } from '../services.ts';
 import { createSettingsStore } from '../settings/settings-store.ts';
@@ -61,16 +62,22 @@ export function testSecretBox(): Promise<SecretBox> {
 }
 
 /**
- * The email index and session hashes, over fresh random keys.
+ * The email index, session hashes and peppers, over fresh random keys, and cheap hash costs.
  *
  * @returns The keyed hashes.
  */
 export async function testKeyedHashes(): Promise<{
   emailIndex: KeyedHash;
   sessionHashes: SessionHashes;
+  peppers: Peppers;
+  passwordCosts: HashCosts;
 }> {
   const key = () => crypto.getRandomValues(new Uint8Array(32));
+  const pepper = await keyedHash(key(), 'querent/password-pepper/v1');
   return {
+    peppers: { current: { id: 'pepper-1', hash: pepper }, previous: undefined },
+    // Cheap argon2id costs keep tests fast; the server uses 64 MiB and 3 passes.
+    passwordCosts: { memoryCost: 1024, timeCost: 1 },
     emailIndex: await keyedHash(key(), 'querent/email-index/v1'),
     sessionHashes: {
       signature: await keyedHash(key(), 'querent/session-signature/v1'),

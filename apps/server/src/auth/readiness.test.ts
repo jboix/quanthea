@@ -18,8 +18,7 @@ async function keyRing(ring: Partial<KeyRing>): Promise<KeyRing> {
     secretKeyOrigin: 'configured',
     emailIndex: hash,
     sessionHashes: { signature: hash, idHash: hash, tokenHash: hash },
-    pepper: key,
-    pepperPrevious: undefined,
+    peppers: { current: { id: 'p1', hash }, previous: undefined },
     ...ring,
   };
 }
@@ -34,7 +33,7 @@ describe('what accounts mode needs', () => {
     const ring = await keyRing({
       secretKeyOrigin: 'data-dir',
       sessionHashes: undefined,
-      pepper: undefined,
+      peppers: undefined,
     });
     const problems = accountsProblems({ publicUrl: undefined }, ring).join(' ');
     for (const name of [

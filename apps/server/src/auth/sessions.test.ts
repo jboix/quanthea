@@ -133,6 +133,7 @@ describe('sessions', () => {
       logger: captureLogs().logger,
       webDir: dataDir.path,
       publicUrl: 'https://querent.test',
+      trustedProxyHops: 0,
       ...services,
     });
     const response = await app.request('https://querent.test/api/auth/sign-out', {

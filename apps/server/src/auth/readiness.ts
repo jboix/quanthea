@@ -20,7 +20,7 @@ export function accountsProblems(config: Pick<Config, 'publicUrl'>, keys: KeyRin
     keys.sessionHashes === undefined
       ? 'Set QUERENT_SESSION_KEY (or QUERENT_SESSION_KEY_FILE).'
       : undefined,
-    keys.pepper === undefined
+    keys.peppers === undefined
       ? 'Set QUERENT_PASSWORD_PEPPER (or QUERENT_PASSWORD_PEPPER_FILE).'
       : undefined,
     config.publicUrl === undefined

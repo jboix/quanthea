@@ -7,6 +7,7 @@ export const apiErrorCodes = [
   'unauthorized',
   'forbidden',
   'not_found',
+  'rate_limited',
   'source_failed',
   'internal',
 ] as const;

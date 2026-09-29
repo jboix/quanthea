@@ -108,6 +108,7 @@ describe.skipIf(!integrationEnabled)('the checkout incident fixture, with no mod
       authenticator: fixedAuthenticator(viewer),
       logger: captureLogs().logger,
       publicUrl: undefined,
+      trustedProxyHops: 0,
       webDir: dataDir.path,
       ...services,
     });

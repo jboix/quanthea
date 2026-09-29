@@ -6,8 +6,12 @@
 import type { DashboardSpec } from '@querent/shared';
 import { createMetadataWriter, type PinMetadata } from './agent/metadata.ts';
 import { type Agent, createAgent } from './agent/run.ts';
+import { createPasswordAccounts, type PasswordAccounts } from './auth/password-accounts.ts';
+import type { HashCosts } from './auth/passwords.ts';
 import { resealUsers } from './auth/reseal-users.ts';
 import { createSessions, type Sessions } from './auth/sessions.ts';
+import { accountRule, addressRule, createThrottle } from './auth/throttle.ts';
+import type { UserAdminDependencies } from './auth/user-admin.ts';
 import { createUsers, type Users } from './auth/users.ts';
 import { type Connections, createConnections } from './connections/connections.ts';
 import { resealConnectors } from './connections/reseal.ts';
@@ -17,16 +21,17 @@ import { createAuditRepository } from './db/audit-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import type { openDatabase } from './db/database.ts';
+import { createPasswordLinkRepository } from './db/password-link-repository.ts';
 import { createSessionRepository } from './db/session-repository.ts';
 import { createThreadBinRepository } from './db/thread-bin.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
-import { createUserRepository } from './db/user-repository.ts';
+import { createUserRepository, type UserRepository } from './db/user-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
 import type { KeyedHash } from './secrets/keyed-hash.ts';
-import type { SessionHashes } from './secrets/keys.ts';
+import type { Peppers, SessionHashes } from './secrets/keys.ts';
 import type { SecretBox } from './secrets/secret-box.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
 import {
@@ -58,6 +63,10 @@ export interface ServiceDependencies {
   readonly emailIndex: KeyedHash;
   /** The session key's hashes; without them there are no sessions, as in `none` mode. */
   readonly sessionHashes: SessionHashes | undefined;
+  /** The peppers; without them there are no passwords. */
+  readonly peppers: Peppers | undefined;
+  /** The argon2id costs; lower in tests only. */
+  readonly passwordCosts?: HashCosts;
   /** The clock of the users and sessions; `Date.now` by default. */
   readonly now?: () => number;
 }
@@ -78,6 +87,10 @@ export interface Services {
   readonly users: Users;
   /** Sessions, when the session key is set. */
   readonly sessions: Sessions | undefined;
+  /** Password accounts, when the session key and the pepper are set. */
+  readonly passwords: PasswordAccounts | undefined;
+  /** What changing a user needs. */
+  readonly userAdmin: UserAdminDependencies;
   /** The bin of threads. */
   readonly bin: ThreadBin;
   /**
@@ -192,7 +205,43 @@ function accountServices(
   const sessionRepository = createSessionRepository(database);
   const sessions =
     sessionHashes && createSessions({ repository: sessionRepository, ...sessionHashes, ...clock });
-  return { users, sessions };
+  const passwords = passwordServices(dependencies, { users: repository, sessions, audit });
+  return { users, sessions, passwords, userAdmin: { repository, sessions, audit, ...clock } };
+}
+
+/**
+ * Password accounts, when the session key and the pepper are set.
+ *
+ * @param dependencies - The database, the secret box, the keys, the costs and the clock.
+ * @param parts - The users, the sessions and the audit log.
+ * @param parts.users - The users' repository.
+ * @param parts.sessions - The sessions, if any.
+ * @param parts.audit - The audit log.
+ * @returns The password accounts, or `undefined`.
+ */
+function passwordServices(
+  dependencies: ServiceDependencies,
+  parts: {
+    users: UserRepository;
+    sessions: Sessions | undefined;
+    audit: ReturnType<typeof createAuditRepository>;
+  },
+): PasswordAccounts | undefined {
+  const { sessionHashes, peppers, now } = dependencies;
+  if (!sessionHashes || !peppers || !parts.sessions) return undefined;
+  return createPasswordAccounts({
+    ...parts,
+    sessions: parts.sessions,
+    secretBox: dependencies.secretBox,
+    emailIndex: dependencies.emailIndex,
+    links: createPasswordLinkRepository(dependencies.database),
+    tokenHash: sessionHashes.tokenHash,
+    peppers,
+    addresses: createThrottle(addressRule, now),
+    accounts: createThrottle(accountRule, now),
+    ...(dependencies.passwordCosts ? { costs: dependencies.passwordCosts } : {}),
+    ...(now ? { now } : {}),
+  });
 }
 
 /**
