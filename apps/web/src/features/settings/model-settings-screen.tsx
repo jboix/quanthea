@@ -139,7 +139,7 @@ function UsageCard({ usage }: { readonly usage: ModelSettingsView['usage'] }) {
     ['Threads', usage.threads.toLocaleString('en')],
     ['Tokens', usage.tokens.toLocaleString('en')],
     ['List-price cost', usage.dollars === 0 ? '$0' : dollars.format(usage.dollars)],
-    ['Pinned views', `${usage.pinnedViews.toLocaleString('en')} · 0 tokens`],
+    ['Pinned views', usage.pinnedViews.toLocaleString('en')],
   ];
   return (
     <Card title="This month" actions={<Link to="/settings/usage">See usage</Link>}>
