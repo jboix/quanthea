@@ -10,7 +10,7 @@ Read this fully before writing code. Then read the design docs:
 
 querent is a self-hosted web app. You describe a dashboard in a chat, an agent builds it against
 your data sources (Prometheus, Postgres, OpenSearch, HTTP APIs), you refine it in the same thread,
-and you pin the good ones. Pinned dashboards are immutable, searchable, and render without any
+and you pin the good ones. Pinned dashboards are versioned, searchable, and render without any
 model involved.
 
 ## Commands
@@ -54,7 +54,7 @@ Module boundaries are in the architecture doc, section 3 and 4, and in `.depende
 - The browser never sends a query. Variables are bound, never concatenated.
 - No dashboard ownership. Roles are admin, editor and viewer. Every `/api` route declares
   its access (`'public'` or a minimum role) through `mountEndpoint`, and a test fails otherwise.
-- Pinned is immutable. Deleting moves to a bin.
+- Versions are never rewritten. Pinning chooses the version shown, and any version can be pinned.
 - TypeScript stays on 6.0.x. No path aliases: relative imports inside a workspace,
   package names across workspaces.
 - Library versions are newer than most training data. Read the installed type definitions or the

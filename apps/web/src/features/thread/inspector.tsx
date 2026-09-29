@@ -1,7 +1,7 @@
 import type { DashboardDetail, DashboardSpec, Panel } from '@querent/shared';
 import { useState } from 'react';
 import { Tabs } from '../../ui/tabs.tsx';
-import { usePanelRunData } from '../dashboard/index.ts';
+import { usePanelRunData, versionNote } from '../dashboard/index.ts';
 import styles from './inspector.module.css';
 import { shapeOf } from './messages.ts';
 
@@ -110,7 +110,7 @@ function HistoryTab({
             className={styles.versionButton}
             onClick={() => onShowVersion(each.version)}
           >
-            v{each.version} · {each.pinnedAt === null ? (each.changeSummary ?? 'draft') : 'pinned'}
+            v{each.version} · {versionNote(each, dashboard.pinnedVersion)}
           </button>
         </li>
       ))}

@@ -101,6 +101,25 @@
   color: var(--color-ink-secondary);
 }
 
+.popoverBody[data-busy="true"] {
+  opacity: 0.6;
+}
+
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.unpin {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 12.5px;
+}
+
 .headerActions {
   display: flex;
   flex-wrap: wrap;
@@ -168,6 +187,14 @@
   border: 2px solid var(--color-switch-off);
   border-radius: 50%;
   content: "";
+}
+
+.history li > button {
+  margin-left: auto;
+}
+
+.history li[data-pinned="true"] {
+  font-weight: 600;
 }
 
 .history li[data-current="true"]::before {

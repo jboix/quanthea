@@ -1,6 +1,5 @@
-import { hasRole, type Role } from '@querent/shared';
 import { useEffect, useState } from 'react';
-import { Link, useLoaderData, useLocation, useRouteLoaderData } from 'react-router';
+import { Link, useLoaderData, useLocation } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
 import { LockIcon, ThreadsIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
@@ -8,6 +7,8 @@ import { DashboardCanvas } from './canvas.tsx';
 import styles from './dashboard.module.css';
 import { AboutPopover, HistoryPopover } from './dashboard-about.tsx';
 import type { DashboardData } from './data.ts';
+import { useCanEdit } from './use-can-edit.ts';
+import { versionNote } from './version-note.ts';
 
 /**
  * Copies the page's address, and says so for two seconds.
@@ -32,8 +33,8 @@ function CopyLinkButton() {
  * @returns The link, or nothing.
  */
 function ThreadLink({ threadId }: { readonly threadId: string | null }) {
-  const session = useRouteLoaderData('root') as { principal: { role: Role } } | undefined;
-  if (threadId === null || !session || !hasRole(session.principal.role, 'editor')) return null;
+  const canEdit = useCanEdit();
+  if (threadId === null || !canEdit) return null;
   return (
     <Link to={`/threads/${threadId}`} className={buttonClassName('secondary')}>
       <ThreadsIcon /> Open thread
@@ -50,19 +51,21 @@ function ThreadLink({ threadId }: { readonly threadId: string | null }) {
  */
 function DashboardHeader(props: DashboardData) {
   const { version, dashboard } = props;
-  const pinned = version.pinnedAt !== null;
+  const shown = version.version === dashboard.pinnedVersion;
+  const note = versionNote(version, dashboard.pinnedVersion);
   return (
     <header className={styles.header}>
       <div className={styles.headerText}>
         <nav aria-label="Breadcrumb" className={styles.crumbs}>
-          <Link to="/library">Library</Link> / {pinned ? 'pinned' : 'draft'}
+          <Link to="/library">Library</Link> /{' '}
+          {dashboard.pinnedVersion === null ? 'not pinned' : 'pinned'}
         </nav>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{version.spec.title}</h1>
           <AboutPopover {...props} />
-          <Pill mono tone={pinned ? 'neutral' : 'draft'}>
-            {pinned && <LockIcon />}
-            {pinned ? `pinned · v${version.version} · read-only` : `draft · v${version.version}`}
+          <Pill mono tone={version.pinnedAt === null ? 'draft' : 'neutral'}>
+            {shown && <LockIcon />}
+            {`v${version.version} · ${version.pinnedAt === null ? 'draft' : note}`}
           </Pill>
         </div>
       </div>

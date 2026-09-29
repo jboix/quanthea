@@ -175,7 +175,7 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/`                                                        | redirect → `/library` (viewer) or `/threads/new` (editor+) | viewer   |
 | `/threads/new`, `/threads/:threadId`                       | Plan, Build and refine, Variant                            | editor   |
 | `/library`                                                 | Library: search pinned dashboards and their panels         | viewer   |
-| `/d/:dashboardId`                                          | Pinned view, latest pinned version                         | viewer   |
+| `/d/:dashboardId`                                          | the pinned version; for editors, the latest if unpinned    | viewer   |
 | `/d/:dashboardId/v/:version`                               | a specific version                                         | viewer   |
 | `/d/:dashboardId/v/:version/panels/:panelId`               | resource route: one panel's run, for fetchers              | viewer   |
 | `/d/:dashboardId/v/:version/options/:name`                 | resource route: a variable's options, for fetchers         | viewer   |
@@ -258,7 +258,8 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
 1. The dashboard pane knows `{dashboardId, version}`, the variable values and the time range
    (`now-6h`, or ISO timestamps).
 2. For each panel: `POST /api/panels/run {dashboardId, version, panelId, variables, time}`.
-3. The server loads the spec. Viewers may run pinned versions only; a draft is "not found" to them.
+3. The server loads the spec. Viewers may run versions pinned at some time, while the dashboard is
+   pinned; anything else is "not found" to them.
 4. `dashboards/` resolves the time range and the variables against the spec's declarations: a
    custom value must be an option, a single-value variable takes one value, a text value must
    match its pattern. Query-backed values are bound as they come, since binding is safe; "All"
@@ -273,18 +274,33 @@ Panels run in parallel. Each query has its own outcome with a safe error message
 query never fails the rest of the panel, and one failing panel never blanks the dashboard.
 `POST /api/variables/options` lists a query-backed variable's options the same way.
 
-### 5.3 Pin
+### 5.3 Pin and unpin
 
-`POST /api/dashboards/:id/pin {version}` (editor+):
+Versions are the immutable part: none is ever rewritten, and a trigger enforces it for every
+version. Pinning chooses the version the library, the dashboard's link and viewers see
+(`dashboards.pinned_version_id`). The thread can keep adding versions to a pinned dashboard; they
+stay drafts until one is pinned.
+
+`POST /api/dashboards/:id/pin {version}` (editor+) accepts any version, including one pinned
+before, so pinning an earlier version rolls the library back. It refuses the version already
+shown.
 
 1. Validate the version again (connectors may have changed) and test-run every panel with the
    default variables. A dashboard with a failing query can't be pinned; the refusal lists each
    failing query by path.
 2. The _metadata_ model writes the title, description and tags. **This is best effort**: if the
    model is unavailable, pin anyway with the thread title and let tags be empty.
-3. Mark the version pinned (the SQLite trigger now blocks updates to it), set
-   `dashboards.pinned_version_id`. A trigger on `dashboards` rewrites the dashboard's rows in the
-   library index.
+3. Set `dashboards.pinned_version_id` and the dashboard's title and description from the version.
+   The version keeps `pinned_at`, the time it was first pinned. A trigger on `dashboards` rewrites
+   the dashboard's rows in the library index.
+
+`POST /api/dashboards/:id/unpin` (editor+) clears `pinned_version_id`. The dashboard leaves the
+library, and viewers get "not found" for it and all its versions. Editors still open every
+version.
+
+The dashboard's History lists the versions: the one pinned, the ones pinned before, and drafts
+with their summary. Editors pin any other version or unpin from there. The thread's draft pane
+says which version the library shows, and pins the version it shows.
 
 ### 5.4 Make variant
 
@@ -731,11 +747,16 @@ CREATE TABLE dashboard_versions (
   pinned_at INTEGER, actor TEXT, created_at INTEGER NOT NULL,
   UNIQUE (dashboard_id, version));
 
--- pinned versions are immutable, whatever the application code does
-CREATE TRIGGER pinned_versions_are_immutable
+-- every version is immutable, whatever the application code does
+CREATE TRIGGER versions_are_immutable
 BEFORE UPDATE OF spec, version, dashboard_id ON dashboard_versions
+BEGIN SELECT RAISE(ABORT, 'dashboard versions are immutable'); END;
+
+-- pinned_at is the time a version was first pinned, set once
+CREATE TRIGGER first_pin_is_kept
+BEFORE UPDATE OF pinned_at ON dashboard_versions
 WHEN OLD.pinned_at IS NOT NULL
-BEGIN SELECT RAISE(ABORT, 'pinned dashboard versions are immutable'); END;
+BEGIN SELECT RAISE(ABORT, 'a version keeps the time it was first pinned'); END;
 
 -- the library index: filled from the view library_documents by triggers on dashboards
 CREATE VIRTUAL TABLE library_fts USING fts5(
@@ -783,7 +804,7 @@ indicative; the contract files are the source of truth.
 | `GET /dashboards` (search: `q`, `tags`, `connectors`)                                             | library                                      | viewer   |
 | `POST /dashboards` (a spec, becomes draft v1)                                                     | create from a spec                           | editor   |
 | `GET /dashboards/:id` (with its thread's id), `GET /dashboards/:id/versions/:v` (drafts: editor)  | spec                                         | viewer   |
-| `POST /dashboards/:id/pin`                                                                        | pin a version                                | editor   |
+| `POST /dashboards/:id/pin`, `POST /dashboards/:id/unpin`                                          | choose the version shown, or none            | editor   |
 | `POST /dashboards/:id/variants`                                                                   | new thread from a copy                       | editor   |
 | `POST /dashboards/:id/bin`                                                                        | move to bin                                  | editor   |
 | `GET /bin`, `POST /bin/:id/restore`                                                               | bin                                          | editor   |

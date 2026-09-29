@@ -23,6 +23,7 @@ import {
   type ThreadDetail,
   type ThreadListItem,
   type ThreadQueries,
+  unpinDashboardEndpoint,
 } from '@querent/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
@@ -41,8 +42,13 @@ export interface ThreadData {
 export type ThreadIntent =
   | { readonly intent: 'approve' | 'reject'; readonly planId: string }
   | { readonly intent: 'restore'; readonly version: number }
-  | { readonly intent: 'pin'; readonly version: number }
+  | DashboardIntent
   | { readonly intent: 'startFrom'; readonly dashboardId: string };
+
+/** What the thread screen asks of its dashboard: show a version in the library, or none. */
+type DashboardIntent =
+  | { readonly intent: 'pin'; readonly version: number }
+  | { readonly intent: 'unpin' };
 
 /** The outcome of an intent: done, or why not. */
 export type ThreadOutcome =
@@ -177,6 +183,25 @@ export function newThreadAction(api: ApiClient) {
 }
 
 /**
+ * Pins a version of the thread's dashboard, or unpins it.
+ *
+ * @param api - The API client.
+ * @param threadId - The thread.
+ * @param intent - Pin or unpin.
+ * @returns When it is done.
+ */
+async function runOnDashboard(
+  api: ApiClient,
+  threadId: string,
+  intent: DashboardIntent,
+): Promise<void> {
+  const { dashboardId } = await api.call(getThreadEndpoint, { params: { threadId } });
+  const params = { dashboardId: dashboardId ?? '' };
+  if (intent.intent === 'unpin') await api.call(unpinDashboardEndpoint, { params });
+  else await api.call(pinDashboardEndpoint, { params, body: { version: intent.version } });
+}
+
+/**
  * Runs one intent.
  *
  * @param api - The API client.
@@ -199,12 +224,8 @@ async function run(api: ApiClient, threadId: string, intent: ThreadIntent): Prom
     });
     return;
   }
-  if (intent.intent === 'pin') {
-    const { dashboardId } = await api.call(getThreadEndpoint, { params: { threadId } });
-    await api.call(pinDashboardEndpoint, {
-      params: { dashboardId: dashboardId ?? '' },
-      body: { version: intent.version },
-    });
+  if (intent.intent === 'pin' || intent.intent === 'unpin') {
+    await runOnDashboard(api, threadId, intent);
     return;
   }
   const endpoint = intent.intent === 'approve' ? approvePlanEndpoint : rejectPlanEndpoint;
@@ -212,7 +233,7 @@ async function run(api: ApiClient, threadId: string, intent: ThreadIntent): Prom
 }
 
 /**
- * The action of the thread screen: decide a plan, undo, or pin.
+ * The action of the thread screen: decide a plan, undo, pin or unpin.
  *
  * @param api - The API client.
  * @returns The action. A refusal comes back as a message, not the error page.

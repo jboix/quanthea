@@ -58,7 +58,7 @@ describe('dashboard repository', () => {
     expect(repository.getVersion(dashboard.id, 2)).toBeUndefined();
   });
 
-  test('pins a version once and records it on the dashboard', () => {
+  test('pins a version and records it on the dashboard', () => {
     const repository = createDashboardRepository(database);
     repository.create(dashboard, firstVersion);
     const change = {
@@ -76,30 +76,51 @@ describe('dashboard repository', () => {
       updatedAt: 2000,
     });
     expect(repository.getVersion(dashboard.id, 1)?.pinnedAt).toBe(2000);
-    expect(repository.pin(dashboard.id, { ...change, at: 3000 })).toBe(false);
     expect(repository.pin('another', change)).toBe(false);
   });
 
-  test('refuses to change or unpin a pinned version, whatever the code does', () => {
+  test('refuses to change any version, or its first pin time, whatever the code does', () => {
     const repository = createDashboardRepository(database);
     repository.create(dashboard, firstVersion);
-    repository.pin(dashboard.id, {
+    const attempts = [
+      "UPDATE dashboard_versions SET spec = '{}'",
+      'UPDATE dashboard_versions SET version = 9',
+    ];
+    for (const attempt of attempts) {
+      expect(() => database.run(attempt)).toThrow('dashboard versions are immutable');
+    }
+    const change = {
       versionId: firstVersion.id,
       at: 2000,
       title: 't',
       description: null,
       tags: [],
-    });
-    const attempts = [
-      "UPDATE dashboard_versions SET spec = '{}'",
-      'UPDATE dashboard_versions SET version = 9',
-      'UPDATE dashboard_versions SET pinned_at = NULL',
-    ];
-    for (const attempt of attempts) {
-      expect(() => database.run(attempt)).toThrow('pinned dashboard versions are immutable');
-    }
+    };
+    repository.pin(dashboard.id, change);
+    expect(() => database.run('UPDATE dashboard_versions SET pinned_at = NULL')).toThrow(
+      'a version keeps the time it was first pinned',
+    );
     database.run("UPDATE dashboard_versions SET change_summary = 'noted'");
     expect(repository.getVersion(dashboard.id, 1)?.spec).toEqual(firstVersion.spec);
+  });
+
+  test('pins a version again after unpinning, keeping its first pin time', () => {
+    const repository = createDashboardRepository(database);
+    repository.create(dashboard, firstVersion);
+    const change = {
+      versionId: firstVersion.id,
+      at: 2000,
+      title: 't',
+      description: null,
+      tags: [],
+    };
+    expect(repository.pin(dashboard.id, change)).toBe(true);
+    expect(repository.unpin(dashboard.id, 3000)).toBe(true);
+    expect(repository.unpin(dashboard.id, 3000)).toBe(false);
+    expect(repository.get(dashboard.id)?.pinnedVersionId).toBeNull();
+    expect(repository.pin(dashboard.id, { ...change, at: 4000 })).toBe(true);
+    expect(repository.get(dashboard.id)?.pinnedVersionId).toBe(firstVersion.id);
+    expect(repository.getVersion(dashboard.id, 1)?.pinnedAt).toBe(2000);
   });
 
   test('adds versions after the latest one and touches the dashboard', () => {

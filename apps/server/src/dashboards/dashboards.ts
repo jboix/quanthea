@@ -64,15 +64,25 @@ export interface Dashboards {
    */
   getVersion(id: string, version: number, role: Role): DashboardVersion;
   /**
-   * Pins a version, after validating it again and test-running every panel.
+   * Makes a version the one shown, after validating it again and test-running every panel. Any
+   * version can be pinned, including one pinned before.
    *
    * @param id - The dashboard id.
    * @param version - The version number.
    * @param actor - Who pins it.
    * @returns The dashboard.
-   * @throws {AppError} `bad_request` when it is pinned already, invalid, or a panel fails.
+   * @throws {AppError} `bad_request` when it is the one shown already, invalid, or a panel fails.
    */
   pin(id: string, version: number, actor: string): Promise<DashboardDetail>;
+  /**
+   * Stops showing any version: the dashboard leaves the library and viewers can no longer open it.
+   *
+   * @param id - The dashboard id.
+   * @param actor - Who unpins it.
+   * @returns The dashboard.
+   * @throws {AppError} `bad_request` when it is not pinned.
+   */
+  unpin(id: string, actor: string): DashboardDetail;
   /**
    * Runs one panel of a saved version.
    *
@@ -180,7 +190,8 @@ function create(
 }
 
 /**
- * Pins a version.
+ * Pins a version: from now on, the library, the dashboard's link and viewers show it. Any
+ * version can be pinned, including one pinned before, after its panels run again.
  *
  * @param context - The service context.
  * @param id - The dashboard id.
@@ -190,8 +201,8 @@ function create(
  */
 async function pin(context: ServiceContext, id: string, version: number, actor: string) {
   const row = visibleVersion(context, id, version, 'editor');
-  if (row.pinnedAt !== null)
-    throw new AppError('bad_request', `Version ${version} is pinned already.`);
+  if (context.repository.get(id)?.pinnedVersionId === row.id)
+    throw new AppError('bad_request', `Version ${version} is already the one shown.`);
   const spec = validOrRefuse(context, row.spec);
   const failures = failuresOf(spec, await testRunSpec(context, spec));
   if (failures.length > 0) refuseSpec('Some panels fail. Fix them before pinning.', failures);
@@ -203,8 +214,25 @@ async function pin(context: ServiceContext, id: string, version: number, actor: 
     tags: [],
   };
   if (!context.repository.pin(id, change))
-    throw new AppError('bad_request', `Version ${version} is pinned already.`);
+    throw new AppError('not_found', `Dashboard ${id} has no version ${version}.`);
   context.audit.append({ actor, action: 'dashboard.pin', target: id, detail: { version } });
+  return get(context, id, 'editor');
+}
+
+/**
+ * Stops showing any version: the dashboard leaves the library and viewers can no longer open it.
+ *
+ * @param context - The service context.
+ * @param id - The dashboard id.
+ * @param actor - Who unpins it.
+ * @returns The dashboard.
+ * @throws {AppError} `not_found` when it does not exist, `bad_request` when it is not pinned.
+ */
+function unpin(context: ServiceContext, id: string, actor: string): DashboardDetail {
+  get(context, id, 'editor');
+  if (!context.repository.unpin(id, context.now()))
+    throw new AppError('bad_request', 'The dashboard is not pinned.');
+  context.audit.append({ actor, action: 'dashboard.unpin', target: id });
   return get(context, id, 'editor');
 }
 
@@ -224,6 +252,7 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
       return { ...row, spec: dashboardSpecSchema.parse(row.spec) };
     },
     pin: (id, version, actor) => pin(context, id, version, actor),
+    unpin: (id, actor) => unpin(context, id, actor),
     runPanel: (target, panelId, role, signal) =>
       runPanel(context, specOf(context, target, role), panelId, target, signal),
     variableOptions: (target, name, role, signal) =>

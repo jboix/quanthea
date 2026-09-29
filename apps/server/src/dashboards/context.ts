@@ -3,6 +3,7 @@ import {
   type DashboardDetail,
   type DashboardSpec,
   dashboardSpecSchema,
+  hasRole,
   type Role,
 } from '@querent/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
@@ -84,7 +85,8 @@ export function visibleVersion(
   role: Role,
 ): VersionRow {
   const row = context.repository.getVersion(id, version);
-  if (!row || !canSee(row, role))
+  const pinned = context.repository.get(id)?.pinnedVersionId != null;
+  if (!row || !canSee(row, role, pinned))
     throw new AppError('not_found', `Dashboard ${id} has no version ${version}.`);
   return row;
 }
@@ -110,9 +112,12 @@ export function specOf(context: ServiceContext, target: RunTarget, role: Role): 
  * @param id - The dashboard id.
  * @param role - The role of the request.
  * @returns The dashboard.
+ * @throws {AppError} `not_found`, also for an unpinned dashboard a viewer may not see.
  */
 export function get(context: ServiceContext, id: string, role: Role): DashboardDetail {
   const row = context.repository.get(id);
-  if (!row) throw new AppError('not_found', `No dashboard ${id}.`);
+  // Viewers see pinned dashboards only; an unpinned one is as good as gone to them.
+  if (!row || (row.pinnedVersionId === null && !hasRole(role, 'editor')))
+    throw new AppError('not_found', `No dashboard ${id}.`);
   return toDetail(row, context.repository.listVersions(id), role);
 }

@@ -1,4 +1,4 @@
-/** Dashboard endpoints: create from a spec, read, read a version, pin. */
+/** Dashboard endpoints: create from a spec, read, read a version, pin, unpin. */
 import { z } from 'zod';
 import { dashboardSpecSchema } from '../spec/dashboard.ts';
 import { defineEndpoint } from './contract.ts';
@@ -77,11 +77,22 @@ export const getDashboardVersionEndpoint = defineEndpoint({
   output: dashboardVersionSchema,
 });
 
-/** Pins a version after checking it again and test-running every panel. */
+/**
+ * Makes a version the one shown, after checking it again and test-running every panel. Any
+ * version can be pinned, including one pinned before.
+ */
 export const pinDashboardEndpoint = defineEndpoint({
   method: 'POST',
   path: '/dashboards/:dashboardId/pin',
   params: dashboardParams,
   body: z.object({ version: z.int().min(1) }),
+  output: dashboardDetailSchema,
+});
+
+/** Stops showing any version: the dashboard leaves the library, and viewers can't open it. */
+export const unpinDashboardEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/dashboards/:dashboardId/unpin',
+  params: dashboardParams,
   output: dashboardDetailSchema,
 });

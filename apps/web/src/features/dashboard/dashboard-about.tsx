@@ -1,9 +1,12 @@
-import { createFormatter, type DashboardSpec } from '@querent/shared';
-import { Link } from 'react-router';
+import type { DashboardSpec } from '@querent/shared';
+import { Link, type SubmitTarget, useFetcher } from 'react-router';
+import { Button } from '../../ui/button.tsx';
 import { HistoryIcon, QuestionIcon } from '../../ui/icons.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import styles from './dashboard.module.css';
-import type { DashboardData } from './data.ts';
+import type { DashboardData, DashboardIntent, Loaded } from './data.ts';
+import { useCanEdit } from './use-can-edit.ts';
+import { versionNote } from './version-note.ts';
 
 /**
  * How each connector is used: by how many panels, and whether for markers.
@@ -27,34 +30,84 @@ function sourcesOf(spec: DashboardSpec): [string, string][] {
   });
 }
 
+/** One version in the history, and what it can do. */
+interface HistoryRowProps {
+  /** The dashboard. */
+  readonly dashboard: DashboardData['dashboard'];
+  /** The version. */
+  readonly entry: DashboardData['dashboard']['versions'][number];
+  /** Whether the screen shows this version. */
+  readonly current: boolean;
+  /** Makes it the version the library shows, for editors. */
+  readonly onPin: ((version: number) => void) | undefined;
+}
+
 /**
- * The history: every version the role may see, the one shown highlighted.
+ * One version: a link to it, what it is, and Pin for editors when the library shows another.
+ *
+ * @param props - The dashboard, the version, whether it is on screen, and the pin callback.
+ * @returns The row.
+ */
+function HistoryRow({ dashboard, entry, current, onPin }: HistoryRowProps) {
+  const label = `v${entry.version} · ${versionNote(entry, dashboard.pinnedVersion)}`;
+  return (
+    <li data-current={current} data-pinned={entry.version === dashboard.pinnedVersion}>
+      {current ? (
+        <strong aria-current="page">{label}</strong>
+      ) : (
+        <Link to={`/d/${dashboard.id}/v/${entry.version}`}>{label}</Link>
+      )}
+      {onPin && entry.version !== dashboard.pinnedVersion && (
+        <Button
+          size="small"
+          aria-label={`Pin v${entry.version}`}
+          onClick={() => onPin(entry.version)}
+        >
+          Pin
+        </Button>
+      )}
+    </li>
+  );
+}
+
+/**
+ * The history: every version the role may see, the one on screen highlighted. Editors can pin
+ * any version, which is how a bad change is undone, or unpin the dashboard.
  *
  * @param props - The dashboard and the version shown.
- * @returns The list.
+ * @returns The list and its actions.
  */
 function History({ dashboard, version }: DashboardData) {
-  const when = createFormatter({ $fmt: 'datetime' }, {});
+  const canEdit = useCanEdit();
+  const fetcher = useFetcher<Loaded<unknown>>();
+  const submit = (intent: DashboardIntent) =>
+    void fetcher.submit(intent as SubmitTarget, { method: 'post', encType: 'application/json' });
+  const onPin = canEdit
+    ? (pinned: number) => submit({ intent: 'pin', version: pinned })
+    : undefined;
   return (
-    <ul className={styles.history}>
-      {dashboard.versions.map((each) => {
-        const what =
-          each.pinnedAt === null
-            ? (each.changeSummary ?? 'draft')
-            : `pinned ${when(each.pinnedAt)}`;
-        const label = `v${each.version} · ${what}`;
-        const current = each.version === version.version;
-        return (
-          <li key={each.version} data-current={current}>
-            {current ? (
-              <strong aria-current="page">{label}</strong>
-            ) : (
-              <Link to={`/d/${dashboard.id}/v/${each.version}`}>{label}</Link>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <div className={styles.popoverBody} data-busy={fetcher.state !== 'idle'}>
+      <ul className={styles.history}>
+        {dashboard.versions.map((entry) => (
+          <HistoryRow
+            key={entry.version}
+            dashboard={dashboard}
+            entry={entry}
+            current={entry.version === version.version}
+            onPin={onPin}
+          />
+        ))}
+      </ul>
+      {fetcher.data && !fetcher.data.ok && <p className={styles.error}>{fetcher.data.message}</p>}
+      {canEdit && dashboard.pinnedVersion !== null && (
+        <div className={styles.unpin}>
+          <span className={styles.muted}>Unpinning takes it out of the library.</span>
+          <Button size="small" onClick={() => submit({ intent: 'unpin' })}>
+            Unpin
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 

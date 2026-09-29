@@ -1,9 +1,10 @@
 /** The routes of a dashboard: its screen, and the resource routes its panels and variables load. */
 import type { RouteObject, ShouldRevalidateFunctionArgs } from 'react-router';
 import { ErrorPage } from '../app/error-page.tsx';
-import { type GuardedPath, guarded } from '../app/route-access.ts';
+import { type GuardedPath, guarded, requireRole } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import {
+  changeDashboard,
   DashboardScreen,
   loadDashboard,
   loadPanelRun,
@@ -32,9 +33,16 @@ function samePathKeepsSpec(args: ShouldRevalidateFunctionArgs): boolean {
  * @returns The route object.
  */
 function screenRoute(loadSession: SessionLoader, path: GuardedPath, api: ApiClient): RouteObject {
+  const change = changeDashboard(api);
+  const editor = requireRole(loadSession, 'editor');
   return {
     path,
     loader: guarded(loadSession, path, loadDashboard(api)),
+    // Pinning and unpinning are for editors; the screen shows viewers neither.
+    action: async (args) => {
+      await editor(args);
+      return change(args);
+    },
     shouldRevalidate: samePathKeepsSpec,
     Component: DashboardScreen,
     ErrorBoundary: ErrorPage,

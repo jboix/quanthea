@@ -88,6 +88,9 @@ describe('dashboard routes', () => {
       name: 'service',
     });
     expect(options.body).toEqual({ options: ['checkout-svc', 'payments-svc', 'cart-svc'] });
+    expect((await asViewer('POST', `/api/dashboards/${id}/unpin`)).status).toBe(403);
+    expect((await asEditor('POST', `/api/dashboards/${id}/unpin`)).status).toBe(200);
+    expect((await asViewer('GET', `/api/dashboards/${id}`)).status).toBe(404);
   });
 
   test('names the thread that edits a dashboard, while the thread exists', async () => {

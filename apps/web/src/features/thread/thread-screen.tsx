@@ -266,6 +266,7 @@ export function ThreadScreen() {
         markedPanelIds={lastMentions(chat.messages)}
         onShowVersion={state.showVersion}
         onPin={(version) => void actions.pin(version)}
+        onUnpin={() => void actions.unpin()}
         busy={intents.busy}
       />
     </div>

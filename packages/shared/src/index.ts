@@ -49,6 +49,7 @@ export {
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
   pinDashboardEndpoint,
+  unpinDashboardEndpoint,
 } from './api/dashboards.ts';
 export {
   type ApiErrorBody,

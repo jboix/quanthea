@@ -108,14 +108,13 @@ interface ActionContext {
 
 /**
  * The thread's actions: approve and continue, edit a plan, undo, start from a pinned dashboard,
- * build a new one instead, pin.
+ * build a new one instead, pin, unpin.
  *
  * @param context - What the actions need.
  * @returns The actions.
  */
 function useThreadActions(context: ActionContext) {
-  const navigate = useNavigate();
-  const { data, chat, run, revalidate, showVersion, setDraft } = context;
+  const { chat, run, revalidate, showVersion, setDraft } = context;
   return {
     approve: async (planId: string) => {
       await run({ intent: 'approve', planId });
@@ -138,9 +137,26 @@ function useThreadActions(context: ActionContext) {
       revalidate();
     },
     buildNew: () => void chat.sendMessage(),
+    ...usePinActions(context),
+  };
+}
+
+/**
+ * Pin, which opens the dashboard as the library now shows it, and Unpin.
+ *
+ * @param context - What the actions need.
+ * @returns The actions.
+ */
+function usePinActions({ data, run, revalidate }: ActionContext) {
+  const navigate = useNavigate();
+  return {
     pin: async (version: number) => {
       await run({ intent: 'pin', version });
       if (data.thread.dashboardId) navigate(`/d/${data.thread.dashboardId}`);
+    },
+    unpin: async () => {
+      await run({ intent: 'unpin' });
+      revalidate();
     },
   };
 }

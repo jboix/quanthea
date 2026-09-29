@@ -56,7 +56,9 @@ describe('dashboards', () => {
     expect(created.versions).toMatchObject([
       { version: 1, changeSummary: 'imported', pinnedAt: null },
     ]);
-    expect(services.dashboards.get(created.id, 'viewer').versions).toEqual([]);
+    expect((await failureOf(() => services.dashboards.get(created.id, 'viewer'))).code).toBe(
+      'not_found',
+    );
     expect(services.dashboards.getVersion(created.id, 1, 'editor').spec.title).toBe('Events');
     expect(
       (await failureOf(() => services.dashboards.getVersion(created.id, 1, 'viewer'))).code,
@@ -89,7 +91,36 @@ describe('dashboards', () => {
     expect(detail.versions).toHaveLength(1);
     expect(services.dashboards.getVersion(id, 1, 'viewer').pinnedAt).not.toBeNull();
     expect((await failureOf(() => services.dashboards.pin(id, 1, 'editor-1'))).message).toBe(
-      'Version 1 is pinned already.',
+      'Version 1 is already the one shown.',
+    );
+  });
+
+  test('pins a later version, then an earlier one again, to roll back', async () => {
+    const id = await pinnedEvents();
+    services.dashboards.addVersion(id, { ...eventsSpec(), title: 'Events v2' }, 'v2', 'editor-1');
+    expect(services.dashboards.get(id, 'viewer').versions.map((each) => each.version)).toEqual([1]);
+    await services.dashboards.pin(id, 2, 'editor-1');
+    expect(services.dashboards.get(id, 'viewer')).toMatchObject({
+      pinnedVersion: 2,
+      title: 'Events v2',
+    });
+    await services.dashboards.pin(id, 1, 'editor-1');
+    expect(services.dashboards.get(id, 'viewer')).toMatchObject({
+      pinnedVersion: 1,
+      title: 'Events',
+    });
+  });
+
+  test('unpins: viewers can no longer open it, editors still can', async () => {
+    const id = await pinnedEvents();
+    expect(services.dashboards.unpin(id, 'editor-1').pinnedVersion).toBeNull();
+    expect((await failureOf(() => services.dashboards.get(id, 'viewer'))).code).toBe('not_found');
+    expect((await failureOf(() => services.dashboards.getVersion(id, 1, 'viewer'))).code).toBe(
+      'not_found',
+    );
+    expect(services.dashboards.get(id, 'editor').versions).toHaveLength(1);
+    expect((await failureOf(() => services.dashboards.unpin(id, 'editor-1'))).message).toBe(
+      'The dashboard is not pinned.',
     );
   });
 

@@ -8,10 +8,12 @@ import {
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
   type PanelRun,
+  pinDashboardEndpoint,
   runPanelEndpoint,
+  unpinDashboardEndpoint,
   variableOptionsEndpoint,
 } from '@querent/shared';
-import { data, type LoaderFunctionArgs } from 'react-router';
+import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 
 /** What the dashboard screen shows. */
@@ -115,6 +117,31 @@ async function loaded<Value>(call: Promise<Value>): Promise<Loaded<Value>> {
     if (!(error instanceof ApiError)) throw error;
     return { ok: false, message: error.message };
   }
+}
+
+/** What the dashboard screen submits, as JSON: show a version in the library, or none. */
+export type DashboardIntent =
+  | { readonly intent: 'pin'; readonly version: number }
+  | { readonly intent: 'unpin' };
+
+/**
+ * The action of the dashboard screen: pin a version, then open the dashboard as the library shows
+ * it; or unpin, and stay. A refusal, such as a failing panel, comes back as a message.
+ *
+ * @param api - The API client.
+ * @returns The action.
+ */
+export function changeDashboard(api: ApiClient) {
+  return async ({ params, request }: ActionFunctionArgs): Promise<Response | Loaded<unknown>> => {
+    const dashboardId = params.dashboardId ?? '';
+    const intent = (await request.json()) as DashboardIntent;
+    if (intent.intent === 'unpin') {
+      return loaded(api.call(unpinDashboardEndpoint, { params: { dashboardId } }));
+    }
+    const body = { version: intent.version };
+    const outcome = await loaded(api.call(pinDashboardEndpoint, { params: { dashboardId }, body }));
+    return outcome.ok ? redirect(`/d/${dashboardId}`) : outcome;
+  };
 }
 
 /**

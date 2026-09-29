@@ -96,13 +96,22 @@ export interface DashboardRepository {
    */
   getVersion(dashboardId: string, version: number): VersionRow | undefined;
   /**
-   * Pins a version and records it on the dashboard, in one transaction.
+   * Makes a version the one the dashboard shows, and records when it was first pinned, in one
+   * transaction.
    *
    * @param dashboardId - The dashboard id.
    * @param change - The version, time, title, description and tags.
-   * @returns `false` when the version was already pinned or does not belong to the dashboard.
+   * @returns `false` when the version does not belong to the dashboard.
    */
   pin(dashboardId: string, change: PinChange): boolean;
+  /**
+   * Stops showing any version: the dashboard leaves the library.
+   *
+   * @param dashboardId - The dashboard id.
+   * @param at - When.
+   * @returns `false` when the dashboard was not pinned.
+   */
+  unpin(dashboardId: string, at: number): boolean;
   /**
    * Adds a version after the latest one and records the change on the dashboard, in one
    * transaction.
@@ -228,8 +237,13 @@ function writeStatements(database: Database) {
     ),
     touchDashboard: database.query('UPDATE dashboards SET updated_at = ? WHERE id = ?'),
     pinDashboard: database.query(
-      `UPDATE dashboards SET pinned_version_id = ?, title = ?, description = ?, tags = ?,
-         updated_at = ? WHERE id = ?`,
+      `UPDATE dashboards SET pinned_version_id = ?1, title = ?2, description = ?3, tags = ?4,
+         updated_at = ?5 WHERE id = ?6
+         AND EXISTS (SELECT 1 FROM dashboard_versions WHERE id = ?1 AND dashboard_id = ?6)`,
+    ),
+    unpinDashboard: database.query(
+      `UPDATE dashboards SET pinned_version_id = NULL, updated_at = ?
+         WHERE id = ? AND pinned_version_id IS NOT NULL`,
     ),
   };
 }
@@ -284,9 +298,7 @@ function pinner(
   statements: ReturnType<typeof writeStatements>,
 ): DashboardRepository['pin'] {
   return database.transaction((dashboardId: string, change: PinChange): boolean => {
-    const pinned = statements.pinVersion.run(change.at, change.versionId, dashboardId);
-    if (pinned.changes === 0) return false;
-    statements.pinDashboard.run(
+    const shown = statements.pinDashboard.run(
       change.versionId,
       change.title,
       change.description,
@@ -294,6 +306,9 @@ function pinner(
       change.at,
       dashboardId,
     );
+    if (shown.changes === 0) return false;
+    // A version pinned before keeps its first pin time.
+    statements.pinVersion.run(change.at, change.versionId, dashboardId);
     return true;
   });
 }
@@ -359,6 +374,7 @@ export function createDashboardRepository(database: Database): DashboardReposito
   return {
     create: creator(database, statements),
     pin: pinner(database, statements),
+    unpin: (dashboardId, at) => statements.unpinDashboard.run(at, dashboardId).changes > 0,
     addVersion: versionAdder(database, statements),
     get: (id) => {
       const stored = reads.selectDashboard.get(id);

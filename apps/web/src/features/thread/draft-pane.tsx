@@ -23,8 +23,10 @@ export interface DraftPaneProps {
   readonly markedPanelIds: readonly string[];
   /** Shows a version, or the latest with `undefined`. */
   readonly onShowVersion: (version: number | undefined) => void;
-  /** Pins the version shown. */
+  /** Makes the version shown the one the library shows. */
   readonly onPin: (version: number) => void;
+  /** Takes the dashboard out of the library. */
+  readonly onUnpin: () => void;
   /** Whether a decision is on its way. */
   readonly busy: boolean;
 }
@@ -84,7 +86,33 @@ function statusOf(
 }
 
 /**
- * The header of the pane: the title, the version, and Pin or Back.
+ * Pin for a version the library does not show, Unpin for the one it shows.
+ *
+ * @param props - The pane's props.
+ * @param props.shown - The version shown in the pane.
+ * @returns The button, or nothing before the first version.
+ */
+function PinButton(props: DraftPaneProps & { readonly shown: number | undefined }) {
+  const { shown, data } = props;
+  const disabled = props.busy || props.running;
+  if (shown === undefined) return null;
+  if (shown === data.dashboard?.pinnedVersion) {
+    return (
+      <Button disabled={disabled} onClick={props.onUnpin}>
+        Unpin
+      </Button>
+    );
+  }
+  return (
+    <Button variant="dark" disabled={disabled} onClick={() => props.onPin(shown)}>
+      {shown === data.dashboard?.versions.at(-1)?.version ? 'Pin' : `Pin v${shown}`}
+    </Button>
+  );
+}
+
+/**
+ * The header of the pane: the title, the version and the one the library shows, Back, and Pin or
+ * Unpin.
  *
  * @param props - The pane's props.
  * @returns The header.
@@ -93,25 +121,22 @@ function PaneHeader(props: DraftPaneProps) {
   const { data, plan, running } = props;
   const shown = data.version?.version;
   const latest = data.dashboard?.versions.at(-1)?.version;
+  const pinned = data.dashboard?.pinnedVersion ?? null;
   const status = statusOf(data.thread.state, running, shown, latest);
-  const pinned = data.version?.pinnedAt !== null && data.version?.pinnedAt !== undefined;
   return (
     <header className={styles.head}>
       <h2 className={styles.title}>
         {data.version?.spec.title ?? plan?.title ?? 'Untitled dashboard'}
       </h2>
       <Pill tone={status.tone} mono>
-        {pinned ? `v${shown} · pinned` : status.text}
+        {shown !== undefined && shown === pinned ? `v${shown} · pinned` : status.text}
       </Pill>
+      {pinned !== null && shown !== pinned && <Pill mono>library shows v{pinned}</Pill>}
       <span className={styles.spacer} />
       {shown !== undefined && shown !== latest && (
         <Button onClick={() => props.onShowVersion(undefined)}>Back to v{latest}</Button>
       )}
-      {shown !== undefined && shown === latest && !pinned && (
-        <Button variant="dark" disabled={props.busy || running} onClick={() => props.onPin(shown)}>
-          Pin
-        </Button>
-      )}
+      <PinButton {...props} shown={shown} />
     </header>
   );
 }

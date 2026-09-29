@@ -3,14 +3,20 @@ import { type DashboardDetail, hasRole, type Role } from '@querent/shared';
 import type { DashboardRow, VersionSummaryRow } from '../db/dashboard-repository.ts';
 
 /**
- * Whether a role may see a version: everyone sees pinned versions, editors also see drafts.
+ * Whether a role may see a version: editors see every version; viewers see the versions pinned at
+ * some time, while the dashboard is pinned.
  *
  * @param version - The version.
  * @param role - The role of the request.
+ * @param dashboardPinned - Whether the dashboard shows a version.
  * @returns Whether it is visible.
  */
-export function canSee(version: Pick<VersionSummaryRow, 'pinnedAt'>, role: Role): boolean {
-  return version.pinnedAt !== null || hasRole(role, 'editor');
+export function canSee(
+  version: Pick<VersionSummaryRow, 'pinnedAt'>,
+  role: Role,
+  dashboardPinned: boolean,
+): boolean {
+  return hasRole(role, 'editor') || (dashboardPinned && version.pinnedAt !== null);
 }
 
 /**
@@ -39,7 +45,7 @@ export function toDetail(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     versions: versions
-      .filter((version) => canSee(version, role))
+      .filter((version) => canSee(version, role, row.pinnedVersionId !== null))
       .map((version) => ({
         version: version.version,
         changeSummary: version.changeSummary,

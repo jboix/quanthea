@@ -1,22 +1,12 @@
-import { hasRole, type Role } from '@querent/shared';
 import { useEffect, useState } from 'react';
-import { Link, useLoaderData, useRouteLoaderData, useSearchParams } from 'react-router';
+import { Link, useLoaderData, useSearchParams } from 'react-router';
 import { buttonClassName } from '../../ui/button.tsx';
 import { SearchIcon } from '../../ui/icons.tsx';
 import { Page } from '../../ui/page.tsx';
+import { useCanEdit } from '../dashboard/index.ts';
 import type { LibraryData } from './data.ts';
 import styles from './library.module.css';
 import { LibraryCard } from './library-card.tsx';
-
-/**
- * Whether the person may start threads.
- *
- * @returns `true` for editors and admins.
- */
-function useCanEdit(): boolean {
-  const session = useRouteLoaderData('root') as { principal: { role: Role } } | undefined;
-  return session !== undefined && hasRole(session.principal.role, 'editor');
-}
 
 /**
  * The search box. It searches as the person types, a moment after they pause, and keeps the

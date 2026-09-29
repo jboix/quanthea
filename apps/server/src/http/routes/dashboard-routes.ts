@@ -6,6 +6,7 @@ import {
   pinDashboardEndpoint,
   runPanelEndpoint,
   searchLibraryEndpoint,
+  unpinDashboardEndpoint,
   variableOptionsEndpoint,
 } from '@querent/shared';
 import type { Hono } from 'hono';
@@ -52,10 +53,23 @@ function mountDashboardRoutes(
       return version;
     },
   });
+}
+
+/**
+ * Mounts the endpoints that choose the version a dashboard shows, or none.
+ *
+ * @param app - The app.
+ * @param dashboards - The dashboards service.
+ */
+function mountPinRoutes(app: Hono<AppEnv>, dashboards: Dashboards): void {
   mountEndpoint(app, pinDashboardEndpoint, {
     access: 'editor',
     handle: ({ params, body, principal }) =>
       dashboards.pin(params.dashboardId, body.version, actorOf(principal)),
+  });
+  mountEndpoint(app, unpinDashboardEndpoint, {
+    access: 'editor',
+    handle: ({ params, principal }) => dashboards.unpin(params.dashboardId, actorOf(principal)),
   });
 }
 
@@ -95,6 +109,7 @@ export function mountDashboardEndpoints(
   threadOf: (dashboardId: string) => string | null = () => null,
 ): void {
   mountDashboardRoutes(app, dashboards, onPinnedView, threadOf);
+  mountPinRoutes(app, dashboards);
   mountRunRoutes(app, dashboards);
   mountEndpoint(app, searchLibraryEndpoint, {
     access: 'viewer',
