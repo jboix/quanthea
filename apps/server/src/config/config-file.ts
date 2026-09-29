@@ -8,7 +8,15 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
 /** The sections the file may hold. */
-export const configSections = ['server', 'provisioning', 'connectors'] as const;
+export const configSections = [
+  'server',
+  'provisioning',
+  'connectors',
+  'model',
+  'retention',
+  'charts',
+  'queries',
+] as const;
 
 /** A section of the file. */
 export type ConfigSection = (typeof configSections)[number];

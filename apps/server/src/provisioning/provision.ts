@@ -11,6 +11,7 @@ import type { Logger } from '../lib/logger.ts';
 import type { KeyedHash } from '../secrets/keyed-hash.ts';
 import { connectorApplier, planConnectors } from './connectors.ts';
 import { type ProvisioningContext, reconcile } from './reconcile.ts';
+import { planSettings, type SettingsServices, settingsApplier } from './settings-sections.ts';
 
 /** The file's `provisioning` section. */
 const provisioningSchema = z
@@ -30,6 +31,8 @@ export interface ProvisionDependencies {
   readonly fingerprints: KeyedHash;
   /** The connections. */
   readonly connections: Connections;
+  /** The settings services. */
+  readonly settings: SettingsServices;
   /** Records who did what. */
   readonly audit: AuditRepository;
   /** Receives what happened. */
@@ -66,18 +69,15 @@ export async function provision(dependencies: ProvisionDependencies): Promise<vo
   const { file, logger } = dependencies;
   const issues: string[] = [];
   const prune = pruneOf(file, issues);
+  const settings = planSettings(file, issues);
   const connectors = planConnectors(file, issues);
   if (issues.length > 0) throw new Error(`Invalid configuration:\n- ${issues.join('\n- ')}`);
-  const context: ProvisioningContext = {
-    ...dependencies,
-    prune,
-    now: dependencies.now ?? Date.now,
-  };
-  const failures = await reconcile(
-    context,
-    connectorApplier(dependencies.connections, logger),
-    connectors,
-  );
+  const now = dependencies.now ?? Date.now;
+  const context: ProvisioningContext = { ...dependencies, prune, now };
+  const failures = [
+    ...(await reconcile(context, settingsApplier(dependencies.settings), settings)),
+    ...(await reconcile(context, connectorApplier(dependencies.connections, logger), connectors)),
+  ];
   if (failures.length > 0)
     throw new Error(`The configuration could not be applied:\n- ${failures.join('\n- ')}`);
 }

@@ -59,6 +59,7 @@ if (config.file) {
     repository: createProvisionedRepository(database),
     fingerprints: keys.fingerprints,
     connections: services.connections,
+    settings: services,
     audit: createAuditRepository(database),
     logger,
   });

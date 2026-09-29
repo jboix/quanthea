@@ -152,7 +152,9 @@ export {
   saveRetentionSettingsEndpoint,
 } from './api/retention.ts';
 export {
+  getManagedSettingsEndpoint,
   getServerSettingsEndpoint,
+  type ManagedSettings,
   type ServerSettingsView,
   type SettingSource,
 } from './api/server-settings.ts';

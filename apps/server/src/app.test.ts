@@ -103,7 +103,7 @@ describe('route access', () => {
     const settingsRoutes = listApiRouteAccess(buildApp()).filter((route) =>
       /^\/api\/settings/.test(route.path),
     );
-    expect(settingsRoutes.length).toBe(22);
+    expect(settingsRoutes.length).toBe(23);
     expect(settingsRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 

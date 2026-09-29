@@ -11,6 +11,7 @@ import type { Connections } from '../../connections/connections.ts';
 import type { Dashboards } from '../../dashboards/dashboards.ts';
 import { builderGuides } from '../../dashboards/queries/index.ts';
 import { previewData } from '../../dashboards/query-preview.ts';
+import type { Managed } from '../../provisioning/managed.ts';
 import type { QuerySettingsService } from '../../settings/query-settings.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
@@ -24,6 +25,8 @@ export interface QueryRouteServices {
   readonly dashboards: Dashboards;
   /** The connectors, which a preview can run on. */
   readonly connections: Connections;
+  /** What the configuration file manages. */
+  readonly managed: Managed;
 }
 
 /**
@@ -72,7 +75,10 @@ export function mountQueryEndpoints(app: Hono<AppEnv>, services: QueryRouteServi
   });
   mountEndpoint(app, saveQuerySettingsEndpoint, {
     access: 'admin',
-    handle: ({ body, principal }) => querySettings.save(body, actorOf(principal)),
+    handle: ({ body, principal }) => {
+      services.managed.refuseChange('settings', 'queries');
+      return querySettings.save(body, actorOf(principal));
+    },
   });
   mountEndpoint(app, listQueryChoicesEndpoint, {
     access: 'editor',

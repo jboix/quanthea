@@ -137,11 +137,11 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
     ownerOf: dependencies.bin.ownerOf,
     describe: dependencies.describeForPin,
   });
-  mountSettingsEndpoints(app, dependencies.modelSettings);
-  mountServerSettingsEndpoint(app, dependencies.serverSettings);
+  mountSettingsEndpoints(app, dependencies.modelSettings, dependencies.managed);
+  mountServerSettingsEndpoint(app, dependencies.serverSettings, dependencies.managed);
   mountUsageEndpoints(app, dependencies.usage);
   mountQueryEndpoints(app, dependencies);
-  mountChartEndpoints(app, dependencies.chartSettings);
+  mountChartEndpoints(app, dependencies.chartSettings, dependencies.managed);
   mountThreadEndpoints(app, dependencies);
   mountBinEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent, dependencies.threads);

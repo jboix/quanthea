@@ -13,6 +13,13 @@ export interface Managed {
    */
   pathOf(kind: ProvisionedKind, name: string): string | undefined;
   /**
+   * The files that manage the items of a kind.
+   *
+   * @param kind - The kind.
+   * @returns Each managed item's file, by name.
+   */
+  pathsOf(kind: ProvisionedKind): Record<string, string>;
+  /**
    * Refuses a change to an item the file manages, unless it touches only fields the file leaves
    * to the interface.
    *
@@ -33,6 +40,7 @@ export interface Managed {
 export function createManaged(repository: ProvisionedRepository): Managed {
   return {
     pathOf: (kind, name) => repository.get(kind, name)?.path,
+    pathsOf: (kind) => Object.fromEntries(repository.list(kind).map((row) => [row.name, row.path])),
     refuseChange: (kind, name, fields) => {
       const row = repository.get(kind, name);
       if (!row) return;

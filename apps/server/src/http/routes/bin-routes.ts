@@ -14,6 +14,7 @@ import {
 import type { Hono } from 'hono';
 import type { Users } from '../../auth/users.ts';
 import { AppError } from '../../lib/errors.ts';
+import type { Managed } from '../../provisioning/managed.ts';
 import type { RetentionSettingsService } from '../../settings/retention-settings.ts';
 import type { ThreadBin } from '../../threads/bin.ts';
 import type { AppEnv } from '../app-env.ts';
@@ -26,15 +27,23 @@ import { actorOf, signedIn } from '../principal.ts';
  *
  * @param app - The app.
  * @param retention - The retention settings.
+ * @param managed - What the configuration file manages.
  */
-function mountRetentionEndpoints(app: Hono<AppEnv>, retention: RetentionSettingsService): void {
+function mountRetentionEndpoints(
+  app: Hono<AppEnv>,
+  retention: RetentionSettingsService,
+  managed: Managed,
+): void {
   mountEndpoint(app, getRetentionSettingsEndpoint, {
     access: 'admin',
     handle: () => retention.get(),
   });
   mountEndpoint(app, saveRetentionSettingsEndpoint, {
     access: 'admin',
-    handle: ({ body, principal }) => retention.save(body, actorOf(principal)),
+    handle: ({ body, principal }) => {
+      managed.refuseChange('settings', 'retention');
+      return retention.save(body, actorOf(principal));
+    },
   });
 }
 
@@ -46,6 +55,8 @@ export interface BinRouteServices {
   readonly retention: RetentionSettingsService;
   /** The users, for owners' names. */
   readonly users: Pick<Users, 'nameOf'>;
+  /** What the configuration file manages. */
+  readonly managed: Managed;
 }
 
 /**
@@ -76,7 +87,7 @@ function binnedFor(services: BinRouteServices, principal: Principal) {
  */
 export function mountBinEndpoints(app: Hono<AppEnv>, services: BinRouteServices): void {
   const { bin, retention } = services;
-  mountRetentionEndpoints(app, retention);
+  mountRetentionEndpoints(app, retention, services.managed);
   mountEndpoint(app, listBinEndpoint, {
     access: 'editor',
     handle: async ({ principal }) => ({

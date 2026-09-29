@@ -12,26 +12,35 @@ import {
 import type { Hono } from 'hono';
 import { testModelConnection } from '../../agent/connection-test.ts';
 import { listModels } from '../../agent/model-catalog.ts';
+import type { Managed } from '../../provisioning/managed.ts';
 import type { ModelSettingsService } from '../../settings/model-settings.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { actorOf } from '../principal.ts';
 
 /**
- * Mounts the endpoints that read, save and test the gateway.
+ * Mounts the endpoints that read, save and test the gateway. Saving is refused while the
+ * configuration file manages it.
  *
  * @param app - The app.
  * @param modelSettings - The model gateway settings.
+ * @param managed - What the configuration file manages.
  */
-function mountGatewayRoutes(app: Hono<AppEnv>, modelSettings: ModelSettingsService): void {
+function mountGatewayRoutes(
+  app: Hono<AppEnv>,
+  modelSettings: ModelSettingsService,
+  managed: Managed,
+): void {
   mountEndpoint(app, getModelSettingsEndpoint, {
     access: 'admin',
     handle: () => modelSettings.view(),
   });
   mountEndpoint(app, saveModelSettingsEndpoint, {
     access: 'admin',
-    handle: ({ body, principal }) =>
-      modelSettings.save(body.gateway, body.apiKeys, actorOf(principal)),
+    handle: ({ body, principal }) => {
+      managed.refuseChange('settings', 'model');
+      return modelSettings.save(body.gateway, body.apiKeys, actorOf(principal));
+    },
   });
   mountEndpoint(app, testModelSettingsEndpoint, {
     access: 'admin',
@@ -92,12 +101,14 @@ function mountProviderChoicesRoute(app: Hono<AppEnv>, modelSettings: ModelSettin
  *
  * @param app - The app.
  * @param modelSettings - The model gateway settings.
+ * @param managed - What the configuration file manages.
  */
 export function mountSettingsEndpoints(
   app: Hono<AppEnv>,
   modelSettings: ModelSettingsService,
+  managed: Managed,
 ): void {
-  mountGatewayRoutes(app, modelSettings);
+  mountGatewayRoutes(app, modelSettings, managed);
   mountModelListRoute(app, modelSettings);
   mountProviderChoicesRoute(app, modelSettings);
 }

@@ -1,5 +1,11 @@
 /** The route tree (React Router data mode) and the browser router built from it. */
-import { createBrowserRouter, type RouteObject, redirect } from 'react-router';
+import { getManagedSettingsEndpoint } from '@querent/shared';
+import {
+  createBrowserRouter,
+  type LoaderFunctionArgs,
+  type RouteObject,
+  redirect,
+} from 'react-router';
 import type { ApiClient } from '../lib/api-client.ts';
 import { accountRoute } from '../routes/account.tsx';
 import { binRoute } from '../routes/bin.tsx';
@@ -33,6 +39,35 @@ interface RouteDependencies {
 }
 
 /**
+ * The settings: a layout that loads which sections the configuration file manages, and one route
+ * per section.
+ *
+ * @param dependencies - The session loader and the API client.
+ * @returns The settings route.
+ */
+function settingsRoute({ loadSession, api }: RouteDependencies): RouteObject {
+  return {
+    path: '/settings',
+    loader: async (args: LoaderFunctionArgs) => {
+      await requireRole(loadSession, 'admin')(args);
+      return api.call(getManagedSettingsEndpoint, undefined, { signal: args.request.signal });
+    },
+    Component: SettingsLayout,
+    children: [
+      { index: true, loader: () => redirect('/settings/model') },
+      modelSettingsRoute(loadSession, api),
+      chartSettingsRoute(loadSession, api),
+      querySettingsRoute(loadSession, api),
+      usageSettingsRoute(loadSession, api),
+      usersSettingsRoute(loadSession, api),
+      authSettingsRoute(loadSession, api),
+      retentionSettingsRoute(loadSession, api),
+      serverSettingsRoute(loadSession, api),
+    ],
+  };
+}
+
+/**
  * The screens inside the layout, with `/` redirecting by role and `/settings` to its first section.
  *
  * @param dependencies - The session loader and the API client.
@@ -51,21 +86,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
     ...dashboardRoutes(loadSession, api),
     binRoute(loadSession, api),
     connectorRoutes(loadSession, api),
-    {
-      path: '/settings',
-      Component: SettingsLayout,
-      children: [
-        { index: true, loader: () => redirect('/settings/model') },
-        modelSettingsRoute(loadSession, api),
-        chartSettingsRoute(loadSession, api),
-        querySettingsRoute(loadSession, api),
-        usageSettingsRoute(loadSession, api),
-        usersSettingsRoute(loadSession, api),
-        authSettingsRoute(loadSession, api),
-        retentionSettingsRoute(loadSession, api),
-        serverSettingsRoute(loadSession, api),
-      ],
-    },
+    settingsRoute({ loadSession, api }),
     { path: '/ui', Component: UiKitRoute },
     { path: '*', Component: NotFoundRoute },
   ];

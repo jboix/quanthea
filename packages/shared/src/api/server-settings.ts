@@ -58,6 +58,22 @@ export const serverSettingsSchema = z.object({
 /** The system settings view. */
 export type ServerSettingsView = z.infer<typeof serverSettingsSchema>;
 
+/** Validates which settings sections the configuration file manages. */
+export const managedSettingsSchema = z.object({
+  /** The file that manages each section, by section: `model`, `retention`, `charts`, `queries`. */
+  sections: z.record(z.string(), z.string()),
+});
+
+/** Which settings sections the configuration file manages. */
+export type ManagedSettings = z.infer<typeof managedSettingsSchema>;
+
+/** Which settings sections the configuration file manages, so the interface shows them read-only. */
+export const getManagedSettingsEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/settings/managed',
+  output: managedSettingsSchema,
+});
+
 /** The system settings, read-only, for admins. */
 export const getServerSettingsEndpoint = defineEndpoint({
   method: 'GET',

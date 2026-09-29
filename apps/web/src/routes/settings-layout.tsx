@@ -1,4 +1,7 @@
-import { NavLink, Outlet } from 'react-router';
+import type { ManagedSettings } from '@querent/shared';
+import { NavLink, Outlet, useLoaderData, useLocation } from 'react-router';
+import { Banner } from '../ui/banner.tsx';
+import { InfoIcon } from '../ui/icons.tsx';
 import styles from './settings-layout.module.css';
 
 /** The settings sections, in menu order. */
@@ -14,11 +17,26 @@ const sections = [
 ] as const;
 
 /**
- * The settings frame: a section menu above the selected section.
+ * The file that manages the section on screen, if any.
+ *
+ * @param managed - Which sections the configuration file manages.
+ * @param pathname - The current path, such as `/settings/model`.
+ * @returns The file's path, or `undefined`.
+ */
+function managingFile(managed: ManagedSettings | undefined, pathname: string): string | undefined {
+  const section = pathname.split('/')[2] ?? '';
+  return managed?.sections[section];
+}
+
+/**
+ * The settings frame: a section menu above the selected section. A section the configuration file
+ * manages is shown read-only, under a banner naming the file.
  *
  * @returns The layout around the section screen.
  */
 export function SettingsLayout() {
+  const managed = useLoaderData() as ManagedSettings | undefined;
+  const file = managingFile(managed, useLocation().pathname);
   return (
     <>
       <nav aria-label="Settings" className={styles.nav}>
@@ -28,7 +46,15 @@ export function SettingsLayout() {
           </NavLink>
         ))}
       </nav>
-      <Outlet />
+      {file && (
+        <Banner tone="info" icon={<InfoIcon />}>
+          <span title={file}>{file.split('/').at(-1)}</span> manages these settings. Change them
+          there.
+        </Banner>
+      )}
+      <fieldset className={styles.section} disabled={file !== undefined}>
+        <Outlet />
+      </fieldset>
     </>
   );
 }

@@ -55,6 +55,7 @@ async function apply(yaml: string, environment: Record<string, string> = {}): Pr
     repository: createProvisionedRepository(services.database),
     fingerprints: await keyedHash(new Uint8Array(32).fill(7), 'test'),
     connections: services.connections,
+    settings: services,
     audit: createAuditRepository(services.database),
     logger: captureLogs().logger,
   });
@@ -155,5 +156,48 @@ describe('provisioning connectors', () => {
     );
     await apply(`connectors:\n${connector('    descriptions: { events: Every order event }\n')}`);
     expect(() => services.managed.refuseChange('connector', 'events', ['descriptions'])).toThrow();
+  });
+});
+
+describe('provisioning settings sections', () => {
+  /** A model section with one provider, its key written as given. */
+  const model = (apiKey: string) =>
+    [
+      'model:',
+      '  defaultProviderId: mistral',
+      '  providers:',
+      '    - id: mistral',
+      '      name: Mistral',
+      '      provider: mistral',
+      '      baseUrl: null',
+      '      models: { build: mistral-large-latest, plan: "", repair: "", metadata: "" }',
+      `      apiKey: "${apiKey}"`,
+      '',
+    ].join('\n');
+
+  test('saves the model gateway with its key from a variable, and manages it whole', async () => {
+    await apply(model(reference('MISTRAL_KEY')), { MISTRAL_KEY: 'mistral-key-from-env-5c3d' });
+    expect(services.modelSettings.gateway().defaultProviderId).toBe('mistral');
+    expect((await services.modelSettings.resolve('mistral')).apiKey).toBe(
+      'mistral-key-from-env-5c3d',
+    );
+    expect(services.managed.pathsOf('settings')).toEqual({ model: path });
+    expect(() => services.managed.refuseChange('settings', 'model')).toThrow('manages this');
+  });
+
+  test('refuses a model key in clear, and an invalid section', async () => {
+    const clear = apply(model('sk-in-clear-0000'));
+    await expect(clear).rejects.toThrow('model.providers.0.apiKey holds a secret in clear');
+    await expect(clear).rejects.not.toThrow('sk-in-clear-0000');
+    await expect(apply('retention:\n  binDays: -1\n')).rejects.toThrow('retention.binDays');
+  });
+
+  test('saves retention, charts and queries, and releases them when left out', async () => {
+    await apply('retention:\n  binDays: 7\ncharts:\n  disabled: [radar]\n');
+    expect(services.retention.get().binDays).toBe(7);
+    expect(services.chartSettings.get().disabled).toEqual(['radar']);
+    await apply('queries:\n  disabled: []\n');
+    expect(services.managed.pathsOf('settings')).toEqual({ queries: path });
+    expect(services.retention.get().binDays).toBe(7);
   });
 });
