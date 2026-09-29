@@ -17,7 +17,7 @@ import { createServices } from './services.ts';
 import { createSettingsStore } from './settings/settings-store.ts';
 
 const config = loadConfig(process.env);
-const logger = createLogger(config.logLevel);
+const logger = createLogger(config.logLevel, undefined, config.logFormat);
 routeModelWarnings(logger);
 
 const database = openDatabase(config.dataDir);

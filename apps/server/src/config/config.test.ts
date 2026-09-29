@@ -9,6 +9,7 @@ describe('loadConfig', () => {
       dataDir: '/srv/querent/data',
       authModeOverride: undefined,
       logLevel: 'info',
+      logFormat: 'text',
     });
     expect(config.webDir).toEndWith('/apps/web/dist');
   });
@@ -20,6 +21,7 @@ describe('loadConfig', () => {
         QUERENT_DATA_DIR: '/data',
         QUERENT_AUTH_MODE: 'none',
         QUERENT_LOG_LEVEL: 'debug',
+        QUERENT_LOG_FORMAT: 'json',
         QUERENT_WEB_DIR: 'public',
         QUERENT_SECRET_KEY: 'a2V5',
       },
@@ -30,6 +32,7 @@ describe('loadConfig', () => {
       dataDir: '/data',
       authModeOverride: 'none',
       logLevel: 'debug',
+      logFormat: 'json',
       webDir: '/app/public',
       secretKey: 'a2V5',
     });

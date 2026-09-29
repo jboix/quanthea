@@ -2,7 +2,7 @@
 import { resolve } from 'node:path';
 import { type AuthMode, authModeSchema } from '@querent/shared';
 import { z } from 'zod';
-import { type LogLevel, logLevels } from '../lib/logger.ts';
+import { type LogFormat, type LogLevel, logFormats, logLevels } from '../lib/logger.ts';
 
 /** The server configuration. Everything else lives in the settings store. */
 export interface Config {
@@ -14,6 +14,8 @@ export interface Config {
   readonly authModeOverride: AuthMode | undefined;
   /** The least severe log level written. */
   readonly logLevel: LogLevel;
+  /** How log lines are written: readable text, or JSON for log collectors. */
+  readonly logFormat: LogFormat;
   /** Absolute path of the built SPA the server serves. */
   readonly webDir: string;
   /** The key that encrypts connector credentials, in base64. Unset means a generated key file. */
@@ -32,6 +34,7 @@ const environmentSchema = z.object({
   QUERENT_DATA_DIR: z.preprocess(unsetWhenEmpty, z.string().default('./data')),
   QUERENT_AUTH_MODE: z.preprocess(unsetWhenEmpty, authModeSchema.optional()),
   QUERENT_LOG_LEVEL: z.preprocess(unsetWhenEmpty, z.enum(logLevels).default('info')),
+  QUERENT_LOG_FORMAT: z.preprocess(unsetWhenEmpty, z.enum(logFormats).default('text')),
   QUERENT_WEB_DIR: z.preprocess(unsetWhenEmpty, z.string().optional()),
   QUERENT_SECRET_KEY: z.preprocess(unsetWhenEmpty, z.string().optional()),
 });
@@ -61,6 +64,7 @@ export function loadConfig(
     dataDir: resolve(workingDir, variables.QUERENT_DATA_DIR),
     authModeOverride: variables.QUERENT_AUTH_MODE,
     logLevel: variables.QUERENT_LOG_LEVEL,
+    logFormat: variables.QUERENT_LOG_FORMAT,
     webDir: variables.QUERENT_WEB_DIR
       ? resolve(workingDir, variables.QUERENT_WEB_DIR)
       : defaultWebDir,

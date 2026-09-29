@@ -15,11 +15,11 @@ export function logRequests(logger: Logger): MiddlewareHandler<AppEnv> {
     const startedAt = performance.now();
     await next();
     logger.info('request', {
-      requestId: context.get('requestId'),
       method: context.req.method,
       path: context.req.path,
       status: context.res.status,
       durationMs: Math.round(performance.now() - startedAt),
+      requestId: context.get('requestId'),
     });
   });
 }

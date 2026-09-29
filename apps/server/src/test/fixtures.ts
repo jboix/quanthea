@@ -32,7 +32,7 @@ export function captureLogs(): CapturedLogger {
   const record = (line: string): void => {
     lines.push(JSON.parse(line));
   };
-  return { logger: createLogger('debug', { stdout: record, stderr: record }), lines };
+  return { logger: createLogger('debug', { stdout: record, stderr: record }, 'json'), lines };
 }
 
 /**

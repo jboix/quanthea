@@ -1,19 +1,21 @@
 import { describe, expect, test } from 'bun:test';
-import { createLogger, errorFields } from './logger.ts';
+import { createLogger, errorFields, type LogFormat } from './logger.ts';
 
 /**
  * Creates a logger whose output is kept per stream.
  *
  * @param minimum - The least severe level written.
+ * @param format - How lines are written.
  * @returns The logger and the lines of each stream.
  */
-function capture(minimum: Parameters<typeof createLogger>[0]) {
+function capture(minimum: Parameters<typeof createLogger>[0], format: LogFormat = 'json') {
   const stdout: string[] = [];
   const stderr: string[] = [];
-  const logger = createLogger(minimum, {
-    stdout: (line) => stdout.push(line),
-    stderr: (line) => stderr.push(line),
-  });
+  const sinks = {
+    stdout: (line: string) => stdout.push(line),
+    stderr: (line: string) => stderr.push(line),
+  };
+  const logger = createLogger(minimum, sinks, format);
   return { logger, stdout, stderr };
 }
 
@@ -38,6 +40,24 @@ describe('createLogger', () => {
     logger.error('broken');
     expect(stdout.map((line) => JSON.parse(line).message)).toEqual(['shown']);
     expect(stderr.map((line) => JSON.parse(line).message)).toEqual(['careful', 'broken']);
+  });
+});
+
+describe('text lines', () => {
+  test('write the time, the level, the message and the fields as key=value', () => {
+    const { logger, stdout } = capture('info', 'text');
+    logger.info('request', { method: 'GET', path: '/api/threads', status: 200, note: 'two words' });
+    expect(stdout[0]).toMatch(
+      /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\.\d{3} INFO {2}request method=GET path=\/api\/threads status=200 note="two words"\n$/,
+    );
+  });
+
+  test('put an error’s stack on the lines below', () => {
+    const { logger, stderr } = capture('info', 'text');
+    logger.error('run failed', { threadId: 't1', ...errorFields(new Error('boom')) });
+    const [first, second] = (stderr[0] ?? '').split('\n');
+    expect(first).toEndWith('ERROR run failed threadId=t1');
+    expect(second).toBe('Error: boom');
   });
 });
 

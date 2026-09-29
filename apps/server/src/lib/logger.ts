@@ -1,10 +1,19 @@
-/** A structured logger that writes one JSON object per line. */
+/**
+ * A structured logger: readable text lines by default, or one JSON object per line for log
+ * collectors.
+ */
 
 /** Log levels, least severe first. */
 export const logLevels = ['debug', 'info', 'warn', 'error'] as const;
 
 /** A log level. */
 export type LogLevel = (typeof logLevels)[number];
+
+/** How lines are written: `text` for people, `json` for log collectors. */
+export const logFormats = ['text', 'json'] as const;
+
+/** A log format. */
+export type LogFormat = (typeof logFormats)[number];
 
 /** Extra structured fields attached to a log line. */
 type LogFields = Readonly<Record<string, unknown>>;
@@ -50,17 +59,75 @@ export function errorFields(error: unknown): LogFields {
 }
 
 /**
+ * A field value as text: plain when it reads unambiguously, quoted JSON otherwise.
+ *
+ * @param value - The value.
+ * @returns Such as `200`, `/api/threads` or `"two words"`.
+ */
+function textValue(value: unknown): string {
+  if (typeof value === 'string') return /^[^\s"=]+$/.test(value) ? value : JSON.stringify(value);
+  return JSON.stringify(value) ?? String(value);
+}
+
+/**
+ * The error of a text line: its stack on the lines below, or its text inline.
+ *
+ * @param error - The `error` field, as {@link errorFields} makes it.
+ * @returns The text to append.
+ */
+function errorText(error: unknown): string {
+  if (error === undefined) return '';
+  const stack = (error as { stack?: unknown }).stack;
+  return typeof stack === 'string' ? `\n${stack}` : ` error=${textValue(error)}`;
+}
+
+/**
+ * One text line, such as `2026-09-29 14:03:12.345 INFO  request method=GET status=200`.
+ *
+ * @param time - When.
+ * @param level - The level.
+ * @param message - The message.
+ * @param fields - The fields, written as `key=value`; an error's stack goes below.
+ * @returns The line.
+ */
+function textLine(time: Date, level: LogLevel, message: string, fields: LogFields): string {
+  const { error, ...rest } = fields;
+  const stamp = time.toISOString().replace('T', ' ').slice(0, 23);
+  const pairs = Object.entries(rest).map(([key, value]) => ` ${key}=${textValue(value)}`);
+  return `${stamp} ${level.toUpperCase().padEnd(5)} ${message}${pairs.join('')}${errorText(error)}\n`;
+}
+
+/**
+ * One JSON line.
+ *
+ * @param time - When.
+ * @param level - The level.
+ * @param message - The message.
+ * @param fields - The fields.
+ * @returns The line.
+ */
+function jsonLine(time: Date, level: LogLevel, message: string, fields: LogFields): string {
+  return `${JSON.stringify({ time: time.toISOString(), level, message, ...fields })}\n`;
+}
+
+/**
  * Creates a logger that drops lines below `minimum`.
  *
  * @param minimum - The least severe level that is written.
  * @param sinks - Where lines go. Defaults to standard output and standard error.
+ * @param format - How lines are written; readable text by default.
  * @returns The logger.
  */
-export function createLogger(minimum: LogLevel, sinks: LoggerSinks = processSinks): Logger {
+export function createLogger(
+  minimum: LogLevel,
+  sinks: LoggerSinks = processSinks,
+  format: LogFormat = 'text',
+): Logger {
   const threshold = logLevels.indexOf(minimum);
+  const lineOf = format === 'json' ? jsonLine : textLine;
   const write = (level: LogLevel, message: string, fields: LogFields = {}): void => {
     if (logLevels.indexOf(level) < threshold) return;
-    const line = `${JSON.stringify({ time: new Date().toISOString(), level, message, ...fields })}\n`;
+    const line = lineOf(new Date(), level, message, fields);
     const sink = level === 'warn' || level === 'error' ? sinks.stderr : sinks.stdout;
     sink(line);
   };

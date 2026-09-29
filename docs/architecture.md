@@ -843,7 +843,8 @@ provider's name, so two setups of the same vendor stay apart.
 | `QUERENT_SECRET_KEY` | generated into data dir | encryption key for secrets                                             |
 | `QUERENT_AUTH_MODE`  | _(unset)_               | if set, overrides the stored mode. `none` is the lockout escape hatch. |
 | `QUERENT_PUBLIC_URL` | derived from request    | needed for the OIDC redirect URI                                       |
-| `QUERENT_LOG_LEVEL`  | `info`                  | `debug`, `info`, `warn` or `error`. Logs are JSON lines.               |
+| `QUERENT_LOG_LEVEL`  | `info`                  | `debug`, `info`, `warn` or `error`.                                    |
+| `QUERENT_LOG_FORMAT` | `text`                  | `text` for readable lines, `json` for one JSON object per line.        |
 | `QUERENT_WEB_DIR`    | `apps/web/dist`         | the built SPA the server serves                                        |
 
 ## 14. Local development
