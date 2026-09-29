@@ -394,14 +394,22 @@ describe('an agent run', () => {
       ],
       summary: 'first build',
     };
+    const fixed = { panels: [eventsPanel('Broken', 'line')], summary: 'the other one' };
     const stream = await chat(
-      agentWith({ tool: 'edit_dashboard', input: mixed }, { text: 'Fixing the other one.' }),
+      agentWith(
+        { tool: 'edit_dashboard', input: mixed },
+        { tool: 'edit_dashboard', input: fixed },
+        { text: 'Both are in.' },
+      ),
       userMessage('u1', 'Build it'),
     );
     expect(stream).toContain('These new panels were left out because they do not work.');
     const { dashboardId } = services.threads.get(threadId);
-    const saved = services.dashboards.getVersion(dashboardId ?? '', 1, 'editor').spec;
-    expect(saved.panels.map((panel) => panel.id)).toEqual(['errors']);
+    const first = services.dashboards.getVersion(dashboardId ?? '', 1, 'editor').spec;
+    expect(first.panels.map((panel) => panel.id)).toEqual(['errors']);
+    // The panel left out comes back in the same run, with no new plan.
+    const second = services.dashboards.getVersion(dashboardId ?? '', 2, 'editor').spec;
+    expect(second.panels.map((panel) => panel.id)).toEqual(['errors', 'broken']);
   });
 
   test('offers matching pinned dashboards on the first question, with no model', async () => {

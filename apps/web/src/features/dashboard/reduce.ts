@@ -1,5 +1,14 @@
-/** Reduces a result column to one number, for stat panels. */
-import type { Frame, QueryOutcome, Reduce } from '@querent/shared';
+/**
+ * Reduces a result column to one number, for stat panels. Results are read as datasets, the same
+ * table the charts read, so a column has the same name whichever view shows it.
+ */
+import {
+  type Dataset,
+  datasetOfFrames,
+  type Frame,
+  type QueryOutcome,
+  type Reduce,
+} from '@querent/shared';
 
 /** The reductions over a list of finite numbers. */
 const reducers: Readonly<Record<Reduce, (numbers: readonly number[]) => number | undefined>> = {
@@ -16,20 +25,32 @@ const reducers: Readonly<Record<Reduce, (numbers: readonly number[]) => number |
 };
 
 /**
- * The values of a field across the frames of a result. Without a field name, the first number
- * field of each frame.
+ * The index of a column: the one named, matched exactly and then in any case, as views written
+ * before datasets name a series' value `Value`; without a name, the first number column.
+ *
+ * @param dataset - The dataset.
+ * @param field - The column's name, if the view names one.
+ * @returns The index, or -1.
+ */
+export function columnIn(dataset: Dataset, field?: string): number {
+  const names = dataset.dimensions.map((column) => column.name);
+  if (field === undefined)
+    return dataset.dimensions.findIndex((column) => column.type === 'number');
+  const exact = names.indexOf(field);
+  return exact >= 0 ? exact : names.findIndex((name) => name.toLowerCase() === field.toLowerCase());
+}
+
+/**
+ * The values of a column of a result. Without a column name, the first number column.
  *
  * @param frames - The frames.
- * @param field - The field name, if the view names one.
- * @returns The values, frame after frame.
+ * @param field - The column name, if the view names one.
+ * @returns The values, row after row.
  */
 export function columnValues(frames: readonly Frame[], field?: string): unknown[] {
-  return frames.flatMap((frame) => {
-    const index = frame.fields.findIndex((each) =>
-      field === undefined ? each.type === 'number' : each.name === field,
-    );
-    return index < 0 ? [] : (frame.values[index] ?? []);
-  });
+  const dataset = datasetOfFrames(frames);
+  const index = columnIn(dataset, field);
+  return index < 0 ? [] : dataset.source.map((row) => row[index] ?? null);
 }
 
 /**

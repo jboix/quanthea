@@ -5,6 +5,7 @@ import type { PanelTest } from '../dashboards.ts';
 import { completeCharts } from './complete.ts';
 import { applyEdit } from './edit.ts';
 import { edit, firstBuild, issuesOf, specOf } from './fixtures.ts';
+import { compactGrid } from './layout.ts';
 import { editRequestSchema, editRequestSchemaFor } from './request.ts';
 
 /**
@@ -180,6 +181,27 @@ describe('completeCharts', () => {
     expect(completed.problems.size).toBe(0);
   });
 
+  test('completes a chart from the columns its data declares when the result is empty', () => {
+    const { spec, charts } = applyEdit(undefined, firstBuild);
+    const empty: PanelTest = {
+      panelId: 'latency',
+      run: {
+        time: { from: 0, to: 1 },
+        queries: [{ refId: 'A', frames: [], error: null }],
+        markers: [],
+        durationMs: 1,
+      },
+    };
+    const completed = completeCharts(spec, charts, [empty]);
+    expect(completed.problems.size).toBe(0);
+    const latency = completed.spec.panels.find((panel) => panel.id === 'latency');
+    expect(latency?.view.kind === 'chart' && latency.view.roles).toEqual({
+      series: 'quantile',
+      x: 'time',
+      y: ['value'],
+    });
+  });
+
   test('says when a role names a column the data has not', () => {
     const request = edit({
       title: 'x',
@@ -205,6 +227,19 @@ describe('completeCharts', () => {
     ];
     expect(completeCharts(spec, charts, tests).problems.get('orders')).toEqual([
       'The y role names "total", which the data has not.',
+    ]);
+  });
+});
+
+describe('compactGrid', () => {
+  test('moves panels up into the gaps left, keeping their columns', () => {
+    const { spec } = applyEdit(undefined, firstBuild);
+    const kept = spec.panels.filter((panel) => panel.id !== 'latency');
+    expect(compactGrid(kept).map((panel) => [panel.id, panel.grid.y])).toEqual([
+      ['error-rate', 0],
+      ['failed-orders', 0],
+      ['orders-by-status', 3],
+      ['top-codes', 11],
     ]);
   });
 });

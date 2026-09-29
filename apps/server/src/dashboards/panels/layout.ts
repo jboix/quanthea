@@ -1,6 +1,7 @@
 /**
  * Where new panels go: packed in reading order into rows below the existing panels, each as wide
- * as asked or as its kind usually is. Existing panels never move.
+ * as asked or as its kind usually is. Existing panels never move, but when panels are left out of
+ * a version, the rest move up into the gaps.
  */
 import type { Panel } from '@querent/shared';
 import type { PanelDraft, PanelShape } from './draft.ts';
@@ -77,4 +78,33 @@ export function panelId(title: string, taken: Set<string>): string {
   for (let suffix = 2; taken.has(id); suffix += 1) id = `${base}-${suffix}`;
   taken.add(id);
   return id;
+}
+
+/**
+ * Whether two grid positions overlap.
+ *
+ * @param a - One position.
+ * @param b - The other.
+ * @returns Whether they share a cell.
+ */
+function overlaps(a: Grid, b: Grid): boolean {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+/**
+ * The panels moved up into the gaps others left, in reading order, each keeping its column and
+ * size.
+ *
+ * @param panels - The panels.
+ * @returns The panels, compacted.
+ */
+export function compactGrid(panels: readonly Panel[]): Panel[] {
+  const order = [...panels].sort((a, b) => a.grid.y - b.grid.y || a.grid.x - b.grid.x);
+  const placed: Panel[] = [];
+  for (const panel of order) {
+    let y = 0;
+    while (placed.some((other) => overlaps({ ...panel.grid, y }, other.grid))) y += 1;
+    placed.push({ ...panel, grid: { ...panel.grid, y: Math.min(y, panel.grid.y) } });
+  }
+  return panels.map((panel) => placed.find((each) => each.id === panel.id) ?? panel);
 }

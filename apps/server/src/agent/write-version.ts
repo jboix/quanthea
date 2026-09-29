@@ -7,6 +7,7 @@
  */
 import { type DashboardSpec, diffSpecs, type PanelDiff } from '@querent/shared';
 import type { PanelTest } from '../dashboards/dashboards.ts';
+import { compactGrid } from '../dashboards/panels/index.ts';
 import type { ModelTestResult } from '../gate/test-run.ts';
 import { canWrite } from '../threads/state.ts';
 import type { RunContext } from './run-context.ts';
@@ -75,11 +76,19 @@ function reportsOf(context: RunContext, spec: DashboardSpec, run: WriteRun): Pan
  *
  * @param context - The run.
  * @param onlyExistingPanels - Whether the change keeps the set of panels.
+ * @param added - How many panels the change adds.
  * @returns The reason, or `undefined` when the write may go ahead.
  */
-function refusal(context: RunContext, onlyExistingPanels: boolean): string | undefined {
+function refusal(
+  context: RunContext,
+  onlyExistingPanels: boolean,
+  added: number,
+): string | undefined {
   const { state } = context.threads.row(context.threadId);
   if (canWrite(state, onlyExistingPanels)) return undefined;
+  // Panels of the approved plan left out earlier in this run may come back without a new plan.
+  if (state === 'ready' && context.counters.leftOut > 0 && added <= context.counters.leftOut)
+    return undefined;
   if (state === 'plan_pending') return 'A plan waits for approval. Stop and let the person decide.';
   return 'Propose a plan with propose_plan first. Only a change to existing panels skips the plan.';
 }
@@ -192,7 +201,7 @@ function withoutFailing(
 ): DashboardSpec | undefined {
   if (!failing.every((id) => droppable.has(id))) return undefined;
   const panels = spec.panels.filter((panel) => !failing.includes(panel.id));
-  return panels.length === 0 ? undefined : { ...spec, panels };
+  return panels.length === 0 ? undefined : { ...spec, panels: compactGrid(panels) };
 }
 
 /**
@@ -228,7 +237,7 @@ export function writeVersion(
   droppable: ReadonlySet<string>,
   run: WriteRun,
 ): WriteResult {
-  const refused = refusal(context, onlyExistingPanels);
+  const refused = refusal(context, onlyExistingPanels, droppable.size);
   if (refused !== undefined) return { ok: false, error: refused };
   const panels = reportsOf(context, spec, run);
   const failing = failingPanels(panels, context.settings.behaviour.testRun);
@@ -238,6 +247,8 @@ export function writeVersion(
   if (!checked.ok)
     return { ...failed(context, 'The spec is invalid.'), issues: checked.issues, panels };
   const version = saveBuilt(context, checked.spec, changeSummary);
+  context.counters.leftOut =
+    Math.max(0, context.counters.leftOut - droppable.size) + failing.length;
   if (failing.length === 0) return { ok: true, version, panels };
   const next = `These new panels were left out because they do not work. ${nextAttempt(context, 'Fix them and add them again')}`;
   return { ok: true, version, panels, leftOut: { panelIds: failing, next } };

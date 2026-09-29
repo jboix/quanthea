@@ -3,10 +3,10 @@
  * placed below, and deploy markers on the time charts. The result is a spec to check, test-run
  * and save like any other.
  */
-import type { Annotation, ChartChoice, DashboardSpec, Panel, SavedQuery } from '@querent/shared';
+import type { Annotation, DashboardSpec, Panel, SavedQuery } from '@querent/shared';
 import { markersQuery, QueryError } from '../queries/index.ts';
 import type { PanelDraft } from './draft.ts';
-import { expandPanel, isTimeChart } from './expand.ts';
+import { expandPanel, isTimeChart, type PanelChart } from './expand.ts';
 import { panelId, placeBelow } from './layout.ts';
 import type { EditRequest, MarkersRequest } from './request.ts';
 
@@ -78,16 +78,16 @@ function checkIds(panels: readonly Panel[], ids: readonly string[]): void {
  * @returns The panel.
  */
 function panelOf(
-  draft: PanelDraft & { choice?: ChartChoice },
+  draft: PanelDraft & { chart?: PanelChart },
   id: string,
   grid: Panel['grid'],
 ): Panel {
-  const { shape: _shape, width: _width, choice: _choice, ...content } = draft;
+  const { shape: _shape, width: _width, chart: _chart, ...content } = draft;
   return { id, grid, ...content };
 }
 
-/** The chart choices of the panels an edit builds, by panel id, to complete after they run. */
-export type ChartChoices = Map<string, ChartChoice>;
+/** The charts of the panels an edit builds, by panel id, to complete after they run. */
+export type ChartChoices = Map<string, PanelChart>;
 
 /**
  * The panels after the edit: removed ones gone, replaced ones rebuilt in place, new ones below.
@@ -116,7 +116,7 @@ function editedPanels(
       const replacement = rebuilt.get(panel.id);
       if (!replacement) return panel;
       const draft = expandPanel(replacement, saved);
-      charts.set(panel.id, draft.choice);
+      charts.set(panel.id, draft.chart);
       return panelOf(draft, panel.id, panel.grid);
     });
   const drafts = request.panels
@@ -126,7 +126,7 @@ function editedPanels(
   const grids = placeBelow(kept, drafts);
   const added = drafts.map((draft, index) => {
     const id = panelId(draft.title, taken);
-    charts.set(id, draft.choice);
+    charts.set(id, draft.chart);
     return panelOf(draft, id, grids[index] ?? { x: 0, y: 0, w: 12, h: 8 });
   });
   return [...kept, ...added];

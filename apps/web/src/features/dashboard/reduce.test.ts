@@ -40,3 +40,29 @@ describe('reductions', () => {
     expect(reduceResult(queries, 'B', 'max')).toBeUndefined();
   });
 });
+
+describe('reading results as datasets', () => {
+  const series: Frame = {
+    refId: 'A',
+    name: '{}',
+    fields: [
+      { name: 'time', type: 'time' },
+      { name: 'Value', type: 'number', labels: {} },
+    ],
+    values: [
+      [1, 2],
+      [3, 5],
+    ],
+    meta: { rowCount: 2, truncated: false, durationMs: 1 },
+  };
+
+  test('read a Prometheus series by the column charts name, value, and by its old name, Value', () => {
+    expect(
+      reduceResult([{ refId: 'A', frames: [series], error: null }], 'A', 'last', 'value'),
+    ).toBe(5);
+    expect(reduceResult([{ refId: 'A', frames: [series], error: null }], 'A', 'max', 'Value')).toBe(
+      5,
+    );
+    expect(columnValues([series])).toEqual([3, 5]);
+  });
+});

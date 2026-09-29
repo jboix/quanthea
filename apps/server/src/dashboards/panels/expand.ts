@@ -14,6 +14,14 @@ import { buildData, QueryError } from '../queries/index.ts';
 import type { PanelDraft, PanelShape } from './draft.ts';
 import type { PanelRequest } from './request.ts';
 
+/** A panel's chart choice, and the columns its data says it returns, when it says. */
+export interface PanelChart {
+  /** The chart choice. */
+  readonly choice: ChartChoice;
+  /** The columns the data returns, empty when only running it tells. */
+  readonly columns: readonly string[];
+}
+
 /**
  * Whether a view is a chart over time, which deploy markers go on.
  *
@@ -66,13 +74,14 @@ export function choiceOf(request: PanelRequest, unit: ChartChoice['unit']): Char
  *
  * @param request - The request.
  * @param saved - The saved queries the run may use.
- * @returns The draft, and the chart choice to complete once the queries have run.
+ * @returns The draft, and the chart choice and the declared columns, to complete the chart once the
+ *   queries have run.
  * @throws {QueryError} When the data or the chart cannot be built.
  */
 export function expandPanel(
   request: PanelRequest,
   saved: readonly SavedQuery[] = [],
-): PanelDraft & { choice: ChartChoice } {
+): PanelDraft & { chart: PanelChart } {
   const built = buildData(request.data, saved);
   const recipe = chartRecipe(request.chart.recipe);
   if (!recipe) throw new QueryError(`No chart recipe "${request.chart.recipe}".`);
@@ -90,6 +99,6 @@ export function expandPanel(
     view: filled.view,
     shape: shapeOf(recipe, filled.view),
     width: request.width,
-    choice,
+    chart: { choice, columns: built.output.columns },
   };
 }

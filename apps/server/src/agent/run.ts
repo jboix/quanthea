@@ -245,6 +245,7 @@ function runContext(
     planPending: false,
     asked: false,
     failedWrites: 0,
+    leftOut: 0,
     modelId: modelIdFor(turn.settings, 'build'),
     job: 'build',
     usage: startingUsage(turn.messages, continuing),

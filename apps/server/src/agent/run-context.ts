@@ -48,6 +48,8 @@ export interface RunContext extends AgentServices {
     asked: boolean;
     /** How many writes failed their checks or test runs in this run. */
     failedWrites: number;
+    /** How many panels of the approved plan were left out in this run, and may come back. */
+    leftOut: number;
     /** The model the next step uses, for its usage. */
     modelId: string;
     /** The job the next step does, for the ledger. */

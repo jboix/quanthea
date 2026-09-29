@@ -409,11 +409,13 @@ to it. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/wr
 2. The spec is built and checked, views aside, then every panel is test-run with its defaults.
 3. Each built chart is completed from its first query's result (`dashboards/panels/complete.ts`):
    roles the model left out take the first fitting columns, and roles naming a column the result
-   has not, or of the wrong type, become the panel's problems.
+   has not, or of the wrong type, become the panel's problems. An empty result is data, not a
+   mistake: the chart is completed from the columns its data request declares.
 4. With the "test-run every query" switch on, a version is saved only with panels that work. New
    panels whose queries fail or whose chart does not fit their data are left out and reported, so
-   the model re-adds only those. Any other failure saves nothing. Either way the counter of
-   failed writes goes up. The results go back to the model through the gate.
+   the model re-adds only those; it may, in the same run, without a new plan. The panels kept
+   move up into the gaps. Any other failure saves nothing. Either way the counter of failed writes
+   goes up. The results go back to the model through the gate.
 5. The first version creates the thread's dashboard; later ones add versions. Each streams a
    `data-version` part, and a `data-diff` part with the changed panels.
 
@@ -835,9 +837,10 @@ request → requestId → session cookie? → Principal
   series named `<img src=x onerror=alert(1)>` is shown as text and never parsed as HTML. Legends
   and marker labels are canvas text too. A test holds this.
 - Annotation markers are dashed vertical lines on the first series, labelled `14:02 deploy #481`.
-- Stat and table panels are plain React components, not ECharts: a stat reduces a column
-  (`last`, `first`, `max`, `min`, `mean`, `sum`, `count`); a table reads columns by field name, or
-  by label name for range series, formats, sorts and shows at most 500 rows.
+- Stat and table panels are plain React components, not ECharts. They read the same dataset as
+  charts, so a column has one name whichever view shows it: a stat reduces a column (`last`,
+  `first`, `max`, `min`, `mean`, `sum`, `count`); a table reads columns by name, labels of range
+  series included, formats, sorts and shows at most 500 rows.
 
 ## 12. Security checklist
 

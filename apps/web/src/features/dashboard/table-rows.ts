@@ -1,12 +1,17 @@
-/** Builds the rows of a table panel from its results: columns by field or label name, formatted. */
+/**
+ * Builds the rows of a table panel from its results, read as a dataset: columns by name, labels of
+ * range series included, formatted.
+ */
 
 import {
   compareFrameValues,
   createFormatter,
+  datasetOfFrames,
   type Frame,
   type QueryOutcome,
   type TableView,
 } from '@querent/shared';
+import { columnIn } from './reduce.ts';
 
 /** A table ready to render. */
 export interface TableRows {
@@ -22,32 +27,17 @@ export interface TableRows {
 const maxRows = 500;
 
 /**
- * Reads one cell: a field of the frame, or else a label of its value field, as range series carry
- * their labels there.
- *
- * @param frame - The frame.
- * @param name - The column's field name.
- * @param row - The row index.
- * @returns The value, or `null`.
- */
-function cellOf(frame: Frame, name: string, row: number): unknown {
-  const index = frame.fields.findIndex((field) => field.name === name);
-  if (index >= 0) return frame.values[index]?.[row] ?? null;
-  return frame.fields.find((field) => field.labels?.[name] !== undefined)?.labels?.[name] ?? null;
-}
-
-/**
- * The raw rows of the view's result, one per row of each frame.
+ * The raw rows of the view's result, in the view's column order.
  *
  * @param view - The table view.
  * @param frames - The frames of its ref.
- * @returns Rows of raw values, in column order.
+ * @returns Rows of raw values; a column the result has not reads `null`.
  */
 function rawRows(view: TableView, frames: readonly Frame[]): unknown[][] {
-  return frames.flatMap((frame) =>
-    Array.from({ length: frame.meta.rowCount }, (_row, index) =>
-      view.columns.map((column) => cellOf(frame, column.field, index)),
-    ),
+  const dataset = datasetOfFrames(frames);
+  const indexes = view.columns.map((column) => columnIn(dataset, column.field));
+  return dataset.source.map((row) =>
+    indexes.map((index) => (index < 0 ? null : (row[index] ?? null))),
   );
 }
 
