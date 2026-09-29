@@ -315,6 +315,21 @@ shows depends on the connector's access level.
 
 `search_library` and `get_dashboard` arrive with the library and variants.
 
+### Reuse before generating
+
+On a thread's first question, before any model runs, the server searches the pinned dashboards
+(`dashboards/pinned.ts`): words shared with each one's title (counting double), description, panel
+titles and connectors, at most three matches. When some match, the answer is a matches card and
+one sentence, with no model call and no tokens. The person can:
+
+- open a match,
+- start from it (`POST /api/threads/:id/start-from`): a copy of its pinned version becomes the
+  thread's draft, with its lineage recorded, and the thread is ready for edits,
+- or build a new one, which continues the answer: the model runs, told the person saw the matches
+  and wants a new dashboard.
+
+The search reads the pinned specs in memory. The full-text index arrives with the library.
+
 ### The catalog
 
 The model starts every turn knowing the data: the instructions carry a catalog of the connectors
@@ -672,6 +687,8 @@ indicative; the contract files are the source of truth.
 | `GET /threads`, `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id`                 | threads                        | editor   |
 | `POST /threads/:id/chat`                                                                   | streamed agent run             | editor   |
 | `POST /threads/:id/plans/:planId/approve` · `/reject`                                      | plan decisions                 | editor   |
+| `POST /threads/:id/start-from` (a pinned dashboard)                                        | draft from a copy, no model    | editor   |
+| `POST /threads/:id/restore` (a version)                                                    | Undo                           | editor   |
 | `GET /dashboards` (search: `q`, `tags`)                                                    | library                        | viewer   |
 | `POST /dashboards` (a spec, becomes draft v1)                                              | create from a spec             | editor   |
 | `GET /dashboards/:id`, `GET /dashboards/:id/versions/:v` (drafts: editor)                  | spec                           | viewer   |

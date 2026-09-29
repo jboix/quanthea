@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { type Principal, threadSummarySchema } from '@querent/shared';
+import { connectorInputSchema, type Principal, threadSummarySchema } from '@querent/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
+import { eventsSpec } from '../../dashboards/test/events-spec.ts';
 import {
   captureLogs,
   fixedAuthenticator,
@@ -75,5 +76,23 @@ describe('thread routes', () => {
     expect((await call('GET', '/api/threads')).body).toMatchObject([{ id, state: 'building' }]);
     expect((await call('DELETE', `/api/threads/${id}`)).body).toEqual({ deleted: true });
     expect((await call('GET', `/api/threads/${id}`)).status).toBe(404);
+  });
+
+  test('start a draft from a pinned dashboard, once, with no model', async () => {
+    const events = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
+    await fixture.connections.create(connectorInputSchema.parse(events), 'admin-1');
+    const pinned = fixture.dashboards.create(eventsSpec(), 'first', 'editor-1');
+    await fixture.dashboards.pin(pinned.id, 1, 'editor-1');
+    const call = client(editor);
+    const { id } = threadSummarySchema.parse((await call('POST', '/api/threads', {})).body);
+    fixture.threads.proposePlan(id, plan, false);
+    const started = await call('POST', `/api/threads/${id}/start-from`, { dashboardId: pinned.id });
+    expect(started.body).toMatchObject({ version: 1 });
+    const thread = fixture.threads.get(id);
+    expect(thread).toMatchObject({ state: 'ready', title: 'Events' });
+    expect(thread.dashboardId).not.toBe(pinned.id);
+    expect(thread.plans.map((each) => each.status)).toEqual(['rejected']);
+    const again = await call('POST', `/api/threads/${id}/start-from`, { dashboardId: pinned.id });
+    expect(again.status).toBe(400);
   });
 });

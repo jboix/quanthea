@@ -75,6 +75,7 @@ export {
   listThreadsEndpoint,
   rejectPlanEndpoint,
   restoreVersionEndpoint,
+  startFromPinnedEndpoint,
   type ThreadDetail,
   type ThreadSummary,
   threadChatPath,

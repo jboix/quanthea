@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { AskCard } from './ask-card.tsx';
 import styles from './conversation.module.css';
 import { DiffCard } from './diff-card.tsx';
+import { MatchesCard } from './matches-card.tsx';
 import {
   buildTools,
   exploreTools,
@@ -38,6 +39,12 @@ export interface ConversationContext {
   readonly onCompare: (version: number) => void;
   /** Sends an answer to the agent's question. */
   readonly onAnswer: (answer: string) => void;
+  /** Starts the draft from a copy of a pinned dashboard. */
+  readonly onStartFrom: (dashboardId: string) => void;
+  /** Asks the agent for a new dashboard after the matches. */
+  readonly onBuildNew: () => void;
+  /** Whether the thread has a draft, which settles the matches card. */
+  readonly hasDraft: boolean;
 }
 
 /** The conversation context of one message's parts. */
@@ -125,6 +132,17 @@ function partView(part: ThreadPart, key: string, context: PartContext): ReactNod
   }
   if (part.type === 'data-plan') return planCard(part.data, key, context);
   if (part.type === 'data-diff') return diffCard(part.data, key, context);
+  if (part.type === 'data-matches') {
+    return (
+      <MatchesCard
+        key={key}
+        data={part.data}
+        answerable={context.answerable && !context.hasDraft}
+        onStartFrom={context.onStartFrom}
+        onBuildNew={context.onBuildNew}
+      />
+    );
+  }
   return isToolPart(part) ? toolView(part, key, context) : null;
 }
 

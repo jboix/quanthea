@@ -7,12 +7,14 @@ import {
   listThreadsEndpoint,
   rejectPlanEndpoint,
   restoreVersionEndpoint,
+  startFromPinnedEndpoint,
 } from '@querent/shared';
 import type { Hono } from 'hono';
 import type { Dashboards } from '../../dashboards/dashboards.ts';
 import type { ModelView } from '../../gate/model-view.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { ModelSettingsService } from '../../settings/model-settings.ts';
+import { nextState } from '../../threads/state.ts';
 import type { Threads } from '../../threads/threads.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
@@ -92,6 +94,35 @@ function mountDecisionRoutes(app: Hono<AppEnv>, threads: Threads, dashboards: Da
 }
 
 /**
+ * Starts a thread's draft from a copy of a pinned dashboard, with no model: checks the thread can
+ * take it before copying, sets a pending plan aside, then attaches the copy.
+ *
+ * @param services - The threads and dashboards.
+ * @param threadId - The thread.
+ * @param dashboardId - The pinned dashboard.
+ * @param actor - Who starts from it.
+ * @returns The copy and its version.
+ * @throws {AppError} `bad_request` when the thread has a dashboard or is building.
+ */
+function startFromPinned(
+  services: Pick<ThreadRouteServices, 'threads' | 'dashboards'>,
+  threadId: string,
+  dashboardId: string,
+  actor: string,
+) {
+  const { threads, dashboards } = services;
+  const thread = threads.get(threadId);
+  if (thread.dashboardId !== null || nextState(thread.state, 'copied') === undefined)
+    throw new AppError('bad_request', 'This thread already has a draft.');
+  const pending = thread.plans.find((plan) => plan.status === 'pending');
+  if (pending) threads.decidePlan(threadId, pending.id, 'reject', actor);
+  const copy = dashboards.copyPinned(dashboardId, actor);
+  threads.attachDashboard(threadId, copy.dashboardId, copy.title);
+  threads.apply(threadId, 'copied');
+  return { dashboardId: copy.dashboardId, version: copy.version };
+}
+
+/**
  * Mounts every thread endpoint except the streamed chat.
  *
  * @param app - The app.
@@ -100,4 +131,9 @@ function mountDecisionRoutes(app: Hono<AppEnv>, threads: Threads, dashboards: Da
 export function mountThreadEndpoints(app: Hono<AppEnv>, services: ThreadRouteServices): void {
   mountThreadRoutes(app, services);
   mountDecisionRoutes(app, services.threads, services.dashboards);
+  mountEndpoint(app, startFromPinnedEndpoint, {
+    access: 'editor',
+    handle: ({ params, body, principal }) =>
+      startFromPinned(services, params.threadId, body.dashboardId, actorOf(principal)),
+  });
 }

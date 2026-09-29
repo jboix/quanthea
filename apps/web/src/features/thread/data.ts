@@ -15,6 +15,7 @@ import {
   pinDashboardEndpoint,
   rejectPlanEndpoint,
   restoreVersionEndpoint,
+  startFromPinnedEndpoint,
   type ThreadDetail,
   type ThreadSummary,
 } from '@querent/shared';
@@ -35,7 +36,8 @@ export interface ThreadData {
 export type ThreadIntent =
   | { readonly intent: 'approve' | 'reject'; readonly planId: string }
   | { readonly intent: 'restore'; readonly version: number }
-  | { readonly intent: 'pin'; readonly version: number };
+  | { readonly intent: 'pin'; readonly version: number }
+  | { readonly intent: 'startFrom'; readonly dashboardId: string };
 
 /** The outcome of an intent: done, or why not. */
 export type ThreadOutcome =
@@ -153,6 +155,13 @@ async function run(api: ApiClient, threadId: string, intent: ThreadIntent): Prom
     await api.call(restoreVersionEndpoint, {
       params: { threadId },
       body: { version: intent.version },
+    });
+    return;
+  }
+  if (intent.intent === 'startFrom') {
+    await api.call(startFromPinnedEndpoint, {
+      params: { threadId },
+      body: { dashboardId: intent.dashboardId },
     });
     return;
   }

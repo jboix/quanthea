@@ -13,7 +13,7 @@
 export type ThreadState = 'idle' | 'plan_pending' | 'building' | 'ready';
 
 /** What moves a thread. */
-export type ThreadEvent = 'propose' | 'approve' | 'reject' | 'built' | 'message';
+export type ThreadEvent = 'propose' | 'approve' | 'reject' | 'built' | 'copied' | 'message';
 
 /** The state each event leads to, from each state it is allowed in. */
 const transitions: Readonly<Record<ThreadEvent, Partial<Record<ThreadState, ThreadState>>>> = {
@@ -28,6 +28,8 @@ const transitions: Readonly<Record<ThreadEvent, Partial<Record<ThreadState, Thre
   reject: { plan_pending: 'idle' },
   // A small edit in a ready thread keeps it ready.
   built: { building: 'ready', ready: 'ready' },
+  // Starting from a copy of a pinned dashboard gives a draft before any plan.
+  copied: { idle: 'ready', plan_pending: 'ready' },
   // Replying to a pending plan supersedes it; a failed build stays building, so a retry needs no
   // new plan; a ready thread stays ready for small edits.
   message: { idle: 'idle', plan_pending: 'idle', building: 'building', ready: 'ready' },

@@ -11,7 +11,6 @@ import {
   type Role,
 } from '@querent/shared';
 import { AppError } from '../lib/errors.ts';
-import { newId } from '../lib/ids.ts';
 import {
   type DashboardsDependencies,
   get,
@@ -22,6 +21,8 @@ import {
   validOrRefuse,
   visibleVersion,
 } from './context.ts';
+import { copyPinned, findPinned, type PinnedMatch } from './pinned.ts';
+import { newRows } from './rows.ts';
 import { listVariableOptions, runPanel } from './run-panel.ts';
 import { type ValidationResult, validateSpec } from './validate.ts';
 import { addVersion, failuresOf, type PanelTest, restoreVersion, testRunSpec } from './versions.ts';
@@ -128,47 +129,22 @@ export interface Dashboards {
    * @returns The new version number.
    */
   restore(id: string, from: number, actor: string): number;
-}
-
-/**
- * The rows of a new dashboard and its first version.
- *
- * @param spec - The valid spec.
- * @param changeSummary - What this version is.
- * @param actor - Who creates it.
- * @param at - When.
- * @returns The dashboard and version rows.
- */
-function newRows(
-  spec: DashboardSpec,
-  changeSummary: string | undefined,
-  actor: string,
-  at: number,
-) {
-  const id = newId();
-  const dashboard = {
-    id,
-    title: spec.title,
-    description: spec.description ?? null,
-    tags: [],
-    parentDashboardId: null,
-    parentVersion: null,
-    pinnedVersionId: null,
-    deletedAt: null,
-    createdAt: at,
-    updatedAt: at,
-  };
-  const version = {
-    id: newId(),
-    dashboardId: id,
-    version: 1,
-    spec,
-    changeSummary: changeSummary ?? null,
-    pinnedAt: null,
-    actor,
-    createdAt: at,
-  };
-  return { dashboard, version };
+  /**
+   * Finds pinned dashboards that may already answer a question, with no model.
+   *
+   * @param question - The question.
+   * @returns At most three matches, the best first.
+   */
+  findPinned(question: string): PinnedMatch[];
+  /**
+   * Copies a pinned dashboard into a new one that records where it came from.
+   *
+   * @param id - The pinned dashboard.
+   * @param actor - Who copies it.
+   * @returns The new dashboard, its first version and its title.
+   * @throws {AppError} `not_found` when the dashboard is not pinned.
+   */
+  copyPinned(id: string, actor: string): { dashboardId: string; version: number; title: string };
 }
 
 /**
@@ -248,5 +224,7 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
     addVersion: (id, spec, changeSummary, actor) =>
       addVersion(context, id, spec, changeSummary, actor),
     restore: (id, from, actor) => restoreVersion(context, id, from, actor),
+    findPinned: (question) => findPinned(context, question),
+    copyPinned: (id, actor) => copyPinned(context, id, actor),
   };
 }

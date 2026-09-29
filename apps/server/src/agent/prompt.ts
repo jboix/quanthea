@@ -32,6 +32,8 @@ export interface TurnFacts {
   readonly mentions: readonly { readonly panelId: string; readonly title: string }[];
   /** The person's IANA time zone, when their browser said. */
   readonly timeZone?: string | undefined;
+  /** Whether the person saw pinned dashboards that may answer this, and asked for a new one. */
+  readonly declinedMatches?: boolean;
 }
 
 /**
@@ -49,7 +51,10 @@ function stateLine(facts: TurnFacts): string {
     return `${buildingRules}\nThe approved plan "${plan.body.title}":\n${JSON.stringify(plan.body)}`;
   }
   if (state === 'ready') return editingRules;
-  return `${planningRules}\nNo plan yet.`;
+  const declined = facts.declinedMatches
+    ? ' The person saw pinned dashboards that may answer this and asked for a new one: do not offer them again.'
+    : '';
+  return `${planningRules}\nNo plan yet.${declined}`;
 }
 
 /**

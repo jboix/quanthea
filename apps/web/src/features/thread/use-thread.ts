@@ -107,7 +107,8 @@ interface ActionContext {
 }
 
 /**
- * The thread's actions: approve and continue, edit a plan, undo, pin.
+ * The thread's actions: approve and continue, edit a plan, undo, start from a pinned dashboard,
+ * build a new one instead, pin.
  *
  * @param context - What the actions need.
  * @returns The actions.
@@ -131,6 +132,12 @@ function useThreadActions(context: ActionContext) {
       showVersion(undefined);
       revalidate();
     },
+    startFrom: async (dashboardId: string) => {
+      await run({ intent: 'startFrom', dashboardId });
+      showVersion(undefined);
+      revalidate();
+    },
+    buildNew: () => void chat.sendMessage(),
     pin: async (version: number) => {
       await run({ intent: 'pin', version });
       if (data.thread.dashboardId) navigate(`/d/${data.thread.dashboardId}`);

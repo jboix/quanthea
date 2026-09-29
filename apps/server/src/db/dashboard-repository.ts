@@ -1,5 +1,6 @@
 /** Reads and writes dashboards and their versions. */
 import type { Database } from 'bun:sqlite';
+import { type PinnedRow, pinnedLister } from './dashboard-pinned.ts';
 
 /** A dashboard as stored. */
 export interface DashboardRow {
@@ -109,6 +110,12 @@ export interface DashboardRepository {
    * @returns The new version number.
    */
   addVersion(version: Omit<VersionRow, 'version'>): number;
+  /**
+   * Lists the pinned dashboards outside the bin, with their pinned specs.
+   *
+   * @returns The dashboards, the most recently changed first.
+   */
+  listPinned(): PinnedRow[];
 }
 
 /** A `dashboards` row as SQLite returns it. */
@@ -317,6 +324,27 @@ function versionAdder(
 }
 
 /**
+ * Prepares the statements that read.
+ *
+ * @param database - The database.
+ * @returns The select statements.
+ */
+function readStatements(database: Database) {
+  return {
+    selectDashboard: database.query<StoredDashboard, [string]>(
+      'SELECT * FROM dashboards WHERE id = ?',
+    ),
+    selectVersions: database.query<StoredVersion, [string]>(
+      `SELECT id, dashboard_id, version, change_summary, pinned_at, actor, created_at
+       FROM dashboard_versions WHERE dashboard_id = ? ORDER BY version`,
+    ),
+    selectVersion: database.query<StoredVersion, [string, number]>(
+      'SELECT * FROM dashboard_versions WHERE dashboard_id = ? AND version = ?',
+    ),
+  };
+}
+
+/**
  * Creates the repository over an open database.
  *
  * @param database - A database the migrations have run on.
@@ -324,30 +352,22 @@ function versionAdder(
  */
 export function createDashboardRepository(database: Database): DashboardRepository {
   const statements = writeStatements(database);
-  const selectDashboard = database.query<StoredDashboard, [string]>(
-    'SELECT * FROM dashboards WHERE id = ?',
-  );
-  const selectVersions = database.query<StoredVersion, [string]>(
-    `SELECT id, dashboard_id, version, change_summary, pinned_at, actor, created_at
-     FROM dashboard_versions WHERE dashboard_id = ? ORDER BY version`,
-  );
-  const selectVersion = database.query<StoredVersion, [string, number]>(
-    'SELECT * FROM dashboard_versions WHERE dashboard_id = ? AND version = ?',
-  );
+  const reads = readStatements(database);
   return {
     create: creator(database, statements),
     pin: pinner(database, statements),
     addVersion: versionAdder(database, statements),
     get: (id) => {
-      const stored = selectDashboard.get(id);
+      const stored = reads.selectDashboard.get(id);
       return stored ? toDashboard(stored) : undefined;
     },
-    listVersions: (dashboardId) => selectVersions.all(dashboardId).map(toVersionSummary),
+    listVersions: (dashboardId) => reads.selectVersions.all(dashboardId).map(toVersionSummary),
     getVersion: (dashboardId, version) => {
-      const stored = selectVersion.get(dashboardId, version);
+      const stored = reads.selectVersion.get(dashboardId, version);
       return stored
         ? { ...toVersionSummary(stored), spec: JSON.parse(stored.spec ?? 'null') }
         : undefined;
     },
+    listPinned: pinnedLister(database),
   };
 }

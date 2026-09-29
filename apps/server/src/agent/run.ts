@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { AppError } from '../lib/errors.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
 import { withPlanDecisions } from './compact.ts';
+import { firstQuestionMatches, matchesResponse } from './matches.ts';
 import {
   languageModel,
   type ModelJob,
@@ -291,6 +292,12 @@ export function createAgent(dependencies: AgentDependencies): Agent {
         throw new AppError('bad_request', 'The agent is already working in this thread.');
       }
       const turn = await prepare(dependencies, request);
+      const matches = firstQuestionMatches(dependencies, request.threadId, turn.messages);
+      if (matches.length > 0) {
+        const save = (messages: ThreadMessage[]) =>
+          dependencies.threads.saveMessages(request.threadId, messages, request.actor);
+        return matchesResponse(save, turn.messages, matches);
+      }
       running.add(request.threadId);
       return respond(dependencies, request, turn, () => running.delete(request.threadId));
     },

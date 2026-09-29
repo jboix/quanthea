@@ -93,6 +93,7 @@ export async function turnInstructions(
     draft: spec ? { version, spec } : undefined,
     mentions: hints.mentions,
     timeZone: hints.timeZone,
+    declinedMatches: messages.at(-1)?.parts.some((part) => part.type === 'data-matches') ?? false,
   });
   return cachedInstructions(parts, context.settings.provider);
 }

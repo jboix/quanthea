@@ -3,6 +3,7 @@
  * would fill every request, so above a size only the entities whose names, descriptions or field
  * names share words with the person's questions are listed; `describe` reaches the rest.
  */
+import { meaningfulWords, sharedWords } from '../lib/words.ts';
 import type { ModelEntity } from './model-schema.ts';
 
 /** Connectors with more entities than this are trimmed. */
@@ -10,34 +11,6 @@ const trimAbove = 40;
 
 /** The most entities a trimmed connector lists. */
 const kept = 25;
-
-/** Words that say nothing about which data a question is about. */
-const stopWords: ReadonlySet<string> = new Set(
-  'the and for with what how show from that this are was per all any can you want see over time last day yesterday today hour hours week dashboard panel chart graph around happened'.split(
-    ' ',
-  ),
-);
-
-/**
- * A word's plain form, so `errors` finds `error`.
- *
- * @param word - The word, lowercase.
- * @returns The word without a plural s.
- */
-function stem(word: string): string {
-  return word.length > 4 && word.endsWith('s') ? word.slice(0, -1) : word;
-}
-
-/**
- * The meaningful words of a text or a name, `http_requests_total` giving `http`, `request`, `total`.
- *
- * @param text - The text.
- * @returns The words.
- */
-function wordsOf(text: string): Set<string> {
-  const words = text.toLowerCase().split(/[^a-z0-9]+/);
-  return new Set(words.filter((word) => word.length >= 3 && !stopWords.has(word)).map(stem));
-}
 
 /**
  * How much an entity is about the question: its name counts double.
@@ -47,13 +20,11 @@ function wordsOf(text: string): Set<string> {
  * @returns The score; 0 when nothing matches.
  */
 function scoreOf(entity: ModelEntity, question: ReadonlySet<string>): number {
-  const name = wordsOf(entity.name);
-  const rest = wordsOf(
+  const name = meaningfulWords(entity.name);
+  const rest = meaningfulWords(
     [entity.description ?? '', ...entity.fields.map((field) => field.name)].join(' '),
   );
-  let score = 0;
-  for (const word of question) score += (name.has(word) ? 2 : 0) + (rest.has(word) ? 1 : 0);
-  return score;
+  return 2 * sharedWords(question, name) + sharedWords(question, rest);
 }
 
 /**
@@ -69,7 +40,7 @@ export function focusedEntities(
   question: string,
 ): readonly ModelEntity[] {
   if (entities.length <= trimAbove) return entities;
-  const words = wordsOf(question);
+  const words = meaningfulWords(question);
   const ranked = entities
     .map((entity, index) => ({ entity, index, score: scoreOf(entity, words) }))
     .filter((entry) => entry.score > 0)

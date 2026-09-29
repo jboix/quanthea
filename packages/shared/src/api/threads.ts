@@ -85,6 +85,15 @@ export const rejectPlanEndpoint = defineEndpoint({
   output: threadSummarySchema,
 });
 
+/** Starts the thread's draft from a pinned dashboard: a copy, with no model involved. */
+export const startFromPinnedEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/threads/:threadId/start-from',
+  params: threadParams,
+  body: z.object({ dashboardId: z.string().min(1).max(100) }),
+  output: z.object({ dashboardId: z.string(), version: z.int() }),
+});
+
 /** Undo: restores an older version of the thread's dashboard as a new version. */
 export const restoreVersionEndpoint = defineEndpoint({
   method: 'POST',

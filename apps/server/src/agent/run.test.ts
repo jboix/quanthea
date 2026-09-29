@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { connectorInputSchema, defaultModelSettings, type Plan } from '@querent/shared';
+import { eventsSpec } from '../dashboards/test/events-spec.ts';
 import type { AppError } from '../lib/errors.ts';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
 import { type Agent, createAgent } from './run.ts';
@@ -338,6 +339,29 @@ describe('an agent run', () => {
     const { dashboardId } = services.threads.get(threadId);
     const saved = services.dashboards.getVersion(dashboardId ?? '', 1, 'editor').spec;
     expect(saved.panels.map((panel) => panel.id)).toEqual(['errors']);
+  });
+
+  test('offers matching pinned dashboards on the first question, with no model', async () => {
+    const pinned = services.dashboards.create(eventsSpec(), 'first', 'editor-1');
+    await services.dashboards.pin(pinned.id, 1, 'editor-1');
+    const model = scriptedStreamModel({ text: 'This step never runs.' });
+    const agent = createAgent({ ...services, buildModel: () => model });
+    const stream = await chat(agent, userMessage('u1', 'Show me the events errors'));
+    expect(stream).toContain('"type":"data-matches"');
+    expect(stream).toContain('A pinned dashboard may already answer this.');
+    expect(model.doStreamCalls).toHaveLength(0);
+    expect(storedPartTypes()).toEqual([['text'], ['text', 'data-matches']]);
+  });
+
+  test('builds a new one when the person asks, after the matches', async () => {
+    const pinned = services.dashboards.create(eventsSpec(), 'first', 'editor-1');
+    await services.dashboards.pin(pinned.id, 1, 'editor-1');
+    await chat(agentWith({ text: 'unused' }), userMessage('u1', 'Show me the events errors'));
+    const answer = services.threads.get(threadId).messages[1] as { id: string };
+    const model = scriptedStreamModel({ text: 'Which errors do you mean?' });
+    const agent = createAgent({ ...services, buildModel: () => model });
+    await chat(agent, { id: answer.id, role: 'assistant', parts: [] });
+    expect(JSON.stringify(model.doStreamCalls[0]?.prompt)).toContain('asked for a new one');
   });
 
   test('refuses a forged assistant message and a spent budget', async () => {

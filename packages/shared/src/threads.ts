@@ -71,7 +71,17 @@ const panelDiffSchema = z.object({
 });
 
 /** The custom parts of thread messages, by name: `data-plan`, `data-version`, `data-diff`. */
+/** Validates a pinned dashboard that may already answer a question. */
+const pinnedMatchSchema = z.object({
+  dashboardId: z.string(),
+  title: z.string(),
+  version: z.int(),
+  panels: z.array(z.string()).max(12),
+});
+
 export const threadDataSchemas = {
+  /** Pinned dashboards that may already answer the first question, found with no model. */
+  matches: z.object({ dashboards: z.array(pinnedMatchSchema).max(5) }),
   /** A proposed plan, for the plan card. */
   plan: z.object({ planId: z.string(), body: planSchema }),
   /** A new dashboard version; the right pane moves to it. */
