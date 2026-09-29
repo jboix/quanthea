@@ -193,7 +193,7 @@ describe('signing in through a provider', () => {
     expect(await run(ada, 'link', bob)).toMatchObject({ failure: 'linked-elsewhere' });
   });
 
-  test('refuses a wrong nonce, another audience, a key the provider never published', async () => {
+  test('refuses a forged or stale ID token: nonce, audience, issuer, key, alg none, expiry', async () => {
     await enable();
     await accounts.users.create({ email: 'ada@example.com', name: 'Ada', role: 'editor' }, 'x');
     const failureWith = async (misbehaviour: Parameters<FakeProvider['misbehave']>[0]) => {
@@ -203,6 +203,11 @@ describe('signing in through a provider', () => {
     expect(await failureWith({ nonce: 'someone-elses' })).toBe('provider');
     expect(await failureWith({ audience: 'another-app' })).toBe('provider');
     expect(await failureWith({ foreignKey: true })).toBe('provider');
+    expect(await failureWith({ unsigned: true })).toBe('provider');
+    expect(await failureWith({ issuer: 'https://evil.test' })).toBe('provider');
+    expect(await failureWith({ expired: true })).toBe('provider');
+    fake.misbehave({});
+    expect(await run(ada)).toMatchObject({ kind: 'signed-in' });
   });
 
   test('completes a flow once, only in the browser that started it, and only for a while', async () => {

@@ -26,6 +26,12 @@ export interface Misbehaviour {
   readonly audience?: string;
   /** Signs with a key it never published. */
   readonly foreignKey?: boolean;
+  /** Sends an unsigned token, `alg: none`. */
+  readonly unsigned?: boolean;
+  /** Names this issuer instead of itself. */
+  readonly issuer?: string;
+  /** Sends a token that expired ten minutes ago. */
+  readonly expired?: boolean;
 }
 
 /** An authorization the fake provider granted, waiting for its code to be traded. */
@@ -93,6 +99,17 @@ async function signJwt(
     new TextEncoder().encode(`${header}.${body}`),
   );
   return `${header}.${body}.${base64url(new Uint8Array(signature))}`;
+}
+
+/**
+ * An unsigned JWT, `alg: none`, as an attacker would forge one.
+ *
+ * @param payload - The claims.
+ * @returns The JWT.
+ */
+function unsignedJwt(payload: Record<string, unknown>): string {
+  const header = base64url(JSON.stringify({ alg: 'none', typ: 'JWT' }));
+  return `${header}.${base64url(JSON.stringify(payload))}.`;
 }
 
 /**
@@ -170,22 +187,22 @@ export async function startFakeProvider(): Promise<FakeProvider> {
         if (!verified || !grant) return Response.json({ error: 'invalid_grant' }, { status: 400 });
         const accessToken = crypto.randomUUID();
         tokens.set(accessToken, grant.person);
-        const now = Math.floor(Date.now() / 1000);
-        const idToken = await signJwt(
-          misbehaviour.foreignKey ? foreign.privateKey : keys.privateKey,
-          'k1',
-          {
-            iss: issuer,
-            aud: misbehaviour.audience ?? clientId,
-            sub: grant.person.sub,
-            iat: now,
-            exp: now + 300,
-            nonce: misbehaviour.nonce ?? grant.nonce,
-            email: grant.person.email,
-            email_verified: grant.person.email_verified,
-            name: grant.person.name,
-          },
-        );
+        const now = Math.floor(Date.now() / 1000) - (misbehaviour.expired ? 900 : 0);
+        const claims = {
+          iss: misbehaviour.issuer ?? issuer,
+          aud: misbehaviour.audience ?? clientId,
+          sub: grant.person.sub,
+          iat: now,
+          exp: now + 300,
+          nonce: misbehaviour.nonce ?? grant.nonce,
+          email: grant.person.email,
+          email_verified: grant.person.email_verified,
+          name: grant.person.name,
+        };
+        const key = misbehaviour.foreignKey ? foreign.privateKey : keys.privateKey;
+        const idToken = misbehaviour.unsigned
+          ? unsignedJwt(claims)
+          : await signJwt(key, 'k1', claims);
         return Response.json({
           access_token: accessToken,
           token_type: 'Bearer',

@@ -1176,6 +1176,11 @@ provider's name, so two setups of the same vendor stay apart.
 - **Unit** (`bun test`): spec validation, formatter library, variable binding and escaping (with
   injection cases), gate redaction per level, error sanitizing, guardrails, diff, the thread state
   machine, bin retention.
+- **Attacks:** a fake OpenID Connect provider (`auth/providers/test/fake-provider.ts`) sends
+  wrong nonces, audiences and issuers, expired tokens, `alg: none` and keys it never published,
+  and every one is refused. `security.test.ts` stores every kind of secret, then scans the
+  database file, its write-ahead log and its shared memory for any of them in clear.
+  `docs/SECURITY.md` holds the threat model.
 - **Integration** (`bun run test:integration`, after `bun run env:up`): each connector against the
   real service, in `*.integration.test.ts` files that run only with `QUERENT_INTEGRATION=1`. Every
   connector kind also runs the conformance suite there. CI runs them in the `integration` job.
