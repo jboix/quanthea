@@ -2,10 +2,10 @@ import type { DashboardSpec } from '@querent/shared';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { HistoryIcon, QuestionIcon } from '../../ui/icons.tsx';
+import { Pill } from '../../ui/pill.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import styles from './dashboard.module.css';
 import type { DashboardData, DashboardIntent, Loaded } from './data.ts';
-import { versionNote } from './version-note.ts';
 
 /**
  * How each connector is used: by how many panels, and whether for markers.
@@ -42,26 +42,40 @@ interface HistoryRowProps {
 }
 
 /**
- * One version: a link to it, what it is, and Pin for editors when the library shows another.
+ * When a version was made, short: the time today, else the day and the time.
+ *
+ * @param at - The time, in epoch milliseconds.
+ * @returns Such as `14:02` or `28 Sep, 14:02`.
+ */
+function whenMade(at: number): string {
+  const date = new Date(at);
+  const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  if (date.toDateString() === new Date().toDateString()) return time;
+  const day = date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return `${day}, ${time}`;
+}
+
+/**
+ * One version: its number, linking to it unless it is on screen, when it was made, whether the
+ * library shows it, and Pin for editors. What changed shows on hover.
  *
  * @param props - The dashboard, the version, whether it is on screen, and the pin callback.
  * @returns The row.
  */
 function HistoryRow({ dashboard, entry, current, onPin }: HistoryRowProps) {
-  const label = `v${entry.version} · ${versionNote(entry, dashboard.pinnedVersion)}`;
+  const pinned = entry.version === dashboard.pinnedVersion;
+  const label = `v${entry.version}`;
   return (
-    <li data-current={current} data-pinned={entry.version === dashboard.pinnedVersion}>
+    <li data-current={current} data-pinned={pinned} title={entry.changeSummary ?? undefined}>
       {current ? (
         <strong aria-current="page">{label}</strong>
       ) : (
         <Link to={`/d/${dashboard.id}/v/${entry.version}`}>{label}</Link>
       )}
-      {onPin && entry.version !== dashboard.pinnedVersion && (
-        <Button
-          size="small"
-          aria-label={`Pin v${entry.version}`}
-          onClick={() => onPin(entry.version)}
-        >
+      <span className={styles.historyWhen}>{whenMade(entry.createdAt)}</span>
+      {pinned && <Pill tone="ok">pinned</Pill>}
+      {onPin && !pinned && (
+        <Button size="small" aria-label={`Pin ${label}`} onClick={() => onPin(entry.version)}>
           Pin
         </Button>
       )}
@@ -70,11 +84,10 @@ function HistoryRow({ dashboard, entry, current, onPin }: HistoryRowProps) {
 }
 
 /**
- * The history: every version the role may see, the one on screen highlighted. Editors can pin
- * any version, which is how a bad change is undone, or unpin the dashboard.
+ * The versions, newest first, with Pin, and Unpin below for editors.
  *
  * @param props - The dashboard and the version shown.
- * @returns The list and its actions.
+ * @returns The history.
  */
 export function History({ dashboard, version }: DashboardData) {
   // The server says who may change it: the owner of its thread, or an admin.
@@ -88,7 +101,7 @@ export function History({ dashboard, version }: DashboardData) {
   return (
     <div className={styles.popoverBody} data-busy={fetcher.state !== 'idle'}>
       <ul className={styles.history}>
-        {dashboard.versions.map((entry) => (
+        {[...dashboard.versions].reverse().map((entry) => (
           <HistoryRow
             key={entry.version}
             dashboard={dashboard}
@@ -100,12 +113,9 @@ export function History({ dashboard, version }: DashboardData) {
       </ul>
       {fetcher.data && !fetcher.data.ok && <p className={styles.error}>{fetcher.data.message}</p>}
       {canEdit && dashboard.pinnedVersion !== null && (
-        <div className={styles.unpin}>
-          <span className={styles.muted}>Unpinning takes it out of the library.</span>
-          <Button size="small" onClick={() => submit({ intent: 'unpin' })}>
-            Unpin
-          </Button>
-        </div>
+        <button type="button" className={styles.unpin} onClick={() => submit({ intent: 'unpin' })}>
+          Unpin, and take it out of the library
+        </button>
       )}
     </div>
   );

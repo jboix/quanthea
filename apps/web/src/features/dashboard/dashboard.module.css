@@ -112,12 +112,22 @@
 }
 
 .unpin {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-top: 10px;
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 8px 6px 0;
+  border: 0;
   border-top: 1px solid var(--color-divider);
+  width: 100%;
+  background: none;
+  font: inherit;
   font-size: 12.5px;
+  color: var(--color-ink-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.unpin:hover {
+  color: var(--color-danger);
 }
 
 .actionMenu {
@@ -179,34 +189,56 @@
 .history {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 .history li {
-  display: flex;
+  display: grid;
+  grid-template-columns: 10px 2.5em 1fr auto;
   align-items: center;
   gap: 10px;
+  min-height: 34px;
+  padding: 0 6px;
+  border-radius: 6px;
+}
+
+.history li[data-current="true"] {
+  background: var(--color-surface-muted);
 }
 
 .history li::before {
-  flex-shrink: 0;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border: 2px solid var(--color-switch-off);
   border-radius: 50%;
   content: "";
 }
 
-.history li > button {
-  margin-left: auto;
+.history li[data-pinned="true"]::before {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
 }
 
-.history li[data-pinned="true"] {
-  font-weight: 600;
+.history li > a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.history li > a:hover {
+  text-decoration: underline;
+}
+
+.historyWhen {
+  color: var(--color-ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.history li > :last-child:not(.historyWhen) {
+  justify-self: end;
 }
 
 .history li[data-current="true"]::before {

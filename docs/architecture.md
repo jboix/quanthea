@@ -177,7 +177,7 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/`                                                | redirect → `/library` (viewer) or `/threads/new` (editor+) | viewer   |
 | `/threads/new`, `/threads/:threadId`               | Plan, Build and refine, Variant                            | editor   |
 | `/library`                                         | Library: search pinned dashboards and their panels         | viewer   |
-| `/account`                                         | your account: password, sign out                           | viewer   |
+| `/account`                                         | resource route: the account menu's providers and actions   | viewer   |
 | `/d/:dashboardId`                                  | the pinned version; for editors, the latest if unpinned    | viewer   |
 | `/d/:dashboardId/v/:version`                       | a specific version                                         | viewer   |
 | `/d/:dashboardId/v/:version/panels/:panelId`       | resource route: one panel's run, for fetchers              | viewer   |
@@ -1002,7 +1002,7 @@ one, and enables them again. Without any admin, it creates the default one.
   domain (the `hd` claim), a GitLab verified-email domain or group (subgroups included), a GitHub
   organisation (active membership), or anyone in the Entra tenant. By default a provider lets in
   invited people only. An account already in use is never linked by email alone: its owner signs
-  in and links the provider from their account page (`?error=link-first` otherwise).
+  in and links the provider from the account menu (`?error=link-first` otherwise).
 - **Identities** (table `identities`): the provider's id of the person is stored as a keyed hash,
   for the lookup, and sealed, so a copy of the database holds no readable provider id. Linking
   and unlinking are one's own (`/api/auth/identities`); a person cannot unlink their last way to
@@ -1023,7 +1023,8 @@ one, and enables them again. Without any admin, it creates the default one.
   live in the URL (`from`, `to`, `var-env=prod`, repeated for several values), so a link shares
   the view and changing them never reloads the spec.
 - The dashboard header holds the title with an About bubble (description, tags, the connectors
-  and how many panels use each), a History button that lists the versions, and, for editors, a
+  and how many panels use each), a History button that lists the versions (newest first, each
+  its number, when it was made and whether it is pinned; what changed shows on hover), and, for editors, a
   link to the thread that edits the dashboard while that thread exists
   (`GET /api/dashboards/:id` returns its `threadId`), or Edit in a new thread when it has none,
   and New from this. Below 720 px the actions fold into one menu that lists the history too.
