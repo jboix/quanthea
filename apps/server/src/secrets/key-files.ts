@@ -122,6 +122,17 @@ function moveOldSecretKey(dataDir: string, keysDir: string, logger: Logger): voi
 }
 
 /**
+ * The file a generated key is kept in.
+ *
+ * @param keysDir - The keys directory.
+ * @param role - Which key.
+ * @returns The path.
+ */
+export function generatedKeyPath(keysDir: string, role: GeneratedRole): string {
+  return join(keysDir, keyFileNames[role]);
+}
+
+/**
  * Reads a generated key, generating it with mode 0600 first when it does not exist.
  *
  * @param keysDir - The keys directory.
@@ -130,7 +141,7 @@ function moveOldSecretKey(dataDir: string, keysDir: string, logger: Logger): voi
  * @returns The key.
  */
 function readOrCreateKey(keysDir: string, role: GeneratedRole, logger: Logger): Key {
-  const path = join(keysDir, keyFileNames[role]);
+  const path = generatedKeyPath(keysDir, role);
   if (existsSync(path)) return decodeKey(readKeyText(path, logger), path);
   const key = crypto.getRandomValues(new Uint8Array(keyLength));
   writeFileSync(path, `${Buffer.from(key).toString('base64')}\n`, { mode: 0o600, flag: 'wx' });

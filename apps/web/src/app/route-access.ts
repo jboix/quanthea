@@ -26,6 +26,7 @@ export const routeAccess = {
   '/settings/charts': 'admin',
   '/settings/queries': 'admin',
   '/settings/usage': 'admin',
+  '/settings/server': 'admin',
 } as const satisfies Record<string, Role>;
 
 /** A guarded screen path. */

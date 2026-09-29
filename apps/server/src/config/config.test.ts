@@ -1,4 +1,7 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { temporaryDir } from '../test/fixtures.ts';
 import { loadConfig } from './config.ts';
 
 describe('loadConfig', () => {
@@ -71,8 +74,87 @@ describe('loadConfig', () => {
   });
 
   test('names every invalid variable', () => {
-    expect(() => loadConfig({ QUERENT_PORT: 'eighty', QUERENT_AUTH_MODE: 'keycloak' })).toThrow(
-      /QUERENT_PORT[\s\S]*QUERENT_AUTH_MODE/,
+    const failure = () => loadConfig({ QUERENT_PORT: 'eighty', QUERENT_AUTH_MODE: 'keycloak' });
+    expect(failure).toThrow(/QUERENT_PORT/);
+    expect(failure).toThrow(/QUERENT_AUTH_MODE/);
+  });
+});
+
+describe('the configuration file', () => {
+  let directory: ReturnType<typeof temporaryDir>;
+
+  beforeEach(() => {
+    directory = temporaryDir();
+  });
+
+  afterEach(() => directory.remove());
+
+  /**
+   * Writes a file into the test directory.
+   *
+   * @param name - The file name.
+   * @param text - Its content.
+   * @returns Its path.
+   */
+  function write(name: string, text: string): string {
+    const path = join(directory.path, name);
+    writeFileSync(path, text);
+    return path;
+  }
+
+  test('sets what no variable sets, and says where each value comes from', () => {
+    const path = write(
+      'querent.yaml',
+      'server:\n  publicUrl: https://querent.example.com\n  port: 8080\n  keysDir: /keys\n',
     );
+    const config = loadConfig({ QUERENT_CONFIG: path, QUERENT_PORT: '9090' }, '/app');
+    expect(config).toMatchObject({
+      publicUrl: 'https://querent.example.com',
+      port: 9090,
+      keysDir: '/keys',
+      configFiles: [path],
+    });
+    expect(config.sources.publicUrl).toEqual({ kind: 'file', path });
+    expect(config.sources.port).toEqual({ kind: 'environment', variable: 'QUERENT_PORT' });
+    expect(config.sources.logLevel).toEqual({ kind: 'default' });
+  });
+
+  test('reads a directory of YAML and JSON files in name order, a key in one file only', () => {
+    write('10-server.yaml', 'server:\n  port: 8080\n');
+    write('20-proxy.json', '{ "server": { "trustedProxyHops": 1 } }');
+    write('notes.txt', 'ignored');
+    const config = loadConfig({ QUERENT_CONFIG: directory.path });
+    expect(config).toMatchObject({ port: 8080, trustedProxyHops: 1 });
+    expect(config.configFiles).toHaveLength(2);
+    write('30-again.yml', 'server:\n  port: 9090\n');
+    expect(() => loadConfig({ QUERENT_CONFIG: directory.path })).toThrow(
+      /server\.port` is set in both/,
+    );
+  });
+
+  test('replaces a variable reference, keeps an escaped one as text, and names unset ones', () => {
+    // Built from parts: a reference is a dollar sign, then the name in braces.
+    const reference = (name: string) => ['$', '{', name, '}'].join('');
+    const path = write('querent.yaml', `server:\n  publicUrl: https://${reference('HOST')}\n`);
+    expect(loadConfig({ QUERENT_CONFIG: path, HOST: 'q.example.com' }).publicUrl).toBe(
+      'https://q.example.com',
+    );
+    expect(() => loadConfig({ QUERENT_CONFIG: path })).toThrow('unset variables: HOST');
+    write('querent.yaml', `server:\n  webDir: ./$${reference('HOME')}\n`);
+    expect(loadConfig({ QUERENT_CONFIG: path, HOME: '/root' }, '/app').webDir).toBe(
+      `/app/${reference('HOME')}`,
+    );
+  });
+
+  test('refuses a missing path, an unknown section or setting, and an invalid value', () => {
+    expect(() => loadConfig({ QUERENT_CONFIG: join(directory.path, 'none.yaml') })).toThrow(
+      'does not exist',
+    );
+    const path = write('querent.yaml', 'servr:\n  port: 1\n');
+    expect(() => loadConfig({ QUERENT_CONFIG: path })).toThrow('unknown section `servr`');
+    write('querent.yaml', 'server:\n  prot: 1\n  publicUrl: http://querent.example.com\n');
+    const failure = () => loadConfig({ QUERENT_CONFIG: path });
+    expect(failure).toThrow('server.prot in');
+    expect(failure).toThrow(/server\.publicUrl in .*: Use https/);
   });
 });

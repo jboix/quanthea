@@ -7,6 +7,7 @@ import type { Logger } from '../lib/logger.ts';
 import {
   decodeKey,
   type GeneratedRole,
+  generatedKeyPath,
   generatedKeys,
   isWithin,
   type Key,
@@ -39,8 +40,16 @@ export interface KeyInputs {
   readonly pepperPrevious: KeyInput;
 }
 
+/** Where a key comes from: a variable, a file a variable names, or a file querent generated. */
+export type KeyOrigin =
+  | { readonly kind: 'variable'; readonly variable: string }
+  | { readonly kind: 'file'; readonly variable: string; readonly path: string }
+  | { readonly kind: 'generated'; readonly path: string };
+
 /** The keys, read and checked. */
 export interface KeyRing {
+  /** Where each key in use comes from, by field; a rotated-out key only when given. */
+  readonly origins: Readonly<Partial<Record<keyof KeyInputs, KeyOrigin>>>;
   /** Seals secrets at rest with the secret key, and opens what the previous one sealed. */
   readonly secretBox: SecretBox;
   /** Whether the secret key's file lies in the data directory, where a copy of it goes. */
@@ -206,6 +215,27 @@ function readAll(sources: KeySources) {
 }
 
 /**
+ * Where each key in use comes from.
+ *
+ * @param sources - The key inputs and the keys directory.
+ * @returns The origins by field.
+ */
+function originsOf(sources: KeySources): Partial<Record<keyof KeyInputs, KeyOrigin>> {
+  const origins: Partial<Record<keyof KeyInputs, KeyOrigin>> = {};
+  for (const [field, input] of Object.entries(sources.keys) as [keyof KeyInputs, KeyInput][]) {
+    if (input.value !== undefined) origins[field] = { kind: 'variable', variable: input.name };
+    else if (input.file !== undefined)
+      origins[field] = { kind: 'file', variable: `${input.name}_FILE`, path: input.file };
+    else if ((generatedRoles as readonly string[]).includes(field))
+      origins[field] = {
+        kind: 'generated',
+        path: generatedKeyPath(sources.keysDir, field as GeneratedRole),
+      };
+  }
+  return origins;
+}
+
+/**
  * Reads and checks every key, generates the missing ones, and opens the secret box.
  *
  * @param sources - The key inputs, the directories and the logger.
@@ -216,6 +246,7 @@ export async function loadKeys(sources: KeySources): Promise<KeyRing> {
   const read = readAll(sources);
   const secretFile = sources.keys.secret.file;
   return {
+    origins: originsOf(sources),
     secretBox: await openSecretBox(read.secret, read.secretPrevious),
     secretKeyInDataDir: secretFile !== undefined && isWithin(secretFile, sources.dataDir),
     emailIndex: await keyedHash(read.secret, 'querent/email-index/v1'),

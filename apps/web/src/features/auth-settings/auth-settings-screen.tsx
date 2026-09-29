@@ -129,7 +129,8 @@ function ModeCard({ settings }: { readonly settings: AuthSettingsView }) {
       <div className={styles.form}>
         {settings.overridden && (
           <p className={styles.note}>
-            QUERENT_AUTH_MODE is set on the server, so the mode cannot change here.
+            The server forces the mode, so it cannot change here.{' '}
+            <Link to="/settings/server">Settings → Server</Link> shows where it is set.
           </p>
         )}
         <RadioCards<AuthMode>

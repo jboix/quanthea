@@ -2,7 +2,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Principal } from '@querent/shared';
+import type { Principal, ServerSettingsView } from '@querent/shared';
 import type { Authenticator } from '../auth/authenticator.ts';
 import type { HashCosts } from '../auth/passwords.ts';
 import type { AnyConnectorKind } from '../connectors/_shared/index.ts';
@@ -105,8 +105,8 @@ export function temporaryDir(): { readonly path: string; readonly remove: () => 
  * @param kinds - The connector kinds on offer; the in-memory test kind by default.
  * @param now - The clock of the users and sessions; `Date.now` by default.
  * @param extra - A public URL and driver options, for provider sign-ins.
- * @returns The services, the database, and a function that closes the connections and the
- *   database.
+ * @returns The services, the database, an empty system settings view, and a function that closes
+ *   the connections and the database.
  */
 export async function testServices(
   dataDir: string,
@@ -117,6 +117,7 @@ export async function testServices(
   Services & {
     readonly close: () => Promise<void>;
     readonly database: ReturnType<typeof openDatabase>;
+    readonly serverSettings: ServerSettingsView;
   }
 > {
   const database = openDatabase(dataDir);
@@ -135,5 +136,6 @@ export async function testServices(
     await services.connections.closeAll();
     database.close();
   };
-  return { ...services, close, database };
+  const serverSettings = { configFiles: [], settings: [], keys: [] };
+  return { ...services, close, database, serverSettings };
 }

@@ -140,7 +140,7 @@ function switchTo(
   if (dependencies.override !== undefined)
     throw new AppError(
       'bad_request',
-      'QUERENT_AUTH_MODE is set on the server. Unset it to change the mode here.',
+      'The server forces the mode (QUERENT_AUTH_MODE or server.authMode). Remove it to change the mode here.',
     );
   if (mode === 'accounts') {
     const admins = signInAdminIds(dependencies);

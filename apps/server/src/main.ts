@@ -7,6 +7,7 @@ import { resolveAuthMode } from './auth/auth-mode.ts';
 import { createAuthenticator } from './auth/authenticator.ts';
 import { accountsProblems } from './auth/readiness.ts';
 import { loadConfig } from './config/config.ts';
+import { serverSettingsView } from './config/server-view.ts';
 import { connectorKinds } from './connectors/registry.ts';
 import { openDatabase } from './db/database.ts';
 import { runMigrations } from './db/migrate.ts';
@@ -66,6 +67,7 @@ const app = createApp({
   webDir: config.webDir,
   publicUrl: config.publicUrl,
   trustedProxyHops: config.trustedProxyHops,
+  serverSettings: serverSettingsView(config, keys.origins),
   ...services,
 });
 const stopPurgeJob = startPurgeJob({ ...services, logger });

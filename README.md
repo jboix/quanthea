@@ -60,13 +60,16 @@ Docker image and checks that it serves the app. A git hook runs `bun run verify`
 
 ## Configuration
 
-The server reads these environment variables at startup. Everything else will live in Settings.
+The server reads these settings at startup, from an environment variable or, when no variable is
+set, from the configuration file's `server` section. Settings → Server shows each one with where
+it comes from. Everything else lives in Settings.
 
 | Variable                     | Default         | Purpose                                                                                                     |
 | ---------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------- |
 | `QUERENT_PORT`               | `3000`          | HTTP port.                                                                                                  |
 | `QUERENT_DATA_DIR`           | `./data`        | Holds the SQLite database. Created with mode 0700. `/data` in the image.                                    |
 | `QUERENT_KEYS_DIR`           | `./keys`        | Holds the keys querent generates. Created with mode 0700, outside the data directory. `/keys` in the image. |
+| `QUERENT_CONFIG`             | unset           | A YAML or JSON configuration file, or a directory of them. `/etc/querent` in the image.                     |
 | `QUERENT_AUTH_MODE`          | unset           | Replaces the stored authentication mode. `none` is the lockout escape hatch.                                |
 | `QUERENT_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                                                         |
 | `QUERENT_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.                                             |
@@ -76,6 +79,16 @@ The server reads these environment variables at startup. Everything else will li
 | `QUERENT_PASSWORD_PEPPER`    | generated       | 32 bytes in base64 mixed into password hashes.                                                              |
 | `QUERENT_PUBLIC_URL`         | unset           | The address people reach querent at, such as `https://querent.example.com`. Required with accounts.         |
 | `QUERENT_TRUSTED_PROXY_HOPS` | `0`             | How many reverse proxies in front of querent add to `X-Forwarded-For`.                                      |
+
+In the configuration file, each setting takes its name without the prefix, in camel case:
+
+```yaml
+server:
+  publicUrl: https://querent.example.com
+  trustedProxyHops: 1
+```
+
+`${NAME}` in a value is replaced by the environment variable `NAME`. Keys never go in the file.
 
 Each key can come from a file instead: `QUERENT_SECRET_KEY_FILE`, and so on. A key not given is
 generated on first start in the keys directory, with mode 0600; a key given always wins, key by

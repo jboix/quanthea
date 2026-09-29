@@ -15,6 +15,7 @@ async function keyRing(ring: Partial<KeyRing>): Promise<KeyRing> {
   const hash = await keyedHash(key, 'test');
   return {
     secretBox: await testSecretBox(),
+    origins: {},
     secretKeyInDataDir: false,
     emailIndex: hash,
     sessionHashes: { signature: hash, idHash: hash, tokenHash: hash },

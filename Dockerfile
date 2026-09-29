@@ -3,6 +3,7 @@
 # Build from the repository root:
 #   docker build -t querent .
 #   docker run -p 3000:3000 -v querent-data:/data -v querent-keys:/keys querent
+# Settings can also come from YAML or JSON files mounted in /etc/querent.
 #
 # Every RUN happens in stages on the build platform. Their output is JavaScript
 # and the built SPA, the same on every CPU, so the runner stage needs no RUN and
@@ -24,7 +25,7 @@ COPY packages/shared packages/shared
 COPY apps/web apps/web
 RUN bun run --filter @querent/web build
 
-# ---- deps: the server's production dependencies, and the data and keys directories ----
+# ---- deps: the server's production dependencies, and the data, keys and config directories ----
 FROM --platform=$BUILDPLATFORM oven/bun:1.3.14-slim AS deps
 WORKDIR /repo
 COPY package.json bun.lock ./
@@ -33,8 +34,8 @@ COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY dev/package.json dev/package.json
 RUN bun install --frozen-lockfile --ignore-scripts --production --filter @querent/server
-RUN mkdir -p /volume/data /volume/keys && chown 1000:1000 /volume/data /volume/keys \
-    && chmod 700 /volume/data /volume/keys
+RUN mkdir -p /volume/data /volume/keys /volume/etc/querent \
+    && chown 1000:1000 /volume/data /volume/keys && chmod 700 /volume/data /volume/keys
 
 # ---- runner: server and shared sources, their dependencies, and the SPA ----
 FROM oven/bun:1.3.14-slim AS runner
@@ -45,7 +46,8 @@ WORKDIR /app
 ENV NODE_ENV=production \
     QUERENT_PORT=3000 \
     QUERENT_DATA_DIR=/data \
-    QUERENT_KEYS_DIR=/keys
+    QUERENT_KEYS_DIR=/keys \
+    QUERENT_CONFIG=/etc/querent
 COPY --from=deps /volume/ /
 COPY --from=deps /repo/node_modules node_modules
 COPY --from=deps /repo/apps/server/node_modules apps/server/node_modules

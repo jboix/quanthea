@@ -19,7 +19,7 @@ export function accountsProblems(config: Pick<Config, 'publicUrl'>, keys: KeyRin
       ? 'QUERENT_SECRET_KEY_FILE points into the data directory, and a copy of the data would carry it. Move the file out.'
       : undefined,
     config.publicUrl === undefined
-      ? 'Set QUERENT_PUBLIC_URL to the address people reach querent at, such as https://querent.example.com.'
+      ? 'Set the public URL, the address people reach querent at (QUERENT_PUBLIC_URL, or server.publicUrl in the configuration file). Settings → Server shows it.'
       : undefined,
   ].filter((problem) => problem !== undefined);
 }

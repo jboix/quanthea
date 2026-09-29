@@ -1,0 +1,64 @@
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+.files {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.table th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 500;
+  text-align: left;
+  color: var(--color-ink-secondary);
+}
+
+.table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--color-divider);
+  vertical-align: top;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.source {
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+  overflow-wrap: anywhere;
+}
+
+.keys {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.keys div {
+  display: grid;
+  grid-template-columns: minmax(160px, max-content) 1fr;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.keys dd {
+  margin: 0;
+}

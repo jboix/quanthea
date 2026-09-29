@@ -20,7 +20,7 @@ export function resolveAuthMode(
   const stored = settings.read('auth').mode;
   if (override === undefined) return stored;
   if (override !== stored) {
-    logger.warn('QUERENT_AUTH_MODE overrides the stored authentication mode.', {
+    logger.warn('The forced authentication mode overrides the stored one.', {
       stored,
       override,
     });

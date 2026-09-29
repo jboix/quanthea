@@ -5,12 +5,11 @@ import { z } from 'zod';
 import { createApp } from './app.ts';
 import { anonymousAdmin } from './auth/authenticator.ts';
 import { listApiRouteAccess } from './http/access.ts';
-import type { Services } from './services.ts';
 import { captureLogs, fixedAuthenticator, temporaryDir, testServices } from './test/fixtures.ts';
 
 let webDir: ReturnType<typeof temporaryDir>;
 let dataDir: ReturnType<typeof temporaryDir>;
-let services: Services;
+let services: Omit<Awaited<ReturnType<typeof testServices>>, 'close'>;
 let closeServices: () => Promise<void>;
 
 beforeEach(async () => {
@@ -104,7 +103,7 @@ describe('route access', () => {
     const settingsRoutes = listApiRouteAccess(buildApp()).filter((route) =>
       /^\/api\/settings/.test(route.path),
     );
-    expect(settingsRoutes.length).toBe(21);
+    expect(settingsRoutes.length).toBe(22);
     expect(settingsRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 

@@ -6,7 +6,7 @@ import {
   providerCallbackPath,
 } from '@querent/shared';
 import { type FormEvent, useEffect, useState } from 'react';
-import { type SubmitTarget, useFetcher } from 'react-router';
+import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';
 import { Select } from '../../ui/select.tsx';
@@ -288,7 +288,8 @@ function CallbackNote({
   if (!publicUrl)
     return (
       <p className={styles.problems}>
-        Set QUERENT_PUBLIC_URL on the server: providers send people back to it.
+        Set the public URL first: providers send people back to it.{' '}
+        <Link to="/settings/server">Settings → Server</Link> shows how.
       </p>
     );
   return (

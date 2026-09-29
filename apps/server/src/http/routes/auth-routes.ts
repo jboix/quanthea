@@ -71,7 +71,7 @@ function passwordsOf(services: AuthRouteServices): PasswordAccounts {
   if (!services.passwords)
     throw new AppError(
       'bad_request',
-      'Passwords need QUERENT_SESSION_KEY and QUERENT_PASSWORD_PEPPER on the server.',
+      'Passwords need the session key and the password pepper. Settings → Server shows where they come from.',
     );
   return services.passwords;
 }

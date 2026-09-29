@@ -84,6 +84,7 @@ describe('loading the keys', () => {
       expect(lines).toContainEqual(expect.objectContaining({ level: 'info', path }));
     }
     expect(ring.secretKeyInDataDir).toBe(false);
+    expect(ring.origins.session).toEqual({ kind: 'generated', path: join(keysDir, 'session.key') });
     expect(readdirSync(dataDir.path)).toEqual([]);
     const again = await load(inputs());
     const sealed = await ring.secretBox.seal('s3cret', 'connector-1');
@@ -129,6 +130,11 @@ describe('loading the keys', () => {
     const given = { session: { value: randomKey() }, pepper: { value: randomKey() } };
     const { ring, lines } = await load(inputs({ secret: { file }, ...given }));
     expect(ring.secretKeyInDataDir).toBe(false);
+    expect(ring.origins).toEqual({
+      secret: { kind: 'file', variable: 'QUERENT_SECRET_KEY_FILE', path: file },
+      session: { kind: 'variable', variable: 'QUERENT_SESSION_KEY' },
+      pepper: { kind: 'variable', variable: 'QUERENT_PASSWORD_PEPPER' },
+    });
     expect(ring.peppers.current.id).toHaveLength(8);
     expect(lines).toEqual([]);
     const inside = join(dataDir.path, 'mine.key');

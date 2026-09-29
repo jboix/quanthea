@@ -170,30 +170,31 @@ the `postgres` driver and Prometheus uses `fetch`.
 
 **Routes** (React Router data mode):
 
-| Path                                               | Screen                                                       | Min role |
-| -------------------------------------------------- | ------------------------------------------------------------ | -------- |
-| `/`                                                | redirect → `/library` (viewer) or `/threads/new` (editor+)   | viewer   |
-| `/threads/new`, `/threads/:threadId`               | Plan, Build and refine, Variant                              | editor   |
-| `/library`                                         | Library: search pinned dashboards and their panels           | viewer   |
-| `/account`                                         | your account: password, sign out                             | viewer   |
-| `/d/:dashboardId`                                  | the pinned version; for editors, the latest if unpinned      | viewer   |
-| `/d/:dashboardId/v/:version`                       | a specific version                                           | viewer   |
-| `/d/:dashboardId/v/:version/panels/:panelId`       | resource route: one panel's run, for fetchers                | viewer   |
-| `/d/:dashboardId/v/:version/options/:name`         | resource route: a variable's options, for fetchers           | viewer   |
-| `/bin`                                             | Bin: deleted threads, restore, delete for good (admin)       | editor   |
-| `/connectors`, `/connectors/:connectorId`          | Connectors: list, access level, guardrails, schema           | admin    |
-| `/connectors/new`, `/connectors/:connectorId/edit` | add and edit a connection                                    | admin    |
-| `/connectors/:connectorId/health`                  | resource route: the connection test, for fetchers            | admin    |
-| `/settings/model`, `/settings/retention`           | Settings                                                     | admin    |
-| `/settings/auth`                                   | Authentication: open access or accounts, open-access threads | admin    |
-| `/settings/users`                                  | Users: invite, roles, disable, reset links, sign out         | admin    |
-| `/settings/usage`                                  | Usage: tokens, cost and pinned views per day, by model       | admin    |
-| `/settings/queries`                                | Queries: builders on or off, your own with placeholders      | admin    |
-| `/settings/charts`                                 | Charts: every chart recipe drawn from its sample             | admin    |
-| `/settings`                                        | redirect → `/settings/model`                                 | admin    |
-| `/ui`                                              | UI kit: every `ui/` primitive, for checking the visuals      | viewer   |
-| `/login`                                           | sign in; only in `accounts` mode                             | —        |
-| `/set-password`                                    | choose a password from an invite or reset link               | —        |
+| Path                                               | Screen                                                     | Min role |
+| -------------------------------------------------- | ---------------------------------------------------------- | -------- |
+| `/`                                                | redirect → `/library` (viewer) or `/threads/new` (editor+) | viewer   |
+| `/threads/new`, `/threads/:threadId`               | Plan, Build and refine, Variant                            | editor   |
+| `/library`                                         | Library: search pinned dashboards and their panels         | viewer   |
+| `/account`                                         | your account: password, sign out                           | viewer   |
+| `/d/:dashboardId`                                  | the pinned version; for editors, the latest if unpinned    | viewer   |
+| `/d/:dashboardId/v/:version`                       | a specific version                                         | viewer   |
+| `/d/:dashboardId/v/:version/panels/:panelId`       | resource route: one panel's run, for fetchers              | viewer   |
+| `/d/:dashboardId/v/:version/options/:name`         | resource route: a variable's options, for fetchers         | viewer   |
+| `/bin`                                             | Bin: deleted threads, restore, delete for good (admin)     | editor   |
+| `/connectors`, `/connectors/:connectorId`          | Connectors: list, access level, guardrails, schema         | admin    |
+| `/connectors/new`, `/connectors/:connectorId/edit` | add and edit a connection                                  | admin    |
+| `/connectors/:connectorId/health`                  | resource route: the connection test, for fetchers          | admin    |
+| `/settings/model`, `/settings/retention`           | Settings                                                   | admin    |
+| `/settings/auth`                                   | Authentication: mode, sign-in providers, passwords         | admin    |
+| `/settings/users`                                  | Users: invite, roles, disable, reset links, sign out       | admin    |
+| `/settings/usage`                                  | Usage: tokens, cost and pinned views per day, by model     | admin    |
+| `/settings/queries`                                | Queries: builders on or off, your own with placeholders    | admin    |
+| `/settings/charts`                                 | Charts: every chart recipe drawn from its sample           | admin    |
+| `/settings/server`                                 | Server: system settings and keys, read-only, with sources  | admin    |
+| `/settings`                                        | redirect → `/settings/model`                               | admin    |
+| `/ui`                                              | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
+| `/login`                                           | sign in; only in `accounts` mode                           | —        |
+| `/set-password`                                    | choose a password from an invite or reset link             | —        |
 
 Route loaders fetch through the typed API client. The root loader loads the session
 (`GET /api/me`, once per page load). Without a session, every screen redirects to
@@ -871,6 +872,7 @@ indicative; the contract files are the source of truth.
 | `GET/PUT /settings/:section`                                                                      | model, auth, retention, limits               | admin    |
 | `POST /settings/model/test`                                                                       | gateway capability test                      | admin    |
 | `GET /settings/usage?days=`                                                                       | usage by hour, from the ledger               | admin    |
+| `GET /settings/server`                                                                            | system settings and key sources, read-only   | admin    |
 | `GET /model-providers`                                                                            | the providers a thread may use, without keys | editor   |
 | `GET/PUT /settings/queries`                                                                       | builders on or off, saved queries            | admin    |
 | `GET /queries`                                                                                    | the queries a thread may use                 | editor   |
@@ -906,8 +908,9 @@ with the keys and `QUERENT_PUBLIC_URL` it needs (see "Keys").
 no restart. Switching to `accounts` needs the keys, and an enabled admin who can sign in; the
 threads started in open access (owned by `anonymous`) go to an admin, chosen or the first one
 (`POST /api/settings/auth/adopt` hands them over later too). Every switch ends every session.
-`QUERENT_AUTH_MODE` forces the mode and freezes it; set to `none`, it is the escape hatch for a
-locked-out install, with a warning at startup.
+`QUERENT_AUTH_MODE` (or `server.authMode` in the configuration file) forces the mode and
+freezes it; set to `none`, it is the escape hatch for a locked-out install, with a warning at
+startup.
 
 - Each route module declares its minimum role next to its handler. A test walks the router and
   fails if any `/api` route (except the public ones) has no declared role, and another lists the
@@ -1111,8 +1114,23 @@ sign-in.
 
 ## 13. Configuration
 
-Environment variables handle boot-time concerns. Everything else lives in Settings (SQLite) and
-is editable in the UI.
+**System settings** (the public URL, trusted proxies, the forced authentication mode, the port,
+the directories and logging) come from an environment variable, else the configuration file's
+`server` section, else a default (`config/config.ts`). They are never edited in the UI:
+**Settings → Server** (`GET /api/settings/server`, admin) shows each one read-only, with its
+value and where it comes from, and each key by where it comes from, never its value
+(`config/server-view.ts`). They are read at startup; a change applies at the next restart.
+
+**The configuration file** (`config/config-file.ts`): `QUERENT_CONFIG` names a YAML or JSON file,
+or a directory whose `*.yaml`, `*.yml` and `*.json` files are read in name order (`/etc/querent`
+in the image, empty until a file is mounted). YAML is parsed with Bun's built-in parser. Each
+top-level key is a section; today only `server` is known, and its keys are the settings' names
+(`publicUrl`, `port`, `dataDir`…). A key is set in one file only. `${NAME}` in a text value is
+replaced by the environment variable `NAME` (`$${` writes a literal `${`), and an unset one stops
+the server. An unknown section or setting, or an invalid value, stops the server with every issue
+listed. Relative paths resolve against the working directory.
+
+Everything else lives in Settings (SQLite) and is editable in the UI.
 
 The model gateway (**Settings → Model**) is a settings section: the saved providers, the default
 one, the limits of a run and the behaviour switches. Each provider has a name (such as "Mistral
@@ -1139,6 +1157,7 @@ provider's name, so two setups of the same vendor stay apart.
 | `QUERENT_PORT`               | `3000`          | HTTP port                                                              |
 | `QUERENT_DATA_DIR`           | `./data`        | SQLite database                                                        |
 | `QUERENT_KEYS_DIR`           | `./keys`        | generated keys, outside the data directory                             |
+| `QUERENT_CONFIG`             | _(unset)_       | the configuration file, or a directory of them                         |
 | `QUERENT_SECRET_KEY`         | generated       | seals secrets at rest; `_PREVIOUS` while rotating; `_FILE` variants    |
 | `QUERENT_SESSION_KEY`        | generated       | signs session cookies                                                  |
 | `QUERENT_PASSWORD_PEPPER`    | generated       | mixed into password hashes; `_PREVIOUS` while rotating                 |

@@ -1,5 +1,5 @@
 /** The Hono app: middleware, `/api` routes, and the SPA with its `index.html` fallback. */
-import { apiPrefix } from '@querent/shared';
+import { apiPrefix, type ServerSettingsView } from '@querent/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import type { Agent } from './agent/run.ts';
@@ -32,6 +32,7 @@ import {
 } from './http/routes/dashboard-routes.ts';
 import { mountProviderFlowRoutes } from './http/routes/provider-routes.ts';
 import { mountQueryEndpoints } from './http/routes/query-routes.ts';
+import { mountServerSettingsEndpoint } from './http/routes/server-settings-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSignInSettingsEndpoints } from './http/routes/sign-in-settings-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
@@ -103,6 +104,8 @@ export interface AppDependencies {
   readonly chartSettings: ChartSettingsService;
   /** How long deleted threads stay in the bin. */
   readonly retention: RetentionSettingsService;
+  /** The system settings, as read at startup, for Settings → Server. */
+  readonly serverSettings: ServerSettingsView;
 }
 
 /**
@@ -132,6 +135,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
     describe: dependencies.describeForPin,
   });
   mountSettingsEndpoints(app, dependencies.modelSettings);
+  mountServerSettingsEndpoint(app, dependencies.serverSettings);
   mountUsageEndpoints(app, dependencies.usage);
   mountQueryEndpoints(app, dependencies);
   mountChartEndpoints(app, dependencies.chartSettings);

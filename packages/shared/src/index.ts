@@ -152,6 +152,11 @@ export {
   saveRetentionSettingsEndpoint,
 } from './api/retention.ts';
 export {
+  getServerSettingsEndpoint,
+  type ServerSettingsView,
+  type SettingSource,
+} from './api/server-settings.ts';
+export {
   approvePlanEndpoint,
   createThreadEndpoint,
   deleteThreadEndpoint,
