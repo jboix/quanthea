@@ -1,22 +1,17 @@
-/**
- * Settings → Server: the system settings, read-only; which settings the configuration file manages;
- * and the current configuration exported as a file.
- */
+/** Settings → Server: the system settings, read-only; and which settings the file manages. */
 import {
-  exportConfigurationEndpoint,
   getManagedSettingsEndpoint,
   getServerSettingsEndpoint,
   type ServerSettingsView,
 } from '@querent/shared';
 import type { Hono } from 'hono';
-import { type ExportServices, exportConfiguration } from '../../provisioning/export.ts';
 import type { Managed } from '../../provisioning/managed.ts';
 import type { ProvisioningStatus } from '../../provisioning/status.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 
 /** What the server settings endpoints need. */
-export interface ServerSettingsRouteServices extends ExportServices {
+export interface ServerSettingsRouteServices {
   /** The system settings, as read at startup. */
   readonly serverSettings: ServerSettingsView;
   /** What the configuration file manages. */
@@ -26,10 +21,10 @@ export interface ServerSettingsRouteServices extends ExportServices {
 }
 
 /**
- * Mounts `GET /api/settings/server`, `/managed` and `/export`, for admins.
+ * Mounts `GET /api/settings/server` and `GET /api/settings/managed`, for admins.
  *
  * @param app - The app.
- * @param services - The system settings, what the file manages, and what export reads.
+ * @param services - The system settings, and what the file manages.
  */
 export function mountServerSettingsEndpoints(
   app: Hono<AppEnv>,
@@ -46,13 +41,6 @@ export function mountServerSettingsEndpoints(
       sections: managed.pathsOf('settings'),
       problem: status.problem(),
       restartNeeded: [...status.restartNeeded()],
-    }),
-  });
-  mountEndpoint(app, exportConfigurationEndpoint, {
-    access: 'admin',
-    handle: async () => ({
-      filename: 'querent.yaml',
-      yaml: await exportConfiguration(services, services.serverSettings),
     }),
   });
 }

@@ -17,10 +17,6 @@ import { declaredSchema as declaredConnector } from './connectors.ts';
 import { declaredSchema as declaredProvider } from './sign-in.ts';
 import { declaredSchema as declaredUser } from './users.ts';
 
-/** Where the published schema lives, for the `$schema` of an exported file. */
-export const configSchemaUrl =
-  'https://raw.githubusercontent.com/jboix/querent/main/docs/configuration.schema.json';
-
 /** A secret, which the file only ever refers to. */
 const secretReference = z
   .string()

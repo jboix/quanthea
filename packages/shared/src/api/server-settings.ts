@@ -78,16 +78,6 @@ export const getManagedSettingsEndpoint = defineEndpoint({
   output: managedSettingsSchema,
 });
 
-/**
- * The current configuration as a configuration file, secrets as references to set in the
- * environment.
- */
-export const exportConfigurationEndpoint = defineEndpoint({
-  method: 'GET',
-  path: '/settings/export',
-  output: z.object({ filename: z.string(), yaml: z.string() }),
-});
-
 /** The system settings, read-only, for admins. */
 export const getServerSettingsEndpoint = defineEndpoint({
   method: 'GET',

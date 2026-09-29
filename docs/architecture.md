@@ -883,7 +883,6 @@ indicative; the contract files are the source of truth.
 | `GET /settings/usage?days=`                                                                       | usage by hour, from the ledger               | admin    |
 | `GET /settings/server`                                                                            | system settings and key sources, read-only   | admin    |
 | `GET /settings/managed`                                                                           | settings sections the config file manages    | admin    |
-| `GET /settings/export`                                                                            | the configuration as a file, secrets as refs | admin    |
 | `GET /model-providers`                                                                            | the providers a thread may use, without keys | editor   |
 | `GET/PUT /settings/queries`                                                                       | builders on or off, saved queries            | admin    |
 | `GET /queries`                                                                                    | the queries a thread may use                 | editor   |
@@ -1213,15 +1212,9 @@ provisioning:
   and off are refused, while reset links, signing out and test sign-ins stay open. The fields the file leaves out that the UI edits
   on their own (a connector's `descriptions`) stay editable.
 
-**Export** (`provisioning/export.ts`, `GET /api/settings/export`, admin): Settings → Server
-writes what is set up now as a configuration file to start from. Every secret, and every sign-in
-provider's client id, becomes a variable reference named after it (`${CONNECTOR_ORDERS_PASSWORD}`);
-no secret leaves the server. Ports and directories stay out, since they belong to the install.
-
 **JSON Schema** (`provisioning/file-schema.ts`): `docs/configuration.schema.json` describes the
-file for editor completion, built from the schemas the server validates it with. An exported
-file names it on its first line. `bun run config:schema` writes it, and a test fails when it is
-out of date.
+file for editor completion, built from the schemas the server validates it with.
+`bun run config:schema` writes it, and a test fails when it is out of date.
 
 Everything else lives in Settings (SQLite) and is editable in the UI.
 

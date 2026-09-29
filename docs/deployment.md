@@ -90,12 +90,6 @@ does not validate keeps the last good configuration, and admins see why above th
 
 At startup, a file with a mistake stops querent with every issue listed.
 
-### Starting from what you have
-
-Settings → Server → **Export configuration** writes what is set up now as a file, each secret as
-a variable reference to fill in. Commit it, mount it, and the interface shows those items as
-managed.
-
 ## Accounts and sign-in
 
 Accounts need the public URL, the address people reach querent at, set as `server.publicUrl` or
