@@ -25,8 +25,9 @@ import {
   ModelUnavailableError,
   modelIdFor,
 } from './model.ts';
+import { publicError } from './public-error.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
-import { publicError, streamTurn, turnInstructions } from './turn.ts';
+import { streamTurn, turnInstructions } from './turn.ts';
 import { startingUsage } from './usage.ts';
 
 /** What the agent needs. */

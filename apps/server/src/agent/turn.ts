@@ -20,6 +20,7 @@ import { dataTools } from './data-tools.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
 import { phaseOf, phaseTools } from './phases.ts';
 import { instructionParts } from './prompt.ts';
+import { publicError } from './public-error.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
 import { withStep } from './usage.ts';
 
@@ -33,18 +34,6 @@ export interface TurnHints {
 
 /** The thread's plans, as the turn reads them. */
 type Plans = ReturnType<AgentServices['threads']['get']>['plans'];
-
-/**
- * The words a stream error shows the person.
- *
- * @param error - What failed.
- * @returns The message.
- */
-export function publicError(error: unknown): string {
-  return error instanceof Error
-    ? `The run failed: ${error.message.slice(0, 300)}`
-    : 'The run failed.';
-}
 
 /**
  * The text of the person's messages in the thread.
