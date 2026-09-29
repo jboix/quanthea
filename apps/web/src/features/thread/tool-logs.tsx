@@ -54,6 +54,8 @@ interface WriteOutput {
   readonly issues?: readonly { path: string; message: string }[];
   /** The panels' test runs. */
   readonly panels?: readonly PanelReport[];
+  /** New panels left out of the saved version because their queries failed. */
+  readonly leftOut?: { readonly panelIds: readonly string[] };
 }
 
 /**
@@ -79,11 +81,14 @@ function panelLine(panel: PanelReport): { text: string; failed: boolean } {
  * @param output - What it returned.
  * @param running - Whether it is still running.
  * @param tested - How many queries passed, of how many, such as `6 of 6`.
- * @returns The heading.
+ * @returns The heading, with the panels left out when some were.
  */
 function buildTitle(part: ToolPart, output: WriteOutput, running: boolean, tested: string): string {
   if (running) return `${toolName(part) === 'patch_panel' ? 'Changing a panel' : 'Building'}…`;
-  return output.ok ? `Built v${output.version} · ${tested} queries test-run` : 'Not saved';
+  if (!output.ok) return 'Not saved';
+  const leftOut = output.leftOut?.panelIds.length ?? 0;
+  const note = leftOut > 0 ? ` · ${leftOut} left out` : '';
+  return `Built v${output.version} · ${tested} queries test-run${note}`;
 }
 
 /**
@@ -121,6 +126,9 @@ export function BuildLog({ part }: { readonly part: ToolPart }) {
             {issue.path}: {issue.message}
           </li>
         ))}
+        {output.ok === false && panels.length === 0 && !output.issues?.length && output.error && (
+          <li data-failed="true">{output.error}</li>
+        )}
         {part.state === 'output-error' && <li data-failed="true">{part.errorText}</li>}
       </ul>
     </section>

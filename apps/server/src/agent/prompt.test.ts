@@ -36,9 +36,9 @@ describe('instructionsFor', () => {
     ).toContain('The approved plan "Checkout"');
   });
 
-  test('gives the spec guide only once there is something to write', () => {
-    expect(instructionsFor(facts)).not.toContain('The spec (JSON');
-    expect(instructionsFor({ ...facts, state: 'ready' })).toContain('The spec (JSON');
+  test('gives the recipe guide only once there is something to write', () => {
+    expect(instructionsFor(facts)).not.toContain('Building with edit_dashboard');
+    expect(instructionsFor({ ...facts, state: 'ready' })).toContain('Building with edit_dashboard');
   });
 
   test('ends with what the phase asks for', () => {

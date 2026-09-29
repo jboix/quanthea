@@ -1,28 +1,49 @@
 /**
  * What the agent asks for, instead of writing a spec: panels by recipe, variables, the time range
- * and deploy markers. The schemas carry descriptions, so the tool's JSON schema teaches the model
- * the recipes, and providers that constrain tool input keep it to this shape.
+ * and deploy markers. This is the edit tool's input schema, so providers that constrain tool input
+ * keep the model to it. It stays small: name checks run in code rather than as JSON schema
+ * patterns, and the conventions are explained once in the build prompt.
  */
-import { panelQuerySchema, timeRangeSchema, variableSchema, viewSchema } from '@querent/shared';
+import { timeRangeSchema, variableSchema } from '@querent/shared';
 import { z } from 'zod';
 
+/**
+ * A string that must match a pattern, checked in code so the JSON schema stays short.
+ *
+ * @param pattern - The pattern.
+ * @param message - What to write instead.
+ * @returns The schema.
+ */
+function matching(pattern: RegExp, message: string) {
+  return z
+    .string()
+    .max(200)
+    .refine((value) => pattern.test(value), message);
+}
+
 /** A label or column name. */
-const nameSchema = z
-  .string()
-  .regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'Use a plain label or column name.')
-  .describe('A label or column name from the catalog.');
+const nameSchema = matching(/^[A-Za-z_][A-Za-z0-9_]*$/, 'Use a plain label or column name.');
+
+/** A table, or a schema and a table. */
+const tableSchema = matching(
+  /^[A-Za-z_]\w*(\.[A-Za-z_]\w*)?$/,
+  'Use a table name, or schema.table.',
+);
+
+/** A duration such as `5m`, or an interval variable such as `$interval`. */
+const durationSchema = matching(
+  /^(\d{1,5}[smhd]|\$[A-Za-z_]\w*)$/,
+  'Use a duration such as 5m, or an interval variable such as $interval.',
+);
 
 /** A connector name. */
-const connectorSchema = z.string().min(1).max(100).describe('The connector, from the catalog.');
+const connectorSchema = z.string().min(1).max(100);
 
-/** One filter: a field compared with a value or a variable. */
+/** One filter: a field compared with a value, a regular expression, or a `$variable`. */
 const filterSchema = z.strictObject({
   field: nameSchema,
   op: z.enum(['=', '!=', '=~', '!~']).default('='),
-  value: z
-    .string()
-    .max(200)
-    .describe('A value, a regular expression for =~ and !~, or a variable such as $service.'),
+  value: z.string().max(200),
 });
 
 /** A filter. */
@@ -31,16 +52,17 @@ export type Filter = z.output<typeof filterSchema>;
 /** Filters, all of which must hold. */
 const filtersSchema = z.array(filterSchema).max(10).default([]);
 
-/** A PromQL range: a duration, or an interval variable. */
-const windowSchema = z
-  .string()
-  .regex(/^(\d{1,5}[smhd]|\$[A-Za-z_]\w*)$/, 'Use a duration such as 5m, or $interval.')
-  .describe('The rate window: a duration such as 5m, or an interval variable such as $interval.');
-
-/** How values read. */
-const unitSchema = z
-  .enum(['number', 'percent', 'bytes', 'seconds', 'milliseconds', 'per-second', 'EUR', 'USD'])
-  .describe('How values read. percent expects a ratio from 0 to 1.');
+/** How values read; percent expects a ratio from 0 to 1. */
+const unitSchema = z.enum([
+  'number',
+  'percent',
+  'bytes',
+  'seconds',
+  'milliseconds',
+  'per-second',
+  'EUR',
+  'USD',
+]);
 
 /** A unit. */
 export type Unit = z.output<typeof unitSchema>;
@@ -51,38 +73,38 @@ const widthSchema = z.enum(['quarter', 'third', 'half', 'full']);
 /** A panel width. */
 export type Width = z.output<typeof widthSchema>;
 
-/** What every recipe has. */
+/** What every recipe has; `replaces` names a panel to rebuild in place. */
 const panelBase = {
   title: z.string().min(1).max(120),
   description: z.string().max(500).optional(),
-  width: widthSchema.optional().describe('Stats default to a quarter, charts to full width.'),
+  width: widthSchema.optional(),
+  replaces: z.string().max(63).optional(),
 };
 
 /** What every PromQL recipe has. */
 const promqlBase = {
   ...panelBase,
   connector: connectorSchema,
+  metric: z.string().max(200),
   filters: filtersSchema,
-  by: z.array(nameSchema).max(4).default([]).describe('Labels to split by, one series each.'),
+  by: z.array(nameSchema).max(4).default([]),
 };
 
-/** The per-second rate of a counter. */
+/** A counter's per-second rate. */
 const rateSchema = z.strictObject({
   recipe: z.literal('rate'),
   ...promqlBase,
-  metric: z.string().describe('A counter, such as http_requests_total.'),
-  window: windowSchema.default('$__rate_interval'),
+  window: durationSchema.default('$__rate_interval'),
   show: z.enum(['line', 'bar', 'stat']).default('line'),
   unit: unitSchema.default('per-second'),
 });
 
-/** The share of a counter that matches extra filters, such as 5xx over all requests. */
+/** The share of a counter that also matches `match`, such as 5xx over all requests. */
 const ratioSchema = z.strictObject({
   recipe: z.literal('ratio'),
   ...promqlBase,
-  metric: z.string().describe('A counter, such as http_requests_total.'),
-  match: z.array(filterSchema).min(1).max(5).describe('What counts, such as code =~ "5..".'),
-  window: windowSchema.default('$__rate_interval'),
+  match: z.array(filterSchema).min(1).max(5),
+  window: durationSchema.default('$__rate_interval'),
   show: z.enum(['line', 'stat']).default('line'),
 });
 
@@ -90,18 +112,16 @@ const ratioSchema = z.strictObject({
 const latencySchema = z.strictObject({
   recipe: z.literal('latency'),
   ...promqlBase,
-  metric: z.string().describe('The histogram, with or without _bucket.'),
   quantiles: z.array(z.number().gt(0).lt(1)).min(1).max(4).default([0.5, 0.95, 0.99]),
-  window: windowSchema.default('$__rate_interval'),
+  window: durationSchema.default('$__rate_interval'),
   show: z.enum(['line', 'stat']).default('line'),
-  unit: z.enum(['seconds', 'milliseconds']).default('seconds').describe('The unit of the metric.'),
+  unit: z.enum(['seconds', 'milliseconds']).default('seconds'),
 });
 
-/** The current value of a gauge. */
+/** A gauge, aggregated. */
 const gaugeSchema = z.strictObject({
   recipe: z.literal('gauge'),
   ...promqlBase,
-  metric: z.string(),
   aggregate: z.enum(['sum', 'avg', 'max', 'min']).default('sum'),
   show: z.enum(['line', 'stat']).default('line'),
   unit: unitSchema.default('number'),
@@ -111,17 +131,16 @@ const gaugeSchema = z.strictObject({
 const topSchema = z.strictObject({
   recipe: z.literal('top'),
   ...promqlBase,
-  metric: z.string(),
   by: z.array(nameSchema).min(1).max(4),
   limit: z.int().min(1).max(50).default(10),
   show: z.enum(['table', 'bar']).default('table'),
 });
 
-/** What a SQL recipe measures. */
+/** What a SQL recipe measures; count needs no column. */
 const measureSchema = z
   .strictObject({
     fn: z.enum(['count', 'sum', 'avg', 'min', 'max', 'count_distinct']),
-    column: nameSchema.optional().describe('Required except for count.'),
+    column: nameSchema.optional(),
   })
   .default({ fn: 'count' });
 
@@ -129,61 +148,70 @@ const measureSchema = z
 const sqlBase = {
   ...panelBase,
   connector: connectorSchema,
-  table: z
-    .string()
-    .regex(/^[A-Za-z_]\w*(\.[A-Za-z_]\w*)?$/, 'Use a table name, or schema.table.')
-    .describe('A table from the catalog.'),
+  table: tableSchema,
   filters: filtersSchema,
 };
 
-/** A measure over time, bucketed. */
+/** A measure over time, in buckets, split by a column when `by` is given. */
 const sqlSeriesSchema = z.strictObject({
   recipe: z.literal('sql-series'),
   ...sqlBase,
-  time: nameSchema.describe('The timestamp column.'),
+  time: nameSchema,
   measure: measureSchema,
-  by: nameSchema.optional().describe('A column to split by, one series per value.'),
-  bucket: windowSchema.default('5m').describe('The bucket: a duration, or $interval.'),
+  by: nameSchema.optional(),
+  bucket: durationSchema.default('5m'),
   show: z.enum(['line', 'bar']).default('line'),
   unit: unitSchema.default('number'),
 });
 
-/** A measure by the values of a column. */
+/** A measure by the values of a column, kept to the range when `time` is given. */
 const sqlBreakdownSchema = z.strictObject({
   recipe: z.literal('sql-breakdown'),
   ...sqlBase,
   by: nameSchema,
-  time: nameSchema.optional().describe('A timestamp column, to keep to the time range.'),
+  time: nameSchema.optional(),
   measure: measureSchema,
   limit: z.int().min(1).max(100).default(10),
   show: z.enum(['table', 'bar', 'pie']).default('bar'),
   unit: unitSchema.default('number'),
 });
 
-/** One number. */
+/** One number, kept to the range when `time` is given. */
 const sqlStatSchema = z.strictObject({
   recipe: z.literal('sql-stat'),
   ...sqlBase,
-  time: nameSchema.optional().describe('A timestamp column, to keep to the time range.'),
+  time: nameSchema.optional(),
   measure: measureSchema,
   unit: unitSchema.default('number'),
 });
 
-/** The latest rows. */
+/** The latest rows, newest first when `time` is given. */
 const sqlRowsSchema = z.strictObject({
   recipe: z.literal('sql-rows'),
   ...sqlBase,
   columns: z.array(nameSchema).min(1).max(12),
-  time: nameSchema.optional().describe('A timestamp column: newest first, within the range.'),
+  time: nameSchema.optional(),
   limit: z.int().min(1).max(200).default(20),
 });
 
-/** Anything the recipes cannot say: queries and a view, as in the spec. */
+/** A raw query of a custom panel. */
+const rawQuerySchema = z.strictObject({
+  connector: connectorSchema,
+  language: z.enum(['sql', 'promql']),
+  query: z.string().min(1).max(10_000),
+  instant: z.boolean().optional(),
+});
+
+/** Anything the recipes cannot say: raw queries and a view kind. */
 const customSchema = z.strictObject({
   recipe: z.literal('custom'),
   ...panelBase,
-  queries: z.array(panelQuerySchema).min(1).max(4),
-  view: viewSchema,
+  queries: z.array(rawQuerySchema).min(1).max(4),
+  show: z.enum(['line', 'bar', 'category-bar', 'pie', 'stat', 'table']),
+  unit: unitSchema.default('number'),
+  columns: z.array(z.string().min(1).max(200)).max(20).optional(),
+  reduce: z.enum(['last', 'first', 'max', 'min', 'mean', 'sum']).default('last'),
+  option: z.record(z.string(), z.json()).optional(),
 });
 
 /** Validates a panel request. */
@@ -208,39 +236,27 @@ export type RecipeOf<Name extends PanelRequest['recipe']> = Extract<PanelRequest
 
 /** Deploy markers: events from a table, drawn on every time chart. */
 const markersSchema = z.strictObject({
-  label: z.string().min(1).max(60).describe('Such as deploy.'),
+  label: z.string().min(1).max(60),
   connector: connectorSchema,
-  table: sqlBase.table,
-  time: nameSchema.describe('The timestamp column.'),
-  text: nameSchema.describe('The column shown next to the line.'),
+  table: tableSchema,
+  time: nameSchema,
+  text: nameSchema,
   filters: filtersSchema,
 });
 
 /** Markers. */
 export type MarkersRequest = z.output<typeof markersSchema>;
 
-/** Validates an edit: what to set, add, replace and remove, in one new version. */
+/** Validates an edit: what to set, add, rebuild and remove, in one new version. */
 export const editRequestSchema = z.strictObject({
-  title: z.string().min(1).max(200).optional().describe('The dashboard title; required at first.'),
+  title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
-  time: timeRangeSchema.optional().describe('The default range, such as now-6h to now.'),
-  variables: z
-    .array(variableSchema)
-    .max(20)
-    .optional()
-    .describe('Replaces all variables when given.'),
-  add: z.array(panelRequestSchema).max(20).default([]).describe('New panels, in reading order.'),
-  replace: z
-    .array(z.strictObject({ panelId: z.string(), panel: panelRequestSchema }))
-    .max(20)
-    .default([])
-    .describe('Panels to rebuild in place: same id, same position.'),
-  remove: z.array(z.string()).max(20).default([]).describe('Ids of panels to remove.'),
-  markers: markersSchema
-    .nullable()
-    .optional()
-    .describe('Deploy markers on the time charts; null removes them.'),
-  summary: z.string().min(1).max(200).describe('What changed, in a few words.'),
+  time: timeRangeSchema.optional(),
+  variables: z.array(variableSchema).max(20).optional(),
+  panels: z.array(panelRequestSchema).max(20).default([]),
+  remove: z.array(z.string()).max(20).default([]),
+  markers: markersSchema.nullable().optional(),
+  summary: z.string().min(1).max(200),
 });
 
 /** An edit. */

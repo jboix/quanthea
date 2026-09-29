@@ -44,7 +44,11 @@ export const exploreTools: ReadonlySet<string> = new Set([
 ]);
 
 /** The tools that write a version, shown as "Built". */
-export const buildTools: ReadonlySet<string> = new Set(['write_dashboard', 'patch_panel']);
+export const buildTools: ReadonlySet<string> = new Set([
+  'edit_dashboard',
+  'write_dashboard',
+  'patch_panel',
+]);
 
 /**
  * Whether a part is a tool call.

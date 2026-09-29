@@ -58,7 +58,7 @@ const service = {
 const firstBuild = edit({
   title: 'Checkout',
   variables: [interval, service],
-  add: [
+  panels: [
     {
       recipe: 'ratio',
       title: 'Error rate',
@@ -131,7 +131,7 @@ describe('recipes', () => {
       undefined,
       edit({
         title: 'Quotes',
-        add: [
+        panels: [
           {
             recipe: 'sql-stat',
             title: 'x',
@@ -149,13 +149,15 @@ describe('recipes', () => {
   test('refuse names that are not names', () => {
     const bad = {
       title: 'x',
-      add: [{ recipe: 'sql-stat', title: 'x', connector: 'shop', table: 'orders; DROP TABLE x' }],
+      panels: [
+        { recipe: 'sql-stat', title: 'x', connector: 'shop', table: 'orders; DROP TABLE x' },
+      ],
       summary: 'x',
     };
     expect(() => edit(bad)).toThrow('Use a table name');
     const metric = edit({
       title: 'x',
-      add: [{ recipe: 'rate', title: 'x', connector: 'prom', metric: 'up) or vector(1' }],
+      panels: [{ recipe: 'rate', title: 'x', connector: 'prom', metric: 'up) or vector(1' }],
       summary: 'x',
     });
     expect(() => applyEdit(undefined, metric)).toThrow('is not a metric name');
@@ -183,20 +185,16 @@ describe('applyEdit', () => {
     const changed = applyEdit(
       built,
       edit({
-        replace: [
-          {
-            panelId: 'latency',
-            panel: {
-              recipe: 'latency',
-              title: 'p99',
-              connector: 'prom',
-              metric: 'http_request_duration_seconds',
-              quantiles: [0.99],
-            },
-          },
-        ],
         remove: ['top-codes'],
-        add: [
+        panels: [
+          {
+            recipe: 'latency',
+            title: 'p99',
+            replaces: 'latency',
+            connector: 'prom',
+            metric: 'http_request_duration_seconds',
+            quantiles: [0.99],
+          },
           {
             recipe: 'gauge',
             title: 'Memory',

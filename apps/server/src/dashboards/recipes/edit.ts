@@ -91,15 +91,19 @@ function panelOf(draft: PanelDraft, id: string, grid: Panel['grid']): Panel {
  * @returns The panels.
  */
 function editedPanels(panels: readonly Panel[], request: EditRequest): Panel[] {
-  checkIds(panels, [...request.remove, ...request.replace.map((entry) => entry.panelId)]);
-  const replaced = new Map(request.replace.map((entry) => [entry.panelId, entry.panel]));
+  const rebuilt = new Map(
+    request.panels.flatMap((panel) =>
+      panel.replaces === undefined ? [] : [[panel.replaces, panel]],
+    ),
+  );
+  checkIds(panels, [...request.remove, ...rebuilt.keys()]);
   const kept = panels
     .filter((panel) => !request.remove.includes(panel.id))
     .map((panel) => {
-      const replacement = replaced.get(panel.id);
+      const replacement = rebuilt.get(panel.id);
       return replacement ? panelOf(expandPanel(replacement), panel.id, panel.grid) : panel;
     });
-  const drafts = request.add.map(expandPanel);
+  const drafts = request.panels.filter((panel) => panel.replaces === undefined).map(expandPanel);
   const taken = new Set(kept.map((panel) => panel.id));
   const grids = placeBelow(kept, drafts);
   const added = drafts.map((draft, index) =>

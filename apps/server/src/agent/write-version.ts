@@ -1,7 +1,8 @@
 /**
  * Writes a dashboard version for the agent: checks the thread may write, validates the spec,
- * test-runs every panel, and saves only a version whose panels all work. The results the model
- * sees pass through the gate.
+ * test-runs every panel, and saves only panels that work. New panels whose queries fail are left
+ * out of the version and reported, so the model re-adds only those; any other failure keeps the
+ * version from being saved. The results the model sees pass through the gate.
  */
 import { type DashboardSpec, diffSpecs, type PanelDiff } from '@querent/shared';
 import type { PanelTest } from '../dashboards/dashboards.ts';
@@ -11,7 +12,13 @@ import type { RunContext } from './run-context.ts';
 
 /** What the model learns from a write. */
 export type WriteResult =
-  | { readonly ok: true; readonly version: number; readonly panels: readonly PanelReport[] }
+  | {
+      readonly ok: true;
+      readonly version: number;
+      readonly panels: readonly PanelReport[];
+      /** New panels left out because their queries failed, and what to do. */
+      readonly leftOut?: { readonly panelIds: readonly string[]; readonly next: string };
+    }
   | {
       readonly ok: false;
       readonly error: string;
@@ -70,20 +77,29 @@ function refusal(context: RunContext, onlyExistingPanels: boolean): string | und
 }
 
 /**
- * Counts a failed write and says whether the run may still repair.
+ * Counts a failed write and says what the model does next.
+ *
+ * @param context - The run.
+ * @param fix - What to do while attempts are left, such as `Fix it and write again`.
+ * @returns The next step, with the attempts left.
+ */
+function nextAttempt(context: RunContext, fix: string): string {
+  context.counters.failedWrites += 1;
+  const left = context.settings.limits.repairAttempts - context.counters.failedWrites;
+  return left > 0
+    ? `${fix} (${left} attempts left).`
+    : 'No attempts left: stop and explain the problem.';
+}
+
+/**
+ * A failed write, counted.
  *
  * @param context - The run.
  * @param error - What went wrong.
  * @returns The failure the model sees.
  */
 function failed(context: RunContext, error: string): { ok: false; error: string } {
-  context.counters.failedWrites += 1;
-  const left = context.settings.limits.repairAttempts - context.counters.failedWrites;
-  const next =
-    left > 0
-      ? `Fix it and write again (${left} attempts left).`
-      : 'No attempts left: stop and explain the problem.';
-  return { ok: false, error: `${error} ${next}` };
+  return { ok: false, error: `${error} ${nextAttempt(context, 'Fix it and write again')}` };
 }
 
 /**
@@ -137,12 +153,58 @@ function save(context: RunContext, spec: DashboardSpec, changeSummary: string): 
 }
 
 /**
+ * The panels whose queries fail.
+ *
+ * @param panels - The reports.
+ * @returns Their ids.
+ */
+function failingPanels(panels: readonly PanelReport[]): string[] {
+  return panels
+    .filter((panel) => panel.queries.some((query) => !query.ok))
+    .map((panel) => panel.panelId);
+}
+
+/**
+ * The spec to save when some queries fail: without the failing panels when they are all new and
+ * some panels remain, or nothing when the write must fail.
+ *
+ * @param spec - The checked spec.
+ * @param failing - The ids of the failing panels.
+ * @param droppable - The ids of the panels the write adds.
+ * @returns The spec without the failing panels, or `undefined`.
+ */
+function withoutFailing(
+  spec: DashboardSpec,
+  failing: readonly string[],
+  droppable: ReadonlySet<string>,
+): DashboardSpec | undefined {
+  if (!failing.every((id) => droppable.has(id))) return undefined;
+  const panels = spec.panels.filter((panel) => !failing.includes(panel.id));
+  return panels.length === 0 ? undefined : { ...spec, panels };
+}
+
+/**
+ * Saves a version and moves the thread on.
+ *
+ * @param context - The run.
+ * @param spec - The spec to save.
+ * @param changeSummary - What changed.
+ * @returns The version number.
+ */
+function saveBuilt(context: RunContext, spec: DashboardSpec, changeSummary: string): number {
+  const version = save(context, spec, changeSummary);
+  context.threads.apply(context.threadId, 'built');
+  return version;
+}
+
+/**
  * Writes a version for the agent.
  *
  * @param context - The run.
  * @param input - The spec, as the model wrote it.
  * @param changeSummary - What changed, in one line.
  * @param onlyExistingPanels - Whether the change keeps the set of panels.
+ * @param droppable - New panels that may be left out when their queries fail.
  * @returns The result the model sees.
  */
 export async function writeVersion(
@@ -150,17 +212,19 @@ export async function writeVersion(
   input: unknown,
   changeSummary: string,
   onlyExistingPanels: boolean,
+  droppable: ReadonlySet<string> = new Set(),
 ): Promise<WriteResult> {
   const refused = refusal(context, onlyExistingPanels);
   if (refused !== undefined) return { ok: false, error: refused };
   const checked = context.dashboards.check(input);
   if (!checked.ok) return { ...failed(context, 'The spec is invalid.'), issues: checked.issues };
-  const tests = await context.dashboards.testRun(checked.spec);
-  const panels = reportsOf(context, checked.spec, tests);
-  const broken = panels.some((panel) => panel.queries.some((query) => !query.ok));
-  if (broken && context.settings.behaviour.testRun)
-    return { ...failed(context, 'Some queries fail.'), panels };
-  const version = save(context, checked.spec, changeSummary);
-  context.threads.apply(context.threadId, 'built');
-  return { ok: true, version, panels };
+  const panels = reportsOf(context, checked.spec, await context.dashboards.testRun(checked.spec));
+  const failing = failingPanels(panels);
+  if (failing.length === 0 || !context.settings.behaviour.testRun)
+    return { ok: true, version: saveBuilt(context, checked.spec, changeSummary), panels };
+  const kept = withoutFailing(checked.spec, failing, droppable);
+  if (!kept) return { ...failed(context, 'Some queries fail.'), panels };
+  const next = `These new panels were left out because their queries fail. ${nextAttempt(context, 'Fix them and add them again')}`;
+  const version = saveBuilt(context, kept, changeSummary);
+  return { ok: true, version, panels, leftOut: { panelIds: failing, next } };
 }

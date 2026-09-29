@@ -223,7 +223,8 @@ sequenceDiagram
   U->>W: Approve & build
   W->>H: POST /api/threads/:id/plans/:planId/approve
   H->>A: continue run
-  M->>A: write_dashboard(spec)
+  M->>A: edit_dashboard(panels by recipe)
+  A->>A: expand recipes into a spec
   A->>D: validate + save as draft vN
   D->>Q: test-run every panel query
   Q-->>D: frames
@@ -242,7 +243,7 @@ idle ──propose_plan──▶ plan_pending ──approve──▶ building �
   └─────────────────────────┴────────────── new message ◀──────────────┘
 ```
 
-`write_dashboard` refuses to run unless the thread is `building`, or `ready` with the change
+`edit_dashboard` refuses to write unless the thread is `building`, or `ready` with the change
 scoped to existing panels (the small-edit path). If the AI SDK's tool-approval feature fits this
 flow cleanly, use it for the UX, but the state check in `threads/` stays the source of truth.
 
@@ -303,15 +304,14 @@ Every tool validates its input with Zod, runs as the thread's person, and return
 The data tools answer only through the gate's model view (`gate/model-view.ts`), so what a result
 shows depends on the connector's access level.
 
-| Tool                                                | Returns                                                                           | Notes                                                                                    |
-| --------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `describe(connector, scope?)`                       | entities and fields minus hidden ones, at most 60, and how many more matched      | From the schema cache; read from the source when never read.                             |
-| `sample_values(connector, entity, field, limit≤50)` | distinct values                                                                   | Level 2 and up. Refuses hidden and high-cardinality fields.                              |
-| `test_query(connector, query, variables?, time?)`   | L1: ok or error. L2: fields, types, row counts. L3: plus summaries. L4: plus rows | Default range `now-6h` to `now`. Errors are safe messages below L4.                      |
-| `ask_person(question, options)`                     | `{ asked, next }`                                                                 | 2 to 4 options, shown as buttons; the run then stops and the answer is the next message. |
-| `propose_plan(plan)`                                | `{ planId, status, next }`                                                        | Streams a `data-plan` part and moves the thread to `plan_pending`; the run then stops.   |
-| `write_dashboard(spec, changeSummary)`              | the new version and each panel's test result, or the issues and failures to fix   | See "Writing a version".                                                                 |
-| `patch_panel(panelId, changes, changeSummary)`      | same                                                                              | Changes one existing panel of the latest version; no plan needed in a ready thread.      |
+| Tool                                                | Returns                                                                                                   | Notes                                                                                    |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `describe(connector, scope?)`                       | entities and fields minus hidden ones, at most 60, and how many more matched                              | From the schema cache; read from the source when never read.                             |
+| `sample_values(connector, entity, field, limit≤50)` | distinct values                                                                                           | Level 2 and up. Refuses hidden and high-cardinality fields.                              |
+| `test_query(connector, query, variables?, time?)`   | L1: ok or error. L2: fields, types, row counts. L3: plus summaries. L4: plus rows                         | Default range `now-6h` to `now`. Errors are safe messages below L4.                      |
+| `ask_person(question, options)`                     | `{ asked, next }`                                                                                         | 2 to 4 options, shown as buttons; the run then stops and the answer is the next message. |
+| `propose_plan(plan)`                                | `{ planId, status, next }`                                                                                | Streams a `data-plan` part and moves the thread to `plan_pending`; the run then stops.   |
+| `edit_dashboard(edit)`                              | the new version, each panel's test result, and the new panels left out; or the issues and failures to fix | Panels by recipe; see "Writing a version".                                               |
 
 `search_library` and `get_dashboard` arrive with the library and variants.
 
@@ -330,14 +330,29 @@ appear. The catalog replaces exploring call by call, which cost a model request 
 
 ### Writing a version
 
-`write_dashboard` and `patch_panel` share one pipeline (`agent/write-version.ts`):
+The model never writes a spec. `edit_dashboard` takes an edit (`dashboards/recipes/`): the title,
+time range and variables to set, panels by recipe to add or to rebuild in place (`replaces`),
+panel ids to remove, and deploy markers. The server expands it:
+
+- **Recipes.** PromQL: `rate`, `ratio` (such as 5xx over all requests), `latency` (histogram
+  percentiles), `gauge`, `top`. SQL: `sql-series`, `sql-breakdown`, `sql-stat`, `sql-rows`. A
+  `custom` panel takes raw queries and a view kind for what no recipe says. Names are checked
+  against strict patterns and quoted, literals are escaped, and variables stay bound references.
+- **Layout.** Existing panels keep their place; a rebuilt panel keeps its id and place; new
+  panels are packed in reading order into rows below, as wide as asked or as their kind usually
+  is (stats a quarter, time charts full width, tables and category charts half).
+- **Markers.** Deploy markers are one annotation (`markers`) put on every time chart.
+
+The edit's schema is the tool's input schema, so providers that constrain tool input keep the model
+to it. The expanded spec then goes through one pipeline (`agent/write-version.ts`):
 
 1. The thread's state machine decides: after an approved plan, or in a ready thread when the set of
    panels stays the same.
 2. The spec is validated (`dashboards.check`), then every panel is test-run with its defaults.
    The results go back to the model through the gate.
-3. A version is saved only when every query works (with the "test-run every query" switch on).
-   Otherwise the model gets the issues or failures, and a counter of failed writes goes up.
+3. With the "test-run every query" switch on, a version is saved only with panels that work. New
+   panels whose queries fail are left out and reported, so the model re-adds only those. Any other
+   failure saves nothing. Either way the counter of failed writes goes up.
 4. The first version creates the thread's dashboard; later ones add versions. Each streams a
    `data-version` part, and a `data-diff` part with the changed panels.
 
@@ -356,14 +371,14 @@ for which service or table, and over which time. It never asks in words for appr
 card has the buttons. The thread's state sets the phase
 (`agent/phases.ts`), and each phase offers only its tools:
 
-| Phase    | Thread states          | Tools                                                        | Adds to the instructions                          |
-| -------- | ---------------------- | ------------------------------------------------------------ | ------------------------------------------------- |
-| planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`    | one question before the first plan, then the plan |
-| building | `building`             | `describe`, `sample_values`, `test_query`, `write_dashboard` | the spec guide, the example, the plan             |
-| editing  | `ready`                | all of the above, and `patch_panel`                          | the spec guide and the example                    |
+| Phase    | Thread states          | Tools                                                       | Adds to the instructions                          |
+| -------- | ---------------------- | ----------------------------------------------------------- | ------------------------------------------------- |
+| planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`   | one question before the first plan, then the plan |
+| building | `building`             | `describe`, `sample_values`, `test_query`, `edit_dashboard` | the recipe guide, the plan                        |
+| editing  | `ready`                | all of the above, `ask_person` and `propose_plan`           | the recipe guide                                  |
 
-Planning never runs a query: the build test-runs every query anyway. The spec guide and the
-example only come once there is something to write, so planning requests stay short.
+Planning never runs a query: the build test-runs every query anyway. The recipe guide only comes
+once there is something to write, so planning requests stay short.
 
 ### Keeping requests small
 
@@ -372,7 +387,7 @@ Every request carries the whole conversation, so what the model rereads is compa
 
 - Turns before the person's latest message keep their text, and each tool call becomes one line,
   such as `[earlier tool call] describe(events): 2 entities`. Data and reasoning parts go.
-- Within a run, before each step, older drafts sent to `write_dashboard` or `patch_panel` are
+- Within a run, before each step, older edits sent to `edit_dashboard` are
   elided and older results over 400 characters become the same one-line summary. The latest call
   and its results stay whole, so a repair sees exactly what failed.
 

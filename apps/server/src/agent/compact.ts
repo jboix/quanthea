@@ -15,7 +15,11 @@ const largeResult = 400;
 const keptWhole = 2;
 
 /** The tools whose input is a whole draft. */
-const writeTools: ReadonlySet<string> = new Set(['write_dashboard', 'patch_panel']);
+const writeTools: ReadonlySet<string> = new Set([
+  'edit_dashboard',
+  'write_dashboard',
+  'patch_panel',
+]);
 
 /** A loosely read tool input or output. */
 type Loose = Record<string, unknown> | undefined;
@@ -61,6 +65,8 @@ const summaries: Readonly<Record<string, (input: Loose, output: Loose) => string
     `propose_plan: "${String(input?.title ?? '')}", ${counted((input?.panels as unknown[] | undefined)?.length ?? 0, 'panel')}, ${String(output?.status ?? 'pending')}`,
   ask_person: (input) =>
     `ask_person: "${String(input?.question ?? '')}" options ${JSON.stringify(input?.options ?? [])}`,
+  edit_dashboard: (input, output) =>
+    `edit_dashboard(${String(input?.summary ?? '')}): ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
   write_dashboard: (_input, output) =>
     `write_dashboard: ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
   patch_panel: (input, output) =>

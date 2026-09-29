@@ -5,6 +5,9 @@
 import type { Formatter, View } from '@querent/shared';
 import type { Unit } from './request.ts';
 
+/** How a stat reduces a result to one number. */
+type StatReduce = Extract<View, { kind: 'stat' }>['reduce'];
+
 /** The formatter of each unit. */
 const formatters: Readonly<Record<Unit, Formatter>> = {
   number: { $fmt: 'number', compact: true },
@@ -85,7 +88,7 @@ export function categoryChart(ref: string, kind: 'bar' | 'pie'): View {
  * @param field - The field, when not the first number.
  * @returns The view.
  */
-export function statView(unit: Unit, reduce: 'last' | 'max', field?: string): View {
+export function statView(unit: Unit, reduce: StatReduce, field?: string): View {
   return {
     kind: 'stat',
     ref: 'A',

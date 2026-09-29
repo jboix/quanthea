@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { connectorInputSchema, defaultModelSettings, type Plan } from '@querent/shared';
-import { eventsSpec } from '../dashboards/test/events-spec.ts';
 import type { AppError } from '../lib/errors.ts';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
 import { type Agent, createAgent } from './run.ts';
@@ -106,6 +105,30 @@ async function failureOf(call: Promise<unknown>): Promise<AppError> {
 }
 
 /**
+ * A custom panel over the in-memory events.
+ *
+ * @param title - Its title.
+ * @param show - Its view kind.
+ * @param sql - Its query.
+ * @returns The panel request.
+ */
+function eventsPanel(title: string, show: 'stat' | 'line', sql = 'SELECT * FROM events') {
+  return {
+    recipe: 'custom',
+    title,
+    queries: [{ connector: 'events', language: 'sql', query: sql }],
+    show,
+  };
+}
+
+/** The edit that builds the plan: a peak stat and a chart. */
+const buildEdit = {
+  title: 'Events',
+  panels: [eventsPanel('Errors · peak', 'stat'), eventsPanel('Errors over time', 'line')],
+  summary: 'built from plan',
+};
+
+/**
  * Runs the ask, plan, approve and build turns, leaving a ready thread with version 1.
  */
 async function builtThread(): Promise<void> {
@@ -116,16 +139,7 @@ async function builtThread(): Promise<void> {
   const [proposed] = services.threads.get(threadId).plans;
   services.threads.decidePlan(threadId, proposed?.id ?? '', 'approve', 'editor-1');
   const assistant = services.threads.get(threadId).messages[1] as { id: string };
-  const build = agentWith(
-    {
-      tool: 'write_dashboard',
-      input: {
-        spec: { ...eventsSpec(), specVersion: undefined },
-        changeSummary: 'built from plan',
-      },
-    },
-    { text: 'Built.' },
-  );
+  const build = agentWith({ tool: 'edit_dashboard', input: buildEdit }, { text: 'Built.' });
   await chat(build, { id: assistant.id, role: 'assistant', parts: [] });
 }
 
@@ -149,7 +163,7 @@ describe('an agent run', () => {
     ]);
   });
 
-  test('plans with the catalog in hand, the planning tools only, and no spec guide', async () => {
+  test('plans with the catalog in hand, the planning tools only, and no recipe guide', async () => {
     const model = scriptedStreamModel({ tool: 'propose_plan', input: plan });
     const agent = createAgent({ ...services, buildModel: () => model });
     await chat(agent, userMessage('u1', 'What happened to events?'));
@@ -158,7 +172,7 @@ describe('an agent run', () => {
     expect(tools).toEqual(['ask_person', 'describe', 'propose_plan', 'sample_values']);
     const system = JSON.stringify(call?.prompt[0]);
     expect(system).toContain('service text [checkout-svc, payments-svc, cart-svc]');
-    expect(system).not.toContain('The spec (JSON');
+    expect(system).not.toContain('Building with edit_dashboard');
     expect(call?.reasoning).toBe('none');
   });
 
@@ -200,7 +214,7 @@ describe('an agent run', () => {
     expect(storedPartTypes()[1]).toEqual([
       'tool-propose_plan',
       'data-plan',
-      'tool-write_dashboard',
+      'tool-edit_dashboard',
       'data-version',
       'text',
     ]);
@@ -230,11 +244,10 @@ describe('an agent run', () => {
   test('patches a mentioned panel of a ready thread without a plan, and streams the diff', async () => {
     await builtThread();
     const patch = {
-      panelId: 'errors-peak',
-      changes: { title: 'Errors, worst minute' },
-      changeSummary: 'renamed the peak',
+      panels: [{ ...eventsPanel('Errors, worst minute', 'stat'), replaces: 'errors-peak' }],
+      summary: 'renamed the peak',
     };
-    const agent = agentWith({ tool: 'patch_panel', input: patch }, { text: 'Renamed.' });
+    const agent = agentWith({ tool: 'edit_dashboard', input: patch }, { text: 'Renamed.' });
     const stream = await chat(
       agent,
       userMessage('u2', 'Rename it', {
@@ -249,13 +262,13 @@ describe('an agent run', () => {
     ).toBe('Errors, worst minute');
   });
 
-  test('does not offer write_dashboard before a plan is approved', async () => {
+  test('does not offer edit_dashboard before a plan is approved', async () => {
     const agent = agentWith(
-      { tool: 'write_dashboard', input: { spec: eventsSpec(), changeSummary: 'x' } },
+      { tool: 'edit_dashboard', input: buildEdit },
       { text: 'I need a plan.' },
     );
     const stream = await chat(agent, userMessage('u1', 'Build it'));
-    expect(stream).toContain("unavailable tool 'write_dashboard'");
+    expect(stream).toContain("unavailable tool 'edit_dashboard'");
     expect(services.threads.get(threadId).dashboardId).toBeNull();
   });
 
@@ -267,24 +280,38 @@ describe('an agent run', () => {
     );
     services.threads.proposePlan(threadId, plan, true);
     const broken = {
-      ...eventsSpec(),
-      panels: [
-        {
-          ...eventsSpec().panels[0],
-          queries: [
-            { refId: 'A', connector: 'events', language: 'sql', sql: 'SELECT * FROM missing' },
-          ],
-        },
-      ],
+      title: 'Events',
+      panels: [eventsPanel('Errors', 'stat', 'SELECT * FROM missing')],
+      summary: 'x',
     };
     const agent = agentWith(
-      { tool: 'write_dashboard', input: { spec: broken, changeSummary: 'x' } },
+      { tool: 'edit_dashboard', input: broken },
       { text: 'This step never runs.' },
     );
     const stream = await chat(agent, userMessage('u1', 'Build it'));
     expect(stream).toContain('No attempts left');
     expect(stream).not.toContain('This step never runs.');
     expect(services.threads.get(threadId).state).toBe('building');
+  });
+
+  test('saves the new panels that work, and reports the ones left out', async () => {
+    services.threads.proposePlan(threadId, plan, true);
+    const mixed = {
+      title: 'Events',
+      panels: [
+        eventsPanel('Errors', 'stat'),
+        eventsPanel('Broken', 'line', 'SELECT * FROM missing'),
+      ],
+      summary: 'first build',
+    };
+    const stream = await chat(
+      agentWith({ tool: 'edit_dashboard', input: mixed }, { text: 'Fixing the other one.' }),
+      userMessage('u1', 'Build it'),
+    );
+    expect(stream).toContain('These new panels were left out because their queries fail.');
+    const { dashboardId } = services.threads.get(threadId);
+    const saved = services.dashboards.getVersion(dashboardId ?? '', 1, 'editor').spec;
+    expect(saved.panels.map((panel) => panel.id)).toEqual(['errors']);
   });
 
   test('refuses a forged assistant message and a spent budget', async () => {

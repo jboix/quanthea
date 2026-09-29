@@ -1,6 +1,6 @@
 /**
  * Assembles the agent's instructions for one turn. First what lasts from turn to turn, so providers
- * can cache it: who it is, its rules, the spec guide once it writes, the connectors' catalog. Then
+ * can cache it: who it is, its rules, the recipe guide once it writes, the connectors' catalog. Then
  * what is true now: the time, the current draft, the panels the person mentions, and last what the
  * thread's phase asks of it.
  */
@@ -10,12 +10,10 @@ import { phaseOf } from './phases.ts';
 import {
   buildingRules,
   editingRules,
-  example,
-  formatterGuide,
   generalRules,
   persona,
   planningRules,
-  specGuide,
+  recipeGuide,
 } from './prompt-text.ts';
 
 /** What the instructions of a turn depend on. */
@@ -110,14 +108,14 @@ export interface InstructionParts {
 }
 
 /**
- * The instructions of a turn, the lasting part first so providers can cache it. The spec guide and
- * the example come only once there is something to write, so planning turns stay short.
+ * The instructions of a turn, the lasting part first so providers can cache it. The recipe guide
+ * comes only once there is something to write, so planning turns stay short.
  *
  * @param facts - The facts of the turn.
  * @returns The lasting part and the turn's part.
  */
 export function instructionParts(facts: TurnFacts): InstructionParts {
-  const writing = phaseOf(facts.state) === 'planning' ? [] : [specGuide, formatterGuide, example];
+  const writing = phaseOf(facts.state) === 'planning' ? [] : [recipeGuide];
   const catalog = `Connectors and their data (the catalog):\n${facts.catalog}`;
   return {
     lasting: [persona, generalRules, ...writing, catalog].join('\n\n'),

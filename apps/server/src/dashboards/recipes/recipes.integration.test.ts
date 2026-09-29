@@ -29,7 +29,7 @@ function everyRecipe() {
     title: 'Every recipe',
     time,
     variables: [{ kind: 'interval', name: 'interval', options: ['1m', '5m'], default: '5m' }],
-    add: [
+    panels: [
       {
         recipe: 'rate',
         title: 'Requests',

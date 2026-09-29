@@ -1,10 +1,10 @@
 /**
- * The tools that build: propose a plan, write a dashboard, patch one panel. The thread's state
+ * The tools that build: propose a plan, and edit the dashboard by recipe. The thread's state
  * machine decides whether each may run, whatever the model tries.
  */
 import { type DashboardSpec, dashboardSpecSchema, planSchema } from '@querent/shared';
 import { tool } from 'ai';
-import { z } from 'zod';
+import { applyEdit, editRequestSchema, RecipeError } from '../dashboards/recipes/index.ts';
 import type { RunContext } from './run-context.ts';
 import { type WriteResult, writeVersion } from './write-version.ts';
 
@@ -29,7 +29,7 @@ function proposePlanTool(context: RunContext) {
       });
       context.counters.planPending = !autoApprove;
       const next = autoApprove
-        ? 'Approved. Build it now with write_dashboard.'
+        ? 'Approved. Build it now with edit_dashboard.'
         : 'Waiting for the person to approve. Stop here.';
       return { planId: proposed.id, status: proposed.status, next };
     },
@@ -37,61 +37,39 @@ function proposePlanTool(context: RunContext) {
 }
 
 /**
- * The tool that writes a whole dashboard.
+ * The panel ids of a spec.
  *
- * @param context - The run.
- * @returns The tool.
+ * @param spec - The spec.
+ * @returns The ids.
  */
-function writeDashboardTool(context: RunContext) {
-  return tool({
-    description:
-      'Write the whole dashboard spec as a new version. Only after the plan is approved, or to change existing panels. Every query is test-run first; a failing query is not saved, and you get the errors to fix. Keep panel ids stable across versions.',
-    inputSchema: z.object({
-      spec: z.record(z.string(), z.unknown()),
-      changeSummary: z.string().min(1).max(200),
-    }),
-    execute: ({ spec, changeSummary }) => {
-      const current = currentSpec(context);
-      const ids = (value: unknown) =>
-        new Set((value as DashboardSpec | undefined)?.panels?.map((panel) => panel.id) ?? []);
-      const same = current !== undefined && sameIds(ids(current), ids(spec));
-      // There is one spec version, so it is filled in rather than failed on.
-      return writeVersion(context, { ...spec, specVersion: 1 }, changeSummary, same);
-    },
-  });
+function idsOf(spec: DashboardSpec): Set<string> {
+  return new Set(spec.panels.map((panel) => panel.id));
 }
 
 /**
- * The tool that changes one panel of the current version.
+ * The tool that changes the dashboard: its settings, panels by recipe, and deploy markers.
  *
  * @param context - The run.
  * @returns The tool.
  */
-function patchPanelTool(context: RunContext) {
+function editDashboardTool(context: RunContext) {
   return tool({
     description:
-      'Change one existing panel of the current version: its title, description, grid, queries or view. Fields you leave out stay as they are. Use it for small edits, such as a panel the person mentions.',
-    inputSchema: z.object({
-      panelId: z.string(),
-      changes: z.object({
-        title: z.string().optional(),
-        description: z.string().optional(),
-        grid: z.record(z.string(), z.unknown()).optional(),
-        queries: z.array(z.record(z.string(), z.unknown())).optional(),
-        view: z.record(z.string(), z.unknown()).optional(),
-      }),
-      changeSummary: z.string().min(1).max(200),
-    }),
-    execute: async ({ panelId, changes, changeSummary }): Promise<WriteResult> => {
+      'Change the dashboard in one new version: set its title, time range and variables, add panels by recipe, rebuild a panel in place (replaces), remove panels, set deploy markers. The server writes the queries, places the panels, and test-runs every query; the version is saved only when all of them work, otherwise you get the errors to fix.',
+    inputSchema: editRequestSchema,
+    execute: async (request): Promise<WriteResult> => {
       const current = currentSpec(context);
-      if (!current)
-        return { ok: false, error: 'There is no dashboard yet. Write one with write_dashboard.' };
-      if (!current.panels.some((panel) => panel.id === panelId))
-        return { ok: false, error: `No panel "${panelId}".` };
-      const panels = current.panels.map((panel) =>
-        panel.id === panelId ? { ...panel, ...changes } : panel,
-      );
-      return writeVersion(context, { ...current, panels }, changeSummary, true);
+      let spec: DashboardSpec;
+      try {
+        spec = applyEdit(current, request);
+      } catch (error) {
+        if (!(error instanceof RecipeError)) throw error;
+        return { ok: false, error: error.message };
+      }
+      const before = current ? idsOf(current) : new Set<string>();
+      const added = new Set([...idsOf(spec)].filter((id) => !before.has(id)));
+      const samePanels = current !== undefined && sameIds(before, idsOf(spec));
+      return writeVersion(context, spec, request.summary, samePanels, added);
     },
   });
 }
@@ -132,7 +110,6 @@ export function currentSpec(context: RunContext): DashboardSpec | undefined {
 export function buildTools(context: RunContext) {
   return {
     propose_plan: proposePlanTool(context),
-    write_dashboard: writeDashboardTool(context),
-    patch_panel: patchPanelTool(context),
+    edit_dashboard: editDashboardTool(context),
   };
 }
