@@ -211,7 +211,8 @@ const customSchema = z.strictObject({
   unit: unitSchema.default('number'),
   columns: z.array(z.string().min(1).max(200)).max(20).optional(),
   reduce: z.enum(['last', 'first', 'max', 'min', 'mean', 'sum']).default('last'),
-  option: z.record(z.string(), z.json()).optional(),
+  // Not z.json(): its recursive schema is refused by Gemini. The spec check validates the values.
+  option: z.record(z.string(), z.unknown()).optional(),
 });
 
 /** Validates a panel request. */

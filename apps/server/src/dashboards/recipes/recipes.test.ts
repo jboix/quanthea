@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { DashboardSpec } from '@querent/shared';
+import { planSchema } from '@querent/shared';
+import { z } from 'zod';
 import type { ConnectorLookup } from '../check-queries.ts';
 import { validateSpec } from '../validate.ts';
 import { applyEdit } from './edit.ts';
@@ -255,5 +257,14 @@ describe('applyEdit', () => {
     expect(() => applyEdit(undefined, edit({ summary: 'x' }))).toThrow(
       'Give the new dashboard a title.',
     );
+  });
+});
+
+describe('the tool schemas', () => {
+  test('have no reference loops, which Gemini refuses', () => {
+    for (const schema of [editRequestSchema, planSchema]) {
+      const json = JSON.stringify(z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }));
+      expect(json).not.toContain('$ref');
+    }
   });
 });
