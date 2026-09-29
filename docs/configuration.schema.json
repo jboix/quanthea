@@ -1,0 +1,530 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "server": {
+      "type": "object",
+      "properties": {
+        "publicUrl": {
+          "description": "Public URL. QUERENT_PUBLIC_URL overrides it.",
+          "type": "string",
+          "format": "uri"
+        },
+        "trustedProxyHops": {
+          "description": "Trusted proxies. QUERENT_TRUSTED_PROXY_HOPS overrides it.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "authMode": {
+          "description": "Forced authentication mode. QUERENT_AUTH_MODE overrides it.",
+          "type": "string",
+          "enum": ["none", "accounts"]
+        },
+        "port": {
+          "description": "HTTP port. QUERENT_PORT overrides it.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "dataDir": {
+          "description": "Data directory. QUERENT_DATA_DIR overrides it.",
+          "type": "string",
+          "minLength": 1
+        },
+        "keysDir": {
+          "description": "Keys directory. QUERENT_KEYS_DIR overrides it.",
+          "type": "string",
+          "minLength": 1
+        },
+        "webDir": {
+          "description": "Web app directory. QUERENT_WEB_DIR overrides it.",
+          "type": "string",
+          "minLength": 1
+        },
+        "logLevel": {
+          "description": "Log level. QUERENT_LOG_LEVEL overrides it.",
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"]
+        },
+        "logFormat": {
+          "description": "Log format. QUERENT_LOG_FORMAT overrides it.",
+          "type": "string",
+          "enum": ["text", "json"]
+        }
+      },
+      "additionalProperties": false,
+      "description": "System settings, read at startup."
+    },
+    "users": {
+      "description": "Users by email. A password is set only while the user has none.",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "format": "email",
+        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "role": {
+            "default": "viewer",
+            "type": "string",
+            "enum": ["viewer", "editor", "admin"]
+          },
+          "disabled": {
+            "default": false,
+            "type": "boolean"
+          },
+          "password": {
+            "type": "string",
+            "pattern": "^(\\$\\{[A-Za-z_][A-Za-z0-9_]*\\}|file:.+)$",
+            "description": "An environment variable in braces after a dollar sign, or file:/path. Never the secret."
+          }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      }
+    },
+    "signIn": {
+      "type": "object",
+      "properties": {
+        "passwordSignIn": {
+          "type": "boolean"
+        },
+        "providers": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,40}$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["github", "google", "gitlab", "entra"]
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "baseUrl": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "tenant": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "join": {
+                "default": {
+                  "mode": "invite",
+                  "values": []
+                },
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": ["invite", "domain", "organisation", "group", "tenant"]
+                  },
+                  "values": {
+                    "default": [],
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  }
+                },
+                "required": ["mode"]
+              },
+              "clientId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "enabled": {
+                "default": true,
+                "type": "boolean"
+              },
+              "clientSecret": {
+                "type": "string",
+                "pattern": "^(\\$\\{[A-Za-z_][A-Za-z0-9_]*\\}|file:.+)$",
+                "description": "An environment variable in braces after a dollar sign, or file:/path. Never the secret."
+              }
+            },
+            "required": ["kind", "name", "clientId", "clientSecret"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "connectors": {
+      "description": "Connectors by name.",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "minLength": 1
+          },
+          "config": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "accessLevel": {
+            "default": 2,
+            "type": "number",
+            "enum": [1, 2, 3, 4]
+          },
+          "hiddenFields": {
+            "default": [],
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "guardrails": {
+            "default": {},
+            "type": "object",
+            "properties": {
+              "timeoutMs": {
+                "default": 10000,
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 300000
+              },
+              "maxRows": {
+                "default": 50000,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              },
+              "maxRangeDays": {
+                "default": 90,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3650
+              }
+            }
+          },
+          "descriptions": {
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          "secret": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^(\\$\\{[A-Za-z_][A-Za-z0-9_]*\\}|file:.+)$",
+              "description": "An environment variable in braces after a dollar sign, or file:/path. Never the secret."
+            }
+          }
+        },
+        "required": ["kind", "config"],
+        "additionalProperties": false
+      }
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "limits": {
+          "type": "object",
+          "properties": {
+            "threadTokens": {
+              "type": "integer",
+              "minimum": 10000,
+              "maximum": 10000000
+            },
+            "toolCallsPerTurn": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "repairAttempts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            }
+          },
+          "required": ["threadTokens", "toolCallsPerTurn", "repairAttempts"]
+        },
+        "behaviour": {
+          "type": "object",
+          "properties": {
+            "planApproval": {
+              "type": "boolean"
+            },
+            "testRun": {
+              "type": "boolean"
+            },
+            "shortReasoning": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          "required": ["planApproval", "testRun"]
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "provider": {
+                "type": "string",
+                "enum": ["anthropic", "openai", "mistral", "openai-compatible"]
+              },
+              "baseUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "models": {
+                "type": "object",
+                "properties": {
+                  "plan": {
+                    "default": "",
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "build": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "repair": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "metadata": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "required": ["build", "repair", "metadata"]
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "apiKey": {
+                "type": "string",
+                "pattern": "^(\\$\\{[A-Za-z_][A-Za-z0-9_]*\\}|file:.+)$",
+                "description": "An environment variable in braces after a dollar sign, or file:/path. Never the secret."
+              }
+            },
+            "required": ["provider", "baseUrl", "models", "id", "name"]
+          }
+        },
+        "defaultProviderId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"
+        }
+      },
+      "required": ["providers", "defaultProviderId"],
+      "description": "The model gateway, managed as a whole."
+    },
+    "retention": {
+      "type": "object",
+      "properties": {
+        "binDays": {
+          "default": 30,
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3650
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "charts": {
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "default": [],
+          "maxItems": 60,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 60
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "queries": {
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "default": [],
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 40
+          }
+        },
+        "saved": {
+          "default": [],
+          "maxItems": 50,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "language": {
+                "type": "string",
+                "enum": ["sql", "promql"]
+              },
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10000
+              },
+              "params": {
+                "default": [],
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]{0,29}$"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": ["metric", "label", "table", "column", "value", "duration"]
+                    },
+                    "description": {
+                      "default": "",
+                      "type": "string",
+                      "maxLength": 200
+                    }
+                  },
+                  "required": ["name", "kind"],
+                  "additionalProperties": false
+                }
+              },
+              "shape": {
+                "default": "rows",
+                "type": "string",
+                "enum": [
+                  "long",
+                  "wide",
+                  "single",
+                  "values",
+                  "matrix",
+                  "hierarchical",
+                  "graph",
+                  "geo",
+                  "ohlc",
+                  "rows"
+                ]
+              }
+            },
+            "required": ["id", "name", "description", "language", "query"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "provisioning": {
+      "description": "prune: true deletes what the file no longer declares.",
+      "type": "object",
+      "properties": {
+        "prune": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "description": "A querent configuration file.",
+  "title": "querent configuration"
+}

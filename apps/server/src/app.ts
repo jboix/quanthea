@@ -32,7 +32,7 @@ import {
 } from './http/routes/dashboard-routes.ts';
 import { mountProviderFlowRoutes } from './http/routes/provider-routes.ts';
 import { mountQueryEndpoints } from './http/routes/query-routes.ts';
-import { mountServerSettingsEndpoint } from './http/routes/server-settings-routes.ts';
+import { mountServerSettingsEndpoints } from './http/routes/server-settings-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSignInSettingsEndpoints } from './http/routes/sign-in-settings-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
@@ -141,12 +141,7 @@ function mountAccountRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): v
 function mountSettingsRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
   const { managed } = dependencies;
   mountSettingsEndpoints(app, dependencies.modelSettings, managed);
-  mountServerSettingsEndpoint(
-    app,
-    dependencies.serverSettings,
-    managed,
-    dependencies.provisioningStatus,
-  );
+  mountServerSettingsEndpoints(app, dependencies);
   mountUsageEndpoints(app, dependencies.usage);
   mountQueryEndpoints(app, dependencies);
   mountChartEndpoints(app, dependencies.chartSettings, managed);

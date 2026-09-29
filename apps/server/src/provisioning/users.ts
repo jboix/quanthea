@@ -25,7 +25,7 @@ import { type Applier, type Planned, provisioningActor } from './reconcile.ts';
 import { secretValue } from './secret-references.ts';
 
 /** A user as the file declares it, without the password. */
-const declaredSchema = z
+export const declaredSchema = z
   .object({
     name: z.string().trim().min(1).max(100),
     role: z.enum(roles).default('viewer'),

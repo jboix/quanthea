@@ -18,6 +18,7 @@
     "format": "biome format --write .",
     "docs:check": "remark . --quiet --frail --use ./scripts/remark-check-formatted.mjs",
     "docs:format": "remark . --quiet --output",
+    "config:schema": "bun apps/server/src/provisioning/write-schema.ts && biome format --write docs/configuration.schema.json",
     "arch": "depcruise apps packages --config .dependency-cruiser.cjs",
     "arch:graph": "depcruise apps packages --config .dependency-cruiser.cjs --include-only '^(apps|packages)' --output-type dot | dot -T svg > dependency-graph.svg",
     "knip": "knip",

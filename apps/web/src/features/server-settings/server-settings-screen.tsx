@@ -1,7 +1,10 @@
 import type { ServerSettingsView, SettingSource } from '@querent/shared';
-import { useLoaderData } from 'react-router';
+import { useEffect } from 'react';
+import { useFetcher, useLoaderData } from 'react-router';
+import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
 import { Page } from '../../ui/page.tsx';
+import type { ExportedConfiguration } from './data.ts';
 import styles from './server-settings.module.css';
 
 /**
@@ -18,6 +21,41 @@ function sourceText(source: SettingSource): string {
 }
 
 /**
+ * Saves a file in the browser.
+ *
+ * @param file - Its name and content.
+ */
+function download(file: ExportedConfiguration): void {
+  const url = URL.createObjectURL(new Blob([file.yaml], { type: 'application/yaml' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Exports the current configuration as a file to start from.
+ *
+ * @returns The button.
+ */
+function ExportButton() {
+  const fetcher = useFetcher<ExportedConfiguration>();
+  useEffect(() => {
+    if (fetcher.data) download(fetcher.data);
+  }, [fetcher.data]);
+  return (
+    <Button
+      size="small"
+      disabled={fetcher.state !== 'idle'}
+      onClick={() => void fetcher.submit(null, { method: 'post' })}
+    >
+      Export configuration
+    </Button>
+  );
+}
+
+/**
  * The configuration files read, or how to use one.
  *
  * @param props - The files.
@@ -26,7 +64,11 @@ function sourceText(source: SettingSource): string {
  */
 function FilesCard({ files }: { readonly files: readonly string[] }) {
   return (
-    <Card title="Configuration file">
+    <Card
+      title="Configuration file"
+      description="Export writes what is set up now as a file, each secret as a variable to set."
+      actions={<ExportButton />}
+    >
       {files.length === 0 ? (
         <p className={styles.note}>
           None. Set QUERENT_CONFIG to a YAML or JSON file, or a directory of them, to keep these

@@ -27,7 +27,7 @@ import { type Applier, issuesAt, type Planned, provisioningActor } from './recon
 import { secretValue } from './secret-references.ts';
 
 /** A provider as the file declares it, without its client secret. */
-const declaredSchema = z
+export const declaredSchema = z
   .object({
     kind: z.enum(providerKinds),
     name: z.string().trim().min(1).max(60),

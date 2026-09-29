@@ -22,7 +22,7 @@ import { type Applier, type Planned, provisioningActor } from './reconcile.ts';
 import { secretValues } from './secret-references.ts';
 
 /** A connector as the file declares it, without its name and secret. */
-const declaredSchema = connectorInputSchema.omit({ name: true, secret: true }).strict();
+export const declaredSchema = connectorInputSchema.omit({ name: true, secret: true }).strict();
 
 /** A connector ready to apply. */
 type DesiredConnector = Omit<z.output<typeof connectorInputSchema>, 'name' | 'descriptions'> & {
