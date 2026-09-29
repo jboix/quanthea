@@ -4,9 +4,17 @@ import type { ChartInput } from '../../charts/index.ts';
 import { Card } from '../../ui/card.tsx';
 import { Page } from '../../ui/page.tsx';
 import { type UsageData, usageRanges } from './data.ts';
+import { PeopleTable } from './people-table.tsx';
 import styles from './usage.module.css';
 import { costChart, tokensChart, viewsChart } from './usage-charts.ts';
-import { dailyUsage, type ModelUsage, totalUsage, usageByModel } from './usage-days.ts';
+import {
+  chartedModels,
+  dailyUsage,
+  type ModelUsage,
+  totalUsage,
+  usageByModel,
+} from './usage-days.ts';
+import { usageByUser } from './usage-people.ts';
 
 /** The chart, loaded when first drawn, so pages without charts never load ECharts. */
 const Chart = lazy(async () => ({ default: (await import('../../charts/index.ts')).Chart }));
@@ -159,6 +167,8 @@ function ModelsTable({ models }: { readonly models: readonly ModelUsage[] }) {
 export function UsageScreen() {
   const { report, days } = useLoaderData() as UsageData;
   const daily = dailyUsage(report);
+  const models = usageByModel(report);
+  const charted = chartedModels(models);
   return (
     <Page
       title="Usage"
@@ -167,12 +177,15 @@ export function UsageScreen() {
     >
       <Figures total={totalUsage(daily)} checkedOn={report.pricesCheckedOn} />
       <div className={styles.charts}>
-        <ChartCard title="Tokens per day" input={tokensChart(daily)} />
-        <ChartCard title="List-price cost per day" input={costChart(daily)} />
+        <ChartCard title="Tokens per day, by model" input={tokensChart(daily, charted)} />
+        <ChartCard title="List-price cost per day, by model" input={costChart(daily, charted)} />
         <ChartCard title="Pinned dashboard views per day" input={viewsChart(daily)} />
       </div>
       <Card title="By model">
-        <ModelsTable models={usageByModel(report)} />
+        <ModelsTable models={models} />
+      </Card>
+      <Card title="By person" description="The model steps that ran in each person’s threads.">
+        <PeopleTable people={usageByUser(report)} />
       </Card>
     </Page>
   );

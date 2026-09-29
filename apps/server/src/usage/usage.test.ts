@@ -97,4 +97,20 @@ describe('the usage ledger', () => {
     expect(ledger.report(2).buckets).toEqual([]);
     expect(ledger.report(4).buckets).toHaveLength(1);
   });
+
+  test('names the owner of the thread each step ran in, and keeps it after the thread goes', () => {
+    database.run(
+      "INSERT INTO threads (id, created_by, created_at, updated_at) VALUES ('t9', 'ada', 1, 1)",
+    );
+    const ledger = usage();
+    const step = { provider: 'mistral', model: 'mistral-large-latest', job: 'build', tokens };
+    ledger.recordStep({ ...step, threadId: 't9' });
+    ledger.recordStep({ ...step, threadId: null });
+    database.run("DELETE FROM threads WHERE id = 't9'");
+    const users = ledger
+      .report(1)
+      .buckets.map((bucket) => bucket.userId)
+      .sort();
+    expect(users).toEqual(['', 'ada']);
+  });
 });

@@ -20,6 +20,16 @@ export interface DayUsage {
   readonly steps: number;
   /** Views of pinned dashboards. */
   readonly views: number;
+  /** The tokens and cost of each model that ran that day, by model id. */
+  readonly byModel: Readonly<Record<string, ModelDay>>;
+}
+
+/** What one model spent on one day. */
+export interface ModelDay {
+  /** All its tokens: input, cache reads and writes, and output. */
+  readonly tokens: number;
+  /** Its list-price cost, in US dollars. */
+  readonly dollars: number;
 }
 
 /** One model's usage over the range. */
@@ -43,7 +53,7 @@ export interface ModelUsage {
 }
 
 /** A day with nothing in it. */
-const emptyDay = { input: 0, cached: 0, output: 0, dollars: 0, steps: 0, views: 0 };
+const emptyDay = { input: 0, cached: 0, output: 0, dollars: 0, steps: 0, views: 0, byModel: {} };
 
 /**
  * The local midnight of an instant.
@@ -57,6 +67,23 @@ export function localDay(at: number): number {
 }
 
 /**
+ * Adds a bucket to what its model spent that day.
+ *
+ * @param byModel - What each model spent that day so far.
+ * @param bucket - A model step bucket.
+ * @returns What each model spent, with the bucket.
+ */
+function withModel(
+  byModel: Readonly<Record<string, ModelDay>>,
+  bucket: UsageBucket,
+): Readonly<Record<string, ModelDay>> {
+  const before = byModel[bucket.model] ?? { tokens: 0, dollars: 0 };
+  const tokens = bucket.input + bucket.cachedInput + bucket.cacheWrite + bucket.output;
+  const after = { tokens: before.tokens + tokens, dollars: before.dollars + bucket.dollars };
+  return { ...byModel, [bucket.model]: after };
+}
+
+/**
  * Adds an hour's bucket to its day.
  *
  * @param day - The day so far.
@@ -67,6 +94,7 @@ function withBucket(day: DayUsage, bucket: UsageBucket): DayUsage {
   if (bucket.kind === 'pinned_view') return { ...day, views: day.views + bucket.events };
   return {
     ...day,
+    byModel: withModel(day.byModel, bucket),
     input: day.input + bucket.input + bucket.cacheWrite,
     cached: day.cached + bucket.cachedInput,
     output: day.output + bucket.output,
@@ -99,8 +127,8 @@ export function dailyUsage(report: UsageReport): DayUsage[] {
  * @param days - The days.
  * @returns Their sums.
  */
-export function totalUsage(days: readonly DayUsage[]): Omit<DayUsage, 'day'> {
-  return days.reduce(
+export function totalUsage(days: readonly DayUsage[]): Omit<DayUsage, 'day' | 'byModel'> {
+  return days.reduce<Omit<DayUsage, 'day' | 'byModel'>>(
     (sum, day) => ({
       input: sum.input + day.input,
       cached: sum.cached + day.cached,
@@ -109,8 +137,22 @@ export function totalUsage(days: readonly DayUsage[]): Omit<DayUsage, 'day'> {
       steps: sum.steps + day.steps,
       views: sum.views + day.views,
     }),
-    emptyDay,
+    { input: 0, cached: 0, output: 0, dollars: 0, steps: 0, views: 0 },
   );
+}
+
+/**
+ * The models to draw one by one, the costliest first; the rest add up to `Other`.
+ *
+ * @param models - The usage of each model, the costliest first.
+ * @param limit - How many models to draw one by one.
+ * @returns The model ids, and whether an `Other` series gathers the rest.
+ */
+export function chartedModels(
+  models: readonly ModelUsage[],
+  limit = 5,
+): { readonly shown: readonly string[]; readonly other: boolean } {
+  return { shown: models.slice(0, limit).map((each) => each.model), other: models.length > limit };
 }
 
 /**

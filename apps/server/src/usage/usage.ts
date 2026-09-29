@@ -21,6 +21,9 @@ export interface ModelStep {
   readonly tokens: TokenUsage;
 }
 
+/** The usage report as the ledger has it; the API adds the names of the users it names. */
+export type LedgerReport = Omit<UsageReport, 'people'>;
+
 /** This month's usage, for the model settings screen. */
 export interface MonthUsage {
   /** Tokens, input and output. */
@@ -53,7 +56,7 @@ export interface Usage {
    * @param days - How many days back.
    * @returns The report.
    */
-  report(days: number): UsageReport;
+  report(days: number): LedgerReport;
   /**
    * This month's totals.
    *
@@ -92,7 +95,7 @@ function costMicros(step: ModelStep): number | null {
  * @param to - The end.
  * @returns The report.
  */
-function reportOf(repository: UsageRepository, from: number, to: number): UsageReport {
+function reportOf(repository: UsageRepository, from: number, to: number): LedgerReport {
   const buckets = repository.buckets(from, to).map(({ costMicros: micros, ...bucket }) => ({
     ...bucket,
     dollars: micros / 1e6,
@@ -107,7 +110,7 @@ function reportOf(repository: UsageRepository, from: number, to: number): UsageR
  * @param threads - How many threads spent tokens.
  * @returns The totals.
  */
-function totalsOf(report: UsageReport, threads: number): MonthUsage {
+function totalsOf(report: LedgerReport, threads: number): MonthUsage {
   let tokens = 0;
   let pinnedViews = 0;
   let dollars = 0;

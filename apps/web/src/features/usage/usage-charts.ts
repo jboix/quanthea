@@ -1,7 +1,7 @@
 /** The usage charts: days as frames, drawn by the same chart code as dashboards. */
 import { datasetOfFrames, type Formatter, type Frame } from '@querent/shared';
 import type { ChartInput } from '../../charts/index.ts';
-import type { DayUsage } from './usage-days.ts';
+import type { chartedModels, DayUsage, ModelDay } from './usage-days.ts';
 
 /** A series of the chart: its name and how a day gives its value. */
 type Series = readonly [name: string, value: (day: DayUsage) => number];
@@ -31,21 +31,28 @@ function frameOf(days: readonly DayUsage[], series: readonly Series[]): Frame {
  * @param days - The days.
  * @param series - The series.
  * @param format - How the values read.
+ * @param whole - Whether the values are counts, with ticks on whole numbers only.
  * @returns The chart input.
  */
 function barsPerDay(
   days: readonly DayUsage[],
   series: readonly Series[],
   format: Formatter,
+  whole = false,
 ): ChartInput {
   const option = {
     xAxis: {
       type: 'time',
       axisLabel: { formatter: { $fmt: 'datetime', pattern: 'date' }, hideOverlap: true },
     },
-    yAxis: { type: 'value', axisLabel: { formatter: format } },
+    yAxis: {
+      type: 'value',
+      // Counts of whole things, such as views, never get a tick between two whole numbers.
+      ...(whole ? { minInterval: 1 } : {}),
+      axisLabel: { formatter: format },
+    },
     tooltip: { trigger: 'axis' },
-    ...(series.length > 1 ? { legend: { top: 0, right: 0 } } : {}),
+    ...(series.length > 1 ? { legend: { top: 0, right: 0, type: 'scroll' } } : {}),
     series: [{ type: 'bar', stack: 'day' }],
   };
   return {
@@ -61,30 +68,51 @@ function barsPerDay(
   };
 }
 
+/** The models a chart draws one by one, and whether `Other` gathers the rest. */
+type Charted = ReturnType<typeof chartedModels>;
+
 /**
- * Tokens per day: fresh input, cache reads and output, stacked.
+ * One series per charted model, and `Other` for the rest.
  *
- * @param days - The days.
- * @returns The chart input.
+ * @param charted - The models drawn one by one, and whether others exist.
+ * @param measure - What a series adds up: tokens or dollars.
+ * @returns The series.
  */
-export function tokensChart(days: readonly DayUsage[]): ChartInput {
-  const series: Series[] = [
-    ['Fresh input', (day) => day.input],
-    ['Cached input', (day) => day.cached],
-    ['Output', (day) => day.output],
-  ];
-  return barsPerDay(days, series, { $fmt: 'number', compact: true });
+function modelSeries(charted: Charted, measure: keyof ModelDay): Series[] {
+  const shown = new Set(charted.shown);
+  const series: Series[] = charted.shown.map((model) => [
+    model,
+    (day) => day.byModel[model]?.[measure] ?? 0,
+  ]);
+  if (!charted.other) return series;
+  const rest = (day: DayUsage) =>
+    Object.entries(day.byModel)
+      .filter(([model]) => !shown.has(model))
+      .reduce((sum, [, used]) => sum + used[measure], 0);
+  return [...series, ['Other', rest]];
 }
 
 /**
- * The list-price cost per day.
+ * Tokens per day, stacked by model.
  *
  * @param days - The days.
+ * @param charted - The models drawn one by one.
  * @returns The chart input.
  */
-export function costChart(days: readonly DayUsage[]): ChartInput {
+export function tokensChart(days: readonly DayUsage[], charted: Charted): ChartInput {
+  return barsPerDay(days, modelSeries(charted, 'tokens'), { $fmt: 'number', compact: true });
+}
+
+/**
+ * The list-price cost per day, stacked by model.
+ *
+ * @param days - The days.
+ * @param charted - The models drawn one by one.
+ * @returns The chart input.
+ */
+export function costChart(days: readonly DayUsage[], charted: Charted): ChartInput {
   const format: Formatter = { $fmt: 'currency', code: 'USD', decimals: 3 };
-  return barsPerDay(days, [['Cost', (day) => day.dollars]], format);
+  return barsPerDay(days, modelSeries(charted, 'dollars'), format);
 }
 
 /**
@@ -94,5 +122,5 @@ export function costChart(days: readonly DayUsage[]): ChartInput {
  * @returns The chart input.
  */
 export function viewsChart(days: readonly DayUsage[]): ChartInput {
-  return barsPerDay(days, [['Views', (day) => day.views]], { $fmt: 'number', decimals: 0 });
+  return barsPerDay(days, [['Views', (day) => day.views]], { $fmt: 'number', decimals: 0 }, true);
 }

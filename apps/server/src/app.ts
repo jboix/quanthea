@@ -136,7 +136,7 @@ function mountSettingsRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): 
   const { managed } = dependencies;
   mountSettingsEndpoints(app, dependencies.modelSettings, managed);
   mountServerSettingsEndpoints(app, dependencies);
-  mountUsageEndpoints(app, dependencies.usage);
+  mountUsageEndpoints(app, dependencies);
   mountQueryEndpoints(app, dependencies);
   mountChartEndpoints(app, dependencies.chartSettings, managed);
 }

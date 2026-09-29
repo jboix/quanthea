@@ -74,6 +74,7 @@ describe('runMigrations', () => {
       '0013-identities.sql',
       '0014-provisioned.sql',
       '0015-user-setup.sql',
+      '0016-usage-user.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([

@@ -189,7 +189,7 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/settings/model`                                  | Model: the providers, their keys and limits                | admin    |
 | `/settings/auth`                                   | Authentication: sign-in providers, passwords               | admin    |
 | `/settings/users`                                  | Users: invite, roles, disable, reset links, sign out       | admin    |
-| `/settings/usage`                                  | Usage: tokens, cost and pinned views per day, by model     | admin    |
+| `/settings/usage`                                  | Usage: tokens, cost and views; by model and by person      | admin    |
 | `/settings/queries`                                | Queries: builders on or off, your own with placeholders    | admin    |
 | `/settings/charts`                                 | Charts: every chart recipe drawn from its sample           | admin    |
 | `/settings/server`                                 | Server: system settings and keys, read-only, with sources  | admin    |
@@ -835,8 +835,12 @@ CREATE TABLE usage_events (
 
 The usage ledger (`usage/usage.ts`) records every model step, with its provider, model, job,
 tokens and list-price cost at that moment, and every read of a pinned version, which spends no
-tokens. Deleting a thread keeps its history. `GET /api/settings/usage?days=` returns it by hour,
-and the browser adds the hours up into its own days.
+tokens. A model step also records who it ran for: the owner of its thread at that moment, kept
+after the thread is purged; a step outside a thread, such as tagging at pin time, names no one.
+Deleting a thread keeps its history. `GET /api/settings/usage?days=` returns it by hour, model and
+user, with each user's name and role, and the browser adds the hours up into its own days.
+Settings → Usage draws tokens and cost per day stacked by model (the five costliest, then
+`Other`), and lists the models and, ten a page, the people who spent the most.
 
 Migrations are plain numbered `.sql` files in `db/migrations/` (`0001-settings-and-audit-log.sql`).
 At startup each pending file runs in its own transaction, together with its row in the
@@ -881,7 +885,7 @@ indicative; the contract files are the source of truth.
 | `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`                  | connection test, schema                      | admin    |
 | `GET/PUT /settings/:section`                                                                      | model, auth, retention, limits               | admin    |
 | `POST /settings/model/test`                                                                       | gateway capability test                      | admin    |
-| `GET /settings/usage?days=`                                                                       | usage by hour, from the ledger               | admin    |
+| `GET /settings/usage?days=`                                                                       | usage by hour, model and user                | admin    |
 | `GET /settings/server`                                                                            | system settings and key sources, read-only   | admin    |
 | `GET /settings/managed`                                                                           | settings sections the config file manages    | admin    |
 | `GET /model-providers`                                                                            | the providers a thread may use, without keys | editor   |

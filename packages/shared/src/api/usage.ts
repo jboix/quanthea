@@ -1,8 +1,9 @@
 /**
  * The usage report: what the model steps spent and how often pinned dashboards were viewed, by
- * hour, from the ledger that outlives threads. The browser adds the hours up into its own days.
+ * hour and user, from the ledger that outlives threads. The browser adds the hours up into its own days.
  */
 import { z } from 'zod';
+import { roleSchema } from '../roles.ts';
 import { defineEndpoint } from './contract.ts';
 
 /** Validates one hour of one kind of event for one model. */
@@ -15,6 +16,8 @@ export const usageBucketSchema = z.object({
   provider: z.string(),
   /** The model id; empty for pinned views. */
   model: z.string(),
+  /** Who the model steps ran for: their thread's owner; empty outside a thread and for views. */
+  userId: z.string(),
   /** Fresh input tokens. */
   input: z.number(),
   /** Input tokens read from the cache. */
@@ -44,6 +47,8 @@ export const usageReportSchema = z.object({
   pricesCheckedOn: z.string(),
   /** The hours with events, oldest first. */
   buckets: z.array(usageBucketSchema),
+  /** The name and role of each user the buckets name; the role is `null` for one who is gone. */
+  people: z.record(z.string(), z.object({ name: z.string(), role: roleSchema.nullable() })),
 });
 
 /** The usage report. */

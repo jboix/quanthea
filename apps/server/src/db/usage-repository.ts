@@ -41,6 +41,8 @@ export interface UsageBucketRow {
   readonly provider: string;
   /** The model, empty for a pinned view. */
   readonly model: string;
+  /** Who the steps ran for: their thread's owner; empty outside a thread and for pinned views. */
+  readonly userId: string;
   /** Fresh input tokens. */
   readonly input: number;
   /** Cache reads. */
@@ -66,7 +68,7 @@ export interface UsageRepository {
    */
   record(event: UsageEventRow): void;
   /**
-   * The events of a time range, added up by hour, kind and model.
+   * The events of a time range, added up by hour, kind, model and user.
    *
    * @param from - The start, epoch milliseconds, included.
    * @param to - The end, excluded.
@@ -91,13 +93,14 @@ export interface UsageRepository {
 function recorder(database: Database): (event: UsageEventRow) => void {
   const insert = database.query(
     `INSERT INTO usage_events (id, at, kind, thread_id, dashboard_id, provider, model, job, input,
-       cached_input, cache_write, output, cost_micros) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       cached_input, cache_write, output, cost_micros, user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT created_by FROM threads WHERE id = ?))`,
   );
   return (event) => {
     const { id, at, kind, threadId, dashboardId, provider, model, job } = event;
     const { input, cachedInput, cacheWrite, output, costMicros } = event;
     const names = [id, at, kind, threadId, dashboardId, provider, model, job];
-    insert.run(...names, input, cachedInput, cacheWrite, output, costMicros);
+    insert.run(...names, input, cachedInput, cacheWrite, output, costMicros, threadId);
   };
 }
 
@@ -110,12 +113,13 @@ function recorder(database: Database): (event: UsageEventRow) => void {
 export function createUsageRepository(database: Database): UsageRepository {
   const select = database.query<UsageBucketRow, [number, number]>(
     `SELECT (at / 3600000) * 3600000 AS hour, kind, coalesce(provider, '') AS provider,
-       coalesce(model, '') AS model, sum(input) AS input, sum(cached_input) AS cachedInput,
+       coalesce(model, '') AS model, coalesce(user_id, '') AS userId, sum(input) AS input,
+       sum(cached_input) AS cachedInput,
        sum(cache_write) AS cacheWrite, sum(output) AS output,
        coalesce(sum(cost_micros), 0) AS costMicros, count(*) AS events,
        sum(kind = 'model' AND cost_micros IS NULL) AS unpriced
      FROM usage_events WHERE at >= ? AND at < ?
-     GROUP BY hour, kind, provider, model ORDER BY hour, kind, provider, model`,
+     GROUP BY hour, kind, provider, model, userId ORDER BY hour, kind, provider, model, userId`,
   );
   const threads = database.query<{ count: number }, [number]>(
     `SELECT count(DISTINCT thread_id) AS count FROM usage_events WHERE kind = 'model' AND at >= ?`,
