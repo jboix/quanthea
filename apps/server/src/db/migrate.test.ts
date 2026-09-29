@@ -66,6 +66,7 @@ describe('runMigrations', () => {
       '0005-usage.sql',
       '0006-thread-provider.sql',
       '0007-thread-recipes.sql',
+      '0008-library-search.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
@@ -73,6 +74,12 @@ describe('runMigrations', () => {
       'connectors',
       'dashboard_versions',
       'dashboards',
+      'library_fts',
+      'library_fts_config',
+      'library_fts_content',
+      'library_fts_data',
+      'library_fts_docsize',
+      'library_fts_idx',
       'messages',
       'migrations',
       'plans',

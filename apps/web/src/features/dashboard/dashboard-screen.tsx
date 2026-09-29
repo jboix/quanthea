@@ -1,6 +1,6 @@
 import { hasRole, type Role } from '@querent/shared';
-import { useState } from 'react';
-import { Link, useLoaderData, useRouteLoaderData } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useLoaderData, useLocation, useRouteLoaderData } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
 import { LockIcon, ThreadsIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
@@ -76,11 +76,24 @@ function DashboardHeader(props: DashboardData) {
 }
 
 /**
+ * Scrolls to the panel a link names in its hash, such as `#panel-errors`, as the library's
+ * matching panels do.
+ */
+function useScrollToPanel(): void {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash === '') return;
+    document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView({ block: 'center' });
+  }, [hash]);
+}
+
+/**
  * A dashboard: its variables, and its panels running saved queries with no model involved.
  *
  * @returns The screen.
  */
 export function DashboardScreen() {
+  useScrollToPanel();
   const loaded = useLoaderData() as DashboardData;
   const { dashboard, version } = loaded;
   return (

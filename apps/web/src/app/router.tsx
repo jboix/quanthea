@@ -10,7 +10,7 @@ import type { ApiClient } from '../lib/api-client.ts';
 import { BinRoute } from '../routes/bin.tsx';
 import { connectorRoutes } from '../routes/connectors.tsx';
 import { dashboardRoutes } from '../routes/dashboard.tsx';
-import { LibraryRoute } from '../routes/library.tsx';
+import { libraryRoute } from '../routes/library.tsx';
 import { LoginRoute } from '../routes/login.tsx';
 import { NotFoundRoute } from '../routes/not-found.tsx';
 import { SettingsAuthRoute } from '../routes/settings-auth.tsx';
@@ -86,7 +86,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
   return [
     { index: true, loader: home },
     ...threadRoutes(loadSession, api),
-    screen(loadSession, '/library', LibraryRoute),
+    libraryRoute(loadSession, api),
     ...dashboardRoutes(loadSession, api),
     screen(loadSession, '/bin', BinRoute),
     connectorRoutes(loadSession, api),

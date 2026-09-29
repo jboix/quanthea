@@ -1,27 +1,18 @@
-import { Link } from 'react-router';
-import { buttonClassName } from '../ui/button.tsx';
-import { Page } from '../ui/page.tsx';
-import { Placeholder } from '../ui/placeholder.tsx';
+/** The route of the library screen. */
+import type { RouteObject } from 'react-router';
+import { guarded } from '../app/route-access.ts';
+import type { SessionLoader } from '../app/session.ts';
+import { LibraryScreen, loadLibrary } from '../features/library/index.ts';
+import type { ApiClient } from '../lib/api-client.ts';
 
 /**
- * The Library screen: search over pinned dashboards.
+ * The library route, for viewers.
  *
- * @returns The screen.
+ * @param loadSession - Loads the current session.
+ * @param api - The API client.
+ * @returns The route object.
  */
-export function LibraryRoute() {
-  return (
-    <Page
-      title="Library"
-      subtitle="Pinned dashboards are frozen. Opening one runs its saved queries, with no model involved."
-      actions={
-        <Link to="/threads/new" className={buttonClassName('primary', 'large')}>
-          New thread
-        </Link>
-      }
-    >
-      <Placeholder title="Search, tag filters and dashboard cards go here.">
-        Opening a pinned dashboard never calls a model.
-      </Placeholder>
-    </Page>
-  );
+export function libraryRoute(loadSession: SessionLoader, api: ApiClient): RouteObject {
+  const path = '/library';
+  return { path, loader: guarded(loadSession, path, loadLibrary(api)), Component: LibraryScreen };
 }

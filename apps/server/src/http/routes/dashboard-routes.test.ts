@@ -5,6 +5,7 @@ import {
   dashboardDetailSchema,
   dashboardPageSchema,
   dashboardVersionSchema,
+  librarySearchSchema,
   type Principal,
   panelRunSchema,
 } from '@querent/shared';
@@ -101,6 +102,20 @@ describe('dashboard routes', () => {
     expect(await threadOf()).toBe(thread.id);
     fixture.threads.remove(thread.id, 'editor-1');
     expect(await threadOf()).toBeNull();
+  });
+
+  test('lets viewers search the library, with filters as comma-separated lists', async () => {
+    const asEditor = client(editor);
+    const { id } = dashboardDetailSchema.parse(
+      (await asEditor('POST', '/api/dashboards', { spec: eventsSpec() })).body,
+    );
+    await asEditor('POST', `/api/dashboards/${id}/pin`, { version: 1 });
+    const found = await client(viewer)('GET', '/api/dashboards?q=errors&connectors=events,');
+    expect(librarySearchSchema.parse(found.body).results.map((entry) => entry.dashboardId)).toEqual(
+      [id],
+    );
+    const none = await client(viewer)('GET', '/api/dashboards?connectors=events,nope');
+    expect(librarySearchSchema.parse(none.body).results).toEqual([]);
   });
 
   test('returns spec issues as details', async () => {

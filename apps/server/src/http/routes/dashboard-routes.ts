@@ -1,10 +1,11 @@
-/** The dashboard endpoints: create, read and pin, and running saved panels. */
+/** The dashboard endpoints: create, read, pin and search, and running saved panels. */
 import {
   createDashboardEndpoint,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
   pinDashboardEndpoint,
   runPanelEndpoint,
+  searchLibraryEndpoint,
   variableOptionsEndpoint,
 } from '@querent/shared';
 import type { Hono } from 'hono';
@@ -95,4 +96,8 @@ export function mountDashboardEndpoints(
 ): void {
   mountDashboardRoutes(app, dashboards, onPinnedView, threadOf);
   mountRunRoutes(app, dashboards);
+  mountEndpoint(app, searchLibraryEndpoint, {
+    access: 'viewer',
+    handle: ({ query }) => dashboards.searchLibrary(query),
+  });
 }

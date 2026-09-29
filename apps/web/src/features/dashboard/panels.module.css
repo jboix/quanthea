@@ -210,3 +210,22 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  height: 150px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.preview > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.preview > .empty,
+.preview > .loading {
+  flex: 0 0 auto;
+  margin: auto;
+}

@@ -1,6 +1,7 @@
 /** Reads and writes dashboards and their versions. */
 import type { Database } from 'bun:sqlite';
 import { type PinnedRow, pinnedLister } from './dashboard-pinned.ts';
+import { type LibrarySearcher, librarySearcher } from './library-search.ts';
 
 /** A dashboard as stored. */
 export interface DashboardRow {
@@ -116,6 +117,8 @@ export interface DashboardRepository {
    * @returns The dashboards, the most recently changed first.
    */
   listPinned(): PinnedRow[];
+  /** Searches the pinned dashboards and their panels. */
+  readonly library: LibrarySearcher;
 }
 
 /** A `dashboards` row as SQLite returns it. */
@@ -369,5 +372,6 @@ export function createDashboardRepository(database: Database): DashboardReposito
         : undefined;
     },
     listPinned: pinnedLister(database),
+    library: librarySearcher(database),
   };
 }

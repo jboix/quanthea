@@ -209,3 +209,33 @@ export function QuestionIcon() {
     </Icon>
   );
 }
+
+/**
+ * A magnifying glass, for search.
+ *
+ * @returns The icon.
+ */
+export function SearchIcon() {
+  return (
+    <Icon size={18}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4 4" />
+    </Icon>
+  );
+}
+
+/**
+ * A branch splitting in two, for a dashboard copied from another.
+ *
+ * @returns The icon.
+ */
+export function VariantIcon() {
+  return (
+    <Icon size={16}>
+      <circle cx="6" cy="5" r="2" />
+      <circle cx="6" cy="19" r="2" />
+      <circle cx="18" cy="8" r="2" />
+      <path d="M6 7v10M18 10c0 4-6 3-12 7" />
+    </Icon>
+  );
+}

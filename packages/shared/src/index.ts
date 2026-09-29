@@ -57,6 +57,12 @@ export {
   apiErrorCodes,
 } from './api/errors.ts';
 export { healthEndpoint } from './api/health.ts';
+export {
+  type LibraryEntry,
+  type LibrarySearch,
+  librarySearchSchema,
+  searchLibraryEndpoint,
+} from './api/library.ts';
 export { meEndpoint } from './api/me.ts';
 export {
   getModelSettingsEndpoint,

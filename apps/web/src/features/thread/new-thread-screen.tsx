@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { type SubmitTarget, useLoaderData, useSubmit } from 'react-router';
+import { type SubmitTarget, useLoaderData, useSearchParams, useSubmit } from 'react-router';
 import { Select } from '../../ui/select.tsx';
 import type { NewThreadData, NewThreadIntent } from './data.ts';
 import { HistoryMenu } from './history-menu.tsx';
@@ -15,15 +15,16 @@ import styles from './new-thread.module.css';
 import { QueryModeMenu, QueryPicker, useQueryChoice } from './query-choice.tsx';
 
 /**
- * The question box's behaviour: Enter sends, Shift+Enter breaks the line, and a sent question
- * stays on screen while the thread starts.
+ * The question box's behaviour: it starts with `?question=` when a link fills it in, Enter sends,
+ * Shift+Enter breaks the line, and a sent question stays on screen while the thread starts.
  *
  * @param providerId - The provider the thread starts on.
  * @param queries - The queries the thread uses.
  * @returns The text, its setter, the question sent (if any), and the handlers.
  */
 function useAsk(providerId: string, queries: ThreadQueries) {
-  const [question, setQuestion] = useState('');
+  const [params] = useSearchParams();
+  const [question, setQuestion] = useState(() => params.get('question') ?? '');
   const [sent, setSent] = useState<string | undefined>(undefined);
   const submit = useSubmit();
   const start = (event?: FormEvent) => {

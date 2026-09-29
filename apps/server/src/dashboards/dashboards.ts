@@ -7,6 +7,7 @@ import {
   type DashboardSpec,
   type DashboardVersion,
   dashboardSpecSchema,
+  type LibrarySearch,
   type PanelRun,
   type Role,
 } from '@querent/shared';
@@ -21,6 +22,7 @@ import {
   validOrRefuse,
   visibleVersion,
 } from './context.ts';
+import { type LibraryQuery, searchLibrary } from './library.ts';
 import { copyPinned, findPinned, type PinnedMatch } from './pinned.ts';
 import { newRows } from './rows.ts';
 import { listVariableOptions, runPanel } from './run-panel.ts';
@@ -145,6 +147,13 @@ export interface Dashboards {
    * @throws {AppError} `not_found` when the dashboard is not pinned.
    */
   copyPinned(id: string, actor: string): { dashboardId: string; version: number; title: string };
+  /**
+   * Searches the pinned dashboards and their panels.
+   *
+   * @param query - The words and the filters.
+   * @returns The matching dashboards, and every tag and connector for the filters.
+   */
+  searchLibrary(query: LibraryQuery): LibrarySearch;
 }
 
 /**
@@ -226,5 +235,6 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
     restore: (id, from, actor) => restoreVersion(context, id, from, actor),
     findPinned: (question) => findPinned(context, question),
     copyPinned: (id, actor) => copyPinned(context, id, actor),
+    searchLibrary: (query) => searchLibrary(context, query),
   };
 }

@@ -82,7 +82,6 @@ The two paths that matter:
 │   │       ├── dashboards/          versions, validate, pin, variants, bin, diff; queries/ (builders,
 │   │       │                        saved and raw queries) and panels/ (edits: data + chart, layout)
 │   │       ├── threads/             threads, messages, plans (state machine)
-│   │       ├── search/              FTS5 queries
 │   │       ├── settings/            typed settings store (auth, gateway, retention)
 │   │       ├── secrets/             encrypt/decrypt credentials at rest
 │   │       ├── jobs/                in-process scheduler; bin purge
@@ -97,7 +96,7 @@ The two paths that matter:
 │           ├── features/
 │           │   ├── thread/          chat stream, plan card, diff cards, composer, @mentions
 │           │   ├── dashboard/       dashboard pane, variables bar, panels, inspector
-│           │   ├── library/         search, tag filters, cards
+│           │   ├── library/         search, connector and tag filters, cards with a live panel
 │           │   ├── bin/
 │           │   ├── connectors/
 │           │   └── settings/        gateway, auth, retention
@@ -132,20 +131,20 @@ The two paths that matter:
 The allowed dependencies are enforced by `.dependency-cruiser.cjs`. The table summarizes
 them.
 
-| Module                | Responsibility                                              | May import                                                          | Must not import                                 |
-| --------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------- |
-| `lib/`                | errors, logger, ids                                         | nothing internal                                                    | everything else                                 |
-| `connectors/<kind>/`  | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@querent/shared`, its own driver      | other connector kinds, anything else in the app |
-| `query/`              | bind variables, enforce guardrails, run, cache              | `connectors`, `lib`, shared                                         | `agent`, `http`                                 |
-| `gate/`               | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                    | `agent`, `http`                                 |
-| `agent/`              | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `search`, `settings`, `lib`        | **`connectors`, `query`, `db`**                 |
-| `dashboards/`         | validate, store, pin and run specs                          | `db`, `query`, `lib`, shared; connectors through injected functions | `http`, `agent`, `connections`, `connectors`    |
-| `threads/`, `search/` | domain logic                                                | `db`, `lib`, shared                                                 | `http`, `agent`                                 |
-| `settings/`           | typed settings sections; the model key, sealed              | `db`, `secrets`, `lib`, shared                                      | `http`, `agent`                                 |
-| `connections/`        | configured connectors: CRUD, sealed secrets, open instances | `db`, `secrets`, `connectors`, `gate`, `query` types, `lib`         | `http`, `auth`, `agent`                         |
-| `db/`                 | the only user of `bun:sqlite`                               | `lib`                                                               | —                                               |
-| `http/`               | validate, authorize, call services, stream                  | services, `agent`, `auth`                                           | `connectors`, `db`                              |
-| `auth/`               | modes, sessions, Principal                                  | `settings`, `db` via repositories, `lib`                            | `agent`                                         |
+| Module               | Responsibility                                              | May import                                                          | Must not import                                 |
+| -------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------- |
+| `lib/`               | errors, logger, ids                                         | nothing internal                                                    | everything else                                 |
+| `connectors/<kind>/` | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@querent/shared`, its own driver      | other connector kinds, anything else in the app |
+| `query/`             | bind variables, enforce guardrails, run, cache              | `connectors`, `lib`, shared                                         | `agent`, `http`                                 |
+| `gate/`              | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                    | `agent`, `http`                                 |
+| `agent/`             | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `settings`, `lib`                  | **`connectors`, `query`, `db`**                 |
+| `dashboards/`        | validate, store, pin and run specs                          | `db`, `query`, `lib`, shared; connectors through injected functions | `http`, `agent`, `connections`, `connectors`    |
+| `threads/`           | domain logic                                                | `db`, `lib`, shared                                                 | `http`, `agent`                                 |
+| `settings/`          | typed settings sections; the model key, sealed              | `db`, `secrets`, `lib`, shared                                      | `http`, `agent`                                 |
+| `connections/`       | configured connectors: CRUD, sealed secrets, open instances | `db`, `secrets`, `connectors`, `gate`, `query` types, `lib`         | `http`, `auth`, `agent`                         |
+| `db/`                | the only user of `bun:sqlite`                               | `lib`                                                               | —                                               |
+| `http/`              | validate, authorize, call services, stream                  | services, `agent`, `auth`                                           | `connectors`, `db`                              |
+| `auth/`              | modes, sessions, Principal                                  | `settings`, `db` via repositories, `lib`                            | `agent`                                         |
 
 Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, only `db/` imports
 `bun:sqlite`, and only `connectors/opensearch/` imports the OpenSearch client. Postgres uses
@@ -175,7 +174,7 @@ the `postgres` driver and Prometheus uses `fetch`.
 | ---------------------------------------------------------- | ---------------------------------------------------------- | -------- |
 | `/`                                                        | redirect → `/library` (viewer) or `/threads/new` (editor+) | viewer   |
 | `/threads/new`, `/threads/:threadId`                       | Plan, Build and refine, Variant                            | editor   |
-| `/library`                                                 | Library                                                    | viewer   |
+| `/library`                                                 | Library: search pinned dashboards and their panels         | viewer   |
 | `/d/:dashboardId`                                          | Pinned view, latest pinned version                         | viewer   |
 | `/d/:dashboardId/v/:version`                               | a specific version                                         | viewer   |
 | `/d/:dashboardId/v/:version/panels/:panelId`               | resource route: one panel's run, for fetchers              | viewer   |
@@ -284,7 +283,8 @@ query never fails the rest of the panel, and one failing panel never blanks the 
 2. The _metadata_ model writes the title, description and tags. **This is best effort**: if the
    model is unavailable, pin anyway with the thread title and let tags be empty.
 3. Mark the version pinned (the SQLite trigger now blocks updates to it), set
-   `dashboards.pinned_version_id`, and upsert the FTS row.
+   `dashboards.pinned_version_id`. A trigger on `dashboards` rewrites the dashboard's rows in the
+   library index.
 
 ### 5.4 Make variant
 
@@ -295,9 +295,9 @@ CHANGED / NEW / SAME against the parent, computed server-side by `dashboards/dif
 
 ### 5.5 Bin and purge
 
-- `POST /api/dashboards/:id/bin` (editor+) sets `deleted_at`, removes the FTS row, and writes an
-  audit event.
-- `POST /api/bin/:id/restore` (editor+) clears `deleted_at` and re-indexes.
+- `POST /api/dashboards/:id/bin` (editor+) sets `deleted_at`, which drops the dashboard from the
+  library index, and writes an audit event.
+- `POST /api/bin/:id/restore` (editor+) clears `deleted_at`, which indexes it again.
 - `DELETE /api/bin/:id` and `DELETE /api/bin` (admin) delete permanently.
 - `jobs/purge` runs hourly (and once at startup): if `retention.binDays` is set, it purges
   dashboards where `deleted_at < now − binDays`. Purging deletes the dashboard and all its versions
@@ -336,7 +336,31 @@ one sentence, with no model call and no tokens. The person can:
 - or build a new one, which continues the answer: the model runs, told the person saw the matches
   and wants a new dashboard.
 
-The search reads the pinned specs in memory. The full-text index arrives with the library.
+This search reads the pinned specs in memory and scores shared words. The library uses the
+full-text index instead (see "The library").
+
+### The library
+
+`GET /api/dashboards?q=&tags=&connectors=` searches the pinned dashboards outside the bin
+(`dashboards/library.ts`, over `db/library-search.ts`).
+
+- The index is the FTS5 table `library_fts`: one row for each pinned dashboard and one for each of
+  its panels. Triggers on `dashboards` keep it in step with pinning, renaming, the bin and deletes.
+- A panel row holds its title, description, connectors and query text, and its dashboard's title
+  and tags as context. A dashboard row holds its title, description and tags, and its panels'
+  titles as context. So a search can match words spread over a dashboard and one of its panels.
+- Every word must match, as a prefix, with Porter stemming. Titles weigh most, then tags,
+  descriptions, queries and context. The search is quoted word by word, so FTS5 syntax typed in
+  the box is read as words.
+- Each result lists the panels whose own text matches any word, the best first, and one panel to
+  preview: the best match, else the first chart.
+- `tags` and `connectors` are comma-separated; a dashboard must have all of them. The answer also
+  lists every tag and connector in the library, for the filter chips.
+
+The library screen searches as the person types. Each card draws its preview panel live, once the
+card scrolls into view, from the same resource route as the dashboard, so no model is involved.
+A matching panel links to `/d/:id#panel-<id>`, which scrolls to it. Editors get a link to ask in a
+new thread, with the search filled in (`/threads/new?question=`).
 
 ### The catalog
 
@@ -713,8 +737,10 @@ BEFORE UPDATE OF spec, version, dashboard_id ON dashboard_versions
 WHEN OLD.pinned_at IS NOT NULL
 BEGIN SELECT RAISE(ABORT, 'pinned dashboard versions are immutable'); END;
 
-CREATE VIRTUAL TABLE dashboards_fts USING fts5(
-  dashboard_id UNINDEXED, title, description, tags, queries, tokenize = 'porter unicode61');
+-- the library index: filled from the view library_documents by triggers on dashboards
+CREATE VIRTUAL TABLE library_fts USING fts5(
+  dashboard_id UNINDEXED, panel_id UNINDEXED, title, description, tags, queries, context,
+  tokenize = 'porter unicode61');
 
 CREATE TABLE audit_log (
   id TEXT PRIMARY KEY, at INTEGER NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL,
@@ -754,7 +780,7 @@ indicative; the contract files are the source of truth.
 | `POST /threads/:id/plans/:planId/approve` · `/reject`                                             | plan decisions                               | editor   |
 | `POST /threads/:id/start-from` (a pinned dashboard)                                               | draft from a copy, no model                  | editor   |
 | `POST /threads/:id/restore` (a version)                                                           | Undo                                         | editor   |
-| `GET /dashboards` (search: `q`, `tags`)                                                           | library                                      | viewer   |
+| `GET /dashboards` (search: `q`, `tags`, `connectors`)                                             | library                                      | viewer   |
 | `POST /dashboards` (a spec, becomes draft v1)                                                     | create from a spec                           | editor   |
 | `GET /dashboards/:id` (with its thread's id), `GET /dashboards/:id/versions/:v` (drafts: editor)  | spec                                         | viewer   |
 | `POST /dashboards/:id/pin`                                                                        | pin a version                                | editor   |
