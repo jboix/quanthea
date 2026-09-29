@@ -22,6 +22,8 @@ export interface UserRow {
   readonly disabledAt: number | null;
   /** The last sign-in. */
   readonly lastSignInAt: number | null;
+  /** Whether they must choose their own email and password before anything else. */
+  readonly setupRequired: boolean;
   /** Creation time. */
   readonly createdAt: number;
   /** Last change. */
@@ -40,6 +42,7 @@ export type UserChange = Partial<
     | 'pepperId'
     | 'disabledAt'
     | 'lastSignInAt'
+    | 'setupRequired'
   >
 > & {
   /** The time of the change. */
@@ -110,6 +113,8 @@ interface StoredUser {
   disabled_at: number | null;
   /** The last sign-in. */
   last_sign_in_at: number | null;
+  /** 1 while they must choose their own email and password. */
+  setup_required: number;
   /** Creation time. */
   created_at: number;
   /** Last change. */
@@ -126,6 +131,7 @@ const changeColumns: readonly [keyof UserChange, string][] = [
   ['pepperId', 'pepper_id'],
   ['disabledAt', 'disabled_at'],
   ['lastSignInAt', 'last_sign_in_at'],
+  ['setupRequired', 'setup_required'],
 ];
 
 /**
@@ -145,9 +151,21 @@ function toUser(stored: StoredUser): UserRow {
     pepperId: stored.pepper_id,
     disabledAt: stored.disabled_at,
     lastSignInAt: stored.last_sign_in_at,
+    setupRequired: stored.setup_required === 1,
     createdAt: stored.created_at,
     updatedAt: stored.updated_at,
   };
+}
+
+/**
+ * A change's value as SQLite stores it: booleans as 0 or 1.
+ *
+ * @param value - The value.
+ * @returns The stored value.
+ */
+function stored(value: UserChange[keyof UserChange]) {
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  return value ?? null;
 }
 
 /**
@@ -160,7 +178,7 @@ function toUser(stored: StoredUser): UserRow {
 function runUpdate(database: Database, id: string, change: UserChange): void {
   const set = changeColumns.filter(([field]) => change[field] !== undefined);
   const assignments = [...set.map(([, column]) => `${column} = ?`), 'updated_at = ?'];
-  const values = [...set.map(([field]) => change[field] ?? null), change.updatedAt, id];
+  const values = [...set.map(([field]) => stored(change[field])), change.updatedAt, id];
   database.run(`UPDATE users SET ${assignments.join(', ')} WHERE id = ?`, values);
 }
 
@@ -181,6 +199,7 @@ function insertValues(row: UserRow) {
     row.pepperId,
     row.disabledAt,
     row.lastSignInAt,
+    row.setupRequired ? 1 : 0,
     row.createdAt,
     row.updatedAt,
   ] as const;
@@ -196,8 +215,8 @@ function userStatements(database: Database) {
   return {
     insert: database.query(
       `INSERT OR IGNORE INTO users (id, email_index, email_sealed, name_sealed, role, password_hash,
-         pepper_id, disabled_at, last_sign_in_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         pepper_id, disabled_at, last_sign_in_at, setup_required, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     selectOne: database.query<StoredUser, [string]>('SELECT * FROM users WHERE id = ?'),
     selectByIndex: database.query<StoredUser, [Uint8Array]>(

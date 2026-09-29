@@ -23,11 +23,7 @@ const keyLabels: Readonly<Record<keyof KeyInputs, string>> = {
  * @returns The value, or `null` when it is not set.
  */
 function settingValue(config: Config, key: SettingKey): string | null {
-  const values: Record<SettingKey, unknown> = {
-    ...config,
-    authMode: config.authModeOverride,
-  };
-  const value = values[key];
+  const value = (config as unknown as Record<SettingKey, unknown>)[key];
   return value === undefined ? null : String(value);
 }
 

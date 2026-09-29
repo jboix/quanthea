@@ -9,9 +9,6 @@ import type { Users } from '../auth/users.ts';
 import { AppError } from '../lib/errors.ts';
 import type { Threads } from '../threads/threads.ts';
 
-/** The owner of threads started while everyone was an anonymous admin. */
-export const anonymousOwner = 'anonymous';
-
 /**
  * Whether someone may read a thread.
  *
@@ -99,8 +96,8 @@ export function ownerNames(users: Pick<Users, 'nameOf'>) {
     const known = cache.get(key);
     if (known) return known;
     const name =
-      ownerId === anonymousOwner || ownerId === null
-        ? Promise.resolve('Anonymous')
+      ownerId === null
+        ? Promise.resolve('No one')
         : users.nameOf(ownerId).then((found) => found ?? 'A removed user');
     cache.set(key, name);
     return name;

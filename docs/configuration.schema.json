@@ -19,11 +19,6 @@
           "minimum": 0,
           "maximum": 5
         },
-        "authMode": {
-          "description": "Forced authentication mode. QUERENT_AUTH_MODE overrides it.",
-          "type": "string",
-          "enum": ["none", "accounts"]
-        },
         "port": {
           "description": "HTTP port. QUERENT_PORT overrides it.",
           "type": "integer",

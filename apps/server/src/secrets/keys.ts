@@ -52,8 +52,6 @@ export interface KeyRing {
   readonly origins: Readonly<Partial<Record<keyof KeyInputs, KeyOrigin>>>;
   /** Seals secrets at rest with the secret key, and opens what the previous one sealed. */
   readonly secretBox: SecretBox;
-  /** Whether the secret key's file lies in the data directory, where a copy of it goes. */
-  readonly secretKeyInDataDir: boolean;
   /** Indexes emails, under a key derived from the secret key. */
   readonly emailIndex: KeyedHash;
   /** Hashes what the configuration file declares, under a key derived from the secret key. */
@@ -242,15 +240,19 @@ function originsOf(sources: KeySources): Partial<Record<keyof KeyInputs, KeyOrig
  *
  * @param sources - The key inputs, the directories and the logger.
  * @returns The keys.
- * @throws {Error} When a key is invalid, set twice, or shared by two roles.
+ * @throws {Error} When a key is invalid, set twice, shared by two roles, or kept in the data
+ *   directory.
  */
 export async function loadKeys(sources: KeySources): Promise<KeyRing> {
   const read = readAll(sources);
   const secretFile = sources.keys.secret.file;
+  if (secretFile !== undefined && isWithin(secretFile, sources.dataDir))
+    throw new Error(
+      'QUERENT_SECRET_KEY_FILE points into the data directory, and a copy of the data would carry it. Move the file out.',
+    );
   return {
     origins: originsOf(sources),
     secretBox: await openSecretBox(read.secret, read.secretPrevious),
-    secretKeyInDataDir: secretFile !== undefined && isWithin(secretFile, sources.dataDir),
     emailIndex: await keyedHash(read.secret, 'querent/email-index/v1'),
     fingerprints: await keyedHash(read.secret, 'querent/provisioning/v1'),
     sessionHashes: await sessionHashesOf(read.session),

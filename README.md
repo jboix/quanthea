@@ -27,8 +27,9 @@ docker run -p 3000:3000 -v querent-data:/data ghcr.io/jboix/querent:latest
 Pin a release tag such as `ghcr.io/jboix/querent:v1.0.0` to control upgrades. To build the image
 yourself, run `docker build -t querent .` at the repository root.
 
-Open <http://localhost:3000>. The first-run authentication mode is `none`: anyone who reaches the
-URL is an admin, and a banner says so.
+Open <http://localhost:3000> and sign in as `admin` with the password the first start writes to
+the log (`docker logs querent`). querent then asks for your own email and password. Locked out?
+`docker exec querent querent reset-admin` prints a one-time link.
 
 Without Docker, you need [Bun](https://bun.sh) at the version in `.tool-versions`:
 
@@ -73,7 +74,6 @@ it comes from. Everything else lives in Settings.
 | `QUERENT_DATA_DIR`           | `./data`        | Holds the SQLite database. Created with mode 0700. `/data` in the image.                                    |
 | `QUERENT_KEYS_DIR`           | `./keys`        | Holds the keys querent generates. Created with mode 0700, outside the data directory. `/keys` in the image. |
 | `QUERENT_CONFIG`             | unset           | A YAML or JSON configuration file, or a directory of them. `/etc/querent` in the image.                     |
-| `QUERENT_AUTH_MODE`          | unset           | Replaces the stored authentication mode. `none` is the lockout escape hatch.                                |
 | `QUERENT_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                                                         |
 | `QUERENT_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.                                             |
 | `QUERENT_WEB_DIR`            | `apps/web/dist` | The built SPA the server serves.                                                                            |

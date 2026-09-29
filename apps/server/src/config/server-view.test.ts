@@ -37,7 +37,7 @@ describe('Settings → Server', () => {
       variable: 'QUERENT_PUBLIC_URL',
     });
     expect(byKey.port).toMatchObject({ value: '8080', source: { kind: 'environment' } });
-    expect(byKey.authMode).toMatchObject({ value: null, source: { kind: 'default' } });
+    expect(byKey.logLevel).toMatchObject({ value: 'info', source: { kind: 'default' } });
     expect(view.keys).toEqual([
       {
         label: 'Secret key',

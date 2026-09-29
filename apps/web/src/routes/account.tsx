@@ -16,7 +16,7 @@ export function accountRoute(loadSession: SessionLoader, api: ApiClient): RouteO
   const path = '/account';
   return {
     path,
-    loader: guarded(loadSession, path, loadAccount(api, loadSession)),
+    loader: guarded(loadSession, path, loadAccount(api)),
     action: guarded(loadSession, path, accountAction(api)),
     Component: AccountScreen,
   };

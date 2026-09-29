@@ -2,8 +2,7 @@
  * The account services: users, sessions, passwords, sign-in providers and the authentication
  * mode, wired over one database and the keys.
  */
-import type { AuthMode } from '@querent/shared';
-import { type AuthModeControl, createAuthModeControl } from './auth/auth-mode-control.ts';
+import type { DefaultAdminDependencies } from './auth/default-admin.ts';
 import { createPasswordAccounts, type PasswordAccounts } from './auth/password-accounts.ts';
 import type { HashCosts } from './auth/passwords.ts';
 import type { DriverOptions } from './auth/providers/drivers.ts';
@@ -23,7 +22,7 @@ import { createIdentityRepository, type IdentityRepository } from './db/identity
 import { createPasswordLinkRepository } from './db/password-link-repository.ts';
 import { createSessionRepository } from './db/session-repository.ts';
 import { createThreadOwnershipRepository } from './db/thread-ownership.ts';
-import { createUserRepository, type UserRepository, type UserRow } from './db/user-repository.ts';
+import { createUserRepository, type UserRepository } from './db/user-repository.ts';
 import type { KeyedHash } from './secrets/keyed-hash.ts';
 import type { Peppers, SessionHashes } from './secrets/keys.ts';
 import type { SecretBox } from './secrets/secret-box.ts';
@@ -39,16 +38,12 @@ export interface AccountDependencies {
   readonly settings: SettingsStore;
   /** Indexes emails and provider subjects, under a key derived from the secret key. */
   readonly emailIndex: KeyedHash;
-  /** The session key's hashes; without them there are no sessions, as in `none` mode. */
+  /** The session key's hashes; without them there are no sessions, in some tests. */
   readonly sessionHashes: SessionHashes | undefined;
   /** The peppers; without them there are no passwords. */
   readonly peppers: Peppers | undefined;
   /** The argon2id costs; lower in tests only. */
   readonly passwordCosts?: HashCosts;
-  /** The mode `QUERENT_AUTH_MODE` forces, if set. */
-  readonly authOverride?: AuthMode | undefined;
-  /** What the server lacks for accounts, found at startup; none by default. */
-  readonly accountsProblems?: readonly string[];
   /** querent's origin; without it there are no provider sign-ins. */
   readonly publicUrl?: string | undefined;
   /** Test options for the provider drivers. */
@@ -69,8 +64,8 @@ export interface Accounts {
   readonly passwords: PasswordAccounts | undefined;
   /** What changing a user needs. */
   readonly userAdmin: UserAdminDependencies;
-  /** The authentication mode, switched without a restart. */
-  readonly authMode: AuthModeControl;
+  /** What creating and setting up the default admin needs, when there are sessions and passwords. */
+  readonly adminSetup: DefaultAdminDependencies | undefined;
   /** The sign-in providers, and whether passwords sign in. */
   readonly signInSettings: SignInSettings;
   /** Provider identities linked to users. */
@@ -118,27 +113,6 @@ function passwordAccounts(
 }
 
 /**
- * Whether a user can sign in: with a password while passwords are on, or through a provider that
- * is on.
- *
- * @param settings - The sign-in settings.
- * @param identities - The linked identities.
- * @returns The check.
- */
-function signInCheck(settings: SignInSettings, identities: IdentityRepository) {
-  return (row: UserRow): boolean => {
-    if (row.passwordHash !== null && settings.passwordSignIn()) return true;
-    const enabled = new Set(
-      settings
-        .view()
-        .providers.filter((provider) => provider.enabled)
-        .map((provider) => provider.id),
-    );
-    return identities.listOf(row.id).some((identity) => enabled.has(identity.providerId));
-  };
-}
-
-/**
  * Provider sign-ins, when querent has a public URL and sessions.
  *
  * @param dependencies - The account dependencies.
@@ -165,32 +139,6 @@ function providerFlows(
     publicUrl,
     ...(dependencies.driverOptions ? { driverOptions: dependencies.driverOptions } : {}),
     ...(dependencies.now ? { now: dependencies.now } : {}),
-  });
-}
-
-/**
- * The authentication mode.
- *
- * @param dependencies - The account dependencies.
- * @param parts - The services it reads.
- * @returns The mode control.
- */
-function modeControl(
-  dependencies: AccountDependencies,
-  parts: Pick<Accounts, 'users' | 'userRows' | 'sessions' | 'signInSettings' | 'identityRows'> & {
-    audit: Audit;
-  },
-): AuthModeControl {
-  return createAuthModeControl({
-    settings: dependencies.settings,
-    override: dependencies.authOverride,
-    problems: dependencies.accountsProblems ?? [],
-    users: parts.userRows,
-    names: parts.users,
-    canSignIn: signInCheck(parts.signInSettings, parts.identityRows),
-    threads: createThreadOwnershipRepository(dependencies.database),
-    sessions: parts.sessions,
-    audit: parts.audit,
   });
 }
 
@@ -225,6 +173,33 @@ function signInParts(
 }
 
 /**
+ * What creating and setting up the default admin needs.
+ *
+ * @param dependencies - The account dependencies.
+ * @param parts - The users, the sessions and the audit log.
+ * @returns The dependencies, or `undefined` without sessions or peppers.
+ */
+function adminSetupOf(
+  dependencies: AccountDependencies,
+  parts: Pick<Accounts, 'users' | 'userRows' | 'sessions'> & { audit: Audit },
+): DefaultAdminDependencies | undefined {
+  const { peppers } = dependencies;
+  if (!peppers || !parts.sessions) return undefined;
+  return {
+    users: parts.users,
+    userRows: parts.userRows,
+    secretBox: dependencies.secretBox,
+    emailIndex: dependencies.emailIndex,
+    peppers,
+    sessions: parts.sessions,
+    threads: createThreadOwnershipRepository(dependencies.database),
+    audit: parts.audit,
+    ...(dependencies.passwordCosts ? { costs: dependencies.passwordCosts } : {}),
+    ...(dependencies.now ? { now: dependencies.now } : {}),
+  };
+}
+
+/**
  * Creates the account services.
  *
  * @param dependencies - The database, keys, settings, public URL and clock.
@@ -251,7 +226,7 @@ export function createAccounts(dependencies: AccountDependencies, audit: Audit):
     linkedIdentities,
     passwords: passwordAccounts(dependencies, userRows, sessions, audit),
     userAdmin: { repository: userRows, sessions, audit, ...clock },
-    authMode: modeControl(dependencies, parts),
+    adminSetup: adminSetupOf(dependencies, parts),
     flows: providerFlows(dependencies, parts),
   };
 }

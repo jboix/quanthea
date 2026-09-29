@@ -62,7 +62,7 @@ async function signedIn(role: 'viewer' | 'editor' | 'admin' = 'editor') {
 describe('sessions', () => {
   test('sign a request in as its user, while the session lasts', async () => {
     const { user, cookie } = await signedIn('admin');
-    const authenticator = createAuthenticator('accounts', {
+    const authenticator = createAuthenticator({
       sessions: sessions(),
       users: services.users,
     });
@@ -85,7 +85,7 @@ describe('sessions', () => {
       headers: { cookie: `${sessionCookieName}=${cookie}; ${sessionCookieName}=${cookie}` },
     });
     expect(
-      await createAuthenticator('accounts', {
+      await createAuthenticator({
         sessions: sessions(),
         users: services.users,
       }).authenticate(twice),
@@ -126,7 +126,7 @@ describe('sessions', () => {
     const { cookie } = await signedIn();
     const app = createApp({
       version: 'test',
-      authenticator: createAuthenticator('accounts', {
+      authenticator: createAuthenticator({
         sessions: sessions(),
         users: services.users,
       }),

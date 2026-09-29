@@ -3,8 +3,8 @@ import { apiPrefix, type ServerSettingsView } from '@querent/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import type { Agent } from './agent/run.ts';
-import type { AuthModeControl } from './auth/auth-mode-control.ts';
 import type { Authenticator } from './auth/authenticator.ts';
+import type { DefaultAdminDependencies } from './auth/default-admin.ts';
 import type { PasswordAccounts } from './auth/password-accounts.ts';
 import type { LinkedIdentities } from './auth/providers/linked-identities.ts';
 import type { ProviderFlows } from './auth/providers/provider-flow.ts';
@@ -21,7 +21,6 @@ import { refuseCrossSite } from './http/csrf.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
 import { mountAuthRoutes } from './http/routes/auth-routes.ts';
-import { mountAuthSettingsEndpoints } from './http/routes/auth-settings-routes.ts';
 import { mountBinEndpoints } from './http/routes/bin-routes.ts';
 import { mountChartEndpoints } from './http/routes/chart-routes.ts';
 import { mountChatRoute } from './http/routes/chat-route.ts';
@@ -67,8 +66,8 @@ export interface AppDependencies {
   readonly users: Users;
   /** What changing a user needs. */
   readonly userAdmin: UserAdminDependencies;
-  /** The authentication mode, switched without a restart. */
-  readonly authMode: AuthModeControl;
+  /** What setting up the default admin needs, when there are sessions and passwords. */
+  readonly adminSetup: DefaultAdminDependencies | undefined;
   /** The sign-in providers, and whether passwords sign in. */
   readonly signInSettings: SignInSettings;
   /** One's own linked providers. */
@@ -112,7 +111,7 @@ export interface AppDependencies {
 }
 
 /**
- * Mounts the routes of accounts: signing in, users, the authentication mode and providers.
+ * Mounts the routes of accounts: signing in, setting up, users and sign-in providers.
  *
  * @param app - The app.
  * @param dependencies - The services the routes use.
@@ -120,11 +119,9 @@ export interface AppDependencies {
 function mountAccountRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
   mountAuthRoutes(app, {
     ...dependencies,
-    modeOf: () => dependencies.authenticator.mode,
     passwordSignIn: () => dependencies.signInSettings.passwordSignIn(),
   });
   mountUserEndpoints(app, dependencies);
-  mountAuthSettingsEndpoints(app, dependencies.authMode);
   mountSignInSettingsEndpoints(app, dependencies);
   mountProviderFlowRoutes(app, dependencies.flows);
 }
@@ -152,10 +149,7 @@ function mountSettingsRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): 
  */
 function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
   mountAccountRoutes(app, dependencies);
-  mountSystemRoutes(app, {
-    version: dependencies.version,
-    authModeOf: () => dependencies.authenticator.mode,
-  });
+  mountSystemRoutes(app, { version: dependencies.version });
   mountConnectorRoutes(app, dependencies.connections, dependencies.managed);
   mountDashboardEndpoints(app, dependencies.dashboards, {
     onPinnedView: dependencies.usage.recordPinnedView,

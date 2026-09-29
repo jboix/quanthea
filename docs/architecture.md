@@ -187,7 +187,7 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/connectors/new`, `/connectors/:connectorId/edit` | add and edit a connection                                  | admin    |
 | `/connectors/:connectorId/health`                  | resource route: the connection test, for fetchers          | admin    |
 | `/settings/model`, `/settings/retention`           | Settings                                                   | admin    |
-| `/settings/auth`                                   | Authentication: mode, sign-in providers, passwords         | admin    |
+| `/settings/auth`                                   | Authentication: sign-in providers, passwords               | admin    |
 | `/settings/users`                                  | Users: invite, roles, disable, reset links, sign out       | admin    |
 | `/settings/usage`                                  | Usage: tokens, cost and pinned views per day, by model     | admin    |
 | `/settings/queries`                                | Queries: builders on or off, your own with placeholders    | admin    |
@@ -195,7 +195,8 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/settings/server`                                 | Server: system settings and keys, read-only, with sources  | admin    |
 | `/settings`                                        | redirect → `/settings/model`                               | admin    |
 | `/ui`                                              | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
-| `/login`                                           | sign in; only in `accounts` mode                           | —        |
+| `/login`                                           | sign in                                                    | —        |
+| `/setup`                                           | the default admin chooses their own email and password     | —        |
 | `/set-password`                                    | choose a password from an invite or reset link             | —        |
 
 Route loaders fetch through the typed API client. The root loader loads the session
@@ -854,7 +855,7 @@ indicative; the contract files are the source of truth.
 | `GET /me`                                                                                         | principal, role, auth mode                   | public   |
 | `POST /auth/sign-in`, `/auth/set-password`, `/auth/sign-out`                                      | sessions and passwords                       | public   |
 | `POST /auth/change-password`                                                                      | change one's own password                    | viewer   |
-| `GET/PUT /settings/auth`, `POST /settings/auth/adopt`                                             | switch the mode, hand over threads           | admin    |
+| `POST /auth/setup` (the default admin only)                                                       | choose their own email and password          | public   |
 | `POST /auth/sign-out-everywhere`                                                                  | end all one's sessions                       | viewer   |
 | `GET /auth/options`                                                                               | providers that are on, password sign-in      | public   |
 | `GET /auth/providers/:id/start`, `/callback` (full-page redirects)                                | sign in, link or test a provider             | public   |
@@ -903,24 +904,24 @@ so fields the contract does not declare never leave the server. Every response c
 ## 10. Authentication
 
 ```
-request → requestId → security headers → CSRF check → session cookie? → Principal
-                                              │ none:     Principal{anonymous, admin}
-                                              │ accounts: signed cookie → session → user
+request → requestId → security headers → CSRF check → signed session cookie → session → user
           → route guard requireRole('editor') → handler
 ```
 
-Two modes: `none`, where every request is an anonymous admin, and `accounts`, where people sign in.
-Modes stored as `basic` or `oidc` by earlier versions read as `accounts`. `accounts` starts only
-with the keys and `QUERENT_PUBLIC_URL` it needs (see "Keys").
+People always sign in; there is no open access. The public URL is needed for sign-in providers
+only.
 
-**Switching** (Settings → Authentication, `GET/PUT /api/settings/auth`, admin,
-`auth/auth-mode-control.ts`): the authenticator reads the mode on every request, so a switch needs
-no restart. Switching to `accounts` needs the keys, and an enabled admin who can sign in; the
-threads started in open access (owned by `anonymous`) go to an admin, chosen or the first one
-(`POST /api/settings/auth/adopt` hands them over later too). Every switch ends every session.
-`QUERENT_AUTH_MODE` (or `server.authMode` in the configuration file) forces the mode and
-freezes it; set to `none`, it is the escape hatch for a locked-out install, with a warning at
-startup.
+**The default admin** (`auth/default-admin.ts`): at startup, after the configuration file is
+applied, a database with no enabled admin gets the user `admin` with a random 24-character
+password written once to the log (as Jenkins or Argo CD do), so nobody can guess it on a freshly
+exposed install. That user is marked `setup_required`: every role-guarded route refuses them
+until they choose their own email, name and password (`POST /api/auth/setup`, which ends their
+other sessions); the web app sends them to `/setup`. Threads an earlier version's open access
+left to `anonymous` go to the first enabled admin.
+
+**Lockout** (`src/cli.ts`, `querent` in the image): `querent reset-admin [email]` prints a
+one-time link that sets an admin's password, for the admin with that email or the first enabled
+one, and enables them again. Without any admin, it creates the default one.
 
 - Each route module declares its minimum role next to its handler. A test walks the router and
   fails if any `/api` route (except the public ones) has no declared role, and another lists the
@@ -976,7 +977,7 @@ startup.
   no one copies another's draft by its number. A dashboard with no thread is open to editors, as
   before.
 - The bin keeps to owners: editors list and restore their own binned threads; admins list,
-  restore and delete everyone's. Threads started in `none` mode belong to `anonymous`.
+  restore and delete everyone's.
 - **Sign-in providers** (Settings → Authentication, `auth/providers/`): GitHub, Google, GitLab
   (gitlab.com or a self-managed one) and Microsoft Entra ID (one tenant, never `common`). querent
   is only their client: an admin registers it with the provider, pastes the client id and secret,
@@ -1103,8 +1104,8 @@ all printable text (a passphrase in disguise). A key set both ways, a file that 
 and two roles sharing one key are refused. A key file others can read is warned about. No
 message ever contains a key.
 
-`accounts` mode refuses to start with a secret key file inside the data directory (a copy of the
-data directory must never carry a key), and without `QUERENT_PUBLIC_URL` (`auth/readiness.ts`).
+The server refuses to start with a secret key file inside the data directory: a copy of the data
+directory must never carry a key.
 A secret key that cannot open what the database holds stops the server at startup, naming the
 id of the key that sealed it, to set as `QUERENT_SECRET_KEY` or `QUERENT_SECRET_KEY_PREVIOUS`.
 
@@ -1124,7 +1125,7 @@ sign-in.
 
 ## 13. Configuration
 
-**System settings** (the public URL, trusted proxies, the forced authentication mode, the port,
+**System settings** (the public URL, trusted proxies, the port,
 the directories and logging) come from an environment variable, else the configuration file's
 `server` section, else a default (`config/config.ts`). They are never edited in the UI:
 **Settings → Server** (`GET /api/settings/server`, admin) shows each one read-only, with its
@@ -1231,21 +1232,20 @@ the default when it named none or its provider was removed. Editors see the prov
 build models, never their keys (`GET /api/model-providers`). The usage ledger records the
 provider's name, so two setups of the same vendor stay apart.
 
-| Variable                     | Default         | Purpose                                                                |
-| ---------------------------- | --------------- | ---------------------------------------------------------------------- |
-| `QUERENT_PORT`               | `3000`          | HTTP port                                                              |
-| `QUERENT_DATA_DIR`           | `./data`        | SQLite database                                                        |
-| `QUERENT_KEYS_DIR`           | `./keys`        | generated keys, outside the data directory                             |
-| `QUERENT_CONFIG`             | _(unset)_       | the configuration file, or a directory of them                         |
-| `QUERENT_SECRET_KEY`         | generated       | seals secrets at rest; `_PREVIOUS` while rotating; `_FILE` variants    |
-| `QUERENT_SESSION_KEY`        | generated       | signs session cookies                                                  |
-| `QUERENT_PASSWORD_PEPPER`    | generated       | mixed into password hashes; `_PREVIOUS` while rotating                 |
-| `QUERENT_AUTH_MODE`          | _(unset)_       | if set, overrides the stored mode. `none` is the lockout escape hatch. |
-| `QUERENT_PUBLIC_URL`         | _(unset)_       | the origin people reach querent at; required in `accounts` mode        |
-| `QUERENT_TRUSTED_PROXY_HOPS` | `0`             | reverse proxies trusted to add `X-Forwarded-For`                       |
-| `QUERENT_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                    |
-| `QUERENT_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.        |
-| `QUERENT_WEB_DIR`            | `apps/web/dist` | the built SPA the server serves                                        |
+| Variable                     | Default         | Purpose                                                             |
+| ---------------------------- | --------------- | ------------------------------------------------------------------- |
+| `QUERENT_PORT`               | `3000`          | HTTP port                                                           |
+| `QUERENT_DATA_DIR`           | `./data`        | SQLite database                                                     |
+| `QUERENT_KEYS_DIR`           | `./keys`        | generated keys, outside the data directory                          |
+| `QUERENT_CONFIG`             | _(unset)_       | the configuration file, or a directory of them                      |
+| `QUERENT_SECRET_KEY`         | generated       | seals secrets at rest; `_PREVIOUS` while rotating; `_FILE` variants |
+| `QUERENT_SESSION_KEY`        | generated       | signs session cookies                                               |
+| `QUERENT_PASSWORD_PEPPER`    | generated       | mixed into password hashes; `_PREVIOUS` while rotating              |
+| `QUERENT_PUBLIC_URL`         | _(unset)_       | the origin people reach querent at; sign-in providers need it       |
+| `QUERENT_TRUSTED_PROXY_HOPS` | `0`             | reverse proxies trusted to add `X-Forwarded-For`                    |
+| `QUERENT_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                 |
+| `QUERENT_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.     |
+| `QUERENT_WEB_DIR`            | `apps/web/dist` | the built SPA the server serves                                     |
 
 ## 14. Local development
 
@@ -1253,8 +1253,9 @@ provider's name, so two setups of the same vendor stay apart.
   `bun --hot apps/server/src/main.ts` (3000).
 - `bun run env:up` starts the local data sources in `dev/docker-compose.yml`, and `bun run env:down`
   deletes them with their data.
-- `bun run dev:seed` adds the dev connectors (`postgres-orders`, `prometheus-dev`) to a running
-  server in open access mode, then creates and pins the checkout incident dashboard
+- `bun run dev:seed` signs in as the admin `QUERENT_ADMIN_EMAIL` and `QUERENT_ADMIN_PASSWORD` name,
+  adds the dev connectors (`postgres-orders`, `prometheus-dev`) to a running server, then creates
+  and pins the checkout incident dashboard
   (`dev/seed/checkout-incident.json`) with its time range around the incident, and prints its
   address. `QUERENT_URL` points at the server (`http://localhost:3000` by default).
 

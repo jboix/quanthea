@@ -38,18 +38,17 @@ export function captureLogs(): CapturedLogger {
   return { logger: createLogger('debug', { stdout: record, stderr: record }, 'json'), lines };
 }
 
+/** An admin, as tests sign requests in. */
+export const testAdmin: Principal = { id: 'admin-1', name: 'Admin', role: 'admin' };
+
 /**
  * Creates an authenticator that returns a fixed principal.
  *
  * @param principal - The principal of every request, or `null` for "no session".
- * @returns The authenticator, reporting mode `accounts` when the principal is not the anonymous
- *   admin.
+ * @returns The authenticator.
  */
 export function fixedAuthenticator(principal: Principal | null): Authenticator {
-  return {
-    mode: principal?.id === 'anonymous' ? 'none' : 'accounts',
-    authenticate: () => Promise.resolve(principal),
-  };
+  return { authenticate: () => Promise.resolve(principal) };
 }
 
 /**

@@ -18,10 +18,7 @@ function queuedClient(responses: Response[]) {
   return { client, calls };
 }
 
-const me: Session = {
-  principal: { id: 'anonymous', name: 'Anonymous', role: 'admin' },
-  authMode: 'none',
-};
+const me: Session = { principal: { id: 'admin-1', name: 'Admin', role: 'admin' } };
 
 describe('createSessionLoader', () => {
   test('asks the server once and reuses the answer', async () => {

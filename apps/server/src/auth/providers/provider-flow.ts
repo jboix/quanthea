@@ -149,7 +149,7 @@ function checkStart(
   const enabled = context.settings.provider(providerId)?.enabled === true;
   const allowed = {
     'sign-in': enabled,
-    link: enabled && principal !== null && principal.id !== 'anonymous',
+    link: enabled && principal !== null,
     test: principal?.role === 'admin',
   }[intent];
   if (!allowed) throw new FlowError('off');

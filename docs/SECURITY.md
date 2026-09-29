@@ -38,8 +38,9 @@ querent makes these guarantees. A way around any of them is a vulnerability:
 
 Some behaviour is by design and not a vulnerability:
 
-- In the `none` authentication mode, anyone who can reach the server is an admin. The app shows a
-  banner that says so. Put the server behind your own network controls, or switch to accounts.
+- The first start writes the default admin's password to the log, once. Whoever reads the log
+  before the admin sets up their account can sign in as them. Set the account up right after the
+  first start, or declare the first admin in the configuration file.
 - At the full access level, the model sees result rows, capped by the row limit. Hidden columns are
   matched by name, so a query that renames a hidden column can pass the filter. Give the connector a
   database role or view that cannot read those columns when you need a hard guarantee.
@@ -98,4 +99,4 @@ memory for any of them in clear.
 - Set `QUERENT_TRUSTED_PROXY_HOPS` to the number of proxies in front of querent, so throttling
   sees the real address.
 - Give each connector a read-only database role that can read only what dashboards need.
-- Keep open access for a machine only you can reach.
+- Set up the default admin's account right after the first start.

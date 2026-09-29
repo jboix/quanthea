@@ -1,5 +1,5 @@
 /** Routes that describe the server and the caller: health and me. */
-import { type AuthMode, healthEndpoint, meEndpoint } from '@querent/shared';
+import { healthEndpoint, meEndpoint } from '@querent/shared';
 import type { Hono } from 'hono';
 import { AppError } from '../../lib/errors.ts';
 import type { AppEnv } from '../app-env.ts';
@@ -9,15 +9,13 @@ import { mountEndpoint } from '../endpoint.ts';
 interface SystemInfo {
   /** The server version. */
   readonly version: string;
-  /** Gives the authentication mode in force. */
-  readonly authModeOf: () => AuthMode;
 }
 
 /**
  * Mounts `GET /api/health` and `GET /api/me`, both public.
  *
  * @param app - The app to mount on.
- * @param info - The version and authentication mode to report.
+ * @param info - The version to report.
  */
 export function mountSystemRoutes(app: Hono<AppEnv>, info: SystemInfo): void {
   mountEndpoint(app, healthEndpoint, {
@@ -28,7 +26,7 @@ export function mountSystemRoutes(app: Hono<AppEnv>, info: SystemInfo): void {
     access: 'public',
     handle: ({ principal }) => {
       if (!principal) throw new AppError('unauthorized', 'Sign in to continue.');
-      return { principal, authMode: info.authModeOf() };
+      return { principal };
     },
   });
 }

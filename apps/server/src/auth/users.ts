@@ -162,6 +162,7 @@ async function createUser(
     pepperId: null,
     disabledAt: null,
     lastSignInAt: null,
+    setupRequired: false,
     createdAt: at,
     updatedAt: at,
   };
@@ -197,7 +198,7 @@ export function createUsers(dependencies: UsersDependencies): Users {
       const row = repository.get(id);
       if (!row || row.disabledAt !== null) return null;
       const name = await secretBox.open(row.nameSealed, sealedOwner(id, 'name'));
-      return { id, name, role: row.role };
+      return { id, name, role: row.role, ...(row.setupRequired ? { setupRequired: true } : {}) };
     },
   };
 }

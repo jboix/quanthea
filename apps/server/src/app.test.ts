@@ -3,9 +3,14 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { createApp } from './app.ts';
-import { anonymousAdmin } from './auth/authenticator.ts';
 import { listApiRouteAccess } from './http/access.ts';
-import { captureLogs, fixedAuthenticator, temporaryDir, testServices } from './test/fixtures.ts';
+import {
+  captureLogs,
+  fixedAuthenticator,
+  temporaryDir,
+  testAdmin,
+  testServices,
+} from './test/fixtures.ts';
 
 let webDir: ReturnType<typeof temporaryDir>;
 let dataDir: ReturnType<typeof temporaryDir>;
@@ -36,7 +41,7 @@ afterEach(async () => {
 function buildApp() {
   return createApp({
     version: '1.2.3',
-    authenticator: fixedAuthenticator(anonymousAdmin),
+    authenticator: fixedAuthenticator(testAdmin),
     logger: captureLogs().logger,
     publicUrl: undefined,
     trustedProxyHops: 0,
@@ -86,6 +91,7 @@ describe('route access', () => {
       'GET /api/health',
       'GET /api/me',
       'POST /api/auth/set-password',
+      'POST /api/auth/setup',
       'POST /api/auth/sign-in',
       'POST /api/auth/sign-out',
     ]);
@@ -103,7 +109,7 @@ describe('route access', () => {
     const settingsRoutes = listApiRouteAccess(buildApp()).filter((route) =>
       /^\/api\/settings/.test(route.path),
     );
-    expect(settingsRoutes.length).toBe(23);
+    expect(settingsRoutes.length).toBe(20);
     expect(settingsRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 
@@ -132,11 +138,11 @@ describe('system routes', () => {
     expect(await response.json()).toEqual({ status: 'ok', version: '1.2.3' });
   });
 
-  test('GET /api/me returns the anonymous admin in none mode', async () => {
+  test('GET /api/me returns the signed-in principal', async () => {
     const body = z
-      .object({ principal: z.object({ role: z.string() }), authMode: z.string() })
+      .object({ principal: z.object({ role: z.string() }) })
       .parse(await (await buildApp().request('/api/me')).json());
-    expect(body).toEqual({ principal: { role: 'admin' }, authMode: 'none' });
+    expect(body).toEqual({ principal: { role: 'admin' } });
   });
 
   test('every response carries a request id and the security headers', async () => {

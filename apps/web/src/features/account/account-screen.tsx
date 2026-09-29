@@ -14,8 +14,6 @@ import { useAccountForm } from './use-account-form.ts';
 interface RootSession {
   /** Who is signed in. */
   readonly principal: { readonly name: string; readonly role: string };
-  /** The authentication mode. */
-  readonly authMode: 'none' | 'accounts';
 }
 
 /**
@@ -156,11 +154,10 @@ function SignOut() {
  */
 export function AccountScreen() {
   const session = useRouteLoaderData('root') as RootSession | undefined;
-  const identities = useLoaderData() as AccountIdentities | null;
+  const identities = useLoaderData() as AccountIdentities;
   if (!session) return null;
-  const accounts = session.authMode === 'accounts';
   return (
-    <Page title="Your account" actions={accounts && <SignOut />}>
+    <Page title="Your account" actions={<SignOut />}>
       <Card title="You">
         <dl className={styles.facts}>
           <dt>Name</dt>
@@ -168,14 +165,9 @@ export function AccountScreen() {
           <dt>Role</dt>
           <dd>{session.principal.role}</dd>
         </dl>
-        {!accounts && (
-          <p className={styles.note}>
-            Everyone is an admin on this server, so there is no account to sign in to.
-          </p>
-        )}
       </Card>
-      {identities && <SignInProviders identities={identities} />}
-      {identities?.hasPassword && <ChangePassword />}
+      <SignInProviders identities={identities} />
+      {identities.hasPassword && <ChangePassword />}
     </Page>
   );
 }

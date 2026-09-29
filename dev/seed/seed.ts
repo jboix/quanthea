@@ -1,7 +1,8 @@
 /**
  * Seeds a running querent with the dev connectors and the checkout incident dashboard, pinned.
  * Run `bun run env:up` and the server first. `QUERENT_URL` points at the server
- * (default `http://localhost:3000`); it must run in the open access mode.
+ * (default `http://localhost:3000`). It signs in as an admin with `QUERENT_ADMIN_EMAIL` and
+ * `QUERENT_ADMIN_PASSWORD`, whose account is set up.
  */
 
 import { incidentStart } from '../metrics/incident.ts';
@@ -33,6 +34,32 @@ const connectors = [
   },
 ];
 
+/** The session cookie the seed signs in with. */
+let session = '';
+
+/**
+ * Signs in as the admin the environment names, keeping the session cookie.
+ *
+ * @returns When signed in.
+ * @throws {Error} When the variables are missing or the sign-in is refused.
+ */
+async function signIn(): Promise<void> {
+  const email = process.env.QUERENT_ADMIN_EMAIL;
+  const password = process.env.QUERENT_ADMIN_PASSWORD;
+  if (!email || !password)
+    throw new Error(
+      'Set QUERENT_ADMIN_EMAIL and QUERENT_ADMIN_PASSWORD to an admin that is set up.',
+    );
+  const response = await fetch(`${baseUrl}/api/auth/sign-in`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'querent' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) throw new Error(`Sign-in refused: ${await response.text()}`);
+  session =
+    /__Host-querent_session=[^;]+/.exec(response.headers.get('set-cookie') ?? '')?.[0] ?? '';
+}
+
 /**
  * Calls the API and fails loudly on an error answer.
  *
@@ -44,7 +71,11 @@ const connectors = [
 async function api(method: string, path: string, body?: unknown): Promise<unknown> {
   const response = await fetch(`${baseUrl}/api${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'querent' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'querent',
+      cookie: session,
+    },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const answer = await response.json();
@@ -80,6 +111,7 @@ function incidentSpec() {
   return { ...fixture, time };
 }
 
+await signIn();
 await ensureConnectors();
 const created = (await api('POST', '/dashboards', {
   spec: incidentSpec(),

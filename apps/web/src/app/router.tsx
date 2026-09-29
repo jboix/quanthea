@@ -12,7 +12,7 @@ import { binRoute } from '../routes/bin.tsx';
 import { connectorRoutes } from '../routes/connectors.tsx';
 import { dashboardRoutes } from '../routes/dashboard.tsx';
 import { libraryRoute } from '../routes/library.tsx';
-import { loginRoute, setPasswordRoute } from '../routes/login.tsx';
+import { loginRoute, setPasswordRoute, setupRoute } from '../routes/login.tsx';
 import { NotFoundRoute } from '../routes/not-found.tsx';
 import { authSettingsRoute } from '../routes/settings-auth.tsx';
 import { chartSettingsRoute } from '../routes/settings-charts.tsx';
@@ -105,6 +105,7 @@ export function createRoutes(dependencies: RouteDependencies): RouteObject[] {
   return [
     loginRoute(loadSession, dependencies.api),
     setPasswordRoute(dependencies.api),
+    setupRoute(loadSession, dependencies.api),
     {
       id: 'root',
       path: '/',

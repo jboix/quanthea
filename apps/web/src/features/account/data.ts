@@ -4,6 +4,7 @@
  */
 import {
   changePasswordEndpoint,
+  completeSetupEndpoint,
   type EndpointOutput,
   myIdentitiesEndpoint,
   setPasswordEndpoint,
@@ -101,20 +102,32 @@ export function setPasswordAction(api: ApiClient) {
 export type AccountIdentities = EndpointOutput<typeof myIdentitiesEndpoint>;
 
 /**
- * The loader of the account page: one's providers, with accounts on.
+ * The loader of the account page: one's providers.
  *
  * @param api - The API client.
- * @param loadSession - Loads the current session, for its authentication mode.
- * @returns The loader. It gives `null` in open access, where there is no account.
+ * @returns The loader.
  */
-export function loadAccount(
-  api: ApiClient,
-  loadSession: () => Promise<{ readonly authMode: string } | null>,
-) {
-  return async ({ request }: LoaderFunctionArgs): Promise<AccountIdentities | null> => {
-    const session = await loadSession();
-    if (session?.authMode !== 'accounts') return null;
-    return api.call(myIdentitiesEndpoint, undefined, { signal: request.signal });
+export function loadAccount(api: ApiClient) {
+  return ({ request }: LoaderFunctionArgs): Promise<AccountIdentities> =>
+    api.call(myIdentitiesEndpoint, undefined, { signal: request.signal });
+}
+
+/**
+ * The action of the setup page: the default admin's own email, name and password.
+ *
+ * @param api - The API client.
+ * @returns The action.
+ */
+export function setupAction(api: ApiClient) {
+  return async ({ request }: ActionFunctionArgs): Promise<AccountOutcome> => {
+    const { email, name, password } = (await request.json()) as Record<string, string>;
+    try {
+      const body = { email: email ?? '', name: name ?? '', password: password ?? '' };
+      await api.call(completeSetupEndpoint, { body });
+      return { ok: true, next: '/' };
+    } catch (error) {
+      return refusal(error);
+    }
   };
 }
 

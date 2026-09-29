@@ -34,7 +34,7 @@ function app() {
   if (!sessions) throw new Error('The test services have no sessions.');
   const built = createApp({
     version: 'test',
-    authenticator: createAuthenticator('accounts', { sessions, users: services.users }),
+    authenticator: createAuthenticator({ sessions, users: services.users }),
     logger: captureLogs().logger,
     webDir: dataDir.path,
     publicUrl: 'https://querent.test',

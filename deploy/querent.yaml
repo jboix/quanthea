@@ -10,11 +10,10 @@ server:
   publicUrl: http://localhost:3000
   # How many reverse proxies in front of querent add to X-Forwarded-For; 1 behind one proxy.
   trustedProxyHops: 0
-  # Force accounts: people sign in, and their role sets what they can do.
-  authMode: accounts
 
 users:
   # The first admin. The password is set only while they have none; they can change it after.
+  # Without any admin, querent creates the user `admin` and writes its password to the log.
   admin@example.com:
     name: Admin
     role: admin

@@ -3,9 +3,8 @@
 import rootPackage from '../../../package.json' with { type: 'json' };
 import { routeModelWarnings } from './agent/warnings.ts';
 import { createApp } from './app.ts';
-import { resolveAuthMode } from './auth/auth-mode.ts';
 import { createAuthenticator } from './auth/authenticator.ts';
-import { accountsProblems } from './auth/readiness.ts';
+import { ensureAdmin } from './auth/default-admin.ts';
 import { loadConfig } from './config/config.ts';
 import { serverSettingsView } from './config/server-view.ts';
 import { connectorKinds } from './connectors/registry.ts';
@@ -28,14 +27,8 @@ const appliedMigrations = runMigrations(database);
 if (appliedMigrations.length > 0) logger.info('applied migrations', { appliedMigrations });
 
 const settings = createSettingsStore(createSettingsRepository(database));
-const authMode = resolveAuthMode(config.authModeOverride, settings, logger);
 const { keys: keyInputs, dataDir, keysDir } = config;
 const keys = await loadKeys({ keys: keyInputs, dataDir, keysDir, logger });
-const problems = accountsProblems(config, keys);
-const missing = authMode === 'accounts' ? problems : [];
-if (missing.length > 0) {
-  throw new Error(`Accounts mode cannot start:\n- ${missing.join('\n- ')}`);
-}
 const dependencies = {
   database,
   kinds: connectorKinds,
@@ -44,8 +37,6 @@ const dependencies = {
   emailIndex: keys.emailIndex,
   sessionHashes: keys.sessionHashes,
   peppers: keys.peppers,
-  authOverride: config.authModeOverride,
-  accountsProblems: problems,
   publicUrl: config.publicUrl,
 };
 const resealed = await resealSecrets(dependencies);
@@ -59,14 +50,11 @@ await startProvisioning({
   logger,
 });
 
-const { sessions, users } = services;
-const authenticator = createAuthenticator(
-  () => services.authMode.current(),
-  sessions && { sessions, users },
-);
-if (authenticator.mode === 'none') {
-  logger.warn('Open access: anyone who can reach this URL is an admin.');
-}
+const { sessions, users, adminSetup } = services;
+if (!sessions || !adminSetup)
+  throw new Error('The session key and the password pepper are missing.');
+await ensureAdmin(adminSetup, logger);
+const authenticator = createAuthenticator({ sessions, users });
 
 const app = createApp({
   version: rootPackage.version,

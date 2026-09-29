@@ -7,7 +7,7 @@
       "entry": ["scripts/*.mjs"]
     },
     "apps/server": {
-      "entry": ["src/main.ts", "src/provisioning/write-schema.ts"],
+      "entry": ["src/main.ts", "src/cli.ts", "src/provisioning/write-schema.ts"],
       "project": ["src/**/*.ts"]
     },
     "apps/web": {

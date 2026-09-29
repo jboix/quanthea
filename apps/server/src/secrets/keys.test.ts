@@ -83,7 +83,6 @@ describe('loading the keys', () => {
       expect(Buffer.from(readFileSync(path, 'utf8').trim(), 'base64').length).toBe(32);
       expect(lines).toContainEqual(expect.objectContaining({ level: 'info', path }));
     }
-    expect(ring.secretKeyInDataDir).toBe(false);
     expect(ring.origins.session).toEqual({ kind: 'generated', path: join(keysDir, 'session.key') });
     expect(readdirSync(dataDir.path)).toEqual([]);
     const again = await load(inputs());
@@ -124,12 +123,11 @@ describe('loading the keys', () => {
     await expect(load(inputs())).rejects.toThrow('QUERENT_KEYS_DIR');
   });
 
-  test('reads keys from variables and files, and notes a file inside the data directory', async () => {
+  test('reads keys from variables and files, and refuses a key file inside the data directory', async () => {
     const file = join(outside.path, 'secret.key');
     writeFileSync(file, `${randomKey()}\n`, { mode: 0o600 });
     const given = { session: { value: randomKey() }, pepper: { value: randomKey() } };
     const { ring, lines } = await load(inputs({ secret: { file }, ...given }));
-    expect(ring.secretKeyInDataDir).toBe(false);
     expect(ring.origins).toEqual({
       secret: { kind: 'file', variable: 'QUERENT_SECRET_KEY_FILE', path: file },
       session: { kind: 'variable', variable: 'QUERENT_SESSION_KEY' },
@@ -139,8 +137,9 @@ describe('loading the keys', () => {
     expect(lines).toEqual([]);
     const inside = join(dataDir.path, 'mine.key');
     writeFileSync(inside, randomKey(), { mode: 0o600 });
-    const kept = await load(inputs({ secret: { file: inside }, ...given }));
-    expect(kept.ring.secretKeyInDataDir).toBe(true);
+    await expect(load(inputs({ secret: { file: inside }, ...given }))).rejects.toThrow(
+      'QUERENT_SECRET_KEY_FILE points into the data directory',
+    );
   });
 
   test('warns about a key file others can read', async () => {

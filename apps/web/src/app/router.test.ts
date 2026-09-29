@@ -14,7 +14,7 @@ import type { Session } from './session.ts';
  */
 function sessionFor(role: Role): Session {
   const principal: Principal = { id: `user-${role}`, name: role, role };
-  return { principal, authMode: 'accounts' };
+  return { principal };
 }
 
 /** A connector as the fake API returns it. */
@@ -42,13 +42,6 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'POST /connectors/:connectorId/test': { ok: true, latencyMs: 1, message: 'ok', readOnly: null },
   'GET /bin': { threads: [], binDays: 30 },
   'GET /users': { users: [] },
-  'GET /settings/auth': {
-    mode: 'none',
-    overridden: false,
-    problems: [],
-    signInAdmins: [],
-    openAccessThreads: 0,
-  },
   'GET /settings/identity-providers': { providers: [], passwordSignIn: true, publicUrl: null },
   'GET /auth/options': { passwordSignIn: true, providers: [] },
   'GET /auth/identities': { linked: [], available: [], hasPassword: true },

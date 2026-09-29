@@ -1,28 +1,18 @@
-/**
- * Settings → Authentication: the loader, and the action that switches the mode, adopts threads,
- * and changes the sign-in providers.
- */
+/** Settings → Authentication: the loader, and the action that changes the sign-in providers. */
 import {
-  type AuthMode,
-  type AuthSettingsView,
-  adoptThreadsEndpoint,
   type EndpointInput,
   enableIdentityProviderEndpoint,
-  getAuthSettingsEndpoint,
   getIdentityProvidersEndpoint,
   type IdentityProvidersView,
   passwordSignInEndpoint,
   removeIdentityProviderEndpoint,
-  saveAuthSettingsEndpoint,
   saveIdentityProviderEndpoint,
 } from '@querent/shared';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 
-/** What the authentication screen shows: the mode, and the ways to sign in. */
+/** What the authentication screen shows: the ways to sign in. */
 export interface AuthSettingsData {
-  /** The mode and what accounts still need. */
-  readonly auth: AuthSettingsView;
   /** The sign-in providers, and whether passwords sign in. */
   readonly signIn: IdentityProvidersView;
 }
@@ -38,14 +28,11 @@ export type ProviderIntent =
   | { readonly intent: 'password-sign-in'; readonly enabled: boolean };
 
 /** What the authentication screen submits, as JSON. */
-export type AuthSettingsIntent =
-  | { readonly intent: 'switch'; readonly mode: AuthMode; readonly adoptTo?: string }
-  | { readonly intent: 'adopt'; readonly userId: string }
-  | ProviderIntent;
+export type AuthSettingsIntent = ProviderIntent;
 
-/** What an intent answers: the mode now, after a switch or an adoption, or why not. */
+/** What an intent answers: done, or why not. */
 export type AuthSettingsOutcome =
-  | { readonly ok: true; readonly mode?: AuthMode }
+  | { readonly ok: true }
   | { readonly ok: false; readonly message: string };
 
 /**
@@ -55,14 +42,9 @@ export type AuthSettingsOutcome =
  * @returns The loader.
  */
 export function loadAuthSettings(api: ApiClient) {
-  return async ({ request }: LoaderFunctionArgs): Promise<AuthSettingsData> => {
-    const options = { signal: request.signal };
-    const [auth, signIn] = await Promise.all([
-      api.call(getAuthSettingsEndpoint, undefined, options),
-      api.call(getIdentityProvidersEndpoint, undefined, options),
-    ]);
-    return { auth, signIn };
-  };
+  return async ({ request }: LoaderFunctionArgs): Promise<AuthSettingsData> => ({
+    signIn: await api.call(getIdentityProvidersEndpoint, undefined, { signal: request.signal }),
+  });
 }
 
 /**
@@ -86,26 +68,6 @@ async function runProvider(api: ApiClient, intent: ProviderIntent): Promise<void
 }
 
 /**
- * Runs one intent.
- *
- * @param api - The API client.
- * @param intent - The intent.
- * @returns The outcome: the mode in force after a switch or an adoption.
- */
-async function run(api: ApiClient, intent: AuthSettingsIntent): Promise<AuthSettingsOutcome> {
-  if (intent.intent === 'adopt') {
-    await api.call(adoptThreadsEndpoint, { body: { userId: intent.userId } });
-    return { ok: true, mode: 'accounts' };
-  }
-  if (intent.intent === 'switch') {
-    const body = { mode: intent.mode, ...(intent.adoptTo ? { adoptTo: intent.adoptTo } : {}) };
-    return { ok: true, mode: (await api.call(saveAuthSettingsEndpoint, { body })).mode };
-  }
-  await runProvider(api, intent);
-  return { ok: true };
-}
-
-/**
  * The action of the authentication screen.
  *
  * @param api - The API client.
@@ -114,7 +76,8 @@ async function run(api: ApiClient, intent: AuthSettingsIntent): Promise<AuthSett
 export function changeAuthSettings(api: ApiClient) {
   return async ({ request }: ActionFunctionArgs): Promise<AuthSettingsOutcome> => {
     try {
-      return await run(api, (await request.json()) as AuthSettingsIntent);
+      await runProvider(api, (await request.json()) as AuthSettingsIntent);
+      return { ok: true };
     } catch (error) {
       if (!(error instanceof ApiError)) throw error;
       return { ok: false, message: error.message };

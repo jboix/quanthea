@@ -2,18 +2,12 @@
 
 export {
   changePasswordEndpoint,
+  completeSetupEndpoint,
   setPasswordEndpoint,
   signInEndpoint,
   signOutEndpoint,
   signOutEverywhereEndpoint,
 } from './api/auth.ts';
-export {
-  type AuthSettingsView,
-  adoptThreadsEndpoint,
-  authSettingsSchema,
-  getAuthSettingsEndpoint,
-  saveAuthSettingsEndpoint,
-} from './api/auth-settings.ts';
 export {
   type BinnedThread,
   binnedThreadSchema,
@@ -302,8 +296,6 @@ export {
   threadQueriesSchema,
 } from './queries.ts';
 export {
-  type AuthMode,
-  authModeSchema,
   hasRole,
   type Principal,
   principalSchema,

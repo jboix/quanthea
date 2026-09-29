@@ -14,6 +14,21 @@ export const signInEndpoint = defineEndpoint({
   output: z.object({ principal: principalSchema }),
 });
 
+/**
+ * Sets up the default admin's account at their first sign-in: their own email, name and password.
+ * Until then, every other route refuses them.
+ */
+export const completeSetupEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/auth/setup',
+  body: z.object({
+    email: z.email().max(320),
+    name: z.string().trim().min(1).max(100),
+    password: passwordField,
+  }),
+  output: z.object({ principal: principalSchema }),
+});
+
 /** Ends the session the request carries, and clears its cookie. A POST, so no link can do it. */
 export const signOutEndpoint = defineEndpoint({
   method: 'POST',

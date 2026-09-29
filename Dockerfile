@@ -58,6 +58,7 @@ COPY packages/shared/src packages/shared/src
 COPY apps/server/package.json apps/server/package.json
 COPY apps/server/src apps/server/src
 COPY --from=build /repo/apps/web/dist apps/web/dist
+COPY --chmod=755 apps/server/bin/querent /usr/local/bin/querent
 USER bun
 EXPOSE 3000
 VOLUME ["/data", "/keys"]

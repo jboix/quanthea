@@ -10,20 +10,13 @@ export const roleSchema = z.enum(roles);
 /** A role name. */
 export type Role = z.infer<typeof roleSchema>;
 
-/**
- * Validates the authentication mode chosen in Settings, or forced by `QUERENT_AUTH_MODE`: `none`
- * makes everyone an admin; `accounts` signs people in, by password or through a provider.
- */
-export const authModeSchema = z.enum(['none', 'accounts']);
-
-/** How users authenticate: `none` makes everyone an admin. */
-export type AuthMode = z.infer<typeof authModeSchema>;
-
 /** Validates the identity and role a request acts as. */
 export const principalSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   role: roleSchema,
+  /** The default admin before they choose their own email and password; nothing else is open. */
+  setupRequired: z.boolean().optional(),
 });
 
 /** The identity and role a request acts as. Recorded on audit events, never used as ownership. */

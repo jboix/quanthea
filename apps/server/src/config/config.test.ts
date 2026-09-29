@@ -11,7 +11,6 @@ describe('loadConfig', () => {
       port: 3000,
       dataDir: '/srv/querent/data',
       keysDir: '/srv/querent/keys',
-      authModeOverride: undefined,
       logLevel: 'info',
       logFormat: 'text',
     });
@@ -24,7 +23,6 @@ describe('loadConfig', () => {
         QUERENT_PORT: '8080',
         QUERENT_DATA_DIR: '/data',
         QUERENT_KEYS_DIR: '/keys',
-        QUERENT_AUTH_MODE: 'accounts',
         QUERENT_LOG_LEVEL: 'debug',
         QUERENT_LOG_FORMAT: 'json',
         QUERENT_WEB_DIR: 'public',
@@ -39,7 +37,6 @@ describe('loadConfig', () => {
       port: 8080,
       dataDir: '/data',
       keysDir: '/keys',
-      authModeOverride: 'accounts',
       logLevel: 'debug',
       logFormat: 'json',
       webDir: '/app/public',
@@ -67,16 +64,16 @@ describe('loadConfig', () => {
   });
 
   test('treats an empty variable as unset', () => {
-    expect(loadConfig({ QUERENT_AUTH_MODE: '', QUERENT_PORT: '' }, '/app')).toMatchObject({
-      authModeOverride: undefined,
+    expect(loadConfig({ QUERENT_LOG_LEVEL: '', QUERENT_PORT: '' }, '/app')).toMatchObject({
+      logLevel: 'info',
       port: 3000,
     });
   });
 
   test('names every invalid variable', () => {
-    const failure = () => loadConfig({ QUERENT_PORT: 'eighty', QUERENT_AUTH_MODE: 'keycloak' });
+    const failure = () => loadConfig({ QUERENT_PORT: 'eighty', QUERENT_LOG_LEVEL: 'loud' });
     expect(failure).toThrow(/QUERENT_PORT/);
-    expect(failure).toThrow(/QUERENT_AUTH_MODE/);
+    expect(failure).toThrow(/QUERENT_LOG_LEVEL/);
   });
 });
 

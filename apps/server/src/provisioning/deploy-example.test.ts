@@ -28,10 +28,7 @@ describe('deploy/querent.yaml', () => {
       ANTHROPIC_API_KEY: 'not-a-real-key-7c2e',
     };
     const config = loadConfig(environment, '/app');
-    expect(config).toMatchObject({
-      publicUrl: 'http://localhost:3000',
-      authModeOverride: 'accounts',
-    });
+    expect(config).toMatchObject({ publicUrl: 'http://localhost:3000' });
     await provision({
       file: config.file ?? { paths: [], sections: {}, raw: {}, origins: {} },
       repository: createProvisionedRepository(services.database),

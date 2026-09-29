@@ -21,6 +21,9 @@ export function requireRole(minimum: Role): MiddlewareHandler<AppEnv> {
   const middleware = createMiddleware<AppEnv>(async (context, next) => {
     const principal = context.get('principal');
     if (!principal) throw new AppError('unauthorized', 'Sign in to continue.');
+    // The default admin chooses their own email and password before anything else.
+    if (principal.setupRequired)
+      throw new AppError('forbidden', 'Choose your own email and password first.');
     if (!hasRole(principal.role, minimum)) {
       throw new AppError('forbidden', `This needs the ${minimum} role or higher.`);
     }

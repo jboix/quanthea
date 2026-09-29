@@ -4,7 +4,7 @@
  * interface can show it. Keys come from the environment or the keys directory, never the file.
  */
 import { resolve } from 'node:path';
-import { type AuthMode, authModeSchema, type SettingSource } from '@querent/shared';
+import type { SettingSource } from '@querent/shared';
 import { z } from 'zod';
 import { type LogFormat, type LogLevel, logFormats, logLevels } from '../lib/logger.ts';
 import type { KeyInput, KeyInputs } from '../secrets/keys.ts';
@@ -53,12 +53,6 @@ export const settingSpecs = {
     label: 'Trusted proxies',
     schema: z.coerce.number().int().min(0).max(5),
     fallback: 0,
-  },
-  authMode: {
-    variable: 'QUERENT_AUTH_MODE',
-    label: 'Forced authentication mode',
-    schema: authModeSchema,
-    fallback: undefined,
   },
   port: {
     variable: 'QUERENT_PORT',
@@ -109,8 +103,6 @@ export interface Config {
   readonly dataDir: string;
   /** Absolute path of the directory generated keys are kept in, outside the data directory. */
   readonly keysDir: string;
-  /** When set, replaces the stored authentication mode. `none` is the lockout escape hatch. */
-  readonly authModeOverride: AuthMode | undefined;
   /** The least severe log level written. */
   readonly logLevel: LogLevel;
   /** How log lines are written: readable text, or JSON for log collectors. */
@@ -275,7 +267,6 @@ export function loadConfig(environment: Environment, workingDir: string = proces
     port: settings.port,
     dataDir: resolve(workingDir, settings.dataDir),
     keysDir: resolve(workingDir, settings.keysDir),
-    authModeOverride: settings.authMode,
     logLevel: settings.logLevel,
     logFormat: settings.logFormat,
     webDir: settings.webDir ? resolve(workingDir, settings.webDir) : defaultWebDir,

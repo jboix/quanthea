@@ -69,6 +69,8 @@ export function requireRole(
   return async ({ request }) => {
     const session = await loadSession();
     if (!session) throw toLogin(request);
+    // The default admin chooses their own email and password before anything else.
+    if (session.principal.setupRequired) throw redirect('/setup');
     if (!hasRole(session.principal.role, minimum)) {
       throw data({ minimum }, { status: 403, statusText: 'Forbidden' });
     }

@@ -1,12 +1,10 @@
-/** Turns a request into the principal it acts as, according to the authentication mode. */
-import type { AuthMode, Principal } from '@querent/shared';
+/** Turns a request into the principal it acts as: the user of its session cookie. */
+import type { Principal } from '@querent/shared';
 import type { Sessions } from './sessions.ts';
 import type { Users } from './users.ts';
 
 /** Identifies the principal behind a request. */
 export interface Authenticator {
-  /** The active authentication mode. */
-  readonly mode: AuthMode;
   /**
    * Identifies who sent a request.
    *
@@ -16,16 +14,13 @@ export interface Authenticator {
   authenticate(request: Request): Promise<Principal | null>;
 }
 
-/** The principal of every request in `none` mode. */
-export const anonymousAdmin: Principal = { id: 'anonymous', name: 'Anonymous', role: 'admin' };
-
 /**
  * The session cookie's name. The `__Host-` prefix makes the browser refuse it unless it is Secure,
  * has `Path=/` and no `Domain`, so no other site or subdomain can set or read it.
  */
 export const sessionCookieName = '__Host-querent_session';
 
-/** What `accounts` mode signs requests in with. */
+/** What requests are signed in with. */
 export interface AccountsAuthentication {
   /** The sessions. */
   readonly sessions: Sessions;
@@ -52,28 +47,16 @@ export function cookieOf(request: Request, name: string): string | undefined {
 }
 
 /**
- * Creates the authenticator. The mode is read on every request, so switching it needs no restart.
+ * Creates the authenticator.
  *
- * @param mode - The mode, or a function giving the mode in force.
- * @param accounts - The sessions and users, required for `accounts` mode.
+ * @param accounts - The sessions and users.
  * @returns The authenticator.
- * @throws {Error} In `accounts` mode without sessions.
  */
-export function createAuthenticator(
-  mode: AuthMode | (() => AuthMode),
-  accounts?: AccountsAuthentication,
-): Authenticator {
-  const current = typeof mode === 'function' ? mode : () => mode;
-  if (current() === 'accounts' && !accounts)
-    throw new Error('Accounts mode needs sessions: set QUERENT_SESSION_KEY.');
+export function createAuthenticator(accounts: AccountsAuthentication): Authenticator {
   return {
-    get mode() {
-      return current();
-    },
     authenticate: async (request) => {
-      if (current() === 'none') return anonymousAdmin;
-      const cookie = accounts && cookieOf(request, sessionCookieName);
-      if (!accounts || cookie === undefined) return null;
+      const cookie = cookieOf(request, sessionCookieName);
+      if (cookie === undefined) return null;
       const session = await accounts.sessions.resolve(cookie);
       return session ? accounts.users.principalOf(session.userId) : null;
     },

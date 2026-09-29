@@ -6,11 +6,18 @@ keeps its state in two volumes and reads an optional configuration file.
 ## Quick start
 
 ```sh
-docker run -p 3000:3000 -v querent-data:/data -v querent-keys:/keys ghcr.io/jboix/querent
+docker run -d --name querent -p 3000:3000 -v querent-data:/data -v querent-keys:/keys \
+  ghcr.io/jboix/querent
 ```
 
-This starts querent in open access: everyone who reaches port 3000 is an admin. Use it on a
-machine only you can reach, then set up accounts.
+The first start creates the user `admin` and writes its password to the log, once:
+
+```sh
+docker logs querent 2>&1 | grep password
+```
+
+Sign in at <http://localhost:3000> as `admin` with that password. querent then asks for your own
+email and password; nothing else opens until you set them.
 
 ## With Docker Compose
 
@@ -89,14 +96,22 @@ refers to. A file with a mistake stops querent with every issue listed, and noth
 
 ## Accounts and sign-in
 
-Accounts need the public URL, the address people reach querent at, set as `server.publicUrl` or
-`QUERENT_PUBLIC_URL`. Sign-in works only from that address, and sign-in providers send people
-back to it.
+People always sign in. With a public URL (`server.publicUrl` or `QUERENT_PUBLIC_URL`), sign-in
+works only from that address, and sign-in providers send people back to it; providers need it.
 
 - Declare the first admin in `users`, with a `password` reference or without one to sign in
-  through a provider with that verified email.
-- Set `server.authMode: accounts`, or switch in Settings → Authentication.
+  through a provider with that verified email. Then querent creates no `admin` user.
 - Register querent at each provider with the redirect URI Settings → Authentication shows.
+
+## Locked out
+
+Inside the container, `querent reset-admin` prints a one-time link that sets the first admin's
+password; `querent reset-admin ada@example.com` names the admin. A disabled admin is enabled
+again.
+
+```sh
+docker exec querent querent reset-admin
+```
 
 ## Behind a reverse proxy
 

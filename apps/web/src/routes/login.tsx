@@ -1,4 +1,4 @@
-/** The routes outside the app: signing in, and setting a password from a link. */
+/** The routes outside the app: signing in, setting up the default admin, and link passwords. */
 import { signInOptionsEndpoint } from '@querent/shared';
 import { type LoaderFunctionArgs, type RouteObject, redirect } from 'react-router';
 import { ErrorPage } from '../app/error-page.tsx';
@@ -6,8 +6,10 @@ import { LoadingScreen } from '../app/layout.tsx';
 import type { SessionLoader } from '../app/session.ts';
 import {
   SetPasswordScreen,
+  SetupScreen,
   SignInScreen,
   setPasswordAction,
+  setupAction,
   signInAction,
 } from '../features/account/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
@@ -32,6 +34,30 @@ export function loginRoute(loadSession: SessionLoader, api: ApiClient): RouteObj
     loader,
     action: signInAction(api),
     Component: SignInScreen,
+    HydrateFallback: LoadingScreen,
+    ErrorBoundary: ErrorPage,
+  };
+}
+
+/**
+ * The route where the default admin chooses their own email and password. Anyone else goes home;
+ * someone signed out goes to the sign-in page.
+ *
+ * @param loadSession - Loads the current session.
+ * @param api - The API client.
+ * @returns The route object.
+ */
+export function setupRoute(loadSession: SessionLoader, api: ApiClient): RouteObject {
+  const loader = async () => {
+    const session = await loadSession();
+    if (!session) return redirect('/login');
+    return session.principal.setupRequired ? null : redirect('/');
+  };
+  return {
+    path: '/setup',
+    loader,
+    action: setupAction(api),
+    Component: SetupScreen,
     HydrateFallback: LoadingScreen,
     ErrorBoundary: ErrorPage,
   };

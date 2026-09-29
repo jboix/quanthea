@@ -32,8 +32,8 @@ function SignInForm() {
     <form className={styles.form} onSubmit={submit}>
       <Input
         label="Email"
-        type="email"
         autoComplete="username"
+        autoCapitalize="none"
         required
         value={email}
         onChange={(event) => setEmail(event.target.value)}

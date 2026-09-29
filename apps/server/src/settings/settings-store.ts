@@ -1,6 +1,5 @@
 /** The typed settings store: one Zod-validated JSON document per section. */
 import {
-  authModeSchema,
   chartSettingsSchema,
   defaultModelGateway,
   type ModelProvider,
@@ -37,20 +36,8 @@ export function upgradeModelSettings(value: unknown): unknown {
   return { providers: [config], defaultProviderId: id, limits, behaviour };
 }
 
-/**
- * Upgrades the authentication mode saved before `basic` and `oidc` became one `accounts` mode.
- *
- * @param value - The stored value.
- * @returns The value in the current shape.
- */
-function upgradeAuthMode(value: unknown): unknown {
-  const mode = (value as { mode?: unknown } | null)?.mode;
-  return mode === 'basic' || mode === 'oidc' ? { ...(value as object), mode: 'accounts' } : value;
-}
-
 /** The schema of every settings section. A section is stored under its name. */
 const sectionSchemas = {
-  auth: z.preprocess(upgradeAuthMode, z.object({ mode: authModeSchema })),
   /** The model gateway: the saved providers, the default, the limits and the behaviour. */
   model: z.preprocess(upgradeModelSettings, modelGatewaySchema),
   /** The key saved before there were several providers, sealed; moved to `model-keys` on read. */
@@ -77,7 +64,6 @@ type SectionValue<Name extends SectionName> = z.infer<(typeof sectionSchemas)[Na
 
 /** The value of each section before anyone has saved it. */
 const sectionDefaults: { readonly [Name in SectionName]: SectionValue<Name> } = {
-  auth: { mode: 'none' },
   model: defaultModelGateway,
   'model-key': { sealed: null },
   'model-keys': { sealed: {} },
