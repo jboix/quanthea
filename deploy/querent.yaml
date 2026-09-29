@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jboix/querent/main/docs/configuration.schema.json
+#
+# querent's configuration. Everything declared here is read-only in the interface; everything
+# left out stays editable there. Secrets are never written here: each one is a variable
+# reference, filled from .env, or file:/path to a Docker or Kubernetes secret.
+
+server:
+  # The address people reach querent at: https:// in production. Accounts and sign-in providers
+  # need it, and sign-in works only from this address.
+  publicUrl: http://localhost:3000
+  # How many reverse proxies in front of querent add to X-Forwarded-For; 1 behind one proxy.
+  trustedProxyHops: 0
+  # Force accounts: people sign in, and their role sets what they can do.
+  authMode: accounts
+
+users:
+  # The first admin. The password is set only while they have none; they can change it after.
+  admin@example.com:
+    name: Admin
+    role: admin
+    password: ${ADMIN_PASSWORD}
+
+model:
+  defaultProviderId: anthropic
+  providers:
+    - id: anthropic
+      name: Anthropic
+      provider: anthropic
+      baseUrl: null
+      models:
+        plan: claude-haiku-4-5
+        build: claude-sonnet-5
+        repair: ''
+        metadata: claude-haiku-4-5
+      apiKey: ${ANTHROPIC_API_KEY}
+
+# A read-only database role is enough, and safest.
+# connectors:
+#   orders:
+#     kind: postgres
+#     config:
+#       host: db.example.com
+#       database: orders
+#       username: querent_ro
+#       tls: require
+#     secret:
+#       password: ${ORDERS_DB_PASSWORD}
+
+# Sign in with Google as well as passwords. Register querent at the provider with the redirect
+# URI Settings → Authentication shows.
+# signIn:
+#   providers:
+#     google:
+#       kind: google
+#       name: Google
+#       join: { mode: domain, values: [example.com] }
+#       clientId: 1234.apps.googleusercontent.com
+#       clientSecret: ${GOOGLE_CLIENT_SECRET}

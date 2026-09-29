@@ -1,0 +1,27 @@
+# querent with its data, its keys and its configuration file. See docs/deployment.md.
+#
+#   cp .env.example .env        # then fill in the secrets querent.yaml refers to
+#   docker compose up -d
+#
+# querent generates its keys in the `keys` volume on first start. Back up `data` and `keys`
+# apart: whoever holds both reads everything.
+name: querent
+
+services:
+  querent:
+    image: ghcr.io/jboix/querent:latest
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - data:/data
+      - keys:/keys
+      # Edits apply within a few seconds, without a restart.
+      - ./querent.yaml:/etc/querent/querent.yaml:ro
+
+volumes:
+  data:
+  keys:

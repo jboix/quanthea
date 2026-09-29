@@ -60,6 +60,9 @@ Docker image and checks that it serves the app. A git hook runs `bun run verify`
 
 ## Configuration
 
+[`docs/deployment.md`](docs/deployment.md) shows how to run querent with Docker Compose and a
+configuration file; [`deploy/`](deploy/) holds a starting point.
+
 The server reads these settings at startup, from an environment variable or, when no variable is
 set, from the configuration file's `server` section. Settings → Server shows each one with where
 it comes from. Everything else lives in Settings.
