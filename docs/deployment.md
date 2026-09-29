@@ -84,11 +84,8 @@ Remove an item from the file and it stays, editable again in the interface. With
 
 ### Changes
 
-querent applies the file again within 5 seconds of a change, without a restart. A change that
-does not validate keeps the last good configuration, and admins see why above the settings. The
-`server` section is read at startup only; the settings show which changes wait for a restart.
-
-At startup, a file with a mistake stops querent with every issue listed.
+querent reads the file at startup. Restart it to apply a change, to the file or to a secret it
+refers to. A file with a mistake stops querent with every issue listed, and nothing is applied.
 
 ## Accounts and sign-in
 

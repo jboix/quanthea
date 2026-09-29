@@ -51,10 +51,8 @@ const dependencies = {
 const resealed = await resealSecrets(dependencies);
 if (resealed > 0) logger.info('sealed secrets again with the current key', { resealed });
 const services = createServices(dependencies);
-const stopWatching = await startProvisioning({
-  configPath: config.configPath,
+await startProvisioning({
   file: config.file,
-  environment: process.env,
   database,
   keys,
   services,
@@ -94,7 +92,6 @@ logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir
 async function shutdown(signal: string): Promise<void> {
   logger.info('shutting down', { signal });
   stopPurgeJob();
-  stopWatching();
   await server.stop();
   await services.connections.closeAll();
   database.close();

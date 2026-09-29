@@ -43,7 +43,6 @@ import { noStoreApi, securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
 import type { Managed } from './provisioning/managed.ts';
-import type { ProvisioningStatus } from './provisioning/status.ts';
 import type { ChartSettingsService } from './settings/chart-settings.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
 import type { QuerySettingsService } from './settings/query-settings.ts';
@@ -86,8 +85,6 @@ export interface AppDependencies {
   readonly connections: Connections;
   /** What the configuration file manages, read-only here. */
   readonly managed: Managed;
-  /** What the last application of the configuration file left for admins to see. */
-  readonly provisioningStatus: ProvisioningStatus;
   /** The dashboards service. */
   readonly dashboards: Dashboards;
   /** The model gateway settings. */

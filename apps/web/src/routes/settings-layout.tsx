@@ -1,7 +1,7 @@
 import type { ManagedSettings } from '@querent/shared';
 import { NavLink, Outlet, useLoaderData, useLocation } from 'react-router';
 import { Banner } from '../ui/banner.tsx';
-import { InfoIcon, WarningIcon } from '../ui/icons.tsx';
+import { InfoIcon } from '../ui/icons.tsx';
 import styles from './settings-layout.module.css';
 
 /** The settings sections, in menu order. */
@@ -29,33 +29,6 @@ function managingFile(managed: ManagedSettings | undefined, pathname: string): s
 }
 
 /**
- * What happened to the configuration file since startup: a change that was refused, or system
- * settings that wait for a restart.
- *
- * @param props - What the file manages, and its status.
- * @param props.managed - What the file manages, and its status.
- * @returns The banners, or nothing.
- */
-function FileStatus({ managed }: { readonly managed: ManagedSettings | undefined }) {
-  if (!managed) return null;
-  return (
-    <>
-      {managed.problem && (
-        <Banner tone="warning" icon={<WarningIcon />}>
-          The last change to the configuration file was not applied, so the one before stays:{' '}
-          {managed.problem}
-        </Banner>
-      )}
-      {managed.restartNeeded.length > 0 && (
-        <Banner tone="info" icon={<InfoIcon />}>
-          Restart querent to apply the file's change to {managed.restartNeeded.join(', ')}.
-        </Banner>
-      )}
-    </>
-  );
-}
-
-/**
  * The settings frame: a section menu above the selected section. A section the configuration file
  * manages is shown read-only, under a banner naming the file.
  *
@@ -73,7 +46,6 @@ export function SettingsLayout() {
           </NavLink>
         ))}
       </nav>
-      <FileStatus managed={managed} />
       {file && (
         <Banner tone="info" icon={<InfoIcon />}>
           <span title={file}>{file.split('/').at(-1)}</span> manages these settings. Change them

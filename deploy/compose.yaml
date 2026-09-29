@@ -19,7 +19,7 @@ services:
     volumes:
       - data:/data
       - keys:/keys
-      # Edits apply within a few seconds, without a restart.
+      # Read at startup: restart querent after an edit.
       - ./querent.yaml:/etc/querent/querent.yaml:ro
 
 volumes:

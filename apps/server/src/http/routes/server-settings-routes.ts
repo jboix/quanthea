@@ -6,7 +6,6 @@ import {
 } from '@querent/shared';
 import type { Hono } from 'hono';
 import type { Managed } from '../../provisioning/managed.ts';
-import type { ProvisioningStatus } from '../../provisioning/status.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 
@@ -16,8 +15,6 @@ export interface ServerSettingsRouteServices {
   readonly serverSettings: ServerSettingsView;
   /** What the configuration file manages. */
   readonly managed: Managed;
-  /** What the last application of the file left for admins to see. */
-  readonly provisioningStatus: ProvisioningStatus;
 }
 
 /**
@@ -30,17 +27,13 @@ export function mountServerSettingsEndpoints(
   app: Hono<AppEnv>,
   services: ServerSettingsRouteServices,
 ): void {
-  const { managed, provisioningStatus: status } = services;
+  const { managed } = services;
   mountEndpoint(app, getServerSettingsEndpoint, {
     access: 'admin',
     handle: () => services.serverSettings,
   });
   mountEndpoint(app, getManagedSettingsEndpoint, {
     access: 'admin',
-    handle: () => ({
-      sections: managed.pathsOf('settings'),
-      problem: status.problem(),
-      restartNeeded: [...status.restartNeeded()],
-    }),
+    handle: () => ({ sections: managed.pathsOf('settings') }),
   });
 }

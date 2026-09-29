@@ -23,7 +23,6 @@ import { createUsageRepository } from './db/usage-repository.ts';
 import { createUserRepository } from './db/user-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
 import { createManaged, type Managed } from './provisioning/managed.ts';
-import { createProvisioningStatus, type ProvisioningStatus } from './provisioning/status.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
@@ -51,8 +50,6 @@ export interface ServiceDependencies extends AccountDependencies {
 export interface Services extends Accounts {
   /** What the configuration file manages. */
   readonly managed: Managed;
-  /** What the last application of the configuration file left for admins to see. */
-  readonly provisioningStatus: ProvisioningStatus;
   /** The configured connectors. */
   readonly connections: Connections;
   /** The dashboards. */
@@ -165,19 +162,14 @@ export async function resealSecrets(
 }
 
 /**
- * What the configuration file manages, and what its last application left for admins to see.
+ * What the configuration file manages.
  *
  * @param dependencies - The database and the email index.
- * @returns Both.
+ * @returns The view of it.
  */
-function provisioningParts(
-  dependencies: ServiceDependencies,
-): Pick<Services, 'managed' | 'provisioningStatus'> {
+function provisioningParts(dependencies: ServiceDependencies): Pick<Services, 'managed'> {
   const repository = createProvisionedRepository(dependencies.database);
-  return {
-    managed: createManaged(repository, dependencies.emailIndex),
-    provisioningStatus: createProvisioningStatus(),
-  };
+  return { managed: createManaged(repository, dependencies.emailIndex) };
 }
 
 /**
