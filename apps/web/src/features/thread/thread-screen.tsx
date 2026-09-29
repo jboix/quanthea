@@ -198,7 +198,7 @@ function ThreadComposer({ state }: { readonly state: ScreenState }) {
         draft={composer.draft}
         onDraft={composer.setDraft}
         panels={version?.spec.panels.map(({ id, title }) => ({ id, title })) ?? []}
-        model={thread.model}
+        model={`${thread.model} · ${thread.providerName}`}
         access={accessOf(thread)}
         running={running}
         onSend={composer.send}

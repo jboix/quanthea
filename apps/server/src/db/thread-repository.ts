@@ -18,6 +18,8 @@ export interface ThreadRow {
   readonly tokensUsed: number;
   /** Who started it. */
   readonly createdBy: string | null;
+  /** The model provider it uses; `null` for the default. */
+  readonly providerId: string | null;
   /** Creation time, in epoch milliseconds. */
   readonly createdAt: number;
   /** Last change, in epoch milliseconds. */
@@ -164,6 +166,8 @@ interface StoredThread {
   tokens_used: number;
   /** The creator. */
   created_by: string | null;
+  /** The model provider. */
+  provider_id: string | null;
   /** Creation time. */
   created_at: number;
   /** Last change. */
@@ -218,6 +222,7 @@ function toThread(stored: StoredThread): ThreadRow {
     dashboardId: stored.dashboard_id,
     tokensUsed: stored.tokens_used,
     createdBy: stored.created_by,
+    providerId: stored.provider_id,
     createdAt: stored.created_at,
     updatedAt: stored.updated_at,
   };
@@ -250,8 +255,8 @@ function toPlan(stored: StoredPlan): PlanRow {
 function threadStatements(database: Database) {
   return {
     insert: database.query(
-      `INSERT INTO threads (id, title, state, dashboard_id, tokens_used, created_by, created_at,
-         updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO threads (id, title, state, dashboard_id, tokens_used, created_by, provider_id,
+         created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     selectOne: database.query<StoredThread, [string]>('SELECT * FROM threads WHERE id = ?'),
     selectAll: database.query<StoredThread, []>(
@@ -273,8 +278,18 @@ function threadStatements(database: Database) {
  * @returns The values.
  */
 function threadValues(row: ThreadRow) {
-  const { id, title, state, dashboardId, tokensUsed, createdBy, createdAt, updatedAt } = row;
-  return [id, title, state, dashboardId, tokensUsed, createdBy, createdAt, updatedAt] as const;
+  const { id, title, state, dashboardId, tokensUsed, createdBy, providerId } = row;
+  return [
+    id,
+    title,
+    state,
+    dashboardId,
+    tokensUsed,
+    createdBy,
+    providerId,
+    row.createdAt,
+    row.updatedAt,
+  ] as const;
 }
 
 /**

@@ -10,7 +10,7 @@ import { newId } from '../lib/ids.ts';
 import { nextState, type ThreadEvent, type ThreadState } from './state.ts';
 
 /** A thread with its conversation, as the service knows it; the HTTP layer adds the rest. */
-export type ThreadConversation = Omit<ThreadDetail, 'model' | 'connectors'>;
+export type ThreadConversation = Omit<ThreadDetail, 'model' | 'providerName' | 'connectors'>;
 
 /** A message as the AI SDK hands it over: id, role, parts and metadata. */
 export interface StoredMessage {
@@ -48,7 +48,7 @@ export interface Threads {
    * @param actor - Who starts it.
    * @returns The thread.
    */
-  create(actor: string): ThreadSummary;
+  create(actor: string, providerId?: string | null): ThreadSummary;
   /**
    * Reads a thread with its messages and plans.
    *
@@ -149,8 +149,8 @@ type Context = ThreadsDependencies & { readonly now: () => number };
  * @returns The summary.
  */
 function toSummary(row: ThreadRow): ThreadSummary {
-  const { id, title, state, dashboardId, tokensUsed, createdAt, updatedAt } = row;
-  return { id, title, state, dashboardId, tokensUsed, createdAt, updatedAt };
+  const { id, title, state, dashboardId, tokensUsed, providerId, createdAt, updatedAt } = row;
+  return { id, title, state, dashboardId, tokensUsed, providerId, createdAt, updatedAt };
 }
 
 /**
@@ -300,7 +300,7 @@ function saveMessages(
  * @param actor - Who starts it.
  * @returns The thread.
  */
-function create(context: Context, actor: string): ThreadSummary {
+function create(context: Context, actor: string, providerId: string | null): ThreadSummary {
   const at = context.now();
   const row: ThreadRow = {
     id: newId(),
@@ -309,6 +309,7 @@ function create(context: Context, actor: string): ThreadSummary {
     dashboardId: null,
     tokensUsed: 0,
     createdBy: actor,
+    providerId,
     createdAt: at,
     updatedAt: at,
   };
@@ -366,7 +367,7 @@ export function createThreads(dependencies: ThreadsDependencies): Threads {
   const { repository } = context;
   return {
     list: () => repository.list().map(toSummary),
-    create: (actor) => create(context, actor),
+    create: (actor, providerId) => create(context, actor, providerId ?? null),
     get: (id) => get(context, id),
     row: (id) => find(context, id),
     remove(id, actor) {

@@ -26,6 +26,7 @@ const thread: ThreadRow = {
   dashboardId: null,
   tokensUsed: 0,
   createdBy: 'editor-1',
+  providerId: null,
   createdAt: 1000,
   updatedAt: 1000,
 };

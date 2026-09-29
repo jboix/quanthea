@@ -4,7 +4,12 @@ import { testModelConnection } from './connection-test.ts';
 import { languageModel, ModelUnavailableError, modelIdFor } from './model.ts';
 import { scriptedModel } from './test/mock-model.ts';
 
-const resolved = { settings: defaultModelSettings, apiKey: 'sk-test' };
+const resolved = {
+  settings: defaultModelSettings,
+  apiKey: 'sk-test',
+  providerId: 'anthropic',
+  providerName: 'Anthropic',
+};
 
 describe('testModelConnection', () => {
   test('reports tool calling and structured output', async () => {
@@ -43,7 +48,7 @@ describe('languageModel', () => {
       provider: 'openai-compatible' as const,
       baseUrl: 'http://localhost:4000/v1',
     };
-    expect(languageModel({ settings: gateway, apiKey: null }, 'build')).toBeDefined();
+    expect(languageModel({ ...resolved, settings: gateway, apiKey: null }, 'build')).toBeDefined();
   });
 
   test('uses the build model when a job has none of its own', () => {

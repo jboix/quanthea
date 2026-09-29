@@ -2,8 +2,8 @@
 import {
   getModelSettingsEndpoint,
   listModelsEndpoint,
+  type ModelGateway,
   type ModelProvider,
-  type ModelSettings,
   type ModelSettingsView,
   type modelTestSchema,
   saveModelSettingsEndpoint,
@@ -18,13 +18,18 @@ export type ModelTest = z.output<typeof modelTestSchema>;
 
 /** What the settings screen submits, as JSON. */
 export type ModelSettingsIntent =
-  | { readonly intent: 'save'; readonly settings: ModelSettings; readonly apiKey?: string }
-  | { readonly intent: 'test' }
+  | {
+      readonly intent: 'save';
+      readonly gateway: ModelGateway;
+      readonly apiKeys: Readonly<Record<string, string>>;
+    }
+  | { readonly intent: 'test'; readonly providerId: string }
   | {
       readonly intent: 'models';
       readonly provider: ModelProvider;
       readonly baseUrl: string | null;
       readonly apiKey?: string;
+      readonly providerId?: string;
     };
 
 /** What the action returns. */
@@ -53,7 +58,7 @@ export type ModelSettingsOutcome =
 function issuesOf(details: unknown): Record<string, string> {
   if (!Array.isArray(details)) return {};
   const keyed = (details as { path?: unknown; message?: unknown }[]).map((issue) => [
-    String(issue.path ?? '').replace(/^settings\./, ''),
+    String(issue.path ?? '').replace(/^gateway\./, ''),
     String(issue.message ?? ''),
   ]);
   return Object.fromEntries(keyed.reverse());
@@ -73,12 +78,12 @@ export function loadModelSettings(api: ApiClient) {
  * Saves the settings, keeping refusals the admin can fix as an outcome.
  *
  * @param api - The API client.
- * @param body - The settings and, if given, a new key.
+ * @param body - The gateway and any new keys.
  * @returns The outcome.
  */
 async function save(
   api: ApiClient,
-  body: { settings: ModelSettings; apiKey?: string },
+  body: { gateway: ModelGateway; apiKeys: Readonly<Record<string, string>> },
 ): Promise<ModelSettingsOutcome> {
   try {
     return { intent: 'save', ok: true, view: await api.call(saveModelSettingsEndpoint, { body }) };
@@ -98,13 +103,13 @@ export function modelSettingsAction(api: ApiClient) {
   return async ({ request }: ActionFunctionArgs): Promise<ModelSettingsOutcome> => {
     const intent = (await request.json()) as ModelSettingsIntent;
     if (intent.intent === 'test') {
-      return { intent: 'test', result: await api.call(testModelSettingsEndpoint) };
+      const body = { providerId: intent.providerId };
+      return { intent: 'test', result: await api.call(testModelSettingsEndpoint, { body }) };
     }
     if (intent.intent === 'models') {
       const { intent: _intent, ...body } = intent;
       return { intent: 'models', ...(await api.call(listModelsEndpoint, { body })) };
     }
-    const { settings, apiKey } = intent;
-    return save(api, apiKey === undefined ? { settings } : { settings, apiKey });
+    return save(api, { gateway: intent.gateway, apiKeys: { ...intent.apiKeys } });
   };
 }

@@ -629,6 +629,7 @@ CREATE TABLE schema_cache (connector_id TEXT PRIMARY KEY REFERENCES connectors(i
 CREATE TABLE threads (
   id TEXT PRIMARY KEY, title TEXT, state TEXT NOT NULL DEFAULT 'idle',
   dashboard_id TEXT,                -- the dashboard this thread authors
+  provider_id TEXT,                 -- the model provider; NULL or a removed one means the default
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
 
 CREATE TABLE messages (
@@ -692,32 +693,33 @@ Timestamps (`at`, `*_at`) are Unix epoch milliseconds. SQLite runs with `journal
 All endpoints are under `/api` and declared in `packages/shared/src/api/`. The table is
 indicative; the contract files are the source of truth.
 
-| Method + path                                                                              | Purpose                        | Min role |
-| ------------------------------------------------------------------------------------------ | ------------------------------ | -------- |
-| `GET /health`                                                                              | liveness + version             | public   |
-| `GET /me`                                                                                  | principal, role, auth mode     | public   |
-| `POST /auth/login`, `POST /auth/logout`, `GET /auth/oidc/start`, `GET /auth/oidc/callback` | sessions                       | public   |
-| `GET /threads`, `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id`                 | threads                        | editor   |
-| `POST /threads/:id/chat`                                                                   | streamed agent run             | editor   |
-| `POST /threads/:id/plans/:planId/approve` · `/reject`                                      | plan decisions                 | editor   |
-| `POST /threads/:id/start-from` (a pinned dashboard)                                        | draft from a copy, no model    | editor   |
-| `POST /threads/:id/restore` (a version)                                                    | Undo                           | editor   |
-| `GET /dashboards` (search: `q`, `tags`)                                                    | library                        | viewer   |
-| `POST /dashboards` (a spec, becomes draft v1)                                              | create from a spec             | editor   |
-| `GET /dashboards/:id`, `GET /dashboards/:id/versions/:v` (drafts: editor)                  | spec                           | viewer   |
-| `POST /dashboards/:id/pin`                                                                 | pin a version                  | editor   |
-| `POST /dashboards/:id/variants`                                                            | new thread from a copy         | editor   |
-| `POST /dashboards/:id/bin`                                                                 | move to bin                    | editor   |
-| `GET /bin`, `POST /bin/:id/restore`                                                        | bin                            | editor   |
-| `DELETE /bin/:id`, `DELETE /bin`                                                           | permanent delete               | admin    |
-| `POST /panels/run`, `POST /variables/options`                                              | run one saved panel, options   | viewer   |
-| `GET /connector-kinds` (with the JSON Schemas of their forms)                              | connector kinds                | admin    |
-| `GET/POST /connectors`, `GET/PATCH/DELETE /connectors/:connectorId`                        | connectors                     | admin    |
-| `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`           | connection test, schema        | admin    |
-| `GET/PUT /settings/:section`                                                               | model, auth, retention, limits | admin    |
-| `POST /settings/model/test`                                                                | gateway capability test        | admin    |
-| `GET /settings/usage?days=`                                                                | usage by hour, from the ledger | admin    |
-| `GET/POST/PATCH /users`                                                                    | local users (basic mode)       | admin    |
+| Method + path                                                                              | Purpose                                      | Min role |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------- | -------- |
+| `GET /health`                                                                              | liveness + version                           | public   |
+| `GET /me`                                                                                  | principal, role, auth mode                   | public   |
+| `POST /auth/login`, `POST /auth/logout`, `GET /auth/oidc/start`, `GET /auth/oidc/callback` | sessions                                     | public   |
+| `GET /threads`, `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id`                 | threads                                      | editor   |
+| `POST /threads/:id/chat`                                                                   | streamed agent run                           | editor   |
+| `POST /threads/:id/plans/:planId/approve` · `/reject`                                      | plan decisions                               | editor   |
+| `POST /threads/:id/start-from` (a pinned dashboard)                                        | draft from a copy, no model                  | editor   |
+| `POST /threads/:id/restore` (a version)                                                    | Undo                                         | editor   |
+| `GET /dashboards` (search: `q`, `tags`)                                                    | library                                      | viewer   |
+| `POST /dashboards` (a spec, becomes draft v1)                                              | create from a spec                           | editor   |
+| `GET /dashboards/:id`, `GET /dashboards/:id/versions/:v` (drafts: editor)                  | spec                                         | viewer   |
+| `POST /dashboards/:id/pin`                                                                 | pin a version                                | editor   |
+| `POST /dashboards/:id/variants`                                                            | new thread from a copy                       | editor   |
+| `POST /dashboards/:id/bin`                                                                 | move to bin                                  | editor   |
+| `GET /bin`, `POST /bin/:id/restore`                                                        | bin                                          | editor   |
+| `DELETE /bin/:id`, `DELETE /bin`                                                           | permanent delete                             | admin    |
+| `POST /panels/run`, `POST /variables/options`                                              | run one saved panel, options                 | viewer   |
+| `GET /connector-kinds` (with the JSON Schemas of their forms)                              | connector kinds                              | admin    |
+| `GET/POST /connectors`, `GET/PATCH/DELETE /connectors/:connectorId`                        | connectors                                   | admin    |
+| `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`           | connection test, schema                      | admin    |
+| `GET/PUT /settings/:section`                                                               | model, auth, retention, limits               | admin    |
+| `POST /settings/model/test`                                                                | gateway capability test                      | admin    |
+| `GET /settings/usage?days=`                                                                | usage by hour, from the ledger               | admin    |
+| `GET /model-providers`                                                                     | the providers a thread may use, without keys | editor   |
+| `GET/POST/PATCH /users`                                                                    | local users (basic mode)                     | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
 so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the
@@ -802,15 +804,25 @@ request → requestId → session cookie? → Principal
 Environment variables handle boot-time concerns. Everything else lives in Settings (SQLite) and
 is editable in the UI.
 
-The model gateway (**Settings → Model**) is a settings section: provider (Anthropic, OpenAI,
-Mistral, or an OpenAI-compatible base URL such as LiteLLM, Ollama or Gemini's OpenAI endpoint), the
-model for each job (plan, build, repair, metadata), the limits of a run and the behaviour switches.
-Choosing a vendor fills in its API's base URL and its starting models; the OpenAI-compatible choice
-offers the common gateways' base URLs. The job fields offer the vendor's current models by name
-(`providerProfiles` in `@querent/shared`), then the rest of the chat models the provider's own
-`/models` API returns (`POST /api/settings/model/models`). A key typed in the form is used for that
-listing, and the stored key only for the provider it was saved for. Its API key is sealed with the
-secret key, bound to `settings.model`, stored apart from the section, and returned masked only.
+The model gateway (**Settings → Model**) is a settings section: the saved providers, the default
+one, the limits of a run and the behaviour switches. Each provider has a name (such as "Mistral
+free"), a vendor (Anthropic, OpenAI, Mistral, or an OpenAI-compatible base URL such as LiteLLM,
+Ollama or Gemini's OpenAI endpoint), its base URL, and the model for each job (plan, build, repair,
+metadata). Choosing a vendor fills in its API's base URL and its starting models; the
+OpenAI-compatible choice offers the common gateways' base URLs. The job fields offer the vendor's
+current models by name (`providerProfiles` in `@querent/shared`), then the rest of the chat models
+the provider's own `/models` API returns (`POST /api/settings/model/models`).
+
+Each provider's API key is sealed with the secret key, bound to `settings.model.<provider id>`,
+stored apart from the section (`model-keys`), and returned masked only. A key typed in the form is
+used for the model listing, and a stored key only for the provider it was saved for. Removing a
+provider drops its key. Settings saved when there was one provider are upgraded on read: it
+becomes the only provider and the default, and its key moves to it.
+
+A thread runs on the provider it was started with (`POST /api/threads` with `providerId`), or on
+the default when it named none or its provider was removed. Editors see the providers' names and
+build models, never their keys (`GET /api/model-providers`). The usage ledger records the
+provider's name, so two setups of the same vendor stay apart.
 
 | Variable             | Default                 | Purpose                                                                |
 | -------------------- | ----------------------- | ---------------------------------------------------------------------- |

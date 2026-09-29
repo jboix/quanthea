@@ -1,198 +1,16 @@
-import { gatewayPresets, type ModelSettings, type ModelSettingsView } from '@querent/shared';
-import { useState } from 'react';
+import type { ModelSettingsView } from '@querent/shared';
 import { Link, type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
-import { CheckIcon, WarningIcon } from '../../ui/icons.tsx';
 import { Input } from '../../ui/input.tsx';
 import { Page } from '../../ui/page.tsx';
-import { RadioCards } from '../../ui/radio-cards.tsx';
 import { Switch } from '../../ui/switch.tsx';
-import type { ModelSettingsIntent, ModelSettingsOutcome, ModelTest } from './data.ts';
+import type { ModelSettingsIntent, ModelSettingsOutcome } from './data.ts';
 import { ModelPicker, useModelList } from './model-picker.tsx';
 import styles from './model-settings.module.css';
 import { useModelSettingsForm } from './model-settings-form.ts';
-
-/** The form state {@link useModelSettingsForm} returns. */
-type Form = ReturnType<typeof useModelSettingsForm>;
-
-/** Props of the sections of the form. */
-interface SectionProps {
-  /** The form state. */
-  readonly form: Form;
-  /** The server's issues by settings path. */
-  readonly issues: Readonly<Record<string, string>>;
-}
-
-/** The provider choices. */
-const providerOptions = [
-  { value: 'anthropic' as const, title: 'Anthropic', description: 'API key' },
-  { value: 'openai' as const, title: 'OpenAI', description: 'API key' },
-  { value: 'mistral' as const, title: 'Mistral', description: 'API key' },
-  {
-    value: 'openai-compatible' as const,
-    title: 'OpenAI-compatible',
-    description: 'LiteLLM, Ollama, OpenRouter, vLLM…',
-  },
-];
-
-/**
- * Describes a test result.
- *
- * @param result - The result.
- * @returns Such as `Reachable · tool calling supported · structured output supported · 812 ms`.
- */
-function testLine(result: ModelTest): string {
-  if (!result.ok) return result.message;
-  const tools = result.toolCalling ? 'tool calling supported' : 'no tool calling';
-  const structured = result.structuredOutput
-    ? 'structured output supported'
-    : 'no structured output';
-  return `Reachable · ${tools} · ${structured} · ${Math.round(result.latencyMs)} ms`;
-}
-
-/**
- * What the test line shows.
- *
- * @param result - The last result, if any.
- * @param testing - Whether a test is running.
- * @param dirty - Whether the form has unsaved changes.
- * @returns The tone and the words.
- */
-function testState(result: ModelTest | undefined, testing: boolean, dirty: boolean) {
-  if (testing) return { tone: 'idle', line: 'Testing…' };
-  if (result)
-    return { tone: result.ok && result.toolCalling ? 'ok' : 'failed', line: testLine(result) };
-  return { tone: 'idle', line: dirty ? 'Save to test these settings.' : 'Not tested yet.' };
-}
-
-/**
- * The connection test: its last result and the button that runs it on the saved settings.
- *
- * @param props - Whether the form has unsaved changes.
- * @param props.dirty - Whether the form differs from the saved settings.
- * @returns The test line.
- */
-function ConnectionTest({ dirty }: { readonly dirty: boolean }) {
-  const fetcher = useFetcher<ModelSettingsOutcome>();
-  const result = fetcher.data?.intent === 'test' ? fetcher.data.result : undefined;
-  const testing = fetcher.state !== 'idle';
-  const intent: ModelSettingsIntent = { intent: 'test' };
-  const run = () =>
-    void fetcher.submit(intent as SubmitTarget, { method: 'post', encType: 'application/json' });
-  const { tone, line } = testState(result, testing, dirty);
-  return (
-    <div className={styles.test} data-tone={tone} role="status">
-      {tone === 'ok' && <CheckIcon />}
-      {tone === 'failed' && <WarningIcon />}
-      <span className={styles.testLine}>{line}</span>
-      <Button size="small" onClick={run} disabled={testing || dirty}>
-        {result ? 'Test again' : 'Test'}
-      </Button>
-    </div>
-  );
-}
-
-/**
- * The API key: the stored one masked, with Replace, or a field for a new one.
- *
- * @param props - The form, the stored key and the issues.
- * @param props.stored - The stored key, masked, or `null`.
- * @returns The key field.
- */
-function ApiKeyField({ form, stored, issues }: SectionProps & { readonly stored: string | null }) {
-  const [replacing, setReplacing] = useState(stored === null);
-  if (!replacing && stored !== null) {
-    return (
-      <div className={styles.keyRow}>
-        <Input label="API key" mono readOnly value={stored} />
-        <Button onClick={() => setReplacing(true)}>Replace</Button>
-      </div>
-    );
-  }
-  return (
-    <Input
-      label="API key"
-      mono
-      type="password"
-      autoComplete="new-password"
-      placeholder={
-        form.settings.provider === 'openai-compatible'
-          ? 'If the gateway asks for one'
-          : 'Paste the key'
-      }
-      value={form.apiKey ?? ''}
-      onChange={(event) =>
-        form.setApiKey(event.target.value === '' ? undefined : event.target.value)
-      }
-      error={issues.apiKey}
-    />
-  );
-}
-
-/**
- * The base URL: the provider's own API, filled in, or a gateway's, with the common ones a click
- * away.
- *
- * @param props - The form and the issues.
- * @returns The field, and the gateway presets for an OpenAI-compatible provider.
- */
-function BaseUrlField({ form, issues }: SectionProps) {
-  const compatible = form.settings.provider === 'openai-compatible';
-  return (
-    <div className={styles.baseUrl}>
-      <Input
-        label="Base URL"
-        mono
-        autoComplete="off"
-        placeholder={compatible ? 'http://localhost:4000/v1' : 'The provider’s own API'}
-        value={form.settings.baseUrl ?? ''}
-        onChange={(event) =>
-          form.set('baseUrl', event.target.value === '' ? null : event.target.value)
-        }
-        error={issues.baseUrl}
-      />
-      {compatible && (
-        <div className={styles.presets}>
-          {gatewayPresets.map((preset) => (
-            <Button
-              key={preset.name}
-              size="small"
-              onClick={() => form.set('baseUrl', preset.baseUrl)}
-            >
-              {preset.name}
-            </Button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * The provider card: the provider, where it is, the key and the connection test.
- *
- * @param props - The form, the stored key and the issues.
- * @param props.stored - The stored key, masked, or `null`.
- * @returns The card.
- */
-function ProviderCard({ form, stored, issues }: SectionProps & { readonly stored: string | null }) {
-  return (
-    <Card title="Provider">
-      <RadioCards
-        label="Provider"
-        options={providerOptions}
-        value={form.settings.provider}
-        onChange={form.chooseProvider}
-      />
-      <div className={styles.pair}>
-        <BaseUrlField form={form} issues={issues} />
-        <ApiKeyField form={form} stored={stored} issues={issues} />
-      </div>
-      <ConnectionTest dirty={form.dirty} />
-    </Card>
-  );
-}
+import { type Form, ProviderCard, type SectionProps } from './provider-card.tsx';
+import { ProvidersCard } from './providers-card.tsx';
 
 /** The jobs, in the order the card lists them. */
 const jobs = [
@@ -209,7 +27,8 @@ const jobs = [
  * @returns The card.
  */
 function JobsCard({ form, issues }: SectionProps) {
-  const list = useModelList(form.settings.provider, form.settings.baseUrl, form.apiKey);
+  const { provider, baseUrl } = form.settings;
+  const list = useModelList(provider, baseUrl, form.apiKey, form.selected?.id ?? '');
   return (
     <Card
       title="Model for each job"
@@ -346,11 +165,10 @@ function useSave(form: Form) {
   const fetcher = useFetcher<ModelSettingsOutcome>();
   const outcome = fetcher.data?.intent === 'save' && !fetcher.data.ok ? fetcher.data : undefined;
   const save = () => {
-    const key = form.apiKey ? { apiKey: form.apiKey } : {};
     const intent: ModelSettingsIntent = {
       intent: 'save',
-      settings: form.settings as ModelSettings,
-      ...key,
+      gateway: form.gateway,
+      apiKeys: form.apiKeys,
     };
     void fetcher.submit(intent as SubmitTarget, { method: 'post', encType: 'application/json' });
   };
@@ -363,6 +181,21 @@ function useSave(form: Form) {
 }
 
 /**
+ * The issues under a path, keyed by the rest of their path.
+ *
+ * @param issues - The issues by full path.
+ * @param prefix - Such as `providers.1.`.
+ * @returns The issues under it, such as `baseUrl`.
+ */
+function issuesUnder(issues: Readonly<Record<string, string>>, prefix: string) {
+  return Object.fromEntries(
+    Object.entries(issues).flatMap(([path, message]) =>
+      path.startsWith(prefix) ? [[path.slice(prefix.length), message]] : [],
+    ),
+  );
+}
+
+/**
  * The form, reset whenever the saved settings change.
  *
  * @param props - The saved view.
@@ -370,13 +203,20 @@ function useSave(form: Form) {
  * @returns The form.
  */
 function ModelSettingsForm({ view }: { readonly view: ModelSettingsView }) {
-  const form = useModelSettingsForm(view.settings);
+  const form = useModelSettingsForm(view.gateway);
   const { save, saving, message, issues } = useSave(form);
+  const selected = form.gateway.providers.findIndex((config) => config.id === form.selected?.id);
+  const providerIssues = issuesUnder(issues, `providers.${selected}.`);
   return (
     <div className={styles.layout}>
       <div className={styles.main}>
-        <ProviderCard form={form} stored={view.apiKey} issues={issues} />
-        <JobsCard form={form} issues={issues} />
+        <ProvidersCard form={form} keys={view.keys} />
+        <ProviderCard
+          form={form}
+          stored={view.keys[form.selected?.id ?? ''] ?? null}
+          issues={providerIssues}
+        />
+        <JobsCard form={form} issues={providerIssues} />
         <BehaviourCard form={form} issues={issues} />
         <div className={styles.saveBar}>
           <Button variant="primary" onClick={save} disabled={!form.dirty || saving}>
@@ -409,7 +249,7 @@ export function ModelSettingsScreen() {
       title="Model"
       subtitle="Bring your own key or point at your own gateway. Pinned dashboards never use it."
     >
-      <ModelSettingsForm key={JSON.stringify([view.settings, view.apiKey])} view={view} />
+      <ModelSettingsForm key={JSON.stringify([view.gateway, view.keys])} view={view} />
     </Page>
   );
 }

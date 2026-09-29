@@ -43,16 +43,22 @@ function mountThreadRoutes(app: Hono<AppEnv>, services: ThreadRouteServices): vo
   mountEndpoint(app, listThreadsEndpoint, { access: 'editor', handle: () => threads.list() });
   mountEndpoint(app, createThreadEndpoint, {
     access: 'editor',
-    handle: ({ principal }) => threads.create(actorOf(principal)),
+    handle: ({ body, principal }) => {
+      const known = services.modelSettings.gateway().providers.map((config) => config.id);
+      if (body.providerId !== undefined && !known.includes(body.providerId))
+        throw new AppError('bad_request', `No model provider "${body.providerId}".`);
+      return threads.create(actorOf(principal), body.providerId);
+    },
   });
   mountEndpoint(app, getThreadEndpoint, {
     access: 'editor',
     handle: async ({ params }) => {
-      const { settings } = await services.modelSettings.resolve();
+      const thread = threads.get(params.threadId);
+      const { settings, providerName } = await services.modelSettings.resolve(thread.providerId);
       const connectors = services.modelView
         .connectors()
         .map(({ name, accessLevel }) => ({ name, accessLevel }));
-      return { ...threads.get(params.threadId), model: settings.models.build, connectors };
+      return { ...thread, model: settings.models.build, providerName, connectors };
     },
   });
   mountEndpoint(app, deleteThreadEndpoint, {

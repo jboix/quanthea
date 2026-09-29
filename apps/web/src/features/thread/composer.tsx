@@ -128,7 +128,7 @@ function useComposer(props: ComposerProps) {
 function ComposerBar({ model, access, running, draft, onStop }: ComposerProps) {
   return (
     <div className={styles.bar}>
-      <span className={styles.chip}>{model} · via gateway</span>
+      <span className={styles.chip}>{model}</span>
       <span className={styles.chip}>Access: {access}</span>
       {running ? (
         <button type="button" className={styles.send} aria-label="Stop" onClick={onStop}>

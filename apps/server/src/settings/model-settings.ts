@@ -1,103 +1,202 @@
 /**
- * The model gateway settings: read and saved as a settings section, with the API key sealed in a
- * section of its own and never returned.
+ * The model gateway settings: the saved providers, the default one, the limits and the behaviour.
+ * Each provider's API key is sealed for that provider and never returned, only masked.
  */
-import type { ModelSettings, ModelSettingsView } from '@querent/shared';
+import {
+  type ModelGateway,
+  type ModelSettings,
+  type ModelSettingsView,
+  providerFor,
+  settingsFor,
+} from '@querent/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import { maskSecret } from '../secrets/mask.ts';
 import type { SecretBox } from '../secrets/secret-box.ts';
 import type { SettingsStore } from './settings-store.ts';
 
-/** The owner the API key is sealed for, so the sealed value cannot be moved elsewhere. */
-const keyOwner = 'settings.model';
+/** The owner the single key saved before there were several providers was sealed for. */
+const legacyOwner = 'settings.model';
 
-/** The settings and the key, as the agent uses them. */
+/**
+ * The owner a provider's key is sealed for, so a sealed key cannot move to another provider.
+ *
+ * @param providerId - The provider.
+ * @returns The owner.
+ */
+function ownerOf(providerId: string): string {
+  return `settings.model.${providerId}`;
+}
+
+/** The settings and the key a run uses. */
 export interface ResolvedModelSettings {
-  /** The settings. */
+  /** The provider's settings, with the shared limits and behaviour. */
   readonly settings: ModelSettings;
-  /** The API key, or `null` when none is stored. */
+  /** The provider's API key, or `null` when none is stored. */
   readonly apiKey: string | null;
+  /** The provider's id. */
+  readonly providerId: string;
+  /** The provider's name. */
+  readonly providerName: string;
 }
 
 /** What the model settings need. */
 export interface ModelSettingsDependencies {
   /** The settings store. */
   readonly store: SettingsStore;
-  /** Seals the API key. */
+  /** Seals the API keys. */
   readonly secretBox: SecretBox;
   /** Records who changed the settings. */
   readonly audit: AuditRepository;
-  /** The tokens and threads spent this month. */
+  /** This month's usage, from the ledger. */
   readonly usage: () => ModelSettingsView['usage'];
 }
 
 /** The model settings. */
 export interface ModelSettingsService {
   /**
-   * Reads the settings for the admin screen.
+   * The settings as an admin sees them: each key masked.
    *
-   * @returns The settings, the masked key and this month's usage.
+   * @returns The gateway, the masked keys and this month's usage.
    */
   view(): Promise<ModelSettingsView>;
   /**
-   * Saves the settings.
+   * Saves the gateway and any new keys. The keys of removed providers go with them.
    *
-   * @param settings - The new settings.
-   * @param apiKey - A new API key, or `undefined` to keep the stored one.
-   * @param actor - Who saves them.
+   * @param gateway - The gateway.
+   * @param apiKeys - New keys by provider id.
+   * @param actor - Who saves.
    * @returns The saved view.
    */
   save(
-    settings: ModelSettings,
-    apiKey: string | undefined,
+    gateway: ModelGateway,
+    apiKeys: Readonly<Record<string, string>>,
     actor: string,
   ): Promise<ModelSettingsView>;
   /**
-   * The settings with the key opened, for the agent and the connection test.
+   * The settings and key of a provider: the one named, or the default.
    *
-   * @returns The settings and the key.
+   * @param providerId - The provider, if any.
+   * @returns The resolved settings.
    */
-  resolve(): Promise<ResolvedModelSettings>;
+  resolve(providerId?: string | null): Promise<ResolvedModelSettings>;
+  /**
+   * The saved gateway, keys aside.
+   *
+   * @returns The gateway.
+   */
+  gateway(): ModelGateway;
 }
 
 /**
- * Encodes sealed bytes for the settings store.
+ * Encodes bytes as base64.
  *
- * @param bytes - The sealed bytes.
- * @returns Base64.
+ * @param bytes - The bytes.
+ * @returns The base64 text.
  */
 function toBase64(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString('base64');
 }
 
 /**
- * Creates the service.
+ * Moves the key saved before there were several providers to the default provider, which is the
+ * provider the old settings became. Does nothing once moved.
+ *
+ * @param dependencies - The store and the secret box.
+ */
+async function moveLegacyKey(dependencies: ModelSettingsDependencies): Promise<void> {
+  const { store, secretBox } = dependencies;
+  const { sealed } = store.read('model-key');
+  if (sealed === null) return;
+  const key = await secretBox.open(Buffer.from(sealed, 'base64'), legacyOwner);
+  const target = store.read('model').defaultProviderId;
+  const keys = store.read('model-keys').sealed;
+  const moved = keys[target] ?? toBase64(await secretBox.seal(key, ownerOf(target)));
+  store.write('model-keys', { sealed: { ...keys, [target]: moved } });
+  store.write('model-key', { sealed: null });
+}
+
+/**
+ * Opens a provider's key.
+ *
+ * @param dependencies - The store and the secret box.
+ * @param providerId - The provider.
+ * @returns The key, or `null` when none is stored.
+ */
+async function keyOf(dependencies: ModelSettingsDependencies, providerId: string) {
+  const sealed = dependencies.store.read('model-keys').sealed[providerId];
+  if (sealed === undefined) return null;
+  return dependencies.secretBox.open(Buffer.from(sealed, 'base64'), ownerOf(providerId));
+}
+
+/**
+ * The keys after a save: new ones sealed, removed providers' dropped, the others kept.
+ *
+ * @param dependencies - The store and the secret box.
+ * @param gateway - The saved gateway.
+ * @param apiKeys - New keys by provider id.
+ * @returns The sealed keys by provider id.
+ */
+async function savedKeys(
+  dependencies: ModelSettingsDependencies,
+  gateway: ModelGateway,
+  apiKeys: Readonly<Record<string, string>>,
+): Promise<Record<string, string>> {
+  const before = dependencies.store.read('model-keys').sealed;
+  const keys: Record<string, string> = {};
+  for (const { id } of gateway.providers) {
+    const typed = apiKeys[id];
+    const sealed = typed
+      ? toBase64(await dependencies.secretBox.seal(typed, ownerOf(id)))
+      : before[id];
+    if (sealed !== undefined) keys[id] = sealed;
+  }
+  return keys;
+}
+
+/**
+ * The settings as an admin sees them.
+ *
+ * @param dependencies - The store, the secret box and the usage.
+ * @returns The view.
+ */
+async function viewOf(dependencies: ModelSettingsDependencies): Promise<ModelSettingsView> {
+  await moveLegacyKey(dependencies);
+  const gateway = dependencies.store.read('model');
+  const keys: Record<string, string | null> = {};
+  for (const { id } of gateway.providers) {
+    const key = await keyOf(dependencies, id);
+    keys[id] = key === null ? null : maskSecret(key);
+  }
+  return { gateway, keys, usage: dependencies.usage() };
+}
+
+/**
+ * Creates the model settings service.
  *
  * @param dependencies - The store, the secret box, the audit log and the usage reader.
  * @returns The service.
  */
 export function createModelSettings(dependencies: ModelSettingsDependencies): ModelSettingsService {
-  const { store, secretBox, audit, usage } = dependencies;
-  const resolve = async (): Promise<ResolvedModelSettings> => {
-    const { sealed } = store.read('model-key');
-    const apiKey =
-      sealed === null ? null : await secretBox.open(Buffer.from(sealed, 'base64'), keyOwner);
-    return { settings: store.read('model'), apiKey };
-  };
-  const view = async (): Promise<ModelSettingsView> => {
-    const { settings, apiKey } = await resolve();
-    return { settings, apiKey: apiKey === null ? null : maskSecret(apiKey), usage: usage() };
-  };
+  const { store, audit } = dependencies;
   return {
-    view,
-    resolve,
-    async save(settings, apiKey, actor) {
-      store.write('model', settings);
-      if (apiKey !== undefined)
-        store.write('model-key', { sealed: toBase64(await secretBox.seal(apiKey, keyOwner)) });
-      const detail = { provider: settings.provider, keyChanged: apiKey !== undefined };
+    view: () => viewOf(dependencies),
+    gateway: () => store.read('model'),
+    async resolve(providerId) {
+      await moveLegacyKey(dependencies);
+      const gateway = store.read('model');
+      const config = providerFor(gateway, providerId);
+      const apiKey = await keyOf(dependencies, config.id);
+      const settings = settingsFor(gateway, config.id);
+      return { settings, apiKey, providerId: config.id, providerName: config.name };
+    },
+    async save(gateway, apiKeys, actor) {
+      await moveLegacyKey(dependencies);
+      const keys = await savedKeys(dependencies, gateway, apiKeys);
+      store.write('model', gateway);
+      store.write('model-keys', { sealed: keys });
+      const detail = { providers: gateway.providers.length, keysChanged: Object.keys(apiKeys) };
       audit.append({ actor, action: 'settings.model', detail });
-      return view();
+      return viewOf(dependencies);
     },
   };
 }

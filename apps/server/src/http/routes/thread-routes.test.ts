@@ -78,6 +78,14 @@ describe('thread routes', () => {
     expect((await call('GET', `/api/threads/${id}`)).status).toBe(404);
   });
 
+  test('start a thread on a provider, and refuse one that does not exist', async () => {
+    const call = client(editor);
+    const created = await call('POST', '/api/threads', { providerId: 'anthropic' });
+    expect(threadSummarySchema.parse(created.body).providerId).toBe('anthropic');
+    const unknown = await call('POST', '/api/threads', { providerId: 'nope' });
+    expect(unknown.status).toBe(400);
+  });
+
   test('start a draft from a pinned dashboard, once, with no model', async () => {
     const events = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
     await fixture.connections.create(connectorInputSchema.parse(events), 'admin-1');

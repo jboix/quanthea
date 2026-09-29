@@ -53,9 +53,12 @@ export { meEndpoint } from './api/me.ts';
 export {
   getModelSettingsEndpoint,
   listModelsEndpoint,
+  listProviderChoicesEndpoint,
   type ModelSettingsView,
   modelSettingsViewSchema,
   modelTestSchema,
+  type ProviderChoice,
+  providerChoiceSchema,
   saveModelSettingsEndpoint,
   testModelSettingsEndpoint,
 } from './api/model-settings.ts';
@@ -129,11 +132,18 @@ export {
   providerProfiles,
 } from './model-providers.ts';
 export {
+  defaultModelGateway,
   defaultModelSettings,
+  type ModelGateway,
   type ModelProvider,
   type ModelSettings,
+  modelGatewaySchema,
   modelProviders,
   modelSettingsSchema,
+  type ProviderConfig,
+  providerConfigSchema,
+  providerFor,
+  settingsFor,
 } from './model-settings.ts';
 export {
   addUsage,

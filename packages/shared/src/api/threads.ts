@@ -11,6 +11,8 @@ export const threadSummarySchema = z.object({
   state: z.enum(threadStates),
   dashboardId: z.string().nullable(),
   tokensUsed: z.number(),
+  /** The model provider it uses; `null` for the default. */
+  providerId: z.string().nullable(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -25,6 +27,8 @@ export const threadDetailSchema = threadSummarySchema.extend({
   plans: z.array(planViewSchema),
   /** The model that builds, such as `claude-sonnet-5`, for the composer's chip. */
   model: z.string(),
+  /** The name of the provider the thread uses, such as `Mistral free`. */
+  providerName: z.string(),
   /** The connectors and their access levels, for the composer's chip. */
   connectors: z.array(z.object({ name: z.string(), accessLevel: accessLevelSchema })),
 });
@@ -49,7 +53,7 @@ export const listThreadsEndpoint = defineEndpoint({
 export const createThreadEndpoint = defineEndpoint({
   method: 'POST',
   path: '/threads',
-  body: z.object({}),
+  body: z.object({ providerId: z.string().max(40).optional() }),
   output: threadSummarySchema,
 });
 

@@ -1,19 +1,20 @@
 import { describe, expect, test } from 'bun:test';
-import { defaultModelSettings } from '@querent/shared';
+import { defaultModelGateway, defaultModelSettings, type ModelGateway } from '@querent/shared';
 import type { AuditEntry } from '../db/audit-repository.ts';
 import { createSecretBox } from '../secrets/secret-box.ts';
 import { createModelSettings } from './model-settings.ts';
 import { createSettingsStore } from './settings-store.ts';
 
 const apiKey = 'sk-ant-a-long-key-that-must-never-leak-9f2a';
+const usage = { tokens: 1200, threads: 2, pinnedViews: 3, dollars: 0.01 };
 
 /**
  * The service over an in-memory settings repository.
  *
- * @returns The service, the stored rows and the audit entries.
+ * @param rows - Rows already stored, if any.
+ * @returns The service, the stored rows, the audit entries and the secret box.
  */
-async function modelSettings() {
-  const rows = new Map<string, string>();
+async function modelSettings(rows = new Map<string, string>()) {
   const store = createSettingsStore({
     read: (key) => rows.get(key),
     write: (key, value) => void rows.set(key, value),
@@ -22,38 +23,89 @@ async function modelSettings() {
     'encrypt',
     'decrypt',
   ]);
+  const secretBox = createSecretBox(key);
   const entries: AuditEntry[] = [];
   const service = createModelSettings({
     store,
-    secretBox: createSecretBox(key),
+    secretBox,
     audit: { append: (entry) => void entries.push(entry) },
-    usage: () => ({ tokens: 1200, threads: 2, pinnedViews: 3, dollars: 0.01 }),
+    usage: () => usage,
   });
-  return { service, rows, entries };
+  return { service, rows, entries, secretBox };
 }
 
+/** A gateway with a second provider, Mistral, as the default. */
+const twoProviders: ModelGateway = {
+  ...defaultModelGateway,
+  providers: [
+    ...defaultModelGateway.providers,
+    {
+      id: 'mistral-free',
+      name: 'Mistral free',
+      provider: 'mistral',
+      baseUrl: null,
+      models: { plan: '', build: 'mistral-large-latest', repair: '', metadata: '' },
+    },
+  ],
+  defaultProviderId: 'mistral-free',
+};
+
 describe('model settings', () => {
-  test('start from the defaults with no key', async () => {
+  test('start from one Anthropic provider with no key', async () => {
     const { service } = await modelSettings();
     expect(await service.view()).toEqual({
+      gateway: defaultModelGateway,
+      keys: { anthropic: null },
+      usage,
+    });
+    expect(await service.resolve()).toEqual({
       settings: defaultModelSettings,
       apiKey: null,
-      usage: { tokens: 1200, threads: 2, pinnedViews: 3, dollars: 0.01 },
+      providerId: 'anthropic',
+      providerName: 'Anthropic',
     });
-    expect(await service.resolve()).toEqual({ settings: defaultModelSettings, apiKey: null });
   });
 
-  test('seal the key, return it masked, and keep it when a save leaves it out', async () => {
+  test('keep a sealed key per provider, masked, and resolve a thread’s provider', async () => {
     const { service, rows, entries } = await modelSettings();
-    const saved = await service.save(defaultModelSettings, apiKey, 'admin-1');
-    expect(saved.apiKey).toBe('••••••••9f2a');
+    const saved = await service.save(twoProviders, { 'mistral-free': apiKey }, 'admin-1');
+    expect(saved.keys).toEqual({ anthropic: null, 'mistral-free': '••••••••9f2a' });
     expect([...rows.values()].join('')).not.toContain(apiKey);
-    const changed = { ...defaultModelSettings, provider: 'openai' as const };
-    expect((await service.save(changed, undefined, 'admin-1')).apiKey).toBe('••••••••9f2a');
-    expect(await service.resolve()).toEqual({ settings: changed, apiKey });
+    expect(await service.resolve()).toMatchObject({
+      settings: { provider: 'mistral', models: { build: 'mistral-large-latest' } },
+      apiKey,
+      providerName: 'Mistral free',
+    });
+    expect(await service.resolve('anthropic')).toMatchObject({
+      apiKey: null,
+      providerId: 'anthropic',
+    });
+    expect(await service.resolve('removed')).toMatchObject({ providerId: 'mistral-free' });
     expect(entries.map((entry) => entry.detail)).toEqual([
-      { provider: 'anthropic', keyChanged: true },
-      { provider: 'openai', keyChanged: false },
+      { providers: 2, keysChanged: ['mistral-free'] },
     ]);
+  });
+
+  test('drop a removed provider’s key', async () => {
+    const { service } = await modelSettings();
+    await service.save(twoProviders, { 'mistral-free': apiKey }, 'admin-1');
+    const back = { ...defaultModelGateway };
+    expect((await service.save(back, {}, 'admin-1')).keys).toEqual({ anthropic: null });
+    expect((await service.save(twoProviders, {}, 'admin-1')).keys['mistral-free']).toBeNull();
+  });
+
+  test('upgrade settings saved with one provider, and move its key', async () => {
+    const legacy = { ...defaultModelSettings, provider: 'mistral' as const };
+    const rows = new Map([['model', JSON.stringify(legacy)]]);
+    const { service, secretBox } = await modelSettings(rows);
+    const sealed = Buffer.from(await secretBox.seal(apiKey, 'settings.model')).toString('base64');
+    rows.set('model-key', JSON.stringify({ sealed }));
+    const view = await service.view();
+    expect(view.gateway.providers).toEqual([
+      { id: 'mistral', name: 'Mistral', provider: 'mistral', baseUrl: null, models: legacy.models },
+    ]);
+    expect(view.keys).toEqual({ mistral: '••••••••9f2a' });
+    expect((await service.resolve()).apiKey).toBe(apiKey);
+    expect(JSON.parse(rows.get('model-key') ?? '{}')).toEqual({ sealed: null });
   });
 });

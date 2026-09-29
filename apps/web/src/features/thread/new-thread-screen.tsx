@@ -1,7 +1,14 @@
-import type { ThreadSummary } from '@querent/shared';
-import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import type { ProviderChoice } from '@querent/shared';
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { type SubmitTarget, useLoaderData, useSubmit } from 'react-router';
-import type { NewThreadIntent } from './data.ts';
+import type { NewThreadData, NewThreadIntent } from './data.ts';
 import { HistoryMenu } from './history-menu.tsx';
 import styles from './new-thread.module.css';
 
@@ -9,9 +16,10 @@ import styles from './new-thread.module.css';
  * The question box's behaviour: Enter sends, Shift+Enter breaks the line, and a sent question
  * stays on screen while the thread starts.
  *
+ * @param providerId - The provider the thread starts on.
  * @returns The text, its setter, the question sent (if any), and the handlers.
  */
-function useAsk() {
+function useAsk(providerId: string) {
   const [question, setQuestion] = useState('');
   const [sent, setSent] = useState<string | undefined>(undefined);
   const submit = useSubmit();
@@ -20,7 +28,7 @@ function useAsk() {
     const text = question.trim();
     if (text === '' || sent !== undefined) return;
     setSent(text);
-    const intent: NewThreadIntent = { intent: 'start', question: text };
+    const intent: NewThreadIntent = { intent: 'start', question: text, providerId };
     void submit(intent as SubmitTarget, {
       method: 'post',
       encType: 'application/json',
@@ -35,13 +43,54 @@ function useAsk() {
 }
 
 /**
+ * The provider a new thread starts on, when there is more than one.
+ *
+ * @param props - The providers, the one chosen, and the change callback.
+ * @param props.providers - The providers.
+ * @param props.value - The chosen provider's id.
+ * @param props.onChange - Called with another provider's id.
+ * @returns The menu.
+ */
+function ProviderMenu({
+  providers,
+  value,
+  onChange,
+}: {
+  readonly providers: readonly ProviderChoice[];
+  readonly value: string;
+  readonly onChange: (id: string) => void;
+}) {
+  return (
+    <select
+      className={styles.provider}
+      aria-label="Model provider"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {providers.map((provider) => (
+        <option key={provider.id} value={provider.id}>
+          {provider.name} · {provider.buildModel}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/**
  * The question box, in the middle of the screen.
  *
  * @param props - The box's state.
  * @param props.ask - What {@link useAsk} returns.
+ * @param props.choice - The provider menu, when there is a choice.
  * @returns The form.
  */
-function AskForm({ ask }: { readonly ask: ReturnType<typeof useAsk> }) {
+function AskForm({
+  ask,
+  choice,
+}: {
+  readonly ask: ReturnType<typeof useAsk>;
+  readonly choice: ReactNode;
+}) {
   const input = useRef<HTMLTextAreaElement>(null);
   useEffect(() => input.current?.focus(), []);
   return (
@@ -57,6 +106,7 @@ function AskForm({ ask }: { readonly ask: ReturnType<typeof useAsk> }) {
         onKeyDown={ask.onKeyDown}
       />
       <div className={styles.bar}>
+        {choice}
         <span className={styles.hint}>Enter to send · Shift+Enter for a new line</span>
         <button
           type="submit"
@@ -96,8 +146,13 @@ function Sent({ question }: { readonly question: string }) {
  * @returns The screen.
  */
 export function NewThreadScreen() {
-  const threads = useLoaderData() as readonly ThreadSummary[];
-  const ask = useAsk();
+  const { threads, providers, defaultProviderId } = useLoaderData() as NewThreadData;
+  const [providerId, setProviderId] = useState(defaultProviderId);
+  const ask = useAsk(providerId);
+  const choice =
+    providers.length > 1 ? (
+      <ProviderMenu providers={providers} value={providerId} onChange={setProviderId} />
+    ) : null;
   return (
     <div className={styles.screen}>
       <header className={styles.top}>
@@ -105,7 +160,11 @@ export function NewThreadScreen() {
       </header>
       <div className={styles.center}>
         <h1 className={styles.heading}>What do you want to see?</h1>
-        {ask.sent === undefined ? <AskForm ask={ask} /> : <Sent question={ask.sent} />}
+        {ask.sent === undefined ? (
+          <AskForm ask={ask} choice={choice} />
+        ) : (
+          <Sent question={ask.sent} />
+        )}
         <p className={styles.note}>
           The agent explores your connectors, proposes a plan, then builds a live dashboard you can
           refine and pin.

@@ -132,8 +132,9 @@ function titleOf(message: z.infer<typeof incomingSchema>): string {
  * @returns The model of each job, and the settings.
  * @throws {AppError} `bad_request` when no model can be built, such as without a key.
  */
-async function modelsFor(dependencies: AgentDependencies) {
-  const resolved = await dependencies.modelSettings.resolve();
+async function modelsFor(dependencies: AgentDependencies, threadId: string) {
+  const { providerId } = dependencies.threads.row(threadId);
+  const resolved = await dependencies.modelSettings.resolve(providerId);
   const build = dependencies.buildModel ?? languageModel;
   const built = new Map<ModelJob, LanguageModel>();
   const modelOf: ModelOf = (job) => {
@@ -147,7 +148,7 @@ async function modelsFor(dependencies: AgentDependencies) {
     if (error instanceof ModelUnavailableError) throw new AppError('bad_request', error.message);
     throw error;
   }
-  return { modelOf, settings: resolved.settings };
+  return { modelOf, settings: resolved.settings, providerName: resolved.providerName };
 }
 
 /**
@@ -186,6 +187,8 @@ interface PreparedTurn {
   readonly modelOf: ModelOf;
   /** The model settings. */
   readonly settings: RunContext['settings'];
+  /** The name of the thread's provider, for the usage ledger. */
+  readonly providerName: string;
   /** The conversation, validated. */
   readonly messages: ThreadMessage[];
   /** The panels the new message mentions, and the person's time zone. */
@@ -205,13 +208,14 @@ async function prepare(
   dependencies: AgentDependencies,
   request: ChatRequest,
 ): Promise<PreparedTurn> {
-  const { modelOf, settings } = await modelsFor(dependencies);
+  const { modelOf, settings, providerName } = await modelsFor(dependencies, request.threadId);
   const { history, hints, plans } = accept(dependencies, request, settings.limits.threadTokens);
   const validated = await validateUIMessages<ThreadMessage>({
     messages: history,
     dataSchemas: threadDataSchemas,
   });
-  return { modelOf, settings, messages: withPlanDecisions(validated, plans), hints, plans };
+  const messages = withPlanDecisions(validated, plans);
+  return { modelOf, settings, providerName, messages, hints, plans };
 }
 
 /**
@@ -240,7 +244,8 @@ function runContext(
     usage: startingUsage(turn.messages, continuing),
   };
   const { threadId, actor, signal } = request;
-  return { ...dependencies, threadId, actor, settings: turn.settings, writer, signal, counters };
+  const { settings, providerName } = turn;
+  return { ...dependencies, threadId, actor, settings, providerName, writer, signal, counters };
 }
 
 /**

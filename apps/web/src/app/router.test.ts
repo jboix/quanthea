@@ -45,6 +45,12 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'POST /panels/run': { time: { from: 0, to: 1 }, queries: [], markers: [], durationMs: 1 },
   'POST /variables/options': { options: [] },
   'GET /threads': [],
+  'GET /model-providers': {
+    providers: [
+      { id: 'anthropic', name: 'Anthropic', provider: 'anthropic', buildModel: 'claude-sonnet-5' },
+    ],
+    defaultProviderId: 'anthropic',
+  },
   'GET /threads/:threadId': {
     id: 'sample-threadId',
     title: null,
@@ -55,19 +61,28 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
     updatedAt: 1,
     messages: [],
     plans: [],
+    providerId: null,
     model: 'claude-sonnet-5',
+    providerName: 'Anthropic',
     connectors: [],
   },
   'GET /settings/usage': { from: 0, to: 1, pricesCheckedOn: '2026-09-29', buckets: [] },
   'GET /settings/model': {
-    settings: {
-      provider: 'anthropic',
-      baseUrl: null,
-      models: { build: 'claude-sonnet-5', repair: '', metadata: '' },
+    gateway: {
+      providers: [
+        {
+          id: 'anthropic',
+          name: 'Anthropic',
+          provider: 'anthropic',
+          baseUrl: null,
+          models: { plan: '', build: 'claude-sonnet-5', repair: '', metadata: '' },
+        },
+      ],
+      defaultProviderId: 'anthropic',
       limits: { threadTokens: 200_000, toolCallsPerTurn: 25, repairAttempts: 3 },
-      behaviour: { planApproval: true, testRun: true },
+      behaviour: { planApproval: true, testRun: true, shortReasoning: true },
     },
-    apiKey: null,
+    keys: { anthropic: null },
     usage: { tokens: 0, threads: 0, pinnedViews: 0, dollars: 0 },
   },
 };

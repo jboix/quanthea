@@ -27,6 +27,8 @@ export interface RunContext extends AgentServices {
   readonly threadId: string;
   /** Who asked: recorded on the versions the run writes. */
   readonly actor: string;
+  /** The name of the thread's model provider, for the usage ledger. */
+  readonly providerName: string;
   /** The model settings, for the limits and the behaviour. */
   readonly settings: ModelSettings;
   /** Streams custom parts: plan cards, new versions, diffs. */

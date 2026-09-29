@@ -24,12 +24,14 @@ export interface ModelList {
  * @param provider - The provider.
  * @param baseUrl - The base URL, or `null`.
  * @param apiKey - A key typed but not saved yet, if any.
+ * @param providerId - The saved provider being edited, whose stored key may be used.
  * @returns The list.
  */
 export function useModelList(
   provider: ModelProvider,
   baseUrl: string | null,
   apiKey: string | undefined,
+  providerId: string,
 ): ModelList {
   const fetcher = useFetcher<ModelSettingsOutcome>();
   const { submit } = fetcher;
@@ -38,6 +40,7 @@ export function useModelList(
       intent: 'models',
       provider,
       baseUrl,
+      providerId,
       ...(apiKey ? { apiKey } : {}),
     };
     const timer = setTimeout(
@@ -45,7 +48,7 @@ export function useModelList(
       400,
     );
     return () => clearTimeout(timer);
-  }, [submit, provider, baseUrl, apiKey]);
+  }, [submit, provider, baseUrl, apiKey, providerId]);
   const data = fetcher.data?.intent === 'models' ? fetcher.data : undefined;
   return {
     known: providerProfiles[provider].models,

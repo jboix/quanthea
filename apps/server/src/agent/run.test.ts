@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { connectorInputSchema, defaultModelSettings, type Plan } from '@querent/shared';
+import {
+  connectorInputSchema,
+  defaultModelGateway,
+  defaultModelSettings,
+  type ModelGateway,
+  type ModelSettings,
+  type Plan,
+} from '@querent/shared';
 import { eventsSpec } from '../dashboards/test/events-spec.ts';
 import type { AppError } from '../lib/errors.ts';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
@@ -15,7 +22,7 @@ beforeEach(async () => {
   services = await testServices(dataDir.path);
   const input = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
   await services.connections.create(connectorInputSchema.parse(input), 'admin-1');
-  await services.modelSettings.save(defaultModelSettings, 'sk-test', 'admin-1');
+  await services.modelSettings.save(defaultModelGateway, { anthropic: 'sk-test' }, 'admin-1');
   ({ id: threadId } = services.threads.create('editor-1'));
 });
 
@@ -23,6 +30,27 @@ afterEach(async () => {
   await services.close();
   dataDir.remove();
 });
+
+/**
+ * The default gateway with some models or limits changed.
+ *
+ * @param changes - The models and limits to change.
+ * @param changes.models - Models by job.
+ * @param changes.limits - Limits.
+ * @returns The gateway.
+ */
+function gatewayWith(changes: {
+  models?: Partial<ModelSettings['models']>;
+  limits?: Partial<ModelSettings['limits']>;
+}): ModelGateway {
+  const [first] = defaultModelGateway.providers;
+  if (!first) throw new Error('The default gateway has a provider.');
+  return {
+    ...defaultModelGateway,
+    providers: [{ ...first, models: { ...first.models, ...changes.models } }],
+    limits: { ...defaultModelGateway.limits, ...changes.limits },
+  };
+}
 
 const plan: Plan = {
   title: 'Events',
@@ -255,12 +283,38 @@ describe('an agent run', () => {
     ]);
   });
 
-  test('hands the steps after a failed write to the repair model', async () => {
-    const settings = {
-      ...defaultModelSettings,
-      models: { ...defaultModelSettings.models, repair: 'claude-opus-5-5' },
+  test('runs a thread on the provider it was started with', async () => {
+    const mistral = {
+      id: 'mistral-free',
+      name: 'Mistral free',
+      provider: 'mistral' as const,
+      baseUrl: null,
+      models: { plan: '', build: 'mistral-large-latest', repair: '', metadata: '' },
     };
-    await services.modelSettings.save(settings, undefined, 'admin-1');
+    const gateway = {
+      ...defaultModelGateway,
+      providers: [...defaultModelGateway.providers, mistral],
+    };
+    await services.modelSettings.save(gateway, { 'mistral-free': 'mk-test' }, 'admin-1');
+    ({ id: threadId } = services.threads.create('editor-1', 'mistral-free'));
+    const used: string[] = [];
+    const model = scriptedStreamModel({ text: 'Hello.' });
+    const agent = createAgent({
+      ...services,
+      buildModel: (resolved) => {
+        used.push(`${resolved.providerName}: ${resolved.settings.models.build}`);
+        return model;
+      },
+    });
+    await chat(agent, userMessage('u1', 'Hello'));
+    expect(used[0]).toBe('Mistral free: mistral-large-latest');
+    const steps = services.usage.report(1).buckets.filter((bucket) => bucket.kind === 'model');
+    expect(steps.map((bucket) => bucket.provider)).toEqual(['Mistral free']);
+  });
+
+  test('hands the steps after a failed write to the repair model', async () => {
+    const gateway = gatewayWith({ models: { repair: 'claude-opus-5-5' } });
+    await services.modelSettings.save(gateway, {}, 'admin-1');
     services.threads.proposePlan(threadId, plan, true);
     const broken = {
       title: 'Events',
@@ -311,8 +365,8 @@ describe('an agent run', () => {
 
   test('stops after the repair attempts are spent', async () => {
     await services.modelSettings.save(
-      { ...defaultModelSettings, limits: { ...defaultModelSettings.limits, repairAttempts: 1 } },
-      undefined,
+      gatewayWith({ limits: { repairAttempts: 1 } }),
+      {},
       'admin-1',
     );
     services.threads.proposePlan(threadId, plan, true);
@@ -388,7 +442,12 @@ describe('an agent run', () => {
   test('says what to set up when no key is saved', async () => {
     const modelSettings = {
       ...services.modelSettings,
-      resolve: async () => ({ settings: defaultModelSettings, apiKey: null }),
+      resolve: async () => ({
+        settings: defaultModelSettings,
+        apiKey: null,
+        providerId: 'anthropic',
+        providerName: 'Anthropic',
+      }),
     };
     const agent = createAgent({ ...services, modelSettings });
     expect((await failureOf(chat(agent, userMessage('u1', 'Hello')))).message).toBe(

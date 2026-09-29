@@ -125,3 +125,63 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+
+.providers {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.providerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border-radius: var(--radius-control);
+}
+
+.providerRow + .providerRow {
+  margin-top: 4px;
+}
+
+.providerRow[data-selected="true"] {
+  background: var(--color-accent-soft);
+}
+
+.providerPick {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.providerName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.providerMeta {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-ink-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.defaultBadge {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-ok-soft);
+  font-size: 12px;
+  color: var(--color-ok-ink);
+}
