@@ -4,8 +4,9 @@ import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { ModelSettings } from '@querent/shared';
-import type { LanguageModel } from 'ai';
+import { type LanguageModel, wrapLanguageModel } from 'ai';
 import type { ResolvedModelSettings } from '../settings/model-settings.ts';
+import { quotaMiddleware } from './quota.ts';
 
 /** A job of the model: building dashboards, repairing queries, or writing titles and tags. */
 export type ModelJob = keyof ModelSettings['models'];
@@ -58,9 +59,12 @@ function keyed(connection: Connection) {
   };
 }
 
+/** A model object as a provider builds it, never a model id string. */
+type ProviderModel = Exclude<LanguageModel, string>;
+
 /** How each provider builds a model. */
 const builders: Readonly<
-  Record<ModelSettings['provider'], (connection: Connection, id: string) => LanguageModel>
+  Record<ModelSettings['provider'], (connection: Connection, id: string) => ProviderModel>
 > = {
   anthropic: (connection, id) => createAnthropic(keyed(connection))(id),
   openai: (connection, id) => createOpenAI(keyed(connection))(id),
@@ -100,7 +104,7 @@ export function reasoningOption(settings: ModelSettings) {
 
 /**
  * Builds the model of a job. The key is passed explicitly: the providers' environment fallbacks
- * are never used, so what runs is what the settings say.
+ * are never used, so what runs is what the settings say. A spent daily quota is not retried.
  *
  * @param resolved - The settings and the opened key.
  * @param job - The job.
@@ -110,5 +114,6 @@ export function reasoningOption(settings: ModelSettings) {
 export function languageModel(resolved: ResolvedModelSettings, job: ModelJob): LanguageModel {
   const { settings, apiKey } = resolved;
   const connection = { apiKey, baseURL: settings.baseUrl ?? undefined };
-  return builders[settings.provider](connection, modelIdFor(settings, job));
+  const model = builders[settings.provider](connection, modelIdFor(settings, job));
+  return wrapLanguageModel({ model, middleware: quotaMiddleware });
 }

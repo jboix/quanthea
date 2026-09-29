@@ -271,8 +271,8 @@ async function streamTurn(
       () => context.counters.failedWrites >= limits.repairAttempts,
     ],
     abortSignal: context.signal,
-    // Rate limits are per minute: five retries back off for about a minute in all.
-    maxRetries: 5,
+    // Two retries ride out a per-minute limit; a spent daily quota is not retried (quota.ts).
+    maxRetries: 2,
     // Counted per step, so a run that fails halfway still records what it spent.
     onStepEnd: ({ usage }) => context.threads.addTokens(context.threadId, usage.totalTokens ?? 0),
   });
