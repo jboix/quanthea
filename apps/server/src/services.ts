@@ -18,6 +18,7 @@ import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
 import type { SecretBox } from './secrets/secret-box.ts';
 import { createModelSettings, type ModelSettingsService } from './settings/model-settings.ts';
+import { createRecipeSettings, type RecipeSettingsService } from './settings/recipe-settings.ts';
 import type { SettingsStore } from './settings/settings-store.ts';
 import { createThreads, type Threads } from './threads/threads.ts';
 import { createUsage, type Usage } from './usage/usage.ts';
@@ -50,6 +51,8 @@ export interface Services {
   readonly agent: Agent;
   /** The usage ledger. */
   readonly usage: Usage;
+  /** The recipe settings. */
+  readonly recipeSettings: RecipeSettingsService;
 }
 
 /** How long a query result stays cached, in milliseconds. */
@@ -105,7 +108,8 @@ export function createServices(dependencies: ServiceDependencies): Services {
     audit,
     usage: () => usage.month(),
   });
+  const recipeSettings = createRecipeSettings({ store: dependencies.settings, audit });
   const threads = createThreads({ repository, audit });
-  const agent = createAgent({ ...data, threads, modelSettings, usage });
-  return { ...data, modelSettings, threads, agent, usage };
+  const agent = createAgent({ ...data, threads, modelSettings, usage, recipeSettings });
+  return { ...data, modelSettings, threads, agent, usage, recipeSettings };
 }

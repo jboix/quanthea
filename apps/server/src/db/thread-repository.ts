@@ -1,5 +1,6 @@
 /** Reads and writes threads, their messages and their plans. */
 import type { Database } from 'bun:sqlite';
+import { type ThreadRecipes, threadRecipesSchema } from '@querent/shared';
 
 /** A thread state, as stored. */
 type StoredState = 'idle' | 'plan_pending' | 'building' | 'ready';
@@ -20,6 +21,8 @@ export interface ThreadRow {
   readonly createdBy: string | null;
   /** The model provider it uses; `null` for the default. */
   readonly providerId: string | null;
+  /** The recipes it uses. */
+  readonly recipes: ThreadRecipes;
   /** Creation time, in epoch milliseconds. */
   readonly createdAt: number;
   /** Last change, in epoch milliseconds. */
@@ -168,6 +171,8 @@ interface StoredThread {
   created_by: string | null;
   /** The model provider. */
   provider_id: string | null;
+  /** The recipes, as JSON. */
+  recipes: string | null;
   /** Creation time. */
   created_at: number;
   /** Last change. */
@@ -223,6 +228,7 @@ function toThread(stored: StoredThread): ThreadRow {
     tokensUsed: stored.tokens_used,
     createdBy: stored.created_by,
     providerId: stored.provider_id,
+    recipes: recipesOf(stored.recipes),
     createdAt: stored.created_at,
     updatedAt: stored.updated_at,
   };
@@ -256,7 +262,7 @@ function threadStatements(database: Database) {
   return {
     insert: database.query(
       `INSERT INTO threads (id, title, state, dashboard_id, tokens_used, created_by, provider_id,
-         created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         recipes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     selectOne: database.query<StoredThread, [string]>('SELECT * FROM threads WHERE id = ?'),
     selectAll: database.query<StoredThread, []>(
@@ -269,6 +275,17 @@ function threadStatements(database: Database) {
     ),
     remove: database.query('DELETE FROM threads WHERE id = ?'),
   };
+}
+
+/**
+ * The recipes of a stored thread.
+ *
+ * @param stored - The stored JSON, or `null`.
+ * @returns The recipes; the default set when none or invalid.
+ */
+function recipesOf(stored: string | null): ThreadRecipes {
+  if (stored === null) return { mode: 'default' };
+  return threadRecipesSchema.safeParse(JSON.parse(stored)).data ?? { mode: 'default' };
 }
 
 /**
@@ -287,6 +304,7 @@ function threadValues(row: ThreadRow) {
     tokensUsed,
     createdBy,
     providerId,
+    JSON.stringify(row.recipes),
     row.createdAt,
     row.updatedAt,
   ] as const;

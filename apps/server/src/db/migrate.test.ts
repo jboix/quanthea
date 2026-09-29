@@ -65,6 +65,7 @@ describe('runMigrations', () => {
       '0004-threads.sql',
       '0005-usage.sql',
       '0006-thread-provider.sql',
+      '0007-thread-recipes.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([

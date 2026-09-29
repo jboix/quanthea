@@ -71,6 +71,13 @@ export {
   variableOptionsEndpoint,
 } from './api/panels.ts';
 export {
+  getRecipeSettingsEndpoint,
+  listRecipeChoicesEndpoint,
+  type RecipeChoice,
+  recipeChoiceSchema,
+  saveRecipeSettingsEndpoint,
+} from './api/recipes.ts';
+export {
   approvePlanEndpoint,
   createThreadEndpoint,
   deleteThreadEndpoint,
@@ -158,6 +165,21 @@ export {
   tokenUsageSchema,
   turnUsageSchema,
 } from './model-usage.ts';
+export {
+  type BuiltInRecipe,
+  builtInRecipes,
+  type PanelUnit,
+  panelUnits,
+  placeholdersOf,
+  type RecipeParamKind,
+  type RecipeSettings,
+  recipeParamKinds,
+  recipeSettingsSchema,
+  type SavedRecipe,
+  savedRecipeSchema,
+  type ThreadRecipes,
+  threadRecipesSchema,
+} from './recipes.ts';
 export {
   type AuthMode,
   authModeSchema,

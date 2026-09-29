@@ -14,6 +14,7 @@ import { logRequests } from './http/request-log.ts';
 import { mountChatRoute } from './http/routes/chat-route.ts';
 import { mountConnectorRoutes } from './http/routes/connector-routes.ts';
 import { mountDashboardEndpoints } from './http/routes/dashboard-routes.ts';
+import { mountRecipeEndpoints } from './http/routes/recipe-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
 import { mountThreadEndpoints } from './http/routes/thread-routes.ts';
@@ -22,6 +23,7 @@ import { securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
+import type { RecipeSettingsService } from './settings/recipe-settings.ts';
 import type { Threads } from './threads/threads.ts';
 import type { Usage } from './usage/usage.ts';
 
@@ -49,6 +51,8 @@ export interface AppDependencies {
   readonly modelView: ModelView;
   /** The usage ledger. */
   readonly usage: Usage;
+  /** The recipe settings. */
+  readonly recipeSettings: RecipeSettingsService;
 }
 
 /**
@@ -72,6 +76,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   mountDashboardEndpoints(app, dependencies.dashboards, dependencies.usage.recordPinnedView);
   mountSettingsEndpoints(app, dependencies.modelSettings);
   mountUsageEndpoints(app, dependencies.usage);
+  mountRecipeEndpoints(app, dependencies.recipeSettings);
   mountThreadEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent);
   mountSpa(app, dependencies.webDir);

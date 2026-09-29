@@ -3,7 +3,7 @@
  * placed below, and deploy markers on the time charts. The result is a spec to check, test-run
  * and save like any other.
  */
-import type { Annotation, DashboardSpec, Panel } from '@querent/shared';
+import type { Annotation, DashboardSpec, Panel, SavedRecipe } from '@querent/shared';
 import type { PanelDraft } from './draft.ts';
 import { expandPanel, isTimeChart } from './expand.ts';
 import { panelId, placeBelow } from './layout.ts';
@@ -88,9 +88,14 @@ function panelOf(draft: PanelDraft, id: string, grid: Panel['grid']): Panel {
  *
  * @param panels - The current panels.
  * @param request - The edit.
+ * @param saved - The saved recipes the run may use.
  * @returns The panels.
  */
-function editedPanels(panels: readonly Panel[], request: EditRequest): Panel[] {
+function editedPanels(
+  panels: readonly Panel[],
+  request: EditRequest,
+  saved: readonly SavedRecipe[],
+): Panel[] {
   const rebuilt = new Map(
     request.panels.flatMap((panel) =>
       panel.replaces === undefined ? [] : [[panel.replaces, panel]],
@@ -101,9 +106,11 @@ function editedPanels(panels: readonly Panel[], request: EditRequest): Panel[] {
     .filter((panel) => !request.remove.includes(panel.id))
     .map((panel) => {
       const replacement = rebuilt.get(panel.id);
-      return replacement ? panelOf(expandPanel(replacement), panel.id, panel.grid) : panel;
+      return replacement ? panelOf(expandPanel(replacement, saved), panel.id, panel.grid) : panel;
     });
-  const drafts = request.panels.filter((panel) => panel.replaces === undefined).map(expandPanel);
+  const drafts = request.panels
+    .filter((panel) => panel.replaces === undefined)
+    .map((panel) => expandPanel(panel, saved));
   const taken = new Set(kept.map((panel) => panel.id));
   const grids = placeBelow(kept, drafts);
   const added = drafts.map((draft, index) =>
@@ -166,16 +173,21 @@ function withMarkers(panels: readonly Panel[], marked: boolean): Panel[] {
  *
  * @param current - The current spec, or `undefined` before the first version.
  * @param request - The edit.
+ * @param saved - The saved recipes the run may use.
  * @returns The new spec, to check and test-run before it is saved.
  * @throws {RecipeError} When the edit names a panel that does not exist, or a recipe cannot expand.
  */
-export function applyEdit(current: DashboardSpec | undefined, request: EditRequest): DashboardSpec {
+export function applyEdit(
+  current: DashboardSpec | undefined,
+  request: EditRequest,
+  saved: readonly SavedRecipe[] = [],
+): DashboardSpec {
   const spec = withSettings(startingSpec(current, request), request);
   const annotations = editedAnnotations(spec.annotations, request.markers);
   const marked = annotations.some((annotation) => annotation.id === markersId);
   return {
     ...spec,
     annotations,
-    panels: withMarkers(editedPanels(spec.panels, request), marked),
+    panels: withMarkers(editedPanels(spec.panels, request, saved), marked),
   };
 }

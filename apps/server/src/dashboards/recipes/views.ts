@@ -117,3 +117,29 @@ export function tableView(columns: readonly string[], valueUnit?: Unit): View {
     ),
   };
 }
+
+/** How a custom or saved panel shows its result. */
+export type ShowKind = 'line' | 'bar' | 'category-bar' | 'pie' | 'stat' | 'table';
+
+/**
+ * The view of a panel that names how it shows.
+ *
+ * @param show - Lines or bars over time, bars or a pie by category, one number, or a table.
+ * @param unit - How the values read.
+ * @param refs - The refIds of its queries.
+ * @param columns - A table's columns.
+ * @param reduce - How a stat reduces its result.
+ * @returns The view, or `undefined` for a table without columns.
+ */
+export function viewOfKind(
+  show: ShowKind,
+  unit: Unit,
+  refs: readonly string[],
+  columns: readonly string[] | undefined,
+  reduce: StatReduce,
+): View | undefined {
+  if (show === 'stat') return statView(unit, reduce);
+  if (show === 'table') return columns?.length ? tableView(columns) : undefined;
+  if (show === 'line' || show === 'bar') return timeChart(refs, show, unit);
+  return categoryChart('A', show === 'pie' ? 'pie' : 'bar');
+}

@@ -97,7 +97,7 @@ export function sqlName(name: string): string {
  * @param value - The value.
  * @returns The quoted value, with quotes doubled.
  */
-function sqlString(value: string): string {
+export function sqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 

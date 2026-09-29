@@ -4,7 +4,7 @@
  * keep the model to it. It stays small: name checks run in code rather than as JSON schema
  * patterns, and the conventions are explained once in the build prompt.
  */
-import { timeRangeSchema, variableSchema } from '@querent/shared';
+import { panelUnits, type SavedRecipe, timeRangeSchema, variableSchema } from '@querent/shared';
 import { z } from 'zod';
 
 /**
@@ -53,16 +53,7 @@ export type Filter = z.output<typeof filterSchema>;
 const filtersSchema = z.array(filterSchema).max(10).default([]);
 
 /** How values read; percent expects a ratio from 0 to 1. */
-const unitSchema = z.enum([
-  'number',
-  'percent',
-  'bytes',
-  'seconds',
-  'milliseconds',
-  'per-second',
-  'EUR',
-  'USD',
-]);
+const unitSchema = z.enum(panelUnits);
 
 /** A unit. */
 export type Unit = z.output<typeof unitSchema>;
@@ -215,7 +206,29 @@ const customSchema = z.strictObject({
   option: z.record(z.string(), z.unknown()).optional(),
 });
 
-/** Validates a panel request. */
+/** A saved recipe, by id, with its placeholders filled. */
+const savedSchema = z.strictObject({
+  recipe: z.literal('saved'),
+  ...panelBase,
+  name: z.string().max(40),
+  connector: connectorSchema,
+  params: z.record(z.string(), z.string().max(200)).default({}),
+});
+
+/** The built-in recipes' schemas, by id. */
+const builtInSchemas = {
+  rate: rateSchema,
+  ratio: ratioSchema,
+  latency: latencySchema,
+  gauge: gaugeSchema,
+  top: topSchema,
+  'sql-series': sqlSeriesSchema,
+  'sql-breakdown': sqlBreakdownSchema,
+  'sql-stat': sqlStatSchema,
+  'sql-rows': sqlRowsSchema,
+} as const;
+
+/** Validates a panel request, of any recipe. */
 export const panelRequestSchema = z.discriminatedUnion('recipe', [
   rateSchema,
   ratioSchema,
@@ -227,6 +240,7 @@ export const panelRequestSchema = z.discriminatedUnion('recipe', [
   sqlStatSchema,
   sqlRowsSchema,
   customSchema,
+  savedSchema,
 ]);
 
 /** A panel request. */
@@ -248,17 +262,50 @@ const markersSchema = z.strictObject({
 /** Markers. */
 export type MarkersRequest = z.output<typeof markersSchema>;
 
+/** The recipes a run may use. */
+export interface AvailableRecipes {
+  /** The built-in recipes' ids. */
+  readonly builtIn: readonly string[];
+  /** The saved recipes. */
+  readonly saved: readonly SavedRecipe[];
+}
+
+/**
+ * The edit's fields around its panels.
+ *
+ * @param panels - The schema of one panel request.
+ * @returns The edit's schema.
+ */
+function editSchemaWith<Panel extends z.ZodType>(panels: Panel) {
+  return z.strictObject({
+    title: z.string().min(1).max(200).optional(),
+    description: z.string().max(1000).optional(),
+    time: timeRangeSchema.optional(),
+    variables: z.array(variableSchema).max(20).optional(),
+    panels: z.array(panels).max(20).default([]),
+    remove: z.array(z.string()).max(20).default([]),
+    markers: markersSchema.nullable().optional(),
+    summary: z.string().min(1).max(200),
+  });
+}
+
+/**
+ * The edit schema of a run: only the recipes it may use, so providers that constrain tool input
+ * keep the model to them. Custom panels are always there; saved recipes when there are some.
+ *
+ * @param available - The recipes the run may use.
+ * @returns The schema. Its output is an {@link EditRequest}.
+ */
+export function editRequestSchemaFor(available: AvailableRecipes) {
+  const builtIn = Object.entries(builtInSchemas)
+    .filter(([id]) => available.builtIn.includes(id))
+    .map(([, schema]) => schema);
+  const saved = available.saved.length > 0 ? [savedSchema] : [];
+  return editSchemaWith(z.discriminatedUnion('recipe', [customSchema, ...builtIn, ...saved]));
+}
+
 /** Validates an edit: what to set, add, rebuild and remove, in one new version. */
-export const editRequestSchema = z.strictObject({
-  title: z.string().min(1).max(200).optional(),
-  description: z.string().max(1000).optional(),
-  time: timeRangeSchema.optional(),
-  variables: z.array(variableSchema).max(20).optional(),
-  panels: z.array(panelRequestSchema).max(20).default([]),
-  remove: z.array(z.string()).max(20).default([]),
-  markers: markersSchema.nullable().optional(),
-  summary: z.string().min(1).max(200),
-});
+export const editRequestSchema = editSchemaWith(panelRequestSchema);
 
 /** An edit. */
 export type EditRequest = z.output<typeof editRequestSchema>;

@@ -360,6 +360,15 @@ panel ids to remove, and deploy markers. The server expands it:
   percentiles), `gauge`, `top`. SQL: `sql-series`, `sql-breakdown`, `sql-stat`, `sql-rows`. A
   `custom` panel takes raw queries and a view kind for what no recipe says. Names are checked
   against strict patterns and quoted, literals are escaped, and variables stay bound references.
+- **Saved recipes.** An admin saves a query with typed placeholders (`{{name}}`: metric, label,
+  table, column, value or duration) and how its panel shows. The model asks for it by id with a
+  value per placeholder. Each value is checked and written for its kind like the built-in recipes
+  write theirs, so the model still writes no query text.
+- **Which recipes.** Admins switch built-in recipes off (`recipes` settings section,
+  `GET/PUT /api/settings/recipes`). A thread uses the default set (the recipes switched on and
+  every saved one), a set chosen when it starts, or none (free style: custom panels only), stored
+  on the thread (`POST /api/threads` with `recipes`). The tool schema and the guide list only
+  those recipes.
 - **Layout.** Existing panels keep their place; a rebuilt panel keeps its id and place; new
   panels are packed in reading order into rows below, as wide as asked or as their kind usually
   is (stats a quarter, time charts full width, tables and category charts half).
@@ -396,8 +405,8 @@ card has the buttons. The thread's state sets the phase
 | Phase    | Thread states          | Tools                                                       | Adds to the instructions                          |
 | -------- | ---------------------- | ----------------------------------------------------------- | ------------------------------------------------- |
 | planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`   | one question before the first plan, then the plan |
-| building | `building`             | `describe`, `sample_values`, `test_query`, `edit_dashboard` | the recipe guide, the plan                        |
-| editing  | `ready`                | all of the above, `ask_person` and `propose_plan`           | the recipe guide                                  |
+| building | `building`             | `describe`, `sample_values`, `test_query`, `edit_dashboard` | the guide to its recipes, the plan                |
+| editing  | `ready`                | all of the above, `ask_person` and `propose_plan`           | the guide to its recipes                          |
 
 Planning never runs a query: the build test-runs every query anyway. The recipe guide only comes
 once there is something to write, so planning requests stay short.
@@ -719,6 +728,8 @@ indicative; the contract files are the source of truth.
 | `POST /settings/model/test`                                                                | gateway capability test                      | admin    |
 | `GET /settings/usage?days=`                                                                | usage by hour, from the ledger               | admin    |
 | `GET /model-providers`                                                                     | the providers a thread may use, without keys | editor   |
+| `GET/PUT /settings/recipes`                                                                | built-in recipes on or off, saved recipes    | admin    |
+| `GET /recipes`                                                                             | the recipes a thread may use                 | editor   |
 | `GET/POST/PATCH /users`                                                                    | local users (basic mode)                     | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,

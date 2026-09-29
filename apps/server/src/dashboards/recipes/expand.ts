@@ -1,11 +1,12 @@
 /** Turns a panel request into a draft: the recipe's expansion, or a custom panel's raw queries. */
-import type { PanelQuery, View } from '@querent/shared';
+import type { PanelQuery, SavedRecipe, View } from '@querent/shared';
 import type { PanelDraft, PanelShape } from './draft.ts';
 import { gaugeDraft, latencyDraft, rateDraft, ratioDraft, topDraft } from './promql.ts';
 import type { PanelRequest, RecipeOf } from './request.ts';
+import { savedDraft } from './saved.ts';
 import { breakdownDraft, rowsDraft, seriesDraft, statDraft } from './sql.ts';
 import { RecipeError } from './text.ts';
-import { categoryChart, statView, tableView, timeChart } from './views.ts';
+import { viewOfKind } from './views.ts';
 
 /**
  * Whether a view charts values over time.
@@ -69,17 +70,10 @@ function withOption(view: View, option: Record<string, unknown> | undefined): Vi
  * @throws {RecipeError} For a table without columns.
  */
 function customView(request: RecipeOf<'custom'>, refs: readonly string[]): View {
-  const { show, unit } = request;
-  if (show === 'stat') return statView(unit, request.reduce);
-  if (show === 'table') {
-    if (!request.columns?.length) throw new RecipeError('A custom table needs its columns.');
-    return tableView(request.columns);
-  }
-  const chart =
-    show === 'line' || show === 'bar'
-      ? timeChart(refs, show, unit)
-      : categoryChart('A', show === 'pie' ? 'pie' : 'bar');
-  return withOption(chart, request.option);
+  const { show, unit, columns, reduce } = request;
+  const view = viewOfKind(show, unit, refs, columns, reduce);
+  if (!view) throw new RecipeError('A custom table needs its columns.');
+  return withOption(view, request.option);
 }
 
 /**
@@ -106,7 +100,9 @@ function customDraft(request: RecipeOf<'custom'>): PanelDraft {
 
 /** The expansion of each recipe. */
 const expansions: {
-  readonly [Name in PanelRequest['recipe']]: (request: RecipeOf<Name>) => PanelDraft;
+  readonly [Name in Exclude<PanelRequest['recipe'], 'saved'>]: (
+    request: RecipeOf<Name>,
+  ) => PanelDraft;
 } = {
   rate: rateDraft,
   ratio: ratioDraft,
@@ -124,10 +120,12 @@ const expansions: {
  * Expands a panel request.
  *
  * @param request - The request.
+ * @param saved - The saved recipes the run may use.
  * @returns The draft.
  * @throws {RecipeError} When the request names something a query cannot use.
  */
-export function expandPanel(request: PanelRequest): PanelDraft {
+export function expandPanel(request: PanelRequest, saved: readonly SavedRecipe[] = []): PanelDraft {
+  if (request.recipe === 'saved') return savedDraft(request, saved);
   const expand = expansions[request.recipe] as (request: PanelRequest) => PanelDraft;
   return expand(request);
 }

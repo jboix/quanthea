@@ -2,7 +2,7 @@
  * The threads service: threads, their messages and their plans, with the state machine checked on
  * every change. The agent and the HTTP layer both go through it.
  */
-import type { Plan, PlanView, ThreadDetail, ThreadSummary } from '@querent/shared';
+import type { Plan, PlanView, ThreadDetail, ThreadRecipes, ThreadSummary } from '@querent/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { MessageRow, PlanRow, ThreadRepository, ThreadRow } from '../db/thread-repository.ts';
 import { AppError } from '../lib/errors.ts';
@@ -48,7 +48,7 @@ export interface Threads {
    * @param actor - Who starts it.
    * @returns The thread.
    */
-  create(actor: string, providerId?: string | null): ThreadSummary;
+  create(actor: string, providerId?: string | null, recipes?: ThreadRecipes): ThreadSummary;
   /**
    * Reads a thread with its messages and plans.
    *
@@ -143,14 +143,24 @@ export interface Threads {
 type Context = ThreadsDependencies & { readonly now: () => number };
 
 /**
+ * When a thread was created and last changed.
+ *
+ * @param row - The thread.
+ * @returns The times.
+ */
+function timesOf(row: ThreadRow) {
+  return { createdAt: row.createdAt, updatedAt: row.updatedAt };
+}
+
+/**
  * The summary of a thread.
  *
  * @param row - The thread.
  * @returns The summary.
  */
 function toSummary(row: ThreadRow): ThreadSummary {
-  const { id, title, state, dashboardId, tokensUsed, providerId, createdAt, updatedAt } = row;
-  return { id, title, state, dashboardId, tokensUsed, providerId, createdAt, updatedAt };
+  const { id, title, state, dashboardId, tokensUsed, providerId, recipes } = row;
+  return { id, title, state, dashboardId, tokensUsed, providerId, recipes, ...timesOf(row) };
 }
 
 /**
@@ -300,7 +310,12 @@ function saveMessages(
  * @param actor - Who starts it.
  * @returns The thread.
  */
-function create(context: Context, actor: string, providerId: string | null): ThreadSummary {
+function create(
+  context: Context,
+  actor: string,
+  providerId: string | null,
+  recipes: ThreadRecipes,
+): ThreadSummary {
   const at = context.now();
   const row: ThreadRow = {
     id: newId(),
@@ -310,6 +325,7 @@ function create(context: Context, actor: string, providerId: string | null): Thr
     tokensUsed: 0,
     createdBy: actor,
     providerId,
+    recipes,
     createdAt: at,
     updatedAt: at,
   };
@@ -367,7 +383,8 @@ export function createThreads(dependencies: ThreadsDependencies): Threads {
   const { repository } = context;
   return {
     list: () => repository.list().map(toSummary),
-    create: (actor, providerId) => create(context, actor, providerId ?? null),
+    create: (actor, providerId, recipes) =>
+      create(context, actor, providerId ?? null, recipes ?? { mode: 'default' }),
     get: (id) => get(context, id),
     row: (id) => find(context, id),
     remove(id, actor) {

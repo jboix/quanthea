@@ -4,7 +4,7 @@
  */
 import { type DashboardSpec, dashboardSpecSchema, planSchema } from '@querent/shared';
 import { tool } from 'ai';
-import { applyEdit, editRequestSchema, RecipeError } from '../dashboards/recipes/index.ts';
+import { applyEdit, editRequestSchemaFor, RecipeError } from '../dashboards/recipes/index.ts';
 import type { RunContext } from './run-context.ts';
 import { type WriteResult, writeVersion } from './write-version.ts';
 
@@ -56,12 +56,12 @@ function editDashboardTool(context: RunContext) {
   return tool({
     description:
       'Change the dashboard in one new version: set its title, time range and variables, add panels by recipe, rebuild a panel in place (replaces), remove panels, set deploy markers. The server writes the queries, places the panels, and test-runs every query; the version is saved only when all of them work, otherwise you get the errors to fix.',
-    inputSchema: editRequestSchema,
+    inputSchema: editRequestSchemaFor(context.recipes),
     execute: async (request): Promise<WriteResult> => {
       const current = currentSpec(context);
       let spec: DashboardSpec;
       try {
-        spec = applyEdit(current, request);
+        spec = applyEdit(current, request, context.recipes.saved);
       } catch (error) {
         if (!(error instanceof RecipeError)) throw error;
         return { ok: false, error: error.message };

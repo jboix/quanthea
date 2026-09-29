@@ -83,6 +83,7 @@ export async function turnInstructions(
     mentions: hints.mentions,
     timeZone: hints.timeZone,
     declinedMatches: messages.at(-1)?.parts.some((part) => part.type === 'data-matches') ?? false,
+    recipes: context.recipes,
   });
   return cachedInstructions(parts, context.settings.provider);
 }
