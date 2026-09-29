@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react';
 import { type SubmitTarget, useLoaderData, useSubmit } from 'react-router';
+import { Select } from '../../ui/select.tsx';
 import type { NewThreadData, NewThreadIntent } from './data.ts';
 import { HistoryMenu } from './history-menu.tsx';
 import styles from './new-thread.module.css';
@@ -62,19 +63,20 @@ function ProviderMenu({
   readonly value: string;
   readonly onChange: (id: string) => void;
 }) {
+  const options = providers.map((provider) => ({
+    value: provider.id,
+    label: `${provider.name} · ${provider.buildModel}`,
+  }));
   return (
-    <select
+    <Select
+      label="Model provider"
+      hideLabel
+      compact
       className={styles.provider}
-      aria-label="Model provider"
+      options={options}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-    >
-      {providers.map((provider) => (
-        <option key={provider.id} value={provider.id}>
-          {provider.name} · {provider.buildModel}
-        </option>
-      ))}
-    </select>
+    />
   );
 }
 

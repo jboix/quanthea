@@ -1,8 +1,7 @@
 import { type KnownModel, type ModelProvider, providerProfiles } from '@querent/shared';
 import { useEffect } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
-import { Input } from '../../ui/input.tsx';
-import { Select } from '../../ui/select.tsx';
+import { Combobox } from '../../ui/combobox.tsx';
 import type { ModelSettingsIntent, ModelSettingsOutcome } from './data.ts';
 
 /** The models a provider offers: the ones querent knows by name, and the ones it lists. */
@@ -92,63 +91,42 @@ function optionsOf({ value, sameAsBuild, list }: ModelPickerProps) {
     .filter((model) => !knownIds.has(model))
     .map((model) => ({ value: model, label: model, group: 'From the provider' }));
   const offered = value === '' || knownIds.has(value) || list.models.includes(value);
-  const unlisted = offered ? [] : [{ value, label: `${value} (not listed)` }];
+  const unlisted = offered ? [] : [{ value, label: value, group: 'Typed' }];
   const same = sameAsBuild ? [{ value: '', label: 'same as build' }] : [];
   return [...same, ...unlisted, ...suggested, ...listed];
 }
 
 /**
- * The line under the build model's dropdown: loading, or why the provider did not list its models.
+ * The line under a model's field: loading, or why the provider did not list its models.
  *
  * @param list - The list.
  * @returns The line, or `undefined` when the provider listed its models.
  */
 function listHint(list: ModelList): string | undefined {
   if (list.loading) return 'Loading the provider’s models…';
-  return list.message ?? undefined;
+  if (list.message !== null) return `${list.message} Type a model id.`;
+  if (list.known.length === 0 && list.models.length === 0)
+    return 'The provider listed no chat models. Type a model id.';
+  return undefined;
 }
 
 /**
- * The text field used when the provider's models cannot be listed.
- *
- * @param props - The picker's props.
- * @returns The field, saying why there is no list.
- */
-function ModelField({ label, value, sameAsBuild, list, onChange, error }: ModelPickerProps) {
-  const reason = list.message ?? 'The provider listed no chat models.';
-  const hint = sameAsBuild ? undefined : (listHint(list) ?? reason);
-  return (
-    <Input
-      label={label}
-      hideLabel
-      mono
-      autoComplete="off"
-      placeholder={sameAsBuild ? 'same as build' : 'model id'}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      hint={hint}
-      error={error}
-    />
-  );
-}
-
-/**
- * Picks a model: a dropdown of the provider's models, or a text field when there are none.
+ * Picks a model: type to search the provider's models, or type any model id.
  *
  * @param props - The label, the value, the list and the change callback.
  * @returns The picker.
  */
 export function ModelPicker(props: ModelPickerProps) {
-  const { known, models } = props.list;
-  if (known.length === 0 && models.length === 0) return <ModelField {...props} />;
   return (
-    <Select
+    <Combobox
       label={props.label}
       hideLabel
       mono
+      allowCustom
+      placeholder={props.sameAsBuild ? 'same as build' : 'Search or type a model id'}
       options={optionsOf(props)}
       value={props.value}
-      onChange={(event) => props.onChange(event.target.value)}
+      onChange={props.onChange}
       hint={props.sameAsBuild ? undefined : listHint(props.list)}
       error={props.error}
     />

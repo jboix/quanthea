@@ -1,6 +1,8 @@
 import { type ReactNode, type SelectHTMLAttributes, useId } from 'react';
 import styles from './field.module.css';
 import { describedBy, FieldNotes } from './field-notes.tsx';
+import { ChevronDownIcon } from './icons.tsx';
+import dropdown from './select.module.css';
 
 /** One choice of a {@link Select}. */
 interface SelectOption {
@@ -49,12 +51,14 @@ interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id'
   readonly error?: string | undefined;
   /** Keeps the label for screen readers only, for selects whose purpose the layout shows. */
   readonly hideLabel?: boolean;
+  /** A short, small control, for toolbars such as the question box's. */
+  readonly compact?: boolean;
 }
 
 /**
  * A labelled native select.
  *
- * @param props - Label, options, font, hint, error and any native select attribute.
+ * @param props - Label, options, font, size, hint, error and any native select attribute.
  * @returns The field: label, select, and the error or hint.
  */
 export function Select({
@@ -64,6 +68,7 @@ export function Select({
   hint,
   error,
   hideLabel = false,
+  compact = false,
   className,
   ...rest
 }: SelectProps) {
@@ -74,14 +79,19 @@ export function Select({
       <label htmlFor={selectId} className={hideLabel ? styles.visuallyHidden : styles.label}>
         {label}
       </label>
-      <select
-        id={selectId}
-        className={classes}
-        {...describedBy(`${selectId}-notes`, hint, error)}
-        {...rest}
-      >
-        {optionElements(options)}
-      </select>
+      <div className={compact ? `${dropdown.box} ${dropdown.compact}` : dropdown.box}>
+        <select
+          id={selectId}
+          className={classes}
+          {...describedBy(`${selectId}-notes`, hint, error)}
+          {...rest}
+        >
+          {optionElements(options)}
+        </select>
+        <span className={dropdown.chevron}>
+          <ChevronDownIcon />
+        </span>
+      </div>
       <FieldNotes id={`${selectId}-notes`} hint={hint} error={error} />
     </div>
   );

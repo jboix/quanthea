@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BrandIcon, BrandMark, Logo } from '../ui/brand.tsx';
 import { Button } from '../ui/button.tsx';
 import { Card } from '../ui/card.tsx';
+import { Combobox } from '../ui/combobox.tsx';
 import { Input } from '../ui/input.tsx';
 import { Page } from '../ui/page.tsx';
 import { Pill } from '../ui/pill.tsx';
@@ -70,6 +71,39 @@ function TabsSample() {
 }
 
 /**
+ * A searchable dropdown, as the model fields use it.
+ *
+ * @returns The field.
+ */
+function SearchSample() {
+  const [model, setModel] = useState('claude-sonnet-5');
+  return (
+    <Combobox
+      label="Build model, searchable"
+      mono
+      allowCustom
+      placeholder="Search or type a model id"
+      options={[
+        {
+          value: 'claude-sonnet-5',
+          label: 'Claude Sonnet 5 · claude-sonnet-5',
+          group: 'Suggested',
+        },
+        {
+          value: 'claude-haiku-4-5',
+          label: 'Claude Haiku 4.5 · claude-haiku-4-5',
+          group: 'Suggested',
+        },
+        { value: 'claude-opus-5-5', label: 'claude-opus-5-5', group: 'From the provider' },
+      ]}
+      value={model}
+      onChange={setModel}
+      hint="Type to filter, or type any model id."
+    />
+  );
+}
+
+/**
  * Inputs, a select and switches, as in the settings screens.
  *
  * @returns The card.
@@ -86,6 +120,7 @@ function FormControls() {
           options={[{ value: 'build', label: 'claude-sonnet-5' }]}
         />
       </div>
+      <SearchSample />
       <TextArea
         label="Query"
         mono

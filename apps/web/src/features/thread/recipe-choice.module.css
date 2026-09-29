@@ -1,13 +1,3 @@
-.mode {
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid var(--color-border-control);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  font-size: 12.5px;
-  color: var(--color-ink-label);
-}
-
 .picker {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

@@ -168,3 +168,16 @@ export function HistoryIcon() {
     </Icon>
   );
 }
+
+/**
+ * A small downward chevron, for dropdowns.
+ *
+ * @returns The icon.
+ */
+export function ChevronDownIcon() {
+  return (
+    <Icon size={14}>
+      <path d="m6 9 6 6 6-6" />
+    </Icon>
+  );
+}

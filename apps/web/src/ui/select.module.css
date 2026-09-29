@@ -1,0 +1,100 @@
+/* A dropdown: the field's control with querent's chevron, and a matching list where the browser
+   lets a page style it (customizable select). Elsewhere the list stays the platform's. */
+.box {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.box > select {
+  flex-grow: 1;
+  min-width: 0;
+  padding-right: 30px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.box > select:focus-visible {
+  border-color: var(--color-accent);
+  outline: none;
+}
+
+.chevron {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  display: flex;
+  translate: 0 -50%;
+  pointer-events: none;
+  color: var(--color-ink-secondary);
+}
+
+.compact > select {
+  height: 30px;
+  padding-left: 8px;
+  padding-right: 26px;
+  font-size: 12.5px;
+  color: var(--color-ink-label);
+}
+
+.compact > .chevron {
+  right: 8px;
+}
+
+@supports (appearance: base-select) {
+  .box > select,
+  .box > select::picker(select) {
+    appearance: base-select;
+  }
+
+  .box > select {
+    align-items: center;
+  }
+
+  .box > select::picker-icon {
+    display: none;
+  }
+
+  .box > select::picker(select) {
+    max-height: 320px;
+    margin-top: 4px;
+    padding: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+    background: var(--color-surface);
+    box-shadow: 0 8px 24px rgb(23 24 28 / 10%);
+  }
+
+  .box option {
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--color-ink);
+    cursor: pointer;
+  }
+
+  .box option::checkmark {
+    order: 1;
+    margin-left: auto;
+    color: var(--color-accent);
+  }
+
+  .box option:hover,
+  .box option:focus-visible {
+    outline: none;
+    background: var(--color-accent-soft);
+  }
+
+  .box option:checked {
+    font-weight: 500;
+    color: var(--color-accent);
+  }
+
+  .box optgroup {
+    padding-top: 4px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--color-ink-secondary);
+  }
+}

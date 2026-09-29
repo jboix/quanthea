@@ -1,5 +1,6 @@
 import type { RecipeChoice, ThreadRecipes } from '@querent/shared';
 import { useState } from 'react';
+import { Select } from '../../ui/select.tsx';
 import styles from './recipe-choice.module.css';
 
 /** The modes a new thread may start in, as the menu names them. */
@@ -42,19 +43,15 @@ type Choice = ReturnType<typeof useRecipeChoice>;
  */
 export function RecipeModeMenu({ choice }: { readonly choice: Choice }) {
   return (
-    <select
-      className={styles.mode}
-      aria-label="Recipes"
+    <Select
+      label="Recipes"
+      hideLabel
+      compact
       title="Recipes turn what a panel shows into tested queries, for fewer tokens and fewer broken panels."
+      options={modes}
       value={choice.mode}
       onChange={(event) => choice.setMode(event.target.value as ThreadRecipes['mode'])}
-    >
-      {modes.map((mode) => (
-        <option key={mode.value} value={mode.value}>
-          {mode.label}
-        </option>
-      ))}
-    </select>
+    />
   );
 }
 
