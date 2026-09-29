@@ -70,9 +70,10 @@ export interface ModelView {
    * low-cardinality fields, as far as each access level allows.
    *
    * @param signal - Aborted when the caller gives up.
+   * @param question - The person's questions, to trim big connectors to what they are about.
    * @returns The catalog text.
    */
-  catalog(signal: AbortSignal): Promise<string>;
+  catalog(signal: AbortSignal, question?: string): Promise<string>;
   /**
    * Describes a connector's schema.
    *
@@ -166,7 +167,7 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
   const subjects = () => new Map(access.list().map(({ subject }) => [subject.name, subject]));
   const values = createValueCache();
   return {
-    catalog: (signal) => catalogOf(access, values, signal),
+    catalog: (signal, question) => catalogOf(access, values, signal, question),
     connectors: () => modelConnectors(access),
     describe: (name, scope, signal) =>
       describeFor(access, subjects().get(name), name, scope, signal),
@@ -196,12 +197,14 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
  * @param access - The connectors service.
  * @param values - The value cache.
  * @param signal - Aborted when the caller gives up.
+ * @param question - The person's questions in the thread.
  * @returns The catalog text.
  */
 async function catalogOf(
   access: ConnectorAccess,
   values: ValueCache,
   signal: AbortSignal,
+  question = '',
 ): Promise<string> {
   const sources = await Promise.all(
     access.list().map(async ({ subject, language }) => {
@@ -211,7 +214,7 @@ async function catalogOf(
       return { subject, language, access: words, snapshot, instance: opened?.source.instance };
     }),
   );
-  return buildCatalog(sources, values, signal);
+  return buildCatalog(sources, values, signal, question);
 }
 
 /**

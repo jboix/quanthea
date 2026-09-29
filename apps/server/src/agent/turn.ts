@@ -47,9 +47,25 @@ export function publicError(error: unknown): string {
 }
 
 /**
+ * The text of the person's messages in the thread.
+ *
+ * @param messages - The conversation.
+ * @returns The texts, joined.
+ */
+function questionsOf(messages: readonly ThreadMessage[]): string {
+  return messages
+    .filter((message) => message.role === 'user')
+    .flatMap((message) =>
+      message.parts.flatMap((part) => (part.type === 'text' ? [part.text] : [])),
+    )
+    .join(' ');
+}
+
+/**
  * The instructions of this turn.
  *
  * @param context - The run.
+ * @param messages - The conversation, whose questions trim big connectors' catalogs.
  * @param plans - The thread's plans.
  * @param hints - The panels the person mentions, and their time zone.
  * @param now - The current instant.
@@ -57,6 +73,7 @@ export function publicError(error: unknown): string {
  */
 export async function turnInstructions(
   context: RunContext,
+  messages: readonly ThreadMessage[],
   plans: Plans,
   hints: TurnHints,
   now: number,
@@ -70,7 +87,7 @@ export async function turnInstructions(
   const latest = plans.at(-1);
   const parts = instructionParts({
     now,
-    catalog: await context.modelView.catalog(context.signal),
+    catalog: await context.modelView.catalog(context.signal, questionsOf(messages)),
     state,
     plan: latest ? { body: latest.body, status: latest.status } : undefined,
     draft: spec ? { version, spec } : undefined,

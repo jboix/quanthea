@@ -328,6 +328,12 @@ values are counted across metrics. At most 30 fields are sampled per connector, 
 are kept for ten minutes. Level 1 shows no values and no row counts, and hidden fields never
 appear. The catalog replaces exploring call by call, which cost a model request per step.
 
+A connector with more than 40 tables or metrics is trimmed to what the thread is about
+(`gate/catalog-focus.ts`): the entities whose names, descriptions or field names share words with
+the person's messages, at most 25, in catalog order, or the first 25 when none match. The note
+under them says `describe` reaches the rest. The words come from all the person's messages, so the
+catalog stays the same from turn to turn and the providers' cache keeps working.
+
 ### Writing a version
 
 The model never writes a spec. `edit_dashboard` takes an edit (`dashboards/recipes/`): the title,

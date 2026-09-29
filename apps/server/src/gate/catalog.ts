@@ -4,6 +4,7 @@
  * instructions, so the model starts out knowing the data instead of exploring it call by call.
  */
 import type { ConnectorInstance, SchemaSnapshot } from '../connectors/_shared/index.ts';
+import { focusedEntities } from './catalog-focus.ts';
 import { type ModelEntity, modelSchema } from './model-schema.ts';
 import { sampleForModel } from './sample.ts';
 import type { GateSubject } from './subject.ts';
@@ -142,20 +143,23 @@ function labelValuesLine(values: SampledValues): string[] {
  * @param source - The connector.
  * @param entities - Its entities as the model sees them.
  * @param values - The sampled values.
+ * @param total - How many entities the connector has, when only some are listed.
  * @returns The lines.
  */
 export function connectorCatalog(
   source: Pick<CatalogSource, 'subject' | 'language' | 'access'>,
   entities: readonly ModelEntity[] | undefined,
   values: SampledValues,
+  total = entities?.length ?? 0,
 ): string {
   const { subject } = source;
   const head = `## ${subject.name} (${subject.kind}, ${source.language}): ${source.access}`;
   if (entities === undefined) return `${head}\nThe schema cannot be read right now.`;
-  const lines = entities
-    .slice(0, maxEntities)
-    .map((entity) => (entity.kind === 'metric' ? metricLine(entity) : tableLine(entity, values)));
-  const more = entities.length - maxEntities;
+  const shown = entities.slice(0, maxEntities);
+  const lines = shown.map((entity) =>
+    entity.kind === 'metric' ? metricLine(entity) : tableLine(entity, values),
+  );
+  const more = total - shown.length;
   const rest = more > 0 ? [`(${more} more: call describe with a scope to see them)`] : [];
   return [head, ...lines, ...labelValuesLine(values), ...rest].join('\n');
 }
@@ -221,19 +225,22 @@ async function sampleConnector(
  * @param sources - The connectors.
  * @param cache - The value cache.
  * @param signal - Aborted when the run stops.
+ * @param question - The person's questions in the thread, to trim big connectors to.
  * @returns The catalog text, one section per connector.
  */
 export async function buildCatalog(
   sources: readonly CatalogSource[],
   cache: ValueCache,
   signal: AbortSignal,
+  question = '',
 ): Promise<string> {
   if (sources.length === 0) return 'No connectors are set up.';
   const sections = await Promise.all(
     sources.map(async (source) => {
-      const entities = source.snapshot && modelSchema(source.subject, source.snapshot);
+      const all = source.snapshot && modelSchema(source.subject, source.snapshot);
+      const entities = all && focusedEntities(all, question);
       const values = entities ? await sampleConnector(source, entities, cache, signal) : new Map();
-      return connectorCatalog(source, entities, values);
+      return connectorCatalog(source, entities, values, all?.length);
     }),
   );
   return sections.join('\n\n');

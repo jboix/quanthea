@@ -261,7 +261,8 @@ function respond(
     generateId: newMessageId,
     execute: async ({ writer }) => {
       const context = runContext(dependencies, request, turn, writer);
-      const instructions = await turnInstructions(context, turn.plans, turn.hints, now());
+      const { messages, plans, hints } = turn;
+      const instructions = await turnInstructions(context, messages, plans, hints, now());
       await streamTurn(context, turn.modelOf, turn.messages, instructions, now);
     },
     onEnd: ({ messages }) => {
