@@ -13,6 +13,8 @@ import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 export interface BinData {
   /** The threads in the bin, the most recently binned first. */
   readonly threads: readonly BinnedThread[];
+  /** How many days a thread stays in the bin; `null` until someone deletes it. */
+  readonly binDays: number | null;
 }
 
 /** What the bin screen submits, as JSON. */

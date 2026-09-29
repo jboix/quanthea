@@ -18,7 +18,7 @@ import { chartSettingsRoute } from '../routes/settings-charts.tsx';
 import { SettingsLayout } from '../routes/settings-layout.tsx';
 import { modelSettingsRoute } from '../routes/settings-model.tsx';
 import { querySettingsRoute } from '../routes/settings-queries.tsx';
-import { SettingsRetentionRoute } from '../routes/settings-retention.tsx';
+import { retentionSettingsRoute } from '../routes/settings-retention.tsx';
 import { usageSettingsRoute } from '../routes/settings-usage.tsx';
 import { threadRoutes } from '../routes/thread.tsx';
 import { UiKitRoute } from '../routes/ui-kit.tsx';
@@ -100,7 +100,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
         querySettingsRoute(loadSession, api),
         usageSettingsRoute(loadSession, api),
         screen(loadSession, '/settings/auth', SettingsAuthRoute),
-        screen(loadSession, '/settings/retention', SettingsRetentionRoute),
+        retentionSettingsRoute(loadSession, api),
       ],
     },
     { path: '/ui', Component: UiKitRoute },

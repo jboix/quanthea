@@ -10,6 +10,7 @@ import { connectorKinds } from './connectors/registry.ts';
 import { openDatabase } from './db/database.ts';
 import { runMigrations } from './db/migrate.ts';
 import { createSettingsRepository } from './db/settings-repository.ts';
+import { startPurgeJob } from './jobs/purge.ts';
 import { createLogger } from './lib/logger.ts';
 import { createSecretBox } from './secrets/secret-box.ts';
 import { loadSecretKey } from './secrets/secret-key.ts';
@@ -51,6 +52,8 @@ const app = createApp({
   webDir: config.webDir,
   ...services,
 });
+const stopPurgeJob = startPurgeJob({ bin: services.bin, retention: services.retention, logger });
+
 // A model call or a chat stream can go quiet for longer than Bun's default of 10 seconds.
 const server = Bun.serve({ port: config.port, fetch: app.fetch, idleTimeout: 255 });
 logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir: config.webDir });
@@ -62,6 +65,7 @@ logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir
  */
 async function shutdown(signal: string): Promise<void> {
   logger.info('shutting down', { signal });
+  stopPurgeJob();
   await server.stop();
   await services.connections.closeAll();
   database.close();

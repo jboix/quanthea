@@ -7,6 +7,7 @@ import {
   modelGatewaySchema,
   modelSettingsSchema,
   querySettingsSchema,
+  retentionSettingsSchema,
 } from '@querent/shared';
 import { z } from 'zod';
 import type { SettingsRepository } from '../db/settings-repository.ts';
@@ -48,6 +49,8 @@ const sectionSchemas = {
   recipes: querySettingsSchema,
   /** Chart recipes switched off. */
   charts: chartSettingsSchema,
+  /** How long deleted threads stay in the bin. */
+  retention: retentionSettingsSchema,
 };
 
 /** A settings section name. */
@@ -64,6 +67,7 @@ const sectionDefaults: { readonly [Name in SectionName]: SectionValue<Name> } = 
   'model-keys': { sealed: {} },
   recipes: { disabled: [], saved: [] },
   charts: { disabled: [] },
+  retention: { binDays: 30 },
 };
 
 /** Reads and writes settings sections. */

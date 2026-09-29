@@ -21,6 +21,10 @@ import type { SecretBox } from './secrets/secret-box.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
 import { createModelSettings, type ModelSettingsService } from './settings/model-settings.ts';
 import { createQuerySettings, type QuerySettingsService } from './settings/query-settings.ts';
+import {
+  createRetentionSettings,
+  type RetentionSettingsService,
+} from './settings/retention-settings.ts';
 import type { SettingsStore } from './settings/settings-store.ts';
 import { createThreadBin, type ThreadBin } from './threads/bin.ts';
 import { createThreads, type Threads } from './threads/threads.ts';
@@ -60,6 +64,8 @@ export interface Services {
   readonly querySettings: QuerySettingsService;
   /** The chart settings. */
   readonly chartSettings: ChartSettingsService;
+  /** How long deleted threads stay in the bin. */
+  readonly retention: RetentionSettingsService;
 }
 
 /** How long a query result stays cached, in milliseconds. */
@@ -122,7 +128,8 @@ export function createServices(dependencies: ServiceDependencies): Services {
     audit,
   });
   const chartSettings = createChartSettings({ store: dependencies.settings, audit });
-  const settings = { modelSettings, querySettings, chartSettings };
+  const retention = createRetentionSettings({ store: dependencies.settings, audit });
+  const settings = { modelSettings, querySettings, chartSettings, retention };
   const agent = createAgent({ ...data, threads, usage, ...settings });
   return { ...data, threads, bin, agent, usage, ...settings };
 }

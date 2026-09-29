@@ -83,13 +83,14 @@ describe('the bin of threads', () => {
 
   test('purges the thread and its dashboard, and keeps the usage', () => {
     const { threadId, dashboardId } = threadWithDashboard();
-    const before = services.usage.report(1);
+    const before = services.usage.report(1).buckets;
     services.bin.bin(threadId, 'editor-1');
     services.bin.purge(threadId, 'admin-1');
     expect(services.bin.list()).toEqual([]);
     expect(failureOf(() => services.dashboards.get(dashboardId, 'editor')).code).toBe('not_found');
     expect(services.bin.ownerOf(dashboardId)).toBeNull();
-    expect(services.usage.report(1)).toEqual(before);
+    expect(services.usage.report(1).buckets).toEqual(before);
+    expect(before.length).toBeGreaterThan(0);
     expect(failureOf(() => services.bin.purge(threadId, 'admin-1')).code).toBe('not_found');
   });
 

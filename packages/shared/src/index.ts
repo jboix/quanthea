@@ -106,6 +106,12 @@ export {
   saveQuerySettingsEndpoint,
 } from './api/queries.ts';
 export {
+  getRetentionSettingsEndpoint,
+  type RetentionSettings,
+  retentionSettingsSchema,
+  saveRetentionSettingsEndpoint,
+} from './api/retention.ts';
+export {
   approvePlanEndpoint,
   createThreadEndpoint,
   deleteThreadEndpoint,

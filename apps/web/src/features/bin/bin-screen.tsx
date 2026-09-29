@@ -1,6 +1,12 @@
 import { type BinnedThread, hasRole, type Role } from '@querent/shared';
 import { useState } from 'react';
-import { type SubmitTarget, useFetcher, useLoaderData, useRouteLoaderData } from 'react-router';
+import {
+  Link,
+  type SubmitTarget,
+  useFetcher,
+  useLoaderData,
+  useRouteLoaderData,
+} from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Page } from '../../ui/page.tsx';
 import styles from './bin.module.css';
@@ -71,14 +77,38 @@ function ConfirmButton({
   );
 }
 
+/** A day, in milliseconds. */
+const dayMs = 86_400_000;
+
 /**
- * One binned thread: what it was, when it went to the bin, and Restore or Delete for good.
+ * When a binned thread is deleted for good.
  *
- * @param props - The thread.
+ * @param thread - The binned thread.
+ * @param binDays - How many days the bin keeps a thread, or `null`.
+ * @returns Such as `deleted for good after 12/10/2026`, or nothing when it is kept.
+ */
+function purgeNote(thread: BinnedThread, binDays: number | null): string {
+  if (binDays === null) return '';
+  const on = new Date(thread.deletedAt + binDays * dayMs).toLocaleDateString();
+  return ` · deleted for good after ${on}`;
+}
+
+/**
+ * One binned thread: what it was, when it went to the bin and when it goes for good, and Restore
+ * or Delete for good.
+ *
+ * @param props - The thread and the retention.
  * @param props.thread - The binned thread.
+ * @param props.binDays - How many days the bin keeps a thread, or `null`.
  * @returns The row.
  */
-function BinRow({ thread }: { readonly thread: BinnedThread }) {
+function BinRow({
+  thread,
+  binDays,
+}: {
+  readonly thread: BinnedThread;
+  readonly binDays: number | null;
+}) {
   const admin = useIsAdmin();
   const { submit, busy, failure } = useBinIntent();
   const when = new Date(thread.deletedAt).toLocaleString();
@@ -91,6 +121,7 @@ function BinRow({ thread }: { readonly thread: BinnedThread }) {
           {thread.dashboardTitle ? `Dashboard: ${thread.dashboardTitle} · ` : 'No dashboard · '}
           deleted {when}
           {thread.deletedBy ? ` by ${thread.deletedBy}` : ''}
+          {purgeNote(thread, binDays)}
         </span>
         {failure && <span className={styles.failure}>{failure}</span>}
       </div>
@@ -112,19 +143,43 @@ function BinRow({ thread }: { readonly thread: BinnedThread }) {
 }
 
 /**
+ * How long threads stay, and where admins change it.
+ *
+ * @param props - The retention.
+ * @param props.binDays - How many days the bin keeps a thread, or `null`.
+ * @returns The subtitle.
+ */
+function BinSubtitle({ binDays }: { readonly binDays: number | null }) {
+  const admin = useIsAdmin();
+  const stay = binDays === null ? 'until someone deletes them' : `for ${binDays} days`;
+  return (
+    <>
+      Deleted threads wait here {stay}, with their dashboards. Deleting one for good frees its
+      space; usage is kept.
+      {admin && (
+        <>
+          {' '}
+          <Link to="/settings/retention">Change retention</Link>
+        </>
+      )}
+    </>
+  );
+}
+
+/**
  * The bin: deleted threads with their dashboards, until someone restores them or they are
  * deleted for good. Usage stays in Settings → Usage either way.
  *
  * @returns The screen.
  */
 export function BinScreen() {
-  const { threads } = useLoaderData() as BinData;
+  const { threads, binDays } = useLoaderData() as BinData;
   const admin = useIsAdmin();
   const empty = useBinIntent();
   return (
     <Page
       title="Bin"
-      subtitle="Deleted threads wait here with their dashboards. Deleting one for good frees its space; usage is kept."
+      subtitle={<BinSubtitle binDays={binDays} />}
       actions={
         admin &&
         threads.length > 0 && (
@@ -143,7 +198,7 @@ export function BinScreen() {
       ) : (
         <ul className={styles.list}>
           {threads.map((thread) => (
-            <BinRow key={thread.id} thread={thread} />
+            <BinRow key={thread.id} thread={thread} binDays={binDays} />
           ))}
         </ul>
       )}

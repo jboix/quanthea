@@ -1,17 +1,23 @@
-import { Page } from '../ui/page.tsx';
-import { Placeholder } from '../ui/placeholder.tsx';
+/** The route of Settings → Retention. */
+import type { RouteObject } from 'react-router';
+import { guarded } from '../app/route-access.ts';
+import type { SessionLoader } from '../app/session.ts';
+import { loadRetention, RetentionScreen, retentionAction } from '../features/retention/index.ts';
+import type { ApiClient } from '../lib/api-client.ts';
 
 /**
- * Settings → Retention: how long binned dashboards are kept.
+ * The retention route: its loader and its save action run for admins only.
  *
- * @returns The screen.
+ * @param loadSession - Loads the current session.
+ * @param api - The API client.
+ * @returns The route object.
  */
-export function SettingsRetentionRoute() {
-  return (
-    <Page title="Retention" subtitle="Binned dashboards are kept forever unless you set a limit.">
-      <Placeholder title="Keep binned dashboards: forever, or for N days.">
-        This screen is not designed yet. It follows the visual language of the others.
-      </Placeholder>
-    </Page>
-  );
+export function retentionSettingsRoute(loadSession: SessionLoader, api: ApiClient): RouteObject {
+  const path = '/settings/retention';
+  return {
+    path,
+    loader: guarded(loadSession, path, loadRetention(api)),
+    action: guarded(loadSession, path, retentionAction(api)),
+    Component: RetentionScreen,
+  };
 }

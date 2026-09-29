@@ -27,6 +27,7 @@ import type { Logger } from './lib/logger.ts';
 import type { ChartSettingsService } from './settings/chart-settings.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
 import type { QuerySettingsService } from './settings/query-settings.ts';
+import type { RetentionSettingsService } from './settings/retention-settings.ts';
 import type { ThreadBin } from './threads/bin.ts';
 import type { Threads } from './threads/threads.ts';
 import type { Usage } from './usage/usage.ts';
@@ -61,6 +62,8 @@ export interface AppDependencies {
   readonly querySettings: QuerySettingsService;
   /** The chart settings. */
   readonly chartSettings: ChartSettingsService;
+  /** How long deleted threads stay in the bin. */
+  readonly retention: RetentionSettingsService;
 }
 
 /**
@@ -86,7 +89,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountQueryEndpoints(app, dependencies);
   mountChartEndpoints(app, dependencies.chartSettings);
   mountThreadEndpoints(app, dependencies);
-  mountBinEndpoints(app, dependencies.bin);
+  mountBinEndpoints(app, dependencies.bin, dependencies.retention);
   mountChatRoute(app, dependencies.agent);
 }
 

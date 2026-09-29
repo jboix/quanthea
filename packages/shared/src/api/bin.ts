@@ -21,11 +21,14 @@ export type BinnedThread = z.infer<typeof binnedThreadSchema>;
 /** The path parameter of a binned thread. */
 const binParams = z.object({ threadId: z.string().min(1) });
 
-/** Lists the threads in the bin, the most recently binned first. */
+/**
+ * Lists the threads in the bin, the most recently binned first, and how many days a thread is
+ * kept there (`null`: until someone deletes it).
+ */
 export const listBinEndpoint = defineEndpoint({
   method: 'GET',
   path: '/bin',
-  output: z.object({ threads: z.array(binnedThreadSchema) }),
+  output: z.object({ threads: z.array(binnedThreadSchema), binDays: z.int().nullable() }),
 });
 
 /** Takes a thread out of the bin, with its dashboard. */

@@ -40,17 +40,30 @@ function client(principal: Principal) {
   const app = new Hono<AppEnv>();
   app.use(requestId());
   app.use(authenticate(fixedAuthenticator(principal)));
-  mountBinEndpoints(app, fixture.bin);
+  mountBinEndpoints(app, fixture.bin, fixture.retention);
   app.onError(handleErrors(captureLogs().logger));
   app.notFound(handleNotFound);
-  return async (method: string, path: string) => {
-    const headers = { 'X-Requested-With': 'querent' };
-    const response = await app.request(path, { method, headers });
+  return async (method: string, path: string, body?: unknown) => {
+    const headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'querent' };
+    const init =
+      body === undefined ? { method, headers } : { method, headers, body: JSON.stringify(body) };
+    const response = await app.request(path, init);
     return { status: response.status, body: (await response.json()) as unknown };
   };
 }
 
 describe('bin routes', () => {
+  test('let admins set how long threads stay in the bin, 30 days by default', async () => {
+    expect((await client(editor)('GET', '/api/settings/retention')).status).toBe(403);
+    expect((await client(admin)('GET', '/api/settings/retention')).body).toEqual({ binDays: 30 });
+    const saved = await client(admin)('PUT', '/api/settings/retention', { binDays: null });
+    expect(saved.body).toEqual({ binDays: null });
+    expect((await client(editor)('GET', '/api/bin')).body).toEqual({ threads: [], binDays: null });
+    expect((await client(admin)('PUT', '/api/settings/retention', { binDays: -1 })).status).toBe(
+      400,
+    );
+  });
+
   test('let editors list and restore, and only admins delete for good', async () => {
     const first = fixture.threads.create('editor-1');
     const second = fixture.threads.create('editor-1');

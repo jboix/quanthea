@@ -26,7 +26,7 @@ flowchart LR
     Conn["connectors/ prometheus · postgres · opensearch · http"]
     Dom["dashboards/ threads/ search/ settings/ auth/"]
     DB[("SQLite: data dir")]
-    Jobs["jobs/ bin purge"]
+    Jobs["jobs/ thread bin purge"]
   end
 
   LLM["Model gateway (Anthropic / OpenAI / OpenAI-compatible)"]
@@ -84,7 +84,7 @@ The two paths that matter:
 │   │       ├── threads/             threads, messages, plans (state machine)
 │   │       ├── settings/            typed settings store (auth, gateway, retention)
 │   │       ├── secrets/             encrypt/decrypt credentials at rest
-│   │       ├── jobs/                in-process scheduler; bin purge
+│   │       ├── jobs/                in-process jobs: the hourly purge of the thread bin
 │   │       └── db/                  bun:sqlite client, migrations, repositories
 │   └── web/                         @querent/web
 │       ├── index.html
@@ -332,6 +332,11 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
   or another thread uses it. The library index drops it through its trigger. Copies keep their
   `parent_dashboard_id`.
 - The usage ledger has no foreign keys, so purging never changes Settings → Usage.
+- **Retention** (Settings → Retention, `GET/PUT /api/settings/retention`, admin): binned threads
+  are kept for `binDays` days, 30 by default, or until someone deletes them (`null`).
+  `jobs/purge.ts` runs at startup and then every hour, and purges the threads binned longer ago,
+  as the actor `retention`. With 0 days, the next run purges everything in the bin.
+- The Bin screen says, for each thread, when it goes for good.
 
 `threads/bin.ts` holds these rules over `db/thread-bin.ts`.
 
