@@ -17,6 +17,7 @@ import { SettingsAuthRoute } from '../routes/settings-auth.tsx';
 import { SettingsLayout } from '../routes/settings-layout.tsx';
 import { modelSettingsRoute } from '../routes/settings-model.tsx';
 import { SettingsRetentionRoute } from '../routes/settings-retention.tsx';
+import { usageSettingsRoute } from '../routes/settings-usage.tsx';
 import { threadRoutes } from '../routes/thread.tsx';
 import { UiKitRoute } from '../routes/ui-kit.tsx';
 import { ErrorPage } from './error-page.tsx';
@@ -93,6 +94,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
       children: [
         { index: true, loader: () => redirect('/settings/model') },
         modelSettingsRoute(loadSession, api),
+        usageSettingsRoute(loadSession, api),
         screen(loadSession, '/settings/auth', SettingsAuthRoute),
         screen(loadSession, '/settings/retention', SettingsRetentionRoute),
       ],

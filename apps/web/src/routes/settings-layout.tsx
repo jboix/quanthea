@@ -4,6 +4,7 @@ import styles from './settings-layout.module.css';
 /** The settings sections, in menu order. */
 const sections = [
   { to: '/settings/model', label: 'Model' },
+  { to: '/settings/usage', label: 'Usage' },
   { to: '/settings/auth', label: 'Authentication' },
   { to: '/settings/retention', label: 'Retention' },
 ] as const;

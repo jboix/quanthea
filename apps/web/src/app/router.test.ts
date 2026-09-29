@@ -58,6 +58,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
     model: 'claude-sonnet-5',
     connectors: [],
   },
+  'GET /settings/usage': { from: 0, to: 1, pricesCheckedOn: '2026-09-29', buckets: [] },
   'GET /settings/model': {
     settings: {
       provider: 'anthropic',
@@ -67,7 +68,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
       behaviour: { planApproval: true, testRun: true },
     },
     apiKey: null,
-    usage: { tokens: 0, threads: 0 },
+    usage: { tokens: 0, threads: 0, pinnedViews: 0, dollars: 0 },
   },
 };
 

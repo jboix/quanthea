@@ -1,6 +1,6 @@
 import { gatewayPresets, type ModelSettings, type ModelSettingsView } from '@querent/shared';
 import { useState } from 'react';
-import { type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
+import { Link, type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
 import { CheckIcon, WarningIcon } from '../../ui/icons.tsx';
@@ -303,20 +303,27 @@ function LimitsCard({ form, issues }: SectionProps) {
 }
 
 /**
- * This month's usage: what threads spent, and what pinned dashboards did not.
+ * This month's usage, from the ledger: threads, tokens, the list-price cost, and pinned views,
+ * which spend nothing.
  *
  * @param props - The usage.
  * @param props.usage - Tokens and threads this month.
  * @returns The card.
  */
 function UsageCard({ usage }: { readonly usage: ModelSettingsView['usage'] }) {
+  const dollars = new Intl.NumberFormat('en', {
+    style: 'currency',
+    currency: 'USD',
+    maximumSignificantDigits: 2,
+  });
   const figures = [
     ['Threads', usage.threads.toLocaleString('en')],
     ['Tokens', usage.tokens.toLocaleString('en')],
-    ['Pinned views', '0 tokens'],
+    ['List-price cost', usage.dollars === 0 ? '$0' : dollars.format(usage.dollars)],
+    ['Pinned views', `${usage.pinnedViews.toLocaleString('en')} · 0 tokens`],
   ];
   return (
-    <Card title="This month">
+    <Card title="This month" actions={<Link to="/settings/usage">See usage</Link>}>
       <dl className={styles.figures}>
         {figures.map(([label, value]) => (
           <div key={label}>

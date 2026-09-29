@@ -181,6 +181,7 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/connectors/new`, `/connectors/:connectorId/edit`         | add and edit a connection                                  | admin    |
 | `/connectors/:connectorId/health`                          | resource route: the connection test, for fetchers          | admin    |
 | `/settings/model`, `/settings/auth`, `/settings/retention` | Settings                                                   | admin    |
+| `/settings/usage`                                          | Usage: tokens, cost and pinned views per day, by model     | admin    |
 | `/settings`                                                | redirect → `/settings/model`                               | admin    |
 | `/ui`                                                      | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
 | `/login`                                                   | only in `basic` / `oidc` modes                             | —        |
