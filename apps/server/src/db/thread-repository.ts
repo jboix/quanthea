@@ -83,14 +83,14 @@ export interface ThreadRepository {
    */
   create(row: ThreadRow): void;
   /**
-   * Finds a thread.
+   * Finds a thread outside the bin.
    *
    * @param id - The thread id.
-   * @returns The thread, or `undefined`.
+   * @returns The thread, or `undefined`, also when it is in the bin.
    */
   get(id: string): ThreadRow | undefined;
   /**
-   * Lists threads, the most recently changed first.
+   * Lists the threads outside the bin, the most recently changed first.
    *
    * @returns The threads.
    */
@@ -264,9 +264,12 @@ function threadStatements(database: Database) {
       `INSERT INTO threads (id, title, state, dashboard_id, tokens_used, created_by, provider_id,
          recipes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
-    selectOne: database.query<StoredThread, [string]>('SELECT * FROM threads WHERE id = ?'),
+    // A thread in the bin is out of reach until it is restored (db/thread-bin.ts).
+    selectOne: database.query<StoredThread, [string]>(
+      'SELECT * FROM threads WHERE id = ? AND deleted_at IS NULL',
+    ),
     selectAll: database.query<StoredThread, []>(
-      'SELECT * FROM threads ORDER BY updated_at DESC, id DESC',
+      'SELECT * FROM threads WHERE deleted_at IS NULL ORDER BY updated_at DESC, id DESC',
     ),
     update: database.query(
       `UPDATE threads SET title = coalesce(?, title), state = coalesce(?, state),

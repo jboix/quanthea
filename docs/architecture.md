@@ -163,7 +163,7 @@ the `postgres` driver and Prometheus uses `fetch`.
 - **Thread screen.** The conversation streams through `useChat`, which posts only the new message
   to `/api/threads/:threadId/chat`; the server holds the conversation. Approving a plan, undoing
   and pinning go through the route action, and approving then continues the assistant message.
-  The version the draft pane shows lives in `?v=`, so a reload or a shared link keeps it. The new-thread screen is one question box in the middle of the screen, with a Past threads button at the top right. It opens a drawer from the right (from the top on a phone) that searches the titles, can show only threads whose dashboard is pinned (each marked with a pin), groups the threads by day, and deletes one after asking. A link can fill the question box with `?question=`. It creates the thread and hands the first question over in `?ask=`, which the thread screen sends
+  The version the draft pane shows lives in `?v=`, so a reload or a shared link keeps it. The new-thread screen is one question box in the middle of the screen, with a Past threads button at the top right. It opens a drawer from the right (from the top on a phone) that searches the titles, can show only threads whose dashboard is pinned (each marked with a pin), groups the threads by day, and moves one to the bin after asking. A thread whose dashboard is pinned can't be deleted. A link can fill the question box with `?question=`. It creates the thread and hands the first question over in `?ask=`, which the thread screen sends
   once and removes. Each question carries the browser's time zone.
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
@@ -179,7 +179,7 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/d/:dashboardId/v/:version`                               | a specific version                                         | viewer   |
 | `/d/:dashboardId/v/:version/panels/:panelId`               | resource route: one panel's run, for fetchers              | viewer   |
 | `/d/:dashboardId/v/:version/options/:name`                 | resource route: a variable's options, for fetchers         | viewer   |
-| `/bin`                                                     | Bin                                                        | editor   |
+| `/bin`                                                     | Bin: deleted threads, restore, delete for good (admin)     | editor   |
 | `/connectors`, `/connectors/:connectorId`                  | Connectors: list, access level, guardrails, schema         | admin    |
 | `/connectors/new`, `/connectors/:connectorId/edit`         | add and edit a connection                                  | admin    |
 | `/connectors/:connectorId/health`                          | resource route: the connection test, for fetchers          | admin    |
@@ -315,15 +315,25 @@ edits, with no model involved:
 
 Later, the plan for a copy may describe changes as CHANGED / NEW / SAME against its parent.
 
-### 5.5 Bin and purge
+### 5.5 The thread bin
 
-- `POST /api/dashboards/:id/bin` (editor+) sets `deleted_at`, which drops the dashboard from the
-  library index, and writes an audit event.
-- `POST /api/bin/:id/restore` (editor+) clears `deleted_at`, which indexes it again.
-- `DELETE /api/bin/:id` and `DELETE /api/bin` (admin) delete permanently.
-- `jobs/purge` runs hourly (and once at startup): if `retention.binDays` is set, it purges
-  dashboards where `deleted_at < now − binDays`. Purging deletes the dashboard and all its versions
-  in one transaction. Variants keep their `parent_dashboard_id`, and the UI renders "parent deleted".
+The bin holds threads, not dashboards: a dashboard lives in its thread, and leaves the library by
+being unpinned. Deleting a thread frees the space of the thread and its dashboard together.
+
+- `DELETE /api/threads/:id` (editor+) moves the thread to the bin: it sets `threads.deleted_at`
+  and `deleted_by` and writes a `thread.bin` audit event. A thread whose dashboard is pinned is
+  refused: unpin first.
+- A binned thread is out of reach: the thread reads skip it, its dashboard can't be pinned, and
+  "Edit in a new thread" is refused for its dashboard. Its dashboard still opens for editors, with
+  a link to the bin.
+- `GET /api/bin` and `POST /api/bin/:id/restore` (editor+) list and restore binned threads.
+- `DELETE /api/bin/:id` and `DELETE /api/bin` (admin) purge: in one transaction, the thread with
+  its messages and plans, then its dashboard with every version, unless that dashboard is pinned
+  or another thread uses it. The library index drops it through its trigger. Copies keep their
+  `parent_dashboard_id`.
+- The usage ledger has no foreign keys, so purging never changes Settings → Usage.
+
+`threads/bin.ts` holds these rules over `db/thread-bin.ts`.
 
 ## 6. The agent
 
@@ -727,6 +737,7 @@ CREATE TABLE threads (
   id TEXT PRIMARY KEY, title TEXT, state TEXT NOT NULL DEFAULT 'idle',
   dashboard_id TEXT,                -- the dashboard this thread authors
   provider_id TEXT,                 -- the model provider; NULL or a removed one means the default
+  deleted_at INTEGER, deleted_by TEXT,   -- in the bin since, and who put it there
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
 
 CREATE TABLE messages (
@@ -802,7 +813,7 @@ indicative; the contract files are the source of truth.
 | `GET /health`                                                                                     | liveness + version                           | public   |
 | `GET /me`                                                                                         | principal, role, auth mode                   | public   |
 | `POST /auth/login`, `POST /auth/logout`, `GET /auth/oidc/start`, `GET /auth/oidc/callback`        | sessions                                     | public   |
-| `GET /threads` (each marked `pinned`), `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id` | threads                                      | editor   |
+| `GET /threads` (each marked `pinned`), `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id` | threads; delete moves to the bin             | editor   |
 | `POST /threads/:id/chat`                                                                          | streamed agent run                           | editor   |
 | `POST /threads/:id/plans/:planId/approve` · `/reject`                                             | plan decisions                               | editor   |
 | `POST /threads/:id/start-from` (a pinned dashboard)                                               | draft from a copy, no model                  | editor   |
@@ -812,9 +823,8 @@ indicative; the contract files are the source of truth.
 | `GET /dashboards/:id` (with its thread's id), `GET /dashboards/:id/versions/:v` (drafts: editor)  | spec                                         | viewer   |
 | `POST /dashboards/:id/pin`, `POST /dashboards/:id/unpin`                                          | choose the version shown, or none            | editor   |
 | `POST /dashboards/:id/threads` (`copy` a version, or `edit` one without a thread)                 | new thread on a dashboard                    | editor   |
-| `POST /dashboards/:id/bin`                                                                        | move to bin                                  | editor   |
-| `GET /bin`, `POST /bin/:id/restore`                                                               | bin                                          | editor   |
-| `DELETE /bin/:id`, `DELETE /bin`                                                                  | permanent delete                             | admin    |
+| `GET /bin`, `POST /bin/:threadId/restore`                                                         | the thread bin                               | editor   |
+| `DELETE /bin/:threadId`, `DELETE /bin`                                                            | delete threads and their dashboards for good | admin    |
 | `POST /panels/run`, `POST /variables/options`                                                     | run one saved panel, options                 | viewer   |
 | `GET /connector-kinds` (with the JSON Schemas of their forms)                                     | connector kinds                              | admin    |
 | `GET/POST /connectors`, `GET/PATCH/DELETE /connectors/:connectorId`                               | connectors                                   | admin    |

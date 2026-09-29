@@ -159,8 +159,25 @@ export type NewThreadIntent =
   | { readonly intent: 'delete'; readonly threadId: string };
 
 /**
+ * Moves a past thread to the bin.
+ *
+ * @param api - The API client.
+ * @param threadId - The thread.
+ * @returns Done, or why not, such as a pinned dashboard.
+ */
+async function binThread(api: ApiClient, threadId: string): Promise<ThreadOutcome> {
+  try {
+    await api.call(deleteThreadEndpoint, { params: { threadId } });
+    return { ok: true };
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    return { ok: false, message: error.message };
+  }
+}
+
+/**
  * The action of the new-thread screen: starts a thread and hands the first question over, or
- * deletes a past thread.
+ * moves a past thread to the bin.
  *
  * @param api - The API client.
  * @returns The action. Starting redirects to the thread, which sends the question.
@@ -168,10 +185,7 @@ export type NewThreadIntent =
 export function newThreadAction(api: ApiClient) {
   return async ({ request }: ActionFunctionArgs): Promise<Response | ThreadOutcome> => {
     const intent = (await request.json()) as NewThreadIntent;
-    if (intent.intent === 'delete') {
-      await api.call(deleteThreadEndpoint, { params: { threadId: intent.threadId } });
-      return { ok: true };
-    }
+    if (intent.intent === 'delete') return binThread(api, intent.threadId);
     const { providerId, queries } = intent;
     const body = {
       ...(providerId === undefined ? {} : { providerId }),

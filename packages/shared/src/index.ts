@@ -1,6 +1,14 @@
 /** The public surface of `@querent/shared`. */
 
 export {
+  type BinnedThread,
+  binnedThreadSchema,
+  emptyBinEndpoint,
+  listBinEndpoint,
+  purgeThreadEndpoint,
+  restoreThreadEndpoint,
+} from './api/bin.ts';
+export {
   type ChartSettings,
   chartSettingsSchema,
   getChartSettingsEndpoint,

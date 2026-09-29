@@ -11,6 +11,7 @@ import type { AppEnv } from './http/app-env.ts';
 import { authenticate } from './http/authenticate.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
+import { mountBinEndpoints } from './http/routes/bin-routes.ts';
 import { mountChartEndpoints } from './http/routes/chart-routes.ts';
 import { mountChatRoute } from './http/routes/chat-route.ts';
 import { mountConnectorRoutes } from './http/routes/connector-routes.ts';
@@ -26,6 +27,7 @@ import type { Logger } from './lib/logger.ts';
 import type { ChartSettingsService } from './settings/chart-settings.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
 import type { QuerySettingsService } from './settings/query-settings.ts';
+import type { ThreadBin } from './threads/bin.ts';
 import type { Threads } from './threads/threads.ts';
 import type { Usage } from './usage/usage.ts';
 
@@ -47,6 +49,8 @@ export interface AppDependencies {
   readonly modelSettings: ModelSettingsService;
   /** The threads. */
   readonly threads: Threads;
+  /** The bin of threads. */
+  readonly bin: ThreadBin;
   /** The agent. */
   readonly agent: Agent;
   /** The connectors as the model sees them. */
@@ -57,6 +61,33 @@ export interface AppDependencies {
   readonly querySettings: QuerySettingsService;
   /** The chart settings. */
   readonly chartSettings: ChartSettingsService;
+}
+
+/**
+ * Mounts every `/api` route.
+ *
+ * @param app - The app.
+ * @param dependencies - The services the routes use.
+ */
+function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
+  mountSystemRoutes(app, {
+    version: dependencies.version,
+    authMode: dependencies.authenticator.mode,
+  });
+  mountConnectorRoutes(app, dependencies.connections);
+  mountDashboardEndpoints(
+    app,
+    dependencies.dashboards,
+    dependencies.usage.recordPinnedView,
+    dependencies.bin.ownerOf,
+  );
+  mountSettingsEndpoints(app, dependencies.modelSettings);
+  mountUsageEndpoints(app, dependencies.usage);
+  mountQueryEndpoints(app, dependencies);
+  mountChartEndpoints(app, dependencies.chartSettings);
+  mountThreadEndpoints(app, dependencies);
+  mountBinEndpoints(app, dependencies.bin);
+  mountChatRoute(app, dependencies.agent);
 }
 
 /**
@@ -72,23 +103,7 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   app.use(logRequests(dependencies.logger));
   app.use(`${apiPrefix}/*`, authenticate(dependencies.authenticator));
 
-  mountSystemRoutes(app, {
-    version: dependencies.version,
-    authMode: dependencies.authenticator.mode,
-  });
-  mountConnectorRoutes(app, dependencies.connections);
-  mountDashboardEndpoints(
-    app,
-    dependencies.dashboards,
-    dependencies.usage.recordPinnedView,
-    dependencies.threads.threadOf,
-  );
-  mountSettingsEndpoints(app, dependencies.modelSettings);
-  mountUsageEndpoints(app, dependencies.usage);
-  mountQueryEndpoints(app, dependencies);
-  mountChartEndpoints(app, dependencies.chartSettings);
-  mountThreadEndpoints(app, dependencies);
-  mountChatRoute(app, dependencies.agent);
+  mountApiRoutes(app, dependencies);
   mountSpa(app, dependencies.webDir);
 
   app.onError(handleErrors(dependencies.logger));

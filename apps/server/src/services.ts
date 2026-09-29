@@ -11,6 +11,7 @@ import { createAuditRepository } from './db/audit-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import type { openDatabase } from './db/database.ts';
+import { createThreadBinRepository } from './db/thread-bin.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
@@ -21,6 +22,7 @@ import { type ChartSettingsService, createChartSettings } from './settings/chart
 import { createModelSettings, type ModelSettingsService } from './settings/model-settings.ts';
 import { createQuerySettings, type QuerySettingsService } from './settings/query-settings.ts';
 import type { SettingsStore } from './settings/settings-store.ts';
+import { createThreadBin, type ThreadBin } from './threads/bin.ts';
 import { createThreads, type Threads } from './threads/threads.ts';
 import { createUsage, type Usage } from './usage/usage.ts';
 
@@ -48,6 +50,8 @@ export interface Services {
   readonly modelView: ModelView;
   /** The threads. */
   readonly threads: Threads;
+  /** The bin of threads. */
+  readonly bin: ThreadBin;
   /** The agent that authors dashboards in threads. */
   readonly agent: Agent;
   /** The usage ledger. */
@@ -113,8 +117,12 @@ export function createServices(dependencies: ServiceDependencies): Services {
   });
   const querySettings = createQuerySettings({ store: dependencies.settings, audit });
   const threads = createThreads({ repository, audit });
+  const bin = createThreadBin({
+    repository: createThreadBinRepository(dependencies.database),
+    audit,
+  });
   const chartSettings = createChartSettings({ store: dependencies.settings, audit });
   const settings = { modelSettings, querySettings, chartSettings };
   const agent = createAgent({ ...data, threads, usage, ...settings });
-  return { ...data, threads, agent, usage, ...settings };
+  return { ...data, threads, bin, agent, usage, ...settings };
 }

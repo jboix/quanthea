@@ -1,0 +1,200 @@
+/**
+ * The bin of threads: moving a thread in and out, listing it, and purging it with its dashboard.
+ * The other thread reads (`thread-repository.ts`) skip binned threads.
+ */
+import type { Database } from 'bun:sqlite';
+
+/** A thread in the bin. */
+export interface BinnedRow {
+  /** The thread. */
+  readonly id: string;
+  /** Its title. */
+  readonly title: string | null;
+  /** Its dashboard, if it has one. */
+  readonly dashboardId: string | null;
+  /** The dashboard's title. */
+  readonly dashboardTitle: string | null;
+  /** When it went to the bin. */
+  readonly deletedAt: number;
+  /** Who moved it there. */
+  readonly deletedBy: string | null;
+}
+
+/** What moving a thread to the bin did. */
+export type BinOutcome = 'binned' | 'missing' | 'pinned';
+
+/** Stores the bin. */
+export interface ThreadBinRepository {
+  /**
+   * Moves a thread to the bin, unless its dashboard is pinned.
+   *
+   * @param id - The thread.
+   * @param at - When.
+   * @param actor - Who.
+   * @returns `binned`; `missing` when there is no such thread outside the bin; `pinned` when its
+   *   dashboard is pinned.
+   */
+  bin(id: string, at: number, actor: string): BinOutcome;
+  /**
+   * Takes a thread out of the bin.
+   *
+   * @param id - The thread.
+   * @param at - When, as its last change.
+   * @returns `false` when it is not in the bin.
+   */
+  restore(id: string, at: number): boolean;
+  /**
+   * Lists the threads in the bin, the most recently binned first.
+   *
+   * @returns The threads.
+   */
+  list(): BinnedRow[];
+  /**
+   * Lists the threads binned before a time.
+   *
+   * @param before - The time.
+   * @returns Their ids.
+   */
+  binnedBefore(before: number): string[];
+  /**
+   * Deletes a binned thread with its messages and plans, and its dashboard with every version,
+   * in one transaction. A pinned dashboard, or one another thread uses, stays.
+   *
+   * @param id - The thread.
+   * @returns `false` when it is not in the bin.
+   */
+  purge(id: string): boolean;
+  /**
+   * The thread a dashboard belongs to, in the bin or not.
+   *
+   * @param dashboardId - The dashboard.
+   * @returns The thread and whether it is binned, or `undefined`.
+   */
+  ownerOf(dashboardId: string): { readonly threadId: string; readonly binned: boolean } | undefined;
+}
+
+/** A binned thread as SQLite returns it. */
+interface StoredBinned {
+  /** The thread. */
+  id: string;
+  /** The title. */
+  title: string | null;
+  /** The dashboard. */
+  dashboard_id: string | null;
+  /** The dashboard's title. */
+  dashboard_title: string | null;
+  /** When it was binned. */
+  deleted_at: number;
+  /** Who binned it. */
+  deleted_by: string | null;
+}
+
+/**
+ * Prepares the statements of the bin.
+ *
+ * @param database - A database the migrations have run on.
+ * @returns The statements.
+ */
+function binStatements(database: Database) {
+  return {
+    live: database.query<{ pinned: number }, [string]>(
+      `SELECT d.pinned_version_id IS NOT NULL AS pinned FROM threads t
+       LEFT JOIN dashboards d ON d.id = t.dashboard_id WHERE t.id = ? AND t.deleted_at IS NULL`,
+    ),
+    bin: database.query('UPDATE threads SET deleted_at = ?, deleted_by = ? WHERE id = ?'),
+    restore: database.query(
+      `UPDATE threads SET deleted_at = NULL, deleted_by = NULL, updated_at = ?
+       WHERE id = ? AND deleted_at IS NOT NULL`,
+    ),
+    list: database.query<StoredBinned, []>(
+      `SELECT t.id, t.title, t.dashboard_id, d.title AS dashboard_title, t.deleted_at, t.deleted_by
+       FROM threads t LEFT JOIN dashboards d ON d.id = t.dashboard_id
+       WHERE t.deleted_at IS NOT NULL ORDER BY t.deleted_at DESC, t.id DESC`,
+    ),
+    before: database.query<{ id: string }, [number]>(
+      'SELECT id FROM threads WHERE deleted_at IS NOT NULL AND deleted_at < ?',
+    ),
+    binnedDashboard: database.query<{ dashboard_id: string | null }, [string]>(
+      'SELECT dashboard_id FROM threads WHERE id = ? AND deleted_at IS NOT NULL',
+    ),
+    removeThread: database.query('DELETE FROM threads WHERE id = ?'),
+    removeDashboard: database.query(
+      `DELETE FROM dashboards WHERE id = ?1 AND pinned_version_id IS NULL
+       AND NOT EXISTS (SELECT 1 FROM threads WHERE dashboard_id = ?1)`,
+    ),
+    owner: database.query<{ id: string; binned: number }, [string]>(
+      `SELECT id, deleted_at IS NOT NULL AS binned FROM threads WHERE dashboard_id = ?
+       ORDER BY deleted_at IS NOT NULL, created_at LIMIT 1`,
+    ),
+  };
+}
+
+/**
+ * Builds the transaction that moves a thread to the bin, after checking its dashboard.
+ *
+ * @param database - A database the migrations have run on.
+ * @param statements - The prepared statements.
+ * @returns The bin method.
+ */
+function binner(
+  database: Database,
+  statements: ReturnType<typeof binStatements>,
+): ThreadBinRepository['bin'] {
+  return database.transaction((id: string, at: number, actor: string): BinOutcome => {
+    const live = statements.live.get(id);
+    if (!live) return 'missing';
+    if (live.pinned) return 'pinned';
+    statements.bin.run(at, actor, id);
+    return 'binned';
+  });
+}
+
+/**
+ * Builds the transaction that purges a binned thread and its dashboard.
+ *
+ * @param database - A database the migrations have run on.
+ * @param statements - The prepared statements.
+ * @returns The purge method.
+ */
+function purger(
+  database: Database,
+  statements: ReturnType<typeof binStatements>,
+): ThreadBinRepository['purge'] {
+  return database.transaction((id: string): boolean => {
+    const binned = statements.binnedDashboard.get(id);
+    if (!binned) return false;
+    // The thread goes first, so the dashboard is no longer in use when it is checked.
+    statements.removeThread.run(id);
+    if (binned.dashboard_id !== null) statements.removeDashboard.run(binned.dashboard_id);
+    return true;
+  });
+}
+
+/**
+ * Creates the bin's repository over an open database.
+ *
+ * @param database - A database the migrations have run on.
+ * @returns The repository.
+ */
+export function createThreadBinRepository(database: Database): ThreadBinRepository {
+  const statements = binStatements(database);
+  return {
+    bin: binner(database, statements),
+    restore: (id, at) => statements.restore.run(at, id).changes > 0,
+    list: () =>
+      statements.list.all().map((row) => ({
+        id: row.id,
+        title: row.title,
+        dashboardId: row.dashboard_id,
+        dashboardTitle: row.dashboard_title,
+        deletedAt: row.deleted_at,
+        deletedBy: row.deleted_by,
+      })),
+    binnedBefore: (before) => statements.before.all(before).map((row) => row.id),
+    purge: purger(database, statements),
+    ownerOf: (dashboardId) => {
+      const row = statements.owner.get(dashboardId);
+      return row ? { threadId: row.id, binned: row.binned === 1 } : undefined;
+    },
+  };
+}

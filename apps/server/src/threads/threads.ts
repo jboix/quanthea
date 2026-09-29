@@ -43,13 +43,6 @@ export interface Threads {
    */
   list(): ThreadSummary[];
   /**
-   * The thread that edits a dashboard, while it exists.
-   *
-   * @param dashboardId - The dashboard.
-   * @returns The thread's id, or `null`.
-   */
-  threadOf(dashboardId: string): string | null;
-  /**
    * Starts a thread.
    *
    * @param actor - Who starts it.
@@ -390,8 +383,6 @@ export function createThreads(dependencies: ThreadsDependencies): Threads {
   const { repository } = context;
   return {
     list: () => repository.list().map(toSummary),
-    threadOf: (dashboardId) =>
-      repository.list().find((row) => row.dashboardId === dashboardId)?.id ?? null,
     create: (actor, providerId, queries) =>
       create(context, actor, providerId ?? null, queries ?? { mode: 'default' }),
     get: (id) => get(context, id),

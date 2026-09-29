@@ -68,6 +68,7 @@ describe('runMigrations', () => {
       '0007-thread-recipes.sql',
       '0008-library-search.sql',
       '0009-every-version-is-immutable.sql',
+      '0010-thread-bin.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([

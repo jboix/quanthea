@@ -55,6 +55,8 @@ Module boundaries are in the architecture doc, section 3 and 4, and in `.depende
 - No dashboard ownership. Roles are admin, editor and viewer. Every `/api` route declares
   its access (`'public'` or a minimum role) through `mountEndpoint`, and a test fails otherwise.
 - Versions are never rewritten. Pinning chooses the version shown, and any version can be pinned.
+- The bin holds threads. Deleting a thread moves it there; a thread with a pinned dashboard
+  can't be deleted. Usage outlives every purge.
 - TypeScript stays on 6.0.x. No path aliases: relative imports inside a workspace,
   package names across workspaces.
 - Library versions are newer than most training data. Read the installed type definitions or the

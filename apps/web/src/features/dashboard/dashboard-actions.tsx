@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
-import { CopyIcon, MoreIcon, ThreadsIcon } from '../../ui/icons.tsx';
+import { BinIcon, CopyIcon, MoreIcon, ThreadsIcon } from '../../ui/icons.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import { useMediaQuery } from '../../ui/use-media-query.ts';
 import styles from './dashboard.module.css';
@@ -28,6 +28,45 @@ function CopyLinkButton() {
 }
 
 /**
+ * The way to the dashboard's thread: open it, find it in the bin, or start one when it has none.
+ *
+ * @param props - The dashboard, and the intent submitter.
+ * @param props.dashboard - The dashboard.
+ * @param props.onEdit - Opens a new thread on the dashboard.
+ * @param props.busy - Whether a submission is on its way.
+ * @returns The link or button.
+ */
+function ThreadLink({
+  dashboard,
+  onEdit,
+  busy,
+}: {
+  readonly dashboard: DashboardData['dashboard'];
+  readonly onEdit: () => void;
+  readonly busy: boolean;
+}) {
+  if (dashboard.threadId !== null) {
+    return (
+      <Link to={`/threads/${dashboard.threadId}`} className={buttonClassName('secondary')}>
+        <ThreadsIcon /> Open thread
+      </Link>
+    );
+  }
+  if (dashboard.threadBinned) {
+    return (
+      <Link to="/bin" className={buttonClassName('secondary')}>
+        <BinIcon /> Thread in the bin
+      </Link>
+    );
+  }
+  return (
+    <Button disabled={busy} onClick={onEdit}>
+      <ThreadsIcon /> Edit in a new thread
+    </Button>
+  );
+}
+
+/**
  * For editors: the dashboard's thread, or a new thread on it when it has none, and a new
  * dashboard from the version shown.
  *
@@ -43,15 +82,7 @@ function ThreadActions({ dashboard, version }: DashboardData) {
   const busy = fetcher.state !== 'idle';
   return (
     <>
-      {dashboard.threadId === null ? (
-        <Button disabled={busy} onClick={() => submit({ intent: 'edit' })}>
-          <ThreadsIcon /> Edit in a new thread
-        </Button>
-      ) : (
-        <Link to={`/threads/${dashboard.threadId}`} className={buttonClassName('secondary')}>
-          <ThreadsIcon /> Open thread
-        </Link>
-      )}
+      <ThreadLink dashboard={dashboard} busy={busy} onEdit={() => submit({ intent: 'edit' })} />
       <Button disabled={busy} onClick={() => submit({ intent: 'copy', version: version.version })}>
         <CopyIcon /> New from this
       </Button>

@@ -74,7 +74,7 @@ describe('thread routes', () => {
     expect((await call('POST', `/api/threads/${id}/plans/${proposed.id}/reject`)).status).toBe(400);
     expect((await call('POST', `/api/threads/${id}/restore`, { version: 1 })).status).toBe(400);
     expect((await call('GET', '/api/threads')).body).toMatchObject([{ id, state: 'building' }]);
-    expect((await call('DELETE', `/api/threads/${id}`)).body).toEqual({ deleted: true });
+    expect((await call('DELETE', `/api/threads/${id}`)).body).toEqual({ binned: true });
     expect((await call('GET', `/api/threads/${id}`)).status).toBe(404);
   });
 

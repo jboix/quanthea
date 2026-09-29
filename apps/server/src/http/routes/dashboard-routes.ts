@@ -11,23 +11,29 @@ import {
 } from '@querent/shared';
 import type { Hono } from 'hono';
 import type { Dashboards } from '../../dashboards/dashboards.ts';
+import { AppError } from '../../lib/errors.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { actorOf, roleOf } from '../principal.ts';
 
+/** The thread a dashboard belongs to, in the bin or not. */
+type OwnerOf = (
+  dashboardId: string,
+) => { readonly threadId: string; readonly binned: boolean } | null;
+
 /**
- * Mounts the endpoints that create, read and pin dashboards.
+ * Mounts the endpoints that create and read dashboards.
  *
  * @param app - The app.
  * @param dashboards - The dashboards service.
  * @param onPinnedView - Called when a pinned version is read, for the usage ledger.
- * @param threadOf - The thread that edits a dashboard, while it exists.
+ * @param ownerOf - The thread a dashboard belongs to, in the bin or not.
  */
 function mountDashboardRoutes(
   app: Hono<AppEnv>,
   dashboards: Dashboards,
   onPinnedView: (dashboardId: string) => void,
-  threadOf: (dashboardId: string) => string | null,
+  ownerOf: OwnerOf,
 ): void {
   mountEndpoint(app, createDashboardEndpoint, {
     access: 'editor',
@@ -36,10 +42,16 @@ function mountDashboardRoutes(
   });
   mountEndpoint(app, getDashboardEndpoint, {
     access: 'viewer',
-    handle: ({ params, principal }) => ({
-      ...dashboards.get(params.dashboardId, roleOf(principal)),
-      threadId: threadOf(params.dashboardId),
-    }),
+    handle: ({ params, principal }) => {
+      const dashboard = dashboards.get(params.dashboardId, roleOf(principal));
+      const owner = ownerOf(params.dashboardId);
+      const threadBinned = owner?.binned === true;
+      return {
+        ...dashboard,
+        threadId: threadBinned ? null : (owner?.threadId ?? null),
+        threadBinned,
+      };
+    },
   });
   mountEndpoint(app, getDashboardVersionEndpoint, {
     access: 'viewer',
@@ -56,16 +68,21 @@ function mountDashboardRoutes(
 }
 
 /**
- * Mounts the endpoints that choose the version a dashboard shows, or none.
+ * Mounts the endpoints that choose the version a dashboard shows, or none. A dashboard whose
+ * thread is in the bin can't be pinned: purging would delete it.
  *
  * @param app - The app.
  * @param dashboards - The dashboards service.
+ * @param ownerOf - The thread a dashboard belongs to, in the bin or not.
  */
-function mountPinRoutes(app: Hono<AppEnv>, dashboards: Dashboards): void {
+function mountPinRoutes(app: Hono<AppEnv>, dashboards: Dashboards, ownerOf: OwnerOf): void {
   mountEndpoint(app, pinDashboardEndpoint, {
     access: 'editor',
-    handle: ({ params, body, principal }) =>
-      dashboards.pin(params.dashboardId, body.version, actorOf(principal)),
+    handle: ({ params, body, principal }) => {
+      if (ownerOf(params.dashboardId)?.binned)
+        throw new AppError('bad_request', 'Its thread is in the bin. Restore it before pinning.');
+      return dashboards.pin(params.dashboardId, body.version, actorOf(principal));
+    },
   });
   mountEndpoint(app, unpinDashboardEndpoint, {
     access: 'editor',
@@ -100,16 +117,16 @@ function mountRunRoutes(app: Hono<AppEnv>, dashboards: Dashboards): void {
  * @param app - The app.
  * @param dashboards - The dashboards service.
  * @param onPinnedView - Called when a pinned version is read, for the usage ledger.
- * @param threadOf - The thread that edits a dashboard, while it exists.
+ * @param ownerOf - The thread a dashboard belongs to, in the bin or not.
  */
 export function mountDashboardEndpoints(
   app: Hono<AppEnv>,
   dashboards: Dashboards,
   onPinnedView: (dashboardId: string) => void = () => undefined,
-  threadOf: (dashboardId: string) => string | null = () => null,
+  ownerOf: OwnerOf = () => null,
 ): void {
-  mountDashboardRoutes(app, dashboards, onPinnedView, threadOf);
-  mountPinRoutes(app, dashboards);
+  mountDashboardRoutes(app, dashboards, onPinnedView, ownerOf);
+  mountPinRoutes(app, dashboards, ownerOf);
   mountRunRoutes(app, dashboards);
   mountEndpoint(app, searchLibraryEndpoint, {
     access: 'viewer',

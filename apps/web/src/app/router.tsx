@@ -7,7 +7,7 @@ import {
   redirect,
 } from 'react-router';
 import type { ApiClient } from '../lib/api-client.ts';
-import { BinRoute } from '../routes/bin.tsx';
+import { binRoute } from '../routes/bin.tsx';
 import { connectorRoutes } from '../routes/connectors.tsx';
 import { dashboardRoutes } from '../routes/dashboard.tsx';
 import { libraryRoute } from '../routes/library.tsx';
@@ -88,7 +88,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
     ...threadRoutes(loadSession, api),
     libraryRoute(loadSession, api),
     ...dashboardRoutes(loadSession, api),
-    screen(loadSession, '/bin', BinRoute),
+    binRoute(loadSession, api),
     connectorRoutes(loadSession, api),
     {
       path: '/settings',

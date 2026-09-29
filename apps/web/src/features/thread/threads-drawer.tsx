@@ -4,7 +4,7 @@ import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Drawer } from '../../ui/drawer.tsx';
 import { BinIcon, HistoryIcon, PinIcon, SearchIcon } from '../../ui/icons.tsx';
-import type { NewThreadIntent } from './data.ts';
+import type { NewThreadIntent, ThreadOutcome } from './data.ts';
 import { filterThreads, groupByDay, type ThreadFilter, untitled } from './thread-list.ts';
 import styles from './threads-drawer.module.css';
 
@@ -34,7 +34,7 @@ function ConfirmDelete({
 }) {
   return (
     <div className={styles.confirm}>
-      <span>Delete “{title}”? Pinned dashboards stay.</span>
+      <span>Move “{title}” to the bin? You can restore it from there.</span>
       <Button size="small" variant="danger" onClick={onDelete}>
         Delete
       </Button>
@@ -42,6 +42,42 @@ function ConfirmDelete({
         Cancel
       </Button>
     </div>
+  );
+}
+
+/**
+ * The button that moves a thread to the bin. A thread whose dashboard is pinned can't go, so its
+ * button says why instead.
+ *
+ * @param props - The thread, its title and the click callback.
+ * @param props.thread - The thread.
+ * @param props.title - Its title.
+ * @param props.onClick - Asks before deleting.
+ * @returns The button.
+ */
+function DeleteButton({
+  thread,
+  title,
+  onClick,
+}: {
+  readonly thread: ThreadListItem;
+  readonly title: string;
+  readonly onClick: () => void;
+}) {
+  const label = thread.pinned
+    ? `Unpin its dashboard to delete ${title}`
+    : `Move ${title} to the bin`;
+  return (
+    <button
+      type="button"
+      className={styles.delete}
+      aria-label={label}
+      title={thread.pinned ? 'Unpin its dashboard to delete this thread' : 'Move to the bin'}
+      disabled={thread.pinned}
+      onClick={onClick}
+    >
+      <BinIcon />
+    </button>
   );
 }
 
@@ -62,7 +98,7 @@ function ThreadRow({
   readonly date: Intl.DateTimeFormat;
 }) {
   const [confirming, setConfirming] = useState(false);
-  const fetcher = useFetcher();
+  const fetcher = useFetcher<ThreadOutcome>();
   const title = thread.title ?? untitled;
   const remove = () => {
     const intent: NewThreadIntent = { intent: 'delete', threadId: thread.id };
@@ -87,16 +123,10 @@ function ThreadRow({
               {note && ` · ${note}`}
             </span>
           </Link>
-          <button
-            type="button"
-            className={styles.delete}
-            aria-label={`Delete ${title}`}
-            onClick={() => setConfirming(true)}
-          >
-            <BinIcon />
-          </button>
+          <DeleteButton thread={thread} title={title} onClick={() => setConfirming(true)} />
         </>
       )}
+      {fetcher.data?.ok === false && <p className={styles.failure}>{fetcher.data.message}</p>}
     </li>
   );
 }

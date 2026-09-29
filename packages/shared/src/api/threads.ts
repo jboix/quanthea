@@ -77,12 +77,12 @@ export const getThreadEndpoint = defineEndpoint({
   output: threadDetailSchema,
 });
 
-/** Deletes a thread. Its dashboard, drafts and pinned versions stay. */
+/** Moves a thread to the bin, with its dashboard. A thread whose dashboard is pinned can't go. */
 export const deleteThreadEndpoint = defineEndpoint({
   method: 'DELETE',
   path: '/threads/:threadId',
   params: threadParams,
-  output: z.object({ deleted: z.literal(true) }),
+  output: z.object({ binned: z.literal(true) }),
 });
 
 /** Approves the pending plan; the thread moves to building. */

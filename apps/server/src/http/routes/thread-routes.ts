@@ -15,6 +15,7 @@ import type { Dashboards } from '../../dashboards/dashboards.ts';
 import type { ModelView } from '../../gate/model-view.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { ModelSettingsService } from '../../settings/model-settings.ts';
+import type { ThreadBin } from '../../threads/bin.ts';
 import { nextState } from '../../threads/state.ts';
 import type { Threads } from '../../threads/threads.ts';
 import type { AppEnv } from '../app-env.ts';
@@ -31,6 +32,8 @@ export interface ThreadRouteServices {
   readonly modelSettings: ModelSettingsService;
   /** The model view, for the connectors and their access levels. */
   readonly modelView: ModelView;
+  /** The bin, where deleted threads go. */
+  readonly bin: ThreadBin;
 }
 
 /**
@@ -98,8 +101,8 @@ function mountThreadRoutes(app: Hono<AppEnv>, services: ThreadRouteServices): vo
   mountEndpoint(app, deleteThreadEndpoint, {
     access: 'editor',
     handle: ({ params, principal }) => {
-      threads.remove(params.threadId, actorOf(principal));
-      return { deleted: true as const };
+      services.bin.bin(params.threadId, actorOf(principal));
+      return { binned: true as const };
     },
   });
 }
@@ -176,15 +179,21 @@ function startFromPinned(
  * @throws {AppError} `bad_request` to edit a dashboard that has a thread.
  */
 function threadFromDashboard(
-  services: Pick<ThreadRouteServices, 'threads' | 'dashboards'>,
+  services: Pick<ThreadRouteServices, 'threads' | 'dashboards' | 'bin'>,
   dashboardId: string,
   request: { readonly mode: 'copy' | 'edit'; readonly version?: number | undefined },
   actor: string,
 ) {
   const { threads, dashboards } = services;
   const detail = dashboards.get(dashboardId, 'editor');
-  if (request.mode === 'edit' && threads.threadOf(dashboardId) !== null)
-    throw new AppError('bad_request', 'This dashboard has a thread. Open it to edit.');
+  const owner = services.bin.ownerOf(dashboardId);
+  if (request.mode === 'edit' && owner !== null)
+    throw new AppError(
+      'bad_request',
+      owner.binned
+        ? 'Its thread is in the bin. Restore it to edit.'
+        : 'This dashboard has a thread. Open it to edit.',
+    );
   const version = request.version ?? detail.pinnedVersion ?? detail.versions.at(-1)?.version ?? 1;
   const target =
     request.mode === 'edit'

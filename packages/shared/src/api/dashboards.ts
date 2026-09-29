@@ -30,9 +30,13 @@ export const dashboardDetailSchema = z.object({
 /** A dashboard with its history. */
 export type DashboardDetail = z.infer<typeof dashboardDetailSchema>;
 
-/** A dashboard as its screen reads it: with the thread that edits it, while that thread exists. */
+/**
+ * A dashboard as its screen reads it: with the thread that edits it, while that thread is out of
+ * the bin, and whether its thread is in the bin.
+ */
 export const dashboardPageSchema = dashboardDetailSchema.extend({
   threadId: z.string().nullable(),
+  threadBinned: z.boolean(),
 });
 
 /** A dashboard as its screen reads it. */
