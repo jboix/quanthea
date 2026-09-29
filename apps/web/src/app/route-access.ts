@@ -22,7 +22,6 @@ export const routeAccess = {
   '/settings/model': 'admin',
   '/settings/auth': 'admin',
   '/settings/users': 'admin',
-  '/settings/retention': 'admin',
   '/settings/charts': 'admin',
   '/settings/queries': 'admin',
   '/settings/usage': 'admin',

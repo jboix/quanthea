@@ -45,7 +45,6 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'GET /settings/identity-providers': { providers: [], passwordSignIn: true, publicUrl: null },
   'GET /auth/options': { passwordSignIn: true, providers: [] },
   'GET /auth/identities': { linked: [], available: [], hasPassword: true },
-  'GET /settings/retention': { binDays: 30 },
   'GET /settings/server': { configFiles: [], settings: [], keys: [] },
   'GET /settings/managed': { sections: {} },
   'GET /dashboards': { results: [], tags: [], connectors: [] },

@@ -30,7 +30,12 @@ const binParams = z.object({ threadId: z.string().min(1) });
 export const listBinEndpoint = defineEndpoint({
   method: 'GET',
   path: '/bin',
-  output: z.object({ threads: z.array(binnedThreadSchema), binDays: z.int().nullable() }),
+  output: z.object({
+    threads: z.array(binnedThreadSchema),
+    binDays: z.int().nullable(),
+    /** For admins: the configuration file that sets the retention, when one does. */
+    retentionManagedBy: z.string().optional(),
+  }),
 });
 
 /** Takes a thread out of the bin, with its dashboard. */

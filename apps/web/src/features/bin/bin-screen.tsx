@@ -1,16 +1,11 @@
 import { type BinnedThread, hasRole, type Role } from '@querent/shared';
-import { useState } from 'react';
-import {
-  Link,
-  type SubmitTarget,
-  useFetcher,
-  useLoaderData,
-  useRouteLoaderData,
-} from 'react-router';
+import { useCallback, useState } from 'react';
+import { type SubmitTarget, useFetcher, useLoaderData, useRouteLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Page } from '../../ui/page.tsx';
 import styles from './bin.module.css';
 import type { BinData, BinIntent, BinOutcome } from './data.ts';
+import { RetentionDialog } from './retention-dialog.tsx';
 
 /**
  * Whether the person is an admin, who may delete for good.
@@ -144,26 +139,53 @@ function BinRow({
 }
 
 /**
- * How long threads stay, and where admins change it.
+ * How long threads stay.
  *
  * @param props - The retention.
  * @param props.binDays - How many days the bin keeps a thread, or `null`.
  * @returns The subtitle.
  */
 function BinSubtitle({ binDays }: { readonly binDays: number | null }) {
-  const admin = useIsAdmin();
   const stay = binDays === null ? 'until someone deletes them' : `for ${binDays} days`;
   return (
     <>
       Deleted threads wait here {stay}, with their dashboards. Deleting one for good frees its
       space; usage is kept.
-      {admin && (
-        <>
-          {' '}
-          <Link to="/settings/retention">Change retention</Link>
-        </>
-      )}
     </>
+  );
+}
+
+/**
+ * What admins can do with the whole bin: set the retention, and empty it.
+ *
+ * @param props - The bin.
+ * @param props.data - The bin.
+ * @returns The buttons, and the retention dialog.
+ */
+function AdminActions({ data }: { readonly data: BinData }) {
+  const empty = useBinIntent();
+  const [retention, setRetention] = useState(false);
+  const close = useCallback(() => setRetention(false), []);
+  const count = data.threads.length;
+  return (
+    <div className={styles.headerActions}>
+      <Button onClick={() => setRetention(true)}>Retention</Button>
+      {count > 0 && (
+        <ConfirmButton
+          label="Empty bin"
+          question={`Delete ${count === 1 ? 'this thread' : `all ${count} threads`} for good?`}
+          disabled={empty.busy}
+          onConfirm={() => empty.submit({ intent: 'empty' })}
+        />
+      )}
+      {empty.failure && <p className={styles.failure}>{empty.failure}</p>}
+      <RetentionDialog
+        binDays={data.binDays}
+        managedBy={data.retentionManagedBy}
+        open={retention}
+        onClose={close}
+      />
+    </div>
   );
 }
 
@@ -174,26 +196,15 @@ function BinSubtitle({ binDays }: { readonly binDays: number | null }) {
  * @returns The screen.
  */
 export function BinScreen() {
-  const { threads, binDays } = useLoaderData() as BinData;
+  const data = useLoaderData() as BinData;
+  const { threads, binDays } = data;
   const admin = useIsAdmin();
-  const empty = useBinIntent();
   return (
     <Page
       title="Bin"
       subtitle={<BinSubtitle binDays={binDays} />}
-      actions={
-        admin &&
-        threads.length > 0 && (
-          <ConfirmButton
-            label="Empty bin"
-            question={`Delete ${threads.length === 1 ? 'this thread' : `all ${threads.length} threads`} for good?`}
-            disabled={empty.busy}
-            onConfirm={() => empty.submit({ intent: 'empty' })}
-          />
-        )
-      }
+      actions={admin && <AdminActions data={data} />}
     >
-      {empty.failure && <p className={styles.failure}>{empty.failure}</p>}
       {threads.length === 0 ? (
         <p className={styles.empty}>The bin is empty.</p>
       ) : (

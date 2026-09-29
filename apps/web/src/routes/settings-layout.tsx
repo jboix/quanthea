@@ -12,7 +12,6 @@ const sections = [
   { to: '/settings/usage', label: 'Usage' },
   { to: '/settings/users', label: 'Users' },
   { to: '/settings/auth', label: 'Authentication' },
-  { to: '/settings/retention', label: 'Retention' },
   { to: '/settings/server', label: 'Server' },
 ] as const;
 

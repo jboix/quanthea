@@ -182,11 +182,11 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/d/:dashboardId/v/:version`                       | a specific version                                         | viewer   |
 | `/d/:dashboardId/v/:version/panels/:panelId`       | resource route: one panel's run, for fetchers              | viewer   |
 | `/d/:dashboardId/v/:version/options/:name`         | resource route: a variable's options, for fetchers         | viewer   |
-| `/bin`                                             | Bin: deleted threads, restore, delete for good (admin)     | editor   |
+| `/bin`                                             | Bin: deleted threads, restore; retention, delete (admin)   | editor   |
 | `/connectors`, `/connectors/:connectorId`          | Connectors: list, access level, guardrails, schema         | admin    |
 | `/connectors/new`, `/connectors/:connectorId/edit` | add and edit a connection                                  | admin    |
 | `/connectors/:connectorId/health`                  | resource route: the connection test, for fetchers          | admin    |
-| `/settings/model`, `/settings/retention`           | Settings                                                   | admin    |
+| `/settings/model`                                  | Model: the providers, their keys and limits                | admin    |
 | `/settings/auth`                                   | Authentication: sign-in providers, passwords               | admin    |
 | `/settings/users`                                  | Users: invite, roles, disable, reset links, sign out       | admin    |
 | `/settings/usage`                                  | Usage: tokens, cost and pinned views per day, by model     | admin    |
@@ -344,7 +344,7 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
   or another thread uses it. The library index drops it through its trigger. Copies keep their
   `parent_dashboard_id`.
 - The usage ledger has no foreign keys, so purging never changes Settings → Usage.
-- **Retention** (Settings → Retention, `GET/PUT /api/settings/retention`, admin): binned threads
+- **Retention** (the Retention dialog on the bin, `GET/PUT /api/settings/retention`, admin): binned threads
   are kept for `binDays` days, 30 by default, or until someone deletes them (`null`).
   `jobs/purge.ts` runs at startup and then every hour, and purges the threads binned longer ago,
   as the actor `retention`. With 0 days, the next run purges everything in the bin.

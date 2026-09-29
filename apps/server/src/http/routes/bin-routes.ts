@@ -79,6 +79,23 @@ function binnedFor(services: BinRouteServices, principal: Principal) {
 }
 
 /**
+ * The bin as someone sees it: their binned threads, the retention, and for admins the file that
+ * sets it, when one does.
+ *
+ * @param services - The bin, the retention settings, the users and what the file manages.
+ * @param principal - Who asks.
+ * @returns The view.
+ */
+async function binView(services: BinRouteServices, principal: Principal) {
+  const managedBy = services.managed.pathOf('settings', 'retention');
+  return {
+    threads: await binnedFor(services, principal),
+    binDays: services.retention.get().binDays,
+    ...(principal.role === 'admin' && managedBy ? { retentionManagedBy: managedBy } : {}),
+  };
+}
+
+/**
  * Mounts the bin endpoints and the retention settings. Editors see and restore their own binned
  * threads; admins see, restore and delete everyone's.
  *
@@ -90,10 +107,7 @@ export function mountBinEndpoints(app: Hono<AppEnv>, services: BinRouteServices)
   mountRetentionEndpoints(app, retention, services.managed);
   mountEndpoint(app, listBinEndpoint, {
     access: 'editor',
-    handle: async ({ principal }) => ({
-      threads: await binnedFor(services, signedIn(principal)),
-      binDays: retention.get().binDays,
-    }),
+    handle: ({ principal }) => binView(services, signedIn(principal)),
   });
   mountEndpoint(app, restoreThreadEndpoint, {
     access: 'editor',

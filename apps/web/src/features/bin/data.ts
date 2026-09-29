@@ -5,6 +5,7 @@ import {
   listBinEndpoint,
   purgeThreadEndpoint,
   restoreThreadEndpoint,
+  saveRetentionSettingsEndpoint,
 } from '@querent/shared';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
@@ -15,12 +16,15 @@ export interface BinData {
   readonly threads: readonly BinnedThread[];
   /** How many days a thread stays in the bin; `null` until someone deletes it. */
   readonly binDays: number | null;
+  /** For admins: the configuration file that sets the retention, when one does. */
+  readonly retentionManagedBy?: string | undefined;
 }
 
 /** What the bin screen submits, as JSON. */
 export type BinIntent =
   | { readonly intent: 'restore' | 'purge'; readonly threadId: string }
-  | { readonly intent: 'empty' };
+  | { readonly intent: 'empty' }
+  | { readonly intent: 'retention'; readonly binDays: number | null };
 
 /** The outcome of an intent: done, or why not. */
 export type BinOutcome = { readonly ok: true } | { readonly ok: false; readonly message: string };
@@ -46,6 +50,10 @@ export function loadBin(api: ApiClient) {
 async function run(api: ApiClient, intent: BinIntent): Promise<void> {
   if (intent.intent === 'empty') {
     await api.call(emptyBinEndpoint);
+    return;
+  }
+  if (intent.intent === 'retention') {
+    await api.call(saveRetentionSettingsEndpoint, { body: { binDays: intent.binDays } });
     return;
   }
   const params = { threadId: intent.threadId };
