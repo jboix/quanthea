@@ -1,83 +1,147 @@
 /**
- * Expands the spec's series templates into ECharts series: one per result frame, and per number
- * field when a frame has several. The spec never needs to know how many series come back.
+ * Expands the option's series templates into ECharts series: one per value column when a role
+ * names several, one per dataset when the rows were split into groups. Marks on a template go on
+ * its first series only, so a threshold is drawn once.
  */
-import { createFormatter, type MarkerOutcome } from '@querent/shared';
-import { categoryField, type Table } from './tables.ts';
+import { createFormatter, type MarkerOutcome, type RoleColumns } from '@querent/shared';
+import { isObject, type Loose } from './loose.ts';
+import type { Prepared } from './prepare/types.ts';
+import { allColumns } from './roles.ts';
 import type { ChartTheme } from './theme.ts';
 
-/** An ECharts object, loosely typed: the spec's JSON plus functions and data from the adapter. */
-export type Loose = Record<string, unknown>;
+/** Series types that draw one item per category rather than points on axes. */
+const itemTypes: ReadonlySet<unknown> = new Set(['pie', 'funnel', 'gauge']);
 
-/** Series types that draw one item per row rather than a line of points. */
-const itemSeries: ReadonlySet<unknown> = new Set(['pie', 'gauge']);
+/** Keys drawn once per template, on its first series. */
+const markKeys = ['markLine', 'markArea', 'markPoint'] as const;
 
 /**
- * Whether a value is a plain object.
+ * The encode of a template that has none, as views before chart recipes left it to the adapter:
+ * an item chart reads its category and first value, a chart on axes every value column.
  *
- * @param value - Any value.
- * @returns Whether it is an object that is not an array.
+ * @param template - The template.
+ * @param horizontal - Whether categories run along the y axis.
+ * @param roles - The columns of each role.
+ * @returns The encode, in columns or role tokens.
  */
-export function isObject(value: unknown): value is Loose {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+function defaultEncode(template: Loose, horizontal: boolean, roles: RoleColumns): Loose {
+  if (itemTypes.has(template.type)) {
+    const itemName = allColumns(roles, 'category')[0] ?? allColumns(roles, 'x')[0];
+    const value = allColumns(roles, 'value')[0] ?? allColumns(roles, 'y')[0];
+    return { itemName, value };
+  }
+  return horizontal ? { x: '@y', y: '@x' } : { x: '@x', y: '@y' };
 }
 
 /**
- * The series one template draws from one table.
+ * The role a template's encode spreads over: the first role token naming several columns.
  *
- * @param template - The spec's series.
- * @param table - The table.
- * @param datasetIndex - The ECharts dataset the table became.
+ * @param encode - The encode.
+ * @param roles - The columns of each role.
+ * @returns The role, if one names several columns.
+ */
+function spreadRole(encode: Loose, roles: RoleColumns): string | undefined {
+  const tokens = Object.values(encode).filter(
+    (value): value is string => typeof value === 'string' && value.startsWith('@'),
+  );
+  return tokens.map((token) => token.slice(1)).find((name) => Array.isArray(roles[name]));
+}
+
+/**
+ * An encode with its role tokens replaced by columns; a role without a column drops its key.
+ *
+ * @param encode - The encode.
+ * @param roles - The columns of each role.
+ * @param spread - The role spread over, and the column this series takes from it.
+ * @returns The encode.
+ */
+function resolveEncode(
+  encode: Loose,
+  roles: RoleColumns,
+  spread?: { role: string; column: string },
+): Loose {
+  const resolve = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(resolve);
+    if (typeof value !== 'string' || !value.startsWith('@')) return value;
+    const name = value.slice(1);
+    if (spread?.role === name) return spread.column;
+    return allColumns(roles, name)[0];
+  };
+  const entries = Object.entries(encode).map(([key, value]) => [key, resolve(value)] as const);
+  return Object.fromEntries(entries.filter(([, value]) => value !== undefined));
+}
+
+/**
+ * One series of a template: its encode resolved, named after the column it draws. Only the first
+ * series of a template keeps its marks.
+ *
+ * @param template - The template.
+ * @param encode - The template's encode.
+ * @param roles - The columns of each role.
+ * @param spread - The role spread over and this series' column, if any.
+ * @param first - Whether it is the template's first series.
+ * @returns The series.
+ */
+function oneSeries(
+  template: Loose,
+  encode: Loose,
+  roles: RoleColumns,
+  spread: { role: string; column: string } | undefined,
+  first: boolean,
+): Loose {
+  const resolved = resolveEncode(encode, roles, spread);
+  const last = Object.values(resolved).at(-1);
+  const name = template.name ?? spread?.column ?? (typeof last === 'string' ? last : undefined);
+  const series: Loose = {
+    ...template,
+    name,
+    datasetIndex: template.datasetIndex ?? 0,
+    encode: resolved,
+  };
+  if (!first) for (const key of markKeys) delete series[key];
+  return series;
+}
+
+/**
+ * The series of one template.
+ *
+ * @param template - The template.
+ * @param prepared - The prepared data.
  * @param horizontal - Whether categories run along the y axis.
  * @returns The series.
  */
-function seriesFor(
-  template: Loose,
-  table: Table,
-  datasetIndex: number,
-  horizontal: boolean,
-): Loose[] {
-  const base = { ...template, datasetIndex };
-  if ('encode' in template) return [{ name: table.name, ...base }];
-  const category = categoryField(table)?.name;
-  const numbers = table.fields.filter(
-    (field) => field.type === 'number' && field.name !== category,
-  );
-  if (itemSeries.has(template.type)) {
-    return [{ name: table.name, ...base, encode: { itemName: category, value: numbers[0]?.name } }];
+function seriesOf(template: Loose, prepared: Prepared, horizontal: boolean): Loose[] {
+  const { roles } = prepared;
+  const encode = isObject(template.encode)
+    ? template.encode
+    : defaultEncode(template, horizontal, roles);
+  if (prepared.groups) {
+    const resolved = resolveEncode(encode, roles);
+    return prepared.groups.map((name, datasetIndex) => ({
+      ...template,
+      name,
+      datasetIndex,
+      encode: resolved,
+    }));
   }
-  return numbers.map((field) => ({
-    name: numbers.length > 1 ? field.name : table.name,
-    ...base,
-    encode: horizontal ? { y: category, x: field.name } : { x: category, y: field.name },
-  }));
+  const role = spreadRole(encode, roles);
+  if (!role) return [oneSeries(template, encode, roles, undefined, true)];
+  return allColumns(roles, role).map((column, index) =>
+    oneSeries(template, encode, roles, { role, column }, index === 0),
+  );
 }
 
 /**
- * Expands the templates over the tables of their datasets.
+ * Expands the templates.
  *
- * @param templates - The spec's `series`, one object or a list.
- * @param groups - The tables of each spec dataset, in order.
- * @param horizontal - Whether categories run along the y axis.
- * @returns The series, with `datasetIndex` pointing at the flattened ECharts datasets.
+ * @param prepared - The prepared data and option.
+ * @returns The series.
  */
-export function expandSeries(
-  templates: unknown,
-  groups: readonly (readonly Table[])[],
-  horizontal: boolean,
-): Loose[] {
-  const offsets = groups.map((_group, index) =>
-    groups.slice(0, index).reduce((sum, group) => sum + group.length, 0),
-  );
-  const list = (Array.isArray(templates) ? templates : [templates]).filter(isObject);
-  return list.flatMap((template) => {
-    const requested = typeof template.datasetIndex === 'number' ? template.datasetIndex : 0;
-    const group = Math.min(Math.max(0, requested), groups.length - 1);
-    const offset = offsets[group] ?? 0;
-    return (groups[group] ?? []).flatMap((table, index) =>
-      seriesFor(template, table, offset + index, horizontal),
-    );
-  });
+export function expandSeries(prepared: Prepared): Loose[] {
+  const templates = [prepared.option.series ?? []].flat().filter(isObject);
+  if (prepared.expanded) return templates;
+  const horizontal = isObject(prepared.option.yAxis) && prepared.option.yAxis.type === 'category';
+  return templates.flatMap((template) => seriesOf(template, prepared, horizontal));
 }
 
 /**

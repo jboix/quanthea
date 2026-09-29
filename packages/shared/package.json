@@ -4,6 +4,7 @@
   "private": true,
   "description": "The dashboard spec, the API contract and the roles, shared by the server and the web app.",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts"
   },

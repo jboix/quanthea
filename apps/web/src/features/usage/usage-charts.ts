@@ -1,5 +1,5 @@
 /** The usage charts: days as frames, drawn by the same chart code as dashboards. */
-import type { Formatter, Frame } from '@querent/shared';
+import { datasetOfFrames, type Formatter, type Frame } from '@querent/shared';
 import type { ChartInput } from '../../charts/index.ts';
 import type { DayUsage } from './usage-days.ts';
 
@@ -56,7 +56,7 @@ function barsPerDay(
       datasets: [{ ref: 'A' }],
       option: option as ChartInput['view']['option'],
     },
-    queries: [{ refId: 'A', frames: [frameOf(days, series)], error: null }],
+    datasets: [datasetOfFrames([frameOf(days, series)])],
     markers: [],
   };
 }

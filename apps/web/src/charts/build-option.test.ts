@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { ChartView, Field, Frame, QueryOutcome } from '@querent/shared';
-import { buildChartOption } from './build-option.ts';
+import { buildChartOption, chartInputOf } from './build-option.ts';
 
 import { defaultTheme } from './theme.ts';
 
@@ -61,7 +61,10 @@ function build(option: ChartView['option'], frames: Frame[], extra: Partial<Char
       error: null,
     },
   ];
-  return buildChartOption({ view, queries, markers }, { theme: defaultTheme, timeZone: 'UTC' });
+  return buildChartOption(chartInputOf(view, queries, markers), {
+    theme: defaultTheme,
+    timeZone: 'UTC',
+  });
 }
 
 /**
@@ -112,30 +115,23 @@ const lineOption: ChartView['option'] = {
 };
 
 describe('buildChartOption', () => {
-  test('draws one series per frame, named by its labels, from its own dataset', () => {
+  test('draws one series per frame, named by its labels, from one pivoted dataset', () => {
     const option = build(lineOption, [
       series('checkout-svc', [0.003, 0.084]),
       series('payments-svc', [0.002, 0.02]),
     ]);
     expect(at(option, 'dataset')).toEqual([
       {
-        dimensions: ['Time', 'Value'],
+        dimensions: ['Time', 'checkout-svc', 'payments-svc'],
         source: [
-          [t0, 0.003],
-          [t0 + 60_000, 0.084],
-        ],
-      },
-      {
-        dimensions: ['Time', 'Value'],
-        source: [
-          [t0, 0.002],
-          [t0 + 60_000, 0.02],
+          [t0, 0.003, 0.002],
+          [t0 + 60_000, 0.084, 0.02],
         ],
       },
     ]);
     expect(seriesKeys(option, 'name', 'datasetIndex', 'encode', 'showSymbol')).toEqual([
-      ['checkout-svc', 0, { x: 'Time', y: 'Value' }, false],
-      ['payments-svc', 1, { x: 'Time', y: 'Value' }, false],
+      ['checkout-svc', 0, { x: 'Time', y: 'checkout-svc' }, false],
+      ['payments-svc', 0, { x: 'Time', y: 'payments-svc' }, false],
     ]);
   });
 
@@ -249,7 +245,7 @@ describe('buildChartOption', () => {
     expect(at(option, 'tooltip.trigger')).toBe('item');
   });
 
-  test('draws nothing for a failed query', () => {
+  test('says there is no data for a failed query', () => {
     const view: ChartView = {
       kind: 'chart',
       prepare: 'cartesian',
@@ -260,8 +256,8 @@ describe('buildChartOption', () => {
     const queries = [
       { refId: 'A', frames: [], error: { code: 'timeout' as const, message: 'Too slow.' } },
     ];
-    const option = buildChartOption({ view, queries, markers: [] }, { theme: defaultTheme });
-    expect(at(option, 'series')).toEqual([]);
-    expect(at(option, 'dataset')).toEqual([]);
+    const option = buildChartOption(chartInputOf(view, queries, []), { theme: defaultTheme });
+    expect(at(option, 'title.text')).toBe('No data in this range');
+    expect(at(option, 'dataset.0.source')).toEqual([]);
   });
 });

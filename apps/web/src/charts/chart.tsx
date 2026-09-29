@@ -1,51 +1,18 @@
 /**
- * The chart component: the only place that touches ECharts. It registers just the chart types
- * and components the spec allows, draws on a canvas, and follows its container's size.
+ * The chart component: the only place that draws with ECharts. It draws on a canvas, loads the
+ * maps an option needs, and follows its container's size.
  */
-import {
-  BarChart,
-  GaugeChart,
-  HeatmapChart,
-  LineChart,
-  PieChart,
-  ScatterChart,
-} from 'echarts/charts';
-import {
-  DatasetComponent,
-  DataZoomComponent,
-  GridComponent,
-  LegendComponent,
-  MarkLineComponent,
-  TooltipComponent,
-  VisualMapComponent,
-} from 'echarts/components';
-import { type EChartsType, init, use } from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
+import { type EChartsType, init } from 'echarts/core';
 import { useEffect, useMemo, useRef } from 'react';
 import { buildChartOption, type ChartInput } from './build-option.ts';
 import styles from './chart.module.css';
+import { ensureMaps } from './maps.ts';
+import './register.ts';
 import { readTheme } from './theme.ts';
-
-use([
-  BarChart,
-  GaugeChart,
-  HeatmapChart,
-  LineChart,
-  PieChart,
-  ScatterChart,
-  DatasetComponent,
-  DataZoomComponent,
-  GridComponent,
-  LegendComponent,
-  MarkLineComponent,
-  TooltipComponent,
-  VisualMapComponent,
-  CanvasRenderer,
-]);
 
 /** Props of {@link Chart}. */
 interface ChartProps {
-  /** The chart view and its results. */
+  /** The chart view and its data. */
   readonly input: ChartInput;
   /** The IANA time zone for times, or the browser's. */
   readonly timeZone?: string | undefined;
@@ -54,9 +21,9 @@ interface ChartProps {
 }
 
 /**
- * Draws a chart panel's results.
+ * Draws a chart panel's data.
  *
- * @param props - The view and results, the time zone and a label.
+ * @param props - The view and data, the time zone and a label.
  * @returns The chart container.
  */
 export function Chart({ input, timeZone, label }: ChartProps) {
@@ -80,7 +47,13 @@ export function Chart({ input, timeZone, label }: ChartProps) {
     };
   }, []);
   useEffect(() => {
-    chart.current?.setOption(option, { notMerge: true });
+    let current = true;
+    void ensureMaps(option).then(() => {
+      if (current) chart.current?.setOption(option, { notMerge: true });
+    });
+    return () => {
+      current = false;
+    };
   }, [option]);
   return <div ref={container} className={styles.chart} role="img" aria-label={label} />;
 }

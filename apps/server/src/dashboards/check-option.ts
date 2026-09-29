@@ -1,7 +1,7 @@
 /**
  * Checks a chart's ECharts option against an allowlist. The adapter owns the dataset, the grid,
  * the theme, animation and how tooltips render, so the spec may not set them, and data is never
- * inlined in a series.
+ * inlined in a series: the adapter builds it from the queries, trees and graphs included.
  */
 import { namedFormatterSchema } from '@querent/shared';
 import type { SpecIssue } from './issues.ts';
@@ -15,6 +15,12 @@ const allowedKeys: ReadonlySet<string> = new Set([
   'tooltip',
   'visualMap',
   'dataZoom',
+  'axisPointer',
+  'title',
+  'radar',
+  'parallel',
+  'geo',
+  'calendar',
 ]);
 
 /** The series types a chart may draw. */
@@ -25,6 +31,16 @@ const allowedSeriesTypes: ReadonlySet<string> = new Set([
   'pie',
   'heatmap',
   'gauge',
+  'boxplot',
+  'candlestick',
+  'treemap',
+  'sunburst',
+  'sankey',
+  'graph',
+  'funnel',
+  'radar',
+  'parallel',
+  'map',
 ]);
 
 /** Keys the adapter owns wherever they appear. */

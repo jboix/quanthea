@@ -1,19 +1,23 @@
 /**
- * Builds the ECharts option of a chart panel from its spec and its query results. The spec
- * provides the look; the adapter owns the dataset, the grid, the theme and how tooltips render.
+ * Builds the ECharts option of a chart panel from its view and its data. The view gives the look,
+ * how the data is prepared and which column plays each role; the adapter owns the dataset, the
+ * grid, the theme and how tooltips render.
  */
-import type { ChartView, MarkerOutcome, QueryOutcome } from '@querent/shared';
+import type { ChartView, Dataset, MarkerOutcome, QueryOutcome } from '@querent/shared';
+import { viewDatasets } from './datasets.ts';
 import { wireFormatters } from './formatters.ts';
-import { expandSeries, isObject, type Loose, withMarkers } from './series.ts';
-import { type Table, tableOf, transformTable } from './tables.ts';
+import { isObject, type Loose } from './loose.ts';
+import { type Prepared, prepareChart } from './prepare/index.ts';
+import { expandSeries, withMarkers } from './series.ts';
 import type { ChartTheme } from './theme.ts';
+import { replaceTokens, themeColors } from './tokens.ts';
 
 /** What a chart draws. */
 export interface ChartInput {
   /** The chart view from the spec. */
   readonly view: ChartView;
-  /** The outcome of each query of the panel. */
-  readonly queries: readonly QueryOutcome[];
+  /** The view's datasets, one per query it reads. */
+  readonly datasets: readonly Dataset[];
   /** The annotation markers of the panel. */
   readonly markers: readonly MarkerOutcome[];
 }
@@ -24,6 +28,22 @@ export interface ChartContext {
   readonly theme: ChartTheme;
   /** The IANA time zone for times, or the browser's. */
   readonly timeZone?: string | undefined;
+}
+
+/**
+ * What a chart draws from a panel's run.
+ *
+ * @param view - The chart view.
+ * @param queries - The outcome of each query of the panel.
+ * @param markers - The annotation markers.
+ * @returns The input.
+ */
+export function chartInputOf(
+  view: ChartView,
+  queries: readonly QueryOutcome[],
+  markers: readonly MarkerOutcome[],
+): ChartInput {
+  return { view, datasets: viewDatasets(view, queries), markers };
 }
 
 /**
@@ -43,27 +63,37 @@ function merge(base: Loose, over: unknown): Loose {
 }
 
 /**
- * Styles one axis or a list of axes with the theme, under the spec's own settings.
+ * The time label pattern that fits the data: hours for a day or two, dates beyond.
  *
- * @param axis - The spec's axis, if any.
- * @param defaults - The themed defaults.
- * @returns The styled axis or axes.
+ * @param dataset - The main dataset.
+ * @returns `time` or `date`.
  */
-function styleAxis(axis: unknown, defaults: Loose): unknown {
-  if (Array.isArray(axis)) return axis.map((each) => merge(defaults, each));
-  return merge(defaults, axis);
+function timePattern(dataset: Dataset | undefined): 'time' | 'date' {
+  const at = dataset?.dimensions.findIndex((column) => column.type === 'time') ?? -1;
+  const times = (dataset?.source ?? [])
+    .map((row) => row[at])
+    .filter((cell): cell is number => typeof cell === 'number');
+  if (times.length === 0) return 'time';
+  const [low, high] = times.reduce(
+    ([min, max], time) => [Math.min(min, time), Math.max(max, time)],
+    [Infinity, -Infinity],
+  );
+  return high - low > 2 * 86_400_000 ? 'date' : 'time';
 }
 
 /**
- * The themed axis defaults. A time axis reads `13:30` in the dashboard's time zone.
+ * Styles one axis or a list of axes with the theme, under the view's own settings. A time axis
+ * reads hours or dates in the dashboard's time zone.
  *
+ * @param axis - The view's axis or axes.
  * @param theme - The theme.
- * @param axis - The spec's axis, to see whether it is a time axis.
- * @returns The defaults.
+ * @param pattern - The time label pattern.
+ * @returns The styled axis or axes.
  */
-function axisDefaults(theme: ChartTheme, axis: unknown): Loose {
+function styleAxis(axis: unknown, theme: ChartTheme, pattern: 'time' | 'date'): unknown {
+  if (Array.isArray(axis)) return axis.map((each) => styleAxis(each, theme, pattern));
   const timeAxis = isObject(axis) && axis.type === 'time';
-  return {
+  const defaults = {
     axisLine: { lineStyle: { color: theme.border } },
     axisTick: { show: false },
     splitLine: { lineStyle: { color: theme.divider } },
@@ -71,36 +101,24 @@ function axisDefaults(theme: ChartTheme, axis: unknown): Loose {
       color: theme.inkSecondary,
       fontFamily: theme.monoFamily,
       fontSize: 11,
-      ...(timeAxis ? { formatter: { $fmt: 'datetime', pattern: 'time' } } : {}),
+      ...(timeAxis ? { formatter: { $fmt: 'datetime', pattern } } : {}),
     },
   };
+  return merge(defaults, axis);
 }
 
 /**
- * The tables of each spec dataset, transformed.
+ * The tooltip: the view's, rendered as rich text on the canvas so no data can become HTML.
  *
- * @param input - The view and the query outcomes.
- * @returns One list of tables per spec dataset.
- */
-function datasetGroups(input: ChartInput): Table[][] {
-  return input.view.datasets.map((dataset) => {
-    const frames = input.queries.find((query) => query.refId === dataset.ref)?.frames ?? [];
-    return frames.map((frame) => transformTable(tableOf(frame), dataset.transform));
-  });
-}
-
-/**
- * The tooltip: the spec's, rendered as rich text on the canvas so no data can become HTML.
- *
- * @param spec - The spec's tooltip, if any.
- * @param series - The expanded series, to pick the trigger.
+ * @param spec - The view's tooltip, if any.
+ * @param series - The series, to pick the trigger.
  * @param theme - The theme.
  * @returns The tooltip.
  */
 function tooltipOf(spec: unknown, series: readonly Loose[], theme: ChartTheme): Loose {
-  const itemChart = series.some((each) => each.type === 'pie' || each.type === 'gauge');
+  const onAxes = series.some((each) => each.type === 'line' || each.type === 'bar');
   const defaults = {
-    trigger: itemChart ? 'item' : 'axis',
+    trigger: onAxes ? 'axis' : 'item',
     backgroundColor: theme.surface,
     borderColor: theme.border,
     textStyle: { color: theme.ink, fontFamily: theme.fontFamily, fontSize: 12 },
@@ -109,76 +127,120 @@ function tooltipOf(spec: unknown, series: readonly Loose[], theme: ChartTheme): 
 }
 
 /**
- * The spec's option with the theme applied under it, and the expanded series.
+ * The option styled with the theme: axes and legends only where the chart has them.
  *
- * @param option - The spec's option.
- * @param series - The expanded series.
+ * @param option - The option, tokens replaced.
  * @param theme - The theme.
- * @returns The styled option, still with named formatters.
+ * @param dataset - The main dataset, for the time labels.
+ * @returns The styled option.
  */
-function styleOption(option: Loose, series: readonly Loose[], theme: ChartTheme): Loose {
+function styleOption(option: Loose, theme: ChartTheme, dataset: Dataset | undefined): Loose {
+  const pattern = timePattern(dataset);
+  const series = [option.series ?? []].flat().filter(isObject);
   const legendDefaults = {
     textStyle: { color: theme.inkSecondary },
     icon: 'roundRect',
     itemWidth: 12,
     itemHeight: 3,
+    type: 'scroll',
   };
+  const showLegend =
+    option.legend !== undefined && series.length + (series[0]?.type === 'pie' ? 2 : 0) > 1;
+  const { legend: _legend, ...rest } = option;
   return {
-    ...option,
-    xAxis: styleAxis(option.xAxis, axisDefaults(theme, option.xAxis)),
-    yAxis: styleAxis(option.yAxis, axisDefaults(theme, option.yAxis)),
-    ...(option.legend ? { legend: merge(legendDefaults, option.legend) } : {}),
-    series,
+    ...rest,
+    ...('xAxis' in option ? { xAxis: styleAxis(option.xAxis, theme, pattern) } : {}),
+    ...('yAxis' in option ? { yAxis: styleAxis(option.yAxis, theme, pattern) } : {}),
+    ...(showLegend ? { legend: merge(legendDefaults, option.legend) } : {}),
     tooltip: tooltipOf(option.tooltip, series, theme),
   };
 }
 
 /**
- * The parts the adapter owns: the data, the palette, the fonts, the grid and the animation.
+ * Room around the plot: for the legend at the top, and for a colour scale or a zoom slider below.
  *
- * @param tables - The tables, one ECharts dataset each.
+ * @param option - The styled option.
+ * @returns The grid.
+ */
+function gridOf(option: Loose): Loose {
+  const visualMap = isObject(option.visualMap) ? option.visualMap : undefined;
+  const scaleBelow = visualMap && visualMap.show !== false && visualMap.orient === 'horizontal';
+  const slider = [option.dataZoom ?? []]
+    .flat()
+    .some((zoom) => isObject(zoom) && zoom.type === 'slider');
+  const title = isObject(option.title) && typeof option.title.text === 'string';
+  return {
+    left: 8,
+    right: 16,
+    top: (option.legend ? 36 : 16) + (title ? 40 : 0),
+    bottom: 8 + (scaleBelow ? 36 : 0) + (slider ? 28 : 0),
+    outerBoundsMode: 'same',
+    outerBoundsContain: 'axisLabel',
+  };
+}
+
+/**
+ * The parts the adapter owns: the data, the palette, the fonts, the grid and the animation, and a
+ * note when there is no data.
+ *
+ * @param prepared - The prepared data.
+ * @param option - The styled option.
  * @param theme - The theme.
- * @param hasLegend - Whether the chart shows a legend, which needs room at the top.
+ * @param empty - Whether the query returned no rows.
  * @returns The owned parts.
  */
-function ownedParts(tables: readonly Table[], theme: ChartTheme, hasLegend: boolean): Loose {
+function ownedParts(prepared: Prepared, option: Loose, theme: ChartTheme, empty: boolean): Loose {
+  const note = {
+    text: 'No data in this range',
+    left: 'center',
+    top: 'middle',
+    textStyle: { color: theme.inkSecondary, fontSize: 13, fontWeight: 400 },
+  };
   return {
-    dataset: tables.map((table) => ({
-      dimensions: table.fields.map((field) => field.name),
-      source: table.rows,
+    dataset: prepared.datasets.map((dataset) => ({
+      dimensions: dataset.dimensions.map((column) => column.name),
+      source: dataset.source,
     })),
     color: [...theme.palette],
     textStyle: { fontFamily: theme.fontFamily, color: theme.inkSecondary },
-    grid: {
-      left: 8,
-      right: 16,
-      top: hasLegend ? 36 : 16,
-      bottom: 8,
-      outerBoundsMode: 'same',
-      outerBoundsContain: 'axisLabel',
-    },
+    grid: prepared.grid ?? gridOf(option),
     animationDuration: 300,
+    ...(empty ? { title: note } : {}),
   };
 }
 
 /**
  * Builds the option.
  *
- * @param input - The view, the query outcomes and the markers.
+ * @param input - The view, the datasets and the markers.
  * @param context - The theme and the time zone.
  * @returns The ECharts option.
  */
 export function buildChartOption(input: ChartInput, context: ChartContext): Loose {
-  const { option } = input.view;
-  const groups = datasetGroups(input);
-  const horizontal = isObject(option.yAxis) && option.yAxis.type === 'category';
-  const expanded = expandSeries(option.series, groups, horizontal);
-  const series = horizontal
-    ? expanded
-    : withMarkers(expanded, input.markers, context.theme, context.timeZone);
-  const styled = styleOption(option, series, context.theme);
+  const { view } = input;
+  const format = { timeZone: context.timeZone };
+  const prepared = prepareChart(view.prepare, {
+    option: view.option as Loose,
+    datasets: input.datasets,
+    roles: view.roles,
+    limit: view.limit,
+    format,
+  });
+  const expanded = expandSeries(prepared);
+  const onTime = isObject(prepared.option.xAxis) && prepared.option.xAxis.type === 'time';
+  const series = onTime
+    ? withMarkers(expanded, input.markers, context.theme, context.timeZone)
+    : expanded;
+  const context_ = {
+    colors: themeColors(context.theme),
+    roles: prepared.roles,
+    dataset: prepared.datasets[0],
+  };
+  const resolved = replaceTokens({ ...prepared.option, series }, context_) as Loose;
+  const styled = styleOption(resolved, context.theme, prepared.datasets[0]);
+  const empty = input.datasets.every((dataset) => dataset.source.length === 0);
   return {
-    ...(wireFormatters(styled, { timeZone: context.timeZone }) as Loose),
-    ...ownedParts(groups.flat(), context.theme, Boolean(option.legend)),
+    ...(wireFormatters(styled, format) as Loose),
+    ...ownedParts(prepared, styled, context.theme, empty),
   };
 }

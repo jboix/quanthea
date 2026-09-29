@@ -7,6 +7,7 @@ import {
   type TableView as TableViewSpec,
 } from '@querent/shared';
 import { lazy, Suspense, useMemo } from 'react';
+import { chartInputOf } from '../../charts/input.ts';
 import styles from './panels.module.css';
 import { reduceResult } from './reduce.ts';
 import { tableRows } from './table-rows.ts';
@@ -126,7 +127,7 @@ interface PanelViewProps extends ViewProps {
 export function PanelView({ panel, queries, markers, timeZone }: PanelViewProps) {
   const { view } = panel;
   const input = useMemo(
-    () => (view.kind === 'chart' ? { view, queries, markers } : undefined),
+    () => (view.kind === 'chart' ? chartInputOf(view, queries, markers) : undefined),
     [view, queries, markers],
   );
   if (view.kind === 'stat') return <StatView view={view} queries={queries} timeZone={timeZone} />;
