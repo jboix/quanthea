@@ -26,7 +26,9 @@ export const modelSettingsSchema = z
       .max(500)
       .nullable(),
     models: z.object({
-      /** Plans and builds dashboards: needs strong tool calling. */
+      /** Talks the question through and proposes plans; empty uses the build model. */
+      plan: modelIdSchema.default(''),
+      /** Builds and edits dashboards: needs strong tool calling. */
       build: modelIdSchema.min(1, 'Name the model that builds dashboards.'),
       /** Repairs failed queries; empty uses the build model. */
       repair: modelIdSchema,
@@ -62,7 +64,12 @@ export type ModelSettings = z.infer<typeof modelSettingsSchema>;
 export const defaultModelSettings: ModelSettings = {
   provider: 'anthropic',
   baseUrl: null,
-  models: { build: 'claude-sonnet-5', repair: '', metadata: 'claude-haiku-4-5' },
+  models: {
+    plan: 'claude-haiku-4-5',
+    build: 'claude-sonnet-5',
+    repair: '',
+    metadata: 'claude-haiku-4-5',
+  },
   limits: { threadTokens: 200_000, toolCallsPerTurn: 25, repairAttempts: 3 },
   behaviour: { planApproval: true, testRun: true, shortReasoning: true },
 };

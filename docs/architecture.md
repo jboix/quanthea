@@ -415,6 +415,10 @@ the test; turning the switch off sends the provider's default.
 - One run per thread at a time. A run stops when a plan waits for approval, when the agent asked
   the person a question, when it has made the maximum number of tool calls (setting, default 25),
   or when failed writes reach the repair attempts (setting, default 3).
+- Each job has its model; an empty one means the build model. Planning turns (the conversation,
+  questions and plans) use the plan model, building and editing use the build model, and once a
+  write fails in a run, its later steps use the repair model. So a cheap model can talk and plan
+  while a strong one builds.
 - A model call that fails with a 429 is retried twice, which rides out a per-minute limit. A 429
   that says a quota is spent for the day (Gemini's `PerDay` quotas, OpenAI's `insufficient_quota`)
   is not retried: a middleware on every model (`agent/quota.ts`) turns it into an error that tells
@@ -763,7 +767,7 @@ is editable in the UI.
 
 The model gateway (**Settings → Model**) is a settings section: provider (Anthropic, OpenAI,
 Mistral, or an OpenAI-compatible base URL such as LiteLLM, Ollama or Gemini's OpenAI endpoint), the
-model for each job (build, repair, metadata), the limits of a run and the behaviour switches.
+model for each job (plan, build, repair, metadata), the limits of a run and the behaviour switches.
 Choosing a vendor fills in its API's base URL and its starting models; the OpenAI-compatible choice
 offers the common gateways' base URLs. The job fields offer the vendor's current models by name
 (`providerProfiles` in `@querent/shared`), then the rest of the chat models the provider's own

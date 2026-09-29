@@ -233,12 +233,38 @@ describe('an agent run', () => {
     expect(prompt).not.toContain('Waiting for the person to approve');
   });
 
-  test('stores what the answer cost, the plan and the continued build together', async () => {
+  test('stores what the answer cost by model: the plan on the plan model, the build on the build model', async () => {
     await builtThread();
     const answer = services.threads.get(threadId).messages[1] as { metadata?: unknown };
     expect(answer.metadata).toEqual({
-      usage: { 'claude-sonnet-5': { input: 30, cachedInput: 0, cacheWrite: 0, output: 15 } },
+      usage: {
+        'claude-haiku-4-5': { input: 10, cachedInput: 0, cacheWrite: 0, output: 5 },
+        'claude-sonnet-5': { input: 20, cachedInput: 0, cacheWrite: 0, output: 10 },
+      },
     });
+  });
+
+  test('hands the steps after a failed write to the repair model', async () => {
+    const settings = {
+      ...defaultModelSettings,
+      models: { ...defaultModelSettings.models, repair: 'claude-opus-5-5' },
+    };
+    await services.modelSettings.save(settings, undefined, 'admin-1');
+    services.threads.proposePlan(threadId, plan, true);
+    const broken = {
+      title: 'Events',
+      panels: [eventsPanel('Errors', 'stat', 'SELECT * FROM missing')],
+      summary: 'x',
+    };
+    const build = scriptedStreamModel({ tool: 'edit_dashboard', input: broken });
+    const repair = scriptedStreamModel({ text: 'The table does not exist.' });
+    const agent = createAgent({
+      ...services,
+      buildModel: (_resolved, job) => (job === 'repair' ? repair : build),
+    });
+    const stream = await chat(agent, userMessage('u1', 'Build it'));
+    expect(stream).toContain('The table does not exist.');
+    expect([build.doStreamCalls.length, repair.doStreamCalls.length]).toEqual([1, 1]);
   });
 
   test('patches a mentioned panel of a ready thread without a plan, and streams the diff', async () => {

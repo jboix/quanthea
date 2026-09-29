@@ -8,8 +8,11 @@ import { type LanguageModel, wrapLanguageModel } from 'ai';
 import type { ResolvedModelSettings } from '../settings/model-settings.ts';
 import { quotaMiddleware } from './quota.ts';
 
-/** A job of the model: building dashboards, repairing queries, or writing titles and tags. */
+/** A job of the model: planning, building, repairing queries, or writing titles and tags. */
 export type ModelJob = keyof ModelSettings['models'];
+
+/** Gives the model of a job. */
+export type ModelOf = (job: ModelJob) => LanguageModel;
 
 /** Why no model could be built. */
 export class ModelUnavailableError extends Error {
@@ -25,7 +28,7 @@ export class ModelUnavailableError extends Error {
 }
 
 /**
- * The model id of a job; an empty repair or metadata model means the build model.
+ * The model id of a job; an empty plan, repair or metadata model means the build model.
  *
  * @param settings - The settings.
  * @param job - The job.

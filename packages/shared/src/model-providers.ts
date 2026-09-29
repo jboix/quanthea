@@ -20,6 +20,7 @@ export interface ProviderProfile {
   readonly models: readonly KnownModel[];
   /** The model each job starts with; empty means "same as build". */
   readonly defaults: {
+    readonly plan: string;
     readonly build: string;
     readonly repair: string;
     readonly metadata: string;
@@ -36,7 +37,12 @@ export const providerProfiles: Readonly<Record<ModelProvider, ProviderProfile>> 
       { id: 'claude-sonnet-5', name: 'Sonnet 5' },
       { id: 'claude-haiku-4-5', name: 'Haiku 4.5' },
     ],
-    defaults: { build: 'claude-sonnet-5', repair: '', metadata: 'claude-haiku-4-5' },
+    defaults: {
+      plan: 'claude-haiku-4-5',
+      build: 'claude-sonnet-5',
+      repair: '',
+      metadata: 'claude-haiku-4-5',
+    },
   },
   openai: {
     baseUrl: 'https://api.openai.com/v1',
@@ -48,7 +54,7 @@ export const providerProfiles: Readonly<Record<ModelProvider, ProviderProfile>> 
       { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' },
       { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna' },
     ],
-    defaults: { build: 'gpt-6-sol', repair: '', metadata: 'gpt-6-luna' },
+    defaults: { plan: 'gpt-6-luna', build: 'gpt-6-sol', repair: '', metadata: 'gpt-6-luna' },
   },
   mistral: {
     baseUrl: 'https://api.mistral.ai/v1',
@@ -60,12 +66,17 @@ export const providerProfiles: Readonly<Record<ModelProvider, ProviderProfile>> 
       { id: 'codestral-latest', name: 'Codestral' },
       { id: 'ministral-8b-latest', name: 'Ministral 8B' },
     ],
-    defaults: { build: 'mistral-large-latest', repair: '', metadata: 'mistral-small-latest' },
+    defaults: {
+      plan: '',
+      build: 'mistral-large-latest',
+      repair: '',
+      metadata: 'mistral-small-latest',
+    },
   },
   'openai-compatible': {
     baseUrl: null,
     models: [],
-    defaults: { build: '', repair: '', metadata: '' },
+    defaults: { plan: '', build: '', repair: '', metadata: '' },
   },
 };
 

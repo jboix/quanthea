@@ -17,7 +17,13 @@ import { z } from 'zod';
 import { AppError } from '../lib/errors.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
 import { withPlanDecisions } from './compact.ts';
-import { languageModel, ModelUnavailableError, modelIdFor } from './model.ts';
+import {
+  languageModel,
+  type ModelJob,
+  type ModelOf,
+  ModelUnavailableError,
+  modelIdFor,
+} from './model.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
 import { publicError, streamTurn, turnInstructions } from './turn.ts';
 import { startingUsage } from './usage.ts';
@@ -118,22 +124,28 @@ function titleOf(message: z.infer<typeof incomingSchema>): string {
 }
 
 /**
- * Builds the model, or explains why it cannot.
+ * The models of the jobs, each built once when first used, or why they cannot be built.
  *
  * @param dependencies - The agent's dependencies.
- * @returns The model and the settings.
+ * @returns The model of each job, and the settings.
+ * @throws {AppError} `bad_request` when no model can be built, such as without a key.
  */
-async function modelFor(dependencies: AgentDependencies) {
+async function modelsFor(dependencies: AgentDependencies) {
   const resolved = await dependencies.modelSettings.resolve();
+  const build = dependencies.buildModel ?? languageModel;
+  const built = new Map<ModelJob, LanguageModel>();
+  const modelOf: ModelOf = (job) => {
+    const model = built.get(job) ?? build(resolved, job);
+    built.set(job, model);
+    return model;
+  };
   try {
-    return {
-      model: (dependencies.buildModel ?? languageModel)(resolved, 'build'),
-      settings: resolved.settings,
-    };
+    modelOf('build');
   } catch (error) {
     if (error instanceof ModelUnavailableError) throw new AppError('bad_request', error.message);
     throw error;
   }
+  return { modelOf, settings: resolved.settings };
 }
 
 /**
@@ -168,8 +180,8 @@ function accept(dependencies: AgentDependencies, request: ChatRequest, budget: n
 
 /** A turn ready to stream: the model, the settings, the conversation and its context. */
 interface PreparedTurn {
-  /** The model. */
-  readonly model: LanguageModel;
+  /** The model of each job. */
+  readonly modelOf: ModelOf;
   /** The model settings. */
   readonly settings: RunContext['settings'];
   /** The conversation, validated. */
@@ -191,13 +203,13 @@ async function prepare(
   dependencies: AgentDependencies,
   request: ChatRequest,
 ): Promise<PreparedTurn> {
-  const { model, settings } = await modelFor(dependencies);
+  const { modelOf, settings } = await modelsFor(dependencies);
   const { history, hints, plans } = accept(dependencies, request, settings.limits.threadTokens);
   const validated = await validateUIMessages<ThreadMessage>({
     messages: history,
     dataSchemas: threadDataSchemas,
   });
-  return { model, settings, messages: withPlanDecisions(validated, plans), hints, plans };
+  return { modelOf, settings, messages: withPlanDecisions(validated, plans), hints, plans };
 }
 
 /**
@@ -250,7 +262,7 @@ function respond(
     execute: async ({ writer }) => {
       const context = runContext(dependencies, request, turn, writer);
       const instructions = await turnInstructions(context, turn.plans, turn.hints, now());
-      await streamTurn(context, turn.model, turn.messages, instructions, now);
+      await streamTurn(context, turn.modelOf, turn.messages, instructions, now);
     },
     onEnd: ({ messages }) => {
       done();

@@ -6,7 +6,6 @@ import { resolveTime } from '@querent/shared';
 import {
   convertToModelMessages,
   type Instructions,
-  type LanguageModel,
   type LanguageModelUsage,
   type StopCondition,
   streamText,
@@ -18,7 +17,7 @@ import { buildTools, currentSpec } from './build-tools.ts';
 import { cachedInstructions, withCachedTail } from './cache.ts';
 import { compactHistory, compactSteps } from './compact.ts';
 import { dataTools } from './data-tools.ts';
-import { reasoningOption } from './model.ts';
+import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
 import { phaseOf, phaseTools } from './phases.ts';
 import { instructionParts } from './prompt.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
@@ -130,28 +129,47 @@ function countStep(context: RunContext) {
 }
 
 /**
+ * The model of the next step: the repair model once a write has failed in this run, else the
+ * model of the turn's job. Its id is kept for the step's usage.
+ *
+ * @param context - The run.
+ * @param modelOf - Gives the model of a job.
+ * @param job - The turn's job.
+ * @returns The step's model.
+ */
+function stepModel(context: RunContext, modelOf: ModelOf, job: ModelJob) {
+  const stepJob: ModelJob = context.counters.failedWrites > 0 ? 'repair' : job;
+  context.counters.modelId = modelIdFor(context.settings, stepJob);
+  return { model: modelOf(stepJob) };
+}
+
+/**
  * Streams one turn of the model into the writer, with the answer's usage in its metadata.
  *
  * @param context - The run.
- * @param model - The model.
+ * @param modelOf - Gives the model of a job: plan while planning, build after, repair once a
+ *   write has failed.
  * @param messages - The conversation.
  * @param instructions - The turn's instructions.
  * @param now - The clock.
  */
 export async function streamTurn(
   context: RunContext,
-  model: LanguageModel,
+  modelOf: ModelOf,
   messages: ThreadMessage[],
   instructions: Instructions,
   now: () => number,
 ): Promise<void> {
   const tools = turnTools(context, now);
   const { state } = context.threads.row(context.threadId);
+  const job = phaseOf(state) === 'planning' ? 'plan' : 'build';
+  context.counters.modelId = modelIdFor(context.settings, job);
   const result = streamText({
-    model,
+    model: modelOf(job),
     instructions,
     messages: await convertToModelMessages(compactHistory(messages), { tools }),
     prepareStep: ({ messages: next }) => ({
+      ...stepModel(context, modelOf, job),
       messages: withCachedTail(compactSteps(next), context.settings.provider),
     }),
     tools,

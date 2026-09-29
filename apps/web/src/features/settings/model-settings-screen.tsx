@@ -196,7 +196,8 @@ function ProviderCard({ form, stored, issues }: SectionProps & { readonly stored
 
 /** The jobs, in the order the card lists them. */
 const jobs = [
-  { key: 'build', label: 'Plan and build dashboards' },
+  { key: 'plan', label: 'Talk the question through and plan' },
+  { key: 'build', label: 'Build and edit dashboards' },
   { key: 'repair', label: 'Repair a failed query' },
   { key: 'metadata', label: 'Titles, tags and descriptions' },
 ] as const;
@@ -212,7 +213,7 @@ function JobsCard({ form, issues }: SectionProps) {
   return (
     <Card
       title="Model for each job"
-      description="Building needs a strong tool-calling model. Tagging can use a cheap one."
+      description="Building needs a strong tool-calling model. Talking, planning and tagging can use a cheaper one."
     >
       {jobs.map((job) => (
         <div key={job.key} className={styles.job}>
