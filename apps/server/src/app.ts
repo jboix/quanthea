@@ -3,6 +3,7 @@ import { apiPrefix } from '@querent/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import type { Agent } from './agent/run.ts';
+import type { AuthModeControl } from './auth/auth-mode-control.ts';
 import type { Authenticator } from './auth/authenticator.ts';
 import type { PasswordAccounts } from './auth/password-accounts.ts';
 import type { Sessions } from './auth/sessions.ts';
@@ -17,6 +18,7 @@ import { refuseCrossSite } from './http/csrf.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
 import { mountAuthRoutes } from './http/routes/auth-routes.ts';
+import { mountAuthSettingsEndpoints } from './http/routes/auth-settings-routes.ts';
 import { mountBinEndpoints } from './http/routes/bin-routes.ts';
 import { mountChartEndpoints } from './http/routes/chart-routes.ts';
 import { mountChatRoute } from './http/routes/chat-route.ts';
@@ -58,6 +60,8 @@ export interface AppDependencies {
   readonly users: Users;
   /** What changing a user needs. */
   readonly userAdmin: UserAdminDependencies;
+  /** The authentication mode, switched without a restart. */
+  readonly authMode: AuthModeControl;
   /** How many proxies in front of querent append to `X-Forwarded-For`. */
   readonly trustedProxyHops: number;
   /** Receives request and error logs. */
@@ -99,12 +103,13 @@ export interface AppDependencies {
 function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
   mountAuthRoutes(app, {
     ...dependencies,
-    mode: dependencies.authenticator.mode,
+    modeOf: () => dependencies.authenticator.mode,
   });
   mountUserEndpoints(app, dependencies);
+  mountAuthSettingsEndpoints(app, dependencies.authMode);
   mountSystemRoutes(app, {
     version: dependencies.version,
-    authMode: dependencies.authenticator.mode,
+    authModeOf: () => dependencies.authenticator.mode,
   });
   mountConnectorRoutes(app, dependencies.connections);
   mountDashboardEndpoints(app, dependencies.dashboards, {

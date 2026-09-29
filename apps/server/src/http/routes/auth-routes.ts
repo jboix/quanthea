@@ -9,6 +9,7 @@ import {
   setPasswordEndpoint,
   signInEndpoint,
   signOutEndpoint,
+  signOutEverywhereEndpoint,
 } from '@querent/shared';
 import type { Context, Hono } from 'hono';
 import { deleteCookie, setCookie } from 'hono/cookie';
@@ -28,8 +29,8 @@ const cookieBaseName = sessionCookieName.replace('__Host-', '');
 
 /** What the authentication routes need. */
 export interface AuthRouteServices {
-  /** The authentication mode. */
-  readonly mode: AuthMode;
+  /** Gives the authentication mode in force. */
+  readonly modeOf: () => AuthMode;
   /** The sessions, when the session key is set. */
   readonly sessions: Sessions | undefined;
   /** Password accounts, when the session key and the pepper are set. */
@@ -106,7 +107,7 @@ async function signedInResponse(
  */
 function mountSignInRoutes(app: Hono<AppEnv>, services: AuthRouteServices): void {
   app.post(`${apiPrefix}${signInEndpoint.path}`, accessMiddleware('public'), async (context) => {
-    if (services.mode === 'none')
+    if (services.modeOf() === 'none')
       throw new AppError('bad_request', 'Sign-in is off: everyone is an admin on this server.');
     const body = await bodyOf(context, signInEndpoint.body);
     const address = clientAddress(context, services.trustedProxyHops);
@@ -118,6 +119,12 @@ function mountSignInRoutes(app: Hono<AppEnv>, services: AuthRouteServices): void
     if (cookie !== undefined && services.sessions) await services.sessions.end(cookie);
     deleteCookie(context, cookieBaseName, { prefix: 'host', path: '/', secure: true });
     return context.json(signOutEndpoint.output.parse({ signedOut: true }));
+  });
+  const everywhere = `${apiPrefix}${signOutEverywhereEndpoint.path}`;
+  app.post(everywhere, accessMiddleware('viewer'), (context) => {
+    const ended = services.sessions?.endAllOf(actorOf(context.get('principal'))) ?? 0;
+    deleteCookie(context, cookieBaseName, { prefix: 'host', path: '/', secure: true });
+    return context.json(signOutEverywhereEndpoint.output.parse({ ended }));
   });
 }
 
@@ -140,7 +147,7 @@ function mountPasswordRoutes(app: Hono<AppEnv>, services: AuthRouteServices): vo
   );
   const change = `${apiPrefix}${changePasswordEndpoint.path}`;
   app.post(change, accessMiddleware('viewer'), async (context) => {
-    if (services.mode === 'none')
+    if (services.modeOf() === 'none')
       throw new AppError('bad_request', 'There are no passwords while everyone is an admin.');
     const body = await bodyOf(context, changePasswordEndpoint.body);
     const userId = actorOf(context.get('principal'));

@@ -1,0 +1,35 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+}
+
+.problems {
+  margin: 0;
+  padding: 12px 14px 12px 32px;
+  border: 1px solid #f0dcb8;
+  border-radius: var(--radius-card);
+  background: var(--color-draft-soft);
+  font-size: 13px;
+  color: var(--color-draft);
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}

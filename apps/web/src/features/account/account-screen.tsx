@@ -57,16 +57,21 @@ function ChangePassword() {
 }
 
 /**
- * Signing out.
+ * Signing out, here or everywhere.
  *
- * @returns The button.
+ * @returns The buttons.
  */
 function SignOut() {
   const form = useAccountForm('/account');
   return (
-    <Button disabled={form.busy} onClick={() => form.submit({ intent: 'sign-out' })}>
-      Sign out
-    </Button>
+    <div className={styles.buttons}>
+      <Button disabled={form.busy} onClick={() => form.submit({ intent: 'sign-out-everywhere' })}>
+        Sign out everywhere
+      </Button>
+      <Button disabled={form.busy} onClick={() => form.submit({ intent: 'sign-out' })}>
+        Sign out
+      </Button>
+    </div>
   );
 }
 

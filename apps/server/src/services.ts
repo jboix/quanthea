@@ -3,9 +3,10 @@
  * the dashboards. The bootstrap and the tests wire them the same way.
  */
 
-import type { DashboardSpec } from '@querent/shared';
+import type { AuthMode, DashboardSpec } from '@querent/shared';
 import { createMetadataWriter, type PinMetadata } from './agent/metadata.ts';
 import { type Agent, createAgent } from './agent/run.ts';
+import { type AuthModeControl, createAuthModeControl } from './auth/auth-mode-control.ts';
 import { createPasswordAccounts, type PasswordAccounts } from './auth/password-accounts.ts';
 import type { HashCosts } from './auth/passwords.ts';
 import { resealUsers } from './auth/reseal-users.ts';
@@ -24,6 +25,7 @@ import type { openDatabase } from './db/database.ts';
 import { createPasswordLinkRepository } from './db/password-link-repository.ts';
 import { createSessionRepository } from './db/session-repository.ts';
 import { createThreadBinRepository } from './db/thread-bin.ts';
+import { createThreadOwnershipRepository } from './db/thread-ownership.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
 import { createUserRepository, type UserRepository } from './db/user-repository.ts';
@@ -67,6 +69,10 @@ export interface ServiceDependencies {
   readonly peppers: Peppers | undefined;
   /** The argon2id costs; lower in tests only. */
   readonly passwordCosts?: HashCosts;
+  /** The mode `QUERENT_AUTH_MODE` forces, if set. */
+  readonly authOverride?: AuthMode | undefined;
+  /** What the server lacks for accounts, found at startup; none by default. */
+  readonly accountsProblems?: readonly string[];
   /** The clock of the users and sessions; `Date.now` by default. */
   readonly now?: () => number;
 }
@@ -91,6 +97,8 @@ export interface Services {
   readonly passwords: PasswordAccounts | undefined;
   /** What changing a user needs. */
   readonly userAdmin: UserAdminDependencies;
+  /** The authentication mode, switched without a restart. */
+  readonly authMode: AuthModeControl;
   /** The bin of threads. */
   readonly bin: ThreadBin;
   /**
@@ -206,7 +214,18 @@ function accountServices(
   const sessions =
     sessionHashes && createSessions({ repository: sessionRepository, ...sessionHashes, ...clock });
   const passwords = passwordServices(dependencies, { users: repository, sessions, audit });
-  return { users, sessions, passwords, userAdmin: { repository, sessions, audit, ...clock } };
+  const authMode = createAuthModeControl({
+    settings: dependencies.settings,
+    override: dependencies.authOverride,
+    problems: dependencies.accountsProblems ?? [],
+    users: repository,
+    names: users,
+    threads: createThreadOwnershipRepository(database),
+    sessions,
+    audit,
+  });
+  const userAdmin = { repository, sessions, audit, ...clock };
+  return { users, sessions, passwords, userAdmin, authMode };
 }
 
 /**

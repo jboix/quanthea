@@ -1,5 +1,4 @@
 /** The route tree (React Router data mode) and the browser router built from it. */
-import type { ComponentType } from 'react';
 import { createBrowserRouter, type RouteObject, redirect } from 'react-router';
 import type { ApiClient } from '../lib/api-client.ts';
 import { accountRoute } from '../routes/account.tsx';
@@ -9,7 +8,7 @@ import { dashboardRoutes } from '../routes/dashboard.tsx';
 import { libraryRoute } from '../routes/library.tsx';
 import { loginRoute, setPasswordRoute } from '../routes/login.tsx';
 import { NotFoundRoute } from '../routes/not-found.tsx';
-import { SettingsAuthRoute } from '../routes/settings-auth.tsx';
+import { authSettingsRoute } from '../routes/settings-auth.tsx';
 import { chartSettingsRoute } from '../routes/settings-charts.tsx';
 import { SettingsLayout } from '../routes/settings-layout.tsx';
 import { modelSettingsRoute } from '../routes/settings-model.tsx';
@@ -21,24 +20,8 @@ import { threadRoutes } from '../routes/thread.tsx';
 import { UiKitRoute } from '../routes/ui-kit.tsx';
 import { ErrorPage } from './error-page.tsx';
 import { AppLayout, LoadingScreen } from './layout.tsx';
-import { type GuardedPath, homePathFor, requireRole, routeAccess } from './route-access.ts';
+import { homePathFor, requireRole } from './route-access.ts';
 import type { SessionLoader } from './session.ts';
-
-/**
- * A screen route whose loader enforces the minimum role listed in {@link routeAccess}.
- *
- * @param loadSession - Loads the current session.
- * @param path - The screen path.
- * @param Component - The screen.
- * @returns The route object.
- */
-function screen(
-  loadSession: SessionLoader,
-  path: GuardedPath,
-  Component: ComponentType,
-): RouteObject {
-  return { path, loader: requireRole(loadSession, routeAccess[path]), Component };
-}
 
 /** What the routes need from the app: the session and the API. */
 interface RouteDependencies {
@@ -77,7 +60,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
         querySettingsRoute(loadSession, api),
         usageSettingsRoute(loadSession, api),
         usersSettingsRoute(loadSession, api),
-        screen(loadSession, '/settings/auth', SettingsAuthRoute),
+        authSettingsRoute(loadSession, api),
         retentionSettingsRoute(loadSession, api),
       ],
     },

@@ -52,24 +52,28 @@ export function cookieOf(request: Request, name: string): string | undefined {
 }
 
 /**
- * Creates the authenticator for a mode.
+ * Creates the authenticator. The mode is read on every request, so switching it needs no restart.
  *
- * @param mode - The active authentication mode.
- * @param accounts - The sessions and users, required in `accounts` mode.
+ * @param mode - The mode, or a function giving the mode in force.
+ * @param accounts - The sessions and users, required for `accounts` mode.
  * @returns The authenticator.
  * @throws {Error} In `accounts` mode without sessions.
  */
 export function createAuthenticator(
-  mode: AuthMode,
+  mode: AuthMode | (() => AuthMode),
   accounts?: AccountsAuthentication,
 ): Authenticator {
-  if (mode === 'none') return { mode, authenticate: () => Promise.resolve(anonymousAdmin) };
-  if (!accounts) throw new Error('Accounts mode needs sessions: set QUERENT_SESSION_KEY.');
+  const current = typeof mode === 'function' ? mode : () => mode;
+  if (current() === 'accounts' && !accounts)
+    throw new Error('Accounts mode needs sessions: set QUERENT_SESSION_KEY.');
   return {
-    mode,
+    get mode() {
+      return current();
+    },
     authenticate: async (request) => {
-      const cookie = cookieOf(request, sessionCookieName);
-      if (cookie === undefined) return null;
+      if (current() === 'none') return anonymousAdmin;
+      const cookie = accounts && cookieOf(request, sessionCookieName);
+      if (!accounts || cookie === undefined) return null;
       const session = await accounts.sessions.resolve(cookie);
       return session ? accounts.users.principalOf(session.userId) : null;
     },

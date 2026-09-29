@@ -9,8 +9,8 @@ import { mountEndpoint } from '../endpoint.ts';
 interface SystemInfo {
   /** The server version. */
   readonly version: string;
-  /** The active authentication mode. */
-  readonly authMode: AuthMode;
+  /** Gives the authentication mode in force. */
+  readonly authModeOf: () => AuthMode;
 }
 
 /**
@@ -28,7 +28,7 @@ export function mountSystemRoutes(app: Hono<AppEnv>, info: SystemInfo): void {
     access: 'public',
     handle: ({ principal }) => {
       if (!principal) throw new AppError('unauthorized', 'Sign in to continue.');
-      return { principal, authMode: info.authMode };
+      return { principal, authMode: info.authModeOf() };
     },
   });
 }

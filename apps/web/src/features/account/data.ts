@@ -7,6 +7,7 @@ import {
   setPasswordEndpoint,
   signInEndpoint,
   signOutEndpoint,
+  signOutEverywhereEndpoint,
 } from '@querent/shared';
 import type { ActionFunctionArgs } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
@@ -96,7 +97,8 @@ export function setPasswordAction(api: ApiClient) {
 /** What the account page submits, as JSON. */
 export type AccountIntent =
   | { readonly intent: 'change-password'; readonly current: string; readonly password: string }
-  | { readonly intent: 'sign-out' };
+  | { readonly intent: 'sign-out' }
+  | { readonly intent: 'sign-out-everywhere' };
 
 /**
  * The action of the account page: change the password, or sign out.
@@ -108,8 +110,8 @@ export function accountAction(api: ApiClient) {
   return async ({ request }: ActionFunctionArgs): Promise<AccountOutcome> => {
     const intent = (await request.json()) as AccountIntent;
     try {
-      if (intent.intent === 'sign-out') {
-        await api.call(signOutEndpoint);
+      if (intent.intent === 'sign-out' || intent.intent === 'sign-out-everywhere') {
+        await api.call(intent.intent === 'sign-out' ? signOutEndpoint : signOutEverywhereEndpoint);
         return { ok: true, next: '/login' };
       }
       await api.call(changePasswordEndpoint, {

@@ -28,7 +28,8 @@ if (appliedMigrations.length > 0) logger.info('applied migrations', { appliedMig
 const settings = createSettingsStore(createSettingsRepository(database));
 const authMode = resolveAuthMode(config.authModeOverride, settings, logger);
 const keys = await loadKeys({ keys: config.keys, dataDir: config.dataDir, logger });
-const missing = authMode === 'accounts' ? accountsProblems(config, keys) : [];
+const problems = accountsProblems(config, keys);
+const missing = authMode === 'accounts' ? problems : [];
 if (missing.length > 0) {
   throw new Error(`Accounts mode cannot start:\n- ${missing.join('\n- ')}`);
 }
@@ -40,13 +41,18 @@ const dependencies = {
   emailIndex: keys.emailIndex,
   sessionHashes: keys.sessionHashes,
   peppers: keys.peppers,
+  authOverride: config.authModeOverride,
+  accountsProblems: problems,
 };
 const resealed = await resealSecrets(dependencies);
 if (resealed > 0) logger.info('sealed secrets again with the current key', { resealed });
 const services = createServices(dependencies);
 
 const { sessions, users } = services;
-const authenticator = createAuthenticator(authMode, sessions && { sessions, users });
+const authenticator = createAuthenticator(
+  () => services.authMode.current(),
+  sessions && { sessions, users },
+);
 if (authenticator.mode === 'none') {
   logger.warn('Open access: anyone who can reach this URL is an admin.');
 }

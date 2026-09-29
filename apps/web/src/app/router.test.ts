@@ -42,6 +42,13 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'POST /connectors/:connectorId/test': { ok: true, latencyMs: 1, message: 'ok', readOnly: null },
   'GET /bin': { threads: [], binDays: 30 },
   'GET /users': { users: [] },
+  'GET /settings/auth': {
+    mode: 'none',
+    overridden: false,
+    problems: [],
+    signInAdmins: [],
+    openAccessThreads: 0,
+  },
   'GET /settings/retention': { binDays: 30 },
   'GET /dashboards': { results: [], tags: [], connectors: [] },
   'GET /dashboards/:dashboardId': { pinnedVersion: 1, versions: [] },

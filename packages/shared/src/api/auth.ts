@@ -21,6 +21,13 @@ export const signOutEndpoint = defineEndpoint({
   output: z.object({ signedOut: z.literal(true) }),
 });
 
+/** Ends every session of the signed-in person, this one too, and clears the cookie. */
+export const signOutEverywhereEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/auth/sign-out-everywhere',
+  output: z.object({ ended: z.int() }),
+});
+
 /**
  * Sets a password with the token of an invite or reset link, ends the person's other sessions,
  * and signs them in.

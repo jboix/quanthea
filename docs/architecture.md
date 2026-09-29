@@ -170,29 +170,30 @@ the `postgres` driver and Prometheus uses `fetch`.
 
 **Routes** (React Router data mode):
 
-| Path                                                       | Screen                                                     | Min role |
-| ---------------------------------------------------------- | ---------------------------------------------------------- | -------- |
-| `/`                                                        | redirect → `/library` (viewer) or `/threads/new` (editor+) | viewer   |
-| `/threads/new`, `/threads/:threadId`                       | Plan, Build and refine, Variant                            | editor   |
-| `/library`                                                 | Library: search pinned dashboards and their panels         | viewer   |
-| `/account`                                                 | your account: password, sign out                           | viewer   |
-| `/d/:dashboardId`                                          | the pinned version; for editors, the latest if unpinned    | viewer   |
-| `/d/:dashboardId/v/:version`                               | a specific version                                         | viewer   |
-| `/d/:dashboardId/v/:version/panels/:panelId`               | resource route: one panel's run, for fetchers              | viewer   |
-| `/d/:dashboardId/v/:version/options/:name`                 | resource route: a variable's options, for fetchers         | viewer   |
-| `/bin`                                                     | Bin: deleted threads, restore, delete for good (admin)     | editor   |
-| `/connectors`, `/connectors/:connectorId`                  | Connectors: list, access level, guardrails, schema         | admin    |
-| `/connectors/new`, `/connectors/:connectorId/edit`         | add and edit a connection                                  | admin    |
-| `/connectors/:connectorId/health`                          | resource route: the connection test, for fetchers          | admin    |
-| `/settings/model`, `/settings/auth`, `/settings/retention` | Settings                                                   | admin    |
-| `/settings/users`                                          | Users: invite, roles, disable, reset links, sign out       | admin    |
-| `/settings/usage`                                          | Usage: tokens, cost and pinned views per day, by model     | admin    |
-| `/settings/queries`                                        | Queries: builders on or off, your own with placeholders    | admin    |
-| `/settings/charts`                                         | Charts: every chart recipe drawn from its sample           | admin    |
-| `/settings`                                                | redirect → `/settings/model`                               | admin    |
-| `/ui`                                                      | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
-| `/login`                                                   | sign in; only in `accounts` mode                           | —        |
-| `/set-password`                                            | choose a password from an invite or reset link             | —        |
+| Path                                               | Screen                                                       | Min role |
+| -------------------------------------------------- | ------------------------------------------------------------ | -------- |
+| `/`                                                | redirect → `/library` (viewer) or `/threads/new` (editor+)   | viewer   |
+| `/threads/new`, `/threads/:threadId`               | Plan, Build and refine, Variant                              | editor   |
+| `/library`                                         | Library: search pinned dashboards and their panels           | viewer   |
+| `/account`                                         | your account: password, sign out                             | viewer   |
+| `/d/:dashboardId`                                  | the pinned version; for editors, the latest if unpinned      | viewer   |
+| `/d/:dashboardId/v/:version`                       | a specific version                                           | viewer   |
+| `/d/:dashboardId/v/:version/panels/:panelId`       | resource route: one panel's run, for fetchers                | viewer   |
+| `/d/:dashboardId/v/:version/options/:name`         | resource route: a variable's options, for fetchers           | viewer   |
+| `/bin`                                             | Bin: deleted threads, restore, delete for good (admin)       | editor   |
+| `/connectors`, `/connectors/:connectorId`          | Connectors: list, access level, guardrails, schema           | admin    |
+| `/connectors/new`, `/connectors/:connectorId/edit` | add and edit a connection                                    | admin    |
+| `/connectors/:connectorId/health`                  | resource route: the connection test, for fetchers            | admin    |
+| `/settings/model`, `/settings/retention`           | Settings                                                     | admin    |
+| `/settings/auth`                                   | Authentication: open access or accounts, open-access threads | admin    |
+| `/settings/users`                                  | Users: invite, roles, disable, reset links, sign out         | admin    |
+| `/settings/usage`                                  | Usage: tokens, cost and pinned views per day, by model       | admin    |
+| `/settings/queries`                                | Queries: builders on or off, your own with placeholders      | admin    |
+| `/settings/charts`                                 | Charts: every chart recipe drawn from its sample             | admin    |
+| `/settings`                                        | redirect → `/settings/model`                                 | admin    |
+| `/ui`                                              | UI kit: every `ui/` primitive, for checking the visuals      | viewer   |
+| `/login`                                           | sign in; only in `accounts` mode                             | —        |
+| `/set-password`                                    | choose a password from an invite or reset link               | —        |
 
 Route loaders fetch through the typed API client. The root loader loads the session
 (`GET /api/me`, once per page load). Without a session, every screen redirects to
@@ -826,6 +827,8 @@ indicative; the contract files are the source of truth.
 | `GET /me`                                                                                         | principal, role, auth mode                   | public   |
 | `POST /auth/sign-in`, `/auth/set-password`, `/auth/sign-out`                                      | sessions and passwords                       | public   |
 | `POST /auth/change-password`                                                                      | change one's own password                    | viewer   |
+| `GET/PUT /settings/auth`, `POST /settings/auth/adopt`                                             | switch the mode, hand over threads           | admin    |
+| `POST /auth/sign-out-everywhere`                                                                  | end all one's sessions                       | viewer   |
 | `GET/POST /users`, `PATCH /users/:id`, `POST /users/:id/reset-link`, `DELETE /users/:id/sessions` | users                                        | admin    |
 | `GET /threads` (each marked `pinned`), `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id` | threads; delete moves to the bin             | editor   |
 | `POST /threads/:id/chat`                                                                          | streamed agent run                           | editor   |
@@ -877,6 +880,14 @@ Two modes: `none`, where every request is an anonymous admin, and `accounts`, wh
 Modes stored as `basic` or `oidc` by earlier versions read as `accounts`. `accounts` starts only
 with the keys and `QUERENT_PUBLIC_URL` it needs (see "Keys").
 
+**Switching** (Settings → Authentication, `GET/PUT /api/settings/auth`, admin,
+`auth/auth-mode-control.ts`): the authenticator reads the mode on every request, so a switch needs
+no restart. Switching to `accounts` needs the keys, and an enabled admin who can sign in; the
+threads started in open access (owned by `anonymous`) go to an admin, chosen or the first one
+(`POST /api/settings/auth/adopt` hands them over later too). Every switch ends every session.
+`QUERENT_AUTH_MODE` forces the mode and freezes it; set to `none`, it is the escape hatch for a
+locked-out install, with a warning at startup.
+
 - Each route module declares its minimum role next to its handler. A test walks the router and
   fails if any `/api` route (except the public ones) has no declared role, and another lists the
   public ones.
@@ -918,6 +929,7 @@ with the keys and `QUERENT_PUBLIC_URL` it needs (see "Keys").
   enabled admin; a disabled user's sessions end at once.
 - `POST /api/auth/sign-out` (public) ends the session and clears the cookie. Signing out is never
   a GET, so no link or image can do it.
+  `POST /api/auth/sign-out-everywhere` (signed in) ends every session of the person.
 - **Ownership** (`http/ownership.ts`): a thread belongs to whoever started it (`threads.created_by`).
   Its owner reads and writes it; an admin reads any thread (`readOnly` in `GET /api/threads/:id`)
   and may delete it, but never writes in it (chat, plan decisions, Undo, start-from: 403). Anyone

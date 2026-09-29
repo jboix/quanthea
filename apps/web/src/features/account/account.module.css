@@ -57,3 +57,8 @@
 .facts dd {
   margin: 0;
 }
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}
