@@ -10,6 +10,7 @@ import { Select } from '../ui/select.tsx';
 import { StatusDot } from '../ui/status-dot.tsx';
 import { Switch } from '../ui/switch.tsx';
 import { Tabs } from '../ui/tabs.tsx';
+import { TextArea } from '../ui/text-area.tsx';
 import styles from './ui-kit.module.css';
 
 /** The inspector tabs of the thread screen, used as the tabs sample. */
@@ -85,6 +86,13 @@ function FormControls() {
           options={[{ value: 'build', label: 'claude-sonnet-5' }]}
         />
       </div>
+      <TextArea
+        label="Query"
+        mono
+        rows={3}
+        defaultValue="sum by ({{label}}) (rate({{metric}}[{{window}}]))"
+        hint="Placeholders in double braces."
+      />
       <Switch
         label="Ask for plan approval before building"
         description="Small edits to an existing panel skip the plan."

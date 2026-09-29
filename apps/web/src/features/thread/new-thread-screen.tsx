@@ -1,4 +1,4 @@
-import type { ProviderChoice } from '@querent/shared';
+import type { ProviderChoice, ThreadRecipes } from '@querent/shared';
 import {
   type FormEvent,
   type KeyboardEvent,
@@ -11,15 +11,17 @@ import { type SubmitTarget, useLoaderData, useSubmit } from 'react-router';
 import type { NewThreadData, NewThreadIntent } from './data.ts';
 import { HistoryMenu } from './history-menu.tsx';
 import styles from './new-thread.module.css';
+import { RecipeModeMenu, RecipePicker, useRecipeChoice } from './recipe-choice.tsx';
 
 /**
  * The question box's behaviour: Enter sends, Shift+Enter breaks the line, and a sent question
  * stays on screen while the thread starts.
  *
  * @param providerId - The provider the thread starts on.
+ * @param recipes - The recipes the thread uses.
  * @returns The text, its setter, the question sent (if any), and the handlers.
  */
-function useAsk(providerId: string) {
+function useAsk(providerId: string, recipes: ThreadRecipes) {
   const [question, setQuestion] = useState('');
   const [sent, setSent] = useState<string | undefined>(undefined);
   const submit = useSubmit();
@@ -28,7 +30,7 @@ function useAsk(providerId: string) {
     const text = question.trim();
     if (text === '' || sent !== undefined) return;
     setSent(text);
-    const intent: NewThreadIntent = { intent: 'start', question: text, providerId };
+    const intent: NewThreadIntent = { intent: 'start', question: text, providerId, recipes };
     void submit(intent as SubmitTarget, {
       method: 'post',
       encType: 'application/json',
@@ -81,7 +83,7 @@ function ProviderMenu({
  *
  * @param props - The box's state.
  * @param props.ask - What {@link useAsk} returns.
- * @param props.choice - The provider menu, when there is a choice.
+ * @param props.choice - The provider menu, when there is a choice, and the recipe menu.
  * @returns The form.
  */
 function AskForm({
@@ -146,13 +148,18 @@ function Sent({ question }: { readonly question: string }) {
  * @returns The screen.
  */
 export function NewThreadScreen() {
-  const { threads, providers, defaultProviderId } = useLoaderData() as NewThreadData;
+  const { threads, providers, defaultProviderId, recipes } = useLoaderData() as NewThreadData;
   const [providerId, setProviderId] = useState(defaultProviderId);
-  const ask = useAsk(providerId);
-  const choice =
-    providers.length > 1 ? (
-      <ProviderMenu providers={providers} value={providerId} onChange={setProviderId} />
-    ) : null;
+  const recipeChoice = useRecipeChoice(recipes);
+  const ask = useAsk(providerId, recipeChoice.value);
+  const choice = (
+    <>
+      {providers.length > 1 && (
+        <ProviderMenu providers={providers} value={providerId} onChange={setProviderId} />
+      )}
+      <RecipeModeMenu choice={recipeChoice} />
+    </>
+  );
   return (
     <div className={styles.screen}>
       <header className={styles.top}>
@@ -161,7 +168,10 @@ export function NewThreadScreen() {
       <div className={styles.center}>
         <h1 className={styles.heading}>What do you want to see?</h1>
         {ask.sent === undefined ? (
-          <AskForm ask={ask} choice={choice} />
+          <>
+            <AskForm ask={ask} choice={choice} />
+            <RecipePicker recipes={recipes} choice={recipeChoice} />
+          </>
         ) : (
           <Sent question={ask.sent} />
         )}

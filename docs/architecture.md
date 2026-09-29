@@ -167,24 +167,25 @@ the `postgres` driver and Prometheus uses `fetch`.
 
 **Routes** (React Router data mode):
 
-| Path                                                       | Screen                                                     | Min role |
-| ---------------------------------------------------------- | ---------------------------------------------------------- | -------- |
-| `/`                                                        | redirect → `/library` (viewer) or `/threads/new` (editor+) | viewer   |
-| `/threads/new`, `/threads/:threadId`                       | Plan, Build and refine, Variant                            | editor   |
-| `/library`                                                 | Library                                                    | viewer   |
-| `/d/:dashboardId`                                          | Pinned view, latest pinned version                         | viewer   |
-| `/d/:dashboardId/v/:version`                               | a specific version                                         | viewer   |
-| `/d/:dashboardId/v/:version/panels/:panelId`               | resource route: one panel's run, for fetchers              | viewer   |
-| `/d/:dashboardId/v/:version/options/:name`                 | resource route: a variable's options, for fetchers         | viewer   |
-| `/bin`                                                     | Bin                                                        | editor   |
-| `/connectors`, `/connectors/:connectorId`                  | Connectors: list, access level, guardrails, schema         | admin    |
-| `/connectors/new`, `/connectors/:connectorId/edit`         | add and edit a connection                                  | admin    |
-| `/connectors/:connectorId/health`                          | resource route: the connection test, for fetchers          | admin    |
-| `/settings/model`, `/settings/auth`, `/settings/retention` | Settings                                                   | admin    |
-| `/settings/usage`                                          | Usage: tokens, cost and pinned views per day, by model     | admin    |
-| `/settings`                                                | redirect → `/settings/model`                               | admin    |
-| `/ui`                                                      | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
-| `/login`                                                   | only in `basic` / `oidc` modes                             | —        |
+| Path                                                       | Screen                                                       | Min role |
+| ---------------------------------------------------------- | ------------------------------------------------------------ | -------- |
+| `/`                                                        | redirect → `/library` (viewer) or `/threads/new` (editor+)   | viewer   |
+| `/threads/new`, `/threads/:threadId`                       | Plan, Build and refine, Variant                              | editor   |
+| `/library`                                                 | Library                                                      | viewer   |
+| `/d/:dashboardId`                                          | Pinned view, latest pinned version                           | viewer   |
+| `/d/:dashboardId/v/:version`                               | a specific version                                           | viewer   |
+| `/d/:dashboardId/v/:version/panels/:panelId`               | resource route: one panel's run, for fetchers                | viewer   |
+| `/d/:dashboardId/v/:version/options/:name`                 | resource route: a variable's options, for fetchers           | viewer   |
+| `/bin`                                                     | Bin                                                          | editor   |
+| `/connectors`, `/connectors/:connectorId`                  | Connectors: list, access level, guardrails, schema           | admin    |
+| `/connectors/new`, `/connectors/:connectorId/edit`         | add and edit a connection                                    | admin    |
+| `/connectors/:connectorId/health`                          | resource route: the connection test, for fetchers            | admin    |
+| `/settings/model`, `/settings/auth`, `/settings/retention` | Settings                                                     | admin    |
+| `/settings/usage`                                          | Usage: tokens, cost and pinned views per day, by model       | admin    |
+| `/settings/recipes`                                        | Recipes: built-in ones on or off, your own with placeholders | admin    |
+| `/settings`                                                | redirect → `/settings/model`                                 | admin    |
+| `/ui`                                                      | UI kit: every `ui/` primitive, for checking the visuals      | viewer   |
+| `/login`                                                   | only in `basic` / `oidc` modes                               | —        |
 
 Route loaders fetch through the typed API client. The root loader loads the session
 (`GET /api/me`, once per page load). Without a session, every screen redirects to
@@ -368,7 +369,7 @@ panel ids to remove, and deploy markers. The server expands it:
   `GET/PUT /api/settings/recipes`). A thread uses the default set (the recipes switched on and
   every saved one), a set chosen when it starts, or none (free style: custom panels only), stored
   on the thread (`POST /api/threads` with `recipes`). The tool schema and the guide list only
-  those recipes.
+  those recipes. The new-thread screen offers the three, with the recipes to tick when choosing.
 - **Layout.** Existing panels keep their place; a rebuilt panel keeps its id and place; new
   panels are packed in reading order into rows below, as wide as asked or as their kind usually
   is (stats a quarter, time charts full width, tables and category charts half).

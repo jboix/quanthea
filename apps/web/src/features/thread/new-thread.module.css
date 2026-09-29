@@ -77,7 +77,11 @@
 
 .hint {
   flex-grow: 1;
+  min-width: 0;
+  overflow: hidden;
   font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: var(--color-ink-secondary);
 }
 

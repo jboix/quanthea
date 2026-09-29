@@ -12,13 +12,16 @@ import {
   getDashboardVersionEndpoint,
   getThreadEndpoint,
   listProviderChoicesEndpoint,
+  listRecipeChoicesEndpoint,
   listThreadsEndpoint,
   type ProviderChoice,
   pinDashboardEndpoint,
+  type RecipeChoice,
   rejectPlanEndpoint,
   restoreVersionEndpoint,
   startFromPinnedEndpoint,
   type ThreadDetail,
+  type ThreadRecipes,
   type ThreadSummary,
 } from '@querent/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
@@ -117,6 +120,8 @@ export interface NewThreadData {
   readonly providers: readonly ProviderChoice[];
   /** The default provider. */
   readonly defaultProviderId: string;
+  /** The recipes a thread may use. */
+  readonly recipes: readonly RecipeChoice[];
 }
 
 /**
@@ -128,17 +133,23 @@ export interface NewThreadData {
 export function loadRecentThreads(api: ApiClient) {
   return async ({ request }: LoaderFunctionArgs): Promise<NewThreadData> => {
     const options = { signal: request.signal };
-    const [threads, choices] = await Promise.all([
+    const [threads, choices, { recipes }] = await Promise.all([
       api.call(listThreadsEndpoint, undefined, options),
       api.call(listProviderChoicesEndpoint, undefined, options),
+      api.call(listRecipeChoicesEndpoint, undefined, options),
     ]);
-    return { threads: threads.slice(0, 12), ...choices };
+    return { threads: threads.slice(0, 12), ...choices, recipes };
   };
 }
 
 /** What the new-thread screen submits, as JSON: a first question, or a past thread to delete. */
 export type NewThreadIntent =
-  | { readonly intent: 'start'; readonly question: string; readonly providerId?: string }
+  | {
+      readonly intent: 'start';
+      readonly question: string;
+      readonly providerId?: string;
+      readonly recipes?: ThreadRecipes;
+    }
   | { readonly intent: 'delete'; readonly threadId: string };
 
 /**
@@ -155,7 +166,11 @@ export function newThreadAction(api: ApiClient) {
       await api.call(deleteThreadEndpoint, { params: { threadId: intent.threadId } });
       return { ok: true };
     }
-    const body = intent.providerId === undefined ? {} : { providerId: intent.providerId };
+    const { providerId, recipes } = intent;
+    const body = {
+      ...(providerId === undefined ? {} : { providerId }),
+      ...(recipes === undefined ? {} : { recipes }),
+    };
     const thread = await api.call(createThreadEndpoint, { body });
     return redirect(`/threads/${thread.id}?ask=${encodeURIComponent(intent.question)}`);
   };
