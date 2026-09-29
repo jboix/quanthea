@@ -102,7 +102,7 @@ export function DashboardScreen() {
       <div className={styles.body}>
         <div className={styles.main}>
           <DashboardCanvas
-            banner
+            refreshable
             dashboardId={dashboard.id}
             version={version.version}
             spec={version.spec}

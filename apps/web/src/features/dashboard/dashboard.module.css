@@ -54,32 +54,30 @@
   padding: 20px 28px 40px;
 }
 
-.banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px 10px 16px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  font-size: 14px;
-  color: var(--color-ink-secondary);
+.refresh[data-tone="running"] {
+  cursor: progress;
 }
 
-.banner[data-tone="ok"] {
-  border-color: var(--color-ok-border);
-  background: var(--color-ok-soft);
-  color: var(--color-ok-ink);
+.refresh[data-tone="running"] svg {
+  animation: spin 0.9s linear infinite;
 }
 
-.banner[data-tone="failed"] {
+.refresh[data-tone="failed"] {
   border-color: #f0dcb8;
   background: var(--color-draft-soft);
   color: var(--color-draft);
 }
 
-.bannerText {
-  flex-grow: 1;
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh[data-tone="running"] svg {
+    animation: none;
+  }
 }
 
 .sideHeading {

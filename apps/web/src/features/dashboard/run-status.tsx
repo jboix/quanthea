@@ -1,11 +1,12 @@
 import type { DashboardSpec, PanelRun } from '@querent/shared';
 import { Button } from '../../ui/button.tsx';
-import { CheckIcon, WarningIcon } from '../../ui/icons.tsx';
+import { RefreshIcon, WarningIcon } from '../../ui/icons.tsx';
+import { Tooltip } from '../../ui/tooltip.tsx';
 import styles from './dashboard.module.css';
 import type { Loaded } from './data.ts';
 
-/** Props of {@link RunBanner}. */
-interface RunBannerProps {
+/** Props of {@link RunStatus}. */
+interface RunStatusProps {
   /** The spec, for its panels and connectors. */
   readonly spec: DashboardSpec;
   /** The finished runs, by panel id. */
@@ -33,7 +34,7 @@ function connectorList(spec: DashboardSpec): string {
  * @param runs - The runs.
  * @returns The number of queries, how many failed, and the slowest panel's duration.
  */
-function summaryOf(runs: RunBannerProps['runs']) {
+function summaryOf(runs: RunStatusProps['runs']) {
   const outcomes = Object.values(runs);
   const queries = outcomes.flatMap((run) => (run.ok ? run.value.queries : []));
   const failed =
@@ -43,29 +44,52 @@ function summaryOf(runs: RunBannerProps['runs']) {
 }
 
 /**
- * The line above the panels: what ran, against which connectors, how long it took, and that no
- * model was involved.
+ * What the refresh button's note says: what ran, against which connectors, how long it took, and
+ * that no model was involved.
  *
- * @param props - The spec, the finished runs and the refresh callback.
- * @returns The banner.
+ * @param spec - The spec.
+ * @param runs - The finished runs.
+ * @returns The tone and the note.
  */
-export function RunBanner({ spec, runs, onRefresh }: RunBannerProps) {
+function statusOf(spec: DashboardSpec, runs: RunStatusProps['runs']) {
   const done = Object.keys(runs).length >= spec.panels.length;
   const summary = summaryOf(runs);
   const saved = summary.queries === 1 ? 'saved query' : 'saved queries';
   const tone = !done ? 'running' : summary.failed > 0 ? 'failed' : 'ok';
   const text = {
     running: `Running saved queries against ${connectorList(spec)}…`,
-    ok: `Ran ${summary.queries} ${saved} directly against ${connectorList(spec)} · ${summary.durationMs} ms · no model call`,
-    failed: `${summary.failed} of ${summary.queries} ${saved} failed · ${summary.durationMs} ms · no model call`,
+    ok: `Ran ${summary.queries} ${saved} against ${connectorList(spec)} in ${summary.durationMs} ms. No model call.`,
+    failed: `${summary.failed} of ${summary.queries} ${saved} failed, in ${summary.durationMs} ms. No model call.`,
   }[tone];
+  return { tone, text };
+}
+
+/**
+ * The Refresh button, which runs every panel again. Its note says how the last run went; it turns
+ * while the panels run and warns when a query failed.
+ *
+ * @param props - The spec, the finished runs and the refresh callback.
+ * @returns The button with its note.
+ */
+export function RunStatus({ spec, runs, onRefresh }: RunStatusProps) {
+  const { tone, text } = statusOf(spec, runs);
   return (
-    <div className={styles.banner} data-tone={tone} role="status">
-      {tone === 'failed' ? <WarningIcon /> : <CheckIcon />}
-      <span className={styles.bannerText}>{text}</span>
-      <Button size="small" onClick={onRefresh} disabled={!done}>
-        Refresh
-      </Button>
-    </div>
+    <Tooltip text={text}>
+      {(describedBy) => (
+        <Button
+          className={styles.refresh}
+          data-tone={tone}
+          aria-describedby={describedBy}
+          aria-busy={tone === 'running'}
+          aria-disabled={tone === 'running'}
+          onClick={() => {
+            if (tone !== 'running') onRefresh();
+          }}
+        >
+          {tone === 'failed' ? <WarningIcon /> : <RefreshIcon />}
+          Refresh
+        </Button>
+      )}
+    </Tooltip>
   );
 }

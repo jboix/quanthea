@@ -1,5 +1,5 @@
 /**
- * The working part of a dashboard: the run status, the variables and the panel grid. The pinned
+ * The working part of a dashboard: the variables with the Refresh button, and the panel grid. The pinned
  * view and the thread's draft pane both show it.
  */
 import type { DashboardSpec, PanelRun } from '@querent/shared';
@@ -8,7 +8,7 @@ import { useSearchParams } from 'react-router';
 import type { Loaded } from './data.ts';
 import { PanelCard, type RunTarget } from './panel-card.tsx';
 import panelStyles from './panels.module.css';
-import { RunBanner } from './run-banner.tsx';
+import { RunStatus } from './run-status.tsx';
 import { VariablesBar } from './variables-bar.tsx';
 import { choicesFromSearch } from './view-state.ts';
 
@@ -47,8 +47,8 @@ export interface DashboardCanvasProps {
   readonly version: number;
   /** Its spec. */
   readonly spec: DashboardSpec;
-  /** Whether to show the run status line above the variables. */
-  readonly banner?: boolean;
+  /** Whether to show the Refresh button, with how the last run went, after the variables. */
+  readonly refreshable?: boolean;
   /** The panel the inspector shows, if any. */
   readonly selectedPanelId?: string | undefined;
   /** Called when the person picks a panel, to inspect or mention it. */
@@ -58,7 +58,37 @@ export interface DashboardCanvasProps {
 }
 
 /**
- * The run status, the variables bar and the panels of one version.
+ * The panels of one version, on the grid.
+ *
+ * @param props - The canvas props, what to run, and the callback each finished run reports to.
+ * @returns The grid.
+ */
+function PanelGrid(
+  props: DashboardCanvasProps & {
+    readonly target: RunTarget;
+    readonly onRun: (panelId: string, run: Loaded<PanelRun>) => void;
+  },
+) {
+  return (
+    <div className={panelStyles.grid}>
+      {props.spec.panels.map((panel) => (
+        <PanelCard
+          key={panel.id}
+          panel={panel}
+          spec={props.spec}
+          target={props.target}
+          onRun={props.onRun}
+          selected={panel.id === props.selectedPanelId}
+          marked={props.markedPanelIds?.includes(panel.id) ?? false}
+          onSelect={props.onSelectPanel}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The variables bar, with Refresh when asked for, and the panels of one version.
  *
  * @param props - The version, and the selection and marks of the thread.
  * @returns The canvas.
@@ -70,26 +100,18 @@ export function DashboardCanvas(props: DashboardCanvasProps) {
   const choices = useMemo(() => choicesFromSearch(search, spec), [search, spec]);
   const target: RunTarget = { dashboardId, version, search: search.toString(), refresh };
   const { runs, report } = useRuns(`${dashboardId}@${version}?${target.search}#${refresh}`);
+  const onRefresh = () => setRefresh((count) => count + 1);
+  const actions = props.refreshable && <RunStatus spec={spec} runs={runs} onRefresh={onRefresh} />;
   return (
     <>
-      {props.banner && (
-        <RunBanner spec={spec} runs={runs} onRefresh={() => setRefresh((count) => count + 1)} />
-      )}
-      <VariablesBar spec={spec} choices={choices} target={target} onSearch={setSearch} />
-      <div className={panelStyles.grid}>
-        {spec.panels.map((panel) => (
-          <PanelCard
-            key={panel.id}
-            panel={panel}
-            spec={spec}
-            target={target}
-            onRun={report}
-            selected={panel.id === props.selectedPanelId}
-            marked={props.markedPanelIds?.includes(panel.id) ?? false}
-            onSelect={props.onSelectPanel}
-          />
-        ))}
-      </div>
+      <VariablesBar
+        spec={spec}
+        choices={choices}
+        target={target}
+        onSearch={setSearch}
+        actions={actions}
+      />
+      <PanelGrid {...props} target={target} onRun={report} />
     </>
   );
 }

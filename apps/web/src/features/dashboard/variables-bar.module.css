@@ -122,9 +122,10 @@
   font-size: 12.5px;
 }
 
-.hint {
-  font-size: 13px;
-  color: var(--color-ink-secondary);
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .legend {

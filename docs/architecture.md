@@ -847,6 +847,9 @@ request → requestId → session cookie? → Principal
 - Each panel loads its run through a fetcher from a resource route
   (`/d/:id/v/:version/panels/:panelId`), so panels load, fail and refresh on their own. A
   query-backed variable loads its options the same way when its menu opens.
+- A Refresh button ends the variables row and runs every panel again. Its tooltip says how many
+  saved queries ran, against which connectors, how long they took, and that no model was called.
+  It turns while panels run and warns when a query failed.
 - `charts/` is the only place that imports ECharts. It registers the series types the chart
   recipes use and the components they need (`charts/register.ts`), draws on a canvas, and is
   loaded lazily, so pages without a chart never download ECharts.

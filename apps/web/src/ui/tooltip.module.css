@@ -1,0 +1,32 @@
+.anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.tip {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: 280px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--color-ink);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-surface);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.12s,
+    visibility 0.12s;
+}
+
+.anchor:hover > .tip,
+.anchor:focus-within > .tip {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0.2s;
+}

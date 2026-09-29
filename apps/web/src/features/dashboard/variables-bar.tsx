@@ -1,4 +1,5 @@
 import type { DashboardSpec, TimeRangeExpression } from '@querent/shared';
+import type { ReactNode } from 'react';
 import type { RunTarget } from './panel-card.tsx';
 import { TimePicker } from './time-picker.tsx';
 import { OptionChip, TextChip } from './variable-chip.tsx';
@@ -15,16 +16,18 @@ interface VariablesBarProps {
   readonly target: RunTarget;
   /** Called with the new URL parameters. */
   readonly onSearch: (search: URLSearchParams) => void;
+  /** Controls at the end of the bar, such as Refresh. */
+  readonly actions?: ReactNode;
 }
 
 /**
- * The time range and the variables, as chips. Changing them changes the URL and what the panels
- * show, never the saved dashboard.
+ * The time range and the variables, as chips, and any controls at the end. Changing them changes
+ * the URL and what the panels show, never the saved dashboard.
  *
- * @param props - The spec, the choices, the target and the change callback.
+ * @param props - The spec, the choices, the target, the change callback and the controls.
  * @returns The bar.
  */
-export function VariablesBar({ spec, choices, target, onSearch }: VariablesBarProps) {
+export function VariablesBar({ spec, choices, target, onSearch, actions }: VariablesBarProps) {
   const search = new URLSearchParams(target.search);
   const setTime = (time: TimeRangeExpression | undefined) => onSearch(withTime(search, time));
   return (
@@ -47,7 +50,7 @@ export function VariablesBar({ spec, choices, target, onSearch }: VariablesBarPr
           />
         );
       })}
-      <span className={styles.hint}>Variables change what you see, never the saved dashboard.</span>
+      {actions && <span className={styles.actions}>{actions}</span>}
     </div>
   );
 }
