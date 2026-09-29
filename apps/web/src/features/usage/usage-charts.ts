@@ -51,6 +51,8 @@ function barsPerDay(
   return {
     view: {
       kind: 'chart',
+      prepare: 'cartesian',
+      roles: {},
       datasets: [{ ref: 'A' }],
       option: option as ChartInput['view']['option'],
     },

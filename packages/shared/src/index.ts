@@ -104,6 +104,13 @@ export {
   usageReportEndpoint,
   usageReportSchema,
 } from './api/usage.ts';
+export { chartIndex, chartRecipe, chartRecipes } from './chart-recipes/catalogue.ts';
+export { type ChartUnit, chartUnits, unitFormatter } from './chart-recipes/conventions.ts';
+export { type ChartChoice, fillView } from './chart-recipes/fill.ts';
+export { type PrepareKind, prepareKinds } from './chart-recipes/prepare.ts';
+export { type ChartFamily, type ChartRecipe, chartFamilies } from './chart-recipes/recipe.ts';
+export { inferRoles, type RoleColumns, roleProblems } from './chart-recipes/roles.ts';
+export { themeTokens } from './chart-recipes/tokens.ts';
 export {
   type AccessLevel,
   accessLevelSchema,
@@ -115,6 +122,30 @@ export {
   hiddenFieldsSchema,
   lowCardinalityLimit,
 } from './connectors.ts';
+export {
+  type Cell,
+  type Dataset,
+  type Dimension,
+  type DimensionType,
+  datasetSchema,
+  type ShapeKind,
+  shapeGuides,
+  shapeKinds,
+} from './dataset/contract.ts';
+export { datasetOfFrames } from './dataset/from-frames.ts';
+export {
+  columnIndex,
+  columnValues,
+  compareCells,
+  filterRows,
+  fiveNumbers,
+  histogramBins,
+  longToWide,
+  rowsToGraph,
+  rowsToTree,
+  sortRows,
+  type TreeNode,
+} from './dataset/reshape.ts';
 export {
   createFormatter,
   type FormatFunction,

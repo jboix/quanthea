@@ -49,6 +49,8 @@ export function timeChart(
     pivotBy === undefined ? {} : { transform: { type: 'pivot' as const, by: pivotBy } };
   return {
     kind: 'chart',
+    prepare: 'cartesian',
+    roles: {},
     datasets: refs.map((ref) => ({ ref, ...transform })),
     option: {
       xAxis: { type: 'time' },
@@ -77,7 +79,7 @@ export function categoryChart(ref: string, kind: 'bar' | 'pie'): View {
           tooltip: { trigger: 'axis' },
           series: [{ type: 'bar' }],
         };
-  return { kind: 'chart', datasets: [{ ref }], option };
+  return { kind: 'chart', prepare: 'cartesian', roles: {}, datasets: [{ ref }], option };
 }
 
 /**

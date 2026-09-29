@@ -1,5 +1,6 @@
 /** How a panel shows its query results: a stat, a table, or an ECharts chart. */
 import { z } from 'zod';
+import { prepareKinds } from '../chart-recipes/prepare.ts';
 import { formatterSchema } from '../formatters/schema.ts';
 import { refIdSchema, slugSchema } from './names.ts';
 
@@ -57,11 +58,24 @@ const datasetTransformSchema = z.discriminatedUnion('type', [
 export type DatasetTransform = z.infer<typeof datasetTransformSchema>;
 
 /**
- * Validates a chart: a JSON subset of an ECharts option, and the results it draws. The validator
- * checks the option against an allowlist; the adapter owns datasets, theme and tooltips.
+ * Validates a chart: a JSON subset of an ECharts option, how its data is prepared, and the
+ * results it draws. The validator checks the option against an allowlist; the adapter owns
+ * datasets, theme and tooltips.
  */
 const chartViewSchema = z.strictObject({
   kind: z.literal('chart'),
+  /** The recipe and variants the chart came from, for people; drawing never reads it. */
+  recipe: z
+    .strictObject({ id: z.string().max(60), variants: z.array(z.string().max(40)).max(6) })
+    .optional(),
+  /** How the adapter prepares the data for the option. */
+  prepare: z.enum(prepareKinds).default('cartesian'),
+  /** The columns of each role the option's `@role` tokens name; missing roles are inferred. */
+  roles: z
+    .record(z.string().max(20), z.union([fieldNameSchema, z.array(fieldNameSchema).max(20)]))
+    .default({}),
+  /** How many categories the chart keeps, for pies, funnels and ranked bars. */
+  limit: z.int().min(1).max(500).optional(),
   option: z.record(z.string(), z.json()),
   datasets: z
     .array(z.strictObject({ ref: refIdSchema, transform: datasetTransformSchema.optional() }))

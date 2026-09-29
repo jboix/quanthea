@@ -44,7 +44,14 @@ function series(service: string, rates: number[]): Frame {
  * @returns The option.
  */
 function build(option: ChartView['option'], frames: Frame[], extra: Partial<ChartView> = {}) {
-  const view: ChartView = { kind: 'chart', option, datasets: [{ ref: 'A' }], ...extra };
+  const view: ChartView = {
+    kind: 'chart',
+    prepare: 'cartesian',
+    roles: {},
+    option,
+    datasets: [{ ref: 'A' }],
+    ...extra,
+  };
   const queries: QueryOutcome[] = [{ refId: 'A', frames, error: null }];
   const markers = [
     {
@@ -243,7 +250,13 @@ describe('buildChartOption', () => {
   });
 
   test('draws nothing for a failed query', () => {
-    const view: ChartView = { kind: 'chart', option: lineOption, datasets: [{ ref: 'A' }] };
+    const view: ChartView = {
+      kind: 'chart',
+      prepare: 'cartesian',
+      roles: {},
+      option: lineOption,
+      datasets: [{ ref: 'A' }],
+    };
     const queries = [
       { refId: 'A', frames: [], error: { code: 'timeout' as const, message: 'Too slow.' } },
     ];
