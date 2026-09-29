@@ -1,9 +1,9 @@
 import type { LibraryEntry } from '@querent/shared';
-import { Link } from 'react-router';
-import { buttonClassName } from '../../ui/button.tsx';
+import { Link, type SubmitTarget, useFetcher } from 'react-router';
+import { Button, buttonClassName } from '../../ui/button.tsx';
 import { VariantIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
-import { PanelPreview } from '../dashboard/index.ts';
+import { PanelPreview, useCanEdit } from '../dashboard/index.ts';
 import styles from './library.module.css';
 
 /**
@@ -63,8 +63,35 @@ function CardFacts({ entry }: { readonly entry: LibraryEntry }) {
 }
 
 /**
+ * For editors: a new dashboard from this one's pinned version, in a new thread.
+ *
+ * @param props - The entry.
+ * @param props.entry - The dashboard.
+ * @returns The button, or nothing for viewers.
+ */
+function NewFromThis({ entry }: { readonly entry: LibraryEntry }) {
+  const canEdit = useCanEdit();
+  const fetcher = useFetcher<{ ok: boolean; message?: string }>();
+  if (!canEdit) return null;
+  const copy = () =>
+    void fetcher.submit({ intent: 'copy', version: entry.version } as SubmitTarget, {
+      method: 'post',
+      action: `/d/${entry.dashboardId}`,
+      encType: 'application/json',
+    });
+  return (
+    <>
+      <Button disabled={fetcher.state !== 'idle'} onClick={copy}>
+        New from this
+      </Button>
+      {fetcher.data?.ok === false && <span className={styles.error}>{fetcher.data.message}</span>}
+    </>
+  );
+}
+
+/**
  * One pinned dashboard in the library: its title and version, one panel drawn live, its facts,
- * the panels that match the search, and a link to open it.
+ * the panels that match the search, a link to open it, and for editors a new dashboard from it.
  *
  * @param props - The entry.
  * @param props.entry - The dashboard.
@@ -99,6 +126,7 @@ export function LibraryCard({ entry }: { readonly entry: LibraryEntry }) {
         <Link to={`/d/${entry.dashboardId}`} className={buttonClassName('secondary')}>
           Open
         </Link>
+        <NewFromThis entry={entry} />
       </footer>
     </article>
   );

@@ -1,46 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Link, useLoaderData, useLocation } from 'react-router';
-import { Button, buttonClassName } from '../../ui/button.tsx';
-import { LockIcon, ThreadsIcon } from '../../ui/icons.tsx';
+import { LockIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import { DashboardCanvas } from './canvas.tsx';
 import styles from './dashboard.module.css';
-import { AboutPopover, HistoryPopover } from './dashboard-about.tsx';
+import { AboutPopover } from './dashboard-about.tsx';
+import { HeaderActions } from './dashboard-actions.tsx';
 import type { DashboardData } from './data.ts';
-import { useCanEdit } from './use-can-edit.ts';
 import { versionNote } from './version-note.ts';
-
-/**
- * Copies the page's address, and says so for two seconds.
- *
- * @returns The button.
- */
-function CopyLinkButton() {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    await navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-  return <Button onClick={() => void copy()}>{copied ? 'Copied' : 'Copy link'}</Button>;
-}
-
-/**
- * The link to the thread that edits the dashboard, for editors, while the thread exists.
- *
- * @param props - The thread.
- * @param props.threadId - The thread, if it still exists.
- * @returns The link, or nothing.
- */
-function ThreadLink({ threadId }: { readonly threadId: string | null }) {
-  const canEdit = useCanEdit();
-  if (threadId === null || !canEdit) return null;
-  return (
-    <Link to={`/threads/${threadId}`} className={buttonClassName('secondary')}>
-      <ThreadsIcon /> Open thread
-    </Link>
-  );
-}
 
 /**
  * The top of the screen: where it sits, its title with what it is about, its version and whether
@@ -69,11 +36,7 @@ function DashboardHeader(props: DashboardData) {
           </Pill>
         </div>
       </div>
-      <div className={styles.headerActions}>
-        <HistoryPopover {...props} />
-        <ThreadLink threadId={dashboard.threadId} />
-        <CopyLinkButton />
-      </div>
+      <HeaderActions {...props} />
     </header>
   );
 }

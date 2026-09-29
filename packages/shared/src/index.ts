@@ -111,6 +111,7 @@ export {
   type ThreadSummary,
   threadChatPath,
   threadDetailSchema,
+  threadFromDashboardEndpoint,
   threadSummarySchema,
 } from './api/threads.ts';
 export {

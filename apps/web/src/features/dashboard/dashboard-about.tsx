@@ -77,7 +77,7 @@ function HistoryRow({ dashboard, entry, current, onPin }: HistoryRowProps) {
  * @param props - The dashboard and the version shown.
  * @returns The list and its actions.
  */
-function History({ dashboard, version }: DashboardData) {
+export function History({ dashboard, version }: DashboardData) {
   const canEdit = useCanEdit();
   const fetcher = useFetcher<Loaded<unknown>>();
   const submit = (intent: DashboardIntent) =>

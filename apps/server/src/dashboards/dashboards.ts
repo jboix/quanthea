@@ -23,7 +23,7 @@ import {
   visibleVersion,
 } from './context.ts';
 import { type LibraryQuery, searchLibrary } from './library.ts';
-import { copyPinned, findPinned, type PinnedMatch } from './pinned.ts';
+import { copyPinned, copyVersion, findPinned, type PinnedMatch } from './pinned.ts';
 import { newRows } from './rows.ts';
 import { listVariableOptions, runPanel } from './run-panel.ts';
 import { type ValidationResult, validateSpec } from './validate.ts';
@@ -158,6 +158,20 @@ export interface Dashboards {
    */
   copyPinned(id: string, actor: string): { dashboardId: string; version: number; title: string };
   /**
+   * Copies any version into a new dashboard that records where it came from.
+   *
+   * @param id - The dashboard.
+   * @param version - The version to copy.
+   * @param actor - Who copies it.
+   * @returns The new dashboard, its first version and its title.
+   * @throws {AppError} `not_found` when the dashboard has no such version.
+   */
+  copyVersion(
+    id: string,
+    version: number,
+    actor: string,
+  ): { dashboardId: string; version: number; title: string };
+  /**
    * Searches the pinned dashboards and their panels.
    *
    * @param query - The words and the filters.
@@ -264,6 +278,7 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
     restore: (id, from, actor) => restoreVersion(context, id, from, actor),
     findPinned: (question) => findPinned(context, question),
     copyPinned: (id, actor) => copyPinned(context, id, actor),
+    copyVersion: (id, version, actor) => copyVersion(context, id, version, actor),
     searchLibrary: (query) => searchLibrary(context, query),
   };
 }

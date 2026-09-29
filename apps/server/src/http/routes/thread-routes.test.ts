@@ -104,6 +104,26 @@ describe('thread routes', () => {
     expect(again.status).toBe(400);
   });
 
+  test('open a thread on a copy of a dashboard, or on a dashboard without a thread', async () => {
+    const events = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
+    await fixture.connections.create(connectorInputSchema.parse(events), 'admin-1');
+    const source = fixture.dashboards.create(eventsSpec(), 'first', 'editor-1');
+    const call = client(editor);
+    const path = `/api/dashboards/${source.id}/threads`;
+    const copied = await call('POST', path, { mode: 'copy' });
+    const copyThread = fixture.threads.get((copied.body as { threadId: string }).threadId);
+    expect(copyThread).toMatchObject({ state: 'ready', title: 'Events' });
+    expect(fixture.dashboards.get(copyThread.dashboardId ?? '', 'editor')).toMatchObject({
+      parentDashboardId: source.id,
+      parentVersion: 1,
+    });
+    const edited = await call('POST', path, { mode: 'edit' });
+    const editThread = fixture.threads.get((edited.body as { threadId: string }).threadId);
+    expect(editThread.dashboardId).toBe(source.id);
+    expect((await call('POST', path, { mode: 'edit' })).status).toBe(400);
+    expect((await client(viewer)('POST', path, { mode: 'copy' })).status).toBe(403);
+  });
+
   test('mark the threads whose dashboard has a pinned version', async () => {
     const events = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
     await fixture.connections.create(connectorInputSchema.parse(events), 'admin-1');

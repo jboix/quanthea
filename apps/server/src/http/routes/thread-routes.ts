@@ -8,6 +8,7 @@ import {
   rejectPlanEndpoint,
   restoreVersionEndpoint,
   startFromPinnedEndpoint,
+  threadFromDashboardEndpoint,
 } from '@querent/shared';
 import type { Hono } from 'hono';
 import type { Dashboards } from '../../dashboards/dashboards.ts';
@@ -162,6 +163,40 @@ function startFromPinned(
 }
 
 /**
+ * Opens a new thread on a dashboard, ready for edits, with no model: on a copy of a version, or on
+ * the dashboard itself when it has no thread.
+ *
+ * @param services - The threads and dashboards.
+ * @param dashboardId - The dashboard.
+ * @param request - `copy` with the version to copy (the pinned one by default), or `edit`.
+ * @param request.mode - Copy the dashboard, or edit it.
+ * @param request.version - The version to copy.
+ * @param actor - Who opens the thread.
+ * @returns The new thread's id.
+ * @throws {AppError} `bad_request` to edit a dashboard that has a thread.
+ */
+function threadFromDashboard(
+  services: Pick<ThreadRouteServices, 'threads' | 'dashboards'>,
+  dashboardId: string,
+  request: { readonly mode: 'copy' | 'edit'; readonly version?: number | undefined },
+  actor: string,
+) {
+  const { threads, dashboards } = services;
+  const detail = dashboards.get(dashboardId, 'editor');
+  if (request.mode === 'edit' && threads.threadOf(dashboardId) !== null)
+    throw new AppError('bad_request', 'This dashboard has a thread. Open it to edit.');
+  const version = request.version ?? detail.pinnedVersion ?? detail.versions.at(-1)?.version ?? 1;
+  const target =
+    request.mode === 'edit'
+      ? { dashboardId, title: detail.title }
+      : dashboards.copyVersion(dashboardId, version, actor);
+  const thread = threads.create(actor);
+  threads.attachDashboard(thread.id, target.dashboardId, target.title);
+  threads.apply(thread.id, 'copied');
+  return { threadId: thread.id };
+}
+
+/**
  * Mounts every thread endpoint except the streamed chat.
  *
  * @param app - The app.
@@ -174,5 +209,10 @@ export function mountThreadEndpoints(app: Hono<AppEnv>, services: ThreadRouteSer
     access: 'editor',
     handle: ({ params, body, principal }) =>
       startFromPinned(services, params.threadId, body.dashboardId, actorOf(principal)),
+  });
+  mountEndpoint(app, threadFromDashboardEndpoint, {
+    access: 'editor',
+    handle: ({ params, body, principal }) =>
+      threadFromDashboard(services, params.dashboardId, body, actorOf(principal)),
   });
 }

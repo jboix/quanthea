@@ -1,7 +1,7 @@
 /**
  * Pinned dashboards found without a model: a keyword search over titles, descriptions, panel
- * titles and connectors, for the first question of a thread; and a copy of one to start a draft
- * from, with its lineage.
+ * titles and connectors, for the first question of a thread; and copies to start a draft from,
+ * with their lineage.
  */
 import { type DashboardSpec, dashboardSpecSchema } from '@querent/shared';
 import type { PinnedRow } from '../db/dashboard-pinned.ts';
@@ -73,23 +73,45 @@ export function findPinned(context: ServiceContext, question: string): PinnedMat
 }
 
 /**
+ * Copies a version of a dashboard into a new dashboard that records where it came from.
+ *
+ * @param context - The service context.
+ * @param dashboardId - The dashboard.
+ * @param number - The version to copy.
+ * @param actor - Who copies it.
+ * @returns The new dashboard, its first version and its title.
+ * @throws {AppError} `not_found` when the dashboard has no such version.
+ */
+export function copyVersion(
+  context: ServiceContext,
+  dashboardId: string,
+  number: number,
+  actor: string,
+) {
+  const source = context.repository.getVersion(dashboardId, number);
+  if (!source)
+    throw new AppError('not_found', `Dashboard ${dashboardId} has no version ${number}.`);
+  const spec = dashboardSpecSchema.parse(source.spec);
+  const summary = `Copied from "${spec.title}" v${number}`;
+  const parent = { dashboardId, version: number };
+  const { dashboard, version } = newRows(spec, summary, actor, context.now(), parent);
+  context.repository.create(dashboard, version);
+  const detail = { from: dashboardId, version: number };
+  context.audit.append({ actor, action: 'dashboard.copy', target: dashboard.id, detail });
+  return { dashboardId: dashboard.id, version: 1, title: spec.title };
+}
+
+/**
  * Copies a pinned dashboard's pinned version into a new dashboard that records where it came from.
  *
  * @param context - The service context.
  * @param dashboardId - The pinned dashboard.
  * @param actor - Who copies it.
- * @returns The new dashboard and its first version.
- * @throws {AppError} `not_found` when the dashboard is not pinned or is in the bin.
+ * @returns The new dashboard, its first version and its title.
+ * @throws {AppError} `not_found` when the dashboard is not pinned.
  */
 export function copyPinned(context: ServiceContext, dashboardId: string, actor: string) {
   const pinned = context.repository.listPinned().find((row) => row.dashboardId === dashboardId);
   if (!pinned) throw new AppError('not_found', `No pinned dashboard ${dashboardId}.`);
-  const spec = dashboardSpecSchema.parse(pinned.spec);
-  const summary = `Copied from "${pinned.title}" v${pinned.version}`;
-  const parent = { dashboardId, version: pinned.version };
-  const { dashboard, version } = newRows(spec, summary, actor, context.now(), parent);
-  context.repository.create(dashboard, version);
-  const detail = { from: dashboardId, version: pinned.version };
-  context.audit.append({ actor, action: 'dashboard.copy', target: dashboard.id, detail });
-  return { dashboardId: dashboard.id, version: 1, title: spec.title };
+  return copyVersion(context, dashboardId, pinned.version, actor);
 }

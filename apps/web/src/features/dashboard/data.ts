@@ -10,6 +10,7 @@ import {
   type PanelRun,
   pinDashboardEndpoint,
   runPanelEndpoint,
+  threadFromDashboardEndpoint,
   unpinDashboardEndpoint,
   variableOptionsEndpoint,
 } from '@querent/shared';
@@ -119,14 +120,43 @@ async function loaded<Value>(call: Promise<Value>): Promise<Loaded<Value>> {
   }
 }
 
-/** What the dashboard screen submits, as JSON: show a version in the library, or none. */
+/**
+ * What the dashboard screen submits, as JSON: show a version in the library or none, or open a
+ * new thread on a copy of a version or on the dashboard itself.
+ */
 export type DashboardIntent =
   | { readonly intent: 'pin'; readonly version: number }
-  | { readonly intent: 'unpin' };
+  | { readonly intent: 'unpin' }
+  | { readonly intent: 'copy'; readonly version: number }
+  | { readonly intent: 'edit' };
+
+/**
+ * Opens a new thread on a dashboard and goes to it.
+ *
+ * @param api - The API client.
+ * @param dashboardId - The dashboard.
+ * @param intent - Copy a version, or edit the dashboard itself.
+ * @returns The redirect to the thread, or why it failed.
+ */
+async function openThread(
+  api: ApiClient,
+  dashboardId: string,
+  intent: Extract<DashboardIntent, { intent: 'copy' | 'edit' }>,
+): Promise<Response | Loaded<unknown>> {
+  const body =
+    intent.intent === 'copy'
+      ? { mode: 'copy' as const, version: intent.version }
+      : { mode: 'edit' as const };
+  const outcome = await loaded(
+    api.call(threadFromDashboardEndpoint, { params: { dashboardId }, body }),
+  );
+  return outcome.ok ? redirect(`/threads/${outcome.value.threadId}`) : outcome;
+}
 
 /**
  * The action of the dashboard screen: pin a version, then open the dashboard as the library shows
- * it; or unpin, and stay. A refusal, such as a failing panel, comes back as a message.
+ * it; unpin, and stay; or open a new thread on it. A refusal, such as a failing panel, comes back
+ * as a message.
  *
  * @param api - The API client.
  * @returns The action.
@@ -135,6 +165,9 @@ export function changeDashboard(api: ApiClient) {
   return async ({ params, request }: ActionFunctionArgs): Promise<Response | Loaded<unknown>> => {
     const dashboardId = params.dashboardId ?? '';
     const intent = (await request.json()) as DashboardIntent;
+    if (intent.intent === 'copy' || intent.intent === 'edit') {
+      return openThread(api, dashboardId, intent);
+    }
     if (intent.intent === 'unpin') {
       return loaded(api.call(unpinDashboardEndpoint, { params: { dashboardId } }));
     }

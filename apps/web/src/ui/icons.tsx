@@ -266,3 +266,30 @@ export function RefreshIcon() {
     </Icon>
   );
 }
+
+/**
+ * Three dots in a row, for a menu of more actions.
+ *
+ * @returns The icon.
+ */
+export function MoreIcon() {
+  return (
+    <Icon size={18}>
+      <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth="3" />
+    </Icon>
+  );
+}
+
+/**
+ * Two overlapping sheets, for a copy.
+ *
+ * @returns The icon.
+ */
+export function CopyIcon() {
+  return (
+    <Icon size={16}>
+      <rect x="8" y="8" width="12" height="12" rx="2" />
+      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+    </Icon>
+  );
+}

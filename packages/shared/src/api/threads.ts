@@ -110,6 +110,19 @@ export const startFromPinnedEndpoint = defineEndpoint({
   output: z.object({ dashboardId: z.string(), version: z.int() }),
 });
 
+/**
+ * Opens a new thread on a dashboard, with no model involved: `copy` starts it from a copy of a
+ * version (the pinned one by default) with its lineage; `edit` attaches the dashboard itself,
+ * which only a dashboard without a thread allows.
+ */
+export const threadFromDashboardEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/dashboards/:dashboardId/threads',
+  params: z.object({ dashboardId: z.string().min(1) }),
+  body: z.object({ mode: z.enum(['copy', 'edit']), version: z.int().min(1).optional() }),
+  output: z.object({ threadId: z.string() }),
+});
+
 /** Undo: restores an older version of the thread's dashboard as a new version. */
 export const restoreVersionEndpoint = defineEndpoint({
   method: 'POST',

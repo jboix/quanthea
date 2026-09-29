@@ -79,7 +79,7 @@ The two paths that matter:
 │   │       │   ├── postgres/
 │   │       │   ├── opensearch/
 │   │       │   └── http/
-│   │       ├── dashboards/          versions, validate, pin, variants, bin, diff; queries/ (builders,
+│   │       ├── dashboards/          versions, validate, pin, copies, library; queries/ (builders,
 │   │       │                        saved and raw queries) and panels/ (edits: data + chart, layout)
 │   │       ├── threads/             threads, messages, plans (state machine)
 │   │       ├── settings/            typed settings store (auth, gateway, retention)
@@ -302,12 +302,18 @@ The dashboard's History lists the versions: the one pinned, the ones pinned befo
 with their summary. Editors pin any other version or unpin from there. The thread's draft pane
 says which version the library shows, and pins the version it shows.
 
-### 5.4 Make variant
+### 5.4 A new thread on a dashboard
 
-`POST /api/dashboards/:id/variants` creates a thread and a new dashboard whose draft v1 is a copy
-of the parent's pinned spec, with `parent_dashboard_id` and `parent_version` set. The agent's system
-prompt for that thread includes "this is a variant of X". The plan tool then describes changes as
-CHANGED / NEW / SAME against the parent, computed server-side by `dashboards/diff`.
+`POST /api/dashboards/:id/threads {mode, version?}` (editor+) opens a thread that is ready for
+edits, with no model involved:
+
+- `copy` makes a new dashboard whose v1 is a copy of a version (the pinned one by default), with
+  `parent_dashboard_id` and `parent_version` set. The dashboard screen copies the version it
+  shows; library cards copy the pinned one ("New from this").
+- `edit` attaches the dashboard itself. Only a dashboard without a thread allows it, such as one
+  created through the API ("Edit in a new thread"). A dashboard with a thread is edited there.
+
+Later, the plan for a copy may describe changes as CHANGED / NEW / SAME against its parent.
 
 ### 5.5 Bin and purge
 
@@ -805,7 +811,7 @@ indicative; the contract files are the source of truth.
 | `POST /dashboards` (a spec, becomes draft v1)                                                     | create from a spec                           | editor   |
 | `GET /dashboards/:id` (with its thread's id), `GET /dashboards/:id/versions/:v` (drafts: editor)  | spec                                         | viewer   |
 | `POST /dashboards/:id/pin`, `POST /dashboards/:id/unpin`                                          | choose the version shown, or none            | editor   |
-| `POST /dashboards/:id/variants`                                                                   | new thread from a copy                       | editor   |
+| `POST /dashboards/:id/threads` (`copy` a version, or `edit` one without a thread)                 | new thread on a dashboard                    | editor   |
 | `POST /dashboards/:id/bin`                                                                        | move to bin                                  | editor   |
 | `GET /bin`, `POST /bin/:id/restore`                                                               | bin                                          | editor   |
 | `DELETE /bin/:id`, `DELETE /bin`                                                                  | permanent delete                             | admin    |
@@ -862,7 +868,8 @@ request → requestId → session cookie? → Principal
 - The dashboard header holds the title with an About bubble (description, tags, the connectors
   and how many panels use each), a History button that lists the versions, and, for editors, a
   link to the thread that edits the dashboard while that thread exists
-  (`GET /api/dashboards/:id` returns its `threadId`).
+  (`GET /api/dashboards/:id` returns its `threadId`), or Edit in a new thread when it has none,
+  and New from this. Below 720 px the actions fold into one menu that lists the history too.
 - Each panel has an info bubble: its connector, language and query text, and the chart recipe
   that draws it. It shows what the saved panel runs, so a viewer can trace a number to its source.
 - Each panel loads its run through a fetcher from a resource route
