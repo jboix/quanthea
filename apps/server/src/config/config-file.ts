@@ -8,7 +8,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
 /** The sections the file may hold. */
-export const configSections = ['server'] as const;
+export const configSections = ['server', 'provisioning', 'connectors'] as const;
 
 /** A section of the file. */
 export type ConfigSection = (typeof configSections)[number];
@@ -19,6 +19,8 @@ export interface ConfigFile {
   readonly paths: readonly string[];
   /** Each section's keys and values, interpolated. */
   readonly sections: Readonly<Partial<Record<ConfigSection, Readonly<Record<string, unknown>>>>>;
+  /** Each section's keys and values as written, before interpolation, to check secrets. */
+  readonly raw: Readonly<Partial<Record<ConfigSection, Readonly<Record<string, unknown>>>>>;
   /** The file each key came from, by `section.key`. */
   readonly origins: Readonly<Record<string, string>>;
 }
@@ -118,28 +120,40 @@ function sectionOf(path: string, name: string, value: unknown): Record<string, u
   return value as Record<string, unknown>;
 }
 
+/** The sections read so far, as written and interpolated, and the file of each key. */
+interface Merged {
+  /** The sections, interpolated. */
+  readonly sections: Record<string, Record<string, unknown>>;
+  /** The sections as written. */
+  readonly raw: Record<string, Record<string, unknown>>;
+  /** The file of each key, by `section.key`. */
+  readonly origins: Record<string, string>;
+}
+
 /**
  * Adds one file's sections to what the earlier files set.
  *
  * @param path - The file.
- * @param parsed - Its parsed sections.
+ * @param parsed - Its sections, as written and interpolated.
  * @param into - The sections and origins so far, changed in place.
- * @param into.sections - The sections so far.
- * @param into.origins - The file of each key so far.
  * @throws {Error} When a key is already set by another file.
  */
 function mergeFile(
   path: string,
-  parsed: Record<string, unknown>,
-  into: { sections: Record<string, Record<string, unknown>>; origins: Record<string, string> },
+  parsed: { raw: Record<string, unknown>; sections: Record<string, unknown> },
+  into: Merged,
 ): void {
-  for (const [name, value] of Object.entries(parsed)) {
+  for (const [name, value] of Object.entries(parsed.sections)) {
     const section = into.sections[name] ?? {};
+    const raw = into.raw[name] ?? {};
     into.sections[name] = section;
+    into.raw[name] = raw;
+    const written = parsed.raw[name] as Record<string, unknown>;
     for (const [key, each] of Object.entries(sectionOf(path, name, value))) {
       const other = into.origins[`${name}.${key}`];
       if (other) throw new Error(`\`${name}.${key}\` is set in both ${other} and ${path}.`);
       section[key] = each;
+      raw[key] = written[key];
       into.origins[`${name}.${key}`] = path;
     }
   }
@@ -159,11 +173,12 @@ export function readConfigFile(
   environment: Readonly<Record<string, string | undefined>>,
 ): ConfigFile {
   const paths = filesOf(path);
-  const into = { sections: {}, origins: {} };
+  const into: Merged = { sections: {}, raw: {}, origins: {} };
   const missing = new Set<string>();
   for (const file of paths) {
-    const parsed = interpolate(parseFile(file), environment, missing) as Record<string, unknown>;
-    mergeFile(file, parsed, into);
+    const raw = parseFile(file);
+    const sections = interpolate(raw, environment, missing) as Record<string, unknown>;
+    mergeFile(file, { raw, sections }, into);
   }
   if (missing.size > 0)
     throw new Error(`The configuration refers to unset variables: ${[...missing].join(', ')}.`);

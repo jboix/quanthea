@@ -18,6 +18,7 @@ async function keyRing(ring: Partial<KeyRing>): Promise<KeyRing> {
     origins: {},
     secretKeyInDataDir: false,
     emailIndex: hash,
+    fingerprints: hash,
     sessionHashes: { signature: hash, idHash: hash, tokenHash: hash },
     peppers: { current: { id: 'p1', hash }, previous: undefined },
     ...ring,

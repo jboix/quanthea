@@ -60,6 +60,7 @@ function ConnectorListItem({ connector, kind }: ConnectorListItemProps) {
           <span className={styles.itemName}>{connector.name}</span>
           <span className={styles.itemMeta}>
             {kindName} · {accessLevelName(connector.accessLevel)}
+            {connector.managedBy && ' · from file'}
           </span>
         </span>
         <StatusDot status={healthStatus(health)} label={healthLabel(health)} />

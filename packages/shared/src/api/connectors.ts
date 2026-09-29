@@ -32,6 +32,8 @@ export const connectorSummarySchema = z.object({
   kind: z.string(),
   accessLevel: accessLevelSchema,
   updatedAt: z.number(),
+  /** The configuration file that manages it, when one does; it is read-only here then. */
+  managedBy: z.string().optional(),
 });
 
 /** A connector in a list. */

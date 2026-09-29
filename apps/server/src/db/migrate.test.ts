@@ -72,6 +72,7 @@ describe('runMigrations', () => {
       '0011-users-and-sessions.sql',
       '0012-password-links.sql',
       '0013-identities.sql',
+      '0014-provisioned.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
@@ -90,6 +91,7 @@ describe('runMigrations', () => {
       'migrations',
       'password_links',
       'plans',
+      'provisioned',
       'schema_cache',
       'sessions',
       'settings',

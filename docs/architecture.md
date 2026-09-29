@@ -65,7 +65,8 @@ The two paths that matter:
 │   │   └── src/
 │   │       ├── main.ts              bootstrap: config → migrate → jobs → Bun.serve
 │   │       ├── app.ts               Hono app: middleware, /api routes, static SPA + fallback
-│   │       ├── config/              env parsing (Zod), defaults, data dir
+│   │       ├── config/              system settings: environment, config file, defaults
+│   │       ├── provisioning/        apply the config file's connectors and settings
 │   │       ├── lib/                 leaf utilities: errors, logger, ids, clock
 │   │       ├── http/                route modules + middleware (auth, errors, request id)
 │   │       ├── auth/                modes none|basic|oidc, sessions, Principal, role checks
@@ -145,6 +146,7 @@ them.
 | `db/`                | the only user of `bun:sqlite`                               | `lib`                                                               | —                                               |
 | `http/`              | validate, authorize, call services, stream                  | services, `agent`, `auth`                                           | `connectors`, `db`                              |
 | `auth/`              | modes, sessions, Principal                                  | `settings`, `db` via repositories, `lib`                            | `agent`                                         |
+| `provisioning/`      | apply the configuration file; what it manages               | `config`, `connections`, `db`, `secrets` types, `lib`               | `http`, `agent`                                 |
 
 Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, only `db/` imports
 `bun:sqlite`, and only `connectors/opensearch/` imports the OpenSearch client. Postgres uses
@@ -743,6 +745,13 @@ CREATE TABLE password_links (
   purpose TEXT NOT NULL CHECK (purpose IN ('invite','reset')), expires_at INTEGER NOT NULL,
   created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
 
+CREATE TABLE provisioned (           -- what the configuration file manages
+  kind TEXT NOT NULL, name TEXT NOT NULL,  -- a user's name is the keyed hash of their email
+  path TEXT NOT NULL,                -- the file that declares it
+  fingerprint BLOB NOT NULL,         -- keyed hash of what was last applied
+  editable TEXT NOT NULL DEFAULT '[]', applied_at INTEGER NOT NULL,
+  PRIMARY KEY (kind, name));
+
 CREATE TABLE identities (            -- accounts at sign-in providers
   provider_id TEXT NOT NULL,
   subject_index BLOB NOT NULL,       -- keyed hash of the provider's id of the person
@@ -1124,11 +1133,39 @@ value and where it comes from, and each key by where it comes from, never its va
 **The configuration file** (`config/config-file.ts`): `QUERENT_CONFIG` names a YAML or JSON file,
 or a directory whose `*.yaml`, `*.yml` and `*.json` files are read in name order (`/etc/querent`
 in the image, empty until a file is mounted). YAML is parsed with Bun's built-in parser. Each
-top-level key is a section; today only `server` is known, and its keys are the settings' names
+top-level key is a section (`server`, `connectors`, `provisioning`); the keys of `server` are the settings' names
 (`publicUrl`, `port`, `dataDir`…). A key is set in one file only. `${NAME}` in a text value is
 replaced by the environment variable `NAME` (`$${` writes a literal `${`), and an unset one stops
 the server. An unknown section or setting, or an invalid value, stops the server with every issue
 listed. Relative paths resolve against the working directory.
+
+**Provisioning** (`provisioning/`): the same file declares what querent stores, so an instance
+can be rebuilt from Git. Today it declares connectors, keyed by name, with the API's fields:
+
+```yaml
+connectors:
+  orders:
+    kind: postgres
+    config: { host: db, database: orders, username: dash_ro }
+    secret: { password: ${ORDERS_PASSWORD} }
+provisioning:
+  prune: false
+```
+
+- A secret is never written in clear: each one is a whole `${VARIABLE}` or `file:/path` (a Docker
+  or Kubernetes secret). Anything else stops the server, and no message quotes a secret.
+- The file is applied at startup, after the migrations, with the actor `provisioning` in the audit
+  log. An item is applied when it is new, changed, or deleted meanwhile: the table `provisioned`
+  keeps a keyed hash of what was last applied (under a key derived from the secret key, so it
+  reveals no secret). A connector the file declares that already exists is taken over; its kind
+  never changes. A provisioned connector's schema is read in the background.
+- An item the file no longer declares is released: it stays, editable again. With
+  `provisioning.prune: true` it is deleted instead.
+- A mistake in the file applies nothing and stops the server with every issue listed. An item that
+  fails to apply stops the server too, after the others are applied.
+- What the file manages is read-only: the API answers 403 naming the file, and the UI shows a
+  "managed by" badge and disables the settings. The fields the file leaves out that the UI edits
+  on their own (a connector's `descriptions`) stay editable.
 
 Everything else lives in Settings (SQLite) and is editable in the UI.
 

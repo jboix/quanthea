@@ -9,7 +9,7 @@ import { useConnectorsData } from './use-connectors-data.ts';
 
 /**
  * One connector: its header, what the model can see, its guardrails, and the schema the model
- * gets.
+ * gets. The settings are read-only when the configuration file manages it.
  *
  * @returns The screen.
  */
@@ -21,10 +21,10 @@ export function ConnectorScreen() {
     <div className={styles.screen}>
       <ConnectorHeader connector={connector} />
       <div className={styles.columns}>
-        <div className={styles.settings}>
+        <fieldset className={styles.settings} disabled={connector.managedBy !== undefined}>
           <AccessSection connector={connector} schema={schema} />
           <GuardrailsSection key={connector.id} connector={connector} language={language} />
-        </div>
+        </fieldset>
         <SchemaPanel key={connector.id} connector={connector} schema={schema} />
       </div>
     </div>

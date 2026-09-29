@@ -9,11 +9,14 @@ import { accountsProblems } from './auth/readiness.ts';
 import { loadConfig } from './config/config.ts';
 import { serverSettingsView } from './config/server-view.ts';
 import { connectorKinds } from './connectors/registry.ts';
+import { createAuditRepository } from './db/audit-repository.ts';
 import { openDatabase } from './db/database.ts';
 import { runMigrations } from './db/migrate.ts';
+import { createProvisionedRepository } from './db/provisioned-repository.ts';
 import { createSettingsRepository } from './db/settings-repository.ts';
 import { startPurgeJob } from './jobs/purge.ts';
 import { createLogger } from './lib/logger.ts';
+import { provision } from './provisioning/provision.ts';
 import { loadKeys } from './secrets/keys.ts';
 import { createServices, resealSecrets } from './services.ts';
 import { createSettingsStore } from './settings/settings-store.ts';
@@ -50,6 +53,16 @@ const dependencies = {
 const resealed = await resealSecrets(dependencies);
 if (resealed > 0) logger.info('sealed secrets again with the current key', { resealed });
 const services = createServices(dependencies);
+if (config.file) {
+  await provision({
+    file: config.file,
+    repository: createProvisionedRepository(database),
+    fingerprints: keys.fingerprints,
+    connections: services.connections,
+    audit: createAuditRepository(database),
+    logger,
+  });
+}
 
 const { sessions, users } = services;
 const authenticator = createAuthenticator(

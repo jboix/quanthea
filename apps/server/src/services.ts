@@ -16,11 +16,13 @@ import { createAuditRepository } from './db/audit-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import { createIdentityRepository } from './db/identity-repository.ts';
+import { createProvisionedRepository } from './db/provisioned-repository.ts';
 import { createThreadBinRepository } from './db/thread-bin.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
 import { createUserRepository } from './db/user-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
+import { createManaged, type Managed } from './provisioning/managed.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
@@ -46,6 +48,8 @@ export interface ServiceDependencies extends AccountDependencies {
 
 /** The services the HTTP layer calls. */
 export interface Services extends Accounts {
+  /** What the configuration file manages. */
+  readonly managed: Managed;
   /** The configured connectors. */
   readonly connections: Connections;
   /** The dashboards. */
@@ -186,5 +190,6 @@ export function createServices(dependencies: ServiceDependencies): Services {
   const settings = { modelSettings, querySettings, chartSettings, retention };
   const agent = createAgent({ ...data, threads, usage, ...settings });
   const describeForPin = pinDescriber(createMetadataWriter({ modelSettings, usage }), threads, bin);
-  return { ...data, threads, ...accounts, bin, describeForPin, agent, usage, ...settings };
+  const managed = createManaged(createProvisionedRepository(dependencies.database));
+  return { ...data, threads, ...accounts, bin, describeForPin, agent, usage, ...settings, managed };
 }

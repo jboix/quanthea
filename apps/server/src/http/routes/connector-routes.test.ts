@@ -39,7 +39,7 @@ function client(principal: Principal) {
   const app = new Hono<AppEnv>();
   app.use(requestId());
   app.use(authenticate(fixedAuthenticator(principal)));
-  mountConnectorRoutes(app, fixture.connections);
+  mountConnectorRoutes(app, fixture.connections, fixture.managed);
   app.onError(handleErrors(captureLogs().logger));
   app.notFound(handleNotFound);
   return async (method: string, path: string, body?: unknown) => {
@@ -119,5 +119,33 @@ describe('connector routes', () => {
   test('answers 403 to an editor', async () => {
     const response = await client(editor)('GET', '/api/connectors');
     expect(response.status).toBe(403);
+  });
+
+  test('keeps a connector the configuration file manages read-only, but its open fields', async () => {
+    const call = client(admin);
+    const id = String((await call('POST', '/api/connectors', newConnector)).body.id);
+    // The file's record, as provisioning leaves it.
+    fixture.database
+      .query('INSERT INTO provisioned VALUES (?, ?, ?, ?, ?, ?)')
+      .run(
+        'connector',
+        'events',
+        '/etc/querent/querent.yaml',
+        new Uint8Array(32),
+        '["descriptions"]',
+        1,
+      );
+    const listed = await call('GET', '/api/connectors');
+    expect(listed.body).toMatchObject([{ name: 'events', managedBy: '/etc/querent/querent.yaml' }]);
+    const changed = await call('PATCH', `/api/connectors/${id}`, { accessLevel: 3 });
+    expect(changed).toMatchObject({
+      status: 403,
+      body: { error: { message: '/etc/querent/querent.yaml manages this. Change it there.' } },
+    });
+    expect((await call('DELETE', `/api/connectors/${id}`)).status).toBe(403);
+    const described = await call('PATCH', `/api/connectors/${id}`, {
+      descriptions: { events: 'Every order event' },
+    });
+    expect(described.status).toBe(200);
   });
 });

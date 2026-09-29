@@ -216,6 +216,15 @@ module.exports = {
       to: { path: '^apps/server/src/(http|auth|agent)/' },
     },
     {
+      name: 'provisioning-below-http',
+      severity: 'error',
+      comment:
+        'provisioning/ applies the configuration file through the services. It sits under http/ ' +
+        'and never reaches up to it or to the agent.',
+      from: { path: '^apps/server/src/provisioning/' },
+      to: { path: '^apps/server/src/(http|agent)/' },
+    },
+    {
       name: 'secrets-is-a-leaf',
       severity: 'error',
       comment:

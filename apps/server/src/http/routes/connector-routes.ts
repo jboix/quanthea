@@ -12,38 +12,73 @@ import {
 } from '@querent/shared';
 import type { Hono } from 'hono';
 import type { Connections } from '../../connections/connections.ts';
+import type { Managed } from '../../provisioning/managed.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { actorOf } from '../principal.ts';
 
 /**
- * Mounts the endpoints that read and change connector settings.
+ * A connector with the file that manages it, when one does.
+ *
+ * @param managed - What the configuration file manages.
+ * @returns A function marking one connector.
+ */
+function marker(managed: Managed) {
+  return <Connector extends { readonly name: string }>(connector: Connector) => {
+    const path = managed.pathOf('connector', connector.name);
+    return path ? { ...connector, managedBy: path } : connector;
+  };
+}
+
+/**
+ * Mounts the admin routes that read and change connectors. A connector the configuration file
+ * manages is read-only, except the fields the file leaves to the interface.
  *
  * @param app - The app.
- * @param connections - The connectors service.
+ * @param connections - The connections.
+ * @param managed - What the configuration file manages.
  */
-function mountSettingsRoutes(app: Hono<AppEnv>, connections: Connections): void {
+function mountSettingsRoutes(app: Hono<AppEnv>, connections: Connections, managed: Managed): void {
+  const mark = marker(managed);
   mountEndpoint(app, listConnectorKindsEndpoint, {
     access: 'admin',
     handle: () => connections.kinds(),
   });
-  mountEndpoint(app, listConnectorsEndpoint, { access: 'admin', handle: () => connections.list() });
+  mountEndpoint(app, listConnectorsEndpoint, {
+    access: 'admin',
+    handle: () => connections.list().map(mark),
+  });
   mountEndpoint(app, createConnectorEndpoint, {
     access: 'admin',
     handle: ({ body, principal }) => connections.create(body, actorOf(principal)),
   });
   mountEndpoint(app, getConnectorEndpoint, {
     access: 'admin',
-    handle: ({ params }) => connections.get(params.connectorId),
+    handle: async ({ params }) => mark(await connections.get(params.connectorId)),
   });
+  mountChangeRoutes(app, connections, managed);
+}
+
+/**
+ * Mounts the routes that change or delete a connector, refusing what the file manages.
+ *
+ * @param app - The app.
+ * @param connections - The connections.
+ * @param managed - What the configuration file manages.
+ */
+function mountChangeRoutes(app: Hono<AppEnv>, connections: Connections, managed: Managed): void {
+  const nameOf = async (id: string) => (await connections.get(id)).name;
   mountEndpoint(app, updateConnectorEndpoint, {
     access: 'admin',
-    handle: ({ params, body, principal }) =>
-      connections.update(params.connectorId, body, actorOf(principal)),
+    handle: async ({ params, body, principal }) => {
+      managed.refuseChange('connector', await nameOf(params.connectorId), Object.keys(body));
+      return connections.update(params.connectorId, body, actorOf(principal));
+    },
   });
   mountEndpoint(app, deleteConnectorEndpoint, {
     access: 'admin',
     handle: async ({ params, principal }) => {
+      managed.refuseChange('connector', await nameOf(params.connectorId));
       await connections.remove(params.connectorId, actorOf(principal));
       return { deleted: true as const };
     },
@@ -76,8 +111,13 @@ function mountSourceRoutes(app: Hono<AppEnv>, connections: Connections): void {
  *
  * @param app - The app.
  * @param connections - The connectors service.
+ * @param managed - What the configuration file manages.
  */
-export function mountConnectorRoutes(app: Hono<AppEnv>, connections: Connections): void {
-  mountSettingsRoutes(app, connections);
+export function mountConnectorRoutes(
+  app: Hono<AppEnv>,
+  connections: Connections,
+  managed: Managed,
+): void {
+  mountSettingsRoutes(app, connections, managed);
   mountSourceRoutes(app, connections);
 }

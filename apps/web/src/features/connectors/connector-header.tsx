@@ -21,7 +21,7 @@ function HealthPill({ health }: { readonly health: Health }) {
 
 /**
  * The top of a connector's screen: name, health, target, and the Test and Edit actions. A failed
- * test says why under the target.
+ * test says why under the target. A connector the configuration file manages has no Edit.
  *
  * @param props - The connector.
  * @param props.connector - The connector.
@@ -36,8 +36,18 @@ export function ConnectorHeader({ connector }: { readonly connector: ConnectorDe
         <div className={styles.titleRow}>
           <h2 className={styles.name}>{connector.name}</h2>
           <HealthPill health={health} />
+          {connector.managedBy && (
+            <span title={connector.managedBy}>
+              <Pill tone="accent">managed by {connector.managedBy.split('/').at(-1)}</Pill>
+            </span>
+          )}
         </div>
         {connector.target !== null && <p className={styles.target}>{connector.target}</p>}
+        {connector.managedBy && (
+          <p className={styles.target}>
+            The configuration file manages this connector. Change it there.
+          </p>
+        )}
         {failure !== undefined && (
           <p role="alert" className={styles.failure}>
             {failure}
@@ -48,9 +58,11 @@ export function ConnectorHeader({ connector }: { readonly connector: ConnectorDe
         <Button onClick={health.retest} disabled={health.testing}>
           Test
         </Button>
-        <Link to="edit" className={buttonClassName()}>
-          Edit connection
-        </Link>
+        {!connector.managedBy && (
+          <Link to="edit" className={buttonClassName()}>
+            Edit connection
+          </Link>
+        )}
       </div>
     </header>
   );

@@ -128,6 +128,8 @@ export interface Config {
   readonly trustedProxyHops: number;
   /** The configuration files read, in order. */
   readonly configFiles: readonly string[];
+  /** The configuration file's sections, for provisioning; `undefined` without a file. */
+  readonly file: ConfigFile | undefined;
   /** Where each system setting comes from. */
   readonly sources: Readonly<Record<SettingKey, SettingSource>>;
 }
@@ -282,6 +284,7 @@ export function loadConfig(environment: Environment, workingDir: string = proces
     publicUrl: settings.publicUrl,
     trustedProxyHops: settings.trustedProxyHops,
     configFiles: file?.paths ?? [],
+    file,
     sources,
   };
 }

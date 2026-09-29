@@ -56,6 +56,8 @@ export interface KeyRing {
   readonly secretKeyInDataDir: boolean;
   /** Indexes emails, under a key derived from the secret key. */
   readonly emailIndex: KeyedHash;
+  /** Hashes what the configuration file declares, under a key derived from the secret key. */
+  readonly fingerprints: KeyedHash;
   /** The session key's derived hashes. */
   readonly sessionHashes: SessionHashes;
   /** The peppers mixed into password hashes. */
@@ -250,6 +252,7 @@ export async function loadKeys(sources: KeySources): Promise<KeyRing> {
     secretBox: await openSecretBox(read.secret, read.secretPrevious),
     secretKeyInDataDir: secretFile !== undefined && isWithin(secretFile, sources.dataDir),
     emailIndex: await keyedHash(read.secret, 'querent/email-index/v1'),
+    fingerprints: await keyedHash(read.secret, 'querent/provisioning/v1'),
     sessionHashes: await sessionHashesOf(read.session),
     peppers: await peppersOf(read.pepper, read.pepperPrevious),
   };

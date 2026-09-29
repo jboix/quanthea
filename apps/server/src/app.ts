@@ -42,6 +42,7 @@ import { mountUserEndpoints } from './http/routes/user-routes.ts';
 import { noStoreApi, securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
+import type { Managed } from './provisioning/managed.ts';
 import type { ChartSettingsService } from './settings/chart-settings.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
 import type { QuerySettingsService } from './settings/query-settings.ts';
@@ -82,6 +83,8 @@ export interface AppDependencies {
   readonly webDir: string;
   /** The configured connectors. */
   readonly connections: Connections;
+  /** What the configuration file manages, read-only here. */
+  readonly managed: Managed;
   /** The dashboards service. */
   readonly dashboards: Dashboards;
   /** The model gateway settings. */
@@ -128,7 +131,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
     version: dependencies.version,
     authModeOf: () => dependencies.authenticator.mode,
   });
-  mountConnectorRoutes(app, dependencies.connections);
+  mountConnectorRoutes(app, dependencies.connections, dependencies.managed);
   mountDashboardEndpoints(app, dependencies.dashboards, {
     onPinnedView: dependencies.usage.recordPinnedView,
     ownerOf: dependencies.bin.ownerOf,
