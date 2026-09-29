@@ -112,6 +112,19 @@ function sameBytes(first: Uint8Array, second: Uint8Array): boolean {
 }
 
 /**
+ * The error for a value no key querent was given can open: the database was sealed with another
+ * secret key. The key id says nothing about the key itself.
+ *
+ * @param keyId - The id of the key that sealed it, in hex, or where the value comes from.
+ * @returns The error.
+ */
+function unknownKey(keyId: string): Error {
+  return new Error(
+    `A secret in the database was sealed with a key querent was not given (key id ${keyId}). Set that key as QUERENT_SECRET_KEY, or as QUERENT_SECRET_KEY_PREVIOUS while moving to a new one.`,
+  );
+}
+
+/**
  * Opens a version 2 value with whichever known key sealed it.
  *
  * @param keys - The current keys, then the previous ones.
@@ -127,7 +140,7 @@ function openCurrent(
 ): Promise<ArrayBuffer> {
   const id = sealed.slice(1, 1 + keyIdLength);
   const key = keys.find((each) => sameBytes(each.id, id));
-  if (!key) throw new Error('No known key sealed this secret.');
+  if (!key) throw unknownKey(Buffer.from(id).toString('hex'));
   const iv = sealed.slice(1 + keyIdLength, 1 + keyIdLength + ivLength);
   const data = sealed.slice(1 + keyIdLength + ivLength);
   return crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData }, key.sealing, data);
@@ -156,7 +169,7 @@ async function openLegacy(
       // Try the next key; the last failure is reported below.
     }
   }
-  throw new Error('No known key sealed this secret.');
+  throw unknownKey('from before key ids');
 }
 
 /**

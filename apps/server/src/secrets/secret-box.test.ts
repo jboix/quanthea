@@ -69,7 +69,7 @@ describe('the secret box', () => {
     const sealed = await box.seal('s3cret', 'connector-1');
     const other = await openSecretBox(randomKey());
     await expect(other.open(sealed, 'connector-1')).rejects.toThrow(
-      'No known key sealed this secret.',
+      /sealed with a key querent was not given \(key id [0-9a-f]{8}\)\. Set that key as QUERENT_SECRET_KEY/,
     );
     sealed[0] = 9;
     await expect(box.open(sealed, 'connector-1')).rejects.toThrow('Unknown sealed secret format.');

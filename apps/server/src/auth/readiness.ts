@@ -1,6 +1,7 @@
 /**
  * What `accounts` mode needs before it may start: keys kept out of the data directory, and the
- * address people reach querent at. A copy of the data directory must never carry a key.
+ * address people reach querent at. A copy of the data directory must never carry a key. Keys not
+ * given are generated outside it, so only a key file placed there on purpose is refused.
  */
 import type { Config } from '../config/config.ts';
 import type { KeyRing } from '../secrets/keys.ts';
@@ -14,14 +15,8 @@ import type { KeyRing } from '../secrets/keys.ts';
  */
 export function accountsProblems(config: Pick<Config, 'publicUrl'>, keys: KeyRing): string[] {
   return [
-    keys.secretKeyOrigin === 'data-dir'
-      ? 'Set QUERENT_SECRET_KEY, or QUERENT_SECRET_KEY_FILE outside the data directory: a key next to the database is copied with it. An existing data/secret.key can be moved there.'
-      : undefined,
-    keys.sessionHashes === undefined
-      ? 'Set QUERENT_SESSION_KEY (or QUERENT_SESSION_KEY_FILE).'
-      : undefined,
-    keys.peppers === undefined
-      ? 'Set QUERENT_PASSWORD_PEPPER (or QUERENT_PASSWORD_PEPPER_FILE).'
+    keys.secretKeyInDataDir
+      ? 'QUERENT_SECRET_KEY_FILE points into the data directory, and a copy of the data would carry it. Move the file out.'
       : undefined,
     config.publicUrl === undefined
       ? 'Set QUERENT_PUBLIC_URL to the address people reach querent at, such as https://querent.example.com.'

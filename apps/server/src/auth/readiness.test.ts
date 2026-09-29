@@ -15,7 +15,7 @@ async function keyRing(ring: Partial<KeyRing>): Promise<KeyRing> {
   const hash = await keyedHash(key, 'test');
   return {
     secretBox: await testSecretBox(),
-    secretKeyOrigin: 'configured',
+    secretKeyInDataDir: false,
     emailIndex: hash,
     sessionHashes: { signature: hash, idHash: hash, tokenHash: hash },
     peppers: { current: { id: 'p1', hash }, previous: undefined },
@@ -29,19 +29,10 @@ describe('what accounts mode needs', () => {
     expect(accountsProblems(config, await keyRing({}))).toEqual([]);
   });
 
-  test('a secret key out of the data directory, both other keys, and the public URL', async () => {
-    const ring = await keyRing({
-      secretKeyOrigin: 'data-dir',
-      sessionHashes: undefined,
-      peppers: undefined,
-    });
+  test('a secret key out of the data directory, and the public URL', async () => {
+    const ring = await keyRing({ secretKeyInDataDir: true });
     const problems = accountsProblems({ publicUrl: undefined }, ring).join(' ');
-    for (const name of [
-      'QUERENT_SECRET_KEY',
-      'QUERENT_SESSION_KEY',
-      'QUERENT_PASSWORD_PEPPER',
-      'QUERENT_PUBLIC_URL',
-    ]) {
+    for (const name of ['QUERENT_SECRET_KEY_FILE', 'QUERENT_PUBLIC_URL']) {
       expect(problems).toContain(name);
     }
   });

@@ -9,8 +9,10 @@ import type { KeyInput, KeyInputs } from '../secrets/keys.ts';
 export interface Config {
   /** The HTTP port. */
   readonly port: number;
-  /** Absolute path of the directory holding the SQLite database and generated keys. */
+  /** Absolute path of the directory holding the SQLite database. */
   readonly dataDir: string;
+  /** Absolute path of the directory generated keys are kept in, outside the data directory. */
+  readonly keysDir: string;
   /** When set, replaces the stored authentication mode. `none` is the lockout escape hatch. */
   readonly authModeOverride: AuthMode | undefined;
   /** The least severe log level written. */
@@ -84,6 +86,7 @@ const environmentSchema = z.object({
     z.coerce.number().int().min(1).max(65535).default(3000),
   ),
   QUERENT_DATA_DIR: z.preprocess(unsetWhenEmpty, z.string().default('./data')),
+  QUERENT_KEYS_DIR: z.preprocess(unsetWhenEmpty, z.string().default('./keys')),
   QUERENT_AUTH_MODE: z.preprocess(unsetWhenEmpty, authModeSchema.optional()),
   QUERENT_LOG_LEVEL: z.preprocess(unsetWhenEmpty, z.enum(logLevels).default('info')),
   QUERENT_LOG_FORMAT: z.preprocess(unsetWhenEmpty, z.enum(logFormats).default('text')),
@@ -144,6 +147,7 @@ export function loadConfig(
   return {
     port: variables.QUERENT_PORT,
     dataDir: resolve(workingDir, variables.QUERENT_DATA_DIR),
+    keysDir: resolve(workingDir, variables.QUERENT_KEYS_DIR),
     authModeOverride: variables.QUERENT_AUTH_MODE,
     logLevel: variables.QUERENT_LOG_LEVEL,
     logFormat: variables.QUERENT_LOG_FORMAT,

@@ -7,6 +7,7 @@ describe('loadConfig', () => {
     expect(config).toMatchObject({
       port: 3000,
       dataDir: '/srv/querent/data',
+      keysDir: '/srv/querent/keys',
       authModeOverride: undefined,
       logLevel: 'info',
       logFormat: 'text',
@@ -19,6 +20,7 @@ describe('loadConfig', () => {
       {
         QUERENT_PORT: '8080',
         QUERENT_DATA_DIR: '/data',
+        QUERENT_KEYS_DIR: '/keys',
         QUERENT_AUTH_MODE: 'accounts',
         QUERENT_LOG_LEVEL: 'debug',
         QUERENT_LOG_FORMAT: 'json',
@@ -33,6 +35,7 @@ describe('loadConfig', () => {
     expect(config).toMatchObject({
       port: 8080,
       dataDir: '/data',
+      keysDir: '/keys',
       authModeOverride: 'accounts',
       logLevel: 'debug',
       logFormat: 'json',

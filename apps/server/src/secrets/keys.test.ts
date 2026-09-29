@@ -1,15 +1,17 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { chmodSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { captureLogs, temporaryDir } from '../test/fixtures.ts';
 import { type KeyInput, type KeyInputs, loadKeys } from './keys.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let outside: ReturnType<typeof temporaryDir>;
+let keysDir: string;
 
 beforeEach(() => {
   dataDir = temporaryDir();
   outside = temporaryDir();
+  keysDir = join(outside.path, 'keys');
 });
 
 afterEach(() => {
@@ -55,39 +57,84 @@ function inputs(set: Partial<Record<keyof KeyInputs, Partial<KeyInput>>> = {}): 
  */
 async function load(keys: KeyInputs) {
   const { logger, lines } = captureLogs();
-  return { ring: await loadKeys({ keys, dataDir: dataDir.path, logger }), lines };
+  return { ring: await loadKeys({ keys, dataDir: dataDir.path, keysDir, logger }), lines };
+}
+
+/**
+ * Every key given in a variable.
+ *
+ * @returns The inputs.
+ */
+function allGiven(): KeyInputs {
+  return inputs({
+    secret: { value: randomKey() },
+    session: { value: randomKey() },
+    pepper: { value: randomKey() },
+  });
 }
 
 describe('loading the keys', () => {
-  test('generates a secret key file with mode 0600 in none mode, and says where it lives', async () => {
+  test('generates each key not given, mode 0600, in a keys directory only its owner reads', async () => {
     const { ring, lines } = await load(inputs());
-    const path = join(dataDir.path, 'secret.key');
-    expect(statSync(path).mode & 0o777).toBe(0o600);
-    expect(Buffer.from(readFileSync(path, 'utf8').trim(), 'base64').length).toBe(32);
-    expect(lines).toContainEqual(expect.objectContaining({ level: 'warn', path }));
-    expect(ring.secretKeyOrigin).toBe('data-dir');
+    expect(statSync(keysDir).mode & 0o777).toBe(0o700);
+    for (const file of ['secret.key', 'session.key', 'password-pepper.key']) {
+      const path = join(keysDir, file);
+      expect(statSync(path).mode & 0o777).toBe(0o600);
+      expect(Buffer.from(readFileSync(path, 'utf8').trim(), 'base64').length).toBe(32);
+      expect(lines).toContainEqual(expect.objectContaining({ level: 'info', path }));
+    }
+    expect(ring.secretKeyInDataDir).toBe(false);
+    expect(readdirSync(dataDir.path)).toEqual([]);
     const again = await load(inputs());
     const sealed = await ring.secretBox.seal('s3cret', 'connector-1');
     expect(await again.ring.secretBox.open(sealed, 'connector-1')).toBe('s3cret');
+    expect(again.ring.peppers.current.id).toBe(ring.peppers.current.id);
   });
 
-  test('reads keys from variables and files, and says a file outside the data directory is configured', async () => {
+  test('uses a key given, key by key, and generates only the others', async () => {
+    const session = randomKey();
+    const { ring } = await load(inputs({ session: { value: session } }));
+    expect(readdirSync(keysDir).sort()).toEqual(['password-pepper.key', 'secret.key']);
+    expect(ring.sessionHashes).toBeDefined();
+    const { lines } = await load(allGiven());
+    expect(lines).toEqual([]);
+  });
+
+  test('generates nothing, and makes no directory, when every key is given', async () => {
+    await load(allGiven());
+    expect(existsSync(keysDir)).toBe(false);
+  });
+
+  test('moves a secret key an earlier version left in the data directory', async () => {
+    const old = randomKey();
+    writeFileSync(join(dataDir.path, 'secret.key'), `${old}\n`, { mode: 0o600 });
+    const { lines } = await load(inputs());
+    expect(existsSync(join(dataDir.path, 'secret.key'))).toBe(false);
+    expect(readFileSync(join(keysDir, 'secret.key'), 'utf8').trim()).toBe(old);
+    expect(lines).toContainEqual(expect.objectContaining({ level: 'warn' }));
+    writeFileSync(join(dataDir.path, 'secret.key'), randomKey(), { mode: 0o600 });
+    await expect(load(inputs())).rejects.toThrow('hold different secret keys');
+  });
+
+  test('refuses a keys directory inside the data directory', async () => {
+    keysDir = join(dataDir.path, 'keys');
+    await expect(load(inputs())).rejects.toThrow('QUERENT_KEYS_DIR');
+    keysDir = dataDir.path;
+    await expect(load(inputs())).rejects.toThrow('QUERENT_KEYS_DIR');
+  });
+
+  test('reads keys from variables and files, and notes a file inside the data directory', async () => {
     const file = join(outside.path, 'secret.key');
     writeFileSync(file, `${randomKey()}\n`, { mode: 0o600 });
-    const { ring, lines } = await load(
-      inputs({ secret: { file }, session: { value: randomKey() }, pepper: { value: randomKey() } }),
-    );
-    expect(ring.secretKeyOrigin).toBe('configured');
-    expect(ring.sessionHashes).toBeDefined();
-    expect(ring.peppers?.current.id).toHaveLength(8);
+    const given = { session: { value: randomKey() }, pepper: { value: randomKey() } };
+    const { ring, lines } = await load(inputs({ secret: { file }, ...given }));
+    expect(ring.secretKeyInDataDir).toBe(false);
+    expect(ring.peppers.current.id).toHaveLength(8);
     expect(lines).toEqual([]);
-    expect(() => statSync(join(dataDir.path, 'secret.key'))).toThrow();
-  });
-
-  test('counts a key file inside the data directory as kept with the data', async () => {
-    const file = join(dataDir.path, 'mine.key');
-    writeFileSync(file, randomKey(), { mode: 0o600 });
-    expect((await load(inputs({ secret: { file } }))).ring.secretKeyOrigin).toBe('data-dir');
+    const inside = join(dataDir.path, 'mine.key');
+    writeFileSync(inside, randomKey(), { mode: 0o600 });
+    const kept = await load(inputs({ secret: { file: inside }, ...given }));
+    expect(kept.ring.secretKeyInDataDir).toBe(true);
   });
 
   test('warns about a key file others can read', async () => {

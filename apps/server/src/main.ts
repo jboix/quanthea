@@ -27,7 +27,8 @@ if (appliedMigrations.length > 0) logger.info('applied migrations', { appliedMig
 
 const settings = createSettingsStore(createSettingsRepository(database));
 const authMode = resolveAuthMode(config.authModeOverride, settings, logger);
-const keys = await loadKeys({ keys: config.keys, dataDir: config.dataDir, logger });
+const { keys: keyInputs, dataDir, keysDir } = config;
+const keys = await loadKeys({ keys: keyInputs, dataDir, keysDir, logger });
 const problems = accountsProblems(config, keys);
 const missing = authMode === 'accounts' ? problems : [];
 if (missing.length > 0) {

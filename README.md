@@ -62,25 +62,26 @@ Docker image and checks that it serves the app. A git hook runs `bun run verify`
 
 The server reads these environment variables at startup. Everything else will live in Settings.
 
-| Variable                     | Default         | Purpose                                                                                                                   |
-| ---------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `QUERENT_PORT`               | `3000`          | HTTP port.                                                                                                                |
-| `QUERENT_DATA_DIR`           | `./data`        | Holds the SQLite database. Created with mode 0700. `/data` in the image.                                                  |
-| `QUERENT_AUTH_MODE`          | unset           | Replaces the stored authentication mode. `none` is the lockout escape hatch.                                              |
-| `QUERENT_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                                                                       |
-| `QUERENT_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.                                                           |
-| `QUERENT_WEB_DIR`            | `apps/web/dist` | The built SPA the server serves.                                                                                          |
-| `QUERENT_SECRET_KEY`         | generated       | 32 bytes in base64 that encrypt connector credentials. Unset, a key file is created in the data directory with mode 0600. |
-| `QUERENT_SESSION_KEY`        | unset           | 32 bytes in base64 that sign session cookies. Required with accounts.                                                     |
-| `QUERENT_PASSWORD_PEPPER`    | unset           | 32 bytes in base64 mixed into password hashes. Required with accounts.                                                    |
-| `QUERENT_PUBLIC_URL`         | unset           | The address people reach querent at, such as `https://querent.example.com`. Required with accounts.                       |
-| `QUERENT_TRUSTED_PROXY_HOPS` | `0`             | How many reverse proxies in front of querent add to `X-Forwarded-For`.                                                    |
+| Variable                     | Default         | Purpose                                                                                                     |
+| ---------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------- |
+| `QUERENT_PORT`               | `3000`          | HTTP port.                                                                                                  |
+| `QUERENT_DATA_DIR`           | `./data`        | Holds the SQLite database. Created with mode 0700. `/data` in the image.                                    |
+| `QUERENT_KEYS_DIR`           | `./keys`        | Holds the keys querent generates. Created with mode 0700, outside the data directory. `/keys` in the image. |
+| `QUERENT_AUTH_MODE`          | unset           | Replaces the stored authentication mode. `none` is the lockout escape hatch.                                |
+| `QUERENT_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                                                         |
+| `QUERENT_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.                                             |
+| `QUERENT_WEB_DIR`            | `apps/web/dist` | The built SPA the server serves.                                                                            |
+| `QUERENT_SECRET_KEY`         | generated       | 32 bytes in base64 that encrypt credentials, names and emails at rest.                                      |
+| `QUERENT_SESSION_KEY`        | generated       | 32 bytes in base64 that sign session cookies.                                                               |
+| `QUERENT_PASSWORD_PEPPER`    | generated       | 32 bytes in base64 mixed into password hashes.                                                              |
+| `QUERENT_PUBLIC_URL`         | unset           | The address people reach querent at, such as `https://querent.example.com`. Required with accounts.         |
+| `QUERENT_TRUSTED_PROXY_HOPS` | `0`             | How many reverse proxies in front of querent add to `X-Forwarded-For`.                                      |
 
-Each key can come from a file instead: `QUERENT_SECRET_KEY_FILE`, and so on. Create keys with
-`openssl rand -base64 32`, each its own. With accounts, keep the keys out of the data directory: a
-copy of the data directory must never carry them. Without the secret key, stored credentials cannot
-be read. To rotate it, set the new key and the old one as `QUERENT_SECRET_KEY_PREVIOUS`, restart
-once, then remove the old one.
+Each key can come from a file instead: `QUERENT_SECRET_KEY_FILE`, and so on. A key not given is
+generated on first start in the keys directory, with mode 0600; a key given always wins, key by
+key. Back the keys up apart from the data: a copy of the data directory must never carry them.
+Without the secret key, stored credentials cannot be read. To rotate it, set the new key and the
+old one as `QUERENT_SECRET_KEY_PREVIOUS`, restart once, then remove the old one.
 
 ## Layout
 

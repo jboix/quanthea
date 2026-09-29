@@ -92,8 +92,8 @@ memory for any of them in clear.
 
 ## Running querent safely
 
-- Generate each key with `openssl rand -base64 32`. Keep the secret key outside the data
-  directory, and back the keys up apart from the database.
+- Let querent generate its keys in a keys volume, or give your own with `openssl rand -base64 32`.
+  Back the keys up apart from the database: whoever holds both reads everything.
 - Set `QUERENT_PUBLIC_URL` to querent's `https://` origin.
 - Set `QUERENT_TRUSTED_PROXY_HOPS` to the number of proxies in front of querent, so throttling
   sees the real address.

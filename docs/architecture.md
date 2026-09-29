@@ -1072,12 +1072,15 @@ locked-out install, with a warning at startup.
 
 ### Keys
 
-querent reads three keys, each 32 random bytes in base64 (`openssl rand -base64 32`), from a
+querent uses three keys, each 32 random bytes in base64 (`openssl rand -base64 32`), from a
 variable or from a file named by the variable with `_FILE` appended (for Docker and Kubernetes
-secrets). `secrets/keys.ts` reads and checks them at startup:
+secrets). `secrets/keys.ts` reads and checks them at startup. A key not given is generated on
+first start in the keys directory (`QUERENT_KEYS_DIR`, `./keys`, `/keys` in the image;
+`secrets/key-files.ts`): the directory has mode 0700, each file 0600, and it may not be the data
+directory or lie inside it. A key given always wins, key by key. A secret key an earlier version
+generated in the data directory is moved there at startup.
 
-- **The secret key** (`QUERENT_SECRET_KEY`) seals secrets at rest. In `none` mode, when it is not
-  set, a key file is generated in the data directory.
+- **The secret key** (`QUERENT_SECRET_KEY`) seals secrets at rest.
 - **The session key** (`QUERENT_SESSION_KEY`) signs session cookies and keys the hashes of
   session ids and one-time tokens.
 - **The password pepper** (`QUERENT_PASSWORD_PEPPER`) is mixed into every password hash.
@@ -1087,9 +1090,10 @@ all printable text (a passphrase in disguise). A key set both ways, a file that 
 and two roles sharing one key are refused. A key file others can read is warned about. No
 message ever contains a key.
 
-`accounts` mode refuses to start without all three keys, with the secret key outside the data
-directory (a copy of the data directory must never carry a key), and without
-`QUERENT_PUBLIC_URL` (`auth/readiness.ts`).
+`accounts` mode refuses to start with a secret key file inside the data directory (a copy of the
+data directory must never carry a key), and without `QUERENT_PUBLIC_URL` (`auth/readiness.ts`).
+A secret key that cannot open what the database holds stops the server at startup, naming the
+id of the key that sealed it, to set as `QUERENT_SECRET_KEY` or `QUERENT_SECRET_KEY_PREVIOUS`.
 
 **Sealing** (`secrets/secret-box.ts`): AES-256-GCM with a random 96-bit IV, bound to the row it
 belongs to through the additional data. The sealing key is derived from the secret key for this
@@ -1130,19 +1134,20 @@ the default when it named none or its provider was removed. Editors see the prov
 build models, never their keys (`GET /api/model-providers`). The usage ledger records the
 provider's name, so two setups of the same vendor stay apart.
 
-| Variable                     | Default                 | Purpose                                                                |
-| ---------------------------- | ----------------------- | ---------------------------------------------------------------------- |
-| `QUERENT_PORT`               | `3000`                  | HTTP port                                                              |
-| `QUERENT_DATA_DIR`           | `./data`                | SQLite database, generated key                                         |
-| `QUERENT_SECRET_KEY`         | generated into data dir | seals secrets at rest; `_PREVIOUS` while rotating; `_FILE` variants    |
-| `QUERENT_SESSION_KEY`        | _(unset)_               | signs session cookies; required in `accounts` mode                     |
-| `QUERENT_PASSWORD_PEPPER`    | _(unset)_               | mixed into password hashes; required in `accounts` mode                |
-| `QUERENT_AUTH_MODE`          | _(unset)_               | if set, overrides the stored mode. `none` is the lockout escape hatch. |
-| `QUERENT_PUBLIC_URL`         | _(unset)_               | the origin people reach querent at; required in `accounts` mode        |
-| `QUERENT_TRUSTED_PROXY_HOPS` | `0`                     | reverse proxies trusted to add `X-Forwarded-For`                       |
-| `QUERENT_LOG_LEVEL`          | `info`                  | `debug`, `info`, `warn` or `error`.                                    |
-| `QUERENT_LOG_FORMAT`         | `text`                  | `text` for readable lines, `json` for one JSON object per line.        |
-| `QUERENT_WEB_DIR`            | `apps/web/dist`         | the built SPA the server serves                                        |
+| Variable                     | Default         | Purpose                                                                |
+| ---------------------------- | --------------- | ---------------------------------------------------------------------- |
+| `QUERENT_PORT`               | `3000`          | HTTP port                                                              |
+| `QUERENT_DATA_DIR`           | `./data`        | SQLite database                                                        |
+| `QUERENT_KEYS_DIR`           | `./keys`        | generated keys, outside the data directory                             |
+| `QUERENT_SECRET_KEY`         | generated       | seals secrets at rest; `_PREVIOUS` while rotating; `_FILE` variants    |
+| `QUERENT_SESSION_KEY`        | generated       | signs session cookies                                                  |
+| `QUERENT_PASSWORD_PEPPER`    | generated       | mixed into password hashes; `_PREVIOUS` while rotating                 |
+| `QUERENT_AUTH_MODE`          | _(unset)_       | if set, overrides the stored mode. `none` is the lockout escape hatch. |
+| `QUERENT_PUBLIC_URL`         | _(unset)_       | the origin people reach querent at; required in `accounts` mode        |
+| `QUERENT_TRUSTED_PROXY_HOPS` | `0`             | reverse proxies trusted to add `X-Forwarded-For`                       |
+| `QUERENT_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                    |
+| `QUERENT_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.        |
+| `QUERENT_WEB_DIR`            | `apps/web/dist` | the built SPA the server serves                                        |
 
 ## 14. Local development
 
