@@ -293,3 +293,17 @@ export function CopyIcon() {
     </Icon>
   );
 }
+
+/**
+ * A person's head and shoulders, for one's account.
+ *
+ * @returns The icon.
+ */
+export function UserIcon() {
+  return (
+    <Icon>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+    </Icon>
+  );
+}

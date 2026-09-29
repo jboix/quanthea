@@ -1,17 +1,13 @@
 /** The route tree (React Router data mode) and the browser router built from it. */
 import type { ComponentType } from 'react';
-import {
-  createBrowserRouter,
-  type LoaderFunctionArgs,
-  type RouteObject,
-  redirect,
-} from 'react-router';
+import { createBrowserRouter, type RouteObject, redirect } from 'react-router';
 import type { ApiClient } from '../lib/api-client.ts';
+import { accountRoute } from '../routes/account.tsx';
 import { binRoute } from '../routes/bin.tsx';
 import { connectorRoutes } from '../routes/connectors.tsx';
 import { dashboardRoutes } from '../routes/dashboard.tsx';
 import { libraryRoute } from '../routes/library.tsx';
-import { LoginRoute } from '../routes/login.tsx';
+import { loginRoute, setPasswordRoute } from '../routes/login.tsx';
 import { NotFoundRoute } from '../routes/not-found.tsx';
 import { SettingsAuthRoute } from '../routes/settings-auth.tsx';
 import { chartSettingsRoute } from '../routes/settings-charts.tsx';
@@ -20,6 +16,7 @@ import { modelSettingsRoute } from '../routes/settings-model.tsx';
 import { querySettingsRoute } from '../routes/settings-queries.tsx';
 import { retentionSettingsRoute } from '../routes/settings-retention.tsx';
 import { usageSettingsRoute } from '../routes/settings-usage.tsx';
+import { usersSettingsRoute } from '../routes/settings-users.tsx';
 import { threadRoutes } from '../routes/thread.tsx';
 import { UiKitRoute } from '../routes/ui-kit.tsx';
 import { ErrorPage } from './error-page.tsx';
@@ -41,27 +38,6 @@ function screen(
   Component: ComponentType,
 ): RouteObject {
   return { path, loader: requireRole(loadSession, routeAccess[path]), Component };
-}
-
-/**
- * The login route. With a session (always the case in `none` mode) it sends the user onwards.
- *
- * @param loadSession - Loads the current session.
- * @returns The route object.
- */
-function loginRoute(loadSession: SessionLoader): RouteObject {
-  const loader = async ({ request }: LoaderFunctionArgs) => {
-    if (!(await loadSession())) return null;
-    const next = new URL(request.url).searchParams.get('next');
-    return redirect(next?.startsWith('/') && !next.startsWith('//') ? next : '/');
-  };
-  return {
-    path: '/login',
-    loader,
-    Component: LoginRoute,
-    HydrateFallback: LoadingScreen,
-    ErrorBoundary: ErrorPage,
-  };
 }
 
 /** What the routes need from the app: the session and the API. */
@@ -87,6 +63,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
     { index: true, loader: home },
     ...threadRoutes(loadSession, api),
     libraryRoute(loadSession, api),
+    accountRoute(loadSession, api),
     ...dashboardRoutes(loadSession, api),
     binRoute(loadSession, api),
     connectorRoutes(loadSession, api),
@@ -99,6 +76,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
         chartSettingsRoute(loadSession, api),
         querySettingsRoute(loadSession, api),
         usageSettingsRoute(loadSession, api),
+        usersSettingsRoute(loadSession, api),
         screen(loadSession, '/settings/auth', SettingsAuthRoute),
         retentionSettingsRoute(loadSession, api),
       ],
@@ -118,7 +96,8 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
 export function createRoutes(dependencies: RouteDependencies): RouteObject[] {
   const { loadSession } = dependencies;
   return [
-    loginRoute(loadSession),
+    loginRoute(loadSession, dependencies.api),
+    setPasswordRoute(dependencies.api),
     {
       id: 'root',
       path: '/',

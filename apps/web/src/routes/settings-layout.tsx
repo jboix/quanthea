@@ -7,6 +7,7 @@ const sections = [
   { to: '/settings/charts', label: 'Charts' },
   { to: '/settings/queries', label: 'Queries' },
   { to: '/settings/usage', label: 'Usage' },
+  { to: '/settings/users', label: 'Users' },
   { to: '/settings/auth', label: 'Authentication' },
   { to: '/settings/retention', label: 'Retention' },
 ] as const;

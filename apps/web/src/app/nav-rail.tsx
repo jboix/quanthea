@@ -2,7 +2,14 @@ import { hasRole, type Role } from '@querent/shared';
 import type { ReactNode } from 'react';
 import { Link, useMatch } from 'react-router';
 import { BrandIcon } from '../ui/brand.tsx';
-import { BinIcon, ConnectorsIcon, LibraryIcon, SettingsIcon, ThreadsIcon } from '../ui/icons.tsx';
+import {
+  BinIcon,
+  ConnectorsIcon,
+  LibraryIcon,
+  SettingsIcon,
+  ThreadsIcon,
+  UserIcon,
+} from '../ui/icons.tsx';
 import styles from './layout.module.css';
 
 /** One destination in the rail. */
@@ -53,6 +60,13 @@ const bottomItems: readonly RailItem[] = [
     section: '/settings',
     minimum: 'admin',
     icon: <SettingsIcon />,
+  },
+  {
+    label: 'Your account',
+    to: '/account',
+    section: '/account',
+    minimum: 'viewer',
+    icon: <UserIcon />,
   },
 ];
 

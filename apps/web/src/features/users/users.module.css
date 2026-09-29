@@ -1,0 +1,88 @@
+.invite {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+  gap: 12px;
+}
+
+.link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-ok-border);
+  border-radius: var(--radius-card);
+  background: var(--color-ok-soft);
+  font-size: 13px;
+  color: var(--color-ok-ink);
+}
+
+.linkRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.linkText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.table th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 500;
+  text-align: left;
+  color: var(--color-ink-secondary);
+}
+
+.table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--color-divider);
+  vertical-align: middle;
+}
+
+.table tr[data-disabled="true"] td {
+  color: var(--color-ink-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.error {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

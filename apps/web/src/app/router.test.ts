@@ -41,6 +41,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'GET /connectors/:connectorId/schema': { readAt: null, entities: [] },
   'POST /connectors/:connectorId/test': { ok: true, latencyMs: 1, message: 'ok', readOnly: null },
   'GET /bin': { threads: [], binDays: 30 },
+  'GET /users': { users: [] },
   'GET /settings/retention': { binDays: 30 },
   'GET /dashboards': { results: [], tags: [], connectors: [] },
   'GET /dashboards/:dashboardId': { pinnedVersion: 1, versions: [] },

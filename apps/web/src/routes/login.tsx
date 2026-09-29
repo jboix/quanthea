@@ -1,22 +1,50 @@
-import { Logo } from '../ui/brand.tsx';
-import { Card } from '../ui/card.tsx';
-import styles from './login.module.css';
+/** The routes outside the app: signing in, and setting a password from a link. */
+import { type LoaderFunctionArgs, type RouteObject, redirect } from 'react-router';
+import { ErrorPage } from '../app/error-page.tsx';
+import { LoadingScreen } from '../app/layout.tsx';
+import type { SessionLoader } from '../app/session.ts';
+import {
+  SetPasswordScreen,
+  SignInScreen,
+  setPasswordAction,
+  signInAction,
+} from '../features/account/index.ts';
+import type { ApiClient } from '../lib/api-client.ts';
 
 /**
- * The sign-in page, used in the `basic` and `oidc` authentication modes.
+ * The sign-in route. Someone already signed in goes where they were headed.
  *
- * @returns The screen.
+ * @param loadSession - Loads the current session.
+ * @param api - The API client.
+ * @returns The route object.
  */
-export function LoginRoute() {
-  return (
-    <div className={styles.screen}>
-      <div className={styles.column}>
-        <Logo height={40} />
-        <Card
-          title="Sign in to querent"
-          description="Sign-in is not available yet on this server."
-        />
-      </div>
-    </div>
-  );
+export function loginRoute(loadSession: SessionLoader, api: ApiClient): RouteObject {
+  const loader = async ({ request }: LoaderFunctionArgs) => {
+    if (!(await loadSession())) return null;
+    const next = new URL(request.url).searchParams.get('next');
+    return redirect(next?.startsWith('/') && !next.startsWith('//') ? next : '/');
+  };
+  return {
+    path: '/login',
+    loader,
+    action: signInAction(api),
+    Component: SignInScreen,
+    HydrateFallback: LoadingScreen,
+    ErrorBoundary: ErrorPage,
+  };
+}
+
+/**
+ * The route an invite or reset link opens. It needs no session: the link's token is the proof.
+ *
+ * @param api - The API client.
+ * @returns The route object.
+ */
+export function setPasswordRoute(api: ApiClient): RouteObject {
+  return {
+    path: '/set-password',
+    action: setPasswordAction(api),
+    Component: SetPasswordScreen,
+    ErrorBoundary: ErrorPage,
+  };
 }

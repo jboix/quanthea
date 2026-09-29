@@ -175,6 +175,7 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/`                                                        | redirect → `/library` (viewer) or `/threads/new` (editor+) | viewer   |
 | `/threads/new`, `/threads/:threadId`                       | Plan, Build and refine, Variant                            | editor   |
 | `/library`                                                 | Library: search pinned dashboards and their panels         | viewer   |
+| `/account`                                                 | your account: password, sign out                           | viewer   |
 | `/d/:dashboardId`                                          | the pinned version; for editors, the latest if unpinned    | viewer   |
 | `/d/:dashboardId/v/:version`                               | a specific version                                         | viewer   |
 | `/d/:dashboardId/v/:version/panels/:panelId`               | resource route: one panel's run, for fetchers              | viewer   |
@@ -184,12 +185,14 @@ the `postgres` driver and Prometheus uses `fetch`.
 | `/connectors/new`, `/connectors/:connectorId/edit`         | add and edit a connection                                  | admin    |
 | `/connectors/:connectorId/health`                          | resource route: the connection test, for fetchers          | admin    |
 | `/settings/model`, `/settings/auth`, `/settings/retention` | Settings                                                   | admin    |
+| `/settings/users`                                          | Users: invite, roles, disable, reset links, sign out       | admin    |
 | `/settings/usage`                                          | Usage: tokens, cost and pinned views per day, by model     | admin    |
 | `/settings/queries`                                        | Queries: builders on or off, your own with placeholders    | admin    |
 | `/settings/charts`                                         | Charts: every chart recipe drawn from its sample           | admin    |
 | `/settings`                                                | redirect → `/settings/model`                               | admin    |
 | `/ui`                                                      | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
-| `/login`                                                   | only in `basic` / `oidc` modes                             | —        |
+| `/login`                                                   | sign in; only in `accounts` mode                           | —        |
+| `/set-password`                                            | choose a password from an invite or reset link             | —        |
 
 Route loaders fetch through the typed API client. The root loader loads the session
 (`GET /api/me`, once per page load). Without a session, every screen redirects to
