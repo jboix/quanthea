@@ -10,7 +10,7 @@ export type QueryLanguage = (typeof queryLanguages)[number];
  * The SQL dialects the core knows how to bind: how each writes its literals and its placeholders.
  * A SQL connector kind declares one of them.
  */
-export const sqlDialects = ['postgres', 'mysql'] as const;
+export const sqlDialects = ['postgres', 'mysql', 'clickhouse'] as const;
 
 /** A SQL dialect name. */
 export type SqlDialect = (typeof sqlDialects)[number];
@@ -20,7 +20,8 @@ export type SqlParameter = string | number | boolean | Date | null;
 
 /**
  * A SQL query with positional placeholders and their values. The placeholders are the dialect's:
- * `$1`, `$2`… for `postgres`, `?` for `mysql`. The core checked that it is a single read statement.
+ * `$1`, `$2`… for `postgres`, `?` for `mysql`, `{p1:Type}`, `{p2:Type}`… for `clickhouse`, where
+ * `pN` is the Nth value. The core checked that it is a single read statement.
  */
 export interface SqlQuery {
   /** The query language. */

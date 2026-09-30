@@ -44,8 +44,15 @@ export interface SqlWriter {
    * @returns The start of the bucket.
    */
   bucket(time: string, duration: DurationText): string;
-  /** The operators of a regular expression match and its negation. */
-  readonly regex: { readonly match: string; readonly noMatch: string };
+  /**
+   * A regular expression match.
+   *
+   * @param column - The quoted column.
+   * @param pattern - The pattern: a string literal or a bound reference.
+   * @param negated - Whether the condition is that it does not match.
+   * @returns The condition.
+   */
+  matches(column: string, pattern: string, negated: boolean): string;
 }
 
 /** A duration as the builders hold it: a literal, or a variable the binder fills in. */
@@ -100,7 +107,7 @@ const postgresWriter: SqlWriter = {
   text: (expression) => `${expression}::text`,
   interval: postgresInterval,
   bucket: (time, duration) => `date_bin(${postgresInterval(duration)}, ${time}, :__from)`,
-  regex: { match: '~', noMatch: '!~' },
+  matches: (column, pattern, negated) => `${column} ${negated ? '!~' : '~'} ${pattern}`,
 };
 
 /**
@@ -116,13 +123,43 @@ const mysqlWriter: SqlWriter = {
     const seconds = mysqlSeconds(duration);
     return `FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(${time}) / ${seconds}) * ${seconds})`;
   },
-  regex: { match: 'REGEXP', noMatch: 'NOT REGEXP' },
+  matches: (column, pattern, negated) =>
+    `${column} ${negated ? 'NOT REGEXP' : 'REGEXP'} ${pattern}`,
+};
+
+/**
+ * Seconds of a duration in ClickHouse: a number, or computed from the bound text such as `5m`.
+ *
+ * @param duration - The duration.
+ * @returns The seconds expression.
+ */
+function clickhouseSeconds(duration: DurationText): string {
+  if ('seconds' in duration) return String(duration.seconds);
+  const value = `:${duration.variable}`;
+  return `(toUInt32(substring(${value}, 1, length(${value}) - 1)) * transform(right(${value}, 1), ['s', 'm', 'h', 'd'], [1, 60, 3600, 86400], 0))`;
+}
+
+/**
+ * ClickHouse: backticked names and strings with backslash escapes, `match` for regular
+ * expressions, buckets from epoch seconds in UTC (`toStartOfInterval` takes no bound width).
+ */
+const clickhouseWriter: SqlWriter = {
+  quote: (identifier) => `\`${identifier.replaceAll('\\', '\\\\').replaceAll('`', '\\`')}\``,
+  string: (value) => `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`,
+  text: (expression) => `toString(${expression})`,
+  interval: (duration) => `toIntervalSecond(${clickhouseSeconds(duration)})`,
+  bucket: (time, duration) => {
+    const seconds = clickhouseSeconds(duration);
+    return `toDateTime(intDiv(toUnixTimestamp(${time}), ${seconds}) * ${seconds}, 'UTC')`;
+  },
+  matches: (column, pattern, negated) => `${negated ? 'NOT ' : ''}match(${column}, ${pattern})`,
 };
 
 /** The writer of each dialect. */
 const writers: Readonly<Record<SqlDialect, SqlWriter>> = {
   postgres: postgresWriter,
   mysql: mysqlWriter,
+  clickhouse: clickhouseWriter,
 };
 
 /**
@@ -150,20 +187,6 @@ export function sqlName(writer: SqlWriter, name: string): string {
 }
 
 /**
- * The SQL operator of a filter operator, for a literal and for a variable.
- *
- * @param writer - The dialect's writer.
- * @param op - The filter operator.
- * @returns The operators.
- */
-function operatorOf(writer: SqlWriter, op: Filter['op']) {
-  if (op === '=') return { literal: '=', variable: 'IN' };
-  if (op === '!=') return { literal: '<>', variable: 'NOT IN' };
-  const regex = op === '=~' ? writer.regex.match : writer.regex.noMatch;
-  return { literal: regex, variable: regex };
-}
-
-/**
  * A SQL condition. A variable is bound (`:name`); equality with a variable uses `IN`, so a
  * multi-value variable works.
  *
@@ -172,12 +195,13 @@ function operatorOf(writer: SqlWriter, op: Filter['op']) {
  * @returns Such as `"status" = 'failed'` or `"service" IN (:service)`.
  */
 export function sqlCondition(writer: SqlWriter, filter: Filter): string {
-  const operator = operatorOf(writer, filter.op);
   const variable = variableOf(filter.value);
   const column = sqlName(writer, filter.field);
-  if (variable === undefined) return `${column} ${operator.literal} ${writer.string(filter.value)}`;
-  const bound = operator.variable.endsWith('IN') ? `(:${variable})` : `:${variable}`;
-  return `${column} ${operator.variable} ${bound}`;
+  const value = variable === undefined ? writer.string(filter.value) : `:${variable}`;
+  if (filter.op === '=~' || filter.op === '!~')
+    return writer.matches(column, value, filter.op === '!~');
+  if (variable === undefined) return `${column} ${filter.op === '=' ? '=' : '<>'} ${value}`;
+  return `${column} ${filter.op === '=' ? 'IN' : 'NOT IN'} (${value})`;
 }
 
 /**

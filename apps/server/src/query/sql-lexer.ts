@@ -65,6 +65,45 @@ export function lineCommentEnd(text: string, start: number): number {
   return newline === -1 ? text.length : newline;
 }
 
+/** Characters that can continue an identifier, so a `$` after them opens no dollar quote. */
+export const identifierCharacter = /[A-Za-z0-9_$]/;
+
+/**
+ * The end of a block comment that may nest, as in PostgreSQL and ClickHouse.
+ *
+ * @param text - The SQL.
+ * @param start - Where the comment starts.
+ * @returns The index just past the comment.
+ * @throws {QueryError} When the comment is not closed.
+ */
+export function nestedCommentEnd(text: string, start: number): number {
+  const marker = /\/\*|\*\//g;
+  marker.lastIndex = start;
+  let depth = 0;
+  for (let match = marker.exec(text); match; match = marker.exec(text)) {
+    depth += match[0] === '/*' ? 1 : -1;
+    if (depth === 0) return marker.lastIndex;
+  }
+  throw unterminated();
+}
+
+/**
+ * The end of a dollar-quoted string (`$$…$$`, `$tag$…$tag$`), which runs to the same tag. A tag
+ * right after an identifier character is part of the identifier.
+ *
+ * @param text - The SQL.
+ * @param start - Where the tag starts.
+ * @param tag - The opening tag.
+ * @returns The index just past the string, or `undefined` when the tag opens no string.
+ * @throws {QueryError} When the string is not closed.
+ */
+export function dollarQuoteEnd(text: string, start: number, tag: string): number | undefined {
+  if (identifierCharacter.test(text[start - 1] ?? '')) return undefined;
+  const close = text.indexOf(tag, start + tag.length);
+  if (close === -1) throw unterminated();
+  return close + tag.length;
+}
+
 /**
  * Splits SQL into code and literals.
  *

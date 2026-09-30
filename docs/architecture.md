@@ -449,7 +449,9 @@ directly onto an ECharts `dataset`.
     quoted, literals are escaped, and variables stay bound references. SQL is written for the
     connector's dialect (`dashboards/queries/sql-writers.ts`): PostgreSQL buckets time with
     `date_bin` from the start of the range; MySQL and MariaDB bucket epoch seconds in a UTC
-    session, quote names in backticks and escape backslashes in strings.
+    session, quote names in backticks and escape backslashes in strings. ClickHouse also buckets
+    epoch seconds (`toStartOfInterval` takes no bound width), escapes quotes with a backslash and
+    matches regular expressions with `match()`.
   - **Saved queries.** An admin saves a query with typed placeholders (`{{name}}`: metric, label,
     table, column, value or duration) and the shape it returns. The model asks for it by id with a
     value per placeholder. Each value is checked and written for its kind like the builders write
@@ -705,6 +707,11 @@ that changes with its settings).
      - `mysql` (MySQL and MariaDB): `?`, one per use. Strings with backslash escapes, backticked
        identifiers, `#` and `-- ` comments are never rewritten; `?` in a template and executable
        comments (`/*!`, `/*M!`) are refused.
+     - `clickhouse`: `{p1:String}`, typed by the value (`DateTime64(3, 'UTC')` for the time range)
+       and reused when a variable comes again; the connector sends each value as `param_p1`.
+       Strings and heredocs (`$$…$$`), identifiers in double quotes or backticks, `--` and `#`
+       comments and nested block comments are never rewritten; `{` in a template's code and a
+       SETTINGS clause, which could lift the connector's limits, are refused.
 
      The template must be one statement starting with SELECT, WITH, VALUES or TABLE, without INSERT,
      UPDATE, DELETE, MERGE, TRUNCATE, DROP, ALTER, CREATE, GRANT, REVOKE, COPY or INTO outside

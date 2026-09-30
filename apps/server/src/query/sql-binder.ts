@@ -19,13 +19,15 @@ const writeKeywords =
   /\b(insert|update|delete|merge|truncate|drop|alter|create|grant|revoke|copy|into)\b/i;
 
 /**
- * Checks the code of a template is one read statement. The read-only transaction is the real
- * guard; this check rejects the obvious cases with a clear message before they reach the source.
+ * Checks the code of a template is one read statement, without a keyword its dialect refuses. The
+ * read-only session is the real guard; this check rejects the obvious cases with a clear message
+ * before they reach the source.
  *
  * @param segments - The template, split into code and literals.
+ * @param rules - The dialect's rules.
  * @throws {QueryError} `invalid` when the template is not a single SELECT, WITH, VALUES or TABLE.
  */
-export function checkReadStatement(segments: readonly SqlSegment[]): void {
+function checkReadStatement(segments: readonly SqlSegment[], rules: SqlDialectRules): void {
   const code = segments.map((segment) => (segment.kind === 'code' ? segment.text : ' ')).join('');
   const statement = code.replace(/;\s*$/, '');
   if (statement.includes(';')) throw new QueryError('invalid', 'A query holds one statement only.');
@@ -39,6 +41,8 @@ export function checkReadStatement(segments: readonly SqlSegment[]): void {
       `A query only reads; "${write[1]?.toUpperCase()}" is not allowed. Quote an identifier with that name.`,
     );
   }
+  if (rules.forbidden?.keyword.test(statement))
+    throw new QueryError('invalid', rules.forbidden.message);
 }
 
 /** Collects parameters as placeholders are bound. */
@@ -72,7 +76,7 @@ function placeholderFor(
   if (known !== undefined && rules.numbered) return known;
   const placeholders = values.map((value) => {
     parameters.values.push(value);
-    return rules.placeholder(parameters.values.length);
+    return rules.placeholder(parameters.values.length, value);
   });
   const text = placeholders.length === 0 ? 'NULL' : placeholders.join(', ');
   parameters.byName.set(name, text);
@@ -143,7 +147,7 @@ export function bindSql(
 ): SqlQuery {
   const rules = sqlDialectRules[dialect];
   const segments = splitSql(template, rules.lexicon);
-  checkReadStatement(segments);
+  checkReadStatement(segments, rules);
   const parameters: ParameterList = { rules, values: [], byName: new Map(), unknown: new Set() };
   const text = segments
     .map((segment) =>

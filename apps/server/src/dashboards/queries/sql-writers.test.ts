@@ -87,6 +87,68 @@ describe('the SQL builders for MySQL', () => {
   });
 });
 
+/** Every connector runs ClickHouse. */
+const clickhouse: BuildContext = { saved: [], dialectOf: () => 'clickhouse' };
+
+/**
+ * The SQL a builder writes for a ClickHouse connector.
+ *
+ * @param data - The data request.
+ * @returns The SQL.
+ */
+function clickhouseOf(data: Record<string, unknown>): string {
+  const query = buildData(dataSchema.parse({ connector: 'shop', ...data }), clickhouse).queries[0];
+  return query?.language === 'sql' ? query.sql : '';
+}
+
+describe('the SQL builders for ClickHouse', () => {
+  test('bucket time from epoch seconds, cast with toString, and match with match()', () => {
+    expect(
+      clickhouseOf({
+        kind: 'sql-series',
+        table: 'orders',
+        time: 'created_at',
+        bucket: '5m',
+        by: 'status',
+        measure: { fn: 'sum', column: 'total_cents' },
+        filters: [
+          { field: 'service', op: '=~', value: '^check' },
+          { field: 'status', op: '!~', value: '$status' },
+        ],
+      }),
+    ).toBe(
+      "SELECT toDateTime(intDiv(toUnixTimestamp(`created_at`), 300) * 300, 'UTC') AS time, toString(`status`) AS series, sum(`total_cents`) AS value FROM `orders` WHERE `created_at` BETWEEN :__from AND :__to AND match(`service`, '^check') AND NOT match(`status`, :status) GROUP BY 1, 2 ORDER BY 1",
+    );
+  });
+
+  test('compute the seconds of an interval variable from its bound value, bound once', () => {
+    const sql = clickhouseOf({
+      kind: 'sql-series',
+      table: 'shop.orders',
+      time: 'created_at',
+      bucket: '$interval',
+    });
+    expect(sql).toContain('FROM `shop`.`orders`');
+    const bound = bindSql(
+      sql,
+      { interval: { value: '5m', duration: true } },
+      range(),
+      'clickhouse',
+    );
+    expect(bound.parameters.filter((value) => value === '5m')).toHaveLength(1);
+  });
+
+  test('escape backslashes and quotes with a backslash, so a value cannot close its string', () => {
+    const sql = clickhouseOf({
+      kind: 'sql-stat',
+      table: 'orders',
+      filters: [{ field: 'note', value: "\\' OR 1=1 -- " }],
+    });
+    expect(sql).toContain("`note` = '\\\\\\' OR 1=1 -- '");
+    expect(() => bindSql(sql, {}, range(), 'clickhouse')).not.toThrow();
+  });
+});
+
 /**
  * A fixed time range.
  *
