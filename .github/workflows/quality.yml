@@ -120,6 +120,9 @@ jobs:
           - sources: search
             up: env:up:search
             test: test:integration:search
+          - sources: loki
+            up: env:up:loki
+            test: test:integration:loki
     permissions:
       contents: read
     steps:

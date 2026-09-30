@@ -112,6 +112,12 @@ export const devSearchServers = [
   secret: {},
 }));
 
+/** The dev Loki, holding the request logs. */
+export const devLoki = {
+  config: { url: `http://127.0.0.1:${process.env.QUERENT_DEV_LOKI_PORT ?? 3101}` },
+  secret: {},
+};
+
 /** The dev Prometheus, in the Prometheus connector's configuration shape. */
 export const devPrometheus = {
   config: { url: `http://127.0.0.1:${process.env.QUERENT_DEV_PROMETHEUS_PORT ?? 9091}` },

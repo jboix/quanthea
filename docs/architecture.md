@@ -723,6 +723,15 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   reason quotes values, so the safe message never does. Neither server says whether a user could
   write through a search, so the connection test reports `readOnly: null`: the credentials should
   hold a read-only role.
+- **Loki:** the HTTP API over the kit's HTTP client, read endpoints only, with no auth, a bearer
+  token or basic authentication, and a tenant (`X-Scope-OrgID`). A log query gives one table: the
+  time, the line and a column per label, the stream's and those the pipeline extracted, newest
+  first; `limit` is `maxRows + 1`, at most 5000 (Loki's default `max_entries_limit_per_query`),
+  and a table that reached it is marked truncated. A metric query gives series as Prometheus does
+  (`seriesFrames`). `describe` gives one entity, `logs`: the stream labels with their value counts,
+  the fields Loki detects in the lines (`detected_fields`, such as `route` from `| json`) and the
+  number of lines, over the last day. Loki answers errors in plain text; quoted literals are
+  removed from the safe message.
 - **HTTP JSON:** GET only by default. The response is mapped to frames with a small declarative
   extractor (JSON pointer paths), not code.
 
@@ -1373,6 +1382,7 @@ provider's name, so two setups of the same vendor stay apart.
 | ClickHouse    | `localhost:8124` | Database `orders` (`dev/clickhouse`), over HTTP: the same tables and view as MySQL. Users `querent_admin`, and `dash_ro`, `dash_ro_2` (`readonly=2`) and `dash_ro_1` (`readonly=1`) with password `dash-ro-dev`. Started by `bun run env:up:clickhouse`. |
 | Elasticsearch | `localhost:9201` | The request logs of every service in daily indices `logs-YYYY.MM.DD` (`dev/log-seed`), without security. Started and seeded by `bun run env:up:search`.                                                                                                  |
 | OpenSearch    | `localhost:9202` | The same logs, from the same seed. Started by `bun run env:up:search`.                                                                                                                                                                                   |
+| Loki          | `localhost:3101` | The same logs, labelled `service`, `env` and `level`, each line the event as JSON (`dev/loki`). Started and seeded by `bun run env:up:loki`.                                                                                                             |
 
 - Both sources tell one story, the checkout incident: deploy #481 of `checkout-svc` yesterday at
   12:02 UTC, 5xx errors of checkout rising to 8.4% and its p95 latency to about 3 s, failed orders
@@ -1400,7 +1410,8 @@ provider's name, so two setups of the same vendor stay apart.
   `bun run env:up:mysql`, then `bun run test:integration:mysql`) or `clickhouse`
   (`bun run env:up:clickhouse`, then `bun run test:integration:clickhouse`) or `trino`
   (`bun run env:up:trino`, then `bun run test:integration:trino`) or `search` (Elasticsearch and
-  OpenSearch: `bun run env:up:search`, then `bun run test:integration:search`). Every connector kind also runs
+  OpenSearch: `bun run env:up:search`, then `bun run test:integration:search`) or `loki`
+  (`bun run env:up:loki`, then `bun run test:integration:loki`). Every connector kind also runs
   the conformance suite there. A kind ships only with a free server image its tests run against,
   so nothing is written against a service no one can run. CI runs one `integration` job per set.
   `dashboards/checkout-fixture.integration.test.ts` pins the seed's fixture and runs every panel as

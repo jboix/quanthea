@@ -53,7 +53,8 @@ MySQL on :3307 and MariaDB on :3308, and `bun run test:integration:mysql` runs t
 runs its tests. `bun run env:up:trino` starts Trino on :8081 over the dev Postgres, and
 `bun run test:integration:trino` runs its tests.
 `bun run env:up:search` starts Elasticsearch on :9201 and OpenSearch on :9202 with the request
-logs, and `bun run test:integration:search` runs their tests. The sources, their users and the
+logs, and `bun run test:integration:search` runs their tests. `bun run env:up:loki` starts Loki on
+:3101 with the same logs, and `bun run test:integration:loki` runs its tests. The sources, their users and the
 incident they share are described in [the architecture](./architecture.md#14-local-development).
 
 ## Adding a connector
