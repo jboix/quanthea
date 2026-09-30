@@ -17,14 +17,14 @@ import { type CatalogRow, catalogQuery, quoteIdentifier, toEntities } from './ca
 import { fieldTypeOf, frameValue } from './columns.ts';
 import { clickhouseGuide } from './guide.ts';
 import { testConnection } from './health.ts';
+import { clickhouseIcon } from './icon.ts';
 import { type ClickhouseSession, openSession, type ResultRows } from './session.ts';
 
 /** The configuration of a ClickHouse connector. */
 const configSchema = z.object({
   url: z.url({ protocol: /^https?$/ }).meta({
     title: 'URL',
-    description:
-      'The HTTP interface of the server, port 8123 or 8443 for HTTPS. A replica is a good choice.',
+    description: 'The HTTP interface: port 8123, or 8443 with HTTPS.',
     examples: ['http://clickhouse:8123'],
   }),
   database: z
@@ -40,14 +40,10 @@ const configSchema = z.object({
     .default('default')
     .meta({
       title: 'Username',
-      description:
-        'A user with SELECT grants only, or readonly=2. A user with readonly=1 cannot take the row cap and timeout.',
+      description: 'SELECT grants, or readonly=2. A readonly=1 user cannot take the row cap.',
       examples: ['dash_ro'],
     }),
-  verifyTls: z.boolean().default(true).meta({
-    title: 'Verify the TLS certificate',
-    description: 'Turn off only for a server with a self-signed certificate.',
-  }),
+  verifyTls: z.boolean().default(true).meta({ title: 'Verify the TLS certificate' }),
 });
 
 /** The credentials of a ClickHouse connector. */
@@ -187,7 +183,7 @@ async function describe(session: ClickhouseSession, signal: AbortSignal) {
 export const clickhouseConnector = defineConnector({
   kind: 'clickhouse',
   displayName: 'ClickHouse',
-  description: 'A ClickHouse database, queried with SQL over HTTP in read-only queries.',
+  icon: clickhouseIcon,
   language: 'sql',
   dialect: 'clickhouse',
   queryGuide: clickhouseGuide,

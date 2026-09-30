@@ -611,7 +611,7 @@ the **connector kit**, `connectors/_shared/index.ts` (dependency-cruiser rule
 export const exampleConnector = defineConnector({
   kind: 'example',                    // stable identifier, stored with each connector
   displayName: 'Example',
-  description: 'One sentence shown when an admin picks a kind.',
+  icon: { path: 'M…', color: '#4169E1' }, // optional: the logo, one SVG path on a 24×24 grid
   language: 'sql',                    // the core binds variables for this language
   dialect: 'postgres',                // SQL only: how the core writes literals and placeholders
   configSchema: z.object({ … }),      // host, database, TLS: plain text; `.meta()` titles the form
@@ -624,6 +624,11 @@ export const exampleConnector = defineConnector({
 ```
 
 - The app builds the add and edit forms from the two schemas (JSON Schema), so a kind ships no UI.
+  The credentials follow the `username` setting, or the whole configuration when there is none.
+- `icon` is data, not markup: `defineConnector` accepts only path commands and a `#rrggbb`
+  colour, and the app draws the path on that colour. The built-in logos come from Simple Icons
+  (CC0). A kind without one gets the first letters of its name. The add form lists the kinds as
+  logos and names with a search; the connector list gets a filter from seven connectors.
 - `describeTarget` returns one line such as `postgres://dash_ro@replica:5432/orders`. It never
   includes credentials.
 - A kind never sees a query template or raw variable values: `execute` receives a **bound query**

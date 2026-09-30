@@ -117,6 +117,23 @@ export function settingFields(schema: unknown, part: SettingField['part']): Sett
 }
 
 /**
+ * Places the credentials right after the `username` setting, so the two sit together, or after
+ * the whole configuration when there is none.
+ *
+ * @param config - The configuration fields, in schema order.
+ * @param secret - The credential fields, in schema order.
+ * @returns All the fields, in the order the form shows them.
+ */
+export function orderFields(
+  config: readonly SettingField[],
+  secret: readonly SettingField[],
+): SettingField[] {
+  const username = config.findIndex((field) => field.name === 'username');
+  const at = username === -1 ? config.length : username + 1;
+  return [...config.slice(0, at), ...secret, ...config.slice(at)];
+}
+
+/**
  * The key of a field in the form values and in the server's validation issues.
  *
  * @param field - The field.

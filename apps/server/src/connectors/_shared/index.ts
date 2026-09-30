@@ -4,6 +4,7 @@
  */
 export {
   type AnyConnectorKind,
+  type ConnectorIcon,
   type ConnectorInstance,
   defineConnector,
 } from './connector-kind.ts';

@@ -3,13 +3,14 @@ import { type FormEvent, useMemo, useState } from 'react';
 import { Link, useActionData, useLoaderData, useNavigation, useSubmit } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';
-import { RadioCards } from '../../ui/radio-cards.tsx';
 import styles from './connector-form.module.css';
 import type { ChangeOutcome, ConnectorData } from './data.ts';
+import { KindPicker } from './kind-picker.tsx';
 import { SettingInput } from './setting-input.tsx';
 import {
   fieldKey,
   initialValues,
+  orderFields,
   readPart,
   type SettingField,
   type SettingValues,
@@ -19,17 +20,17 @@ import { asJsonBody, failureOf, useConnectorChange } from './use-connector-chang
 import { useConnectorsData } from './use-connectors-data.ts';
 
 /**
- * The settings fields of a kind: its configuration, then its credentials.
+ * The settings fields of a kind, with its credentials next to the username.
  *
  * @param kind - The kind, if one is picked.
  * @returns The fields.
  */
 function fieldsOf(kind: ConnectorKindInfo | undefined): SettingField[] {
   if (!kind) return [];
-  return [
-    ...settingFields(kind.configSchema, 'config'),
-    ...settingFields(kind.secretSchema, 'secret'),
-  ];
+  return orderFields(
+    settingFields(kind.configSchema, 'config'),
+    settingFields(kind.secretSchema, 'secret'),
+  );
 }
 
 /** Props of {@link ConnectorForm}. */
@@ -117,7 +118,7 @@ interface FormPartProps {
 }
 
 /**
- * The name field, and the kind cards when adding.
+ * The name field, and the kind picker when adding.
  *
  * @param props - The form state, issues and connector.
  * @param props.kinds - The kinds on offer.
@@ -129,11 +130,6 @@ function IdentityFields({
   connector,
   kinds,
 }: FormPartProps & { readonly kinds: readonly ConnectorKindInfo[] }) {
-  const kindOptions = kinds.map((kind) => ({
-    value: kind.kind,
-    title: kind.displayName,
-    description: kind.description,
-  }));
   return (
     <>
       <Input
@@ -147,12 +143,7 @@ function IdentityFields({
         onChange={(event) => form.setName(event.target.value)}
       />
       {!connector && (
-        <RadioCards
-          label="Kind"
-          options={kindOptions}
-          value={form.kind?.kind ?? ''}
-          onChange={form.pickKind}
-        />
+        <KindPicker kinds={kinds} value={form.kind?.kind ?? ''} onChange={form.pickKind} />
       )}
     </>
   );

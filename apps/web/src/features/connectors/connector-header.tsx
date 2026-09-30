@@ -4,6 +4,8 @@ import { Button, buttonClassName } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import styles from './connector.module.css';
 import { type Health, useHealth } from './health.ts';
+import { KindIcon } from './kind-icon.tsx';
+import { useConnectorsData } from './use-connectors-data.ts';
 
 /**
  * The pill next to the name: the result of the last connection test.
@@ -20,7 +22,7 @@ function HealthPill({ health }: { readonly health: Health }) {
 }
 
 /**
- * The top of a connector's screen: name, health, target, and the Test and Edit actions. A failed
+ * The top of a connector's screen: kind icon, name, health, target, and the Test and Edit actions. A failed
  * test says why under the target. A connector the configuration file manages has no Edit.
  *
  * @param props - The connector.
@@ -29,11 +31,14 @@ function HealthPill({ health }: { readonly health: Health }) {
  */
 export function ConnectorHeader({ connector }: { readonly connector: ConnectorDetail }) {
   const health = useHealth(connector.id, connector.updatedAt);
+  const { kinds } = useConnectorsData();
+  const kind = kinds.find((candidate) => candidate.kind === connector.kind);
   const failure = health.report && !health.report.ok ? health.report.message : undefined;
   return (
     <header className={styles.header}>
       <div className={styles.headerText}>
         <div className={styles.titleRow}>
+          <KindIcon kind={connector.kind} info={kind} size={28} />
           <h2 className={styles.name}>{connector.name}</h2>
           <HealthPill health={health} />
           {connector.managedBy && (

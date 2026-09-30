@@ -17,6 +17,7 @@ import { type CatalogRow, catalogQuery, quoteIdentifier, toEntities } from './ca
 import { fieldTypeOf, frameValue } from './columns.ts';
 import { toConnectorError } from './errors.ts';
 import { postgresGuide } from './guide.ts';
+import { postgresIcon } from './icon.ts';
 
 /** The configuration of a PostgreSQL connector. */
 const configSchema = z.object({
@@ -26,7 +27,6 @@ const configSchema = z.object({
     .min(1)
     .meta({
       title: 'Host',
-      description: 'The server name or address. A read replica is a good choice.',
       examples: ['orders-replica.internal'],
     }),
   port: z.int().min(1).max(65535).default(5432).meta({ title: 'Port' }),
@@ -41,7 +41,7 @@ const configSchema = z.object({
     .min(1)
     .meta({
       title: 'Username',
-      description: 'A role with SELECT grants only. The connection test says whether it can write.',
+      description: 'SELECT grants are enough. The connection test says whether it can write.',
       examples: ['dash_ro'],
     }),
   tls: z.enum(['verify-full', 'require', 'prefer', 'disable']).default('verify-full').meta({
@@ -336,7 +336,7 @@ function openPool(config: z.output<typeof configSchema>, password: string): Sql 
 export const postgresConnector = defineConnector({
   kind: 'postgres',
   displayName: 'PostgreSQL',
-  description: 'A PostgreSQL database, queried with SQL in read-only transactions.',
+  icon: postgresIcon,
   language: 'sql',
   dialect: 'postgres',
   queryGuide: postgresGuide,

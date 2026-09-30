@@ -19,6 +19,7 @@ import { type CatalogRow, catalogQuery, quoteIdentifier, toEntities } from './ca
 import { fieldTypeOf, frameValue } from './columns.ts';
 import { toConnectorError } from './errors.ts';
 import { mysqlGuide } from './guide.ts';
+import { mysqlIcon } from './icon.ts';
 import { openPool, type StreamedRows, streamRows, withSession } from './session.ts';
 
 /** The configuration of a MySQL or MariaDB connector. */
@@ -29,7 +30,6 @@ const configSchema = z.object({
     .min(1)
     .meta({
       title: 'Host',
-      description: 'The server name or address. A replica is a good choice.',
       examples: ['orders-replica.internal'],
     }),
   port: z.int().min(1).max(65535).default(3306).meta({ title: 'Port' }),
@@ -44,7 +44,7 @@ const configSchema = z.object({
     .min(1)
     .meta({
       title: 'Username',
-      description: 'A user with SELECT grants only. The connection test says whether it can write.',
+      description: 'SELECT grants are enough. The connection test says whether it can write.',
       examples: ['dash_ro'],
     }),
   tls: z.enum(['verify-full', 'require', 'disable']).default('verify-full').meta({
@@ -255,7 +255,7 @@ function closePool(pool: Pool): Promise<void> {
 export const mysqlConnector = defineConnector({
   kind: 'mysql',
   displayName: 'MySQL / MariaDB',
-  description: 'A MySQL or MariaDB database, queried with SQL in read-only sessions.',
+  icon: mysqlIcon,
   language: 'sql',
   dialect: 'mysql',
   queryGuide: mysqlGuide,

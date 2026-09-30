@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { fieldKey, initialValues, readPart, settingFields } from './settings-form.ts';
+import { fieldKey, initialValues, orderFields, readPart, settingFields } from './settings-form.ts';
 
 const configSchema = {
   type: 'object',
@@ -82,5 +82,23 @@ describe('readPart', () => {
     const values = { 'config.port': 'abc', 'secret.password': ' pw ' };
     expect(readPart(fields, values, 'config')).toEqual({ port: 'abc' });
     expect(readPart(fields, values, 'secret')).toEqual({ password: ' pw ' });
+  });
+});
+
+describe('orderFields', () => {
+  test('puts the credentials right after the username, and last without one', () => {
+    const withUser = settingFields(
+      { type: 'object', properties: { host: {}, username: {}, tls: {} } },
+      'config',
+    );
+    const secret = settingFields(secretSchema, 'secret');
+    expect(orderFields(withUser, secret).map(fieldKey)).toEqual([
+      'config.host',
+      'config.username',
+      'secret.password',
+      'config.tls',
+    ]);
+    const config = settingFields(configSchema, 'config');
+    expect(orderFields(config, secret).map(fieldKey).at(-1)).toBe('secret.password');
   });
 });

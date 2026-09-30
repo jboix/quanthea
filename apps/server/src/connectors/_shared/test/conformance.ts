@@ -78,10 +78,9 @@ function contextFor(
  * @param fixture - The fixture.
  */
 function testDeclaration(kind: AnyConnectorKind, fixture: ConformanceFixture): void {
-  test('declares an identifier, a name, a description and a known language', () => {
+  test('declares an identifier, a name and a known language', () => {
     expect(kind.kind).toMatch(/^[a-z][a-z0-9-]*$/);
     expect(kind.displayName.length).toBeGreaterThan(0);
-    expect(kind.description.length).toBeGreaterThan(0);
     expect(queryLanguages).toContain(kind.language);
   });
 

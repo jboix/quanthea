@@ -12,17 +12,24 @@ import { defineEndpoint } from './contract.ts';
 /** A JSON Schema document, as the server generates it from a kind's Zod schema. */
 const jsonSchemaSchema = z.record(z.string(), z.unknown());
 
+/** Validates a kind's logo: one SVG path on a 24×24 grid and its fill colour. */
+const connectorIconSchema = z.object({
+  path: z.string().regex(/^[MmZzLlHhVvCcSsQqTtAa0-9eE.,\s+-]+$/),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+});
+
 /** Validates a connector kind as the add form needs it. */
 export const connectorKindSchema = z.object({
   kind: z.string(),
   displayName: z.string(),
-  description: z.string(),
+  /** The kind's logo, or `null` when it has none. */
+  icon: connectorIconSchema.nullable(),
   language: z.enum(['sql', 'promql']),
   configSchema: jsonSchemaSchema,
   secretSchema: jsonSchemaSchema,
 });
 
-/** A connector kind: its identifier, names, query language and the JSON Schemas of its forms. */
+/** A connector kind: its identifier, name, logo, query language and the JSON Schemas of its forms. */
 export type ConnectorKindInfo = z.infer<typeof connectorKindSchema>;
 
 /** Validates a connector in a list. */

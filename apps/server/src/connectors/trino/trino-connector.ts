@@ -24,13 +24,14 @@ import {
 } from './catalog.ts';
 import { fieldTypeOf, frameValue } from './columns.ts';
 import { trinoGuide } from './guide.ts';
+import { trinoIcon } from './icon.ts';
 import { openSession, type ResultRows, type TrinoSession } from './session.ts';
 
 /** The configuration of a Trino connector. */
 const configSchema = z.object({
   url: z.url({ protocol: /^https?$/ }).meta({
     title: 'URL',
-    description: 'The coordinator. Password authentication needs HTTPS.',
+    description: 'The coordinator. A password needs HTTPS.',
     examples: ['https://trino.internal:8443'],
   }),
   catalog: z
@@ -39,7 +40,6 @@ const configSchema = z.object({
     .min(1)
     .meta({
       title: 'Catalog',
-      description: 'Where unqualified names resolve.',
       examples: ['hive'],
     }),
   schema: z
@@ -53,21 +53,14 @@ const configSchema = z.object({
     .min(1)
     .meta({
       title: 'Username',
-      description: 'A user the access control lets read only. Each query also runs read-only.',
       examples: ['dash_ro'],
     }),
-  verifyTls: z.boolean().default(true).meta({
-    title: 'Verify the TLS certificate',
-    description: 'Turn off only for a server with a self-signed certificate.',
-  }),
+  verifyTls: z.boolean().default(true).meta({ title: 'Verify the TLS certificate' }),
 });
 
 /** The credentials of a Trino connector. */
 const secretSchema = z.object({
-  password: z
-    .string()
-    .optional()
-    .meta({ title: 'Password', description: 'For a coordinator with password authentication.' }),
+  password: z.string().optional().meta({ title: 'Password' }),
 });
 
 /** How long health checks, schema reads and samples may take, in milliseconds. */
@@ -238,7 +231,7 @@ async function describe(session: TrinoSession, signal: AbortSignal) {
 export const trinoConnector = defineConnector({
   kind: 'trino',
   displayName: 'Trino',
-  description: 'A Trino cluster, queried with SQL in read-only transactions.',
+  icon: trinoIcon,
   language: 'sql',
   dialect: 'trino',
   queryGuide: trinoGuide,

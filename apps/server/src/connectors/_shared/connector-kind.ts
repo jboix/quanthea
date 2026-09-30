@@ -51,6 +51,17 @@ export interface ConnectorInstance {
   close(): Promise<void>;
 }
 
+/**
+ * A kind's logo, so people tell kinds apart at a glance: one SVG path on a 24×24 grid, filled with
+ * one colour. It is data, not markup: the app draws it.
+ */
+export interface ConnectorIcon {
+  /** The path data, the `d` attribute of an SVG `path`. */
+  readonly path: string;
+  /** The fill colour, as `#rrggbb`. */
+  readonly color: string;
+}
+
 /** What {@link ConnectorKind.open} receives: the parsed configuration and credentials. */
 export interface OpenOptions<Config, Secret> {
   /** The configuration, parsed with the kind's config schema. */
@@ -71,8 +82,8 @@ export interface ConnectorKind<
   readonly kind: string;
   /** The name shown to people, such as `PostgreSQL`. */
   readonly displayName: string;
-  /** One sentence shown when an admin picks a kind. */
-  readonly description: string;
+  /** The kind's logo. Without one, the app shows the first letters of its name. */
+  readonly icon?: ConnectorIcon;
   /** The language of this kind's query templates. The core binds variables for it. */
   readonly language: QueryLanguage;
   /** The SQL dialect, which a `sql` kind must declare: how the core binds its templates. */
@@ -112,13 +123,32 @@ export type AnyConnectorKind = ConnectorKind<z.ZodType, z.ZodType>;
 /** What a kind identifier looks like: lowercase letters, digits and dashes. */
 const kindPattern = /^[a-z][a-z0-9-]*$/;
 
+/** SVG path data: commands and numbers, nothing else. */
+const pathPattern = /^[MmZzLlHhVvCcSsQqTtAa0-9eE.,\s+-]+$/;
+
+/** A colour as `#rrggbb`. */
+const colorPattern = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Checks a kind's icon is path data and a colour, nothing that could run.
+ *
+ * @param kind - The kind identifier, for the message.
+ * @param icon - The icon, if any.
+ * @throws {Error} When the path or the colour is malformed.
+ */
+function checkIcon(kind: string, icon: ConnectorIcon | undefined): void {
+  if (icon === undefined) return;
+  if (!pathPattern.test(icon.path) || !colorPattern.test(icon.color))
+    throw new Error(`Connector kind "${kind}" has an icon that is not SVG path data and a colour.`);
+}
+
 /**
  * Declares a connector kind. It checks the identifier and keeps the schema types for `open`.
  *
  * @param definition - The kind.
  * @returns The same kind.
- * @throws {Error} When the identifier is not lowercase letters, digits and dashes, or a SQL kind
- *   declares no dialect.
+ * @throws {Error} When the identifier is not lowercase letters, digits and dashes, a SQL kind
+ *   declares no dialect, or the icon is malformed.
  */
 export function defineConnector<ConfigSchema extends z.ZodType, SecretSchema extends z.ZodType>(
   definition: ConnectorKind<ConfigSchema, SecretSchema>,
@@ -130,5 +160,6 @@ export function defineConnector<ConfigSchema extends z.ZodType, SecretSchema ext
   }
   if (definition.language === 'sql' && definition.dialect === undefined)
     throw new Error(`Connector kind "${definition.kind}" runs SQL and must declare its dialect.`);
+  checkIcon(definition.kind, definition.icon);
   return definition;
 }

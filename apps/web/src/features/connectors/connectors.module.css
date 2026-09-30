@@ -55,37 +55,35 @@
   background: var(--color-accent-soft);
 }
 
-.badge {
+.filter {
   display: flex;
-  flex-shrink: 0;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
+  gap: 8px;
+  height: 34px;
+  margin: 12px 20px 0;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
 }
 
-.badge[data-tone="accent"] {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+.filter:focus-within {
+  border-color: var(--color-accent);
 }
 
-.badge[data-tone="draft"] {
-  background: var(--color-draft-soft);
-  color: var(--color-draft);
+.filterIcon {
+  display: flex;
+  color: var(--color-ink-secondary);
 }
 
-.badge[data-tone="ok"] {
-  background: var(--color-ok-soft);
-  color: var(--color-ok-ink);
-}
-
-.badge[data-tone="plain"] {
-  background: var(--color-ground);
-  color: var(--color-ink-label);
+.filterInput {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--color-ink);
 }
 
 .itemText {

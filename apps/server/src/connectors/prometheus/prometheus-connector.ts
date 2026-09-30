@@ -15,12 +15,12 @@ import { createPrometheusApi, type PrometheusApi } from './api.ts';
 import { describePrometheus, metricSelector } from './catalog.ts';
 import { type QueryData, toFrames } from './frames.ts';
 import { prometheusGuide } from './guide.ts';
+import { prometheusIcon } from './icon.ts';
 
 /** The configuration of a Prometheus connector. */
 const configSchema = z.object({
   url: z.url({ protocol: /^https?$/ }).meta({
     title: 'URL',
-    description: 'The Prometheus server, or a compatible API such as Thanos or Mimir.',
     examples: ['http://prometheus:9090'],
   }),
   auth: z.enum(['none', 'bearer', 'basic']).default('none').meta({ title: 'Authentication' }),
@@ -29,10 +29,7 @@ const configSchema = z.object({
     .trim()
     .optional()
     .meta({ title: 'Username', description: 'For basic authentication.' }),
-  verifyTls: z.boolean().default(true).meta({
-    title: 'Verify the TLS certificate',
-    description: 'Turn off only for a server with a self-signed certificate.',
-  }),
+  verifyTls: z.boolean().default(true).meta({ title: 'Verify the TLS certificate' }),
 });
 
 /** The credentials of a Prometheus connector. */
@@ -202,7 +199,7 @@ function withoutCredentials(url: string): string {
 export const prometheusConnector = defineConnector({
   kind: 'prometheus',
   displayName: 'Prometheus',
-  description: 'A Prometheus server or a compatible API, queried with PromQL.',
+  icon: prometheusIcon,
   language: 'promql',
   queryGuide: prometheusGuide,
   configSchema,

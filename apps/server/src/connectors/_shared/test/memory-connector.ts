@@ -55,7 +55,6 @@ function runEvents(text: string, rowCount: number, context: ExecutionContext) {
 export const memoryConnector = defineConnector({
   kind: 'memory',
   displayName: 'Memory',
-  description: 'A fixed table of events, for tests.',
   language: 'sql',
   dialect: 'postgres',
   configSchema: z.object({

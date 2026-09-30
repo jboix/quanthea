@@ -48,7 +48,6 @@ import { type ConnectorInstance, defineConnector } from '../_shared/index.ts';
 const configSchema = z.object({
   host: z.string().min(1).meta({
     title: 'Host',
-    description: 'The server name or address. A read replica is a good choice.',
     examples: ['warehouse-replica.internal'],
   }),
   port: z.int().min(1).max(65535).default(9000).meta({ title: 'Port' }),
@@ -62,7 +61,7 @@ const secretSchema = z.object({
 export const warehouseConnector = defineConnector({
   kind: 'warehouse',
   displayName: 'Warehouse',
-  description: 'A Warehouse database, queried with SQL in read-only sessions.',
+  icon: warehouseIcon, // { path, color }: the logo, one SVG path on a 24×24 grid
   language: 'sql',
   dialect: 'postgres',
   configSchema,
@@ -84,13 +83,19 @@ export const warehouseConnector = defineConnector({
 The settings schemas drive the forms:
 
 - Each property becomes one field. `.meta()` gives its `title`, `description` (the hint) and
-  `examples` (the placeholder).
+  `examples` (the placeholder). Admins know their database: give a hint only for what they could
+  not guess, such as which port an HTTP interface uses.
 - A string is a text input, a number an input for numbers, an enum a select, a boolean a switch.
 - `.default()` fills the form and applies when the field is left empty.
 - Keep both schemas flat. The forms do not render nested objects.
 - `configSchema` is stored in plain text and shown to admins. Credentials never go in it.
 - `secretSchema` is sealed with AES-GCM and never returned. The edit form leaves it empty, and an
   empty field keeps the stored value.
+- The credentials follow a `username` setting, so name the user field `username`.
+
+`icon` is optional: the logo, as `{ path, color }`, one SVG path on a 24×24 grid and its brand
+colour as `#rrggbb`. The app draws the path in white or black, whichever reads on the colour.
+Simple Icons (CC0) has the path of most products. Keep it in `<kind>/icon.ts`.
 
 `describeTarget` is optional. It returns the line shown under the connector's name. It must not
 include credentials.

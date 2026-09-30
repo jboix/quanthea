@@ -1,25 +1,38 @@
 import type { ConnectorKindInfo, ConnectorSummary } from '@querent/shared';
+import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router';
 import { buttonClassName } from '../../ui/button.tsx';
+import { SearchIcon } from '../../ui/icons.tsx';
 import { Placeholder } from '../../ui/placeholder.tsx';
 import { StatusDot } from '../../ui/status-dot.tsx';
 import { accessLevelName } from './access-levels.ts';
 import styles from './connectors.module.css';
 import { type Health, healthStatus, useHealth } from './health.ts';
+import { KindIcon } from './kind-icon.tsx';
 import { useConnectorsData } from './use-connectors-data.ts';
 
-/** The badge colours, picked by kind so each kind keeps its colour. */
-const badgeTones = ['accent', 'draft', 'ok', 'plain'] as const;
+/** From how many connectors the list gets a filter. */
+const filterFrom = 7;
 
 /**
- * The badge tone of a kind.
+ * The connectors whose name or kind holds every word of a filter.
  *
- * @param kind - The kind identifier.
- * @returns A tone, stable for the kind.
+ * @param connectors - The connectors.
+ * @param kinds - The kinds, for their names.
+ * @param filter - What the admin typed.
+ * @returns The matching connectors, in order.
  */
-function badgeTone(kind: string): (typeof badgeTones)[number] {
-  const sum = [...kind].reduce((total, character) => total + character.charCodeAt(0), 0);
-  return badgeTones[sum % badgeTones.length] ?? 'plain';
+function matchingConnectors(
+  connectors: readonly ConnectorSummary[],
+  kinds: readonly ConnectorKindInfo[],
+  filter: string,
+): ConnectorSummary[] {
+  const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
+  return connectors.filter((connector) => {
+    const kindName = kinds.find((kind) => kind.kind === connector.kind)?.displayName ?? '';
+    const text = `${connector.name} ${connector.kind} ${kindName}`.toLowerCase();
+    return words.every((word) => text.includes(word));
+  });
 }
 
 /**
@@ -42,7 +55,7 @@ interface ConnectorListItemProps {
 }
 
 /**
- * One connector in the list: kind badge, name, kind and access level, and its health.
+ * One connector in the list: kind icon, name, kind and access level, and its health.
  *
  * @param props - The connector and its kind.
  * @returns The list item.
@@ -53,9 +66,7 @@ function ConnectorListItem({ connector, kind }: ConnectorListItemProps) {
   return (
     <li>
       <NavLink to={`/connectors/${connector.id}`} className={styles.item ?? ''}>
-        <span className={styles.badge} data-tone={badgeTone(connector.kind)} aria-hidden="true">
-          {kindName.slice(0, 2).toUpperCase()}
-        </span>
+        <KindIcon kind={connector.kind} info={kind} />
         <span className={styles.itemText}>
           <span className={styles.itemName}>{connector.name}</span>
           <span className={styles.itemMeta}>
@@ -70,12 +81,47 @@ function ConnectorListItem({ connector, kind }: ConnectorListItemProps) {
 }
 
 /**
- * The connectors screen: the list on the left, the selected connector or a form on the right.
+ * The filter of a long connector list.
+ *
+ * @param props - The filter text and its setter.
+ * @param props.value - The filter text.
+ * @param props.onChange - Called with the new text.
+ * @returns The search field.
+ */
+function ConnectorFilter({
+  value,
+  onChange,
+}: {
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+}) {
+  return (
+    <search className={styles.filter}>
+      <span className={styles.filterIcon}>
+        <SearchIcon />
+      </span>
+      <input
+        type="search"
+        aria-label="Filter the connectors"
+        className={styles.filterInput}
+        placeholder="Filter"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </search>
+  );
+}
+
+/**
+ * The connectors screen: the list on the left, the selected connector or a form on the right. A
+ * long list gets a filter by name and kind.
  *
  * @returns The layout.
  */
 export function ConnectorsLayout() {
   const { connectors, kinds } = useConnectorsData();
+  const [filter, setFilter] = useState('');
+  const shown = matchingConnectors(connectors, kinds, filter);
   return (
     <div className={styles.screen}>
       <aside className={styles.sidebar}>
@@ -85,9 +131,10 @@ export function ConnectorsLayout() {
             Add
           </Link>
         </header>
+        {connectors.length >= filterFrom && <ConnectorFilter value={filter} onChange={setFilter} />}
         <nav aria-label="Connectors">
           <ul className={styles.list}>
-            {connectors.map((connector) => (
+            {shown.map((connector) => (
               <ConnectorListItem
                 key={connector.id}
                 connector={connector}
