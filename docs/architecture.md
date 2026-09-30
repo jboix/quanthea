@@ -451,7 +451,8 @@ directly onto an ECharts `dataset`.
     `date_bin` from the start of the range; MySQL and MariaDB bucket epoch seconds in a UTC
     session, quote names in backticks and escape backslashes in strings. ClickHouse also buckets
     epoch seconds (`toStartOfInterval` takes no bound width), escapes quotes with a backslash and
-    matches regular expressions with `match()`.
+    matches regular expressions with `match()`. Trino buckets epoch seconds in a UTC session, reads
+    an interval variable with `parse_duration` and matches with `regexp_like`.
   - **Saved queries.** An admin saves a query with typed placeholders (`{{name}}`: metric, label,
     table, column, value or duration) and the shape it returns. The model asks for it by id with a
     value per placeholder. Each value is checked and written for its kind like the builders write
@@ -725,6 +726,9 @@ that changes with its settings).
        Strings and heredocs (`$$…$$`), identifiers in double quotes or backticks, `--` and `#`
        comments and nested block comments are never rewritten; `{` in a template's code and a
        SETTINGS clause, which could lift the connector's limits, are refused.
+     - `trino`: `?`, one per use. Standard strings, where a backslash is a plain character,
+       double-quoted identifiers, `--` comments and block comments, which do not nest, are never
+       rewritten; `?` in a template is refused.
 
      The template must be one statement starting with SELECT, WITH, VALUES or TABLE, without INSERT,
      UPDATE, DELETE, MERGE, TRUNCATE, DROP, ALTER, CREATE, GRANT, REVOKE, COPY or INTO outside

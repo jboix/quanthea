@@ -155,11 +155,43 @@ const clickhouseWriter: SqlWriter = {
   matches: (column, pattern, negated) => `${negated ? 'NOT ' : ''}match(${column}, ${pattern})`,
 };
 
+/**
+ * Seconds of a duration in Trino: a number, or computed from the bound text such as `5m`.
+ *
+ * @param duration - The duration.
+ * @returns The seconds expression.
+ */
+function trinoSeconds(duration: DurationText): string {
+  if ('seconds' in duration) return String(duration.seconds);
+  return `(to_milliseconds(parse_duration(:${duration.variable})) / 1000)`;
+}
+
+/**
+ * Trino: double-quoted names, standard strings, `regexp_like`, buckets from epoch seconds. The
+ * connector's session is in UTC.
+ */
+const trinoWriter: SqlWriter = {
+  quote: (identifier) => `"${identifier.replaceAll('"', '""')}"`,
+  string: (value) => `'${value.replaceAll("'", "''")}'`,
+  text: (expression) => `CAST(${expression} AS varchar)`,
+  interval: (duration) =>
+    'seconds' in duration
+      ? `INTERVAL '${duration.seconds}' SECOND`
+      : `parse_duration(:${duration.variable})`,
+  bucket: (time, duration) => {
+    const seconds = trinoSeconds(duration);
+    return `from_unixtime(floor(to_unixtime(${time}) / ${seconds}) * ${seconds})`;
+  },
+  matches: (column, pattern, negated) =>
+    `${negated ? 'NOT ' : ''}regexp_like(${column}, ${pattern})`,
+};
+
 /** The writer of each dialect. */
 const writers: Readonly<Record<SqlDialect, SqlWriter>> = {
   postgres: postgresWriter,
   mysql: mysqlWriter,
   clickhouse: clickhouseWriter,
+  trino: trinoWriter,
 };
 
 /**

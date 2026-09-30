@@ -4,6 +4,7 @@ import type { SqlLexicon } from './sql-lexer.ts';
 import { clickhouseLexicon } from './sql-lexicon-clickhouse.ts';
 import { mysqlLexicon } from './sql-lexicon-mysql.ts';
 import { postgresLexicon } from './sql-lexicon-postgres.ts';
+import { trinoLexicon } from './sql-lexicon-trino.ts';
 
 /** What the binder needs to know of a dialect. */
 export interface SqlDialectRules {
@@ -68,6 +69,13 @@ export const sqlDialectRules: Readonly<Record<SqlDialect, SqlDialectRules>> = {
       message:
         'A query cannot change settings; "SETTINGS" is not allowed. Quote an identifier with that name.',
     },
+  },
+  trino: {
+    lexicon: trinoLexicon,
+    placeholder: () => '?',
+    numbered: false,
+    writtenPlaceholder: /\?/,
+    writtenPlaceholderMessage: 'Use named variables such as :service, not ?.',
   },
 };
 export type { SqlDialect } from '../connectors/_shared/index.ts';

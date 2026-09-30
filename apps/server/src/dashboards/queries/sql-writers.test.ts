@@ -149,6 +149,44 @@ describe('the SQL builders for ClickHouse', () => {
   });
 });
 
+/** Every connector runs Trino. */
+const trino: BuildContext = { saved: [], dialectOf: () => 'trino' };
+
+/**
+ * The SQL a builder writes for a Trino connector.
+ *
+ * @param data - The data request.
+ * @returns The SQL.
+ */
+function trinoOf(data: Record<string, unknown>): string {
+  const query = buildData(dataSchema.parse({ connector: 'shop', ...data }), trino).queries[0];
+  return query?.language === 'sql' ? query.sql : '';
+}
+
+describe('the SQL builders for Trino', () => {
+  test('bucket time from epoch seconds, cast to varchar, and match with regexp_like', () => {
+    expect(
+      trinoOf({
+        kind: 'sql-series',
+        table: 'orders',
+        time: 'created_at',
+        bucket: '5m',
+        by: 'status',
+        filters: [{ field: 'service', op: '!~', value: "^check'" }],
+      }),
+    ).toBe(
+      'SELECT from_unixtime(floor(to_unixtime("created_at") / 300) * 300) AS time, CAST("status" AS varchar) AS series, count(*) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND NOT regexp_like("service", \'^check\'\'\') GROUP BY 1, 2 ORDER BY 1',
+    );
+  });
+
+  test('parse an interval variable as a duration', () => {
+    const sql = trinoOf({ kind: 'sql-series', table: 'orders', time: 'at', bucket: '$interval' });
+    expect(sql).toContain('to_milliseconds(parse_duration(:interval)) / 1000');
+    const bound = bindSql(sql, { interval: { value: '5m', duration: true } }, range(), 'trino');
+    expect(bound.parameters.filter((value) => value === '5m')).toHaveLength(2);
+  });
+});
+
 /**
  * A fixed time range.
  *
