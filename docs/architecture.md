@@ -655,6 +655,16 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   `SET LOCAL statement_timeout`, wrapped in `LIMIT maxRows + 1`. `describe` reads `pg_catalog`
   (comments, `reltuples`, `pg_stats.n_distinct`), never table data. SQLSTATEs map to connector
   errors; data errors (class 22) never quote the value.
+- **MySQL and MariaDB:** one kind, `mysql`, over the `mysql2` driver with code generation, local
+  files and multiple statements off. `Bun.sql` 1.3 returns DECIMAL as bytes, reads dates in the
+  local time zone, gives no column types and ignores a read-only transaction. Each session is
+  `SET SESSION TRANSACTION READ ONLY` (which, unlike a read-only transaction, also refuses schema
+  changes, since they commit implicitly) and in UTC; `sql_select_limit` caps rows at
+  `maxRows + 1`, and the reader stops there too when a query asks for more with its own LIMIT. A
+  statement is prepared, never formatted by the driver. At the timeout or when the caller gives up,
+  `KILL QUERY` stops it on the server and the connection is closed rather than reused. `describe`
+  reads `information_schema` (comments, `TABLE_ROWS`, index cardinality), never table data. Error
+  numbers map to connector errors; value errors never quote the value.
 - **OpenSearch:** the official client (`@opensearch-project/opensearch`), only in
   `connectors/opensearch/`. The query body is DSL JSON with structural variables. `describe` =
   index patterns + mappings. A spike (client 3.9.0, Bun 1.3.14, OpenSearch 3.8.0) found:
@@ -1293,6 +1303,8 @@ provider's name, so two setups of the same vendor stay apart.
 | ---------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Postgres   | `localhost:5433` | Database `orders`: `customers`, `orders`, `order_items`, `payments`, `refunds`, `deploys`. Users `querent_admin` (password `querent-dev`) and the read-only `dash_ro` (password `dash-ro-dev`). |
 | Prometheus | `localhost:9091` | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                 |
+| MySQL      | `localhost:3307` | Database `orders` (`dev/mysql`): `customers`, `orders`, `deploys` and the view `failed_orders`, one order every five seconds. Same users as Postgres. Started by `bun run env:up:mysql`.        |
+| MariaDB    | `localhost:3308` | The same database as MySQL, from the same scripts. Started by `bun run env:up:mysql`.                                                                                                           |
 | OpenSearch | `localhost:9202` | A single node without security, started only by `bun run env:up:opensearch`.                                                                                                                    |
 
 - Both sources tell one story, the checkout incident: deploy #481 of `checkout-svc` yesterday at
@@ -1301,8 +1313,8 @@ provider's name, so two setups of the same vendor stay apart.
   manual test script and the eval fixture all at once.
 - `dev/metrics/incident.ts` holds the traffic model. `history.ts` writes the metrics from eight
   hours before the incident until now, which `promtool` backfills into Prometheus on the first
-  start; `serve.ts` serves the same model live. The Postgres seed (`dev/postgres`) computes the
-  incident from the same instant. The seed runs once per data volume, so after `env:down` the next
+  start; `serve.ts` serves the same model live. The Postgres and MySQL seeds (`dev/postgres`,
+  `dev/mysql`) compute the incident from the same instant. The seed runs once per data volume, so after `env:down` the next
   `env:up` moves the incident to the new yesterday.
 
 ## 15. Testing and evals
@@ -1316,8 +1328,11 @@ provider's name, so two setups of the same vendor stay apart.
   database file, its write-ahead log and its shared memory for any of them in clear.
   `docs/SECURITY.md` holds the threat model.
 - **Integration** (`bun run test:integration`, after `bun run env:up`): each connector against the
-  real service, in `*.integration.test.ts` files that run only with `QUERENT_INTEGRATION=1`. Every
-  connector kind also runs the conformance suite there. CI runs them in the `integration` job.
+  real service, in `*.integration.test.ts` files. `QUERENT_INTEGRATION` names the sets of sources
+  they run against: `core` (Postgres, Prometheus) or `mysql` (MySQL, MariaDB:
+  `bun run env:up:mysql`, then `bun run test:integration:mysql`). Every connector kind also runs
+  the conformance suite there. A kind ships only with a free server image its tests run against,
+  so nothing is written against a service no one can run. CI runs one `integration` job per set.
   `dashboards/checkout-fixture.integration.test.ts` pins the seed's fixture and runs every panel as
   a viewer with no model configured anywhere.
 - **Web:** unit tests for the chart adapter, the panel reductions and tables, and the URL state.

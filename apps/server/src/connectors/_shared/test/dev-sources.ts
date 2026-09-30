@@ -1,10 +1,33 @@
 /**
  * The local data sources of `bun run env:up`, for integration tests. The tests that need them run
- * only with QUERENT_INTEGRATION=1 (`bun run test:integration`).
+ * only when QUERENT_INTEGRATION names their set, comma-separated: `core` (or `1`) for Postgres and
+ * Prometheus (`bun run test:integration`), `mysql` for MySQL and MariaDB
+ * (`bun run test:integration:mysql`).
  */
 
-/** Whether the integration tests run. */
-export const integrationEnabled = process.env.QUERENT_INTEGRATION === '1';
+/** A set of data sources that start together. */
+type SourceSet = 'core' | 'mysql';
+
+/** The sets the integration tests run against. */
+const integrationSets = new Set(
+  (process.env.QUERENT_INTEGRATION ?? '')
+    .split(',')
+    .map((name) => name.trim())
+    .map((name) => (name === '1' ? 'core' : name)),
+);
+
+/**
+ * Whether the integration tests of a set of data sources run.
+ *
+ * @param set - The set.
+ * @returns Whether QUERENT_INTEGRATION names it.
+ */
+export function integrationFor(set: SourceSet): boolean {
+  return integrationSets.has(set);
+}
+
+/** Whether the integration tests against Postgres and Prometheus run. */
+export const integrationEnabled = integrationFor('core');
 
 /** The dev Postgres as the read-only role, in the Postgres connector's configuration shape. */
 export const devPostgres = {
@@ -24,6 +47,32 @@ export const devPostgresOwner = {
   config: { ...devPostgres.config, username: 'querent_admin' },
   secret: { password: 'querent-dev' },
 };
+
+/**
+ * A dev MySQL or MariaDB as the read-only user, in the MySQL connector's configuration shape.
+ *
+ * @param port - Its port.
+ * @returns The configuration and the secret.
+ */
+function devMysqlOn(port: number) {
+  return {
+    config: { host: '127.0.0.1', port, database: 'orders', username: 'dash_ro', tls: 'disable' },
+    secret: { password: 'dash-ro-dev' },
+  };
+}
+
+/** The dev MySQL and MariaDB, each as the read-only user and as the owner, which can write. */
+export const devMysqlServers = [
+  { name: 'MySQL', port: Number(process.env.QUERENT_DEV_MYSQL_PORT ?? 3307) },
+  { name: 'MariaDB', port: Number(process.env.QUERENT_DEV_MARIADB_PORT ?? 3308) },
+].map(({ name, port }) => {
+  const reader = devMysqlOn(port);
+  const owner = {
+    config: { ...reader.config, username: 'querent_admin' },
+    secret: { password: 'querent-dev' },
+  };
+  return { name, reader, owner };
+});
 
 /** The dev Prometheus, in the Prometheus connector's configuration shape. */
 export const devPrometheus = {

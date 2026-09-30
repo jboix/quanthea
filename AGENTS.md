@@ -9,9 +9,9 @@ Read this fully before writing code. Then read the design docs:
 ## What this project is
 
 querent is a self-hosted web app. You describe a dashboard in a chat, an agent builds it against
-your data sources (Prometheus, Postgres, OpenSearch, HTTP APIs), you refine it in the same thread,
-and you pin the good ones. Pinned dashboards are versioned, searchable, and render without any
-model involved.
+your data sources (Prometheus, Postgres, MySQL, OpenSearch, HTTP APIs), you refine it in the same
+thread, and you pin the good ones. Pinned dashboards are versioned, searchable, and render without
+any model involved.
 
 ## Commands
 
@@ -29,6 +29,7 @@ bun run typecheck    # tsc in every workspace
 bun test             # unit tests (bun:test)
 bun run env:up       # the local data sources: Postgres :5433, Prometheus :9091
 bun run test:integration  # connector tests against the local data sources
+bun run env:up:mysql && bun run test:integration:mysql  # the same for MySQL and MariaDB
 bun run build        # build the SPA into apps/web/dist
 bun run start        # run the server, serving the built SPA
 ```

@@ -3,11 +3,16 @@
  * `defineConnector` declaration and list it here; the forms, the API and the gate pick it up.
  */
 import type { AnyConnectorKind } from './_shared/index.ts';
+import { mysqlConnector } from './mysql/mysql-connector.ts';
 import { postgresConnector } from './postgres/postgres-connector.ts';
 import { prometheusConnector } from './prometheus/prometheus-connector.ts';
 
 /** The connector kinds, in the order the add form lists them. */
-export const connectorKinds: readonly AnyConnectorKind[] = [postgresConnector, prometheusConnector];
+export const connectorKinds: readonly AnyConnectorKind[] = [
+  postgresConnector,
+  mysqlConnector,
+  prometheusConnector,
+];
 
 /**
  * Finds a connector kind by identifier.

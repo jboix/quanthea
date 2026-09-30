@@ -33,6 +33,8 @@ export interface ConformanceFixture {
   readonly timeRange: TimeRange;
   /** Whether a source is available. Without one, only the static checks run. */
   readonly live: boolean;
+  /** Names the source in the test titles, when a kind runs against several. */
+  readonly label?: string;
 }
 
 /**
@@ -191,9 +193,10 @@ export function testConnectorConformance(
   kind: AnyConnectorKind,
   fixture: ConformanceFixture,
 ): void {
-  describe(`connector kind "${kind.kind}": declaration`, () => testDeclaration(kind, fixture));
+  const name = fixture.label ? `${kind.kind}" on "${fixture.label}` : kind.kind;
+  describe(`connector kind "${name}": declaration`, () => testDeclaration(kind, fixture));
 
-  describe.skipIf(!fixture.live)(`connector kind "${kind.kind}": live source`, () => {
+  describe.skipIf(!fixture.live)(`connector kind "${name}": live source`, () => {
     let instance: ConnectorInstance | undefined;
     const connection = (): ConnectorInstance => {
       if (!instance) throw new Error('The connection is not open.');

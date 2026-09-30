@@ -146,7 +146,10 @@ kinds in that order.
   `testConnectorConformance(warehouseConnector, fixture)` from `_shared/test/conformance.ts`. It
   checks the declaration on every run, and the health, schema, frames, row limit, abort, errors and
   samples against a live source with `bun run test:integration`.
-- Add a dev source to `dev/docker-compose.yml` with seed data, so the suite runs in CI.
+- Add a dev source to `dev/docker-compose.yml` with seed data, under a profile named after its set,
+  so the suite runs in CI: an `env:up:<set>` and a `test:integration:<set>` script, a set name in
+  `integrationFor` (`_shared/test/dev-sources.ts`), and a row in the `integration` job's matrix. A
+  kind ships only when its server runs from a free image, with no account.
 - Unit test the pure parts (type mapping, error mapping, catalog parsing) in `*.test.ts`.
 - Add the kind to the connector section of [`architecture.md`](architecture.md).
 

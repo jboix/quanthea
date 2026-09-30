@@ -98,8 +98,19 @@ jobs:
         run: docker logs querent || true
 
   integration:
+    name: integration (${{ matrix.sources }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sources: core
+            up: env:up
+            test: test:integration
+          - sources: mysql
+            up: env:up:mysql
+            test: test:integration:mysql
     permissions:
       contents: read
     steps:
@@ -118,14 +129,14 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Start the local data sources
-        run: bun run env:up
+        run: bun run ${{ matrix.up }}
 
       - name: Integration tests against the local data sources
-        run: bun run test:integration
+        run: bun run ${{ matrix.test }}
 
       - name: Data source logs
         if: failure()
-        run: docker compose -f dev/docker-compose.yml logs --no-color
+        run: docker compose -f dev/docker-compose.yml --profile '*' logs --no-color
 
   commitlint:
     if: github.event_name == 'pull_request'

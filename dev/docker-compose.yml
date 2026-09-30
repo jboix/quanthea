@@ -4,6 +4,9 @@
 #   (password querent-dev) and the read-only dash_ro (password dash-ro-dev).
 # - prometheus: the synthetic metrics, on localhost:9091. The last day and a half is backfilled from
 #   dev/metrics/history.ts, the live metrics come from dev/metrics/serve.ts.
+# - mysql and mariadb (profile "mysql"): the orders database (dev/mysql), on localhost:3307 and
+#   localhost:3308. Users querent_admin (password querent-dev) and the read-only dash_ro (password
+#   dash-ro-dev).
 # - opensearch (profile "opensearch"): a single node without security, on localhost:9202.
 #
 # Postgres and Prometheus tell the same story: deploy #481 of checkout-svc, yesterday at 12:02 UTC,
@@ -80,6 +83,45 @@ services:
       timeout: 3s
       retries: 60
 
+  mysql:
+    profiles: [mysql]
+    image: mysql:8.4.11
+    environment:
+      MYSQL_DATABASE: orders
+      MYSQL_USER: querent_admin
+      MYSQL_PASSWORD: querent-dev
+      MYSQL_ROOT_PASSWORD: querent-root-dev
+    ports:
+      - '3307:3306'
+    volumes:
+      - ./mysql:/docker-entrypoint-initdb.d:ro
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # TCP only: during the init scripts the server listens on its socket alone.
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-u', 'querent_admin', '-pquerent-dev']
+      interval: 2s
+      timeout: 3s
+      retries: 90
+
+  mariadb:
+    profiles: [mysql]
+    image: mariadb:11.8.9
+    environment:
+      MARIADB_DATABASE: orders
+      MARIADB_USER: querent_admin
+      MARIADB_PASSWORD: querent-dev
+      MARIADB_ROOT_PASSWORD: querent-root-dev
+    ports:
+      - '3308:3306'
+    volumes:
+      - ./mysql:/docker-entrypoint-initdb.d:ro
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 2s
+      timeout: 3s
+      retries: 90
+
   opensearch:
     profiles: [opensearch]
     image: opensearchproject/opensearch:3.8.0
@@ -98,5 +140,7 @@ services:
 
 volumes:
   postgres-data:
+  mysql-data:
+  mariadb-data:
   metrics-seed:
   prometheus-data:
