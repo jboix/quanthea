@@ -22,11 +22,17 @@ export interface HttpClientOptions {
   readonly maxBytes?: number;
 }
 
+/** The methods a connector sends. */
+type HttpMethod = 'GET' | 'POST' | 'DELETE';
+
 /** One request. */
 export interface HttpRequest {
   /** The method. Defaults to `GET`. */
-  readonly method?: 'GET' | 'POST';
-  /** The path under the base URL, starting with `/`. */
+  readonly method?: HttpMethod;
+  /**
+   * The path under the base URL, starting with `/`, or an absolute URL on the same origin, such as
+   * a link to the next page the source returned.
+   */
   readonly path: string;
   /** Query string parameters; an array value repeats the parameter. */
   readonly query?: Readonly<Record<string, string | readonly string[]>>;
@@ -137,16 +143,17 @@ function transportError(error: unknown, signal: AbortSignal, sourceName: string)
  * @param settings - The client settings.
  * @param request - The request.
  * @returns The URL.
- * @throws {ConnectorError} `rejected` when the path leaves the origin.
+ * @throws {ConnectorError} `rejected` when the path or absolute URL leaves the origin.
  */
 function requestUrl(settings: ClientSettings, request: HttpRequest): URL {
-  const url = new URL(`${settings.base}${request.path}`);
+  const absolute = /^https?:\/\//i.test(request.path);
+  const url = new URL(absolute ? request.path : `${settings.base}${request.path}`);
   if (url.origin !== settings.origin)
     throw new ConnectorError('rejected', `A request left the ${settings.sourceName} origin.`);
-  for (const [name, value] of Object.entries(request.query ?? {})) {
-    for (const item of typeof value === 'string' ? [value] : value)
-      url.searchParams.append(name, item);
-  }
+  const parameters = Object.entries(request.query ?? {}).flatMap(([name, value]) =>
+    (typeof value === 'string' ? [value] : value).map((item) => [name, item] as const),
+  );
+  for (const [name, item] of parameters) url.searchParams.append(name, item);
   return url;
 }
 
@@ -284,7 +291,7 @@ function redirectTarget(response: Response, url: URL, settings: ClientSettings):
  */
 function fetchOnce(
   url: URL,
-  method: 'GET' | 'POST',
+  method: HttpMethod,
   settings: ClientSettings,
   request: HttpRequest,
   signal: AbortSignal,
@@ -315,7 +322,7 @@ async function send(
 ): Promise<Response> {
   let url = requestUrl(settings, request);
   await checkDestination(url, settings.sourceName);
-  let method = request.method ?? 'GET';
+  let method: HttpMethod = request.method ?? 'GET';
   for (let redirects = 0; ; redirects += 1) {
     const response = await fetchOnce(url, method, settings, request, signal);
     const target = redirectTarget(response, url, settings);

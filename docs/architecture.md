@@ -637,7 +637,8 @@ export const exampleConnector = defineConnector({
   origin only and follows a redirect only within it. It never calls a cloud metadata address
   (169.254.0.0/16, 100.100.100.200, fd00:ec2::254, fe80::/10), by the host or by what a name
   resolves to when the request starts. It stops at a timeout (120 seconds by default, on top of the
-  caller's signal) and reads at most 64 MiB of a body.
+  caller's signal) and reads at most 64 MiB of a body. A request names a path under the base URL,
+  or an absolute URL on the same origin, such as a next-page link.
 - `connectors/_shared/test/conformance.ts` is the suite every kind runs in its test file: static
   checks of the declaration, and live checks against a source (health, schema, valid frames, row
   limit, abort, error messages, sample limit). `test/memory-connector.ts` is an in-memory kind for
@@ -686,6 +687,18 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   ClickHouse checks between blocks. `describe` reads `system.tables` and `system.columns`
   (comments, `total_rows`); the connection test reads the user's `readonly` and `SHOW GRANTS
   FINAL`. Error codes map to connector errors; value errors never quote the value.
+- **Trino:** the client protocol over the kit's HTTP client: POST `/v1/statement`, then each
+  `nextUri` page, which must stay on the coordinator's origin. Each query runs in its own
+  `START TRANSACTION READ ONLY`, rolled back after it, so a catalog that could write refuses to
+  (`READ_ONLY_VIOLATION`). The session is in UTC and carries `query_max_execution_time` at the
+  timeout. The protocol binds no parameters, so a query with values runs as
+  `EXECUTE IMMEDIATE '<statement>' USING <literals>`: the statement is a string literal and each
+  value a literal with its quotes doubled, never part of the statement. The reader stops at the
+  row limit and cancels the query with a DELETE of its next page, as it does when the caller gives
+  up. Times with a zone are converted to UTC. `describe` reads `information_schema` and the table
+  comments in `system.metadata`, never table data. Trino cannot say whether a user could write, so
+  the connection test reports `readOnly: null`. Error names map to connector errors; value errors
+  never quote the value.
 - **OpenSearch:** the official client (`@opensearch-project/opensearch`), only in
   `connectors/opensearch/`. The query body is DSL JSON with structural variables. `describe` =
   index patterns + mappings. A spike (client 3.9.0, Bun 1.3.14, OpenSearch 3.8.0) found:
@@ -1336,6 +1349,7 @@ provider's name, so two setups of the same vendor stay apart.
 | Prometheus | `localhost:9091` | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                                                                          |
 | MySQL      | `localhost:3307` | Database `orders` (`dev/mysql`): `customers`, `orders`, `deploys` and the view `failed_orders`, one order every five seconds. Same users as Postgres. Started by `bun run env:up:mysql`.                                                                 |
 | MariaDB    | `localhost:3308` | The same database as MySQL, from the same scripts. Started by `bun run env:up:mysql`.                                                                                                                                                                    |
+| Trino      | `localhost:8081` | Catalog `orders`: the dev Postgres, read as its owner, so a write would succeed without the connector's read-only transactions. Any user name, no password. Started by `bun run env:up:trino`, with Postgres.                                            |
 | ClickHouse | `localhost:8124` | Database `orders` (`dev/clickhouse`), over HTTP: the same tables and view as MySQL. Users `querent_admin`, and `dash_ro`, `dash_ro_2` (`readonly=2`) and `dash_ro_1` (`readonly=1`) with password `dash-ro-dev`. Started by `bun run env:up:clickhouse`. |
 | OpenSearch | `localhost:9202` | A single node without security, started only by `bun run env:up:opensearch`.                                                                                                                                                                             |
 
@@ -1363,7 +1377,8 @@ provider's name, so two setups of the same vendor stay apart.
   real service, in `*.integration.test.ts` files. `QUERENT_INTEGRATION` names the sets of sources
   they run against: `core` (Postgres, Prometheus), `mysql` (MySQL, MariaDB:
   `bun run env:up:mysql`, then `bun run test:integration:mysql`) or `clickhouse`
-  (`bun run env:up:clickhouse`, then `bun run test:integration:clickhouse`). Every connector kind also runs
+  (`bun run env:up:clickhouse`, then `bun run test:integration:clickhouse`) or `trino`
+  (`bun run env:up:trino`, then `bun run test:integration:trino`). Every connector kind also runs
   the conformance suite there. A kind ships only with a free server image its tests run against,
   so nothing is written against a service no one can run. CI runs one `integration` job per set.
   `dashboards/checkout-fixture.integration.test.ts` pins the seed's fixture and runs every panel as

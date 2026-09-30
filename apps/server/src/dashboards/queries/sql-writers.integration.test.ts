@@ -5,10 +5,12 @@ import {
   devClickhouseAs,
   devIncidentStart,
   devMysqlServers,
+  devTrino,
   integrationFor,
 } from '../../connectors/_shared/test/dev-sources.ts';
 import { clickhouseConnector } from '../../connectors/clickhouse/clickhouse-connector.ts';
 import { mysqlConnector } from '../../connectors/mysql/mysql-connector.ts';
+import { trinoConnector } from '../../connectors/trino/trino-connector.ts';
 import { bindTemplate } from '../../query/bind.ts';
 import type { SqlDialect } from '../../query/sql-dialects.ts';
 import type { Variables } from '../../query/variables.ts';
@@ -22,7 +24,7 @@ const timeRange = {
   to: new Date(incident.getTime() + 60 * 60_000),
 };
 
-/** A dev database the builders run against, other than the dev Postgres. */
+/** A dev database the builders run against, other than the dev Postgres itself. */
 interface Target {
   /** The server, in test titles. */
   readonly name: string;
@@ -50,6 +52,13 @@ const targets: Target[] = [
     kind: clickhouseConnector,
     dialect: 'clickhouse',
     source: devClickhouseAs('dash_ro'),
+  },
+  {
+    name: 'Trino',
+    live: integrationFor('trino'),
+    kind: trinoConnector,
+    dialect: 'trino',
+    source: devTrino,
   },
 ];
 

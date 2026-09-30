@@ -10,6 +10,8 @@
 # - clickhouse (profile "clickhouse"): the orders database (dev/clickhouse), over HTTP on
 #   localhost:8124. Users querent_admin (password querent-dev), and dash_ro, dash_ro_2 (readonly=2)
 #   and dash_ro_1 (readonly=1), all with password dash-ro-dev.
+# - trino (profile "trino"): a coordinator on localhost:8081 whose catalog orders is the dev Postgres
+#   (dev/trino/catalog), read as its owner. No authentication: any user name is accepted.
 # - opensearch (profile "opensearch"): a single node without security, on localhost:9202.
 #
 # Postgres and Prometheus tell the same story: deploy #481 of checkout-svc, yesterday at 12:02 UTC,
@@ -146,6 +148,22 @@ services:
       interval: 2s
       timeout: 3s
       retries: 90
+
+  trino:
+    profiles: [trino]
+    image: trinodb/trino:483
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '8081:8080'
+    volumes:
+      - ./trino/catalog:/etc/trino/catalog:ro
+    healthcheck:
+      test: ['CMD', '/usr/lib/trino/bin/health-check']
+      interval: 3s
+      timeout: 5s
+      retries: 60
 
   opensearch:
     profiles: [opensearch]

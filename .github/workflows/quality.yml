@@ -114,6 +114,9 @@ jobs:
           - sources: clickhouse
             up: env:up:clickhouse
             test: test:integration:clickhouse
+          - sources: trino
+            up: env:up:trino
+            test: test:integration:trino
     permissions:
       contents: read
     steps:

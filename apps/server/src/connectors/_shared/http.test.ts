@@ -92,6 +92,20 @@ describe('createHttpClient', () => {
     });
   });
 
+  test('takes an absolute URL on the origin, and refuses one elsewhere', async () => {
+    const signal = AbortSignal.timeout(5000);
+    const echo = await client().request({
+      method: 'DELETE',
+      path: `http://127.0.0.1:${server.port}/base/echo?a=next`,
+      signal,
+    });
+    expect(await echo.json()).toMatchObject({ method: 'DELETE', query: ['next'] });
+    const elsewhere = await failureOf(() =>
+      client().request({ path: `http://127.0.0.1:${other.port}/`, signal }),
+    );
+    expect(elsewhere).toMatchObject({ code: 'rejected' });
+  });
+
   test('reads a body line by line, without the line ends', async () => {
     const response = await client().request({ path: '/lines', signal: AbortSignal.timeout(5000) });
     const lines: string[] = [];

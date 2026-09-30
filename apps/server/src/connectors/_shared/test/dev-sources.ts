@@ -3,11 +3,12 @@
  * only when QUERENT_INTEGRATION names their set, comma-separated: `core` (or `1`) for Postgres and
  * Prometheus (`bun run test:integration`), `mysql` for MySQL and MariaDB
  * (`bun run test:integration:mysql`), `clickhouse` for ClickHouse
- * (`bun run test:integration:clickhouse`).
+ * (`bun run test:integration:clickhouse`), `trino` for Trino over the dev Postgres
+ * (`bun run test:integration:trino`).
  */
 
 /** A set of data sources that start together. */
-type SourceSet = 'core' | 'mysql' | 'clickhouse';
+type SourceSet = 'core' | 'mysql' | 'clickhouse' | 'trino';
 
 /** The sets the integration tests run against. */
 const integrationSets = new Set(
@@ -88,6 +89,17 @@ export function devClickhouseAs(username: string) {
     secret: { password: username === 'querent_admin' ? 'querent-dev' : 'dash-ro-dev' },
   };
 }
+
+/** The dev Trino, whose catalog `orders` is the dev Postgres, in the connector's shape. */
+export const devTrino = {
+  config: {
+    url: `http://127.0.0.1:${process.env.QUERENT_DEV_TRINO_PORT ?? 8081}`,
+    catalog: 'orders',
+    schema: 'public',
+    username: 'dash_ro',
+  },
+  secret: {},
+};
 
 /** The dev Prometheus, in the Prometheus connector's configuration shape. */
 export const devPrometheus = {
