@@ -5,6 +5,7 @@
 
 [![Quality](https://github.com/jboix/querent/actions/workflows/quality.yml/badge.svg)](https://github.com/jboix/querent/actions/workflows/quality.yml)
 [![Release](https://github.com/jboix/querent/actions/workflows/release.yml/badge.svg)](https://github.com/jboix/querent/actions/workflows/release.yml)
+[![version](https://img.shields.io/github/v/release/jboix/querent?label=version)](https://github.com/jboix/querent/releases/latest)
 [![bun](https://img.shields.io/badge/bun-1.3.14-brightgreen)](https://bun.sh)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178c6)](https://www.typescriptlang.org)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
