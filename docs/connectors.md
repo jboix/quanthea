@@ -26,8 +26,10 @@ may see.
 A kind declares `language: 'sql'` or `language: 'promql'`. The core binds variables for that
 language:
 
-- `sql`: the kind receives `SqlQuery`, one read statement with `$1`-style placeholders and their
-  values. Bind them as driver parameters, never by concatenation.
+- `sql`: the kind also declares its `dialect`, `postgres` or `mysql`. It receives `SqlQuery`, one
+  read statement with the dialect's placeholders (`$1` or `?`) and their values. Bind them as
+  driver parameters, never by concatenation. A new dialect needs its literals and placeholders in
+  `apps/server/src/query/sql-dialects.ts` first.
 - `promql`: the kind receives `PromqlQuery`, an expression with every variable escaped, plus
   `instant` and `stepSeconds`.
 
@@ -61,6 +63,7 @@ export const warehouseConnector = defineConnector({
   displayName: 'Warehouse',
   description: 'A Warehouse database, queried with SQL in read-only sessions.',
   language: 'sql',
+  dialect: 'postgres',
   configSchema,
   secretSchema,
   describeTarget: (config) => `warehouse://${config.host}:${config.port}`,

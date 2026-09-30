@@ -1,7 +1,7 @@
 /** The contract of a connector kind: what it declares, and what an open connection can do. */
 import type { Frame } from '@querent/shared';
 import type { z } from 'zod';
-import type { BoundQuery, ExecutionContext, QueryLanguage } from './queries.ts';
+import type { BoundQuery, ExecutionContext, QueryLanguage, SqlDialect } from './queries.ts';
 import type { FieldReference, HealthReport, SampleResult, SchemaSnapshot } from './schema.ts';
 
 /**
@@ -75,6 +75,8 @@ export interface ConnectorKind<
   readonly description: string;
   /** The language of this kind's query templates. The core binds variables for it. */
   readonly language: QueryLanguage;
+  /** The SQL dialect, which a `sql` kind must declare: how the core binds its templates. */
+  readonly dialect?: SqlDialect;
   /**
    * Everything but the credentials: host, database, TLS options. Stored in plain text and shown to
    * admins. Give each field a title and a description with `.meta()`; the form is built from them.
@@ -115,7 +117,8 @@ const kindPattern = /^[a-z][a-z0-9-]*$/;
  *
  * @param definition - The kind.
  * @returns The same kind.
- * @throws {Error} When the identifier is not lowercase letters, digits and dashes.
+ * @throws {Error} When the identifier is not lowercase letters, digits and dashes, or a SQL kind
+ *   declares no dialect.
  */
 export function defineConnector<ConfigSchema extends z.ZodType, SecretSchema extends z.ZodType>(
   definition: ConnectorKind<ConfigSchema, SecretSchema>,
@@ -125,5 +128,7 @@ export function defineConnector<ConfigSchema extends z.ZodType, SecretSchema ext
       `Connector kind "${definition.kind}" must be lowercase letters, digits and dashes.`,
     );
   }
+  if (definition.language === 'sql' && definition.dialect === undefined)
+    throw new Error(`Connector kind "${definition.kind}" runs SQL and must declare its dialect.`);
   return definition;
 }

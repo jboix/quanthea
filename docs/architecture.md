@@ -607,6 +607,7 @@ export const exampleConnector = defineConnector({
   displayName: 'Example',
   description: 'One sentence shown when an admin picks a kind.',
   language: 'sql',                    // the core binds variables for this language
+  dialect: 'postgres',                // SQL only: how the core writes literals and placeholders
   configSchema: z.object({ … }),      // host, database, TLS: plain text; `.meta()` titles the form
   secretSchema: z.object({ … }),      // credentials: encrypted at rest, never returned
   describeTarget: (config) => '…',    // optional: where it points, shown under its name
@@ -671,16 +672,25 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
 ### Query engine (`query/`)
 
 `createQueryExecutor(cache).run(source, request)` runs one template against a connector the caller
-resolved (`QuerySource`: the open instance, its language, guardrails and a version that changes with
-its settings).
+resolved (`QuerySource`: the open instance, its language and SQL dialect, guardrails and a version
+that changes with its settings).
 
 1. The time range is checked against `maxRangeDays`.
 2. The template is bound for its language (`query/sql-binder.ts`, `query/promql-binder.ts`):
-   - **SQL:** `:name` becomes `$n`, a list becomes `$n, $m`, an empty list `NULL`; `:__from` and
-     `:__to` are the time range. Strings, quoted identifiers, dollar quotes, comments and `::` casts
-     are never rewritten, and `$1` in a template is refused. The template must be one statement
-     starting with SELECT, WITH, VALUES or TABLE, without INSERT, UPDATE, DELETE, MERGE, TRUNCATE,
-     DROP, ALTER, CREATE, GRANT, REVOKE, COPY or INTO outside literals.
+   - **SQL:** `:name` becomes a placeholder, a list becomes a list of them, an empty list `NULL`;
+     `:__from` and `:__to` are the time range. The connector kind declares its dialect
+     (`query/sql-dialects.ts`), which sets the literals and the placeholders:
+
+     - `postgres`: `$n`, reused when a variable comes again. Strings, `E'…'` strings, quoted
+       identifiers, dollar quotes, nested comments and `::` casts are never rewritten; `$1` in a
+       template is refused.
+     - `mysql` (MySQL and MariaDB): `?`, one per use. Strings with backslash escapes, backticked
+       identifiers, `#` and `-- ` comments are never rewritten; `?` in a template and executable
+       comments (`/*!`, `/*M!`) are refused.
+
+     The template must be one statement starting with SELECT, WITH, VALUES or TABLE, without INSERT,
+     UPDATE, DELETE, MERGE, TRUNCATE, DROP, ALTER, CREATE, GRANT, REVOKE, COPY or INTO outside
+     literals.
    - **PromQL:** `$name` and `${name}` are replaced only inside the string value of a label matcher,
      escaped for the string, and for `=~` and `!~` escaped as a regular expression unless the
      variable is declared as one. In code only `$__interval`, `$__range`, `$__rate_interval` and

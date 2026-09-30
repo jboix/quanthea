@@ -2,16 +2,14 @@
  * Binds variables into a SQL template: `:name` placeholders become positional parameters, so a
  * value never becomes SQL text. Also checks the template is a single read statement.
  */
-import type { SqlParameter, SqlQuery, TimeRange } from '../connectors/_shared/index.ts';
+import type { SqlDialect, SqlParameter, SqlQuery, TimeRange } from '../connectors/_shared/index.ts';
 import { QueryError } from './query-error.ts';
+import { type SqlDialectRules, sqlDialectRules } from './sql-dialects.ts';
 import { type SqlSegment, splitSql } from './sql-lexer.ts';
 import { type Variables, valuesOf } from './variables.ts';
 
 /** A `:name` placeholder that is not part of a `::type` cast. */
 const namedPlaceholder = /(?<!:):([A-Za-z_][A-Za-z0-9_]*)/g;
-
-/** A positional placeholder written in a template, which templates may not use. */
-const positionalPlaceholder = /(?<![A-Za-z0-9_$])\$\d+/;
 
 /** The first keyword of a read statement. */
 const readStatementStart = /^[\s(]*(select|with|values|table)\b/i;
@@ -45,6 +43,8 @@ export function checkReadStatement(segments: readonly SqlSegment[]): void {
 
 /** Collects parameters as placeholders are bound. */
 interface ParameterList {
+  /** The dialect's rules. */
+  readonly rules: SqlDialectRules;
   /** The values, in placeholder order. */
   readonly values: SqlParameter[];
   /** The placeholder text already bound for each variable, so repeats reuse it. */
@@ -54,8 +54,8 @@ interface ParameterList {
 }
 
 /**
- * The placeholder text for one variable: `$n`, a list `$n, $m` for several values, or `NULL` for
- * none.
+ * The placeholder text for one variable: a placeholder, a list of them for several values, or
+ * `NULL` for none. A numbered placeholder is reused when the variable comes again.
  *
  * @param name - The variable name.
  * @param values - The values to bind.
@@ -67,11 +67,12 @@ function placeholderFor(
   values: readonly SqlParameter[],
   parameters: ParameterList,
 ): string {
+  const { rules } = parameters;
   const known = parameters.byName.get(name);
-  if (known !== undefined) return known;
+  if (known !== undefined && rules.numbered) return known;
   const placeholders = values.map((value) => {
     parameters.values.push(value);
-    return `$${parameters.values.length}`;
+    return rules.placeholder(parameters.values.length);
   });
   const text = placeholders.length === 0 ? 'NULL' : placeholders.join(', ');
   parameters.byName.set(name, text);
@@ -98,31 +99,58 @@ function sqlValues(
 }
 
 /**
+ * Binds the variables of one run of code.
+ *
+ * @param code - The code.
+ * @param variables - The variable values.
+ * @param timeRange - The time range.
+ * @param parameters - The parameters bound so far.
+ * @returns The code with placeholders.
+ * @throws {QueryError} `invalid` for a placeholder the template wrote itself.
+ */
+function bindCode(
+  code: string,
+  variables: Variables,
+  timeRange: TimeRange,
+  parameters: ParameterList,
+): string {
+  const { rules } = parameters;
+  if (rules.writtenPlaceholder.test(code))
+    throw new QueryError('invalid', rules.writtenPlaceholderMessage);
+  return code.replace(namedPlaceholder, (placeholder, name: string) => {
+    const values = sqlValues(name, variables, timeRange);
+    if (values === undefined) parameters.unknown.add(name);
+    return values === undefined ? placeholder : placeholderFor(name, values, parameters);
+  });
+}
+
+/**
  * Binds a SQL template.
  *
  * @param template - The SQL with `:name` variables; `:__from` and `:__to` are the time range.
  * @param variables - The variable values.
  * @param timeRange - The time range.
- * @returns The bound query: positional placeholders and their values.
- * @throws {QueryError} `invalid` for an unknown variable, a `$1` placeholder, an unclosed literal, or
- *   a template that is not one read statement.
+ * @param dialect - The connector's dialect, which sets the literals and the placeholders.
+ * @returns The bound query: the dialect's placeholders and their values.
+ * @throws {QueryError} `invalid` for an unknown variable, a placeholder written in the template, an
+ *   unclosed literal, or a template that is not one read statement.
  */
-export function bindSql(template: string, variables: Variables, timeRange: TimeRange): SqlQuery {
-  const segments = splitSql(template);
+export function bindSql(
+  template: string,
+  variables: Variables,
+  timeRange: TimeRange,
+  dialect: SqlDialect,
+): SqlQuery {
+  const rules = sqlDialectRules[dialect];
+  const segments = splitSql(template, rules.lexicon);
   checkReadStatement(segments);
-  const parameters: ParameterList = { values: [], byName: new Map(), unknown: new Set() };
+  const parameters: ParameterList = { rules, values: [], byName: new Map(), unknown: new Set() };
   const text = segments
-    .map((segment) => {
-      if (segment.kind === 'literal') return segment.text;
-      if (positionalPlaceholder.test(segment.text)) {
-        throw new QueryError('invalid', 'Use named variables such as :service, not $1.');
-      }
-      return segment.text.replace(namedPlaceholder, (placeholder, name: string) => {
-        const values = sqlValues(name, variables, timeRange);
-        if (values === undefined) parameters.unknown.add(name);
-        return values === undefined ? placeholder : placeholderFor(name, values, parameters);
-      });
-    })
+    .map((segment) =>
+      segment.kind === 'literal'
+        ? segment.text
+        : bindCode(segment.text, variables, timeRange, parameters),
+    )
     .join('');
   if (parameters.unknown.size > 0) {
     const names = [...parameters.unknown].map((name) => `:${name}`).join(', ');

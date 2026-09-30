@@ -13,6 +13,7 @@ import {
   type ExecutionContext,
   type FieldReference,
   queryLanguages,
+  sqlDialects,
   type TimeRange,
 } from '../index.ts';
 
@@ -80,6 +81,10 @@ function testDeclaration(kind: AnyConnectorKind, fixture: ConformanceFixture): v
     expect(kind.displayName.length).toBeGreaterThan(0);
     expect(kind.description.length).toBeGreaterThan(0);
     expect(queryLanguages).toContain(kind.language);
+  });
+
+  test.if(kind.language === 'sql')('declares a known SQL dialect', () => {
+    expect(sqlDialects as readonly unknown[]).toContain(kind.dialect);
   });
 
   test('declares object schemas that convert to JSON Schema, for the forms', () => {

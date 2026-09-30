@@ -15,8 +15,10 @@ export {
   type PromqlQuery,
   type QueryLanguage,
   queryLanguages,
+  type SqlDialect,
   type SqlParameter,
   type SqlQuery,
+  sqlDialects,
   type TimeRange,
 } from './queries.ts';
 export type {

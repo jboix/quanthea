@@ -57,6 +57,7 @@ export const memoryConnector = defineConnector({
   displayName: 'Memory',
   description: 'A fixed table of events, for tests.',
   language: 'sql',
+  dialect: 'postgres',
   configSchema: z.object({
     rowCount: z
       .number()

@@ -6,17 +6,26 @@ export const queryLanguages = ['sql', 'promql'] as const;
 /** A query language name. */
 export type QueryLanguage = (typeof queryLanguages)[number];
 
+/**
+ * The SQL dialects the core knows how to bind: how each writes its literals and its placeholders.
+ * A SQL connector kind declares one of them.
+ */
+export const sqlDialects = ['postgres', 'mysql'] as const;
+
+/** A SQL dialect name. */
+export type SqlDialect = (typeof sqlDialects)[number];
+
 /** A value bound to a SQL placeholder. */
 export type SqlParameter = string | number | boolean | Date | null;
 
 /**
- * A SQL query with positional placeholders (`$1`, `$2`…) and their values. The core checked that it
- * is a single read statement.
+ * A SQL query with positional placeholders and their values. The placeholders are the dialect's:
+ * `$1`, `$2`… for `postgres`, `?` for `mysql`. The core checked that it is a single read statement.
  */
 export interface SqlQuery {
   /** The query language. */
   readonly language: 'sql';
-  /** The statement, with `$1`-style placeholders. */
+  /** The statement, with the dialect's placeholders. */
   readonly text: string;
   /** The placeholder values, in order. */
   readonly parameters: readonly SqlParameter[];

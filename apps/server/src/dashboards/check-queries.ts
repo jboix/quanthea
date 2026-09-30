@@ -23,6 +23,8 @@ import type { SpecIssue } from './issues.ts';
 export interface ConnectorFacts {
   /** The query language of its kind. */
   readonly language: QuerySource['language'];
+  /** The SQL dialect of its kind, when it runs SQL. */
+  readonly dialect?: QuerySource['dialect'];
   /** Its guardrails. */
   readonly guardrails: Guardrails;
 }
@@ -82,18 +84,21 @@ function sampleBinding(variable: Variable) {
  * Checks that a template binds with the declared variables.
  *
  * @param located - The query and its path.
+ * @param connector - The query's connector.
  * @param variables - Sample values of the declared variables.
  * @param timeRange - The default time range.
  * @returns The issue, if any.
  */
 function checkBinding(
   located: LocatedQuery,
+  connector: ConnectorFacts,
   variables: Variables,
   timeRange: ResolvedTimeRange,
 ): SpecIssue[] {
   const { query, path } = located;
+  const range = { from: new Date(timeRange.from), to: new Date(timeRange.to) };
   try {
-    bindTemplate(query, variables, { from: new Date(timeRange.from), to: new Date(timeRange.to) });
+    bindTemplate(query, variables, range, { dialect: connector.dialect });
     return [];
   } catch (error) {
     if (!(error instanceof QueryError)) throw error;
@@ -168,7 +173,7 @@ export function checkQueries(
     const problems = checkConnector(located, connector);
     if (problems.length > 0 || !connector) return problems;
     used.set(located.query.connector, connector);
-    return checkBinding(located, variables, timeRange);
+    return checkBinding(located, connector, variables, timeRange);
   });
   return [...issues, ...checkDefaultRange(used, timeRange)];
 }

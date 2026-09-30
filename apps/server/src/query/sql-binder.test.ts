@@ -14,7 +14,7 @@ function bind(template: string, variables: Record<string, string | string[]> = {
   const bindings = Object.fromEntries(
     Object.entries(variables).map(([name, value]) => [name, { value }]),
   );
-  return bindSql(template, bindings, timeRange);
+  return bindSql(template, bindings, timeRange, 'postgres');
 }
 
 describe('bindSql placeholders', () => {

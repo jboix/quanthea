@@ -338,6 +338,7 @@ export const postgresConnector = defineConnector({
   displayName: 'PostgreSQL',
   description: 'A PostgreSQL database, queried with SQL in read-only transactions.',
   language: 'sql',
+  dialect: 'postgres',
   queryGuide: postgresGuide,
   configSchema,
   secretSchema,

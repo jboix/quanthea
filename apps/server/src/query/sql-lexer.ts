@@ -1,6 +1,6 @@
 /**
- * Splits PostgreSQL text into code, which the binder may rewrite, and literals (strings, quoted
- * identifiers, dollar-quoted bodies, comments), which it must leave alone.
+ * Splits SQL into code, which the binder may rewrite, and literals (strings, quoted identifiers,
+ * comments), which it must leave alone. Each dialect says where its literals start and end.
  */
 import { QueryError } from './query-error.ts';
 
@@ -12,27 +12,28 @@ export interface SqlSegment {
   readonly text: string;
 }
 
-/** Where a literal may start: a quote, a comment, or a dollar-quote tag. */
-const literalStart = /'|"|--|\/\*|\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g;
-
-/** A standard string, where `''` is an escaped quote. */
-const standardString = /'(?:[^']|'')*'/y;
-
-/** An `E'…'` string, where a backslash also escapes. */
-const escapeString = /'(?:[^'\\]|\\[\s\S]|'')*'/y;
-
-/** A quoted identifier, where `""` is an escaped quote. */
-const quotedIdentifier = /"(?:[^"]|"")*"/y;
-
-/** Characters that can continue an identifier, so a `$` after them is not a dollar quote. */
-const identifierCharacter = /[A-Za-z0-9_$]/;
+/** How one dialect writes its literals. */
+export interface SqlLexicon {
+  /** Where a literal may start, as a global pattern. */
+  readonly literalStart: RegExp;
+  /**
+   * The end of the literal that opens at an index.
+   *
+   * @param text - The SQL.
+   * @param start - Where the opener was found.
+   * @param opener - What {@link SqlLexicon.literalStart} matched.
+   * @returns The index just past the literal, or `undefined` when the opener starts no literal.
+   * @throws {QueryError} `invalid` when the literal is not closed or not allowed.
+   */
+  literalEnd(text: string, start: number, opener: string): number | undefined;
+}
 
 /**
  * The error for a literal that is not closed.
  *
  * @returns The error.
  */
-function unterminated(): QueryError {
+export function unterminated(): QueryError {
   return new QueryError('invalid', 'The query has an unterminated string, identifier or comment.');
 }
 
@@ -45,7 +46,7 @@ function unterminated(): QueryError {
  * @returns The index just past the match.
  * @throws {QueryError} When the pattern does not match: the literal is not closed.
  */
-function stickyEnd(pattern: RegExp, text: string, start: number): number {
+export function stickyEnd(pattern: RegExp, text: string, start: number): number {
   pattern.lastIndex = start;
   const match = pattern.exec(text);
   if (!match) throw unterminated();
@@ -53,78 +54,31 @@ function stickyEnd(pattern: RegExp, text: string, start: number): number {
 }
 
 /**
- * The end of a block comment, which PostgreSQL allows to nest.
+ * The end of a line comment: the next newline, which stays code.
  *
  * @param text - The SQL.
  * @param start - Where the comment starts.
- * @returns The index just past the comment.
- * @throws {QueryError} When the comment is not closed.
+ * @returns The index of the newline, or the end of the text.
  */
-function blockCommentEnd(text: string, start: number): number {
-  const marker = /\/\*|\*\//g;
-  marker.lastIndex = start;
-  let depth = 0;
-  for (let match = marker.exec(text); match; match = marker.exec(text)) {
-    depth += match[0] === '/*' ? 1 : -1;
-    if (depth === 0) return marker.lastIndex;
-  }
-  throw unterminated();
-}
-
-/**
- * The end of a string: an `E'…'` string when the quote follows a lone `E`.
- *
- * @param text - The SQL.
- * @param start - Where the quote is.
- * @returns The index just past the string.
- */
-function stringEnd(text: string, start: number): number {
-  const escaped =
-    /[Ee]/.test(text[start - 1] ?? '') && !identifierCharacter.test(text[start - 2] ?? '');
-  return stickyEnd(escaped ? escapeString : standardString, text, start);
-}
-
-/** The end of each kind of literal, by how it opens. */
-const literalEnds: Readonly<Record<string, (text: string, start: number) => number>> = {
-  "'": stringEnd,
-  '"': (text, start) => stickyEnd(quotedIdentifier, text, start),
-  '--': (text, start) => {
-    const newline = text.indexOf('\n', start);
-    return newline === -1 ? text.length : newline;
-  },
-  '/*': blockCommentEnd,
-};
-
-/**
- * The end of the literal that opens at an index, if it is one.
- *
- * @param text - The SQL.
- * @param start - Where the opener was found.
- * @param opener - What was found: a quote, a comment start, or a dollar tag.
- * @returns The index just past the literal, or `undefined` when the `$…$` is not a dollar quote.
- */
-function literalEnd(text: string, start: number, opener: string): number | undefined {
-  const end = literalEnds[opener];
-  if (end) return end(text, start);
-  if (identifierCharacter.test(text[start - 1] ?? '')) return undefined;
-  const close = text.indexOf(opener, start + opener.length);
-  if (close === -1) throw unterminated();
-  return close + opener.length;
+export function lineCommentEnd(text: string, start: number): number {
+  const newline = text.indexOf('\n', start);
+  return newline === -1 ? text.length : newline;
 }
 
 /**
  * Splits SQL into code and literals.
  *
  * @param text - The SQL.
+ * @param lexicon - How the dialect writes its literals.
  * @returns The segments, in order; joined, they are the input.
  * @throws {QueryError} `invalid` when a string, identifier or comment is not closed.
  */
-export function splitSql(text: string): SqlSegment[] {
+export function splitSql(text: string, lexicon: SqlLexicon): SqlSegment[] {
   const segments: SqlSegment[] = [];
-  const starts = new RegExp(literalStart.source, 'g');
+  const starts = new RegExp(lexicon.literalStart.source, 'g');
   let codeStart = 0;
   for (let match = starts.exec(text); match; match = starts.exec(text)) {
-    const end = literalEnd(text, match.index, match[0]);
+    const end = lexicon.literalEnd(text, match.index, match[0]);
     if (end === undefined) continue;
     if (match.index > codeStart)
       segments.push({ kind: 'code', text: text.slice(codeStart, match.index) });

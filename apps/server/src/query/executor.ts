@@ -8,6 +8,7 @@ import {
   ConnectorError,
   type ConnectorInstance,
   type QueryLanguage,
+  type SqlDialect,
   type TimeRange,
 } from '../connectors/_shared/index.ts';
 import { bindTemplate, maxPromqlPoints, type QueryTemplate } from './bind.ts';
@@ -24,6 +25,8 @@ export interface QuerySource {
   readonly version: number;
   /** The language of the connector's kind. */
   readonly language: QueryLanguage;
+  /** The SQL dialect of the connector's kind, when it runs SQL. */
+  readonly dialect?: SqlDialect | undefined;
   /** The open connection. */
   readonly instance: ConnectorInstance;
   /** The connector's guardrails. */
@@ -71,7 +74,10 @@ function bind(source: QuerySource, request: QueryRequest): BoundQuery {
     );
   }
   const maxPoints = Math.min(source.guardrails.maxRows, maxPromqlPoints);
-  return bindTemplate(template, request.variables, request.timeRange, maxPoints);
+  return bindTemplate(template, request.variables, request.timeRange, {
+    dialect: source.dialect,
+    maxPoints,
+  });
 }
 
 /**

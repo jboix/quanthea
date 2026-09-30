@@ -141,9 +141,12 @@ export interface Connections {
    * Says what dashboard validation needs of a connector, without opening it.
    *
    * @param name - The connector name.
-   * @returns Its query language and guardrails, or `undefined` when no usable connector has the name.
+   * @returns Its query language, SQL dialect and guardrails, or `undefined` when no usable
+   *   connector has the name.
    */
-  lookup(name: string): { language: QuerySource['language']; guardrails: Guardrails } | undefined;
+  lookup(
+    name: string,
+  ): (Pick<QuerySource, 'language' | 'dialect'> & { guardrails: Guardrails }) | undefined;
   /**
    * The schema snapshot of a connector by name: the cached one, or read from the source and
    * cached when it was never read. For the gate, which decides what the model sees of it.
@@ -500,11 +503,12 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
   const row = context.repository.getByName(name);
   if (!row) throw new AppError('not_found', `No connector is named "${name}".`);
   const instance = await instanceOf(context, row);
-  const { language } = kindOf(context, row.kind);
+  const { language, dialect } = kindOf(context, row.kind);
   const source = {
     connectorId: row.id,
     version: row.updatedAt,
     language,
+    dialect,
     instance,
     guardrails: row.guardrails,
   };
@@ -521,7 +525,8 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
 function lookupConnector(context: ServiceContext, name: string) {
   const row = context.repository.getByName(name);
   const kind = row && context.kinds.find((candidate) => candidate.kind === row.kind);
-  return row && kind ? { language: kind.language, guardrails: row.guardrails } : undefined;
+  if (!row || !kind) return undefined;
+  return { language: kind.language, dialect: kind.dialect, guardrails: row.guardrails };
 }
 
 /**
