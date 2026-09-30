@@ -7,9 +7,7 @@ import {
   changeThread,
   loadRecentThreads,
   loadThread,
-  NewThreadScreen,
   newThreadAction,
-  ThreadScreen,
 } from '../features/thread/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
@@ -28,14 +26,16 @@ export function threadRoutes(loadSession: SessionLoader, api: ApiClient): RouteO
       path: start,
       loader: guarded(loadSession, start, loadRecentThreads(api)),
       action: guarded(loadSession, start, newThreadAction(api)),
-      Component: NewThreadScreen,
+      lazy: {
+        Component: async () => (await import('../features/thread/screens.ts')).NewThreadScreen,
+      },
       ErrorBoundary: ErrorPage,
     },
     {
       path: thread,
       loader: guarded(loadSession, thread, loadThread(api)),
       action: guarded(loadSession, thread, changeThread(api)),
-      Component: ThreadScreen,
+      lazy: { Component: async () => (await import('../features/thread/screens.ts')).ThreadScreen },
       ErrorBoundary: ErrorPage,
     },
   ];

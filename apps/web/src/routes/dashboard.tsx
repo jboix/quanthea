@@ -5,7 +5,6 @@ import { type GuardedPath, guarded, requireRole } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import {
   changeDashboard,
-  DashboardScreen,
   loadDashboard,
   loadPanelRun,
   loadVariableOptions,
@@ -44,7 +43,9 @@ function screenRoute(loadSession: SessionLoader, path: GuardedPath, api: ApiClie
       return change(args);
     },
     shouldRevalidate: samePathKeepsSpec,
-    Component: DashboardScreen,
+    lazy: {
+      Component: async () => (await import('../features/dashboard/screens.ts')).DashboardScreen,
+    },
     ErrorBoundary: ErrorPage,
   };
 }

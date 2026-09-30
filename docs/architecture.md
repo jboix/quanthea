@@ -156,7 +156,11 @@ the `postgres` driver and Prometheus uses `fetch`.
 
 - `routes/` compose features. Features never import routes (rule `features-not-to-routes`).
 - Features reach each other only through their `index.ts(x)`
-  (`features-talk-through-their-index`). The thread screen draws its draft with the
+  (`features-talk-through-their-index`). A feature's screens are exported from its `screens.ts`
+  instead, which routes load with React Router's `lazy` when the route first opens: loaders and
+  actions stay in the first chunk, each feature's screens are a chunk of their own
+  (`<feature>-screens`), and React, React Router and Zod are chunks of their own too, which
+  browsers keep across releases (`vite.config.ts`). The thread screen draws its draft with the
   `DashboardCanvas` and `usePanelRunData` that `features/dashboard` exports, so a draft renders
   exactly like a pinned dashboard.
 - `charts/` is the only place that imports ECharts (`echarts-only-in-charts`). It exposes

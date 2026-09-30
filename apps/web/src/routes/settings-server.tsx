@@ -2,7 +2,7 @@
 import type { RouteObject } from 'react-router';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
-import { loadServerSettings, ServerSettingsScreen } from '../features/server-settings/index.ts';
+import { loadServerSettings } from '../features/server-settings/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
 /**
@@ -17,6 +17,9 @@ export function serverSettingsRoute(loadSession: SessionLoader, api: ApiClient):
   return {
     path,
     loader: guarded(loadSession, path, loadServerSettings(api)),
-    Component: ServerSettingsScreen,
+    lazy: {
+      Component: async () =>
+        (await import('../features/server-settings/screens.ts')).ServerSettingsScreen,
+    },
   };
 }

@@ -2,11 +2,7 @@
 import type { RouteObject } from 'react-router';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
-import {
-  ChartGalleryScreen,
-  chartSettingsAction,
-  loadChartSettings,
-} from '../features/chart-gallery/index.ts';
+import { chartSettingsAction, loadChartSettings } from '../features/chart-gallery/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
 /**
@@ -22,6 +18,9 @@ export function chartSettingsRoute(loadSession: SessionLoader, api: ApiClient): 
     path,
     loader: guarded(loadSession, path, loadChartSettings(api)),
     action: guarded(loadSession, path, chartSettingsAction(api)),
-    Component: ChartGalleryScreen,
+    lazy: {
+      Component: async () =>
+        (await import('../features/chart-gallery/screens.ts')).ChartGalleryScreen,
+    },
   };
 }

@@ -2,7 +2,7 @@
 import type { RouteObject } from 'react-router';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
-import { BinScreen, changeBin, loadBin } from '../features/bin/index.ts';
+import { changeBin, loadBin } from '../features/bin/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
 /**
@@ -18,6 +18,6 @@ export function binRoute(loadSession: SessionLoader, api: ApiClient): RouteObjec
     path,
     loader: guarded(loadSession, path, loadBin(api)),
     action: guarded(loadSession, path, changeBin(api)),
-    Component: BinScreen,
+    lazy: { Component: async () => (await import('../features/bin/screens.ts')).BinScreen },
   };
 }

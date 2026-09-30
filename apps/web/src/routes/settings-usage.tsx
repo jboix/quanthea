@@ -2,7 +2,7 @@
 import type { RouteObject } from 'react-router';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
-import { loadUsage, UsageScreen } from '../features/usage/index.ts';
+import { loadUsage } from '../features/usage/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
 /**
@@ -14,5 +14,9 @@ import type { ApiClient } from '../lib/api-client.ts';
  */
 export function usageSettingsRoute(loadSession: SessionLoader, api: ApiClient): RouteObject {
   const path = '/settings/usage';
-  return { path, loader: guarded(loadSession, path, loadUsage(api)), Component: UsageScreen };
+  return {
+    path,
+    loader: guarded(loadSession, path, loadUsage(api)),
+    lazy: { Component: async () => (await import('../features/usage/screens.ts')).UsageScreen },
+  };
 }

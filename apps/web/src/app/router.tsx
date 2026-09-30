@@ -23,7 +23,6 @@ import { serverSettingsRoute } from '../routes/settings-server.tsx';
 import { usageSettingsRoute } from '../routes/settings-usage.tsx';
 import { usersSettingsRoute } from '../routes/settings-users.tsx';
 import { threadRoutes } from '../routes/thread.tsx';
-import { UiKitRoute } from '../routes/ui-kit.tsx';
 import { ErrorPage } from './error-page.tsx';
 import { AppLayout, LoadingScreen } from './layout.tsx';
 import { homePathFor, requireRole } from './route-access.ts';
@@ -86,7 +85,10 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
     binRoute(loadSession, api),
     connectorRoutes(loadSession, api),
     settingsRoute({ loadSession, api }),
-    { path: '/ui', Component: UiKitRoute },
+    {
+      path: '/ui',
+      lazy: { Component: async () => (await import('../routes/ui-kit.tsx')).UiKitRoute },
+    },
     { path: '*', Component: NotFoundRoute },
   ];
 }

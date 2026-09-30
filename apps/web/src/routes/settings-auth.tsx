@@ -2,11 +2,7 @@
 import type { RouteObject } from 'react-router';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
-import {
-  AuthSettingsScreen,
-  changeAuthSettings,
-  loadAuthSettings,
-} from '../features/auth-settings/index.ts';
+import { changeAuthSettings, loadAuthSettings } from '../features/auth-settings/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
 /**
@@ -22,6 +18,9 @@ export function authSettingsRoute(loadSession: SessionLoader, api: ApiClient): R
     path,
     loader: guarded(loadSession, path, loadAuthSettings(api)),
     action: guarded(loadSession, path, changeAuthSettings(api)),
-    Component: AuthSettingsScreen,
+    lazy: {
+      Component: async () =>
+        (await import('../features/auth-settings/screens.ts')).AuthSettingsScreen,
+    },
   };
 }
