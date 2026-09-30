@@ -2,11 +2,12 @@
  * The local data sources of `bun run env:up`, for integration tests. The tests that need them run
  * only when QUERENT_INTEGRATION names their set, comma-separated: `core` (or `1`) for Postgres and
  * Prometheus (`bun run test:integration`), `mysql` for MySQL and MariaDB
- * (`bun run test:integration:mysql`).
+ * (`bun run test:integration:mysql`), `clickhouse` for ClickHouse
+ * (`bun run test:integration:clickhouse`).
  */
 
 /** A set of data sources that start together. */
-type SourceSet = 'core' | 'mysql';
+type SourceSet = 'core' | 'mysql' | 'clickhouse';
 
 /** The sets the integration tests run against. */
 const integrationSets = new Set(
@@ -73,6 +74,20 @@ export const devMysqlServers = [
   };
   return { name, reader, owner };
 });
+
+/**
+ * The dev ClickHouse as a user, in the ClickHouse connector's configuration shape.
+ *
+ * @param username - The user: `dash_ro`, `dash_ro_2`, `dash_ro_1` or `querent_admin`.
+ * @returns The configuration and the secret.
+ */
+export function devClickhouseAs(username: string) {
+  const port = Number(process.env.QUERENT_DEV_CLICKHOUSE_PORT ?? 8124);
+  return {
+    config: { url: `http://127.0.0.1:${port}`, database: 'orders', username },
+    secret: { password: username === 'querent_admin' ? 'querent-dev' : 'dash-ro-dev' },
+  };
+}
 
 /** The dev Prometheus, in the Prometheus connector's configuration shape. */
 export const devPrometheus = {

@@ -672,6 +672,19 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   `KILL QUERY` stops it on the server and the connection is closed rather than reused. `describe`
   reads `information_schema` (comments, `TABLE_ROWS`, index cardinality), never table data. Error
   numbers map to connector errors; value errors never quote the value.
+- **ClickHouse:** the HTTP interface over the kit's HTTP client, POST with the user and password
+  in `X-ClickHouse-*` headers. The statement is the body and each value a `param_pN` query
+  parameter, never SQL text. Each statement carries its settings: `readonly=1` (omitted for a
+  user whose profile already has `readonly=2`), `max_execution_time` at the timeout,
+  `max_result_rows` at `maxRows + 1` with `result_overflow_mode=break`, `session_timezone=UTC`
+  and ISO times. A user whose profile has `readonly=1` refuses any setting, so its connection test
+  fails with the fix. Output is `JSONCompactEachRowWithNamesAndTypes`, read line by line: the
+  reader stops at the row limit and closes the connection, and an error written after the rows
+  started fails the query. A query that picks another format with FORMAT is refused.
+  `max_execution_time` is what stops a query: closing the connection cancels it only where
+  ClickHouse checks between blocks. `describe` reads `system.tables` and `system.columns`
+  (comments, `total_rows`); the connection test reads the user's `readonly` and `SHOW GRANTS
+  FINAL`. Error codes map to connector errors; value errors never quote the value.
 - **OpenSearch:** the official client (`@opensearch-project/opensearch`), only in
   `connectors/opensearch/`. The query body is DSL JSON with structural variables. `describe` =
   index patterns + mappings. A spike (client 3.9.0, Bun 1.3.14, OpenSearch 3.8.0) found:
@@ -1313,13 +1326,14 @@ provider's name, so two setups of the same vendor stay apart.
   (`dev/seed/checkout-incident.json`) with its time range around the incident, and prints its
   address. `QUERENT_URL` points at the server (`http://localhost:3000` by default).
 
-| Source     | Address          | Contents                                                                                                                                                                                        |
-| ---------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Postgres   | `localhost:5433` | Database `orders`: `customers`, `orders`, `order_items`, `payments`, `refunds`, `deploys`. Users `querent_admin` (password `querent-dev`) and the read-only `dash_ro` (password `dash-ro-dev`). |
-| Prometheus | `localhost:9091` | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                 |
-| MySQL      | `localhost:3307` | Database `orders` (`dev/mysql`): `customers`, `orders`, `deploys` and the view `failed_orders`, one order every five seconds. Same users as Postgres. Started by `bun run env:up:mysql`.        |
-| MariaDB    | `localhost:3308` | The same database as MySQL, from the same scripts. Started by `bun run env:up:mysql`.                                                                                                           |
-| OpenSearch | `localhost:9202` | A single node without security, started only by `bun run env:up:opensearch`.                                                                                                                    |
+| Source     | Address          | Contents                                                                                                                                                                                                                                                 |
+| ---------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Postgres   | `localhost:5433` | Database `orders`: `customers`, `orders`, `order_items`, `payments`, `refunds`, `deploys`. Users `querent_admin` (password `querent-dev`) and the read-only `dash_ro` (password `dash-ro-dev`).                                                          |
+| Prometheus | `localhost:9091` | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                                                                          |
+| MySQL      | `localhost:3307` | Database `orders` (`dev/mysql`): `customers`, `orders`, `deploys` and the view `failed_orders`, one order every five seconds. Same users as Postgres. Started by `bun run env:up:mysql`.                                                                 |
+| MariaDB    | `localhost:3308` | The same database as MySQL, from the same scripts. Started by `bun run env:up:mysql`.                                                                                                                                                                    |
+| ClickHouse | `localhost:8124` | Database `orders` (`dev/clickhouse`), over HTTP: the same tables and view as MySQL. Users `querent_admin`, and `dash_ro`, `dash_ro_2` (`readonly=2`) and `dash_ro_1` (`readonly=1`) with password `dash-ro-dev`. Started by `bun run env:up:clickhouse`. |
+| OpenSearch | `localhost:9202` | A single node without security, started only by `bun run env:up:opensearch`.                                                                                                                                                                             |
 
 - Both sources tell one story, the checkout incident: deploy #481 of `checkout-svc` yesterday at
   12:02 UTC, 5xx errors of checkout rising to 8.4% and its p95 latency to about 3 s, failed orders
@@ -1327,8 +1341,8 @@ provider's name, so two setups of the same vendor stay apart.
   manual test script and the eval fixture all at once.
 - `dev/metrics/incident.ts` holds the traffic model. `history.ts` writes the metrics from eight
   hours before the incident until now, which `promtool` backfills into Prometheus on the first
-  start; `serve.ts` serves the same model live. The Postgres and MySQL seeds (`dev/postgres`,
-  `dev/mysql`) compute the incident from the same instant. The seed runs once per data volume, so after `env:down` the next
+  start; `serve.ts` serves the same model live. The Postgres, MySQL and ClickHouse seeds
+  (`dev/postgres`, `dev/mysql`, `dev/clickhouse`) compute the incident from the same instant. The seed runs once per data volume, so after `env:down` the next
   `env:up` moves the incident to the new yesterday.
 
 ## 15. Testing and evals
@@ -1343,8 +1357,9 @@ provider's name, so two setups of the same vendor stay apart.
   `docs/SECURITY.md` holds the threat model.
 - **Integration** (`bun run test:integration`, after `bun run env:up`): each connector against the
   real service, in `*.integration.test.ts` files. `QUERENT_INTEGRATION` names the sets of sources
-  they run against: `core` (Postgres, Prometheus) or `mysql` (MySQL, MariaDB:
-  `bun run env:up:mysql`, then `bun run test:integration:mysql`). Every connector kind also runs
+  they run against: `core` (Postgres, Prometheus), `mysql` (MySQL, MariaDB:
+  `bun run env:up:mysql`, then `bun run test:integration:mysql`) or `clickhouse`
+  (`bun run env:up:clickhouse`, then `bun run test:integration:clickhouse`). Every connector kind also runs
   the conformance suite there. A kind ships only with a free server image its tests run against,
   so nothing is written against a service no one can run. CI runs one `integration` job per set.
   `dashboards/checkout-fixture.integration.test.ts` pins the seed's fixture and runs every panel as

@@ -67,6 +67,12 @@ export interface HttpResponse {
    * @throws {ConnectorError} As {@link HttpResponse.text}.
    */
   lines(): AsyncGenerator<string>;
+  /**
+   * Leaves the body unread and closes the connection.
+   *
+   * @returns Once the body is cancelled.
+   */
+  cancel(): Promise<void>;
 }
 
 /** Sends requests to one source. */
@@ -240,6 +246,9 @@ function wrapResponse(
       }
     },
     lines: () => linesOf(chunksOf(response.body, settings, signal)),
+    cancel: async () => {
+      await response.body?.cancel().catch(() => undefined);
+    },
   };
 }
 

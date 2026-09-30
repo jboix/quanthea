@@ -9,7 +9,7 @@ export {
 } from './connector-kind.ts';
 export { ConnectorError } from './errors.ts';
 export { createFrameBuilder } from './frame-builder.ts';
-export { createHttpClient } from './http.ts';
+export { createHttpClient, type HttpClient, type HttpResponse } from './http.ts';
 export {
   type BoundQuery,
   type ExecutionContext,

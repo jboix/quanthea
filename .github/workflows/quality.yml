@@ -111,6 +111,9 @@ jobs:
           - sources: mysql
             up: env:up:mysql
             test: test:integration:mysql
+          - sources: clickhouse
+            up: env:up:clickhouse
+            test: test:integration:clickhouse
     permissions:
       contents: read
     steps:

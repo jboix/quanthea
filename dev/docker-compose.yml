@@ -7,6 +7,9 @@
 # - mysql and mariadb (profile "mysql"): the orders database (dev/mysql), on localhost:3307 and
 #   localhost:3308. Users querent_admin (password querent-dev) and the read-only dash_ro (password
 #   dash-ro-dev).
+# - clickhouse (profile "clickhouse"): the orders database (dev/clickhouse), over HTTP on
+#   localhost:8124. Users querent_admin (password querent-dev), and dash_ro, dash_ro_2 (readonly=2)
+#   and dash_ro_1 (readonly=1), all with password dash-ro-dev.
 # - opensearch (profile "opensearch"): a single node without security, on localhost:9202.
 #
 # Postgres and Prometheus tell the same story: deploy #481 of checkout-svc, yesterday at 12:02 UTC,
@@ -122,6 +125,28 @@ services:
       timeout: 3s
       retries: 90
 
+  clickhouse:
+    profiles: [clickhouse]
+    image: clickhouse/clickhouse-server:26.8.15.10-alpine
+    environment:
+      CLICKHOUSE_DB: orders
+      CLICKHOUSE_USER: querent_admin
+      CLICKHOUSE_PASSWORD: querent-dev
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
+    ports:
+      - '8124:8123'
+    volumes:
+      - ./clickhouse:/docker-entrypoint-initdb.d:ro
+      - clickhouse-data:/var/lib/clickhouse
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    healthcheck:
+      # Not on 127.0.0.1: during the init scripts the server listens there alone.
+      test: ['CMD-SHELL', 'wget -q -O /dev/null "http://$$(hostname -i):8123/ping"']
+      interval: 2s
+      timeout: 3s
+      retries: 90
+
   opensearch:
     profiles: [opensearch]
     image: opensearchproject/opensearch:3.8.0
@@ -142,5 +167,6 @@ volumes:
   postgres-data:
   mysql-data:
   mariadb-data:
+  clickhouse-data:
   metrics-seed:
   prometheus-data:

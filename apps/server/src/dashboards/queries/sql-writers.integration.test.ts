@@ -1,12 +1,16 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import type { Frame, PanelQuery } from '@querent/shared';
+import type { AnyConnectorKind } from '../../connectors/_shared/index.ts';
 import {
+  devClickhouseAs,
   devIncidentStart,
   devMysqlServers,
   integrationFor,
 } from '../../connectors/_shared/test/dev-sources.ts';
+import { clickhouseConnector } from '../../connectors/clickhouse/clickhouse-connector.ts';
 import { mysqlConnector } from '../../connectors/mysql/mysql-connector.ts';
 import { bindTemplate } from '../../query/bind.ts';
+import type { SqlDialect } from '../../query/sql-dialects.ts';
 import type { Variables } from '../../query/variables.ts';
 import { buildData } from './build.ts';
 import { dataSchema } from './request.ts';
@@ -17,18 +21,49 @@ const timeRange = {
   from: new Date(incident.getTime() - 30 * 60_000),
   to: new Date(incident.getTime() + 60 * 60_000),
 };
-const context = { saved: [], dialectOf: () => 'mysql' as const };
 
-for (const server of devMysqlServers) {
-  describe.skipIf(!integrationFor('mysql'))(`the SQL builders on the dev ${server.name}`, () => {
-    const connection = mysqlConnector.open({
-      config: mysqlConnector.configSchema.parse(server.reader.config),
-      secret: mysqlConnector.secretSchema.parse(server.reader.secret),
+/** A dev database the builders run against, other than the dev Postgres. */
+interface Target {
+  /** The server, in test titles. */
+  readonly name: string;
+  /** Whether its set of data sources is up. */
+  readonly live: boolean;
+  /** Its connector kind. */
+  readonly kind: AnyConnectorKind;
+  /** Its SQL dialect. */
+  readonly dialect: SqlDialect;
+  /** The read-only configuration and secret. */
+  readonly source: { readonly config: unknown; readonly secret: unknown };
+}
+
+const targets: Target[] = [
+  ...devMysqlServers.map((server) => ({
+    name: server.name,
+    live: integrationFor('mysql'),
+    kind: mysqlConnector,
+    dialect: 'mysql' as const,
+    source: server.reader,
+  })),
+  {
+    name: 'ClickHouse',
+    live: integrationFor('clickhouse'),
+    kind: clickhouseConnector,
+    dialect: 'clickhouse',
+    source: devClickhouseAs('dash_ro'),
+  },
+];
+
+for (const target of targets) {
+  describe.skipIf(!target.live)(`the SQL builders on the dev ${target.name}`, () => {
+    const context = { saved: [], dialectOf: () => target.dialect };
+    const connection = target.kind.open({
+      config: target.kind.configSchema.parse(target.source.config),
+      secret: target.kind.secretSchema.parse(target.source.secret),
     });
     afterAll(() => connection.close());
 
     /**
-     * Binds a built query for MySQL and runs it over the incident.
+     * Binds a built query for the dialect and runs it over the incident.
      *
      * @param query - The built query.
      * @param variables - The variable values.
@@ -36,7 +71,7 @@ for (const server of devMysqlServers) {
      */
     async function run(query: PanelQuery | undefined, variables: Variables = {}): Promise<Frame> {
       if (!query) throw new Error('Nothing was built.');
-      const bound = bindTemplate(query, variables, timeRange, { dialect: 'mysql' });
+      const bound = bindTemplate(query, variables, timeRange, { dialect: target.dialect });
       const signal = AbortSignal.timeout(10_000);
       const execution = { refId: 'A', signal, timeoutMs: 10_000, maxRows: 5000, timeRange };
       const [frame] = await connection.execute(bound, execution);

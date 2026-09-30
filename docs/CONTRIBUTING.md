@@ -49,6 +49,8 @@ bun run env:down   # stop them and delete their data
 
 `bun run test:integration` runs the connector tests against them. `bun run env:up:mysql` starts
 MySQL on :3307 and MariaDB on :3308, and `bun run test:integration:mysql` runs their tests.
+`bun run env:up:clickhouse` starts ClickHouse on :8124, and `bun run test:integration:clickhouse`
+runs its tests.
 `bun run env:up:opensearch` also starts OpenSearch on :9202. The sources, their users and the
 incident they share are described in [the architecture](./architecture.md#14-local-development).
 
