@@ -1,5 +1,5 @@
 /** A small client for the Prometheus HTTP API: GET requests, JSON envelopes, typed errors. */
-import { ConnectorError } from '../_shared/index.ts';
+import { ConnectorError, createHttpClient } from '../_shared/index.ts';
 
 /** How to reach a Prometheus server. */
 export interface ApiOptions {
@@ -93,68 +93,29 @@ function envelopeError(envelope: Envelope<unknown> | undefined, status: number):
 }
 
 /**
- * Turns a failed fetch into a connector error.
- *
- * @param error - What fetch threw.
- * @param signal - The request's signal.
- * @returns The connector error.
- */
-function fetchError(error: unknown, signal: AbortSignal): ConnectorError {
-  if (signal.aborted) {
-    return new ConnectorError(
-      'timeout',
-      'The query was cancelled: it ran longer than the timeout, or the caller gave up.',
-    );
-  }
-  const message = error instanceof Error ? error.message : String(error);
-  return new ConnectorError('unreachable', 'Prometheus cannot be reached.', message, {
-    cause: error,
-  });
-}
-
-/**
- * Builds a request URL.
- *
- * @param base - The server URL.
- * @param path - The API path.
- * @param parameters - The query string parameters.
- * @returns The URL.
- */
-function requestUrl(
-  base: string,
-  path: string,
-  parameters: Readonly<Record<string, string | string[]>>,
-): URL {
-  const url = new URL(`${base.replace(/\/+$/, '')}${path}`);
-  Object.entries(parameters).forEach(([name, value]) => {
-    (Array.isArray(value) ? value : [value]).forEach((item) => {
-      url.searchParams.append(name, item);
-    });
-  });
-  return url;
-}
-
-/**
  * Creates the API client.
  *
  * @param options - The server URL, headers and TLS setting.
  * @returns The client.
  */
 export function createPrometheusApi(options: ApiOptions): PrometheusApi {
+  const client = createHttpClient({
+    baseUrl: options.url,
+    sourceName: 'Prometheus',
+    headers: { Accept: 'application/json', ...options.headers },
+    verifyTls: options.verifyTls,
+  });
   return {
     async get<T>(
       path: string,
       parameters: Readonly<Record<string, string | string[]>>,
       signal: AbortSignal,
     ) {
-      const response = await fetch(requestUrl(options.url, path, parameters), {
-        headers: { Accept: 'application/json', ...options.headers },
-        signal,
-        tls: { rejectUnauthorized: options.verifyTls },
-      }).catch((error: unknown) => {
-        throw fetchError(error, signal);
-      });
-      const envelope = (await response.json().catch(() => undefined)) as Envelope<T> | undefined;
+      const response = await client.request({ path, query: parameters, signal });
+      const envelope = (await response.json().catch((error: unknown) => {
+        if (error instanceof ConnectorError && error.code !== 'internal') throw error;
+        return undefined;
+      })) as Envelope<T> | undefined;
       if (!response.ok || envelope?.status !== 'success' || envelope.data === undefined) {
         throw envelopeError(envelope, response.status);
       }

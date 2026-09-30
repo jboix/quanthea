@@ -630,6 +630,11 @@ export const exampleConnector = defineConnector({
 - Failures are `ConnectorError`s with a code and a `safeMessage` that quotes no data. The model sees
   only the safe message below access level 4.
 - `createFrameBuilder` lays rows out in columns and handles the row limit and truncation.
+- `createHttpClient` is the HTTP client of every kind that speaks HTTP. It calls the base URL's
+  origin only and follows a redirect only within it. It never calls a cloud metadata address
+  (169.254.0.0/16, 100.100.100.200, fd00:ec2::254, fe80::/10), by the host or by what a name
+  resolves to when the request starts. It stops at a timeout (120 seconds by default, on top of the
+  caller's signal) and reads at most 64 MiB of a body.
 - `connectors/_shared/test/conformance.ts` is the suite every kind runs in its test file: static
   checks of the declaration, and live checks against a source (health, schema, valid frames, row
   limit, abort, error messages, sample limit). `test/memory-connector.ts` is an in-memory kind for
@@ -643,7 +648,7 @@ type Field = { name: string; type: 'time' | 'number' | 'string' | 'boolean'; lab
 type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][]; meta: { rowCount: number; truncated: boolean; durationMs: number } }
 ```
 
-- **Prometheus:** the HTTP API over `fetch`, read endpoints only, with no auth, a bearer token or
+- **Prometheus:** the HTTP API over the kit's HTTP client, read endpoints only, with no auth, a bearer token or
   basic authentication. A range query returns one frame per series (labels on the value field, at
   most 1000 series); an instant query returns one table with a column per label and `Value`.
   Non-finite values become `null`. `describe` lists metric names with their type from the metadata
@@ -1107,6 +1112,8 @@ one, and enables them again. Without any admin, it creates the default one.
 - The browser never sends queries. Variables are bound, not concatenated.
 - Guardrails are enforced by the executor. Connectors use read-only credentials, verified on
   test where possible.
+- Connectors that speak HTTP stay on their source's origin and never call a cloud metadata
+  address (`createHttpClient`).
 - Secrets are encrypted at rest and never returned by the API (connector GETs show
   `secret: "••••1234"`). See "Keys" below.
 - Audit log entries for pin, bin, restore, purge, connector changes and settings changes.

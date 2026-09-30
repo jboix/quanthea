@@ -157,6 +157,9 @@ kinds in that order.
 
 - A kind imports the core only through `connectors/_shared/index.ts`, never another kind
   (dependency-cruiser rule `connector-kinds-use-the-kit`).
-- The kind's folder owns its driver. Prefer `fetch` or a Bun API to a package, and justify a new
-  dependency in one line of the commit message.
+- The kind's folder owns its driver. Prefer a Bun API to a package, and justify a new dependency
+  in one line of the commit message.
+- A kind that speaks HTTP sends its requests through the kit's `createHttpClient`, never `fetch`
+  (a Biome rule). The client keeps them on the source's origin, away from cloud metadata
+  addresses, within a timeout and a byte cap.
 - No code written by the model runs, anywhere. A kind never evaluates query text as code.

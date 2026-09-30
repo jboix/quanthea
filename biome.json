@@ -100,6 +100,30 @@
       "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
     },
     {
+      "includes": [
+        "apps/server/src/connectors/**",
+        "!apps/server/src/connectors/_shared/http.ts",
+        "!**/*.test.ts",
+        "!**/test/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "Function": "No model-written code runs. Use a named formatter instead.",
+                  "eval": "No model-written code runs. Use a named formatter instead.",
+                  "fetch": "Connectors call HTTP through createHttpClient from the connector kit."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/*.test.ts", "**/*.test.tsx", "**/test/**"],
       "linter": {
         "rules": {
