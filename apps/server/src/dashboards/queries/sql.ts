@@ -3,9 +3,10 @@
  * Names are quoted, literals escaped and variables bound; the time range is always bound.
  */
 import type { PanelQuery } from '@querent/shared';
-import type { BuiltData } from './built.ts';
+import type { BuildContext, BuiltData } from './built.ts';
 import type { DataOf, Filter } from './request.ts';
-import { QueryError, sqlInterval, sqlName, sqlWhere } from './text.ts';
+import { durationText, type SqlWriter, sqlName, sqlWhere, sqlWriterFor } from './sql-writers.ts';
+import { QueryError } from './text.ts';
 
 /** A measure, as the requests carry it. */
 type Measure = DataOf<'sql-stat'>['measure'];
@@ -13,16 +14,17 @@ type Measure = DataOf<'sql-stat'>['measure'];
 /**
  * The SQL expression of a measure.
  *
+ * @param writer - The dialect's writer.
  * @param measure - The measure.
  * @returns Such as `count(*)` or `sum("amount")`.
  * @throws {QueryError} When a measure other than count names no column.
  */
-function measureSql(measure: Measure): string {
+function measureSql(writer: SqlWriter, measure: Measure): string {
   if (measure.fn === 'count')
-    return measure.column ? `count(${sqlName(measure.column)})` : 'count(*)';
+    return measure.column ? `count(${sqlName(writer, measure.column)})` : 'count(*)';
   if (!measure.column) throw new QueryError(`${measure.fn} needs a column.`);
-  if (measure.fn === 'count_distinct') return `count(DISTINCT ${sqlName(measure.column)})`;
-  return `${measure.fn}(${sqlName(measure.column)})`;
+  const column = sqlName(writer, measure.column);
+  return measure.fn === 'count_distinct' ? `count(DISTINCT ${column})` : `${measure.fn}(${column})`;
 }
 
 /**
@@ -41,14 +43,16 @@ function sqlQuery(connector: string, sql: string): PanelQuery {
  * split, and `value`.
  *
  * @param request - The request.
+ * @param writer - The dialect's writer.
  * @returns The query and its output.
  */
-export function seriesData(request: DataOf<'sql-series'>): BuiltData {
-  const bucket = `date_bin(${sqlInterval(request.bucket)}, ${sqlName(request.time)}, :__from)`;
-  const split = request.by === undefined ? '' : `, ${sqlName(request.by)}::text AS series`;
-  const where = sqlWhere(request.time, request.filters);
+export function seriesData(request: DataOf<'sql-series'>, writer: SqlWriter): BuiltData {
+  const bucket = writer.bucket(sqlName(writer, request.time), durationText(request.bucket));
+  const split =
+    request.by === undefined ? '' : `, ${writer.text(sqlName(writer, request.by))} AS series`;
+  const where = sqlWhere(writer, request.time, request.filters);
   const groups = request.by === undefined ? '1' : '1, 2';
-  const sql = `SELECT ${bucket} AS time${split}, ${measureSql(request.measure)} AS value FROM ${sqlName(request.table)}${where} GROUP BY ${groups} ORDER BY 1`;
+  const sql = `SELECT ${bucket} AS time${split}, ${measureSql(writer, request.measure)} AS value FROM ${sqlName(writer, request.table)}${where} GROUP BY ${groups} ORDER BY 1`;
   const columns = request.by === undefined ? ['time', 'value'] : ['time', 'series', 'value'];
   return {
     queries: [sqlQuery(request.connector, sql)],
@@ -60,12 +64,13 @@ export function seriesData(request: DataOf<'sql-series'>): BuiltData {
  * A measure by the values of a column, largest first: columns the `by` column and `value`.
  *
  * @param request - The request.
+ * @param writer - The dialect's writer.
  * @returns The query and its output.
  */
-export function breakdownData(request: DataOf<'sql-breakdown'>): BuiltData {
-  const where = sqlWhere(request.time, request.filters);
-  const by = sqlName(request.by);
-  const sql = `SELECT ${by}::text AS ${by}, ${measureSql(request.measure)} AS value FROM ${sqlName(request.table)}${where} GROUP BY 1 ORDER BY 2 DESC LIMIT ${request.limit}`;
+export function breakdownData(request: DataOf<'sql-breakdown'>, writer: SqlWriter): BuiltData {
+  const where = sqlWhere(writer, request.time, request.filters);
+  const by = sqlName(writer, request.by);
+  const sql = `SELECT ${writer.text(by)} AS ${by}, ${measureSql(writer, request.measure)} AS value FROM ${sqlName(writer, request.table)}${where} GROUP BY 1 ORDER BY 2 DESC LIMIT ${request.limit}`;
   return {
     queries: [sqlQuery(request.connector, sql)],
     output: { shape: 'long', columns: [request.by, 'value'], chart: 'comparison.bar' },
@@ -76,11 +81,12 @@ export function breakdownData(request: DataOf<'sql-breakdown'>): BuiltData {
  * One number over the time range: column `value`.
  *
  * @param request - The request.
+ * @param writer - The dialect's writer.
  * @returns The query and its output.
  */
-export function statData(request: DataOf<'sql-stat'>): BuiltData {
-  const where = sqlWhere(request.time, request.filters);
-  const sql = `SELECT ${measureSql(request.measure)} AS value FROM ${sqlName(request.table)}${where}`;
+export function statData(request: DataOf<'sql-stat'>, writer: SqlWriter): BuiltData {
+  const where = sqlWhere(writer, request.time, request.filters);
+  const sql = `SELECT ${measureSql(writer, request.measure)} AS value FROM ${sqlName(writer, request.table)}${where}`;
   return {
     queries: [sqlQuery(request.connector, sql)],
     output: { shape: 'single', columns: ['value'], chart: 'kpi.stat' },
@@ -91,13 +97,14 @@ export function statData(request: DataOf<'sql-stat'>): BuiltData {
  * The latest rows, newest first when there is a time column.
  *
  * @param request - The request.
+ * @param writer - The dialect's writer.
  * @returns The query and its output.
  */
-export function rowsData(request: DataOf<'sql-rows'>): BuiltData {
-  const columns = request.columns.map(sqlName).join(', ');
-  const where = sqlWhere(request.time, request.filters);
-  const order = request.time === undefined ? '' : ` ORDER BY ${sqlName(request.time)} DESC`;
-  const sql = `SELECT ${columns} FROM ${sqlName(request.table)}${where}${order} LIMIT ${request.limit}`;
+export function rowsData(request: DataOf<'sql-rows'>, writer: SqlWriter): BuiltData {
+  const columns = request.columns.map((column) => sqlName(writer, column)).join(', ');
+  const where = sqlWhere(writer, request.time, request.filters);
+  const order = request.time === undefined ? '' : ` ORDER BY ${sqlName(writer, request.time)} DESC`;
+  const sql = `SELECT ${columns} FROM ${sqlName(writer, request.table)}${where}${order} LIMIT ${request.limit}`;
   return {
     queries: [sqlQuery(request.connector, sql)],
     output: { shape: 'rows', columns: request.columns, chart: 'table.rows' },
@@ -124,10 +131,13 @@ export interface MarkersRequest {
  * The annotation of deploy markers: each row's time and text.
  *
  * @param request - The markers request.
+ * @param context - The build context, for the connector's dialect.
  * @returns The annotation's query.
  */
-export function markersQuery(request: MarkersRequest): PanelQuery {
-  const where = sqlWhere(request.time, request.filters);
-  const sql = `SELECT ${sqlName(request.time)} AS time, ${sqlName(request.text)}::text AS text FROM ${sqlName(request.table)}${where} ORDER BY 1`;
+export function markersQuery(request: MarkersRequest, context: BuildContext): PanelQuery {
+  const writer = sqlWriterFor(context.dialectOf?.(request.connector));
+  const where = sqlWhere(writer, request.time, request.filters);
+  const text = writer.text(sqlName(writer, request.text));
+  const sql = `SELECT ${sqlName(writer, request.time)} AS time, ${text} AS text FROM ${sqlName(writer, request.table)}${where} ORDER BY 1`;
   return { refId: 'M', connector: request.connector, language: 'sql', sql };
 }

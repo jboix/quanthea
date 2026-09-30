@@ -562,7 +562,8 @@ function subjectsOf(context: ServiceContext) {
     const kind = context.kinds.find((candidate) => candidate.kind === row.kind);
     if (!kind) return [];
     const guide = kind.queryGuide === undefined ? {} : { guide: kind.queryGuide };
-    return [{ subject: toSubject(row), language: kind.language, ...guide }];
+    const dialect = kind.dialect === undefined ? {} : { dialect: kind.dialect };
+    return [{ subject: toSubject(row), language: kind.language, ...dialect, ...guide }];
   });
 }
 

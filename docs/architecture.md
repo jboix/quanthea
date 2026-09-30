@@ -446,7 +446,10 @@ directly onto an ECharts `dataset`.
   - **Query builders.** PromQL: `rate`, `ratio` (such as 5xx over all requests), `latency`
     (every percentile in one query, labelled `quantile`), `gauge`, `top`. SQL: `sql-series`,
     `sql-breakdown`, `sql-stat`, `sql-rows`. Names are checked against strict patterns and
-    quoted, literals are escaped, and variables stay bound references.
+    quoted, literals are escaped, and variables stay bound references. SQL is written for the
+    connector's dialect (`dashboards/queries/sql-writers.ts`): PostgreSQL buckets time with
+    `date_bin` from the start of the range; MySQL and MariaDB bucket epoch seconds in a UTC
+    session, quote names in backticks and escape backslashes in strings.
   - **Saved queries.** An admin saves a query with typed placeholders (`{{name}}`: metric, label,
     table, column, value or duration) and the shape it returns. The model asks for it by id with a
     value per placeholder. Each value is checked and written for its kind like the builders write

@@ -3,8 +3,8 @@
  * placed below, and deploy markers on the time charts. The result is a spec to check, test-run
  * and save like any other.
  */
-import type { Annotation, DashboardSpec, Panel, SavedQuery } from '@querent/shared';
-import { markersQuery, QueryError } from '../queries/index.ts';
+import type { Annotation, DashboardSpec, Panel } from '@querent/shared';
+import { type BuildContext, markersQuery, QueryError } from '../queries/index.ts';
 import type { PanelDraft } from './draft.ts';
 import { expandPanel, isTimeChart, type PanelChart } from './expand.ts';
 import { compactGrid, panelId, placeBelow } from './layout.ts';
@@ -94,14 +94,14 @@ export type ChartChoices = Map<string, PanelChart>;
  *
  * @param panels - The current panels.
  * @param request - The edit.
- * @param saved - The saved queries the run may use.
+ * @param context - The saved queries the run may use, and each connector's dialect.
  * @param charts - Receives the chart choice of each panel built.
  * @returns The panels.
  */
 function editedPanels(
   panels: readonly Panel[],
   request: EditRequest,
-  saved: readonly SavedQuery[],
+  context: BuildContext,
   charts: ChartChoices,
 ): Panel[] {
   const rebuilt = new Map(
@@ -115,13 +115,13 @@ function editedPanels(
     .map((panel) => {
       const replacement = rebuilt.get(panel.id);
       if (!replacement) return panel;
-      const draft = expandPanel(replacement, saved);
+      const draft = expandPanel(replacement, context);
       charts.set(panel.id, draft.chart);
       return panelOf(draft, panel.id, panel.grid);
     });
   const drafts = request.panels
     .filter((panel) => panel.replaces === undefined)
-    .map((panel) => expandPanel(panel, saved));
+    .map((panel) => expandPanel(panel, context));
   const taken = new Set(kept.map((panel) => panel.id));
   const grids = placeBelow(kept, drafts);
   const added = drafts.map((draft, index) => {
@@ -136,13 +136,14 @@ function editedPanels(
  * The markers' annotation.
  *
  * @param request - The markers request.
+ * @param context - The build context, for the connector's dialect.
  * @returns The annotation.
  */
-function markersAnnotation(request: MarkersRequest): Annotation {
+function markersAnnotation(request: MarkersRequest, context: BuildContext): Annotation {
   return {
     id: markersId,
     label: request.label,
-    query: markersQuery(request),
+    query: markersQuery(request, context),
     timeField: 'time',
     textField: 'text',
   };
@@ -153,15 +154,17 @@ function markersAnnotation(request: MarkersRequest): Annotation {
  *
  * @param annotations - The current annotations.
  * @param markers - The edit's markers: a request, `null` to remove, `undefined` to keep.
+ * @param context - The build context, for the connector's dialect.
  * @returns The annotations.
  */
 function editedAnnotations(
   annotations: readonly Annotation[],
   markers: EditRequest['markers'],
+  context: BuildContext,
 ): Annotation[] {
   if (markers === undefined) return [...annotations];
   const others = annotations.filter((annotation) => annotation.id !== markersId);
-  return markers === null ? others : [...others, markersAnnotation(markers)];
+  return markers === null ? others : [...others, markersAnnotation(markers, context)];
 }
 
 /**
@@ -186,7 +189,7 @@ function withMarkers(panels: readonly Panel[], marked: boolean): Panel[] {
  *
  * @param current - The current spec, or `undefined` before the first version.
  * @param request - The edit.
- * @param saved - The saved queries the run may use.
+ * @param context - The saved queries the run may use, and each connector's dialect.
  * @returns The new spec, to test-run, complete, check and save, and the chart choice of each
  *   panel it builds.
  * @throws {QueryError} When the edit names a panel that does not exist, or a panel cannot build.
@@ -194,13 +197,13 @@ function withMarkers(panels: readonly Panel[], marked: boolean): Panel[] {
 export function applyEdit(
   current: DashboardSpec | undefined,
   request: EditRequest,
-  saved: readonly SavedQuery[] = [],
+  context: BuildContext = { saved: [] },
 ): { spec: DashboardSpec; charts: ChartChoices } {
   const spec = withSettings(startingSpec(current, request), request);
-  const annotations = editedAnnotations(spec.annotations, request.markers);
+  const annotations = editedAnnotations(spec.annotations, request.markers, context);
   const marked = annotations.some((annotation) => annotation.id === markersId);
   const charts: ChartChoices = new Map();
-  const edited = editedPanels(spec.panels, request, saved, charts);
+  const edited = editedPanels(spec.panels, request, context, charts);
   // Removed panels leave holes; the rest move up into them.
   const placed = request.remove.length > 0 ? compactGrid(edited) : edited;
   const panels = withMarkers(placed, marked);

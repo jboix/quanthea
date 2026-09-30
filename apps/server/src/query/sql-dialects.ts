@@ -40,3 +40,4 @@ export const sqlDialectRules: Readonly<Record<SqlDialect, SqlDialectRules>> = {
     writtenPlaceholderMessage: 'Use named variables such as :service, not ?.',
   },
 };
+export type { SqlDialect } from '../connectors/_shared/index.ts';

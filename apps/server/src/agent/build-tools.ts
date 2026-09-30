@@ -63,7 +63,9 @@ function idsOf(spec: DashboardSpec): Set<string> {
  */
 function edited(context: RunContext, current: DashboardSpec | undefined, request: EditRequest) {
   try {
-    return applyEdit(current, request, context.queries.saved);
+    const dialectOf = (name: string) =>
+      context.modelView.connectors().find((connector) => connector.name === name)?.dialect;
+    return applyEdit(current, request, { saved: context.queries.saved, dialectOf });
   } catch (error) {
     if (!(error instanceof QueryError)) throw error;
     return { error: error.message };

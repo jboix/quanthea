@@ -1,24 +1,39 @@
 /** Builds a data request into its queries and the table they return. */
-import type { SavedQuery } from '@querent/shared';
-import type { BuiltData } from './built.ts';
+import type { BuildContext, BuiltData } from './built.ts';
 import { gaugeData, latencyData, rateData, ratioData, topData } from './promql.ts';
 import type { DataOf, DataRequest } from './request.ts';
 import { savedData } from './saved.ts';
 import { breakdownData, rowsData, seriesData, statData } from './sql.ts';
+import { type SqlWriter, sqlWriterFor } from './sql-writers.ts';
+
+/**
+ * The SQL writer for a request's connector.
+ *
+ * @param context - The build context.
+ * @param connector - The connector name.
+ * @returns The writer of its dialect.
+ */
+function writerOf(context: BuildContext, connector: string): SqlWriter {
+  return sqlWriterFor(context.dialectOf?.(connector));
+}
 
 /** The builder of each kind but saved queries. */
 const builders: {
-  readonly [Kind in Exclude<DataRequest['kind'], 'saved'>]: (request: DataOf<Kind>) => BuiltData;
+  readonly [Kind in Exclude<DataRequest['kind'], 'saved'>]: (
+    request: DataOf<Kind>,
+    context: BuildContext,
+  ) => BuiltData;
 } = {
   rate: rateData,
   ratio: ratioData,
   latency: latencyData,
   gauge: gaugeData,
   top: topData,
-  'sql-series': seriesData,
-  'sql-breakdown': breakdownData,
-  'sql-stat': statData,
-  'sql-rows': rowsData,
+  'sql-series': (request, context) => seriesData(request, writerOf(context, request.connector)),
+  'sql-breakdown': (request, context) =>
+    breakdownData(request, writerOf(context, request.connector)),
+  'sql-stat': (request, context) => statData(request, writerOf(context, request.connector)),
+  'sql-rows': (request, context) => rowsData(request, writerOf(context, request.connector)),
   raw: rawData,
 };
 
@@ -41,12 +56,15 @@ function rawData(request: DataOf<'raw'>): BuiltData {
  * Builds a data request.
  *
  * @param request - The request.
- * @param saved - The saved queries the run may use.
+ * @param context - The saved queries the run may use, and each connector's dialect.
  * @returns The queries and their output.
  * @throws {QueryError} When the request names something a query cannot use.
  */
-export function buildData(request: DataRequest, saved: readonly SavedQuery[] = []): BuiltData {
-  if (request.kind === 'saved') return savedData(request, saved);
-  const build = builders[request.kind] as (request: DataRequest) => BuiltData;
-  return build(request);
+export function buildData(request: DataRequest, context: BuildContext = { saved: [] }): BuiltData {
+  if (request.kind === 'saved') return savedData(request, context);
+  const build = builders[request.kind] as (
+    request: DataRequest,
+    context: BuildContext,
+  ) => BuiltData;
+  return build(request, context);
 }

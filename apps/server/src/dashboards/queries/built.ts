@@ -1,5 +1,6 @@
 /** What building a data request gives: the queries, and the table they return. */
-import type { ChartUnit, PanelQuery, ShapeKind } from '@querent/shared';
+import type { ChartUnit, PanelQuery, SavedQuery, ShapeKind } from '@querent/shared';
+import type { SqlDialect } from '../../query/sql-dialects.ts';
 
 /** The table a data request returns, and a chart that suits it. */
 export interface DataOutput {
@@ -19,4 +20,17 @@ export interface BuiltData {
   readonly queries: PanelQuery[];
   /** What they return. */
   readonly output: DataOutput;
+}
+
+/** What building needs beyond the request: the saved queries, and each connector's dialect. */
+export interface BuildContext {
+  /** The saved queries the run may use. */
+  readonly saved: readonly SavedQuery[];
+  /**
+   * The SQL dialect of a connector, so SQL is written for it.
+   *
+   * @param connector - The connector name.
+   * @returns Its dialect, or `undefined` when it is unknown or runs no SQL: PostgreSQL is written.
+   */
+  readonly dialectOf?: ((connector: string) => SqlDialect | undefined) | undefined;
 }

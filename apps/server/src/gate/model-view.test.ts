@@ -27,12 +27,13 @@ const signal = () => AbortSignal.timeout(2000);
 const timeRange = { from: new Date(0), to: new Date(3_600_000) };
 
 describe('the model view of the connectors', () => {
-  test('lists connectors with their language and what their level shows', () => {
+  test('lists connectors with their language, dialect and what their level shows', () => {
     expect(services.modelView.connectors()).toEqual([
       {
         name: 'events',
         kind: 'memory',
         language: 'sql',
+        dialect: 'postgres',
         accessLevel: 2,
         access:
           'level 2, schema and metadata: test runs return shapes and row counts, never values',

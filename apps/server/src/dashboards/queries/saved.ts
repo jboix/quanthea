@@ -4,9 +4,10 @@
  * checked and quoted, values escaped or bound, durations checked.
  */
 import type { PanelQuery, QueryParamKind, SavedQuery } from '@querent/shared';
-import type { BuiltData } from './built.ts';
+import type { BuildContext, BuiltData } from './built.ts';
 import type { DataOf } from './request.ts';
-import { metricName, QueryError, sqlInterval, sqlName, sqlString, variableOf } from './text.ts';
+import { durationText, type SqlWriter, sqlName, sqlWriterFor } from './sql-writers.ts';
+import { metricName, QueryError, variableOf } from './text.ts';
 
 /** A plain label or column name. */
 const plainName = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -35,21 +36,23 @@ function checked(value: string, pattern: RegExp, what: string): string {
  * A value in a query: a bound variable, or an escaped literal.
  *
  * @param value - Such as `checkout-svc` or `$service`.
- * @param language - The query language.
+ * @param sql - The SQL writer, or `undefined` for PromQL.
  * @returns Such as `"checkout-svc"` in PromQL or `:service` in SQL.
  */
-function valueText(value: string, language: SavedQuery['language']): string {
+function valueText(value: string, sql: SqlWriter | undefined): string {
   const variable = variableOf(value);
-  if (language === 'promql') return variable ? `"${value}"` : JSON.stringify(value);
-  return variable ? `:${variable}` : sqlString(value);
+  if (!sql) return variable ? `"${value}"` : JSON.stringify(value);
+  return variable ? `:${variable}` : sql.string(value);
 }
 
-/** How each kind of placeholder is written, in SQL or in PromQL. */
-const writers: Readonly<Record<QueryParamKind, (value: string, sql: boolean) => string>> = {
-  value: (value, sql) => valueText(value, sql ? 'sql' : 'promql'),
+/** How each kind of placeholder is written: in SQL with the dialect's writer, or in PromQL. */
+const writers: Readonly<
+  Record<QueryParamKind, (value: string, sql: SqlWriter | undefined) => string>
+> = {
+  value: valueText,
   duration: (value, sql) => {
     const checkedDuration = checked(value, duration, 'a duration such as 5m');
-    return sql ? sqlInterval(checkedDuration) : checkedDuration;
+    return sql ? sql.interval(durationText(checkedDuration)) : checkedDuration;
   },
   metric: (value, sql) => {
     if (sql) throw new QueryError('A SQL query has no metrics.');
@@ -57,15 +60,15 @@ const writers: Readonly<Record<QueryParamKind, (value: string, sql: boolean) => 
   },
   table: (value, sql) => {
     if (!sql) throw new QueryError('A PromQL query has no tables.');
-    return sqlName(checked(value, tableName, 'a table name'));
+    return sqlName(sql, checked(value, tableName, 'a table name'));
   },
   label: (value, sql) => {
     const name = checked(value, plainName, 'a plain name');
-    return sql ? sqlName(name) : name;
+    return sql ? sqlName(sql, name) : name;
   },
   column: (value, sql) => {
     const name = checked(value, plainName, 'a plain name');
-    return sql ? sqlName(name) : name;
+    return sql ? sqlName(sql, name) : name;
   },
 };
 
@@ -73,13 +76,13 @@ const writers: Readonly<Record<QueryParamKind, (value: string, sql: boolean) => 
  * The text a placeholder becomes.
  *
  * @param kind - The placeholder's kind.
- * @param language - The query language.
+ * @param sql - The SQL writer, or `undefined` for PromQL.
  * @param value - The value the agent gave.
  * @returns The text.
  * @throws {QueryError} When the value does not fit its kind or its language.
  */
-function paramText(kind: QueryParamKind, language: SavedQuery['language'], value: string): string {
-  return writers[kind](value, language === 'sql');
+function paramText(kind: QueryParamKind, sql: SqlWriter | undefined, value: string): string {
+  return writers[kind](value, sql);
 }
 
 /**
@@ -87,16 +90,21 @@ function paramText(kind: QueryParamKind, language: SavedQuery['language'], value
  *
  * @param template - The saved query.
  * @param params - The values by placeholder.
+ * @param sql - The SQL writer of the connector, or `undefined` for PromQL.
  * @returns The query text.
  * @throws {QueryError} When a placeholder has no value or a value does not fit.
  */
-function filled(template: SavedQuery, params: Readonly<Record<string, string>>): string {
+function filled(
+  template: SavedQuery,
+  params: Readonly<Record<string, string>>,
+  sql: SqlWriter | undefined,
+): string {
   return template.query.replace(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g, (_match, name: string) => {
     const param = template.params.find((each) => each.name === name);
     const value = params[name];
     if (!param || value === undefined)
       throw new QueryError(`${template.name} needs a value for ${name}.`);
-    return paramText(param.kind, template.language, value);
+    return paramText(param.kind, sql, value);
   });
 }
 
@@ -118,14 +126,16 @@ const chartsByShape: Readonly<Record<SavedQuery['shape'], string>> = {
  * Builds a saved query.
  *
  * @param request - The request: the query's id, its connector and its values.
- * @param saved - The saved queries the run may use.
+ * @param context - The saved queries the run may use, and each connector's dialect.
  * @returns The query and its output.
  * @throws {QueryError} For an unknown query or values that do not fit.
  */
-export function savedData(request: DataOf<'saved'>, saved: readonly SavedQuery[]): BuiltData {
-  const template = saved.find((each) => each.id === request.name);
+export function savedData(request: DataOf<'saved'>, context: BuildContext): BuiltData {
+  const template = context.saved.find((each) => each.id === request.name);
   if (!template) throw new QueryError(`No saved query "${request.name}".`);
-  const text = filled(template, request.params);
+  const sql =
+    template.language === 'sql' ? sqlWriterFor(context.dialectOf?.(request.connector)) : undefined;
+  const text = filled(template, request.params, sql);
   const query: PanelQuery =
     template.language === 'sql'
       ? { refId: 'A', connector: request.connector, language: 'sql', sql: text }

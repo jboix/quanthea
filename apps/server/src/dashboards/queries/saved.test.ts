@@ -44,7 +44,7 @@ const available = { builtIn: ['rate'], saved: [failedBy, queueDepth] };
  */
 function queryOf(data: Record<string, unknown>): string {
   const request = dataSchemaFor(available).parse(data);
-  const query = buildData(request, available.saved).queries[0];
+  const query = buildData(request, { saved: available.saved }).queries[0];
   return query?.language === 'sql' ? query.sql : (query?.expr ?? '');
 }
 

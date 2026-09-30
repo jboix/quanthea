@@ -17,11 +17,12 @@ export interface ConnectorAccess {
   /**
    * Lists the connectors, as the gate sees them.
    *
-   * @returns Their subjects and query languages.
+   * @returns Their subjects, query languages and SQL dialects.
    */
   list(): readonly {
     readonly subject: GateSubject;
     readonly language: QuerySource['language'];
+    readonly dialect?: QuerySource['dialect'];
     readonly guide?: string;
   }[];
   /**
@@ -50,6 +51,8 @@ export interface ModelConnector {
   readonly kind: string;
   /** The query language. */
   readonly language: QuerySource['language'];
+  /** The SQL dialect, when it runs SQL. */
+  readonly dialect?: QuerySource['dialect'];
   /** The access level. */
   readonly accessLevel: AccessLevel;
   /** What the access level lets the model see. */
@@ -157,10 +160,11 @@ function unreachable(name: string): string {
  * @returns Name, kind, language and access of each.
  */
 function modelConnectors(access: ConnectorAccess): ModelConnector[] {
-  return access.list().map(({ subject, language }) => ({
+  return access.list().map(({ subject, language, dialect }) => ({
     name: subject.name,
     kind: subject.kind,
     language,
+    ...(dialect === undefined ? {} : { dialect }),
     accessLevel: subject.accessLevel,
     access: levelMeanings[subject.accessLevel],
   }));

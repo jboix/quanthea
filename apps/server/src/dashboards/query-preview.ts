@@ -12,7 +12,13 @@ import {
 import { z } from 'zod';
 import type { Dashboards, PanelTest } from './dashboards.ts';
 import { applyEdit, completeCharts, editRequestSchemaFor } from './panels/index.ts';
-import { buildData, dataSchema, QueryError, queryText } from './queries/index.ts';
+import {
+  type BuildContext,
+  buildData,
+  dataSchema,
+  QueryError,
+  queryText,
+} from './queries/index.ts';
 
 /** What a preview needs of the dashboards service. */
 type PreviewServices = Pick<Dashboards, 'check' | 'testRun'>;
@@ -22,21 +28,22 @@ type PreviewServices = Pick<Dashboards, 'check' | 'testRun'>;
  *
  * @param data - The data request.
  * @param chart - The chart, if one is named.
- * @param saved - The saved queries it may name.
+ * @param context - The saved queries it may name, and each connector's dialect.
  * @param from - How far back it looks, such as `now-24h`.
  * @returns The spec and its chart choices, or the message.
  */
 function previewEdit(
   data: Readonly<Record<string, unknown>>,
   chart: Readonly<Record<string, unknown>> | undefined,
-  saved: readonly SavedQuery[],
+  context: BuildContext,
   from: string,
 ) {
   const parsedData = dataSchema.safeParse(data);
   if (!parsedData.success) return { message: z.prettifyError(parsedData.error) };
   try {
-    const suggested = { recipe: buildData(parsedData.data, saved).output.chart };
-    const available = { builtIn: queryBuilders.map((builder) => builder.id), saved };
+    const suggested = { recipe: buildData(parsedData.data, context).output.chart };
+    const builtIn = queryBuilders.map((builder) => builder.id);
+    const available = { builtIn, saved: context.saved };
     const panel = { title: 'Preview', data, chart: chart ?? suggested };
     const edit = {
       title: 'Preview',
@@ -46,7 +53,7 @@ function previewEdit(
     };
     const parsed = editRequestSchemaFor(available).safeParse(edit);
     if (!parsed.success) return { message: z.prettifyError(parsed.error) };
-    return applyEdit(undefined, parsed.data, saved);
+    return applyEdit(undefined, parsed.data, context);
   } catch (error) {
     if (!(error instanceof QueryError)) throw error;
     return { message: error.message };
@@ -93,6 +100,7 @@ function drawn(
  * @param request.chart - The chart, when one is named.
  * @param request.saved - The saved queries it may name, a draft among them.
  * @param request.from - How far back it looks.
+ * @param request.dialectOf - The SQL dialect of a connector.
  * @returns The panel, its queries, its run and its columns, or why it cannot be built.
  */
 export async function previewData(
@@ -102,9 +110,11 @@ export async function previewData(
     chart?: Readonly<Record<string, unknown>> | undefined;
     saved: readonly SavedQuery[];
     from: string;
+    dialectOf?: BuildContext['dialectOf'];
   },
 ): Promise<QueryPreview> {
-  const edit = previewEdit(request.data, request.chart, request.saved, request.from);
+  const { saved, dialectOf } = request;
+  const edit = previewEdit(request.data, request.chart, { saved, dialectOf }, request.from);
   if (!('spec' in edit))
     return { ok: false, message: edit.message ?? 'The preview cannot be built.', queries: [] };
   const queries = edit.spec.panels.flatMap((panel) => panel.queries.map(queryText));

@@ -7,10 +7,9 @@ import {
   type ChartRecipe,
   chartRecipe,
   fillView,
-  type SavedQuery,
   type View,
 } from '@querent/shared';
-import { buildData, QueryError } from '../queries/index.ts';
+import { type BuildContext, buildData, QueryError } from '../queries/index.ts';
 import type { PanelDraft, PanelShape } from './draft.ts';
 import type { PanelRequest } from './request.ts';
 
@@ -73,16 +72,16 @@ export function choiceOf(request: PanelRequest, unit: ChartChoice['unit']): Char
  * Expands a panel request.
  *
  * @param request - The request.
- * @param saved - The saved queries the run may use.
+ * @param context - The saved queries the run may use, and each connector's dialect.
  * @returns The draft, and the chart choice and the declared columns, to complete the chart once the
  *   queries have run.
  * @throws {QueryError} When the data or the chart cannot be built.
  */
 export function expandPanel(
   request: PanelRequest,
-  saved: readonly SavedQuery[] = [],
+  context: BuildContext = { saved: [] },
 ): PanelDraft & { chart: PanelChart } {
-  const built = buildData(request.data, saved);
+  const built = buildData(request.data, context);
   const recipe = chartRecipe(request.chart.recipe);
   if (!recipe) throw new QueryError(`No chart recipe "${request.chart.recipe}".`);
   const choice = choiceOf(request, built.output.unit);
