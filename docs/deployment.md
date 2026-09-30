@@ -58,8 +58,8 @@ another file or directory). Each top-level key is a section:
 
 | Section        | What it declares                                                      |
 | -------------- | --------------------------------------------------------------------- |
-| `server`       | the public URL, trusted proxies, forced authentication mode, logging  |
-| `users`        | users by email: name, role, disabled, a first password                |
+| `server`       | the public URL, trusted proxies, logging                              |
+| `users`        | users by email (or `admin`): name, role, disabled, a first password   |
 | `signIn`       | sign-in providers by id, and whether passwords sign in                |
 | `connectors`   | connectors by name: kind, settings, secrets, access level, guardrails |
 | `model`        | the model gateway: providers, their keys, limits                      |
