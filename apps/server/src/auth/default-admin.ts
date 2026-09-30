@@ -4,6 +4,7 @@
  * freshly exposed install. Until that admin chooses their own email and password, every other
  * route refuses them. Threads the anonymous admin of the open-access mode started go to an admin.
  */
+import { randomInt } from 'node:crypto';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { ThreadOwnershipRepository } from '../db/thread-ownership.ts';
 import type { UserRepository } from '../db/user-repository.ts';
@@ -50,14 +51,19 @@ export interface DefaultAdminDependencies {
   readonly now?: () => number;
 }
 
+/** Password length: 24 characters of the alphabet, about 140 bits. */
+const passwordLength = 24;
+
 /**
- * A random password of 24 characters, about 140 bits.
+ * A random password of 24 characters, about 140 bits. `randomInt` draws each character from the
+ * whole alphabet without bias.
  *
  * @returns The password.
  */
-function generatedPassword(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  return [...bytes].map((byte) => alphabet[byte % alphabet.length]).join('');
+export function generatedPassword(): string {
+  return Array.from({ length: passwordLength }, () => alphabet[randomInt(alphabet.length)]).join(
+    '',
+  );
 }
 
 /**

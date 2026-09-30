@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { createApp } from '../app.ts';
 import { captureLogs, temporaryDir, testServices } from '../test/fixtures.ts';
 import { createAuthenticator, sessionCookieName } from './authenticator.ts';
-import { ensureAdmin } from './default-admin.ts';
+import { ensureAdmin, generatedPassword } from './default-admin.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let services: Awaited<ReturnType<typeof testServices>>;
@@ -112,5 +112,11 @@ describe('the default admin', () => {
     await services.users.create({ email: 'ada@example.com', name: 'Ada', role: 'admin' }, 'x');
     expect(await startUp()).toBeUndefined();
     expect(await services.users.findByEmail('admin')).toBeUndefined();
+  });
+
+  test('draws a 24-character password from its alphabet', () => {
+    const passwords = Array.from({ length: 50 }, generatedPassword);
+    for (const password of passwords) expect(password).toMatch(/^[A-HJ-NP-Za-km-z2-9]{24}$/);
+    expect(new Set(passwords).size).toBe(50);
   });
 });
