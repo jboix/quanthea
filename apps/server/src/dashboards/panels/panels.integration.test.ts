@@ -65,7 +65,8 @@ function everyBuilder() {
       },
       {
         title: 'Series',
-        data: { kind: 'gauge', connector: prom, metric: 'up', aggregate: 'sum' },
+        // A metric of the backfilled history: `up` exists only from the first live scrape.
+        data: { kind: 'gauge', connector: prom, metric: 'http_requests_total', aggregate: 'sum' },
         chart: { recipe: 'kpi.big-number' },
       },
       {

@@ -5,6 +5,7 @@ import {
   devIncidentStart,
   devPrometheus,
   integrationEnabled,
+  waitForFirstScrape,
 } from '../_shared/test/dev-sources.ts';
 import { prometheusConnector } from './prometheus-connector.ts';
 
@@ -68,6 +69,8 @@ describe.skipIf(!integrationEnabled)('prometheus connector against the dev serve
   });
 
   test('describes the metrics with their type and labels', async () => {
+    // Prometheus learns a metric's type from a scrape; the backfilled history carries none.
+    await waitForFirstScrape();
     const snapshot = await connection.describe(AbortSignal.timeout(10_000));
     const requests = snapshot.entities.find((entity) => entity.name === 'http_requests_total');
     expect(requests?.description).toBe('counter');
@@ -75,5 +78,5 @@ describe.skipIf(!integrationEnabled)('prometheus connector against the dev serve
       expect.arrayContaining(['service', 'env', 'code']),
     );
     expect(requests?.fields.find((field) => field.name === 'service')?.distinctEstimate).toBe(4);
-  });
+  }, 40_000);
 });
