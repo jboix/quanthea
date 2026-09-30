@@ -10,10 +10,11 @@ import {
   type FieldReference,
   type HealthReport,
   type PromqlQuery,
+  type SeriesData,
+  seriesFrames,
 } from '../_shared/index.ts';
 import { createPrometheusApi, type PrometheusApi } from './api.ts';
 import { describePrometheus, metricSelector } from './catalog.ts';
-import { type QueryData, toFrames } from './frames.ts';
 import { prometheusGuide } from './guide.ts';
 import { prometheusIcon } from './icon.ts';
 
@@ -97,12 +98,12 @@ async function execute(
   const timeout = `${Math.max(1, Math.ceil(context.timeoutMs / 1000))}s`;
   const { from, to } = context.timeRange;
   const result = query.instant
-    ? await api.get<QueryData>(
+    ? await api.get<SeriesData>(
         '/api/v1/query',
         { query: query.expr, time: unixSeconds(to), timeout },
         context.signal,
       )
-    : await api.get<QueryData>(
+    : await api.get<SeriesData>(
         '/api/v1/query_range',
         {
           query: query.expr,
@@ -113,7 +114,7 @@ async function execute(
         },
         context.signal,
       );
-  return toFrames(result.data, context, performance.now() - started);
+  return seriesFrames(result.data, context, performance.now() - started);
 }
 
 /**

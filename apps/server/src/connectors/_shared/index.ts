@@ -32,3 +32,4 @@ export type {
   SchemaField,
   SchemaSnapshot,
 } from './schema.ts';
+export { type SeriesData, seriesFrames } from './series-frames.ts';

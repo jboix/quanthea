@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { frameProblems } from '@querent/shared';
-import type { ExecutionContext } from '../_shared/index.ts';
-import { maxSeries, sampleValue, seriesName, toFrames } from './frames.ts';
+import type { ExecutionContext } from './index.ts';
+import { sampleValue, seriesFrames, seriesName } from './series-frames.ts';
 
 const context: ExecutionContext = {
   refId: 'A',
@@ -13,7 +13,7 @@ const context: ExecutionContext = {
 
 describe('toFrames', () => {
   test('turns each series of a range query into a frame, labels on the value field', () => {
-    const frames = toFrames(
+    const frames = seriesFrames(
       {
         resultType: 'matrix',
         result: [
@@ -47,7 +47,7 @@ describe('toFrames', () => {
   });
 
   test('keeps maxRows points per series and marks the frame truncated', () => {
-    const [frame] = toFrames(
+    const [frame] = seriesFrames(
       {
         resultType: 'matrix',
         result: [
@@ -68,18 +68,18 @@ describe('toFrames', () => {
   });
 
   test('drops series past the cap and marks the last frame truncated', () => {
-    const result = Array.from({ length: maxSeries + 5 }, (_unused, index) => ({
+    const result = Array.from({ length: 1000 + 5 }, (_unused, index) => ({
       metric: { index: String(index) },
       values: [[1, '1']] as [number, string][],
     }));
-    const frames = toFrames({ resultType: 'matrix', result }, context, 0);
-    expect(frames).toHaveLength(maxSeries);
+    const frames = seriesFrames({ resultType: 'matrix', result }, context, 0);
+    expect(frames).toHaveLength(1000);
     expect(frames.at(-1)?.meta.truncated).toBe(true);
     expect(frames[0]?.meta.truncated).toBe(false);
   });
 
   test('turns an instant query into one table: a column per label, then the value', () => {
-    const [frame] = toFrames(
+    const [frame] = seriesFrames(
       {
         resultType: 'vector',
         result: [
@@ -100,7 +100,7 @@ describe('toFrames', () => {
   });
 
   test('turns a scalar into one point', () => {
-    const [frame] = toFrames({ resultType: 'scalar', result: [2, '42'] }, context, 0);
+    const [frame] = seriesFrames({ resultType: 'scalar', result: [2, '42'] }, context, 0);
     expect(frame?.values).toEqual([[2000], [42]]);
   });
 });

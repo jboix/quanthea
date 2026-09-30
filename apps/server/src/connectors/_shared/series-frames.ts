@@ -1,6 +1,10 @@
-/** Turns Prometheus query results into frames. */
+/**
+ * Turns labelled series, in the result format of the Prometheus HTTP API, into frames. Prometheus
+ * answers in it, and so do Loki's metric queries.
+ */
 import type { Field, Frame } from '@querent/shared';
-import { createFrameBuilder, type ExecutionContext } from '../_shared/index.ts';
+import { createFrameBuilder } from './frame-builder.ts';
+import type { ExecutionContext } from './queries.ts';
 
 /** One series of a range query. */
 interface MatrixSeries {
@@ -18,19 +22,19 @@ interface VectorSample {
   readonly value: readonly [number, string];
 }
 
-/** The `data` of a query response. */
-export type QueryData =
+/** The `data` of a query response: series over time, samples at one time, or one value. */
+export type SeriesData =
   | { readonly resultType: 'matrix'; readonly result: readonly MatrixSeries[] }
   | { readonly resultType: 'vector'; readonly result: readonly VectorSample[] }
   | { readonly resultType: 'scalar' | 'string'; readonly result: readonly [number, string] };
 
 /** The most series one query returns; more are dropped and the last frame marked truncated. */
-export const maxSeries = 1000;
+const maxSeries = 1000;
 
 /**
- * Converts a Prometheus sample value.
+ * Converts a sample value.
  *
- * @param value - The value as Prometheus writes it, such as `"0.084"`, `"NaN"` or `"+Inf"`.
+ * @param value - The value as the API writes it, such as `"0.084"`, `"NaN"` or `"+Inf"`.
  * @returns The number, or `null` when it is not finite.
  */
 export function sampleValue(value: string): number | null {
@@ -129,14 +133,18 @@ function vectorFrame(
 }
 
 /**
- * Turns a query result into frames.
+ * Turns a series result into frames: one per series over time, one table of samples at one time.
  *
  * @param data - The `data` of the response.
  * @param context - The execution context.
  * @param durationMs - How long the query took.
  * @returns The frames.
  */
-export function toFrames(data: QueryData, context: ExecutionContext, durationMs: number): Frame[] {
+export function seriesFrames(
+  data: SeriesData,
+  context: ExecutionContext,
+  durationMs: number,
+): Frame[] {
   if (data.resultType === 'matrix') return matrixFrames(data.result, context, durationMs);
   if (data.resultType === 'vector') return [vectorFrame(data.result, context, durationMs)];
   const [seconds, value] = data.result;

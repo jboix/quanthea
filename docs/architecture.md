@@ -637,6 +637,9 @@ export const exampleConnector = defineConnector({
 - Failures are `ConnectorError`s with a code and a `safeMessage` that quotes no data. The model sees
   only the safe message below access level 4.
 - `createFrameBuilder` lays rows out in columns and handles the row limit and truncation.
+- `seriesFrames` turns labelled series in the Prometheus API's result format (matrix, vector,
+  scalar) into frames: one per series over time (at most 1000), or one table of samples. Prometheus
+  and Loki's metric queries answer in it.
 - `createHttpClient` is the HTTP client of every kind that speaks HTTP. It calls the base URL's
   origin only and follows a redirect only within it. It never calls a cloud metadata address
   (169.254.0.0/16, 100.100.100.200, fd00:ec2::254, fe80::/10), by the host or by what a name
