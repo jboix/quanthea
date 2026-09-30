@@ -9,17 +9,25 @@ import type { RunContext } from './run-context.ts';
 /** How far back a test query looks when the model gives no time range. */
 const defaultTestRange = { from: 'now-6h', to: 'now' };
 
-/** Validates a query to test: SQL, or PromQL with its options. */
+/** Validates the options of a PromQL or LogQL expression. */
+const expressionOptions = {
+  expr: z.string().min(1).max(10_000),
+  instant: z.boolean().optional(),
+  step: z
+    .string()
+    .regex(/^\d{1,5}[smhd]$/)
+    .optional(),
+};
+
+/** Validates a query to test: SQL, PromQL or LogQL with its options, or a search. */
 const testQuerySchema = z.discriminatedUnion('language', [
   z.object({ language: z.literal('sql'), sql: z.string().min(1).max(20_000) }),
+  z.object({ language: z.literal('promql'), ...expressionOptions }),
+  z.object({ language: z.literal('logql'), ...expressionOptions }),
   z.object({
-    language: z.literal('promql'),
-    expr: z.string().min(1).max(10_000),
-    instant: z.boolean().optional(),
-    step: z
-      .string()
-      .regex(/^\d{1,5}[smhd]$/)
-      .optional(),
+    language: z.literal('search'),
+    index: z.string().min(1).max(500),
+    body: z.record(z.string(), z.unknown()),
   }),
 ]);
 
@@ -76,7 +84,7 @@ function testQueryTool(context: RunContext, resolveTime: (expression: string) =>
   const { modelView, signal } = context;
   return tool({
     description:
-      'Run a query and see its result as your access level allows: shapes, row counts, and more at higher levels. Use it before putting a query in a dashboard. SQL uses :name variables and :__from, :__to; PromQL uses $name in label matchers, $__interval, $__range, $__rate_interval.',
+      'Run a query and see its result as your access level allows: shapes, row counts, and more at higher levels. Use it before putting a query in a dashboard. SQL uses :name variables and :__from, :__to; PromQL uses $name in label matchers, $__interval, $__range, $__rate_interval; LogQL the same, also in line and label filters; a search body uses {"$var": "name"} nodes and __from, __to, __interval.',
     inputSchema: z.object({
       connector: z.string(),
       query: testQuerySchema,

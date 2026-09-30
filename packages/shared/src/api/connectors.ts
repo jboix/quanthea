@@ -24,7 +24,7 @@ export const connectorKindSchema = z.object({
   displayName: z.string(),
   /** The kind's logo, or `null` when it has none. */
   icon: connectorIconSchema.nullable(),
-  language: z.enum(['sql', 'promql']),
+  language: z.enum(['sql', 'promql', 'search', 'logql']),
   configSchema: jsonSchemaSchema,
   secretSchema: jsonSchemaSchema,
 });

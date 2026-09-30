@@ -39,9 +39,12 @@ function mountPreviewRoutes(app: Hono<AppEnv>, services: QueryRouteServices): vo
   mountEndpoint(app, getQueryGuideEndpoint, {
     access: 'admin',
     handle: () => {
+      // Builders and saved queries are written in SQL and PromQL only.
       const connectors = services.connections
         .subjects()
-        .map(({ subject, language }) => ({ name: subject.name, language }));
+        .flatMap(({ subject, language }) =>
+          language === 'sql' || language === 'promql' ? [{ name: subject.name, language }] : [],
+        );
       return { builders: builderGuides(), connectors };
     },
   });

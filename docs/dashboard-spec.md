@@ -62,15 +62,16 @@ type Variable =
     }
 
 // The built-in time variable (always present, not listed in `variables`):
-//   default range lives in `time`, values exposed as $__from, $__to, $__range, $__interval (PromQL/HTTP)
-//   and :__from, :__to (SQL), and as a range filter the OpenSearch connector injects.
+//   default range lives in `time`, values exposed as $__from, $__to, $__range, $__interval
+//   (PromQL, LogQL, HTTP), :__from, :__to (SQL), and {"$var": "__from"}, "__to", "__interval" (search).
 type TimeDefault = { from: string; to: string }   // 'now-7d' | 'now' | ISO 8601
 
 // ---------------------------------------------------------------- queries
 type QueryTemplate =
   | { refId: string; connector: string; language: 'promql'; expr: string; step?: string; instant?: boolean }  // step: '1m' or '$interval'
   | { refId: string; connector: string; language: 'sql'; sql: string }            // named params :var
-  | { refId: string; connector: string; language: 'opensearch'; index: string; body: JsonWithVars }
+  | { refId: string; connector: string; language: 'logql'; expr: string; step?: string; instant?: boolean }
+  | { refId: string; connector: string; language: 'search'; index: string; body: JsonWithVars }  // Elasticsearch, OpenSearch
   | { refId: string; connector: string; language: 'http'; path: string; query?: Record<string, string>; extract: HttpExtract }
 
 // Structural variable reference inside JSON bodies: { "$var": "service" }
@@ -170,7 +171,7 @@ they differ from the sketch above, the schemas win:
 - A chart option may use tokens the adapter replaces: `@role` for a role's column, and theme
   colours such as `@ink`, `@palette.1` or `@scale.low`. Views written before chart recipes have no
   roles; the adapter then reads the first time or text column as the x and the numbers as values.
-- Queries are `sql` and `promql` for now. `opensearch` and `http` come with their connectors.
+- Queries are `sql`, `promql`, `logql` and `search`. `http` comes with its connector.
 - A query-backed variable's `source` has no `refId`.
 - Time expressions are `now`, `now-<n><unit>` (units `s m h d w M y`) or an ISO 8601 timestamp
   with an offset.

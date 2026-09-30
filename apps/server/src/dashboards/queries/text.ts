@@ -2,7 +2,6 @@
  * The query text builders write: names checked against strict patterns and quoted, literals
  * escaped for their language, and variables left as references the binder fills in.
  */
-import type { PanelQuery } from '@querent/shared';
 import type { Filter } from './request.ts';
 
 /** Why a request cannot be built, in words the model can act on. */
@@ -77,14 +76,4 @@ export function selector(metric: string, filters: readonly Filter[]): string {
  */
 export function byClause(labels: readonly string[]): string {
   return labels.length === 0 ? '' : ` by (${labels.join(', ')})`;
-}
-
-/**
- * The text of a query.
- *
- * @param query - The query.
- * @returns Its SQL or PromQL.
- */
-export function queryText(query: PanelQuery): string {
-  return query.language === 'sql' ? query.sql : query.expr;
 }

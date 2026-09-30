@@ -1,4 +1,4 @@
-import type { Panel } from '@querent/shared';
+import { type Panel, queryLanguageNames, queryText } from '@querent/shared';
 import { InfoIcon } from '../../ui/icons.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import styles from './panels.module.css';
@@ -33,12 +33,10 @@ export function PanelInfo({ panel }: { readonly panel: Panel }) {
         {panel.queries.map((query) => (
           <div key={query.refId} className={styles.infoQuery}>
             <span className={styles.infoSource}>
-              {query.connector} · {query.language === 'sql' ? 'SQL' : 'PromQL'}
-              {query.language === 'promql' && query.instant ? ' · instant' : ''}
+              {query.connector} · {queryLanguageNames[query.language]}
+              {'instant' in query && query.instant ? ' · instant' : ''}
             </span>
-            <pre className={styles.infoCode}>
-              {query.language === 'sql' ? query.sql : query.expr}
-            </pre>
+            <pre className={styles.infoCode}>{queryText(query)}</pre>
           </div>
         ))}
         <span className={styles.infoSource}>Drawn as {drawnAs(panel)}</span>

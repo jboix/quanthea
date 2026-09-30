@@ -21,6 +21,8 @@ interface GuardrailsDraft {
 const allowedStatements: Readonly<Record<string, string>> = {
   sql: 'SELECT only',
   promql: 'Read endpoints only',
+  search: 'Search only, no scripts',
+  logql: 'Read endpoints only',
 };
 
 /**

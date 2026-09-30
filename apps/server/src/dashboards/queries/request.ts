@@ -146,14 +146,23 @@ const sqlRowsSchema = z.strictObject({
   limit: z.int().min(1).max(200).default(20),
 });
 
-/** A raw query, for data no builder gives. */
-const rawSchema = z.strictObject({
-  kind: z.literal('raw'),
-  connector: connectorSchema,
-  language: z.enum(['sql', 'promql']),
-  query: z.string().min(1).max(10_000),
-  instant: z.boolean().optional(),
-});
+/**
+ * A raw query, for data no builder gives. A search query is its JSON body as text, with the index
+ * apart.
+ */
+const rawSchema = z
+  .strictObject({
+    kind: z.literal('raw'),
+    connector: connectorSchema,
+    language: z.enum(['sql', 'promql', 'search', 'logql']),
+    query: z.string().min(1).max(10_000),
+    index: z.string().min(1).max(500).optional(),
+    instant: z.boolean().optional(),
+  })
+  .refine((raw) => raw.language !== 'search' || raw.index !== undefined, {
+    message: 'A search query names its index.',
+    path: ['index'],
+  });
 
 /** A saved query, by id, with its placeholders filled. */
 const savedSchema = z.strictObject({

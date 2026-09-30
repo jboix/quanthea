@@ -1,5 +1,5 @@
 /** A first build shared by the panel tests: five panels of data and charts over two connectors. */
-import type { DashboardSpec } from '@querent/shared';
+import { type DashboardSpec, queryText } from '@querent/shared';
 import type { ConnectorLookup } from '../check-queries.ts';
 import { validateSpec } from '../validate.ts';
 import { applyEdit } from './edit.ts';
@@ -53,9 +53,7 @@ export function issuesOf(spec: DashboardSpec): string[] {
  * @returns One list per panel.
  */
 export function queriesOf(spec: DashboardSpec): string[][] {
-  return spec.panels.map((panel) =>
-    panel.queries.map((query) => (query.language === 'sql' ? query.sql : query.expr)),
-  );
+  return spec.panels.map((panel) => panel.queries.map(queryText));
 }
 
 const interval = { kind: 'interval', name: 'interval', options: ['1m', '5m'], default: '5m' };

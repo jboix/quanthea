@@ -758,6 +758,16 @@ that changes with its settings).
      checked again against the duration pattern (`15s`, `5m`, `1h`) when bound. The step is a
      duration or an interval variable, raised so the range fits in the row limit (at most 11000
      points).
+   - **LogQL** (`query/logql-binder.ts`): as PromQL, and a variable also goes in the value of a
+     line filter (`|= "$text"`, `|~`) or a label filter (`| level="$level"`). `line_format` and
+     `label_format` are refused: their argument is a template Loki runs.
+   - **Search** (`query/search-binder.ts`), the Elasticsearch and OpenSearch query DSL: a variable
+     is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value (a string, or a
+     list for a multi-value variable), never text inside a string. `__from` and `__to` are ISO
+     times; `__interval` is a bucket width that keeps the range within 1000 buckets. A body with a
+     script (`script`, `_script`, `script_fields`, `script_score`, `scripted_metric`,
+     `runtime_mappings`) is refused, because the search server would run it. The index is
+     lowercase names and patterns, never a hidden (`.`), system (`_`) or remote (`:`) index.
 3. The connector runs the bound query with an abort signal that fires at `timeoutMs` or when the
    caller gives up. The executor also races the signal, so a connector that ignores it cannot hold
    the caller.
@@ -765,7 +775,7 @@ that changes with its settings).
 5. The frames are cached for 15 seconds by connector, version, refId, bound query and time range.
 
 Failures are `QueryError`s (`invalid`, `guardrail`, `timeout`, `connector`) with a safe message.
-Injection tests cover both binders, and integration tests run the attacks against the dev sources.
+Injection tests cover every binder, and integration tests run the attacks against the dev sources.
 
 ### Access gate (`gate/`)
 

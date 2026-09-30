@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { SavedQuery } from '@querent/shared';
-import { savedQuerySchema } from '@querent/shared';
+import { queryText, type SavedQuery, savedQuerySchema } from '@querent/shared';
 import { z } from 'zod';
 import { buildData } from './build.ts';
 import { dataSchemaFor } from './request.ts';
@@ -45,7 +44,7 @@ const available = { builtIn: ['rate'], saved: [failedBy, queueDepth] };
 function queryOf(data: Record<string, unknown>): string {
   const request = dataSchemaFor(available).parse(data);
   const query = buildData(request, { saved: available.saved }).queries[0];
-  return query?.language === 'sql' ? query.sql : (query?.expr ?? '');
+  return query ? queryText(query) : '';
 }
 
 describe('saved queries', () => {

@@ -1,10 +1,12 @@
 /** Builds a data request into its queries and the table they return. */
+import type { PanelQuery } from '@querent/shared';
 import type { BuildContext, BuiltData } from './built.ts';
 import { gaugeData, latencyData, rateData, ratioData, topData } from './promql.ts';
 import type { DataOf, DataRequest } from './request.ts';
 import { savedData } from './saved.ts';
 import { breakdownData, rowsData, seriesData, statData } from './sql.ts';
 import { type SqlWriter, sqlWriterFor } from './sql-writers.ts';
+import { QueryError } from './text.ts';
 
 /**
  * The SQL writer for a request's connector.
@@ -44,12 +46,44 @@ const builders: {
  * @returns The query and its output.
  */
 function rawData(request: DataOf<'raw'>): BuiltData {
+  return {
+    queries: [rawQuery(request)],
+    output: { shape: 'rows', columns: [], chart: 'table.rows' },
+  };
+}
+
+/**
+ * The panel query of a raw query.
+ *
+ * @param request - The request.
+ * @returns The query, refId A.
+ * @throws {QueryError} For a search body that is not a JSON object.
+ */
+function rawQuery(request: DataOf<'raw'>): PanelQuery {
   const { connector, language, query, instant } = request;
-  const built =
-    language === 'sql'
-      ? { refId: 'A', connector, language, sql: query }
-      : { refId: 'A', connector, language, expr: query, ...(instant ? { instant: true } : {}) };
-  return { queries: [built], output: { shape: 'rows', columns: [], chart: 'table.rows' } };
+  if (language === 'sql') return { refId: 'A', connector, language, sql: query };
+  if (language === 'search')
+    return { refId: 'A', connector, language, index: request.index ?? '', body: searchBody(query) };
+  return { refId: 'A', connector, language, expr: query, ...(instant ? { instant: true } : {}) };
+}
+
+/**
+ * Reads the body of a raw search query.
+ *
+ * @param text - The body as JSON text.
+ * @returns The body.
+ * @throws {QueryError} When the text is not a JSON object.
+ */
+function searchBody(text: string): Record<string, unknown> {
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw new QueryError('The search body is not valid JSON.');
+  }
+  if (typeof body !== 'object' || body === null || Array.isArray(body))
+    throw new QueryError('The search body is a JSON object, such as {"query": {…}}.');
+  return body as Record<string, unknown>;
 }
 
 /**

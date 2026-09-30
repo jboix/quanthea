@@ -323,7 +323,10 @@ export {
   type PanelQuery,
   panelQuerySchema,
   type QueryTemplate,
+  queryLanguageNames,
   queryTemplateSchema,
+  queryText,
+  queryTextKey,
 } from './spec/queries.ts';
 export {
   type ResolvedTimeRange,

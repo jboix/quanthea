@@ -14,9 +14,11 @@ export { createHttpClient, type HttpClient, type HttpResponse } from './http.ts'
 export {
   type BoundQuery,
   type ExecutionContext,
+  type LogqlQuery,
   type PromqlQuery,
   type QueryLanguage,
   queryLanguages,
+  type SearchQuery,
   type SqlDialect,
   type SqlParameter,
   type SqlQuery,

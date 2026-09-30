@@ -139,13 +139,19 @@ function matcherValue(name: string, operator: string, variables: Variables): str
  * @param literal - The string literal, with its quotes.
  * @param operator - The matcher operator before it, or `undefined` when it is not a matcher value.
  * @param variables - The variables.
+ * @param misplaced - Why a variable elsewhere is refused.
  * @returns The literal with the variables substituted.
  * @throws {QueryError} `invalid` for a variable outside a matcher value or in a raw string.
  */
-function bindString(literal: string, operator: string | undefined, variables: Variables): string {
+function bindString(
+  literal: string,
+  operator: string | undefined,
+  variables: Variables,
+  misplaced: string,
+): string {
   if (!literal.includes('$')) return literal;
   const quote = literal[0] ?? '"';
-  if (operator === undefined || quote === '`') throw new QueryError('invalid', misplacedVariable);
+  if (operator === undefined || quote === '`') throw new QueryError('invalid', misplaced);
   return literal.replace(reference, (_match, braced?: string, bare?: string) =>
     escapeForString(matcherValue(braced ?? bare ?? '', operator, variables), quote),
   );
@@ -158,6 +164,7 @@ function bindString(literal: string, operator: string | undefined, variables: Va
  * @param code - The code.
  * @param durations - The built-in durations, such as `__interval` → `60s`.
  * @param variables - The variables, for interval variables.
+ * @param misplaced - Why any other variable is refused.
  * @returns The code with the durations substituted.
  * @throws {QueryError} `invalid` for any other variable.
  */
@@ -165,17 +172,36 @@ function bindCode(
   code: string,
   durations: Readonly<Record<string, string>>,
   variables: Variables,
+  misplaced: string,
 ): string {
   return code.replace(reference, (_match, braced?: string, bare?: string) => {
     const name = braced ?? bare ?? '';
     const duration = durations[name] ?? intervalValue(name, variables);
-    if (duration === undefined) throw new QueryError('invalid', misplacedVariable);
+    if (duration === undefined) throw new QueryError('invalid', misplaced);
     return duration;
   });
 }
 
+/**
+ * Where a language takes variables: PromQL in label matchers, LogQL also in line and label
+ * filters.
+ */
+export interface ExpressionFlavor {
+  /**
+   * The operator a string follows, when the string is a value that takes variables.
+   *
+   * @param state - What binding has seen so far.
+   * @returns The operator, or `undefined` when the string takes no variable.
+   */
+  operatorOf(state: BindingState): string | undefined;
+  /** Why a variable elsewhere is refused. */
+  readonly misplaced: string;
+  /** Checks the code of the whole expression, such as for refused keywords. */
+  readonly checkCode?: (code: string) => void;
+}
+
 /** What binding has seen so far: how deep in braces, and the code just before a string. */
-interface BindingState {
+export interface BindingState {
   /** The number of open `{`. */
   braceDepth: number;
   /** The last run of code. */
@@ -202,6 +228,12 @@ function matcherOperator(state: BindingState): string | undefined {
   return state.braceDepth > 0 ? trailingOperator.exec(state.previousCode)?.[1] : undefined;
 }
 
+/** PromQL: variables go in label matcher values. */
+const promqlFlavor: ExpressionFlavor = {
+  operatorOf: matcherOperator,
+  misplaced: misplacedVariable,
+};
+
 /**
  * Binds one segment and updates the state.
  *
@@ -209,6 +241,7 @@ function matcherOperator(state: BindingState): string | undefined {
  * @param state - The binding state.
  * @param variables - The variables.
  * @param durations - The built-in durations.
+ * @param flavor - Where the language takes variables.
  * @returns The bound text.
  */
 function bindSegment(
@@ -216,12 +249,14 @@ function bindSegment(
   state: BindingState,
   variables: Variables,
   durations: Readonly<Record<string, string>>,
+  flavor: ExpressionFlavor,
 ): string {
   if (segment.kind === 'comment') return segment.text;
-  if (segment.kind === 'string') return bindString(segment.text, matcherOperator(state), variables);
+  if (segment.kind === 'string')
+    return bindString(segment.text, flavor.operatorOf(state), variables, flavor.misplaced);
   state.braceDepth += braceDelta(segment.text);
   state.previousCode = segment.text;
-  return bindCode(segment.text, durations, variables);
+  return bindCode(segment.text, durations, variables, flavor.misplaced);
 }
 
 /**
@@ -230,15 +265,21 @@ function bindSegment(
  * @param segments - The expression's segments.
  * @param variables - The variables.
  * @param durations - The built-in durations.
+ * @param flavor - Where the language takes variables.
  * @returns The bound expression.
  */
 function bindSegments(
   segments: readonly PromqlSegment[],
   variables: Variables,
   durations: Readonly<Record<string, string>>,
+  flavor: ExpressionFlavor,
 ): string {
+  const code = segments.filter((segment) => segment.kind === 'code').map((segment) => segment.text);
+  flavor.checkCode?.(code.join(' '));
   const state: BindingState = { braceDepth: 0, previousCode: '' };
-  return segments.map((segment) => bindSegment(segment, state, variables, durations)).join('');
+  return segments
+    .map((segment) => bindSegment(segment, state, variables, durations, flavor))
+    .join('');
 }
 
 /**
@@ -290,6 +331,51 @@ export function stepFor(template: PromqlTemplate, timeRange: TimeRange, maxPoint
   return Math.max(minimum, Math.ceil(rangeSeconds / maxPoints));
 }
 
+/** An expression bound for its language, with the step of a range query. */
+interface BoundExpression {
+  /** The expression. */
+  readonly expr: string;
+  /** Whether it evaluates once at the end of the range. */
+  readonly instant: boolean;
+  /** Seconds between points. */
+  readonly stepSeconds: number;
+}
+
+/**
+ * Binds an expression in a Prometheus-like language: its variables, its built-in durations and
+ * its step.
+ *
+ * @param template - The expression, and whether it is instant and its step.
+ * @param variables - The variable values.
+ * @param timeRange - The time range, for `$__range`.
+ * @param maxPoints - The most points one series may have, which sets the step.
+ * @param flavor - Where the language takes variables.
+ * @returns The bound expression.
+ * @throws {QueryError} `invalid` for an unknown variable, a variable where the language takes
+ *   none, or an unclosed string.
+ */
+export function bindExpression(
+  template: PromqlTemplate,
+  variables: Variables,
+  timeRange: TimeRange,
+  maxPoints: number,
+  flavor: ExpressionFlavor,
+): BoundExpression {
+  const step = template.step === undefined ? undefined : bindStep(template.step, variables);
+  const stepSeconds = stepFor({ ...template, step }, timeRange, maxPoints);
+  const rangeSeconds = Math.max(
+    1,
+    Math.round((timeRange.to.getTime() - timeRange.from.getTime()) / 1000),
+  );
+  const durations = {
+    __interval: `${stepSeconds}s`,
+    __range: `${rangeSeconds}s`,
+    __rate_interval: `${Math.max(4 * stepSeconds, 60)}s`,
+  };
+  const expr = bindSegments(splitPromql(template.expr), variables, durations, flavor);
+  return { expr, instant: template.instant ?? false, stepSeconds };
+}
+
 /**
  * Binds a PromQL template.
  *
@@ -307,17 +393,6 @@ export function bindPromql(
   timeRange: TimeRange,
   maxPoints: number,
 ): PromqlQuery {
-  const step = template.step === undefined ? undefined : bindStep(template.step, variables);
-  const stepSeconds = stepFor({ ...template, step }, timeRange, maxPoints);
-  const rangeSeconds = Math.max(
-    1,
-    Math.round((timeRange.to.getTime() - timeRange.from.getTime()) / 1000),
-  );
-  const durations = {
-    __interval: `${stepSeconds}s`,
-    __range: `${rangeSeconds}s`,
-    __rate_interval: `${Math.max(4 * stepSeconds, 60)}s`,
-  };
-  const expr = bindSegments(splitPromql(template.expr), variables, durations);
-  return { language: 'promql', expr, instant: template.instant ?? false, stepSeconds };
+  const bound = bindExpression(template, variables, timeRange, maxPoints, promqlFlavor);
+  return { language: 'promql', ...bound };
 }

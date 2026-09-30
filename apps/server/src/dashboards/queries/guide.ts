@@ -3,11 +3,10 @@
  * fills, an example request, the query it becomes, and the columns it returns. The examples run
  * through the same builders as the agent's requests, so the queries shown are the queries written.
  */
-import type { QueryGuide } from '@querent/shared';
+import { type QueryGuide, queryText } from '@querent/shared';
 import { z } from 'zod';
 import { buildData } from './build.ts';
 import { builderSchemas, dataSchema } from './request.ts';
-import { queryText } from './text.ts';
 
 /** What each field means, in the words the screen uses. */
 const fieldHelp: Readonly<Record<string, string>> = {

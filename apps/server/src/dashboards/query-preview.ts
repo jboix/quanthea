@@ -7,18 +7,13 @@ import {
   datasetOfFrames,
   type QueryPreview,
   queryBuilders,
+  queryText,
   type SavedQuery,
 } from '@querent/shared';
 import { z } from 'zod';
 import type { Dashboards, PanelTest } from './dashboards.ts';
 import { applyEdit, completeCharts, editRequestSchemaFor } from './panels/index.ts';
-import {
-  type BuildContext,
-  buildData,
-  dataSchema,
-  QueryError,
-  queryText,
-} from './queries/index.ts';
+import { type BuildContext, buildData, dataSchema, QueryError } from './queries/index.ts';
 
 /** What a preview needs of the dashboards service. */
 type PreviewServices = Pick<Dashboards, 'check' | 'testRun'>;

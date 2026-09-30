@@ -1,4 +1,4 @@
-import type { DashboardDetail, DashboardSpec, Panel } from '@querent/shared';
+import { type DashboardDetail, type DashboardSpec, type Panel, queryText } from '@querent/shared';
 import { useState } from 'react';
 import { Tabs } from '../../ui/tabs.tsx';
 import { usePanelRunData, versionNote } from '../dashboard/index.ts';
@@ -74,7 +74,7 @@ function QueryTab({
       <div className={styles.queries}>
         {panel.queries.map((query) => (
           <pre key={query.refId} className={styles.code}>
-            {query.language === 'sql' ? query.sql : query.expr}
+            {queryText(query)}
           </pre>
         ))}
       </div>

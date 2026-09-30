@@ -12,4 +12,4 @@ export {
   tableSchema,
 } from './request.ts';
 export { markersQuery } from './sql.ts';
-export { QueryError, queryText } from './text.ts';
+export { QueryError } from './text.ts';

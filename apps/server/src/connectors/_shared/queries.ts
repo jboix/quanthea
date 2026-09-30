@@ -1,7 +1,7 @@
 /** The queries a connector executes: already bound, never a template with raw variables. */
 
 /** The query languages the core knows how to bind. A connector kind declares one of them. */
-export const queryLanguages = ['sql', 'promql'] as const;
+export const queryLanguages = ['sql', 'promql', 'search', 'logql'] as const;
 
 /** A query language name. */
 export type QueryLanguage = (typeof queryLanguages)[number];
@@ -44,8 +44,33 @@ export interface PromqlQuery {
   readonly stepSeconds: number;
 }
 
+/**
+ * A search request in the Elasticsearch and OpenSearch query DSL, every variable already put in
+ * as a JSON value. The core checked that the body holds no script.
+ */
+export interface SearchQuery {
+  /** The query language. */
+  readonly language: 'search';
+  /** The index, index pattern or comma-separated list of them. */
+  readonly index: string;
+  /** The search body: `query`, `aggs`, `sort`, `size` and the like. */
+  readonly body: Readonly<Record<string, unknown>>;
+}
+
+/** A LogQL expression with every variable already substituted and escaped. */
+export interface LogqlQuery {
+  /** The query language. */
+  readonly language: 'logql';
+  /** The expression: a log query or a metric query. */
+  readonly expr: string;
+  /** `true` evaluates once at the end of the time range; `false` over the range. */
+  readonly instant: boolean;
+  /** Seconds between points of a metric range query. */
+  readonly stepSeconds: number;
+}
+
 /** A query ready to execute. Connectors receive nothing else. */
-export type BoundQuery = SqlQuery | PromqlQuery;
+export type BoundQuery = SqlQuery | PromqlQuery | SearchQuery | LogqlQuery;
 
 /** The time range a query covers. */
 export interface TimeRange {

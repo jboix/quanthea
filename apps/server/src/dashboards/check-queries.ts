@@ -11,7 +11,7 @@ import type {
   ResolvedTimeRange,
   Variable,
 } from '@querent/shared';
-import { isMultiValue } from '@querent/shared';
+import { isMultiValue, queryTextKey } from '@querent/shared';
 import { bindTemplate } from '../query/bind.ts';
 import type { QuerySource } from '../query/executor.ts';
 import { checkTimeRange } from '../query/guardrails.ts';
@@ -102,9 +102,7 @@ function checkBinding(
     return [];
   } catch (error) {
     if (!(error instanceof QueryError)) throw error;
-    return [
-      { path: `${path}.${query.language === 'sql' ? 'sql' : 'expr'}`, message: error.safeMessage },
-    ];
+    return [{ path: `${path}.${queryTextKey(query)}`, message: error.safeMessage }];
   }
 }
 
