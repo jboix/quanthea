@@ -4,6 +4,7 @@
  */
 import type { AnyConnectorKind } from './_shared/index.ts';
 import { clickhouseConnector } from './clickhouse/clickhouse-connector.ts';
+import { elasticsearchConnector } from './elasticsearch/elasticsearch-connector.ts';
 import { mysqlConnector } from './mysql/mysql-connector.ts';
 import { postgresConnector } from './postgres/postgres-connector.ts';
 import { prometheusConnector } from './prometheus/prometheus-connector.ts';
@@ -16,6 +17,7 @@ export const connectorKinds: readonly AnyConnectorKind[] = [
   clickhouseConnector,
   trinoConnector,
   prometheusConnector,
+  elasticsearchConnector,
 ];
 
 /**

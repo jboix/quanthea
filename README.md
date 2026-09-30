@@ -11,9 +11,9 @@
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
 A self-hosted app where you describe a dashboard in a chat and an agent builds it against your data
-sources: Prometheus, Postgres, MySQL and MariaDB, ClickHouse, Trino, OpenSearch and HTTP APIs. You
-refine it in the same thread and pin the good ones. Pinned dashboards are versioned, searchable, and
-render without any model involved.
+sources: Prometheus, Postgres, MySQL and MariaDB, ClickHouse, Trino, Elasticsearch, OpenSearch and
+HTTP APIs. You refine it in the same thread and pin the good ones. Pinned dashboards are versioned,
+searchable, and render without any model involved.
 
 querent is at an early stage: the repository, the tooling and an app shell. The design lives in
 [`docs/`](docs/).

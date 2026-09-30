@@ -17,8 +17,14 @@
       "project": ["src/**/*.ts"]
     },
     "dev": {
-      "entry": ["metrics/history.ts", "metrics/serve.ts", "seed/seed.ts"],
-      "project": ["metrics/**/*.ts", "seed/**/*.ts"]
+      "entry": [
+        "metrics/history.ts",
+        "metrics/serve.ts",
+        "seed/seed.ts",
+        "log-seed/seed-search.ts",
+        "log-seed/seed-loki.ts"
+      ],
+      "project": ["metrics/**/*.ts", "seed/**/*.ts", "log-seed/**/*.ts"]
     }
   }
 }

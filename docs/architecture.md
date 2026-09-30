@@ -23,14 +23,14 @@ flowchart LR
     Agent["agent/ AI SDK loop + tools"]
     Gate["gate/ access levels + redaction"]
     Query["query/ executor: bind vars, guardrails, cache"]
-    Conn["connectors/ prometheus · postgres · opensearch · http"]
+    Conn["connectors/ postgres · mysql · clickhouse · trino · prometheus · elasticsearch · loki"]
     Dom["dashboards/ threads/ search/ settings/ auth/"]
     DB[("SQLite: data dir")]
     Jobs["jobs/ thread bin purge"]
   end
 
   LLM["Model gateway (Anthropic / OpenAI / OpenAI-compatible)"]
-  Sources[("Prometheus · Postgres · OpenSearch · HTTP APIs")]
+  Sources[("Postgres · MySQL · ClickHouse · Trino · Prometheus · Elasticsearch · Loki · HTTP")]
 
   Thread -- "chat stream" --> HTTP
   Dash -- "run panel {id, vars}" --> HTTP
@@ -75,11 +75,10 @@ The two paths that matter:
 │   │       ├── query/               executor: variable binding, guardrails, timeouts, result cache
 │   │       ├── connections/         configured connectors: CRUD, sealed secrets, open instances, schema cache
 │   │       ├── connectors/          registry + _shared/ (Frame, interface) + one folder per kind
-│   │       │   ├── _shared/
-│   │       │   ├── prometheus/
-│   │       │   ├── postgres/
-│   │       │   ├── opensearch/
-│   │       │   └── http/
+│   │       │   ├── _shared/         the connector kit: contract, errors, frames, HTTP client
+│   │       │   ├── postgres/  mysql/  clickhouse/  trino/
+│   │       │   ├── prometheus/  loki/
+│   │       │   └── elasticsearch/   Elasticsearch and OpenSearch
 │   │       ├── dashboards/          versions, validate, pin, copies, library; queries/ (builders,
 │   │       │                        saved and raw queries) and panels/ (edits: data + chart, layout)
 │   │       ├── threads/             threads, messages, plans (state machine)
@@ -148,9 +147,9 @@ them.
 | `auth/`              | modes, sessions, Principal                                  | `settings`, `db` via repositories, `lib`                            | `agent`                                         |
 | `provisioning/`      | apply the configuration file; what it manages               | `config`, `connections`, `db`, `secrets` types, `lib`               | `http`, `agent`                                 |
 
-Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, only `db/` imports
-`bun:sqlite`, and only `connectors/opensearch/` imports the OpenSearch client. Postgres uses
-the `postgres` driver and Prometheus uses `fetch`.
+Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, and only `db/` imports
+`bun:sqlite`. Each connector kind owns its driver: `postgres` and `mysql2` in their folders, and
+the kit's HTTP client for every kind that speaks HTTP.
 
 ## 4. Web modules
 
@@ -704,20 +703,23 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   comments in `system.metadata`, never table data. Trino cannot say whether a user could write, so
   the connection test reports `readOnly: null`. Error names map to connector errors; value errors
   never quote the value.
-- **OpenSearch:** the official client (`@opensearch-project/opensearch`), only in
-  `connectors/opensearch/`. The query body is DSL JSON with structural variables. `describe` =
-  index patterns + mappings. A spike (client 3.9.0, Bun 1.3.14, OpenSearch 3.8.0) found:
-  - `info`, `bulk`, `indices.getMapping` on a pattern, and `search` with a range filter, a
-    `date_histogram` and nested `terms` aggregations all work under Bun.
-  - Cancelling works through the returned promise's `abort()` (`RequestAbortedError`); the
-    `signal` and `abortController` request options are ignored, under Node too. The connector
-    wires the execution signal to `abort()`.
-  - `requestTimeout` stops a request on the client side. The `timeout` search parameter is best
-    effort on the server and returns partial results with `timed_out`.
-  - Errors are `ResponseError`s with `meta.statusCode` and `meta.body.error.type`. The reason text
-    quotes query values, so the safe message uses the error type only.
-  - OpenSearch has no read-only transaction: the connector calls read APIs only, and the
-    credentials should hold a read-only role.
+- **Elasticsearch and OpenSearch:** one kind, `elasticsearch`, over the kit's HTTP client: the
+  REST API, no client library. It sends searches (`POST /<index>/_search`) and reads mappings,
+  document counts and the root answer, nothing that writes. The size is capped at `maxRows + 1`,
+  and at 0 with aggregations. The timeout goes in the body (`timeout`), with
+  `allow_partial_search_results=false`, and OpenSearch also gets `cancel_after_time_interval`; a
+  search that ran out of time is a timeout error, and aborting the request cancels the search on
+  the server. A search with aggregations gives one long table: a column per bucket aggregation,
+  nested level by level (a date histogram is a time column), then a column per metric of the
+  deepest level (a percentile or a statistic each its own), or `count` when there is none.
+  Bucket aggregations side by side are refused. A search without aggregations gives its documents,
+  flattened to dotted columns typed from the mapping. `describe` groups daily and rollover indices
+  (`logs-2026.09.29`, `logs-000042`) into the pattern that queries them (`logs-*`), with their
+  merged fields and document counts. `sampleValues` runs a terms aggregation on a field the
+  mapping has, through `.keyword` for a text field. Error types map to connector errors; the
+  reason quotes values, so the safe message never does. Neither server says whether a user could
+  write through a search, so the connection test reports `readOnly: null`: the credentials should
+  hold a read-only role.
 - **HTTP JSON:** GET only by default. The response is mapped to frames with a small declarative
   extractor (JSON pointer paths), not code.
 
@@ -1358,15 +1360,16 @@ provider's name, so two setups of the same vendor stay apart.
   (`dev/seed/checkout-incident.json`) with its time range around the incident, and prints its
   address. `QUERENT_URL` points at the server (`http://localhost:3000` by default).
 
-| Source     | Address          | Contents                                                                                                                                                                                                                                                 |
-| ---------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Postgres   | `localhost:5433` | Database `orders`: `customers`, `orders`, `order_items`, `payments`, `refunds`, `deploys`. Users `querent_admin` (password `querent-dev`) and the read-only `dash_ro` (password `dash-ro-dev`).                                                          |
-| Prometheus | `localhost:9091` | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                                                                          |
-| MySQL      | `localhost:3307` | Database `orders` (`dev/mysql`): `customers`, `orders`, `deploys` and the view `failed_orders`, one order every five seconds. Same users as Postgres. Started by `bun run env:up:mysql`.                                                                 |
-| MariaDB    | `localhost:3308` | The same database as MySQL, from the same scripts. Started by `bun run env:up:mysql`.                                                                                                                                                                    |
-| Trino      | `localhost:8081` | Catalog `orders`: the dev Postgres, read as its owner, so a write would succeed without the connector's read-only transactions. Any user name, no password. Started by `bun run env:up:trino`, with Postgres.                                            |
-| ClickHouse | `localhost:8124` | Database `orders` (`dev/clickhouse`), over HTTP: the same tables and view as MySQL. Users `querent_admin`, and `dash_ro`, `dash_ro_2` (`readonly=2`) and `dash_ro_1` (`readonly=1`) with password `dash-ro-dev`. Started by `bun run env:up:clickhouse`. |
-| OpenSearch | `localhost:9202` | A single node without security, started only by `bun run env:up:opensearch`.                                                                                                                                                                             |
+| Source        | Address          | Contents                                                                                                                                                                                                                                                 |
+| ------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Postgres      | `localhost:5433` | Database `orders`: `customers`, `orders`, `order_items`, `payments`, `refunds`, `deploys`. Users `querent_admin` (password `querent-dev`) and the read-only `dash_ro` (password `dash-ro-dev`).                                                          |
+| Prometheus    | `localhost:9091` | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                                                                          |
+| MySQL         | `localhost:3307` | Database `orders` (`dev/mysql`): `customers`, `orders`, `deploys` and the view `failed_orders`, one order every five seconds. Same users as Postgres. Started by `bun run env:up:mysql`.                                                                 |
+| MariaDB       | `localhost:3308` | The same database as MySQL, from the same scripts. Started by `bun run env:up:mysql`.                                                                                                                                                                    |
+| Trino         | `localhost:8081` | Catalog `orders`: the dev Postgres, read as its owner, so a write would succeed without the connector's read-only transactions. Any user name, no password. Started by `bun run env:up:trino`, with Postgres.                                            |
+| ClickHouse    | `localhost:8124` | Database `orders` (`dev/clickhouse`), over HTTP: the same tables and view as MySQL. Users `querent_admin`, and `dash_ro`, `dash_ro_2` (`readonly=2`) and `dash_ro_1` (`readonly=1`) with password `dash-ro-dev`. Started by `bun run env:up:clickhouse`. |
+| Elasticsearch | `localhost:9201` | The request logs of every service in daily indices `logs-YYYY.MM.DD` (`dev/log-seed`), without security. Started and seeded by `bun run env:up:search`.                                                                                                  |
+| OpenSearch    | `localhost:9202` | The same logs, from the same seed. Started by `bun run env:up:search`.                                                                                                                                                                                   |
 
 - Both sources tell one story, the checkout incident: deploy #481 of `checkout-svc` yesterday at
   12:02 UTC, 5xx errors of checkout rising to 8.4% and its p95 latency to about 3 s, failed orders
@@ -1393,7 +1396,8 @@ provider's name, so two setups of the same vendor stay apart.
   they run against: `core` (Postgres, Prometheus), `mysql` (MySQL, MariaDB:
   `bun run env:up:mysql`, then `bun run test:integration:mysql`) or `clickhouse`
   (`bun run env:up:clickhouse`, then `bun run test:integration:clickhouse`) or `trino`
-  (`bun run env:up:trino`, then `bun run test:integration:trino`). Every connector kind also runs
+  (`bun run env:up:trino`, then `bun run test:integration:trino`) or `search` (Elasticsearch and
+  OpenSearch: `bun run env:up:search`, then `bun run test:integration:search`). Every connector kind also runs
   the conformance suite there. A kind ships only with a free server image its tests run against,
   so nothing is written against a service no one can run. CI runs one `integration` job per set.
   `dashboards/checkout-fixture.integration.test.ts` pins the seed's fixture and runs every panel as

@@ -4,11 +4,12 @@
  * Prometheus (`bun run test:integration`), `mysql` for MySQL and MariaDB
  * (`bun run test:integration:mysql`), `clickhouse` for ClickHouse
  * (`bun run test:integration:clickhouse`), `trino` for Trino over the dev Postgres
- * (`bun run test:integration:trino`).
+ * (`bun run test:integration:trino`), `search` for Elasticsearch and OpenSearch
+ * (`bun run test:integration:search`), `loki` for Loki (`bun run test:integration:loki`).
  */
 
 /** A set of data sources that start together. */
-type SourceSet = 'core' | 'mysql' | 'clickhouse' | 'trino';
+type SourceSet = 'core' | 'mysql' | 'clickhouse' | 'trino' | 'search' | 'loki';
 
 /** The sets the integration tests run against. */
 const integrationSets = new Set(
@@ -100,6 +101,16 @@ export const devTrino = {
   },
   secret: {},
 };
+
+/** The dev Elasticsearch and OpenSearch, without security, holding the request logs. */
+export const devSearchServers = [
+  { name: 'Elasticsearch', port: Number(process.env.QUERENT_DEV_ELASTICSEARCH_PORT ?? 9201) },
+  { name: 'OpenSearch', port: Number(process.env.QUERENT_DEV_OPENSEARCH_PORT ?? 9202) },
+].map(({ name, port }) => ({
+  name,
+  config: { url: `http://127.0.0.1:${port}`, auth: 'none' },
+  secret: {},
+}));
 
 /** The dev Prometheus, in the Prometheus connector's configuration shape. */
 export const devPrometheus = {

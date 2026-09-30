@@ -12,9 +12,12 @@
 #   and dash_ro_1 (readonly=1), all with password dash-ro-dev.
 # - trino (profile "trino"): a coordinator on localhost:8081 whose catalog orders is the dev Postgres
 #   (dev/trino/catalog), read as its owner. No authentication: any user name is accepted.
-# - opensearch (profile "opensearch"): a single node without security, on localhost:9202.
+# - elasticsearch and opensearch (profile "search"): single nodes without security, on
+#   localhost:9201 and localhost:9202, with the request logs in daily indices logs-YYYY.MM.DD
+#   (dev/log-seed), seeded by search-seed.
+# - loki (profile "loki"): on localhost:3101 (dev/loki), with the same logs, seeded by loki-seed.
 #
-# Postgres and Prometheus tell the same story: deploy #481 of checkout-svc, yesterday at 12:02 UTC,
+# Every source tells the same story: deploy #481 of checkout-svc, yesterday at 12:02 UTC,
 # and the errors that follow. `bun run env:down` deletes the data; the next `env:up` seeds it again
 # around the new yesterday.
 
@@ -165,9 +168,26 @@ services:
       timeout: 5s
       retries: 60
 
+  elasticsearch:
+    profiles: [search]
+    image: elasticsearch:9.5.3
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: 'false'
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - '9201:9200'
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fs "http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=2s"']
+      interval: 3s
+      timeout: 5s
+      retries: 60
+
   opensearch:
-    profiles: [opensearch]
-    image: opensearchproject/opensearch:3.8.0
+    profiles: [search]
+    image: opensearchproject/opensearch:3.9.0
     environment:
       discovery.type: single-node
       DISABLE_SECURITY_PLUGIN: 'true'
@@ -175,16 +195,49 @@ services:
       OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
     ports:
       - '9202:9200'
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
     healthcheck:
-      test: ['CMD-SHELL', 'curl -fs http://127.0.0.1:9200/_cluster/health']
-      interval: 5s
+      test: ['CMD-SHELL', 'curl -fs "http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=2s"']
+      interval: 3s
       timeout: 5s
       retries: 60
+
+  # Run once after the servers are up: bun run env:up:search does.
+  search-seed:
+    profiles: [search]
+    image: oven/bun:1.3.14-slim
+    working_dir: /dev-sources
+    volumes:
+      - ./:/dev-sources:ro
+    command: ['bun', 'log-seed/seed-search.ts', 'http://elasticsearch:9200', 'http://opensearch:9200']
+
+  loki:
+    profiles: [loki]
+    image: grafana/loki:3.7.8
+    command: ['-config.file=/etc/loki/config.yaml']
+    ports:
+      - '3101:3100'
+    volumes:
+      - ./loki/config.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+
+  # Run once after Loki is up: bun run env:up:loki does. It waits until Loki is ready.
+  loki-seed:
+    profiles: [loki]
+    image: oven/bun:1.3.14-slim
+    working_dir: /dev-sources
+    volumes:
+      - ./:/dev-sources:ro
+    command: ['bun', 'log-seed/seed-loki.ts', 'http://loki:3100']
 
 volumes:
   postgres-data:
   mysql-data:
   mariadb-data:
   clickhouse-data:
+  elasticsearch-data:
+  opensearch-data:
+  loki-data:
   metrics-seed:
   prometheus-data:

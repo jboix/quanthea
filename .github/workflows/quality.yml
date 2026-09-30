@@ -117,6 +117,9 @@ jobs:
           - sources: trino
             up: env:up:trino
             test: test:integration:trino
+          - sources: search
+            up: env:up:search
+            test: test:integration:search
     permissions:
       contents: read
     steps:
