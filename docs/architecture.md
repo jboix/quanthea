@@ -1044,9 +1044,14 @@ one, and enables them again. Without any admin, it creates the default one.
 - A Refresh button ends the variables row and runs every panel again. Its tooltip says how many
   saved queries ran, against which connectors, how long they took, and that no model was called.
   It turns while panels run and warns when a query failed.
-- `charts/` is the only place that imports ECharts. It registers the series types the chart
-  recipes use and the components they need (`charts/register.ts`), draws on a canvas, and is
-  loaded lazily, so pages without a chart never download ECharts.
+- `charts/` is the only place that imports ECharts. It draws on a canvas and is loaded lazily, so
+  pages without a chart never download ECharts. It registers only what ships: the common series
+  (line, bar, pie, scatter) and the components every chart may use load with it
+  (`charts/register.ts`); the other series types and the components only they use
+  (`charts/register-others.ts`) load the first time a chart's option needs them. An ECharts
+  instance keeps the layouts registered when it was made, so a chart makes its instance once its
+  modules are in, and makes it again if more were registered since. A map registers only once the
+  geo modules are in, so the modules load before the map.
 - The adapter reads each query's frames as one dataset, applies the view's `filter` and `sort`,
   then prepares it the way the view says (`charts/prepare/`): pivoted to one column per series,
   scaled to shares, ranked, split into groups, binned, summed up for a box plot, built into a
