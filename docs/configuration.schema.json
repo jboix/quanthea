@@ -55,12 +55,20 @@
       "description": "System settings, read at startup."
     },
     "users": {
-      "description": "Users by email. A password is set only while the user has none.",
+      "description": "Users by email, or `admin`, who signs in as admin and needs a password. A password is set only while the user has none.",
       "type": "object",
       "propertyNames": {
-        "type": "string",
-        "format": "email",
-        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "admin"
+          },
+          {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          }
+        ]
       },
       "additionalProperties": {
         "type": "object",
@@ -85,7 +93,6 @@
             "description": "An environment variable in braces after a dollar sign, or file:/path. Never the secret."
           }
         },
-        "required": ["name"],
         "additionalProperties": false
       }
     },

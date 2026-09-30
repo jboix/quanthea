@@ -21,11 +21,10 @@ afterEach(async () => {
 });
 
 describe('deploy/querent.yaml', () => {
-  test('starts an install with its admin and its model provider', async () => {
+  test('starts an install with its admin, who signs in as admin', async () => {
     const environment = {
       QUERENT_CONFIG: resolve(import.meta.dir, '../../../../deploy/querent.yaml'),
       ADMIN_PASSWORD: 'violet harbour lantern 7c2e',
-      ANTHROPIC_API_KEY: 'not-a-real-key-7c2e',
     };
     const config = loadConfig(environment, '/app');
     expect(config).toMatchObject({ publicUrl: 'http://localhost:3000' });
@@ -39,9 +38,8 @@ describe('deploy/querent.yaml', () => {
       audit: createAuditRepository(services.database),
       logger: captureLogs().logger,
     });
-    const admin = await services.users.findByEmail('admin@example.com');
-    expect(admin).toMatchObject({ role: 'admin' });
+    const admin = await services.users.findByEmail('admin');
+    expect(admin).toMatchObject({ role: 'admin', setupRequired: false });
     expect(admin?.passwordHash).toStartWith('$argon2id$');
-    expect((await services.modelSettings.resolve()).apiKey).toBe('not-a-real-key-7c2e');
   });
 });

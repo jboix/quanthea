@@ -250,6 +250,21 @@ describe('provisioning users and sign-in', () => {
     expect((await services.users.findByEmail('bob@example.com'))?.disabledAt).not.toBeNull();
   });
 
+  test('declares the admin who signs in as admin, with a password and no email', async () => {
+    const yaml = `users:\n  admin:\n    password: "${reference('ADMIN_PASSWORD')}"\n`;
+    await apply(yaml, { ADMIN_PASSWORD: strong });
+    const admin = (await services.users.list()).find((user) => user.email === 'admin');
+    expect(admin).toMatchObject({ role: 'admin', name: 'Admin', hasPassword: true });
+    await expect(apply('users:\n  admin: {}\n')).rejects.toThrow('users.admin needs a password');
+    const demoted = `users:\n  admin: { role: editor, password: "${reference('ADMIN_PASSWORD')}" }\n`;
+    await expect(apply(demoted, { ADMIN_PASSWORD: strong })).rejects.toThrow(
+      'its role cannot change',
+    );
+    await expect(apply('users:\n  root: { name: Root }\n')).rejects.toThrow(
+      'users.root: not an email',
+    );
+  });
+
   test('turns on a provider the file vouches for, with its secret sealed', async () => {
     const provider = (secret: string) =>
       `signIn:\n  providers:\n    github:\n      kind: github\n      name: GitHub\n      clientId: Iv1.abc\n      clientSecret: "${secret}"\n`;

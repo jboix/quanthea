@@ -53,9 +53,14 @@ const configFileSchema = z
     $schema: z.string().optional(),
     server: serverSection.optional(),
     users: z
-      .record(z.email(), declaredUser.safeExtend({ password: secretReference.optional() }))
+      .record(
+        z.union([z.literal('admin'), z.email()]),
+        declaredUser.safeExtend({ password: secretReference.optional() }),
+      )
       .optional()
-      .describe('Users by email. A password is set only while the user has none.'),
+      .describe(
+        'Users by email, or `admin`, who signs in as admin and needs a password. A password is set only while the user has none.',
+      ),
     signIn: z
       .strictObject({
         passwordSignIn: z.boolean().optional(),

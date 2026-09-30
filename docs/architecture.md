@@ -1154,7 +1154,8 @@ fields:
 
 ```yaml
 users:
-  ada@example.com: { name: Ada Lovelace, role: admin, password: "${ADMIN_PASSWORD}" }
+  admin: { password: "${ADMIN_PASSWORD}" }
+  ada@example.com: { name: Ada Lovelace, role: editor }
 signIn:
   passwordSignIn: true
   providers:
@@ -1192,6 +1193,8 @@ provisioning:
 - An item the file no longer declares is released: it stays, editable again. With
   `provisioning.prune: true` a connector is deleted instead; a settings section keeps its values.
 - Sections apply in order: users, providers, password sign-in, settings, connectors.
+- The key `admin` is the admin who signs in as `admin`, with no email; it needs a `password`
+  reference and stays an admin.
 - A user the file declares is created invited, with the role and state the file gives. They sign
   in through a provider with that verified email, or with the `password` the file gives, which is
   set only while they have none. The record names a user by the keyed hash of their email, never

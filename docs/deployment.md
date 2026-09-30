@@ -25,7 +25,8 @@ email and password; nothing else opens until you set them.
 
 - `compose.yaml`: the service, its `data` and `keys` volumes, and `querent.yaml` mounted
   read-only.
-- `querent.yaml`: the configuration, with a first admin and a model provider.
+- `querent.yaml`: the configuration, with the first admin; a model provider, connectors and
+  sign-in providers are there to uncomment.
 - `.env.example`: the secrets the configuration refers to.
 
 ```sh
@@ -34,7 +35,7 @@ cp .env.example .env    # fill in the secrets
 docker compose up -d
 ```
 
-Then sign in at <http://localhost:3000> as the admin the file declares.
+Then sign in at <http://localhost:3000> as `admin`, with the `ADMIN_PASSWORD` of `.env`.
 
 ## The volumes
 
@@ -99,8 +100,9 @@ refers to. A file with a mistake stops querent with every issue listed, and noth
 People always sign in. With a public URL (`server.publicUrl` or `QUERENT_PUBLIC_URL`), sign-in
 works only from that address, and sign-in providers send people back to it; providers need it.
 
-- Declare the first admin in `users`, with a `password` reference or without one to sign in
-  through a provider with that verified email. Then querent creates no `admin` user.
+- Declare the first admin in `users`: `admin`, with a `password` reference, signs in with no
+  email; an admin keyed by email signs in with a `password` reference, or through a provider
+  with that verified email. Then querent creates no `admin` user of its own.
 - Register querent at each provider with the redirect URI Settings → Authentication shows.
 
 ## Locked out

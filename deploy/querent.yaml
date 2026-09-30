@@ -12,26 +12,26 @@ server:
   trustedProxyHops: 0
 
 users:
-  # The first admin. The password is set only while they have none; they can change it after.
-  # Without any admin, querent creates the user `admin` and writes its password to the log.
-  admin@example.com:
-    name: Admin
-    role: admin
+  # The first admin signs in as `admin`, with no email. The password is set only while they have
+  # none, so they can change it after. Without this, querent creates `admin` and writes a random
+  # password to the log.
+  admin:
     password: ${ADMIN_PASSWORD}
 
-model:
-  defaultProviderId: anthropic
-  providers:
-    - id: anthropic
-      name: Anthropic
-      provider: anthropic
-      baseUrl: null
-      models:
-        plan: claude-haiku-4-5
-        build: claude-sonnet-5
-        repair: ''
-        metadata: claude-haiku-4-5
-      apiKey: ${ANTHROPIC_API_KEY}
+# The model threads use. Without it, set one up in Settings → Model.
+# model:
+#   defaultProviderId: anthropic
+#   providers:
+#     - id: anthropic
+#       name: Anthropic
+#       provider: anthropic
+#       baseUrl: null
+#       models:
+#         plan: claude-haiku-4-5
+#         build: claude-sonnet-5
+#         repair: ''
+#         metadata: claude-haiku-4-5
+#       apiKey: ${ANTHROPIC_API_KEY}
 
 # A read-only database role is enough, and safest.
 # connectors:
