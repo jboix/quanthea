@@ -89,19 +89,4 @@ describe('model settings', () => {
     expect((await service.save(back, {}, 'admin-1')).keys).toEqual({ anthropic: null });
     expect((await service.save(twoProviders, {}, 'admin-1')).keys['mistral-free']).toBeNull();
   });
-
-  test('upgrade settings saved with one provider, and move its key', async () => {
-    const legacy = { ...defaultModelSettings, provider: 'mistral' as const };
-    const rows = new Map([['model', JSON.stringify(legacy)]]);
-    const { service, secretBox } = await modelSettings(rows);
-    const sealed = Buffer.from(await secretBox.seal(apiKey, 'settings.model')).toString('base64');
-    rows.set('model-key', JSON.stringify({ sealed }));
-    const view = await service.view();
-    expect(view.gateway.providers).toEqual([
-      { id: 'mistral', name: 'Mistral', provider: 'mistral', baseUrl: null, models: legacy.models },
-    ]);
-    expect(view.keys).toEqual({ mistral: '••••••••9f2a' });
-    expect((await service.resolve()).apiKey).toBe(apiKey);
-    expect(JSON.parse(rows.get('model-key') ?? '{}')).toEqual({ sealed: null });
-  });
 });

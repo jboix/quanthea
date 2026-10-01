@@ -263,7 +263,6 @@ export {
   type ModelSettings,
   modelGatewaySchema,
   modelProviders,
-  modelSettingsSchema,
   type ProviderConfig,
   providerConfigSchema,
   providerFor,

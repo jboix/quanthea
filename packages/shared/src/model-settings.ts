@@ -52,14 +52,8 @@ const modelSettingsFields = z.object({
   }),
 });
 
-/** Validates the settings a run uses: one provider with the limits and the behaviour. */
-export const modelSettingsSchema = modelSettingsFields.refine(
-  (settings) => settings.provider !== 'openai-compatible' || settings.baseUrl !== null,
-  { path: ['baseUrl'], message: 'An OpenAI-compatible gateway needs its base URL.' },
-);
-
-/** The model settings. */
-export type ModelSettings = z.infer<typeof modelSettingsSchema>;
+/** The settings a run uses: one provider with the limits and the behaviour. */
+export type ModelSettings = z.infer<typeof modelSettingsFields>;
 
 /** The settings before anyone saves them. */
 export const defaultModelSettings: ModelSettings = {

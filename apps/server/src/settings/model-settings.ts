@@ -14,9 +14,6 @@ import { maskSecret } from '../secrets/mask.ts';
 import type { SecretBox } from '../secrets/secret-box.ts';
 import type { SettingsStore } from './settings-store.ts';
 
-/** The owner the single key saved before there were several providers was sealed for. */
-const legacyOwner = 'settings.model';
-
 /**
  * The owner a provider's key is sealed for, so a sealed key cannot move to another provider.
  *
@@ -98,29 +95,7 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 /**
- * Moves the key saved before there were several providers to the default provider, which is the
- * provider the old settings became. Does nothing once moved.
- *
- * @param dependencies - The store and the secret box.
- */
-async function moveLegacyKey(
-  dependencies: Pick<ModelSettingsDependencies, 'store' | 'secretBox'>,
-): Promise<void> {
-  const { store, secretBox } = dependencies;
-  const { sealed } = store.read('model-key');
-  if (sealed === null) return;
-  const key = await secretBox.open(Buffer.from(sealed, 'base64'), legacyOwner);
-  const target = store.read('model').defaultProviderId;
-  const keys = store.read('model-keys').sealed;
-  const moved = keys[target] ?? toBase64(await secretBox.seal(key, ownerOf(target)));
-  store.write('model-keys', { sealed: { ...keys, [target]: moved } });
-  store.write('model-key', { sealed: null });
-}
-
-/**
- * Seals the providers' API keys again with the current key: after a key rotation, and for keys
- * sealed before sealed values carried a key id. A key saved before there were several providers is
- * moved first.
+ * Seals the providers' API keys again with the current key, after a key rotation.
  *
  * @param dependencies - The store and the secret box.
  * @returns How many keys were sealed again.
@@ -129,7 +104,6 @@ export async function resealModelKeys(
   dependencies: Pick<ModelSettingsDependencies, 'store' | 'secretBox'>,
 ): Promise<number> {
   const { store, secretBox } = dependencies;
-  await moveLegacyKey(dependencies);
   const keys = { ...store.read('model-keys').sealed };
   let count = 0;
   for (const [id, sealed] of Object.entries(keys)) {
@@ -188,7 +162,6 @@ async function savedKeys(
  * @returns The view.
  */
 async function viewOf(dependencies: ModelSettingsDependencies): Promise<ModelSettingsView> {
-  await moveLegacyKey(dependencies);
   const gateway = dependencies.store.read('model');
   const keys: Record<string, string | null> = {};
   for (const { id } of gateway.providers) {
@@ -210,7 +183,6 @@ export function createModelSettings(dependencies: ModelSettingsDependencies): Mo
     view: () => viewOf(dependencies),
     gateway: () => store.read('model'),
     async resolve(providerId) {
-      await moveLegacyKey(dependencies);
       const gateway = store.read('model');
       const config = providerFor(gateway, providerId);
       const apiKey = await keyOf(dependencies, config.id);
@@ -218,7 +190,6 @@ export function createModelSettings(dependencies: ModelSettingsDependencies): Mo
       return { settings, apiKey, providerId: config.id, providerName: config.name };
     },
     async save(gateway, apiKeys, actor) {
-      await moveLegacyKey(dependencies);
       const keys = await savedKeys(dependencies, gateway, apiKeys);
       store.write('model', gateway);
       store.write('model-keys', { sealed: keys });

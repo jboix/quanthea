@@ -2,9 +2,7 @@
 import {
   chartSettingsSchema,
   defaultModelGateway,
-  type ModelProvider,
   modelGatewaySchema,
-  modelSettingsSchema,
   querySettingsSchema,
   retentionSettingsSchema,
   storedSignInSchema,
@@ -12,36 +10,11 @@ import {
 import { z } from 'zod';
 import type { SettingsRepository } from '../db/settings-repository.ts';
 
-/** The id and name an upgraded provider gets from its vendor. */
-const upgradedNames: Readonly<Record<ModelProvider, { id: string; name: string }>> = {
-  anthropic: { id: 'anthropic', name: 'Anthropic' },
-  openai: { id: 'openai', name: 'OpenAI' },
-  mistral: { id: 'mistral', name: 'Mistral' },
-  'openai-compatible': { id: 'gateway', name: 'Gateway' },
-};
-
-/**
- * Upgrades model settings saved before there were several providers: the one provider becomes
- * the only saved provider, and the default. Anything else passes through.
- *
- * @param value - The stored value.
- * @returns The value in the current shape.
- */
-export function upgradeModelSettings(value: unknown): unknown {
-  const legacy = modelSettingsSchema.safeParse(value);
-  if (!legacy.success || (value as { providers?: unknown }).providers !== undefined) return value;
-  const { provider, baseUrl, models, limits, behaviour } = legacy.data;
-  const { id, name } = upgradedNames[provider];
-  const config = { id, name, provider, baseUrl, models };
-  return { providers: [config], defaultProviderId: id, limits, behaviour };
-}
-
 /** The schema of every settings section. A section is stored under its name. */
 const sectionSchemas = {
   /** The model gateway: the saved providers, the default, the limits and the behaviour. */
-  model: z.preprocess(upgradeModelSettings, modelGatewaySchema),
+  model: modelGatewaySchema,
   /** The key saved before there were several providers, sealed; moved to `model-keys` on read. */
-  'model-key': z.object({ sealed: z.string().nullable() }),
   /** Each provider's API key, sealed and base64-encoded, by provider id. */
   'model-keys': z.object({ sealed: z.record(z.string(), z.string()) }),
   /** Query builders switched off, and the saved queries. The key predates the name. */
@@ -65,7 +38,6 @@ type SectionValue<Name extends SectionName> = z.infer<(typeof sectionSchemas)[Na
 /** The value of each section before anyone has saved it. */
 const sectionDefaults: { readonly [Name in SectionName]: SectionValue<Name> } = {
   model: defaultModelGateway,
-  'model-key': { sealed: null },
   'model-keys': { sealed: {} },
   recipes: { disabled: [], saved: [] },
   charts: { disabled: [] },

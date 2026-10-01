@@ -1340,8 +1340,7 @@ the provider's own `/models` API returns (`POST /api/settings/model/models`).
 Each provider's API key is sealed with the secret key, bound to `settings.model.<provider id>`,
 stored apart from the section (`model-keys`), and returned masked only. A key typed in the form is
 used for the model listing, and a stored key only for the provider it was saved for. Removing a
-provider drops its key. Settings saved when there was one provider are upgraded on read: it
-becomes the only provider and the default, and its key moves to it.
+provider drops its key.
 
 A thread runs on the provider it was started with (`POST /api/threads` with `providerId`), or on
 the default when it named none or its provider was removed. Editors see the providers' names and
