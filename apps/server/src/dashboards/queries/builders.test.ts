@@ -38,6 +38,35 @@ describe('the query builders', () => {
     );
   });
 
+  test('write a SQL ratio with CASE sums, guarded against zero', () => {
+    const ratio = buildData(
+      dataSchema.parse({
+        kind: 'sql-ratio',
+        connector: 'shop',
+        table: 'orders',
+        time: 'created_at',
+        over: 'range',
+        by: 'service',
+        match: [{ field: 'status', value: 'failed' }],
+        of: [{ field: 'status', op: '!=', value: 'refunded' }],
+        complement: true,
+      }),
+    );
+    expect(ratio.queries[0]?.language === 'sql' && ratio.queries[0].sql).toBe(
+      `SELECT "service"::text AS "service", 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to GROUP BY 1 ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 10`,
+    );
+    expect(() =>
+      buildData(
+        dataSchema.parse({
+          kind: 'sql-ratio',
+          connector: 'shop',
+          table: 'orders',
+          match: [{ field: 'status', value: 'failed' }],
+        }),
+      ),
+    ).toThrow('needs a time column');
+  });
+
   test('say what they return: a shape, its columns and a chart that suits it', () => {
     const rate = buildData(
       dataSchema.parse({ kind: 'rate', connector: 'prom', metric: 'up', by: ['job', 'code'] }),

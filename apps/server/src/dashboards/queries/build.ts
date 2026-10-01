@@ -28,6 +28,7 @@ import {
   searchStatData,
 } from './search.ts';
 import { breakdownData, rowsData, seriesData, statData } from './sql.ts';
+import { sqlRatioData } from './sql-ratio.ts';
 import { type SqlWriter, sqlWriterFor } from './sql-writers.ts';
 
 /**
@@ -58,6 +59,7 @@ const builders: {
     breakdownData(request, writerOf(context, request.connector)),
   'sql-stat': (request, context) => statData(request, writerOf(context, request.connector)),
   'sql-rows': (request, context) => rowsData(request, writerOf(context, request.connector)),
+  'sql-ratio': (request, context) => sqlRatioData(request, writerOf(context, request.connector)),
   'search-series': searchSeriesData,
   'search-ratio': searchRatioData,
   'search-breakdown': searchBreakdownData,

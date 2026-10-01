@@ -113,6 +113,24 @@ const sqlRowsSchema = z.strictObject({
 });
 
 /**
+ * The share of the rows matching `match` among those matching `of` (every row when empty), over
+ * time or over the whole range, split by a column when `by` is given.
+ */
+const sqlRatioSchema = z.strictObject({
+  kind: z.literal('sql-ratio'),
+  ...sqlBase,
+  match: z.array(filterSchema).min(1).max(5),
+  of: filtersSchema,
+  over: z.enum(['time', 'range']).default('time'),
+  time: nameSchema.optional(),
+  by: nameSchema.optional(),
+  complement: z.boolean().default(false),
+  counts: z.boolean().default(false),
+  bucket: durationSchema.default('5m'),
+  limit: z.int().min(1).max(100).default(10),
+});
+
+/**
  * A raw query, for data no builder gives. A search query is its JSON body as text, with the index
  * apart; an HTTP query is the JSON of its method, path, query, body and extract; a Redis query is
  * the command and its arguments, separated by spaces, or their JSON array when an argument holds a
@@ -151,6 +169,7 @@ export const builderSchemas = {
   'sql-breakdown': sqlBreakdownSchema,
   'sql-stat': sqlStatSchema,
   'sql-rows': sqlRowsSchema,
+  'sql-ratio': sqlRatioSchema,
   ...searchBuilderSchemas,
   ...logqlBuilderSchemas,
   ...mongodbBuilderSchemas,
@@ -167,6 +186,7 @@ export const dataSchema = z.discriminatedUnion('kind', [
   sqlBreakdownSchema,
   sqlStatSchema,
   sqlRowsSchema,
+  sqlRatioSchema,
   ...Object.values(searchBuilderSchemas),
   ...Object.values(logqlBuilderSchemas),
   ...Object.values(mongodbBuilderSchemas),

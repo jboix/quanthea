@@ -50,6 +50,8 @@ export const builderHints: Readonly<Record<string, string>> = {
     'a measure by the values of a column, largest first; columns the "by" column, value',
   'sql-stat': 'one number; column value',
   'sql-rows': 'the latest rows; the columns asked for',
+  'sql-ratio':
+    'the share of rows matching "match" among those matching "of" (all when empty), "complement" for one minus it; over "time" (needs "time"): columns time, series (with "by"), value; over "range": the "by" column and value, or value alone; "counts" adds matching and total',
   'search-series':
     'a count or metric over time; columns time, series (when "by" is given), value (value p50 and the like for percentiles)',
   'search-ratio':

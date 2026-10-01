@@ -452,7 +452,9 @@ directly onto an ECharts `dataset`.
     epoch seconds (`toStartOfInterval` takes no bound width), escapes quotes with a backslash and
     matches regular expressions with `match()`. Trino buckets epoch seconds in a UTC session, reads
     an interval variable with `parse_duration` and matches with `regexp_like`. InfluxDB 3 takes
-    the PostgreSQL builders as they are.
+    the PostgreSQL builders as they are. `sql-ratio` divides two `CASE` sums (the rows matching
+    `match`, the rows matching `of` or every row) as `1e0 * part / nullif(whole, 0)`: a double in
+    MySQL, MariaDB, ClickHouse and Trino, exact in PostgreSQL, and no division by zero.
     Search, for Elasticsearch and OpenSearch (`dashboards/queries/search.ts`): `search-series`,
     `search-ratio`, `search-breakdown`, `search-stat`, `search-histogram`, `search-rows`. Filters
     on document fields become a bool query: `term` for a literal, `terms` with a list node

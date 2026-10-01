@@ -79,6 +79,13 @@ export const queryBuilders: readonly QueryBuilder[] = [
     description: 'The latest rows of a table, newest first.',
   },
   {
+    id: 'sql-ratio',
+    name: 'SQL ratio',
+    language: 'sql',
+    description:
+      'The share of rows matching "match" among those matching "of", such as failed orders, over time or over the range.',
+  },
+  {
     id: 'search-series',
     name: 'Search over time',
     language: 'search',

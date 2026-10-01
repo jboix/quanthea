@@ -171,6 +171,42 @@ for (const target of targets) {
       expect(rows.values[0]).toEqual([482, 481]);
     });
 
+    test('gives the failure rate over time and the success rate per service', async () => {
+      const rate = await run(
+        built({
+          kind: 'sql-ratio',
+          table: 'orders',
+          time: 'created_at',
+          match: [{ field: 'status', value: 'failed' }],
+          bucket: '$interval',
+        }),
+        { interval: { value: '10m', duration: true } },
+      );
+      const [, shares] = rate.values as [number[], number[]];
+      expect(Math.max(...shares.map(Number))).toBeGreaterThan(0.05);
+      expect(Math.max(...shares.map(Number))).toBeLessThanOrEqual(1);
+      const success = await run(
+        built({
+          kind: 'sql-ratio',
+          table: 'orders',
+          time: 'created_at',
+          over: 'range',
+          by: 'service',
+          match: [{ field: 'status', value: 'failed' }],
+          complement: true,
+          counts: true,
+        }),
+      );
+      expect(success.fields.map((field) => field.name)).toEqual([
+        'service',
+        'matching',
+        'total',
+        'value',
+      ]);
+      const [, failed, total, value] = success.values.map((column) => Number(column[0]));
+      expect(value).toBeCloseTo(1 - (failed ?? 0) / (total ?? 1), 6);
+    });
+
     test('marks the deploys of the time range', async () => {
       const query = markersQuery(
         {

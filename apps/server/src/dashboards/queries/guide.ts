@@ -83,6 +83,13 @@ const examples: Readonly<Record<keyof typeof builderSchemas, Record<string, unkn
     columns: ['id', 'status', 'total'],
     time: 'created_at',
   },
+  'sql-ratio': {
+    connector: 'postgres',
+    table: 'orders',
+    time: 'created_at',
+    match: [{ field: 'status', value: 'failed' }],
+    bucket: '$interval',
+  },
   'search-series': {
     connector: 'opensearch',
     index: 'logs-*',
