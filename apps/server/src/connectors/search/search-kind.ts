@@ -1,12 +1,14 @@
 /**
- * The Elasticsearch and OpenSearch connector kind: the search DSL over the REST API, search
- * endpoints only, with the row limit applied to the size and to the table, and the timeout sent to
- * the server.
+ * What Elasticsearch and OpenSearch share: the search DSL over the REST API, search endpoints
+ * only, with the row limit applied to the size and to the table, and the timeout sent to the
+ * server. Each product is a kind of its own, with its own settings and authentication, defined
+ * with {@link defineSearchKind}.
  */
 import type { Frame } from '@querent/shared';
-import { z } from 'zod';
+import type { z } from 'zod';
 import {
   ConnectorError,
+  type ConnectorIcon,
   type ConnectorInstance,
   defineConnector,
   type ExecutionContext,
@@ -15,35 +17,62 @@ import {
   type SearchQuery,
 } from '../_shared/index.ts';
 import { aggregationsFrame } from './aggregations.ts';
-import { createSearchApi, type SearchApi } from './api.ts';
+import { createSearchApi, type SearchApi, type ServerInfo } from './api.ts';
 import { describeIndices, mergedTypes } from './catalog.ts';
 import { searchGuide } from './guide.ts';
 import { hitsFrame } from './hits.ts';
-import { elasticsearchIcon } from './icon.ts';
 
-/** The configuration of a connector. */
-const configSchema = z.object({
-  url: z.url({ protocol: /^https?$/ }).meta({ title: 'URL', examples: ['https://search:9200'] }),
-  auth: z.enum(['none', 'basic', 'api-key']).default('basic').meta({ title: 'Authentication' }),
-  username: z
-    .string()
-    .trim()
-    .optional()
-    .meta({ title: 'Username', description: 'For basic authentication.' }),
-  verifyTls: z.boolean().default(true).meta({ title: 'Verify the TLS certificate' }),
-});
+/** The settings every search kind has. */
+interface SearchConfig {
+  /** The server URL. */
+  readonly url: string;
+  /** Whether to check the server certificate. */
+  readonly verifyTls: boolean;
+}
 
-/** The credentials of a connector. */
-const secretSchema = z.object({
-  password: z
-    .string()
-    .optional()
-    .meta({ title: 'Password', description: 'For basic authentication.' }),
-  apiKey: z
-    .string()
-    .optional()
-    .meta({ title: 'API key', description: 'Elasticsearch only: the encoded key.' }),
-});
+/** What sets one search product apart: its names, logo, settings and authentication. */
+export interface SearchProduct<
+  ConfigSchema extends z.ZodType<SearchConfig>,
+  SecretSchema extends z.ZodType,
+> {
+  /** The kind identifier. */
+  readonly kind: string;
+  /** The product, as its root answer names it. */
+  readonly name: ServerInfo['product'];
+  /** Its logo. */
+  readonly icon: ConnectorIcon;
+  /** Its settings. */
+  readonly configSchema: ConfigSchema;
+  /** Its credentials. */
+  readonly secretSchema: SecretSchema;
+  /**
+   * The headers of the configured authentication.
+   *
+   * @param config - The configuration.
+   * @param secret - The credentials.
+   * @returns The headers, or the reason the credentials are incomplete.
+   */
+  headers(
+    config: z.output<ConfigSchema>,
+    secret: z.output<SecretSchema>,
+  ): Record<string, string> | string;
+}
+
+/**
+ * The header of basic authentication.
+ *
+ * @param username - The user, if set.
+ * @param password - The password, if set.
+ * @returns The header, or the reason the credentials are incomplete.
+ */
+export function basicAuth(
+  username: string | undefined,
+  password: string | undefined,
+): Record<string, string> | string {
+  if (!username || password === undefined)
+    return 'Basic authentication needs a username and a password.';
+  return { Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}` };
+}
 
 /** An index or pattern, as the binder allows them. */
 const indexPattern = /^[a-z0-9*][a-z0-9_.*+-]{0,254}$/;
@@ -100,26 +129,6 @@ function typeCache(api: SearchApi): TypeCache {
 }
 
 /**
- * The Authorization header for the configured authentication.
- *
- * @param config - The configuration.
- * @param secret - The credentials.
- * @returns The headers, or the reason the credentials are incomplete.
- */
-function authHeaders(
-  config: z.output<typeof configSchema>,
-  secret: z.output<typeof secretSchema>,
-): Record<string, string> | string {
-  if (config.auth === 'none') return {};
-  if (config.auth === 'api-key')
-    return secret.apiKey ? { Authorization: `ApiKey ${secret.apiKey}` } : 'Set the API key.';
-  if (!config.username || secret.password === undefined)
-    return 'Basic authentication needs a username and a password.';
-  const encoded = Buffer.from(`${config.username}:${secret.password}`).toString('base64');
-  return { Authorization: `Basic ${encoded}` };
-}
-
-/**
  * The body sent: the size capped by the row limit (0 with aggregations), and the timeout.
  *
  * @param query - The bound query.
@@ -171,22 +180,36 @@ async function execute(
 }
 
 /**
- * Checks the connection and names the server. Neither server says whether a user could write
- * through a search, so the report does not either.
+ * Checks the connection and names the server, which must be the kind's product. Neither server
+ * says whether a user could write through a search, so the report does not either.
  *
  * @param api - The API.
+ * @param product - The kind's product.
  * @param signal - The caller's signal.
  * @returns The health report.
  */
-async function test(api: SearchApi, signal: AbortSignal): Promise<HealthReport> {
+async function test(
+  api: SearchApi,
+  product: ServerInfo['product'],
+  signal: AbortSignal,
+): Promise<HealthReport> {
   const started = performance.now();
   const latencyMs = (): number => Math.round(performance.now() - started);
   try {
     const server = await api.server(
       AbortSignal.any([signal, AbortSignal.timeout(metadataTimeoutMs)]),
     );
-    const message = `${server.product} ${server.version}. The connector only searches.`;
-    return { ok: true, latencyMs: latencyMs(), message, readOnly: null };
+    const named = `${server.product} ${server.version}.`;
+    if (server.product !== product) {
+      const message = `${named} Add it as an ${server.product} connector.`;
+      return { ok: false, latencyMs: latencyMs(), message, readOnly: null };
+    }
+    return {
+      ok: true,
+      latencyMs: latencyMs(),
+      message: `${named} The connector only searches.`,
+      readOnly: null,
+    };
   } catch (error) {
     const message = error instanceof ConnectorError ? error.safeMessage : 'The test failed.';
     return { ok: false, latencyMs: latencyMs(), message, readOnly: null };
@@ -261,31 +284,41 @@ function withoutCredentials(url: string): string {
   return parsed.href;
 }
 
-/** The Elasticsearch and OpenSearch connector kind. */
-export const elasticsearchConnector = defineConnector({
-  kind: 'elasticsearch',
-  displayName: 'Elasticsearch / OpenSearch',
-  icon: elasticsearchIcon,
-  language: 'search',
-  queryGuide: searchGuide,
-  configSchema,
-  secretSchema,
-  describeTarget: (config) => withoutCredentials(config.url),
-  open({ config, secret }): ConnectorInstance {
-    const headers = authHeaders(config, secret);
-    if (typeof headers === 'string') return misconfigured(headers);
-    const api = createSearchApi({ url: config.url, headers, verifyTls: config.verifyTls });
-    const types = typeCache(api);
-    return {
-      test: (signal) => test(api, signal),
-      describe: (signal) =>
-        describeIndices(api, AbortSignal.any([signal, AbortSignal.timeout(metadataTimeoutMs)])),
-      sampleValues: (field, limit, signal) => sampleValues(api, types, field, limit, signal),
-      execute: (query, context) =>
-        query.language === 'search'
-          ? execute(api, types, query, context)
-          : Promise.reject(new ConnectorError('rejected', 'This connector runs searches only.')),
-      close: () => Promise.resolve(),
-    };
-  },
-});
+/**
+ * Declares the connector kind of one search product.
+ *
+ * @param product - The product's names, logo, settings and authentication.
+ * @returns The kind.
+ */
+export function defineSearchKind<
+  ConfigSchema extends z.ZodType<SearchConfig>,
+  SecretSchema extends z.ZodType,
+>(product: SearchProduct<ConfigSchema, SecretSchema>) {
+  return defineConnector({
+    kind: product.kind,
+    displayName: product.name,
+    icon: product.icon,
+    language: 'search',
+    queryGuide: searchGuide(product.name),
+    configSchema: product.configSchema,
+    secretSchema: product.secretSchema,
+    describeTarget: (config) => withoutCredentials(config.url),
+    open({ config, secret }): ConnectorInstance {
+      const headers = product.headers(config, secret);
+      if (typeof headers === 'string') return misconfigured(headers);
+      const api = createSearchApi({ url: config.url, headers, verifyTls: config.verifyTls });
+      const types = typeCache(api);
+      return {
+        test: (signal) => test(api, product.name, signal),
+        describe: (signal) =>
+          describeIndices(api, AbortSignal.any([signal, AbortSignal.timeout(metadataTimeoutMs)])),
+        sampleValues: (field, limit, signal) => sampleValues(api, types, field, limit, signal),
+        execute: (query, context) =>
+          query.language === 'search'
+            ? execute(api, types, query, context)
+            : Promise.reject(new ConnectorError('rejected', 'This connector runs searches only.')),
+        close: () => Promise.resolve(),
+      };
+    },
+  });
+}

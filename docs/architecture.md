@@ -78,7 +78,7 @@ The two paths that matter:
 │   │       │   ├── _shared/         the connector kit: contract, errors, frames, HTTP client
 │   │       │   ├── postgres/  mysql/  clickhouse/  trino/
 │   │       │   ├── prometheus/  loki/
-│   │       │   └── elasticsearch/   Elasticsearch and OpenSearch
+│   │       │   └── search/          Elasticsearch and OpenSearch: two kinds, one engine
 │   │       ├── dashboards/          versions, validate, pin, copies, library; queries/ (builders,
 │   │       │                        saved and raw queries) and panels/ (edits: data + chart, layout)
 │   │       ├── threads/             threads, messages, plans (state machine)
@@ -706,8 +706,12 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   comments in `system.metadata`, never table data. Trino cannot say whether a user could write, so
   the connection test reports `readOnly: null`. Error names map to connector errors; value errors
   never quote the value.
-- **Elasticsearch and OpenSearch:** one kind, `elasticsearch`, over the kit's HTTP client: the
-  REST API, no client library. It sends searches (`POST /<index>/_search`) and reads mappings,
+- **Elasticsearch and OpenSearch:** two kinds, `elasticsearch` and `opensearch`, built from one
+  engine in `connectors/search/` (`defineSearchKind`): OpenSearch forked from Elasticsearch 7.10
+  and both still share the search API and the DSL. Each kind has its own logo and
+  authentication: Elasticsearch basic or an API key, OpenSearch basic or a bearer token from its
+  security plugin. The connection test fails, naming the right kind, when the server is the other
+  product. Both go over the kit's HTTP client: the REST API, no client library. It sends searches (`POST /<index>/_search`) and reads mappings,
   document counts and the root answer, nothing that writes. The size is capped at `maxRows + 1`,
   and at 0 with aggregations. The timeout goes in the body (`timeout`), with
   `allow_partial_search_results=false`, and OpenSearch also gets `cancel_after_time_interval`; a

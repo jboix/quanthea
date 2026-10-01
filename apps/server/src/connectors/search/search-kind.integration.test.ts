@@ -1,13 +1,20 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import {
+  type AnyConnectorKind,
   ConnectorError,
   type ConnectorInstance,
   type ExecutionContext,
   type SearchQuery,
 } from '../_shared/index.ts';
 import { testConnectorConformance } from '../_shared/test/conformance.ts';
-import { devIncidentStart, devSearchServers, integrationFor } from '../_shared/test/dev-sources.ts';
+import {
+  devElasticsearch,
+  devIncidentStart,
+  devOpensearch,
+  integrationFor,
+} from '../_shared/test/dev-sources.ts';
 import { elasticsearchConnector } from './elasticsearch-connector.ts';
+import { opensearchConnector } from './opensearch-connector.ts';
 
 const live = integrationFor('search');
 const incident = devIncidentStart();
@@ -51,10 +58,26 @@ function context(overrides: Partial<ExecutionContext> = {}): ExecutionContext {
   };
 }
 
-for (const server of devSearchServers) {
-  testConnectorConformance(elasticsearchConnector, {
-    config: server.config,
-    secret: server.secret,
+/** Each kind, its dev server, and the other kind's server, which its test refuses. */
+const servers: {
+  name: string;
+  kind: AnyConnectorKind;
+  source: { config: unknown; secret: unknown };
+  other: { config: unknown; secret: unknown };
+}[] = [
+  {
+    name: 'Elasticsearch',
+    kind: elasticsearchConnector,
+    source: devElasticsearch,
+    other: devOpensearch,
+  },
+  { name: 'OpenSearch', kind: opensearchConnector, source: devOpensearch, other: devElasticsearch },
+];
+
+for (const server of servers) {
+  testConnectorConformance(server.kind, {
+    config: server.source.config,
+    secret: server.source.secret,
     query: search({
       query: { bool: { filter: [inRange] } },
       aggs: { time: { date_histogram: { field: '@timestamp', fixed_interval: '5m' } } },
@@ -70,9 +93,9 @@ for (const server of devSearchServers) {
     let connection: ConnectorInstance;
 
     beforeAll(() => {
-      connection = elasticsearchConnector.open({
-        config: elasticsearchConnector.configSchema.parse(server.config),
-        secret: elasticsearchConnector.secretSchema.parse(server.secret),
+      connection = server.kind.open({
+        config: server.kind.configSchema.parse(server.source.config),
+        secret: server.kind.secretSchema.parse(server.source.secret),
       });
     });
 
@@ -91,10 +114,18 @@ for (const server of devSearchServers) {
       return frame;
     }
 
-    test('names the server', async () => {
+    test('names the server, and fails the test of the other product', async () => {
       const health = await connection.test(AbortSignal.timeout(20_000));
       expect(health).toMatchObject({ ok: true, readOnly: null });
       expect(health.message).toStartWith(`${server.name} `);
+      const wrong = server.kind.open({
+        config: server.kind.configSchema.parse(server.other.config),
+        secret: server.kind.secretSchema.parse(server.other.secret),
+      });
+      const refused = await wrong.test(AbortSignal.timeout(20_000));
+      expect(refused.ok).toBe(false);
+      expect(refused.message).toEndWith('connector.');
+      expect(refused.message).not.toContain(server.name);
     });
 
     test('turns nested aggregations into one long table, with the incident in it', async () => {

@@ -4,11 +4,12 @@
  */
 import type { AnyConnectorKind } from './_shared/index.ts';
 import { clickhouseConnector } from './clickhouse/clickhouse-connector.ts';
-import { elasticsearchConnector } from './elasticsearch/elasticsearch-connector.ts';
 import { lokiConnector } from './loki/loki-connector.ts';
 import { mysqlConnector } from './mysql/mysql-connector.ts';
 import { postgresConnector } from './postgres/postgres-connector.ts';
 import { prometheusConnector } from './prometheus/prometheus-connector.ts';
+import { elasticsearchConnector } from './search/elasticsearch-connector.ts';
+import { opensearchConnector } from './search/opensearch-connector.ts';
 import { trinoConnector } from './trino/trino-connector.ts';
 
 /** The connector kinds, in the order the add form lists them. */
@@ -19,6 +20,7 @@ export const connectorKinds: readonly AnyConnectorKind[] = [
   trinoConnector,
   prometheusConnector,
   elasticsearchConnector,
+  opensearchConnector,
   lokiConnector,
 ];
 

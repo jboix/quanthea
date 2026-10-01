@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { z } from 'zod';
 import { ConnectorError } from '../_shared/index.ts';
 import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import { aggregationsFrame } from './aggregations.ts';
@@ -7,16 +8,19 @@ import { fieldTypeOf, mappingFields } from './columns.ts';
 import { elasticsearchConnector } from './elasticsearch-connector.ts';
 import { toConnectorError } from './errors.ts';
 import { flatten, hitsFrame } from './hits.ts';
+import { opensearchConnector } from './opensearch-connector.ts';
 
-testConnectorConformance(elasticsearchConnector, {
-  config: { url: 'https://search:9200', auth: 'basic', username: 'reader' },
-  secret: { password: 'x' },
-  query: { language: 'search', index: 'logs-*', body: { query: { match_all: {} } } },
-  invalidQuery: { language: 'search', index: 'logs-*', body: { query: { nope: {} } } },
-  sampleField: { entity: 'logs-*', field: 'level' },
-  timeRange: { from: new Date(0), to: new Date(1000) },
-  live: false,
-});
+for (const kind of [elasticsearchConnector, opensearchConnector]) {
+  testConnectorConformance(kind, {
+    config: { url: 'https://search:9200', auth: 'basic', username: 'reader' },
+    secret: { password: 'x' },
+    query: { language: 'search', index: 'logs-*', body: { query: { match_all: {} } } },
+    invalidQuery: { language: 'search', index: 'logs-*', body: { query: { nope: {} } } },
+    sampleField: { entity: 'logs-*', field: 'level' },
+    timeRange: { from: new Date(0), to: new Date(1000) },
+    live: false,
+  });
+}
 
 const context = {
   refId: 'A',
@@ -27,6 +31,14 @@ const context = {
 };
 
 describe('search connector settings', () => {
+  test('offer each product its own authentication', () => {
+    const modes = (kind: typeof elasticsearchConnector | typeof opensearchConnector) =>
+      (z.toJSONSchema(kind.configSchema) as unknown as { properties: { auth: { enum: string[] } } })
+        .properties.auth.enum;
+    expect(modes(elasticsearchConnector)).toEqual(['basic', 'api-key', 'none']);
+    expect(modes(opensearchConnector)).toEqual(['basic', 'bearer', 'none']);
+  });
+
   test('say what is missing before any request', async () => {
     const connection = elasticsearchConnector.open({
       config: elasticsearchConnector.configSchema.parse({ url: 'https://search:9200' }),

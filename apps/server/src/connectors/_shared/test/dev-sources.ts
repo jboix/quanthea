@@ -102,15 +102,23 @@ export const devTrino = {
   secret: {},
 };
 
-/** The dev Elasticsearch and OpenSearch, without security, holding the request logs. */
-export const devSearchServers = [
-  { name: 'Elasticsearch', port: Number(process.env.QUERENT_DEV_ELASTICSEARCH_PORT ?? 9201) },
-  { name: 'OpenSearch', port: Number(process.env.QUERENT_DEV_OPENSEARCH_PORT ?? 9202) },
-].map(({ name, port }) => ({
-  name,
-  config: { url: `http://127.0.0.1:${port}`, auth: 'none' },
+/** The dev Elasticsearch, without security, holding the request logs. */
+export const devElasticsearch = {
+  config: {
+    url: `http://127.0.0.1:${process.env.QUERENT_DEV_ELASTICSEARCH_PORT ?? 9201}`,
+    auth: 'none',
+  },
   secret: {},
-}));
+};
+
+/** The dev OpenSearch, without security, holding the same logs. */
+export const devOpensearch = {
+  config: {
+    url: `http://127.0.0.1:${process.env.QUERENT_DEV_OPENSEARCH_PORT ?? 9202}`,
+    auth: 'none',
+  },
+  secret: {},
+};
 
 /** The dev Loki, holding the request logs. */
 export const devLoki = {
