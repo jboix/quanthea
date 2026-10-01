@@ -2,8 +2,9 @@
  * Turns labelled series, in the result format of the Prometheus HTTP API, into frames. Prometheus
  * answers in it, and so do Loki's metric queries.
  */
-import type { Field, Frame } from '@quanthea/shared';
+
 import { createFrameBuilder } from './frame-builder.ts';
+import type { Field, Frame } from './frames.ts';
 import type { ExecutionContext } from './queries.ts';
 
 /** One series of a range query. */

@@ -4,8 +4,9 @@
  * shape, which any chart for that shape can draw. A thread uses the default set, a chosen set, or
  * none.
  */
+
+import { type QueryLanguage, queryLanguageSchema } from '@quanthea/plugin-kit/contract';
 import { z } from 'zod';
-import { type QueryLanguage, queryLanguageSchema } from './connectors.ts';
 import { shapeKinds } from './dataset/contract.ts';
 
 /** The languages whose saved query is the JSON of its template, placeholders in its strings. */

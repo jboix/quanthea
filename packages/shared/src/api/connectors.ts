@@ -1,4 +1,5 @@
 /** Connector endpoints: kinds, configured connectors, connection tests and schemas. Admin only. */
+import { queryLanguageSchema } from '@quanthea/plugin-kit/contract';
 import { z } from 'zod';
 import {
   accessLevelSchema,
@@ -6,7 +7,6 @@ import {
   descriptionsSchema,
   guardrailsSchema,
   hiddenFieldsSchema,
-  queryLanguageSchema,
 } from '../connectors.ts';
 import { defineEndpoint } from './contract.ts';
 

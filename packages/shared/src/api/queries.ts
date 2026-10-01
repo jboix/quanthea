@@ -2,8 +2,9 @@
  * Query endpoints: admins switch query builders on and off and save their own queries; editors
  * list the queries a new thread may use.
  */
+
+import { queryLanguageSchema } from '@quanthea/plugin-kit/contract';
 import { z } from 'zod';
-import { queryLanguageSchema } from '../connectors.ts';
 import { shapeKinds } from '../dataset/contract.ts';
 import { querySettingsSchema, savedQuerySchema } from '../queries.ts';
 import { panelSchema } from '../spec/dashboard.ts';

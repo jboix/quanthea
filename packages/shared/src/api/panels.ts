@@ -2,8 +2,9 @@
  * Running saved panels. The browser names a panel of a stored version and picks variable values;
  * it never sends a query.
  */
+
+import { frameSchema } from '@quanthea/plugin-kit/contract';
 import { z } from 'zod';
-import { frameSchema } from '../frames.ts';
 import { timeRangeSchema } from '../spec/time.ts';
 import { variableValuesSchema } from '../spec/variables.ts';
 import { defineEndpoint } from './contract.ts';

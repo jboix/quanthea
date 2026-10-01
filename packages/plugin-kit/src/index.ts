@@ -10,7 +10,7 @@
  * }
  * ```
  */
-export type { Field, FieldType, Frame } from '@quanthea/shared';
+
 export type {
   ConnectorIcon,
   ConnectorInstance,
@@ -19,6 +19,7 @@ export type {
 } from './connector-kind.ts';
 export type { ConnectorError, ConnectorErrorCode } from './errors.ts';
 export type { FrameBuilder, FrameBuilderOptions } from './frame-builder.ts';
+export type { Field, FieldType, Frame } from './frames.ts';
 export type { HttpClient, HttpClientOptions, HttpRequest, HttpResponse } from './http.ts';
 export { type ConnectorKit, type ConnectorPlugin, kitVersion } from './kit.ts';
 export type {

@@ -12,23 +12,6 @@ export const connectorNameSchema = z
     'Use lowercase letters, digits and dashes, up to 63 characters.',
   );
 
-/** The query languages connectors speak. */
-export const queryLanguages = [
-  'sql',
-  'promql',
-  'search',
-  'logql',
-  'http',
-  'redis',
-  'mongodb',
-] as const;
-
-/** Validates a query language. */
-export const queryLanguageSchema = z.enum(queryLanguages);
-
-/** A query language. */
-export type QueryLanguage = z.infer<typeof queryLanguageSchema>;
-
 /**
  * Validates an access level: what the model may see of a connector's data.
  * 1 schema only, 2 schema and metadata, 3 aggregates, 4 full access.

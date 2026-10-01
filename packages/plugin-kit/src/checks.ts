@@ -4,8 +4,9 @@
  * suite in every kind's tests, so a kind that passes its own tests passes the loader. A plugin may
  * return an object it did not build with `defineConnector`, so nothing is taken for granted.
  */
-import { queryLanguages } from '@quanthea/shared';
+
 import { z } from 'zod';
+import { queryLanguages } from './languages.ts';
 import { sqlDialects, sqlPlaceholderStyles, sqlRowLimits } from './queries.ts';
 
 /** What a kind identifier looks like. */

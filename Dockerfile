@@ -24,6 +24,7 @@ COPY dev/package.json dev/package.json
 RUN bun install --frozen-lockfile --ignore-scripts
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
+COPY packages/plugin-kit packages/plugin-kit
 COPY apps/web apps/web
 RUN bun run --filter @quanthea/web build
 

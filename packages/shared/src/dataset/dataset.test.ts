@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { Frame } from '../frames.ts';
+import type { Frame } from '@quanthea/plugin-kit/contract';
 import { type Dataset, datasetSchema } from './contract.ts';
 import { datasetOfFrames } from './from-frames.ts';
 import {

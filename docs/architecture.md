@@ -105,7 +105,8 @@ The two paths that matter:
 │           └── lib/                 typed API client (from shared contract), utils
 ├── packages/
 │   ├── plugin-kit/                  @quanthea/plugin-kit: the connector kit, public types,
-│   │                                a test kit and the conformance suite
+│   │                                a test kit and the conformance suite, and the frames and
+│   │                                query languages every connector shares (frames.ts)
 │   └── shared/                      @quanthea/shared  (isomorphic: browser + Bun)
 │       └── src/
 │           ├── spec/                dashboard spec Zod schemas + types
@@ -114,7 +115,6 @@ The two paths that matter:
 │           ├── dataset/             the data contract: datasets, shapes, reshaping, from frames
 │           ├── chart-recipes/       chart recipes by family, their schema, fill, samples
 │           ├── queries.ts           query builders, saved queries, a thread's queries
-│           ├── frames.ts            result frame types
 │           ├── roles.ts             Role, capability matrix
 │           └── index.ts
 ├── examples/
@@ -656,7 +656,7 @@ the **connector kit**, `connectors/_shared/index.ts` (dependency-cruiser rule
 `connector-kinds-use-the-kit`). [`connectors.md`](connectors.md) walks through adding a kind.
 
 The kit lives in its own workspace, `packages/plugin-kit` (`@quanthea/plugin-kit`), because the
-same kit serves connector plugins. It has three entry points:
+same kit serves connector plugins. It has four entry points:
 
 - `.`: the types a kind is written against (`ConnectorKind`, `ConnectorInstance`, the bound
   queries, the schema and health types, `Frame`), the `ConnectorKit` a plugin receives, and
@@ -666,11 +666,16 @@ same kit serves connector plugins. It has three entry points:
 - `./host`: the live kit, `hostKit`, frozen, with the server's own `z`, `defineConnector`,
   `ConnectorError`, `createFrameBuilder`, `createHttpClient` and `seriesFrames`. Only
   `connectors/_shared/index.ts` imports it (rule `only-the-server-kit-uses-the-host`).
+- `./contract`: the frames (`Frame`, `Field`, their schemas, `frameProblems`) and the query
+  languages, with their runtime checks. The kit owns this contract because a plugin returns
+  frames and speaks a language. `@quanthea/shared` re-exports it, so the apps import it from
+  shared; shared may import nothing else from the kit (rule `shared-uses-the-kit-contract-only`).
+  It is a workspace entry: plugins get the types from `.`.
 
 `connectors/_shared/index.ts` re-exports the live kit and adds what only built-in kinds and the
 binders use, quanthea's policy lists (`policies.ts`): `searchRatioScripts`, `mongodbRefusedKeys`,
-`redisReadCommands`. The public kit leaves them out. The kit imports only `@quanthea/shared` and
-Zod (rule `plugin-kit-stays-small`), and a plugin receives the server's Zod and error class, so
+`redisReadCommands`. The public kit leaves them out. The kit imports only Zod (rules
+`plugin-kit-is-a-leaf` and `plugin-kit-stays-small`), and a plugin receives the server's Zod and error class, so
 its schemas build the forms. `createTestKit()` returns the live kit itself, so a plugin's tests run
 the code production runs. Every copy of `ConnectorError` carries the global brand
 `Symbol.for('quanthea.connector-error')`, and the class's `instanceof` checks the brand (with a
@@ -777,7 +782,7 @@ a function that receives the live kit and returns its kinds.
   like any server software. There is no sandbox: a Worker would not stop network or file
   access.
 
-Every connector returns **Frames** (`packages/shared/src/frames.ts`), a columnar format like
+Every connector returns **Frames** (`packages/plugin-kit/src/frames.ts`), a columnar format like
 Grafana's data frames:
 
 ```ts

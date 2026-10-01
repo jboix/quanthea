@@ -2,8 +2,10 @@
  * Threads: the conversation that authors a dashboard, its plans, and the custom parts its messages
  * carry (plan cards, new dashboard versions, diffs).
  */
+
+import { queryLanguageSchema } from '@quanthea/plugin-kit/contract';
 import { z } from 'zod';
-import { connectorNameSchema, queryLanguageSchema } from './connectors.ts';
+import { connectorNameSchema } from './connectors.ts';
 
 /** Where a thread is: asking, waiting for plan approval, building, or ready for small edits. */
 export const threadStates = ['idle', 'plan_pending', 'building', 'ready'] as const;

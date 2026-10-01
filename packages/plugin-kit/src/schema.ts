@@ -1,5 +1,5 @@
 /** What a connector reports about its source: health, schema and sample values. */
-import type { FieldType } from '@quanthea/shared';
+import type { FieldType } from './frames.ts';
 
 /** The result of a connection test. */
 export interface HealthReport {

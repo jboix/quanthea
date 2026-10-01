@@ -1,6 +1,19 @@
 /** The public surface of `@quanthea/shared`. */
 
 export {
+  compareFrameValues,
+  type Field,
+  type FieldType,
+  type Frame,
+  fieldSchema,
+  fieldTypes,
+  frameProblems,
+  frameSchema,
+  type QueryLanguage,
+  queryLanguageSchema,
+  queryLanguages,
+} from '@quanthea/plugin-kit/contract';
+export {
   changePasswordEndpoint,
   completeSetupEndpoint,
   setPasswordEndpoint,
@@ -202,9 +215,6 @@ export {
   guardrailsSchema,
   hiddenFieldsSchema,
   lowCardinalityLimit,
-  type QueryLanguage,
-  queryLanguageSchema,
-  queryLanguages,
 } from './connectors.ts';
 export {
   type Cell,
@@ -241,16 +251,6 @@ export {
   type NamedFormatter,
   namedFormatterSchema,
 } from './formatters/schema.ts';
-export {
-  compareFrameValues,
-  type Field,
-  type FieldType,
-  type Frame,
-  fieldSchema,
-  fieldTypes,
-  frameProblems,
-  frameSchema,
-} from './frames.ts';
 export {
   type GatewayPreset,
   gatewayPresets,

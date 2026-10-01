@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { frameProblems } from '@quanthea/shared';
+import { frameProblems } from './frames.ts';
 import type { ExecutionContext } from './queries.ts';
 import { sampleValue, seriesFrames, seriesName } from './series-frames.ts';
 

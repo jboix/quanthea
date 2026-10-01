@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { frameProblems } from '@quanthea/shared';
 import { createFrameBuilder } from './frame-builder.ts';
+import { frameProblems } from './frames.ts';
 
 /**
  * Builds a frame from rows with a row limit, stopping when the builder says so.

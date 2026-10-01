@@ -3,7 +3,7 @@
  * series, as a Prometheus range query returns, becomes one long table: the x, a column per label,
  * a `series` column naming the series, and the `value`.
  */
-import type { Field, Frame } from '../frames.ts';
+import type { Field, Frame } from '@quanthea/plugin-kit/contract';
 import type { Cell, Dataset, Dimension } from './contract.ts';
 
 /**

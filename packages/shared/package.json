@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
+    "@quanthea/plugin-kit": "workspace:*",
     "zod": "^4.6.5"
   }
 }

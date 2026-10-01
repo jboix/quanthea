@@ -78,7 +78,6 @@
       "name": "@quanthea/plugin-kit",
       "version": "0.0.0",
       "dependencies": {
-        "@quanthea/shared": "workspace:*",
         "zod": "^4.6.5",
       },
     },
@@ -86,6 +85,7 @@
       "name": "@quanthea/shared",
       "version": "0.0.0",
       "dependencies": {
+        "@quanthea/plugin-kit": "workspace:*",
         "zod": "^4.6.5",
       },
     },
