@@ -1,5 +1,5 @@
 /** Binds a query template for its language. */
-import type { BoundQuery, SqlDialect, TimeRange } from '../connectors/_shared/index.ts';
+import type { BoundQuery, TimeRange } from '../connectors/_shared/index.ts';
 import { bindHttp, type HttpTemplate } from './http-binder.ts';
 import { bindLogql } from './logql-binder.ts';
 import { bindMongodb, type MongodbTemplate } from './mongodb-binder.ts';
@@ -7,6 +7,7 @@ import { bindPromql, type PromqlTemplate } from './promql-binder.ts';
 import { bindRedis, type RedisTemplate } from './redis-binder.ts';
 import { bindSearch, type SearchTemplate } from './search-binder.ts';
 import { bindSql } from './sql-binder.ts';
+import type { SqlFlavor } from './sql-dialects.ts';
 import type { Variables } from './variables.ts';
 
 /** A query as a dashboard or the agent writes it: a template in one language. */
@@ -24,8 +25,8 @@ export const maxPromqlPoints = 11_000;
 
 /** What binding depends on beyond the template: the connector's dialect and the point limit. */
 export interface BindOptions {
-  /** The SQL dialect of the connector. */
-  readonly dialect?: SqlDialect | undefined;
+  /** The SQL dialect of the connector, with its styles for `ansi`. */
+  readonly dialect?: SqlFlavor | undefined;
   /** The most points a PromQL or LogQL series may have, which sets the step. */
   readonly maxPoints?: number;
 }

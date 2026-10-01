@@ -6,7 +6,14 @@ import type { PanelQuery } from '@querent/shared';
 import type { BuildContext, BuiltData } from './built.ts';
 import type { Filter } from './fields.ts';
 import type { DataOf } from './request.ts';
-import { durationText, type SqlWriter, sqlName, sqlWhere, sqlWriterFor } from './sql-writers.ts';
+import {
+  durationText,
+  type SqlWriter,
+  sqlName,
+  sqlWhere,
+  sqlWriterFor,
+  timeKeys,
+} from './sql-writers.ts';
 import { QueryError } from './text.ts';
 
 /** A measure, as the requests carry it. */
@@ -49,11 +56,10 @@ function sqlQuery(connector: string, sql: string): PanelQuery {
  */
 export function seriesData(request: DataOf<'sql-series'>, writer: SqlWriter): BuiltData {
   const bucket = writer.bucket(sqlName(writer, request.time), durationText(request.bucket));
-  const split =
-    request.by === undefined ? '' : `, ${writer.text(sqlName(writer, request.by))} AS series`;
+  const keys = timeKeys(writer, bucket, request.by);
   const where = sqlWhere(writer, request.time, request.filters);
-  const groups = request.by === undefined ? '1' : '1, 2';
-  const sql = `SELECT ${bucket} AS time${split}, ${measureSql(writer, request.measure)} AS value FROM ${sqlName(writer, request.table)}${where} GROUP BY ${groups} ORDER BY 1`;
+  const value = `${measureSql(writer, request.measure)} AS ${writer.alias('value')}`;
+  const sql = `SELECT ${keys.select}, ${value} FROM ${sqlName(writer, request.table)}${where} ${keys.group} ORDER BY 1`;
   const columns = request.by === undefined ? ['time', 'value'] : ['time', 'series', 'value'];
   return {
     queries: [sqlQuery(request.connector, sql)],
@@ -71,7 +77,9 @@ export function seriesData(request: DataOf<'sql-series'>, writer: SqlWriter): Bu
 export function breakdownData(request: DataOf<'sql-breakdown'>, writer: SqlWriter): BuiltData {
   const where = sqlWhere(writer, request.time, request.filters);
   const by = sqlName(writer, request.by);
-  const sql = `SELECT ${writer.text(by)} AS ${by}, ${measureSql(writer, request.measure)} AS value FROM ${sqlName(writer, request.table)}${where} GROUP BY 1 ORDER BY 2 DESC LIMIT ${request.limit}`;
+  const value = `${measureSql(writer, request.measure)} AS ${writer.alias('value')}`;
+  const group = writer.groupBy([{ position: 1, expression: by }]);
+  const sql = `SELECT ${writer.text(by)} AS ${by}, ${value} FROM ${sqlName(writer, request.table)}${where} ${group} ORDER BY 2 DESC${writer.limit(request.limit)}`;
   return {
     queries: [sqlQuery(request.connector, sql)],
     output: { shape: 'long', columns: [request.by, 'value'], chart: 'comparison.bar' },
@@ -87,7 +95,7 @@ export function breakdownData(request: DataOf<'sql-breakdown'>, writer: SqlWrite
  */
 export function statData(request: DataOf<'sql-stat'>, writer: SqlWriter): BuiltData {
   const where = sqlWhere(writer, request.time, request.filters);
-  const sql = `SELECT ${measureSql(writer, request.measure)} AS value FROM ${sqlName(writer, request.table)}${where}`;
+  const sql = `SELECT ${measureSql(writer, request.measure)} AS ${writer.alias('value')} FROM ${sqlName(writer, request.table)}${where}`;
   return {
     queries: [sqlQuery(request.connector, sql)],
     output: { shape: 'single', columns: ['value'], chart: 'kpi.stat' },
@@ -105,7 +113,7 @@ export function rowsData(request: DataOf<'sql-rows'>, writer: SqlWriter): BuiltD
   const columns = request.columns.map((column) => sqlName(writer, column)).join(', ');
   const where = sqlWhere(writer, request.time, request.filters);
   const order = request.time === undefined ? '' : ` ORDER BY ${sqlName(writer, request.time)} DESC`;
-  const sql = `SELECT ${columns} FROM ${sqlName(writer, request.table)}${where}${order} LIMIT ${request.limit}`;
+  const sql = `SELECT ${columns} FROM ${sqlName(writer, request.table)}${where}${order}${writer.limit(request.limit)}`;
   return {
     queries: [sqlQuery(request.connector, sql)],
     output: { shape: 'rows', columns: request.columns, chart: 'table.rows' },
@@ -139,6 +147,6 @@ export function markersQuery(request: MarkersRequest, context: BuildContext): Pa
   const writer = sqlWriterFor(context.dialectOf?.(request.connector));
   const where = sqlWhere(writer, request.time, request.filters);
   const text = writer.text(sqlName(writer, request.text));
-  const sql = `SELECT ${sqlName(writer, request.time)} AS time, ${text} AS text FROM ${sqlName(writer, request.table)}${where} ORDER BY 1`;
+  const sql = `SELECT ${sqlName(writer, request.time)} AS ${writer.alias('time')}, ${text} AS ${writer.alias('text')} FROM ${sqlName(writer, request.table)}${where} ORDER BY 1`;
   return { refId: 'M', connector: request.connector, language: 'sql', sql };
 }

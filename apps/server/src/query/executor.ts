@@ -8,13 +8,13 @@ import {
   ConnectorError,
   type ConnectorInstance,
   type QueryLanguage,
-  type SqlDialect,
   type TimeRange,
 } from '../connectors/_shared/index.ts';
 import { bindTemplate, maxPromqlPoints, type QueryTemplate } from './bind.ts';
 import { checkTimeRange } from './guardrails.ts';
 import { QueryError } from './query-error.ts';
 import type { ResultCache } from './result-cache.ts';
+import type { SqlFlavor } from './sql-dialects.ts';
 import type { Variables } from './variables.ts';
 
 /** A connector ready to run queries, as the caller resolved it. */
@@ -25,8 +25,8 @@ export interface QuerySource {
   readonly version: number;
   /** The language of the connector's kind. */
   readonly language: QueryLanguage;
-  /** The SQL dialect of the connector's kind, when it runs SQL. */
-  readonly dialect?: SqlDialect | undefined;
+  /** The SQL dialect of the connector's kind, with its styles for `ansi`, when it runs SQL. */
+  readonly dialect?: SqlFlavor | undefined;
   /** The open connection. */
   readonly instance: ConnectorInstance;
   /** The connector's guardrails. */

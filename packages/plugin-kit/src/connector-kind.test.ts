@@ -26,6 +26,20 @@ test('defineConnector rejects a SQL kind without a dialect', () => {
   expect(() => defineConnector(withoutDialect)).toThrow('must declare its dialect');
 });
 
+test('defineConnector takes ansi styles from their lists, and only on ansi', () => {
+  const ansi = { ...kind, dialect: 'ansi' as const };
+  expect(defineConnector({ ...ansi, placeholders: '@p1', rowLimit: 'limit' }).placeholders).toBe(
+    '@p1',
+  );
+  expect(() => defineConnector({ ...kind, placeholders: '?' })).toThrow('only the ansi dialect');
+  expect(() => defineConnector({ ...ansi, placeholders: '%s' as '?' })).toThrow(
+    'use ?, $1, :1, @p1',
+  );
+  expect(() => defineConnector({ ...ansi, rowLimit: 'top' as 'fetch' })).toThrow(
+    'use fetch or limit',
+  );
+});
+
 test('defineConnector rejects an icon that is not path data and a colour', () => {
   const icon = { path: 'M0 0<script>', color: '#000000' };
   expect(() => defineConnector({ ...kind, icon })).toThrow('icon');

@@ -7,7 +7,14 @@ import type { PanelQuery } from '@querent/shared';
 import type { BuiltData } from './built.ts';
 import type { Filter } from './fields.ts';
 import type { DataOf } from './request.ts';
-import { durationText, type SqlWriter, sqlCondition, sqlName, sqlWhere } from './sql-writers.ts';
+import {
+  durationText,
+  type SqlWriter,
+  sqlCondition,
+  sqlName,
+  sqlWhere,
+  timeKeys,
+} from './sql-writers.ts';
 import { QueryError } from './text.ts';
 
 /** A ratio request. */
@@ -38,8 +45,10 @@ function measures(writer: SqlWriter, request: RatioRequest): string {
   const whole = countOf(writer, request.of);
   const share = `1e0 * ${part} / nullif(${whole}, 0)`;
   const value = request.complement ? `1 - ${share}` : share;
-  const counts = request.counts ? `${part} AS matching, ${whole} AS total, ` : '';
-  return `${counts}${value} AS value`;
+  const counts = request.counts
+    ? `${part} AS ${writer.alias('matching')}, ${whole} AS ${writer.alias('total')}, `
+    : '';
+  return `${counts}${value} AS ${writer.alias('value')}`;
 }
 
 /**
@@ -63,10 +72,9 @@ function sqlQuery(request: RatioRequest, sql: string): PanelQuery {
  */
 function overTime(request: RatioRequest, writer: SqlWriter, time: string): BuiltData {
   const bucket = writer.bucket(sqlName(writer, time), durationText(request.bucket));
-  const split = request.by ? `, ${writer.text(sqlName(writer, request.by))} AS series` : '';
-  const groups = request.by ? '1, 2' : '1';
+  const keys = timeKeys(writer, bucket, request.by);
   const from = sqlName(writer, request.table);
-  const sql = `SELECT ${bucket} AS time${split}, ${measures(writer, request)} FROM ${from}${sqlWhere(writer, time, request.filters)} GROUP BY ${groups} ORDER BY 1`;
+  const sql = `SELECT ${keys.select}, ${measures(writer, request)} FROM ${from}${sqlWhere(writer, time, request.filters)} ${keys.group} ORDER BY 1`;
   const counts = request.counts ? ['matching', 'total'] : [];
   return {
     queries: [sqlQuery(request, sql)],
@@ -91,8 +99,9 @@ function overRange(request: RatioRequest, writer: SqlWriter): BuiltData {
   const from = sqlName(writer, request.table);
   const by = request.by;
   const key = by ? `${writer.text(sqlName(writer, by))} AS ${sqlName(writer, by)}, ` : '';
+  const group = by ? writer.groupBy([{ position: 1, expression: sqlName(writer, by) }]) : '';
   const tail = by
-    ? ` GROUP BY 1 ORDER BY ${countOf(writer, request.match)} DESC LIMIT ${request.limit}`
+    ? ` ${group} ORDER BY ${countOf(writer, request.match)} DESC${writer.limit(request.limit)}`
     : '';
   const sql = `SELECT ${key}${measures(writer, request)} FROM ${from}${where}${tail}`;
   const counts = request.counts ? ['matching', 'total'] : [];

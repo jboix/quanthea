@@ -2,9 +2,9 @@
  * How the SQL builders write each dialect: names quoted, literals escaped, variables left as `:name`
  * references the binder fills in, and the few expressions that differ, such as time buckets.
  */
-import type { SqlDialect } from '../../query/sql-dialects.ts';
+import type { SqlDialect, SqlFlavor } from '../../query/sql-dialects.ts';
 import type { Filter } from './fields.ts';
-import { variableOf } from './text.ts';
+import { QueryError, variableOf } from './text.ts';
 
 /** What differs between dialects when a builder writes SQL. */
 export interface SqlWriter {
@@ -53,7 +53,43 @@ export interface SqlWriter {
    * @returns The condition.
    */
   matches(column: string, pattern: string, negated: boolean): string;
+  /**
+   * A column alias in the select list.
+   *
+   * @param name - The alias, such as `value`.
+   * @returns The alias as written.
+   */
+  alias(name: string): string;
+  /**
+   * The GROUP BY clause.
+   *
+   * @param keys - The grouped select items: their position and their expression.
+   * @returns Such as `GROUP BY 1, 2`.
+   */
+  groupBy(keys: readonly GroupKey[]): string;
+  /**
+   * The clause that keeps at most some rows, after ORDER BY.
+   *
+   * @param rows - How many rows.
+   * @returns Such as ` LIMIT 10`.
+   */
+  limit(rows: number): string;
 }
+
+/** A grouped select item. */
+export interface GroupKey {
+  /** Its position in the select list, from 1. */
+  readonly position: number;
+  /** The expression it groups on, such as a quoted column. */
+  readonly expression: string;
+}
+
+/** How the built-in dialects write aliases, groups and limits: as they always have. */
+const nativeClauses: Pick<SqlWriter, 'alias' | 'groupBy' | 'limit'> = {
+  alias: (name) => name,
+  groupBy: (keys) => `GROUP BY ${keys.map((key) => key.position).join(', ')}`,
+  limit: (rows) => ` LIMIT ${rows}`,
+};
 
 /** A duration as the builders hold it: a literal, or a variable the binder fills in. */
 export type DurationText =
@@ -102,6 +138,7 @@ function postgresInterval(duration: DurationText): string {
 
 /** PostgreSQL: double-quoted names, `::` casts, `date_bin` from the start of the range. */
 const postgresWriter: SqlWriter = {
+  ...nativeClauses,
   quote: (identifier) => `"${identifier.replaceAll('"', '""')}"`,
   string: (value) => `'${value.replaceAll("'", "''")}'`,
   text: (expression) => `${expression}::text`,
@@ -115,6 +152,7 @@ const postgresWriter: SqlWriter = {
  * The connector's session is in UTC, so the epoch arithmetic is too.
  */
 const mysqlWriter: SqlWriter = {
+  ...nativeClauses,
   quote: (identifier) => `\`${identifier.replaceAll('`', '``')}\``,
   string: (value) => `'${value.replaceAll('\\', '\\\\').replaceAll("'", "''")}'`,
   text: (expression) => `CAST(${expression} AS CHAR)`,
@@ -144,6 +182,7 @@ function clickhouseSeconds(duration: DurationText): string {
  * expressions, buckets from epoch seconds in UTC (`toStartOfInterval` takes no bound width).
  */
 const clickhouseWriter: SqlWriter = {
+  ...nativeClauses,
   quote: (identifier) => `\`${identifier.replaceAll('\\', '\\\\').replaceAll('`', '\\`')}\``,
   string: (value) => `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`,
   text: (expression) => `toString(${expression})`,
@@ -171,6 +210,7 @@ function trinoSeconds(duration: DurationText): string {
  * connector's session is in UTC.
  */
 const trinoWriter: SqlWriter = {
+  ...nativeClauses,
   quote: (identifier) => `"${identifier.replaceAll('"', '""')}"`,
   string: (value) => `'${value.replaceAll("'", "''")}'`,
   text: (expression) => `CAST(${expression} AS varchar)`,
@@ -186,8 +226,45 @@ const trinoWriter: SqlWriter = {
     `${negated ? 'NOT ' : ''}regexp_like(${column}, ${pattern})`,
 };
 
-/** The writer of each dialect. */
-const writers: Readonly<Record<SqlDialect, SqlWriter>> = {
+/**
+ * Refuses an expression standard SQL has no portable form of.
+ *
+ * @param what - What is missing, for the message.
+ * @returns Never.
+ * @throws {QueryError} Always.
+ */
+function notStandard(what: string): never {
+  throw new QueryError(
+    `This connector speaks standard SQL, which has no portable ${what}: write a raw query.`,
+  );
+}
+
+/**
+ * Standard SQL, for the `ansi` dialect: double-quoted names and aliases, standard strings and
+ * casts, groups by expression (SQL Server and Oracle refuse positions), and the kind's row limit.
+ * Time buckets, intervals and regular expressions have no standard form, so the builders that
+ * need them are refused.
+ *
+ * @param rowLimit - How the source limits rows.
+ * @returns The writer.
+ */
+function ansiWriter(rowLimit: 'fetch' | 'limit'): SqlWriter {
+  const quote = (identifier: string) => `"${identifier.replaceAll('"', '""')}"`;
+  return {
+    quote,
+    string: (value) => `'${value.replaceAll("'", "''")}'`,
+    text: (expression) => `CAST(${expression} AS VARCHAR(1000))`,
+    interval: () => notStandard('interval'),
+    bucket: () => notStandard('time buckets'),
+    matches: () => notStandard('regular expressions'),
+    alias: quote,
+    groupBy: (keys) => `GROUP BY ${keys.map((key) => key.expression).join(', ')}`,
+    limit: (rows) => (rowLimit === 'fetch' ? ` FETCH FIRST ${rows} ROWS ONLY` : ` LIMIT ${rows}`),
+  };
+}
+
+/** The writer of each built-in dialect. */
+const writers: Readonly<Record<Exclude<SqlDialect, 'ansi'>, SqlWriter>> = {
   postgres: postgresWriter,
   mysql: mysqlWriter,
   clickhouse: clickhouseWriter,
@@ -199,11 +276,36 @@ const writers: Readonly<Record<SqlDialect, SqlWriter>> = {
 /**
  * The writer of a dialect.
  *
- * @param dialect - The connector's dialect; PostgreSQL when not known.
+ * @param flavor - The connector's dialect, with its styles for `ansi`; PostgreSQL when not known.
  * @returns The writer.
  */
-export function sqlWriterFor(dialect: SqlDialect | undefined): SqlWriter {
-  return writers[dialect ?? 'postgres'];
+export function sqlWriterFor(flavor: SqlFlavor | undefined): SqlWriter {
+  if (typeof flavor === 'object') return ansiWriter(flavor.rowLimit);
+  return writers[flavor ?? 'postgres'];
+}
+
+/**
+ * The keys of a measure over time: the bucket as `time` and, when split, the column as `series`,
+ * with the GROUP BY that groups on them.
+ *
+ * @param writer - The dialect's writer.
+ * @param bucket - The bucket expression.
+ * @param by - The column to split by, if any.
+ * @returns The select items, without a trailing comma, and the GROUP BY clause.
+ */
+export function timeKeys(
+  writer: SqlWriter,
+  bucket: string,
+  by: string | undefined,
+): { readonly select: string; readonly group: string } {
+  const keys: GroupKey[] = [{ position: 1, expression: bucket }];
+  let select = `${bucket} AS ${writer.alias('time')}`;
+  if (by !== undefined) {
+    const series = writer.text(sqlName(writer, by));
+    keys.push({ position: 2, expression: series });
+    select += `, ${series} AS ${writer.alias('series')}`;
+  }
+  return { select, group: writer.groupBy(keys) };
 }
 
 /**

@@ -34,7 +34,9 @@ export type {
   SearchQuery,
   SqlDialect,
   SqlParameter,
+  SqlPlaceholderStyle,
   SqlQuery,
+  SqlRowLimit,
   TimeRange,
 } from './queries.ts';
 export type {

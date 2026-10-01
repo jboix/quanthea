@@ -1,7 +1,7 @@
 /**
- * How Trino writes its literals, the SQL standard's: strings in single quotes and identifiers in
- * double quotes, each escaping its quote by doubling it and nothing else, `--` line comments and
- * block comments that do not nest.
+ * How the SQL standard writes its literals, as Trino and the `ansi` dialect lex them: strings in
+ * single quotes and identifiers in double quotes, each escaping its quote by doubling it and nothing
+ * else, `--` line comments and block comments that do not nest.
  */
 import { lineCommentEnd, type SqlLexicon, stickyEnd, unterminated } from './sql-lexer.ts';
 
@@ -48,5 +48,5 @@ function literalEnd(text: string, start: number, opener: string): number | undef
   return literalEnds[opener]?.(text, start);
 }
 
-/** The Trino lexicon. */
-export const trinoLexicon: SqlLexicon = { literalStart, literalEnd };
+/** The standard lexicon. */
+export const standardLexicon: SqlLexicon = { literalStart, literalEnd };

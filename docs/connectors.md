@@ -24,14 +24,23 @@ may see.
 
 ## 1. Pick the query language
 
-A kind declares `language: 'sql'` or `language: 'promql'`. The core binds variables for that
-language:
+A kind declares one of the query languages the core binds: `sql`, `promql`, `logql`, `search`,
+`http`, `redis` or `mongodb`. For SQL and PromQL:
 
-- `sql`: the kind also declares its `dialect`: `postgres`, `mysql`, `clickhouse`, `trino` or
-  `influxdb`. It receives `SqlQuery`, one read statement with the dialect's placeholders (`$1`, `?`,
-  `{p1:String}` or `$p1`) and their values. Send them as driver or protocol parameters, never by
-  concatenation. A new dialect needs its literals and placeholders in
+- `sql`: the kind also declares its `dialect`: `postgres`, `mysql`, `clickhouse`, `trino`,
+  `influxdb` or `ansi`. It receives `SqlQuery`, one read statement with the dialect's placeholders
+  (`$1`, `?`, `{p1:String}` or `$p1`) and their values. Send them as driver or protocol
+  parameters, never by concatenation. A new dialect needs its literals and placeholders in
   `apps/server/src/query/sql-dialects.ts` first.
+- `ansi` is standard SQL, for a source no other dialect fits, such as a plugin's. The kind picks
+  `placeholders` (`?`, `$1`, `:1` or `@p1`; `?` by default) and `rowLimit` (`fetch` for
+  `FETCH FIRST n ROWS ONLY`, the default, or `limit` for `LIMIT n`). The builders that need
+  time buckets, intervals or regular expressions are refused on it; the others work. It does not
+  fit, as of now:
+  - SQL Server's `OFFSET … FETCH` needs an ORDER BY, so `sql-rows` without a time column fails
+    there; `TOP` is not offered, since it changes the SELECT itself;
+  - identifiers in `[brackets]`, Oracle's `q'[…]'` strings, backslash escapes, `$$` quotes and
+    nested comments are not lexed as literals.
 - `promql`: the kind receives `PromqlQuery`, an expression with every variable escaped, plus
   `instant` and `stepSeconds`.
 

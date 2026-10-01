@@ -26,6 +26,7 @@ import type { GateSubject } from '../gate/subject.ts';
 import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
 import type { QuerySource } from '../query/executor.ts';
+import { sqlFlavorOf } from '../query/sql-dialects.ts';
 import type { SecretBox } from '../secrets/secret-box.ts';
 import { validateSettings } from './validation.ts';
 import { toDetail, toSchemaView, toSubject, toSummary } from './views.ts';
@@ -504,12 +505,12 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
   const row = context.repository.getByName(name);
   if (!row) throw new AppError('not_found', `No connector is named "${name}".`);
   const instance = await instanceOf(context, row);
-  const { language, dialect } = kindOf(context, row.kind);
+  const kind = kindOf(context, row.kind);
   const source = {
     connectorId: row.id,
     version: row.updatedAt,
-    language,
-    dialect,
+    language: kind.language,
+    dialect: sqlFlavorOf(kind),
     instance,
     guardrails: row.guardrails,
   };
@@ -527,7 +528,7 @@ function lookupConnector(context: ServiceContext, name: string) {
   const row = context.repository.getByName(name);
   const kind = row && context.kinds.find((candidate) => candidate.kind === row.kind);
   if (!row || !kind) return undefined;
-  return { language: kind.language, dialect: kind.dialect, guardrails: row.guardrails };
+  return { language: kind.language, dialect: sqlFlavorOf(kind), guardrails: row.guardrails };
 }
 
 /**
@@ -563,7 +564,8 @@ function subjectsOf(context: ServiceContext) {
     const kind = context.kinds.find((candidate) => candidate.kind === row.kind);
     if (!kind) return [];
     const guide = kind.queryGuide === undefined ? {} : { guide: kind.queryGuide };
-    const dialect = kind.dialect === undefined ? {} : { dialect: kind.dialect };
+    const flavor = sqlFlavorOf(kind);
+    const dialect = flavor === undefined ? {} : { dialect: flavor };
     return [{ subject: toSubject(row), language: kind.language, ...dialect, ...guide }];
   });
 }

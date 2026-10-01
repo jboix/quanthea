@@ -1,10 +1,15 @@
 /** How the binder writes each SQL dialect: its literals, its placeholders, and what it refuses. */
-import type { SqlDialect, SqlParameter } from '../connectors/_shared/index.ts';
+import type {
+  SqlDialect,
+  SqlParameter,
+  SqlPlaceholderStyle,
+  SqlRowLimit,
+} from '../connectors/_shared/index.ts';
 import type { SqlLexicon } from './sql-lexer.ts';
 import { clickhouseLexicon } from './sql-lexicon-clickhouse.ts';
 import { mysqlLexicon } from './sql-lexicon-mysql.ts';
 import { postgresLexicon } from './sql-lexicon-postgres.ts';
-import { trinoLexicon } from './sql-lexicon-trino.ts';
+import { standardLexicon } from './sql-lexicon-standard.ts';
 
 /** What the binder needs to know of a dialect. */
 export interface SqlDialectRules {
@@ -41,8 +46,84 @@ function clickhouseType(value: SqlParameter): string {
   return typeof value === 'boolean' ? 'Bool' : 'String';
 }
 
-/** The rules of each dialect. */
-export const sqlDialectRules: Readonly<Record<SqlDialect, SqlDialectRules>> = {
+/** A standard SQL source: its placeholder style and how it limits rows. */
+export interface AnsiFlavor {
+  /** The dialect. */
+  readonly dialect: 'ansi';
+  /** How it writes a placeholder. */
+  readonly placeholders: SqlPlaceholderStyle;
+  /** How it limits rows. */
+  readonly rowLimit: SqlRowLimit;
+}
+
+/**
+ * How a connector's SQL is written: a built-in dialect by name, or standard SQL with the kind's
+ * placeholder and row-limit styles.
+ */
+export type SqlFlavor = Exclude<SqlDialect, 'ansi'> | AnsiFlavor;
+
+/**
+ * The flavor of a connector kind's SQL.
+ *
+ * @param kind - The kind's dialect and, for `ansi`, its styles.
+ * @returns The flavor, or `undefined` for a kind that runs no SQL.
+ */
+export function sqlFlavorOf(kind: {
+  readonly dialect?: SqlDialect | undefined;
+  readonly placeholders?: SqlPlaceholderStyle | undefined;
+  readonly rowLimit?: SqlRowLimit | undefined;
+}): SqlFlavor | undefined {
+  if (kind.dialect !== 'ansi') return kind.dialect;
+  return {
+    dialect: 'ansi',
+    placeholders: kind.placeholders ?? '?',
+    rowLimit: kind.rowLimit ?? 'fetch',
+  };
+}
+
+/** What sets an ansi source's placeholders apart, by style. */
+const ansiPlaceholders: Readonly<
+  Record<SqlPlaceholderStyle, Omit<SqlDialectRules, 'lexicon' | 'forbidden'>>
+> = {
+  '?': {
+    placeholder: () => '?',
+    numbered: false,
+    writtenPlaceholder: /\?/,
+    writtenPlaceholderMessage: 'Use named variables such as :service, not ?.',
+  },
+  $1: {
+    placeholder: (position) => `$${position}`,
+    numbered: true,
+    writtenPlaceholder: /(?<![A-Za-z0-9_$])\$\d+/,
+    writtenPlaceholderMessage: 'Use named variables such as :service, not $1.',
+  },
+  ':1': {
+    placeholder: (position) => `:${position}`,
+    numbered: true,
+    writtenPlaceholder: /(?<![A-Za-z0-9_:]):\d+/,
+    writtenPlaceholderMessage: 'Use named variables such as :service, not :1.',
+  },
+  '@p1': {
+    placeholder: (position) => `@p${position}`,
+    numbered: true,
+    writtenPlaceholder: /@p\d+/i,
+    writtenPlaceholderMessage: 'Use named variables such as :service, not @p1.',
+  },
+};
+
+/**
+ * The binder's rules for a flavor: a built-in dialect's, or standard SQL's with its placeholders.
+ *
+ * @param flavor - The flavor.
+ * @returns The rules.
+ */
+export function rulesOf(flavor: SqlFlavor): SqlDialectRules {
+  if (typeof flavor === 'string') return sqlDialectRules[flavor];
+  return { lexicon: standardLexicon, ...ansiPlaceholders[flavor.placeholders] };
+}
+
+/** The rules of each built-in dialect. */
+const sqlDialectRules: Readonly<Record<Exclude<SqlDialect, 'ansi'>, SqlDialectRules>> = {
   postgres: {
     lexicon: postgresLexicon,
     placeholder: (position) => `$${position}`,
@@ -79,11 +160,12 @@ export const sqlDialectRules: Readonly<Record<SqlDialect, SqlDialectRules>> = {
     writtenPlaceholderMessage: 'Use named variables such as :service, not $name.',
   },
   trino: {
-    lexicon: trinoLexicon,
+    lexicon: standardLexicon,
     placeholder: () => '?',
     numbered: false,
     writtenPlaceholder: /\?/,
     writtenPlaceholderMessage: 'Use named variables such as :service, not ?.',
   },
 };
+
 export type { SqlDialect } from '../connectors/_shared/index.ts';

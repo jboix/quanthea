@@ -455,7 +455,13 @@ directly onto an ECharts `dataset`.
     epoch seconds (`toStartOfInterval` takes no bound width), escapes quotes with a backslash and
     matches regular expressions with `match()`. Trino buckets epoch seconds in a UTC session, reads
     an interval variable with `parse_duration` and matches with `regexp_like`. InfluxDB 3 takes
-    the PostgreSQL builders as they are. `sql-ratio` divides two `CASE` sums (the rows matching
+    the PostgreSQL builders as they are. On `ansi`, names and aliases are double-quoted, casts
+    are `CAST(… AS VARCHAR(1000))`, groups name their expression (SQL Server and Oracle refuse
+    `GROUP BY 1`), and the row limit is the kind's: `FETCH FIRST n ROWS ONLY` or `LIMIT n`.
+    Standard SQL has no portable time buckets, intervals or regular expressions, so `sql-series`,
+    `sql-ratio` over time, `=~` and `!~` filters and duration placeholders are refused there with
+    a message to write a raw query. The built-in dialects write what they always did: a snapshot
+    of every builder in every dialect (`sql-snapshots.test.ts`) pins it. `sql-ratio` divides two `CASE` sums (the rows matching
     `match`, the rows matching `of` or every row) as `1e0 * part / nullif(whole, 0)`: a double in
     MySQL, MariaDB, ClickHouse and Trino, exact in PostgreSQL, and no division by zero.
     Search, for Elasticsearch and OpenSearch (`dashboards/queries/search.ts`): `search-series`,
@@ -885,7 +891,13 @@ that changes with its settings).
        parameters; its literals are PostgreSQL's, and `$name` in a template is refused.
      - `trino`: `?`, one per use. Standard strings, where a backslash is a plain character,
        double-quoted identifiers, `--` comments and block comments, which do not nest, are never
-       rewritten; `?` in a template is refused.
+       rewritten (the standard lexicon); `?` in a template is refused.
+     - `ansi`, standard SQL, for connector plugins whose source no other dialect fits: the
+       standard lexicon, and the kind's placeholder style from a closed list: `?` (one per use),
+       `$1`, `:1` or `@p1` (numbered, reused when a variable comes again). A placeholder of that
+       style written in a template is refused. Internally the dialect travels as a flavor
+       (`SqlFlavor`): a built-in dialect's name, or `ansi` with its placeholder and row-limit
+       styles (`sqlFlavorOf`).
 
      The template must be one statement starting with SELECT, WITH, VALUES or TABLE, without INSERT,
      UPDATE, DELETE, MERGE, TRUNCATE, DROP, ALTER, CREATE, GRANT, REVOKE, COPY or INTO outside

@@ -17,7 +17,7 @@ import { mysqlConnector } from '../../connectors/mysql/mysql-connector.ts';
 import { postgresConnector } from '../../connectors/postgres/postgres-connector.ts';
 import { trinoConnector } from '../../connectors/trino/trino-connector.ts';
 import { bindTemplate } from '../../query/bind.ts';
-import type { SqlDialect } from '../../query/sql-dialects.ts';
+import type { SqlFlavor } from '../../query/sql-dialects.ts';
 import type { Variables } from '../../query/variables.ts';
 import { buildData } from './build.ts';
 import { dataSchema } from './request.ts';
@@ -38,7 +38,7 @@ interface Target {
   /** Its connector kind. */
   readonly kind: AnyConnectorKind;
   /** Its SQL dialect. */
-  readonly dialect: SqlDialect;
+  readonly dialect: SqlFlavor;
   /** The read-only configuration and secret. */
   readonly source: { readonly config: unknown; readonly secret: unknown };
 }

@@ -858,3 +858,503 @@ exports[`the SQL builders in influxdb markers: deploys with a filter 1`] = `
   "sql": "SELECT "deployed_at" AS time, "version"::text AS text FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to AND "service" IN (:service) ORDER BY 1",
 }
 `;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) series: a literal bucket, split, a variable list 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) series: an interval variable, a sum, a regular expression 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) breakdown: the range, an average, a limit, a negated literal 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST("region" AS VARCHAR(1000)) AS "region", avg("total") AS "value" FROM "orders" WHERE "created_at" BETWEEN ? AND ? AND "status" <> 'refunded' GROUP BY "region" ORDER BY 2 DESC FETCH FIRST 7 ROWS ONLY",
+  },
+  "sql": "SELECT CAST("region" AS VARCHAR(1000)) AS "region", avg("total") AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "status" <> 'refunded' GROUP BY "region" ORDER BY 2 DESC FETCH FIRST 7 ROWS ONLY",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) breakdown: distinct count, no range, a negated pattern 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable regular expressions: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) stat: the range, an escaped quote, a single-value variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "failed",
+    ],
+    "text": "SELECT count(*) AS "value" FROM "orders" WHERE "created_at" BETWEEN ? AND ? AND "note" = 'it''s' AND "status" IN (?)",
+  },
+  "sql": "SELECT count(*) AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "note" = 'it''s' AND "status" IN (:status)",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) rows: newest first, a limit 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN ? AND ? ORDER BY "deployed_at" DESC FETCH FIRST 5 ROWS ONLY",
+  },
+  "sql": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to ORDER BY "deployed_at" DESC FETCH FIRST 5 ROWS ONLY",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) rows: no time column 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT "id" FROM "deploys" FETCH FIRST 20 ROWS ONLY",
+  },
+  "sql": "SELECT "id" FROM "deploys" FETCH FIRST 20 ROWS ONLY",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) ratio: over time, split, an interval variable 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) ratio: over the range, per value, counts, complement, a whole 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST("service" AS VARCHAR(1000)) AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS "matching", sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS "total", 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS "value" FROM "orders" WHERE "created_at" BETWEEN ? AND ? GROUP BY "service" ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC FETCH FIRST 3 ROWS ONLY",
+  },
+  "sql": "SELECT CAST("service" AS VARCHAR(1000)) AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS "matching", sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS "total", 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to GROUP BY "service" ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC FETCH FIRST 3 ROWS ONLY",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) ratio: over the range, one value 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS "value" FROM "orders"",
+  },
+  "sql": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS "value" FROM "orders"",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) saved: every kind of placeholder 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable interval: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders ?, row limit fetch) markers: deploys with a filter 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT "deployed_at" AS "time", CAST("version" AS VARCHAR(1000)) AS "text" FROM "deploys" WHERE "deployed_at" BETWEEN ? AND ? AND "service" IN (?, ?) ORDER BY 1",
+  },
+  "sql": "SELECT "deployed_at" AS "time", CAST("version" AS VARCHAR(1000)) AS "text" FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to AND "service" IN (:service) ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) series: a literal bucket, split, a variable list 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) series: an interval variable, a sum, a regular expression 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) breakdown: the range, an average, a limit, a negated literal 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST("region" AS VARCHAR(1000)) AS "region", avg("total") AS "value" FROM "orders" WHERE "created_at" BETWEEN $1 AND $2 AND "status" <> 'refunded' GROUP BY "region" ORDER BY 2 DESC LIMIT 7",
+  },
+  "sql": "SELECT CAST("region" AS VARCHAR(1000)) AS "region", avg("total") AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "status" <> 'refunded' GROUP BY "region" ORDER BY 2 DESC LIMIT 7",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) breakdown: distinct count, no range, a negated pattern 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable regular expressions: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) stat: the range, an escaped quote, a single-value variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "failed",
+    ],
+    "text": "SELECT count(*) AS "value" FROM "orders" WHERE "created_at" BETWEEN $1 AND $2 AND "note" = 'it''s' AND "status" IN ($3)",
+  },
+  "sql": "SELECT count(*) AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "note" = 'it''s' AND "status" IN (:status)",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) rows: newest first, a limit 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN $1 AND $2 ORDER BY "deployed_at" DESC LIMIT 5",
+  },
+  "sql": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to ORDER BY "deployed_at" DESC LIMIT 5",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) rows: no time column 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT "id" FROM "deploys" LIMIT 20",
+  },
+  "sql": "SELECT "id" FROM "deploys" LIMIT 20",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) ratio: over time, split, an interval variable 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) ratio: over the range, per value, counts, complement, a whole 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST("service" AS VARCHAR(1000)) AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS "matching", sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS "total", 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS "value" FROM "orders" WHERE "created_at" BETWEEN $1 AND $2 GROUP BY "service" ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+  },
+  "sql": "SELECT CAST("service" AS VARCHAR(1000)) AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS "matching", sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS "total", 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to GROUP BY "service" ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) ratio: over the range, one value 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS "value" FROM "orders"",
+  },
+  "sql": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS "value" FROM "orders"",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) saved: every kind of placeholder 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable interval: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders $1, row limit limit) markers: deploys with a filter 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT "deployed_at" AS "time", CAST("version" AS VARCHAR(1000)) AS "text" FROM "deploys" WHERE "deployed_at" BETWEEN $1 AND $2 AND "service" IN ($3, $4) ORDER BY 1",
+  },
+  "sql": "SELECT "deployed_at" AS "time", CAST("version" AS VARCHAR(1000)) AS "text" FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to AND "service" IN (:service) ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) series: a literal bucket, split, a variable list 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) series: an interval variable, a sum, a regular expression 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) breakdown: the range, an average, a limit, a negated literal 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST("region" AS VARCHAR(1000)) AS "region", avg("total") AS "value" FROM "orders" WHERE "created_at" BETWEEN :1 AND :2 AND "status" <> 'refunded' GROUP BY "region" ORDER BY 2 DESC FETCH FIRST 7 ROWS ONLY",
+  },
+  "sql": "SELECT CAST("region" AS VARCHAR(1000)) AS "region", avg("total") AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "status" <> 'refunded' GROUP BY "region" ORDER BY 2 DESC FETCH FIRST 7 ROWS ONLY",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) breakdown: distinct count, no range, a negated pattern 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable regular expressions: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) stat: the range, an escaped quote, a single-value variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "failed",
+    ],
+    "text": "SELECT count(*) AS "value" FROM "orders" WHERE "created_at" BETWEEN :1 AND :2 AND "note" = 'it''s' AND "status" IN (:3)",
+  },
+  "sql": "SELECT count(*) AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "note" = 'it''s' AND "status" IN (:status)",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) rows: newest first, a limit 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN :1 AND :2 ORDER BY "deployed_at" DESC FETCH FIRST 5 ROWS ONLY",
+  },
+  "sql": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to ORDER BY "deployed_at" DESC FETCH FIRST 5 ROWS ONLY",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) rows: no time column 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT "id" FROM "deploys" FETCH FIRST 20 ROWS ONLY",
+  },
+  "sql": "SELECT "id" FROM "deploys" FETCH FIRST 20 ROWS ONLY",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) ratio: over time, split, an interval variable 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) ratio: over the range, per value, counts, complement, a whole 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST("service" AS VARCHAR(1000)) AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS "matching", sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS "total", 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS "value" FROM "orders" WHERE "created_at" BETWEEN :1 AND :2 GROUP BY "service" ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC FETCH FIRST 3 ROWS ONLY",
+  },
+  "sql": "SELECT CAST("service" AS VARCHAR(1000)) AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS "matching", sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS "total", 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to GROUP BY "service" ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC FETCH FIRST 3 ROWS ONLY",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) ratio: over the range, one value 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS "value" FROM "orders"",
+  },
+  "sql": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS "value" FROM "orders"",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) saved: every kind of placeholder 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable interval: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders :1, row limit fetch) markers: deploys with a filter 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT "deployed_at" AS "time", CAST("version" AS VARCHAR(1000)) AS "text" FROM "deploys" WHERE "deployed_at" BETWEEN :1 AND :2 AND "service" IN (:3, :4) ORDER BY 1",
+  },
+  "sql": "SELECT "deployed_at" AS "time", CAST("version" AS VARCHAR(1000)) AS "text" FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to AND "service" IN (:service) ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) series: a literal bucket, split, a variable list 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) series: an interval variable, a sum, a regular expression 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) breakdown: the range, an average, a limit, a negated literal 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST("region" AS VARCHAR(1000)) AS "region", avg("total") AS "value" FROM "orders" WHERE "created_at" BETWEEN @p1 AND @p2 AND "status" <> 'refunded' GROUP BY "region" ORDER BY 2 DESC LIMIT 7",
+  },
+  "sql": "SELECT CAST("region" AS VARCHAR(1000)) AS "region", avg("total") AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "status" <> 'refunded' GROUP BY "region" ORDER BY 2 DESC LIMIT 7",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) breakdown: distinct count, no range, a negated pattern 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable regular expressions: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) stat: the range, an escaped quote, a single-value variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "failed",
+    ],
+    "text": "SELECT count(*) AS "value" FROM "orders" WHERE "created_at" BETWEEN @p1 AND @p2 AND "note" = 'it''s' AND "status" IN (@p3)",
+  },
+  "sql": "SELECT count(*) AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "note" = 'it''s' AND "status" IN (:status)",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) rows: newest first, a limit 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN @p1 AND @p2 ORDER BY "deployed_at" DESC LIMIT 5",
+  },
+  "sql": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to ORDER BY "deployed_at" DESC LIMIT 5",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) rows: no time column 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT "id" FROM "deploys" LIMIT 20",
+  },
+  "sql": "SELECT "id" FROM "deploys" LIMIT 20",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) ratio: over time, split, an interval variable 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable time buckets: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) ratio: over the range, per value, counts, complement, a whole 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST("service" AS VARCHAR(1000)) AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS "matching", sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS "total", 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS "value" FROM "orders" WHERE "created_at" BETWEEN @p1 AND @p2 GROUP BY "service" ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+  },
+  "sql": "SELECT CAST("service" AS VARCHAR(1000)) AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS "matching", sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS "total", 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS "value" FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to GROUP BY "service" ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) ratio: over the range, one value 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS "value" FROM "orders"",
+  },
+  "sql": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS "value" FROM "orders"",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) saved: every kind of placeholder 1`] = `
+{
+  "refused": "This connector speaks standard SQL, which has no portable interval: write a raw query.",
+}
+`;
+
+exports[`the SQL builders in ansi (placeholders @p1, row limit limit) markers: deploys with a filter 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT "deployed_at" AS "time", CAST("version" AS VARCHAR(1000)) AS "text" FROM "deploys" WHERE "deployed_at" BETWEEN @p1 AND @p2 AND "service" IN (@p3, @p4) ORDER BY 1",
+  },
+  "sql": "SELECT "deployed_at" AS "time", CAST("version" AS VARCHAR(1000)) AS "text" FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to AND "service" IN (:service) ORDER BY 1",
+}
+`;

@@ -5,12 +5,35 @@ export type { QueryLanguage };
 
 /**
  * The SQL dialects the core knows how to bind: how each writes its literals and its placeholders.
- * A SQL connector kind declares one of them.
+ * A SQL connector kind declares one of them. `ansi` is standard SQL, for the sources the others do
+ * not fit; its kind also picks a placeholder style and a row-limit style.
  */
-export const sqlDialects = ['postgres', 'mysql', 'clickhouse', 'trino', 'influxdb'] as const;
+export const sqlDialects = [
+  'postgres',
+  'mysql',
+  'clickhouse',
+  'trino',
+  'influxdb',
+  'ansi',
+] as const;
 
 /** A SQL dialect name. */
 export type SqlDialect = (typeof sqlDialects)[number];
+
+/**
+ * How an `ansi` source writes a placeholder: `?` (JDBC, ODBC, SQLite, Snowflake), `$1` (numbered,
+ * as PostgreSQL), `:1` (numbered, as Oracle) or `@p1` (named, as SQL Server drivers).
+ */
+export const sqlPlaceholderStyles = ['?', '$1', ':1', '@p1'] as const;
+
+/** A placeholder style. */
+export type SqlPlaceholderStyle = (typeof sqlPlaceholderStyles)[number];
+
+/** How an `ansi` source limits rows: `FETCH FIRST n ROWS ONLY`, the standard, or `LIMIT n`. */
+export const sqlRowLimits = ['fetch', 'limit'] as const;
+
+/** A row-limit style. */
+export type SqlRowLimit = (typeof sqlRowLimits)[number];
 
 /** A value bound to a SQL placeholder. */
 export type SqlParameter = string | number | boolean | Date | null;
@@ -18,7 +41,8 @@ export type SqlParameter = string | number | boolean | Date | null;
 /**
  * A SQL query with positional placeholders and their values. The placeholders are the dialect's:
  * `$1`, `$2`… for `postgres`, `?` for `mysql` and `trino`, `{p1:Type}`, `{p2:Type}`… for
- * `clickhouse` and `$p1`, `$p2`… for `influxdb`, where `pN` is the Nth value. The core checked that it is a single read statement.
+ * `clickhouse`, `$p1`, `$p2`… for `influxdb`, and the kind's placeholder style for `ansi`, where `pN`
+ * is the Nth value. The core checked that it is a single read statement.
  */
 export interface SqlQuery {
   /** The query language. */

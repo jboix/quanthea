@@ -32,7 +32,9 @@ export {
   type SeriesData,
   type SqlDialect,
   type SqlParameter,
+  type SqlPlaceholderStyle,
   type SqlQuery,
+  type SqlRowLimit,
   seriesFrames,
   type TimeRange,
 } from '@querent/plugin-kit/host';

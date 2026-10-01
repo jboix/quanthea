@@ -1,7 +1,16 @@
 /** The contract of a connector kind: what it declares, and what an open connection can do. */
 import type { Frame } from '@querent/shared';
 import type { z } from 'zod';
-import type { BoundQuery, ExecutionContext, QueryLanguage, SqlDialect } from './queries.ts';
+import {
+  type BoundQuery,
+  type ExecutionContext,
+  type QueryLanguage,
+  type SqlDialect,
+  type SqlPlaceholderStyle,
+  type SqlRowLimit,
+  sqlPlaceholderStyles,
+  sqlRowLimits,
+} from './queries.ts';
 import type { FieldReference, HealthReport, SampleResult, SchemaSnapshot } from './schema.ts';
 
 /**
@@ -90,6 +99,10 @@ export interface ConnectorKind<
   readonly language: QueryLanguage;
   /** The SQL dialect, which a `sql` kind must declare: how the core binds its templates. */
   readonly dialect?: SqlDialect;
+  /** For the `ansi` dialect: how the source writes a placeholder. `?` when not given. */
+  readonly placeholders?: SqlPlaceholderStyle;
+  /** For the `ansi` dialect: how the source limits rows. `fetch` when not given. */
+  readonly rowLimit?: SqlRowLimit;
   /**
    * Everything but the credentials: host, database, TLS options. Stored in plain text and shown to
    * admins. Give each field a title and a description with `.meta()`; the form is built from them.
@@ -145,6 +158,31 @@ function checkIcon(kind: string, icon: ConnectorIcon | undefined): void {
 }
 
 /**
+ * Checks the placeholder and row-limit styles: only for the `ansi` dialect, and from their lists.
+ *
+ * @param definition - The kind.
+ * @throws {Error} For a style on another dialect, or one not in its list.
+ */
+function checkAnsiStyles(
+  definition: Pick<ConnectorKind, 'kind' | 'dialect' | 'placeholders' | 'rowLimit'>,
+): void {
+  const { kind, dialect, placeholders, rowLimit } = definition;
+  if (dialect !== 'ansi' && (placeholders !== undefined || rowLimit !== undefined))
+    throw new Error(
+      `Connector kind "${kind}" sets placeholders or rowLimit, which only the ansi dialect takes.`,
+    );
+  if (
+    placeholders !== undefined &&
+    !(sqlPlaceholderStyles as readonly string[]).includes(placeholders)
+  )
+    throw new Error(
+      `Connector kind "${kind}" has placeholders "${placeholders}": use ${sqlPlaceholderStyles.join(', ')}.`,
+    );
+  if (rowLimit !== undefined && !(sqlRowLimits as readonly string[]).includes(rowLimit))
+    throw new Error(`Connector kind "${kind}" has rowLimit "${rowLimit}": use fetch or limit.`);
+}
+
+/**
  * Declares a connector kind. It checks the identifier and keeps the schema types for `open`.
  *
  * @param definition - The kind.
@@ -162,6 +200,7 @@ export function defineConnector<ConfigSchema extends z.ZodType, SecretSchema ext
   }
   if (definition.language === 'sql' && definition.dialect === undefined)
     throw new Error(`Connector kind "${definition.kind}" runs SQL and must declare its dialect.`);
+  checkAnsiStyles(definition);
   checkIcon(definition.kind, definition.icon);
   return definition;
 }

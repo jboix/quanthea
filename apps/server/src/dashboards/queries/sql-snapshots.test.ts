@@ -6,13 +6,32 @@
 import { describe, expect, test } from 'bun:test';
 import { type PanelQuery, queryText, savedQuerySchema } from '@querent/shared';
 import { bindTemplate } from '../../query/bind.ts';
-import type { SqlDialect } from '../../query/sql-dialects.ts';
+import type { SqlFlavor } from '../../query/sql-dialects.ts';
 import type { Variables } from '../../query/variables.ts';
 import { buildData } from './build.ts';
+import type { BuildContext } from './built.ts';
 import { dataSchema } from './request.ts';
 import { markersQuery } from './sql.ts';
+import { QueryError } from './text.ts';
 
-const dialects: readonly SqlDialect[] = ['postgres', 'mysql', 'clickhouse', 'trino', 'influxdb'];
+/** The dialects, and standard SQL in every placeholder style and both row limits. */
+const flavors: readonly { readonly name: string; readonly flavor: SqlFlavor }[] = [
+  ...(['postgres', 'mysql', 'clickhouse', 'trino', 'influxdb'] as const).map((dialect) => ({
+    name: dialect,
+    flavor: dialect,
+  })),
+  ...(
+    [
+      ['?', 'fetch'],
+      ['$1', 'limit'],
+      [':1', 'fetch'],
+      ['@p1', 'limit'],
+    ] as const
+  ).map(([placeholders, rowLimit]) => ({
+    name: `ansi (placeholders ${placeholders}, row limit ${rowLimit})`,
+    flavor: { dialect: 'ansi', placeholders, rowLimit } as const,
+  })),
+];
 
 const timeRange = { from: new Date('2026-09-27T12:00:00Z'), to: new Date('2026-09-27T13:00:00Z') };
 
@@ -132,20 +151,37 @@ const cases: Readonly<Record<string, Record<string, unknown>>> = {
  * @param dialect - The dialect.
  * @returns What the snapshot records.
  */
-function written(query: PanelQuery | undefined, dialect: SqlDialect) {
+function written(query: PanelQuery | undefined, dialect: SqlFlavor) {
   if (!query) throw new Error('Nothing was built.');
   const bound = bindTemplate(query, variables, timeRange, { dialect });
   return { sql: queryText(query), bound };
 }
 
-for (const dialect of dialects) {
-  describe(`the SQL builders in ${dialect}`, () => {
+/**
+ * What a request becomes in a dialect: its SQL and bound statement, or why it is refused.
+ *
+ * @param data - The request, without its connector.
+ * @param context - The saved queries and the dialect.
+ * @param dialect - The dialect.
+ * @returns What the snapshot records.
+ */
+function builtIn(data: Record<string, unknown>, context: BuildContext, dialect: SqlFlavor) {
+  const request = dataSchema.parse({ connector: 'shop', ...data });
+  try {
+    return written(buildData(request, context).queries[0], dialect);
+  } catch (error) {
+    if (!(error instanceof QueryError)) throw error;
+    return { refused: error.message };
+  }
+}
+
+for (const { name: dialectName, flavor: dialect } of flavors) {
+  describe(`the SQL builders in ${dialectName}`, () => {
     const context = { saved: [failedBy], dialectOf: () => dialect };
 
     for (const [name, data] of Object.entries(cases))
       test(name, () => {
-        const request = dataSchema.parse({ connector: 'shop', ...data });
-        expect(written(buildData(request, context).queries[0], dialect)).toMatchSnapshot();
+        expect(builtIn(data, context, dialect)).toMatchSnapshot();
       });
 
     test('markers: deploys with a filter', () => {

@@ -2,9 +2,9 @@
  * Binds variables into a SQL template: `:name` placeholders become positional parameters, so a
  * value never becomes SQL text. Also checks the template is a single read statement.
  */
-import type { SqlDialect, SqlParameter, SqlQuery, TimeRange } from '../connectors/_shared/index.ts';
+import type { SqlParameter, SqlQuery, TimeRange } from '../connectors/_shared/index.ts';
 import { QueryError } from './query-error.ts';
-import { type SqlDialectRules, sqlDialectRules } from './sql-dialects.ts';
+import { rulesOf, type SqlDialectRules, type SqlFlavor } from './sql-dialects.ts';
 import { type SqlSegment, splitSql } from './sql-lexer.ts';
 import { type Variables, valuesOf } from './variables.ts';
 
@@ -134,7 +134,8 @@ function bindCode(
  * @param template - The SQL with `:name` variables; `:__from` and `:__to` are the time range.
  * @param variables - The variable values.
  * @param timeRange - The time range.
- * @param dialect - The connector's dialect, which sets the literals and the placeholders.
+ * @param flavor - The connector's dialect, with its styles for `ansi`: the literals and the
+ *   placeholders.
  * @returns The bound query: the dialect's placeholders and their values.
  * @throws {QueryError} `invalid` for an unknown variable, a placeholder written in the template, an
  *   unclosed literal, or a template that is not one read statement.
@@ -143,9 +144,9 @@ export function bindSql(
   template: string,
   variables: Variables,
   timeRange: TimeRange,
-  dialect: SqlDialect,
+  flavor: SqlFlavor,
 ): SqlQuery {
-  const rules = sqlDialectRules[dialect];
+  const rules = rulesOf(flavor);
   const segments = splitSql(template, rules.lexicon);
   checkReadStatement(segments, rules);
   const parameters: ParameterList = { rules, values: [], byName: new Map(), unknown: new Set() };
