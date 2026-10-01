@@ -58,24 +58,7 @@ describe('openDatabase', () => {
 
 describe('runMigrations', () => {
   test('applies the shipped migrations once', () => {
-    expect(runMigrations(database)).toEqual([
-      '0001-settings-and-audit-log.sql',
-      '0002-connectors.sql',
-      '0003-dashboards.sql',
-      '0004-threads.sql',
-      '0005-usage.sql',
-      '0006-thread-provider.sql',
-      '0007-thread-recipes.sql',
-      '0008-library-search.sql',
-      '0009-every-version-is-immutable.sql',
-      '0010-thread-bin.sql',
-      '0011-users-and-sessions.sql',
-      '0012-password-links.sql',
-      '0013-identities.sql',
-      '0014-provisioned.sql',
-      '0015-user-setup.sql',
-      '0016-usage-user.sql',
-    ]);
+    expect(runMigrations(database)).toEqual(['0001-schema.sql']);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
       'audit_log',
@@ -113,5 +96,39 @@ describe('runMigrations', () => {
     );
     expect(() => runMigrations(database, migrationsDir)).toThrow('missing_table');
     expect(tableNames()).toEqual(['good', 'migrations']);
+  });
+});
+
+describe('the library index', () => {
+  test('holds the text of every query language a pinned panel runs', () => {
+    runMigrations(database);
+    const panel = (id: string, query: Record<string, unknown>) => ({
+      id,
+      title: id,
+      queries: [{ refId: 'A', connector: 'logs', ...query }],
+    });
+    const spec = {
+      panels: [
+        panel('lines', { language: 'logql', expr: '{app="checkout"} |= "timeout"' }),
+        panel('hits', { language: 'search', index: 'logs-*', body: { query: { match_all: {} } } }),
+      ],
+    };
+    database.run(
+      "INSERT INTO dashboards (id, title, created_at, updated_at) VALUES ('d', 'Logs', 0, 0)",
+    );
+    database.run(
+      "INSERT INTO dashboard_versions (id, dashboard_id, version, spec, created_at) VALUES ('v', 'd', 1, ?, 0)",
+      [JSON.stringify(spec)],
+    );
+    database.run("UPDATE dashboards SET pinned_version_id = 'v' WHERE id = 'd'");
+    const queries = database
+      .query<{ panel_id: string; queries: string }, []>(
+        'SELECT panel_id, queries FROM library_fts WHERE panel_id IS NOT NULL ORDER BY panel_id',
+      )
+      .all();
+    expect(queries).toEqual([
+      { panel_id: 'hits', queries: 'logs logs-* {"query":{"match_all":{}}}' },
+      { panel_id: 'lines', queries: 'logs {app="checkout"} |= "timeout"' },
+    ]);
   });
 });

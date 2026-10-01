@@ -73,7 +73,9 @@ Module boundaries are in the architecture doc, section 3 and 4, and in `.depende
   mounts it with `mountEndpoint` and the web calls it with the client in `apps/web/src/lib/`.
 - Errors use one shape: `{ error: { code, message, details? } }`. Throw `AppError` on the server.
 - Only `db/` touches `bun:sqlite`. Migrations are numbered `.sql` files in
-  `apps/server/src/db/migrations/`. Never edit an applied migration; add a new one.
+  `apps/server/src/db/migrations/`. Until the first release the schema is one file,
+  `0001-schema.sql`: change it in place, and start from a fresh database. No code keeps data from
+  older shapes working before then. After the release, never edit an applied migration; add one.
 - `apps/web/src/ui/` holds presentational primitives in querent's visual language. Colours,
   radii and fonts come from the tokens in `ui/theme.css`.
 - The logo, icon and mark come from `ui/brand.tsx`. The source files and the rule for each variant

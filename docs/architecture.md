@@ -946,7 +946,8 @@ user, with each user's name and role, and the browser adds the hours up into its
 Settings → Usage draws tokens and cost per day stacked by model (the five costliest, then
 `Other`), and lists the models and, ten a page, the people who spent the most.
 
-Migrations are plain numbered `.sql` files in `db/migrations/` (`0001-settings-and-audit-log.sql`).
+Migrations are plain numbered `.sql` files in `db/migrations/`. Until the first release there is
+one, `0001-schema.sql`, changed in place.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Timestamps (`at`, `*_at`) are Unix epoch milliseconds. SQLite runs with `journal_mode=WAL`,
