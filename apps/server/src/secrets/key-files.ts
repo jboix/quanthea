@@ -3,7 +3,7 @@
  * role, in the keys directory. That directory lies outside the data directory, so a copy of the
  * data never carries a key.
  */
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import type { Logger } from '../lib/logger.ts';
 
@@ -99,29 +99,6 @@ function prepareKeysDir(keysDir: string, dataDir: string): void {
 }
 
 /**
- * Moves the secret key an earlier version generated in the data directory to the keys directory.
- *
- * @param dataDir - The data directory.
- * @param keysDir - The keys directory.
- * @param logger - Receives the notice.
- * @throws {Error} When both directories hold a secret key and the two differ.
- */
-function moveOldSecretKey(dataDir: string, keysDir: string, logger: Logger): void {
-  const from = join(dataDir, keyFileNames.secret);
-  if (!existsSync(from)) return;
-  const to = join(keysDir, keyFileNames.secret);
-  const text = readFileSync(from, 'utf8');
-  if (!existsSync(to)) writeFileSync(to, text, { mode: 0o600, flag: 'wx' });
-  else if (readFileSync(to, 'utf8').trim() !== text.trim())
-    throw new Error(
-      `${from} and ${to} hold different secret keys. Keep the one that sealed this database's secrets and remove the other.`,
-    );
-  // The copy is written and matches before the original goes.
-  rmSync(from);
-  logger.warn('Moved the secret key out of the data directory.', { from, to });
-}
-
-/**
  * The file a generated key is kept in.
  *
  * @param keysDir - The keys directory.
@@ -155,7 +132,7 @@ function readOrCreateKey(keysDir: string, role: GeneratedRole, logger: Logger): 
  * @param roles - The keys not given.
  * @param directories - The keys and data directories.
  * @param directories.keysDir - Where generated keys live.
- * @param directories.dataDir - Where an earlier version kept a generated secret key.
+ * @param directories.dataDir - The data directory, which must not hold the keys.
  * @param logger - Receives notices.
  * @returns The keys, by role.
  */
@@ -167,6 +144,5 @@ export function generatedKeys(
   if (roles.length === 0) return {};
   const { keysDir, dataDir } = directories;
   prepareKeysDir(keysDir, dataDir);
-  if (roles.includes('secret')) moveOldSecretKey(dataDir, keysDir, logger);
   return Object.fromEntries(roles.map((role) => [role, readOrCreateKey(keysDir, role, logger)]));
 }

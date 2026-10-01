@@ -105,17 +105,6 @@ describe('loading the keys', () => {
     expect(existsSync(keysDir)).toBe(false);
   });
 
-  test('moves a secret key an earlier version left in the data directory', async () => {
-    const old = randomKey();
-    writeFileSync(join(dataDir.path, 'secret.key'), `${old}\n`, { mode: 0o600 });
-    const { lines } = await load(inputs());
-    expect(existsSync(join(dataDir.path, 'secret.key'))).toBe(false);
-    expect(readFileSync(join(keysDir, 'secret.key'), 'utf8').trim()).toBe(old);
-    expect(lines).toContainEqual(expect.objectContaining({ level: 'warn' }));
-    writeFileSync(join(dataDir.path, 'secret.key'), randomKey(), { mode: 0o600 });
-    await expect(load(inputs())).rejects.toThrow('hold different secret keys');
-  });
-
   test('refuses a keys directory inside the data directory', async () => {
     keysDir = join(dataDir.path, 'keys');
     await expect(load(inputs())).rejects.toThrow('QUERENT_KEYS_DIR');

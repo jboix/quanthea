@@ -2,16 +2,12 @@
  * Seals secrets at rest with AES-256-GCM, bound to their owner (the row they belong to) through
  * the additional data, so a sealed value copied to another row does not open.
  *
- * Two formats exist. Version 2, written today, starts with the id of the key that sealed it and
- * uses a key derived from the root key for this purpose only (HKDF). Version 1, written before
- * key ids, used the root key itself; it still opens, and is sealed again at startup.
+ * A sealed value starts with its format version and the id of the key that sealed it, and is
+ * sealed with a key derived from the root key for this purpose only (HKDF).
  */
 
-/** The format written today: version, key id, IV, ciphertext and tag. */
-const currentFormat = 2;
-
-/** The first format: version, IV, ciphertext and tag, sealed with the root key itself. */
-const legacyFormat = 1;
+/** The format: version, key id, IV, ciphertext and tag. */
+const format = 1;
 
 /** Bytes of a key id. */
 const keyIdLength = 4;
@@ -26,10 +22,8 @@ const secretsInfo = 'querent/secrets/v1';
 interface DerivedKeys {
   /** The id sealed values carry. */
   readonly id: Uint8Array;
-  /** The key version 2 values are sealed with. */
+  /** The key values are sealed with. */
   readonly sealing: CryptoKey;
-  /** The root key itself, for version 1 values. */
-  readonly legacy: CryptoKey;
 }
 
 /** Seals and opens secrets. */
@@ -65,7 +59,7 @@ export interface SecretBox {
  * Derives a root key's keys.
  *
  * @param root - The root key, 32 bytes.
- * @returns The key id, the sealing key and the legacy key.
+ * @returns The key id and the sealing key.
  */
 async function deriveKeys(root: Uint8Array<ArrayBuffer>): Promise<DerivedKeys> {
   const encoder = new TextEncoder();
@@ -78,8 +72,7 @@ async function deriveKeys(root: Uint8Array<ArrayBuffer>): Promise<DerivedKeys> {
     false,
     ['encrypt', 'decrypt'],
   );
-  const legacy = await crypto.subtle.importKey('raw', root, 'AES-GCM', false, ['decrypt']);
-  return { id: await keyIdOf(root), sealing, legacy };
+  return { id: await keyIdOf(root), sealing };
 }
 
 /**
@@ -125,7 +118,7 @@ function unknownKey(keyId: string): Error {
 }
 
 /**
- * Opens a version 2 value with whichever known key sealed it.
+ * Opens a value with whichever known key sealed it.
  *
  * @param keys - The current keys, then the previous ones.
  * @param sealed - The sealed bytes.
@@ -133,7 +126,7 @@ function unknownKey(keyId: string): Error {
  * @returns The plaintext bytes.
  * @throws {Error} When no known key sealed it.
  */
-function openCurrent(
+function openSealed(
   keys: readonly DerivedKeys[],
   sealed: Uint8Array<ArrayBuffer>,
   additionalData: Uint8Array<ArrayBuffer>,
@@ -147,33 +140,7 @@ function openCurrent(
 }
 
 /**
- * Opens a version 1 value, trying the current root key, then the previous one.
- *
- * @param keys - The current keys, then the previous ones.
- * @param sealed - The sealed bytes.
- * @param additionalData - The owner, encoded.
- * @returns The plaintext bytes.
- * @throws {Error} When no known key sealed it.
- */
-async function openLegacy(
-  keys: readonly DerivedKeys[],
-  sealed: Uint8Array<ArrayBuffer>,
-  additionalData: Uint8Array<ArrayBuffer>,
-): Promise<ArrayBuffer> {
-  const iv = sealed.slice(1, 1 + ivLength);
-  const data = sealed.slice(1 + ivLength);
-  for (const key of keys) {
-    try {
-      return await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData }, key.legacy, data);
-    } catch {
-      // Try the next key; the last failure is reported below.
-    }
-  }
-  throw unknownKey('from before key ids');
-}
-
-/**
- * Seals a value in the current format.
+ * Seals a value.
  *
  * @param key - The current keys.
  * @param plaintext - The value.
@@ -186,7 +153,7 @@ async function sealWith(key: DerivedKeys, plaintext: string, owner: string): Pro
   const parameters = { name: 'AES-GCM', iv, additionalData: encoder.encode(owner) };
   const encrypted = await crypto.subtle.encrypt(parameters, key.sealing, encoder.encode(plaintext));
   const sealed = new Uint8Array(1 + keyIdLength + ivLength + encrypted.byteLength);
-  sealed.set([currentFormat], 0);
+  sealed.set([format], 0);
   sealed.set(key.id, 1);
   sealed.set(iv, 1 + keyIdLength);
   sealed.set(new Uint8Array(encrypted), 1 + keyIdLength + ivLength);
@@ -212,13 +179,10 @@ export async function openSecretBox(
     async open(sealed, owner) {
       const bytes = new Uint8Array(sealed);
       const additionalData = encoder.encode(owner);
-      if (bytes[0] === currentFormat)
-        return new TextDecoder().decode(await openCurrent(keys, bytes, additionalData));
-      if (bytes[0] === legacyFormat)
-        return new TextDecoder().decode(await openLegacy(keys, bytes, additionalData));
-      throw new Error('Unknown sealed secret format.');
+      if (bytes[0] !== format) throw new Error('Unknown sealed secret format.');
+      return new TextDecoder().decode(await openSealed(keys, bytes, additionalData));
     },
     isCurrent: (sealed) =>
-      sealed[0] === currentFormat && sameBytes(sealed.slice(1, 1 + keyIdLength), active.id),
+      sealed[0] === format && sameBytes(sealed.slice(1, 1 + keyIdLength), active.id),
   };
 }

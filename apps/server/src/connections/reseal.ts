@@ -1,7 +1,4 @@
-/**
- * Seals every connector's credentials again with the current key: after a key rotation, and for
- * values sealed before sealed values carried a key id.
- */
+/** Seals every connector's credentials again with the current key, after a key rotation. */
 import type { ConnectorRepository } from '../db/connector-repository.ts';
 import type { SecretBox } from '../secrets/secret-box.ts';
 

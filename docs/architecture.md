@@ -1207,8 +1207,7 @@ variable or from a file named by the variable with `_FILE` appended (for Docker 
 secrets). `secrets/keys.ts` reads and checks them at startup. A key not given is generated on
 first start in the keys directory (`QUERENT_KEYS_DIR`, `./keys`, `/keys` in the image;
 `secrets/key-files.ts`): the directory has mode 0700, each file 0600, and it may not be the data
-directory or lie inside it. A key given always wins, key by key. A secret key an earlier version
-generated in the data directory is moved there at startup.
+directory or lie inside it. A key given always wins, key by key.
 
 - **The secret key** (`QUERENT_SECRET_KEY`) seals secrets at rest.
 - **The session key** (`QUERENT_SESSION_KEY`) signs session cookies and keys the hashes of
@@ -1229,8 +1228,7 @@ id of the key that sealed it, to set as `QUERENT_SECRET_KEY` or `QUERENT_SECRET_
 belongs to through the additional data. The sealing key is derived from the secret key for this
 purpose only (HKDF-SHA-256, `querent/secrets/v1`). A sealed value starts with its format version
 and the id of the key that sealed it (the first four bytes of an HMAC of a fixed label, which
-says nothing about the key). Values sealed before key ids used the secret key itself; they still
-open.
+says nothing about the key).
 
 **Rotation:** set the new key, and the old one as `QUERENT_SECRET_KEY_PREVIOUS`, then restart. At
 startup every connector credential and model API key not sealed with the current key is sealed
