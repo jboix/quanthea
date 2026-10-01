@@ -9,6 +9,9 @@ const lookup: ConnectorLookup = (name) =>
   ({
     'prometheus-dev': { language: 'promql', guardrails },
     'postgres-orders': { language: 'sql', guardrails: { ...guardrails, maxRangeDays: 1 } },
+    'events-file': {
+      notInstalled: 'The plugin that adds the kind "events-file" is not installed.',
+    },
   })[name] as ReturnType<ConnectorLookup>;
 
 const now = Date.parse('2026-09-28T12:00:00Z');
@@ -199,6 +202,16 @@ describe('validateSpec', () => {
       'panels[1].view.option.dataset: "dataset" is not allowed in a chart option.',
       'panels[1].view.option.tooltip.renderMode: The renderer sets this.',
       'panels[1].view.option.tooltip.formatter: Strings are at most 500 characters.',
+    ]);
+  });
+
+  test('says a connector whose plugin is gone is not installed', () => {
+    expect(
+      issuesAfter((spec) => {
+        set(spec, 'panels.0.queries.0.connector', 'events-file');
+      }),
+    ).toEqual([
+      'panels[0].queries[0].connector: The plugin that adds the kind "events-file" is not installed.',
     ]);
   });
 

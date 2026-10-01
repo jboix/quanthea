@@ -72,6 +72,7 @@ function ConnectorListItem({ connector, kind }: ConnectorListItemProps) {
           <span className={styles.itemMeta}>
             {kindName} · {accessLevelName(connector.accessLevel)}
             {connector.managedBy && ' · from file'}
+            {!connector.installed && ' · plugin not installed'}
           </span>
         </span>
         <StatusDot status={healthStatus(health)} label={healthLabel(health)} />

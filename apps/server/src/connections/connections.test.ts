@@ -15,17 +15,19 @@ import { type Connections, createConnections } from './connections.ts';
 let dataDir: ReturnType<typeof temporaryDir>;
 let database: ReturnType<typeof openDatabase>;
 let connections: Connections;
+let secretBox: Awaited<ReturnType<typeof testSecretBox>>;
 let clock = 1000;
 
 beforeEach(async () => {
   dataDir = temporaryDir();
   database = openDatabase(dataDir.path);
   runMigrations(database);
+  secretBox = await testSecretBox();
   connections = createConnections({
     kinds: [memoryConnector],
     repository: createConnectorRepository(database),
     audit: createAuditRepository(database),
-    secretBox: await testSecretBox(),
+    secretBox,
     now: () => clock,
   });
 });
@@ -232,5 +234,51 @@ describe('maskSecret', () => {
   test('keeps the last four characters of long values only', () => {
     expect(maskSecret('sk-0123456789abcdef9f2a')).toBe('••••••••9f2a');
     expect(maskSecret('hunter2')).toBe('••••••••');
+  });
+});
+
+describe('a connector whose kind is gone', () => {
+  /**
+   * The service over the same database, offering no kind: the plugin that added `memory` is gone.
+   *
+   * @returns The service.
+   */
+  function withoutTheKind(): Connections {
+    return createConnections({
+      kinds: [],
+      repository: createConnectorRepository(database),
+      audit: createAuditRepository(database),
+      secretBox,
+      now: () => clock,
+    });
+  }
+
+  test('is listed and shown as not installed, and can be deleted', async () => {
+    const created = await createEvents();
+    const gone = withoutTheKind();
+    expect(gone.list()).toMatchObject([{ name: 'events', installed: false }]);
+    expect(await gone.get(created.id)).toMatchObject({ installed: false, target: null });
+    expect(connections.list()).toMatchObject([{ installed: true }]);
+    await gone.remove(created.id, 'admin-1');
+    expect(gone.list()).toEqual([]);
+  });
+
+  test('fails its test, its queries, its checks and its edits with the same reason', async () => {
+    const created = await createEvents();
+    const gone = withoutTheKind();
+    const reason =
+      'The plugin that adds the kind "memory" is not installed. Install it, or delete this connector.';
+    expect(await gone.test(created.id, AbortSignal.timeout(1000))).toEqual({
+      ok: false,
+      latencyMs: 0,
+      message: reason,
+      readOnly: null,
+    });
+    expect((await failureOf(gone.open('events'))).message).toBe(reason);
+    expect(gone.lookup('events')).toEqual({ notInstalled: reason });
+    expect(gone.lookup('nope')).toBeUndefined();
+    expect((await failureOf(gone.update(created.id, { accessLevel: 1 }, 'admin-1'))).message).toBe(
+      reason,
+    );
   });
 });

@@ -14,7 +14,6 @@ import type {
 } from '@querent/shared';
 import { z } from 'zod';
 import {
-  type AnyConnectorKind,
   ConnectorError,
   type ConnectorInstance,
   type HealthReport,
@@ -29,6 +28,7 @@ import { newId } from '../lib/ids.ts';
 import type { QuerySource } from '../query/executor.ts';
 import { sqlFlavorOf } from '../query/sql-dialects.ts';
 import type { SecretBox } from '../secrets/secret-box.ts';
+import { installed, kindInfo, kindOf, notInstalled, storedKindOf, targetOf } from './kinds.ts';
 import { validateSettings } from './validation.ts';
 import { toDetail, toSchemaView, toSubject, toSummary } from './views.ts';
 
@@ -148,7 +148,10 @@ export interface Connections {
    */
   lookup(
     name: string,
-  ): (Pick<QuerySource, 'language' | 'dialect'> & { guardrails: Guardrails }) | undefined;
+  ):
+    | (Pick<QuerySource, 'language' | 'dialect'> & { guardrails: Guardrails })
+    | { readonly notInstalled: string }
+    | undefined;
   /**
    * The schema snapshot of a connector by name: the cached one, or read from the source and
    * cached when it was never read. For the gate, which decides what the model sees of it.
@@ -188,52 +191,6 @@ interface ServiceContext extends ConnectionsDependencies {
 const snapshotSchema = z
   .object({ entities: z.array(z.unknown()) })
   .transform((value) => value as SchemaSnapshot);
-
-/**
- * Describes a kind for the add form, with the JSON Schemas of its config and secret.
- *
- * @param kind - The connector kind.
- * @returns The kind information.
- */
-function kindInfo(kind: RegisteredKind): ConnectorKindInfo {
-  const formSchema = (schema: z.ZodType): Record<string, unknown> =>
-    z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>;
-  return {
-    kind: kind.kind,
-    displayName: kind.displayName,
-    icon: kind.icon ?? null,
-    aliases: [...(kind.aliases ?? [])],
-    language: kind.language,
-    configSchema: formSchema(kind.configSchema),
-    secretSchema: formSchema(kind.secretSchema),
-    plugin: kind.plugin ? { name: kind.plugin.name, version: kind.plugin.version } : null,
-  };
-}
-
-/**
- * Where a connector points, as its kind describes it.
- *
- * @param kind - The connector's kind.
- * @param config - The stored, parsed configuration.
- * @returns One line, or `null` when the kind does not describe targets.
- */
-function targetOf(kind: AnyConnectorKind, config: unknown): string | null {
-  return kind.describeTarget?.(config) ?? null;
-}
-
-/**
- * Finds a kind.
- *
- * @param context - The service context.
- * @param kind - The kind identifier.
- * @returns The kind.
- * @throws {AppError} `bad_request` for an unknown kind.
- */
-function kindOf(context: ServiceContext, kind: string): AnyConnectorKind {
-  const found = context.kinds.find((candidate) => candidate.kind === kind);
-  if (!found) throw new AppError('bad_request', `Unknown connector kind "${kind}".`);
-  return found;
-}
 
 /**
  * Finds a connector.
@@ -303,7 +260,7 @@ async function instanceOf(context: ServiceContext, row: ConnectorRow): Promise<C
   const open = context.instances.get(row.id);
   if (open && open.version === row.updatedAt) return open.instance;
   await closeInstance(context, row.id);
-  const kind = kindOf(context, row.kind);
+  const kind = storedKindOf(context.kinds, row);
   const settings = validateSettings(kind, row.config, await secretOf(context, row));
   const instance = kind.open({ config: settings.config, secret: settings.secret });
   context.instances.set(row.id, { version: row.updatedAt, instance });
@@ -341,7 +298,7 @@ async function createConnector(
   input: ConnectorInput,
   actor: string,
 ): Promise<ConnectorDetail> {
-  const kind = kindOf(context, input.kind);
+  const kind = kindOf(context.kinds, input.kind);
   const settings = validateSettings(kind, input.config, input.secret);
   assertNameFree(context, input.name);
   const time = context.clock();
@@ -408,7 +365,7 @@ async function updateConnector(
 ): Promise<ConnectorDetail> {
   const row = find(context, id);
   const secret = { ...(await secretOf(context, row)), ...(patch.secret ?? {}) };
-  const kind = kindOf(context, row.kind);
+  const kind = storedKindOf(context.kinds, row);
   const settings = validateSettings(kind, patch.config ?? row.config, secret);
   if (patch.name !== undefined) assertNameFree(context, patch.name, id);
   const updated = await save(
@@ -507,7 +464,7 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
   const row = context.repository.getByName(name);
   if (!row) throw new AppError('not_found', `No connector is named "${name}".`);
   const instance = await instanceOf(context, row);
-  const kind = kindOf(context, row.kind);
+  const kind = storedKindOf(context.kinds, row);
   const source = {
     connectorId: row.id,
     version: row.updatedAt,
@@ -528,8 +485,9 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
  */
 function lookupConnector(context: ServiceContext, name: string) {
   const row = context.repository.getByName(name);
-  const kind = row && context.kinds.find((candidate) => candidate.kind === row.kind);
-  if (!row || !kind) return undefined;
+  if (!row) return undefined;
+  const kind = context.kinds.find((candidate) => candidate.kind === row.kind);
+  if (!kind) return { notInstalled: notInstalled(row.kind) };
   return { language: kind.language, dialect: sqlFlavorOf(kind), guardrails: row.guardrails };
 }
 
@@ -573,6 +531,39 @@ function subjectsOf(context: ServiceContext) {
 }
 
 /**
+ * A connector with its settings, credentials masked; without a target when its kind is gone.
+ *
+ * @param context - The service context.
+ * @param id - The connector id.
+ * @returns The detail.
+ */
+async function connectorDetail(context: ServiceContext, id: string): Promise<ConnectorDetail> {
+  const row = find(context, id);
+  const secret = await secretOf(context, row);
+  if (!installed(context.kinds, row)) return toDetail(row, secret, null, false);
+  return toDetail(row, secret, targetOf(storedKindOf(context.kinds, row), row.config));
+}
+
+/**
+ * Tests a connector: a failed report, saying why, when its kind is gone.
+ *
+ * @param context - The service context.
+ * @param id - The connector id.
+ * @param signal - Aborted when the caller gives up.
+ * @returns The health report.
+ */
+async function testConnector(
+  context: ServiceContext,
+  id: string,
+  signal: AbortSignal,
+): Promise<HealthReport> {
+  const row = find(context, id);
+  if (!installed(context.kinds, row))
+    return { ok: false, latencyMs: 0, message: notInstalled(row.kind), readOnly: null };
+  return (await instanceOf(context, row)).test(signal);
+}
+
+/**
  * Creates the connectors service.
  *
  * @param dependencies - Kinds, repositories, and the secret box.
@@ -586,16 +577,13 @@ export function createConnections(dependencies: ConnectionsDependencies): Connec
   };
   return {
     kinds: () => context.kinds.map(kindInfo),
-    list: () => context.repository.list().map(toSummary),
-    get: async (id) => {
-      const row = find(context, id);
-      const target = targetOf(kindOf(context, row.kind), row.config);
-      return toDetail(row, await secretOf(context, row), target);
-    },
+    list: () =>
+      context.repository.list().map((row) => toSummary(row, installed(context.kinds, row))),
+    get: (id) => connectorDetail(context, id),
     create: (input, actor) => createConnector(context, input, actor),
     update: (id, patch, actor) => updateConnector(context, id, patch, actor),
     remove: (id, actor) => removeConnector(context, id, actor),
-    test: async (id, signal) => (await instanceOf(context, find(context, id))).test(signal),
+    test: (id, signal) => testConnector(context, id, signal),
     schema: (id) => cachedSchema(context, id),
     refreshSchema: (id, signal) => refreshSchema(context, id, signal),
     open: (name) => openConnector(context, name),

@@ -46,6 +46,8 @@ export const connectorSummarySchema = z.object({
   updatedAt: z.number(),
   /** The configuration file that manages it, when one does; it is read-only here then. */
   managedBy: z.string().optional(),
+  /** Whether its kind is offered: `false` when the plugin that added the kind is gone. */
+  installed: z.boolean(),
 });
 
 /** A connector in a list. */

@@ -1,4 +1,4 @@
-import type { ConnectorDetail } from '@querent/shared';
+import type { ConnectorDetail, ConnectorKindInfo } from '@querent/shared';
 import { Link } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
@@ -22,9 +22,72 @@ function HealthPill({ health }: { readonly health: Health }) {
   return <Pill tone="ok">connected · {Math.round(health.report.latencyMs)} ms</Pill>;
 }
 
+/** Props of the header's parts. */
+interface PartProps {
+  /** The connector. */
+  readonly connector: ConnectorDetail;
+  /** Its health. */
+  readonly health: Health;
+}
+
 /**
- * The top of a connector's screen: kind icon, name, health, target, and the Test and Edit actions. A failed
- * test says why under the target. A connector the configuration file manages has no Edit.
+ * The pills beside the name: health, or a missing plugin; the kind's plugin; the managing file.
+ *
+ * @param props - The connector, its health and its kind.
+ * @param props.kind - The kind, when it is offered.
+ * @returns The pills.
+ */
+function TitlePills({
+  connector,
+  health,
+  kind,
+}: PartProps & { readonly kind: ConnectorKindInfo | undefined }) {
+  return (
+    <>
+      {connector.installed ? (
+        <HealthPill health={health} />
+      ) : (
+        <Pill tone="danger">plugin not installed</Pill>
+      )}
+      {kind?.plugin && (
+        <span title={kind.plugin.name}>
+          <Pill>{pluginLabel(kind)}</Pill>
+        </span>
+      )}
+      {connector.managedBy && (
+        <span title={connector.managedBy}>
+          <Pill tone="accent">managed by {connector.managedBy.split('/').at(-1)}</Pill>
+        </span>
+      )}
+    </>
+  );
+}
+
+/**
+ * Test and Edit, for a connector whose kind is offered. A connector the file manages has no Edit.
+ *
+ * @param props - The connector and its health.
+ * @returns The actions, or nothing.
+ */
+function HeaderActions({ connector, health }: PartProps) {
+  if (!connector.installed) return null;
+  return (
+    <div className={styles.headerActions}>
+      <Button onClick={health.retest} disabled={health.testing}>
+        Test
+      </Button>
+      {!connector.managedBy && (
+        <Link to="edit" className={buttonClassName()}>
+          Edit connection
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The top of a connector's screen: kind icon, name, health, target, and the Test and Edit actions. A
+ * failed test says why under the target. A connector whose plugin is gone says so, with no actions.
  *
  * @param props - The connector.
  * @param props.connector - The connector.
@@ -41,17 +104,7 @@ export function ConnectorHeader({ connector }: { readonly connector: ConnectorDe
         <div className={styles.titleRow}>
           <KindIcon kind={connector.kind} info={kind} size={28} />
           <h2 className={styles.name}>{connector.name}</h2>
-          <HealthPill health={health} />
-          {kind?.plugin && (
-            <span title={kind.plugin.name}>
-              <Pill>{pluginLabel(kind)}</Pill>
-            </span>
-          )}
-          {connector.managedBy && (
-            <span title={connector.managedBy}>
-              <Pill tone="accent">managed by {connector.managedBy.split('/').at(-1)}</Pill>
-            </span>
-          )}
+          <TitlePills connector={connector} health={health} kind={kind} />
         </div>
         {connector.target !== null && <p className={styles.target}>{connector.target}</p>}
         {connector.managedBy && (
@@ -65,16 +118,7 @@ export function ConnectorHeader({ connector }: { readonly connector: ConnectorDe
           </p>
         )}
       </div>
-      <div className={styles.headerActions}>
-        <Button onClick={health.retest} disabled={health.testing}>
-          Test
-        </Button>
-        {!connector.managedBy && (
-          <Link to="edit" className={buttonClassName()}>
-            Edit connection
-          </Link>
-        )}
-      </div>
+      <HeaderActions connector={connector} health={health} />
     </header>
   );
 }

@@ -29,8 +29,16 @@ export interface ConnectorFacts {
   readonly guardrails: Guardrails;
 }
 
-/** Looks a connector up by name. */
-export type ConnectorLookup = (name: string) => ConnectorFacts | undefined;
+/** A connector whose kind is not offered, because the plugin that added it is gone. */
+export interface MissingKind {
+  /** What to tell people, such as `The plugin that adds the kind … is not installed.` */
+  readonly notInstalled: string;
+}
+
+/**
+ * Looks a connector up by name: its facts, why it cannot run, or `undefined` when there is none.
+ */
+export type ConnectorLookup = (name: string) => ConnectorFacts | MissingKind | undefined;
 
 /** A query and where it sits in the spec. */
 interface LocatedQuery {
@@ -113,10 +121,15 @@ function checkBinding(
  * @param connector - The connector, if it exists.
  * @returns The issues.
  */
-function checkConnector(located: LocatedQuery, connector: ConnectorFacts | undefined): SpecIssue[] {
+function checkConnector(
+  located: LocatedQuery,
+  connector: ConnectorFacts | MissingKind | undefined,
+): SpecIssue[] {
   const { query, path } = located;
   if (!connector)
     return [{ path: `${path}.connector`, message: `No connector is named "${query.connector}".` }];
+  if ('notInstalled' in connector)
+    return [{ path: `${path}.connector`, message: connector.notInstalled }];
   if (connector.language === query.language) return [];
   return [
     {
@@ -169,7 +182,7 @@ export function checkQueries(
   const issues = queriesOf(spec).flatMap((located) => {
     const connector = lookup(located.query.connector);
     const problems = checkConnector(located, connector);
-    if (problems.length > 0 || !connector) return problems;
+    if (problems.length > 0 || !connector || 'notInstalled' in connector) return problems;
     used.set(located.query.connector, connector);
     return checkBinding(located, connector, variables, timeRange);
   });

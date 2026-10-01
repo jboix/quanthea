@@ -14,15 +14,17 @@ import { maskSecret } from '../secrets/mask.ts';
  * The list entry of a connector.
  *
  * @param row - The stored connector.
+ * @param installed - Whether its kind is offered.
  * @returns The summary.
  */
-export function toSummary(row: ConnectorRow): ConnectorSummary {
+export function toSummary(row: ConnectorRow, installed: boolean): ConnectorSummary {
   return {
     id: row.id,
     name: row.name,
     kind: row.kind,
     accessLevel: row.accessLevel,
     updatedAt: row.updatedAt,
+    installed,
   };
 }
 
@@ -32,12 +34,14 @@ export function toSummary(row: ConnectorRow): ConnectorSummary {
  * @param row - The stored connector.
  * @param secret - The decrypted credentials.
  * @param target - Where the connector points, from its kind, or `null`.
+ * @param installed - Whether its kind is offered.
  * @returns The detail.
  */
 export function toDetail(
   row: ConnectorRow,
   secret: Readonly<Record<string, unknown>>,
   target: string | null,
+  installed = true,
 ): ConnectorDetail {
   const masked = Object.fromEntries(
     Object.entries(secret)
@@ -45,7 +49,7 @@ export function toDetail(
       .map(([name, value]) => [name, maskSecret(value)]),
   );
   return {
-    ...toSummary(row),
+    ...toSummary(row, installed),
     config: (row.config ?? {}) as Record<string, unknown>,
     target,
     secret: masked,

@@ -748,6 +748,11 @@ a function that receives the live kit and returns its kinds.
   log line either way; a pinned plugin that is not installed is logged too.
 - **Origin:** a plugin's kinds carry `plugin: { name, version }` from the manifest, never from the
   plugin, and the add form and the connector show a `plugin · v1.2.0` badge.
+- **Not installed:** a stored connector whose kind is not offered, because its plugin was removed
+  or refused, stays listed with `installed: false` and can be deleted. Its page says "plugin not
+  installed" and offers no Test or Edit; its test, its queries, a dashboard check that names it
+  and an edit all fail with one sentence: the plugin that adds its kind is not installed, install
+  it or delete the connector. The agent's catalog leaves it out.
 - **Trust:** a plugin is code the admin installs and runs with the server's rights: it can read
   what the server can read, the keys and the database included. Install only plugins you trust,
   like any server software. There is no sandbox: a Worker would not stop network or file

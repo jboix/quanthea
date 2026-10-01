@@ -56,7 +56,10 @@ function mountPreviewRoutes(app: Hono<AppEnv>, services: QueryRouteServices): vo
         chart: body.chart,
         saved,
         from: body.from,
-        dialectOf: (connector) => services.connections.lookup(connector)?.dialect,
+        dialectOf: (connector) => {
+          const facts = services.connections.lookup(connector);
+          return facts && 'dialect' in facts ? facts.dialect : undefined;
+        },
       });
     },
   });
