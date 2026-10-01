@@ -84,6 +84,9 @@ memory for any of them in clear.
 - The sign-in providers you configure, to say who a person is. A join rule trusts what the provider
   says about a domain, an organisation, a group or a tenant.
 - The data sources you connect, to enforce the read-only credentials you give querent.
+- The connector plugins you install. A plugin runs with the server's rights and can read what
+  querent reads, keys and database included; it is code the admin chose, not code a model wrote.
+  Pins (`plugins.pins`) make sure the plugin that runs is the one installed.
 
 ### Known limits
 
@@ -96,6 +99,7 @@ memory for any of them in clear.
 - Let querent generate its keys in a keys volume, or give your own with `openssl rand -base64 32`.
   Back the keys up apart from the database: whoever holds both reads everything.
 - Set `QUERENT_PUBLIC_URL` to querent's `https://` origin.
+- Install only connector plugins you trust, pin each one, and leave `plugins.allowUnpinned` off.
 - Set `QUERENT_TRUSTED_PROXY_HOPS` to the number of proxies in front of querent, so throttling
   sees the real address.
 - Give each connector a read-only database role that can read only what dashboards need.

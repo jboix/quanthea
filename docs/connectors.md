@@ -183,3 +183,38 @@ kinds in that order.
   (a Biome rule). The client keeps them on the source's origin, away from cloud metadata
   addresses, within a timeout and a byte cap.
 - No code written by the model runs, anywhere. A kind never evaluates query text as code.
+
+## Publishing a plugin
+
+A kind can also ship outside querent, as a plugin: an npm package the admin installs with
+`querent plugin install`. [`examples/querent-plugin-sqlite`](../examples/querent-plugin-sqlite)
+is a complete one to start from.
+
+- **The bundle.** One ES module, built with `bun build src/plugin.ts --outfile dist/plugin.js --target bun`, holding everything the plugin needs: querent never installs a plugin's
+  dependencies or runs its scripts. Pure JavaScript only; a native module cannot work, since the
+  image runs on amd64 and arm64.
+- **The entry.** The module exports `kitVersion` (1) and, as default, a function that receives the
+  live kit and returns the plugin's kinds:
+
+  ```ts
+  import type { ConnectorKit } from '@querent/plugin-kit';
+  export const kitVersion = 1;
+  export default function plugin(kit: ConnectorKit) {
+    return [kit.defineConnector({ kind: 'example', configSchema: kit.z.object({ … }), … })];
+  }
+  ```
+
+  Build the schemas with `kit.z` and throw `kit.ConnectorError`: they are querent's own. Import
+  only types from `@querent/plugin-kit`, as a development dependency.
+- **The manifest.** `package.json` names the package `querent-plugin-<name>` or
+  `@scope/querent-plugin-<name>`, carries the `querent-plugin` keyword, and the `querent` field:
+  `{ "kitVersion": 1, "main": "dist/plugin.js" }`. Set `"files": ["dist"]`, so the tarball holds
+  the manifest and the bundle.
+- **The tests.** Call the plugin with `createTestKit()` from `@querent/plugin-kit/testing`, the
+  live kit itself, and run `testConnectorConformance` against a real source, in the plugin's
+  own CI. querent runs the same static checks (`kindProblems`) when it installs and loads it.
+- **Any language, any dialect.** A plugin speaks one of the seven query languages; a SQL plugin
+  picks a built-in dialect or `ansi`, with its placeholder and row-limit styles.
+- **Publishing.** From GitHub Actions, build and run `npm publish --provenance`, which attaches a
+  signed build attestation; querent does not check it yet. A tarball attached to a GitHub release
+  works too: `querent plugin install https://…/querent-plugin-x-1.0.0.tgz`.

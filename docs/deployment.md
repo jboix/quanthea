@@ -44,6 +44,9 @@ Then sign in at <http://localhost:3000> as `admin`, with the `ADMIN_PASSWORD` of
 | `/data` | The SQLite database: dashboards, threads, users, sealed secrets |
 | `/keys` | The keys querent generates on first start                       |
 
+`/plugins` holds connector plugins. It is not a volume, so a derived image can install into it;
+see [Connector plugins](#connector-plugins).
+
 Back the two up apart. The database holds no secret in clear, and the keys open it: whoever holds
 both reads everything. Without the keys, stored credentials cannot be read.
 
@@ -67,6 +70,7 @@ another file or directory). Each top-level key is a section:
 | `charts`       | chart recipes switched off                                            |
 | `queries`      | query builders switched off, and saved queries                        |
 | `provisioning` | `prune: true` deletes what the file no longer declares                |
+| `plugins`      | the plugins directory, the pin of each plugin, unpinned plugins       |
 
 [`configuration.schema.json`](configuration.schema.json) describes every field. Editors that
 read `# yaml-language-server: $schema=…` complete and check the file as you type.
@@ -127,3 +131,50 @@ docker exec querent querent reset-admin
 Every system setting shows there with its value and where it comes from: a variable, the file or
 the default. A variable wins over the file, and the file over the default. Keys show only where
 they come from.
+
+## Connector plugins
+
+A plugin adds connector kinds: an npm package with a bundled `dist/plugin.js`. querent loads the
+plugins of `/plugins` (`QUERENT_PLUGINS_DIR`; `<data dir>/plugins` outside the image) once, at
+startup.
+
+A plugin is code you install, and it runs with the server's rights: it can read what querent can
+read, the keys and the database included. Install only plugins you trust, like any server
+software.
+
+### Built into a derived image (recommended)
+
+The plugins are fixed when the image is built:
+
+```dockerfile
+FROM ghcr.io/jboix/querent
+RUN querent plugin install querent-plugin-sqlite@1.0.0
+```
+
+`querent plugin install` takes an npm name with an optional version or range, an `https://`
+tarball URL such as a GitHub release asset, or a local `.tgz` or `.js` file. It checks npm's
+integrity hash, extracts only the manifest and the bundle, runs the static checks, and prints the
+exact version installed and the pin to paste into the configuration file:
+
+```yaml
+plugins:
+  pins:
+    "querent-plugin-sqlite": "sha256:f7eb…"
+```
+
+### Installed at runtime
+
+`docker exec querent querent plugin install querent-plugin-sqlite@1.0.0` installs into the
+running container, and a restart loads it. This survives recreating the container only when
+`/plugins` is mounted as its own volume; otherwise the plugin goes with the container.
+
+### Pins
+
+A pin is a SHA-256 over the plugin's manifest and bundle. A pinned plugin whose files do not
+match is refused, and the log says to paste the pin the install printed: an upgrade changes the
+pin on purpose. A plugin without a pin loads only when `plugins.allowUnpinned` is true
+(`QUERENT_PLUGINS_ALLOW_UNPINNED=true` without a configuration file); it is false by default.
+The command never writes the configuration, which is often mounted read-only.
+
+`querent plugin list` shows each plugin and whether its pin matches; `querent plugin remove <name>` deletes one. Changes apply when querent restarts. A connector of a kind whose plugin is
+gone stays, marked "plugin not installed", until you reinstall the plugin or delete it.

@@ -109,6 +109,7 @@ old one as `QUERENT_SECRET_KEY_PREVIOUS`, restart once, then remove the old one.
 | `apps/web`            | React SPA, React Router in data mode, Vite.                  |
 | `packages/shared`     | API contracts and roles, shared by both apps.                |
 | `packages/plugin-kit` | The connector kit, for built-in kinds and plugins.           |
+| `examples/`           | An example connector plugin: read-only SQLite files.         |
 | `docs`                | Architecture, dashboard spec, brand, contributing, security. |
 
 [`AGENTS.md`](AGENTS.md) holds the conventions for anyone, human or agent, writing code here.
