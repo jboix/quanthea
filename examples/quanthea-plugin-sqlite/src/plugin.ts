@@ -24,7 +24,7 @@ import { resolveInRoot, rootVariable } from './fence.ts';
 import { frameOf } from './frames.ts';
 
 /** The kit version this plugin is built for. */
-export const kitVersion = 1;
+export const kitVersion = 0;
 
 /** How to get data from a SQLite file, for the agent. */
 const queryGuide = `SQLite file (standard SQL, read-only). Times are ISO 8601 text in UTC, and :__from and :__to bind as such, so compare them with columns that hold ISO text: created_at BETWEEN :__from AND :__to.

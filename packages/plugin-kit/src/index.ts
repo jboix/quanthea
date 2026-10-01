@@ -4,7 +4,7 @@
  *
  * ```ts
  * import type { ConnectorKit } from '@quanthea/plugin-kit';
- * export const kitVersion = 1;
+ * export const kitVersion = 0;
  * export default function plugin(kit: ConnectorKit) {
  *   return [kit.defineConnector({ kind: 'example', … })];
  * }

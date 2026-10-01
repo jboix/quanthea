@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { pluginNameSchema } from '../config/config.ts';
 
 /** The kit versions this server loads plugins for. */
-export const supportedKitVersions: readonly number[] = [1];
+export const supportedKitVersions: readonly number[] = [0];
 
 /** A semantic version, such as `1.2.0` or `2.0.0-beta.1`. */
 const versionPattern = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -20,7 +20,7 @@ export const manifestSchema = z.object({
   version: z.string().regex(versionPattern, 'The version is not a semantic version.'),
   keywords: z.array(z.string()).optional(),
   quanthea: z.strictObject({
-    kitVersion: z.int().positive(),
+    kitVersion: z.int().nonnegative(),
     main: z.string().regex(mainPattern, 'main is a relative path to a .js file, without "..".'),
   }),
 });

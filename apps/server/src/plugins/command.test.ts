@@ -7,7 +7,7 @@ import { tarball } from './test/tarball.ts';
 
 /** A plugin bundle with one kind. */
 function bundle(kind = 'events-file'): string {
-  return `export const kitVersion = 1;
+  return `export const kitVersion = 0;
 export default (kit) => [kit.defineConnector({
   kind: '${kind}', displayName: 'Events file', language: 'sql', dialect: 'ansi',
   configSchema: kit.z.object({ file: kit.z.string() }), secretSchema: kit.z.object({}),
@@ -31,7 +31,7 @@ function pack(
     name: options.name ?? 'quanthea-plugin-events',
     version,
     keywords: options.keywords ?? ['quanthea-plugin'],
-    quanthea: { kitVersion: 1, main: 'dist/plugin.js' },
+    quanthea: { kitVersion: 0, main: 'dist/plugin.js' },
   };
   return tarball([
     { path: 'package/package.json', data: JSON.stringify(manifest) },
@@ -174,7 +174,7 @@ describe('quanthea plugin install', () => {
         name: 'quanthea-plugin-dev',
         version: '0.0.1',
         keywords: ['quanthea-plugin'],
-        quanthea: { kitVersion: 1, main: 'plugin.js' },
+        quanthea: { kitVersion: 0, main: 'plugin.js' },
       }),
     );
     writeFileSync(join(folder, 'plugin.js'), bundle('dev-file'));

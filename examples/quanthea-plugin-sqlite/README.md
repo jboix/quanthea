@@ -12,7 +12,7 @@ plugin is, and it is small enough to copy as a start for your own.
 - The kit is quanthea's own: `kit.z` builds the forms' schemas, `kit.ConnectorError` reports a
   failure with a message safe to show, `kit.createFrameBuilder` lays out the result.
 - `package.json` carries the `quanthea-plugin` keyword and the manifest field:
-  `"quanthea": { "kitVersion": 1, "main": "dist/plugin.js" }`.
+  `"quanthea": { "kitVersion": 0, "main": "dist/plugin.js" }`.
 - The plugin imports only types from `@quanthea/plugin-kit`, a development dependency. Its tests
   call it with `createTestKit()` and run `testConnectorConformance` from
   `@quanthea/plugin-kit/testing`.

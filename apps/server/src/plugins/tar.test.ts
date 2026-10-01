@@ -23,11 +23,11 @@ describe('readTar', () => {
       read([
         { path: 'package/package.json', data: '{"name":"x"}' },
         { path: 'package/README.md', data: 'hello' },
-        { path: 'package/dist/plugin.js', data: 'export const kitVersion = 1;' },
+        { path: 'package/dist/plugin.js', data: 'export const kitVersion = 0;' },
       ]),
     ).toEqual({
       'package/package.json': '{"name":"x"}',
-      'package/dist/plugin.js': 'export const kitVersion = 1;',
+      'package/dist/plugin.js': 'export const kitVersion = 0;',
     });
   });
 

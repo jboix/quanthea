@@ -1,6 +1,6 @@
 {
   "name": "@quanthea/plugin-kit",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "The connector kit: the types a quanthea connector plugin is written against, a test kit and the conformance suite.",
   "type": "module",
@@ -12,6 +12,7 @@
     "./contract": "./src/contract.ts"
   },
   "scripts": {
+    "dist": "bun scripts/dist.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

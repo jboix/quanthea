@@ -193,12 +193,12 @@ is a complete one to start from.
 - **The bundle.** One ES module, built with `bun build src/plugin.ts --outfile dist/plugin.js --target bun`, holding everything the plugin needs: quanthea never installs a plugin's
   dependencies or runs its scripts. Pure JavaScript only; a native module cannot work, since the
   image runs on amd64 and arm64.
-- **The entry.** The module exports `kitVersion` (1) and, as default, a function that receives the
+- **The entry.** The module exports `kitVersion` (0) and, as default, a function that receives the
   live kit and returns the plugin's kinds:
 
   ```ts
   import type { ConnectorKit } from '@quanthea/plugin-kit';
-  export const kitVersion = 1;
+  export const kitVersion = 0;
   export default function plugin(kit: ConnectorKit) {
     return [kit.defineConnector({ kind: 'example', configSchema: kit.z.object({ … }), … })];
   }
@@ -206,9 +206,13 @@ is a complete one to start from.
 
   Build the schemas with `kit.z` and throw `kit.ConnectorError`: they are quanthea's own. Import
   only types from `@quanthea/plugin-kit`, as a development dependency.
+- **The kit version.** The kit's major version equals `kitVersion`. The kit is in beta, 0.x with
+  kit version 0, and follows npm's caret: a minor bump (0.1.0 to 0.2.0) is a breaking change, a
+  patch bump (0.1.0 to 0.1.1) an addition or a fix. Declare `^0.<minor>.0`, such as `^0.1.0`. At
+  1.0, `kitVersion` becomes 1 and quanthea stops loading plugins built for kit version 0.
 - **The manifest.** `package.json` names the package `quanthea-plugin-<name>` or
   `@scope/quanthea-plugin-<name>`, carries the `quanthea-plugin` keyword, and the `quanthea` field:
-  `{ "kitVersion": 1, "main": "dist/plugin.js" }`. Set `"files": ["dist"]`, so the tarball holds
+  `{ "kitVersion": 0, "main": "dist/plugin.js" }`. Set `"files": ["dist"]`, so the tarball holds
   the manifest and the bundle.
 - **The tests.** Call the plugin with `createTestKit()` from `@quanthea/plugin-kit/testing`, the
   live kit itself, and run `testConnectorConformance` against a real source, in the plugin's

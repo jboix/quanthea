@@ -19,7 +19,8 @@ any model involved.
 ```sh
 bun install          # install dependencies and the git hooks (husky)
 bun run dev          # Vite on :5173 (proxies /api) and the server on :3000, both reloading
-bun run verify       # the whole gate: lint, docs:check, arch, knip, typecheck, test, build
+bun run verify       # the whole gate: lint, docs:check, arch, knip, typecheck, test, build,
+                     # check:package
 bun run lint         # Biome check (format + lint)
 bun run lint:fix     # Biome check --write
 bun run docs:check   # remark: Markdown formatting and links
@@ -41,6 +42,7 @@ bun run env:up:influxdb && bun run test:integration:influxdb  # InfluxDB 3
 bun run env:up:valkey && bun run test:integration:valkey  # Valkey
 bun run env:up:mongodb && bun run test:integration:mongodb  # MongoDB
 bun run build        # build the SPA into apps/web/dist
+bun run check:package  # build the publishable plugin kit in packages/plugin-kit/dist, check it
 bun run start        # run the server, serving the built SPA
 ```
 

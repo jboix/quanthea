@@ -42,7 +42,7 @@ if (!first) throw new Error('The plugin returned no kind.');
 const kind: ConnectorKind = first;
 
 test('exports the kit version it is built for', () => {
-  expect(kitVersion).toBe(1);
+  expect(kitVersion).toBe(0);
 });
 
 testConnectorConformance(kind, {

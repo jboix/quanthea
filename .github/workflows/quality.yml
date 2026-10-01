@@ -58,6 +58,9 @@ jobs:
       - name: Build the SPA
         run: bun run build
 
+      - name: The publishable plugin kit (publint, attw)
+        run: bun run check:package
+
       - name: Test coverage
         uses: k1LoW/octocov-action@a167dc0dee441b7ffc45e1b862ab55ec0d87f278 # v1.5.2
         with:

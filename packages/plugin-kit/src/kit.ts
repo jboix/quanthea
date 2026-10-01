@@ -11,7 +11,7 @@ import type { createHttpClient } from './http.ts';
 import type { seriesFrames } from './series-frames.ts';
 
 /** The version of the kit this package describes. A plugin exports the version it was built for. */
-export const kitVersion = 1;
+export const kitVersion = 0;
 
 /** What a plugin receives. */
 export interface ConnectorKit {

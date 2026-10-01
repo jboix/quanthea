@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "bun run --filter '*' dev",
     "build": "bun run --filter @quanthea/web build",
+    "check:package": "bun packages/plugin-kit/scripts/dist.ts && publint packages/plugin-kit/dist && attw --pack packages/plugin-kit/dist --profile esm-only",
     "start": "bun apps/server/src/main.ts",
     "quanthea": "bun apps/server/src/cli.ts",
     "lint": "biome check .",
@@ -27,7 +28,7 @@
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun test",
     "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage",
-    "verify": "bun run lint && bun run docs:check && bun run arch && bun run knip && bun run typecheck && bun run test && bun run build",
+    "verify": "bun run lint && bun run docs:check && bun run arch && bun run knip && bun run typecheck && bun run test && bun run build && bun run check:package",
     "prepare": "husky",
     "env:up": "docker compose -f dev/docker-compose.yml up -d --wait postgres prometheus",
     "env:up:timescale": "docker compose -f dev/docker-compose.yml --profile timescale up -d --wait timescaledb",
@@ -56,6 +57,7 @@
     "test:integration:mongodb": "QUANTHEA_INTEGRATION=mongodb bun test integration"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@biomejs/biome": "2.5.14",
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
@@ -64,6 +66,7 @@
     "dependency-cruiser": "^18.4.0",
     "husky": "^9.1.7",
     "knip": "^6.38.0",
+    "publint": "^0.3.25",
     "remark-cli": "^12.0.1",
     "remark-gfm": "^4.0.1",
     "remark-validate-links": "^13.1.0",

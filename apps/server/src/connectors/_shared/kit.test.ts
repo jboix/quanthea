@@ -8,7 +8,7 @@ import { ConnectorError } from './index.ts';
 describe('the public kit', () => {
   test('holds types and the kit version only, none of the server’s policy lists', () => {
     expect(Object.keys(publicKit)).toEqual(['kitVersion']);
-    expect(publicKit.kitVersion).toBe(1);
+    expect(publicKit.kitVersion).toBe(0);
   });
 
   test('tests plugins against the live kit itself, not a second implementation', () => {

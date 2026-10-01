@@ -8,7 +8,7 @@ import { loadPlugins, missingPinned } from './load.ts';
 import { folderOf, pinOf } from './pin.ts';
 
 /** A plugin module, as a bundle: one kind, built with the kit it receives. */
-function source(kind = 'events-file', kitVersion = 1, body = ''): string {
+function source(kind = 'events-file', kitVersion = 0, body = ''): string {
   return `export const kitVersion = ${kitVersion};
 export default function plugin(kit) {
   ${body}
@@ -45,7 +45,7 @@ afterEach(() => rmSync(dir, { recursive: true, force: true }));
  * @param kitVersion - The manifest's kit version.
  * @returns The plugin's pin.
  */
-function install(name: string, bundle: string, kitVersion = 1): string {
+function install(name: string, bundle: string, kitVersion = 0): string {
   const folder = join(dir, folderOf(name));
   mkdirSync(folder);
   const manifest = JSON.stringify({
@@ -132,7 +132,7 @@ describe('loadPlugins', () => {
     };
     expect(await load(pins)).toEqual([]);
     expect(refusals()).toEqual([
-      'kit version 2 is not supported: this server loads 1',
+      'kit version 2 is not supported: this server loads 0',
       'the module and package.json name different kit versions',
     ]);
   });
@@ -141,13 +141,13 @@ describe('loadPlugins', () => {
     const pins = {
       'quanthea-plugin-a': install(
         'quanthea-plugin-a',
-        source('a-kind', 1, 'throw new Error("boom");'),
+        source('a-kind', 0, 'throw new Error("boom");'),
       ),
       'quanthea-plugin-b': install(
         'quanthea-plugin-b',
-        'export const kitVersion = 1;\nexport default () => [{ kind: "b-kind", language: "sql" }];',
+        'export const kitVersion = 0;\nexport default () => [{ kind: "b-kind", language: "sql" }];',
       ),
-      'quanthea-plugin-c': install('quanthea-plugin-c', 'export const kitVersion = 1;'),
+      'quanthea-plugin-c': install('quanthea-plugin-c', 'export const kitVersion = 0;'),
     };
     expect(await load(pins)).toEqual([]);
     const [thrown, failed, empty] = refusals();

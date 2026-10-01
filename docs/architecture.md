@@ -672,6 +672,13 @@ same kit serves connector plugins. It has four entry points:
   shared; shared may import nothing else from the kit (rule `shared-uses-the-kit-contract-only`).
   It is a workspace entry: plugins get the types from `.`.
 
+The kit is the one package published to npm. Its workspace `package.json` points at the sources
+and stays private; `packages/plugin-kit/scripts/dist.ts` builds `dist/`, the folder npm publishes:
+`.` and `./testing` bundled by Bun, their declarations from `tsc`, and a generated `package.json`
+with zod as the one dependency. `bun run check:package` builds it and runs publint and attw on it.
+The kit has its own version, and its major version equals `kitVersion`: 0 during the beta, where
+a minor bump is a breaking change and a patch bump an addition or a fix.
+
 `connectors/_shared/index.ts` re-exports the live kit and adds what only built-in kinds and the
 binders use, quanthea's policy lists (`policies.ts`): `searchRatioScripts`, `mongodbRefusedKeys`,
 `redisReadCommands`. The public kit leaves them out. The kit imports only Zod (rules
@@ -731,7 +738,7 @@ export const exampleConnector = defineConnector({
 ### Connector plugins
 
 A plugin adds connector kinds without a change to quanthea: an npm package whose `package.json`
-(the manifest) names a kit version and its bundle, `"quanthea": { "kitVersion": 1, "main":
+(the manifest) names a kit version and its bundle, `"quanthea": { "kitVersion": 0, "main":
 "dist/plugin.js" }`, and whose bundle is one ES module that exports `kitVersion` and, as default,
 a function that receives the live kit and returns its kinds.
 
