@@ -148,13 +148,13 @@ const sqlRowsSchema = z.strictObject({
 
 /**
  * A raw query, for data no builder gives. A search query is its JSON body as text, with the index
- * apart.
+ * apart; an HTTP query is the JSON of its method, path, query, body and extract.
  */
 const rawSchema = z
   .strictObject({
     kind: z.literal('raw'),
     connector: connectorSchema,
-    language: z.enum(['sql', 'promql', 'search', 'logql']),
+    language: z.enum(['sql', 'promql', 'search', 'logql', 'http']),
     query: z.string().min(1).max(10_000),
     index: z.string().min(1).max(500).optional(),
     instant: z.boolean().optional(),

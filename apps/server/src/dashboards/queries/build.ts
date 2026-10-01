@@ -1,5 +1,5 @@
 /** Builds a data request into its queries and the table they return. */
-import type { PanelQuery } from '@querent/shared';
+import { type PanelQuery, panelQuerySchema } from '@querent/shared';
 import type { BuildContext, BuiltData } from './built.ts';
 import { gaugeData, latencyData, rateData, ratioData, topData } from './promql.ts';
 import type { DataOf, DataRequest } from './request.ts';
@@ -63,27 +63,58 @@ function rawQuery(request: DataOf<'raw'>): PanelQuery {
   const { connector, language, query, instant } = request;
   if (language === 'sql') return { refId: 'A', connector, language, sql: query };
   if (language === 'search')
-    return { refId: 'A', connector, language, index: request.index ?? '', body: searchBody(query) };
+    return {
+      refId: 'A',
+      connector,
+      language,
+      index: request.index ?? '',
+      body: jsonObject(query, 'search body'),
+    };
+  if (language === 'http') return httpQuery(connector, query);
   return { refId: 'A', connector, language, expr: query, ...(instant ? { instant: true } : {}) };
 }
 
 /**
- * Reads the body of a raw search query.
+ * Reads a JSON object a raw query gives as text.
  *
- * @param text - The body as JSON text.
- * @returns The body.
+ * @param text - The JSON text.
+ * @param what - What it is, for the message.
+ * @returns The object.
  * @throws {QueryError} When the text is not a JSON object.
  */
-function searchBody(text: string): Record<string, unknown> {
-  let body: unknown;
+function jsonObject(text: string, what: string): Record<string, unknown> {
+  let value: unknown;
   try {
-    body = JSON.parse(text);
+    value = JSON.parse(text);
   } catch {
-    throw new QueryError('The search body is not valid JSON.');
+    throw new QueryError(`The ${what} is not valid JSON.`);
   }
-  if (typeof body !== 'object' || body === null || Array.isArray(body))
-    throw new QueryError('The search body is a JSON object, such as {"query": {…}}.');
-  return body as Record<string, unknown>;
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    throw new QueryError(`The ${what} is a JSON object.`);
+  return value as Record<string, unknown>;
+}
+
+/**
+ * The panel query of a raw HTTP query, whose text is the JSON of the request.
+ *
+ * @param connector - The connector.
+ * @param text - The JSON of the method, path, query, body and extract.
+ * @returns The query, refId A.
+ * @throws {QueryError} When the request is not one an HTTP template allows.
+ */
+function httpQuery(connector: string, text: string): PanelQuery {
+  const request = jsonObject(text, 'HTTP request');
+  const parsed = panelQuerySchema.safeParse({
+    ...request,
+    refId: 'A',
+    connector,
+    language: 'http',
+  });
+  if (parsed.success) return parsed.data;
+  const issue = parsed.error.issues[0];
+  throw new QueryError(
+    `The HTTP request is invalid at ${issue?.path.join('.') || 'its root'}: ${issue?.message ?? ''}`,
+  );
 }
 
 /**

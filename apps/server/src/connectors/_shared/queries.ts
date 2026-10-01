@@ -1,7 +1,7 @@
 /** The queries a connector executes: already bound, never a template with raw variables. */
 
 /** The query languages the core knows how to bind. A connector kind declares one of them. */
-export const queryLanguages = ['sql', 'promql', 'search', 'logql'] as const;
+export const queryLanguages = ['sql', 'promql', 'search', 'logql', 'http'] as const;
 
 /** A query language name. */
 export type QueryLanguage = (typeof queryLanguages)[number];
@@ -69,8 +69,45 @@ export interface LogqlQuery {
   readonly stepSeconds: number;
 }
 
+/** How a column of an HTTP response is read. */
+export interface HttpField {
+  /** The column name. */
+  readonly name: string;
+  /** Where the value is in each row, as a JSON pointer from the row. */
+  readonly pointer: string;
+  /** The column type; inferred from the values when absent. */
+  readonly type?: 'time' | 'number' | 'string' | 'boolean' | undefined;
+  /** For a time given as a number: seconds or milliseconds since the epoch. */
+  readonly unit?: 's' | 'ms' | undefined;
+}
+
+/**
+ * An HTTP request with every variable already put in: the path encoded, each query parameter a
+ * separate value, the body's variables JSON values. The connector checks the method and the path
+ * against what its settings allow.
+ */
+export interface HttpQuery {
+  /** The query language. */
+  readonly language: 'http';
+  /** `GET` or `POST`. */
+  readonly method: 'GET' | 'POST';
+  /** The path under the connector's base URL, encoded, without a query string. */
+  readonly path: string;
+  /** The query parameters, in order; a name may repeat. */
+  readonly query: readonly (readonly [string, string])[];
+  /** The JSON body of a POST. */
+  readonly body?: Readonly<Record<string, unknown>> | undefined;
+  /** How the response becomes a table. */
+  readonly extract: {
+    /** The array of rows, as a JSON pointer. */
+    readonly rows: string;
+    /** The columns, or none to take every value of the rows. */
+    readonly fields?: readonly HttpField[] | undefined;
+  };
+}
+
 /** A query ready to execute. Connectors receive nothing else. */
-export type BoundQuery = SqlQuery | PromqlQuery | SearchQuery | LogqlQuery;
+export type BoundQuery = SqlQuery | PromqlQuery | SearchQuery | LogqlQuery | HttpQuery;
 
 /** The time range a query covers. */
 export interface TimeRange {

@@ -1,6 +1,6 @@
 /**
  * Query templates in a spec. A template names its connector and is written in the connector's
- * language; the server binds the variables. HTTP templates arrive with their connector.
+ * language; the server binds the variables.
  */
 import { z } from 'zod';
 import { connectorNameSchema } from '../connectors.ts';
@@ -53,12 +53,51 @@ const logqlQuerySchema = z.strictObject({
   instant: z.boolean().optional(),
 });
 
+/** Validates a JSON pointer (RFC 6901): empty for the whole document, else `/` and the path. */
+const jsonPointerSchema = z
+  .string()
+  .max(500)
+  .regex(/^(\/[^/]*)*$/, 'Use a JSON pointer such as /data/items.');
+
+/** Validates how a column of an HTTP response is read. */
+const httpFieldSchema = z.strictObject({
+  name: z.string().min(1).max(100),
+  /** Where the value is in each row, as a JSON pointer from the row. */
+  pointer: jsonPointerSchema,
+  type: z.enum(['time', 'number', 'string', 'boolean']).optional(),
+  /** For a time given as a number: seconds or milliseconds since the epoch. */
+  unit: z.enum(['s', 'ms']).optional(),
+});
+
+/** Validates how an HTTP response becomes a table: where its rows are, and its columns. */
+const httpExtractSchema = z.strictObject({
+  /** The array of rows, as a JSON pointer; an object there is one row. */
+  rows: jsonPointerSchema.default(''),
+  /** The columns; without them, every value of the first rows, nested ones as dotted names. */
+  fields: z.array(httpFieldSchema).max(50).optional(),
+});
+
+/**
+ * Validates an HTTP template: a path and query parameters where `$name` is a variable, a JSON
+ * body for a POST with `{"$var": "name"}` nodes, and how the response becomes a table.
+ */
+const httpQuerySchema = z.strictObject({
+  connector: connectorNameSchema,
+  language: z.literal('http'),
+  method: z.enum(['GET', 'POST']).default('GET'),
+  path: z.string().min(1).max(2000),
+  query: z.record(z.string().max(100), z.string().max(2000)).optional(),
+  body: z.record(z.string(), z.unknown()).optional(),
+  extract: httpExtractSchema.default({ rows: '' }),
+});
+
 /** Validates a query template without a refId, as a query-backed variable uses it. */
 export const queryTemplateSchema = z.discriminatedUnion('language', [
   promqlQuerySchema,
   sqlQuerySchema,
   searchQuerySchema,
   logqlQuerySchema,
+  httpQuerySchema,
 ]);
 
 /** A query template without a refId. */
@@ -70,6 +109,7 @@ export const panelQuerySchema = z.discriminatedUnion('language', [
   sqlQuerySchema.extend({ refId: refIdSchema }),
   searchQuerySchema.extend({ refId: refIdSchema }),
   logqlQuerySchema.extend({ refId: refIdSchema }),
+  httpQuerySchema.extend({ refId: refIdSchema }),
 ]);
 
 /** A panel or annotation query. */
@@ -81,10 +121,12 @@ export const queryLanguageNames: Readonly<Record<QueryTemplate['language'], stri
   promql: 'PromQL',
   search: 'Search DSL',
   logql: 'LogQL',
+  http: 'HTTP',
 };
 
 /**
- * The text of a query, to show it: the SQL or the expression, or a search's index and body.
+ * The text of a query, to show it: the SQL or the expression, a search's index and body, or an
+ * HTTP request's method, path and parameters.
  *
  * @param query - The query.
  * @returns The text.
@@ -92,16 +134,30 @@ export const queryLanguageNames: Readonly<Record<QueryTemplate['language'], stri
 export function queryText(query: QueryTemplate): string {
   if (query.language === 'sql') return query.sql;
   if (query.language === 'search') return `${query.index}\n${JSON.stringify(query.body, null, 2)}`;
+  if (query.language === 'http') return httpText(query);
   return query.expr;
+}
+
+/**
+ * The text of an HTTP query: the request line with its parameters, then the body if any.
+ *
+ * @param query - The query.
+ * @returns The text.
+ */
+function httpText(query: Extract<QueryTemplate, { language: 'http' }>): string {
+  const parameters = Object.entries(query.query ?? {}).map(([name, value]) => `${name}=${value}`);
+  const line = `${query.method} ${query.path}${parameters.length > 0 ? `?${parameters.join('&')}` : ''}`;
+  return query.body === undefined ? line : `${line}\n${JSON.stringify(query.body, null, 2)}`;
 }
 
 /**
  * The key of the field that holds a query's text, for pointing at it in an error.
  *
  * @param query - The query.
- * @returns `sql`, `expr` or `body`.
+ * @returns `sql`, `expr`, `body` or `path`.
  */
-export function queryTextKey(query: QueryTemplate): 'sql' | 'expr' | 'body' {
+export function queryTextKey(query: QueryTemplate): 'sql' | 'expr' | 'body' | 'path' {
   if (query.language === 'sql') return 'sql';
+  if (query.language === 'http') return 'path';
   return query.language === 'search' ? 'body' : 'expr';
 }

@@ -1,5 +1,6 @@
 /** Binds a query template for its language. */
 import type { BoundQuery, SqlDialect, TimeRange } from '../connectors/_shared/index.ts';
+import { bindHttp, type HttpTemplate } from './http-binder.ts';
 import { bindLogql } from './logql-binder.ts';
 import { bindPromql, type PromqlTemplate } from './promql-binder.ts';
 import { bindSearch, type SearchTemplate } from './search-binder.ts';
@@ -11,7 +12,8 @@ export type QueryTemplate =
   | { readonly language: 'sql'; readonly sql: string }
   | ({ readonly language: 'promql' } & PromqlTemplate)
   | ({ readonly language: 'logql' } & PromqlTemplate)
-  | ({ readonly language: 'search' } & SearchTemplate);
+  | ({ readonly language: 'search' } & SearchTemplate)
+  | ({ readonly language: 'http' } & HttpTemplate);
 
 /** The most points one Prometheus or Loki series may have, whatever the row limit. */
 export const maxPromqlPoints = 11_000;
@@ -49,6 +51,8 @@ export function bindTemplate(
       return bindSearch(template, variables, timeRange);
     case 'logql':
       return bindLogql(template, variables, timeRange, maxPoints);
+    case 'http':
+      return bindHttp(template, variables, timeRange);
     default:
       return bindPromql(template, variables, timeRange, maxPoints);
   }

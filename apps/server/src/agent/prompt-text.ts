@@ -53,7 +53,7 @@ export const builderHints: Readonly<Record<string, string>> = {
 };
 
 /** How to write a raw query. */
-export const rawGuide = `raw: { "kind": "raw", "connector", "language", "query", "index"?, "instant"? } for data no builder gives. SQL uses :name variables and :__from, :__to; PromQL uses $name only inside label matchers, and $__interval, $__range, $__rate_interval or an interval variable where a duration goes; LogQL the same, also inside line and label filter values. A search query is its JSON body as text with "index" apart, and a variable is a node {"$var": "name"}, with __from, __to and __interval built in. Name every SQL column with an alias.`;
+export const rawGuide = `raw: { "kind": "raw", "connector", "language", "query", "index"?, "instant"? } for data no builder gives. SQL uses :name variables and :__from, :__to; PromQL uses $name only inside label matchers, and $__interval, $__range, $__rate_interval or an interval variable where a duration goes; LogQL the same, also inside line and label filter values. A search query is its JSON body as text with "index" apart, and a variable is a node {"$var": "name"}, with __from, __to and __interval built in. An HTTP query is the JSON of { "method"?, "path", "query"?, "body"?, "extract": { "rows", "fields"? } }, with $name in the path and query values. Name every SQL column with an alias.`;
 
 /** How saved queries are asked for. */
 export const savedGuide = `Saved queries: { "kind": "saved", "name": its id, "connector", "params": { placeholder: value } }. Fill every placeholder; a value may be a variable such as "$service".`;

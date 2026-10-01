@@ -63,7 +63,8 @@ type Variable =
 
 // The built-in time variable (always present, not listed in `variables`):
 //   default range lives in `time`, values exposed as $__from, $__to, $__range, $__interval
-//   (PromQL, LogQL, HTTP), :__from, :__to (SQL), and {"$var": "__from"}, "__to", "__interval" (search).
+//   (PromQL, LogQL), :__from, :__to (SQL), {"$var": "__from"}, "__to", "__interval" (search), and
+//   $__from, $__to as ISO times, $__from_ms, $__to_ms, $__from_s, $__to_s as epoch numbers (HTTP).
 type TimeDefault = { from: string; to: string }   // 'now-7d' | 'now' | ISO 8601
 
 // ---------------------------------------------------------------- queries
@@ -72,15 +73,16 @@ type QueryTemplate =
   | { refId: string; connector: string; language: 'sql'; sql: string }            // named params :var
   | { refId: string; connector: string; language: 'logql'; expr: string; step?: string; instant?: boolean }
   | { refId: string; connector: string; language: 'search'; index: string; body: JsonWithVars }  // Elasticsearch, OpenSearch
-  | { refId: string; connector: string; language: 'http'; path: string; query?: Record<string, string>; extract: HttpExtract }
+  | { refId: string; connector: string; language: 'http'; method?: 'GET' | 'POST'; path: string;
+      query?: Record<string, string>; body?: JsonWithVars; extract?: HttpExtract }  // $name in path and query
 
 // Structural variable reference inside JSON bodies: { "$var": "service" }
 type JsonWithVars = unknown
 
 type HttpExtract = {
-  rows: string                              // JSON pointer to the array of rows, e.g. "/data/items"
-  fields: { name: string; pointer: string; type: 'time' | 'number' | 'string' | 'boolean' }[]
-}
+  rows?: string                             // JSON pointer to the array of rows, e.g. "/data/items"; default the whole response
+  fields?: { name: string; pointer: string; type?: 'time' | 'number' | 'string' | 'boolean'; unit?: 's' | 'ms' }[]
+}                                           // no fields: every value of the rows, nested ones as dotted names
 
 // ---------------------------------------------------------------- panels
 type Panel = {
@@ -170,7 +172,7 @@ they differ from the sketch above, the schemas win:
 - A chart option may use tokens the adapter replaces: `@role` for a role's column, and theme
   colours such as `@ink`, `@palette.1` or `@scale.low`. A role a view does not name is inferred:
   the x is the first time or text column, and the values are the number columns.
-- Queries are `sql`, `promql`, `logql` and `search`. `http` comes with its connector.
+- Queries are `sql`, `promql`, `logql`, `search` and `http`.
 - A query-backed variable's `source` has no `refId`.
 - Time expressions are `now`, `now-<n><unit>` (units `s m h d w M y`) or an ISO 8601 timestamp
   with an offset.

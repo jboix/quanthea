@@ -4,6 +4,7 @@
  * string. The body may hold no script, since a script is code the search server runs.
  */
 import type { SearchQuery, TimeRange } from '../connectors/_shared/index.ts';
+import { bindJsonVariables } from './json-variables.ts';
 import { QueryError } from './query-error.ts';
 import type { Variables } from './variables.ts';
 
@@ -36,9 +37,6 @@ const scriptKeys = new Set([
   'runtime_mappings',
 ]);
 
-/** How deep a body may nest. */
-const maxDepth = 64;
-
 /** Bucket widths `__interval` picks from, in seconds. */
 const niceIntervals = [
   1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10_800, 21_600, 43_200, 86_400,
@@ -47,14 +45,6 @@ const niceIntervals = [
 
 /** The most buckets `__interval` gives over the time range. */
 const maxBuckets = 1000;
-
-/** What binding a body needs. */
-interface BindContext {
-  /** The variable values. */
-  readonly variables: Variables;
-  /** The built-in values: `__from`, `__to` and `__interval`. */
-  readonly builtIns: Readonly<Record<string, string>>;
-}
 
 /**
  * Checks an index expression.
@@ -89,64 +79,18 @@ export function searchInterval(timeRange: TimeRange): string {
 }
 
 /**
- * The value of a `{"$var": "name"}` node: one value as a string, a multi-value variable as a list.
- *
- * @param node - The node.
- * @param context - The variables and built-ins.
- * @returns The value.
- * @throws {QueryError} `invalid` for a node with other keys, or an unknown variable.
- */
-function variableValue(node: Readonly<Record<string, unknown>>, context: BindContext): unknown {
-  const name = node.$var;
-  if (typeof name !== 'string' || Object.keys(node).length !== 1) {
-    throw new QueryError('invalid', 'A variable is a node of its own: {"$var": "service"}.');
-  }
-  const builtIn = context.builtIns[name];
-  if (builtIn !== undefined) return builtIn;
-  const binding = context.variables[name];
-  if (!binding) throw new QueryError('invalid', `Unknown variable ${name}.`);
-  return typeof binding.value === 'string' ? binding.value : [...binding.value];
-}
-
-/**
  * Checks one key of a body object.
  *
  * @param key - The key.
- * @throws {QueryError} `invalid` for a script, or a `$` key other than a variable node.
+ * @throws {QueryError} `invalid` for a script.
  */
-function checkKey(key: string): void {
+function refuseScript(key: string): void {
   if (scriptKeys.has(key.toLowerCase())) {
     throw new QueryError(
       'invalid',
       `A query runs no script; "${key}" is not allowed. Use aggregations and filters instead.`,
     );
   }
-  if (key.startsWith('$')) {
-    throw new QueryError('invalid', `"${key}" is not a variable; write {"$var": "name"}.`);
-  }
-}
-
-/**
- * Binds one JSON node and everything under it.
- *
- * @param node - The node.
- * @param context - The variables and built-ins.
- * @param depth - How deep the node is.
- * @returns The bound node.
- * @throws {QueryError} `invalid` for a script, an unknown variable or a body nested too deep.
- */
-function bindNode(node: unknown, context: BindContext, depth: number): unknown {
-  if (depth > maxDepth) throw new QueryError('invalid', 'The query body nests too deep.');
-  if (Array.isArray(node)) return node.map((item) => bindNode(item, context, depth + 1));
-  if (node === null || typeof node !== 'object') return node;
-  const object = node as Readonly<Record<string, unknown>>;
-  if ('$var' in object) return variableValue(object, context);
-  return Object.fromEntries(
-    Object.entries(object).map(([key, value]) => {
-      checkKey(key);
-      return [key, bindNode(value, context, depth + 1)];
-    }),
-  );
 }
 
 /**
@@ -168,6 +112,6 @@ export function bindSearch(
     __to: timeRange.to.toISOString(),
     __interval: searchInterval(timeRange),
   };
-  const body = bindNode(template.body, { variables, builtIns }, 0) as Record<string, unknown>;
+  const body = bindJsonVariables(template.body, { variables, builtIns, checkKey: refuseScript });
   return { language: 'search', index: checkIndex(template.index), body };
 }

@@ -794,6 +794,13 @@ that changes with its settings).
      script (`script`, `_script`, `script_fields`, `script_score`, `scripted_metric`,
      `runtime_mappings`) is refused, because the search server would run it. The index is
      lowercase names and patterns, never a hidden (`.`), system (`_`) or remote (`:`) index.
+   - **HTTP** (`query/http-binder.ts`): `$name` in the path becomes its value URL-encoded, one
+     value only, so it stays one segment; the path is absolute and holds no `?`, `#`, `\` or
+     `..`. In a query parameter `$name` becomes the raw value, which the request encodes, and a
+     parameter that is a multi-value variable alone repeats once per value. A POST body takes
+     `{"$var": "name"}` nodes, as a search does (`query/json-variables.ts`). Headers take no
+     variable. `$__from` and `$__to` are ISO times; `$__from_ms`, `$__from_s` and their `__to`
+     twins are epoch numbers.
 3. The connector runs the bound query with an abort signal that fires at `timeoutMs` or when the
    caller gives up. The executor also races the signal, so a connector that ignores it cannot hold
    the caller.

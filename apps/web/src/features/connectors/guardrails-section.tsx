@@ -23,6 +23,7 @@ const allowedStatements: Readonly<Record<string, string>> = {
   promql: 'Read endpoints only',
   search: 'Search only, no scripts',
   logql: 'Read endpoints only',
+  http: 'The methods and paths it allows',
 };
 
 /**

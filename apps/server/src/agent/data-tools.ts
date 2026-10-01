@@ -29,6 +29,28 @@ const testQuerySchema = z.discriminatedUnion('language', [
     index: z.string().min(1).max(500),
     body: z.record(z.string(), z.unknown()),
   }),
+  z.object({
+    language: z.literal('http'),
+    method: z.enum(['GET', 'POST']).default('GET'),
+    path: z.string().min(1).max(2000),
+    query: z.record(z.string(), z.string()).optional(),
+    body: z.record(z.string(), z.unknown()).optional(),
+    extract: z
+      .object({
+        rows: z.string().default(''),
+        fields: z
+          .array(
+            z.object({
+              name: z.string(),
+              pointer: z.string(),
+              type: z.enum(['time', 'number', 'string', 'boolean']).optional(),
+              unit: z.enum(['s', 'ms']).optional(),
+            }),
+          )
+          .optional(),
+      })
+      .default({ rows: '' }),
+  }),
 ]);
 
 /**
@@ -84,7 +106,7 @@ function testQueryTool(context: RunContext, resolveTime: (expression: string) =>
   const { modelView, signal } = context;
   return tool({
     description:
-      'Run a query and see its result as your access level allows: shapes, row counts, and more at higher levels. Use it before putting a query in a dashboard. SQL uses :name variables and :__from, :__to; PromQL uses $name in label matchers, $__interval, $__range, $__rate_interval; LogQL the same, also in line and label filters; a search body uses {"$var": "name"} nodes and __from, __to, __interval.',
+      'Run a query and see its result as your access level allows: shapes, row counts, and more at higher levels. Use it before putting a query in a dashboard. SQL uses :name variables and :__from, :__to; PromQL uses $name in label matchers, $__interval, $__range, $__rate_interval; LogQL the same, also in line and label filters; a search body uses {"$var": "name"} nodes and __from, __to, __interval; an HTTP request uses $name in its path and query parameters, {"$var": "name"} in a POST body, $__from and $__to (ISO), $__from_ms, $__from_s and the same for __to, and extract.rows, a JSON pointer to its rows.',
     inputSchema: z.object({
       connector: z.string(),
       query: testQuerySchema,
