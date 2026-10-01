@@ -1,7 +1,7 @@
 /** The queries a connector executes: already bound, never a template with raw variables. */
 
 /** The query languages the core knows how to bind. A connector kind declares one of them. */
-export const queryLanguages = ['sql', 'promql', 'search', 'logql', 'http'] as const;
+export const queryLanguages = ['sql', 'promql', 'search', 'logql', 'http', 'redis'] as const;
 
 /** A query language name. */
 export type QueryLanguage = (typeof queryLanguages)[number];
@@ -106,8 +106,59 @@ export interface HttpQuery {
   };
 }
 
+/**
+ * The Redis and Valkey commands a query may run: reads of one key or a few, and server
+ * information. Nothing that writes, scans every key, or runs a script.
+ */
+export const redisReadCommands: ReadonlySet<string> = new Set([
+  'GET',
+  'MGET',
+  'STRLEN',
+  'EXISTS',
+  'TYPE',
+  'TTL',
+  'PTTL',
+  'HGET',
+  'HMGET',
+  'HGETALL',
+  'HKEYS',
+  'HVALS',
+  'HLEN',
+  'HEXISTS',
+  'LRANGE',
+  'LLEN',
+  'LINDEX',
+  'SMEMBERS',
+  'SCARD',
+  'SISMEMBER',
+  'ZRANGE',
+  'ZREVRANGE',
+  'ZRANGEBYSCORE',
+  'ZREVRANGEBYSCORE',
+  'ZCARD',
+  'ZCOUNT',
+  'ZSCORE',
+  'ZRANK',
+  'ZREVRANK',
+  'XRANGE',
+  'XREVRANGE',
+  'XLEN',
+  'INFO',
+  'DBSIZE',
+]);
+
+/** A Redis or Valkey command, one of {@link redisReadCommands}, with every variable put in. */
+export interface RedisQuery {
+  /** The query language. */
+  readonly language: 'redis';
+  /** The command, upper case. */
+  readonly command: string;
+  /** Its arguments, each sent as one argument whatever it holds. */
+  readonly args: readonly string[];
+}
+
 /** A query ready to execute. Connectors receive nothing else. */
-export type BoundQuery = SqlQuery | PromqlQuery | SearchQuery | LogqlQuery | HttpQuery;
+export type BoundQuery = SqlQuery | PromqlQuery | SearchQuery | LogqlQuery | HttpQuery | RedisQuery;
 
 /** The time range a query covers. */
 export interface TimeRange {

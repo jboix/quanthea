@@ -824,6 +824,12 @@ that changes with its settings).
      `{"$var": "name"}` nodes, as a search does (`query/json-variables.ts`). Headers take no
      variable. `$__from` and `$__to` are ISO times; `$__from_ms`, `$__from_s` and their `__to`
      twins are epoch numbers.
+   - **Redis** (`query/redis-binder.ts`), for Redis and Valkey: one command from the read list
+     the kit holds (`redisReadCommands`: `GET`, `MGET`, the hash, list, set, sorted set and
+     stream reads, `INFO`, `DBSIZE`), never one that writes, scans every key (`KEYS`, `SCAN`) or
+     runs a script. `$name` goes in arguments, each sent as one argument whatever it holds; an
+     argument that is a multi-value variable alone becomes one per value. The built-ins are those
+     of HTTP, `$__from_ms` and `$__to_ms` for scores and stream ids.
 3. The connector runs the bound query with an abort signal that fires at `timeoutMs` or when the
    caller gives up. The executor also races the signal, so a connector that ignores it cannot hold
    the caller.

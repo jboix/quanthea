@@ -36,7 +36,7 @@ export const planSchema = z.object({
       z.object({
         kind: z.enum(planPanelKinds),
         title: z.string().min(1).max(200),
-        language: z.enum(['sql', 'promql', 'search', 'logql', 'http']),
+        language: z.enum(['sql', 'promql', 'search', 'logql', 'http', 'redis']),
         connector: connectorNameSchema,
       }),
     )

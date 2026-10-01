@@ -24,6 +24,7 @@ const allowedStatements: Readonly<Record<string, string>> = {
   search: 'Search only, no scripts',
   logql: 'Read endpoints only',
   http: 'The methods and paths it allows',
+  redis: 'Read commands only',
 };
 
 /**

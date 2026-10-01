@@ -20,6 +20,8 @@ export {
   type PromqlQuery,
   type QueryLanguage,
   queryLanguages,
+  type RedisQuery,
+  redisReadCommands,
   type SearchQuery,
   type SqlDialect,
   type SqlParameter,

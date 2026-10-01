@@ -71,6 +71,7 @@ function rawQuery(request: DataOf<'raw'>): PanelQuery {
       body: jsonObject(query, 'search body'),
     };
   if (language === 'http') return httpQuery(connector, query);
+  if (language === 'redis') return redisQuery(connector, query);
   return { refId: 'A', connector, language, expr: query, ...(instant ? { instant: true } : {}) };
 }
 
@@ -115,6 +116,38 @@ function httpQuery(connector: string, text: string): PanelQuery {
   throw new QueryError(
     `The HTTP request is invalid at ${issue?.path.join('.') || 'its root'}: ${issue?.message ?? ''}`,
   );
+}
+
+/**
+ * The panel query of a raw Redis query: the command and its arguments separated by spaces, or a
+ * JSON array of them when an argument holds a space.
+ *
+ * @param connector - The connector.
+ * @param text - The command line, or its JSON array.
+ * @returns The query, refId A.
+ * @throws {QueryError} When the text names no command.
+ */
+function redisQuery(connector: string, text: string): PanelQuery {
+  const [command, ...args] = redisWords(text);
+  if (!command) throw new QueryError('A Redis query names a command, such as ZREVRANGE.');
+  return { refId: 'A', connector, language: 'redis', command, args };
+}
+
+/**
+ * The words of a raw Redis query.
+ *
+ * @param text - The command line, or the JSON array of its words.
+ * @returns The words.
+ * @throws {QueryError} When the text is a JSON array that does not parse.
+ */
+function redisWords(text: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('[')) return trimmed.split(/\s+/).filter(Boolean);
+  try {
+    return (JSON.parse(trimmed) as unknown[]).map(String);
+  } catch {
+    throw new QueryError('The Redis command is not a valid JSON array.');
+  }
 }
 
 /**

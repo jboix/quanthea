@@ -91,6 +91,17 @@ const httpQuerySchema = z.strictObject({
   extract: httpExtractSchema.default({ rows: '' }),
 });
 
+/**
+ * Validates a Redis or Valkey template: one read command and its arguments, where `$name` is a
+ * variable. The server checks the command against the commands a query may run.
+ */
+const redisQuerySchema = z.strictObject({
+  connector: connectorNameSchema,
+  language: z.literal('redis'),
+  command: z.string().regex(/^[A-Za-z]{2,20}$/, 'Name one command, such as ZREVRANGE.'),
+  args: z.array(z.string().max(1000)).max(50).default([]),
+});
+
 /** Validates a query template without a refId, as a query-backed variable uses it. */
 export const queryTemplateSchema = z.discriminatedUnion('language', [
   promqlQuerySchema,
@@ -98,6 +109,7 @@ export const queryTemplateSchema = z.discriminatedUnion('language', [
   searchQuerySchema,
   logqlQuerySchema,
   httpQuerySchema,
+  redisQuerySchema,
 ]);
 
 /** A query template without a refId. */
@@ -110,6 +122,7 @@ export const panelQuerySchema = z.discriminatedUnion('language', [
   searchQuerySchema.extend({ refId: refIdSchema }),
   logqlQuerySchema.extend({ refId: refIdSchema }),
   httpQuerySchema.extend({ refId: refIdSchema }),
+  redisQuerySchema.extend({ refId: refIdSchema }),
 ]);
 
 /** A panel or annotation query. */
@@ -122,6 +135,7 @@ export const queryLanguageNames: Readonly<Record<QueryTemplate['language'], stri
   search: 'Search DSL',
   logql: 'LogQL',
   http: 'HTTP',
+  redis: 'Redis commands',
 };
 
 /**
@@ -135,6 +149,7 @@ export function queryText(query: QueryTemplate): string {
   if (query.language === 'sql') return query.sql;
   if (query.language === 'search') return `${query.index}\n${JSON.stringify(query.body, null, 2)}`;
   if (query.language === 'http') return httpText(query);
+  if (query.language === 'redis') return [query.command, ...query.args].join(' ');
   return query.expr;
 }
 
@@ -154,10 +169,11 @@ function httpText(query: Extract<QueryTemplate, { language: 'http' }>): string {
  * The key of the field that holds a query's text, for pointing at it in an error.
  *
  * @param query - The query.
- * @returns `sql`, `expr`, `body` or `path`.
+ * @returns `sql`, `expr`, `body`, `path` or `command`.
  */
-export function queryTextKey(query: QueryTemplate): 'sql' | 'expr' | 'body' | 'path' {
+export function queryTextKey(query: QueryTemplate): 'sql' | 'expr' | 'body' | 'path' | 'command' {
   if (query.language === 'sql') return 'sql';
   if (query.language === 'http') return 'path';
+  if (query.language === 'redis') return 'command';
   return query.language === 'search' ? 'body' : 'expr';
 }
