@@ -72,16 +72,16 @@ export async function testKeyedHashes(): Promise<{
   passwordCosts: HashCosts;
 }> {
   const key = () => crypto.getRandomValues(new Uint8Array(32));
-  const pepper = await keyedHash(key(), 'querent/password-pepper/v1');
+  const pepper = await keyedHash(key(), 'quanthea/password-pepper/v1');
   return {
     peppers: { current: { id: 'pepper-1', hash: pepper }, previous: undefined },
     // Cheap argon2id costs keep tests fast; the server uses 64 MiB and 3 passes.
     passwordCosts: { memoryCost: 1024, timeCost: 1 },
-    emailIndex: await keyedHash(key(), 'querent/email-index/v1'),
+    emailIndex: await keyedHash(key(), 'quanthea/email-index/v1'),
     sessionHashes: {
-      signature: await keyedHash(key(), 'querent/session-signature/v1'),
-      idHash: await keyedHash(key(), 'querent/session-id/v1'),
-      tokenHash: await keyedHash(key(), 'querent/one-time-token/v1'),
+      signature: await keyedHash(key(), 'quanthea/session-signature/v1'),
+      idHash: await keyedHash(key(), 'quanthea/session-id/v1'),
+      tokenHash: await keyedHash(key(), 'quanthea/one-time-token/v1'),
     },
   };
 }

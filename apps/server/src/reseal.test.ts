@@ -66,8 +66,8 @@ describe('sealing secrets again', () => {
     const providerId = defaultModelGateway.defaultProviderId;
     await models.save(defaultModelGateway, { [providerId]: 'sk-a-model-key-9f2a' }, 'admin-1');
 
-    const oldIndex = await keyedHash(oldKey, 'querent/email-index/v1');
-    const newIndex = await keyedHash(newKey, 'querent/email-index/v1');
+    const oldIndex = await keyedHash(oldKey, 'quanthea/email-index/v1');
+    const newIndex = await keyedHash(newKey, 'quanthea/email-index/v1');
     const userRepository = createUserRepository(database);
     const users = createUsers({
       repository: userRepository,

@@ -160,9 +160,9 @@ function refuseSharedKeys(keys: readonly [string, Key | undefined][]): void {
  */
 async function sessionHashesOf(session: Key): Promise<SessionHashes> {
   return {
-    signature: await keyedHash(session, 'querent/session-signature/v1'),
-    idHash: await keyedHash(session, 'querent/session-id/v1'),
-    tokenHash: await keyedHash(session, 'querent/one-time-token/v1'),
+    signature: await keyedHash(session, 'quanthea/session-signature/v1'),
+    idHash: await keyedHash(session, 'quanthea/session-id/v1'),
+    tokenHash: await keyedHash(session, 'quanthea/one-time-token/v1'),
   };
 }
 
@@ -173,8 +173,8 @@ async function sessionHashesOf(session: Key): Promise<SessionHashes> {
  * @returns The pepper.
  */
 async function pepperOf(key: Key): Promise<Pepper> {
-  const hash = await keyedHash(key, 'querent/password-pepper/v1');
-  const id = Buffer.from(await hash.hash('querent/pepper-id'))
+  const hash = await keyedHash(key, 'quanthea/password-pepper/v1');
+  const id = Buffer.from(await hash.hash('quanthea/pepper-id'))
     .toString('hex')
     .slice(0, 8);
   return { id, hash };
@@ -253,8 +253,8 @@ export async function loadKeys(sources: KeySources): Promise<KeyRing> {
   return {
     origins: originsOf(sources),
     secretBox: await openSecretBox(read.secret, read.secretPrevious),
-    emailIndex: await keyedHash(read.secret, 'querent/email-index/v1'),
-    fingerprints: await keyedHash(read.secret, 'querent/provisioning/v1'),
+    emailIndex: await keyedHash(read.secret, 'quanthea/email-index/v1'),
+    fingerprints: await keyedHash(read.secret, 'quanthea/provisioning/v1'),
     sessionHashes: await sessionHashesOf(read.session),
     peppers: await peppersOf(read.pepper, read.pepperPrevious),
   };

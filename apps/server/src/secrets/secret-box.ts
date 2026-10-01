@@ -16,7 +16,7 @@ const keyIdLength = 4;
 const ivLength = 12;
 
 /** What the secrets key is derived for, so it never equals a key derived for anything else. */
-const secretsInfo = 'querent/secrets/v1';
+const secretsInfo = 'quanthea/secrets/v1';
 
 /** A root key's derived keys. */
 interface DerivedKeys {
@@ -89,7 +89,7 @@ async function keyIdOf(root: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
     false,
     ['sign'],
   );
-  const mac = await crypto.subtle.sign('HMAC', hmac, new TextEncoder().encode('querent/key-id'));
+  const mac = await crypto.subtle.sign('HMAC', hmac, new TextEncoder().encode('quanthea/key-id'));
   return new Uint8Array(mac).slice(0, keyIdLength);
 }
 

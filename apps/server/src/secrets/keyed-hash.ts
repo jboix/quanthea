@@ -43,7 +43,7 @@ export function constantTimeEqual(first: Uint8Array, second: Uint8Array): boolea
  * Derives the keyed hash of one purpose from a root key.
  *
  * @param root - The root key, 32 bytes.
- * @param purpose - A label naming the purpose and its version, such as `querent/session-id/v1`.
+ * @param purpose - A label naming the purpose and its version, such as `quanthea/session-id/v1`.
  * @returns The keyed hash.
  */
 export async function keyedHash(

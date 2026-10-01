@@ -83,7 +83,7 @@ describe('provider sign-in routes', () => {
     const start = await get(providerStartPath('gitlab', 'sign-in', '/library'));
     expect(start.status).toBe(302);
     expect(start.location).toStartWith(`${fake.issuer}/authorize?`);
-    const flowCookie = start.cookies.find((each) => each.startsWith('__Host-querent_flow='));
+    const flowCookie = start.cookies.find((each) => each.startsWith('__Host-quanthea_flow='));
     expect(flowCookie).toMatch(/Max-Age=600/);
     expect(flowCookie).toMatch(/Secure/);
     expect(flowCookie).toMatch(/HttpOnly/);
@@ -91,16 +91,16 @@ describe('provider sign-in routes', () => {
     const query = fake.approve(start.location, ada);
     const callback = await get(
       `/api/auth/providers/gitlab/callback${query}`,
-      cookieOf(start.cookies, '__Host-querent_flow'),
+      cookieOf(start.cookies, '__Host-quanthea_flow'),
     );
     expect(callback.status).toBe(302);
     expect(callback.location).toBe('/library');
-    expect(callback.cookies.join('\n')).toMatch(/__Host-querent_flow=;.*Max-Age=0/);
+    expect(callback.cookies.join('\n')).toMatch(/__Host-quanthea_flow=;.*Max-Age=0/);
     const session = cookieOf(callback.cookies, sessionCookieName);
     expect(session).toBeDefined();
     const again = await get(
       `/api/auth/providers/gitlab/callback${query}`,
-      cookieOf(start.cookies, '__Host-querent_flow'),
+      cookieOf(start.cookies, '__Host-quanthea_flow'),
     );
     expect(again.location).toBe('/login?error=provider');
   });
@@ -128,7 +128,7 @@ describe('provider sign-in routes', () => {
     const query = fake.approve(start.location, ada);
     const callback = await get(
       `/api/auth/providers/gitlab/callback${query}`,
-      cookieOf(start.cookies, '__Host-querent_flow'),
+      cookieOf(start.cookies, '__Host-quanthea_flow'),
     );
     expect(callback.location).toBe('/');
   });

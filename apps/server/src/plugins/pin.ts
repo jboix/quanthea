@@ -13,7 +13,7 @@
  */
 export function pinOf(manifest: Uint8Array, bundle: Uint8Array): string {
   const hasher = new Bun.CryptoHasher('sha256');
-  hasher.update(`querent-plugin-pin-1\n${manifest.byteLength}\n`);
+  hasher.update(`quanthea-plugin-pin-1\n${manifest.byteLength}\n`);
   hasher.update(manifest);
   hasher.update(`\n${bundle.byteLength}\n`);
   hasher.update(bundle);

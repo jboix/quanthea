@@ -1255,7 +1255,7 @@ one, and enables them again. Without any admin, it creates the default one.
   readable email; after a key rotation the hashes are computed again with the reseal. The audit
   log names users by id only. A disabled user signs nothing in.
 - **Sessions** (`auth/sessions.ts`, table `sessions`): the id is 32 random bytes. The cookie
-  `__Host-querent_session` holds the id and an HMAC signature of it (Secure, HttpOnly,
+  `__Host-quanthea_session` holds the id and an HMAC signature of it (Secure, HttpOnly,
   SameSite=Lax, Path=/; the `__Host-` prefix makes browsers refuse it otherwise). The signature
   is checked in constant time before any lookup, and the database stores only a keyed hash of the
   id, so a copy of the database gives no usable session. A session ends after 24 hours without a
@@ -1311,7 +1311,7 @@ one, and enables them again. Without any admin, it creates the default one.
   it off again. Removing a provider unlinks everyone who signed in through it.
 - **Provider flow** (`auth/providers/provider-flow.ts`, `openid-client`): the authorization code
   flow with PKCE (S256) and a random state, plus a nonce for OpenID Connect. The verifier, state,
-  nonce, intent and destination live in the `__Host-querent_flow` cookie (sealed, 10 minutes,
+  nonce, intent and destination live in the `__Host-quanthea_flow` cookie (sealed, 10 minutes,
   SameSite=Lax), deleted at the callback, so a callback completes only in the browser that started
   it, once. Google, GitLab and Entra ID are discovered; the ID token's signature is checked
   against the provider's published keys, with its issuer, audience, expiry and nonce. GitHub has no
@@ -1441,7 +1441,7 @@ id of the key that sealed it, to set as `QUANTHEA_SECRET_KEY` or `QUANTHEA_SECRE
 
 **Sealing** (`secrets/secret-box.ts`): AES-256-GCM with a random 96-bit IV, bound to the row it
 belongs to through the additional data. The sealing key is derived from the secret key for this
-purpose only (HKDF-SHA-256, `querent/secrets/v1`). A sealed value starts with its format version
+purpose only (HKDF-SHA-256, `quanthea/secrets/v1`). A sealed value starts with its format version
 and the id of the key that sealed it (the first four bytes of an HMAC of a fixed label, which
 says nothing about the key).
 

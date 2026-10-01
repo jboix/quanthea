@@ -18,7 +18,7 @@ export interface Authenticator {
  * The session cookie's name. The `__Host-` prefix makes the browser refuse it unless it is Secure,
  * has `Path=/` and no `Domain`, so no other site or subdomain can set or read it.
  */
-export const sessionCookieName = '__Host-querent_session';
+export const sessionCookieName = '__Host-quanthea_session';
 
 /** What requests are signed in with. */
 export interface AccountsAuthentication {

@@ -19,7 +19,7 @@ import type { AppEnv } from '../app-env.ts';
 import { safeNext } from '../safe-next.ts';
 
 /** The flow cookie's name without its `__Host-` prefix, which Hono adds. */
-const flowCookie = 'querent_flow';
+const flowCookie = 'quanthea_flow';
 
 /** The flow cookie's lifetime, in seconds. */
 const flowCookieSeconds = 600;

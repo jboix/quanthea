@@ -57,7 +57,7 @@ async function signIn(): Promise<void> {
   });
   if (!response.ok) throw new Error(`Sign-in refused: ${await response.text()}`);
   session =
-    /__Host-querent_session=[^;]+/.exec(response.headers.get('set-cookie') ?? '')?.[0] ?? '';
+    /__Host-quanthea_session=[^;]+/.exec(response.headers.get('set-cookie') ?? '')?.[0] ?? '';
 }
 
 /**
