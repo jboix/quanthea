@@ -19,6 +19,10 @@
     "packages/plugin-kit": {
       "project": ["src/**/*.ts"]
     },
+    "examples/querent-plugin-sqlite": {
+      "entry": ["src/plugin.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
     "dev": {
       "entry": [
         "metrics/history.ts",

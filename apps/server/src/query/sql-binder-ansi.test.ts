@@ -70,6 +70,22 @@ describe('bindSql for standard SQL', () => {
     expect(() => bind('?', 'ATTACH DATABASE :f AS x', { f: 'x' })).toThrow('starts with SELECT');
   });
 
+  test('refuses what reaches other files from a read-only connection, anywhere in the code', () => {
+    for (const template of [
+      "ATTACH DATABASE '/data/querent.db' AS q",
+      "SELECT 1; ATTACH DATABASE '/data/querent.db' AS q",
+      "VACUUM INTO '/tmp/copy.db'",
+      'PRAGMA user_version = 5',
+      "SELECT load_extension('/tmp/evil')",
+      "WITH x AS (SELECT 1) SELECT load_extension('/tmp/evil') FROM x",
+      'SELECT * FROM t /* */ DETACH',
+    ])
+      expect(() => bind('?', template)).toThrow(/one statement|starts with SELECT|cannot attach/);
+    expect(bind('?', "SELECT 'attach', name FROM pragma_table_info('t')").text).toBe(
+      "SELECT 'attach', name FROM pragma_table_info('t')",
+    );
+  });
+
   test('takes its styles from the kind, with ? and fetch by default', () => {
     expect(sqlFlavorOf({ dialect: 'ansi' })).toEqual({
       dialect: 'ansi',

@@ -1,0 +1,27 @@
+{
+  "name": "querent-plugin-sqlite",
+  "version": "0.1.0",
+  "description": "A querent connector plugin: read-only SQLite files in one directory.",
+  "keywords": [
+    "querent-plugin",
+    "querent",
+    "sqlite"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "querent": {
+    "kitVersion": 1,
+    "main": "dist/plugin.js"
+  },
+  "scripts": {
+    "build": "bun build src/plugin.ts --outfile dist/plugin.js --target bun --format esm",
+    "prepack": "bun run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@querent/plugin-kit": "workspace:*"
+  }
+}

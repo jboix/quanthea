@@ -155,6 +155,15 @@ module.exports = {
       },
     },
     {
+      name: 'examples-use-the-public-kit',
+      severity: 'error',
+      comment:
+        'An example plugin is written as an outside author writes one: against @querent/plugin-kit ' +
+        '(types, and the testing entry in tests), never the server, shared or the live kit.',
+      from: { path: '^examples/' },
+      to: { path: ['^apps/', '^packages/shared/', '^packages/plugin-kit/src/host[.]ts$'] },
+    },
+    {
       name: 'only-the-server-kit-uses-the-host',
       severity: 'error',
       comment:

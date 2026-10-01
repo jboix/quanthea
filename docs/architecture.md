@@ -117,6 +117,8 @@ The two paths that matter:
 │           ├── frames.ts            result frame types
 │           ├── roles.ts             Role, capability matrix
 │           └── index.ts
+├── examples/
+│   └── querent-plugin-sqlite/       an example connector plugin: read-only SQLite files
 ├── dev/                             docker-compose + seed data for local sources
 ├── evals/                           prompt → expected-dashboard checks against dev sources
 ├── docs/                            architecture, dashboard spec, brand, contributing, security
@@ -949,7 +951,10 @@ that changes with its settings).
      - `ansi`, standard SQL, for connector plugins whose source no other dialect fits: the
        standard lexicon, and the kind's placeholder style from a closed list: `?` (one per use),
        `$1`, `:1` or `@p1` (numbered, reused when a variable comes again). A placeholder of that
-       style written in a template is refused. Internally the dialect travels as a flavor
+       style written in a template is refused. ATTACH, DETACH, VACUUM, PRAGMA and `load_extension` are refused
+       anywhere in the code: SQLite attaches an existing file and reads it, and VACUUM INTO
+       creates one, even from a read-only connection (the `pragma_*()` table functions, which
+       only read, stay allowed). Internally the dialect travels as a flavor
        (`SqlFlavor`): a built-in dialect's name, or `ansi` with its placeholder and row-limit
        styles (`sqlFlavorOf`).
 

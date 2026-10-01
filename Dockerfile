@@ -18,6 +18,7 @@ COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
+COPY examples/querent-plugin-sqlite/package.json examples/querent-plugin-sqlite/package.json
 COPY dev/package.json dev/package.json
 # The root prepare script installs git hooks, which an image has no use for.
 RUN bun install --frozen-lockfile --ignore-scripts
@@ -34,6 +35,7 @@ COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
+COPY examples/querent-plugin-sqlite/package.json examples/querent-plugin-sqlite/package.json
 COPY dev/package.json dev/package.json
 RUN bun install --frozen-lockfile --ignore-scripts --production --filter @querent/server
 # /plugins is not a volume: a derived image installs plugins into it at build time.

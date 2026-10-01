@@ -81,6 +81,18 @@ export function sqlFlavorOf(kind: {
   };
 }
 
+/**
+ * What standard SQL refuses beyond writes: statements and a function that reach other files from a
+ * read-only connection. SQLite attaches an existing file and reads it, and VACUUM INTO creates
+ * one, even when the connection is read-only. The pragma_*() table functions stay allowed: they
+ * only read.
+ */
+const ansiForbidden = {
+  keyword: /\b(attach|detach|vacuum|pragma|load_extension)\b/i,
+  message:
+    'A query cannot attach, detach or vacuum a database, set a pragma or load an extension. Quote an identifier with that name.',
+};
+
 /** What sets an ansi source's placeholders apart, by style. */
 const ansiPlaceholders: Readonly<
   Record<SqlPlaceholderStyle, Omit<SqlDialectRules, 'lexicon' | 'forbidden'>>
@@ -119,7 +131,11 @@ const ansiPlaceholders: Readonly<
  */
 export function rulesOf(flavor: SqlFlavor): SqlDialectRules {
   if (typeof flavor === 'string') return sqlDialectRules[flavor];
-  return { lexicon: standardLexicon, ...ansiPlaceholders[flavor.placeholders] };
+  return {
+    lexicon: standardLexicon,
+    ...ansiPlaceholders[flavor.placeholders],
+    forbidden: ansiForbidden,
+  };
 }
 
 /** The rules of each built-in dialect. */

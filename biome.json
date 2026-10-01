@@ -96,7 +96,7 @@
       "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
     },
     {
-      "includes": ["scripts/remark-check-formatted.mjs"],
+      "includes": ["scripts/remark-check-formatted.mjs", "examples/*/src/plugin.ts"],
       "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
     },
     {
