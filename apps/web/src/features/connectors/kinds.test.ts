@@ -18,6 +18,7 @@ function kindOf(kind: string, displayName: string): ConnectorKindInfo {
     language: 'sql',
     configSchema: {},
     secretSchema: {},
+    plugin: null,
   };
 }
 

@@ -36,8 +36,10 @@ COPY packages/shared/package.json packages/shared/package.json
 COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
 COPY dev/package.json dev/package.json
 RUN bun install --frozen-lockfile --ignore-scripts --production --filter @querent/server
-RUN mkdir -p /volume/data /volume/keys /volume/etc/querent \
-    && chown 1000:1000 /volume/data /volume/keys && chmod 700 /volume/data /volume/keys
+# /plugins is not a volume: a derived image installs plugins into it at build time.
+RUN mkdir -p /volume/data /volume/keys /volume/etc/querent /volume/plugins \
+    && chown 1000:1000 /volume/data /volume/keys /volume/plugins \
+    && chmod 700 /volume/data /volume/keys
 
 # ---- runner: server and shared sources, their dependencies, and the SPA ----
 FROM oven/bun:1.4.2-slim AS runner
@@ -49,7 +51,8 @@ ENV NODE_ENV=production \
     QUERENT_PORT=3000 \
     QUERENT_DATA_DIR=/data \
     QUERENT_KEYS_DIR=/keys \
-    QUERENT_CONFIG=/etc/querent
+    QUERENT_CONFIG=/etc/querent \
+    QUERENT_PLUGINS_DIR=/plugins
 COPY --from=deps /volume/ /
 COPY --from=deps /repo/node_modules node_modules
 COPY --from=deps /repo/apps/server/node_modules apps/server/node_modules

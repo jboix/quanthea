@@ -18,6 +18,7 @@ import {
   ConnectorError,
   type ConnectorInstance,
   type HealthReport,
+  type RegisteredKind,
   type SchemaSnapshot,
 } from '../connectors/_shared/index.ts';
 import type { AuditRepository } from '../db/audit-repository.ts';
@@ -48,7 +49,7 @@ export interface OpenConnector {
 /** What the connectors service needs. */
 export interface ConnectionsDependencies {
   /** The connector kinds on offer. */
-  readonly kinds: readonly AnyConnectorKind[];
+  readonly kinds: readonly RegisteredKind[];
   /** Stores connectors. */
   readonly repository: ConnectorRepository;
   /** Records who changed what. */
@@ -194,7 +195,7 @@ const snapshotSchema = z
  * @param kind - The connector kind.
  * @returns The kind information.
  */
-function kindInfo(kind: AnyConnectorKind): ConnectorKindInfo {
+function kindInfo(kind: RegisteredKind): ConnectorKindInfo {
   const formSchema = (schema: z.ZodType): Record<string, unknown> =>
     z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>;
   return {
@@ -205,6 +206,7 @@ function kindInfo(kind: AnyConnectorKind): ConnectorKindInfo {
     language: kind.language,
     configSchema: formSchema(kind.configSchema),
     secretSchema: formSchema(kind.secretSchema),
+    plugin: kind.plugin ? { name: kind.plugin.name, version: kind.plugin.version } : null,
   };
 }
 

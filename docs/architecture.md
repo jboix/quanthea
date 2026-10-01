@@ -721,6 +721,38 @@ export const exampleConnector = defineConnector({
   limit, abort, error messages, sample limit). `test/memory-connector.ts` is an in-memory kind for
   tests.
 
+### Connector plugins
+
+A plugin adds connector kinds without a change to querent: an npm package whose `package.json`
+(the manifest) names a kit version and its bundle, `"querent": { "kitVersion": 1, "main":
+"dist/plugin.js" }`, and whose bundle is one ES module that exports `kitVersion` and, as default,
+a function that receives the live kit and returns its kinds.
+
+- **Where:** a folder per plugin in the plugins directory (`QUERENT_PLUGINS_DIR` or
+  `plugins.dir`; `<data dir>/plugins` by default, `/plugins` in the image), holding
+  `package.json` and `plugin.js`. Read once at startup (`plugins/load.ts`); a change needs a
+  restart.
+- **Pins:** `plugins.pins` in the configuration file maps a package name to
+  `sha256:<hex>`, one SHA-256 over the manifest and the bundle, each after its length
+  (`plugins/pin.ts`). A plugin whose files do not match its pin is refused, and the log says to
+  paste the pin `querent plugin install` printed. A plugin without a pin loads only when
+  `plugins.allowUnpinned` (`QUERENT_PLUGINS_ALLOW_UNPINNED`) is true, with a warning; it is
+  false by default. Pins are read from the file only, so without a file only that variable
+  loads plugins.
+- **Loading:** the loader reads the two files, checks the manifest (a `querent-plugin-<name>`
+  package, a semantic version, a kit version this server supports) and the pin, then imports a
+  private copy of the bytes it checked, so a file swapped after the check never runs. The
+  module's `kitVersion` must match the manifest's. Each kind it returns must pass `kindProblems`
+  (the static checks the conformance suite also runs) and clash with no built-in kind or kind of
+  an earlier plugin, in folder name order. A plugin is loaded whole or refused whole, with one
+  log line either way; a pinned plugin that is not installed is logged too.
+- **Origin:** a plugin's kinds carry `plugin: { name, version }` from the manifest, never from the
+  plugin, and the add form and the connector show a `plugin · v1.2.0` badge.
+- **Trust:** a plugin is code the admin installs and runs with the server's rights: it can read
+  what the server can read, the keys and the database included. Install only plugins you trust,
+  like any server software. There is no sandbox: a Worker would not stop network or file
+  access.
+
 Every connector returns **Frames** (`packages/shared/src/frames.ts`), a columnar format like
 Grafana's data frames:
 

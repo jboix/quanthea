@@ -1,14 +1,15 @@
 /**
  * The system settings, read once at startup. Each comes from its environment variable, else the
- * configuration file's `server` section, else its default, and the source is kept so the
- * interface can show it. Keys come from the environment or the keys directory, never the file.
+ * configuration file (the `server` section, or the `plugins` section for the plugin settings),
+ * else its default, and the source is kept so the interface can show it. Keys come from the
+ * environment or the keys directory, never the file. Plugin pins come from the file only.
  */
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import type { SettingSource } from '@querent/shared';
 import { z } from 'zod';
 import { type LogFormat, type LogLevel, logFormats, logLevels } from '../lib/logger.ts';
 import type { KeyInput, KeyInputs } from '../secrets/keys.ts';
-import { type ConfigFile, readConfigFile } from './config-file.ts';
+import { type ConfigFile, type ConfigSection, readConfigFile } from './config-file.ts';
 
 /**
  * Whether a host is this machine, where plain HTTP is allowed.
@@ -36,6 +37,28 @@ const publicUrlSchema = z
 
 /** A directory path, resolved against the working directory. */
 const pathSchema = z.string().min(1);
+
+/** A yes or no, from the file or from a variable's text. */
+const flagSchema = z.union([
+  z.boolean(),
+  z.enum(['true', 'false']).transform((value) => value === 'true'),
+]);
+
+/** A plugin's npm package name: `querent-plugin-<name>`, scoped or not. */
+export const pluginNameSchema = z
+  .string()
+  .regex(
+    /^(@[a-z0-9][a-z0-9._-]*\/)?querent-plugin-[a-z0-9][a-z0-9._-]*$/,
+    'Name it querent-plugin-<name> or @scope/querent-plugin-<name>.',
+  );
+
+/** A plugin pin, as `querent plugin install` prints it. */
+export const pinSchema = z
+  .string()
+  .regex(/^sha256:[0-9a-f]{64}$/, 'Paste the pin querent plugin install printed: sha256:….');
+
+/** The pins of the file's `plugins` section, by package name. */
+const pinsSchema = z.record(pluginNameSchema, pinSchema);
 
 /**
  * The system settings: each one's variable, label, schema and default. The key is its name in the
@@ -90,7 +113,30 @@ export const settingSpecs = {
     schema: z.enum(logFormats),
     fallback: 'text',
   },
+  pluginsDir: {
+    variable: 'QUERENT_PLUGINS_DIR',
+    label: 'Plugins directory',
+    schema: pathSchema,
+    fallback: undefined,
+  },
+  pluginsAllowUnpinned: {
+    variable: 'QUERENT_PLUGINS_ALLOW_UNPINNED',
+    label: 'Load unpinned plugins',
+    schema: flagSchema,
+    fallback: false,
+  },
 } as const;
+
+/** Settings the file holds outside its `server` section: their section and key there. */
+const fileKeys: Readonly<
+  Partial<Record<keyof typeof settingSpecs, readonly [ConfigSection, string]>>
+> = {
+  pluginsDir: ['plugins', 'dir'],
+  pluginsAllowUnpinned: ['plugins', 'allowUnpinned'],
+};
+
+/** The keys of the file's `plugins` section. */
+const pluginKeys = new Set(['dir', 'allowUnpinned', 'pins']);
 
 /** A system setting's name. */
 export type SettingKey = keyof typeof settingSpecs;
@@ -124,6 +170,12 @@ export interface Config {
   readonly file: ConfigFile | undefined;
   /** Where each system setting comes from. */
   readonly sources: Readonly<Record<SettingKey, SettingSource>>;
+  /** Absolute path of the directory plugins load from: `<data dir>/plugins` by default. */
+  readonly pluginsDir: string;
+  /** Whether a plugin without a pin loads. */
+  readonly pluginsAllowUnpinned: boolean;
+  /** The pin of each plugin, by package name, from the file's `plugins` section. */
+  readonly pluginPins: Readonly<Record<string, string>>;
 }
 
 /** The environment variables. */
@@ -200,10 +252,15 @@ function find(key: SettingKey, environment: Environment, file: ConfigFile | unde
       source: { kind: 'environment', variable: spec.variable },
       where: spec.variable,
     };
-  const fromFile = file?.sections.server?.[key];
-  const path = file?.origins[`server.${key}`];
+  const [section, name] = fileKeys[key] ?? ['server', key];
+  const fromFile = file?.sections[section]?.[name];
+  const path = file?.origins[`${section}.${name}`];
   if (fromFile !== undefined && path !== undefined)
-    return { raw: fromFile, source: { kind: 'file', path }, where: `server.${key} in ${path}` };
+    return {
+      raw: fromFile,
+      source: { kind: 'file', path },
+      where: `${section}.${name} in ${path}`,
+    };
   return { raw: spec.fallback, source: { kind: 'default' }, where: 'default' };
 }
 
@@ -242,9 +299,38 @@ function resolveSettings(environment: Environment, file: ConfigFile | undefined)
  * @returns One issue per unknown name.
  */
 function unknownSettings(file: ConfigFile | undefined): string[] {
-  return Object.keys(file?.sections.server ?? {})
-    .filter((key) => !Object.hasOwn(settingSpecs, key))
-    .map((key) => `server.${key} in ${file?.origins[`server.${key}`]} is not a setting.`);
+  const unknown = (section: 'server' | 'plugins', known: (key: string) => boolean) =>
+    Object.keys(file?.sections[section] ?? {})
+      .filter((key) => !known(key))
+      .map((key) => `${section}.${key} in ${file?.origins[`${section}.${key}`]} is not a setting.`);
+  return [
+    ...unknown('server', (key) => Object.hasOwn(settingSpecs, key) && !fileKeys[key as SettingKey]),
+    ...unknown('plugins', (key) => pluginKeys.has(key)),
+  ];
+}
+
+/**
+ * The plugin pins of the file's `plugins` section.
+ *
+ * @param file - The configuration file, if any.
+ * @returns The pins, and the issues with them.
+ */
+function pinsOf(file: ConfigFile | undefined) {
+  const raw = file?.sections.plugins?.pins;
+  if (raw === undefined) return { pins: {}, issues: [] };
+  const parsed = pinsSchema.safeParse(raw);
+  if (parsed.success) return { pins: parsed.data, issues: [] };
+  const where = file?.origins['plugins.pins'] ?? 'the file';
+  return {
+    pins: {},
+    issues: parsed.error.issues.map((issue) => {
+      const message =
+        issue.code === 'invalid_key'
+          ? 'not a plugin name: querent-plugin-<name> or @scope/querent-plugin-<name>.'
+          : issue.message;
+      return `plugins.pins.${issue.path.join('.')} in ${where}: ${message}`;
+    }),
+  };
 }
 
 /**
@@ -260,12 +346,14 @@ export function loadConfig(environment: Environment, workingDir: string = proces
   const configPath = configVariable ? resolve(workingDir, configVariable) : undefined;
   const file = configPath ? readConfigFile(configPath, environment) : undefined;
   const { values, sources, issues } = resolveSettings(environment, file);
-  const problems = [...unknownSettings(file), ...issues];
+  const pinned = pinsOf(file);
+  const problems = [...unknownSettings(file), ...issues, ...pinned.issues];
   if (problems.length > 0) throw new Error(`Invalid configuration:\n- ${problems.join('\n- ')}`);
   const settings = values as SettingValues;
+  const dataDir = resolve(workingDir, settings.dataDir);
   return {
     port: settings.port,
-    dataDir: resolve(workingDir, settings.dataDir),
+    dataDir,
     keysDir: resolve(workingDir, settings.keysDir),
     logLevel: settings.logLevel,
     logFormat: settings.logFormat,
@@ -276,5 +364,24 @@ export function loadConfig(environment: Environment, workingDir: string = proces
     configFiles: file?.paths ?? [],
     file,
     sources,
+    ...pluginSettings(settings, dataDir, workingDir),
+    pluginPins: pinned.pins,
+  };
+}
+
+/**
+ * Where plugins load from, and whether unpinned ones do.
+ *
+ * @param settings - The parsed settings.
+ * @param dataDir - The data directory, which holds `plugins` by default.
+ * @param workingDir - Resolves a relative path.
+ * @returns The plugin settings.
+ */
+function pluginSettings(settings: SettingValues, dataDir: string, workingDir: string) {
+  return {
+    pluginsDir: settings.pluginsDir
+      ? resolve(workingDir, settings.pluginsDir)
+      : join(dataDir, 'plugins'),
+    pluginsAllowUnpinned: settings.pluginsAllowUnpinned,
   };
 }

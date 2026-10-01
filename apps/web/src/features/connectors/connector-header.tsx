@@ -5,6 +5,7 @@ import { Pill } from '../../ui/pill.tsx';
 import styles from './connector.module.css';
 import { type Health, useHealth } from './health.ts';
 import { KindIcon } from './kind-icon.tsx';
+import { pluginLabel } from './kinds.ts';
 import { useConnectorsData } from './use-connectors-data.ts';
 
 /**
@@ -41,6 +42,11 @@ export function ConnectorHeader({ connector }: { readonly connector: ConnectorDe
           <KindIcon kind={connector.kind} info={kind} size={28} />
           <h2 className={styles.name}>{connector.name}</h2>
           <HealthPill health={health} />
+          {kind?.plugin && (
+            <span title={kind.plugin.name}>
+              <Pill>{pluginLabel(kind)}</Pill>
+            </span>
+          )}
           {connector.managedBy && (
             <span title={connector.managedBy}>
               <Pill tone="accent">managed by {connector.managedBy.split('/').at(-1)}</Pill>

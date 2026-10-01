@@ -30,6 +30,8 @@ export const connectorKindSchema = z.object({
   language: queryLanguageSchema,
   configSchema: jsonSchemaSchema,
   secretSchema: jsonSchemaSchema,
+  /** The plugin that adds the kind, or `null` for a built-in kind. */
+  plugin: z.object({ name: z.string(), version: z.string() }).nullable(),
 });
 
 /** A connector kind: its identifier, name, logo, query language and the JSON Schemas of its forms. */

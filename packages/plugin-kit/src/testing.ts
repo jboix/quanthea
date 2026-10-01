@@ -4,13 +4,13 @@
  * test file. The static checks always run; the live checks need a source to talk to.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { frameProblems, queryLanguages } from '@querent/shared';
-import { z } from 'zod';
+import { frameProblems } from '@querent/shared';
+import { kindProblems } from './checks.ts';
 import type { ConnectorInstance, ConnectorKind } from './connector-kind.ts';
 import { ConnectorError } from './errors.ts';
 import { hostKit } from './host.ts';
 import type { ConnectorKit } from './kit.ts';
-import { type BoundQuery, type ExecutionContext, sqlDialects, type TimeRange } from './queries.ts';
+import type { BoundQuery, ExecutionContext, TimeRange } from './queries.ts';
 import type { FieldReference } from './schema.ts';
 
 /** What the suite needs to exercise a kind. */
@@ -43,19 +43,6 @@ export function createTestKit(): ConnectorKit {
 }
 
 /**
- * Names the top-level properties of an object schema.
- *
- * @param schema - A Zod schema.
- * @returns The property names of its JSON Schema, empty when it is not an object.
- */
-function propertyNames(schema: z.ZodType): string[] {
-  const jsonSchema = z.toJSONSchema(schema, { io: 'input' }) as {
-    properties?: Record<string, unknown>;
-  };
-  return Object.keys(jsonSchema.properties ?? {});
-}
-
-/**
  * Builds an execution context for the suite.
  *
  * @param fixture - The fixture, for the time range.
@@ -83,26 +70,8 @@ function contextFor(
  * @param fixture - The fixture.
  */
 function testDeclaration(kind: ConnectorKind, fixture: ConformanceFixture): void {
-  test('declares an identifier, a name and a known language', () => {
-    expect(kind.kind).toMatch(/^[a-z][a-z0-9-]*$/);
-    expect(kind.displayName.length).toBeGreaterThan(0);
-    expect(queryLanguages).toContain(kind.language);
-  });
-
-  test.if(kind.language === 'sql')('declares a known SQL dialect', () => {
-    expect(sqlDialects as readonly unknown[]).toContain(kind.dialect);
-  });
-
-  test('declares object schemas that convert to JSON Schema, for the forms', () => {
-    expect(propertyNames(kind.configSchema).length).toBeGreaterThan(0);
-    expect(propertyNames(kind.secretSchema).length).toBeGreaterThan(0);
-  });
-
-  test('keeps credentials out of the configuration', () => {
-    const secretNames = propertyNames(kind.secretSchema);
-    expect(propertyNames(kind.configSchema).filter((name) => secretNames.includes(name))).toEqual(
-      [],
-    );
+  test('passes the static checks the loader runs on every plugin', () => {
+    expect(kindProblems(kind)).toEqual([]);
   });
 
   test('accepts the fixture configuration and credentials', () => {

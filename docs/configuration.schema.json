@@ -515,6 +515,34 @@
       },
       "additionalProperties": false
     },
+    "plugins": {
+      "type": "object",
+      "properties": {
+        "dir": {
+          "description": "Plugins directory: <data dir>/plugins by default. QUERENT_PLUGINS_DIR overrides it.",
+          "type": "string",
+          "minLength": 1
+        },
+        "allowUnpinned": {
+          "description": "Load plugins without a pin. QUERENT_PLUGINS_ALLOW_UNPINNED overrides it.",
+          "type": "boolean"
+        },
+        "pins": {
+          "description": "The pin of each plugin, by package name, as querent plugin install prints it.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^(@[a-z0-9][a-z0-9._-]*\\/)?querent-plugin-[a-z0-9][a-z0-9._-]*$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "description": "Connector plugins, read at startup."
+    },
     "provisioning": {
       "description": "prune: true deletes what the file no longer declares.",
       "type": "object",

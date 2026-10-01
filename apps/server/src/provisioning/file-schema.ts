@@ -12,7 +12,7 @@ import {
   retentionSettingsSchema,
 } from '@querent/shared';
 import { z } from 'zod';
-import { settingSpecs } from '../config/config.ts';
+import { pinSchema, pluginNameSchema, settingSpecs } from '../config/config.ts';
 import { declaredSchema as declaredConnector } from './connectors.ts';
 import { declaredSchema as declaredProvider } from './sign-in.ts';
 import { declaredSchema as declaredUser } from './users.ts';
@@ -25,17 +25,38 @@ const secretReference = z
     'An environment variable in braces after a dollar sign, or file:/path. Never the secret.',
   );
 
-/** The `server` section: the system settings, each optional. */
+/** The `server` section: the system settings, each optional, but the plugin settings. */
 const serverSection = z
   .strictObject(
     Object.fromEntries(
-      Object.entries(settingSpecs).map(([key, spec]) => [
-        key,
-        spec.schema.optional().describe(`${spec.label}. ${spec.variable} overrides it.`),
-      ]),
+      Object.entries(settingSpecs)
+        .filter(([key]) => !key.startsWith('plugins'))
+        .map(([key, spec]) => [
+          key,
+          spec.schema.optional().describe(`${spec.label}. ${spec.variable} overrides it.`),
+        ]),
     ),
   )
   .describe('System settings, read at startup.');
+
+/** The `plugins` section: where plugins load from, whether unpinned ones do, and the pins. */
+const pluginsSection = z
+  .strictObject({
+    dir: settingSpecs.pluginsDir.schema
+      .optional()
+      .describe(
+        'Plugins directory: <data dir>/plugins by default. QUERENT_PLUGINS_DIR overrides it.',
+      ),
+    allowUnpinned: z
+      .boolean()
+      .optional()
+      .describe('Load plugins without a pin. QUERENT_PLUGINS_ALLOW_UNPINNED overrides it.'),
+    pins: z
+      .record(pluginNameSchema, pinSchema)
+      .optional()
+      .describe('The pin of each plugin, by package name, as querent plugin install prints it.'),
+  })
+  .describe('Connector plugins, read at startup.');
 
 /** The `model` section, with an API key reference per provider; limits and behaviour default. */
 const modelSection = z
@@ -83,6 +104,7 @@ const configFileSchema = z
     retention: retentionSettingsSchema.optional(),
     charts: chartSettingsSchema.optional(),
     queries: querySettingsSchema.optional(),
+    plugins: pluginsSection.optional(),
     provisioning: z
       .strictObject({ prune: z.boolean().optional() })
       .optional()

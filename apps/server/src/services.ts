@@ -10,7 +10,7 @@ import { type Agent, createAgent } from './agent/run.ts';
 import { resealIdentities, resealSignInCredentials, resealUsers } from './auth/reseal-users.ts';
 import { type Connections, createConnections } from './connections/connections.ts';
 import { resealConnectors } from './connections/reseal.ts';
-import type { AnyConnectorKind } from './connectors/_shared/index.ts';
+import type { RegisteredKind } from './connectors/_shared/index.ts';
 import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
@@ -43,7 +43,7 @@ import { createUsage, type Usage } from './usage/usage.ts';
 /** What the services need. */
 export interface ServiceDependencies extends AccountDependencies {
   /** The connector kinds on offer. */
-  readonly kinds: readonly AnyConnectorKind[];
+  readonly kinds: readonly RegisteredKind[];
 }
 
 /** The services the HTTP layer calls. */

@@ -47,3 +47,15 @@ export function matchingKinds(
     return words.every((word) => text.includes(word));
   });
 }
+
+/**
+ * How the interface names a kind's plugin, if a plugin adds it.
+ *
+ * @param kind - The kind.
+ * @returns Such as `plugin · v1.2.0`, or `undefined` for a built-in kind.
+ */
+export function pluginLabel(
+  kind: Pick<ConnectorKindInfo, 'plugin'> | undefined,
+): string | undefined {
+  return kind?.plugin ? `plugin · v${kind.plugin.version}` : undefined;
+}

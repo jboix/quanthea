@@ -21,6 +21,7 @@ export const hostKit: ConnectorKit = Object.freeze({
   seriesFrames,
 });
 
+export { kindProblems } from './checks.ts';
 export {
   type AnyConnectorKind,
   type ConnectorIcon,

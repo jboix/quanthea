@@ -116,6 +116,48 @@ describe('the configuration file', () => {
     expect(config.sources.logLevel).toEqual({ kind: 'default' });
   });
 
+  test('reads the plugins section: the directory, unpinned plugins and the pins', () => {
+    const pin = `sha256:${'a'.repeat(64)}`;
+    const path = write(
+      'querent.yaml',
+      `plugins:\n  dir: ./plugins\n  allowUnpinned: true\n  pins:\n    "@acme/querent-plugin-sqlite": ${pin}\n`,
+    );
+    const config = loadConfig({ QUERENT_CONFIG: path }, '/app');
+    expect(config).toMatchObject({
+      pluginsDir: '/app/plugins',
+      pluginsAllowUnpinned: true,
+      pluginPins: { '@acme/querent-plugin-sqlite': pin },
+    });
+    expect(config.sources.pluginsDir).toEqual({ kind: 'file', path });
+    const overridden = loadConfig(
+      {
+        QUERENT_CONFIG: path,
+        QUERENT_PLUGINS_DIR: '/plugins',
+        QUERENT_PLUGINS_ALLOW_UNPINNED: 'false',
+      },
+      '/app',
+    );
+    expect(overridden).toMatchObject({ pluginsDir: '/plugins', pluginsAllowUnpinned: false });
+  });
+
+  test('keeps plugins in the data directory, pinned, by default', () => {
+    expect(loadConfig({ QUERENT_DATA_DIR: '/srv/data' })).toMatchObject({
+      pluginsDir: '/srv/data/plugins',
+      pluginsAllowUnpinned: false,
+      pluginPins: {},
+    });
+  });
+
+  test('refuses a malformed pin, a name that is not a plugin and an unknown key', () => {
+    const path = write(
+      'querent.yaml',
+      'plugins:\n  pinned: true\n  pins:\n    querent-plugin-a: abc\n    lodash: sha256:00\n',
+    );
+    expect(() => loadConfig({ QUERENT_CONFIG: path })).toThrow(
+      /plugins.pinned .* is not a setting[\s\S]*Paste the pin querent plugin install printed[\s\S]*querent-plugin-<name>/,
+    );
+  });
+
   test('reads a directory of YAML and JSON files in name order, a key in one file only', () => {
     write('10-server.yaml', 'server:\n  port: 8080\n');
     write('20-proxy.json', '{ "server": { "trustedProxyHops": 1 } }');

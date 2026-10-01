@@ -13,6 +13,7 @@ import { runMigrations } from './db/migrate.ts';
 import { createSettingsRepository } from './db/settings-repository.ts';
 import { startPurgeJob } from './jobs/purge.ts';
 import { createLogger } from './lib/logger.ts';
+import { loadPlugins, missingPinned } from './plugins/load.ts';
 import { startProvisioning } from './provisioning/start.ts';
 import { loadKeys } from './secrets/keys.ts';
 import { createServices, resealSecrets } from './services.ts';
@@ -27,11 +28,20 @@ const appliedMigrations = runMigrations(database);
 if (appliedMigrations.length > 0) logger.info('applied migrations', { appliedMigrations });
 
 const settings = createSettingsStore(createSettingsRepository(database));
+const pluginKinds = await loadPlugins({
+  dir: config.pluginsDir,
+  pins: config.pluginPins,
+  allowUnpinned: config.pluginsAllowUnpinned,
+  offered: connectorKinds,
+  logger,
+});
+for (const name of missingPinned(config.pluginPins, pluginKinds))
+  logger.warn('pinned plugin not installed', { plugin: name });
 const { keys: keyInputs, dataDir, keysDir } = config;
 const keys = await loadKeys({ keys: keyInputs, dataDir, keysDir, logger });
 const dependencies = {
   database,
-  kinds: connectorKinds,
+  kinds: [...connectorKinds, ...pluginKinds],
   secretBox: keys.secretBox,
   settings,
   emailIndex: keys.emailIndex,

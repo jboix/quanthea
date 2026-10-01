@@ -18,6 +18,7 @@ export const configSections = [
   'queries',
   'users',
   'signIn',
+  'plugins',
 ] as const;
 
 /** A section of the file. */

@@ -3,6 +3,8 @@
  * load, and the policy lists only the built-in kinds and the binders use. Kinds import this module
  * and nothing else from `_shared`, so its internals can change without breaking them.
  */
+import type { AnyConnectorKind } from '@querent/plugin-kit/host';
+
 export {
   type AnyConnectorKind,
   type BoundQuery,
@@ -19,6 +21,8 @@ export {
   type HttpField,
   type HttpQuery,
   type HttpResponse,
+  hostKit,
+  kindProblems,
   type LogqlQuery,
   type MongodbQuery,
   type PromqlQuery,
@@ -38,6 +42,17 @@ export {
   seriesFrames,
   type TimeRange,
 } from '@querent/plugin-kit/host';
+/** Where a connector kind comes from, when a plugin added it. */
+export interface PluginOrigin {
+  /** The plugin's package name. */
+  readonly name: string;
+  /** The plugin's version. */
+  readonly version: string;
+}
+
+/** A kind the server offers: a built-in one, or one a plugin added, with its origin. */
+export type RegisteredKind = AnyConnectorKind & { readonly plugin?: PluginOrigin };
+
 export {
   mongodbRefusedKeys,
   redisReadCommands,
