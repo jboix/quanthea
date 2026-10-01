@@ -192,6 +192,8 @@ const writers: Readonly<Record<SqlDialect, SqlWriter>> = {
   mysql: mysqlWriter,
   clickhouse: clickhouseWriter,
   trino: trinoWriter,
+  // DataFusion, under InfluxDB 3, takes PostgreSQL's date_bin, ::interval and ~.
+  influxdb: postgresWriter,
 };
 
 /**

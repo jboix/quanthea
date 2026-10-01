@@ -70,6 +70,14 @@ export const sqlDialectRules: Readonly<Record<SqlDialect, SqlDialectRules>> = {
         'A query cannot change settings; "SETTINGS" is not allowed. Quote an identifier with that name.',
     },
   },
+  // InfluxDB 3 lexes SQL as PostgreSQL does, and names its parameters.
+  influxdb: {
+    lexicon: postgresLexicon,
+    placeholder: (position) => `$p${position}`,
+    numbered: true,
+    writtenPlaceholder: /(?<![A-Za-z0-9_$])\$(?:\d|[A-Za-z_])/,
+    writtenPlaceholderMessage: 'Use named variables such as :service, not $name.',
+  },
   trino: {
     lexicon: trinoLexicon,
     placeholder: () => '?',

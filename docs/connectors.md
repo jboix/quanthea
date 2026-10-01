@@ -26,9 +26,9 @@ may see.
 A kind declares `language: 'sql'` or `language: 'promql'`. The core binds variables for that
 language:
 
-- `sql`: the kind also declares its `dialect`, `postgres`, `mysql`, `clickhouse` or `trino`. It
-  receives `SqlQuery`, one read statement with the dialect's placeholders (`$1`, `?` or
-  `{p1:String}`) and their values. Send them as driver or protocol parameters, never by
+- `sql`: the kind also declares its `dialect`: `postgres`, `mysql`, `clickhouse`, `trino` or
+  `influxdb`. It receives `SqlQuery`, one read statement with the dialect's placeholders (`$1`, `?`,
+  `{p1:String}` or `$p1`) and their values. Send them as driver or protocol parameters, never by
   concatenation. A new dialect needs its literals and placeholders in
   `apps/server/src/query/sql-dialects.ts` first.
 - `promql`: the kind receives `PromqlQuery`, an expression with every variable escaped, plus
