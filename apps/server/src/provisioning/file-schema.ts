@@ -54,7 +54,7 @@ const pluginsSection = z
     pins: z
       .record(pluginNameSchema, pinSchema)
       .optional()
-      .describe('The pin of each plugin, by package name, as querent plugin install prints it.'),
+      .describe('The pin of each plugin, by package name, as quanthea plugin install prints it.'),
   })
   .describe('Connector plugins, read at startup.');
 

@@ -1,5 +1,5 @@
 /**
- * Where a plugin comes from, as `querent plugin install` is given it: an npm package name with an
+ * Where a plugin comes from, as `quanthea plugin install` is given it: an npm package name with an
  * optional version or range, an `https://` tarball URL such as a GitHub release asset, a local
  * `.tgz`, or a local `.js` bundle inside its package folder. Each gives the plugin's two files, the
  * manifest and the bundle, read from the tarball and nothing else.
@@ -100,7 +100,7 @@ export function filesOfTarball(tgz: Uint8Array, origin: string): PluginFiles {
     if (manifest.length > maxManifest) throw new SourceError('package.json is too large');
     const read = readManifest(new TextDecoder().decode(manifest));
     if ('problem' in read) throw new SourceError(read.problem);
-    const path = `package/${read.manifest.querent.main}`;
+    const path = `package/${read.manifest.quanthea.main}`;
     const bundle = readTar(tar, new Set([path])).get(path);
     if (!bundle) throw new SourceError(`the archive has no ${path}, which package.json names`);
     return { manifest, bundle, origin };
@@ -123,16 +123,16 @@ async function localBundle(path: string): Promise<PluginFiles> {
     if (!(await file.exists())) continue;
     const manifest = new Uint8Array(await file.arrayBuffer());
     const read = readManifest(new TextDecoder().decode(manifest));
-    if ('problem' in read || resolve(folder, read.manifest.querent.main) !== path) continue;
+    if ('problem' in read || resolve(folder, read.manifest.quanthea.main) !== path) continue;
     return { manifest, bundle: new Uint8Array(await Bun.file(path).arrayBuffer()), origin: path };
   }
-  throw new SourceError(`no package.json above ${path} names it as querent.main`);
+  throw new SourceError(`no package.json above ${path} names it as quanthea.main`);
 }
 
 /**
  * A package spec split into a name and a version or range.
  *
- * @param spec - Such as `querent-plugin-sqlite@^1.2.0` or `@acme/querent-plugin-x`.
+ * @param spec - Such as `quanthea-plugin-sqlite@^1.2.0` or `@acme/quanthea-plugin-x`.
  * @returns The name and the range, if any.
  * @throws {SourceError} When the name is not a plugin's.
  */
@@ -142,7 +142,7 @@ export function parsePackageSpec(spec: string): { name: string; range: string | 
   const range = at > 0 ? spec.slice(at + 1) : undefined;
   if (!pluginNameSchema.safeParse(name).success)
     throw new SourceError(
-      `"${name}" is not a plugin package: querent-plugin-<name> or @scope/querent-plugin-<name>`,
+      `"${name}" is not a plugin package: quanthea-plugin-<name> or @scope/quanthea-plugin-<name>`,
     );
   return { name, range: range === '' ? undefined : range };
 }

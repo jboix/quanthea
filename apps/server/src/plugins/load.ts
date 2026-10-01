@@ -68,11 +68,11 @@ async function verify(folder: string, options: LoadOptions): Promise<Verified> {
   const pin = options.pins[manifest.name];
   if (pin !== undefined && pin !== pinOf(manifestBytes, bundle))
     throw new Refusal(
-      'pin mismatch: paste the snippet `querent plugin install` printed for this version into plugins.pins',
+      'pin mismatch: paste the snippet `quanthea plugin install` printed for this version into plugins.pins',
     );
   if (pin === undefined && !options.allowUnpinned)
     throw new Refusal(
-      'not pinned: paste the snippet `querent plugin install` printed into plugins.pins, or set plugins.allowUnpinned',
+      'not pinned: paste the snippet `quanthea plugin install` printed into plugins.pins, or set plugins.allowUnpinned',
     );
   return { manifest, bundle };
 }
@@ -86,7 +86,7 @@ async function verify(folder: string, options: LoadOptions): Promise<Verified> {
  *   plugin function, or the function throws.
  */
 async function run(verified: Verified): Promise<unknown> {
-  const copy = mkdtempSync(join(tmpdir(), 'querent-plugin-'));
+  const copy = mkdtempSync(join(tmpdir(), 'quanthea-plugin-'));
   try {
     const path = join(copy, 'plugin.js');
     await Bun.write(path, verified.bundle);
@@ -94,7 +94,7 @@ async function run(verified: Verified): Promise<unknown> {
       kitVersion?: unknown;
       default?: unknown;
     };
-    if (module.kitVersion !== verified.manifest.querent.kitVersion)
+    if (module.kitVersion !== verified.manifest.quanthea.kitVersion)
       throw new Refusal('the module and package.json name different kit versions');
     if (typeof module.default !== 'function')
       throw new Refusal('the module exports no plugin function as default');

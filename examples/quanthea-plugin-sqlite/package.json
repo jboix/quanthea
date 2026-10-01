@@ -1,10 +1,10 @@
 {
-  "name": "querent-plugin-sqlite",
+  "name": "quanthea-plugin-sqlite",
   "version": "0.1.0",
-  "description": "A querent connector plugin: read-only SQLite files in one directory.",
+  "description": "A quanthea connector plugin: read-only SQLite files in one directory.",
   "keywords": [
-    "querent-plugin",
-    "querent",
+    "quanthea-plugin",
+    "quanthea",
     "sqlite"
   ],
   "license": "MIT",
@@ -12,7 +12,7 @@
   "files": [
     "dist"
   ],
-  "querent": {
+  "quanthea": {
     "kitVersion": 1,
     "main": "dist/plugin.js"
   },

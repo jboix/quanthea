@@ -1,5 +1,5 @@
 /**
- * Commands for whoever runs the server, such as `querent reset-admin` inside the container. They
+ * Commands for whoever runs the server, such as `quanthea reset-admin` inside the container. They
  * read the same configuration and keys as the server, so they run where it runs.
  *
  * `reset-admin [email]` prints a one-time link that sets an admin's password: the admin with that
@@ -23,7 +23,7 @@ import { createServices, type Services } from './services.ts';
 import { createSettingsStore } from './settings/settings-store.ts';
 
 /** How to use the commands. */
-const usage = `Usage: querent reset-admin [email]\n${pluginUsage
+const usage = `Usage: quanthea reset-admin [email]\n${pluginUsage
   .split('\n')
   .map((line) => `       ${line}`)
   .join('\n')}\n`;
@@ -89,10 +89,10 @@ async function resetAdmin(email: string | undefined): Promise<number> {
       await ensureAdmin(services.adminSetup, logger);
       return 0;
     }
-    changeUser(services.userAdmin, id, { disabled: false }, 'querent-cli');
-    const { token } = await services.passwords.issueLink(id, 'reset', 'querent-cli');
+    changeUser(services.userAdmin, id, { disabled: false }, 'quanthea-cli');
+    const { token } = await services.passwords.issueLink(id, 'reset', 'quanthea-cli');
     say('Open this link to set the admin password. It works once, for 24 hours:');
-    say(`${publicUrl ?? '<querent’s address>'}/set-password#${token}`);
+    say(`${publicUrl ?? '<quanthea’s address>'}/set-password#${token}`);
     return 0;
   } finally {
     close();

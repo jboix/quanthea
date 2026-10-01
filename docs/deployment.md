@@ -1,13 +1,13 @@
 # Deploying querent
 
-querent ships as one Docker image, `ghcr.io/jboix/querent`, for linux/amd64 and linux/arm64. It
+querent ships as one Docker image, `ghcr.io/jboix/quanthea`, for linux/amd64 and linux/arm64. It
 keeps its state in two volumes and reads an optional configuration file.
 
 ## Quick start
 
 ```sh
 docker run -d --name querent -p 3000:3000 -v quanthea-data:/data -v quanthea-keys:/keys \
-  ghcr.io/jboix/querent
+  ghcr.io/jboix/quanthea
 ```
 
 The first start creates the user `admin` and writes its password to the log, once:
@@ -111,12 +111,12 @@ works only from that address, and sign-in providers send people back to it; prov
 
 ## Locked out
 
-Inside the container, `querent reset-admin` prints a one-time link that sets the first admin's
-password; `querent reset-admin ada@example.com` names the admin. A disabled admin is enabled
+Inside the container, `quanthea reset-admin` prints a one-time link that sets the first admin's
+password; `quanthea reset-admin ada@example.com` names the admin. A disabled admin is enabled
 again.
 
 ```sh
-docker exec querent querent reset-admin
+docker exec querent quanthea reset-admin
 ```
 
 ## Behind a reverse proxy
@@ -147,11 +147,11 @@ software.
 The plugins are fixed when the image is built:
 
 ```dockerfile
-FROM ghcr.io/jboix/querent
-RUN querent plugin install querent-plugin-sqlite@1.0.0
+FROM ghcr.io/jboix/quanthea
+RUN quanthea plugin install quanthea-plugin-sqlite@1.0.0
 ```
 
-`querent plugin install` takes an npm name with an optional version or range, an `https://`
+`quanthea plugin install` takes an npm name with an optional version or range, an `https://`
 tarball URL such as a GitHub release asset, or a local `.tgz` or `.js` file. It checks npm's
 integrity hash, extracts only the manifest and the bundle, runs the static checks, and prints the
 exact version installed and the pin to paste into the configuration file:
@@ -159,12 +159,12 @@ exact version installed and the pin to paste into the configuration file:
 ```yaml
 plugins:
   pins:
-    "querent-plugin-sqlite": "sha256:f7eb…"
+    "quanthea-plugin-sqlite": "sha256:f7eb…"
 ```
 
 ### Installed at runtime
 
-`docker exec querent querent plugin install querent-plugin-sqlite@1.0.0` installs into the
+`docker exec querent quanthea plugin install quanthea-plugin-sqlite@1.0.0` installs into the
 running container, and a restart loads it. This survives recreating the container only when
 `/plugins` is mounted as its own volume; otherwise the plugin goes with the container.
 
@@ -176,5 +176,5 @@ pin on purpose. A plugin without a pin loads only when `plugins.allowUnpinned` i
 (`QUANTHEA_PLUGINS_ALLOW_UNPINNED=true` without a configuration file); it is false by default.
 The command never writes the configuration, which is often mounted read-only.
 
-`querent plugin list` shows each plugin and whether its pin matches; `querent plugin remove <name>` deletes one. Changes apply when querent restarts. A connector of a kind whose plugin is
+`quanthea plugin list` shows each plugin and whether its pin matches; `quanthea plugin remove <name>` deletes one. Changes apply when querent restarts. A connector of a kind whose plugin is
 gone stays, marked "plugin not installed", until you reinstall the plugin or delete it.

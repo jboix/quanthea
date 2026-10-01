@@ -19,7 +19,7 @@ export type ConnectorErrorCode = (typeof connectorErrorCodes)[number];
  * The brand every copy of the class carries. A plugin that bundles its own copy of the kit by
  * mistake still throws errors the core recognises, since the symbol is global.
  */
-const brand = Symbol.for('querent.connector-error');
+const brand = Symbol.for('quanthea.connector-error');
 
 /** The codes, to check a branded error's code. */
 const knownCodes: ReadonlySet<unknown> = new Set(connectorErrorCodes);

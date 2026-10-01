@@ -187,7 +187,7 @@ kinds in that order.
 ## Publishing a plugin
 
 A kind can also ship outside querent, as a plugin: an npm package the admin installs with
-`querent plugin install`. [`examples/querent-plugin-sqlite`](../examples/querent-plugin-sqlite)
+`quanthea plugin install`. [`examples/quanthea-plugin-sqlite`](../examples/quanthea-plugin-sqlite)
 is a complete one to start from.
 
 - **The bundle.** One ES module, built with `bun build src/plugin.ts --outfile dist/plugin.js --target bun`, holding everything the plugin needs: querent never installs a plugin's
@@ -206,8 +206,8 @@ is a complete one to start from.
 
   Build the schemas with `kit.z` and throw `kit.ConnectorError`: they are querent's own. Import
   only types from `@quanthea/plugin-kit`, as a development dependency.
-- **The manifest.** `package.json` names the package `querent-plugin-<name>` or
-  `@scope/querent-plugin-<name>`, carries the `querent-plugin` keyword, and the `querent` field:
+- **The manifest.** `package.json` names the package `quanthea-plugin-<name>` or
+  `@scope/quanthea-plugin-<name>`, carries the `quanthea-plugin` keyword, and the `querent` field:
   `{ "kitVersion": 1, "main": "dist/plugin.js" }`. Set `"files": ["dist"]`, so the tarball holds
   the manifest and the bundle.
 - **The tests.** Call the plugin with `createTestKit()` from `@quanthea/plugin-kit/testing`, the
@@ -217,4 +217,4 @@ is a complete one to start from.
   picks a built-in dialect or `ansi`, with its placeholder and row-limit styles.
 - **Publishing.** From GitHub Actions, build and run `npm publish --provenance`, which attaches a
   signed build attestation; querent does not check it yet. A tarball attached to a GitHub release
-  works too: `querent plugin install https://…/querent-plugin-x-1.0.0.tgz`.
+  works too: `quanthea plugin install https://…/quanthea-plugin-x-1.0.0.tgz`.

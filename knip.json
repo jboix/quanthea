@@ -19,7 +19,7 @@
     "packages/plugin-kit": {
       "project": ["src/**/*.ts"]
     },
-    "examples/querent-plugin-sqlite": {
+    "examples/quanthea-plugin-sqlite": {
       "entry": ["src/plugin.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },

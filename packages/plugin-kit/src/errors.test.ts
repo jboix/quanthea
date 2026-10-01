@@ -36,7 +36,7 @@ describe('ConnectorError', () => {
   });
 
   test('refuses what only looks like one', () => {
-    const brand = Symbol.for('querent.connector-error');
+    const brand = Symbol.for('quanthea.connector-error');
     expect(new Error('x') instanceof ConnectorError).toBe(false);
     expect({ code: 'timeout', safeMessage: 'x' } instanceof ConnectorError).toBe(false);
     expect({ [brand]: true, code: 'nope', safeMessage: 'x' } instanceof ConnectorError).toBe(false);

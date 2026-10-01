@@ -1,15 +1,15 @@
-# querent with its data, its keys and its configuration file. See docs/deployment.md.
+# quanthea with its data, its keys and its configuration file. See docs/deployment.md.
 #
 #   cp .env.example .env        # then fill in the secrets quanthea.yaml refers to
 #   docker compose up -d
 #
-# querent generates its keys in the `keys` volume on first start. Back up `data` and `keys`
+# quanthea generates its keys in the `keys` volume on first start. Back up `data` and `keys`
 # apart: whoever holds both reads everything.
-name: querent
+name: quanthea
 
 services:
-  querent:
-    image: ghcr.io/jboix/querent:latest
+  quanthea:
+    image: ghcr.io/jboix/quanthea:latest
     restart: unless-stopped
     ports:
       - '3000:3000'
@@ -19,7 +19,7 @@ services:
     volumes:
       - data:/data
       - keys:/keys
-      # Read at startup: restart querent after an edit.
+      # Read at startup: restart quanthea after an edit.
       - ./quanthea.yaml:/etc/quanthea/quanthea.yaml:ro
 
 volumes:

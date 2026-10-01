@@ -1,3 +1,0 @@
-#!/bin/sh
-# Runs querent's commands inside the image, such as `querent reset-admin`.
-exec bun /app/apps/server/src/cli.ts "$@"

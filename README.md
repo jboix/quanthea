@@ -23,15 +23,15 @@ querent is at an early stage: the repository, the tooling and an app shell. The 
 With Docker, from the image each release publishes (`linux/amd64` and `linux/arm64`):
 
 ```sh
-docker run -p 3000:3000 -v quanthea-data:/data ghcr.io/jboix/querent:latest
+docker run -p 3000:3000 -v quanthea-data:/data ghcr.io/jboix/quanthea:latest
 ```
 
-Pin a release tag such as `ghcr.io/jboix/querent:v1.0.0` to control upgrades. To build the image
+Pin a release tag such as `ghcr.io/jboix/quanthea:v1.0.0` to control upgrades. To build the image
 yourself, run `docker build -t querent .` at the repository root.
 
 Open <http://localhost:3000> and sign in as `admin` with the password the first start writes to
 the log (`docker logs querent`). querent then asks for your own email and password. Locked out?
-`docker exec querent querent reset-admin` prints a one-time link.
+`docker exec querent quanthea reset-admin` prints a one-time link.
 
 Without Docker, you need [Bun](https://bun.sh) at the version in `.tool-versions`:
 

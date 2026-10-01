@@ -38,7 +38,7 @@ Markdown.
 | `apps/web`            | `@quanthea/web`: React SPA, React Router in data mode, Vite               |
 | `packages/shared`     | `@quanthea/shared`: API contracts and roles, imported by both apps        |
 | `packages/plugin-kit` | `@quanthea/plugin-kit`: the connector kit, for built-in kinds and plugins |
-| `examples/`           | example connector plugins, such as `querent-plugin-sqlite`                |
+| `examples/`           | example connector plugins, such as `quanthea-plugin-sqlite`               |
 | `dev`                 | `@quanthea/dev`: the local data sources and the synthetic metrics         |
 | `docs`                | Architecture, dashboard spec, brand, contributing, security               |
 

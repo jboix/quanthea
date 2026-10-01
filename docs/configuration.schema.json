@@ -528,11 +528,11 @@
           "type": "boolean"
         },
         "pins": {
-          "description": "The pin of each plugin, by package name, as querent plugin install prints it.",
+          "description": "The pin of each plugin, by package name, as quanthea plugin install prints it.",
           "type": "object",
           "propertyNames": {
             "type": "string",
-            "pattern": "^(@[a-z0-9][a-z0-9._-]*\\/)?querent-plugin-[a-z0-9][a-z0-9._-]*$"
+            "pattern": "^(@[a-z0-9][a-z0-9._-]*\\/)?quanthea-plugin-[a-z0-9][a-z0-9._-]*$"
           },
           "additionalProperties": {
             "type": "string",

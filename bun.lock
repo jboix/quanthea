@@ -67,8 +67,8 @@
       "name": "@quanthea/dev",
       "version": "0.0.0",
     },
-    "examples/querent-plugin-sqlite": {
-      "name": "querent-plugin-sqlite",
+    "examples/quanthea-plugin-sqlite": {
+      "name": "quanthea-plugin-sqlite",
       "version": "0.1.0",
       "devDependencies": {
         "@quanthea/plugin-kit": "workspace:*",
@@ -1057,7 +1057,7 @@
 
     "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
 
-    "querent-plugin-sqlite": ["querent-plugin-sqlite@workspace:examples/querent-plugin-sqlite"],
+    "quanthea-plugin-sqlite": ["quanthea-plugin-sqlite@workspace:examples/quanthea-plugin-sqlite"],
 
     "rc": ["rc@1.2.8", "", { "dependencies": { "deep-extend": "^0.6.0", "ini": "~1.3.0", "minimist": "^1.2.0", "strip-json-comments": "~2.0.1" }, "bin": { "rc": "./cli.js" } }, "sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw=="],
 

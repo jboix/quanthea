@@ -1,5 +1,5 @@
 /**
- * Installs, lists and removes plugins in the plugins directory, for `querent plugin`. It needs no
+ * Installs, lists and removes plugins in the plugins directory, for `quanthea plugin`. It needs no
  * database and no keys, so it runs in a Docker build. An install writes the two files into a
  * temporary folder inside the plugins directory, loads them there with the static checks, and
  * renames the folder into place only when they pass: a failed install leaves nothing behind.
@@ -47,15 +47,15 @@ export class InstallError extends Error {}
  * @param manifest - The manifest's text.
  * @param requested - The package name the spec named, if any.
  * @returns The name and the version.
- * @throws {InstallError} For a manifest that cannot be read, no `querent-plugin` keyword, or
+ * @throws {InstallError} For a manifest that cannot be read, no `quanthea-plugin` keyword, or
  *   another name than the one asked for.
  */
 function checkManifest(manifest: string, requested: string | undefined) {
   const read = readManifest(manifest);
   if ('problem' in read) throw new InstallError(read.problem);
   const { name, version, keywords } = read.manifest;
-  if (!keywords?.includes('querent-plugin'))
-    throw new InstallError('package.json lacks the querent-plugin keyword');
+  if (!keywords?.includes('quanthea-plugin'))
+    throw new InstallError('package.json lacks the quanthea-plugin keyword');
   if (requested !== undefined && requested !== name)
     throw new InstallError(`the package is named ${name}, not ${requested}`);
   return { name, version };
@@ -145,7 +145,7 @@ export async function installPlugin(spec: string, options: InstallOptions): Prom
   }
 }
 
-/** An installed plugin, as `querent plugin list` shows it. */
+/** An installed plugin, as `quanthea plugin list` shows it. */
 export interface Listed {
   /** Its folder name. */
   readonly folder: string;

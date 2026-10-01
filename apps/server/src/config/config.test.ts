@@ -120,13 +120,13 @@ describe('the configuration file', () => {
     const pin = `sha256:${'a'.repeat(64)}`;
     const path = write(
       'quanthea.yaml',
-      `plugins:\n  dir: ./plugins\n  allowUnpinned: true\n  pins:\n    "@acme/querent-plugin-sqlite": ${pin}\n`,
+      `plugins:\n  dir: ./plugins\n  allowUnpinned: true\n  pins:\n    "@acme/quanthea-plugin-sqlite": ${pin}\n`,
     );
     const config = loadConfig({ QUANTHEA_CONFIG: path }, '/app');
     expect(config).toMatchObject({
       pluginsDir: '/app/plugins',
       pluginsAllowUnpinned: true,
-      pluginPins: { '@acme/querent-plugin-sqlite': pin },
+      pluginPins: { '@acme/quanthea-plugin-sqlite': pin },
     });
     expect(config.sources.pluginsDir).toEqual({ kind: 'file', path });
     const overridden = loadConfig(
@@ -151,10 +151,10 @@ describe('the configuration file', () => {
   test('refuses a malformed pin, a name that is not a plugin and an unknown key', () => {
     const path = write(
       'quanthea.yaml',
-      'plugins:\n  pinned: true\n  pins:\n    querent-plugin-a: abc\n    lodash: sha256:00\n',
+      'plugins:\n  pinned: true\n  pins:\n    quanthea-plugin-a: abc\n    lodash: sha256:00\n',
     );
     expect(() => loadConfig({ QUANTHEA_CONFIG: path })).toThrow(
-      /plugins.pinned .* is not a setting[\s\S]*Paste the pin querent plugin install printed[\s\S]*querent-plugin-<name>/,
+      /plugins.pinned .* is not a setting[\s\S]*Paste the pin quanthea plugin install printed[\s\S]*quanthea-plugin-<name>/,
     );
   });
 

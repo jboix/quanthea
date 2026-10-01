@@ -1,5 +1,5 @@
 /**
- * A querent connector plugin: SQLite files in one directory, read-only. It shows what a plugin is:
+ * A quanthea connector plugin: SQLite files in one directory, read-only. It shows what a plugin is:
  * one bundled module that exports the kit version it was built for and, as default, a function
  * that receives the live kit and returns its connector kinds. It runs SQL in the `ansi` dialect
  * with `?` placeholders and `LIMIT`; the core binds every value and checks every statement.
@@ -201,7 +201,7 @@ async function test(
 /**
  * The plugin: one connector kind, a SQLite file.
  *
- * @param kit - The live kit querent passes at load.
+ * @param kit - The live kit quanthea passes at load.
  * @returns The kinds.
  */
 export default function plugin(kit: ConnectorKit) {

@@ -20,8 +20,8 @@ import { type SqlFlavor, sqlFlavorOf } from '../query/sql-dialects.ts';
 import { runPluginCommand } from './command.ts';
 import { loadPlugins } from './load.ts';
 
-const example = resolve(import.meta.dir, '../../../../examples/querent-plugin-sqlite');
-const work = mkdtempSync(join(tmpdir(), 'querent-example-'));
+const example = resolve(import.meta.dir, '../../../../examples/quanthea-plugin-sqlite');
+const work = mkdtempSync(join(tmpdir(), 'quanthea-example-'));
 const root = join(work, 'files');
 const outside = join(work, 'outside.db');
 const timeRange = { from: new Date('2026-09-27T00:00:00Z'), to: new Date('2026-09-28T00:00:00Z') };
@@ -59,7 +59,7 @@ beforeAll(async () => {
   const pin = /"(sha256:[0-9a-f]{64})"/.exec(lines.join('\n'))?.[1] ?? '';
   const kinds = await loadPlugins({
     dir: join(work, 'data', 'plugins'),
-    pins: { 'querent-plugin-sqlite': pin },
+    pins: { 'quanthea-plugin-sqlite': pin },
     allowUnpinned: false,
     offered: connectorKinds,
     logger: createLogger('error'),
@@ -107,10 +107,10 @@ async function run(sql: string) {
 
 describe('the SQLite example plugin', () => {
   test('installs from its npm tarball, prints its pin, and loads pinned with its origin', () => {
-    expect(lines[0]).toStartWith('Installed querent-plugin-sqlite 0.1.0 into');
+    expect(lines[0]).toStartWith('Installed quanthea-plugin-sqlite 0.1.0 into');
     expect(lines).toContain('plugins:');
     expect(kind.kind).toBe('sqlite-file');
-    expect(kind.plugin).toEqual({ name: 'querent-plugin-sqlite', version: '0.1.0' });
+    expect(kind.plugin).toEqual({ name: 'quanthea-plugin-sqlite', version: '0.1.0' });
     expect(flavor).toEqual({ dialect: 'ansi', placeholders: '?', rowLimit: 'limit' });
   });
 

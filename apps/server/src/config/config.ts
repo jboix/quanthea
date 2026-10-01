@@ -44,18 +44,18 @@ const flagSchema = z.union([
   z.enum(['true', 'false']).transform((value) => value === 'true'),
 ]);
 
-/** A plugin's npm package name: `querent-plugin-<name>`, scoped or not. */
+/** A plugin's npm package name: `quanthea-plugin-<name>`, scoped or not. */
 export const pluginNameSchema = z
   .string()
   .regex(
-    /^(@[a-z0-9][a-z0-9._-]*\/)?querent-plugin-[a-z0-9][a-z0-9._-]*$/,
-    'Name it querent-plugin-<name> or @scope/querent-plugin-<name>.',
+    /^(@[a-z0-9][a-z0-9._-]*\/)?quanthea-plugin-[a-z0-9][a-z0-9._-]*$/,
+    'Name it quanthea-plugin-<name> or @scope/quanthea-plugin-<name>.',
   );
 
-/** A plugin pin, as `querent plugin install` prints it. */
+/** A plugin pin, as `quanthea plugin install` prints it. */
 export const pinSchema = z
   .string()
-  .regex(/^sha256:[0-9a-f]{64}$/, 'Paste the pin querent plugin install printed: sha256:….');
+  .regex(/^sha256:[0-9a-f]{64}$/, 'Paste the pin quanthea plugin install printed: sha256:….');
 
 /** The pins of the file's `plugins` section, by package name. */
 const pinsSchema = z.record(pluginNameSchema, pinSchema);
@@ -326,7 +326,7 @@ function pinsOf(file: ConfigFile | undefined) {
     issues: parsed.error.issues.map((issue) => {
       const message =
         issue.code === 'invalid_key'
-          ? 'not a plugin name: querent-plugin-<name> or @scope/querent-plugin-<name>.'
+          ? 'not a plugin name: quanthea-plugin-<name> or @scope/quanthea-plugin-<name>.'
           : issue.message;
       return `plugins.pins.${issue.path.join('.')} in ${where}: ${message}`;
     }),

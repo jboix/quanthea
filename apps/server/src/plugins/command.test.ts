@@ -28,10 +28,10 @@ function pack(
   options: { kind?: string; keywords?: string[]; name?: string } = {},
 ): Uint8Array {
   const manifest = {
-    name: options.name ?? 'querent-plugin-events',
+    name: options.name ?? 'quanthea-plugin-events',
     version,
-    keywords: options.keywords ?? ['querent-plugin'],
-    querent: { kitVersion: 1, main: 'dist/plugin.js' },
+    keywords: options.keywords ?? ['quanthea-plugin'],
+    quanthea: { kitVersion: 1, main: 'dist/plugin.js' },
   };
   return tarball([
     { path: 'package/package.json', data: JSON.stringify(manifest) },
@@ -55,7 +55,7 @@ let tarballs: Record<string, Uint8Array>;
 let integrities: Record<string, string>;
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'querent-cli-'));
+  root = mkdtempSync(join(tmpdir(), 'quanthea-cli-'));
   lines = [];
   tarballs = { '1.0.0': pack('1.0.0'), '1.2.0': pack('1.2.0'), '2.0.0': pack('2.0.0') };
   integrities = Object.fromEntries(
@@ -68,7 +68,7 @@ afterEach(() => rmSync(root, { recursive: true, force: true }));
 /** A registry and tarball host, answering as npm does. */
 const fakeFetch = (async (input: string | URL | Request) => {
   const url = String(input);
-  if (url === 'https://registry.test/querent-plugin-events') {
+  if (url === 'https://registry.test/quanthea-plugin-events') {
     const versions = Object.fromEntries(
       Object.keys(tarballs).map((version) => [
         version,
@@ -83,7 +83,7 @@ const fakeFetch = (async (input: string | URL | Request) => {
 }) as typeof fetch;
 
 /**
- * Runs `querent plugin …` against the test directory.
+ * Runs `quanthea plugin …` against the test directory.
  *
  * @param args - The arguments after `plugin`.
  * @param environment - More variables, such as a configuration file.
@@ -101,41 +101,46 @@ function run(args: string[], environment: Record<string, string> = {}): Promise<
 /** The plugins directory. */
 const pluginsDir = () => join(root, 'data', 'plugins');
 
-describe('querent plugin install', () => {
+describe('quanthea plugin install', () => {
   test('resolves a range in the registry, checks integrity, and prints the pin to paste', async () => {
     expect(
-      await run(['install', 'querent-plugin-events@^1.0.0', '--registry', 'https://registry.test']),
+      await run([
+        'install',
+        'quanthea-plugin-events@^1.0.0',
+        '--registry',
+        'https://registry.test',
+      ]),
     ).toBe(0);
     expect(lines[0]).toBe(
-      `Installed querent-plugin-events 1.2.0 into ${join(pluginsDir(), 'querent-plugin-events')}.`,
+      `Installed quanthea-plugin-events 1.2.0 into ${join(pluginsDir(), 'quanthea-plugin-events')}.`,
     );
     expect(lines.slice(4, 6)).toEqual(['plugins:', '  pins:']);
     const pin = /"(sha256:[0-9a-f]{64})"/.exec(lines[6] ?? '')?.[1];
     expect(pin).toBeDefined();
-    expect(readdirSync(pluginsDir())).toEqual(['querent-plugin-events']);
+    expect(readdirSync(pluginsDir())).toEqual(['quanthea-plugin-events']);
     const config = join(root, 'quanthea.yaml');
-    writeFileSync(config, `plugins:\n  pins:\n    querent-plugin-events: ${pin}\n`);
+    writeFileSync(config, `plugins:\n  pins:\n    quanthea-plugin-events: ${pin}\n`);
     lines = [];
     await run(['list'], { QUANTHEA_CONFIG: config });
-    expect(lines[1]).toBe('  querent-plugin-events 1.2.0  pinned');
+    expect(lines[1]).toBe('  quanthea-plugin-events 1.2.0  pinned');
   });
 
   test('installs the latest without a range, and an upgrade replaces the folder', async () => {
-    await run(['install', 'querent-plugin-events', '--registry', 'https://registry.test']);
-    await run(['install', 'querent-plugin-events@2', '--registry', 'https://registry.test']);
+    await run(['install', 'quanthea-plugin-events', '--registry', 'https://registry.test']);
+    await run(['install', 'quanthea-plugin-events@2', '--registry', 'https://registry.test']);
     expect(
       lines.filter((line) => line.startsWith('Installed')).map((line) => line.split(' ')[2]),
     ).toEqual(['1.2.0', '2.0.0']);
-    expect(readdirSync(pluginsDir())).toEqual(['querent-plugin-events']);
+    expect(readdirSync(pluginsDir())).toEqual(['quanthea-plugin-events']);
   });
 
   test('refuses a tarball that does not match its integrity, leaving nothing behind', async () => {
     integrities['1.2.0'] = integrityOf(pack('9.9.9'));
     expect(
-      await run(['install', 'querent-plugin-events', '--registry', 'https://registry.test']),
+      await run(['install', 'quanthea-plugin-events', '--registry', 'https://registry.test']),
     ).toBe(1);
     expect(lines[0]).toBe(
-      'Cannot install querent-plugin-events: the tarball does not match the integrity the registry gives.',
+      'Cannot install quanthea-plugin-events: the tarball does not match the integrity the registry gives.',
     );
     expect(existsSync(pluginsDir())).toBe(false);
   });
@@ -152,7 +157,7 @@ describe('querent plugin install', () => {
     }
     expect(lines).toEqual([
       'Cannot install clash.tgz: the kind "postgres" is offered already.',
-      'Cannot install keyword.tgz: package.json lacks the querent-plugin keyword.',
+      'Cannot install keyword.tgz: package.json lacks the quanthea-plugin keyword.',
       'Cannot install size.tgz: the bundle is larger than 104 bytes.',
     ]);
     expect(readdirSync(pluginsDir())).toEqual([]);
@@ -160,32 +165,32 @@ describe('querent plugin install', () => {
 
   test('installs from https, a local .tgz and a local .js bundle, but never http', async () => {
     expect(await run(['install', 'https://files.test/1.0.0.tgz'])).toBe(0);
-    writeFileSync(join(root, 'local.tgz'), pack('1.0.0', { name: '@acme/querent-plugin-local' }));
+    writeFileSync(join(root, 'local.tgz'), pack('1.0.0', { name: '@acme/quanthea-plugin-local' }));
     expect(await run(['install', 'local.tgz'])).toBe(0);
     const folder = mkdtempSync(join(root, 'repo-'));
     writeFileSync(
       join(folder, 'package.json'),
       JSON.stringify({
-        name: 'querent-plugin-dev',
+        name: 'quanthea-plugin-dev',
         version: '0.0.1',
-        keywords: ['querent-plugin'],
-        querent: { kitVersion: 1, main: 'plugin.js' },
+        keywords: ['quanthea-plugin'],
+        quanthea: { kitVersion: 1, main: 'plugin.js' },
       }),
     );
     writeFileSync(join(folder, 'plugin.js'), bundle('dev-file'));
     expect(await run(['install', join(folder, 'plugin.js')])).toBe(0);
     expect(readdirSync(pluginsDir()).sort()).toEqual([
-      'acme__querent-plugin-local',
-      'querent-plugin-dev',
-      'querent-plugin-events',
+      'acme__quanthea-plugin-local',
+      'quanthea-plugin-dev',
+      'quanthea-plugin-events',
     ]);
     expect(await run(['install', 'http://files.test/1.0.0.tgz'])).toBe(1);
   });
 
   test('removes a plugin by name', async () => {
     await run(['install', 'https://files.test/1.0.0.tgz']);
-    expect(await run(['remove', 'querent-plugin-events'])).toBe(0);
+    expect(await run(['remove', 'quanthea-plugin-events'])).toBe(0);
     expect(readdirSync(pluginsDir())).toEqual([]);
-    expect(await run(['remove', 'querent-plugin-events'])).toBe(1);
+    expect(await run(['remove', 'quanthea-plugin-events'])).toBe(1);
   });
 });

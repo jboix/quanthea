@@ -118,7 +118,7 @@ The two paths that matter:
 │           ├── roles.ts             Role, capability matrix
 │           └── index.ts
 ├── examples/
-│   └── querent-plugin-sqlite/       an example connector plugin: read-only SQLite files
+│   └── quanthea-plugin-sqlite/       an example connector plugin: read-only SQLite files
 ├── dev/                             docker-compose + seed data for local sources
 ├── evals/                           prompt → expected-dashboard checks against dev sources
 ├── docs/                            architecture, dashboard spec, brand, contributing, security
@@ -673,7 +673,7 @@ binders use, querent's policy lists (`policies.ts`): `searchRatioScripts`, `mong
 Zod (rule `plugin-kit-stays-small`), and a plugin receives the server's Zod and error class, so
 its schemas build the forms. `createTestKit()` returns the live kit itself, so a plugin's tests run
 the code production runs. Every copy of `ConnectorError` carries the global brand
-`Symbol.for('querent.connector-error')`, and the class's `instanceof` checks the brand (with a
+`Symbol.for('quanthea.connector-error')`, and the class's `instanceof` checks the brand (with a
 known code and a string safe message), so an error from a plugin that bundled its own copy of the
 kit by mistake is still recognised, with its safe message.
 
@@ -726,7 +726,7 @@ export const exampleConnector = defineConnector({
 ### Connector plugins
 
 A plugin adds connector kinds without a change to querent: an npm package whose `package.json`
-(the manifest) names a kit version and its bundle, `"querent": { "kitVersion": 1, "main":
+(the manifest) names a kit version and its bundle, `"quanthea": { "kitVersion": 1, "main":
 "dist/plugin.js" }`, and whose bundle is one ES module that exports `kitVersion` and, as default,
 a function that receives the live kit and returns its kinds.
 
@@ -737,11 +737,11 @@ a function that receives the live kit and returns its kinds.
 - **Pins:** `plugins.pins` in the configuration file maps a package name to
   `sha256:<hex>`, one SHA-256 over the manifest and the bundle, each after its length
   (`plugins/pin.ts`). A plugin whose files do not match its pin is refused, and the log says to
-  paste the pin `querent plugin install` printed. A plugin without a pin loads only when
+  paste the pin `quanthea plugin install` printed. A plugin without a pin loads only when
   `plugins.allowUnpinned` (`QUANTHEA_PLUGINS_ALLOW_UNPINNED`) is true, with a warning; it is
   false by default. Pins are read from the file only, so without a file only that variable
   loads plugins.
-- **Loading:** the loader reads the two files, checks the manifest (a `querent-plugin-<name>`
+- **Loading:** the loader reads the two files, checks the manifest (a `quanthea-plugin-<name>`
   package, a semantic version, a kit version this server supports) and the pin, then imports a
   private copy of the bytes it checked, so a file swapped after the check never runs. The
   module's `kitVersion` must match the manifest's. Each kind it returns must pass `kindProblems`
@@ -750,22 +750,22 @@ a function that receives the live kit and returns its kinds.
   log line either way; a pinned plugin that is not installed is logged too.
 - **Origin:** a plugin's kinds carry `plugin: { name, version }` from the manifest, never from the
   plugin, and the add form and the connector show a `plugin · v1.2.0` badge.
-- **Installing:** `querent plugin install <spec>` (`plugins/command.ts`), where the spec is an
+- **Installing:** `quanthea plugin install <spec>` (`plugins/command.ts`), where the spec is an
   npm name with an optional version or range (resolved with `Bun.semver` against the registry's
   metadata), an `https://` tarball URL such as a GitHub release asset, or a local `.tgz` or `.js`
   file. From the registry, the tarball must match npm's SHA-512 integrity; a marked extension
   point is where provenance would be checked. The tarball is read by a small reader of untrusted
   input (`plugins/tar.ts`): gunzipped up to 128 MiB (32 MiB compressed), only
-  `package/package.json` and the file its `querent.main` names extracted, an absolute path, `..`,
+  `package/package.json` and the file its `quanthea.main` names extracted, an absolute path, `..`,
   a backslash, a link or a corrupt header refusing the whole archive. Nothing runs from the
   package but its bundle: no install scripts, no dependencies. The bundle must be under 20 MiB
-  (`--max-bundle-mb`). The manifest needs the `querent-plugin` keyword and, from the registry,
+  (`--max-bundle-mb`). The manifest needs the `quanthea-plugin` keyword and, from the registry,
   the name asked for. The two files go into a temporary folder in the plugins directory, are
   loaded there with the static checks (and no clash with a built-in kind), and the folder is
   renamed into place only then, replacing an older version: a failed install leaves nothing.
   The command prints the exact version installed and the YAML that pins it; it never writes the
-  configuration, which is often mounted read-only. `querent plugin list` shows each plugin and
-  whether its pin matches; `querent plugin remove <name>` deletes its folder. The commands open
+  configuration, which is often mounted read-only. `quanthea plugin list` shows each plugin and
+  whether its pin matches; `quanthea plugin remove <name>` deletes its folder. The commands open
   no database and read no keys, so they run in a Docker build. Changes apply on restart.
 - **Not installed:** a stored connector whose kind is not offered, because its plugin was removed
   or refused, stays listed with `installed: false` and can be deleted. Its page says "plugin not
@@ -1242,7 +1242,7 @@ exposed install. That user is marked `setup_required`: every role-guarded route 
 until they choose their own email, name and password (`POST /api/auth/setup`, which ends their
 other sessions); the web app sends them to `/setup`.
 
-**Lockout** (`src/cli.ts`, `querent` in the image): `querent reset-admin [email]` prints a
+**Lockout** (`src/cli.ts`, `querent` in the image): `quanthea reset-admin [email]` prints a
 one-time link that sets an admin's password, for the admin with that email or the first enabled
 one, and enables them again. Without any admin, it creates the default one.
 

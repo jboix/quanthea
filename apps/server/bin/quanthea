@@ -1,0 +1,3 @@
+#!/bin/sh
+# Runs quanthea's commands inside the image, such as `quanthea reset-admin`.
+exec bun /app/apps/server/src/cli.ts "$@"

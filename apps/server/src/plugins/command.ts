@@ -1,5 +1,5 @@
 /**
- * `querent plugin install <spec>`, `querent plugin list` and `querent plugin remove <name>`. They
+ * `quanthea plugin install <spec>`, `quanthea plugin list` and `quanthea plugin remove <name>`. They
  * read the configuration for the plugins directory and the pins, and nothing else: no database,
  * no keys. Install prints the pin to paste into the configuration file, which it never writes.
  */
@@ -29,11 +29,11 @@ export interface CommandIo {
 
 /** How to use the plugin commands. */
 export const pluginUsage = [
-  'querent plugin install <spec> [--registry <url>] [--max-bundle-mb <n>]',
+  'quanthea plugin install <spec> [--registry <url>] [--max-bundle-mb <n>]',
   '  <spec>: an npm name with an optional version or range, an https:// tarball URL,',
   '          or a local .tgz or .js file',
-  'querent plugin list',
-  'querent plugin remove <name>',
+  'quanthea plugin list',
+  'quanthea plugin remove <name>',
 ].join('\n');
 
 /** The largest bundle accepted by default, in megabytes. */
@@ -70,7 +70,7 @@ function pinSnippet(installed: Installed): string[] {
 function report(installed: Installed, io: CommandIo): void {
   io.say(`Installed ${installed.name} ${installed.version} into ${installed.folder}.`);
   io.say(`It adds the connector kinds: ${installed.kinds.join(', ')}.`);
-  io.say('Pin it in the configuration file, then restart querent:');
+  io.say('Pin it in the configuration file, then restart quanthea:');
   io.say('');
   for (const line of pinSnippet(installed)) io.say(line);
 }
@@ -144,7 +144,7 @@ async function remove(name: string | undefined, io: CommandIo): Promise<number> 
     io.say(`${name} is not installed in ${config.pluginsDir}.`);
     return 1;
   }
-  io.say(`Removed ${name}. Restart querent, and remove its pin from plugins.pins.`);
+  io.say(`Removed ${name}. Restart quanthea, and remove its pin from plugins.pins.`);
   return 0;
 }
 

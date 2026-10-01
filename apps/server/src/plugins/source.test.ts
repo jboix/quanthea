@@ -3,12 +3,12 @@ import { parsePackageSpec, resolveVersion } from './source.ts';
 
 describe('package specs', () => {
   test('split a name from its version or range, scoped or not', () => {
-    expect(parsePackageSpec('querent-plugin-sqlite')).toEqual({
-      name: 'querent-plugin-sqlite',
+    expect(parsePackageSpec('quanthea-plugin-sqlite')).toEqual({
+      name: 'quanthea-plugin-sqlite',
       range: undefined,
     });
-    expect(parsePackageSpec('@acme/querent-plugin-sqlite@^1.2.0')).toEqual({
-      name: '@acme/querent-plugin-sqlite',
+    expect(parsePackageSpec('@acme/quanthea-plugin-sqlite@^1.2.0')).toEqual({
+      name: '@acme/quanthea-plugin-sqlite',
       range: '^1.2.0',
     });
     expect(() => parsePackageSpec('lodash@4')).toThrow('is not a plugin package');

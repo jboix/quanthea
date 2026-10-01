@@ -1,6 +1,6 @@
 /**
  * A plugin's pin: one SHA-256 over its manifest and its bundle, each with its length first, so no
- * two different pairs of files give the same input. `querent plugin install` prints it; the loader
+ * two different pairs of files give the same input. `quanthea plugin install` prints it; the loader
  * recomputes it before running anything.
  */
 
@@ -25,7 +25,7 @@ export function pinOf(manifest: Uint8Array, bundle: Uint8Array): string {
  * `@`, the scope and the name joined by `__`.
  *
  * @param name - The package name, checked.
- * @returns Such as `acme__querent-plugin-sqlite`.
+ * @returns Such as `acme__quanthea-plugin-sqlite`.
  */
 export function folderOf(name: string): string {
   return name.replace(/^@/, '').replace('/', '__');

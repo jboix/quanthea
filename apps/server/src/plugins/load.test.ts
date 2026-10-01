@@ -31,7 +31,7 @@ let dir: string;
 let lines: string[];
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'querent-plugins-'));
+  dir = mkdtempSync(join(tmpdir(), 'quanthea-plugins-'));
   lines = [];
 });
 
@@ -51,8 +51,8 @@ function install(name: string, bundle: string, kitVersion = 1): string {
   const manifest = JSON.stringify({
     name,
     version: '1.2.0',
-    keywords: ['querent-plugin'],
-    querent: { kitVersion, main: 'dist/plugin.js' },
+    keywords: ['quanthea-plugin'],
+    quanthea: { kitVersion, main: 'dist/plugin.js' },
   });
   writeFileSync(join(folder, 'package.json'), manifest);
   writeFileSync(join(folder, 'plugin.js'), bundle);
@@ -89,23 +89,23 @@ function refusals(): string[] {
 
 describe('loadPlugins', () => {
   test('loads a pinned plugin, its kinds marked with their origin', async () => {
-    const pin = install('querent-plugin-events', source());
-    const [kind] = await load({ 'querent-plugin-events': pin });
+    const pin = install('quanthea-plugin-events', source());
+    const [kind] = await load({ 'quanthea-plugin-events': pin });
     expect(kind?.kind).toBe('events-file');
-    expect(kind?.plugin).toEqual({ name: 'querent-plugin-events', version: '1.2.0' });
+    expect(kind?.plugin).toEqual({ name: 'quanthea-plugin-events', version: '1.2.0' });
     expect(Object.isFrozen(kind)).toBe(true);
     expect(lines.some((line) => line.includes('plugin loaded'))).toBe(true);
   });
 
   test('refuses a plugin whose files changed since its pin, saying how to fix it', async () => {
-    const pin = install('@acme/querent-plugin-events', source());
-    writeFileSync(join(dir, 'acme__querent-plugin-events', 'plugin.js'), source('other-kind'));
-    expect(await load({ '@acme/querent-plugin-events': pin })).toEqual([]);
-    expect(refusals()[0]).toStartWith('pin mismatch: paste the snippet `querent plugin install`');
+    const pin = install('@acme/quanthea-plugin-events', source());
+    writeFileSync(join(dir, 'acme__quanthea-plugin-events', 'plugin.js'), source('other-kind'));
+    expect(await load({ '@acme/quanthea-plugin-events': pin })).toEqual([]);
+    expect(refusals()[0]).toStartWith('pin mismatch: paste the snippet `quanthea plugin install`');
   });
 
   test('refuses an unpinned plugin unless unpinned plugins are allowed', async () => {
-    install('querent-plugin-events', source());
+    install('quanthea-plugin-events', source());
     expect(await load({})).toEqual([]);
     expect(refusals()[0]).toStartWith('not pinned');
     expect(await load({}, true)).toHaveLength(1);
@@ -114,11 +114,11 @@ describe('loadPlugins', () => {
 
   test('refuses a kind offered already, by a built-in or an earlier plugin', async () => {
     const pins = {
-      'querent-plugin-a': install('querent-plugin-a', source('events-file')),
-      'querent-plugin-b': install('querent-plugin-b', source('events-file')),
-      'querent-plugin-c': install('querent-plugin-c', source('postgres')),
+      'quanthea-plugin-a': install('quanthea-plugin-a', source('events-file')),
+      'quanthea-plugin-b': install('quanthea-plugin-b', source('events-file')),
+      'quanthea-plugin-c': install('quanthea-plugin-c', source('postgres')),
     };
-    expect((await load(pins)).map((kind) => kind.plugin?.name)).toEqual(['querent-plugin-a']);
+    expect((await load(pins)).map((kind) => kind.plugin?.name)).toEqual(['quanthea-plugin-a']);
     expect(refusals()).toEqual([
       'the kind "events-file" is offered already',
       'the kind "postgres" is offered already',
@@ -127,8 +127,8 @@ describe('loadPlugins', () => {
 
   test('refuses an unsupported kit version, and a module that disagrees with its manifest', async () => {
     const pins = {
-      'querent-plugin-a': install('querent-plugin-a', source('a-kind', 2), 2),
-      'querent-plugin-b': install('querent-plugin-b', source('b-kind', 2)),
+      'quanthea-plugin-a': install('quanthea-plugin-a', source('a-kind', 2), 2),
+      'quanthea-plugin-b': install('quanthea-plugin-b', source('b-kind', 2)),
     };
     expect(await load(pins)).toEqual([]);
     expect(refusals()).toEqual([
@@ -139,15 +139,15 @@ describe('loadPlugins', () => {
 
   test('refuses a plugin that throws, or whose kinds fail the static checks', async () => {
     const pins = {
-      'querent-plugin-a': install(
-        'querent-plugin-a',
+      'quanthea-plugin-a': install(
+        'quanthea-plugin-a',
         source('a-kind', 1, 'throw new Error("boom");'),
       ),
-      'querent-plugin-b': install(
-        'querent-plugin-b',
+      'quanthea-plugin-b': install(
+        'quanthea-plugin-b',
         'export const kitVersion = 1;\nexport default () => [{ kind: "b-kind", language: "sql" }];',
       ),
-      'querent-plugin-c': install('querent-plugin-c', 'export const kitVersion = 1;'),
+      'quanthea-plugin-c': install('quanthea-plugin-c', 'export const kitVersion = 1;'),
     };
     expect(await load(pins)).toEqual([]);
     const [thrown, failed, empty] = refusals();
@@ -157,9 +157,13 @@ describe('loadPlugins', () => {
   });
 
   test('names pinned plugins with no folder, not those refused', () => {
-    const pin = install('querent-plugin-a', source());
-    install('querent-plugin-b', source('b-kind'));
-    const pins = { 'querent-plugin-a': pin, 'querent-plugin-b': pin, 'querent-plugin-gone': pin };
-    expect(missingPinned(dir, pins)).toEqual(['querent-plugin-gone']);
+    const pin = install('quanthea-plugin-a', source());
+    install('quanthea-plugin-b', source('b-kind'));
+    const pins = {
+      'quanthea-plugin-a': pin,
+      'quanthea-plugin-b': pin,
+      'quanthea-plugin-gone': pin,
+    };
+    expect(missingPinned(dir, pins)).toEqual(['quanthea-plugin-gone']);
   });
 });
