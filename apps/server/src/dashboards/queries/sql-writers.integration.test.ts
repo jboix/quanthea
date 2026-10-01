@@ -9,6 +9,7 @@ import {
   integrationFor,
 } from '../../connectors/_shared/test/dev-sources.ts';
 import { clickhouseConnector } from '../../connectors/clickhouse/clickhouse-connector.ts';
+import { mariadbConnector } from '../../connectors/mysql/mariadb-connector.ts';
 import { mysqlConnector } from '../../connectors/mysql/mysql-connector.ts';
 import { trinoConnector } from '../../connectors/trino/trino-connector.ts';
 import { bindTemplate } from '../../query/bind.ts';
@@ -42,7 +43,7 @@ const targets: Target[] = [
   ...devMysqlServers.map((server) => ({
     name: server.name,
     live: integrationFor('mysql'),
-    kind: mysqlConnector,
+    kind: server.name === 'MariaDB' ? mariadbConnector : mysqlConnector,
     dialect: 'mysql' as const,
     source: server.reader,
   })),

@@ -1,7 +1,13 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { ConnectorError, type ConnectorInstance, type ExecutionContext } from '../_shared/index.ts';
+import {
+  type AnyConnectorKind,
+  ConnectorError,
+  type ConnectorInstance,
+  type ExecutionContext,
+} from '../_shared/index.ts';
 import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import { devIncidentStart, devMysqlServers, integrationFor } from '../_shared/test/dev-sources.ts';
+import { mariadbConnector } from './mariadb-connector.ts';
 import { mysqlConnector } from './mysql-connector.ts';
 
 const live = integrationFor('mysql');
@@ -12,15 +18,29 @@ const timeRange = {
 };
 
 /**
- * Opens a dev server with the given credentials.
+ * The kind of a dev server.
  *
+ * @param name - `MySQL` or `MariaDB`.
+ * @returns Its connector kind.
+ */
+function kindOf(name: string): AnyConnectorKind {
+  return name === 'MariaDB' ? mariadbConnector : mysqlConnector;
+}
+
+/**
+ * Opens a dev server with the given credentials, as a kind.
+ *
+ * @param kind - The connector kind.
  * @param source - The configuration and secret.
  * @returns The connection.
  */
-function open(source: { config: unknown; secret: unknown }): ConnectorInstance {
-  return mysqlConnector.open({
-    config: mysqlConnector.configSchema.parse(source.config),
-    secret: mysqlConnector.secretSchema.parse(source.secret),
+function open(
+  kind: AnyConnectorKind,
+  source: { config: unknown; secret: unknown },
+): ConnectorInstance {
+  return kind.open({
+    config: kind.configSchema.parse(source.config),
+    secret: kind.secretSchema.parse(source.secret),
   });
 }
 
@@ -61,7 +81,8 @@ function failureOf(
 }
 
 for (const server of devMysqlServers) {
-  testConnectorConformance(mysqlConnector, {
+  const kind = kindOf(server.name);
+  testConnectorConformance(kind, {
     config: server.reader.config,
     secret: server.reader.secret,
     query: {
@@ -76,13 +97,13 @@ for (const server of devMysqlServers) {
     label: server.name,
   });
 
-  describe.skipIf(!live)(`mysql connector against the dev ${server.name}`, () => {
+  describe.skipIf(!live)(`${kind.kind} connector against the dev ${server.name}`, () => {
     let reader: ConnectorInstance;
     let owner: ConnectorInstance;
 
     beforeAll(() => {
-      reader = open(server.reader);
-      owner = open(server.owner);
+      reader = open(kind, server.reader);
+      owner = open(kind, server.owner);
     });
 
     afterAll(async () => {
@@ -99,6 +120,14 @@ for (const server of devMysqlServers) {
         ok: true,
         readOnly: false,
       });
+    });
+
+    test('fails the test of the other product, and names its kind', async () => {
+      const other = open(kindOf(server.name === 'MariaDB' ? 'MySQL' : 'MariaDB'), server.reader);
+      const health = await other.test(AbortSignal.timeout(10_000));
+      await other.close();
+      expect(health.ok).toBe(false);
+      expect(health.message).toEndWith(`Add it as a ${server.name} connector.`);
     });
 
     test('refuses writes and schema changes even with a user that could make them', async () => {

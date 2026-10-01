@@ -163,7 +163,7 @@ kinds in that order.
 
 - A kind imports the core only through `connectors/_shared/index.ts`, never another kind
   (dependency-cruiser rule `connector-kinds-use-the-kit`). Kinds that share an engine live in one
-  folder, as Elasticsearch and OpenSearch do in `search/`.
+  folder, as MySQL and MariaDB do in `mysql/`, and Elasticsearch and OpenSearch in `search/`.
 - The kind's folder owns its driver. Prefer a Bun API to a package, and justify a new dependency
   in one line of the commit message.
 - A kind that speaks HTTP sends its requests through the kit's `createHttpClient`, never `fetch`

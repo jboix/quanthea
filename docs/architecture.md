@@ -671,8 +671,10 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   `SET LOCAL statement_timeout`, wrapped in `LIMIT maxRows + 1`. `describe` reads `pg_catalog`
   (comments, `reltuples`, `pg_stats.n_distinct`), never table data. SQLSTATEs map to connector
   errors; data errors (class 22) never quote the value.
-- **MySQL and MariaDB:** one kind, `mysql`, over the `mysql2` driver with code generation, local
-  files and multiple statements off. `Bun.sql` 1.3 returns DECIMAL as bytes, reads dates in the
+- **MySQL and MariaDB:** two kinds, `mysql` and `mariadb`, built from one engine in
+  `connectors/mysql/` (`defineMysqlKind`), each with its own logo; the connection test fails,
+  naming the right kind, when the server is the other product. Both use the `mysql2` driver with
+  code generation, local files and multiple statements off. `Bun.sql` 1.3 returns DECIMAL as bytes, reads dates in the
   local time zone, gives no column types and ignores a read-only transaction. Each session is
   `SET SESSION TRANSACTION READ ONLY` (which, unlike a read-only transaction, also refuses schema
   changes, since they commit implicitly) and in UTC; `sql_select_limit` caps rows at

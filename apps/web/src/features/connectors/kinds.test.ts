@@ -15,15 +15,17 @@ function kindOf(kind: string, displayName: string): ConnectorKindInfo {
 
 const kinds = [
   kindOf('postgres', 'PostgreSQL'),
-  kindOf('mysql', 'MySQL / MariaDB'),
+  kindOf('mysql', 'MySQL'),
+  kindOf('mariadb', 'MariaDB'),
   kindOf('clickhouse', 'ClickHouse'),
 ];
 
 describe('matchingKinds', () => {
   test('matches every word in the name or the identifier, whatever the case', () => {
-    expect(matchingKinds(kinds, 'maria').map((kind) => kind.kind)).toEqual(['mysql']);
+    expect(matchingKinds(kinds, 'maria').map((kind) => kind.kind)).toEqual(['mariadb']);
     expect(matchingKinds(kinds, 'POSTGRES').map((kind) => kind.kind)).toEqual(['postgres']);
-    expect(matchingKinds(kinds, 'my maria').map((kind) => kind.kind)).toEqual(['mysql']);
+    expect(matchingKinds(kinds, 'sql').map((kind) => kind.kind)).toEqual(['postgres', 'mysql']);
+    expect(matchingKinds(kinds, 'post sql').map((kind) => kind.kind)).toEqual(['postgres']);
     expect(matchingKinds(kinds, 'oracle')).toEqual([]);
   });
 

@@ -3,27 +3,29 @@ import { ConnectorError } from '../_shared/index.ts';
 import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import { fieldTypeOf, fieldTypeOfName, frameValue } from './columns.ts';
 import { toConnectorError } from './errors.ts';
+import { mariadbConnector } from './mariadb-connector.ts';
 import { mysqlConnector } from './mysql-connector.ts';
 
-testConnectorConformance(mysqlConnector, {
-  config: { host: 'orders-replica', database: 'orders', username: 'dash_ro' },
-  secret: { password: 'x' },
-  query: { language: 'sql', text: 'SELECT 1', parameters: [] },
-  invalidQuery: { language: 'sql', text: 'SELEC 1', parameters: [] },
-  sampleField: { entity: 'orders', field: 'status' },
-  timeRange: { from: new Date(0), to: new Date(1000) },
-  live: false,
-});
+for (const kind of [mysqlConnector, mariadbConnector]) {
+  testConnectorConformance(kind, {
+    config: { host: 'orders-replica', database: 'orders', username: 'dash_ro' },
+    secret: { password: 'x' },
+    query: { language: 'sql', text: 'SELECT 1', parameters: [] },
+    invalidQuery: { language: 'sql', text: 'SELEC 1', parameters: [] },
+    sampleField: { entity: 'orders', field: 'status' },
+    timeRange: { from: new Date(0), to: new Date(1000) },
+    live: false,
+  });
+}
 
-describe('mysql connector target', () => {
-  test('is a connection URL without the password', () => {
-    const config = mysqlConnector.configSchema.parse({
-      host: 'orders-replica',
-      database: 'orders',
-      username: 'dash_ro',
-    });
-    expect(mysqlConnector.describeTarget?.(config)).toBe(
+describe('mysql and mariadb connector targets', () => {
+  test('are connection URLs without the password, in the scheme of each product', () => {
+    const settings = { host: 'orders-replica', database: 'orders', username: 'dash_ro' };
+    expect(mysqlConnector.describeTarget?.(mysqlConnector.configSchema.parse(settings))).toBe(
       'mysql://dash_ro@orders-replica:3306/orders',
+    );
+    expect(mariadbConnector.describeTarget?.(mariadbConnector.configSchema.parse(settings))).toBe(
+      'mariadb://dash_ro@orders-replica:3306/orders',
     );
   });
 });
