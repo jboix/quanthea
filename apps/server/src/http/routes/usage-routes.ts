@@ -6,9 +6,6 @@ import type { Usage } from '../../usage/usage.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 
-/** Who owned the threads started while everyone was an anonymous admin, before accounts. */
-const openAccessOwner = 'anonymous';
-
 /**
  * The name and role of each user a report names.
  *
@@ -25,8 +22,7 @@ async function peopleOf(
   for (const id of ids) {
     const user = known.get(id);
     if (user) people[id] = { name: user.name, role: user.role };
-    else
-      people[id] = { name: id === openAccessOwner ? 'Open access' : 'A removed user', role: null };
+    else people[id] = { name: 'A removed user', role: null };
   }
   return people;
 }

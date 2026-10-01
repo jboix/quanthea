@@ -2,11 +2,10 @@
  * The default admin. On a start with no enabled admin, querent creates the user `admin` with a
  * random password written once to the log, as Jenkins or Argo CD do; nobody can guess it on a
  * freshly exposed install. Until that admin chooses their own email and password, every other
- * route refuses them. Threads the anonymous admin of the open-access mode started go to an admin.
+ * route refuses them.
  */
 import { randomInt } from 'node:crypto';
 import type { AuditRepository } from '../db/audit-repository.ts';
-import type { ThreadOwnershipRepository } from '../db/thread-ownership.ts';
 import type { UserRepository } from '../db/user-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import type { Logger } from '../lib/logger.ts';
@@ -20,9 +19,6 @@ import { normalizeEmail, sealedOwner, type Users } from './users.ts';
 
 /** The sign-in name of the default admin, until they choose an email. */
 export const defaultAdminLogin = 'admin';
-
-/** Who owned the threads started while everyone was an anonymous admin. */
-const openAccessOwner = 'anonymous';
 
 /** Characters of a generated password: no look-alikes such as 0 and O, or 1 and l. */
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
@@ -41,8 +37,6 @@ export interface DefaultAdminDependencies {
   readonly peppers: Peppers;
   /** Starts and ends sessions. */
   readonly sessions: Sessions;
-  /** Hands over the threads of the open-access mode. */
-  readonly threads: ThreadOwnershipRepository;
   /** Records who did what. */
   readonly audit: AuditRepository;
   /** The argon2id costs; lower in tests only. */
@@ -105,10 +99,9 @@ async function createDefaultAdmin(dependencies: DefaultAdminDependencies) {
 }
 
 /**
- * Makes sure an admin exists: creates the default one when no enabled admin does, and hands the
- * threads of the open-access mode to the first admin.
+ * Makes sure an admin exists: creates the default one when no enabled admin does.
  *
- * @param dependencies - The users, the keys, the threads and the audit log.
+ * @param dependencies - The users, the keys and the audit log.
  * @param logger - Receives the default admin's password, once.
  * @returns Once it is done.
  */
@@ -123,9 +116,6 @@ export async function ensureAdmin(
       { password },
     );
   }
-  const heir = firstAdmin(dependencies.userRows);
-  const handedOver = heir ? dependencies.threads.handOver(openAccessOwner, heir) : 0;
-  if (handedOver > 0) logger.info('handed the threads of open access to an admin', { handedOver });
 }
 
 /** What setting up the default admin's account takes. */

@@ -21,7 +21,6 @@ import type { openDatabase } from './db/database.ts';
 import { createIdentityRepository, type IdentityRepository } from './db/identity-repository.ts';
 import { createPasswordLinkRepository } from './db/password-link-repository.ts';
 import { createSessionRepository } from './db/session-repository.ts';
-import { createThreadOwnershipRepository } from './db/thread-ownership.ts';
 import { createUserRepository, type UserRepository } from './db/user-repository.ts';
 import type { KeyedHash } from './secrets/keyed-hash.ts';
 import type { Peppers, SessionHashes } from './secrets/keys.ts';
@@ -192,7 +191,6 @@ function adminSetupOf(
     emailIndex: dependencies.emailIndex,
     peppers,
     sessions: parts.sessions,
-    threads: createThreadOwnershipRepository(dependencies.database),
     audit: parts.audit,
     ...(dependencies.passwordCosts ? { costs: dependencies.passwordCosts } : {}),
     ...(dependencies.now ? { now: dependencies.now } : {}),

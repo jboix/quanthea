@@ -1024,8 +1024,7 @@ applied, a database with no enabled admin gets the user `admin` with a random 24
 password written once to the log (as Jenkins or Argo CD do), so nobody can guess it on a freshly
 exposed install. That user is marked `setup_required`: every role-guarded route refuses them
 until they choose their own email, name and password (`POST /api/auth/setup`, which ends their
-other sessions); the web app sends them to `/setup`. Threads an earlier version's open access
-left to `anonymous` go to the first enabled admin.
+other sessions); the web app sends them to `/setup`.
 
 **Lockout** (`src/cli.ts`, `querent` in the image): `querent reset-admin [email]` prints a
 one-time link that sets an admin's password, for the admin with that email or the first enabled

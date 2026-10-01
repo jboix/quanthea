@@ -97,17 +97,6 @@ describe('the default admin', () => {
     expect((await call('POST', '/auth/setup', strong, again.session)).status).toBe(400);
   });
 
-  test('receives the threads started in open access', async () => {
-    const thread = services.threads.create('someone');
-    services.database.run("UPDATE threads SET created_by = 'anonymous' WHERE id = ?", [thread.id]);
-    await startUp();
-    const admin = await services.users.findByEmail('admin');
-    const owner = services.database
-      .query<{ created_by: string }, [string]>('SELECT created_by FROM threads WHERE id = ?')
-      .get(thread.id);
-    expect(owner?.created_by).toBe(admin?.id ?? '');
-  });
-
   test('is not created when an admin exists', async () => {
     await services.users.create({ email: 'ada@example.com', name: 'Ada', role: 'admin' }, 'x');
     expect(await startUp()).toBeUndefined();
