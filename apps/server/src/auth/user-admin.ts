@@ -2,7 +2,7 @@
  * What admins change about a user: the role, and whether they may sign in. querent always keeps
  * at least one admin who can sign in, and a disabled user's sessions end at once.
  */
-import type { Role } from '@querent/shared';
+import type { Role } from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { UserChange, UserRepository, UserRow } from '../db/user-repository.ts';
 import { AppError } from '../lib/errors.ts';

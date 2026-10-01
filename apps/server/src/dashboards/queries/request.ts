@@ -4,7 +4,7 @@
  * This is part of the edit tool's input schema, so it stays small: name checks run in code rather
  * than as JSON schema patterns.
  */
-import { queryBuilders, type SavedQuery } from '@querent/shared';
+import { queryBuilders, type SavedQuery } from '@quanthea/shared';
 import { z } from 'zod';
 import {
   connectorSchema,

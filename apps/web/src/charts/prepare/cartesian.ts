@@ -10,7 +10,7 @@ import {
   type Dataset,
   longToWide,
   sortRows,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { allColumns, oneColumn, seriesColumn, xColumn, yColumns } from '../roles.ts';
 import type { Prepared, PrepareInput } from './types.ts';
 

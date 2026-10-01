@@ -1,4 +1,4 @@
-import type { ConnectorKindInfo } from '@querent/shared';
+import type { ConnectorKindInfo } from '@quanthea/shared';
 import type { CSSProperties } from 'react';
 import styles from './kind-icon.module.css';
 import { badgeTone, needsDarkGlyph } from './kinds.ts';

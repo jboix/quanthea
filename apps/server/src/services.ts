@@ -3,7 +3,7 @@
  * the dashboards. The bootstrap and the tests wire them the same way.
  */
 
-import type { DashboardSpec } from '@querent/shared';
+import type { DashboardSpec } from '@quanthea/shared';
 import { type AccountDependencies, type Accounts, createAccounts } from './accounts.ts';
 import { createMetadataWriter, type PinMetadata } from './agent/metadata.ts';
 import { type Agent, createAgent } from './agent/run.ts';

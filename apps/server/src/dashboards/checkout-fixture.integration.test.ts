@@ -4,7 +4,7 @@
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { connectorInputSchema, type PanelRun, panelRunSchema } from '@querent/shared';
+import { connectorInputSchema, type PanelRun, panelRunSchema } from '@quanthea/shared';
 import { createApp } from '../app.ts';
 import {
   devIncidentStart,

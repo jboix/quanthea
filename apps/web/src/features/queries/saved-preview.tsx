@@ -1,4 +1,4 @@
-import type { QueryLanguage, SavedQuery } from '@querent/shared';
+import type { QueryLanguage, SavedQuery } from '@quanthea/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';

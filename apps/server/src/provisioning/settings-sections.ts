@@ -17,7 +17,7 @@ import {
   modelGatewaySchema,
   querySettingsSchema,
   retentionSettingsSchema,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { z } from 'zod';
 import type { ConfigFile } from '../config/config-file.ts';
 import type { ChartSettingsService } from '../settings/chart-settings.ts';

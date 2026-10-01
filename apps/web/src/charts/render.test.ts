@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
-import { type ChartRecipe, chartRecipes, fillView } from '@querent/shared';
+import { type ChartRecipe, chartRecipes, fillView } from '@quanthea/shared';
 import { getMap, init, use } from 'echarts/core';
 import { SVGRenderer } from 'echarts/renderers';
 import { buildChartOption } from './build-option.ts';

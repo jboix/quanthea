@@ -1,5 +1,5 @@
 /** How long the bin keeps deleted threads, in a dialog on the bin, for admins. */
-import type { RetentionSettings } from '@querent/shared';
+import type { RetentionSettings } from '@quanthea/shared';
 import { useEffect, useState } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';

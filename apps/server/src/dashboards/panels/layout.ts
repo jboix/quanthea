@@ -3,7 +3,7 @@
  * as asked or as its kind usually is. Existing panels never move, but when panels are left out of
  * a version, the rest move up into the gaps.
  */
-import type { Panel } from '@querent/shared';
+import type { Panel } from '@quanthea/shared';
 import type { PanelDraft, PanelShape } from './draft.ts';
 import type { Width } from './request.ts';
 

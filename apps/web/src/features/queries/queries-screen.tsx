@@ -1,4 +1,4 @@
-import { type QuerySettings, queryBuilders } from '@querent/shared';
+import { type QuerySettings, queryBuilders } from '@quanthea/shared';
 import { type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Page } from '../../ui/page.tsx';

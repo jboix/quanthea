@@ -3,7 +3,7 @@
  * titles and connectors, for the first question of a thread; and copies to start a draft from,
  * with their lineage.
  */
-import { type DashboardSpec, dashboardSpecSchema } from '@querent/shared';
+import { type DashboardSpec, dashboardSpecSchema } from '@quanthea/shared';
 import type { PinnedRow } from '../db/dashboard-pinned.ts';
 import { AppError } from '../lib/errors.ts';
 import { meaningfulWords, sharedWords } from '../lib/words.ts';

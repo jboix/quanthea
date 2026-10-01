@@ -4,7 +4,7 @@
  * else gets "not found", so a thread's existence is not given away. A dashboard's drafts follow
  * its thread; its pinned versions are for everyone.
  */
-import type { Principal, Role } from '@querent/shared';
+import type { Principal, Role } from '@quanthea/shared';
 import type { Users } from '../auth/users.ts';
 import { AppError } from '../lib/errors.ts';
 import type { Threads } from '../threads/threads.ts';

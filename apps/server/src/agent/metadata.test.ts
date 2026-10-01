@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { connectorInputSchema, type DashboardSpec, dashboardSpecSchema } from '@querent/shared';
+import { connectorInputSchema, type DashboardSpec, dashboardSpecSchema } from '@quanthea/shared';
 import { eventsSpec } from '../dashboards/test/events-spec.ts';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
 import type { ModelStep } from '../usage/usage.ts';

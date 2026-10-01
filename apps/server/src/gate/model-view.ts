@@ -3,7 +3,7 @@
  * here, shaped by each connector's access level and hidden fields. The gate declares what it needs
  * from the connectors service; the bootstrap hands it over, so the gate never imports it.
  */
-import type { AccessLevel, Frame } from '@querent/shared';
+import type { AccessLevel, Frame } from '@quanthea/shared';
 import type { SchemaSnapshot } from '../connectors/_shared/index.ts';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../query/executor.ts';
 import { buildCatalog, createValueCache, type ValueCache } from './catalog.ts';

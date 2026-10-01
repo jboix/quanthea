@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { connectorInputSchema } from '@querent/shared';
+import { connectorInputSchema } from '@quanthea/shared';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;

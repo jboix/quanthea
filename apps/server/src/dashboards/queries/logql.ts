@@ -3,7 +3,7 @@
  * match, a breakdown by label, one number, and the latest lines. A metric result is long, as in
  * PromQL; values stay quoted and variables stay references the binder escapes.
  */
-import type { PanelQuery } from '@querent/shared';
+import type { PanelQuery } from '@quanthea/shared';
 import type { BuiltData } from './built.ts';
 import type { Filter } from './fields.ts';
 import type { LogqlMeasure } from './logql-request.ts';

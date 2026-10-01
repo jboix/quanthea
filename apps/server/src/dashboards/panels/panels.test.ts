@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { type Frame, planSchema } from '@querent/shared';
+import { type Frame, planSchema } from '@quanthea/shared';
 import { z } from 'zod';
 import type { PanelTest } from '../dashboards.ts';
 import { completeCharts } from './complete.ts';

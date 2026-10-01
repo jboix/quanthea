@@ -9,7 +9,7 @@ import {
   isMultiValue,
   type Variable,
   type VariableValues,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
 import type { VariableBinding, Variables } from '../query/variables.ts';
 

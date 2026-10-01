@@ -1,5 +1,5 @@
 /** The chart endpoints: which chart recipes the agent is offered, for admins. */
-import { getChartSettingsEndpoint, saveChartSettingsEndpoint } from '@querent/shared';
+import { getChartSettingsEndpoint, saveChartSettingsEndpoint } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Managed } from '../../provisioning/managed.ts';
 import type { ChartSettingsService } from '../../settings/chart-settings.ts';

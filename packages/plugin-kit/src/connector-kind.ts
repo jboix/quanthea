@@ -1,5 +1,5 @@
 /** The contract of a connector kind: what it declares, and what an open connection can do. */
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import type { z } from 'zod';
 import {
   type BoundQuery,

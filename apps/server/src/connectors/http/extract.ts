@@ -3,7 +3,7 @@
  * query names, or per value the rows hold, nested ones as dotted names. Nothing here runs code
  * from the query: pointers and types are data.
  */
-import type { FieldType, Frame } from '@querent/shared';
+import type { FieldType, Frame } from '@quanthea/shared';
 import {
   ConnectorError,
   createFrameBuilder,

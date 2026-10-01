@@ -16,7 +16,7 @@ import {
   type SchemaView,
   testConnectorEndpoint,
   updateConnectorEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,

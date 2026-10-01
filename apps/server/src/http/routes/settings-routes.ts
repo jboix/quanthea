@@ -8,7 +8,7 @@ import {
   listProviderChoicesEndpoint,
   saveModelSettingsEndpoint,
   testModelSettingsEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Hono } from 'hono';
 import { testModelConnection } from '../../agent/connection-test.ts';
 import { listModels } from '../../agent/model-catalog.ts';

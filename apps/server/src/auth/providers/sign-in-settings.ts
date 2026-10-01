@@ -1,7 +1,7 @@
 /**
  * The sign-in settings: the providers, their sealed credentials, and whether passwords sign in.
  */
-import type { IdentityProviderView, StoredProvider } from '@querent/shared';
+import type { IdentityProviderView, StoredProvider } from '@quanthea/shared';
 import type { AuditRepository } from '../../db/audit-repository.ts';
 import type { IdentityRepository } from '../../db/identity-repository.ts';
 import type { UserRepository } from '../../db/user-repository.ts';

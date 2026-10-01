@@ -1,4 +1,4 @@
-import type { Principal } from '@querent/shared';
+import type { Principal } from '@quanthea/shared';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useFetcher } from 'react-router';
 import { Dialog } from '../../ui/dialog.tsx';

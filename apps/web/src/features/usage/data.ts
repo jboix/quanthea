@@ -1,5 +1,5 @@
 /** Loads the usage report for the range in the address. */
-import { type UsageReport, usageReportEndpoint } from '@querent/shared';
+import { type UsageReport, usageReportEndpoint } from '@quanthea/shared';
 import type { LoaderFunctionArgs } from 'react-router';
 import type { ApiClient } from '../../lib/api-client.ts';
 

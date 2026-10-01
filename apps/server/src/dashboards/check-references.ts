@@ -9,7 +9,7 @@ import {
   type Panel,
   type Variable,
   type View,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { SpecIssue } from './issues.ts';
 
 /**

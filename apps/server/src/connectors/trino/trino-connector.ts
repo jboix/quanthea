@@ -2,7 +2,7 @@
  * The Trino connector kind: SQL over the client protocol, each query in a read-only transaction,
  * in UTC, with the timeout as a session property and the row limit applied by the reader.
  */
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import { z } from 'zod';
 import {
   ConnectorError,

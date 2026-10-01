@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { queryBuilders, type SavedQuery } from '@querent/shared';
+import { queryBuilders, type SavedQuery } from '@quanthea/shared';
 import type { AuditEntry } from '../db/audit-repository.ts';
 import { createQuerySettings } from './query-settings.ts';
 import { createSettingsStore } from './settings-store.ts';

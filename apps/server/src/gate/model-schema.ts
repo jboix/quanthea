@@ -1,5 +1,5 @@
 /** The schema the model receives: the snapshot minus hidden fields, with metadata by access level. */
-import { lowCardinalityLimit } from '@querent/shared';
+import { lowCardinalityLimit } from '@quanthea/shared';
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
 import { type GateSubject, isHiddenField } from './subject.ts';
 

@@ -2,7 +2,7 @@
  * The MongoDB connector kind: one aggregation pipeline per query over one collection, with the
  * official driver. The connection test says whether the user could write.
  */
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import { BSON, type Db, type Document, type MongoClient } from 'mongodb';
 import { z } from 'zod';
 import {

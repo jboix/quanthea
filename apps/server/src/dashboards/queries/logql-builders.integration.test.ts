@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import {
   devIncidentStart,
   devLoki,

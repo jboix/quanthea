@@ -1,4 +1,4 @@
-import type { DashboardSpec, Panel, PanelRun } from '@querent/shared';
+import type { DashboardSpec, Panel, PanelRun } from '@quanthea/shared';
 import { type CSSProperties, useEffect } from 'react';
 import { useFetcher } from 'react-router';
 import type { Loaded } from './data.ts';

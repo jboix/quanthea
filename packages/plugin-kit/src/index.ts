@@ -3,14 +3,14 @@
  * imports types only from here; at load, querent passes it the live kit (`ConnectorKit`).
  *
  * ```ts
- * import type { ConnectorKit } from '@querent/plugin-kit';
+ * import type { ConnectorKit } from '@quanthea/plugin-kit';
  * export const kitVersion = 1;
  * export default function plugin(kit: ConnectorKit) {
  *   return [kit.defineConnector({ kind: 'example', … })];
  * }
  * ```
  */
-export type { Field, FieldType, Frame } from '@querent/shared';
+export type { Field, FieldType, Frame } from '@quanthea/shared';
 export type {
   ConnectorIcon,
   ConnectorInstance,

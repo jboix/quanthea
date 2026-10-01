@@ -8,7 +8,7 @@ import {
   librarySearchSchema,
   type Principal,
   panelRunSchema,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import { eventsSpec } from '../../dashboards/test/events-spec.ts';

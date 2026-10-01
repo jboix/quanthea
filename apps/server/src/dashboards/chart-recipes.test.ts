@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { chartRecipes, fillView } from '@querent/shared';
+import { chartRecipes, fillView } from '@quanthea/shared';
 import { checkOption } from './check-option.ts';
 
 describe('the chart recipes', () => {

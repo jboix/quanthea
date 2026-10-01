@@ -1,4 +1,4 @@
-import type { ThreadListItem } from '@querent/shared';
+import type { ThreadListItem } from '@quanthea/shared';
 import { useMemo, useState } from 'react';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';

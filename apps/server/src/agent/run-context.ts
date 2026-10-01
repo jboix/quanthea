@@ -1,5 +1,5 @@
 /** What one agent run shares between its tools: the services, the thread, and its counters. */
-import type { ModelSettings, ThreadData, TurnUsage } from '@querent/shared';
+import type { ModelSettings, ThreadData, TurnUsage } from '@quanthea/shared';
 import type { UIMessage, UIMessageStreamWriter } from 'ai';
 import type { Dashboards } from '../dashboards/dashboards.ts';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';

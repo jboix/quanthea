@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { defaultModelGateway, defaultModelSettings, type ModelGateway } from '@querent/shared';
+import { defaultModelGateway, defaultModelSettings, type ModelGateway } from '@quanthea/shared';
 import type { AuditEntry } from '../db/audit-repository.ts';
 import { testSecretBox } from '../test/fixtures.ts';
 import { createModelSettings } from './model-settings.ts';

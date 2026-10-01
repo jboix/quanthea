@@ -4,7 +4,7 @@
  * server. Each product is a kind of its own, with its own settings and authentication, defined
  * with {@link defineSearchKind}.
  */
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import type { z } from 'zod';
 import {
   ConnectorError,

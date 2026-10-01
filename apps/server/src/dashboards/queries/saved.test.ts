@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { queryText, type SavedQuery, savedQuerySchema } from '@querent/shared';
+import { queryText, type SavedQuery, savedQuerySchema } from '@quanthea/shared';
 import { z } from 'zod';
 import { buildData } from './build.ts';
 import { availableIn, dataSchemaFor } from './request.ts';

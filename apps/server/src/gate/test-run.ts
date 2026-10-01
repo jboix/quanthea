@@ -4,7 +4,7 @@
  * also the rows. Hidden fields and labels are removed at every level; below level 4 errors carry
  * only safe messages.
  */
-import type { Field, Frame } from '@querent/shared';
+import type { Field, Frame } from '@quanthea/shared';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../query/executor.ts';
 import { QueryError } from '../query/query-error.ts';
 import { type GateSubject, hiddenResultNames } from './subject.ts';

@@ -3,7 +3,7 @@
  * error rate, a breakdown by a field, one number, a histogram of a numeric field, and the latest
  * documents. Every search keeps to the time range; variables are nodes the binder fills.
  */
-import type { PanelQuery } from '@querent/shared';
+import type { PanelQuery } from '@quanthea/shared';
 import type { BuiltData } from './built.ts';
 import type { PathFilter } from './fields.ts';
 import type { DataOf } from './request.ts';

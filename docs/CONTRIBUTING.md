@@ -32,15 +32,15 @@ Markdown.
 
 ## Layout
 
-| Path                  | Contents                                                                 |
-| --------------------- | ------------------------------------------------------------------------ |
-| `apps/server`         | `@querent/server`: Bun + Hono API, SQLite, serves the built SPA          |
-| `apps/web`            | `@querent/web`: React SPA, React Router in data mode, Vite               |
-| `packages/shared`     | `@querent/shared`: API contracts and roles, imported by both apps        |
-| `packages/plugin-kit` | `@querent/plugin-kit`: the connector kit, for built-in kinds and plugins |
-| `examples/`           | example connector plugins, such as `querent-plugin-sqlite`               |
-| `dev`                 | `@querent/dev`: the local data sources and the synthetic metrics         |
-| `docs`                | Architecture, dashboard spec, brand, contributing, security              |
+| Path                  | Contents                                                                  |
+| --------------------- | ------------------------------------------------------------------------- |
+| `apps/server`         | `@quanthea/server`: Bun + Hono API, SQLite, serves the built SPA          |
+| `apps/web`            | `@quanthea/web`: React SPA, React Router in data mode, Vite               |
+| `packages/shared`     | `@quanthea/shared`: API contracts and roles, imported by both apps        |
+| `packages/plugin-kit` | `@quanthea/plugin-kit`: the connector kit, for built-in kinds and plugins |
+| `examples/`           | example connector plugins, such as `querent-plugin-sqlite`                |
+| `dev`                 | `@quanthea/dev`: the local data sources and the synthetic metrics         |
+| `docs`                | Architecture, dashboard spec, brand, contributing, security               |
 
 ## Local data sources
 

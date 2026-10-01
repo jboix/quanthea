@@ -6,7 +6,7 @@ import {
   type Frame,
   fillView,
   type QueryOutcome,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { buildChartOption, chartInputOf } from './build-option.ts';
 
 import { defaultTheme } from './theme.ts';

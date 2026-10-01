@@ -8,7 +8,7 @@ import {
   type Frame,
   type QueryOutcome,
   type Reduce,
-} from '@querent/shared';
+} from '@quanthea/shared';
 
 /** The reductions over a list of finite numbers. */
 const reducers: Readonly<Record<Reduce, (numbers: readonly number[]) => number | undefined>> = {

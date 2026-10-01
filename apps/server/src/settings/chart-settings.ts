@@ -2,7 +2,7 @@
  * The chart settings: which chart recipes the agent is offered. Every recipe is on until an admin
  * switches it off, and at least one stays on.
  */
-import { type ChartSettings, chartRecipes } from '@querent/shared';
+import { type ChartSettings, chartRecipes } from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import type { SettingsStore } from './settings-store.ts';

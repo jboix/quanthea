@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { AccessLevel } from '@querent/shared';
+import type { AccessLevel } from '@quanthea/shared';
 import type { SchemaSnapshot } from '../connectors/_shared/index.ts';
 import { modelSchema } from './model-schema.ts';
 import type { GateSubject } from './subject.ts';

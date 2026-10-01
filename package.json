@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "dev": "bun run --filter '*' dev",
-    "build": "bun run --filter @querent/web build",
+    "build": "bun run --filter @quanthea/web build",
     "start": "bun apps/server/src/main.ts",
     "querent": "bun apps/server/src/cli.ts",
     "lint": "biome check .",

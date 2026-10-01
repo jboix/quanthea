@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { connectorInputSchema, defaultModelGateway } from '@querent/shared';
+import { connectorInputSchema, defaultModelGateway } from '@quanthea/shared';
 import { createSignInSettings } from './auth/providers/sign-in-settings.ts';
 import { createUsers } from './auth/users.ts';
 import { createConnections } from './connections/connections.ts';

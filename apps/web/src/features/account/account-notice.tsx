@@ -1,4 +1,4 @@
-import { providerFlowFailure } from '@querent/shared';
+import { providerFlowFailure } from '@quanthea/shared';
 import { useSearchParams } from 'react-router';
 import { Banner } from '../../ui/banner.tsx';
 import { InfoIcon, WarningIcon } from '../../ui/icons.tsx';

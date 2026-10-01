@@ -5,7 +5,7 @@ import {
   listUsersEndpoint,
   resetLinkEndpoint,
   updateUserEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { PasswordAccounts } from '../../auth/password-accounts.ts';
 import type { Sessions } from '../../auth/sessions.ts';

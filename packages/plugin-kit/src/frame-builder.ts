@@ -1,5 +1,5 @@
 /** Builds a frame row by row, stopping at the row limit. */
-import type { Field, Frame } from '@querent/shared';
+import type { Field, Frame } from '@quanthea/shared';
 
 /** Collects rows into a frame. */
 export interface FrameBuilder {

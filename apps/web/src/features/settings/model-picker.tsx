@@ -1,4 +1,4 @@
-import { type KnownModel, type ModelProvider, providerProfiles } from '@querent/shared';
+import { type KnownModel, type ModelProvider, providerProfiles } from '@quanthea/shared';
 import { useEffect } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
 import { Combobox } from '../../ui/combobox.tsx';

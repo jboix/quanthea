@@ -3,7 +3,7 @@
  * connector of a kind points, and the kind of a stored connector, which may be gone when the
  * plugin that added it was removed.
  */
-import type { ConnectorKindInfo } from '@querent/shared';
+import type { ConnectorKindInfo } from '@quanthea/shared';
 import { z } from 'zod';
 import type { AnyConnectorKind, RegisteredKind } from '../connectors/_shared/index.ts';
 import type { ConnectorRow } from '../db/connector-repository.ts';

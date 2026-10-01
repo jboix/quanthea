@@ -1,5 +1,5 @@
 /** Maps MySQL and MariaDB result columns to frame fields, and their values to frame values. */
-import type { FieldType } from '@querent/shared';
+import type { FieldType } from '@quanthea/shared';
 
 /**
  * Column type codes whose values become numbers: DECIMAL, TINYINT, SMALLINT, INT, FLOAT, DOUBLE,

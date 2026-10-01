@@ -2,7 +2,7 @@
  * The Valkey connector kind, for Valkey and Redis: one read command per query, from the list the
  * kit holds, over Bun's built-in client. The connection test says whether the ACL user could write.
  */
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import { z } from 'zod';
 import {
   ConnectorError,

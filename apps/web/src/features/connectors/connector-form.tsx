@@ -1,4 +1,4 @@
-import type { ConnectorDetail, ConnectorKindInfo } from '@querent/shared';
+import type { ConnectorDetail, ConnectorKindInfo } from '@quanthea/shared';
 import { type FormEvent, useMemo, useState } from 'react';
 import { Link, useActionData, useLoaderData, useNavigation, useSubmit } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';

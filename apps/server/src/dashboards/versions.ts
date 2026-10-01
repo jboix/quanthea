@@ -2,7 +2,7 @@
  * New versions of a dashboard: the agent's writes and Undo. A version is never rewritten; Undo
  * restores an older spec as a new version.
  */
-import type { DashboardSpec, PanelRun } from '@querent/shared';
+import type { DashboardSpec, PanelRun } from '@quanthea/shared';
 import { newId } from '../lib/ids.ts';
 import { type ServiceContext, validOrRefuse, visibleVersion } from './context.ts';
 import type { SpecIssue } from './issues.ts';

@@ -8,7 +8,7 @@ import {
   chartRecipe,
   fillView,
   type View,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { type BuildContext, buildData, QueryError } from '../queries/index.ts';
 import type { PanelDraft, PanelShape } from './draft.ts';
 import type { PanelRequest } from './request.ts';

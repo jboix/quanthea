@@ -3,7 +3,7 @@
  * placed below, and deploy markers on the time charts. The result is a spec to check, test-run
  * and save like any other.
  */
-import type { Annotation, DashboardSpec, Panel } from '@querent/shared';
+import type { Annotation, DashboardSpec, Panel } from '@quanthea/shared';
 import { type BuildContext, markersQuery, QueryError } from '../queries/index.ts';
 import type { PanelDraft } from './draft.ts';
 import { expandPanel, isTimeChart, type PanelChart } from './expand.ts';

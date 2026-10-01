@@ -1,5 +1,5 @@
 /** Keeps query results for a few seconds, so panels that ask for the same data share one query. */
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 
 /** A short-lived cache of query results. */
 export interface ResultCache {

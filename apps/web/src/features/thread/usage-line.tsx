@@ -1,4 +1,4 @@
-import { costOf, pricesCheckedOn, type TurnUsage } from '@querent/shared';
+import { costOf, pricesCheckedOn, type TurnUsage } from '@quanthea/shared';
 import styles from './conversation.module.css';
 
 /** Short token counts, such as `31k` or `1.2k`. */

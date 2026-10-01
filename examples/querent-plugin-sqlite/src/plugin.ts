@@ -18,7 +18,7 @@ import type {
   Frame,
   HealthReport,
   SqlParameter,
-} from '@querent/plugin-kit';
+} from '@quanthea/plugin-kit';
 import { describeFile, sampleColumn } from './catalog.ts';
 import { resolveInRoot, rootVariable } from './fence.ts';
 import { frameOf } from './frames.ts';

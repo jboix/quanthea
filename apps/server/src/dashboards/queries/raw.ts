@@ -7,7 +7,7 @@ import {
   panelQuerySchema,
   type QueryLanguage,
   queryLanguageNames,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { BuiltData } from './built.ts';
 import type { DataOf } from './request.ts';
 import { QueryError } from './text.ts';

@@ -50,10 +50,10 @@ Run one test file with `bun test apps/server/src/app.test.ts`.
 
 | Workspace             | Package                 | What it is                                                            |
 | --------------------- | ----------------------- | --------------------------------------------------------------------- |
-| `apps/server`         | `@querent/server`       | Bun + Hono API, SQLite, serves the built SPA.                         |
-| `apps/web`            | `@querent/web`          | React SPA, React Router in data mode, Vite. No SSR.                   |
-| `packages/shared`     | `@querent/shared`       | API contracts, roles, and later the spec and formatters. Zod only.    |
-| `packages/plugin-kit` | `@querent/plugin-kit`   | The connector kit: public types, the live kit, the conformance suite. |
+| `apps/server`         | `@quanthea/server`      | Bun + Hono API, SQLite, serves the built SPA.                         |
+| `apps/web`            | `@quanthea/web`         | React SPA, React Router in data mode, Vite. No SSR.                   |
+| `packages/shared`     | `@quanthea/shared`      | API contracts, roles, and later the spec and formatters. Zod only.    |
+| `packages/plugin-kit` | `@quanthea/plugin-kit`  | The connector kit: public types, the live kit, the conformance suite. |
 | `examples/*`          | `querent-plugin-sqlite` | Example connector plugins, built against the public kit only.         |
 
 Module boundaries are in the architecture doc, section 3 and 4, and in `.dependency-cruiser.cjs`.

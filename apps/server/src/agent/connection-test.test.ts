@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { defaultModelSettings } from '@querent/shared';
+import { defaultModelSettings } from '@quanthea/shared';
 import { testModelConnection } from './connection-test.ts';
 import { languageModel, ModelUnavailableError, modelIdFor } from './model.ts';
 import { scriptedModel } from './test/mock-model.ts';

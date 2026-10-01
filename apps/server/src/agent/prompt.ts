@@ -4,7 +4,7 @@
  * what is true now: the time, the current draft, the panels the person mentions, and last what the
  * thread's phase asks of it.
  */
-import type { DashboardSpec, Plan, QueryLanguage } from '@querent/shared';
+import type { DashboardSpec, Plan, QueryLanguage } from '@quanthea/shared';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import type { ThreadState } from '../threads/state.ts';
 import { panelGuideFor } from './panel-guide.ts';

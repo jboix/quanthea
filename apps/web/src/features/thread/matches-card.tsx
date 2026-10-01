@@ -1,4 +1,4 @@
-import type { ThreadData } from '@querent/shared';
+import type { ThreadData } from '@quanthea/shared';
 import { Link } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import styles from './cards.module.css';

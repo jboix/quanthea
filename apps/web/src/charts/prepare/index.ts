@@ -1,5 +1,5 @@
 /** The preparation of each kind, by the name a view gives it. */
-import type { PrepareKind } from '@querent/shared';
+import type { PrepareKind } from '@quanthea/shared';
 import { cartesian, groups, items, ranked, shares } from './cartesian.ts';
 import { facets } from './facets.ts';
 import { calendar, gauge, kpi, matrix, points, regions } from './places.ts';

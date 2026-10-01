@@ -3,7 +3,7 @@ import {
   getManagedSettingsEndpoint,
   getServerSettingsEndpoint,
   type ServerSettingsView,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Managed } from '../../provisioning/managed.ts';
 import type { AppEnv } from '../app-env.ts';

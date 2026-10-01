@@ -10,7 +10,7 @@ import {
   signInEndpoint,
   signOutEndpoint,
   signOutEverywhereEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Context, Hono } from 'hono';
 import { deleteCookie, setCookie } from 'hono/cookie';
 import type { z } from 'zod';

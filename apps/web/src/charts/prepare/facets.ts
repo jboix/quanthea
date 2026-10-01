@@ -2,7 +2,7 @@
  * Small multiples: one small chart per value of the facet column, laid out in a grid, sharing the
  * y scale, with their tooltips linked.
  */
-import { columnIndex, columnValues } from '@querent/shared';
+import { columnIndex, columnValues } from '@quanthea/shared';
 import type { Loose } from '../loose.ts';
 import { oneColumn } from '../roles.ts';
 import { firstSeries, type Prepared, type PrepareInput } from './types.ts';

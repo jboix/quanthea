@@ -4,7 +4,7 @@ import {
   type QueryPreview,
   queryLanguageNames,
   type SavedQuery,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { useState } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
 import { Select } from '../../ui/select.tsx';

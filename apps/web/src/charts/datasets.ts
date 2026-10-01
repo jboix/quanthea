@@ -7,7 +7,7 @@ import {
   filterRows,
   type QueryOutcome,
   sortRows,
-} from '@querent/shared';
+} from '@quanthea/shared';
 
 /**
  * Applies a view's transform.

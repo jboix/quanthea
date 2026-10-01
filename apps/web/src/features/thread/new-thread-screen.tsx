@@ -1,4 +1,4 @@
-import type { ProviderChoice, ThreadQueries } from '@querent/shared';
+import type { ProviderChoice, ThreadQueries } from '@quanthea/shared';
 import {
   type FormEvent,
   type KeyboardEvent,

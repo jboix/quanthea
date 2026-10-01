@@ -14,7 +14,7 @@ import {
   searchLibraryEndpoint,
   unpinDashboardEndpoint,
   variableOptionsEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Dashboards, DescribeForPin } from '../../dashboards/dashboards.ts';
 import { AppError } from '../../lib/errors.ts';

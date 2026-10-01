@@ -1,5 +1,5 @@
 /** What routes read from the request's principal. */
-import type { Principal } from '@querent/shared';
+import type { Principal } from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
 
 /**

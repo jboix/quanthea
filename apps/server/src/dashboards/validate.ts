@@ -8,7 +8,7 @@ import {
   dashboardSpecSchema,
   type ResolvedTimeRange,
   resolveTimeRange,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { checkOption } from './check-option.ts';
 import { type ConnectorLookup, checkQueries } from './check-queries.ts';
 import { checkReferences } from './check-references.ts';

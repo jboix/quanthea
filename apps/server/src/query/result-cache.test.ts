@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import { createResultCache } from './result-cache.ts';
 
 const frames: Frame[] = [

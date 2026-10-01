@@ -1,4 +1,4 @@
-import type { ModelSettingsView } from '@querent/shared';
+import type { ModelSettingsView } from '@quanthea/shared';
 import { Link, type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';

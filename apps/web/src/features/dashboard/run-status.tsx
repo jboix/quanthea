@@ -1,4 +1,4 @@
-import type { DashboardSpec, PanelRun } from '@querent/shared';
+import type { DashboardSpec, PanelRun } from '@quanthea/shared';
 import { Button } from '../../ui/button.tsx';
 import { RefreshIcon, WarningIcon } from '../../ui/icons.tsx';
 import { Tooltip } from '../../ui/tooltip.tsx';

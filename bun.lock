@@ -21,15 +21,15 @@
       },
     },
     "apps/server": {
-      "name": "@querent/server",
+      "name": "@quanthea/server",
       "version": "0.0.0",
       "dependencies": {
         "@ai-sdk/anthropic": "^4.0.65",
         "@ai-sdk/mistral": "^4.0.52",
         "@ai-sdk/openai": "^4.0.78",
         "@ai-sdk/openai-compatible": "^3.0.57",
-        "@querent/plugin-kit": "workspace:*",
-        "@querent/shared": "workspace:*",
+        "@quanthea/plugin-kit": "workspace:*",
+        "@quanthea/shared": "workspace:*",
         "ai": "^7.0.118",
         "hono": "^4.13.9",
         "mongodb": "^7.7.0",
@@ -41,13 +41,13 @@
       },
     },
     "apps/web": {
-      "name": "@querent/web",
+      "name": "@quanthea/web",
       "version": "0.0.0",
       "dependencies": {
         "@ai-sdk/react": "^4.0.121",
         "@fontsource-variable/ibm-plex-sans": "^5.3.0",
         "@fontsource/ibm-plex-mono": "^5.3.0",
-        "@querent/shared": "workspace:*",
+        "@quanthea/shared": "workspace:*",
         "ai": "^7.0.118",
         "echarts": "^6.1.0",
         "react": "^19.3.0",
@@ -64,26 +64,26 @@
       },
     },
     "dev": {
-      "name": "@querent/dev",
+      "name": "@quanthea/dev",
       "version": "0.0.0",
     },
     "examples/querent-plugin-sqlite": {
       "name": "querent-plugin-sqlite",
       "version": "0.1.0",
       "devDependencies": {
-        "@querent/plugin-kit": "workspace:*",
+        "@quanthea/plugin-kit": "workspace:*",
       },
     },
     "packages/plugin-kit": {
-      "name": "@querent/plugin-kit",
+      "name": "@quanthea/plugin-kit",
       "version": "0.0.0",
       "dependencies": {
-        "@querent/shared": "workspace:*",
+        "@quanthea/shared": "workspace:*",
         "zod": "^4.6.5",
       },
     },
     "packages/shared": {
-      "name": "@querent/shared",
+      "name": "@quanthea/shared",
       "version": "0.0.0",
       "dependencies": {
         "zod": "^4.6.5",
@@ -315,15 +315,15 @@
 
     "@pnpm/npm-conf": ["@pnpm/npm-conf@3.0.3", "", { "dependencies": { "@pnpm/config.env-replace": "^1.1.0", "@pnpm/network.ca-file": "^1.0.1", "config-chain": "^1.1.11" } }, "sha512-//0sR/cow/s4ICQaYoAobOl4aU8cjU6x/V24V7XkKotb9+O+3zySIYp146vpaobYHnxa4pZX8NkV54Z5AwbDKA=="],
 
-    "@querent/dev": ["@querent/dev@workspace:dev"],
+    "@quanthea/dev": ["@quanthea/dev@workspace:dev"],
 
-    "@querent/plugin-kit": ["@querent/plugin-kit@workspace:packages/plugin-kit"],
+    "@quanthea/plugin-kit": ["@quanthea/plugin-kit@workspace:packages/plugin-kit"],
 
-    "@querent/server": ["@querent/server@workspace:apps/server"],
+    "@quanthea/server": ["@quanthea/server@workspace:apps/server"],
 
-    "@querent/shared": ["@querent/shared@workspace:packages/shared"],
+    "@quanthea/shared": ["@quanthea/shared@workspace:packages/shared"],
 
-    "@querent/web": ["@querent/web@workspace:apps/web"],
+    "@quanthea/web": ["@quanthea/web@workspace:apps/web"],
 
     "@remix-run/route-pattern": ["@remix-run/route-pattern@0.22.1", "", {}, "sha512-czdGJWh09Lapvcqt7Vb09KlrU2PhRJ8xQaI+AItTuD9aDJ5MAgxnS38lnys6Ll+6RJEqPiaUqTwIQhVLwFvv+w=="],
 

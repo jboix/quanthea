@@ -8,7 +8,7 @@ import {
   type LibraryEntry,
   type LibrarySearch,
   type Panel,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { PinnedRow } from '../db/dashboard-pinned.ts';
 import type { ServiceContext } from './context.ts';
 

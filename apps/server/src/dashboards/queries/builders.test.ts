@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { queryBuilders } from '@querent/shared';
+import { queryBuilders } from '@quanthea/shared';
 import { firstBuild, queriesOf, specOf } from '../panels/fixtures.ts';
 import { buildData } from './build.ts';
 import { builderGuides } from './guide.ts';

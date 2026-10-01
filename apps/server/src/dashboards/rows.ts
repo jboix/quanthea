@@ -1,5 +1,5 @@
 /** The rows of a new dashboard, as created or as copied from another. */
-import type { DashboardSpec } from '@querent/shared';
+import type { DashboardSpec } from '@quanthea/shared';
 import { newId } from '../lib/ids.ts';
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { SchemaView } from '@querent/shared';
+import type { SchemaView } from '@quanthea/shared';
 import { entitySummary, fieldMarker, schemaSummary } from './schema-copy.ts';
 
 /** A field of the given shape. */

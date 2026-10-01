@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { type DashboardSpec, dashboardSpecSchema } from '@querent/shared';
+import { type DashboardSpec, dashboardSpecSchema } from '@quanthea/shared';
 import { choicesFromSearch, timeLabel, withTime, withVariable } from './view-state.ts';
 
 const spec: DashboardSpec = dashboardSpecSchema.parse({

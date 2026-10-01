@@ -1,4 +1,4 @@
-import type { AccessLevel, PlanView, ThreadData } from '@querent/shared';
+import type { AccessLevel, PlanView, ThreadData } from '@quanthea/shared';
 import type { ReactNode } from 'react';
 import { AskCard } from './ask-card.tsx';
 import styles from './conversation.module.css';

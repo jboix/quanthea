@@ -1,5 +1,5 @@
 /** Distinct values of a field for the model: from level 2, never hidden fields, never many. */
-import { lowCardinalityLimit } from '@querent/shared';
+import { lowCardinalityLimit } from '@quanthea/shared';
 import {
   ConnectorError,
   type ConnectorInstance,

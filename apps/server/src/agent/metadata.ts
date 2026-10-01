@@ -3,7 +3,7 @@
  * dashboard in the library. It is best effort: when the model is not set up, fails or is slow, the
  * dashboard is pinned without them.
  */
-import type { DashboardSpec } from '@querent/shared';
+import type { DashboardSpec } from '@quanthea/shared';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import type { ModelSettingsService } from '../settings/model-settings.ts';

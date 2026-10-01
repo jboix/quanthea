@@ -12,7 +12,7 @@ import {
   type Frame,
   fillView,
   type Panel,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { PanelTest } from '../dashboards.ts';
 import type { ChartChoices } from './edit.ts';
 

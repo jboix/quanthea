@@ -14,7 +14,7 @@ import {
   resolveTimeRange,
   type TimeRangeExpression,
   type VariableValues,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
 import type { QueryExecutor, QuerySource } from '../query/executor.ts';
 import { QueryError } from '../query/query-error.ts';

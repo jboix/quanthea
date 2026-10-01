@@ -1,5 +1,5 @@
 /** Turns thrown errors and unknown routes into the `/api` error shape. */
-import type { ApiErrorBody, ApiErrorCode } from '@querent/shared';
+import type { ApiErrorBody, ApiErrorCode } from '@quanthea/shared';
 import type { Context, ErrorHandler, NotFoundHandler } from 'hono';
 import { AppError } from '../lib/errors.ts';
 import { errorFields, type Logger } from '../lib/logger.ts';

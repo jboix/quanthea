@@ -1,5 +1,5 @@
 /** Errors a request can end with, mapped one to one onto the `/api` error shape. */
-import type { ApiErrorCode } from '@querent/shared';
+import type { ApiErrorCode } from '@quanthea/shared';
 
 /** The HTTP status each error code is sent with. */
 const statusByCode = {

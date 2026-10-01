@@ -3,7 +3,7 @@
  * which comes back from it. Both are full-page GETs. Every failure redirects to a page with a
  * fixed code, never with anything the request carried.
  */
-import { apiPrefix, providerFlowIntents } from '@querent/shared';
+import { apiPrefix, providerFlowIntents } from '@quanthea/shared';
 import type { Context, Hono } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { sessionCookieName } from '../../auth/authenticator.ts';

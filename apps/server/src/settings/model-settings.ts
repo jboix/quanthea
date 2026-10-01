@@ -8,7 +8,7 @@ import {
   type ModelSettingsView,
   providerFor,
   settingsFor,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import { maskSecret } from '../secrets/mask.ts';
 import type { SecretBox } from '../secrets/secret-box.ts';

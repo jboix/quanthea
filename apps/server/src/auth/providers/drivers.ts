@@ -6,7 +6,7 @@
  * their verified primary email from GitHub's API with the access token, then drops the token.
  * Provider tokens are never stored.
  */
-import type { ProviderKind, StoredProvider } from '@querent/shared';
+import type { ProviderKind, StoredProvider } from '@quanthea/shared';
 import * as client from 'openid-client';
 import type { ProviderCredentials } from './provider-settings.ts';
 

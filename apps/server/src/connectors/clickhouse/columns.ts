@@ -1,5 +1,5 @@
 /** Maps ClickHouse column types to frame fields, and JSON values to frame values. */
-import type { FieldType } from '@querent/shared';
+import type { FieldType } from '@quanthea/shared';
 
 /** Numeric types: integers of every width, floats and decimals. */
 const numberType = /^(?:U?Int\d+|Float\d+|BFloat16|Decimal\d*)(?:\(.*\))?$/;

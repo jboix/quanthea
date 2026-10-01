@@ -25,7 +25,7 @@ RUN bun install --frozen-lockfile --ignore-scripts
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/web apps/web
-RUN bun run --filter @querent/web build
+RUN bun run --filter @quanthea/web build
 
 # ---- deps: the server's production dependencies, and the data, keys and config directories ----
 FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-slim AS deps
@@ -37,7 +37,7 @@ COPY packages/shared/package.json packages/shared/package.json
 COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
 COPY examples/querent-plugin-sqlite/package.json examples/querent-plugin-sqlite/package.json
 COPY dev/package.json dev/package.json
-RUN bun install --frozen-lockfile --ignore-scripts --production --filter @querent/server
+RUN bun install --frozen-lockfile --ignore-scripts --production --filter @quanthea/server
 # /plugins is not a volume: a derived image installs plugins into it at build time.
 RUN mkdir -p /volume/data /volume/keys /volume/etc/querent /volume/plugins \
     && chown 1000:1000 /volume/data /volume/keys /volume/plugins \

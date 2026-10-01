@@ -2,7 +2,7 @@
  * The working part of a dashboard: the variables with the Refresh button, and the panel grid. The pinned
  * view and the thread's draft pane both show it.
  */
-import type { DashboardSpec, PanelRun } from '@querent/shared';
+import type { DashboardSpec, PanelRun } from '@quanthea/shared';
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { Loaded } from './data.ts';

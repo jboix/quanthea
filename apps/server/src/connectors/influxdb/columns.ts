@@ -2,7 +2,7 @@
  * The columns of an InfluxDB 3 result, whose JSON carries no types: each typed from its values,
  * and times, written in UTC without a zone, read as UTC.
  */
-import type { FieldType } from '@querent/shared';
+import type { FieldType } from '@quanthea/shared';
 
 /** A timestamp as InfluxDB writes it: ISO 8601 in UTC, without a zone, to the nanosecond. */
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?$/;

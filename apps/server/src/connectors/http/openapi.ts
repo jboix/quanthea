@@ -3,7 +3,7 @@
  * connector allows, named `GET /orders/{id}`, with its parameters in the description and the fields
  * of the rows its JSON response holds. Only local `$ref`s are followed, a few levels deep.
  */
-import type { FieldType } from '@querent/shared';
+import type { FieldType } from '@quanthea/shared';
 import type { SchemaEntity, SchemaField } from '../_shared/index.ts';
 import { atPointer } from './extract.ts';
 import type { PathRules } from './paths.ts';

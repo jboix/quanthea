@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { AccessLevel } from '@querent/shared';
+import type { AccessLevel } from '@quanthea/shared';
 import { ConnectorError, type ConnectorInstance } from '../connectors/_shared/index.ts';
 import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
 import { sampleForModel } from './sample.ts';

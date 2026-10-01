@@ -2,7 +2,7 @@
  * The log lines of a LogQL log query, as one table: the time, the line, and a column per label,
  * the stream's and those the pipeline extracted, newest first.
  */
-import type { Field, Frame } from '@querent/shared';
+import type { Field, Frame } from '@quanthea/shared';
 import { createFrameBuilder, type ExecutionContext } from '../_shared/index.ts';
 
 /** One stream of a log query's answer. */

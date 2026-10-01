@@ -1,5 +1,5 @@
 {
-  "name": "@querent/server",
+  "name": "@quanthea/server",
   "version": "0.0.0",
   "private": true,
   "description": "The querent API: Hono on Bun, SQLite, and the built SPA.",
@@ -13,8 +13,8 @@
     "@ai-sdk/mistral": "^4.0.52",
     "@ai-sdk/openai": "^4.0.78",
     "@ai-sdk/openai-compatible": "^3.0.57",
-    "@querent/plugin-kit": "workspace:*",
-    "@querent/shared": "workspace:*",
+    "@quanthea/plugin-kit": "workspace:*",
+    "@quanthea/shared": "workspace:*",
     "ai": "^7.0.118",
     "hono": "^4.13.9",
     "mongodb": "^7.7.0",

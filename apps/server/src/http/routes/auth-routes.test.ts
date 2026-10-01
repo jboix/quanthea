@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import type { Principal } from '@querent/shared';
+import type { Principal } from '@quanthea/shared';
 import { createApp } from '../../app.ts';
 import { createAuthenticator, sessionCookieName } from '../../auth/authenticator.ts';
 import { resetLifetimeMs } from '../../auth/password-accounts.ts';

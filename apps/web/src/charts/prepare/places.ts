@@ -2,7 +2,7 @@
  * Preparations that place single values: days on a calendar, the last value on a dial or as a big
  * number, values per region on a map, and values at latitude and longitude.
  */
-import { columnIndex, columnValues, createFormatter, namedFormatterSchema } from '@querent/shared';
+import { columnIndex, columnValues, createFormatter, namedFormatterSchema } from '@quanthea/shared';
 import type { Loose } from '../loose.ts';
 import { oneColumn, xColumn } from '../roles.ts';
 import { cartesian } from './cartesian.ts';

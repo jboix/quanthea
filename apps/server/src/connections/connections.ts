@@ -11,7 +11,7 @@ import type {
   connectorPatchSchema,
   Guardrails,
   SchemaView,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { z } from 'zod';
 import {
   ConnectorError,

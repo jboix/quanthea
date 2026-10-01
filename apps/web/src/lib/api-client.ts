@@ -1,4 +1,4 @@
-/** The typed API client: calls endpoints declared in `@querent/shared` and validates the answers. */
+/** The typed API client: calls endpoints declared in `@quanthea/shared` and validates the answers. */
 import {
   type ApiErrorCode,
   apiErrorBodySchema,
@@ -6,7 +6,7 @@ import {
   type Endpoint,
   type EndpointInput,
   type EndpointOutput,
-} from '@querent/shared';
+} from '@quanthea/shared';
 
 /** An error answer from the API, or a response the client could not understand. */
 export class ApiError extends Error {

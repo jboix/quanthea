@@ -1,5 +1,5 @@
 /** A panel as its request expands, before it gets an id and a place on the grid. */
-import type { PanelQuery, View } from '@querent/shared';
+import type { PanelQuery, View } from '@quanthea/shared';
 import type { Width } from './request.ts';
 
 /** What a panel shows, which decides its size and whether deploy markers go on it. */

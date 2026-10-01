@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { PanelQuery } from '@querent/shared';
+import type { PanelQuery } from '@quanthea/shared';
 import { searchRatioScripts } from '../../connectors/_shared/index.ts';
 import { bindTemplate } from '../../query/bind.ts';
 import { buildData } from './build.ts';

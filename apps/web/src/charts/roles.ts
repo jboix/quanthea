@@ -2,7 +2,7 @@
  * The columns of a chart's roles as the adapter reads them, inferring what a view does not name:
  * the x is the first time or text column, and the values are the number columns.
  */
-import type { Dataset, RoleColumns } from '@querent/shared';
+import type { Dataset, RoleColumns } from '@quanthea/shared';
 
 /**
  * The first column of a role.

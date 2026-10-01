@@ -1,5 +1,5 @@
 /** A first build shared by the panel tests: five panels of data and charts over two connectors. */
-import { type DashboardSpec, queryText } from '@querent/shared';
+import { type DashboardSpec, queryText } from '@quanthea/shared';
 import type { ConnectorLookup } from '../check-queries.ts';
 import { validateSpec } from '../validate.ts';
 import { applyEdit } from './edit.ts';

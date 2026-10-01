@@ -5,7 +5,7 @@ import {
   dashboardSpecSchema,
   hasRole,
   type Role,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { DashboardRepository, VersionRow } from '../db/dashboard-repository.ts';
 import { AppError } from '../lib/errors.ts';

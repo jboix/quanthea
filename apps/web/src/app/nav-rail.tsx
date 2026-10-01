@@ -1,4 +1,4 @@
-import { hasRole, type Principal, type Role } from '@querent/shared';
+import { hasRole, type Principal, type Role } from '@quanthea/shared';
 import type { ReactNode } from 'react';
 import { Link, useMatch } from 'react-router';
 import { AccountMenu } from '../features/account/index.ts';

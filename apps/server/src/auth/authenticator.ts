@@ -1,5 +1,5 @@
 /** Turns a request into the principal it acts as: the user of its session cookie. */
-import type { Principal } from '@querent/shared';
+import type { Principal } from '@quanthea/shared';
 import type { Sessions } from './sessions.ts';
 import type { Users } from './users.ts';
 

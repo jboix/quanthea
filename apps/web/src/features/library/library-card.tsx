@@ -1,4 +1,4 @@
-import type { LibraryEntry } from '@querent/shared';
+import type { LibraryEntry } from '@quanthea/shared';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
 import { VariantIcon } from '../../ui/icons.tsx';

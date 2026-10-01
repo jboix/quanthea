@@ -6,7 +6,7 @@ no UI and no routes.
 
 Kinds are compiled into the server today. Each kind talks to the core only through the connector
 kit, `connectors/_shared/index.ts`, which re-exports the public kit of `packages/plugin-kit`
-(`@querent/plugin-kit`), so the same code can be loaded as a plugin.
+(`@quanthea/plugin-kit`), so the same code can be loaded as a plugin.
 
 ## Who does what
 
@@ -162,7 +162,7 @@ kinds in that order.
 ## 6. Test the kind
 
 - Run the conformance suite in `<kind>-connector.integration.test.ts`:
-  `testConnectorConformance(warehouseConnector, fixture)` from `@querent/plugin-kit/testing`. It
+  `testConnectorConformance(warehouseConnector, fixture)` from `@quanthea/plugin-kit/testing`. It
   checks the declaration on every run, and the health, schema, frames, row limit, abort, errors and
   samples against a live source with `bun run test:integration`.
 - Add a dev source to `dev/docker-compose.yml` with seed data, under a profile named after its set,
@@ -197,7 +197,7 @@ is a complete one to start from.
   live kit and returns the plugin's kinds:
 
   ```ts
-  import type { ConnectorKit } from '@querent/plugin-kit';
+  import type { ConnectorKit } from '@quanthea/plugin-kit';
   export const kitVersion = 1;
   export default function plugin(kit: ConnectorKit) {
     return [kit.defineConnector({ kind: 'example', configSchema: kit.z.object({ … }), … })];
@@ -205,12 +205,12 @@ is a complete one to start from.
   ```
 
   Build the schemas with `kit.z` and throw `kit.ConnectorError`: they are querent's own. Import
-  only types from `@querent/plugin-kit`, as a development dependency.
+  only types from `@quanthea/plugin-kit`, as a development dependency.
 - **The manifest.** `package.json` names the package `querent-plugin-<name>` or
   `@scope/querent-plugin-<name>`, carries the `querent-plugin` keyword, and the `querent` field:
   `{ "kitVersion": 1, "main": "dist/plugin.js" }`. Set `"files": ["dist"]`, so the tarball holds
   the manifest and the bundle.
-- **The tests.** Call the plugin with `createTestKit()` from `@querent/plugin-kit/testing`, the
+- **The tests.** Call the plugin with `createTestKit()` from `@quanthea/plugin-kit/testing`, the
   live kit itself, and run `testConnectorConformance` against a real source, in the plugin's
   own CI. querent runs the same static checks (`kindProblems`) when it installs and loads it.
 - **Any language, any dialect.** A plugin speaks one of the seven query languages; a SQL plugin

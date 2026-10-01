@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { UsageBucket, UsageReport } from '@querent/shared';
+import type { UsageBucket, UsageReport } from '@quanthea/shared';
 import { chartedModels, dailyUsage, localDay, totalUsage, usageByModel } from './usage-days.ts';
 import { usageByUser } from './usage-people.ts';
 

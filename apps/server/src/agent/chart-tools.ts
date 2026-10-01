@@ -2,7 +2,7 @@
  * The tool that reads one chart recipe in full: the index in the instructions names them all in a
  * line each, and the agent reads the roles, variants and pitfalls of the ones it uses.
  */
-import { type ChartRecipe, chartRecipe, chartRecipes } from '@querent/shared';
+import { type ChartRecipe, chartRecipe, chartRecipes } from '@quanthea/shared';
 import { tool } from 'ai';
 import { z } from 'zod';
 

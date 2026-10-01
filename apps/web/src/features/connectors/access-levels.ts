@@ -1,5 +1,5 @@
 /** How the connectors screen names and explains each access level. */
-import type { AccessLevel } from '@querent/shared';
+import type { AccessLevel } from '@quanthea/shared';
 
 /** How one access level reads on the screen. */
 interface AccessLevelCopy {

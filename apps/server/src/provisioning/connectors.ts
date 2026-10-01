@@ -12,7 +12,7 @@
  * Every field but the name is the API's. A connector's kind never changes. When the file leaves
  * out `descriptions`, admins keep editing them in the interface.
  */
-import { connectorInputSchema, connectorNameSchema } from '@querent/shared';
+import { connectorInputSchema, connectorNameSchema } from '@quanthea/shared';
 import type { z } from 'zod';
 import type { ConfigFile } from '../config/config-file.ts';
 import type { Connections } from '../connections/connections.ts';

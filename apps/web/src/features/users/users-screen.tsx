@@ -1,4 +1,4 @@
-import { type Role, roles, type UserView } from '@querent/shared';
+import { type Role, roles, type UserView } from '@quanthea/shared';
 import { type FormEvent, useState } from 'react';
 import { type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';

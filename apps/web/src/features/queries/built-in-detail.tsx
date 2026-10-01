@@ -1,4 +1,4 @@
-import type { QueryBuilder, QueryGuide } from '@querent/shared';
+import type { QueryBuilder, QueryGuide } from '@quanthea/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';

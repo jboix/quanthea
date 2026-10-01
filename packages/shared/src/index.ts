@@ -1,4 +1,4 @@
-/** The public surface of `@querent/shared`. */
+/** The public surface of `@quanthea/shared`. */
 
 export {
   changePasswordEndpoint,

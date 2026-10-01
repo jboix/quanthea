@@ -3,7 +3,7 @@
  * how the data is prepared and which column plays each role; the adapter owns the dataset, the
  * grid, the theme and how tooltips render.
  */
-import type { ChartView, Dataset, MarkerOutcome, QueryOutcome } from '@querent/shared';
+import type { ChartView, Dataset, MarkerOutcome, QueryOutcome } from '@quanthea/shared';
 import { viewDatasets } from './datasets.ts';
 import { wireFormatters } from './formatters.ts';
 import { isObject, type Loose } from './loose.ts';

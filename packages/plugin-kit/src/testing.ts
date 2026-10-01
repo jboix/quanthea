@@ -4,7 +4,7 @@
  * test file. The static checks always run; the live checks need a source to talk to.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { frameProblems } from '@querent/shared';
+import { frameProblems } from '@quanthea/shared';
 import { kindProblems } from './checks.ts';
 import type { ConnectorInstance, ConnectorKind } from './connector-kind.ts';
 import { ConnectorError } from './errors.ts';

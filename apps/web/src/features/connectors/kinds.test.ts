@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { ConnectorKindInfo } from '@querent/shared';
+import type { ConnectorKindInfo } from '@quanthea/shared';
 import { badgeTone, matchingKinds, needsDarkGlyph } from './kinds.ts';
 
 /**

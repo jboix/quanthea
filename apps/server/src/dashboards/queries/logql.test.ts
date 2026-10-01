@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { queryText } from '@querent/shared';
+import { queryText } from '@quanthea/shared';
 import { bindTemplate } from '../../query/bind.ts';
 import { buildData } from './build.ts';
 import { dataSchema } from './request.ts';

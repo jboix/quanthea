@@ -5,7 +5,7 @@ import {
   type QueryOutcome,
   type StatView as StatViewSpec,
   type TableView as TableViewSpec,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { lazy, Suspense, useMemo } from 'react';
 import { chartInputOf } from '../../charts/input.ts';
 import styles from './panels.module.css';

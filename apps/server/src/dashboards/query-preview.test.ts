@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { connectorInputSchema, type SavedQuery } from '@querent/shared';
+import { connectorInputSchema, type SavedQuery } from '@quanthea/shared';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
 import { previewData } from './query-preview.ts';
 

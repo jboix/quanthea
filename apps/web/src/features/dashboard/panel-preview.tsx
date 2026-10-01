@@ -1,4 +1,4 @@
-import type { Panel, PanelRun } from '@querent/shared';
+import type { Panel, PanelRun } from '@quanthea/shared';
 import { useEffect, useRef, useState } from 'react';
 import { useFetcher } from 'react-router';
 import type { Loaded } from './data.ts';

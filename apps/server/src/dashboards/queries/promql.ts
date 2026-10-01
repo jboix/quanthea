@@ -3,7 +3,7 @@
  * gauge, and the top values by label. A range result becomes a long table: the time, a column per
  * label, a `series` column naming each series, and the `value`.
  */
-import type { PanelQuery } from '@querent/shared';
+import type { PanelQuery } from '@quanthea/shared';
 import type { BuiltData } from './built.ts';
 import type { DataOf } from './request.ts';
 import { byClause, metricName, selector } from './text.ts';

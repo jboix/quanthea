@@ -1,5 +1,5 @@
 /** The Hono app: middleware, `/api` routes, and the SPA with its `index.html` fallback. */
-import { apiPrefix, type ServerSettingsView } from '@querent/shared';
+import { apiPrefix, type ServerSettingsView } from '@quanthea/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import type { Agent } from './agent/run.ts';

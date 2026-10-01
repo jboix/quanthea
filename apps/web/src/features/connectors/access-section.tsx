@@ -1,4 +1,4 @@
-import type { AccessLevel, ConnectorDetail, SchemaView } from '@querent/shared';
+import type { AccessLevel, ConnectorDetail, SchemaView } from '@quanthea/shared';
 import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { Frame, TableView } from '@querent/shared';
+import type { Frame, TableView } from '@quanthea/shared';
 import { tableRows } from './table-rows.ts';
 
 const instant: Frame = {

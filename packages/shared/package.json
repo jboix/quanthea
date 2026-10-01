@@ -1,5 +1,5 @@
 {
-  "name": "@querent/shared",
+  "name": "@quanthea/shared",
   "version": "0.0.0",
   "private": true,
   "description": "The dashboard spec, the API contract and the roles, shared by the server and the web app.",

@@ -13,9 +13,9 @@ plugin is, and it is small enough to copy as a start for your own.
   failure with a message safe to show, `kit.createFrameBuilder` lays out the result.
 - `package.json` carries the `querent-plugin` keyword and the manifest field:
   `"querent": { "kitVersion": 1, "main": "dist/plugin.js" }`.
-- The plugin imports only types from `@querent/plugin-kit`, a development dependency. Its tests
+- The plugin imports only types from `@quanthea/plugin-kit`, a development dependency. Its tests
   call it with `createTestKit()` and run `testConnectorConformance` from
-  `@querent/plugin-kit/testing`.
+  `@quanthea/plugin-kit/testing`.
 
 ## This plugin
 

@@ -4,7 +4,7 @@ import {
   type JoinPolicy,
   type ProviderKind,
   providerCallbackPath,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';

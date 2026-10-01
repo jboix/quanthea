@@ -12,7 +12,7 @@ import {
   signOutEndpoint,
   signOutEverywhereEndpoint,
   unlinkIdentityEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 

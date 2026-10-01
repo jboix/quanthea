@@ -1,5 +1,5 @@
 /** The retention settings: how many days a deleted thread stays in the bin, 30 by default. */
-import type { RetentionSettings } from '@querent/shared';
+import type { RetentionSettings } from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { SettingsStore } from './settings-store.ts';
 

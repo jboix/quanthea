@@ -1,4 +1,4 @@
-import type { ConnectorDetail, Guardrails } from '@querent/shared';
+import type { ConnectorDetail, Guardrails } from '@quanthea/shared';
 import { type FormEvent, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { CheckIcon, WarningIcon } from '../../ui/icons.tsx';

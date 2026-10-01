@@ -5,7 +5,7 @@ import {
   listQueryChoicesEndpoint,
   previewQueryEndpoint,
   saveQuerySettingsEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Connections } from '../../connections/connections.ts';
 import type { Dashboards } from '../../dashboards/dashboards.ts';

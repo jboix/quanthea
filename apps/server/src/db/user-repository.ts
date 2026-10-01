@@ -1,6 +1,6 @@
 /** Stores users. Names and emails arrive sealed, and the email index as a keyed hash. */
 import type { Database } from 'bun:sqlite';
-import type { Role } from '@querent/shared';
+import type { Role } from '@quanthea/shared';
 
 /** A user as stored. */
 export interface UserRow {

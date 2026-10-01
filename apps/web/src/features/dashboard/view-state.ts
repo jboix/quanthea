@@ -10,7 +10,7 @@ import {
   type TimeRangeExpression,
   timeRangeSchema,
   type VariableValues,
-} from '@querent/shared';
+} from '@quanthea/shared';
 
 /** The viewer's choices. */
 export interface ViewChoices {

@@ -1,4 +1,4 @@
-import type { ConnectorKindInfo } from '@querent/shared';
+import type { ConnectorKindInfo } from '@quanthea/shared';
 import { type KeyboardEvent, useId, useState } from 'react';
 import { SearchIcon } from '../../ui/icons.tsx';
 import { KindIcon } from './kind-icon.tsx';

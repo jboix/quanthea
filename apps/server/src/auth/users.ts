@@ -3,7 +3,7 @@
  * an email is found through a keyed hash of its normalised form, so the database holds no readable
  * email. The audit log names users by id only.
  */
-import type { Principal, Role } from '@querent/shared';
+import type { Principal, Role } from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { UserRepository, UserRow } from '../db/user-repository.ts';
 import { AppError } from '../lib/errors.ts';

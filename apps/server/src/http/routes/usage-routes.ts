@@ -1,5 +1,5 @@
 /** The usage report, for admins: what the model steps spent, by hour, model and user. */
-import { type Role, usageReportEndpoint } from '@querent/shared';
+import { type Role, usageReportEndpoint } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Users } from '../../auth/users.ts';
 import type { Usage } from '../../usage/usage.ts';

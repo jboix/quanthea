@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { type Principal, type Role, roles } from '@querent/shared';
+import { type Principal, type Role, roles } from '@quanthea/shared';
 import { createMemoryRouter } from 'react-router';
 import type { ApiClient } from '../lib/api-client.ts';
 import { routeAccess } from './route-access.ts';

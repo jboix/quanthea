@@ -2,7 +2,7 @@
  * One turn of the model: its instructions, its tools for the thread's phase, when it stops, and
  * what each step records. The run (`run.ts`) prepares the turn and stores the conversation.
  */
-import { resolveTime } from '@querent/shared';
+import { resolveTime } from '@quanthea/shared';
 import {
   convertToModelMessages,
   type Instructions,

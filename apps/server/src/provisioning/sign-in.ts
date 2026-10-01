@@ -17,7 +17,7 @@
  * vouches for a provider, so one it declares enabled needs no test sign-in. Turning passwords off
  * waits until an admin can sign in through a provider, and a later start applies it.
  */
-import { joinPolicySchema, providerKinds } from '@querent/shared';
+import { joinPolicySchema, providerKinds } from '@quanthea/shared';
 import { z } from 'zod';
 import type { SignInSettings } from '../auth/providers/sign-in-settings.ts';
 import type { ConfigFile } from '../config/config-file.ts';

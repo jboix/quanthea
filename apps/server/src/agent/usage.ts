@@ -2,7 +2,7 @@
  * A run's token usage by model: counted step by step, and carried over when a run continues an
  * answer, so the answer's metadata holds everything it cost.
  */
-import { addUsage, type TokenUsage, type TurnUsage, turnUsageSchema } from '@querent/shared';
+import { addUsage, type TokenUsage, type TurnUsage, turnUsageSchema } from '@quanthea/shared';
 import type { LanguageModelUsage } from 'ai';
 import type { ThreadMessage } from './run-context.ts';
 

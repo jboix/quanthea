@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { chartRecipes } from '@querent/shared';
+import { chartRecipes } from '@quanthea/shared';
 import type { AuditEntry } from '../db/audit-repository.ts';
 import { createChartSettings } from './chart-settings.ts';
 import { createSettingsStore } from './settings-store.ts';

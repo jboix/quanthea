@@ -3,7 +3,7 @@
  * others, such as failed orders over all orders, over time or over the range. The counts are
  * `CASE` sums and the division guards against zero with `nullif`, which every dialect has.
  */
-import type { PanelQuery } from '@querent/shared';
+import type { PanelQuery } from '@quanthea/shared';
 import type { BuiltData } from './built.ts';
 import type { Filter } from './fields.ts';
 import type { DataOf } from './request.ts';

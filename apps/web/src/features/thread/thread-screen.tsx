@@ -4,7 +4,7 @@ import {
   pricesCheckedOn,
   type ThreadDetail,
   type TurnUsage,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Composer } from './composer.tsx';
 import { Conversation } from './conversation.tsx';

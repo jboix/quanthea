@@ -24,7 +24,7 @@ import {
   type ThreadListItem,
   type ThreadQueries,
   unpinDashboardEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 

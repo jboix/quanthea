@@ -2,7 +2,7 @@
  * Reads the shape of Loki: the stream labels with their value counts, the fields Loki detects in
  * the lines, and how many lines there are, over the last day. One entity, `logs`, holds them.
  */
-import type { FieldType } from '@querent/shared';
+import type { FieldType } from '@quanthea/shared';
 import type { SchemaField, SchemaSnapshot } from '../_shared/index.ts';
 import type { LokiApi } from './api.ts';
 

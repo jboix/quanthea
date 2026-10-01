@@ -1,4 +1,4 @@
-import { type BinnedThread, hasRole, type Role } from '@querent/shared';
+import { type BinnedThread, hasRole, type Role } from '@quanthea/shared';
 import { useCallback, useState } from 'react';
 import { type SubmitTarget, useFetcher, useLoaderData, useRouteLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';

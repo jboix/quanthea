@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import type { Plan } from '@querent/shared';
+import type { Plan } from '@quanthea/shared';
 import { createAuditRepository } from '../db/audit-repository.ts';
 import { createDashboardRepository } from '../db/dashboard-repository.ts';
 import { openDatabase } from '../db/database.ts';

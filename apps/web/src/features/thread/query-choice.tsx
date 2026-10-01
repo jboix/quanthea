@@ -1,4 +1,4 @@
-import type { QueryChoice, ThreadQueries } from '@querent/shared';
+import type { QueryChoice, ThreadQueries } from '@quanthea/shared';
 import { useState } from 'react';
 import { Select } from '../../ui/select.tsx';
 import styles from './query-choice.module.css';

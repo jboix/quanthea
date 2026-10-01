@@ -1,4 +1,4 @@
-import type { ConnectorDetail, SchemaView } from '@querent/shared';
+import type { ConnectorDetail, SchemaView } from '@quanthea/shared';
 import { useEffect, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';

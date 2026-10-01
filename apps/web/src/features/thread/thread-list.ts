@@ -1,5 +1,5 @@
 /** The past threads as the drawer lists them: filtered by words and pins, grouped by day. */
-import type { ThreadListItem } from '@querent/shared';
+import type { ThreadListItem } from '@quanthea/shared';
 
 /** What the drawer narrows the threads to. */
 export interface ThreadFilter {

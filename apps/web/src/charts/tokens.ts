@@ -3,7 +3,7 @@
  * tokens such as `@x`, which name the role's column. In a visual map, `dimension` becomes the
  * column's index, as ECharts wants.
  */
-import type { Dataset, RoleColumns } from '@querent/shared';
+import type { Dataset, RoleColumns } from '@quanthea/shared';
 import type { Loose } from './loose.ts';
 import { oneColumn } from './roles.ts';
 import type { ChartTheme } from './theme.ts';

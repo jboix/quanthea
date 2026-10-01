@@ -3,7 +3,7 @@
  * value pairs (`MGET`, `HMGET`, `HGETALL`); members, with their scores when asked
  * (`ZRANGE … WITHSCORES`); stream entries with their time and fields (`XRANGE`); `INFO` lines.
  */
-import type { Field, FieldType, Frame } from '@querent/shared';
+import type { Field, FieldType, Frame } from '@quanthea/shared';
 import { createFrameBuilder, type ExecutionContext, type RedisQuery } from '../_shared/index.ts';
 
 /** A table before its columns are typed. */

@@ -13,7 +13,7 @@
  * The record of what the file manages names a user by the keyed hash of their email, never the
  * email. A name applies when the user is created. Pruning disables a user.
  */
-import { roles } from '@querent/shared';
+import { roles } from '@quanthea/shared';
 import { z } from 'zod';
 import { defaultAdminLogin } from '../auth/default-admin.ts';
 import { hashPassword, passwordProblem } from '../auth/passwords.ts';

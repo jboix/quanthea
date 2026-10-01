@@ -5,7 +5,7 @@
  * environment or the keys directory, never the file. Plugin pins come from the file only.
  */
 import { join, resolve } from 'node:path';
-import type { SettingSource } from '@querent/shared';
+import type { SettingSource } from '@quanthea/shared';
 import { z } from 'zod';
 import { type LogFormat, type LogLevel, logFormats, logLevels } from '../lib/logger.ts';
 import type { KeyInput, KeyInputs } from '../secrets/keys.ts';

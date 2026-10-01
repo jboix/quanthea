@@ -1,5 +1,5 @@
 /** The queries a connector executes: already bound, never a template with raw variables. */
-import type { QueryLanguage } from '@querent/shared';
+import type { QueryLanguage } from '@quanthea/shared';
 
 export type { QueryLanguage };
 

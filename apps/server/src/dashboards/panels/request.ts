@@ -3,7 +3,7 @@
  * recipe, and the dashboard's variables, time range and deploy markers. This is the edit tool's
  * input schema, so providers that constrain tool input keep the model to it.
  */
-import { chartRecipes, chartUnits, timeRangeSchema, variableSchema } from '@querent/shared';
+import { chartRecipes, chartUnits, timeRangeSchema, variableSchema } from '@quanthea/shared';
 import { z } from 'zod';
 import {
   type AvailableQueries,

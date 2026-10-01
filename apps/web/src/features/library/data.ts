@@ -1,5 +1,5 @@
 /** The library's loader: the search and filters in the URL, and what the server finds. */
-import { type LibrarySearch, searchLibraryEndpoint } from '@querent/shared';
+import { type LibrarySearch, searchLibraryEndpoint } from '@quanthea/shared';
 import type { LoaderFunctionArgs } from 'react-router';
 import type { ApiClient } from '../../lib/api-client.ts';
 

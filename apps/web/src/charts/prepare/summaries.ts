@@ -9,7 +9,7 @@ import {
   type Dataset,
   fiveNumbers,
   histogramBins,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { oneColumn } from '../roles.ts';
 import type { Prepared, PrepareInput } from './types.ts';
 

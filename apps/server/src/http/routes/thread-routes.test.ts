@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { connectorInputSchema, type Principal, threadSummarySchema } from '@querent/shared';
+import { connectorInputSchema, type Principal, threadSummarySchema } from '@quanthea/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import { eventsSpec } from '../../dashboards/test/events-spec.ts';

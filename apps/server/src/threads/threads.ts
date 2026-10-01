@@ -2,7 +2,7 @@
  * The threads service: threads, their messages and their plans, with the state machine checked on
  * every change. The agent and the HTTP layer both go through it.
  */
-import type { Plan, PlanView, ThreadDetail, ThreadQueries, ThreadSummary } from '@querent/shared';
+import type { Plan, PlanView, ThreadDetail, ThreadQueries, ThreadSummary } from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { MessageRow, PlanRow, ThreadRepository, ThreadRow } from '../db/thread-repository.ts';
 import { AppError } from '../lib/errors.ts';

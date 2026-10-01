@@ -1,5 +1,5 @@
 /** The card of one provider: its name, vendor, base URL, key and connection test. */
-import { gatewayPresets } from '@querent/shared';
+import { gatewayPresets } from '@quanthea/shared';
 import { useState } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';

@@ -3,7 +3,7 @@
  * rate, a breakdown by a field, one number, a histogram of a numeric field, and the latest
  * documents. Each ends with a `$project` that names the columns, so the table is known.
  */
-import type { PanelQuery } from '@querent/shared';
+import type { PanelQuery } from '@quanthea/shared';
 import type { BuiltData } from './built.ts';
 import type { PathFilter } from './fields.ts';
 import {

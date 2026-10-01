@@ -10,7 +10,7 @@ import {
   type ProviderConfig,
   providerProfiles,
   settingsFor,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { useState } from 'react';
 
 /**

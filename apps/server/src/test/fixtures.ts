@@ -2,7 +2,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Principal, ServerSettingsView } from '@querent/shared';
+import type { Principal, ServerSettingsView } from '@quanthea/shared';
 import type { Authenticator } from '../auth/authenticator.ts';
 import type { HashCosts } from '../auth/passwords.ts';
 import type { AnyConnectorKind } from '../connectors/_shared/index.ts';

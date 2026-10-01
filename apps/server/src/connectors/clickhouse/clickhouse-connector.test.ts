@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { testConnectorConformance } from '@querent/plugin-kit/testing';
+import { testConnectorConformance } from '@quanthea/plugin-kit/testing';
 import type { ConnectorError } from '../_shared/index.ts';
 import { quoteIdentifier, toEntities } from './catalog.ts';
 import { clickhouseConnector } from './clickhouse-connector.ts';

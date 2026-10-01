@@ -1,5 +1,5 @@
 /** The connection test of a connector, shared by every component that shows it. */
-import type { healthReportSchema } from '@querent/shared';
+import type { healthReportSchema } from '@quanthea/shared';
 import { useEffect } from 'react';
 import { useFetcher } from 'react-router';
 import type { z } from 'zod';

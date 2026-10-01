@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { defineEndpoint, type Principal } from '@querent/shared';
+import { defineEndpoint, type Principal } from '@quanthea/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import { z } from 'zod';

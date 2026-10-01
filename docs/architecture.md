@@ -61,7 +61,7 @@ The two paths that matter:
 ```
 .
 ├── apps/
-│   ├── server/                      @querent/server
+│   ├── server/                      @quanthea/server
 │   │   └── src/
 │   │       ├── main.ts              bootstrap: config → migrate → jobs → Bun.serve
 │   │       ├── app.ts               Hono app: middleware, /api routes, static SPA + fallback
@@ -86,7 +86,7 @@ The two paths that matter:
 │   │       ├── secrets/             encrypt/decrypt credentials at rest
 │   │       ├── jobs/                in-process jobs: the hourly purge of the thread bin
 │   │       └── db/                  bun:sqlite client, migrations, repositories
-│   └── web/                         @querent/web
+│   └── web/                         @quanthea/web
 │       ├── index.html
 │       ├── vite.config.ts           dev proxy /api → :3000
 │       └── src/
@@ -104,9 +104,9 @@ The two paths that matter:
 │           ├── ui/                  presentational primitives (Button, Card, Pill, Tabs, Switch…), brand
 │           └── lib/                 typed API client (from shared contract), utils
 ├── packages/
-│   ├── plugin-kit/                  @querent/plugin-kit: the connector kit, public types,
+│   ├── plugin-kit/                  @quanthea/plugin-kit: the connector kit, public types,
 │   │                                a test kit and the conformance suite
-│   └── shared/                      @querent/shared  (isomorphic: browser + Bun)
+│   └── shared/                      @quanthea/shared  (isomorphic: browser + Bun)
 │       └── src/
 │           ├── spec/                dashboard spec Zod schemas + types
 │           ├── api/                 endpoint contracts (method, path, input, output)
@@ -138,7 +138,7 @@ them.
 | Module               | Responsibility                                              | May import                                                          | Must not import                                 |
 | -------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------- |
 | `lib/`               | errors, logger, ids                                         | nothing internal                                                    | everything else                                 |
-| `connectors/<kind>/` | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@querent/shared`, its own driver      | other connector kinds, anything else in the app |
+| `connectors/<kind>/` | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@quanthea/shared`, its own driver     | other connector kinds, anything else in the app |
 | `query/`             | bind variables, enforce guardrails, run, cache              | `connectors`, `lib`, shared                                         | `agent`, `http`                                 |
 | `gate/`              | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                    | `agent`, `http`                                 |
 | `agent/`             | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `settings`, `lib`                  | **`connectors`, `query`, `db`**                 |
@@ -442,7 +442,7 @@ catalog stays the same from turn to turn and the providers' cache keeps working.
 
 The model never writes a spec, and rarely a query. Each panel of an `edit_dashboard` edit is
 **data** and a **chart**, two independent layers joined by one data contract: every query result
-becomes a table of typed columns and rows (`Dataset`, `@querent/shared/dataset`), which maps
+becomes a table of typed columns and rows (`Dataset`, `@quanthea/shared/dataset`), which maps
 directly onto an ECharts `dataset`.
 
 - **Data** (`dashboards/queries/`) is a query builder, a saved query or a raw query. Each says
@@ -505,7 +505,7 @@ directly onto an ECharts `dataset`.
 - **Shapes.** `long` (x, series, value), `wide` (x, a column per series), `single`, `values` (raw
   numbers to bin), `matrix`, `hierarchical`, `graph`, `geo`, `ohlc` and `rows`. A Prometheus
   range result is long: the time, a column per label, `series` and `value`.
-- **Charts** (`@querent/shared/chart-recipes/`) are presentation only: a recipe names the shape it
+- **Charts** (`@quanthea/shared/chart-recipes/`) are presentation only: a recipe names the shape it
   draws and the role of each column (`x`, `series`, `y`, `category`, `value`…), carries an ECharts
   option template with `@role`, `@format` and theme tokens, variants as small option patches, its
   pitfalls, and a small fake sample it draws on its own. No recipe names a connector or a query
@@ -631,7 +631,7 @@ the test; turning the switch off sends the provider's default.
 - Each answer's metadata holds its usage by model: fresh input, cache reads, cache writes and
   output (`agent/usage.ts`). A run that continues an answer after an approval adds to it. The
   thread shows each answer's tokens and cost under it, and the thread's total in its header,
-  priced from the list prices in `@querent/shared` (`modelPrices`, dated). A model without a price
+  priced from the list prices in `@quanthea/shared` (`modelPrices`, dated). A model without a price
   is named instead.
 - Each run adds its tokens to the thread, step by step, so a failed run still counts. A thread over its token budget (setting, default 200k)
   refuses new runs with a message that says so.
@@ -643,7 +643,7 @@ the test; turning the switch off sends the provider's default.
 
 The chat endpoint answers with the AI SDK UI message stream (`createUIMessageStream` around
 `streamText`). Custom parts carry `data-plan` (the plan card), `data-version` (the right pane moves
-to that version) and `data-diff` (the change card); their schemas are in `@querent/shared`. The
+to that version) and `data-diff` (the change card); their schemas are in `@quanthea/shared`. The
 whole conversation, tool parts included, is stored when the run ends, even if the person leaves, so
 a reload shows the same thread.
 
@@ -655,7 +655,7 @@ folder under `connectors/`, declares itself with `defineConnector`, and uses the
 the **connector kit**, `connectors/_shared/index.ts` (dependency-cruiser rule
 `connector-kinds-use-the-kit`). [`connectors.md`](connectors.md) walks through adding a kind.
 
-The kit lives in its own workspace, `packages/plugin-kit` (`@querent/plugin-kit`), because the
+The kit lives in its own workspace, `packages/plugin-kit` (`@quanthea/plugin-kit`), because the
 same kit serves connector plugins. It has three entry points:
 
 - `.`: the types a kind is written against (`ConnectorKind`, `ConnectorInstance`, the bound
@@ -669,7 +669,7 @@ same kit serves connector plugins. It has three entry points:
 
 `connectors/_shared/index.ts` re-exports the live kit and adds what only built-in kinds and the
 binders use, querent's policy lists (`policies.ts`): `searchRatioScripts`, `mongodbRefusedKeys`,
-`redisReadCommands`. The public kit leaves them out. The kit imports only `@querent/shared` and
+`redisReadCommands`. The public kit leaves them out. The kit imports only `@quanthea/shared` and
 Zod (rule `plugin-kit-stays-small`), and a plugin receives the server's Zod and error class, so
 its schemas build the forms. `createTestKit()` returns the live kit itself, so a plugin's tests run
 the code production runs. Every copy of `ConnectorError` carries the global brand
@@ -718,7 +718,7 @@ export const exampleConnector = defineConnector({
   resolves to when the request starts. It stops at a timeout (120 seconds by default, on top of the
   caller's signal) and reads at most 64 MiB of a body. A request names a path under the base URL,
   or an absolute URL on the same origin, such as a next-page link.
-- `@querent/plugin-kit/testing` holds the suite every kind runs in its test file: static
+- `@quanthea/plugin-kit/testing` holds the suite every kind runs in its test file: static
   checks of the declaration, and live checks against a source (health, schema, valid frames, row
   limit, abort, error messages, sample limit). `test/memory-connector.ts` is an in-memory kind for
   tests.
@@ -1379,7 +1379,7 @@ one, and enables them again. Without any admin, it creates the default one.
 - **Maps:** the world map (`charts/maps/world.geojson`, Natural Earth) is a file of the repository,
   loaded and registered only when a chart draws a map; no map is fetched from elsewhere.
 - **Formatters:** every `{"$fmt": …}` object becomes a function from
-  `@querent/shared/formatters`. ECharts string templates pass through unchanged.
+  `@quanthea/shared/formatters`. ECharts string templates pass through unchanged.
 - The adapter owns the dataset, the grid, the palette, fonts and axis colours (from the tokens in
   `ui/theme.css`), and the tooltip's render mode, whatever the spec says.
 - **Tooltip safety:** tooltips are forced to `renderMode: 'richText'`, drawn on the canvas, so a
@@ -1550,7 +1550,7 @@ free"), a vendor (Anthropic, OpenAI, Mistral, or an OpenAI-compatible base URL s
 Ollama or Gemini's OpenAI endpoint), its base URL, and the model for each job (plan, build, repair,
 metadata). Choosing a vendor fills in its API's base URL and its starting models; the
 OpenAI-compatible choice offers the common gateways' base URLs. The job fields offer the vendor's
-current models by name (`providerProfiles` in `@querent/shared`), then the rest of the chat models
+current models by name (`providerProfiles` in `@quanthea/shared`), then the rest of the chat models
 the provider's own `/models` API returns (`POST /api/settings/model/models`).
 
 Each provider's API key is sealed with the secret key, bound to `settings.model.<provider id>`,

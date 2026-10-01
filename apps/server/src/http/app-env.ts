@@ -1,5 +1,5 @@
 /** The Hono environment shared by every route and middleware. */
-import type { Principal } from '@querent/shared';
+import type { Principal } from '@quanthea/shared';
 import type { RequestIdVariables } from 'hono/request-id';
 
 /** Variables set on the request context by the app's middleware. */

@@ -2,7 +2,7 @@
  * Lists the models a provider offers, from its own API, so the settings screen can offer them in
  * a dropdown. Only models that can chat are kept.
  */
-import { type ModelProvider, providerProfiles } from '@querent/shared';
+import { type ModelProvider, providerProfiles } from '@quanthea/shared';
 
 /** Where to ask, and with which key. */
 export interface CatalogRequest {

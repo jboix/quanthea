@@ -11,7 +11,7 @@ import {
   saveIdentityProviderEndpoint,
   signInOptionsEndpoint,
   unlinkIdentityEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { LinkedIdentities } from '../../auth/providers/linked-identities.ts';
 import type { SignInSettings } from '../../auth/providers/sign-in-settings.ts';

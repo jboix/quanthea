@@ -1,4 +1,4 @@
-import { type Panel, queryLanguageNames, queryText } from '@querent/shared';
+import { type Panel, queryLanguageNames, queryText } from '@quanthea/shared';
 import { InfoIcon } from '../../ui/icons.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import styles from './panels.module.css';

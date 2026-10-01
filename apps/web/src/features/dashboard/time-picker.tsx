@@ -1,4 +1,4 @@
-import type { DashboardSpec, TimeRangeExpression } from '@querent/shared';
+import type { DashboardSpec, TimeRangeExpression } from '@quanthea/shared';
 import { type FormEvent, useRef, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import styles from './variables-bar.module.css';

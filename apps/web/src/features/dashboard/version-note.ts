@@ -1,5 +1,5 @@
 /** How a version is named in a history list. */
-import type { DashboardDetail } from '@querent/shared';
+import type { DashboardDetail } from '@quanthea/shared';
 
 /**
  * What a version is: the one the library shows, one pinned before, or a draft with its summary.

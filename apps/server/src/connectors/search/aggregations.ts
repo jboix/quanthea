@@ -6,7 +6,7 @@
  * aggregation whose name starts with `_` is a helper, such as the parts of a ratio: no column, and
  * for a bucket aggregation no key column.
  */
-import type { FieldType, Frame } from '@querent/shared';
+import type { FieldType, Frame } from '@quanthea/shared';
 import { ConnectorError, createFrameBuilder, type ExecutionContext } from '../_shared/index.ts';
 
 /** An aggregation as the request declares it. */

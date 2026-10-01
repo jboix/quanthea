@@ -3,8 +3,8 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { ConnectorKind } from '@querent/plugin-kit';
-import { createTestKit, testConnectorConformance } from '@querent/plugin-kit/testing';
+import type { ConnectorKind } from '@quanthea/plugin-kit';
+import { createTestKit, testConnectorConformance } from '@quanthea/plugin-kit/testing';
 import plugin, { kitVersion } from '../src/plugin.ts';
 
 const root = mkdtempSync(join(tmpdir(), 'sqlite-root-'));

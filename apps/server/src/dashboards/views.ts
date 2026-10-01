@@ -1,5 +1,5 @@
 /** Turns stored dashboards and versions into what the API returns, by role. */
-import { type DashboardDetail, hasRole, type Role } from '@querent/shared';
+import { type DashboardDetail, hasRole, type Role } from '@quanthea/shared';
 import type { DashboardRow, VersionSummaryRow } from '../db/dashboard-repository.ts';
 
 /**

@@ -4,7 +4,7 @@
  * own schema and are quoted, so a field the schema does not have is never queried.
  */
 import type { Database } from 'bun:sqlite';
-import type { SchemaEntity, SchemaSnapshot } from '@querent/plugin-kit';
+import type { SchemaEntity, SchemaSnapshot } from '@quanthea/plugin-kit';
 import { typeOfDeclared } from './frames.ts';
 
 /** A table or view, as `sqlite_schema` lists it. */

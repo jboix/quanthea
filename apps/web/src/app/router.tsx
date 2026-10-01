@@ -1,5 +1,5 @@
 /** The route tree (React Router data mode) and the browser router built from it. */
-import { getManagedSettingsEndpoint } from '@querent/shared';
+import { getManagedSettingsEndpoint } from '@quanthea/shared';
 import {
   createBrowserRouter,
   type LoaderFunctionArgs,

@@ -1,5 +1,5 @@
 /** Whether the person may change dashboards and start threads. */
-import { hasRole, type Role } from '@querent/shared';
+import { hasRole, type Role } from '@quanthea/shared';
 import { useRouteLoaderData } from 'react-router';
 
 /**

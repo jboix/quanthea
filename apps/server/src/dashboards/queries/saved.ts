@@ -4,7 +4,7 @@
  * names checked and quoted, values escaped or bound, durations checked. SQL, PromQL and LogQL are
  * text; a Redis command is filled word by word; the other languages are JSON (`saved-json.ts`).
  */
-import type { PanelQuery, QueryParamKind, SavedQuery } from '@querent/shared';
+import type { PanelQuery, QueryParamKind, SavedQuery } from '@quanthea/shared';
 import type { BuildContext, BuiltData } from './built.ts';
 import { redisWords, templateQuery } from './raw.ts';
 import type { DataOf } from './request.ts';

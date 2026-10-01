@@ -8,7 +8,7 @@ import {
   type modelTestSchema,
   saveModelSettingsEndpoint,
   testModelSettingsEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { ActionFunctionArgs } from 'react-router';
 import type { z } from 'zod';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';

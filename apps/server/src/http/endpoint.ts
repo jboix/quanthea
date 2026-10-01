@@ -5,7 +5,7 @@ import {
   type EndpointOutput,
   type ParsedEndpointInput,
   type Principal,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Context, Hono } from 'hono';
 import type { z } from 'zod';
 import { AppError } from '../lib/errors.ts';

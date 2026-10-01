@@ -9,7 +9,7 @@ import {
   refreshConnectorSchemaEndpoint,
   testConnectorEndpoint,
   updateConnectorEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Connections } from '../../connections/connections.ts';
 import type { Managed } from '../../provisioning/managed.ts';

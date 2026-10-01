@@ -8,7 +8,7 @@ import {
   type SavedQuery,
   shapeGuides,
   shapeKinds,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';

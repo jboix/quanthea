@@ -1,4 +1,4 @@
-import type { ServerSettingsView, SettingSource } from '@querent/shared';
+import type { ServerSettingsView, SettingSource } from '@quanthea/shared';
 import { useLoaderData } from 'react-router';
 import { Card } from '../../ui/card.tsx';
 import { Page } from '../../ui/page.tsx';

@@ -1,5 +1,5 @@
 /** Loads the system settings. */
-import { getServerSettingsEndpoint, type ServerSettingsView } from '@querent/shared';
+import { getServerSettingsEndpoint, type ServerSettingsView } from '@quanthea/shared';
 import type { LoaderFunctionArgs } from 'react-router';
 import type { ApiClient } from '../../lib/api-client.ts';
 

@@ -7,7 +7,7 @@ import {
   type Guardrails,
   guardrailsSchema,
   hiddenFieldsSchema,
-} from '@querent/shared';
+} from '@quanthea/shared';
 
 /** A configured connector as stored. `config` is validated by its kind, not here. */
 export interface ConnectorRow {

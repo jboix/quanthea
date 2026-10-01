@@ -10,7 +10,7 @@ import {
   providerConfigSchema,
   querySettingsSchema,
   retentionSettingsSchema,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { z } from 'zod';
 import { pinSchema, pluginNameSchema, settingSpecs } from '../config/config.ts';
 import { declaredSchema as declaredConnector } from './connectors.ts';

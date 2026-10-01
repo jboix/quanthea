@@ -10,7 +10,7 @@ import {
   restoreVersionEndpoint,
   startFromPinnedEndpoint,
   threadFromDashboardEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Users } from '../../auth/users.ts';
 import type { Dashboards } from '../../dashboards/dashboards.ts';

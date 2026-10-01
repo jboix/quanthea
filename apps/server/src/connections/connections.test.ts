@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { connectorInputSchema } from '@querent/shared';
+import { connectorInputSchema } from '@quanthea/shared';
 import { ConnectorError, defineConnector } from '../connectors/_shared/index.ts';
 import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
 import { createAuditRepository } from '../db/audit-repository.ts';

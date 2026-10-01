@@ -3,7 +3,7 @@
  * the theme, animation and how tooltips render, so the spec may not set them, and data is never
  * inlined in a series: the adapter builds it from the queries, trees and graphs included.
  */
-import { namedFormatterSchema } from '@querent/shared';
+import { namedFormatterSchema } from '@quanthea/shared';
 import type { SpecIssue } from './issues.ts';
 
 /** The top-level keys an option may have. */

@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
-import type { Principal } from '@querent/shared';
+import type { Principal } from '@quanthea/shared';
 import { createAccounts } from '../../accounts.ts';
 import { createAuditRepository } from '../../db/audit-repository.ts';
 import { openDatabase } from '../../db/database.ts';

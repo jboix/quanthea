@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { connectorInputSchema } from '@querent/shared';
+import { connectorInputSchema } from '@quanthea/shared';
 import {
   devPostgres,
   devPrometheus,

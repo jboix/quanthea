@@ -1,4 +1,4 @@
-import { allValue, isMultiValue, type Variable } from '@querent/shared';
+import { allValue, isMultiValue, type Variable } from '@quanthea/shared';
 import { useRef, useState } from 'react';
 import { useFetcher } from 'react-router';
 import type { Loaded } from './data.ts';

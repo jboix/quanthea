@@ -15,7 +15,7 @@ import {
   type SavedQuery,
   shapeGuides,
   shapeKinds,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import {
   builderHints,

@@ -4,7 +4,7 @@ import {
   type ChartSettings,
   chartFamilies,
   chartRecipes,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { useState } from 'react';
 import { type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';

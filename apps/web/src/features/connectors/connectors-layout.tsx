@@ -1,4 +1,4 @@
-import type { ConnectorKindInfo, ConnectorSummary } from '@querent/shared';
+import type { ConnectorKindInfo, ConnectorSummary } from '@quanthea/shared';
 import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router';
 import { buttonClassName } from '../../ui/button.tsx';

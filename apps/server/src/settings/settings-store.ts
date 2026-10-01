@@ -6,7 +6,7 @@ import {
   querySettingsSchema,
   retentionSettingsSchema,
   storedSignInSchema,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { z } from 'zod';
 import type { SettingsRepository } from '../db/settings-repository.ts';
 

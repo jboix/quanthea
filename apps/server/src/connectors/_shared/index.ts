@@ -1,9 +1,9 @@
 /**
- * The server's connector kit: the public kit (`@querent/plugin-kit`), which plugins receive at
+ * The server's connector kit: the public kit (`@quanthea/plugin-kit`), which plugins receive at
  * load, and the policy lists only the built-in kinds and the binders use. Kinds import this module
  * and nothing else from `_shared`, so its internals can change without breaking them.
  */
-import type { AnyConnectorKind } from '@querent/plugin-kit/host';
+import type { AnyConnectorKind } from '@quanthea/plugin-kit/host';
 
 export {
   type AnyConnectorKind,
@@ -41,7 +41,7 @@ export {
   type SqlRowLimit,
   seriesFrames,
   type TimeRange,
-} from '@querent/plugin-kit/host';
+} from '@quanthea/plugin-kit/host';
 /** Where a connector kind comes from, when a plugin added it. */
 export interface PluginOrigin {
   /** The plugin's package name. */

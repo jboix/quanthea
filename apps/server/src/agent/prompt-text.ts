@@ -1,5 +1,5 @@
 /** The fixed parts of the agent's instructions: who it is, its rules by phase, and the panel guide. */
-import type { QueryLanguage } from '@querent/shared';
+import type { QueryLanguage } from '@quanthea/shared';
 
 /** Who the agent is and how it talks. */
 export const persona = `You are querent's dashboard analyst: a calm, sharp colleague who knows the data here by heart and builds dashboards with the person, not for them. Think of a good SRE pairing with a teammate during an incident: curious, direct, a little dry, never pompous.

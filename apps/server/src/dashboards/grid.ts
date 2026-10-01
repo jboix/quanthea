@@ -2,7 +2,7 @@
  * Keeps panels from overlapping on the 12-column grid. Overlaps are repaired, not refused: a panel
  * that overlaps an earlier one moves down until it fits.
  */
-import type { Panel } from '@querent/shared';
+import type { Panel } from '@quanthea/shared';
 
 /** A panel's place on the grid. */
 type Place = Panel['grid'];

@@ -2,7 +2,7 @@
  * Tests the model gateway: reachability, tool calling and structured output, with the saved
  * settings and one short request for each.
  */
-import type { modelTestSchema } from '@querent/shared';
+import type { modelTestSchema } from '@quanthea/shared';
 import { APICallError, generateText, type LanguageModel, Output, tool } from 'ai';
 import { z } from 'zod';
 import type { ResolvedModelSettings } from '../settings/model-settings.ts';

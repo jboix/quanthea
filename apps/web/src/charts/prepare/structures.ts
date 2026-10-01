@@ -9,7 +9,7 @@ import {
   type Dataset,
   rowsToGraph,
   rowsToTree,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Loose } from '../loose.ts';
 import { allColumns, oneColumn } from '../roles.ts';
 import { firstSeries, type Prepared, type PrepareInput, withFirstSeries } from './types.ts';

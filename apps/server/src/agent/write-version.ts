@@ -5,7 +5,7 @@
  * other failure keeps the version from being saved. The results the model sees pass through the
  * gate.
  */
-import { type DashboardSpec, diffSpecs, type PanelDiff } from '@querent/shared';
+import { type DashboardSpec, diffSpecs, type PanelDiff } from '@quanthea/shared';
 import type { PanelTest } from '../dashboards/dashboards.ts';
 import { compactGrid } from '../dashboards/panels/index.ts';
 import type { ModelTestResult } from '../gate/test-run.ts';

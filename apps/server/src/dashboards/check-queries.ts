@@ -10,8 +10,8 @@ import type {
   QueryTemplate,
   ResolvedTimeRange,
   Variable,
-} from '@querent/shared';
-import { isMultiValue, queryTextKey } from '@querent/shared';
+} from '@quanthea/shared';
+import { isMultiValue, queryTextKey } from '@quanthea/shared';
 import { bindTemplate } from '../query/bind.ts';
 import type { QuerySource } from '../query/executor.ts';
 import { checkTimeRange } from '../query/guardrails.ts';

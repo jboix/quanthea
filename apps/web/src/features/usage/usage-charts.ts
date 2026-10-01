@@ -1,5 +1,5 @@
 /** The usage charts: days as frames, drawn by the same chart code as dashboards. */
-import { datasetOfFrames, type Formatter, type Frame } from '@querent/shared';
+import { datasetOfFrames, type Formatter, type Frame } from '@quanthea/shared';
 import type { ChartInput } from '../../charts/index.ts';
 import type { chartedModels, DayUsage, ModelDay } from './usage-days.ts';
 

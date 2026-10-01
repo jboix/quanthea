@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
-import { providerFlowFailures, providerStartPath } from '@querent/shared';
+import { providerFlowFailures, providerStartPath } from '@quanthea/shared';
 import { createApp } from '../../app.ts';
 import { createAuthenticator, sessionCookieName } from '../../auth/authenticator.ts';
 import { type FakeProvider, startFakeProvider } from '../../auth/providers/test/fake-provider.ts';

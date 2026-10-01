@@ -3,7 +3,7 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import type { ModelSettings } from '@querent/shared';
+import type { ModelSettings } from '@quanthea/shared';
 import { type LanguageModel, wrapLanguageModel } from 'ai';
 import type { ResolvedModelSettings } from '../settings/model-settings.ts';
 import { quotaMiddleware } from './quota.ts';

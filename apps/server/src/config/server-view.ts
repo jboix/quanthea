@@ -2,7 +2,7 @@
  * The system settings as Settings → Server shows them: each value with where it comes from, and
  * each key with where it comes from, never its value.
  */
-import type { ServerSettingsView, SettingSource } from '@querent/shared';
+import type { ServerSettingsView, SettingSource } from '@quanthea/shared';
 import type { KeyInputs, KeyOrigin } from '../secrets/keys.ts';
 import { type Config, type SettingKey, settingSpecs } from './config.ts';
 

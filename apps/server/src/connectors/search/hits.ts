@@ -2,7 +2,7 @@
  * The documents a search returns, as one table: a column per field of `_source`, nested objects
  * flattened to dotted paths, typed from the index mapping.
  */
-import type { Field, Frame } from '@querent/shared';
+import type { Field, Frame } from '@quanthea/shared';
 import { createFrameBuilder, type ExecutionContext } from '../_shared/index.ts';
 import { fieldTypeOf, frameValue } from './columns.ts';
 

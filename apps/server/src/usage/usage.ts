@@ -3,7 +3,7 @@
  * dashboard, kept apart from threads so deleting one keeps its history. The cost is priced when
  * the step happens, so later price changes do not rewrite the past.
  */
-import { costOf, pricesCheckedOn, type TokenUsage, type UsageReport } from '@querent/shared';
+import { costOf, pricesCheckedOn, type TokenUsage, type UsageReport } from '@quanthea/shared';
 import type { UsageEventRow, UsageRepository } from '../db/usage-repository.ts';
 import { newId } from '../lib/ids.ts';
 

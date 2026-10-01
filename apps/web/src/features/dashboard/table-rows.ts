@@ -10,7 +10,7 @@ import {
   type Frame,
   type QueryOutcome,
   type TableView,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { columnIn } from './reduce.ts';
 
 /** A table ready to render. */

@@ -1,4 +1,4 @@
-import type { ManagedSettings } from '@querent/shared';
+import type { ManagedSettings } from '@quanthea/shared';
 import { NavLink, Outlet, useLoaderData, useLocation } from 'react-router';
 import { Banner } from '../ui/banner.tsx';
 import { InfoIcon } from '../ui/icons.tsx';

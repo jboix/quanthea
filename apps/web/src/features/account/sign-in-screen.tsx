@@ -3,7 +3,7 @@ import {
   providerFlowFailure,
   providerStartPath,
   type signInOptionsEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { type FormEvent, useState } from 'react';
 import { useLoaderData, useSearchParams } from 'react-router';
 import { Logo } from '../../ui/brand.tsx';

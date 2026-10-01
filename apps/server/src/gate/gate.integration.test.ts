@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import type { AccessLevel } from '@querent/shared';
+import type { AccessLevel } from '@quanthea/shared';
 import {
   devIncidentStart,
   devPostgres,

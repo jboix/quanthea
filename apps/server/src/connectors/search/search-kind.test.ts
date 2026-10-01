@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { testConnectorConformance } from '@querent/plugin-kit/testing';
+import { testConnectorConformance } from '@quanthea/plugin-kit/testing';
 import { z } from 'zod';
 import { ConnectorError } from '../_shared/index.ts';
 import { aggregationsFrame } from './aggregations.ts';

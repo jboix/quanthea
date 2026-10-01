@@ -1,6 +1,6 @@
 /** Serves the built SPA: static files, and `index.html` for every client route. */
 import { join } from 'node:path';
-import { apiPrefix } from '@querent/shared';
+import { apiPrefix } from '@quanthea/shared';
 import type { Context, Hono, MiddlewareHandler, Next } from 'hono';
 import { serveStatic } from 'hono/bun';
 import type { AppEnv } from './app-env.ts';

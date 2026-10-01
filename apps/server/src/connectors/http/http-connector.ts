@@ -4,7 +4,7 @@
  * bound what a query may ask; an OpenAPI description tells the agent the operations; the response
  * becomes a table through JSON pointers, never code.
  */
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import { z } from 'zod';
 import {
   ConnectorError,

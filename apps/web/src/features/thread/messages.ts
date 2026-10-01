@@ -2,7 +2,7 @@
  * Thread messages as the web app reads them: the AI SDK UI message with querent's custom parts,
  * and the words each tool call shows in the conversation.
  */
-import type { ThreadData, TurnUsage } from '@querent/shared';
+import type { ThreadData, TurnUsage } from '@quanthea/shared';
 import type { UIMessage } from 'ai';
 
 /** Metadata of a user message: the panels it mentions and the person's time zone. */

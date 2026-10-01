@@ -9,7 +9,7 @@ import {
   fillView,
   type Panel,
   type QueryOutcome,
-} from '@querent/shared';
+} from '@quanthea/shared';
 
 /**
  * A dataset as the frame a query would return.

@@ -1,4 +1,4 @@
-import type { DashboardSpec, TimeRangeExpression } from '@querent/shared';
+import type { DashboardSpec, TimeRangeExpression } from '@quanthea/shared';
 import type { ReactNode } from 'react';
 import type { RunTarget } from './panel-card.tsx';
 import { TimePicker } from './time-picker.tsx';

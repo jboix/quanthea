@@ -4,7 +4,7 @@
  * older drafts shrink the same way. The stored conversation keeps everything; only what is sent
  * to the model is compacted.
  */
-import type { PlanView } from '@querent/shared';
+import type { PlanView } from '@quanthea/shared';
 import type { ModelMessage } from 'ai';
 import type { ThreadMessage } from './run-context.ts';
 

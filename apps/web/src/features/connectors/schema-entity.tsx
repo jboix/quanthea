@@ -1,4 +1,4 @@
-import type { SchemaView } from '@querent/shared';
+import type { SchemaView } from '@quanthea/shared';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';

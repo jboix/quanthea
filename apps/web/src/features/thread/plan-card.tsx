@@ -1,4 +1,4 @@
-import type { AccessLevel, Plan, PlanView } from '@querent/shared';
+import type { AccessLevel, Plan, PlanView } from '@quanthea/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { CheckIcon } from '../../ui/icons.tsx';

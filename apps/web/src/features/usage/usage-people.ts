@@ -1,5 +1,5 @@
 /** What each user spent: the model steps that ran in their threads. */
-import type { Role, UsageReport } from '@querent/shared';
+import type { Role, UsageReport } from '@quanthea/shared';
 
 /** What one user spent over the range. */
 export interface PersonUsage {

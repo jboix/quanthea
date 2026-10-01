@@ -4,7 +4,7 @@
  * review. Update with `bun test -u` only when the change is meant.
  */
 import { describe, expect, test } from 'bun:test';
-import { type PanelQuery, queryText, savedQuerySchema } from '@querent/shared';
+import { type PanelQuery, queryText, savedQuerySchema } from '@quanthea/shared';
 import { bindTemplate } from '../../query/bind.ts';
 import type { SqlFlavor } from '../../query/sql-dialects.ts';
 import type { Variables } from '../../query/variables.ts';

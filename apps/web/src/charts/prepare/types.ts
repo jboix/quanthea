@@ -1,5 +1,5 @@
 /** What a preparation takes and gives. */
-import type { Dataset, FormatOptions, RoleColumns } from '@querent/shared';
+import type { Dataset, FormatOptions, RoleColumns } from '@quanthea/shared';
 import type { Loose } from '../loose.ts';
 
 /** What a preparation takes. */

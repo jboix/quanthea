@@ -1,5 +1,5 @@
 /** Maps Postgres result columns to frame fields, and their values to frame values. */
-import type { FieldType } from '@querent/shared';
+import type { FieldType } from '@quanthea/shared';
 
 /** Type OIDs whose values become numbers. `bigint` and `numeric` arrive as strings. */
 const numberTypes = new Set([20, 21, 23, 26, 700, 701, 1700]);

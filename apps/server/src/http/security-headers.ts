@@ -1,5 +1,5 @@
 /** Response headers that limit what a page served by querent can load, who can frame it, and caching. */
-import { apiPrefix } from '@querent/shared';
+import { apiPrefix } from '@quanthea/shared';
 import type { MiddlewareHandler } from 'hono';
 import { createMiddleware } from 'hono/factory';
 import { secureHeaders } from 'hono/secure-headers';

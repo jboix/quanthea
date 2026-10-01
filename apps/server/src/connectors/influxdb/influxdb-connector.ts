@@ -2,7 +2,7 @@
  * The InfluxDB 3 connector kind: SQL over the HTTP API, values as named parameters, the row limit
  * applied by the reader. The query endpoint runs no DML, so the connector only reads.
  */
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import { z } from 'zod';
 import {
   ConnectorError,

@@ -22,6 +22,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "@querent/plugin-kit": "workspace:*"
+    "@quanthea/plugin-kit": "workspace:*"
   }
 }

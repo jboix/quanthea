@@ -1,5 +1,5 @@
 /** Maps Elasticsearch and OpenSearch field types to frame fields, and document values to frame values. */
-import type { FieldType } from '@querent/shared';
+import type { FieldType } from '@quanthea/shared';
 
 /** Numeric field types. */
 const numberTypes = new Set([

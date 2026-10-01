@@ -5,7 +5,7 @@ import {
   type ManagedSettings,
   providerFlowFailure,
   providerStartPath,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { useCallback, useState } from 'react';
 import { type SubmitTarget, useFetcher, useRouteLoaderData, useSearchParams } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';

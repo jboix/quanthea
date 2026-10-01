@@ -8,7 +8,7 @@ import {
   type QuerySettings,
   queryBuilders,
   type ThreadQueries,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { SettingsStore } from './settings-store.ts';

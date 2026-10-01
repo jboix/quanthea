@@ -1,5 +1,5 @@
 /** The queries screen's state: the settings as edited, the query shown, and the editor. */
-import type { QuerySettings, SavedQuery } from '@querent/shared';
+import type { QuerySettings, SavedQuery } from '@quanthea/shared';
 import { useState } from 'react';
 import { newDraft, type QueryDraft } from './query-draft.ts';
 

@@ -1,5 +1,5 @@
 /** Checks a query against its connector's guardrails before it runs. */
-import type { Guardrails } from '@querent/shared';
+import type { Guardrails } from '@quanthea/shared';
 import type { TimeRange } from '../connectors/_shared/index.ts';
 import { QueryError } from './query-error.ts';
 

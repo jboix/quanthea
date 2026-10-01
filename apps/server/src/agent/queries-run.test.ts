@@ -4,7 +4,7 @@ import {
   defaultModelGateway,
   type Plan,
   queryBuilders,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
 import { createAgent } from './run.ts';
 import { type ScriptedStep, scriptedStreamModel } from './test/mock-model.ts';

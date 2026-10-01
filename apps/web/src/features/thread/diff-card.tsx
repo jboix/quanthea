@@ -1,4 +1,4 @@
-import { diffLines, type ThreadData } from '@querent/shared';
+import { diffLines, type ThreadData } from '@quanthea/shared';
 import { Button } from '../../ui/button.tsx';
 import styles from './cards.module.css';
 

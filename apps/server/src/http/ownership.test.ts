@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { connectorInputSchema, type Principal } from '@querent/shared';
+import { connectorInputSchema, type Principal } from '@quanthea/shared';
 import { createApp } from '../app.ts';
 import { eventsSpec } from '../dashboards/test/events-spec.ts';
 import { captureLogs, fixedAuthenticator, temporaryDir, testServices } from '../test/fixtures.ts';

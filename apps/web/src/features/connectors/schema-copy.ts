@@ -1,5 +1,5 @@
 /** How the schema panel counts and labels entities and fields. */
-import { lowCardinalityLimit, type SchemaView } from '@querent/shared';
+import { lowCardinalityLimit, type SchemaView } from '@quanthea/shared';
 
 /** One entity of a schema view. */
 type SchemaEntity = SchemaView['entities'][number];

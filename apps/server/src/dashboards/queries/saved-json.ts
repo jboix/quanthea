@@ -5,7 +5,7 @@
  * HTTP request's path and query values take a placeholder inside text, where `$name` is their own
  * variable syntax.
  */
-import type { QueryParamKind, SavedQuery } from '@querent/shared';
+import type { QueryParamKind, SavedQuery } from '@quanthea/shared';
 import { jsonObject } from './raw.ts';
 import { QueryError, variableOf } from './text.ts';
 

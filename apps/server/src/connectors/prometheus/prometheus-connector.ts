@@ -1,6 +1,6 @@
 /** The Prometheus connector kind: PromQL over the HTTP API, read endpoints only. */
 
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import { z } from 'zod';
 import {
   ConnectorError,

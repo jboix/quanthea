@@ -1,4 +1,4 @@
-import { type SavedQuery, shapeGuides } from '@querent/shared';
+import { type SavedQuery, shapeGuides } from '@quanthea/shared';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
 import { Pill } from '../../ui/pill.tsx';

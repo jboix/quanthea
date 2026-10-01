@@ -9,7 +9,7 @@ import {
   queryBuilders,
   queryText,
   type SavedQuery,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { z } from 'zod';
 import type { Dashboards, PanelTest } from './dashboards.ts';
 import { applyEdit, completeCharts, editRequestSchemaFor } from './panels/index.ts';

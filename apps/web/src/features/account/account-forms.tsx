@@ -1,5 +1,5 @@
 /** The forms of the account menu's dialogs: changing the password, and linking providers. */
-import { providerStartPath } from '@querent/shared';
+import { providerStartPath } from '@quanthea/shared';
 import { type FormEvent, useState } from 'react';
 import { useLocation } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';

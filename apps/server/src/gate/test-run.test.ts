@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { AccessLevel, Frame } from '@querent/shared';
+import type { AccessLevel, Frame } from '@quanthea/shared';
 import { ConnectorError } from '../connectors/_shared/index.ts';
 import { QueryError } from '../query/query-error.ts';
 import type { GateSubject } from './subject.ts';

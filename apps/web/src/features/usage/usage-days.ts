@@ -2,7 +2,7 @@
  * The usage report in the shapes the screen shows: days in the browser's time zone, totals, and
  * one row per model. The server sends hours, so a day here is the viewer's own day.
  */
-import type { UsageBucket, UsageReport } from '@querent/shared';
+import type { UsageBucket, UsageReport } from '@quanthea/shared';
 
 /** One day of usage. */
 export interface DayUsage {

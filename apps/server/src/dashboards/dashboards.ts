@@ -10,7 +10,7 @@ import {
   type LibrarySearch,
   type PanelRun,
   type Role,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
 import {
   type DashboardsDependencies,

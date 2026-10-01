@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { ThreadListItem } from '@querent/shared';
+import type { ThreadListItem } from '@quanthea/shared';
 import { filterThreads, groupByDay } from './thread-list.ts';
 
 const now = new Date(2026, 8, 29, 15, 0);

@@ -1,4 +1,4 @@
-import type { DashboardSpec } from '@querent/shared';
+import type { DashboardSpec } from '@quanthea/shared';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { HistoryIcon, QuestionIcon } from '../../ui/icons.tsx';

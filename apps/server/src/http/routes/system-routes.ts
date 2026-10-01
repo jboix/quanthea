@@ -1,5 +1,5 @@
 /** Routes that describe the server and the caller: health and me. */
-import { healthEndpoint, meEndpoint } from '@querent/shared';
+import { healthEndpoint, meEndpoint } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import { AppError } from '../../lib/errors.ts';
 import type { AppEnv } from '../app-env.ts';

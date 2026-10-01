@@ -1,5 +1,5 @@
 /** Route access: every `/api` route is either public or declares its minimum role. */
-import { apiPrefix, hasRole, type Role } from '@querent/shared';
+import { apiPrefix, hasRole, type Role } from '@quanthea/shared';
 import type { Hono, MiddlewareHandler } from 'hono';
 import { createMiddleware } from 'hono/factory';
 import { AppError } from '../lib/errors.ts';

@@ -4,7 +4,7 @@
  * cannot send without a CORS preflight querent never grants; when the browser names the request's
  * origin, it must be querent's. The session cookie is also SameSite=Lax.
  */
-import { apiPrefix } from '@querent/shared';
+import { apiPrefix } from '@quanthea/shared';
 import type { MiddlewareHandler } from 'hono';
 import { createMiddleware } from 'hono/factory';
 import { AppError } from '../lib/errors.ts';

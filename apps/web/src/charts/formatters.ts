@@ -2,7 +2,7 @@
  * Swaps the named formatters of a chart option for functions from the shared formatter library.
  * ECharts string templates pass through unchanged. No spec value ever becomes code.
  */
-import { createFormatter, type FormatOptions, namedFormatterSchema } from '@querent/shared';
+import { createFormatter, type FormatOptions, namedFormatterSchema } from '@quanthea/shared';
 
 /** What ECharts passes a label formatter: the data item, with its dataset row and encoding. */
 interface FormatterParams {

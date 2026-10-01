@@ -1,6 +1,6 @@
 /** The PostgreSQL connector kind: read-only transactions, a statement timeout, and a row limit. */
 
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import postgres, { type Sql, type TransactionSql } from 'postgres';
 import { z } from 'zod';
 import {

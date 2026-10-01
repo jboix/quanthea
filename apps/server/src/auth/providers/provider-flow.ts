@@ -14,7 +14,7 @@ import {
   type ProviderFlowFailure,
   providerFlowFailures,
   type providerFlowIntents,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import * as client from 'openid-client';
 import type { AuditRepository } from '../../db/audit-repository.ts';
 import type { IdentityRepository } from '../../db/identity-repository.ts';

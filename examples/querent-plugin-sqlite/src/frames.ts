@@ -2,7 +2,7 @@
  * Turns the rows SQLite returns into a frame: a column per result column, typed from its declared
  * type, else from its values. Times are ISO 8601 text, the way SQLite keeps them.
  */
-import type { ConnectorKit, ExecutionContext, Field, FieldType, Frame } from '@querent/plugin-kit';
+import type { ConnectorKit, ExecutionContext, Field, FieldType, Frame } from '@quanthea/plugin-kit';
 
 /** An ISO 8601 date or date-time. */
 const isoTime =

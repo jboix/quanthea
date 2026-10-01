@@ -1,4 +1,4 @@
-import type { ChartRecipe } from '@querent/shared';
+import type { ChartRecipe } from '@quanthea/shared';
 import { useState } from 'react';
 import { Pill } from '../../ui/pill.tsx';
 import { Switch } from '../../ui/switch.tsx';

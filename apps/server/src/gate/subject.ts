@@ -1,5 +1,5 @@
 /** What the gate knows about a connector: its access level, hidden fields and descriptions. */
-import type { AccessLevel } from '@querent/shared';
+import type { AccessLevel } from '@quanthea/shared';
 
 /** A connector as the gate sees it. */
 export interface GateSubject {

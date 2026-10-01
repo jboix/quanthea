@@ -1,6 +1,6 @@
 /** Reads and writes threads, their messages and their plans. */
 import type { Database } from 'bun:sqlite';
-import { type ThreadQueries, threadQueriesSchema } from '@querent/shared';
+import { type ThreadQueries, threadQueriesSchema } from '@quanthea/shared';
 
 /** A thread state, as stored. */
 type StoredState = 'idle' | 'plan_pending' | 'building' | 'ready';

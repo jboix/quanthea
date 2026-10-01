@@ -6,7 +6,7 @@ import {
   type ModelGateway,
   type ModelSettings,
   type Plan,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { eventsSpec } from '../dashboards/test/events-spec.ts';
 import type { AppError } from '../lib/errors.ts';
 import { temporaryDir, testServices } from '../test/fixtures.ts';

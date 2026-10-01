@@ -2,7 +2,7 @@
  * The tools that build: propose a plan, and edit the dashboard with panels of data and charts. The
  * thread's state machine decides whether each may run, whatever the model tries.
  */
-import { type DashboardSpec, dashboardSpecSchema, planSchema } from '@querent/shared';
+import { type DashboardSpec, dashboardSpecSchema, planSchema } from '@quanthea/shared';
 import { tool } from 'ai';
 import {
   applyEdit,

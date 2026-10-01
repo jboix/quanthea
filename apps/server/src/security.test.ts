@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { connectorInputSchema, defaultModelGateway } from '@querent/shared';
+import { connectorInputSchema, defaultModelGateway } from '@quanthea/shared';
 import { type FakeProvider, startFakeProvider } from './auth/providers/test/fake-provider.ts';
 import { temporaryDir, testServices } from './test/fixtures.ts';
 

@@ -1,5 +1,5 @@
 /** The routes outside the app: signing in, setting up the default admin, and link passwords. */
-import { signInOptionsEndpoint } from '@querent/shared';
+import { signInOptionsEndpoint } from '@quanthea/shared';
 import { type LoaderFunctionArgs, type RouteObject, redirect } from 'react-router';
 import { ErrorPage } from '../app/error-page.tsx';
 import { LoadingScreen } from '../app/layout.tsx';

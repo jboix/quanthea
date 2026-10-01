@@ -1,5 +1,5 @@
 /** Maps Trino column types to frame fields, and JSON values to frame values. */
-import type { FieldType } from '@querent/shared';
+import type { FieldType } from '@quanthea/shared';
 
 /** Numeric types. Decimals arrive as strings, doubles as numbers or `NaN`, `Infinity`. */
 const numberType = /^(?:tinyint|smallint|integer|bigint|real|double|decimal)(?:\(.*\))?$/;

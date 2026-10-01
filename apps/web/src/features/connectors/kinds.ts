@@ -1,5 +1,5 @@
 /** Telling connector kinds apart: their badge colours and the search of the kind picker. */
-import type { ConnectorKindInfo } from '@querent/shared';
+import type { ConnectorKindInfo } from '@quanthea/shared';
 
 /** The badge tones of kinds without a logo, picked by kind so each kind keeps its tone. */
 const badgeTones = ['accent', 'draft', 'ok', 'plain'] as const;

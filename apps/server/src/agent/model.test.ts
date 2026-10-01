@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { defaultModelSettings, type ModelSettings } from '@querent/shared';
+import { defaultModelSettings, type ModelSettings } from '@quanthea/shared';
 import { reasoningFor } from './model.ts';
 
 /**

@@ -9,7 +9,7 @@ import {
   type ProviderKind,
   providerCallbackPath,
   type StoredProvider,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import { AppError } from '../../lib/errors.ts';
 
 /** A provider's client id and secret. */

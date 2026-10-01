@@ -1,5 +1,5 @@
 /** The list of saved providers: pick one to edit, add one, remove one, choose the default. */
-import type { ModelProvider, ProviderConfig } from '@querent/shared';
+import type { ModelProvider, ProviderConfig } from '@quanthea/shared';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
 import styles from './model-settings.module.css';

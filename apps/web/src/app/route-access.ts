@@ -1,5 +1,5 @@
 /** The minimum role of each screen (architecture, web routes), and the loaders that enforce it. */
-import { hasRole, type Role } from '@querent/shared';
+import { hasRole, type Role } from '@quanthea/shared';
 import { data, redirect } from 'react-router';
 import type { Session, SessionLoader } from './session.ts';
 

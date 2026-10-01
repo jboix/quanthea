@@ -1,5 +1,5 @@
 /** What building a data request gives: the queries, and the table they return. */
-import type { ChartUnit, PanelQuery, SavedQuery, ShapeKind } from '@querent/shared';
+import type { ChartUnit, PanelQuery, SavedQuery, ShapeKind } from '@quanthea/shared';
 import type { SqlFlavor } from '../../query/sql-dialects.ts';
 
 /** The table a data request returns, and a chart that suits it. */

@@ -4,7 +4,7 @@ import {
   type ConnectorSummary,
   lowCardinalityLimit,
   type SchemaView,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
 import type { ConnectorRow } from '../db/connector-repository.ts';
 import { type GateSubject, isHiddenField } from '../gate/subject.ts';

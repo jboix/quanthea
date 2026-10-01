@@ -2,7 +2,7 @@
  * The Loki connector kind: LogQL over the HTTP API, read endpoints only. A log query gives a table
  * of lines; a metric query gives series, as Prometheus does.
  */
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import { z } from 'zod';
 import {
   ConnectorError,

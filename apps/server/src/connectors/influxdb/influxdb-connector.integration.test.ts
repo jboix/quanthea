@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { testConnectorConformance } from '@querent/plugin-kit/testing';
+import { testConnectorConformance } from '@quanthea/plugin-kit/testing';
 import { ConnectorError, type ConnectorInstance, type ExecutionContext } from '../_shared/index.ts';
 import { devIncidentStart, devInfluxdb, integrationFor } from '../_shared/test/dev-sources.ts';
 import { influxdbConnector } from './influxdb-connector.ts';

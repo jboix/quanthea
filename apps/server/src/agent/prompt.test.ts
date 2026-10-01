@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { Plan } from '@querent/shared';
+import type { Plan } from '@quanthea/shared';
 import { instructionsFor, type TurnFacts } from './prompt.ts';
 
 const plan: Plan = {

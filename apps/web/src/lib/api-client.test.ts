@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { defineEndpoint, healthEndpoint } from '@querent/shared';
+import { defineEndpoint, healthEndpoint } from '@quanthea/shared';
 import { z } from 'zod';
 import { ApiError, createApiClient } from './api-client.ts';
 

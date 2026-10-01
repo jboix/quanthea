@@ -1,4 +1,4 @@
-import type { Plan, ThreadState } from '@querent/shared';
+import type { Plan, ThreadState } from '@quanthea/shared';
 import type { CSSProperties } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';

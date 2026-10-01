@@ -2,7 +2,7 @@
  * The ClickHouse connector kind: SQL over the HTTP interface, values as query parameters,
  * read-only, in UTC, with the row cap and the timeout applied by the server and the reader.
  */
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import { z } from 'zod';
 import {
   ConnectorError,

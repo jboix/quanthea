@@ -1,5 +1,5 @@
 /** The streamed chat endpoint of a thread. It answers with an AI SDK UI message stream. Editors. */
-import { apiPrefix, threadChatPath } from '@querent/shared';
+import { apiPrefix, threadChatPath } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import { z } from 'zod';
 import type { Agent } from '../../agent/run.ts';

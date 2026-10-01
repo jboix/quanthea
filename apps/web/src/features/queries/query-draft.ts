@@ -7,7 +7,7 @@ import {
   type QueryParamKind,
   type SavedQuery,
   savedQuerySchema,
-} from '@querent/shared';
+} from '@quanthea/shared';
 
 /** A saved query being edited. */
 export interface QueryDraft {

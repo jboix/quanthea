@@ -2,7 +2,7 @@
  * Runs a query template against a connector: binds the variables, applies the guardrails and the
  * timeout, checks the frames the connector returns, and caches the result briefly.
  */
-import { type Frame, frameProblems, type Guardrails } from '@querent/shared';
+import { type Frame, frameProblems, type Guardrails } from '@quanthea/shared';
 import {
   type BoundQuery,
   ConnectorError,

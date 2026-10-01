@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { frameProblems } from '@querent/shared';
+import { frameProblems } from '@quanthea/shared';
 import { createFrameBuilder } from './frame-builder.ts';
 
 /**

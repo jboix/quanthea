@@ -3,7 +3,7 @@
  * objects as dotted names (`customer.country`), arrays and other values as Extended JSON text. A
  * date is a time, the numeric BSON types are numbers, an ObjectId is its hex text.
  */
-import type { Field, FieldType, Frame } from '@querent/shared';
+import type { Field, FieldType, Frame } from '@quanthea/shared';
 import { BSON, type Document } from 'mongodb';
 import { createFrameBuilder, type ExecutionContext } from '../_shared/index.ts';
 

@@ -3,7 +3,7 @@ import {
   type QueryLanguage,
   queryBuilders,
   queryLanguageNames,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { ReactNode } from 'react';
 import { Button } from '../../ui/button.tsx';
 import styles from './queries.module.css';

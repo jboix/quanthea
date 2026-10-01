@@ -1,4 +1,4 @@
-import { type DashboardDetail, type DashboardSpec, type Panel, queryText } from '@querent/shared';
+import { type DashboardDetail, type DashboardSpec, type Panel, queryText } from '@quanthea/shared';
 import { useState } from 'react';
 import { Tabs } from '../../ui/tabs.tsx';
 import { usePanelRunData, versionNote } from '../dashboard/index.ts';

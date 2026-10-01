@@ -1,5 +1,5 @@
 /** Level 3 summaries of a result: per field counts, ranges, means, spikes and top values. */
-import type { Field, Frame } from '@querent/shared';
+import type { Field, Frame } from '@quanthea/shared';
 
 /** A summary of one field. */
 export type FieldSummary =

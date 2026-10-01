@@ -3,7 +3,7 @@
  * server applies and the reader enforces, and `KILL QUERY` at the timeout. Each product is a kind
  * of its own, defined with {@link defineMysqlKind}.
  */
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import type { Pool } from 'mysql2';
 import { z } from 'zod';
 import {

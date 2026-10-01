@@ -10,7 +10,7 @@ import {
   purgeThreadEndpoint,
   restoreThreadEndpoint,
   saveRetentionSettingsEndpoint,
-} from '@querent/shared';
+} from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Users } from '../../auth/users.ts';
 import { AppError } from '../../lib/errors.ts';

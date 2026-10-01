@@ -3,7 +3,7 @@
  * value from the source, whatever the values, labels, frame names or error texts hold.
  */
 import { describe, expect, test } from 'bun:test';
-import type { Frame } from '@querent/shared';
+import type { Frame } from '@quanthea/shared';
 import { ConnectorError, type ConnectorInstance } from '../connectors/_shared/index.ts';
 import { createQueryExecutor, type QuerySource } from '../query/executor.ts';
 import { createResultCache } from '../query/result-cache.ts';

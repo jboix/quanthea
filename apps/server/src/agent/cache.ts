@@ -4,7 +4,7 @@
  * the points a request marks. The instructions put what lasts first, and for Anthropic this module
  * marks the end of that part and the end of the conversation so far.
  */
-import type { ModelSettings } from '@querent/shared';
+import type { ModelSettings } from '@quanthea/shared';
 import type { Instructions, ModelMessage } from 'ai';
 import type { InstructionParts } from './prompt.ts';
 

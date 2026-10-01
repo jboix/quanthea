@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import type { Frame, PanelQuery } from '@querent/shared';
+import type { Frame, PanelQuery } from '@quanthea/shared';
 import type { AnyConnectorKind } from '../../connectors/_shared/index.ts';
 import {
   devClickhouseAs,

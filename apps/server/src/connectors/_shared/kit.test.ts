@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import * as publicKit from '@querent/plugin-kit';
-import { hostKit } from '@querent/plugin-kit/host';
-import { createTestKit } from '@querent/plugin-kit/testing';
+import * as publicKit from '@quanthea/plugin-kit';
+import { hostKit } from '@quanthea/plugin-kit/host';
+import { createTestKit } from '@quanthea/plugin-kit/testing';
 import { z } from 'zod';
 import { ConnectorError } from './index.ts';
 

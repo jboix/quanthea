@@ -3,7 +3,7 @@
  * names several, one per dataset when the rows were split into groups. Marks on a template go on
  * its first series only, so a threshold is drawn once.
  */
-import { createFormatter, type MarkerOutcome, type RoleColumns } from '@querent/shared';
+import { createFormatter, type MarkerOutcome, type RoleColumns } from '@quanthea/shared';
 import { isObject, type Loose } from './loose.ts';
 import type { Prepared } from './prepare/types.ts';
 import { allColumns } from './roles.ts';

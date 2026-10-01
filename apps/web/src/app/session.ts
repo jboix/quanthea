@@ -1,5 +1,5 @@
 /** The signed-in session: who the user is. */
-import { meEndpoint, type Principal } from '@querent/shared';
+import { meEndpoint, type Principal } from '@quanthea/shared';
 import { type ApiClient, ApiError } from '../lib/api-client.ts';
 
 /** What the app knows about the current user. */

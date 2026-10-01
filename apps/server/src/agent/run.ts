@@ -3,7 +3,7 @@
  * calls and custom parts, and stores the conversation when the run ends. The thread's state
  * machine, its token budget and the run limits are checked here, whatever the model does.
  */
-import { threadDataSchemas } from '@querent/shared';
+import { threadDataSchemas } from '@quanthea/shared';
 import {
   consumeStream,
   createIdGenerator,
