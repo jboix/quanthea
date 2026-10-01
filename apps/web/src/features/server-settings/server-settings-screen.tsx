@@ -8,7 +8,7 @@ import styles from './server-settings.module.css';
  * Where a value comes from, in words.
  *
  * @param source - The source.
- * @returns Such as `QUERENT_PORT`, `querent.yaml` or `default`.
+ * @returns Such as `QUANTHEA_PORT`, `quanthea.yaml` or `default`.
  */
 function sourceText(source: SettingSource): string {
   if (source.kind === 'environment') return source.variable;
@@ -29,7 +29,7 @@ function FilesCard({ files }: { readonly files: readonly string[] }) {
     <Card title="Configuration file">
       {files.length === 0 ? (
         <p className={styles.note}>
-          None. Set QUERENT_CONFIG to a YAML or JSON file, or a directory of them, to keep these
+          None. Set QUANTHEA_CONFIG to a YAML or JSON file, or a directory of them, to keep these
           settings in a file.
         </p>
       ) : (

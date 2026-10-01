@@ -66,61 +66,61 @@ const pinsSchema = z.record(pluginNameSchema, pinSchema);
  */
 export const settingSpecs = {
   publicUrl: {
-    variable: 'QUERENT_PUBLIC_URL',
+    variable: 'QUANTHEA_PUBLIC_URL',
     label: 'Public URL',
     schema: publicUrlSchema,
     fallback: undefined,
   },
   trustedProxyHops: {
-    variable: 'QUERENT_TRUSTED_PROXY_HOPS',
+    variable: 'QUANTHEA_TRUSTED_PROXY_HOPS',
     label: 'Trusted proxies',
     schema: z.coerce.number().int().min(0).max(5),
     fallback: 0,
   },
   port: {
-    variable: 'QUERENT_PORT',
+    variable: 'QUANTHEA_PORT',
     label: 'HTTP port',
     schema: z.coerce.number().int().min(1).max(65535),
     fallback: 3000,
   },
   dataDir: {
-    variable: 'QUERENT_DATA_DIR',
+    variable: 'QUANTHEA_DATA_DIR',
     label: 'Data directory',
     schema: pathSchema,
     fallback: './data',
   },
   keysDir: {
-    variable: 'QUERENT_KEYS_DIR',
+    variable: 'QUANTHEA_KEYS_DIR',
     label: 'Keys directory',
     schema: pathSchema,
     fallback: './keys',
   },
   webDir: {
-    variable: 'QUERENT_WEB_DIR',
+    variable: 'QUANTHEA_WEB_DIR',
     label: 'Web app directory',
     schema: pathSchema,
     fallback: undefined,
   },
   logLevel: {
-    variable: 'QUERENT_LOG_LEVEL',
+    variable: 'QUANTHEA_LOG_LEVEL',
     label: 'Log level',
     schema: z.enum(logLevels),
     fallback: 'info',
   },
   logFormat: {
-    variable: 'QUERENT_LOG_FORMAT',
+    variable: 'QUANTHEA_LOG_FORMAT',
     label: 'Log format',
     schema: z.enum(logFormats),
     fallback: 'text',
   },
   pluginsDir: {
-    variable: 'QUERENT_PLUGINS_DIR',
+    variable: 'QUANTHEA_PLUGINS_DIR',
     label: 'Plugins directory',
     schema: pathSchema,
     fallback: undefined,
   },
   pluginsAllowUnpinned: {
-    variable: 'QUERENT_PLUGINS_ALLOW_UNPINNED',
+    variable: 'QUANTHEA_PLUGINS_ALLOW_UNPINNED',
     label: 'Load unpinned plugins',
     schema: flagSchema,
     fallback: false,
@@ -182,7 +182,7 @@ export interface Config {
 type Environment = Readonly<Record<string, string | undefined>>;
 
 /**
- * A variable's value, treating an empty one as unset, so `QUERENT_AUTH_MODE=` means "no override".
+ * A variable's value, treating an empty one as unset, so `QUANTHEA_AUTH_MODE=` means "no override".
  *
  * @param environment - The environment variables.
  * @param name - The variable.
@@ -193,7 +193,7 @@ function variable(environment: Environment, name: string): string | undefined {
   return value === '' ? undefined : value;
 }
 
-/** The key variables, without the `QUERENT_` prefix, by the field they fill. */
+/** The key variables, without the `QUANTHEA_` prefix, by the field they fill. */
 const keyVariables = {
   secret: 'SECRET_KEY',
   secretPrevious: 'SECRET_KEY_PREVIOUS',
@@ -214,10 +214,10 @@ const defaultWebDir = resolve(import.meta.dir, '../../../web/dist');
  */
 function keyInputsOf(environment: Environment, workingDir: string): KeyInputs {
   const entries = Object.entries(keyVariables).map(([field, name]) => {
-    const file = variable(environment, `QUERENT_${name}_FILE`);
+    const file = variable(environment, `QUANTHEA_${name}_FILE`);
     const input: KeyInput = {
-      name: `QUERENT_${name}`,
-      value: variable(environment, `QUERENT_${name}`),
+      name: `QUANTHEA_${name}`,
+      value: variable(environment, `QUANTHEA_${name}`),
       file: file === undefined ? undefined : resolve(workingDir, file),
     };
     return [field, input];
@@ -342,7 +342,7 @@ function pinsOf(file: ConfigFile | undefined) {
  * @throws {Error} Naming every invalid variable and setting.
  */
 export function loadConfig(environment: Environment, workingDir: string = process.cwd()): Config {
-  const configVariable = variable(environment, 'QUERENT_CONFIG');
+  const configVariable = variable(environment, 'QUANTHEA_CONFIG');
   const configPath = configVariable ? resolve(workingDir, configVariable) : undefined;
   const file = configPath ? readConfigFile(configPath, environment) : undefined;
   const { values, sources, issues } = resolveSettings(environment, file);

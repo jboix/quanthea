@@ -4,7 +4,7 @@
  * that receives the live kit and returns its connector kinds. It runs SQL in the `ansi` dialect
  * with `?` placeholders and `LIMIT`; the core binds every value and checks every statement.
  *
- * A file opens only under QUERENT_SQLITE_ROOT, read-only and with writes refused by `query_only`.
+ * A file opens only under QUANTHEA_SQLITE_ROOT, read-only and with writes refused by `query_only`.
  * SQLite runs in the server's process: a slow query holds it until it ends, so keep to small
  * files. Times are ISO 8601 text in UTC, and the time range binds as such.
  */

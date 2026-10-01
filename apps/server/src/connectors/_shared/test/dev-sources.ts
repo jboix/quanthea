@@ -1,6 +1,6 @@
 /**
  * The local data sources of `bun run env:up`, for integration tests. The tests that need them run
- * only when QUERENT_INTEGRATION names their set, comma-separated: `core` (or `1`) for Postgres and
+ * only when QUANTHEA_INTEGRATION names their set, comma-separated: `core` (or `1`) for Postgres and
  * Prometheus (`bun run test:integration`), `timescale` for TimescaleDB
  * (`bun run test:integration:timescale`), `mysql` for MySQL and MariaDB
  * (`bun run test:integration:mysql`), `clickhouse` for ClickHouse
@@ -28,7 +28,7 @@ type SourceSet =
 
 /** The sets the integration tests run against. */
 const integrationSets = new Set(
-  (process.env.QUERENT_INTEGRATION ?? '')
+  (process.env.QUANTHEA_INTEGRATION ?? '')
     .split(',')
     .map((name) => name.trim())
     .map((name) => (name === '1' ? 'core' : name)),
@@ -38,7 +38,7 @@ const integrationSets = new Set(
  * Whether the integration tests of a set of data sources run.
  *
  * @param set - The set.
- * @returns Whether QUERENT_INTEGRATION names it.
+ * @returns Whether QUANTHEA_INTEGRATION names it.
  */
 export function integrationFor(set: SourceSet): boolean {
   return integrationSets.has(set);
@@ -52,7 +52,7 @@ export const devPostgres = {
   config: {
     host: '127.0.0.1',
     // Another port, for a second copy of the data sources beside the usual one.
-    port: Number(process.env.QUERENT_DEV_POSTGRES_PORT ?? 5433),
+    port: Number(process.env.QUANTHEA_DEV_POSTGRES_PORT ?? 5433),
     database: 'orders',
     username: 'dash_ro',
     tls: 'disable',
@@ -68,7 +68,10 @@ export const devPostgresOwner = {
 
 /** The dev TimescaleDB, the orders database with a hypertable, as the read-only role. */
 export const devTimescale = {
-  config: { ...devPostgres.config, port: Number(process.env.QUERENT_DEV_TIMESCALEDB_PORT ?? 5434) },
+  config: {
+    ...devPostgres.config,
+    port: Number(process.env.QUANTHEA_DEV_TIMESCALEDB_PORT ?? 5434),
+  },
   secret: devPostgres.secret,
 };
 
@@ -93,8 +96,8 @@ function devMysqlOn(port: number) {
 
 /** The dev MySQL and MariaDB, each as the read-only user and as the owner, which can write. */
 export const devMysqlServers = [
-  { name: 'MySQL', port: Number(process.env.QUERENT_DEV_MYSQL_PORT ?? 3307) },
-  { name: 'MariaDB', port: Number(process.env.QUERENT_DEV_MARIADB_PORT ?? 3308) },
+  { name: 'MySQL', port: Number(process.env.QUANTHEA_DEV_MYSQL_PORT ?? 3307) },
+  { name: 'MariaDB', port: Number(process.env.QUANTHEA_DEV_MARIADB_PORT ?? 3308) },
 ].map(({ name, port }) => {
   const reader = devMysqlOn(port);
   const owner = {
@@ -111,7 +114,7 @@ export const devMysqlServers = [
  * @returns The configuration and the secret.
  */
 export function devClickhouseAs(username: string) {
-  const port = Number(process.env.QUERENT_DEV_CLICKHOUSE_PORT ?? 8124);
+  const port = Number(process.env.QUANTHEA_DEV_CLICKHOUSE_PORT ?? 8124);
   return {
     config: { url: `http://127.0.0.1:${port}`, database: 'orders', username },
     secret: { password: username === 'querent_admin' ? 'querent-dev' : 'dash-ro-dev' },
@@ -121,7 +124,7 @@ export function devClickhouseAs(username: string) {
 /** The dev Trino, whose catalog `orders` is the dev Postgres, in the connector's shape. */
 export const devTrino = {
   config: {
-    url: `http://127.0.0.1:${process.env.QUERENT_DEV_TRINO_PORT ?? 8081}`,
+    url: `http://127.0.0.1:${process.env.QUANTHEA_DEV_TRINO_PORT ?? 8081}`,
     catalog: 'orders',
     schema: 'public',
     username: 'dash_ro',
@@ -132,7 +135,7 @@ export const devTrino = {
 /** The dev Elasticsearch, without security, holding the request logs. */
 export const devElasticsearch = {
   config: {
-    url: `http://127.0.0.1:${process.env.QUERENT_DEV_ELASTICSEARCH_PORT ?? 9201}`,
+    url: `http://127.0.0.1:${process.env.QUANTHEA_DEV_ELASTICSEARCH_PORT ?? 9201}`,
     auth: 'none',
   },
   secret: {},
@@ -141,7 +144,7 @@ export const devElasticsearch = {
 /** The dev OpenSearch, without security, holding the same logs. */
 export const devOpensearch = {
   config: {
-    url: `http://127.0.0.1:${process.env.QUERENT_DEV_OPENSEARCH_PORT ?? 9202}`,
+    url: `http://127.0.0.1:${process.env.QUANTHEA_DEV_OPENSEARCH_PORT ?? 9202}`,
     auth: 'none',
   },
   secret: {},
@@ -149,14 +152,14 @@ export const devOpensearch = {
 
 /** The dev Loki, holding the request logs. */
 export const devLoki = {
-  config: { url: `http://127.0.0.1:${process.env.QUERENT_DEV_LOKI_PORT ?? 3101}` },
+  config: { url: `http://127.0.0.1:${process.env.QUANTHEA_DEV_LOKI_PORT ?? 3101}` },
   secret: {},
 };
 
 /** The dev HTTP API, with its token and its OpenAPI description. */
 export const devHttpApi = {
   config: {
-    url: `http://127.0.0.1:${process.env.QUERENT_DEV_HTTP_PORT ?? 8085}`,
+    url: `http://127.0.0.1:${process.env.QUANTHEA_DEV_HTTP_PORT ?? 8085}`,
     methods: 'GET and POST',
     paths: '/api/v1/**',
     openapi: '/openapi.json',
@@ -168,7 +171,7 @@ export const devHttpApi = {
 /** The dev InfluxDB 3, holding the request metrics of the incident. */
 export const devInfluxdb = {
   config: {
-    url: `http://127.0.0.1:${process.env.QUERENT_DEV_INFLUXDB_PORT ?? 8186}`,
+    url: `http://127.0.0.1:${process.env.QUANTHEA_DEV_INFLUXDB_PORT ?? 8186}`,
     database: 'telemetry',
   },
   secret: { token: 'apiv3_querent-dev-token' },
@@ -178,7 +181,7 @@ export const devInfluxdb = {
 export const devValkey = {
   config: {
     host: '127.0.0.1',
-    port: Number(process.env.QUERENT_DEV_VALKEY_PORT ?? 6380),
+    port: Number(process.env.QUANTHEA_DEV_VALKEY_PORT ?? 6380),
     username: 'dash_ro',
   },
   secret: { password: 'dash-ro-dev' },
@@ -194,7 +197,7 @@ export const devValkeyOwner = {
 export const devMongodb = {
   config: {
     host: '127.0.0.1',
-    port: Number(process.env.QUERENT_DEV_MONGODB_PORT ?? 27018),
+    port: Number(process.env.QUANTHEA_DEV_MONGODB_PORT ?? 27018),
     database: 'shop',
     username: 'dash_ro',
     tls: 'disable',
@@ -210,7 +213,7 @@ export const devMongodbOwner = {
 
 /** The dev Prometheus, in the Prometheus connector's configuration shape. */
 export const devPrometheus = {
-  config: { url: `http://127.0.0.1:${process.env.QUERENT_DEV_PROMETHEUS_PORT ?? 9091}` },
+  config: { url: `http://127.0.0.1:${process.env.QUANTHEA_DEV_PROMETHEUS_PORT ?? 9091}` },
   secret: {},
 };
 

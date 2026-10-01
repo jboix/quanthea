@@ -113,7 +113,7 @@ function sameBytes(first: Uint8Array, second: Uint8Array): boolean {
  */
 function unknownKey(keyId: string): Error {
   return new Error(
-    `A secret in the database was sealed with a key querent was not given (key id ${keyId}). Set that key as QUERENT_SECRET_KEY, or as QUERENT_SECRET_KEY_PREVIOUS while moving to a new one.`,
+    `A secret in the database was sealed with a key querent was not given (key id ${keyId}). Set that key as QUANTHEA_SECRET_KEY, or as QUANTHEA_SECRET_KEY_PREVIOUS while moving to a new one.`,
   );
 }
 

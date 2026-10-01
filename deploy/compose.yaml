@@ -1,6 +1,6 @@
 # querent with its data, its keys and its configuration file. See docs/deployment.md.
 #
-#   cp .env.example .env        # then fill in the secrets querent.yaml refers to
+#   cp .env.example .env        # then fill in the secrets quanthea.yaml refers to
 #   docker compose up -d
 #
 # querent generates its keys in the `keys` volume on first start. Back up `data` and `keys`
@@ -20,7 +20,7 @@ services:
       - data:/data
       - keys:/keys
       # Read at startup: restart querent after an edit.
-      - ./querent.yaml:/etc/querent/querent.yaml:ro
+      - ./quanthea.yaml:/etc/quanthea/quanthea.yaml:ro
 
 volumes:
   data:

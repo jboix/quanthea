@@ -65,7 +65,7 @@ rest on the keys, never on the code staying unknown.
 | A forged ID token                                 | Its signature is checked against the provider's published keys, with its issuer, audience, expiry and nonce. `alg: none` is refused.                                                               |
 | Taking over an account through a provider's email | An email from a provider only accepts a pending invite, and only when the provider verified it. An account in use is linked only by its owner, signed in.                                          |
 | An open redirect after signing in                 | The destination must be a local path of querent.                                                                                                                                                   |
-| A forged `Host` header                            | Links and callback URLs are built from `QUERENT_PUBLIC_URL`, never from the request.                                                                                                               |
+| A forged `Host` header                            | Links and callback URLs are built from `QUANTHEA_PUBLIC_URL`, never from the request.                                                                                                              |
 | Clickjacking                                      | `frame-ancestors 'none'` and `X-Frame-Options: DENY`.                                                                                                                                              |
 | A weaker role doing a stronger role's work        | The server checks the role on every route. A test fails when a route declares no access.                                                                                                           |
 | Instructions hidden in data, aimed at the model   | The model sees data only through the access gate, and its output never runs as code or as a query the browser sends.                                                                               |
@@ -80,7 +80,7 @@ memory for any of them in clear.
 
 - The host, its environment and its files. Whoever reads the keys and the database together reads
   everything.
-- The TLS in front of querent. Give `QUERENT_PUBLIC_URL` as `https://`, and querent sends HSTS.
+- The TLS in front of querent. Give `QUANTHEA_PUBLIC_URL` as `https://`, and querent sends HSTS.
 - The sign-in providers you configure, to say who a person is. A join rule trusts what the provider
   says about a domain, an organisation, a group or a tenant.
 - The data sources you connect, to enforce the read-only credentials you give querent.
@@ -98,9 +98,9 @@ memory for any of them in clear.
 
 - Let querent generate its keys in a keys volume, or give your own with `openssl rand -base64 32`.
   Back the keys up apart from the database: whoever holds both reads everything.
-- Set `QUERENT_PUBLIC_URL` to querent's `https://` origin.
+- Set `QUANTHEA_PUBLIC_URL` to querent's `https://` origin.
 - Install only connector plugins you trust, pin each one, and leave `plugins.allowUnpinned` off.
-- Set `QUERENT_TRUSTED_PROXY_HOPS` to the number of proxies in front of querent, so throttling
+- Set `QUANTHEA_TRUSTED_PROXY_HOPS` to the number of proxies in front of querent, so throttling
   sees the real address.
 - Give each connector a read-only database role that can read only what dashboards need.
 - Set up the default admin's account right after the first start.

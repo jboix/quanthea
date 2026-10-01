@@ -19,7 +19,7 @@ logs
 .env.*
 !.env.example
 
-# runtime state (QUERENT_DATA_DIR, QUERENT_KEYS_DIR)
+# runtime state (QUANTHEA_DATA_DIR, QUANTHEA_KEYS_DIR)
 data/
 keys/
 *.sqlite

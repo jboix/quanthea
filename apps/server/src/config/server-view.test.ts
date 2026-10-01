@@ -15,18 +15,22 @@ afterEach(() => directory.remove());
 
 describe('Settings → Server', () => {
   test('shows each setting with its source, and each key by where it comes from only', () => {
-    const path = join(directory.path, 'querent.yaml');
+    const path = join(directory.path, 'quanthea.yaml');
     writeFileSync(path, 'server:\n  publicUrl: https://querent.example.com\n');
     const secretKey = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64');
     const environment = {
-      QUERENT_CONFIG: path,
-      QUERENT_PORT: '8080',
-      QUERENT_SECRET_KEY: secretKey,
+      QUANTHEA_CONFIG: path,
+      QUANTHEA_PORT: '8080',
+      QUANTHEA_SECRET_KEY: secretKey,
     };
     const config = loadConfig(environment, '/app');
     const view = serverSettingsView(config, {
-      secret: { kind: 'variable', variable: 'QUERENT_SECRET_KEY' },
-      session: { kind: 'file', variable: 'QUERENT_SESSION_KEY_FILE', path: '/run/secrets/session' },
+      secret: { kind: 'variable', variable: 'QUANTHEA_SECRET_KEY' },
+      session: {
+        kind: 'file',
+        variable: 'QUANTHEA_SESSION_KEY_FILE',
+        path: '/run/secrets/session',
+      },
       pepper: { kind: 'generated', path: '/app/keys/password-pepper.key' },
     });
     expect(view.configFiles).toEqual([path]);
@@ -34,19 +38,19 @@ describe('Settings → Server', () => {
     expect(byKey.publicUrl).toMatchObject({
       value: 'https://querent.example.com',
       source: { kind: 'file', path },
-      variable: 'QUERENT_PUBLIC_URL',
+      variable: 'QUANTHEA_PUBLIC_URL',
     });
     expect(byKey.port).toMatchObject({ value: '8080', source: { kind: 'environment' } });
     expect(byKey.logLevel).toMatchObject({ value: 'info', source: { kind: 'default' } });
     expect(view.keys).toEqual([
       {
         label: 'Secret key',
-        source: { kind: 'environment', variable: 'QUERENT_SECRET_KEY' },
+        source: { kind: 'environment', variable: 'QUANTHEA_SECRET_KEY' },
         file: null,
       },
       {
         label: 'Session key',
-        source: { kind: 'environment', variable: 'QUERENT_SESSION_KEY_FILE' },
+        source: { kind: 'environment', variable: 'QUANTHEA_SESSION_KEY_FILE' },
         file: '/run/secrets/session',
       },
       {

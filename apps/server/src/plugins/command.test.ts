@@ -92,7 +92,7 @@ const fakeFetch = (async (input: string | URL | Request) => {
 function run(args: string[], environment: Record<string, string> = {}): Promise<number> {
   return runPluginCommand(args, {
     say: (line) => lines.push(line),
-    environment: { QUERENT_DATA_DIR: join(root, 'data'), ...environment },
+    environment: { QUANTHEA_DATA_DIR: join(root, 'data'), ...environment },
     workingDir: root,
     fetch: fakeFetch,
   });
@@ -113,10 +113,10 @@ describe('querent plugin install', () => {
     const pin = /"(sha256:[0-9a-f]{64})"/.exec(lines[6] ?? '')?.[1];
     expect(pin).toBeDefined();
     expect(readdirSync(pluginsDir())).toEqual(['querent-plugin-events']);
-    const config = join(root, 'querent.yaml');
+    const config = join(root, 'quanthea.yaml');
     writeFileSync(config, `plugins:\n  pins:\n    querent-plugin-events: ${pin}\n`);
     lines = [];
-    await run(['list'], { QUERENT_CONFIG: config });
+    await run(['list'], { QUANTHEA_CONFIG: config });
     expect(lines[1]).toBe('  querent-plugin-events 1.2.0  pinned');
   });
 

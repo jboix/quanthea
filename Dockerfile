@@ -2,8 +2,8 @@
 # The querent image: the Bun server, run from source, serving the built SPA.
 # Build from the repository root:
 #   docker build -t querent .
-#   docker run -p 3000:3000 -v querent-data:/data -v querent-keys:/keys querent
-# Settings can also come from YAML or JSON files mounted in /etc/querent.
+#   docker run -p 3000:3000 -v quanthea-data:/data -v quanthea-keys:/keys querent
+# Settings can also come from YAML or JSON files mounted in /etc/quanthea.
 #
 # Every RUN happens in stages on the build platform. Their output is JavaScript
 # and the built SPA, the same on every CPU, so the runner stage needs no RUN and
@@ -39,7 +39,7 @@ COPY examples/querent-plugin-sqlite/package.json examples/querent-plugin-sqlite/
 COPY dev/package.json dev/package.json
 RUN bun install --frozen-lockfile --ignore-scripts --production --filter @quanthea/server
 # /plugins is not a volume: a derived image installs plugins into it at build time.
-RUN mkdir -p /volume/data /volume/keys /volume/etc/querent /volume/plugins \
+RUN mkdir -p /volume/data /volume/keys /volume/etc/quanthea /volume/plugins \
     && chown 1000:1000 /volume/data /volume/keys /volume/plugins \
     && chmod 700 /volume/data /volume/keys
 
@@ -50,11 +50,11 @@ LABEL org.opencontainers.image.title="querent" \
       org.opencontainers.image.licenses="MIT"
 WORKDIR /app
 ENV NODE_ENV=production \
-    QUERENT_PORT=3000 \
-    QUERENT_DATA_DIR=/data \
-    QUERENT_KEYS_DIR=/keys \
-    QUERENT_CONFIG=/etc/querent \
-    QUERENT_PLUGINS_DIR=/plugins
+    QUANTHEA_PORT=3000 \
+    QUANTHEA_DATA_DIR=/data \
+    QUANTHEA_KEYS_DIR=/keys \
+    QUANTHEA_CONFIG=/etc/quanthea \
+    QUANTHEA_PLUGINS_DIR=/plugins
 COPY --from=deps /volume/ /
 COPY --from=deps /repo/node_modules node_modules
 COPY --from=deps /repo/apps/server/node_modules apps/server/node_modules
@@ -73,5 +73,5 @@ USER bun
 EXPOSE 3000
 VOLUME ["/data", "/keys"]
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
-  CMD ["bun", "-e", "fetch('http://localhost:' + process.env.QUERENT_PORT + '/api/health').then((response) => process.exit(response.ok ? 0 : 1), () => process.exit(1))"]
+  CMD ["bun", "-e", "fetch('http://localhost:' + process.env.QUANTHEA_PORT + '/api/health').then((response) => process.exit(response.ok ? 0 : 1), () => process.exit(1))"]
 CMD ["bun", "apps/server/src/main.ts"]

@@ -2,7 +2,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 /** The API server the dev server proxies `/api` to. */
-const apiTarget = `http://localhost:${process.env.QUERENT_PORT || 3000}`;
+const apiTarget = `http://localhost:${process.env.QUANTHEA_PORT || 3000}`;
 
 /**
  * The file name of a chunk. A feature's screens chunk takes the feature's name, such as

@@ -93,7 +93,7 @@ export function isWithin(path: string, directory: string): boolean {
 function prepareKeysDir(keysDir: string, dataDir: string): void {
   if (isWithin(keysDir, dataDir))
     throw new Error(
-      `QUERENT_KEYS_DIR (${keysDir}) is inside the data directory. Keep the keys apart, so a copy of the data never carries them.`,
+      `QUANTHEA_KEYS_DIR (${keysDir}) is inside the data directory. Keep the keys apart, so a copy of the data never carries them.`,
     );
   mkdirSync(keysDir, { recursive: true, mode: 0o700 });
 }

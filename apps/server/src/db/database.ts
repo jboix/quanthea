@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** The database file name inside the data directory. */
-const databaseFileName = 'querent.db';
+const databaseFileName = 'quanthea.db';
 
 /**
  * Opens (and creates, the first time) the database with the pragmas the app relies on:

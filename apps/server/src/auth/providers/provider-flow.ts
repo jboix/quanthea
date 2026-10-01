@@ -2,7 +2,7 @@
  * Signing in through a provider: the authorization code flow with PKCE, a state and, for OpenID
  * Connect, a nonce. The three live in a short-lived cookie, sealed with the secret key and used
  * once, so a callback only completes in the browser that started it. The callback's address is
- * built from `QUERENT_PUBLIC_URL`, never from the request.
+ * built from `QUANTHEA_PUBLIC_URL`, never from the request.
  *
  * A person comes in when their provider identity is linked to a user, when they were invited with
  * the verified email the provider gives, or when the provider's join policy lets them in, as a

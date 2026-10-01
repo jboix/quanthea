@@ -1,12 +1,12 @@
 /**
- * Keeps the plugin to one directory: a connector names a file relative to QUERENT_SQLITE_ROOT,
+ * Keeps the plugin to one directory: a connector names a file relative to QUANTHEA_SQLITE_ROOT,
  * and the file, symbolic links resolved, must be inside it. Without a root, no file opens.
  */
 import { realpathSync, statSync } from 'node:fs';
 import { isAbsolute, resolve, sep } from 'node:path';
 
 /** The variable that names the directory database files may be in. */
-export const rootVariable = 'QUERENT_SQLITE_ROOT';
+export const rootVariable = 'QUANTHEA_SQLITE_ROOT';
 
 /**
  * Where a connector's file really is, or why it may not be opened.

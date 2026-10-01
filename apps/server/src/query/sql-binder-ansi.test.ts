@@ -72,8 +72,8 @@ describe('bindSql for standard SQL', () => {
 
   test('refuses what reaches other files from a read-only connection, anywhere in the code', () => {
     for (const template of [
-      "ATTACH DATABASE '/data/querent.db' AS q",
-      "SELECT 1; ATTACH DATABASE '/data/querent.db' AS q",
+      "ATTACH DATABASE '/data/quanthea.db' AS q",
+      "SELECT 1; ATTACH DATABASE '/data/quanthea.db' AS q",
       "VACUUM INTO '/tmp/copy.db'",
       'PRAGMA user_version = 5',
       "SELECT load_extension('/tmp/evil')",

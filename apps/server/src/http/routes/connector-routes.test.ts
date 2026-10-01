@@ -130,17 +130,19 @@ describe('connector routes', () => {
       .run(
         'connector',
         'events',
-        '/etc/querent/querent.yaml',
+        '/etc/quanthea/quanthea.yaml',
         new Uint8Array(32),
         '["descriptions"]',
         1,
       );
     const listed = await call('GET', '/api/connectors');
-    expect(listed.body).toMatchObject([{ name: 'events', managedBy: '/etc/querent/querent.yaml' }]);
+    expect(listed.body).toMatchObject([
+      { name: 'events', managedBy: '/etc/quanthea/quanthea.yaml' },
+    ]);
     const changed = await call('PATCH', `/api/connectors/${id}`, { accessLevel: 3 });
     expect(changed).toMatchObject({
       status: 403,
-      body: { error: { message: '/etc/querent/querent.yaml manages this. Change it there.' } },
+      body: { error: { message: '/etc/quanthea/quanthea.yaml manages this. Change it there.' } },
     });
     expect((await call('DELETE', `/api/connectors/${id}`)).status).toBe(403);
     const described = await call('PATCH', `/api/connectors/${id}`, {

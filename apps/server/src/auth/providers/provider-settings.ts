@@ -149,7 +149,7 @@ export function credentialsOwner(providerId: string): string {
 }
 
 /**
- * The redirect URI of a provider: fixed by `QUERENT_PUBLIC_URL`, never by a request's Host header.
+ * The redirect URI of a provider: fixed by `QUANTHEA_PUBLIC_URL`, never by a request's Host header.
  *
  * @param publicUrl - querent's origin.
  * @param providerId - The provider.

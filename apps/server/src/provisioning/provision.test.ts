@@ -17,7 +17,7 @@ beforeEach(async () => {
   dataDir = temporaryDir();
   configDir = temporaryDir();
   services = await testServices(dataDir.path);
-  path = join(configDir.path, 'querent.yaml');
+  path = join(configDir.path, 'quanthea.yaml');
 });
 
 afterEach(async () => {

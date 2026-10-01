@@ -102,7 +102,7 @@ describe('a stolen database', () => {
       ...(await storeProviderSecrets()),
     ];
     // A thief copies the database with its write-ahead log and shared memory.
-    const files = ['querent.db', 'querent.db-wal', 'querent.db-shm']
+    const files = ['quanthea.db', 'quanthea.db-wal', 'quanthea.db-shm']
       .map((file) => join(dataDir.path, file))
       .filter((path) => existsSync(path));
     expect(files.length).toBeGreaterThan(1);

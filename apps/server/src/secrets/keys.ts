@@ -248,7 +248,7 @@ export async function loadKeys(sources: KeySources): Promise<KeyRing> {
   const secretFile = sources.keys.secret.file;
   if (secretFile !== undefined && isWithin(secretFile, sources.dataDir))
     throw new Error(
-      'QUERENT_SECRET_KEY_FILE points into the data directory, and a copy of the data would carry it. Move the file out.',
+      'QUANTHEA_SECRET_KEY_FILE points into the data directory, and a copy of the data would carry it. Move the file out.',
     );
   return {
     origins: originsOf(sources),

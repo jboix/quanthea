@@ -23,7 +23,7 @@ querent is at an early stage: the repository, the tooling and an app shell. The 
 With Docker, from the image each release publishes (`linux/amd64` and `linux/arm64`):
 
 ```sh
-docker run -p 3000:3000 -v querent-data:/data ghcr.io/jboix/querent:latest
+docker run -p 3000:3000 -v quanthea-data:/data ghcr.io/jboix/querent:latest
 ```
 
 Pin a release tag such as `ghcr.io/jboix/querent:v1.0.0` to control upgrades. To build the image
@@ -70,20 +70,20 @@ The server reads these settings at startup, from an environment variable or, whe
 set, from the configuration file's `server` section. Settings → Server shows each one with where
 it comes from. Everything else lives in Settings.
 
-| Variable                     | Default         | Purpose                                                                                                     |
-| ---------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------- |
-| `QUERENT_PORT`               | `3000`          | HTTP port.                                                                                                  |
-| `QUERENT_DATA_DIR`           | `./data`        | Holds the SQLite database. Created with mode 0700. `/data` in the image.                                    |
-| `QUERENT_KEYS_DIR`           | `./keys`        | Holds the keys querent generates. Created with mode 0700, outside the data directory. `/keys` in the image. |
-| `QUERENT_CONFIG`             | unset           | A YAML or JSON configuration file, or a directory of them. `/etc/querent` in the image.                     |
-| `QUERENT_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                                                         |
-| `QUERENT_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.                                             |
-| `QUERENT_WEB_DIR`            | `apps/web/dist` | The built SPA the server serves.                                                                            |
-| `QUERENT_SECRET_KEY`         | generated       | 32 bytes in base64 that encrypt credentials, names and emails at rest.                                      |
-| `QUERENT_SESSION_KEY`        | generated       | 32 bytes in base64 that sign session cookies.                                                               |
-| `QUERENT_PASSWORD_PEPPER`    | generated       | 32 bytes in base64 mixed into password hashes.                                                              |
-| `QUERENT_PUBLIC_URL`         | unset           | The address people reach querent at, such as `https://querent.example.com`. Required with accounts.         |
-| `QUERENT_TRUSTED_PROXY_HOPS` | `0`             | How many reverse proxies in front of querent add to `X-Forwarded-For`.                                      |
+| Variable                      | Default         | Purpose                                                                                                     |
+| ----------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------- |
+| `QUANTHEA_PORT`               | `3000`          | HTTP port.                                                                                                  |
+| `QUANTHEA_DATA_DIR`           | `./data`        | Holds the SQLite database. Created with mode 0700. `/data` in the image.                                    |
+| `QUANTHEA_KEYS_DIR`           | `./keys`        | Holds the keys querent generates. Created with mode 0700, outside the data directory. `/keys` in the image. |
+| `QUANTHEA_CONFIG`             | unset           | A YAML or JSON configuration file, or a directory of them. `/etc/quanthea` in the image.                    |
+| `QUANTHEA_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                                                         |
+| `QUANTHEA_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.                                             |
+| `QUANTHEA_WEB_DIR`            | `apps/web/dist` | The built SPA the server serves.                                                                            |
+| `QUANTHEA_SECRET_KEY`         | generated       | 32 bytes in base64 that encrypt credentials, names and emails at rest.                                      |
+| `QUANTHEA_SESSION_KEY`        | generated       | 32 bytes in base64 that sign session cookies.                                                               |
+| `QUANTHEA_PASSWORD_PEPPER`    | generated       | 32 bytes in base64 mixed into password hashes.                                                              |
+| `QUANTHEA_PUBLIC_URL`         | unset           | The address people reach querent at, such as `https://querent.example.com`. Required with accounts.         |
+| `QUANTHEA_TRUSTED_PROXY_HOPS` | `0`             | How many reverse proxies in front of querent add to `X-Forwarded-For`.                                      |
 
 In the configuration file, each setting takes its name without the prefix, in camel case:
 
@@ -95,11 +95,11 @@ server:
 
 `${NAME}` in a value is replaced by the environment variable `NAME`. Keys never go in the file.
 
-Each key can come from a file instead: `QUERENT_SECRET_KEY_FILE`, and so on. A key not given is
+Each key can come from a file instead: `QUANTHEA_SECRET_KEY_FILE`, and so on. A key not given is
 generated on first start in the keys directory, with mode 0600; a key given always wins, key by
 key. Back the keys up apart from the data: a copy of the data directory must never carry them.
 Without the secret key, stored credentials cannot be read. To rotate it, set the new key and the
-old one as `QUERENT_SECRET_KEY_PREVIOUS`, restart once, then remove the old one.
+old one as `QUANTHEA_SECRET_KEY_PREVIOUS`, restart once, then remove the old one.
 
 ## Layout
 

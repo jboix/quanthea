@@ -1,15 +1,15 @@
 /**
  * Seeds a running querent with the dev connectors and the checkout incident dashboard, pinned.
- * Run `bun run env:up` and the server first. `QUERENT_URL` points at the server
- * (default `http://localhost:3000`). It signs in as an admin with `QUERENT_ADMIN_EMAIL` and
- * `QUERENT_ADMIN_PASSWORD`, whose account is set up.
+ * Run `bun run env:up` and the server first. `QUANTHEA_URL` points at the server
+ * (default `http://localhost:3000`). It signs in as an admin with `QUANTHEA_ADMIN_EMAIL` and
+ * `QUANTHEA_ADMIN_PASSWORD`, whose account is set up.
  */
 
 import { incidentStart } from '../metrics/incident.ts';
 import fixture from './checkout-incident.json' with { type: 'json' };
 
 /** The server. */
-const baseUrl = process.env.QUERENT_URL ?? 'http://localhost:3000';
+const baseUrl = process.env.QUANTHEA_URL ?? 'http://localhost:3000';
 
 /** The dev connectors the fixture queries, as the add form would create them. */
 const connectors = [
@@ -44,11 +44,11 @@ let session = '';
  * @throws {Error} When the variables are missing or the sign-in is refused.
  */
 async function signIn(): Promise<void> {
-  const email = process.env.QUERENT_ADMIN_EMAIL;
-  const password = process.env.QUERENT_ADMIN_PASSWORD;
+  const email = process.env.QUANTHEA_ADMIN_EMAIL;
+  const password = process.env.QUANTHEA_ADMIN_PASSWORD;
   if (!email || !password)
     throw new Error(
-      'Set QUERENT_ADMIN_EMAIL and QUERENT_ADMIN_PASSWORD to an admin that is set up.',
+      'Set QUANTHEA_ADMIN_EMAIL and QUANTHEA_ADMIN_PASSWORD to an admin that is set up.',
     );
   const response = await fetch(`${baseUrl}/api/auth/sign-in`, {
     method: 'POST',

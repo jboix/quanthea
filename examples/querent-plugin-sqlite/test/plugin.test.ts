@@ -30,7 +30,7 @@ seed(join(root, 'shop.db'));
 seed(join(outside, 'secret.db'));
 mkdirSync(join(root, 'links'));
 symlinkSync(join(outside, 'secret.db'), join(root, 'links', 'secret.db'));
-process.env.QUERENT_SQLITE_ROOT = root;
+process.env.QUANTHEA_SQLITE_ROOT = root;
 
 afterAll(() => {
   rmSync(root, { recursive: true, force: true });
@@ -96,14 +96,16 @@ describe('the SQLite file plugin', () => {
     const problems = async (file: string) =>
       (await open(file).test(AbortSignal.timeout(1000))).message;
     expect(await problems('../secret.db')).toContain('without ..');
-    expect(await problems(join(outside, 'secret.db'))).toContain('relative to QUERENT_SQLITE_ROOT');
-    expect(await problems('links/secret.db')).toContain('resolves outside QUERENT_SQLITE_ROOT');
+    expect(await problems(join(outside, 'secret.db'))).toContain(
+      'relative to QUANTHEA_SQLITE_ROOT',
+    );
+    expect(await problems('links/secret.db')).toContain('resolves outside QUANTHEA_SQLITE_ROOT');
     expect(await problems('missing.db')).toContain('there is no file missing.db');
-    delete process.env.QUERENT_SQLITE_ROOT;
+    delete process.env.QUANTHEA_SQLITE_ROOT;
     try {
-      expect(await problems('shop.db')).toContain('QUERENT_SQLITE_ROOT is not set');
+      expect(await problems('shop.db')).toContain('QUANTHEA_SQLITE_ROOT is not set');
     } finally {
-      process.env.QUERENT_SQLITE_ROOT = root;
+      process.env.QUANTHEA_SQLITE_ROOT = root;
     }
   });
 

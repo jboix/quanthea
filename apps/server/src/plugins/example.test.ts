@@ -53,7 +53,7 @@ beforeAll(async () => {
   });
   if (packed.exitCode !== 0) throw new Error(packed.stderr.toString());
   const [tgz] = readdirSync(work).filter((name) => name.endsWith('.tgz'));
-  const environment = { QUERENT_DATA_DIR: join(work, 'data') };
+  const environment = { QUANTHEA_DATA_DIR: join(work, 'data') };
   const io = { say: (line: string) => lines.push(line), environment, workingDir: work, fetch };
   if ((await runPluginCommand(['install', `${tgz}`], io)) !== 0) throw new Error(lines.join('\n'));
   const pin = /"(sha256:[0-9a-f]{64})"/.exec(lines.join('\n'))?.[1] ?? '';
@@ -71,11 +71,11 @@ beforeAll(async () => {
   mkdirSync(root, { recursive: true });
   seed(join(root, 'shop.db'));
   seed(outside);
-  process.env.QUERENT_SQLITE_ROOT = root;
+  process.env.QUANTHEA_SQLITE_ROOT = root;
 });
 
 afterAll(() => {
-  delete process.env.QUERENT_SQLITE_ROOT;
+  delete process.env.QUANTHEA_SQLITE_ROOT;
   rmSync(work, { recursive: true, force: true });
 });
 

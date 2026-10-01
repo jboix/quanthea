@@ -154,7 +154,7 @@ describe('sessions', () => {
     const { cookie } = await signedIn();
     // A thief copies the database and its write-ahead log; neither may hold them.
     const [id] = cookie.split('.') as [string];
-    for (const file of ['querent.db', 'querent.db-wal']) {
+    for (const file of ['quanthea.db', 'quanthea.db-wal']) {
       const bytes = readFileSync(join(dataDir.path, file));
       for (const clear of ['ada.lovelace@example.com', 'Ada Lovelace', id]) {
         expect(bytes.includes(Buffer.from(clear))).toBe(false);

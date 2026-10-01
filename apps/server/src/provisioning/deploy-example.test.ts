@@ -20,10 +20,10 @@ afterEach(async () => {
   dataDir.remove();
 });
 
-describe('deploy/querent.yaml', () => {
+describe('deploy/quanthea.yaml', () => {
   test('starts an install with its admin, who signs in as admin', async () => {
     const environment = {
-      QUERENT_CONFIG: resolve(import.meta.dir, '../../../../deploy/querent.yaml'),
+      QUANTHEA_CONFIG: resolve(import.meta.dir, '../../../../deploy/quanthea.yaml'),
       ADMIN_PASSWORD: 'violet harbour lantern 7c2e',
     };
     const config = loadConfig(environment, '/app');

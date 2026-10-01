@@ -1,5 +1,5 @@
 /**
- * The configuration file: `QUERENT_CONFIG` names a file, or a directory whose `*.yaml`, `*.yml`
+ * The configuration file: `QUANTHEA_CONFIG` names a file, or a directory whose `*.yaml`, `*.yml`
  * and `*.json` files are read in name order. Each top-level key is a section. A section's keys
  * may be spread over several files, but a key is set in one file only. `${NAME}` in a text value
  * is replaced by the environment variable `NAME`; `$${` writes a literal `${`.
@@ -54,7 +54,7 @@ function filesOf(path: string): string[] {
   try {
     directory = statSync(path).isDirectory();
   } catch {
-    throw new Error(`QUERENT_CONFIG names ${path}, which does not exist.`);
+    throw new Error(`QUANTHEA_CONFIG names ${path}, which does not exist.`);
   }
   if (!directory) return [path];
   return readdirSync(path)
@@ -194,7 +194,7 @@ function mergeFile(
 /**
  * Reads the configuration file or directory.
  *
- * @param path - What `QUERENT_CONFIG` names.
+ * @param path - What `QUANTHEA_CONFIG` names.
  * @param environment - The environment variables, for `${NAME}` references.
  * @returns The configuration.
  * @throws {Error} When a file cannot be read, holds an unknown section, sets a key twice, or

@@ -36,11 +36,11 @@ function randomKey(): string {
  */
 function inputs(set: Partial<Record<keyof KeyInputs, Partial<KeyInput>>> = {}): KeyInputs {
   const names = {
-    secret: 'QUERENT_SECRET_KEY',
-    secretPrevious: 'QUERENT_SECRET_KEY_PREVIOUS',
-    session: 'QUERENT_SESSION_KEY',
-    pepper: 'QUERENT_PASSWORD_PEPPER',
-    pepperPrevious: 'QUERENT_PASSWORD_PEPPER_PREVIOUS',
+    secret: 'QUANTHEA_SECRET_KEY',
+    secretPrevious: 'QUANTHEA_SECRET_KEY_PREVIOUS',
+    session: 'QUANTHEA_SESSION_KEY',
+    pepper: 'QUANTHEA_PASSWORD_PEPPER',
+    pepperPrevious: 'QUANTHEA_PASSWORD_PEPPER_PREVIOUS',
   };
   const entries = Object.entries(names).map(([field, name]) => [
     field,
@@ -107,9 +107,9 @@ describe('loading the keys', () => {
 
   test('refuses a keys directory inside the data directory', async () => {
     keysDir = join(dataDir.path, 'keys');
-    await expect(load(inputs())).rejects.toThrow('QUERENT_KEYS_DIR');
+    await expect(load(inputs())).rejects.toThrow('QUANTHEA_KEYS_DIR');
     keysDir = dataDir.path;
-    await expect(load(inputs())).rejects.toThrow('QUERENT_KEYS_DIR');
+    await expect(load(inputs())).rejects.toThrow('QUANTHEA_KEYS_DIR');
   });
 
   test('reads keys from variables and files, and refuses a key file inside the data directory', async () => {
@@ -118,16 +118,16 @@ describe('loading the keys', () => {
     const given = { session: { value: randomKey() }, pepper: { value: randomKey() } };
     const { ring, lines } = await load(inputs({ secret: { file }, ...given }));
     expect(ring.origins).toEqual({
-      secret: { kind: 'file', variable: 'QUERENT_SECRET_KEY_FILE', path: file },
-      session: { kind: 'variable', variable: 'QUERENT_SESSION_KEY' },
-      pepper: { kind: 'variable', variable: 'QUERENT_PASSWORD_PEPPER' },
+      secret: { kind: 'file', variable: 'QUANTHEA_SECRET_KEY_FILE', path: file },
+      session: { kind: 'variable', variable: 'QUANTHEA_SESSION_KEY' },
+      pepper: { kind: 'variable', variable: 'QUANTHEA_PASSWORD_PEPPER' },
     });
     expect(ring.peppers.current.id).toHaveLength(8);
     expect(lines).toEqual([]);
     const inside = join(dataDir.path, 'mine.key');
     writeFileSync(inside, randomKey(), { mode: 0o600 });
     await expect(load(inputs({ secret: { file: inside }, ...given }))).rejects.toThrow(
-      'QUERENT_SECRET_KEY_FILE points into the data directory',
+      'QUANTHEA_SECRET_KEY_FILE points into the data directory',
     );
   });
 
@@ -154,13 +154,13 @@ describe('loading the keys', () => {
   test('refuses a key set twice, a missing file, and two roles sharing a key', async () => {
     const value = randomKey();
     await expect(load(inputs({ session: { value, file: '/x' } }))).rejects.toThrow(
-      'QUERENT_SESSION_KEY and QUERENT_SESSION_KEY_FILE are both set.',
+      'QUANTHEA_SESSION_KEY and QUANTHEA_SESSION_KEY_FILE are both set.',
     );
     await expect(load(inputs({ pepper: { file: join(outside.path, 'none') } }))).rejects.toThrow(
-      'Cannot read QUERENT_PASSWORD_PEPPER_FILE',
+      'Cannot read QUANTHEA_PASSWORD_PEPPER_FILE',
     );
     await expect(load(inputs({ session: { value }, pepper: { value } }))).rejects.toThrow(
-      'QUERENT_PASSWORD_PEPPER equals QUERENT_SESSION_KEY.',
+      'QUANTHEA_PASSWORD_PEPPER equals QUANTHEA_SESSION_KEY.',
     );
   });
 

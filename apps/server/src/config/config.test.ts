@@ -6,11 +6,11 @@ import { loadConfig } from './config.ts';
 
 describe('loadConfig', () => {
   test('applies the defaults and resolves paths against the working directory', () => {
-    const config = loadConfig({}, '/srv/querent');
+    const config = loadConfig({}, '/srv/quanthea');
     expect(config).toMatchObject({
       port: 3000,
-      dataDir: '/srv/querent/data',
-      keysDir: '/srv/querent/keys',
+      dataDir: '/srv/quanthea/data',
+      keysDir: '/srv/quanthea/keys',
       logLevel: 'info',
       logFormat: 'text',
     });
@@ -20,16 +20,16 @@ describe('loadConfig', () => {
   test('reads every variable', () => {
     const config = loadConfig(
       {
-        QUERENT_PORT: '8080',
-        QUERENT_DATA_DIR: '/data',
-        QUERENT_KEYS_DIR: '/keys',
-        QUERENT_LOG_LEVEL: 'debug',
-        QUERENT_LOG_FORMAT: 'json',
-        QUERENT_WEB_DIR: 'public',
-        QUERENT_SECRET_KEY: 'a2V5',
-        QUERENT_SESSION_KEY_FILE: 'keys/session',
-        QUERENT_PUBLIC_URL: 'https://querent.example.com/',
-        QUERENT_TRUSTED_PROXY_HOPS: '1',
+        QUANTHEA_PORT: '8080',
+        QUANTHEA_DATA_DIR: '/data',
+        QUANTHEA_KEYS_DIR: '/keys',
+        QUANTHEA_LOG_LEVEL: 'debug',
+        QUANTHEA_LOG_FORMAT: 'json',
+        QUANTHEA_WEB_DIR: 'public',
+        QUANTHEA_SECRET_KEY: 'a2V5',
+        QUANTHEA_SESSION_KEY_FILE: 'keys/session',
+        QUANTHEA_PUBLIC_URL: 'https://querent.example.com/',
+        QUANTHEA_TRUSTED_PROXY_HOPS: '1',
       },
       '/app',
     );
@@ -44,19 +44,19 @@ describe('loadConfig', () => {
       trustedProxyHops: 1,
     });
     expect(config.keys.secret).toEqual({
-      name: 'QUERENT_SECRET_KEY',
+      name: 'QUANTHEA_SECRET_KEY',
       value: 'a2V5',
       file: undefined,
     });
     expect(config.keys.session).toEqual({
-      name: 'QUERENT_SESSION_KEY',
+      name: 'QUANTHEA_SESSION_KEY',
       value: undefined,
       file: '/app/keys/session',
     });
   });
 
   test('takes an https public URL, or http on this machine, as an origin only', () => {
-    const url = (value: string) => loadConfig({ QUERENT_PUBLIC_URL: value }).publicUrl;
+    const url = (value: string) => loadConfig({ QUANTHEA_PUBLIC_URL: value }).publicUrl;
     expect(url('http://localhost:5173')).toBe('http://localhost:5173');
     expect(() => url('http://querent.example.com')).toThrow('Use https://');
     expect(() => url('https://querent.example.com/app')).toThrow('origin only');
@@ -64,16 +64,16 @@ describe('loadConfig', () => {
   });
 
   test('treats an empty variable as unset', () => {
-    expect(loadConfig({ QUERENT_LOG_LEVEL: '', QUERENT_PORT: '' }, '/app')).toMatchObject({
+    expect(loadConfig({ QUANTHEA_LOG_LEVEL: '', QUANTHEA_PORT: '' }, '/app')).toMatchObject({
       logLevel: 'info',
       port: 3000,
     });
   });
 
   test('names every invalid variable', () => {
-    const failure = () => loadConfig({ QUERENT_PORT: 'eighty', QUERENT_LOG_LEVEL: 'loud' });
-    expect(failure).toThrow(/QUERENT_PORT/);
-    expect(failure).toThrow(/QUERENT_LOG_LEVEL/);
+    const failure = () => loadConfig({ QUANTHEA_PORT: 'eighty', QUANTHEA_LOG_LEVEL: 'loud' });
+    expect(failure).toThrow(/QUANTHEA_PORT/);
+    expect(failure).toThrow(/QUANTHEA_LOG_LEVEL/);
   });
 });
 
@@ -101,10 +101,10 @@ describe('the configuration file', () => {
 
   test('sets what no variable sets, and says where each value comes from', () => {
     const path = write(
-      'querent.yaml',
+      'quanthea.yaml',
       'server:\n  publicUrl: https://querent.example.com\n  port: 8080\n  keysDir: /keys\n',
     );
-    const config = loadConfig({ QUERENT_CONFIG: path, QUERENT_PORT: '9090' }, '/app');
+    const config = loadConfig({ QUANTHEA_CONFIG: path, QUANTHEA_PORT: '9090' }, '/app');
     expect(config).toMatchObject({
       publicUrl: 'https://querent.example.com',
       port: 9090,
@@ -112,17 +112,17 @@ describe('the configuration file', () => {
       configFiles: [path],
     });
     expect(config.sources.publicUrl).toEqual({ kind: 'file', path });
-    expect(config.sources.port).toEqual({ kind: 'environment', variable: 'QUERENT_PORT' });
+    expect(config.sources.port).toEqual({ kind: 'environment', variable: 'QUANTHEA_PORT' });
     expect(config.sources.logLevel).toEqual({ kind: 'default' });
   });
 
   test('reads the plugins section: the directory, unpinned plugins and the pins', () => {
     const pin = `sha256:${'a'.repeat(64)}`;
     const path = write(
-      'querent.yaml',
+      'quanthea.yaml',
       `plugins:\n  dir: ./plugins\n  allowUnpinned: true\n  pins:\n    "@acme/querent-plugin-sqlite": ${pin}\n`,
     );
-    const config = loadConfig({ QUERENT_CONFIG: path }, '/app');
+    const config = loadConfig({ QUANTHEA_CONFIG: path }, '/app');
     expect(config).toMatchObject({
       pluginsDir: '/app/plugins',
       pluginsAllowUnpinned: true,
@@ -131,9 +131,9 @@ describe('the configuration file', () => {
     expect(config.sources.pluginsDir).toEqual({ kind: 'file', path });
     const overridden = loadConfig(
       {
-        QUERENT_CONFIG: path,
-        QUERENT_PLUGINS_DIR: '/plugins',
-        QUERENT_PLUGINS_ALLOW_UNPINNED: 'false',
+        QUANTHEA_CONFIG: path,
+        QUANTHEA_PLUGINS_DIR: '/plugins',
+        QUANTHEA_PLUGINS_ALLOW_UNPINNED: 'false',
       },
       '/app',
     );
@@ -141,7 +141,7 @@ describe('the configuration file', () => {
   });
 
   test('keeps plugins in the data directory, pinned, by default', () => {
-    expect(loadConfig({ QUERENT_DATA_DIR: '/srv/data' })).toMatchObject({
+    expect(loadConfig({ QUANTHEA_DATA_DIR: '/srv/data' })).toMatchObject({
       pluginsDir: '/srv/data/plugins',
       pluginsAllowUnpinned: false,
       pluginPins: {},
@@ -150,10 +150,10 @@ describe('the configuration file', () => {
 
   test('refuses a malformed pin, a name that is not a plugin and an unknown key', () => {
     const path = write(
-      'querent.yaml',
+      'quanthea.yaml',
       'plugins:\n  pinned: true\n  pins:\n    querent-plugin-a: abc\n    lodash: sha256:00\n',
     );
-    expect(() => loadConfig({ QUERENT_CONFIG: path })).toThrow(
+    expect(() => loadConfig({ QUANTHEA_CONFIG: path })).toThrow(
       /plugins.pinned .* is not a setting[\s\S]*Paste the pin querent plugin install printed[\s\S]*querent-plugin-<name>/,
     );
   });
@@ -162,11 +162,11 @@ describe('the configuration file', () => {
     write('10-server.yaml', 'server:\n  port: 8080\n');
     write('20-proxy.json', '{ "server": { "trustedProxyHops": 1 } }');
     write('notes.txt', 'ignored');
-    const config = loadConfig({ QUERENT_CONFIG: directory.path });
+    const config = loadConfig({ QUANTHEA_CONFIG: directory.path });
     expect(config).toMatchObject({ port: 8080, trustedProxyHops: 1 });
     expect(config.configFiles).toHaveLength(2);
     write('30-again.yml', 'server:\n  port: 9090\n');
-    expect(() => loadConfig({ QUERENT_CONFIG: directory.path })).toThrow(
+    expect(() => loadConfig({ QUANTHEA_CONFIG: directory.path })).toThrow(
       /server\.port` is set in both/,
     );
   });
@@ -174,25 +174,25 @@ describe('the configuration file', () => {
   test('replaces a variable reference, keeps an escaped one as text, and names unset ones', () => {
     // Built from parts: a reference is a dollar sign, then the name in braces.
     const reference = (name: string) => ['$', '{', name, '}'].join('');
-    const path = write('querent.yaml', `server:\n  publicUrl: https://${reference('HOST')}\n`);
-    expect(loadConfig({ QUERENT_CONFIG: path, HOST: 'q.example.com' }).publicUrl).toBe(
+    const path = write('quanthea.yaml', `server:\n  publicUrl: https://${reference('HOST')}\n`);
+    expect(loadConfig({ QUANTHEA_CONFIG: path, HOST: 'q.example.com' }).publicUrl).toBe(
       'https://q.example.com',
     );
-    expect(() => loadConfig({ QUERENT_CONFIG: path })).toThrow('unset variables: HOST');
-    write('querent.yaml', `server:\n  webDir: ./$${reference('HOME')}\n`);
-    expect(loadConfig({ QUERENT_CONFIG: path, HOME: '/root' }, '/app').webDir).toBe(
+    expect(() => loadConfig({ QUANTHEA_CONFIG: path })).toThrow('unset variables: HOST');
+    write('quanthea.yaml', `server:\n  webDir: ./$${reference('HOME')}\n`);
+    expect(loadConfig({ QUANTHEA_CONFIG: path, HOME: '/root' }, '/app').webDir).toBe(
       `/app/${reference('HOME')}`,
     );
   });
 
   test('refuses a missing path, an unknown section or setting, and an invalid value', () => {
-    expect(() => loadConfig({ QUERENT_CONFIG: join(directory.path, 'none.yaml') })).toThrow(
+    expect(() => loadConfig({ QUANTHEA_CONFIG: join(directory.path, 'none.yaml') })).toThrow(
       'does not exist',
     );
-    const path = write('querent.yaml', 'servr:\n  port: 1\n');
-    expect(() => loadConfig({ QUERENT_CONFIG: path })).toThrow('unknown section `servr`');
-    write('querent.yaml', 'server:\n  prot: 1\n  publicUrl: http://querent.example.com\n');
-    const failure = () => loadConfig({ QUERENT_CONFIG: path });
+    const path = write('quanthea.yaml', 'servr:\n  port: 1\n');
+    expect(() => loadConfig({ QUANTHEA_CONFIG: path })).toThrow('unknown section `servr`');
+    write('quanthea.yaml', 'server:\n  prot: 1\n  publicUrl: http://querent.example.com\n');
+    const failure = () => loadConfig({ QUANTHEA_CONFIG: path });
     expect(failure).toThrow('server.prot in');
     expect(failure).toThrow(/server\.publicUrl in .*: Use https/);
   });

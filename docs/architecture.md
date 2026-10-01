@@ -730,7 +730,7 @@ A plugin adds connector kinds without a change to querent: an npm package whose 
 "dist/plugin.js" }`, and whose bundle is one ES module that exports `kitVersion` and, as default,
 a function that receives the live kit and returns its kinds.
 
-- **Where:** a folder per plugin in the plugins directory (`QUERENT_PLUGINS_DIR` or
+- **Where:** a folder per plugin in the plugins directory (`QUANTHEA_PLUGINS_DIR` or
   `plugins.dir`; `<data dir>/plugins` by default, `/plugins` in the image), holding
   `package.json` and `plugin.js`. Read once at startup (`plugins/load.ts`); a change needs a
   restart.
@@ -738,7 +738,7 @@ a function that receives the live kit and returns its kinds.
   `sha256:<hex>`, one SHA-256 over the manifest and the bundle, each after its length
   (`plugins/pin.ts`). A plugin whose files do not match its pin is refused, and the log says to
   paste the pin `querent plugin install` printed. A plugin without a pin loads only when
-  `plugins.allowUnpinned` (`QUERENT_PLUGINS_ALLOW_UNPINNED`) is true, with a warning; it is
+  `plugins.allowUnpinned` (`QUANTHEA_PLUGINS_ALLOW_UNPINNED`) is true, with a warning; it is
   false by default. Pins are read from the file only, so without a file only that variable
   loads plugins.
 - **Loading:** the loader reads the two files, checks the manifest (a `querent-plugin-<name>`
@@ -1273,7 +1273,7 @@ one, and enables them again. Without any admin, it creates the default one.
   20 for an address, each attempt waits, from one minute and doubling, up to an hour for an
   account and 15 minutes for an address. Nothing ever locks an account for good. The throttle is
   kept in memory. The address comes from the socket, or from `X-Forwarded-For` as far as
-  `QUERENT_TRUSTED_PROXY_HOPS` proxies go.
+  `QUANTHEA_TRUSTED_PROXY_HOPS` proxies go.
 - **Links** (table `password_links`): an admin invites a user (`POST /api/users`) or makes a
   reset link (`POST /api/users/:id/reset-link`). The token is 32 random bytes, stored as a keyed
   hash, and sits after the `#` of `/set-password#…`, so it never reaches a server log or a
@@ -1304,7 +1304,7 @@ one, and enables them again. Without any admin, it creates the default one.
 - **Sign-in providers** (Settings → Authentication, `auth/providers/`): GitHub, Google, GitLab
   (gitlab.com or a self-managed one) and Microsoft Entra ID (one tenant, never `common`). querent
   is only their client: an admin registers it with the provider, pastes the client id and secret,
-  and registers the redirect URI querent shows (`QUERENT_PUBLIC_URL` +
+  and registers the redirect URI querent shows (`QUANTHEA_PUBLIC_URL` +
   `/api/auth/providers/:id/callback`, never built from a request's `Host`). The id and secret are
   sealed together, bound to the provider, and never sent back. A provider stays off until an admin
   signs in through it once with Test sign-in; changing its kind, address, tenant or client turns
@@ -1335,7 +1335,7 @@ one, and enables them again. Without any admin, it creates the default one.
   `POST /api/auth/sign-in` refuses.
 - **CSRF** (`http/csrf.ts`): every `/api` request that is not a GET, HEAD or OPTIONS needs
   `X-Requested-With: querent`, which a cross-site form cannot send without a preflight querent never
-  grants. When the browser sends `Origin`, it must be `QUERENT_PUBLIC_URL` (or, without it, the
+  grants. When the browser sends `Origin`, it must be `QUANTHEA_PUBLIC_URL` (or, without it, the
   request's own origin); when it sends `Sec-Fetch-Site`, it must be `same-origin` or `none`. The web
   client sends the header on every request.
 - Every `/api` answer carries `Cache-Control: no-store`.
@@ -1409,7 +1409,7 @@ one, and enables them again. Without any admin, it creates the default one.
   sets inline styles), `frame-ancestors 'none'`, `X-Frame-Options: DENY`,
   `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, a `Permissions-Policy` that
   turns off the camera, microphone, geolocation, payment and USB, and same-origin opener and
-  resource policies. HSTS for a year when `QUERENT_PUBLIC_URL` is HTTPS.
+  resource policies. HSTS for a year when `QUANTHEA_PUBLIC_URL` is HTTPS.
 - Fonts are self-hosted from `@fontsource` packages, because this CSP blocks Google Fonts. Vite
   never inlines them as `data:` URIs.
 - The SPA turns off Zod's JIT (`lib/zod-without-eval.ts`), which otherwise probes `new Function`
@@ -1420,14 +1420,14 @@ one, and enables them again. Without any admin, it creates the default one.
 querent uses three keys, each 32 random bytes in base64 (`openssl rand -base64 32`), from a
 variable or from a file named by the variable with `_FILE` appended (for Docker and Kubernetes
 secrets). `secrets/keys.ts` reads and checks them at startup. A key not given is generated on
-first start in the keys directory (`QUERENT_KEYS_DIR`, `./keys`, `/keys` in the image;
+first start in the keys directory (`QUANTHEA_KEYS_DIR`, `./keys`, `/keys` in the image;
 `secrets/key-files.ts`): the directory has mode 0700, each file 0600, and it may not be the data
 directory or lie inside it. A key given always wins, key by key.
 
-- **The secret key** (`QUERENT_SECRET_KEY`) seals secrets at rest.
-- **The session key** (`QUERENT_SESSION_KEY`) signs session cookies and keys the hashes of
+- **The secret key** (`QUANTHEA_SECRET_KEY`) seals secrets at rest.
+- **The session key** (`QUANTHEA_SESSION_KEY`) signs session cookies and keys the hashes of
   session ids and one-time tokens.
-- **The password pepper** (`QUERENT_PASSWORD_PEPPER`) is mixed into every password hash.
+- **The password pepper** (`QUANTHEA_PASSWORD_PEPPER`) is mixed into every password hash.
 
 A key must decode to exactly 32 bytes, and is refused when it is too regular to be random or is
 all printable text (a passphrase in disguise). A key set both ways, a file that cannot be read,
@@ -1437,7 +1437,7 @@ message ever contains a key.
 The server refuses to start with a secret key file inside the data directory: a copy of the data
 directory must never carry a key.
 A secret key that cannot open what the database holds stops the server at startup, naming the
-id of the key that sealed it, to set as `QUERENT_SECRET_KEY` or `QUERENT_SECRET_KEY_PREVIOUS`.
+id of the key that sealed it, to set as `QUANTHEA_SECRET_KEY` or `QUANTHEA_SECRET_KEY_PREVIOUS`.
 
 **Sealing** (`secrets/secret-box.ts`): AES-256-GCM with a random 96-bit IV, bound to the row it
 belongs to through the additional data. The sealing key is derived from the secret key for this
@@ -1445,11 +1445,11 @@ purpose only (HKDF-SHA-256, `querent/secrets/v1`). A sealed value starts with it
 and the id of the key that sealed it (the first four bytes of an HMAC of a fixed label, which
 says nothing about the key).
 
-**Rotation:** set the new key, and the old one as `QUERENT_SECRET_KEY_PREVIOUS`, then restart. At
+**Rotation:** set the new key, and the old one as `QUANTHEA_SECRET_KEY_PREVIOUS`, then restart. At
 startup every connector credential and model API key not sealed with the current key is sealed
 again (`resealSecrets`), with users' names and emails, provider credentials and provider
 identities, so the previous key can be removed after that restart. The pepper
-rotates the same way with `QUERENT_PASSWORD_PEPPER_PREVIOUS`: passwords are rehashed at their next
+rotates the same way with `QUANTHEA_PASSWORD_PEPPER_PREVIOUS`: passwords are rehashed at their next
 sign-in.
 
 ## 13. Configuration
@@ -1461,8 +1461,8 @@ the directories and logging) come from an environment variable, else the configu
 value and where it comes from, and each key by where it comes from, never its value
 (`config/server-view.ts`). They are read at startup; a change applies at the next restart.
 
-**The configuration file** (`config/config-file.ts`): `QUERENT_CONFIG` names a YAML or JSON file,
-or a directory whose `*.yaml`, `*.yml` and `*.json` files are read in name order (`/etc/querent`
+**The configuration file** (`config/config-file.ts`): `QUANTHEA_CONFIG` names a YAML or JSON file,
+or a directory whose `*.yaml`, `*.yml` and `*.json` files are read in name order (`/etc/quanthea`
 in the image, empty until a file is mounted). YAML is parsed with Bun's built-in parser. Each
 top-level key is a section (`server`, `users`, `signIn`, `connectors`, `model`, `retention`,
 `charts`, `queries`, `provisioning`); the keys of `server` are the settings' names
@@ -1563,20 +1563,20 @@ the default when it named none or its provider was removed. Editors see the prov
 build models, never their keys (`GET /api/model-providers`). The usage ledger records the
 provider's name, so two setups of the same vendor stay apart.
 
-| Variable                     | Default         | Purpose                                                             |
-| ---------------------------- | --------------- | ------------------------------------------------------------------- |
-| `QUERENT_PORT`               | `3000`          | HTTP port                                                           |
-| `QUERENT_DATA_DIR`           | `./data`        | SQLite database                                                     |
-| `QUERENT_KEYS_DIR`           | `./keys`        | generated keys, outside the data directory                          |
-| `QUERENT_CONFIG`             | _(unset)_       | the configuration file, or a directory of them                      |
-| `QUERENT_SECRET_KEY`         | generated       | seals secrets at rest; `_PREVIOUS` while rotating; `_FILE` variants |
-| `QUERENT_SESSION_KEY`        | generated       | signs session cookies                                               |
-| `QUERENT_PASSWORD_PEPPER`    | generated       | mixed into password hashes; `_PREVIOUS` while rotating              |
-| `QUERENT_PUBLIC_URL`         | _(unset)_       | the origin people reach querent at; sign-in providers need it       |
-| `QUERENT_TRUSTED_PROXY_HOPS` | `0`             | reverse proxies trusted to add `X-Forwarded-For`                    |
-| `QUERENT_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                 |
-| `QUERENT_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.     |
-| `QUERENT_WEB_DIR`            | `apps/web/dist` | the built SPA the server serves                                     |
+| Variable                      | Default         | Purpose                                                             |
+| ----------------------------- | --------------- | ------------------------------------------------------------------- |
+| `QUANTHEA_PORT`               | `3000`          | HTTP port                                                           |
+| `QUANTHEA_DATA_DIR`           | `./data`        | SQLite database                                                     |
+| `QUANTHEA_KEYS_DIR`           | `./keys`        | generated keys, outside the data directory                          |
+| `QUANTHEA_CONFIG`             | _(unset)_       | the configuration file, or a directory of them                      |
+| `QUANTHEA_SECRET_KEY`         | generated       | seals secrets at rest; `_PREVIOUS` while rotating; `_FILE` variants |
+| `QUANTHEA_SESSION_KEY`        | generated       | signs session cookies                                               |
+| `QUANTHEA_PASSWORD_PEPPER`    | generated       | mixed into password hashes; `_PREVIOUS` while rotating              |
+| `QUANTHEA_PUBLIC_URL`         | _(unset)_       | the origin people reach querent at; sign-in providers need it       |
+| `QUANTHEA_TRUSTED_PROXY_HOPS` | `0`             | reverse proxies trusted to add `X-Forwarded-For`                    |
+| `QUANTHEA_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                 |
+| `QUANTHEA_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.     |
+| `QUANTHEA_WEB_DIR`            | `apps/web/dist` | the built SPA the server serves                                     |
 
 ## 14. Local development
 
@@ -1584,11 +1584,11 @@ provider's name, so two setups of the same vendor stay apart.
   `bun --hot apps/server/src/main.ts` (3000).
 - `bun run env:up` starts the local data sources in `dev/docker-compose.yml`, and `bun run env:down`
   deletes them with their data.
-- `bun run dev:seed` signs in as the admin `QUERENT_ADMIN_EMAIL` and `QUERENT_ADMIN_PASSWORD` name,
+- `bun run dev:seed` signs in as the admin `QUANTHEA_ADMIN_EMAIL` and `QUANTHEA_ADMIN_PASSWORD` name,
   adds the dev connectors (`postgres-orders`, `prometheus-dev`) to a running server, then creates
   and pins the checkout incident dashboard
   (`dev/seed/checkout-incident.json`) with its time range around the incident, and prints its
-  address. `QUERENT_URL` points at the server (`http://localhost:3000` by default).
+  address. `QUANTHEA_URL` points at the server (`http://localhost:3000` by default).
 
 | Source        | Address           | Contents                                                                                                                                                                                                                                                                                                                                                                           |
 | ------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1628,7 +1628,7 @@ provider's name, so two setups of the same vendor stay apart.
   database file, its write-ahead log and its shared memory for any of them in clear.
   `docs/SECURITY.md` holds the threat model.
 - **Integration** (`bun run test:integration`, after `bun run env:up`): each connector against the
-  real service, in `*.integration.test.ts` files. `QUERENT_INTEGRATION` names the sets of sources
+  real service, in `*.integration.test.ts` files. `QUANTHEA_INTEGRATION` names the sets of sources
   they run against: `core` (Postgres, Prometheus), `timescale` (`bun run env:up:timescale`, then
   `bun run test:integration:timescale`), `mysql` (MySQL, MariaDB:
   `bun run env:up:mysql`, then `bun run test:integration:mysql`) or `clickhouse`

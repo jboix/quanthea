@@ -23,7 +23,7 @@ plugin is, and it is small enough to copy as a start for your own.
   core binds every value and refuses every statement but one read; it also refuses ATTACH,
   DETACH, VACUUM, PRAGMA and `load_extension`, which reach other files even from a read-only
   connection.
-- A connector names a file relative to `QUERENT_SQLITE_ROOT`. Without that variable, no file
+- A connector names a file relative to `QUANTHEA_SQLITE_ROOT`. Without that variable, no file
   opens. The path is resolved, symbolic links included, and must stay in that directory; `..`
   is refused.
 - Files open read-only, with `PRAGMA query_only = ON`.
@@ -41,4 +41,4 @@ querent plugin install ./querent-plugin-sqlite-0.1.0.tgz
 ```
 
 `querent plugin install` prints the pin to paste into the configuration file's `plugins.pins`.
-Restart querent, set `QUERENT_SQLITE_ROOT`, and add a connector of the kind "SQLite file".
+Restart querent, set `QUANTHEA_SQLITE_ROOT`, and add a connector of the kind "SQLite file".

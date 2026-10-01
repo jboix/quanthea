@@ -6,7 +6,7 @@ keeps its state in two volumes and reads an optional configuration file.
 ## Quick start
 
 ```sh
-docker run -d --name querent -p 3000:3000 -v querent-data:/data -v querent-keys:/keys \
+docker run -d --name querent -p 3000:3000 -v quanthea-data:/data -v quanthea-keys:/keys \
   ghcr.io/jboix/querent
 ```
 
@@ -23,9 +23,9 @@ email and password; nothing else opens until you set them.
 
 [`deploy/`](../deploy/) holds a starting point:
 
-- `compose.yaml`: the service, its `data` and `keys` volumes, and `querent.yaml` mounted
+- `compose.yaml`: the service, its `data` and `keys` volumes, and `quanthea.yaml` mounted
   read-only.
-- `querent.yaml`: the configuration, with the first admin; a model provider, connectors and
+- `quanthea.yaml`: the configuration, with the first admin; a model provider, connectors and
   sign-in providers are there to uncomment.
 - `.env.example`: the secrets the configuration refers to.
 
@@ -50,13 +50,13 @@ see [Connector plugins](#connector-plugins).
 Back the two up apart. The database holds no secret in clear, and the keys open it: whoever holds
 both reads everything. Without the keys, stored credentials cannot be read.
 
-Give your own keys instead with `QUERENT_SECRET_KEY`, `QUERENT_SESSION_KEY` and
-`QUERENT_PASSWORD_PEPPER`, or their `_FILE` variants for Docker and Kubernetes secrets. A key you
+Give your own keys instead with `QUANTHEA_SECRET_KEY`, `QUANTHEA_SESSION_KEY` and
+`QUANTHEA_PASSWORD_PEPPER`, or their `_FILE` variants for Docker and Kubernetes secrets. A key you
 give always wins; querent generates only the ones you leave out.
 
 ## The configuration file
 
-querent reads `*.yaml`, `*.yml` and `*.json` files in `/etc/querent` (`QUERENT_CONFIG` names
+querent reads `*.yaml`, `*.yml` and `*.json` files in `/etc/quanthea` (`QUANTHEA_CONFIG` names
 another file or directory). Each top-level key is a section:
 
 | Section        | What it declares                                                      |
@@ -101,7 +101,7 @@ refers to. A file with a mistake stops querent with every issue listed, and noth
 
 ## Accounts and sign-in
 
-People always sign in. With a public URL (`server.publicUrl` or `QUERENT_PUBLIC_URL`), sign-in
+People always sign in. With a public URL (`server.publicUrl` or `QUANTHEA_PUBLIC_URL`), sign-in
 works only from that address, and sign-in providers send people back to it; providers need it.
 
 - Declare the first admin in `users`: `admin`, with a `password` reference, signs in with no
@@ -135,7 +135,7 @@ they come from.
 ## Connector plugins
 
 A plugin adds connector kinds: an npm package with a bundled `dist/plugin.js`. querent loads the
-plugins of `/plugins` (`QUERENT_PLUGINS_DIR`; `<data dir>/plugins` outside the image) once, at
+plugins of `/plugins` (`QUANTHEA_PLUGINS_DIR`; `<data dir>/plugins` outside the image) once, at
 startup.
 
 A plugin is code you install, and it runs with the server's rights: it can read what querent can
@@ -173,7 +173,7 @@ running container, and a restart loads it. This survives recreating the containe
 A pin is a SHA-256 over the plugin's manifest and bundle. A pinned plugin whose files do not
 match is refused, and the log says to paste the pin the install printed: an upgrade changes the
 pin on purpose. A plugin without a pin loads only when `plugins.allowUnpinned` is true
-(`QUERENT_PLUGINS_ALLOW_UNPINNED=true` without a configuration file); it is false by default.
+(`QUANTHEA_PLUGINS_ALLOW_UNPINNED=true` without a configuration file); it is false by default.
 The command never writes the configuration, which is often mounted read-only.
 
 `querent plugin list` shows each plugin and whether its pin matches; `querent plugin remove <name>` deletes one. Changes apply when querent restarts. A connector of a kind whose plugin is

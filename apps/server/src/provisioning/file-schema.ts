@@ -45,12 +45,12 @@ const pluginsSection = z
     dir: settingSpecs.pluginsDir.schema
       .optional()
       .describe(
-        'Plugins directory: <data dir>/plugins by default. QUERENT_PLUGINS_DIR overrides it.',
+        'Plugins directory: <data dir>/plugins by default. QUANTHEA_PLUGINS_DIR overrides it.',
       ),
     allowUnpinned: z
       .boolean()
       .optional()
-      .describe('Load plugins without a pin. QUERENT_PLUGINS_ALLOW_UNPINNED overrides it.'),
+      .describe('Load plugins without a pin. QUANTHEA_PLUGINS_ALLOW_UNPINNED overrides it.'),
     pins: z
       .record(pluginNameSchema, pinSchema)
       .optional()
