@@ -5,6 +5,7 @@ import {
   type ConnectorInstance,
   type ExecutionContext,
   type SearchQuery,
+  searchRatioScripts,
 } from '../_shared/index.ts';
 import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import {
@@ -193,6 +194,35 @@ for (const server of servers) {
       expect(types).toMatchObject({ '@timestamp': 'time', status: 'number', level: 'string' });
       const levels = frame.values[frame.fields.findIndex((field) => field.name === 'level')];
       expect(new Set(levels)).toEqual(new Set(['error']));
+    });
+
+    test('runs the ratio script: the error share by service, with its counts', async () => {
+      const frame = await frameOf(
+        search({
+          size: 0,
+          query: { bool: { filter: [inRange], must_not: [{ term: { route: 'deploy' } }] } },
+          aggs: {
+            service: {
+              terms: { field: 'service', size: 10 },
+              aggs: {
+                errors: { filter: { term: { level: 'error' } } },
+                _all: { filter: { match_all: {} } },
+                share: {
+                  bucket_script: {
+                    buckets_path: { part: 'errors>_count', whole: '_all>_count' },
+                    script: searchRatioScripts.ratio,
+                  },
+                },
+              },
+            },
+          },
+        }),
+      );
+      expect(frame.fields.map((field) => field.name)).toEqual(['service', 'errors', 'share']);
+      const [services, , shares] = frame.values as [string[], number[], number[]];
+      const worst = services[shares.indexOf(Math.max(...shares))];
+      expect(worst).toBe('checkout-svc');
+      expect(Math.max(...shares)).toBeLessThan(1);
     });
 
     test('names a missing index, and nothing of a value in an error', async () => {

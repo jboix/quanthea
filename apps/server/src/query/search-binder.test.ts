@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { searchRatioScripts } from '../connectors/_shared/index.ts';
 import { bindSearch, searchInterval } from './search-binder.ts';
 
 const timeRange = { from: new Date('2026-09-27T12:00:00Z'), to: new Date('2026-09-27T13:00:00Z') };
@@ -82,6 +83,31 @@ describe('bindSearch', () => {
     ];
     for (const body of bodies) expect(() => bind(body)).toThrow('A query runs no script');
     expect(() => bind({ query: { match: { description: 'script' } } })).not.toThrow();
+  });
+
+  test('keeps a bucket_script that names a ratio script verbatim, and no other', () => {
+    const ratio = (script: unknown, at = 'bucket_script') => ({
+      aggs: {
+        t: {
+          terms: { field: 'service' },
+          aggs: {
+            _part: { filter: { term: { level: 'error' } } },
+            value: { [at]: { buckets_path: { part: '_part>_count', whole: '_count' }, script } },
+          },
+        },
+      },
+    });
+    for (const script of Object.values(searchRatioScripts))
+      expect(bind(ratio(script)).body).toEqual(ratio(script));
+    for (const body of [
+      ratio('params.part * 2'),
+      ratio({ source: searchRatioScripts.ratio }),
+      ratio({ $var: 'script' }),
+      ratio(searchRatioScripts.ratio, 'bucket_selector'),
+    ])
+      expect(() => bind(body, { script: searchRatioScripts.ratio })).toThrow(
+        'A query runs no script',
+      );
   });
 
   test('refuses unknown variables, malformed nodes and stray $ keys', () => {

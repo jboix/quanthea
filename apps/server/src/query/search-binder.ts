@@ -1,9 +1,14 @@
 /**
  * Binds variables into a search template in the Elasticsearch and OpenSearch query DSL. A variable
  * is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value: never text inside a
- * string. The body may hold no script, since a script is code the search server runs.
+ * string. The body may hold no script, since a script is code the search server runs, except the
+ * fixed ratio scripts a `bucket_script` may name: querent's own code, not the model's.
  */
-import type { SearchQuery, TimeRange } from '../connectors/_shared/index.ts';
+import {
+  type SearchQuery,
+  searchRatioScripts,
+  type TimeRange,
+} from '../connectors/_shared/index.ts';
 import { bindJsonVariables } from './json-variables.ts';
 import { QueryError } from './query-error.ts';
 import type { Variables } from './variables.ts';
@@ -36,6 +41,9 @@ const scriptKeys = new Set([
   'scripted_metric',
   'runtime_mappings',
 ]);
+
+/** The ratio scripts, to check a `bucket_script` against. */
+const allowedScripts: ReadonlySet<unknown> = new Set(Object.values(searchRatioScripts));
 
 /** Bucket widths `__interval` picks from, in seconds. */
 const niceIntervals = [
@@ -90,18 +98,50 @@ export function searchInterval(timeRange: TimeRange): string {
 }
 
 /**
- * Checks one key of a body object.
+ * Whether a key holds a script the template may keep: a ratio script, named verbatim, directly in
+ * a `bucket_script`.
  *
  * @param key - The key.
- * @throws {QueryError} `invalid` for a script.
+ * @param value - Its value.
+ * @param parent - The key of the enclosing object.
+ * @returns `true` for an allowed ratio script.
  */
-function refuseScript(key: string): void {
-  if (scriptKeys.has(key.toLowerCase())) {
-    throw new QueryError(
-      'invalid',
-      `A query runs no script; "${key}" is not allowed. Use aggregations and filters instead.`,
-    );
+function allowedScript(key: string, value: unknown, parent: string | undefined): boolean {
+  return key === 'script' && parent === 'bucket_script' && allowedScripts.has(value);
+}
+
+/**
+ * Checks every key of a template for scripts, walking the body.
+ *
+ * @param node - The node.
+ * @param parent - The key of the enclosing object.
+ * @throws {QueryError} `invalid` for a script other than a ratio script in a `bucket_script`.
+ */
+function refuseScripts(node: unknown, parent?: string): void {
+  if (node === null || typeof node !== 'object') return;
+  const entries = Array.isArray(node)
+    ? node.map((item): [string | undefined, unknown] => [parent, item])
+    : Object.entries(node);
+  for (const [key, value] of entries) {
+    if (!Array.isArray(node) && key !== undefined) refuseScriptKey(key, value, parent);
+    refuseScripts(value, key);
   }
+}
+
+/**
+ * Checks one key for a script.
+ *
+ * @param key - The key.
+ * @param value - Its value.
+ * @param parent - The key of the enclosing object.
+ * @throws {QueryError} `invalid` for a script other than a ratio script in a `bucket_script`.
+ */
+function refuseScriptKey(key: string, value: unknown, parent: string | undefined): void {
+  if (!scriptKeys.has(key.toLowerCase()) || allowedScript(key, value, parent)) return;
+  throw new QueryError(
+    'invalid',
+    `A query runs no script; "${key}" is not allowed. Use aggregations and filters, or a bucket_script with a ratio script.`,
+  );
 }
 
 /**
@@ -123,6 +163,7 @@ export function bindSearch(
     __to: timeRange.to.toISOString(),
     __interval: searchInterval(timeRange),
   };
-  const body = bindJsonVariables(template.body, { variables, builtIns, checkKey: refuseScript });
+  refuseScripts(template.body);
+  const body = bindJsonVariables(template.body, { variables, builtIns });
   return { language: 'search', index: checkIndex(template.index), body };
 }

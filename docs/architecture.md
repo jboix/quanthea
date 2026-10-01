@@ -728,7 +728,10 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   the server. A search with aggregations gives one long table: a column per bucket aggregation,
   nested level by level (a date histogram is a time column), then a column per metric of the
   deepest level (a percentile or a statistic each its own), or `count` when there is none.
-  Bucket aggregations side by side are refused. A search without aggregations gives its documents,
+  A single-bucket aggregation (`filter` and the like) with no bucket aggregation under it is a
+  metric: its document count, or its own metrics. An aggregation named with a leading `_` is a
+  helper and gives no column, such as the parts of a ratio. Bucket aggregations side by side are
+  refused. A search without aggregations gives its documents,
   flattened to dotted columns typed from the mapping. `describe` groups daily and rollover indices
   (`logs-2026.09.29`, `logs-000042`) into the pattern that queries them (`logs-*`), with their
   merged fields and document counts. `sampleValues` runs a terms aggregation on a field the
@@ -839,7 +842,10 @@ that changes with its settings).
      list for a multi-value variable), never text inside a string. `__from` and `__to` are ISO
      times; `__interval` is a bucket width that keeps the range within 1000 buckets. A body with a
      script (`script`, `_script`, `script_fields`, `script_score`, `scripted_metric`,
-     `runtime_mappings`) is refused, because the search server would run it. The index is
+     `runtime_mappings`) is refused, because the search server would run it. One exception: a
+     `bucket_script` whose `script` is one of the kit's ratio scripts, verbatim
+     (`searchRatioScripts`: the share of `part` in `whole`, or one minus it). They are querent's
+     code; a query names one, never writes one. The index is
      lowercase names and patterns, never a hidden (`.`), system (`_`) or remote (`:`) index.
    - **HTTP** (`query/http-binder.ts`): `$name` in the path becomes its value URL-encoded, one
      value only, so it stays one segment; the path is absolute and holds no `?`, `#`, `\` or

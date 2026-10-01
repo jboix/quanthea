@@ -139,6 +139,40 @@ describe('search aggregations', () => {
     expect(single.values).toEqual([[12.5], [3]]);
   });
 
+  test('count filters beside metrics, read their metrics, and hide helper aggregations', () => {
+    const frame = aggregationsFrame(
+      {
+        media: {
+          terms: {},
+          aggs: {
+            errors: { filter: {} },
+            _starts: { filter: {} },
+            load: { filter: {}, aggs: { p: { percentiles: {} } } },
+            rate: { bucket_script: {} },
+          },
+        },
+      },
+      {
+        media: {
+          buckets: [
+            {
+              key: 'urn:a',
+              doc_count: 9,
+              errors: { doc_count: 2 },
+              _starts: { doc_count: 8 },
+              load: { doc_count: 8, p: { values: { '50.0': 410 } } },
+              rate: { value: 0.25 },
+            },
+          ],
+        },
+      },
+      context,
+      5,
+    );
+    expect(frame.fields.map((field) => field.name)).toEqual(['media', 'errors', 'p p50', 'rate']);
+    expect(frame.values).toEqual([['urn:a'], [2], [410], [0.25]]);
+  });
+
   test('refuse bucket aggregations side by side, and stop at the row limit', () => {
     expect(() => aggregationsFrame({ a: { terms: {} }, b: { terms: {} } }, {}, context, 5)).toThrow(
       ConnectorError,

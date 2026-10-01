@@ -28,6 +28,7 @@ export {
   type SqlDialect,
   type SqlParameter,
   type SqlQuery,
+  searchRatioScripts,
   sqlDialects,
   type TimeRange,
 } from './queries.ts';

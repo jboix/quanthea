@@ -65,6 +65,15 @@ export interface SearchQuery {
   readonly body: Readonly<Record<string, unknown>>;
 }
 
+/**
+ * The scripts a search's `bucket_script` may run, verbatim: the share of `part` in `whole`, and one
+ * minus it. They are querent's code; a query names one, never writes one.
+ */
+export const searchRatioScripts = {
+  ratio: 'params.whole > 0 ? params.part / params.whole : 0',
+  complement: 'params.whole > 0 ? 1 - params.part / params.whole : 0',
+} as const;
+
 /** A LogQL expression with every variable already substituted and escaped. */
 export interface LogqlQuery {
   /** The query language. */

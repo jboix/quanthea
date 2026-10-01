@@ -2,6 +2,7 @@
  * How to get each shape of data from Elasticsearch and OpenSearch, for the agent. It is about
  * data, not charts: any chart recipe for the shape can draw the result.
  */
+import { searchRatioScripts } from '../_shared/index.ts';
 
 /**
  * The guide of one product.
@@ -16,6 +17,8 @@ export function searchGuide(product: string): string {
 - long by category: {"aggs": {"service": {"terms": {"field": "service", "size": 20}, "aggs": {"value": {"sum": {"field": "bytes"}}}}}}.
 - single: {"aggs": {"value": {"value_count": {"field": "trace_id"}}}}, or several metrics side by side.
 - percentiles: {"percentiles": {"field": "duration_ms", "percents": [50, 95, 99]}} gives one column per percentile, "name p95".
+- counts side by side: a filter with no bucket aggregation under it is a column of its count, {"errors": {"filter": {"term": {"level": "error"}}}}. Name an aggregation with a leading _ to keep it out of the table.
+- ratio, the only script: under a bucket, {"_part": {"filter": …}, "_whole": {"filter": …}, "rate": {"bucket_script": {"buckets_path": {"part": "_part>_count", "whole": "_whole>_count"}, "script": "${searchRatioScripts.ratio}"}}}; "whole": "_count" for every document of the bucket; "${searchRatioScripts.complement}" for one minus it, such as a success rate. Copy the script exactly: any other is refused.
 - matrix: nest a terms or histogram under another.
 - rows: no aggs; "size" up to 100, "sort": [{"@timestamp": "desc"}], "_source": ["@timestamp", "level", "message"]. Nested fields become dotted columns.
 - Aggregate on keyword fields (or text.keyword), not text fields.`;

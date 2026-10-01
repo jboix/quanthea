@@ -2,6 +2,8 @@
  * The aggregations of a search, as one long table: a column per bucket aggregation, level by level
  * (a date histogram gives the time, terms give a series), and a column per metric of the deepest
  * level, or `count` when it has none. `date_histogram > terms > avg` gives `(time, series, avg)`.
+ * A filter with no bucket aggregation under it is a metric: its count, or its metrics. An
+ * aggregation whose name starts with `_` is a helper, such as the parts of a ratio: no column.
  */
 import type { FieldType, Frame } from '@querent/shared';
 import { ConnectorError, createFrameBuilder, type ExecutionContext } from '../_shared/index.ts';
@@ -179,6 +181,35 @@ function metricValues(spec: AggregationSpec, node: AnswerNode | undefined): [str
 }
 
 /**
+ * Whether an aggregation groups rows: a bucket aggregation, or a single-bucket one with a bucket
+ * aggregation under it.
+ *
+ * @param spec - The aggregation.
+ * @returns `true` when it makes a level.
+ */
+function grouping(spec: AggregationSpec): boolean {
+  if (bucketTypes.has(spec.type)) return true;
+  return singleBucketTypes.has(spec.type) && spec.children.some(grouping);
+}
+
+/**
+ * The columns of one metric of a level: a metric's values, or a single-bucket aggregation's count
+ * or the values of its metrics. A helper (`_` name) gives none.
+ *
+ * @param spec - The aggregation.
+ * @param node - Its result.
+ * @returns Column name and value pairs.
+ */
+function metricColumns(spec: AggregationSpec, node: AnswerNode | undefined): [string, unknown][] {
+  if (spec.name.startsWith('_')) return [];
+  if (!singleBucketTypes.has(spec.type)) return metricValues(spec, node);
+  if (spec.children.length === 0) return [[spec.name, node?.doc_count ?? null]];
+  return spec.children.flatMap((child) =>
+    metricColumns(child, node?.[child.name] as AnswerNode | undefined),
+  );
+}
+
+/**
  * Adds the row of a level with no bucket aggregation: its metrics.
  *
  * @param table - The table.
@@ -194,7 +225,7 @@ function addMetricRow(
 ): void {
   const row = new Map(prefix);
   for (const spec of specs) {
-    for (const [column, value] of metricValues(spec, node[spec.name] as AnswerNode | undefined))
+    for (const [column, value] of metricColumns(spec, node[spec.name] as AnswerNode | undefined))
       setCell(table, row, column, value, 'number');
   }
   table.rows.push(row);
@@ -215,16 +246,14 @@ function walk(
   node: AnswerNode,
   prefix: ReadonlyMap<string, unknown>,
 ): void {
-  const grouping = specs.filter(
-    (spec) => bucketTypes.has(spec.type) || singleBucketTypes.has(spec.type),
-  );
-  if (grouping.length > 1) {
+  const levels = specs.filter(grouping);
+  if (levels.length > 1) {
     throw new ConnectorError(
       'rejected',
       'A search gives one table: nest bucket aggregations instead of putting them side by side.',
     );
   }
-  const [bucket] = grouping;
+  const [bucket] = levels;
   if (bucket === undefined) addMetricRow(table, specs, node, prefix);
   else if (singleBucketTypes.has(bucket.type))
     walk(table, bucket.children, (node[bucket.name] ?? {}) as AnswerNode, prefix);
