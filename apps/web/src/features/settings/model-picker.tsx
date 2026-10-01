@@ -4,9 +4,9 @@ import { type SubmitTarget, useFetcher } from 'react-router';
 import { Combobox } from '../../ui/combobox.tsx';
 import type { ModelSettingsIntent, ModelSettingsOutcome } from './data.ts';
 
-/** The models a provider offers: the ones querent knows by name, and the ones it lists. */
+/** The models a provider offers: the ones quanthea knows by name, and the ones it lists. */
 export interface ModelList {
-  /** The models querent knows by name for this provider. */
+  /** The models quanthea knows by name for this provider. */
   readonly known: readonly KnownModel[];
   /** The chat models the provider listed, empty until they load or when they cannot. */
   readonly models: readonly string[];

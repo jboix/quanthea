@@ -22,7 +22,7 @@ beforeEach(async () => {
       settings,
       secretBox: await testSecretBox(),
       ...(await testKeyedHashes()),
-      publicUrl: 'https://querent.test',
+      publicUrl: 'https://quanthea.test',
     },
     createAuditRepository(database),
   );
@@ -55,7 +55,7 @@ describe('the sign-in settings', () => {
         id: 'github',
         hasCredentials: true,
         enabled: false,
-        callbackUrl: 'https://querent.test/api/auth/providers/github/callback',
+        callbackUrl: 'https://quanthea.test/api/auth/providers/github/callback',
       },
     ]);
     expect(JSON.stringify(view)).not.toContain('very-secret-value');

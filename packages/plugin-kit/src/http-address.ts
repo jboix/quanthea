@@ -1,6 +1,6 @@
 /**
  * Cloud metadata addresses, which a connector never calls: they hand out the credentials of the
- * machine querent runs on.
+ * machine quanthea runs on.
  */
 import { ConnectorError } from './errors.ts';
 

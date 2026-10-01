@@ -26,7 +26,7 @@ export interface SignInSettingsDependencies {
   readonly identities: IdentityRepository;
   /** The users, to check an admin can still sign in. */
   readonly users: UserRepository;
-  /** querent's origin, for callback URLs. */
+  /** quanthea's origin, for callback URLs. */
   readonly publicUrl: string | undefined;
   /** Records who did what. */
   readonly audit: AuditRepository;
@@ -40,7 +40,7 @@ export interface SignInSettingsView {
   readonly providers: IdentityProviderView[];
   /** Whether passwords sign in. */
   readonly passwordSignIn: boolean;
-  /** querent's origin, or `null` when the server has none. */
+  /** quanthea's origin, or `null` when the server has none. */
   readonly publicUrl: string | null;
 }
 

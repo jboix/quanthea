@@ -40,7 +40,7 @@ export interface AuthRouteServices {
   readonly passwords: PasswordAccounts | undefined;
   /** The users. */
   readonly users: Pick<Users, 'principalOf'>;
-  /** How many proxies in front of querent append to `X-Forwarded-For`. */
+  /** How many proxies in front of quanthea append to `X-Forwarded-For`. */
   readonly trustedProxyHops: number;
 }
 

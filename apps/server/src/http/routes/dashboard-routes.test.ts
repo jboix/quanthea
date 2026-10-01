@@ -55,7 +55,7 @@ function client(principal: Principal) {
   app.onError(handleErrors(captureLogs().logger));
   app.notFound(handleNotFound);
   return async (method: string, path: string, body?: unknown) => {
-    const headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'querent' };
+    const headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'quanthea' };
     const init = body === undefined ? { method } : { method, headers, body: JSON.stringify(body) };
     const response = await app.request(path, init);
     return { status: response.status, body: (await response.json()) as unknown };

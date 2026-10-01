@@ -36,7 +36,7 @@ beforeEach(async () => {
       settings,
       secretBox: await testSecretBox(),
       ...(await testKeyedHashes()),
-      publicUrl: 'https://querent.test',
+      publicUrl: 'https://quanthea.test',
       driverOptions: { allowHttp: true },
       now: () => clock,
     },
@@ -71,7 +71,7 @@ const ada: FakePerson = {
 };
 
 /**
- * The flows, which exist once querent has a public URL and sessions.
+ * The flows, which exist once quanthea has a public URL and sessions.
  *
  * @returns The flows.
  */
@@ -133,7 +133,7 @@ describe('signing in through a provider', () => {
     expect(asked.get('state')?.length).toBeGreaterThan(20);
     expect(asked.get('nonce')?.length).toBeGreaterThan(20);
     expect(asked.get('redirect_uri')).toBe(
-      'https://querent.test/api/auth/providers/gitlab/callback',
+      'https://quanthea.test/api/auth/providers/gitlab/callback',
     );
   });
 

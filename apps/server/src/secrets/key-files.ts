@@ -1,5 +1,5 @@
 /**
- * Keys in files: their format, and the files querent generates for keys it is not given, one per
+ * Keys in files: their format, and the files quanthea generates for keys it is not given, one per
  * role, in the keys directory. That directory lies outside the data directory, so a copy of the
  * data never carries a key.
  */
@@ -26,7 +26,7 @@ const keyFileNames = {
   pepper: 'password-pepper.key',
 } as const;
 
-/** A key querent generates when it is not given. */
+/** A key quanthea generates when it is not given. */
 export type GeneratedRole = keyof typeof keyFileNames;
 
 /**
@@ -127,7 +127,7 @@ function readOrCreateKey(keysDir: string, role: GeneratedRole, logger: Logger): 
 }
 
 /**
- * The keys querent was not given, read from the keys directory or generated there.
+ * The keys quanthea was not given, read from the keys directory or generated there.
  *
  * @param roles - The keys not given.
  * @param directories - The keys and data directories.

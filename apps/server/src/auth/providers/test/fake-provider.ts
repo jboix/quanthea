@@ -1,7 +1,7 @@
 /**
  * A fake OpenID Connect provider for tests: discovery, JWKS, a token endpoint that checks PKCE and
  * the client secret, ES256 ID tokens, and userinfo. It can misbehave on purpose, so the tests show
- * querent refuses what a real attacker could send.
+ * quanthea refuses what a real attacker could send.
  */
 
 /** Who the fake provider says signs in. */
@@ -57,7 +57,7 @@ export interface FakeProvider {
   /**
    * Plays the person approving an authorization request.
    *
-   * @param authorizationUrl - The URL querent sent the person to.
+   * @param authorizationUrl - The URL quanthea sent the person to.
    * @param person - Who approves.
    * @returns The callback's query string, with its `?`.
    */
@@ -145,7 +145,7 @@ export async function startFakeProvider(): Promise<FakeProvider> {
   const grants = new Map<string, Grant>();
   const tokens = new Map<string, FakePerson>();
   let misbehaviour: Misbehaviour = {};
-  const clientId = 'querent-test';
+  const clientId = 'quanthea-test';
   const clientSecret = 'fake-client-secret';
   const server = Bun.serve({
     port: 0,

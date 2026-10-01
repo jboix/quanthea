@@ -42,7 +42,7 @@ describe('createApiClient', () => {
     expect(sent[0]?.url).toBe('/api/health');
     expect(sent[0]?.init).toMatchObject({
       method: 'GET',
-      headers: { 'X-Requested-With': 'querent' },
+      headers: { 'X-Requested-With': 'quanthea' },
     });
     expect(sent[0]?.init.body).toBeUndefined();
   });

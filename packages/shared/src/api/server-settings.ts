@@ -12,9 +12,9 @@ export const settingSourceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('environment'), variable: z.string() }),
   /** The configuration file at this path. */
   z.object({ kind: z.literal('file'), path: z.string() }),
-  /** A key querent generated in this file. */
+  /** A key quanthea generated in this file. */
   z.object({ kind: z.literal('generated'), path: z.string() }),
-  /** querent's default. */
+  /** quanthea's default. */
   z.object({ kind: z.literal('default') }),
 ]);
 

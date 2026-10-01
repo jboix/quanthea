@@ -18,7 +18,7 @@ afterAll(() => fake.stop());
 beforeEach(async () => {
   dataDir = temporaryDir();
   services = await testServices(dataDir.path, undefined, undefined, {
-    publicUrl: 'https://querent.test',
+    publicUrl: 'https://quanthea.test',
     driverOptions: { allowHttp: true },
   });
 });

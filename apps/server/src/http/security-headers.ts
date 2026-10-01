@@ -1,17 +1,17 @@
-/** Response headers that limit what a page served by querent can load, who can frame it, and caching. */
+/** Response headers that limit what a page served by quanthea can load, who can frame it, and caching. */
 import { apiPrefix } from '@quanthea/shared';
 import type { MiddlewareHandler } from 'hono';
 import { createMiddleware } from 'hono/factory';
 import { secureHeaders } from 'hono/secure-headers';
 
-/** HSTS for a year, with subdomains, sent only when querent is reached over HTTPS. */
+/** HSTS for a year, with subdomains, sent only when quanthea is reached over HTTPS. */
 const strictTransport = 'max-age=31536000; includeSubDomains';
 
 /**
  * Creates the security headers middleware (architecture, security checklist). `style-src` allows
  * inline styles because ECharts sets them.
  *
- * @param publicUrl - querent's origin, when configured; HSTS is sent when it is HTTPS.
+ * @param publicUrl - quanthea's origin, when configured; HSTS is sent when it is HTTPS.
  * @returns The middleware.
  */
 export function securityHeaders(publicUrl?: string): MiddlewareHandler {

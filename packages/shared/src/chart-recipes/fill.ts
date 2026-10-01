@@ -63,7 +63,7 @@ export function fillOption(recipe: ChartRecipe, choice: Omit<ChartChoice, 'recip
 }
 
 /**
- * The view of a stat or table recipe: querent's own views, configured by the option.
+ * The view of a stat or table recipe: quanthea's own views, configured by the option.
  *
  * @param recipe - The recipe.
  * @param option - The filled option.

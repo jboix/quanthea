@@ -12,7 +12,7 @@ import type { AppEnv } from './app-env.ts';
  * The client's address.
  *
  * @param context - The request context.
- * @param trustedProxyHops - How many proxies in front of querent append to `X-Forwarded-For`.
+ * @param trustedProxyHops - How many proxies in front of quanthea append to `X-Forwarded-For`.
  * @returns The address, or `unknown` when neither the socket nor a trusted proxy tells.
  */
 export function clientAddress(context: Context<AppEnv>, trustedProxyHops: number): string {

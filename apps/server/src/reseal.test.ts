@@ -85,7 +85,7 @@ describe('sealing secrets again', () => {
       secretBox: before,
       identities: createIdentityRepository(database),
       users: userRepository,
-      publicUrl: 'https://querent.test',
+      publicUrl: 'https://quanthea.test',
       audit,
     });
     const github = { kind: 'github' as const, name: 'GitHub', baseUrl: null, tenant: null };
@@ -119,7 +119,7 @@ describe('sealing secrets again', () => {
       secretBox: after,
       identities: createIdentityRepository(database),
       users: userRepository,
-      publicUrl: 'https://querent.test',
+      publicUrl: 'https://quanthea.test',
       audit,
     });
     expect(await reopenedSignIn.credentials('github')).toEqual({

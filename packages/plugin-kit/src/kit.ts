@@ -1,5 +1,5 @@
 /**
- * The kit querent hands a plugin when it loads it, and the shape of a plugin. The kit is the live
+ * The kit quanthea hands a plugin when it loads it, and the shape of a plugin. The kit is the live
  * one: its Zod, its error class and its helpers are the server's own, so a plugin's schemas and
  * errors are the ones the core checks.
  */

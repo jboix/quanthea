@@ -3,7 +3,7 @@ import type { Database } from 'bun:sqlite';
 
 /** A provider identity linked to a user. */
 export interface IdentityRow {
-  /** The provider, as configured in querent. */
+  /** The provider, as configured in quanthea. */
   readonly providerId: string;
   /** A keyed hash of the provider's subject. */
   readonly subjectIndex: Uint8Array;

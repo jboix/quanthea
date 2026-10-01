@@ -100,7 +100,11 @@ async function readOnlyOf(
   signal: AbortSignal,
 ): Promise<boolean | null> {
   try {
-    const answer = await session.send('ACL', ['DRYRUN', user, 'SET', 'querent:probe', '1'], signal);
+    const answer = await session.send(
+      'ACL',
+      ['DRYRUN', user, 'SET', 'quanthea:probe', '1'],
+      signal,
+    );
     return answer !== 'OK';
   } catch {
     return null;

@@ -56,7 +56,7 @@ export async function keyedHash(
     {
       name: 'HKDF',
       hash: 'SHA-256',
-      salt: encoder.encode('querent'),
+      salt: encoder.encode('quanthea'),
       info: encoder.encode(purpose),
     },
     hkdf,

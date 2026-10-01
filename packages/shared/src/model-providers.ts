@@ -1,5 +1,5 @@
 /**
- * What querent knows about each provider before asking it: its API, the models worth offering by
+ * What quanthea knows about each provider before asking it: its API, the models worth offering by
  * name, and the model each job starts with. The provider's own model listing adds to these.
  */
 import type { ModelProvider } from './model-settings.ts';
@@ -12,7 +12,7 @@ export interface KnownModel {
   readonly name: string;
 }
 
-/** What querent knows about a provider. */
+/** What quanthea knows about a provider. */
 export interface ProviderProfile {
   /** The provider's own API, or `null` for a gateway, which has none. */
   readonly baseUrl: string | null;
@@ -88,7 +88,7 @@ export interface GatewayPreset {
   readonly baseUrl: string;
 }
 
-/** Gateways people often point querent at. */
+/** Gateways people often point quanthea at. */
 export const gatewayPresets: readonly GatewayPreset[] = [
   { name: 'Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai' },
   { name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },

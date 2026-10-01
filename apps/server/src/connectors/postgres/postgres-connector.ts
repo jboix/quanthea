@@ -143,7 +143,7 @@ async function cancellable<T>(query: CancellableQuery<T>, signal: AbortSignal): 
  */
 function limitRows(text: string, maxRows: number): string {
   const statement = text.trim().replace(/;\s*$/, '');
-  return `SELECT * FROM (\n${statement}\n) AS querent_rows LIMIT ${Math.trunc(maxRows) + 1}`;
+  return `SELECT * FROM (\n${statement}\n) AS quanthea_rows LIMIT ${Math.trunc(maxRows) + 1}`;
 }
 
 /**
@@ -343,7 +343,7 @@ function openPool(config: z.output<typeof configSchema>, password: string): Sql 
     connect_timeout: 10,
     prepare: false,
     onnotice: () => undefined,
-    connection: { application_name: 'querent' },
+    connection: { application_name: 'quanthea' },
   });
 }
 

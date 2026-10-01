@@ -1,5 +1,5 @@
 /**
- * What admins change about a user: the role, and whether they may sign in. querent always keeps
+ * What admins change about a user: the role, and whether they may sign in. quanthea always keeps
  * at least one admin who can sign in, and a disabled user's sessions end at once.
  */
 import type { Role } from '@quanthea/shared';
@@ -74,7 +74,7 @@ export function changeUser(
   const row = repository.get(id);
   if (!row) throw new AppError('not_found', `No user ${id}.`);
   if (leavesNoAdmin(repository, row, change))
-    throw new AppError('bad_request', 'querent needs at least one admin who can sign in.');
+    throw new AppError('bad_request', 'quanthea needs at least one admin who can sign in.');
   repository.update(id, storedChange(change, (dependencies.now ?? Date.now)()));
   if (change.disabled) dependencies.sessions?.endAllOf(id);
   audit.append({ actor, action: 'user.change', target: id, detail: change });

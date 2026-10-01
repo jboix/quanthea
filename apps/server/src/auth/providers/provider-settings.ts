@@ -46,7 +46,7 @@ const joinModes: Readonly<Record<ProviderKind, readonly JoinPolicy['mode'][]>> =
   entra: ['invite', 'tenant'],
 };
 
-/** Entra's shared tenants, which let in any Microsoft account; querent needs one tenant. */
+/** Entra's shared tenants, which let in any Microsoft account; quanthea needs one tenant. */
 const sharedTenants = new Set(['common', 'organizations', 'consumers']);
 
 /** An Entra tenant: a GUID, or a domain. */
@@ -127,7 +127,7 @@ export function checkedFields(input: ProviderInput) {
  *
  * @param provider - The stored provider.
  * @param hasCredentials - Whether its client id and secret are saved.
- * @param publicUrl - querent's origin, for the callback URL.
+ * @param publicUrl - quanthea's origin, for the callback URL.
  * @returns The view.
  */
 export function providerView(
@@ -151,7 +151,7 @@ export function credentialsOwner(providerId: string): string {
 /**
  * The redirect URI of a provider: fixed by `QUANTHEA_PUBLIC_URL`, never by a request's Host header.
  *
- * @param publicUrl - querent's origin.
+ * @param publicUrl - quanthea's origin.
  * @param providerId - The provider.
  * @returns The URI.
  */

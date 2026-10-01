@@ -2,7 +2,7 @@
   "name": "@quanthea/web",
   "version": "0.0.0",
   "private": true,
-  "description": "The querent SPA: React, React Router in data mode, built by Vite.",
+  "description": "The quanthea SPA: React, React Router in data mode, built by Vite.",
   "type": "module",
   "scripts": {
     "dev": "vite",

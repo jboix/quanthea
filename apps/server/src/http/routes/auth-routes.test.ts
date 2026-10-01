@@ -37,18 +37,18 @@ function app() {
     authenticator: createAuthenticator({ sessions, users: services.users }),
     logger: captureLogs().logger,
     webDir: dataDir.path,
-    publicUrl: 'https://querent.test',
+    publicUrl: 'https://quanthea.test',
     trustedProxyHops: 0,
     ...services,
   });
   return async (method: string, path: string, body?: unknown, cookie?: string) => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-Requested-With': 'querent',
+      'X-Requested-With': 'quanthea',
       ...(cookie ? { cookie: `${sessionCookieName}=${cookie}` } : {}),
     };
     const init = { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }) };
-    const response = await built.request(`https://querent.test/api${path}`, init);
+    const response = await built.request(`https://quanthea.test/api${path}`, init);
     const set = response.headers.get('set-cookie') ?? '';
     const session = new RegExp(`${sessionCookieName}=([^;]+)`).exec(set)?.[1];
     return { status: response.status, body: (await response.json()) as never, session };
@@ -88,7 +88,7 @@ async function invite(cookie: string, email = 'ada@example.com'): Promise<string
   );
   expect(made.status).toBe(200);
   const { link } = (made.body as { invite: { link: string } }).invite;
-  expect(link).toStartWith('https://querent.test/set-password#');
+  expect(link).toStartWith('https://quanthea.test/set-password#');
   return link.split('#')[1] ?? '';
 }
 

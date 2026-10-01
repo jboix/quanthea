@@ -62,8 +62,8 @@ export const devPostgres = {
 
 /** The dev Postgres as the owner, which can write. */
 export const devPostgresOwner = {
-  config: { ...devPostgres.config, username: 'querent_admin' },
-  secret: { password: 'querent-dev' },
+  config: { ...devPostgres.config, username: 'quanthea_admin' },
+  secret: { password: 'quanthea-dev' },
 };
 
 /** The dev TimescaleDB, the orders database with a hypertable, as the read-only role. */
@@ -77,8 +77,8 @@ export const devTimescale = {
 
 /** The dev TimescaleDB as the owner, which can write. */
 export const devTimescaleOwner = {
-  config: { ...devTimescale.config, username: 'querent_admin' },
-  secret: { password: 'querent-dev' },
+  config: { ...devTimescale.config, username: 'quanthea_admin' },
+  secret: { password: 'quanthea-dev' },
 };
 
 /**
@@ -101,8 +101,8 @@ export const devMysqlServers = [
 ].map(({ name, port }) => {
   const reader = devMysqlOn(port);
   const owner = {
-    config: { ...reader.config, username: 'querent_admin' },
-    secret: { password: 'querent-dev' },
+    config: { ...reader.config, username: 'quanthea_admin' },
+    secret: { password: 'quanthea-dev' },
   };
   return { name, reader, owner };
 });
@@ -110,14 +110,14 @@ export const devMysqlServers = [
 /**
  * The dev ClickHouse as a user, in the ClickHouse connector's configuration shape.
  *
- * @param username - The user: `dash_ro`, `dash_ro_2`, `dash_ro_1` or `querent_admin`.
+ * @param username - The user: `dash_ro`, `dash_ro_2`, `dash_ro_1` or `quanthea_admin`.
  * @returns The configuration and the secret.
  */
 export function devClickhouseAs(username: string) {
   const port = Number(process.env.QUANTHEA_DEV_CLICKHOUSE_PORT ?? 8124);
   return {
     config: { url: `http://127.0.0.1:${port}`, database: 'orders', username },
-    secret: { password: username === 'querent_admin' ? 'querent-dev' : 'dash-ro-dev' },
+    secret: { password: username === 'quanthea_admin' ? 'quanthea-dev' : 'dash-ro-dev' },
   };
 }
 
@@ -174,7 +174,7 @@ export const devInfluxdb = {
     url: `http://127.0.0.1:${process.env.QUANTHEA_DEV_INFLUXDB_PORT ?? 8186}`,
     database: 'telemetry',
   },
-  secret: { token: 'apiv3_querent-dev-token' },
+  secret: { token: 'apiv3_quanthea-dev-token' },
 };
 
 /** The dev Valkey as the read-only ACL user. */
@@ -190,7 +190,7 @@ export const devValkey = {
 /** The dev Valkey as the default user, which can write. */
 export const devValkeyOwner = {
   config: { host: devValkey.config.host, port: devValkey.config.port },
-  secret: { password: 'querent-dev' },
+  secret: { password: 'quanthea-dev' },
 };
 
 /** The dev MongoDB as the read-only user. */
@@ -207,8 +207,8 @@ export const devMongodb = {
 
 /** The dev MongoDB as the root user, which can write. */
 export const devMongodbOwner = {
-  config: { ...devMongodb.config, username: 'querent_admin', authSource: 'admin' },
-  secret: { password: 'querent-dev' },
+  config: { ...devMongodb.config, username: 'quanthea_admin', authSource: 'admin' },
+  secret: { password: 'quanthea-dev' },
 };
 
 /** The dev Prometheus, in the Prometheus connector's configuration shape. */

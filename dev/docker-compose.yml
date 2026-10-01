@@ -1,17 +1,17 @@
 # Local data sources for development and integration tests: `bun run env:up`.
 #
-# - postgres: the orders database (dev/postgres), on localhost:5433. Users querent_admin
-#   (password querent-dev) and the read-only dash_ro (password dash-ro-dev).
+# - postgres: the orders database (dev/postgres), on localhost:5433. Users quanthea_admin
+#   (password quanthea-dev) and the read-only dash_ro (password dash-ro-dev).
 # - prometheus: the synthetic metrics, on localhost:9091. The last day and a half is backfilled from
 #   dev/metrics/history.ts, the live metrics come from dev/metrics/serve.ts.
 # - timescaledb (profile "timescale"): the orders database of dev/postgres on TimescaleDB, on
 #   localhost:5434, with the hypertable order_events and the continuous aggregate orders_per_minute
 #   (dev/timescaledb). Same users as postgres.
 # - mysql and mariadb (profile "mysql"): the orders database (dev/mysql), on localhost:3307 and
-#   localhost:3308. Users querent_admin (password querent-dev) and the read-only dash_ro (password
+#   localhost:3308. Users quanthea_admin (password quanthea-dev) and the read-only dash_ro (password
 #   dash-ro-dev).
 # - clickhouse (profile "clickhouse"): the orders database (dev/clickhouse), over HTTP on
-#   localhost:8124. Users querent_admin (password querent-dev), and dash_ro, dash_ro_2 (readonly=2)
+#   localhost:8124. Users quanthea_admin (password quanthea-dev), and dash_ro, dash_ro_2 (readonly=2)
 #   and dash_ro_1 (readonly=1), all with password dash-ro-dev.
 # - trino (profile "trino"): a coordinator on localhost:8081 whose catalog orders is the dev Postgres
 #   (dev/trino/catalog), read as its owner. No authentication: any user name is accepted.
@@ -20,13 +20,13 @@
 #   (dev/log-seed), seeded by search-seed.
 # - influxdb (profile "influxdb"): InfluxDB 3 Core on localhost:8186 (dev/influxdb), the database
 #   telemetry with the request metrics of the incident, seeded by influxdb-seed. Token
-#   apiv3_querent-dev-token.
+#   apiv3_quanthea-dev-token.
 # - valkey (profile "valkey"): Valkey on localhost:6380 (dev/valkey), the incident as hashes, sorted
-#   sets and streams, seeded by valkey-seed. The default user (password querent-dev) can write; the
+#   sets and streams, seeded by valkey-seed. The default user (password quanthea-dev) can write; the
 #   ACL user dash_ro (password dash-ro-dev) only reads.
 # - mongodb (profile "mongodb"): MongoDB on localhost:27018 (dev/mongodb), the database shop with the
 #   orders around the incident, the deploys and a view of the failed orders, seeded by mongodb-seed
-#   through mongosh. querent_admin (password querent-dev) can write; dash_ro (password dash-ro-dev,
+#   through mongosh. quanthea_admin (password quanthea-dev) can write; dash_ro (password dash-ro-dev,
 #   authentication database shop) only reads.
 # - http-api (profile "http"): a JSON API over the incident (dev/http-api), on localhost:8085, with
 #   its OpenAPI description at /openapi.json; /api routes need Authorization: Bearer dev-token.
@@ -36,15 +36,15 @@
 # and the errors that follow. `bun run env:down` deletes the data; the next `env:up` seeds it again
 # around the new yesterday.
 
-name: querent-dev
+name: quanthea-dev
 
 services:
   postgres:
     image: postgres:18.6-alpine
     environment:
       POSTGRES_DB: orders
-      POSTGRES_USER: querent_admin
-      POSTGRES_PASSWORD: querent-dev
+      POSTGRES_USER: quanthea_admin
+      POSTGRES_PASSWORD: quanthea-dev
     ports:
       - '5433:5432'
     volumes:
@@ -52,7 +52,7 @@ services:
       - postgres-data:/var/lib/postgresql
     healthcheck:
       # TCP only: during the init scripts the server listens on its socket alone.
-      test: ['CMD', 'pg_isready', '-h', '127.0.0.1', '-U', 'querent_admin', '-d', 'orders']
+      test: ['CMD', 'pg_isready', '-h', '127.0.0.1', '-U', 'quanthea_admin', '-d', 'orders']
       interval: 2s
       timeout: 3s
       retries: 60
@@ -111,8 +111,8 @@ services:
     image: timescale/timescaledb:2.30.2-pg18
     environment:
       POSTGRES_DB: orders
-      POSTGRES_USER: querent_admin
-      POSTGRES_PASSWORD: querent-dev
+      POSTGRES_USER: quanthea_admin
+      POSTGRES_PASSWORD: quanthea-dev
       TIMESCALEDB_TELEMETRY: 'off'
     ports:
       - '5434:5432'
@@ -124,7 +124,7 @@ services:
       - ./timescaledb/04-timescale.sql:/docker-entrypoint-initdb.d/04-timescale.sql:ro
       - timescaledb-data:/var/lib/postgresql
     healthcheck:
-      test: ['CMD', 'pg_isready', '-h', '127.0.0.1', '-U', 'querent_admin', '-d', 'orders']
+      test: ['CMD', 'pg_isready', '-h', '127.0.0.1', '-U', 'quanthea_admin', '-d', 'orders']
       interval: 2s
       timeout: 3s
       retries: 90
@@ -134,9 +134,9 @@ services:
     image: mysql:8.4.11
     environment:
       MYSQL_DATABASE: orders
-      MYSQL_USER: querent_admin
-      MYSQL_PASSWORD: querent-dev
-      MYSQL_ROOT_PASSWORD: querent-root-dev
+      MYSQL_USER: quanthea_admin
+      MYSQL_PASSWORD: quanthea-dev
+      MYSQL_ROOT_PASSWORD: quanthea-root-dev
     ports:
       - '3307:3306'
     volumes:
@@ -144,7 +144,7 @@ services:
       - mysql-data:/var/lib/mysql
     healthcheck:
       # TCP only: during the init scripts the server listens on its socket alone.
-      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-u', 'querent_admin', '-pquerent-dev']
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-u', 'quanthea_admin', '-pquanthea-dev']
       interval: 2s
       timeout: 3s
       retries: 90
@@ -154,9 +154,9 @@ services:
     image: mariadb:11.8.9
     environment:
       MARIADB_DATABASE: orders
-      MARIADB_USER: querent_admin
-      MARIADB_PASSWORD: querent-dev
-      MARIADB_ROOT_PASSWORD: querent-root-dev
+      MARIADB_USER: quanthea_admin
+      MARIADB_PASSWORD: quanthea-dev
+      MARIADB_ROOT_PASSWORD: quanthea-root-dev
     ports:
       - '3308:3306'
     volumes:
@@ -173,8 +173,8 @@ services:
     image: clickhouse/clickhouse-server:26.8.15.10-alpine
     environment:
       CLICKHOUSE_DB: orders
-      CLICKHOUSE_USER: querent_admin
-      CLICKHOUSE_PASSWORD: querent-dev
+      CLICKHOUSE_USER: quanthea_admin
+      CLICKHOUSE_PASSWORD: quanthea-dev
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
     ports:
       - '8124:8123'
@@ -266,7 +266,7 @@ services:
       - ./influxdb/admin-token.json:/etc/influxdb3/admin-token.json:ro
       - influxdb-data:/var/lib/influxdb3
     healthcheck:
-      test: ['CMD', 'curl', '-fs', '-H', 'Authorization: Bearer apiv3_querent-dev-token', 'http://127.0.0.1:8181/health']
+      test: ['CMD', 'curl', '-fs', '-H', 'Authorization: Bearer apiv3_quanthea-dev-token', 'http://127.0.0.1:8181/health']
       interval: 2s
       timeout: 3s
       retries: 60
@@ -278,7 +278,7 @@ services:
     working_dir: /dev-sources
     volumes:
       - ./:/dev-sources:ro
-    command: ['bun', 'influxdb/seed.ts', 'http://influxdb:8181', 'apiv3_querent-dev-token']
+    command: ['bun', 'influxdb/seed.ts', 'http://influxdb:8181', 'apiv3_quanthea-dev-token']
 
   valkey:
     profiles: [valkey]
@@ -286,7 +286,7 @@ services:
     command:
       - valkey-server
       - --requirepass
-      - querent-dev
+      - quanthea-dev
       - --user
       - dash_ro
       - 'on'
@@ -302,7 +302,7 @@ services:
     volumes:
       - valkey-data:/data
     healthcheck:
-      test: ['CMD', 'valkey-cli', '-a', 'querent-dev', '--no-auth-warning', 'ping']
+      test: ['CMD', 'valkey-cli', '-a', 'quanthea-dev', '--no-auth-warning', 'ping']
       interval: 2s
       timeout: 3s
       retries: 30
@@ -314,14 +314,14 @@ services:
     working_dir: /dev-sources
     volumes:
       - ./:/dev-sources:ro
-    command: ['bun', 'valkey/seed.ts', 'redis://default:querent-dev@valkey:6379/0']
+    command: ['bun', 'valkey/seed.ts', 'redis://default:quanthea-dev@valkey:6379/0']
 
   mongodb:
     profiles: [mongodb]
     image: mongo:9.0.2
     environment:
-      MONGO_INITDB_ROOT_USERNAME: querent_admin
-      MONGO_INITDB_ROOT_PASSWORD: querent-dev
+      MONGO_INITDB_ROOT_USERNAME: quanthea_admin
+      MONGO_INITDB_ROOT_PASSWORD: quanthea-dev
     ports:
       - '27018:27017'
     volumes:

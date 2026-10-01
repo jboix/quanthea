@@ -118,7 +118,7 @@ describe.skipIf(!live)('clickhouse connector against the dev ClickHouse', () => 
   beforeAll(() => {
     reader = open('dash_ro');
     readonlyTwo = open('dash_ro_2');
-    owner = open('querent_admin');
+    owner = open('quanthea_admin');
   });
 
   afterAll(async () => {

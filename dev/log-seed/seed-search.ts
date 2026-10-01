@@ -77,7 +77,7 @@ function bulkBody(events: readonly LogEvent[]): string {
 async function seed(base: string): Promise<void> {
   const existing = (await call(`${base}/logs-*/_count`, 'GET')) as { count?: number };
   if ((existing.count ?? 0) > 0) return;
-  await call(`${base}/_index_template/querent-dev-logs`, 'PUT', template);
+  await call(`${base}/_index_template/quanthea-dev-logs`, 'PUT', template);
   const events = logEvents();
   for (let start = 0; start < events.length; start += batchSize) {
     const result = (await call(

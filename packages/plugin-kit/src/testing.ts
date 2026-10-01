@@ -34,7 +34,7 @@ export interface ConformanceFixture {
 }
 
 /**
- * The kit to call a plugin with in its tests: the same functions querent passes at load.
+ * The kit to call a plugin with in its tests: the same functions quanthea passes at load.
  *
  * @returns The kit.
  */

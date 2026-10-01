@@ -1,5 +1,5 @@
 /**
- * Applies the configuration file's sections to what querent stores, in an order that lets each
+ * Applies the configuration file's sections to what quanthea stores, in an order that lets each
  * one rely on the last: users, sign-in providers, password sign-in, settings, then connectors. At
  * startup, any problem stops the server with every issue listed.
  */

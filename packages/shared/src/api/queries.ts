@@ -31,7 +31,7 @@ export const queryChoiceSchema = z.object({
   name: z.string(),
   description: z.string(),
   language: queryLanguageSchema,
-  /** Built into querent, or saved by an admin. */
+  /** Built into quanthea, or saved by an admin. */
   origin: z.enum(['built-in', 'saved']),
   /** Whether the default set includes it. */
   enabled: z.boolean(),

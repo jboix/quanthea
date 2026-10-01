@@ -43,7 +43,7 @@ export interface AccountDependencies {
   readonly peppers: Peppers | undefined;
   /** The argon2id costs; lower in tests only. */
   readonly passwordCosts?: HashCosts;
-  /** querent's origin; without it there are no provider sign-ins. */
+  /** quanthea's origin; without it there are no provider sign-ins. */
   readonly publicUrl?: string | undefined;
   /** Test options for the provider drivers. */
   readonly driverOptions?: DriverOptions;
@@ -71,7 +71,7 @@ export interface Accounts {
   readonly identityRows: IdentityRepository;
   /** One's own linked providers. */
   readonly linkedIdentities: LinkedIdentities;
-  /** Provider sign-ins, when querent has a public URL and sessions. */
+  /** Provider sign-ins, when quanthea has a public URL and sessions. */
   readonly flows: ProviderFlows | undefined;
 }
 
@@ -112,7 +112,7 @@ function passwordAccounts(
 }
 
 /**
- * Provider sign-ins, when querent has a public URL and sessions.
+ * Provider sign-ins, when quanthea has a public URL and sessions.
  *
  * @param dependencies - The account dependencies.
  * @param parts - The services the flows use.

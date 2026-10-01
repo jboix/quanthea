@@ -1,5 +1,5 @@
 /**
- * dependency-cruiser rules for querent.
+ * dependency-cruiser rules for quanthea.
  *
  * Three kinds of rules live here:
  *   1. Hygiene: cycles, orphans, unresolvable and undeclared imports.

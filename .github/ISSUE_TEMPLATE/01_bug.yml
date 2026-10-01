@@ -15,7 +15,7 @@ body:
     attributes:
       label: Environment information
       description: >
-        Paste the querent version (`GET /api/health`), how you run it (the
+        Paste the quanthea version (`GET /api/health`), how you run it (the
         Docker image tag, or from source with `bun --version`), the
         authentication mode, and the browser (with OS version) where the bug
         occurs. If the bug involves a data source, state the connector kind
@@ -57,7 +57,7 @@ body:
     id: coc
     attributes:
       label: Code of Conduct
-      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/jboix/querent/blob/main/docs/CODE_OF_CONDUCT.md)
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/jboix/quanthea/blob/main/docs/CODE_OF_CONDUCT.md)
       options:
-        - label: I agree to follow querent's Code of Conduct
+        - label: I agree to follow quanthea's Code of Conduct
           required: true

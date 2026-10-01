@@ -4,7 +4,7 @@ import { Popover } from '../../ui/popover.tsx';
 import styles from './panels.module.css';
 
 /**
- * How a panel draws, in words: its chart recipe and variants, or querent's own number or table.
+ * How a panel draws, in words: its chart recipe and variants, or quanthea's own number or table.
  *
  * @param panel - The panel.
  * @returns Such as `trend.line · stacked`, or `number`.

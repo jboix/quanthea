@@ -28,7 +28,7 @@ describe('loadConfig', () => {
         QUANTHEA_WEB_DIR: 'public',
         QUANTHEA_SECRET_KEY: 'a2V5',
         QUANTHEA_SESSION_KEY_FILE: 'keys/session',
-        QUANTHEA_PUBLIC_URL: 'https://querent.example.com/',
+        QUANTHEA_PUBLIC_URL: 'https://quanthea.example.com/',
         QUANTHEA_TRUSTED_PROXY_HOPS: '1',
       },
       '/app',
@@ -40,7 +40,7 @@ describe('loadConfig', () => {
       logLevel: 'debug',
       logFormat: 'json',
       webDir: '/app/public',
-      publicUrl: 'https://querent.example.com',
+      publicUrl: 'https://quanthea.example.com',
       trustedProxyHops: 1,
     });
     expect(config.keys.secret).toEqual({
@@ -58,9 +58,9 @@ describe('loadConfig', () => {
   test('takes an https public URL, or http on this machine, as an origin only', () => {
     const url = (value: string) => loadConfig({ QUANTHEA_PUBLIC_URL: value }).publicUrl;
     expect(url('http://localhost:5173')).toBe('http://localhost:5173');
-    expect(() => url('http://querent.example.com')).toThrow('Use https://');
-    expect(() => url('https://querent.example.com/app')).toThrow('origin only');
-    expect(() => url('https://user:pass@querent.example.com')).toThrow('origin only');
+    expect(() => url('http://quanthea.example.com')).toThrow('Use https://');
+    expect(() => url('https://quanthea.example.com/app')).toThrow('origin only');
+    expect(() => url('https://user:pass@quanthea.example.com')).toThrow('origin only');
   });
 
   test('treats an empty variable as unset', () => {
@@ -102,11 +102,11 @@ describe('the configuration file', () => {
   test('sets what no variable sets, and says where each value comes from', () => {
     const path = write(
       'quanthea.yaml',
-      'server:\n  publicUrl: https://querent.example.com\n  port: 8080\n  keysDir: /keys\n',
+      'server:\n  publicUrl: https://quanthea.example.com\n  port: 8080\n  keysDir: /keys\n',
     );
     const config = loadConfig({ QUANTHEA_CONFIG: path, QUANTHEA_PORT: '9090' }, '/app');
     expect(config).toMatchObject({
-      publicUrl: 'https://querent.example.com',
+      publicUrl: 'https://quanthea.example.com',
       port: 9090,
       keysDir: '/keys',
       configFiles: [path],
@@ -191,7 +191,7 @@ describe('the configuration file', () => {
     );
     const path = write('quanthea.yaml', 'servr:\n  port: 1\n');
     expect(() => loadConfig({ QUANTHEA_CONFIG: path })).toThrow('unknown section `servr`');
-    write('quanthea.yaml', 'server:\n  prot: 1\n  publicUrl: http://querent.example.com\n');
+    write('quanthea.yaml', 'server:\n  prot: 1\n  publicUrl: http://quanthea.example.com\n');
     const failure = () => loadConfig({ QUANTHEA_CONFIG: path });
     expect(failure).toThrow('server.prot in');
     expect(failure).toThrow(/server\.publicUrl in .*: Use https/);

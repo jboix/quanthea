@@ -64,7 +64,7 @@ export interface SecretBox {
 async function deriveKeys(root: Uint8Array<ArrayBuffer>): Promise<DerivedKeys> {
   const encoder = new TextEncoder();
   const hkdf = await crypto.subtle.importKey('raw', root, 'HKDF', false, ['deriveKey']);
-  const derive = { name: 'HKDF', hash: 'SHA-256', salt: encoder.encode('querent') };
+  const derive = { name: 'HKDF', hash: 'SHA-256', salt: encoder.encode('quanthea') };
   const sealing = await crypto.subtle.deriveKey(
     { ...derive, info: encoder.encode(secretsInfo) },
     hkdf,
@@ -105,7 +105,7 @@ function sameBytes(first: Uint8Array, second: Uint8Array): boolean {
 }
 
 /**
- * The error for a value no key querent was given can open: the database was sealed with another
+ * The error for a value no key quanthea was given can open: the database was sealed with another
  * secret key. The key id says nothing about the key itself.
  *
  * @param keyId - The id of the key that sealed it, in hex, or where the value comes from.
@@ -113,7 +113,7 @@ function sameBytes(first: Uint8Array, second: Uint8Array): boolean {
  */
 function unknownKey(keyId: string): Error {
   return new Error(
-    `A secret in the database was sealed with a key querent was not given (key id ${keyId}). Set that key as QUANTHEA_SECRET_KEY, or as QUANTHEA_SECRET_KEY_PREVIOUS while moving to a new one.`,
+    `A secret in the database was sealed with a key quanthea was not given (key id ${keyId}). Set that key as QUANTHEA_SECRET_KEY, or as QUANTHEA_SECRET_KEY_PREVIOUS while moving to a new one.`,
   );
 }
 

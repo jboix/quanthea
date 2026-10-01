@@ -56,7 +56,7 @@ export interface AppDependencies {
   readonly version: string;
   /** Identifies the principal of each request. */
   readonly authenticator: Authenticator;
-  /** querent's origin, when configured: the CSRF check and HSTS use it. */
+  /** quanthea's origin, when configured: the CSRF check and HSTS use it. */
   readonly publicUrl: string | undefined;
   /** Sessions, when the session key is set. */
   readonly sessions: Sessions | undefined;
@@ -72,9 +72,9 @@ export interface AppDependencies {
   readonly signInSettings: SignInSettings;
   /** One's own linked providers. */
   readonly linkedIdentities: LinkedIdentities;
-  /** Provider sign-ins, when querent has a public URL and sessions. */
+  /** Provider sign-ins, when quanthea has a public URL and sessions. */
   readonly flows: ProviderFlows | undefined;
-  /** How many proxies in front of querent append to `X-Forwarded-For`. */
+  /** How many proxies in front of quanthea append to `X-Forwarded-For`. */
   readonly trustedProxyHops: number;
   /** Receives request and error logs. */
   readonly logger: Logger;

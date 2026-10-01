@@ -2,7 +2,7 @@
  * How each provider signs people in. Google, GitLab and Entra ID speak OpenID Connect: their
  * configuration comes from discovery, and the ID token's signature (against the provider's
  * published keys, not only TLS), issuer, audience, expiry and nonce are checked by
- * `openid-client`. GitHub speaks plain OAuth 2: querent reads the person and
+ * `openid-client`. GitHub speaks plain OAuth 2: quanthea reads the person and
  * their verified primary email from GitHub's API with the access token, then drops the token.
  * Provider tokens are never stored.
  */
@@ -245,7 +245,7 @@ function github(fetcher: typeof fetch, token: string, path: string): Promise<Res
     headers: {
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${token}`,
-      'User-Agent': 'querent',
+      'User-Agent': 'quanthea',
       'X-GitHub-Api-Version': '2022-11-28',
     },
     signal: AbortSignal.timeout(timeoutSeconds * 1000),

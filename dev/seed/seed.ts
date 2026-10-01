@@ -1,5 +1,5 @@
 /**
- * Seeds a running querent with the dev connectors and the checkout incident dashboard, pinned.
+ * Seeds a running quanthea with the dev connectors and the checkout incident dashboard, pinned.
  * Run `bun run env:up` and the server first. `QUANTHEA_URL` points at the server
  * (default `http://localhost:3000`). It signs in as an admin with `QUANTHEA_ADMIN_EMAIL` and
  * `QUANTHEA_ADMIN_PASSWORD`, whose account is set up.
@@ -52,7 +52,7 @@ async function signIn(): Promise<void> {
     );
   const response = await fetch(`${baseUrl}/api/auth/sign-in`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'querent' },
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'quanthea' },
     body: JSON.stringify({ email, password }),
   });
   if (!response.ok) throw new Error(`Sign-in refused: ${await response.text()}`);
@@ -73,7 +73,7 @@ async function api(method: string, path: string, body?: unknown): Promise<unknow
     method,
     headers: {
       'Content-Type': 'application/json',
-      'X-Requested-With': 'querent',
+      'X-Requested-With': 'quanthea',
       cookie: session,
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),

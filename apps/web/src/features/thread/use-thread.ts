@@ -30,7 +30,7 @@ function useThreadChat(data: ThreadData, onChange: () => void) {
     () =>
       new DefaultChatTransport<ThreadMessage>({
         api: `/api/threads/${thread.id}/chat`,
-        headers: { 'X-Requested-With': 'querent' },
+        headers: { 'X-Requested-With': 'quanthea' },
         prepareSendMessagesRequest: ({ messages }) => ({ body: { message: messages.at(-1) } }),
       }),
     [thread.id],

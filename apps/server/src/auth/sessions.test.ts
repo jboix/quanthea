@@ -39,7 +39,7 @@ function sessions() {
  * @returns The request.
  */
 function withCookie(cookie: string): Request {
-  return new Request('http://querent.test/api/me', {
+  return new Request('http://quanthea.test/api/me', {
     headers: { cookie: `${sessionCookieName}=${cookie}` },
   });
 }
@@ -71,7 +71,7 @@ describe('sessions', () => {
       name: 'Ada Lovelace',
       role: 'admin',
     });
-    expect(await authenticator.authenticate(new Request('http://querent.test/'))).toBeNull();
+    expect(await authenticator.authenticate(new Request('http://quanthea.test/'))).toBeNull();
   });
 
   test('refuse a cookie whose id or signature was changed, or that appears twice', async () => {
@@ -81,7 +81,7 @@ describe('sessions', () => {
     for (const forged of [flipped, `${id}.${signature.slice(0, -2)}`, id, `${cookie}.x`, '']) {
       expect(await sessions().resolve(forged)).toBeNull();
     }
-    const twice = new Request('http://querent.test/', {
+    const twice = new Request('http://quanthea.test/', {
       headers: { cookie: `${sessionCookieName}=${cookie}; ${sessionCookieName}=${cookie}` },
     });
     expect(
@@ -132,16 +132,16 @@ describe('sessions', () => {
       }),
       logger: captureLogs().logger,
       webDir: dataDir.path,
-      publicUrl: 'https://querent.test',
+      publicUrl: 'https://quanthea.test',
       trustedProxyHops: 0,
       ...services,
     });
-    const response = await app.request('https://querent.test/api/auth/sign-out', {
+    const response = await app.request('https://quanthea.test/api/auth/sign-out', {
       method: 'POST',
       headers: {
         cookie: `${sessionCookieName}=${cookie}`,
-        'X-Requested-With': 'querent',
-        Origin: 'https://querent.test',
+        'X-Requested-With': 'quanthea',
+        Origin: 'https://quanthea.test',
       },
     });
     expect(response.status).toBe(200);

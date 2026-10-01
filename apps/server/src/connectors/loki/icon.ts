@@ -1,5 +1,5 @@
 /**
- * Loki's icon: querent's own glyph of stacked log lines in Loki's orange, since Simple Icons has
+ * Loki's icon: quanthea's own glyph of stacked log lines in Loki's orange, since Simple Icons has
  * no Loki logo.
  */
 import type { ConnectorIcon } from '../_shared/index.ts';

@@ -18,7 +18,7 @@ afterAll(() => fake.stop());
 beforeEach(async () => {
   dataDir = temporaryDir();
   services = await testServices(dataDir.path, undefined, undefined, {
-    publicUrl: 'https://querent.test',
+    publicUrl: 'https://quanthea.test',
     driverOptions: { allowHttp: true },
   });
   const join = { mode: 'invite' as const, values: [] };
@@ -58,10 +58,10 @@ async function get(path: string, cookie?: string) {
     webDir: dataDir.path,
     trustedProxyHops: 0,
     ...services,
-    publicUrl: 'https://querent.test',
+    publicUrl: 'https://quanthea.test',
   });
   const headers = cookie ? { cookie } : undefined;
-  const response = await app.request(`https://querent.test${path}`, { headers });
+  const response = await app.request(`https://quanthea.test${path}`, { headers });
   const cookies = response.headers.getSetCookie();
   return { status: response.status, location: response.headers.get('location') ?? '', cookies };
 }
@@ -117,7 +117,7 @@ describe('provider sign-in routes', () => {
     const test = await get(providerStartPath('gitlab', 'test'));
     expect(test.location).toMatch(/^\/settings\/auth\?error=[a-z-]+$/);
     for (const page of [noCookie, reflected, unknown, test]) {
-      const code = new URL(page.location, 'https://querent.test').searchParams.get('error') ?? '';
+      const code = new URL(page.location, 'https://quanthea.test').searchParams.get('error') ?? '';
       expect(Object.keys(providerFlowFailures)).toContain(code);
     }
   });

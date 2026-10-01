@@ -26,7 +26,7 @@ export interface KeyInput {
   readonly file: string | undefined;
 }
 
-/** The keys querent reads. Each is 32 random bytes in base64. */
+/** The keys quanthea reads. Each is 32 random bytes in base64. */
 export interface KeyInputs {
   /** Encrypts secrets at rest. */
   readonly secret: KeyInput;
@@ -40,7 +40,7 @@ export interface KeyInputs {
   readonly pepperPrevious: KeyInput;
 }
 
-/** Where a key comes from: a variable, a file a variable names, or a file querent generated. */
+/** Where a key comes from: a variable, a file a variable names, or a file quanthea generated. */
 export type KeyOrigin =
   | { readonly kind: 'variable'; readonly variable: string }
   | { readonly kind: 'file'; readonly variable: string; readonly path: string }

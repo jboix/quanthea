@@ -1,5 +1,5 @@
 /**
- * Thread messages as the web app reads them: the AI SDK UI message with querent's custom parts,
+ * Thread messages as the web app reads them: the AI SDK UI message with quanthea's custom parts,
  * and the words each tool call shows in the conversation.
  */
 import type { ThreadData, TurnUsage } from '@quanthea/shared';

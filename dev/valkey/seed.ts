@@ -13,7 +13,7 @@ import {
   services,
 } from '../metrics/incident.ts';
 
-const client = new RedisClient(process.argv[2] ?? 'redis://default:querent-dev@127.0.0.1:6379/0');
+const client = new RedisClient(process.argv[2] ?? 'redis://default:quanthea-dev@127.0.0.1:6379/0');
 
 /** Milliseconds per minute. */
 const minute = 60_000;

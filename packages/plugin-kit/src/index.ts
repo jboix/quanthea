@@ -1,6 +1,6 @@
 /**
  * The public kit: the types a connector plugin is written against, and the kit version. A plugin
- * imports types only from here; at load, querent passes it the live kit (`ConnectorKit`).
+ * imports types only from here; at load, quanthea passes it the live kit (`ConnectorKit`).
  *
  * ```ts
  * import type { ConnectorKit } from '@quanthea/plugin-kit';

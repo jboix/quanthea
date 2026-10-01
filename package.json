@@ -37,7 +37,7 @@
     "env:up:search": "docker compose -f dev/docker-compose.yml --profile search up -d --wait elasticsearch opensearch && docker compose -f dev/docker-compose.yml --profile search run --rm search-seed",
     "env:up:influxdb": "docker compose -f dev/docker-compose.yml --profile influxdb up -d --wait influxdb && docker compose -f dev/docker-compose.yml --profile influxdb run --rm influxdb-seed",
     "env:up:valkey": "docker compose -f dev/docker-compose.yml --profile valkey up -d --wait valkey && docker compose -f dev/docker-compose.yml --profile valkey run --rm valkey-seed",
-    "env:up:mongodb": "docker compose -f dev/docker-compose.yml --profile mongodb up -d --wait mongodb && docker compose -f dev/docker-compose.yml --profile mongodb run --rm -T mongodb-seed | docker compose -f dev/docker-compose.yml --profile mongodb exec -T mongodb sh -c 'cat > /tmp/seed.js && mongosh --quiet --file /tmp/seed.js mongodb://querent_admin:querent-dev@127.0.0.1:27017/admin'",
+    "env:up:mongodb": "docker compose -f dev/docker-compose.yml --profile mongodb up -d --wait mongodb && docker compose -f dev/docker-compose.yml --profile mongodb run --rm -T mongodb-seed | docker compose -f dev/docker-compose.yml --profile mongodb exec -T mongodb sh -c 'cat > /tmp/seed.js && mongosh --quiet --file /tmp/seed.js mongodb://quanthea_admin:quanthea-dev@127.0.0.1:27017/admin'",
     "env:up:http": "docker compose -f dev/docker-compose.yml --profile http up -d --wait http-api",
     "env:up:loki": "docker compose -f dev/docker-compose.yml --profile loki up -d loki && docker compose -f dev/docker-compose.yml --profile loki run --rm loki-seed",
     "dev:seed": "bun dev/seed/seed.ts",
@@ -72,12 +72,12 @@
   },
   "license": "MIT",
   "author": "Josep Boix Requesens",
-  "homepage": "https://github.com/jboix/querent#readme",
+  "homepage": "https://github.com/jboix/quanthea#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jboix/querent.git"
+    "url": "git+https://github.com/jboix/quanthea.git"
   },
   "bugs": {
-    "url": "https://github.com/jboix/querent/issues"
+    "url": "https://github.com/jboix/quanthea/issues"
   }
 }

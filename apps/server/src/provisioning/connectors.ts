@@ -5,7 +5,7 @@
  * connectors:
  *   shop:
  *     kind: postgres
- *     config: { host: db, database: shop, username: querent_ro }
+ *     config: { host: db, database: shop, username: quanthea_ro }
  *     secret: { password: "${SHOP_PASSWORD}" }
  * ```
  *

@@ -52,7 +52,7 @@ const joinValueFields: Partial<Record<JoinMode, { label: string; placeholder: st
   group: { label: 'Groups, with their subgroups', placeholder: 'acme/platform' },
 };
 
-/** Where an admin registers querent with each kind. */
+/** Where an admin registers quanthea with each kind. */
 const registerHints: Readonly<Record<ProviderKind, string>> = {
   github: 'Register an OAuth app in GitHub, under Settings → Developer settings.',
   google: 'Create an OAuth client of type “Web application” in the Google Cloud console.',
@@ -273,8 +273,8 @@ function ClientFields({ draft, change, saved }: DraftProps & { readonly saved: b
 /**
  * The callback URL to register at the provider, or what the server lacks for one.
  *
- * @param props - querent's origin and the provider.
- * @param props.publicUrl - querent's origin, or `null`.
+ * @param props - quanthea's origin and the provider.
+ * @param props.publicUrl - quanthea's origin, or `null`.
  * @param props.providerId - The provider.
  * @returns The note.
  */
@@ -306,7 +306,7 @@ interface ProviderFormProps {
   readonly provider: IdentityProviderView | undefined;
   /** The ids in use, for a new provider's id. */
   readonly takenIds: readonly string[];
-  /** querent's origin, or `null` when the server has none. */
+  /** quanthea's origin, or `null` when the server has none. */
   readonly publicUrl: string | null;
   /** Closes the form. */
   readonly onClose: () => void;

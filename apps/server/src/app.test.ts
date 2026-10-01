@@ -51,22 +51,22 @@ function buildApp() {
 }
 
 describe('requests from other sites', () => {
-  test('refuses a change without querent’s header, or from another origin', async () => {
+  test('refuses a change without quanthea’s header, or from another origin', async () => {
     const app = buildApp();
     const post = (headers: Record<string, string>) =>
-      app.request('http://querent.test/api/auth/sign-out', { method: 'POST', headers });
+      app.request('http://quanthea.test/api/auth/sign-out', { method: 'POST', headers });
     expect((await post({})).status).toBe(403);
     expect(
-      (await post({ 'X-Requested-With': 'querent', Origin: 'https://evil.test' })).status,
+      (await post({ 'X-Requested-With': 'quanthea', Origin: 'https://evil.test' })).status,
     ).toBe(403);
-    const crossSite = { 'X-Requested-With': 'querent', 'Sec-Fetch-Site': 'cross-site' };
+    const crossSite = { 'X-Requested-With': 'quanthea', 'Sec-Fetch-Site': 'cross-site' };
     expect((await post(crossSite)).status).toBe(403);
-    const own = { 'X-Requested-With': 'querent', Origin: 'http://querent.test' };
+    const own = { 'X-Requested-With': 'quanthea', Origin: 'http://quanthea.test' };
     expect((await post(own)).status).toBe(200);
   });
 
   test('lets reads through, and marks API answers as never to be cached', async () => {
-    const response = await buildApp().request('http://querent.test/api/health');
+    const response = await buildApp().request('http://quanthea.test/api/health');
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('no-store');
     expect(response.headers.get('content-security-policy')).toContain("base-uri 'none'");

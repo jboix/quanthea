@@ -261,7 +261,7 @@ function sessionHeaders(options: SessionOptions): Record<string, string> {
     'X-Trino-Catalog': options.catalog,
     'X-Trino-Schema': options.schema,
     'X-Trino-Time-Zone': 'UTC',
-    'X-Trino-Source': 'querent',
+    'X-Trino-Source': 'quanthea',
     ...(options.password ? { Authorization: `Basic ${credentials.toString('base64')}` } : {}),
   };
 }

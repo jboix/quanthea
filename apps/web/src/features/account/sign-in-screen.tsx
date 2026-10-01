@@ -112,7 +112,7 @@ export function SignInScreen() {
     <div className={styles.screen}>
       <div className={styles.column}>
         <Logo height={40} />
-        <Card title="Sign in to querent">
+        <Card title="Sign in to quanthea">
           <div className={styles.form}>
             <FlowFailure />
             <ProviderButtons providers={providers} />

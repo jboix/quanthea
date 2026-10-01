@@ -1,5 +1,5 @@
 /**
- * The default admin. On a start with no enabled admin, querent creates the user `admin` with a
+ * The default admin. On a start with no enabled admin, quanthea creates the user `admin` with a
  * random password written once to the log, as Jenkins or Argo CD do; nobody can guess it on a
  * freshly exposed install. Until that admin chooses their own email and password, every other
  * route refuses them.
@@ -82,7 +82,7 @@ async function createDefaultAdmin(dependencies: DefaultAdminDependencies) {
   const existing = await users.findByEmail(defaultAdminLogin);
   const id =
     existing?.id ??
-    (await users.create({ email: defaultAdminLogin, name: 'Admin', role: 'admin' }, 'querent')).id;
+    (await users.create({ email: defaultAdminLogin, name: 'Admin', role: 'admin' }, 'quanthea')).id;
   const password = generatedPassword();
   const stored = await hashPassword(peppers, password, dependencies.costs);
   const at = (dependencies.now ?? Date.now)();
@@ -94,7 +94,7 @@ async function createDefaultAdmin(dependencies: DefaultAdminDependencies) {
     setupRequired: true,
     updatedAt: at,
   });
-  dependencies.audit.append({ actor: 'querent', action: 'user.default-admin', target: id });
+  dependencies.audit.append({ actor: 'quanthea', action: 'user.default-admin', target: id });
   return { id, password };
 }
 

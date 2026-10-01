@@ -103,7 +103,7 @@ function requestUrl(endpoint: Endpoint, input: LooseInput): string {
 function requestInit(endpoint: Endpoint, input: LooseInput, options: CallOptions): RequestInit {
   const headers: Record<string, string> = {
     Accept: 'application/json',
-    'X-Requested-With': 'querent',
+    'X-Requested-With': 'quanthea',
   };
   const signal = options.signal ? { signal: options.signal } : {};
   if (endpoint.body === undefined) return { method: endpoint.method, headers, ...signal };

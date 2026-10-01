@@ -11,5 +11,5 @@ export default {
     rule: '-',
     listItemIndent: 'one',
   },
-  plugins: [remarkGfm, [remarkValidateLinks, { repository: 'jboix/querent' }]],
+  plugins: [remarkGfm, [remarkValidateLinks, { repository: 'jboix/quanthea' }]],
 };

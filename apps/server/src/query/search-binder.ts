@@ -2,7 +2,7 @@
  * Binds variables into a search template in the Elasticsearch and OpenSearch query DSL. A variable
  * is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value: never text inside a
  * string. The body may hold no script, since a script is code the search server runs, except the
- * fixed ratio scripts a `bucket_script` may name: querent's own code, not the model's.
+ * fixed ratio scripts a `bucket_script` may name: quanthea's own code, not the model's.
  */
 import {
   type SearchQuery,

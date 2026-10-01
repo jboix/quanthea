@@ -2,7 +2,7 @@
   "name": "@quanthea/server",
   "version": "0.0.0",
   "private": true,
-  "description": "The querent API: Hono on Bun, SQLite, and the built SPA.",
+  "description": "The quanthea API: Hono on Bun, SQLite, and the built SPA.",
   "type": "module",
   "scripts": {
     "dev": "bun --hot src/main.ts",

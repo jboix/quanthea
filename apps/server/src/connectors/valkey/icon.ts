@@ -1,4 +1,4 @@
-/** Valkey's icon: querent's own key glyph, since Simple Icons has no Valkey logo. */
+/** Valkey's icon: quanthea's own key glyph, since Simple Icons has no Valkey logo. */
 import type { ConnectorIcon } from '../_shared/index.ts';
 
 /** The icon. */

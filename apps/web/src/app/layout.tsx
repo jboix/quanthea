@@ -26,7 +26,7 @@ export function AppLayout() {
 }
 
 /**
- * Shown while the first session request is in flight: the querent mark, pulsing unless the user
+ * Shown while the first session request is in flight: the quanthea mark, pulsing unless the user
  * asked for reduced motion.
  *
  * @returns The loading page.
@@ -35,7 +35,7 @@ export function LoadingScreen() {
   return (
     <div className={styles.fullPage} aria-busy="true">
       <span className={styles.pulse}>
-        <BrandMark size={40} label="Loading querent" />
+        <BrandMark size={40} label="Loading quanthea" />
       </span>
     </div>
   );

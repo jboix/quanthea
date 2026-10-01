@@ -264,7 +264,7 @@ export function UsersScreen() {
   return (
     <Page
       title="Users"
-      subtitle="Viewers read pinned dashboards, editors build them, admins run querent."
+      subtitle="Viewers read pinned dashboards, editors build them, admins run quanthea."
     >
       <InviteCard />
       <Card title={users.length === 1 ? '1 user' : `${users.length} users`}>

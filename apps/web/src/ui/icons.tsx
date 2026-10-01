@@ -9,7 +9,7 @@ interface IconProps {
 }
 
 /**
- * querent's outline icon style: 1.8 px round strokes in the current text colour. Icons
+ * quanthea's outline icon style: 1.8 px round strokes in the current text colour. Icons
  * are decorative: the control that holds one carries the accessible name.
  *
  * @param props - The shapes and the size.

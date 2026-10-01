@@ -2,7 +2,7 @@
   "name": "@quanthea/plugin-kit",
   "version": "0.0.0",
   "private": true,
-  "description": "The connector kit: the types a querent connector plugin is written against, a test kit and the conformance suite.",
+  "description": "The connector kit: the types a quanthea connector plugin is written against, a test kit and the conformance suite.",
   "type": "module",
   "sideEffects": false,
   "exports": {

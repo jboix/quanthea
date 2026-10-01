@@ -97,7 +97,7 @@ export function NavRail({ principal }: { readonly principal: Principal }) {
   const visible = (item: RailItem): boolean => hasRole(principal.role, item.minimum);
   return (
     <nav aria-label="Primary" className={styles.rail}>
-      <Link to="/" aria-label="querent home" className={styles.logo}>
+      <Link to="/" aria-label="quanthea home" className={styles.logo}>
         <BrandIcon size={32} />
       </Link>
       {topItems.filter(visible).map((item) => (

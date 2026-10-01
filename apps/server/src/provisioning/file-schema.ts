@@ -110,7 +110,7 @@ const configFileSchema = z
       .optional()
       .describe('prune: true deletes what the file no longer declares.'),
   })
-  .describe('A querent configuration file.');
+  .describe('A quanthea configuration file.');
 
 /**
  * The JSON Schema of the configuration file.
@@ -120,6 +120,6 @@ const configFileSchema = z
 export function configJsonSchema(): Record<string, unknown> {
   return {
     ...z.toJSONSchema(configFileSchema, { io: 'input', unrepresentable: 'any' }),
-    title: 'querent configuration',
+    title: 'quanthea configuration',
   };
 }

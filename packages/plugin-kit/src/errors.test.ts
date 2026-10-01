@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { ConnectorError } from './errors.ts';
 
 /** A folder for a second, bundled copy of the class, as a plugin would carry it. */
-const folder = mkdtempSync(join(tmpdir(), 'querent-errors-'));
+const folder = mkdtempSync(join(tmpdir(), 'quanthea-errors-'));
 
 afterAll(() => rmSync(folder, { recursive: true, force: true }));
 

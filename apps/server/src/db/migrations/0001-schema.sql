@@ -170,7 +170,7 @@ CREATE TABLE users (
   password_hash TEXT,
   -- Which pepper the hash was made with: the current one, or the one being rotated out.
   pepper_id TEXT,
-  -- The default admin querent creates on first start signs in with a generated password, and must
+  -- The default admin quanthea creates on first start signs in with a generated password, and must
   -- choose their own email and password before anything else.
   setup_required INTEGER NOT NULL DEFAULT 0,
   disabled_at INTEGER,
@@ -207,7 +207,7 @@ CREATE TABLE password_links (
 
 CREATE INDEX password_links_by_user ON password_links (user_id);
 
--- A person's accounts at sign-in providers, linked to their querent user. A provider's subject is
+-- A person's accounts at sign-in providers, linked to their quanthea user. A provider's subject is
 -- found through a keyed hash, and kept sealed, so the database holds no readable provider id.
 CREATE TABLE identities (
   provider_id TEXT NOT NULL,

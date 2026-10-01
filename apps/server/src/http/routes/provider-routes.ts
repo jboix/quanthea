@@ -150,7 +150,7 @@ function callbackHandler(flows: ProviderFlows | undefined) {
  * Mounts the start and the callback of provider flows.
  *
  * @param app - The app.
- * @param flows - The flows, when querent has a public URL and sessions.
+ * @param flows - The flows, when quanthea has a public URL and sessions.
  */
 export function mountProviderFlowRoutes(app: Hono<AppEnv>, flows: ProviderFlows | undefined): void {
   const base = `${apiPrefix}/auth/providers/:providerId`;

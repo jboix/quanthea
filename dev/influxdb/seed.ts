@@ -22,7 +22,7 @@ const stepSeconds = 30;
 /** Lines per write. */
 const batchSize = 10_000;
 
-const [base = 'http://127.0.0.1:8181', token = 'apiv3_querent-dev-token'] = process.argv.slice(2);
+const [base = 'http://127.0.0.1:8181', token = 'apiv3_quanthea-dev-token'] = process.argv.slice(2);
 const headers = { Authorization: `Bearer ${token}` };
 
 /**

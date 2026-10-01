@@ -92,7 +92,7 @@ export async function testKeyedHashes(): Promise<{
  * @returns The directory path and a function that deletes it.
  */
 export function temporaryDir(): { readonly path: string; readonly remove: () => void } {
-  const path = mkdtempSync(join(tmpdir(), 'querent-test-'));
+  const path = mkdtempSync(join(tmpdir(), 'quanthea-test-'));
   return { path, remove: () => rmSync(path, { recursive: true, force: true }) };
 }
 

@@ -1,10 +1,10 @@
 /**
  * What the core allows in each query language, beyond binding: the lists the binders and the
- * built-in connectors check against. They are querent's policy, so the public kit leaves them out.
+ * built-in connectors check against. They are quanthea's policy, so the public kit leaves them out.
  */
 /**
  * The scripts a search's `bucket_script` may run, verbatim: the share of `part` in `whole`, and one
- * minus it. They are querent's code; a query names one, never writes one.
+ * minus it. They are quanthea's code; a query names one, never writes one.
  */
 export const searchRatioScripts = {
   ratio: 'params.whole > 0 ? params.part / params.whole : 0',

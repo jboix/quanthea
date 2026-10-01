@@ -555,6 +555,6 @@
     }
   },
   "additionalProperties": false,
-  "description": "A querent configuration file.",
-  "title": "querent configuration"
+  "description": "A quanthea configuration file.",
+  "title": "quanthea configuration"
 }

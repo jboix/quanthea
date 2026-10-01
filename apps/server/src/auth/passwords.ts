@@ -52,7 +52,7 @@ const commonPasswords = new Set([
   'welcome12345',
   'administrator',
   'changeme1234',
-  'querent12345',
+  'quanthea12345',
   'correcthorsebatterystaple',
   '111111111111',
   '000000000000',

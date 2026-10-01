@@ -16,7 +16,7 @@ afterEach(() => directory.remove());
 describe('Settings → Server', () => {
   test('shows each setting with its source, and each key by where it comes from only', () => {
     const path = join(directory.path, 'quanthea.yaml');
-    writeFileSync(path, 'server:\n  publicUrl: https://querent.example.com\n');
+    writeFileSync(path, 'server:\n  publicUrl: https://quanthea.example.com\n');
     const secretKey = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64');
     const environment = {
       QUANTHEA_CONFIG: path,
@@ -36,7 +36,7 @@ describe('Settings → Server', () => {
     expect(view.configFiles).toEqual([path]);
     const byKey = Object.fromEntries(view.settings.map((setting) => [setting.key, setting]));
     expect(byKey.publicUrl).toMatchObject({
-      value: 'https://querent.example.com',
+      value: 'https://quanthea.example.com',
       source: { kind: 'file', path },
       variable: 'QUANTHEA_PUBLIC_URL',
     });

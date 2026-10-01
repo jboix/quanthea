@@ -188,7 +188,7 @@ describe('clickhouse grants', () => {
     expect(grantsWrite('GRANT SELECT ON orders.* TO dash_ro')).toBe(false);
     expect(grantsWrite('GRANT SELECT(id, status), SHOW TABLES ON orders.t TO dash_ro')).toBe(false);
     expect(grantsWrite('GRANT SELECT, INSERT, ALTER UPDATE ON default.* TO ro2')).toBe(true);
-    expect(grantsWrite('GRANT ALL ON *.* TO querent_admin WITH GRANT OPTION')).toBe(true);
+    expect(grantsWrite('GRANT ALL ON *.* TO quanthea_admin WITH GRANT OPTION')).toBe(true);
     expect(grantsWrite('GRANT writer TO ro2')).toBe(false);
   });
 });

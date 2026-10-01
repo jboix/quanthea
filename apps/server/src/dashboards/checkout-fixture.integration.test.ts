@@ -114,7 +114,7 @@ describe.skipIf(!integrationEnabled)('the checkout incident fixture, with no mod
     });
     const response = await app.request('/api/panels/run', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'querent' },
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'quanthea' },
       body: JSON.stringify({
         dashboardId,
         version: 1,

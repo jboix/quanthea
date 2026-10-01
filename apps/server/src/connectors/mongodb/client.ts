@@ -60,7 +60,7 @@ function driverOptions(options: ClientOptions): MongoClientOptions {
     : {};
   return {
     ...credentials,
-    appName: 'querent',
+    appName: 'quanthea',
     maxPoolSize: 5,
     connectTimeoutMS: 10_000,
     serverSelectionTimeoutMS: 10_000,

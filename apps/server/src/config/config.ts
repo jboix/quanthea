@@ -31,7 +31,7 @@ const publicUrlSchema = z
   )
   .refine(
     (url) => url.pathname === '/' && !url.search && !url.hash && !url.username && !url.password,
-    { message: 'Give the origin only, such as https://querent.example.com.' },
+    { message: 'Give the origin only, such as https://quanthea.example.com.' },
   )
   .transform((url) => url.origin);
 
@@ -158,11 +158,11 @@ export interface Config {
   /** The keys, as given; `secrets/keys.ts` reads and checks them. */
   readonly keys: KeyInputs;
   /**
-   * The address people reach querent at, such as `https://querent.example.com`: its origin only.
+   * The address people reach quanthea at, such as `https://quanthea.example.com`: its origin only.
    * Redirect URIs and the CSRF check use it, never the request's Host header.
    */
   readonly publicUrl: string | undefined;
-  /** How many reverse proxies in front of querent add to `X-Forwarded-For`; 0 trusts none. */
+  /** How many reverse proxies in front of quanthea add to `X-Forwarded-For`; 0 trusts none. */
   readonly trustedProxyHops: number;
   /** The configuration files read, in order. */
   readonly configFiles: readonly string[];

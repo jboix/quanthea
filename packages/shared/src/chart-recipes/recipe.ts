@@ -72,7 +72,7 @@ export const chartRecipeSchema = z.strictObject({
       })
       .optional(),
   }),
-  /** How the panel draws: an ECharts chart, or querent's own stat and table views. */
+  /** How the panel draws: an ECharts chart, or quanthea's own stat and table views. */
   render: z.enum(['echarts', 'stat', 'table']),
   prepare: z.enum(prepareKinds),
   option: jsonObjectSchema,

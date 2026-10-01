@@ -203,7 +203,7 @@ function BrandOnLight() {
     <div className={styles.brandSurface}>
       <Logo height={40} />
       <div className={styles.row}>
-        <BrandIcon size={64} label="querent icon" />
+        <BrandIcon size={64} label="quanthea icon" />
         <BrandIcon size={32} />
         <BrandIcon size={16} />
         <span className={styles.inkMark}>
@@ -227,7 +227,7 @@ function BrandOnDark() {
     <div className={`${styles.brandSurface} ${styles.inkSurface}`}>
       <Logo surface="dark" height={40} />
       <div className={styles.row}>
-        <BrandIcon size={64} tone="ink" label="querent icon on dark" />
+        <BrandIcon size={64} tone="ink" label="quanthea icon on dark" />
         <BrandIcon size={32} />
         <BrandIcon size={16} />
         <BrandMark size={32} />
@@ -285,7 +285,7 @@ function Overlays() {
 }
 
 /**
- * Every `ui/` primitive in querent's visual language, for checking them in one place.
+ * Every `ui/` primitive in quanthea's visual language, for checking them in one place.
  *
  * @returns The screen.
  */

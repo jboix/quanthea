@@ -53,11 +53,11 @@ async function call(method: string, path: string, body?: unknown, cookie?: strin
   });
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'X-Requested-With': 'querent',
+    'X-Requested-With': 'quanthea',
     ...(cookie ? { cookie: `${sessionCookieName}=${cookie}` } : {}),
   };
   const init = { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }) };
-  const response = await app.request(`http://querent.test/api${path}`, init);
+  const response = await app.request(`http://quanthea.test/api${path}`, init);
   const set = response.headers.get('set-cookie') ?? '';
   const session = new RegExp(`${sessionCookieName}=([^;]+)`).exec(set)?.[1];
   return { status: response.status, body: (await response.json()) as never, session };

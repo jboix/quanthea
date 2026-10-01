@@ -62,9 +62,9 @@ async function as(principal: Principal, method: string, path: string, body?: unk
     trustedProxyHops: 0,
     ...services,
   });
-  const headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'querent' };
+  const headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'quanthea' };
   const init = { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }) };
-  const response = await app.request(`http://querent.test/api${path}`, init);
+  const response = await app.request(`http://quanthea.test/api${path}`, init);
   return { status: response.status, body: (await response.json()) as unknown };
 }
 

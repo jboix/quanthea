@@ -1,4 +1,4 @@
-/* querent's design tokens and base element styles. */
+/* quanthea's design tokens and base element styles. */
 :root {
   --font-sans: "IBM Plex Sans Variable", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -22,7 +22,7 @@
   --color-series-4: #8a55c4;
   --color-series-5: #b8870b;
   --color-series-6: #c2436b;
-  /* The signal dot of the querent mark (docs/brand). Reserved for the brand, not for data. */
+  /* The signal dot of the quanthea mark (docs/brand). Reserved for the brand, not for data. */
   --color-brand-signal: #f29a4a;
 
   --color-ok: #2f7d4f;

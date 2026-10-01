@@ -48,7 +48,7 @@ export interface UserRouteServices {
   readonly sessions: Sessions | undefined;
   /** What changing a user needs. */
   readonly userAdmin: UserAdminDependencies;
-  /** querent's origin, when configured; links are relative without it. */
+  /** quanthea's origin, when configured; links are relative without it. */
   readonly publicUrl: string | undefined;
 }
 

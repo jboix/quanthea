@@ -103,7 +103,7 @@ export interface ProviderFlowDependencies {
   readonly sessions: Pick<Sessions, 'start'>;
   /** Records who did what. */
   readonly audit: AuditRepository;
-  /** querent's origin. */
+  /** quanthea's origin. */
   readonly publicUrl: string;
   /** Test options for the drivers. */
   readonly driverOptions?: DriverOptions;

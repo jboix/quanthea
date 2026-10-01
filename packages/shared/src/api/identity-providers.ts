@@ -1,12 +1,12 @@
 /**
- * Sign-in providers: GitHub, Google, GitLab and Microsoft Entra ID. querent is only a client of
+ * Sign-in providers: GitHub, Google, GitLab and Microsoft Entra ID. quanthea is only a client of
  * theirs; admins register it with each and paste the client id and secret here. The secret never
  * leaves the server again.
  */
 import { z } from 'zod';
 import { defineEndpoint } from './contract.ts';
 
-/** The providers querent signs in with. */
+/** The providers quanthea signs in with. */
 export const providerKinds = ['github', 'google', 'gitlab', 'entra'] as const;
 
 /** A provider kind. */
@@ -75,7 +75,7 @@ export const identityProvidersSchema = z.object({
   providers: z.array(identityProviderSchema),
   /** Whether people may sign in with a password. */
   passwordSignIn: z.boolean(),
-  /** querent's origin, which callback URLs start with; `null` when the server has none. */
+  /** quanthea's origin, which callback URLs start with; `null` when the server has none. */
   publicUrl: z.string().nullable(),
 });
 
@@ -167,7 +167,7 @@ export const unlinkIdentityEndpoint = defineEndpoint({
 });
 
 /**
- * The path a provider sends people back to. Registered at the provider after querent's origin.
+ * The path a provider sends people back to. Registered at the provider after quanthea's origin.
  *
  * @param providerId - The provider.
  * @returns The path.
