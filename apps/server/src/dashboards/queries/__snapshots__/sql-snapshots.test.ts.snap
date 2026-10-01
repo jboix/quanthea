@@ -1,0 +1,860 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`the SQL builders in postgres series: a literal bucket, split, a variable list 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT date_bin('15m'::interval, "created_at", $1) AS time, "status"::text AS series, count(*) AS value FROM "orders" WHERE "created_at" BETWEEN $1 AND $2 AND "service" IN ($3, $4) GROUP BY 1, 2 ORDER BY 1",
+  },
+  "sql": "SELECT date_bin('15m'::interval, "created_at", :__from) AS time, "status"::text AS series, count(*) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "service" IN (:service) GROUP BY 1, 2 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in postgres series: an interval variable, a sum, a regular expression 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "5m",
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "^payment",
+    ],
+    "text": "SELECT date_bin($1::interval, "created_at", $2) AS time, sum("total") AS value FROM "shop"."orders" WHERE "created_at" BETWEEN $2 AND $3 AND "failure_reason" ~ $4 GROUP BY 1 ORDER BY 1",
+  },
+  "sql": "SELECT date_bin(:interval::interval, "created_at", :__from) AS time, sum("total") AS value FROM "shop"."orders" WHERE "created_at" BETWEEN :__from AND :__to AND "failure_reason" ~ :pattern GROUP BY 1 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in postgres breakdown: the range, an average, a limit, a negated literal 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT "region"::text AS "region", avg("total") AS value FROM "orders" WHERE "created_at" BETWEEN $1 AND $2 AND "status" <> 'refunded' GROUP BY 1 ORDER BY 2 DESC LIMIT 7",
+  },
+  "sql": "SELECT "region"::text AS "region", avg("total") AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "status" <> 'refunded' GROUP BY 1 ORDER BY 2 DESC LIMIT 7",
+}
+`;
+
+exports[`the SQL builders in postgres breakdown: distinct count, no range, a negated pattern 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT "service"::text AS "service", count(DISTINCT "customer_id") AS value FROM "orders" WHERE "service" !~ '^test-' GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
+  },
+  "sql": "SELECT "service"::text AS "service", count(DISTINCT "customer_id") AS value FROM "orders" WHERE "service" !~ '^test-' GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
+}
+`;
+
+exports[`the SQL builders in postgres stat: the range, an escaped quote, a single-value variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "failed",
+    ],
+    "text": "SELECT count(*) AS value FROM "orders" WHERE "created_at" BETWEEN $1 AND $2 AND "note" = 'it''s' AND "status" IN ($3)",
+  },
+  "sql": "SELECT count(*) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "note" = 'it''s' AND "status" IN (:status)",
+}
+`;
+
+exports[`the SQL builders in postgres rows: newest first, a limit 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN $1 AND $2 ORDER BY "deployed_at" DESC LIMIT 5",
+  },
+  "sql": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to ORDER BY "deployed_at" DESC LIMIT 5",
+}
+`;
+
+exports[`the SQL builders in postgres rows: no time column 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT "id" FROM "deploys" LIMIT 20",
+  },
+  "sql": "SELECT "id" FROM "deploys" LIMIT 20",
+}
+`;
+
+exports[`the SQL builders in postgres ratio: over time, split, an interval variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "5m",
+      2026-09-27T12:00:00.000Z,
+      "failed",
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT date_bin($1::interval, "created_at", $2) AS time, "service"::text AS series, 1e0 * sum(CASE WHEN "status" IN ($3) THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders" WHERE "created_at" BETWEEN $2 AND $4 GROUP BY 1, 2 ORDER BY 1",
+  },
+  "sql": "SELECT date_bin(:interval::interval, "created_at", :__from) AS time, "service"::text AS series, 1e0 * sum(CASE WHEN "status" IN (:status) THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to GROUP BY 1, 2 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in postgres ratio: over the range, per value, counts, complement, a whole 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT "service"::text AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS matching, sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS total, 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS value FROM "orders" WHERE "created_at" BETWEEN $1 AND $2 GROUP BY 1 ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+  },
+  "sql": "SELECT "service"::text AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS matching, sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS total, 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to GROUP BY 1 ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+}
+`;
+
+exports[`the SQL builders in postgres ratio: over the range, one value 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders"",
+  },
+  "sql": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders"",
+}
+`;
+
+exports[`the SQL builders in postgres saved: every kind of placeholder 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "failed",
+      2026-09-27T12:00:00.000Z,
+      "5m",
+    ],
+    "text": "SELECT "region" AS name, count(*) AS value FROM "shop"."orders" WHERE status = $1 AND created_at > $2 - $3::interval GROUP BY 1",
+  },
+  "sql": "SELECT "region" AS name, count(*) AS value FROM "shop"."orders" WHERE status = :status AND created_at > :__from - :interval::interval GROUP BY 1",
+}
+`;
+
+exports[`the SQL builders in postgres markers: deploys with a filter 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT "deployed_at" AS time, "version"::text AS text FROM "deploys" WHERE "deployed_at" BETWEEN $1 AND $2 AND "service" IN ($3, $4) ORDER BY 1",
+  },
+  "sql": "SELECT "deployed_at" AS time, "version"::text AS text FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to AND "service" IN (:service) ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in mysql series: a literal bucket, split, a variable list 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(\`created_at\`) / 900) * 900) AS time, CAST(\`status\` AS CHAR) AS series, count(*) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN ? AND ? AND \`service\` IN (?, ?) GROUP BY 1, 2 ORDER BY 1",
+  },
+  "sql": "SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(\`created_at\`) / 900) * 900) AS time, CAST(\`status\` AS CHAR) AS series, count(*) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to AND \`service\` IN (:service) GROUP BY 1, 2 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in mysql series: an interval variable, a sum, a regular expression 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "5m",
+      "5m",
+      "5m",
+      "5m",
+      "5m",
+      "5m",
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "^payment",
+    ],
+    "text": "SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(\`created_at\`) / (CAST(LEFT(?, CHAR_LENGTH(?) - 1) AS UNSIGNED) * ELT(FIELD(RIGHT(?, 1), 's', 'm', 'h', 'd'), 1, 60, 3600, 86400))) * (CAST(LEFT(?, CHAR_LENGTH(?) - 1) AS UNSIGNED) * ELT(FIELD(RIGHT(?, 1), 's', 'm', 'h', 'd'), 1, 60, 3600, 86400))) AS time, sum(\`total\`) AS value FROM \`shop\`.\`orders\` WHERE \`created_at\` BETWEEN ? AND ? AND \`failure_reason\` REGEXP ? GROUP BY 1 ORDER BY 1",
+  },
+  "sql": "SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(\`created_at\`) / (CAST(LEFT(:interval, CHAR_LENGTH(:interval) - 1) AS UNSIGNED) * ELT(FIELD(RIGHT(:interval, 1), 's', 'm', 'h', 'd'), 1, 60, 3600, 86400))) * (CAST(LEFT(:interval, CHAR_LENGTH(:interval) - 1) AS UNSIGNED) * ELT(FIELD(RIGHT(:interval, 1), 's', 'm', 'h', 'd'), 1, 60, 3600, 86400))) AS time, sum(\`total\`) AS value FROM \`shop\`.\`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to AND \`failure_reason\` REGEXP :pattern GROUP BY 1 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in mysql breakdown: the range, an average, a limit, a negated literal 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST(\`region\` AS CHAR) AS \`region\`, avg(\`total\`) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN ? AND ? AND \`status\` <> 'refunded' GROUP BY 1 ORDER BY 2 DESC LIMIT 7",
+  },
+  "sql": "SELECT CAST(\`region\` AS CHAR) AS \`region\`, avg(\`total\`) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to AND \`status\` <> 'refunded' GROUP BY 1 ORDER BY 2 DESC LIMIT 7",
+}
+`;
+
+exports[`the SQL builders in mysql breakdown: distinct count, no range, a negated pattern 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT CAST(\`service\` AS CHAR) AS \`service\`, count(DISTINCT \`customer_id\`) AS value FROM \`orders\` WHERE \`service\` NOT REGEXP '^test-' GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
+  },
+  "sql": "SELECT CAST(\`service\` AS CHAR) AS \`service\`, count(DISTINCT \`customer_id\`) AS value FROM \`orders\` WHERE \`service\` NOT REGEXP '^test-' GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
+}
+`;
+
+exports[`the SQL builders in mysql stat: the range, an escaped quote, a single-value variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "failed",
+    ],
+    "text": "SELECT count(*) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN ? AND ? AND \`note\` = 'it''s' AND \`status\` IN (?)",
+  },
+  "sql": "SELECT count(*) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to AND \`note\` = 'it''s' AND \`status\` IN (:status)",
+}
+`;
+
+exports[`the SQL builders in mysql rows: newest first, a limit 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT \`id\`, \`service\`, \`version\` FROM \`deploys\` WHERE \`deployed_at\` BETWEEN ? AND ? ORDER BY \`deployed_at\` DESC LIMIT 5",
+  },
+  "sql": "SELECT \`id\`, \`service\`, \`version\` FROM \`deploys\` WHERE \`deployed_at\` BETWEEN :__from AND :__to ORDER BY \`deployed_at\` DESC LIMIT 5",
+}
+`;
+
+exports[`the SQL builders in mysql rows: no time column 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT \`id\` FROM \`deploys\` LIMIT 20",
+  },
+  "sql": "SELECT \`id\` FROM \`deploys\` LIMIT 20",
+}
+`;
+
+exports[`the SQL builders in mysql ratio: over time, split, an interval variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "5m",
+      "5m",
+      "5m",
+      "5m",
+      "5m",
+      "5m",
+      "failed",
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(\`created_at\`) / (CAST(LEFT(?, CHAR_LENGTH(?) - 1) AS UNSIGNED) * ELT(FIELD(RIGHT(?, 1), 's', 'm', 'h', 'd'), 1, 60, 3600, 86400))) * (CAST(LEFT(?, CHAR_LENGTH(?) - 1) AS UNSIGNED) * ELT(FIELD(RIGHT(?, 1), 's', 'm', 'h', 'd'), 1, 60, 3600, 86400))) AS time, CAST(\`service\` AS CHAR) AS series, 1e0 * sum(CASE WHEN \`status\` IN (?) THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN ? AND ? GROUP BY 1, 2 ORDER BY 1",
+  },
+  "sql": "SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(\`created_at\`) / (CAST(LEFT(:interval, CHAR_LENGTH(:interval) - 1) AS UNSIGNED) * ELT(FIELD(RIGHT(:interval, 1), 's', 'm', 'h', 'd'), 1, 60, 3600, 86400))) * (CAST(LEFT(:interval, CHAR_LENGTH(:interval) - 1) AS UNSIGNED) * ELT(FIELD(RIGHT(:interval, 1), 's', 'm', 'h', 'd'), 1, 60, 3600, 86400))) AS time, CAST(\`service\` AS CHAR) AS series, 1e0 * sum(CASE WHEN \`status\` IN (:status) THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to GROUP BY 1, 2 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in mysql ratio: over the range, per value, counts, complement, a whole 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST(\`service\` AS CHAR) AS \`service\`, sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) AS matching, sum(CASE WHEN \`status\` <> 'refunded' THEN 1 ELSE 0 END) AS total, 1 - 1e0 * sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN \`status\` <> 'refunded' THEN 1 ELSE 0 END), 0) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN ? AND ? GROUP BY 1 ORDER BY sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+  },
+  "sql": "SELECT CAST(\`service\` AS CHAR) AS \`service\`, sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) AS matching, sum(CASE WHEN \`status\` <> 'refunded' THEN 1 ELSE 0 END) AS total, 1 - 1e0 * sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN \`status\` <> 'refunded' THEN 1 ELSE 0 END), 0) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to GROUP BY 1 ORDER BY sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+}
+`;
+
+exports[`the SQL builders in mysql ratio: over the range, one value 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT 1e0 * sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM \`orders\`",
+  },
+  "sql": "SELECT 1e0 * sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM \`orders\`",
+}
+`;
+
+exports[`the SQL builders in mysql saved: every kind of placeholder 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "failed",
+      2026-09-27T12:00:00.000Z,
+      "5m",
+      "5m",
+      "5m",
+    ],
+    "text": "SELECT \`region\` AS name, count(*) AS value FROM \`shop\`.\`orders\` WHERE status = ? AND created_at > ? - INTERVAL (CAST(LEFT(?, CHAR_LENGTH(?) - 1) AS UNSIGNED) * ELT(FIELD(RIGHT(?, 1), 's', 'm', 'h', 'd'), 1, 60, 3600, 86400)) SECOND GROUP BY 1",
+  },
+  "sql": "SELECT \`region\` AS name, count(*) AS value FROM \`shop\`.\`orders\` WHERE status = :status AND created_at > :__from - INTERVAL (CAST(LEFT(:interval, CHAR_LENGTH(:interval) - 1) AS UNSIGNED) * ELT(FIELD(RIGHT(:interval, 1), 's', 'm', 'h', 'd'), 1, 60, 3600, 86400)) SECOND GROUP BY 1",
+}
+`;
+
+exports[`the SQL builders in mysql markers: deploys with a filter 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT \`deployed_at\` AS time, CAST(\`version\` AS CHAR) AS text FROM \`deploys\` WHERE \`deployed_at\` BETWEEN ? AND ? AND \`service\` IN (?, ?) ORDER BY 1",
+  },
+  "sql": "SELECT \`deployed_at\` AS time, CAST(\`version\` AS CHAR) AS text FROM \`deploys\` WHERE \`deployed_at\` BETWEEN :__from AND :__to AND \`service\` IN (:service) ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in clickhouse series: a literal bucket, split, a variable list 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT toDateTime(intDiv(toUnixTimestamp(\`created_at\`), 900) * 900, 'UTC') AS time, toString(\`status\`) AS series, count(*) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN {p1:DateTime64(3, 'UTC')} AND {p2:DateTime64(3, 'UTC')} AND \`service\` IN ({p3:String}, {p4:String}) GROUP BY 1, 2 ORDER BY 1",
+  },
+  "sql": "SELECT toDateTime(intDiv(toUnixTimestamp(\`created_at\`), 900) * 900, 'UTC') AS time, toString(\`status\`) AS series, count(*) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to AND \`service\` IN (:service) GROUP BY 1, 2 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in clickhouse series: an interval variable, a sum, a regular expression 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "5m",
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "^payment",
+    ],
+    "text": "SELECT toDateTime(intDiv(toUnixTimestamp(\`created_at\`), (toUInt32(substring({p1:String}, 1, length({p1:String}) - 1)) * transform(right({p1:String}, 1), ['s', 'm', 'h', 'd'], [1, 60, 3600, 86400], 0))) * (toUInt32(substring({p1:String}, 1, length({p1:String}) - 1)) * transform(right({p1:String}, 1), ['s', 'm', 'h', 'd'], [1, 60, 3600, 86400], 0)), 'UTC') AS time, sum(\`total\`) AS value FROM \`shop\`.\`orders\` WHERE \`created_at\` BETWEEN {p2:DateTime64(3, 'UTC')} AND {p3:DateTime64(3, 'UTC')} AND match(\`failure_reason\`, {p4:String}) GROUP BY 1 ORDER BY 1",
+  },
+  "sql": "SELECT toDateTime(intDiv(toUnixTimestamp(\`created_at\`), (toUInt32(substring(:interval, 1, length(:interval) - 1)) * transform(right(:interval, 1), ['s', 'm', 'h', 'd'], [1, 60, 3600, 86400], 0))) * (toUInt32(substring(:interval, 1, length(:interval) - 1)) * transform(right(:interval, 1), ['s', 'm', 'h', 'd'], [1, 60, 3600, 86400], 0)), 'UTC') AS time, sum(\`total\`) AS value FROM \`shop\`.\`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to AND match(\`failure_reason\`, :pattern) GROUP BY 1 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in clickhouse breakdown: the range, an average, a limit, a negated literal 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT toString(\`region\`) AS \`region\`, avg(\`total\`) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN {p1:DateTime64(3, 'UTC')} AND {p2:DateTime64(3, 'UTC')} AND \`status\` <> 'refunded' GROUP BY 1 ORDER BY 2 DESC LIMIT 7",
+  },
+  "sql": "SELECT toString(\`region\`) AS \`region\`, avg(\`total\`) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to AND \`status\` <> 'refunded' GROUP BY 1 ORDER BY 2 DESC LIMIT 7",
+}
+`;
+
+exports[`the SQL builders in clickhouse breakdown: distinct count, no range, a negated pattern 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT toString(\`service\`) AS \`service\`, count(DISTINCT \`customer_id\`) AS value FROM \`orders\` WHERE NOT match(\`service\`, '^test-') GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
+  },
+  "sql": "SELECT toString(\`service\`) AS \`service\`, count(DISTINCT \`customer_id\`) AS value FROM \`orders\` WHERE NOT match(\`service\`, '^test-') GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
+}
+`;
+
+exports[`the SQL builders in clickhouse stat: the range, an escaped quote, a single-value variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "failed",
+    ],
+    "text": "SELECT count(*) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN {p1:DateTime64(3, 'UTC')} AND {p2:DateTime64(3, 'UTC')} AND \`note\` = 'it\\'s' AND \`status\` IN ({p3:String})",
+  },
+  "sql": "SELECT count(*) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to AND \`note\` = 'it\\'s' AND \`status\` IN (:status)",
+}
+`;
+
+exports[`the SQL builders in clickhouse rows: newest first, a limit 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT \`id\`, \`service\`, \`version\` FROM \`deploys\` WHERE \`deployed_at\` BETWEEN {p1:DateTime64(3, 'UTC')} AND {p2:DateTime64(3, 'UTC')} ORDER BY \`deployed_at\` DESC LIMIT 5",
+  },
+  "sql": "SELECT \`id\`, \`service\`, \`version\` FROM \`deploys\` WHERE \`deployed_at\` BETWEEN :__from AND :__to ORDER BY \`deployed_at\` DESC LIMIT 5",
+}
+`;
+
+exports[`the SQL builders in clickhouse rows: no time column 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT \`id\` FROM \`deploys\` LIMIT 20",
+  },
+  "sql": "SELECT \`id\` FROM \`deploys\` LIMIT 20",
+}
+`;
+
+exports[`the SQL builders in clickhouse ratio: over time, split, an interval variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "5m",
+      "failed",
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT toDateTime(intDiv(toUnixTimestamp(\`created_at\`), (toUInt32(substring({p1:String}, 1, length({p1:String}) - 1)) * transform(right({p1:String}, 1), ['s', 'm', 'h', 'd'], [1, 60, 3600, 86400], 0))) * (toUInt32(substring({p1:String}, 1, length({p1:String}) - 1)) * transform(right({p1:String}, 1), ['s', 'm', 'h', 'd'], [1, 60, 3600, 86400], 0)), 'UTC') AS time, toString(\`service\`) AS series, 1e0 * sum(CASE WHEN \`status\` IN ({p2:String}) THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN {p3:DateTime64(3, 'UTC')} AND {p4:DateTime64(3, 'UTC')} GROUP BY 1, 2 ORDER BY 1",
+  },
+  "sql": "SELECT toDateTime(intDiv(toUnixTimestamp(\`created_at\`), (toUInt32(substring(:interval, 1, length(:interval) - 1)) * transform(right(:interval, 1), ['s', 'm', 'h', 'd'], [1, 60, 3600, 86400], 0))) * (toUInt32(substring(:interval, 1, length(:interval) - 1)) * transform(right(:interval, 1), ['s', 'm', 'h', 'd'], [1, 60, 3600, 86400], 0)), 'UTC') AS time, toString(\`service\`) AS series, 1e0 * sum(CASE WHEN \`status\` IN (:status) THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to GROUP BY 1, 2 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in clickhouse ratio: over the range, per value, counts, complement, a whole 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT toString(\`service\`) AS \`service\`, sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) AS matching, sum(CASE WHEN \`status\` <> 'refunded' THEN 1 ELSE 0 END) AS total, 1 - 1e0 * sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN \`status\` <> 'refunded' THEN 1 ELSE 0 END), 0) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN {p1:DateTime64(3, 'UTC')} AND {p2:DateTime64(3, 'UTC')} GROUP BY 1 ORDER BY sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+  },
+  "sql": "SELECT toString(\`service\`) AS \`service\`, sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) AS matching, sum(CASE WHEN \`status\` <> 'refunded' THEN 1 ELSE 0 END) AS total, 1 - 1e0 * sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN \`status\` <> 'refunded' THEN 1 ELSE 0 END), 0) AS value FROM \`orders\` WHERE \`created_at\` BETWEEN :__from AND :__to GROUP BY 1 ORDER BY sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+}
+`;
+
+exports[`the SQL builders in clickhouse ratio: over the range, one value 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT 1e0 * sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM \`orders\`",
+  },
+  "sql": "SELECT 1e0 * sum(CASE WHEN \`status\` = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM \`orders\`",
+}
+`;
+
+exports[`the SQL builders in clickhouse saved: every kind of placeholder 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "failed",
+      2026-09-27T12:00:00.000Z,
+      "5m",
+    ],
+    "text": "SELECT \`region\` AS name, count(*) AS value FROM \`shop\`.\`orders\` WHERE status = {p1:String} AND created_at > {p2:DateTime64(3, 'UTC')} - toIntervalSecond((toUInt32(substring({p3:String}, 1, length({p3:String}) - 1)) * transform(right({p3:String}, 1), ['s', 'm', 'h', 'd'], [1, 60, 3600, 86400], 0))) GROUP BY 1",
+  },
+  "sql": "SELECT \`region\` AS name, count(*) AS value FROM \`shop\`.\`orders\` WHERE status = :status AND created_at > :__from - toIntervalSecond((toUInt32(substring(:interval, 1, length(:interval) - 1)) * transform(right(:interval, 1), ['s', 'm', 'h', 'd'], [1, 60, 3600, 86400], 0))) GROUP BY 1",
+}
+`;
+
+exports[`the SQL builders in clickhouse markers: deploys with a filter 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT \`deployed_at\` AS time, toString(\`version\`) AS text FROM \`deploys\` WHERE \`deployed_at\` BETWEEN {p1:DateTime64(3, 'UTC')} AND {p2:DateTime64(3, 'UTC')} AND \`service\` IN ({p3:String}, {p4:String}) ORDER BY 1",
+  },
+  "sql": "SELECT \`deployed_at\` AS time, toString(\`version\`) AS text FROM \`deploys\` WHERE \`deployed_at\` BETWEEN :__from AND :__to AND \`service\` IN (:service) ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in trino series: a literal bucket, split, a variable list 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT from_unixtime(floor(to_unixtime("created_at") / 900) * 900) AS time, CAST("status" AS varchar) AS series, count(*) AS value FROM "orders" WHERE "created_at" BETWEEN ? AND ? AND "service" IN (?, ?) GROUP BY 1, 2 ORDER BY 1",
+  },
+  "sql": "SELECT from_unixtime(floor(to_unixtime("created_at") / 900) * 900) AS time, CAST("status" AS varchar) AS series, count(*) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "service" IN (:service) GROUP BY 1, 2 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in trino series: an interval variable, a sum, a regular expression 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "5m",
+      "5m",
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "^payment",
+    ],
+    "text": "SELECT from_unixtime(floor(to_unixtime("created_at") / (to_milliseconds(parse_duration(?)) / 1000)) * (to_milliseconds(parse_duration(?)) / 1000)) AS time, sum("total") AS value FROM "shop"."orders" WHERE "created_at" BETWEEN ? AND ? AND regexp_like("failure_reason", ?) GROUP BY 1 ORDER BY 1",
+  },
+  "sql": "SELECT from_unixtime(floor(to_unixtime("created_at") / (to_milliseconds(parse_duration(:interval)) / 1000)) * (to_milliseconds(parse_duration(:interval)) / 1000)) AS time, sum("total") AS value FROM "shop"."orders" WHERE "created_at" BETWEEN :__from AND :__to AND regexp_like("failure_reason", :pattern) GROUP BY 1 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in trino breakdown: the range, an average, a limit, a negated literal 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST("region" AS varchar) AS "region", avg("total") AS value FROM "orders" WHERE "created_at" BETWEEN ? AND ? AND "status" <> 'refunded' GROUP BY 1 ORDER BY 2 DESC LIMIT 7",
+  },
+  "sql": "SELECT CAST("region" AS varchar) AS "region", avg("total") AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "status" <> 'refunded' GROUP BY 1 ORDER BY 2 DESC LIMIT 7",
+}
+`;
+
+exports[`the SQL builders in trino breakdown: distinct count, no range, a negated pattern 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT CAST("service" AS varchar) AS "service", count(DISTINCT "customer_id") AS value FROM "orders" WHERE NOT regexp_like("service", '^test-') GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
+  },
+  "sql": "SELECT CAST("service" AS varchar) AS "service", count(DISTINCT "customer_id") AS value FROM "orders" WHERE NOT regexp_like("service", '^test-') GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
+}
+`;
+
+exports[`the SQL builders in trino stat: the range, an escaped quote, a single-value variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "failed",
+    ],
+    "text": "SELECT count(*) AS value FROM "orders" WHERE "created_at" BETWEEN ? AND ? AND "note" = 'it''s' AND "status" IN (?)",
+  },
+  "sql": "SELECT count(*) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "note" = 'it''s' AND "status" IN (:status)",
+}
+`;
+
+exports[`the SQL builders in trino rows: newest first, a limit 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN ? AND ? ORDER BY "deployed_at" DESC LIMIT 5",
+  },
+  "sql": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to ORDER BY "deployed_at" DESC LIMIT 5",
+}
+`;
+
+exports[`the SQL builders in trino rows: no time column 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT "id" FROM "deploys" LIMIT 20",
+  },
+  "sql": "SELECT "id" FROM "deploys" LIMIT 20",
+}
+`;
+
+exports[`the SQL builders in trino ratio: over time, split, an interval variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "5m",
+      "5m",
+      "failed",
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT from_unixtime(floor(to_unixtime("created_at") / (to_milliseconds(parse_duration(?)) / 1000)) * (to_milliseconds(parse_duration(?)) / 1000)) AS time, CAST("service" AS varchar) AS series, 1e0 * sum(CASE WHEN "status" IN (?) THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders" WHERE "created_at" BETWEEN ? AND ? GROUP BY 1, 2 ORDER BY 1",
+  },
+  "sql": "SELECT from_unixtime(floor(to_unixtime("created_at") / (to_milliseconds(parse_duration(:interval)) / 1000)) * (to_milliseconds(parse_duration(:interval)) / 1000)) AS time, CAST("service" AS varchar) AS series, 1e0 * sum(CASE WHEN "status" IN (:status) THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to GROUP BY 1, 2 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in trino ratio: over the range, per value, counts, complement, a whole 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT CAST("service" AS varchar) AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS matching, sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS total, 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS value FROM "orders" WHERE "created_at" BETWEEN ? AND ? GROUP BY 1 ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+  },
+  "sql": "SELECT CAST("service" AS varchar) AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS matching, sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS total, 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to GROUP BY 1 ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+}
+`;
+
+exports[`the SQL builders in trino ratio: over the range, one value 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders"",
+  },
+  "sql": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders"",
+}
+`;
+
+exports[`the SQL builders in trino saved: every kind of placeholder 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "failed",
+      2026-09-27T12:00:00.000Z,
+      "5m",
+    ],
+    "text": "SELECT "region" AS name, count(*) AS value FROM "shop"."orders" WHERE status = ? AND created_at > ? - parse_duration(?) GROUP BY 1",
+  },
+  "sql": "SELECT "region" AS name, count(*) AS value FROM "shop"."orders" WHERE status = :status AND created_at > :__from - parse_duration(:interval) GROUP BY 1",
+}
+`;
+
+exports[`the SQL builders in trino markers: deploys with a filter 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT "deployed_at" AS time, CAST("version" AS varchar) AS text FROM "deploys" WHERE "deployed_at" BETWEEN ? AND ? AND "service" IN (?, ?) ORDER BY 1",
+  },
+  "sql": "SELECT "deployed_at" AS time, CAST("version" AS varchar) AS text FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to AND "service" IN (:service) ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in influxdb series: a literal bucket, split, a variable list 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT date_bin('15m'::interval, "created_at", $p1) AS time, "status"::text AS series, count(*) AS value FROM "orders" WHERE "created_at" BETWEEN $p1 AND $p2 AND "service" IN ($p3, $p4) GROUP BY 1, 2 ORDER BY 1",
+  },
+  "sql": "SELECT date_bin('15m'::interval, "created_at", :__from) AS time, "status"::text AS series, count(*) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "service" IN (:service) GROUP BY 1, 2 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in influxdb series: an interval variable, a sum, a regular expression 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "5m",
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "^payment",
+    ],
+    "text": "SELECT date_bin($p1::interval, "created_at", $p2) AS time, sum("total") AS value FROM "shop"."orders" WHERE "created_at" BETWEEN $p2 AND $p3 AND "failure_reason" ~ $p4 GROUP BY 1 ORDER BY 1",
+  },
+  "sql": "SELECT date_bin(:interval::interval, "created_at", :__from) AS time, sum("total") AS value FROM "shop"."orders" WHERE "created_at" BETWEEN :__from AND :__to AND "failure_reason" ~ :pattern GROUP BY 1 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in influxdb breakdown: the range, an average, a limit, a negated literal 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT "region"::text AS "region", avg("total") AS value FROM "orders" WHERE "created_at" BETWEEN $p1 AND $p2 AND "status" <> 'refunded' GROUP BY 1 ORDER BY 2 DESC LIMIT 7",
+  },
+  "sql": "SELECT "region"::text AS "region", avg("total") AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "status" <> 'refunded' GROUP BY 1 ORDER BY 2 DESC LIMIT 7",
+}
+`;
+
+exports[`the SQL builders in influxdb breakdown: distinct count, no range, a negated pattern 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT "service"::text AS "service", count(DISTINCT "customer_id") AS value FROM "orders" WHERE "service" !~ '^test-' GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
+  },
+  "sql": "SELECT "service"::text AS "service", count(DISTINCT "customer_id") AS value FROM "orders" WHERE "service" !~ '^test-' GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
+}
+`;
+
+exports[`the SQL builders in influxdb stat: the range, an escaped quote, a single-value variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "failed",
+    ],
+    "text": "SELECT count(*) AS value FROM "orders" WHERE "created_at" BETWEEN $p1 AND $p2 AND "note" = 'it''s' AND "status" IN ($p3)",
+  },
+  "sql": "SELECT count(*) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to AND "note" = 'it''s' AND "status" IN (:status)",
+}
+`;
+
+exports[`the SQL builders in influxdb rows: newest first, a limit 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN $p1 AND $p2 ORDER BY "deployed_at" DESC LIMIT 5",
+  },
+  "sql": "SELECT "id", "service", "version" FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to ORDER BY "deployed_at" DESC LIMIT 5",
+}
+`;
+
+exports[`the SQL builders in influxdb rows: no time column 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT "id" FROM "deploys" LIMIT 20",
+  },
+  "sql": "SELECT "id" FROM "deploys" LIMIT 20",
+}
+`;
+
+exports[`the SQL builders in influxdb ratio: over time, split, an interval variable 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "5m",
+      2026-09-27T12:00:00.000Z,
+      "failed",
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT date_bin($p1::interval, "created_at", $p2) AS time, "service"::text AS series, 1e0 * sum(CASE WHEN "status" IN ($p3) THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders" WHERE "created_at" BETWEEN $p2 AND $p4 GROUP BY 1, 2 ORDER BY 1",
+  },
+  "sql": "SELECT date_bin(:interval::interval, "created_at", :__from) AS time, "service"::text AS series, 1e0 * sum(CASE WHEN "status" IN (:status) THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to GROUP BY 1, 2 ORDER BY 1",
+}
+`;
+
+exports[`the SQL builders in influxdb ratio: over the range, per value, counts, complement, a whole 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+    ],
+    "text": "SELECT "service"::text AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS matching, sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS total, 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS value FROM "orders" WHERE "created_at" BETWEEN $p1 AND $p2 GROUP BY 1 ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+  },
+  "sql": "SELECT "service"::text AS "service", sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) AS matching, sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END) AS total, 1 - 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(sum(CASE WHEN "status" <> 'refunded' THEN 1 ELSE 0 END), 0) AS value FROM "orders" WHERE "created_at" BETWEEN :__from AND :__to GROUP BY 1 ORDER BY sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) DESC LIMIT 3",
+}
+`;
+
+exports[`the SQL builders in influxdb ratio: over the range, one value 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [],
+    "text": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders"",
+  },
+  "sql": "SELECT 1e0 * sum(CASE WHEN "status" = 'failed' THEN 1 ELSE 0 END) / nullif(count(*), 0) AS value FROM "orders"",
+}
+`;
+
+exports[`the SQL builders in influxdb saved: every kind of placeholder 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      "failed",
+      2026-09-27T12:00:00.000Z,
+      "5m",
+    ],
+    "text": "SELECT "region" AS name, count(*) AS value FROM "shop"."orders" WHERE status = $p1 AND created_at > $p2 - $p3::interval GROUP BY 1",
+  },
+  "sql": "SELECT "region" AS name, count(*) AS value FROM "shop"."orders" WHERE status = :status AND created_at > :__from - :interval::interval GROUP BY 1",
+}
+`;
+
+exports[`the SQL builders in influxdb markers: deploys with a filter 1`] = `
+{
+  "bound": {
+    "language": "sql",
+    "parameters": [
+      2026-09-27T12:00:00.000Z,
+      2026-09-27T13:00:00.000Z,
+      "checkout-svc",
+      "cart-svc",
+    ],
+    "text": "SELECT "deployed_at" AS time, "version"::text AS text FROM "deploys" WHERE "deployed_at" BETWEEN $p1 AND $p2 AND "service" IN ($p3, $p4) ORDER BY 1",
+  },
+  "sql": "SELECT "deployed_at" AS time, "version"::text AS text FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to AND "service" IN (:service) ORDER BY 1",
+}
+`;
