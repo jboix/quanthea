@@ -1,7 +1,6 @@
 /**
- * The columns of a chart's roles as the adapter reads them, with the choices views written before
- * chart recipes leave to the adapter: the x is the first time or text column, and the values are
- * the number columns.
+ * The columns of a chart's roles as the adapter reads them, inferring what a view does not name:
+ * the x is the first time or text column, and the values are the number columns.
  */
 import type { Dataset, RoleColumns } from '@querent/shared';
 

@@ -132,7 +132,6 @@ type PrepareKind =
   | 'parallel' | 'facets' | 'waterfall' | 'none'
 
 type DatasetTransform =
-  | { type: 'pivot'; by: string }           // long → wide, e.g. one column per label value
   | { type: 'filter'; field: string; in: string[] }
   | { type: 'sort'; field: string; dir: 'asc' | 'desc' }
 
@@ -169,8 +168,8 @@ they differ from the sketch above, the schemas win:
 - Every object is strict: an unknown key is an error, so nothing rides along in a spec.
 - `option` holds JSON values only (`z.json()`), so a function or `undefined` fails to parse.
 - A chart option may use tokens the adapter replaces: `@role` for a role's column, and theme
-  colours such as `@ink`, `@palette.1` or `@scale.low`. Views written before chart recipes have no
-  roles; the adapter then reads the first time or text column as the x and the numbers as values.
+  colours such as `@ink`, `@palette.1` or `@scale.low`. A role a view does not name is inferred:
+  the x is the first time or text column, and the values are the number columns.
 - Queries are `sql`, `promql`, `logql` and `search`. `http` comes with its connector.
 - A query-backed variable's `source` has no `refId`.
 - Time expressions are `now`, `now-<n><unit>` (units `s m h d w M y`) or an ISO 8601 timestamp

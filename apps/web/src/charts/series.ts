@@ -16,8 +16,8 @@ const itemTypes: ReadonlySet<unknown> = new Set(['pie', 'funnel', 'gauge']);
 const markKeys = ['markLine', 'markArea', 'markPoint'] as const;
 
 /**
- * The encode of a template that has none, as views before chart recipes left it to the adapter:
- * an item chart reads its category and first value, a chart on axes every value column.
+ * The encode of a template that has none, such as a gauge's: an item chart reads its category and
+ * first value, a chart on axes every value column.
  *
  * @param template - The template.
  * @param horizontal - Whether categories run along the y axis.

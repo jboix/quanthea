@@ -45,7 +45,6 @@ const tableViewSchema = z.strictObject({
 
 /** Validates a transform applied to a dataset before the chart gets it. */
 const datasetTransformSchema = z.discriminatedUnion('type', [
-  z.strictObject({ type: z.literal('pivot'), by: fieldNameSchema }),
   z.strictObject({
     type: z.literal('filter'),
     field: fieldNameSchema,

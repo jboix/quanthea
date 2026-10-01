@@ -1,32 +1,13 @@
-/**
- * A chart's datasets: each query's frames as one dataset, with the view's filter, sort or pivot
- * applied.
- */
+/** A chart's datasets: each query's frames as one dataset, with the view's filter or sort applied. */
 import {
   type ChartView,
   type Dataset,
   type DatasetTransform,
   datasetOfFrames,
   filterRows,
-  longToWide,
   type QueryOutcome,
   sortRows,
 } from '@querent/shared';
-
-/**
- * Pivots on a column, as views written before chart recipes asked: the first other text or time
- * column is the x, the first number the value.
- *
- * @param dataset - The long table.
- * @param by - The column whose values become columns.
- * @returns The wide table.
- */
-function pivotOn(dataset: Dataset, by: string): Dataset {
-  const x = dataset.dimensions.find((column) => column.name !== by && column.type !== 'number');
-  const value = dataset.dimensions.find((column) => column.type === 'number');
-  if (!x || !value) return dataset;
-  return longToWide(dataset, { x: x.name, series: by, value: value.name });
-}
 
 /**
  * Applies a view's transform.
@@ -40,7 +21,6 @@ export function transformDataset(
   transform: DatasetTransform | undefined,
 ): Dataset {
   if (!transform) return dataset;
-  if (transform.type === 'pivot') return pivotOn(dataset, transform.by);
   if (transform.type === 'filter') return filterRows(dataset, transform.field, transform.in);
   return sortRows(dataset, transform.field, transform.dir);
 }

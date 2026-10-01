@@ -198,7 +198,7 @@ describe('buildChartOption', () => {
     expect(at(option, 'series.0.markLine')).toBeUndefined();
   });
 
-  test('pivots a long table into one series per value, and sorts and filters', () => {
+  test('filters a dataset to the rows of some values', () => {
     const long = frame(
       [
         { name: 'time', type: 'time' },
@@ -211,21 +211,6 @@ describe('buildChartOption', () => {
         [3, 1, 9, 2],
       ],
     );
-    const option = build(
-      { xAxis: { type: 'time' }, yAxis: { type: 'value' }, series: [{ type: 'line' }] },
-      [long],
-      {
-        datasets: [{ ref: 'A', transform: { type: 'pivot', by: 'service' } }],
-      },
-    );
-    expect(at(option, 'dataset.0')).toEqual({
-      dimensions: ['time', 'checkout', 'payments'],
-      source: [
-        [t0, 3, 1],
-        [t0 + 60_000, 9, 2],
-      ],
-    });
-    expect(seriesKeys(option, 'name')).toEqual([['checkout'], ['payments']]);
     const filtered = build(
       { xAxis: { type: 'category' }, yAxis: { type: 'value' }, series: { type: 'bar' } },
       [long],
