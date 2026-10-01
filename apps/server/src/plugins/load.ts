@@ -44,7 +44,7 @@ interface Verified {
 }
 
 /** Why a plugin is refused. */
-class Refusal extends Error {}
+export class Refusal extends Error {}
 
 /**
  * Reads a plugin's files and checks its manifest and its pin.
@@ -137,7 +137,7 @@ function checkKinds(returned: unknown, taken: ReadonlySet<string>): AnyConnector
  * @returns Its kinds, with their origin.
  * @throws {Refusal} When it is refused.
  */
-async function loadOne(
+export async function loadPluginFolder(
   folder: string,
   options: LoadOptions,
   taken: ReadonlySet<string>,
@@ -166,7 +166,9 @@ function foldersOf(dir: string): string[] {
   } catch {
     return [];
   }
+  // A folder named with a dot is an install in progress, or one replaced.
   return names
+    .filter((name) => !name.startsWith('.'))
     .sort()
     .map((name) => join(dir, name))
     .filter((path) => statSync(path).isDirectory());
@@ -183,7 +185,7 @@ export async function loadPlugins(options: LoadOptions): Promise<RegisteredKind[
   const added: RegisteredKind[] = [];
   for (const folder of foldersOf(options.dir)) {
     try {
-      const kinds = await loadOne(folder, options, taken);
+      const kinds = await loadPluginFolder(folder, options, taken);
       for (const kind of kinds) taken.add(kind.kind);
       added.push(...kinds);
       const [first] = kinds;

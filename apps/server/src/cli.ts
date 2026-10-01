@@ -5,6 +5,9 @@
  * `reset-admin [email]` prints a one-time link that sets an admin's password: the admin with that
  * email, or the first enabled admin. A disabled admin is enabled again. Without any admin, it
  * creates the default one and prints its password.
+ *
+ * `plugin install|list|remove` manages connector plugins (`plugins/command.ts`). It opens no
+ * database and reads no keys, so it runs in a Docker build.
  */
 import { ensureAdmin } from './auth/default-admin.ts';
 import { changeUser } from './auth/user-admin.ts';
@@ -14,12 +17,16 @@ import { openDatabase } from './db/database.ts';
 import { runMigrations } from './db/migrate.ts';
 import { createSettingsRepository } from './db/settings-repository.ts';
 import { createLogger } from './lib/logger.ts';
+import { pluginUsage, runPluginCommand } from './plugins/command.ts';
 import { loadKeys } from './secrets/keys.ts';
 import { createServices, type Services } from './services.ts';
 import { createSettingsStore } from './settings/settings-store.ts';
 
 /** How to use the commands. */
-const usage = 'Usage: querent reset-admin [email]\n';
+const usage = `Usage: querent reset-admin [email]\n${pluginUsage
+  .split('\n')
+  .map((line) => `       ${line}`)
+  .join('\n')}\n`;
 
 /**
  * Writes a line to the terminal.
@@ -92,9 +99,13 @@ async function resetAdmin(email: string | undefined): Promise<number> {
   }
 }
 
-const [command, argument] = process.argv.slice(2);
+const [command, ...args] = process.argv.slice(2);
+if (command === 'plugin') {
+  const io = { say, environment: process.env, workingDir: process.cwd(), fetch };
+  process.exit(await runPluginCommand(args, io));
+}
 if (command !== 'reset-admin') {
   process.stderr.write(usage);
   process.exit(2);
 }
-process.exit(await resetAdmin(argument));
+process.exit(await resetAdmin(args[0]));

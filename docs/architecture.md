@@ -748,6 +748,23 @@ a function that receives the live kit and returns its kinds.
   log line either way; a pinned plugin that is not installed is logged too.
 - **Origin:** a plugin's kinds carry `plugin: { name, version }` from the manifest, never from the
   plugin, and the add form and the connector show a `plugin · v1.2.0` badge.
+- **Installing:** `querent plugin install <spec>` (`plugins/command.ts`), where the spec is an
+  npm name with an optional version or range (resolved with `Bun.semver` against the registry's
+  metadata), an `https://` tarball URL such as a GitHub release asset, or a local `.tgz` or `.js`
+  file. From the registry, the tarball must match npm's SHA-512 integrity; a marked extension
+  point is where provenance would be checked. The tarball is read by a small reader of untrusted
+  input (`plugins/tar.ts`): gunzipped up to 128 MiB (32 MiB compressed), only
+  `package/package.json` and the file its `querent.main` names extracted, an absolute path, `..`,
+  a backslash, a link or a corrupt header refusing the whole archive. Nothing runs from the
+  package but its bundle: no install scripts, no dependencies. The bundle must be under 20 MiB
+  (`--max-bundle-mb`). The manifest needs the `querent-plugin` keyword and, from the registry,
+  the name asked for. The two files go into a temporary folder in the plugins directory, are
+  loaded there with the static checks (and no clash with a built-in kind), and the folder is
+  renamed into place only then, replacing an older version: a failed install leaves nothing.
+  The command prints the exact version installed and the YAML that pins it; it never writes the
+  configuration, which is often mounted read-only. `querent plugin list` shows each plugin and
+  whether its pin matches; `querent plugin remove <name>` deletes its folder. The commands open
+  no database and read no keys, so they run in a Docker build. Changes apply on restart.
 - **Not installed:** a stored connector whose kind is not offered, because its plugin was removed
   or refused, stays listed with `installed: false` and can be deleted. Its page says "plugin not
   installed" and offers no Test or Edit; its test, its queries, a dashboard check that names it
