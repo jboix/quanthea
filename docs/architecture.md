@@ -671,6 +671,12 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   `SET LOCAL statement_timeout`, wrapped in `LIMIT maxRows + 1`. `describe` reads `pg_catalog`
   (comments, `reltuples`, `pg_stats.n_distinct`), never table data. SQLSTATEs map to connector
   errors; data errors (class 22) never quote the value.
+  - **TimescaleDB** is the same kind (the add form finds it by name): the connection test names its
+    version, `describe` leaves out TimescaleDB's own schemas (chunks, catalog, information views)
+    and says which table is a hypertable on which time column, with the row count TimescaleDB
+    estimates over its chunks, and which view is a continuous aggregate of which hypertable. Its
+    functions that write, such as `drop_chunks`, fail in the read-only transaction like any
+    write. Redshift is not offered: no free server runs it.
 - **MySQL and MariaDB:** two kinds, `mysql` and `mariadb`, built from one engine in
   `connectors/mysql/` (`defineMysqlKind`), each with its own logo; the connection test fails,
   naming the right kind, when the server is the other product. Both use the `mysql2` driver with
@@ -1378,6 +1384,7 @@ provider's name, so two setups of the same vendor stay apart.
 | Source        | Address          | Contents                                                                                                                                                                                                                                                 |
 | ------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Postgres      | `localhost:5433` | Database `orders`: `customers`, `orders`, `order_items`, `payments`, `refunds`, `deploys`. Users `querent_admin` (password `querent-dev`) and the read-only `dash_ro` (password `dash-ro-dev`).                                                          |
+| TimescaleDB   | `localhost:5434` | The same database as Postgres on TimescaleDB 2.30, with the hypertable `order_events` and the continuous aggregate `orders_per_minute` (`dev/timescaledb`). Same users. Started by `bun run env:up:timescale`.                                           |
 | Prometheus    | `localhost:9091` | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                                                                          |
 | MySQL         | `localhost:3307` | Database `orders` (`dev/mysql`): `customers`, `orders`, `deploys` and the view `failed_orders`, one order every five seconds. Same users as Postgres. Started by `bun run env:up:mysql`.                                                                 |
 | MariaDB       | `localhost:3308` | The same database as MySQL, from the same scripts. Started by `bun run env:up:mysql`.                                                                                                                                                                    |
@@ -1409,7 +1416,8 @@ provider's name, so two setups of the same vendor stay apart.
   `docs/SECURITY.md` holds the threat model.
 - **Integration** (`bun run test:integration`, after `bun run env:up`): each connector against the
   real service, in `*.integration.test.ts` files. `QUERENT_INTEGRATION` names the sets of sources
-  they run against: `core` (Postgres, Prometheus), `mysql` (MySQL, MariaDB:
+  they run against: `core` (Postgres, Prometheus), `timescale` (`bun run env:up:timescale`, then
+  `bun run test:integration:timescale`), `mysql` (MySQL, MariaDB:
   `bun run env:up:mysql`, then `bun run test:integration:mysql`) or `clickhouse`
   (`bun run env:up:clickhouse`, then `bun run test:integration:clickhouse`) or `trino`
   (`bun run env:up:trino`, then `bun run test:integration:trino`) or `search` (Elasticsearch and

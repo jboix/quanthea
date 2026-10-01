@@ -84,6 +84,8 @@ export interface ConnectorKind<
   readonly displayName: string;
   /** The kind's logo. Without one, the app shows the first letters of its name. */
   readonly icon?: ConnectorIcon;
+  /** Other names the add form finds the kind by, such as `timescaledb` for PostgreSQL. */
+  readonly aliases?: readonly string[];
   /** The language of this kind's query templates. The core binds variables for it. */
   readonly language: QueryLanguage;
   /** The SQL dialect, which a `sql` kind must declare: how the core binds its templates. */

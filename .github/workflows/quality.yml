@@ -108,6 +108,9 @@ jobs:
           - sources: core
             up: env:up
             test: test:integration
+          - sources: timescale
+            up: env:up:timescale
+            test: test:integration:timescale
           - sources: mysql
             up: env:up:mysql
             test: test:integration:mysql

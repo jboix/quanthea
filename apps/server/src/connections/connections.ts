@@ -200,6 +200,7 @@ function kindInfo(kind: AnyConnectorKind): ConnectorKindInfo {
     kind: kind.kind,
     displayName: kind.displayName,
     icon: kind.icon ?? null,
+    aliases: [...(kind.aliases ?? [])],
     language: kind.language,
     configSchema: formSchema(kind.configSchema),
     secretSchema: formSchema(kind.secretSchema),

@@ -31,7 +31,7 @@ export function needsDarkGlyph(color: string): boolean {
 }
 
 /**
- * The kinds whose name or identifier holds every word of a search.
+ * The kinds whose name, identifier or aliases hold every word of a search.
  *
  * @param kinds - The kinds.
  * @param search - What the admin typed.
@@ -43,7 +43,7 @@ export function matchingKinds(
 ): ConnectorKindInfo[] {
   const words = search.toLowerCase().split(/\s+/).filter(Boolean);
   return kinds.filter((kind) => {
-    const text = `${kind.displayName} ${kind.kind}`.toLowerCase();
+    const text = [kind.displayName, kind.kind, ...kind.aliases].join(' ').toLowerCase();
     return words.every((word) => text.includes(word));
   });
 }

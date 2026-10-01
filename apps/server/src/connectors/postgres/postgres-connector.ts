@@ -18,6 +18,7 @@ import { fieldTypeOf, frameValue } from './columns.ts';
 import { toConnectorError } from './errors.ts';
 import { postgresGuide } from './guide.ts';
 import { postgresIcon } from './icon.ts';
+import { extensionQuery, type TimescaleRow, timescaleQuery, withTimescale } from './timescale.ts';
 
 /** The configuration of a PostgreSQL connector. */
 const configSchema = z.object({
@@ -62,7 +63,8 @@ SELECT current_setting('server_version') AS version, current_user AS role,
     OR has_database_privilege(current_database(), 'CREATE')
     OR EXISTS (SELECT 1 FROM information_schema.table_privileges p
       WHERE p.grantee = current_user AND p.privilege_type IN ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'))
-  ) AS can_write
+  ) AS can_write,
+  (SELECT extversion FROM pg_extension WHERE extname = 'timescaledb') AS timescaledb
 FROM pg_roles r WHERE r.rolname = current_user`;
 
 /** The statement timeout of health checks, schema reads and samples, in milliseconds. */
@@ -196,6 +198,8 @@ interface HealthRow {
   readonly role: string;
   /** Whether the role can write anything. */
   readonly can_write: boolean;
+  /** The TimescaleDB version, when the database has the extension. */
+  readonly timescaledb: string | null;
 }
 
 /**
@@ -215,7 +219,8 @@ async function test(sql: Sql, signal: AbortSignal): Promise<HealthReport> {
     const row = rows[0];
     const readOnlyRole = row?.can_write === false;
     const access = readOnlyRole ? 'has no write grants' : 'can write: use a read-only role';
-    const message = `PostgreSQL ${row?.version ?? '?'}. Role ${row?.role ?? '?'} ${access}.`;
+    const timescale = row?.timescaledb ? ` with TimescaleDB ${row.timescaledb}` : '';
+    const message = `PostgreSQL ${row?.version ?? '?'}${timescale}. Role ${row?.role ?? '?'} ${access}.`;
     return { ok: true, latencyMs: latencyMs(), message, readOnly: readOnlyRole };
   } catch (error) {
     const message = toConnectorError(error).safeMessage;
@@ -299,10 +304,20 @@ async function sampleValues(sql: Sql, field: FieldReference, limit: number, sign
  */
 async function describe(sql: Sql, signal: AbortSignal) {
   try {
-    const rows = await readOnly(sql, metadataTimeoutMs, (transaction) =>
-      cancellable<readonly CatalogRow[]>(transaction.unsafe(catalogQuery), signal),
-    );
-    return { entities: toEntities(rows, fieldTypeOf) };
+    const [rows, timescale] = await readOnly(sql, metadataTimeoutMs, async (transaction) => {
+      const catalog = await cancellable<readonly CatalogRow[]>(
+        transaction.unsafe(catalogQuery),
+        signal,
+      );
+      const extension = await transaction.unsafe(extensionQuery);
+      if (extension.length === 0) return [catalog, []] as const;
+      const extra = await cancellable<readonly TimescaleRow[]>(
+        transaction.unsafe(timescaleQuery),
+        signal,
+      );
+      return [catalog, extra] as const;
+    });
+    return { entities: withTimescale(toEntities(rows, fieldTypeOf), timescale) };
   } catch (error) {
     throw toConnectorError(error);
   }
@@ -336,6 +351,7 @@ function openPool(config: z.output<typeof configSchema>, password: string): Sql 
 export const postgresConnector = defineConnector({
   kind: 'postgres',
   displayName: 'PostgreSQL',
+  aliases: ['timescaledb', 'timescale'],
   icon: postgresIcon,
   language: 'sql',
   dialect: 'postgres',

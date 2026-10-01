@@ -4,6 +4,9 @@
 #   (password querent-dev) and the read-only dash_ro (password dash-ro-dev).
 # - prometheus: the synthetic metrics, on localhost:9091. The last day and a half is backfilled from
 #   dev/metrics/history.ts, the live metrics come from dev/metrics/serve.ts.
+# - timescaledb (profile "timescale"): the orders database of dev/postgres on TimescaleDB, on
+#   localhost:5434, with the hypertable order_events and the continuous aggregate orders_per_minute
+#   (dev/timescaledb). Same users as postgres.
 # - mysql and mariadb (profile "mysql"): the orders database (dev/mysql), on localhost:3307 and
 #   localhost:3308. Users querent_admin (password querent-dev) and the read-only dash_ro (password
 #   dash-ro-dev).
@@ -90,6 +93,29 @@ services:
       interval: 2s
       timeout: 3s
       retries: 60
+
+  timescaledb:
+    profiles: [timescale]
+    image: timescale/timescaledb:2.30.2-pg18
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: querent_admin
+      POSTGRES_PASSWORD: querent-dev
+      TIMESCALEDB_TELEMETRY: 'off'
+    ports:
+      - '5434:5432'
+    volumes:
+      # File by file: the image's own scripts in the same directory install the extension first.
+      - ./postgres/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./postgres/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./postgres/03-roles.sql:/docker-entrypoint-initdb.d/03-roles.sql:ro
+      - ./timescaledb/04-timescale.sql:/docker-entrypoint-initdb.d/04-timescale.sql:ro
+      - timescaledb-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-h', '127.0.0.1', '-U', 'querent_admin', '-d', 'orders']
+      interval: 2s
+      timeout: 3s
+      retries: 90
 
   mysql:
     profiles: [mysql]
@@ -233,6 +259,7 @@ services:
 
 volumes:
   postgres-data:
+  timescaledb-data:
   mysql-data:
   mariadb-data:
   clickhouse-data:

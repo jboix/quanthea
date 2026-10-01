@@ -15,4 +15,8 @@ export const postgresGuide = `PostgreSQL (SQL). Bind the range with :__from and 
 - graph: one row per link: SELECT from_page AS source, to_page AS target, count(*) AS value … GROUP BY 1, 2.
 - geo: SELECT country AS region, count(*) AS value … (English country names), or latitude, longitude and a value.
 - ohlc: first, last, min and max per bucket with (array_agg(price ORDER BY t))[1] and [array_length(...)] or window functions.
-- rows: SELECT the columns people read … ORDER BY time DESC LIMIT 100. The sql-rows builder writes this.`;
+- rows: SELECT the columns people read … ORDER BY time DESC LIMIT 100. The sql-rows builder writes this.
+TimescaleDB, when the catalog names a hypertable or a continuous aggregate:
+- time_bucket(:interval::interval, created_at) AS time buckets like date_bin; time_bucket_gapfill(…) with locf(…) or interpolate(…) fills empty buckets, and needs the range in the WHERE clause.
+- Read a continuous aggregate over a long range rather than its hypertable: it is already bucketed.
+- first(value, time) and last(value, time) give open and close per bucket.`;

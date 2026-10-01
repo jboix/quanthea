@@ -5,12 +5,14 @@ import {
   devClickhouseAs,
   devIncidentStart,
   devMysqlServers,
+  devTimescale,
   devTrino,
   integrationFor,
 } from '../../connectors/_shared/test/dev-sources.ts';
 import { clickhouseConnector } from '../../connectors/clickhouse/clickhouse-connector.ts';
 import { mariadbConnector } from '../../connectors/mysql/mariadb-connector.ts';
 import { mysqlConnector } from '../../connectors/mysql/mysql-connector.ts';
+import { postgresConnector } from '../../connectors/postgres/postgres-connector.ts';
 import { trinoConnector } from '../../connectors/trino/trino-connector.ts';
 import { bindTemplate } from '../../query/bind.ts';
 import type { SqlDialect } from '../../query/sql-dialects.ts';
@@ -25,7 +27,7 @@ const timeRange = {
   to: new Date(incident.getTime() + 60 * 60_000),
 };
 
-/** A dev database the builders run against, other than the dev Postgres itself. */
+/** A dev database the builders run against, beyond the dev Postgres the core tests use. */
 interface Target {
   /** The server, in test titles. */
   readonly name: string;
@@ -40,6 +42,13 @@ interface Target {
 }
 
 const targets: Target[] = [
+  {
+    name: 'TimescaleDB',
+    live: integrationFor('timescale'),
+    kind: postgresConnector,
+    dialect: 'postgres',
+    source: devTimescale,
+  },
   ...devMysqlServers.map((server) => ({
     name: server.name,
     live: integrationFor('mysql'),
@@ -121,7 +130,9 @@ for (const target of targets) {
       const peak = times[counts.indexOf(Math.max(...counts))] ?? 0;
       expect(peak - incident.getTime()).toBeGreaterThanOrEqual(10 * 60_000);
       expect(peak - incident.getTime()).toBeLessThanOrEqual(20 * 60_000);
-      expect(times.every((time) => time % (5 * 60_000) === 0)).toBe(true);
+      // PostgreSQL buckets from the start of the range (date_bin); the others from the epoch.
+      const origin = target.dialect === 'postgres' ? timeRange.from.getTime() : 0;
+      expect(times.every((time) => (time - origin) % (5 * 60_000) === 0)).toBe(true);
     });
 
     test('breaks down, counts and lists with regular expressions and escaped literals', async () => {

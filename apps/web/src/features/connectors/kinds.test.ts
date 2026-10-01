@@ -10,7 +10,15 @@ import { badgeTone, matchingKinds, needsDarkGlyph } from './kinds.ts';
  * @returns The kind.
  */
 function kindOf(kind: string, displayName: string): ConnectorKindInfo {
-  return { kind, displayName, icon: null, language: 'sql', configSchema: {}, secretSchema: {} };
+  return {
+    kind,
+    displayName,
+    icon: null,
+    aliases: kind === 'postgres' ? ['timescaledb'] : [],
+    language: 'sql',
+    configSchema: {},
+    secretSchema: {},
+  };
 }
 
 const kinds = [
@@ -26,6 +34,7 @@ describe('matchingKinds', () => {
     expect(matchingKinds(kinds, 'POSTGRES').map((kind) => kind.kind)).toEqual(['postgres']);
     expect(matchingKinds(kinds, 'sql').map((kind) => kind.kind)).toEqual(['postgres', 'mysql']);
     expect(matchingKinds(kinds, 'post sql').map((kind) => kind.kind)).toEqual(['postgres']);
+    expect(matchingKinds(kinds, 'timescale').map((kind) => kind.kind)).toEqual(['postgres']);
     expect(matchingKinds(kinds, 'oracle')).toEqual([]);
   });
 

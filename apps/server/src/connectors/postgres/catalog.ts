@@ -26,8 +26,9 @@ export interface CatalogRow {
 }
 
 /**
- * Tables, views and their columns in every schema but the system ones, with comments, row
- * estimates and distinct-value estimates. It reads statistics, never table data.
+ * Tables, views and their columns in every schema but the system ones and TimescaleDB's own (its
+ * chunks, catalog and information views), with comments, row estimates and distinct-value
+ * estimates. It reads statistics, never table data.
  */
 export const catalogQuery = `
 SELECT n.nspname AS schema, c.relname AS "table", c.relkind::text AS relkind,
@@ -41,6 +42,7 @@ JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdroppe
 LEFT JOIN pg_stats s ON s.schemaname = n.nspname AND s.tablename = c.relname AND s.attname = a.attname
 WHERE c.relkind IN ('r', 'v', 'm', 'p')
   AND n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+  AND n.nspname NOT LIKE '\\_timescaledb%' ESCAPE '\\' AND n.nspname NOT LIKE 'timescaledb\\_%' ESCAPE '\\'
   AND has_table_privilege(c.oid, 'SELECT')
 ORDER BY n.nspname, c.relname, a.attnum`;
 

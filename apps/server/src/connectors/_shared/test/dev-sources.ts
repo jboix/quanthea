@@ -1,7 +1,8 @@
 /**
  * The local data sources of `bun run env:up`, for integration tests. The tests that need them run
  * only when QUERENT_INTEGRATION names their set, comma-separated: `core` (or `1`) for Postgres and
- * Prometheus (`bun run test:integration`), `mysql` for MySQL and MariaDB
+ * Prometheus (`bun run test:integration`), `timescale` for TimescaleDB
+ * (`bun run test:integration:timescale`), `mysql` for MySQL and MariaDB
  * (`bun run test:integration:mysql`), `clickhouse` for ClickHouse
  * (`bun run test:integration:clickhouse`), `trino` for Trino over the dev Postgres
  * (`bun run test:integration:trino`), `search` for Elasticsearch and OpenSearch
@@ -9,7 +10,7 @@
  */
 
 /** A set of data sources that start together. */
-type SourceSet = 'core' | 'mysql' | 'clickhouse' | 'trino' | 'search' | 'loki';
+type SourceSet = 'core' | 'timescale' | 'mysql' | 'clickhouse' | 'trino' | 'search' | 'loki';
 
 /** The sets the integration tests run against. */
 const integrationSets = new Set(
@@ -48,6 +49,18 @@ export const devPostgres = {
 /** The dev Postgres as the owner, which can write. */
 export const devPostgresOwner = {
   config: { ...devPostgres.config, username: 'querent_admin' },
+  secret: { password: 'querent-dev' },
+};
+
+/** The dev TimescaleDB, the orders database with a hypertable, as the read-only role. */
+export const devTimescale = {
+  config: { ...devPostgres.config, port: Number(process.env.QUERENT_DEV_TIMESCALEDB_PORT ?? 5434) },
+  secret: devPostgres.secret,
+};
+
+/** The dev TimescaleDB as the owner, which can write. */
+export const devTimescaleOwner = {
+  config: { ...devTimescale.config, username: 'querent_admin' },
   secret: { password: 'querent-dev' },
 };
 

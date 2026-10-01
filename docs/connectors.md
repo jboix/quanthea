@@ -93,6 +93,9 @@ The settings schemas drive the forms:
   empty field keeps the stored value.
 - The credentials follow a `username` setting, so name the user field `username`.
 
+`aliases` is optional: other names the add form finds the kind by, such as `timescaledb` for
+PostgreSQL.
+
 `icon` is optional: the logo, as `{ path, color }`, one SVG path on a 24×24 grid and its brand
 colour as `#rrggbb`. The app draws the path in white or black, whichever reads on the colour.
 Simple Icons (CC0) has the path of most products. Keep it in `<kind>/icon.ts`.

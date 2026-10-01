@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { type CatalogRow, entityName, quoteIdentifier, toEntities } from './catalog.ts';
 import { fieldTypeOf } from './columns.ts';
+import { withTimescale } from './timescale.ts';
 
 /**
  * A catalog row with defaults.
@@ -73,5 +74,49 @@ describe('identifiers', () => {
   test('quotes identifiers and doubles inner quotes', () => {
     expect(quoteIdentifier('status')).toBe('"status"');
     expect(quoteIdentifier('a"; DROP TABLE x; --')).toBe('"a""; DROP TABLE x; --"');
+  });
+});
+
+describe('TimescaleDB in the catalog', () => {
+  test('describes hypertables with their time column and estimate, and continuous aggregates', () => {
+    const entities = withTimescale(
+      [
+        { name: 'events', kind: 'table', description: 'Events.', rowEstimate: 0, fields: [] },
+        { name: 'analytics.per_minute', kind: 'view', fields: [] },
+        { name: 'deploys', kind: 'table', rowEstimate: 5, fields: [] },
+      ],
+      [
+        {
+          schema: 'public',
+          table: 'events',
+          kind: 'hypertable',
+          detail: 'at',
+          row_estimate: 1200.4,
+        },
+        {
+          schema: 'analytics',
+          table: 'per_minute',
+          kind: 'continuous aggregate',
+          detail: 'public.events',
+          row_estimate: null,
+        },
+      ],
+    );
+    expect(entities).toEqual([
+      {
+        name: 'events',
+        kind: 'table',
+        description: 'Events. TimescaleDB hypertable on at.',
+        rowEstimate: 1200,
+        fields: [],
+      },
+      {
+        name: 'analytics.per_minute',
+        kind: 'view',
+        description: 'TimescaleDB continuous aggregate of events.',
+        fields: [],
+      },
+      { name: 'deploys', kind: 'table', rowEstimate: 5, fields: [] },
+    ]);
   });
 });

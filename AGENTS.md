@@ -9,9 +9,9 @@ Read this fully before writing code. Then read the design docs:
 ## What this project is
 
 querent is a self-hosted web app. You describe a dashboard in a chat, an agent builds it against
-your data sources (Prometheus, Loki, Postgres, MySQL, ClickHouse, Trino, Elasticsearch, OpenSearch, HTTP APIs), you refine it in the same
-thread, and you pin the good ones. Pinned dashboards are versioned, searchable, and render without
-any model involved.
+your data sources (Prometheus, Loki, Postgres and TimescaleDB, MySQL, MariaDB, ClickHouse, Trino,
+Elasticsearch, OpenSearch, HTTP APIs), you refine it in the same thread, and you pin the good ones.
+Pinned dashboards are versioned, searchable, and render without any model involved.
 
 ## Commands
 
@@ -29,6 +29,7 @@ bun run typecheck    # tsc in every workspace
 bun test             # unit tests (bun:test)
 bun run env:up       # the local data sources: Postgres :5433, Prometheus :9091
 bun run test:integration  # connector tests against the local data sources
+bun run env:up:timescale && bun run test:integration:timescale  # the same for TimescaleDB
 bun run env:up:mysql && bun run test:integration:mysql  # the same for MySQL and MariaDB
 bun run env:up:clickhouse && bun run test:integration:clickhouse  # the same for ClickHouse
 bun run env:up:trino && bun run test:integration:trino  # the same for Trino
