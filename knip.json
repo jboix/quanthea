@@ -17,7 +17,7 @@
       "project": ["src/**/*.ts"]
     },
     "packages/plugin-kit": {
-      "entry": ["scripts/dist.ts"],
+      "entry": ["scripts/dist.ts", "scripts/consumer.ts"],
       "project": ["src/**/*.ts", "scripts/**/*.ts"]
     },
     "examples/quanthea-plugin-sqlite": {

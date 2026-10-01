@@ -675,7 +675,11 @@ same kit serves connector plugins. It has four entry points:
 The kit is the one package published to npm. Its workspace `package.json` points at the sources
 and stays private; `packages/plugin-kit/scripts/dist.ts` builds `dist/`, the folder npm publishes:
 `.` and `./testing` bundled by Bun, their declarations from `tsc`, and a generated `package.json`
-with zod as the one dependency. `bun run check:package` builds it and runs publint and attw on it.
+with zod as the one dependency. `bun run check:package` builds it and runs publint and attw on it. Then
+`scripts/consumer.ts` packs it, installs the tarball in a temporary project outside the
+repository with a copy of the SQLite example, and typechecks, builds and tests the example there,
+as an outside author would. That install reads zod, TypeScript and the Bun types from the
+registry, or from Bun's cache.
 The kit has its own version, and its major version equals `kitVersion`: 0 during the beta, where
 a minor bump is a breaking change and a patch bump an addition or a fix.
 

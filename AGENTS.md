@@ -42,7 +42,8 @@ bun run env:up:influxdb && bun run test:integration:influxdb  # InfluxDB 3
 bun run env:up:valkey && bun run test:integration:valkey  # Valkey
 bun run env:up:mongodb && bun run test:integration:mongodb  # MongoDB
 bun run build        # build the SPA into apps/web/dist
-bun run check:package  # build the publishable plugin kit in packages/plugin-kit/dist, check it
+bun run check:package  # build the publishable plugin kit, check it, and build and test the
+                       # SQLite example against the packed tarball
 bun run start        # run the server, serving the built SPA
 ```
 
