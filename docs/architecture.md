@@ -663,7 +663,11 @@ same kit serves connector plugins. It has three entry points:
 binders use, querent's policy lists (`policies.ts`): `searchRatioScripts`, `mongodbRefusedKeys`,
 `redisReadCommands`. The public kit leaves them out. The kit imports only `@querent/shared` and
 Zod (rule `plugin-kit-stays-small`), and a plugin receives the server's Zod and error class, so
-its schemas build the forms and `instanceof ConnectorError` holds.
+its schemas build the forms. `createTestKit()` returns the live kit itself, so a plugin's tests run
+the code production runs. Every copy of `ConnectorError` carries the global brand
+`Symbol.for('querent.connector-error')`, and the class's `instanceof` checks the brand (with a
+known code and a string safe message), so an error from a plugin that bundled its own copy of the
+kit by mistake is still recognised, with its safe message.
 
 ```ts
 // connectors/<kind>/<kind>-connector.ts (shape)

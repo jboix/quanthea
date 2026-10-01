@@ -162,7 +162,7 @@ module.exports = {
         'so built-in kinds and plugins see the same functions.',
       from: {
         path: '^apps/',
-        pathNot: ['^apps/server/src/connectors/_shared/index[.]ts$'],
+        pathNot: ['^apps/server/src/connectors/_shared/index[.]ts$', '[.]test[.]ts$'],
       },
       to: { path: '^packages/plugin-kit/src/host[.]ts$' },
     },

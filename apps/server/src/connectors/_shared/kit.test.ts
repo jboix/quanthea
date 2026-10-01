@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import * as publicKit from '@querent/plugin-kit';
+import { hostKit } from '@querent/plugin-kit/host';
 import { createTestKit } from '@querent/plugin-kit/testing';
 import { z } from 'zod';
 import { ConnectorError } from './index.ts';
@@ -8,6 +9,10 @@ describe('the public kit', () => {
   test('holds types and the kit version only, none of the server’s policy lists', () => {
     expect(Object.keys(publicKit)).toEqual(['kitVersion']);
     expect(publicKit.kitVersion).toBe(1);
+  });
+
+  test('tests plugins against the live kit itself, not a second implementation', () => {
+    expect(createTestKit()).toBe(hostKit);
   });
 
   test('hands plugins the server’s own Zod and error class', () => {
