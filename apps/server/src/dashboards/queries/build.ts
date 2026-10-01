@@ -1,6 +1,13 @@
 /** Builds a data request into its queries and the table they return. */
 import { type PanelQuery, panelQuerySchema } from '@querent/shared';
 import type { BuildContext, BuiltData } from './built.ts';
+import {
+  logqlBreakdownData,
+  logqlLinesData,
+  logqlRatioData,
+  logqlSeriesData,
+  logqlStatData,
+} from './logql.ts';
 import { gaugeData, latencyData, rateData, ratioData, topData } from './promql.ts';
 import type { DataOf, DataRequest } from './request.ts';
 import { savedData } from './saved.ts';
@@ -50,6 +57,11 @@ const builders: {
   'search-stat': searchStatData,
   'search-histogram': searchHistogramData,
   'search-rows': searchRowsData,
+  'logql-series': logqlSeriesData,
+  'logql-ratio': logqlRatioData,
+  'logql-breakdown': logqlBreakdownData,
+  'logql-stat': logqlStatData,
+  'logql-lines': logqlLinesData,
   raw: rawData,
 };
 

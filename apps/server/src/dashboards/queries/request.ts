@@ -14,6 +14,7 @@ import {
   nameSchema,
   tableSchema,
 } from './fields.ts';
+import { logqlBuilderSchemas } from './logql-request.ts';
 import { searchBuilderSchemas } from './search-request.ts';
 
 /** What every PromQL builder takes. */
@@ -150,6 +151,7 @@ export const builderSchemas = {
   'sql-stat': sqlStatSchema,
   'sql-rows': sqlRowsSchema,
   ...searchBuilderSchemas,
+  ...logqlBuilderSchemas,
 } as const;
 
 /** Validates a data request of any kind. */
@@ -164,6 +166,7 @@ export const dataSchema = z.discriminatedUnion('kind', [
   sqlStatSchema,
   sqlRowsSchema,
   ...Object.values(searchBuilderSchemas),
+  ...Object.values(logqlBuilderSchemas),
   rawSchema,
   savedSchema,
 ]);

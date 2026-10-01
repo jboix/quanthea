@@ -461,6 +461,14 @@ directly onto an ECharts `dataset`.
     documents matching `match` by those matching `of` with two filter helpers and the kit's ratio
     script, over time or over the range (per `by` value, or in one bucket), `complement` for one
     minus it and `counts` to keep the two counts as columns.
+    LogQL, for Loki (`dashboards/queries/logql.ts`): `logql-series`, `logql-ratio`,
+    `logql-breakdown`, `logql-stat`, `logql-lines`. A request names its streams by label, the text
+    lines contain (`|=`), a parser (`json` or `logfmt`) and filters on labels and parsed fields.
+    Lines are counted (`count_over_time`) or rated and summed by label; a number is read from a
+    field with `unwrap`, conversion errors dropped, and grouped in the range function
+    (`quantile_over_time(0.95, … | unwrap duration_ms | __error__="" [$__interval]) by (route)`).
+    `logql-ratio` divides the counts with and without the `match` filters, over time or over the
+    range.
   - **Saved queries.** An admin saves a query with typed placeholders (`{{name}}`: metric, label,
     table, column, value or duration) and the shape it returns. The model asks for it by id with a
     value per placeholder. Each value is checked and written for its kind like the builders write

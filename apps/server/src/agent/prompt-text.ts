@@ -59,6 +59,14 @@ export const builderHints: Readonly<Record<string, string>> = {
   'search-stat': 'one count or metric; column value',
   'search-histogram': 'documents per bin of a numeric field; columns bin, value',
   'search-rows': 'the latest documents; the fields asked for, dotted',
+  'logql-series':
+    'lines counted, a rate, or a number from a field ("unwrap", with a parser) over time; columns time, the "by" labels, series, value',
+  'logql-ratio':
+    'the share of lines that also match "match", such as level="error"; over "time": columns time, the "by" labels, series, value; over "range": the "by" labels and Value',
+  'logql-breakdown':
+    'lines or a number by label over the range, largest first; columns the "by" labels, Value',
+  'logql-stat': 'one count or number over the range; column Value',
+  'logql-lines': 'the latest lines; columns time, line, a column per label',
 };
 
 /** How to write a raw query. */

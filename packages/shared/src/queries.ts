@@ -121,6 +121,39 @@ export const queryBuilders: readonly QueryBuilder[] = [
     language: 'search',
     description: 'The latest documents of an index, newest first, such as the last errors.',
   },
+  {
+    id: 'logql-series',
+    name: 'Logs over time',
+    language: 'logql',
+    description:
+      'Lines counted, a rate, or a number read from the lines (a duration, a size) over time, one series per label value.',
+  },
+  {
+    id: 'logql-ratio',
+    name: 'Logs ratio',
+    language: 'logql',
+    description:
+      'The share of lines that also match, such as error lines, over time or over the range.',
+  },
+  {
+    id: 'logql-breakdown',
+    name: 'Logs breakdown',
+    language: 'logql',
+    description:
+      'Lines or a number by label over the range, largest first, such as timeouts by service.',
+  },
+  {
+    id: 'logql-stat',
+    name: 'Logs number',
+    language: 'logql',
+    description: 'One count or number over the range, such as error lines.',
+  },
+  {
+    id: 'logql-lines',
+    name: 'Latest lines',
+    language: 'logql',
+    description: 'The latest log lines, newest first, with their labels.',
+  },
 ];
 
 /** What a saved query's placeholder may hold, checked and quoted for its language. */
