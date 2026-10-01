@@ -3,7 +3,7 @@
  * carry (plan cards, new dashboard versions, diffs).
  */
 import { z } from 'zod';
-import { connectorNameSchema } from './connectors.ts';
+import { connectorNameSchema, queryLanguageSchema } from './connectors.ts';
 
 /** Where a thread is: asking, waiting for plan approval, building, or ready for small edits. */
 export const threadStates = ['idle', 'plan_pending', 'building', 'ready'] as const;
@@ -36,7 +36,7 @@ export const planSchema = z.object({
       z.object({
         kind: z.enum(planPanelKinds),
         title: z.string().min(1).max(200),
-        language: z.enum(['sql', 'promql', 'search', 'logql', 'http', 'redis', 'mongodb']),
+        language: queryLanguageSchema,
         connector: connectorNameSchema,
       }),
     )

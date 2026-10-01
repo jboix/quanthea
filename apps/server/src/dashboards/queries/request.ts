@@ -6,51 +6,15 @@
  */
 import type { SavedQuery } from '@querent/shared';
 import { z } from 'zod';
-
-/**
- * A string that must match a pattern, checked in code so the JSON schema stays short.
- *
- * @param pattern - The pattern.
- * @param message - What to write instead.
- * @returns The schema.
- */
-function matching(pattern: RegExp, message: string) {
-  return z
-    .string()
-    .max(200)
-    .refine((value) => pattern.test(value), message);
-}
-
-/** A label or column name. */
-export const nameSchema = matching(/^[A-Za-z_][A-Za-z0-9_]*$/, 'Use a plain label or column name.');
-
-/** A table, or a schema and a table. */
-export const tableSchema = matching(
-  /^[A-Za-z_]\w*(\.[A-Za-z_]\w*)?$/,
-  'Use a table name, or schema.table.',
-);
-
-/** A duration such as `5m`, or an interval variable such as `$interval`. */
-const durationSchema = matching(
-  /^(\d{1,5}[smhd]|\$[A-Za-z_]\w*)$/,
-  'Use a duration such as 5m, or an interval variable such as $interval.',
-);
-
-/** A connector name. */
-export const connectorSchema = z.string().min(1).max(100);
-
-/** One filter: a field compared with a value, a regular expression, or a `$variable`. */
-const filterSchema = z.strictObject({
-  field: nameSchema,
-  op: z.enum(['=', '!=', '=~', '!~']).default('='),
-  value: z.string().max(200),
-});
-
-/** A filter. */
-export type Filter = z.output<typeof filterSchema>;
-
-/** Filters, all of which must hold. */
-export const filtersSchema = z.array(filterSchema).max(10).default([]);
+import {
+  connectorSchema,
+  durationSchema,
+  filterSchema,
+  filtersSchema,
+  nameSchema,
+  tableSchema,
+} from './fields.ts';
+import { searchBuilderSchemas } from './search-request.ts';
 
 /** What every PromQL builder takes. */
 const promqlBase = {
@@ -185,6 +149,7 @@ export const builderSchemas = {
   'sql-breakdown': sqlBreakdownSchema,
   'sql-stat': sqlStatSchema,
   'sql-rows': sqlRowsSchema,
+  ...searchBuilderSchemas,
 } as const;
 
 /** Validates a data request of any kind. */
@@ -198,6 +163,7 @@ export const dataSchema = z.discriminatedUnion('kind', [
   sqlBreakdownSchema,
   sqlStatSchema,
   sqlRowsSchema,
+  ...Object.values(searchBuilderSchemas),
   rawSchema,
   savedSchema,
 ]);

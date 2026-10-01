@@ -202,6 +202,9 @@ export {
   guardrailsSchema,
   hiddenFieldsSchema,
   lowCardinalityLimit,
+  type QueryLanguage,
+  queryLanguageSchema,
+  queryLanguages,
 } from './connectors.ts';
 export {
   type Cell,
@@ -282,6 +285,8 @@ export {
   turnUsageSchema,
 } from './model-usage.ts';
 export {
+  type BuilderLanguage,
+  builderLanguages,
   placeholdersOf,
   type QueryBuilder,
   type QueryParamKind,

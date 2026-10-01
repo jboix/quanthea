@@ -3,7 +3,8 @@
  * (a date histogram gives the time, terms give a series), and a column per metric of the deepest
  * level, or `count` when it has none. `date_histogram > terms > avg` gives `(time, series, avg)`.
  * A filter with no bucket aggregation under it is a metric: its count, or its metrics. An
- * aggregation whose name starts with `_` is a helper, such as the parts of a ratio: no column.
+ * aggregation whose name starts with `_` is a helper, such as the parts of a ratio: no column, and
+ * for a bucket aggregation no key column.
  */
 import type { FieldType, Frame } from '@querent/shared';
 import { ConnectorError, createFrameBuilder, type ExecutionContext } from '../_shared/index.ts';
@@ -132,6 +133,7 @@ function setKey(
   spec: AggregationSpec,
   bucket: AnswerNode,
 ): void {
+  if (spec.name.startsWith('_')) return;
   for (const [column, value] of keyParts(spec, bucket)) {
     const time = column === spec.name && timeTypes.has(spec.type);
     setCell(table, row, column, value, time ? 'time' : scalarType(value));

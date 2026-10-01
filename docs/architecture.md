@@ -453,6 +453,14 @@ directly onto an ECharts `dataset`.
     matches regular expressions with `match()`. Trino buckets epoch seconds in a UTC session, reads
     an interval variable with `parse_duration` and matches with `regexp_like`. InfluxDB 3 takes
     the PostgreSQL builders as they are.
+    Search, for Elasticsearch and OpenSearch (`dashboards/queries/search.ts`): `search-series`,
+    `search-ratio`, `search-breakdown`, `search-stat`, `search-histogram`, `search-rows`. Filters
+    on document fields become a bool query: `term` for a literal, `terms` with a list node
+    (`{"$var": "name", "as": "list"}`) for a variable, so one value or several both work, and
+    `regexp` for a pattern. A count counts the time field's values. `search-ratio` divides the
+    documents matching `match` by those matching `of` with two filter helpers and the kit's ratio
+    script, over time or over the range (per `by` value, or in one bucket), `complement` for one
+    minus it and `counts` to keep the two counts as columns.
   - **Saved queries.** An admin saves a query with typed placeholders (`{{name}}`: metric, label,
     table, column, value or duration) and the shape it returns. The model asks for it by id with a
     value per placeholder. Each value is checked and written for its kind like the builders write
@@ -730,7 +738,7 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   deepest level (a percentile or a statistic each its own), or `count` when there is none.
   A single-bucket aggregation (`filter` and the like) with no bucket aggregation under it is a
   metric: its document count, or its own metrics. An aggregation named with a leading `_` is a
-  helper and gives no column, such as the parts of a ratio. Bucket aggregations side by side are
+  helper and gives no column (a bucket aggregation no key column), such as the parts of a ratio. Bucket aggregations side by side are
   refused. A search without aggregations gives its documents,
   flattened to dotted columns typed from the mapping. `describe` groups daily and rollover indices
   (`logs-2026.09.29`, `logs-000042`) into the pattern that queries them (`logs-*`), with their
@@ -839,7 +847,8 @@ that changes with its settings).
      `label_format` are refused: their argument is a template Loki runs.
    - **Search** (`query/search-binder.ts`), the Elasticsearch and OpenSearch query DSL: a variable
      is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value (a string, or a
-     list for a multi-value variable), never text inside a string. `__from` and `__to` are ISO
+     list for a multi-value variable; `{"$var": "service", "as": "list"}` is a list in every case),
+     never text inside a string. `__from` and `__to` are ISO
      times; `__interval` is a bucket width that keeps the range within 1000 buckets. A body with a
      script (`script`, `_script`, `script_fields`, `script_score`, `scripted_metric`,
      `runtime_mappings`) is refused, because the search server would run it. One exception: a

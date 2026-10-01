@@ -1,4 +1,10 @@
-import { chartRecipes, type QueryPreview, type SavedQuery } from '@querent/shared';
+import {
+  chartRecipes,
+  type QueryLanguage,
+  type QueryPreview,
+  queryLanguageNames,
+  type SavedQuery,
+} from '@querent/shared';
 import { useState } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
 import { Select } from '../../ui/select.tsx';
@@ -108,7 +114,7 @@ interface ConnectorSelectProps {
   /** Every connector. */
   readonly connectors: readonly PreviewConnector[];
   /** The query's language; only its connectors are offered. */
-  readonly language: 'sql' | 'promql';
+  readonly language: QueryLanguage;
   /** The connector chosen. */
   readonly value: string;
   /** Called with another connector. */
@@ -124,8 +130,11 @@ interface ConnectorSelectProps {
 export function ConnectorSelect({ connectors, language, value, onChange }: ConnectorSelectProps) {
   const matching = connectors.filter((connector) => connector.language === language);
   if (matching.length === 0) {
-    const kind = language === 'sql' ? 'SQL' : 'Prometheus';
-    return <p className={styles.hint}>Add a {kind} connector to preview this recipe.</p>;
+    return (
+      <p className={styles.hint}>
+        Add a connector that runs {queryLanguageNames[language]} to preview this query.
+      </p>
+    );
   }
   return (
     <Select
@@ -148,7 +157,7 @@ export function ConnectorSelect({ connectors, language, value, onChange }: Conne
  */
 export function connectorFor(
   connectors: readonly PreviewConnector[],
-  language: 'sql' | 'promql',
+  language: QueryLanguage,
   chosen = '',
 ): string {
   const matching = connectors.filter((connector) => connector.language === language);

@@ -6,6 +6,7 @@ import {
   descriptionsSchema,
   guardrailsSchema,
   hiddenFieldsSchema,
+  queryLanguageSchema,
 } from '../connectors.ts';
 import { defineEndpoint } from './contract.ts';
 
@@ -26,7 +27,7 @@ export const connectorKindSchema = z.object({
   icon: connectorIconSchema.nullable(),
   /** Other names the add form finds the kind by. */
   aliases: z.array(z.string()),
-  language: z.enum(['sql', 'promql', 'search', 'logql', 'http', 'redis', 'mongodb']),
+  language: queryLanguageSchema,
   configSchema: jsonSchemaSchema,
   secretSchema: jsonSchemaSchema,
 });

@@ -171,6 +171,13 @@ describe('search aggregations', () => {
     );
     expect(frame.fields.map((field) => field.name)).toEqual(['media', 'errors', 'p p50', 'rate']);
     expect(frame.values).toEqual([['urn:a'], [2], [410], [0.25]]);
+    const whole = aggregationsFrame(
+      { _all: { filters: {}, aggs: { rate: { bucket_script: {} } } } },
+      { _all: { buckets: { all: { doc_count: 3, rate: { value: 0.5 } } } } },
+      context,
+      5,
+    );
+    expect(whole.fields).toEqual([{ name: 'rate', type: 'number' }]);
   });
 
   test('refuse bucket aggregations side by side, and stop at the row limit', () => {

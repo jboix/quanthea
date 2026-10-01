@@ -1,4 +1,4 @@
-import type { SavedQuery } from '@querent/shared';
+import type { QueryLanguage, SavedQuery } from '@querent/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';
@@ -52,7 +52,7 @@ interface SavedPreviewProps {
   /** The query, or `undefined` while a draft has problems. */
   readonly recipe: SavedQuery | undefined;
   /** The query's language, for the connectors offered. */
-  readonly language: 'sql' | 'promql';
+  readonly language: QueryLanguage;
   /** The connectors a preview can run on. */
   readonly connectors: readonly PreviewConnector[];
 }

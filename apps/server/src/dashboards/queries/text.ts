@@ -2,7 +2,7 @@
  * The query text builders write: names checked against strict patterns and quoted, literals
  * escaped for their language, and variables left as references the binder fills in.
  */
-import type { Filter } from './request.ts';
+import type { Filter } from './fields.ts';
 
 /** Why a request cannot be built, in words the model can act on. */
 export class QueryError extends Error {

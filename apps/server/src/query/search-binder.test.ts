@@ -67,6 +67,17 @@ describe('bindSearch', () => {
     });
   });
 
+  test('gives a list for a node "as" list, whatever the number of values', () => {
+    const body = { query: { terms: { level: { $var: 'level', as: 'list' } } } };
+    expect(bind(body, { level: 'error' }).body).toEqual({ query: { terms: { level: ['error'] } } });
+    expect(bind(body, { level: ['error', 'warn'] }).body).toEqual({
+      query: { terms: { level: ['error', 'warn'] } },
+    });
+    expect(() => bind({ query: { terms: { a: { $var: 'x', as: 'set' } } } }, { x: '1' })).toThrow(
+      'node of its own',
+    );
+  });
+
   test('keeps a value a value, whatever it holds', () => {
     const attack = '"}, "script": {"source": "x"}, "a": {"';
     const bound = bind({ query: { match: { message: { $var: 'text' } } } }, { text: attack });

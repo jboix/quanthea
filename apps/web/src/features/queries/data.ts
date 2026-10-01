@@ -5,6 +5,7 @@ import {
   previewQueryEndpoint,
   type previewRanges,
   type QueryGuide,
+  type QueryLanguage,
   type QueryPreview,
   type QuerySettings,
   type SavedQuery,
@@ -18,7 +19,7 @@ export interface PreviewConnector {
   /** Its name. */
   readonly name: string;
   /** Its query language. */
-  readonly language: 'sql' | 'promql';
+  readonly language: QueryLanguage;
 }
 
 /** How far back a preview looks. */

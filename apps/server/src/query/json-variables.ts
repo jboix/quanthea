@@ -26,8 +26,21 @@ export interface JsonBindContext {
 const maxDepth = 64;
 
 /**
+ * Whether a node is a variable reference: `{"$var": "name"}`, or `{"$var": "name", "as": "list"}`
+ * for a list whatever the number of values.
+ *
+ * @param node - The node.
+ * @returns `true` for a well-formed reference.
+ */
+function wellFormed(node: Readonly<Record<string, unknown>>): boolean {
+  const keys = Object.keys(node).sort().join(',');
+  if (typeof node.$var !== 'string') return false;
+  return keys === '$var' || (keys === '$var,as' && node.as === 'list');
+}
+
+/**
  * The value of a `{"$var": "name"}` node: a built-in as it is, one value as a string, a
- * multi-value variable as a list.
+ * multi-value variable as a list. With `"as": "list"`, a list in every case.
  *
  * @param node - The node.
  * @param context - The variables and built-ins.
@@ -35,15 +48,19 @@ const maxDepth = 64;
  * @throws {QueryError} `invalid` for a node with other keys, or an unknown variable.
  */
 function variableValue(node: Readonly<Record<string, unknown>>, context: JsonBindContext): unknown {
-  const name = node.$var;
-  if (typeof name !== 'string' || Object.keys(node).length !== 1) {
-    throw new QueryError('invalid', 'A variable is a node of its own: {"$var": "service"}.');
+  if (!wellFormed(node)) {
+    throw new QueryError(
+      'invalid',
+      'A variable is a node of its own: {"$var": "service"}, or {"$var": "service", "as": "list"}.',
+    );
   }
+  const name = String(node.$var);
   const builtIn = context.builtIns[name];
-  if (builtIn !== undefined) return builtIn;
+  if (builtIn !== undefined) return node.as === 'list' ? [builtIn] : builtIn;
   const binding = context.variables[name];
   if (!binding) throw new QueryError('invalid', `Unknown variable ${name}.`);
-  return typeof binding.value === 'string' ? binding.value : [...binding.value];
+  if (typeof binding.value !== 'string') return [...binding.value];
+  return node.as === 'list' ? [binding.value] : binding.value;
 }
 
 /**

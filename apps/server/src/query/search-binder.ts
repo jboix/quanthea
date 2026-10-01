@@ -42,6 +42,8 @@ const scriptKeys = new Set([
   'runtime_mappings',
 ]);
 
+export { searchRatioScripts };
+
 /** The ratio scripts, to check a `bucket_script` against. */
 const allowedScripts: ReadonlySet<unknown> = new Set(Object.values(searchRatioScripts));
 

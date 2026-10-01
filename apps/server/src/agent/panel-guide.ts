@@ -4,9 +4,12 @@
  * of each connector kind in use.
  */
 import {
+  type BuilderLanguage,
+  builderLanguages,
   chartIndex,
   chartRecipes,
   queryBuilders,
+  queryLanguageNames,
   type SavedQuery,
   shapeGuides,
   shapeKinds,
@@ -29,7 +32,7 @@ import {
  * @param ids - The builders the thread may use.
  * @returns The line, or nothing when it may use none of them.
  */
-function builderLines(label: string, language: 'sql' | 'promql', ids: readonly string[]) {
+function builderLines(label: string, language: BuilderLanguage, ids: readonly string[]) {
   const listed = queryBuilders
     .filter((builder) => builder.language === language && ids.includes(builder.id))
     .map((builder) => `- ${builder.id}: ${builderHints[builder.id] ?? builder.description}`);
@@ -52,6 +55,25 @@ function savedLine(query: SavedQuery): string {
 }
 
 /**
+ * The lines about data: the builders by language, the saved queries, and raw queries.
+ *
+ * @param available - The builders and saved queries.
+ * @returns The lines.
+ */
+function dataLines(available: AvailableQueries): string[] {
+  const none = available.builtIn.length === 0 && available.saved.length === 0;
+  return [
+    ...builderLanguages.flatMap((language) =>
+      builderLines(`${queryLanguageNames[language]} builders`, language, available.builtIn),
+    ),
+    ...(available.saved.length === 0 ? [] : [savedGuide, ...available.saved.map(savedLine)]),
+    none
+      ? `${rawGuide} This thread uses no query builders: every panel's data is a raw query.`
+      : `${rawGuide} Prefer builders: their queries do not break.`,
+  ];
+}
+
+/**
  * The guide to edit_dashboard with the queries a thread may use.
  *
  * @param available - The builders and saved queries.
@@ -67,20 +89,11 @@ export function panelGuideFor(
   const offered = charts
     ? chartRecipes.filter((recipe) => charts.includes(recipe.id))
     : chartRecipes;
-  const none = available.builtIn.length === 0 && available.saved.length === 0;
-  const data = [
-    ...builderLines('PromQL builders', 'promql', available.builtIn),
-    ...builderLines('SQL builders', 'sql', available.builtIn),
-    ...(available.saved.length === 0 ? [] : [savedGuide, ...available.saved.map(savedLine)]),
-    none
-      ? `${rawGuide} This thread uses no query builders: every panel's data is a raw query.`
-      : `${rawGuide} Prefer builders: their queries do not break.`,
-  ];
   const shapes = shapeKinds.map((kind) => `- ${kind}: ${shapeGuides[kind]}`);
   return [
     panelIntro,
     'Data, the "data" of a panel:',
-    ...data,
+    ...dataLines(available),
     'Shapes of data:',
     ...shapes,
     chartGuide,

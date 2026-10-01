@@ -4,6 +4,14 @@ import type { BuildContext, BuiltData } from './built.ts';
 import { gaugeData, latencyData, rateData, ratioData, topData } from './promql.ts';
 import type { DataOf, DataRequest } from './request.ts';
 import { savedData } from './saved.ts';
+import {
+  searchBreakdownData,
+  searchHistogramData,
+  searchRatioData,
+  searchRowsData,
+  searchSeriesData,
+  searchStatData,
+} from './search.ts';
 import { breakdownData, rowsData, seriesData, statData } from './sql.ts';
 import { type SqlWriter, sqlWriterFor } from './sql-writers.ts';
 import { QueryError } from './text.ts';
@@ -36,6 +44,12 @@ const builders: {
     breakdownData(request, writerOf(context, request.connector)),
   'sql-stat': (request, context) => statData(request, writerOf(context, request.connector)),
   'sql-rows': (request, context) => rowsData(request, writerOf(context, request.connector)),
+  'search-series': searchSeriesData,
+  'search-ratio': searchRatioData,
+  'search-breakdown': searchBreakdownData,
+  'search-stat': searchStatData,
+  'search-histogram': searchHistogramData,
+  'search-rows': searchRowsData,
   raw: rawData,
 };
 

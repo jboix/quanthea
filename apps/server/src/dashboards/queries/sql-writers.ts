@@ -3,7 +3,7 @@
  * references the binder fills in, and the few expressions that differ, such as time buckets.
  */
 import type { SqlDialect } from '../../query/sql-dialects.ts';
-import type { Filter } from './request.ts';
+import type { Filter } from './fields.ts';
 import { variableOf } from './text.ts';
 
 /** What differs between dialects when a builder writes SQL. */

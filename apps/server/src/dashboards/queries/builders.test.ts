@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { queryBuilders } from '@querent/shared';
 import { firstBuild, queriesOf, specOf } from '../panels/fixtures.ts';
 import { buildData } from './build.ts';
 import { builderGuides } from './guide.ts';
@@ -85,6 +86,6 @@ describe('the query builders', () => {
       columns: ['time', 'code', 'series', 'value'],
       chart: 'trend.line',
     });
-    expect(guides).toHaveLength(9);
+    expect(guides).toHaveLength(queryBuilders.length);
   });
 });

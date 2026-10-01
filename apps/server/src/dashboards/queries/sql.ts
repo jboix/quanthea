@@ -4,7 +4,8 @@
  */
 import type { PanelQuery } from '@querent/shared';
 import type { BuildContext, BuiltData } from './built.ts';
-import type { DataOf, Filter } from './request.ts';
+import type { Filter } from './fields.ts';
+import type { DataOf } from './request.ts';
 import { durationText, type SqlWriter, sqlName, sqlWhere, sqlWriterFor } from './sql-writers.ts';
 import { QueryError } from './text.ts';
 

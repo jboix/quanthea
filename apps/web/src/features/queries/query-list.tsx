@@ -1,4 +1,9 @@
-import { queryBuilders } from '@querent/shared';
+import {
+  builderLanguages,
+  type QueryLanguage,
+  queryBuilders,
+  queryLanguageNames,
+} from '@querent/shared';
 import type { ReactNode } from 'react';
 import { Button } from '../../ui/button.tsx';
 import styles from './queries.module.css';
@@ -56,31 +61,31 @@ function BuiltInGroup({
   heading,
 }: {
   readonly form: QueriesForm;
-  readonly language: 'sql' | 'promql';
+  readonly language: QueryLanguage;
   readonly heading: string;
 }) {
   const { selected, editing } = form;
+  const builders = queryBuilders.filter((recipe) => recipe.language === language);
+  if (builders.length === 0) return null;
   return (
     <>
       <h3 className={styles.listHeading}>{heading}</h3>
       <ul className={styles.list}>
-        {queryBuilders
-          .filter((recipe) => recipe.language === language)
-          .map((recipe) => {
-            const off = form.settings.disabled.includes(recipe.id);
-            const current =
-              editing === null && selected.kind === 'built-in' && selected.id === recipe.id;
-            return (
-              <ListRow
-                key={recipe.id}
-                name={recipe.name}
-                note={off ? 'off' : ''}
-                off={off}
-                current={current}
-                onSelect={() => form.select({ kind: 'built-in', id: recipe.id })}
-              />
-            );
-          })}
+        {builders.map((recipe) => {
+          const off = form.settings.disabled.includes(recipe.id);
+          const current =
+            editing === null && selected.kind === 'built-in' && selected.id === recipe.id;
+          return (
+            <ListRow
+              key={recipe.id}
+              name={recipe.name}
+              note={off ? 'off' : ''}
+              off={off}
+              current={current}
+              onSelect={() => form.select({ kind: 'built-in', id: recipe.id })}
+            />
+          );
+        })}
       </ul>
     </>
   );
@@ -109,14 +114,20 @@ export function QueryList({ form }: { readonly form: QueriesForm }) {
           <ListRow
             key={recipe.id}
             name={recipe.name}
-            note={recipe.language === 'sql' ? 'SQL' : 'PromQL'}
+            note={queryLanguageNames[recipe.language]}
             current={editing === null && selected.kind === 'saved' && selected.index === index}
             onSelect={() => form.select({ kind: 'saved', index })}
           />
         ))}
       </ul>
-      <BuiltInGroup form={form} language="promql" heading="Builders · PromQL" />
-      <BuiltInGroup form={form} language="sql" heading="Builders · SQL" />
+      {builderLanguages.map((language) => (
+        <BuiltInGroup
+          key={language}
+          form={form}
+          language={language}
+          heading={`Builders · ${queryLanguageNames[language]}`}
+        />
+      ))}
     </nav>
   );
 }

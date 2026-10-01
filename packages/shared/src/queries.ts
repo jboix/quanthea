@@ -7,6 +7,12 @@
 import { z } from 'zod';
 import { shapeKinds } from './dataset/contract.ts';
 
+/** The query languages that have builders, in the order the queries screen lists them. */
+export const builderLanguages = ['promql', 'sql', 'search', 'logql', 'mongodb'] as const;
+
+/** A query language that has builders. */
+export type BuilderLanguage = (typeof builderLanguages)[number];
+
 /** A query builder as the queries screen and the agent's guide describe it. */
 export interface QueryBuilder {
   /** The id the agent names it by. */
@@ -14,7 +20,7 @@ export interface QueryBuilder {
   /** Its name. */
   readonly name: string;
   /** The query language it writes. */
-  readonly language: 'sql' | 'promql';
+  readonly language: BuilderLanguage;
   /** What it returns, in one sentence. */
   readonly description: string;
 }
@@ -75,6 +81,45 @@ export const queryBuilders: readonly QueryBuilder[] = [
     name: 'Latest rows',
     language: 'sql',
     description: 'The latest rows of a table, newest first.',
+  },
+  {
+    id: 'search-series',
+    name: 'Search over time',
+    language: 'search',
+    description:
+      'A count or a metric of documents over time, such as events per minute or a median duration, one series per value of "by".',
+  },
+  {
+    id: 'search-ratio',
+    name: 'Search ratio',
+    language: 'search',
+    description:
+      'The share of documents matching "match" among those matching "of", such as an error or success rate, over time or over the range.',
+  },
+  {
+    id: 'search-breakdown',
+    name: 'Search breakdown',
+    language: 'search',
+    description:
+      'A count or a metric by the values of a field, largest first, such as errors by type.',
+  },
+  {
+    id: 'search-stat',
+    name: 'Search number',
+    language: 'search',
+    description: 'One count or metric over the range, such as sessions started.',
+  },
+  {
+    id: 'search-histogram',
+    name: 'Search histogram',
+    language: 'search',
+    description: 'How the values of a numeric field spread, in bins, such as load times.',
+  },
+  {
+    id: 'search-rows',
+    name: 'Latest documents',
+    language: 'search',
+    description: 'The latest documents of an index, newest first, such as the last errors.',
   },
 ];
 

@@ -3,6 +3,7 @@
  * list the queries a new thread may use.
  */
 import { z } from 'zod';
+import { queryLanguageSchema } from '../connectors.ts';
 import { shapeKinds } from '../dataset/contract.ts';
 import { querySettingsSchema, savedQuerySchema } from '../queries.ts';
 import { panelSchema } from '../spec/dashboard.ts';
@@ -29,7 +30,7 @@ export const queryChoiceSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
-  language: z.enum(['sql', 'promql']),
+  language: queryLanguageSchema,
   /** Built into querent, or saved by an admin. */
   origin: z.enum(['built-in', 'saved']),
   /** Whether the default set includes it. */
@@ -79,7 +80,7 @@ export type QueryGuide = z.infer<typeof queryGuideSchema>;
 /** A connector a preview can run on. */
 export const previewConnectorSchema = z.object({
   name: z.string(),
-  language: z.enum(['sql', 'promql']),
+  language: queryLanguageSchema,
 });
 
 /** How the query builders work, and the connectors a preview can run on, for admins. */
