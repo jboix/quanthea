@@ -111,7 +111,7 @@ const schemaViewFieldSchema = z.object({
 /** Validates one entity of the schema view. */
 const schemaViewEntitySchema = z.object({
   name: z.string(),
-  kind: z.enum(['table', 'view', 'metric', 'index', 'endpoint']),
+  kind: z.enum(['table', 'view', 'metric', 'index', 'endpoint', 'collection']),
   description: z.string().optional(),
   adminDescription: z.string().optional(),
   rows: z.number().optional(),

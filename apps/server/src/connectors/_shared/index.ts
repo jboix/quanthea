@@ -18,6 +18,7 @@ export {
   type HttpQuery,
   type LogqlQuery,
   type MongodbQuery,
+  mongodbRefusedKeys,
   type PromqlQuery,
   type QueryLanguage,
   queryLanguages,
@@ -33,6 +34,7 @@ export {
 export type {
   FieldReference,
   HealthReport,
+  SampleResult,
   SchemaEntity,
   SchemaField,
   SchemaSnapshot,

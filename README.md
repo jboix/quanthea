@@ -12,8 +12,8 @@
 
 A self-hosted app where you describe a dashboard in a chat and an agent builds it against your data
 sources: Prometheus, Loki, InfluxDB, Postgres and TimescaleDB, MySQL, MariaDB, ClickHouse, Trino,
-Elasticsearch, OpenSearch, Valkey and HTTP APIs. You refine it in the same thread and pin the good
-ones. Pinned dashboards are versioned, searchable, and render without any model involved.
+Elasticsearch, OpenSearch, Valkey, MongoDB and HTTP APIs. You refine it in the same thread and pin
+the good ones. Pinned dashboards are versioned, searchable, and render without any model involved.
 
 querent is at an early stage: the repository, the tooling and an app shell. The design lives in
 [`docs/`](docs/).

@@ -14,6 +14,7 @@ const fieldNouns: Readonly<Record<SchemaEntity['kind'], string>> = {
   metric: 'label',
   index: 'field',
   endpoint: 'field',
+  collection: 'field',
 };
 
 /** Row counts in full up to this, compact (`8.2M`) above. */

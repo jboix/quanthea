@@ -24,6 +24,10 @@
 # - valkey (profile "valkey"): Valkey on localhost:6380 (dev/valkey), the incident as hashes, sorted
 #   sets and streams, seeded by valkey-seed. The default user (password querent-dev) can write; the
 #   ACL user dash_ro (password dash-ro-dev) only reads.
+# - mongodb (profile "mongodb"): MongoDB on localhost:27018 (dev/mongodb), the database shop with the
+#   orders around the incident, the deploys and a view of the failed orders, seeded by mongodb-seed
+#   through mongosh. querent_admin (password querent-dev) can write; dash_ro (password dash-ro-dev,
+#   authentication database shop) only reads.
 # - http-api (profile "http"): a JSON API over the incident (dev/http-api), on localhost:8085, with
 #   its OpenAPI description at /openapi.json; /api routes need Authorization: Bearer dev-token.
 # - loki (profile "loki"): on localhost:3101 (dev/loki), with the same logs, seeded by loki-seed.
@@ -312,6 +316,31 @@ services:
       - ./:/dev-sources:ro
     command: ['bun', 'valkey/seed.ts', 'redis://default:querent-dev@valkey:6379/0']
 
+  mongodb:
+    profiles: [mongodb]
+    image: mongo:9.0.2
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: querent_admin
+      MONGO_INITDB_ROOT_PASSWORD: querent-dev
+    ports:
+      - '27018:27017'
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand({ ping: 1 }).ok']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  # Prints the seed script for mongosh: bun run env:up:mongodb runs it in the mongodb service.
+  mongodb-seed:
+    profiles: [mongodb]
+    image: oven/bun:1.3.14-slim
+    working_dir: /dev-sources
+    volumes:
+      - ./:/dev-sources:ro
+    command: ['bun', 'mongodb/seed.ts']
+
   http-api:
     profiles: [http]
     image: oven/bun:1.3.14-slim
@@ -357,5 +386,6 @@ volumes:
   loki-data:
   influxdb-data:
   valkey-data:
+  mongodb-data:
   metrics-seed:
   prometheus-data:

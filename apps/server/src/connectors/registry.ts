@@ -7,6 +7,7 @@ import { clickhouseConnector } from './clickhouse/clickhouse-connector.ts';
 import { httpConnector } from './http/http-connector.ts';
 import { influxdbConnector } from './influxdb/influxdb-connector.ts';
 import { lokiConnector } from './loki/loki-connector.ts';
+import { mongodbConnector } from './mongodb/mongodb-connector.ts';
 import { mariadbConnector } from './mysql/mariadb-connector.ts';
 import { mysqlConnector } from './mysql/mysql-connector.ts';
 import { postgresConnector } from './postgres/postgres-connector.ts';
@@ -29,6 +30,7 @@ export const connectorKinds: readonly AnyConnectorKind[] = [
   opensearchConnector,
   lokiConnector,
   valkeyConnector,
+  mongodbConnector,
   httpConnector,
 ];
 

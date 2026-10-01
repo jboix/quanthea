@@ -166,6 +166,24 @@ export interface RedisQuery {
 }
 
 /**
+ * The keys a MongoDB pipeline may not hold anywhere, with why: stages that write, wait for changes
+ * or read the server's operations and sessions, and operators that run JavaScript.
+ */
+export const mongodbRefusedKeys: ReadonlyMap<string, string> = new Map([
+  ['$out', 'writes a collection'],
+  ['$merge', 'writes a collection'],
+  ['$where', 'runs JavaScript'],
+  ['$function', 'runs JavaScript'],
+  ['$accumulator', 'runs JavaScript'],
+  ['$changeStream', 'waits for changes'],
+  ['$changeStreamSplitLargeEvent', 'waits for changes'],
+  ['$currentOp', "reads the server's operations"],
+  ['$listSessions', "reads the server's sessions"],
+  ['$listLocalSessions', "reads the server's sessions"],
+  ['$listSampledQueries', "reads the server's queries"],
+]);
+
+/**
  * A MongoDB aggregation over one collection, every variable already put in as a JSON value. The
  * stages are Extended JSON (`{"$date": …}` for a date), and the core checked that none writes or
  * runs JavaScript.

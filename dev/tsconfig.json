@@ -4,5 +4,5 @@
     "lib": ["ES2023"],
     "types": ["bun"]
   },
-  "include": ["metrics", "seed", "log-seed", "http-api", "influxdb", "valkey"]
+  "include": ["metrics", "seed", "log-seed", "http-api", "influxdb", "valkey", "mongodb"]
 }

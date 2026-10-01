@@ -5,7 +5,11 @@
  * the server's sessions and operations, and no operator may run JavaScript (`$where`, `$function`,
  * `$accumulator`).
  */
-import type { MongodbQuery, TimeRange } from '../connectors/_shared/index.ts';
+import {
+  type MongodbQuery,
+  mongodbRefusedKeys,
+  type TimeRange,
+} from '../connectors/_shared/index.ts';
 import { bindJsonVariables } from './json-variables.ts';
 import { QueryError } from './query-error.ts';
 import { bucketSeconds } from './search-binder.ts';
@@ -19,21 +23,6 @@ export interface MongodbTemplate {
   readonly pipeline: readonly Readonly<Record<string, unknown>>[];
 }
 
-/** Keys a template may not use anywhere, with why. */
-const refusedKeys: ReadonlyMap<string, string> = new Map([
-  ['$out', 'writes a collection'],
-  ['$merge', 'writes a collection'],
-  ['$where', 'runs JavaScript'],
-  ['$function', 'runs JavaScript'],
-  ['$accumulator', 'runs JavaScript'],
-  ['$changeStream', 'waits for changes'],
-  ['$changeStreamSplitLargeEvent', 'waits for changes'],
-  ['$currentOp', "reads the server's operations"],
-  ['$listSessions', "reads the server's sessions"],
-  ['$listLocalSessions', "reads the server's sessions"],
-  ['$listSampledQueries', "reads the server's queries"],
-]);
-
 /** A collection name: no system collection, no namespace tricks. */
 const collectionName = /^(?!system\.)[A-Za-z0-9_][A-Za-z0-9_.-]{0,119}$/;
 
@@ -44,7 +33,7 @@ const collectionName = /^(?!system\.)[A-Za-z0-9_][A-Za-z0-9_.-]{0,119}$/;
  * @throws {QueryError} `invalid` for a key that writes, waits or runs JavaScript.
  */
 function refuseKey(key: string): void {
-  const reason = refusedKeys.get(key);
+  const reason = mongodbRefusedKeys.get(key);
   if (reason) throw new QueryError('invalid', `A query only reads; "${key}" ${reason}.`);
 }
 

@@ -135,6 +135,9 @@ jobs:
           - sources: valkey
             up: env:up:valkey
             test: test:integration:valkey
+          - sources: mongodb
+            up: env:up:mongodb
+            test: test:integration:mongodb
     permissions:
       contents: read
     steps:

@@ -8,7 +8,8 @@
  * (`bun run test:integration:trino`), `search` for Elasticsearch and OpenSearch
  * (`bun run test:integration:search`), `loki` for Loki (`bun run test:integration:loki`), `http`
  * for the dev HTTP API (`bun run test:integration:http`), `influxdb` for InfluxDB 3
- * (`bun run test:integration:influxdb`), `valkey` for Valkey (`bun run test:integration:valkey`).
+ * (`bun run test:integration:influxdb`), `valkey` for Valkey (`bun run test:integration:valkey`),
+ * `mongodb` for MongoDB (`bun run test:integration:mongodb`).
  */
 
 /** A set of data sources that start together. */
@@ -22,7 +23,8 @@ type SourceSet =
   | 'loki'
   | 'http'
   | 'influxdb'
-  | 'valkey';
+  | 'valkey'
+  | 'mongodb';
 
 /** The sets the integration tests run against. */
 const integrationSets = new Set(
@@ -185,6 +187,24 @@ export const devValkey = {
 /** The dev Valkey as the default user, which can write. */
 export const devValkeyOwner = {
   config: { host: devValkey.config.host, port: devValkey.config.port },
+  secret: { password: 'querent-dev' },
+};
+
+/** The dev MongoDB as the read-only user. */
+export const devMongodb = {
+  config: {
+    host: '127.0.0.1',
+    port: Number(process.env.QUERENT_DEV_MONGODB_PORT ?? 27018),
+    database: 'shop',
+    username: 'dash_ro',
+    tls: 'disable',
+  },
+  secret: { password: 'dash-ro-dev' },
+};
+
+/** The dev MongoDB as the root user, which can write. */
+export const devMongodbOwner = {
+  config: { ...devMongodb.config, username: 'querent_admin', authSource: 'admin' },
   secret: { password: 'querent-dev' },
 };
 

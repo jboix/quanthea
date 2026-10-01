@@ -25,7 +25,8 @@
         "log-seed/seed-loki.ts",
         "http-api/serve.ts",
         "influxdb/seed.ts",
-        "valkey/seed.ts"
+        "valkey/seed.ts",
+        "mongodb/seed.ts"
       ],
       "project": [
         "metrics/**/*.ts",
@@ -33,7 +34,8 @@
         "log-seed/**/*.ts",
         "http-api/**/*.ts",
         "influxdb/**/*.ts",
-        "valkey/**/*.ts"
+        "valkey/**/*.ts",
+        "mongodb/**/*.ts"
       ]
     }
   }

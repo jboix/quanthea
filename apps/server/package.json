@@ -16,6 +16,7 @@
     "@querent/shared": "workspace:*",
     "ai": "^7.0.118",
     "hono": "^4.13.9",
+    "mongodb": "^6.21.0",
     "mysql2": "^3.24.5",
     "openid-client": "^6.8.8",
     "postgres": "^3.4.7",

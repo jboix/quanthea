@@ -32,7 +32,7 @@ export interface SchemaEntity {
   /** The name as queries write it, qualified when the source needs it (`public.orders`). */
   readonly name: string;
   /** What kind of thing it is, for display. */
-  readonly kind: 'table' | 'view' | 'metric' | 'index' | 'endpoint';
+  readonly kind: 'table' | 'view' | 'metric' | 'index' | 'endpoint' | 'collection';
   /** A description from the source, such as a table comment or a metric's help text. */
   readonly description?: string;
   /** An estimate of the number of rows or series, when the source knows it cheaply. */

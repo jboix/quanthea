@@ -59,7 +59,8 @@ logs, and `bun run test:integration:search` runs their tests. `bun run env:up:lo
 starts the dev HTTP API on :8085, and `bun run test:integration:http` runs its tests.
 `bun run env:up:influxdb` starts InfluxDB 3 on :8186, and `bun run test:integration:influxdb` runs
 its tests. `bun run env:up:valkey` starts Valkey on :6380, and `bun run test:integration:valkey`
-runs its tests. The sources, their users and the
+runs its tests. `bun run env:up:mongodb` starts MongoDB on :27018, and
+`bun run test:integration:mongodb` runs its tests. The sources, their users and the
 incident they share are described in [the architecture](./architecture.md#14-local-development).
 
 ## Adding a connector

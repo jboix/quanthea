@@ -39,6 +39,10 @@ updates:
       # runtime moves, not whenever a new Bun minor ships.
       - dependency-name: "@types/bun"
         update-types: [ "version-update:semver-minor", "version-update:semver-major" ]
+      # The MongoDB driver 7 loads bson 7, which calls node:v8 isBuildingSnapshot, which Bun does
+      # not implement. Staying on 6.x until Bun does.
+      - dependency-name: "mongodb"
+        update-types: [ "version-update:semver-major" ]
 
   # --- Docker Compose (the local data sources) ---
   - package-ecosystem: "docker-compose"
