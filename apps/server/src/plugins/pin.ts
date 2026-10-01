@@ -28,7 +28,7 @@ export function pinOf(manifest: Uint8Array, bundle: Uint8Array): string {
  * @returns Such as `acme__quanthea-plugin-sqlite`.
  */
 export function folderOf(name: string): string {
-  return name.replace(/^@/, '').replace('/', '__');
+  return name.replace(/^@/, '').replaceAll('/', '__');
 }
 
 /** The file names in a plugin's folder. */

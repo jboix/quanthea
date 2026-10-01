@@ -224,7 +224,7 @@ async function fromRegistry(spec: string, options: SourceOptions): Promise<Plugi
   const { name, range } = parsePackageSpec(spec);
   const registry = options.registry.replace(/\/+$/, '');
   const accept = 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8';
-  const response = await getHttps(`${registry}/${name.replace('/', '%2f')}`, options, accept);
+  const response = await getHttps(`${registry}/${name.replaceAll('/', '%2f')}`, options, accept);
   const metadata = (await response.json()) as RegistryPackage;
   const version = resolveVersion(metadata, range);
   const dist = metadata.versions?.[version]?.dist;

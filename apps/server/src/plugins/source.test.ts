@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { folderOf } from './pin.ts';
 import { parsePackageSpec, resolveVersion } from './source.ts';
 
 describe('package specs', () => {
@@ -12,6 +13,13 @@ describe('package specs', () => {
       range: '^1.2.0',
     });
     expect(() => parsePackageSpec('lodash@4')).toThrow('is not a plugin package');
+    expect(() => parsePackageSpec('@acme/x/quanthea-plugin-sqlite')).toThrow('not a plugin');
+    expect(() => parsePackageSpec('../quanthea-plugin-sqlite')).toThrow('not a plugin');
+  });
+
+  test('install a scoped package in one flat folder', () => {
+    expect(folderOf('@acme/quanthea-plugin-sqlite')).toBe('acme__quanthea-plugin-sqlite');
+    expect(folderOf('quanthea-plugin-sqlite')).toBe('quanthea-plugin-sqlite');
   });
 
   test('resolve to the latest tag, a tag, or the highest version in the range', () => {
