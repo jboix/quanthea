@@ -11,7 +11,7 @@
 # A dependency with native code would break this; keep them pure JavaScript.
 
 # ---- build: install every workspace and build the SPA ----
-FROM --platform=$BUILDPLATFORM oven/bun:1.3.14-slim AS build
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-slim AS build
 WORKDIR /repo
 COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
@@ -26,7 +26,7 @@ COPY apps/web apps/web
 RUN bun run --filter @querent/web build
 
 # ---- deps: the server's production dependencies, and the data, keys and config directories ----
-FROM --platform=$BUILDPLATFORM oven/bun:1.3.14-slim AS deps
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-slim AS deps
 WORKDIR /repo
 COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
@@ -38,7 +38,7 @@ RUN mkdir -p /volume/data /volume/keys /volume/etc/querent \
     && chown 1000:1000 /volume/data /volume/keys && chmod 700 /volume/data /volume/keys
 
 # ---- runner: server and shared sources, their dependencies, and the SPA ----
-FROM oven/bun:1.3.14-slim AS runner
+FROM oven/bun:1.4.2-slim AS runner
 LABEL org.opencontainers.image.title="querent" \
       org.opencontainers.image.description="Describe a dashboard in a chat, an agent builds it against your data sources, pin the good ones." \
       org.opencontainers.image.licenses="MIT"

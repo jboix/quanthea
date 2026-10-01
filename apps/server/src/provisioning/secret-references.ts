@@ -13,20 +13,6 @@ const variableReference = /^\$\{[A-Za-z_][A-Za-z0-9_]*\}$/;
 const fileReference = /^file:(.+)$/;
 
 /**
- * Why a written secret is refused, without quoting it.
- *
- * @param written - The value as written.
- * @param where - Where it is set.
- * @returns The sentence.
- */
-function clearSecretIssue(written: unknown, where: string): string {
-  // Inside `{ }`, YAML reads an unquoted reference as a lone dollar sign.
-  if (written === '$')
-    return `${where}: put the variable reference in quotes, such as "\${VARIABLE}".`;
-  return `${where} holds a secret in clear. Write \${VARIABLE} or file:/path instead.`;
-}
-
-/**
  * Reads a secret from its reference.
  *
  * @param written - The value as written in the file.
@@ -44,7 +30,7 @@ export function secretValue(
   if (typeof written === 'string' && variableReference.test(written)) return String(interpolated);
   const path = typeof written === 'string' ? fileReference.exec(written)?.[1] : undefined;
   if (path === undefined) {
-    issues.push(clearSecretIssue(written, where));
+    issues.push(`${where} holds a secret in clear. Write \${VARIABLE} or file:/path instead.`);
     return undefined;
   }
   try {

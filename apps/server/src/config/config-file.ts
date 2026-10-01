@@ -62,6 +62,26 @@ function filesOf(path: string): string[] {
     .map((name) => join(path, name));
 }
 
+/** An unquoted `${NAME}` reference where YAML reads `{` as the start of a flow mapping. */
+const unquotedReference = /[:,[{]\s*\$\{/;
+
+/**
+ * Why a file cannot be read, with a hint when YAML failed on an unquoted reference.
+ *
+ * @param path - The file.
+ * @param text - Its text, if it was read.
+ * @param error - What the reader or the parser threw.
+ * @returns The error.
+ */
+function readError(path: string, text: string | undefined, error: unknown): Error {
+  const reason = error instanceof Error ? error.message : String(error);
+  const hint =
+    text !== undefined && unquotedReference.test(text)
+      ? ` Put each variable reference in quotes, such as "\${VARIABLE}".`
+      : '';
+  return new Error(`Cannot read ${path}: ${reason}${hint}`);
+}
+
 /**
  * Parses one file as YAML or JSON.
  *
@@ -71,11 +91,12 @@ function filesOf(path: string): string[] {
  */
 function parseFile(path: string): Record<string, unknown> {
   let parsed: unknown;
+  let text: string | undefined;
   try {
-    const text = readFileSync(path, 'utf8');
+    text = readFileSync(path, 'utf8');
     parsed = extname(path) === '.json' ? JSON.parse(text) : Bun.YAML.parse(text);
   } catch (error) {
-    throw new Error(`Cannot read ${path}: ${error instanceof Error ? error.message : error}`);
+    throw readError(path, text, error);
   }
   if (parsed === null || parsed === undefined) return {};
   if (typeof parsed !== 'object' || Array.isArray(parsed))
