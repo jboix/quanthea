@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "bun run --filter '*' dev",
     "build": "bun run --filter @quanthea/web build",
-    "check:package": "bun packages/plugin-kit/scripts/dist.ts && publint packages/plugin-kit/dist && attw --pack packages/plugin-kit/dist --profile esm-only && bun packages/plugin-kit/scripts/consumer.ts",
+    "check:package": "bun packages/plugin-kit/scripts/dist.ts && publint packages/plugin-kit/dist && attw --pack packages/plugin-kit/dist --profile esm-only --format table-flipped --no-emoji --no-summary && bun packages/plugin-kit/scripts/consumer.ts",
     "start": "bun apps/server/src/main.ts",
     "quanthea": "bun apps/server/src/cli.ts",
     "lint": "biome check .",
