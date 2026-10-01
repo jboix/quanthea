@@ -1,19 +1,22 @@
 # Brand
 
-The querent logo files, as delivered. `querent-logo-preview.png` shows every variant on light and
+The quanthea logo files, as delivered. `quanthea-logo-preview.png` shows every variant on light and
 dark grounds.
 
-![The querent logo variants on light and dark grounds](querent-logo-preview.png)
+![The quanthea logo variants on light and dark grounds](quanthea-logo-preview.png)
 
 ## Files
 
-| File                    | What it is                                                     |
-| ----------------------- | -------------------------------------------------------------- |
-| `querent-logo.svg`      | Icon and "querent" wordmark, ink lettering. For light grounds. |
-| `querent-logo-dark.svg` | Icon and wordmark, white lettering. For dark grounds.          |
-| `querent-icon.svg`      | The blue tile. The app icon at every size.                     |
-| `querent-icon-dark.svg` | The ink tile. Large sizes on dark grounds only.                |
-| `querent-mark.svg`      | The mark alone. Lens and handle in the current text colour.    |
+| File                     | What it is                                                      |
+| ------------------------ | --------------------------------------------------------------- |
+| `quanthea-logo.svg`      | Icon and "quanthea" wordmark, ink lettering. For light grounds. |
+| `quanthea-logo-dark.svg` | Icon and wordmark, white lettering. For dark grounds.           |
+| `quanthea-icon.svg`      | The blue tile. The app icon at every size.                      |
+| `quanthea-icon-dark.svg` | The ink tile. Large sizes on dark grounds only.                 |
+| `quanthea-mark.svg`      | The mark alone. Lens and handle in the current text colour.     |
+
+The wordmark is IBM Plex Sans SemiBold at 40 px, on a baseline at y=45, with tracking of
+-0.01 em, converted to paths. The logo's viewBox is 258 by 64; the icon takes its first 64 units.
 
 ## Colours
 
@@ -49,7 +52,7 @@ geometry, so their colours come from the theme tokens. The two wordmark files ar
 
 ## Generated icons
 
-The PNG icons in `apps/web/public/` are rendered from `querent-icon.svg` with headless Chromium:
+The PNG icons in `apps/web/public/` are rendered from `quanthea-icon.svg` with headless Chromium:
 the tile as delivered for `favicon-32`, `icon-192` and `icon-512`, a full-bleed square for
 `apple-touch-icon` (iOS applies its own mask), and a full-bleed square with the mark scaled to 78%
 for `icon-maskable-512`, so the mark stays inside the maskable safe zone. Render them again when

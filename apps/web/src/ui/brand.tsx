@@ -1,10 +1,10 @@
-import logoOnLightUrl from './brand/querent-logo.svg';
-import logoOnDarkUrl from './brand/querent-logo-dark.svg';
+import logoOnLightUrl from './brand/quanthea-logo.svg';
+import logoOnDarkUrl from './brand/quanthea-logo-dark.svg';
 import styles from './brand.module.css';
 
 /** Accessible name of a brand graphic. Without one, the graphic is decorative and hidden. */
 interface BrandLabel {
-  /** The accessible name, such as "querent". Omit it when the surrounding control is named. */
+  /** The accessible name, such as "quanthea". Omit it when the surrounding control is named. */
   readonly label?: string;
 }
 
@@ -40,7 +40,7 @@ interface BrandMarkProps extends BrandLabel {
 }
 
 /**
- * The bare mark (`querent-mark.svg`). The lens takes the current text colour; the dot stays orange.
+ * The bare mark (`quanthea-mark.svg`). The lens takes the current text colour; the dot stays orange.
  *
  * @param props - Size and optional accessible name.
  * @returns The SVG element.
@@ -64,7 +64,7 @@ export function BrandMark({ size = 24, label }: BrandMarkProps) {
 interface BrandIconProps extends BrandLabel {
   /** Width and height in pixels. */
   readonly size?: number;
-  /** `accent` is the blue tile (`querent-icon.svg`), `ink` the near-black one (`querent-icon-dark.svg`). */
+  /** `accent` is the blue tile (`quanthea-icon.svg`), `ink` the near-black one (`quanthea-icon-dark.svg`). */
   readonly tone?: 'accent' | 'ink';
 }
 
@@ -100,16 +100,16 @@ interface LogoProps {
 }
 
 /**
- * The full logo: the icon and the "querent" wordmark, from the brand files unchanged.
+ * The full logo: the icon and the "quanthea" wordmark, from the brand files unchanged.
  *
  * @param props - The surface colour and the height.
- * @returns The image element, named "querent".
+ * @returns The image element, named "quanthea".
  */
 export function Logo({ surface = 'light', height = 32 }: LogoProps) {
   return (
     <img
       src={surface === 'light' ? logoOnLightUrl : logoOnDarkUrl}
-      alt="querent"
+      alt="quanthea"
       height={height}
       width={Math.round((height * 228) / 64)}
       className={styles.logo}
