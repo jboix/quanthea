@@ -16,6 +16,9 @@ plugin is, and it is small enough to copy as a start for your own.
 - The plugin imports only types from `@quanthea/plugin-kit`, a development dependency. Its tests
   call it with `createTestKit()` and run `testConnectorConformance` from
   `@quanthea/plugin-kit/testing`.
+- Here the kit is the workspace's copy. Your own plugin installs it from npm:
+  `bun add -d @quanthea/plugin-kit@^0.1.0`. The repository's `bun run check:package` builds and
+  tests this example against the packed kit, as your plugin would use it.
 
 ## This plugin
 

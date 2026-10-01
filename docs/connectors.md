@@ -190,6 +190,10 @@ A kind can also ship outside quanthea, as a plugin: an npm package the admin ins
 `quanthea plugin install`. [`examples/quanthea-plugin-sqlite`](../examples/quanthea-plugin-sqlite)
 is a complete one to start from.
 
+- **The kit.** Install [`@quanthea/plugin-kit`](https://www.npmjs.com/package/@quanthea/plugin-kit)
+  from npm as a development dependency: `bun add -d @quanthea/plugin-kit@^0.1.0`. It holds the
+  types a plugin is written against, the test kit and the conformance suite. quanthea passes the
+  live kit to the plugin at load, so the bundle carries none of the kit's code.
 - **The bundle.** One ES module, built with `bun build src/plugin.ts --outfile dist/plugin.js --target bun`, holding everything the plugin needs: quanthea never installs a plugin's
   dependencies or runs its scripts. Pure JavaScript only; a native module cannot work, since the
   image runs on amd64 and arm64.
@@ -205,7 +209,7 @@ is a complete one to start from.
   ```
 
   Build the schemas with `kit.z` and throw `kit.ConnectorError`: they are quanthea's own. Import
-  only types from `@quanthea/plugin-kit`, as a development dependency.
+  only types from `@quanthea/plugin-kit`.
 - **The kit version.** The kit's major version equals `kitVersion`. The kit is in beta, 0.x with
   kit version 0: a minor version (0.2.0) adds to the kit, a patch version (0.1.1) fixes it.
   Declare `^0.<minor>.0`, such as `^0.1.0`: npm's caret then takes the fixes, and a new minor

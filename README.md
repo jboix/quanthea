@@ -108,7 +108,7 @@ old one as `QUANTHEA_SECRET_KEY_PREVIOUS`, restart once, then remove the old one
 | `apps/server`         | Bun + Hono API, SQLite, serves the built SPA.                |
 | `apps/web`            | React SPA, React Router in data mode, Vite.                  |
 | `packages/shared`     | API contracts and roles, shared by both apps.                |
-| `packages/plugin-kit` | The connector kit, for built-in kinds and plugins.           |
+| `packages/plugin-kit` | The connector kit, on npm as `@quanthea/plugin-kit`.         |
 | `examples/`           | An example connector plugin: read-only SQLite files.         |
 | `docs`                | Architecture, dashboard spec, brand, contributing, security. |
 
