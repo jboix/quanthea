@@ -17,6 +17,7 @@ export {
   type HttpField,
   type HttpQuery,
   type LogqlQuery,
+  type MongodbQuery,
   type PromqlQuery,
   type QueryLanguage,
   queryLanguages,

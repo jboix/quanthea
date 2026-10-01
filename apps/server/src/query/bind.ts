@@ -2,6 +2,7 @@
 import type { BoundQuery, SqlDialect, TimeRange } from '../connectors/_shared/index.ts';
 import { bindHttp, type HttpTemplate } from './http-binder.ts';
 import { bindLogql } from './logql-binder.ts';
+import { bindMongodb, type MongodbTemplate } from './mongodb-binder.ts';
 import { bindPromql, type PromqlTemplate } from './promql-binder.ts';
 import { bindRedis, type RedisTemplate } from './redis-binder.ts';
 import { bindSearch, type SearchTemplate } from './search-binder.ts';
@@ -15,7 +16,8 @@ export type QueryTemplate =
   | ({ readonly language: 'logql' } & PromqlTemplate)
   | ({ readonly language: 'search' } & SearchTemplate)
   | ({ readonly language: 'http' } & HttpTemplate)
-  | ({ readonly language: 'redis' } & RedisTemplate);
+  | ({ readonly language: 'redis' } & RedisTemplate)
+  | ({ readonly language: 'mongodb' } & MongodbTemplate);
 
 /** The most points one Prometheus or Loki series may have, whatever the row limit. */
 export const maxPromqlPoints = 11_000;
@@ -57,6 +59,8 @@ export function bindTemplate(
       return bindHttp(template, variables, timeRange);
     case 'redis':
       return bindRedis(template, variables, timeRange);
+    case 'mongodb':
+      return bindMongodb(template, variables, timeRange);
     default:
       return bindPromql(template, variables, timeRange, maxPoints);
   }

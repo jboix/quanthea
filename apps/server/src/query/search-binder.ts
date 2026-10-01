@@ -65,15 +65,26 @@ function checkIndex(index: string): string {
 }
 
 /**
+ * The round bucket width that keeps the time range within {@link maxBuckets} buckets.
+ *
+ * @param timeRange - The time range.
+ * @returns The width in seconds, such as 30, 300 or 3600.
+ */
+export function bucketSeconds(timeRange: TimeRange): number {
+  const rangeSeconds = (timeRange.to.getTime() - timeRange.from.getTime()) / 1000;
+  return (
+    niceIntervals.find((width) => rangeSeconds / width <= maxBuckets) ?? niceIntervals.at(-1) ?? 1
+  );
+}
+
+/**
  * The bucket width that keeps the time range within {@link maxBuckets} buckets.
  *
  * @param timeRange - The time range.
  * @returns Such as `30s`, `5m` or `1h`.
  */
 export function searchInterval(timeRange: TimeRange): string {
-  const rangeSeconds = (timeRange.to.getTime() - timeRange.from.getTime()) / 1000;
-  const seconds =
-    niceIntervals.find((width) => rangeSeconds / width <= maxBuckets) ?? niceIntervals.at(-1) ?? 1;
+  const seconds = bucketSeconds(timeRange);
   if (seconds % 3600 === 0) return `${seconds / 3600}h`;
   return seconds % 60 === 0 ? `${seconds / 60}m` : `${seconds}s`;
 }

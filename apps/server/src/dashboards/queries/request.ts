@@ -150,13 +150,13 @@ const sqlRowsSchema = z.strictObject({
  * A raw query, for data no builder gives. A search query is its JSON body as text, with the index
  * apart; an HTTP query is the JSON of its method, path, query, body and extract; a Redis query is
  * the command and its arguments, separated by spaces, or their JSON array when an argument holds a
- * space.
+ * space; a MongoDB query is the JSON of its collection and pipeline.
  */
 const rawSchema = z
   .strictObject({
     kind: z.literal('raw'),
     connector: connectorSchema,
-    language: z.enum(['sql', 'promql', 'search', 'logql', 'http', 'redis']),
+    language: z.enum(['sql', 'promql', 'search', 'logql', 'http', 'redis', 'mongodb']),
     query: z.string().min(1).max(10_000),
     index: z.string().min(1).max(500).optional(),
     instant: z.boolean().optional(),

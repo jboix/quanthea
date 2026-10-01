@@ -102,6 +102,17 @@ const redisQuerySchema = z.strictObject({
   args: z.array(z.string().max(1000)).max(50).default([]),
 });
 
+/**
+ * Validates a MongoDB template: a collection and an aggregation pipeline in Extended JSON, with
+ * `{"$var": "name"}` nodes. The server refuses stages that write and operators that run JavaScript.
+ */
+const mongodbQuerySchema = z.strictObject({
+  connector: connectorNameSchema,
+  language: z.literal('mongodb'),
+  collection: z.string().min(1).max(120),
+  pipeline: z.array(z.record(z.string(), z.unknown())).max(50),
+});
+
 /** Validates a query template without a refId, as a query-backed variable uses it. */
 export const queryTemplateSchema = z.discriminatedUnion('language', [
   promqlQuerySchema,
@@ -110,6 +121,7 @@ export const queryTemplateSchema = z.discriminatedUnion('language', [
   logqlQuerySchema,
   httpQuerySchema,
   redisQuerySchema,
+  mongodbQuerySchema,
 ]);
 
 /** A query template without a refId. */
@@ -123,6 +135,7 @@ export const panelQuerySchema = z.discriminatedUnion('language', [
   logqlQuerySchema.extend({ refId: refIdSchema }),
   httpQuerySchema.extend({ refId: refIdSchema }),
   redisQuerySchema.extend({ refId: refIdSchema }),
+  mongodbQuerySchema.extend({ refId: refIdSchema }),
 ]);
 
 /** A panel or annotation query. */
@@ -136,11 +149,12 @@ export const queryLanguageNames: Readonly<Record<QueryTemplate['language'], stri
   logql: 'LogQL',
   http: 'HTTP',
   redis: 'Redis commands',
+  mongodb: 'MongoDB aggregation',
 };
 
 /**
- * The text of a query, to show it: the SQL or the expression, a search's index and body, or an
- * HTTP request's method, path and parameters.
+ * The text of a query, to show it: the SQL or the expression, a search's index and body, an HTTP
+ * request's method, path and parameters, a Redis command, or a MongoDB collection and pipeline.
  *
  * @param query - The query.
  * @returns The text.
@@ -150,6 +164,8 @@ export function queryText(query: QueryTemplate): string {
   if (query.language === 'search') return `${query.index}\n${JSON.stringify(query.body, null, 2)}`;
   if (query.language === 'http') return httpText(query);
   if (query.language === 'redis') return [query.command, ...query.args].join(' ');
+  if (query.language === 'mongodb')
+    return `${query.collection}\n${JSON.stringify(query.pipeline, null, 2)}`;
   return query.expr;
 }
 
@@ -169,11 +185,14 @@ function httpText(query: Extract<QueryTemplate, { language: 'http' }>): string {
  * The key of the field that holds a query's text, for pointing at it in an error.
  *
  * @param query - The query.
- * @returns `sql`, `expr`, `body`, `path` or `command`.
+ * @returns `sql`, `expr`, `body`, `path`, `command` or `pipeline`.
  */
-export function queryTextKey(query: QueryTemplate): 'sql' | 'expr' | 'body' | 'path' | 'command' {
+export function queryTextKey(
+  query: QueryTemplate,
+): 'sql' | 'expr' | 'body' | 'path' | 'command' | 'pipeline' {
   if (query.language === 'sql') return 'sql';
   if (query.language === 'http') return 'path';
   if (query.language === 'redis') return 'command';
+  if (query.language === 'mongodb') return 'pipeline';
   return query.language === 'search' ? 'body' : 'expr';
 }

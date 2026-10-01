@@ -841,6 +841,13 @@ that changes with its settings).
      runs a script. `$name` goes in arguments, each sent as one argument whatever it holds; an
      argument that is a multi-value variable alone becomes one per value. The built-ins are those
      of HTTP, `$__from_ms` and `$__to_ms` for scores and stream ids.
+   - **MongoDB** (`query/mongodb-binder.ts`): a collection and an aggregation pipeline in Extended
+     JSON. Variables are `{"$var": "name"}` nodes, as in a search body, and operator keys pass.
+     `__from` and `__to` are `{"$date": …}` dates; `__interval_ms` is the search bucket width in
+     milliseconds. Each stage is an object with one `$` key. A stage that writes (`$out`,
+     `$merge`), waits for changes (`$changeStream`) or lists the server's operations and sessions
+     is refused anywhere in the pipeline, and so is an operator that runs JavaScript (`$where`,
+     `$function`, `$accumulator`). A collection is never a `system.` one.
 3. The connector runs the bound query with an abort signal that fires at `timeoutMs` or when the
    caller gives up. The executor also races the signal, so a connector that ignores it cannot hold
    the caller.

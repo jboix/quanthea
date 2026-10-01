@@ -266,6 +266,7 @@ SELECT
           json_extract(query.value, '$.expr'),
           json_extract(query.value, '$.sql'),
           json_extract(query.value, '$.index') || ' ' || json_extract(query.value, '$.body'),
+          json_extract(query.value, '$.collection') || ' ' || json_extract(query.value, '$.pipeline'),
           ''
         ),
       ' '), '')

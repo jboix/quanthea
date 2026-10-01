@@ -9,8 +9,10 @@ import type { Variables } from './variables.ts';
 export interface JsonBindContext {
   /** The variable values. */
   readonly variables: Variables;
-  /** The built-in values, such as `__from`, by name. */
-  readonly builtIns: Readonly<Record<string, string>>;
+  /** The built-in values, such as `__from`, by name, as JSON values. */
+  readonly builtIns: Readonly<Record<string, unknown>>;
+  /** Whether keys may start with `$`, as MongoDB operators do. Without it, such a key is refused. */
+  readonly operatorKeys?: boolean;
   /**
    * Checks one key of an object, for what a language refuses.
    *
@@ -24,7 +26,8 @@ export interface JsonBindContext {
 const maxDepth = 64;
 
 /**
- * The value of a `{"$var": "name"}` node: one value as a string, a multi-value variable as a list.
+ * The value of a `{"$var": "name"}` node: a built-in as it is, one value as a string, a
+ * multi-value variable as a list.
  *
  * @param node - The node.
  * @param context - The variables and built-ins.
@@ -61,7 +64,7 @@ function bindNode(node: unknown, context: JsonBindContext, depth: number): unkno
   return Object.fromEntries(
     Object.entries(object).map(([key, value]) => {
       context.checkKey?.(key);
-      if (key.startsWith('$'))
+      if (key.startsWith('$') && !context.operatorKeys)
         throw new QueryError('invalid', `"${key}" is not a variable; write {"$var": "name"}.`);
       return [key, bindNode(value, context, depth + 1)];
     }),

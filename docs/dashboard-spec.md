@@ -76,6 +76,7 @@ type QueryTemplate =
   | { refId: string; connector: string; language: 'http'; method?: 'GET' | 'POST'; path: string;
       query?: Record<string, string>; body?: JsonWithVars; extract?: HttpExtract }  // $name in path and query
   | { refId: string; connector: string; language: 'redis'; command: string; args?: string[] }  // a read command, $name in args
+  | { refId: string; connector: string; language: 'mongodb'; collection: string; pipeline: JsonWithVars[] }  // Extended JSON stages
 
 // Structural variable reference inside JSON bodies: { "$var": "service" }
 type JsonWithVars = unknown
@@ -173,7 +174,7 @@ they differ from the sketch above, the schemas win:
 - A chart option may use tokens the adapter replaces: `@role` for a role's column, and theme
   colours such as `@ink`, `@palette.1` or `@scale.low`. A role a view does not name is inferred:
   the x is the first time or text column, and the values are the number columns.
-- Queries are `sql`, `promql`, `logql`, `search`, `http` and `redis`.
+- Queries are `sql`, `promql`, `logql`, `search`, `http`, `redis` and `mongodb`.
 - A query-backed variable's `source` has no `refId`.
 - Time expressions are `now`, `now-<n><unit>` (units `s m h d w M y`) or an ISO 8601 timestamp
   with an offset.

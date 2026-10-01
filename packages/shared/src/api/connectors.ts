@@ -26,7 +26,7 @@ export const connectorKindSchema = z.object({
   icon: connectorIconSchema.nullable(),
   /** Other names the add form finds the kind by. */
   aliases: z.array(z.string()),
-  language: z.enum(['sql', 'promql', 'search', 'logql', 'http', 'redis']),
+  language: z.enum(['sql', 'promql', 'search', 'logql', 'http', 'redis', 'mongodb']),
   configSchema: jsonSchemaSchema,
   secretSchema: jsonSchemaSchema,
 });

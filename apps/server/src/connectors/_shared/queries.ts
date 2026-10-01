@@ -1,7 +1,15 @@
 /** The queries a connector executes: already bound, never a template with raw variables. */
 
 /** The query languages the core knows how to bind. A connector kind declares one of them. */
-export const queryLanguages = ['sql', 'promql', 'search', 'logql', 'http', 'redis'] as const;
+export const queryLanguages = [
+  'sql',
+  'promql',
+  'search',
+  'logql',
+  'http',
+  'redis',
+  'mongodb',
+] as const;
 
 /** A query language name. */
 export type QueryLanguage = (typeof queryLanguages)[number];
@@ -157,8 +165,29 @@ export interface RedisQuery {
   readonly args: readonly string[];
 }
 
+/**
+ * A MongoDB aggregation over one collection, every variable already put in as a JSON value. The
+ * stages are Extended JSON (`{"$date": …}` for a date), and the core checked that none writes or
+ * runs JavaScript.
+ */
+export interface MongodbQuery {
+  /** The query language. */
+  readonly language: 'mongodb';
+  /** The collection the pipeline starts from. */
+  readonly collection: string;
+  /** The stages, each an object with one `$` key. */
+  readonly pipeline: readonly Readonly<Record<string, unknown>>[];
+}
+
 /** A query ready to execute. Connectors receive nothing else. */
-export type BoundQuery = SqlQuery | PromqlQuery | SearchQuery | LogqlQuery | HttpQuery | RedisQuery;
+export type BoundQuery =
+  | SqlQuery
+  | PromqlQuery
+  | SearchQuery
+  | LogqlQuery
+  | HttpQuery
+  | RedisQuery
+  | MongodbQuery;
 
 /** The time range a query covers. */
 export interface TimeRange {

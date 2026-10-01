@@ -70,7 +70,7 @@ function rawQuery(request: DataOf<'raw'>): PanelQuery {
       index: request.index ?? '',
       body: jsonObject(query, 'search body'),
     };
-  if (language === 'http') return httpQuery(connector, query);
+  if (language === 'http' || language === 'mongodb') return jsonQuery(connector, query, language);
   if (language === 'redis') return redisQuery(connector, query);
   return { refId: 'A', connector, language, expr: query, ...(instant ? { instant: true } : {}) };
 }
@@ -95,26 +95,27 @@ function jsonObject(text: string, what: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+/** What the text of a raw query is, by its language, for messages. */
+const jsonQueryNames = { http: 'HTTP request', mongodb: 'MongoDB query' } as const;
+
 /**
- * The panel query of a raw HTTP query, whose text is the JSON of the request.
+ * The panel query of a raw query whose text is the JSON of its template: an HTTP request's
+ * method, path, query, body and extract, or a MongoDB collection and pipeline.
  *
  * @param connector - The connector.
- * @param text - The JSON of the method, path, query, body and extract.
+ * @param text - The JSON of the template without its connector and language.
+ * @param language - The language.
  * @returns The query, refId A.
- * @throws {QueryError} When the request is not one an HTTP template allows.
+ * @throws {QueryError} When the JSON is not one a template of the language allows.
  */
-function httpQuery(connector: string, text: string): PanelQuery {
-  const request = jsonObject(text, 'HTTP request');
-  const parsed = panelQuerySchema.safeParse({
-    ...request,
-    refId: 'A',
-    connector,
-    language: 'http',
-  });
+function jsonQuery(connector: string, text: string, language: 'http' | 'mongodb'): PanelQuery {
+  const what = jsonQueryNames[language];
+  const fields = jsonObject(text, what);
+  const parsed = panelQuerySchema.safeParse({ ...fields, refId: 'A', connector, language });
   if (parsed.success) return parsed.data;
   const issue = parsed.error.issues[0];
   throw new QueryError(
-    `The HTTP request is invalid at ${issue?.path.join('.') || 'its root'}: ${issue?.message ?? ''}`,
+    `The ${what} is invalid at ${issue?.path.join('.') || 'its root'}: ${issue?.message ?? ''}`,
   );
 }
 
