@@ -1690,7 +1690,16 @@ The Release workflow (`.github/workflows/release.yml`) runs on demand:
    commit, so the ruleset on `main` can stay closed to everyone else.
 3. The image job builds the image at the tag for `linux/amd64` and `linux/arm64` and pushes it to
    `ghcr.io/<owner>/quanthea` as `:vX.Y.Z` and `:latest`. A released image is never rebuilt.
+4. The plugin-kit job runs on every release, whether the app released or not. It runs
+   `bun run check:package`, then publishes `packages/plugin-kit/dist` to npm when the kit's
+   version is not there yet, through trusted publishing (OIDC), which signs the provenance. It
+   tags `plugin-kit-vX.Y.Z` and creates a GitHub Release that lists the commits that changed the
+   kit since its last tag, and leaves the app's release as the latest one.
 
-The root `package.json` holds the one version. `/api/health` reports it. The workspace
-`package.json` files stay at `0.0.0`, because `bun.lock` records their versions and a bump there
-would break `bun install --frozen-lockfile`.
+The root `package.json` holds the app's version. `/api/health` reports it. semantic-release reads
+`v*` tags only. The workspace `package.json` files stay at `0.0.0`, because `bun.lock` records
+their versions and a bump there would break `bun install --frozen-lockfile`.
+
+The kit is the exception: `packages/plugin-kit/package.json` holds the kit's own version, bumped by
+hand in the commit that changes its API, with `bun install` run so `bun.lock` follows. Its major
+version equals `kitVersion`.
