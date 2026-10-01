@@ -1,6 +1,6 @@
 # Writing a connector
 
-A **connector kind** teaches querent to read one kind of source, such as PostgreSQL. This guide
+A **connector kind** teaches quanthea to read one kind of source, such as PostgreSQL. This guide
 adds one. A kind is a folder in `apps/server/src/connectors/` and one line in the registry. It ships
 no UI and no routes.
 
@@ -186,11 +186,11 @@ kinds in that order.
 
 ## Publishing a plugin
 
-A kind can also ship outside querent, as a plugin: an npm package the admin installs with
+A kind can also ship outside quanthea, as a plugin: an npm package the admin installs with
 `quanthea plugin install`. [`examples/quanthea-plugin-sqlite`](../examples/quanthea-plugin-sqlite)
 is a complete one to start from.
 
-- **The bundle.** One ES module, built with `bun build src/plugin.ts --outfile dist/plugin.js --target bun`, holding everything the plugin needs: querent never installs a plugin's
+- **The bundle.** One ES module, built with `bun build src/plugin.ts --outfile dist/plugin.js --target bun`, holding everything the plugin needs: quanthea never installs a plugin's
   dependencies or runs its scripts. Pure JavaScript only; a native module cannot work, since the
   image runs on amd64 and arm64.
 - **The entry.** The module exports `kitVersion` (1) and, as default, a function that receives the
@@ -204,17 +204,17 @@ is a complete one to start from.
   }
   ```
 
-  Build the schemas with `kit.z` and throw `kit.ConnectorError`: they are querent's own. Import
+  Build the schemas with `kit.z` and throw `kit.ConnectorError`: they are quanthea's own. Import
   only types from `@quanthea/plugin-kit`, as a development dependency.
 - **The manifest.** `package.json` names the package `quanthea-plugin-<name>` or
-  `@scope/quanthea-plugin-<name>`, carries the `quanthea-plugin` keyword, and the `querent` field:
+  `@scope/quanthea-plugin-<name>`, carries the `quanthea-plugin` keyword, and the `quanthea` field:
   `{ "kitVersion": 1, "main": "dist/plugin.js" }`. Set `"files": ["dist"]`, so the tarball holds
   the manifest and the bundle.
 - **The tests.** Call the plugin with `createTestKit()` from `@quanthea/plugin-kit/testing`, the
   live kit itself, and run `testConnectorConformance` against a real source, in the plugin's
-  own CI. querent runs the same static checks (`kindProblems`) when it installs and loads it.
+  own CI. quanthea runs the same static checks (`kindProblems`) when it installs and loads it.
 - **Any language, any dialect.** A plugin speaks one of the seven query languages; a SQL plugin
   picks a built-in dialect or `ansi`, with its placeholder and row-limit styles.
 - **Publishing.** From GitHub Actions, build and run `npm publish --provenance`, which attaches a
-  signed build attestation; querent does not check it yet. A tarball attached to a GitHub release
+  signed build attestation; quanthea does not check it yet. A tarball attached to a GitHub release
   works too: `quanthea plugin install https://…/quanthea-plugin-x-1.0.0.tgz`.

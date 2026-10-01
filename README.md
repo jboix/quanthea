@@ -1,11 +1,11 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/querent-logo-dark.svg">
-  <img alt="querent" src="docs/brand/querent-logo.svg" height="48">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/quanthea-logo-dark.svg">
+  <img alt="quanthea" src="docs/brand/quanthea-logo.svg" height="48">
 </picture>
 
-[![Quality](https://github.com/jboix/querent/actions/workflows/quality.yml/badge.svg)](https://github.com/jboix/querent/actions/workflows/quality.yml)
-[![Release](https://github.com/jboix/querent/actions/workflows/release.yml/badge.svg)](https://github.com/jboix/querent/actions/workflows/release.yml)
-[![version](https://img.shields.io/github/v/release/jboix/querent?label=version)](https://github.com/jboix/querent/releases/latest)
+[![Quality](https://github.com/jboix/quanthea/actions/workflows/quality.yml/badge.svg)](https://github.com/jboix/quanthea/actions/workflows/quality.yml)
+[![Release](https://github.com/jboix/quanthea/actions/workflows/release.yml/badge.svg)](https://github.com/jboix/quanthea/actions/workflows/release.yml)
+[![version](https://img.shields.io/github/v/release/jboix/quanthea?label=version)](https://github.com/jboix/quanthea/releases/latest)
 [![bun](https://img.shields.io/badge/bun-1.4.2-brightgreen)](https://bun.sh)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178c6)](https://www.typescriptlang.org)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
@@ -15,7 +15,7 @@ sources: Prometheus, Loki, InfluxDB, Postgres and TimescaleDB, MySQL, MariaDB, C
 Elasticsearch, OpenSearch, Valkey, MongoDB and HTTP APIs. You refine it in the same thread and pin
 the good ones. Pinned dashboards are versioned, searchable, and render without any model involved.
 
-querent is at an early stage: the repository, the tooling and an app shell. The design lives in
+quanthea is at an early stage: the repository, the tooling and an app shell. The design lives in
 [`docs/`](docs/).
 
 ## Run it
@@ -27,11 +27,11 @@ docker run -p 3000:3000 -v quanthea-data:/data ghcr.io/jboix/quanthea:latest
 ```
 
 Pin a release tag such as `ghcr.io/jboix/quanthea:v1.0.0` to control upgrades. To build the image
-yourself, run `docker build -t querent .` at the repository root.
+yourself, run `docker build -t quanthea .` at the repository root.
 
 Open <http://localhost:3000> and sign in as `admin` with the password the first start writes to
-the log (`docker logs querent`). querent then asks for your own email and password. Locked out?
-`docker exec querent quanthea reset-admin` prints a one-time link.
+the log (`docker logs quanthea`). quanthea then asks for your own email and password. Locked out?
+`docker exec quanthea quanthea reset-admin` prints a one-time link.
 
 Without Docker, you need [Bun](https://bun.sh) at the version in `.tool-versions`:
 
@@ -63,33 +63,33 @@ Docker image and checks that it serves the app. A git hook runs `bun run verify`
 
 ## Configuration
 
-[`docs/deployment.md`](docs/deployment.md) shows how to run querent with Docker Compose and a
+[`docs/deployment.md`](docs/deployment.md) shows how to run quanthea with Docker Compose and a
 configuration file; [`deploy/`](deploy/) holds a starting point.
 
 The server reads these settings at startup, from an environment variable or, when no variable is
 set, from the configuration file's `server` section. Settings → Server shows each one with where
 it comes from. Everything else lives in Settings.
 
-| Variable                      | Default         | Purpose                                                                                                     |
-| ----------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------- |
-| `QUANTHEA_PORT`               | `3000`          | HTTP port.                                                                                                  |
-| `QUANTHEA_DATA_DIR`           | `./data`        | Holds the SQLite database. Created with mode 0700. `/data` in the image.                                    |
-| `QUANTHEA_KEYS_DIR`           | `./keys`        | Holds the keys querent generates. Created with mode 0700, outside the data directory. `/keys` in the image. |
-| `QUANTHEA_CONFIG`             | unset           | A YAML or JSON configuration file, or a directory of them. `/etc/quanthea` in the image.                    |
-| `QUANTHEA_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                                                         |
-| `QUANTHEA_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.                                             |
-| `QUANTHEA_WEB_DIR`            | `apps/web/dist` | The built SPA the server serves.                                                                            |
-| `QUANTHEA_SECRET_KEY`         | generated       | 32 bytes in base64 that encrypt credentials, names and emails at rest.                                      |
-| `QUANTHEA_SESSION_KEY`        | generated       | 32 bytes in base64 that sign session cookies.                                                               |
-| `QUANTHEA_PASSWORD_PEPPER`    | generated       | 32 bytes in base64 mixed into password hashes.                                                              |
-| `QUANTHEA_PUBLIC_URL`         | unset           | The address people reach querent at, such as `https://querent.example.com`. Required with accounts.         |
-| `QUANTHEA_TRUSTED_PROXY_HOPS` | `0`             | How many reverse proxies in front of querent add to `X-Forwarded-For`.                                      |
+| Variable                      | Default         | Purpose                                                                                                      |
+| ----------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------ |
+| `QUANTHEA_PORT`               | `3000`          | HTTP port.                                                                                                   |
+| `QUANTHEA_DATA_DIR`           | `./data`        | Holds the SQLite database. Created with mode 0700. `/data` in the image.                                     |
+| `QUANTHEA_KEYS_DIR`           | `./keys`        | Holds the keys quanthea generates. Created with mode 0700, outside the data directory. `/keys` in the image. |
+| `QUANTHEA_CONFIG`             | unset           | A YAML or JSON configuration file, or a directory of them. `/etc/quanthea` in the image.                     |
+| `QUANTHEA_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                                                          |
+| `QUANTHEA_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.                                              |
+| `QUANTHEA_WEB_DIR`            | `apps/web/dist` | The built SPA the server serves.                                                                             |
+| `QUANTHEA_SECRET_KEY`         | generated       | 32 bytes in base64 that encrypt credentials, names and emails at rest.                                       |
+| `QUANTHEA_SESSION_KEY`        | generated       | 32 bytes in base64 that sign session cookies.                                                                |
+| `QUANTHEA_PASSWORD_PEPPER`    | generated       | 32 bytes in base64 mixed into password hashes.                                                               |
+| `QUANTHEA_PUBLIC_URL`         | unset           | The address people reach quanthea at, such as `https://quanthea.example.com`. Required with accounts.        |
+| `QUANTHEA_TRUSTED_PROXY_HOPS` | `0`             | How many reverse proxies in front of quanthea add to `X-Forwarded-For`.                                      |
 
 In the configuration file, each setting takes its name without the prefix, in camel case:
 
 ```yaml
 server:
-  publicUrl: https://querent.example.com
+  publicUrl: https://quanthea.example.com
   trustedProxyHops: 1
 ```
 

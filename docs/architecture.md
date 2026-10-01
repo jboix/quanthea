@@ -1,6 +1,6 @@
 # Architecture
 
-How querent is laid out and how the pieces talk to each other. The design is deliberately
+How quanthea is laid out and how the pieces talk to each other. The design is deliberately
 simple: one Bun process, one SQLite file, one React SPA. The complexity budget goes to the parts
 that deserve it: the spec, the access gate and the agent loop.
 
@@ -668,7 +668,7 @@ same kit serves connector plugins. It has three entry points:
   `connectors/_shared/index.ts` imports it (rule `only-the-server-kit-uses-the-host`).
 
 `connectors/_shared/index.ts` re-exports the live kit and adds what only built-in kinds and the
-binders use, querent's policy lists (`policies.ts`): `searchRatioScripts`, `mongodbRefusedKeys`,
+binders use, quanthea's policy lists (`policies.ts`): `searchRatioScripts`, `mongodbRefusedKeys`,
 `redisReadCommands`. The public kit leaves them out. The kit imports only `@quanthea/shared` and
 Zod (rule `plugin-kit-stays-small`), and a plugin receives the server's Zod and error class, so
 its schemas build the forms. `createTestKit()` returns the live kit itself, so a plugin's tests run
@@ -725,7 +725,7 @@ export const exampleConnector = defineConnector({
 
 ### Connector plugins
 
-A plugin adds connector kinds without a change to querent: an npm package whose `package.json`
+A plugin adds connector kinds without a change to quanthea: an npm package whose `package.json`
 (the manifest) names a kit version and its bundle, `"quanthea": { "kitVersion": 1, "main":
 "dist/plugin.js" }`, and whose bundle is one ES module that exports `kitVersion` and, as default,
 a function that receives the live kit and returns its kinds.
@@ -979,7 +979,7 @@ that changes with its settings).
      script (`script`, `_script`, `script_fields`, `script_score`, `scripted_metric`,
      `runtime_mappings`) is refused, because the search server would run it. One exception: a
      `bucket_script` whose `script` is one of the kit's ratio scripts, verbatim
-     (`searchRatioScripts`: the share of `part` in `whole`, or one minus it). They are querent's
+     (`searchRatioScripts`: the share of `part` in `whole`, or one minus it). They are quanthea's
      code; a query names one, never writes one. The index is
      lowercase names and patterns, never a hidden (`.`), system (`_`) or remote (`:`) index.
    - **HTTP** (`query/http-binder.ts`): `$name` in the path becomes its value URL-encoded, one
@@ -1242,7 +1242,7 @@ exposed install. That user is marked `setup_required`: every role-guarded route 
 until they choose their own email, name and password (`POST /api/auth/setup`, which ends their
 other sessions); the web app sends them to `/setup`.
 
-**Lockout** (`src/cli.ts`, `querent` in the image): `quanthea reset-admin [email]` prints a
+**Lockout** (`src/cli.ts`, `quanthea` in the image): `quanthea reset-admin [email]` prints a
 one-time link that sets an admin's password, for the admin with that email or the first enabled
 one, and enables them again. Without any admin, it creates the default one.
 
@@ -1283,7 +1283,7 @@ one, and enables them again. Without any admin, it creates the default one.
 - `POST /api/auth/change-password` (signed in) checks the current password (throttled by
   account), ends all the person's sessions and starts a new one.
 - **Users admin** (`/api/users`, admin): list, invite, change the role or disable
-  (`auth/user-admin.ts`), make a reset link, end a user's sessions. querent always keeps one
+  (`auth/user-admin.ts`), make a reset link, end a user's sessions. quanthea always keeps one
   enabled admin; a disabled user's sessions end at once.
 - `POST /api/auth/sign-out` (public) ends the session and clears the cookie. Signing out is never
   a GET, so no link or image can do it.
@@ -1302,9 +1302,9 @@ one, and enables them again. Without any admin, it creates the default one.
 - The bin keeps to owners: editors list and restore their own binned threads; admins list,
   restore and delete everyone's.
 - **Sign-in providers** (Settings → Authentication, `auth/providers/`): GitHub, Google, GitLab
-  (gitlab.com or a self-managed one) and Microsoft Entra ID (one tenant, never `common`). querent
+  (gitlab.com or a self-managed one) and Microsoft Entra ID (one tenant, never `common`). quanthea
   is only their client: an admin registers it with the provider, pastes the client id and secret,
-  and registers the redirect URI querent shows (`QUANTHEA_PUBLIC_URL` +
+  and registers the redirect URI quanthea shows (`QUANTHEA_PUBLIC_URL` +
   `/api/auth/providers/:id/callback`, never built from a request's `Host`). The id and secret are
   sealed together, bound to the provider, and never sent back. A provider stays off until an admin
   signs in through it once with Test sign-in; changing its kind, address, tenant or client turns
@@ -1315,7 +1315,7 @@ one, and enables them again. Without any admin, it creates the default one.
   SameSite=Lax), deleted at the callback, so a callback completes only in the browser that started
   it, once. Google, GitLab and Entra ID are discovered; the ID token's signature is checked
   against the provider's published keys, with its issuer, audience, expiry and nonce. GitHub has no
-  ID token: querent reads the person's numeric id and verified primary email from its API. Provider
+  ID token: quanthea reads the person's numeric id and verified primary email from its API. Provider
   tokens are dropped after the callback. Every failure redirects to the page it came from with a
   fixed code (`?error=expired`, `not-invited`, `link-first`…), never with what the request
   carried; the destination goes through the same check as after a password sign-in.
@@ -1334,7 +1334,7 @@ one, and enables them again. Without any admin, it creates the default one.
   in through an enabled provider; the sign-in page then shows the provider buttons only, and
   `POST /api/auth/sign-in` refuses.
 - **CSRF** (`http/csrf.ts`): every `/api` request that is not a GET, HEAD or OPTIONS needs
-  `X-Requested-With: querent`, which a cross-site form cannot send without a preflight querent never
+  `X-Requested-With: quanthea`, which a cross-site form cannot send without a preflight quanthea never
   grants. When the browser sends `Origin`, it must be `QUANTHEA_PUBLIC_URL` (or, without it, the
   request's own origin); when it sends `Sec-Fetch-Site`, it must be `same-origin` or `none`. The web
   client sends the header on every request.
@@ -1417,7 +1417,7 @@ one, and enables them again. Without any admin, it creates the default one.
 
 ### Keys
 
-querent uses three keys, each 32 random bytes in base64 (`openssl rand -base64 32`), from a
+quanthea uses three keys, each 32 random bytes in base64 (`openssl rand -base64 32`), from a
 variable or from a file named by the variable with `_FILE` appended (for Docker and Kubernetes
 secrets). `secrets/keys.ts` reads and checks them at startup. A key not given is generated on
 first start in the keys directory (`QUANTHEA_KEYS_DIR`, `./keys`, `/keys` in the image;
@@ -1471,7 +1471,7 @@ replaced by the environment variable `NAME` (`$${` writes a literal `${`), and a
 the server. An unknown section or setting, or an invalid value, stops the server with every issue
 listed. Relative paths resolve against the working directory.
 
-**Provisioning** (`provisioning/`): the same file declares what querent stores, so an instance
+**Provisioning** (`provisioning/`): the same file declares what quanthea stores, so an instance
 can be rebuilt from Git. It declares users (by email), sign-in providers (by id), connectors (by
 name), and the settings sections `model`, `retention`, `charts` and `queries`, each with the API's
 fields:
@@ -1572,7 +1572,7 @@ provider's name, so two setups of the same vendor stay apart.
 | `QUANTHEA_SECRET_KEY`         | generated       | seals secrets at rest; `_PREVIOUS` while rotating; `_FILE` variants |
 | `QUANTHEA_SESSION_KEY`        | generated       | signs session cookies                                               |
 | `QUANTHEA_PASSWORD_PEPPER`    | generated       | mixed into password hashes; `_PREVIOUS` while rotating              |
-| `QUANTHEA_PUBLIC_URL`         | _(unset)_       | the origin people reach querent at; sign-in providers need it       |
+| `QUANTHEA_PUBLIC_URL`         | _(unset)_       | the origin people reach quanthea at; sign-in providers need it      |
 | `QUANTHEA_TRUSTED_PROXY_HOPS` | `0`             | reverse proxies trusted to add `X-Forwarded-For`                    |
 | `QUANTHEA_LOG_LEVEL`          | `info`          | `debug`, `info`, `warn` or `error`.                                 |
 | `QUANTHEA_LOG_FORMAT`         | `text`          | `text` for readable lines, `json` for one JSON object per line.     |
@@ -1590,22 +1590,22 @@ provider's name, so two setups of the same vendor stay apart.
   (`dev/seed/checkout-incident.json`) with its time range around the incident, and prints its
   address. `QUANTHEA_URL` points at the server (`http://localhost:3000` by default).
 
-| Source        | Address           | Contents                                                                                                                                                                                                                                                                                                                                                                           |
-| ------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Postgres      | `localhost:5433`  | Database `orders`: `customers`, `orders`, `order_items`, `payments`, `refunds`, `deploys`. Users `querent_admin` (password `querent-dev`) and the read-only `dash_ro` (password `dash-ro-dev`).                                                                                                                                                                                    |
-| TimescaleDB   | `localhost:5434`  | The same database as Postgres on TimescaleDB 2.30, with the hypertable `order_events` and the continuous aggregate `orders_per_minute` (`dev/timescaledb`). Same users. Started by `bun run env:up:timescale`.                                                                                                                                                                     |
-| Prometheus    | `localhost:9091`  | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                                                                                                                                                                                                    |
-| MySQL         | `localhost:3307`  | Database `orders` (`dev/mysql`): `customers`, `orders`, `deploys` and the view `failed_orders`, one order every five seconds. Same users as Postgres. Started by `bun run env:up:mysql`.                                                                                                                                                                                           |
-| MariaDB       | `localhost:3308`  | The same database as MySQL, from the same scripts. Started by `bun run env:up:mysql`.                                                                                                                                                                                                                                                                                              |
-| Trino         | `localhost:8081`  | Catalog `orders`: the dev Postgres, read as its owner, so a write would succeed without the connector's read-only transactions. Any user name, no password. Started by `bun run env:up:trino`, with Postgres.                                                                                                                                                                      |
-| ClickHouse    | `localhost:8124`  | Database `orders` (`dev/clickhouse`), over HTTP: the same tables and view as MySQL. Users `querent_admin`, and `dash_ro`, `dash_ro_2` (`readonly=2`) and `dash_ro_1` (`readonly=1`) with password `dash-ro-dev`. Started by `bun run env:up:clickhouse`.                                                                                                                           |
-| Elasticsearch | `localhost:9201`  | The request logs of every service in daily indices `logs-YYYY.MM.DD` (`dev/log-seed`), without security. Started and seeded by `bun run env:up:search`.                                                                                                                                                                                                                            |
-| OpenSearch    | `localhost:9202`  | The same logs, from the same seed. Started by `bun run env:up:search`.                                                                                                                                                                                                                                                                                                             |
-| Loki          | `localhost:3101`  | The same logs, labelled `service`, `env` and `level`, each line the event as JSON (`dev/loki`). Started and seeded by `bun run env:up:loki`.                                                                                                                                                                                                                                       |
-| HTTP API      | `localhost:8085`  | A JSON API over the incident (`dev/http-api`): services, deploys, errors over time, a POST search and a status object, described at `/openapi.json`. `/api` routes need `Authorization: Bearer dev-token`. Started by `bun run env:up:http`.                                                                                                                                       |
-| InfluxDB 3    | `localhost:8186`  | InfluxDB 3 Core (`dev/influxdb`): the database `telemetry` with `http_requests` (tags `service`, `env`; fields `requests`, `errors`, `p95_ms`) every 30 seconds around the incident. Token `apiv3_querent-dev-token`. Started and seeded by `bun run env:up:influxdb`.                                                                                                             |
-| Valkey        | `localhost:6380`  | Valkey 9 (`dev/valkey`): hashes `service:*`, sorted sets `errors:by_reason` and `errors:by_service`, the streams `deploys` and `checkout:requests` (one entry a minute), a list and a counter. The default user (password `querent-dev`) can write; `dash_ro` (password `dash-ro-dev`) reads only. Started and seeded by `bun run env:up:valkey`.                                  |
-| MongoDB       | `localhost:27018` | MongoDB 9 (`dev/mongodb`): database `shop` with `orders` (nested `customer` and `items`, decimal totals, checkout's failures rising with the incident), `deploys` and the view `failed_orders`. `querent_admin` (password `querent-dev`) can write; `dash_ro` (password `dash-ro-dev`, authentication database `shop`) reads only. Started and seeded by `bun run env:up:mongodb`. |
+| Source        | Address           | Contents                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Postgres      | `localhost:5433`  | Database `orders`: `customers`, `orders`, `order_items`, `payments`, `refunds`, `deploys`. Users `quanthea_admin` (password `quanthea-dev`) and the read-only `dash_ro` (password `dash-ro-dev`).                                                                                                                                                                                    |
+| TimescaleDB   | `localhost:5434`  | The same database as Postgres on TimescaleDB 2.30, with the hypertable `order_events` and the continuous aggregate `orders_per_minute` (`dev/timescaledb`). Same users. Started by `bun run env:up:timescale`.                                                                                                                                                                       |
+| Prometheus    | `localhost:9091`  | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                                                                                                                                                                                                      |
+| MySQL         | `localhost:3307`  | Database `orders` (`dev/mysql`): `customers`, `orders`, `deploys` and the view `failed_orders`, one order every five seconds. Same users as Postgres. Started by `bun run env:up:mysql`.                                                                                                                                                                                             |
+| MariaDB       | `localhost:3308`  | The same database as MySQL, from the same scripts. Started by `bun run env:up:mysql`.                                                                                                                                                                                                                                                                                                |
+| Trino         | `localhost:8081`  | Catalog `orders`: the dev Postgres, read as its owner, so a write would succeed without the connector's read-only transactions. Any user name, no password. Started by `bun run env:up:trino`, with Postgres.                                                                                                                                                                        |
+| ClickHouse    | `localhost:8124`  | Database `orders` (`dev/clickhouse`), over HTTP: the same tables and view as MySQL. Users `quanthea_admin`, and `dash_ro`, `dash_ro_2` (`readonly=2`) and `dash_ro_1` (`readonly=1`) with password `dash-ro-dev`. Started by `bun run env:up:clickhouse`.                                                                                                                            |
+| Elasticsearch | `localhost:9201`  | The request logs of every service in daily indices `logs-YYYY.MM.DD` (`dev/log-seed`), without security. Started and seeded by `bun run env:up:search`.                                                                                                                                                                                                                              |
+| OpenSearch    | `localhost:9202`  | The same logs, from the same seed. Started by `bun run env:up:search`.                                                                                                                                                                                                                                                                                                               |
+| Loki          | `localhost:3101`  | The same logs, labelled `service`, `env` and `level`, each line the event as JSON (`dev/loki`). Started and seeded by `bun run env:up:loki`.                                                                                                                                                                                                                                         |
+| HTTP API      | `localhost:8085`  | A JSON API over the incident (`dev/http-api`): services, deploys, errors over time, a POST search and a status object, described at `/openapi.json`. `/api` routes need `Authorization: Bearer dev-token`. Started by `bun run env:up:http`.                                                                                                                                         |
+| InfluxDB 3    | `localhost:8186`  | InfluxDB 3 Core (`dev/influxdb`): the database `telemetry` with `http_requests` (tags `service`, `env`; fields `requests`, `errors`, `p95_ms`) every 30 seconds around the incident. Token `apiv3_quanthea-dev-token`. Started and seeded by `bun run env:up:influxdb`.                                                                                                              |
+| Valkey        | `localhost:6380`  | Valkey 9 (`dev/valkey`): hashes `service:*`, sorted sets `errors:by_reason` and `errors:by_service`, the streams `deploys` and `checkout:requests` (one entry a minute), a list and a counter. The default user (password `quanthea-dev`) can write; `dash_ro` (password `dash-ro-dev`) reads only. Started and seeded by `bun run env:up:valkey`.                                   |
+| MongoDB       | `localhost:27018` | MongoDB 9 (`dev/mongodb`): database `shop` with `orders` (nested `customer` and `items`, decimal totals, checkout's failures rising with the incident), `deploys` and the view `failed_orders`. `quanthea_admin` (password `quanthea-dev`) can write; `dash_ro` (password `dash-ro-dev`, authentication database `shop`) reads only. Started and seeded by `bun run env:up:mongodb`. |
 
 - Both sources tell one story, the checkout incident: deploy #481 of `checkout-svc` yesterday at
   12:02 UTC, 5xx errors of checkout rising to 8.4% and its p95 latency to about 3 s, failed orders
@@ -1673,7 +1673,7 @@ The Release workflow (`.github/workflows/release.yml`) runs on demand:
    A GitHub App (the release bot, `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY`) pushes the
    commit, so the ruleset on `main` can stay closed to everyone else.
 3. The image job builds the image at the tag for `linux/amd64` and `linux/arm64` and pushes it to
-   `ghcr.io/<owner>/querent` as `:vX.Y.Z` and `:latest`. A released image is never rebuilt.
+   `ghcr.io/<owner>/quanthea` as `:vX.Y.Z` and `:latest`. A released image is never rebuilt.
 
 The root `package.json` holds the one version. `/api/health` reports it. The workspace
 `package.json` files stay at `0.0.0`, because `bun.lock` records their versions and a bump there

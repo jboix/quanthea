@@ -1,4 +1,4 @@
-# Contributing to querent
+# Contributing to quanthea
 
 Thanks for contributing. Agents working in this repository also follow
 [AGENTS.md](../AGENTS.md). Participation is governed by the [Code of Conduct](./CODE_OF_CONDUCT.md).

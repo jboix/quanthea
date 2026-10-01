@@ -182,7 +182,7 @@ export interface Config {
 type Environment = Readonly<Record<string, string | undefined>>;
 
 /**
- * A variable's value, treating an empty one as unset, so `QUANTHEA_AUTH_MODE=` means "no override".
+ * A variable's value, treating an empty one as unset, so `QUANTHEA_LOG_LEVEL=` means "no override".
  *
  * @param environment - The environment variables.
  * @param name - The variable.

@@ -1,22 +1,22 @@
-# Deploying querent
+# Deploying quanthea
 
-querent ships as one Docker image, `ghcr.io/jboix/quanthea`, for linux/amd64 and linux/arm64. It
+quanthea ships as one Docker image, `ghcr.io/jboix/quanthea`, for linux/amd64 and linux/arm64. It
 keeps its state in two volumes and reads an optional configuration file.
 
 ## Quick start
 
 ```sh
-docker run -d --name querent -p 3000:3000 -v quanthea-data:/data -v quanthea-keys:/keys \
+docker run -d --name quanthea -p 3000:3000 -v quanthea-data:/data -v quanthea-keys:/keys \
   ghcr.io/jboix/quanthea
 ```
 
 The first start creates the user `admin` and writes its password to the log, once:
 
 ```sh
-docker logs querent 2>&1 | grep password
+docker logs quanthea 2>&1 | grep password
 ```
 
-Sign in at <http://localhost:3000> as `admin` with that password. querent then asks for your own
+Sign in at <http://localhost:3000> as `admin` with that password. quanthea then asks for your own
 email and password; nothing else opens until you set them.
 
 ## With Docker Compose
@@ -42,7 +42,7 @@ Then sign in at <http://localhost:3000> as `admin`, with the `ADMIN_PASSWORD` of
 | Path    | What it holds                                                   |
 | ------- | --------------------------------------------------------------- |
 | `/data` | The SQLite database: dashboards, threads, users, sealed secrets |
-| `/keys` | The keys querent generates on first start                       |
+| `/keys` | The keys quanthea generates on first start                      |
 
 `/plugins` holds connector plugins. It is not a volume, so a derived image can install into it;
 see [Connector plugins](#connector-plugins).
@@ -52,11 +52,11 @@ both reads everything. Without the keys, stored credentials cannot be read.
 
 Give your own keys instead with `QUANTHEA_SECRET_KEY`, `QUANTHEA_SESSION_KEY` and
 `QUANTHEA_PASSWORD_PEPPER`, or their `_FILE` variants for Docker and Kubernetes secrets. A key you
-give always wins; querent generates only the ones you leave out.
+give always wins; quanthea generates only the ones you leave out.
 
 ## The configuration file
 
-querent reads `*.yaml`, `*.yml` and `*.json` files in `/etc/quanthea` (`QUANTHEA_CONFIG` names
+quanthea reads `*.yaml`, `*.yml` and `*.json` files in `/etc/quanthea` (`QUANTHEA_CONFIG` names
 another file or directory). Each top-level key is a section:
 
 | Section        | What it declares                                                      |
@@ -83,7 +83,7 @@ A secret is never written in the file. Each one is a whole reference:
   otherwise.
 - `file:/run/secrets/name`: a file, such as a Docker or Kubernetes secret.
 
-querent refuses a secret written in clear, and no message ever quotes one.
+quanthea refuses a secret written in clear, and no message ever quotes one.
 
 ### What the file manages
 
@@ -92,12 +92,12 @@ leaves out stays editable there. A connector's descriptions stay editable unless
 declares them.
 
 Remove an item from the file and it stays, editable again in the interface. With
-`provisioning: { prune: true }`, querent deletes it instead (a user is disabled).
+`provisioning: { prune: true }`, quanthea deletes it instead (a user is disabled).
 
 ### Changes
 
-querent reads the file at startup. Restart it to apply a change, to the file or to a secret it
-refers to. A file with a mistake stops querent with every issue listed, and nothing is applied.
+quanthea reads the file at startup. Restart it to apply a change, to the file or to a secret it
+refers to. A file with a mistake stops quanthea with every issue listed, and nothing is applied.
 
 ## Accounts and sign-in
 
@@ -106,8 +106,8 @@ works only from that address, and sign-in providers send people back to it; prov
 
 - Declare the first admin in `users`: `admin`, with a `password` reference, signs in with no
   email; an admin keyed by email signs in with a `password` reference, or through a provider
-  with that verified email. Then querent creates no `admin` user of its own.
-- Register querent at each provider with the redirect URI Settings → Authentication shows.
+  with that verified email. Then quanthea creates no `admin` user of its own.
+- Register quanthea at each provider with the redirect URI Settings → Authentication shows.
 
 ## Locked out
 
@@ -116,12 +116,12 @@ password; `quanthea reset-admin ada@example.com` names the admin. A disabled adm
 again.
 
 ```sh
-docker exec querent quanthea reset-admin
+docker exec quanthea quanthea reset-admin
 ```
 
 ## Behind a reverse proxy
 
-- Serve querent over HTTPS and set the public URL to its `https://` address; querent then sends
+- Serve quanthea over HTTPS and set the public URL to its `https://` address; quanthea then sends
   HSTS.
 - Set `server.trustedProxyHops` to the number of proxies that add to `X-Forwarded-For`, so the
   sign-in throttle sees the real address.
@@ -134,11 +134,11 @@ they come from.
 
 ## Connector plugins
 
-A plugin adds connector kinds: an npm package with a bundled `dist/plugin.js`. querent loads the
+A plugin adds connector kinds: an npm package with a bundled `dist/plugin.js`. quanthea loads the
 plugins of `/plugins` (`QUANTHEA_PLUGINS_DIR`; `<data dir>/plugins` outside the image) once, at
 startup.
 
-A plugin is code you install, and it runs with the server's rights: it can read what querent can
+A plugin is code you install, and it runs with the server's rights: it can read what quanthea can
 read, the keys and the database included. Install only plugins you trust, like any server
 software.
 
@@ -164,7 +164,7 @@ plugins:
 
 ### Installed at runtime
 
-`docker exec querent quanthea plugin install quanthea-plugin-sqlite@1.0.0` installs into the
+`docker exec quanthea quanthea plugin install quanthea-plugin-sqlite@1.0.0` installs into the
 running container, and a restart loads it. This survives recreating the container only when
 `/plugins` is mounted as its own volume; otherwise the plugin goes with the container.
 
@@ -176,5 +176,5 @@ pin on purpose. A plugin without a pin loads only when `plugins.allowUnpinned` i
 (`QUANTHEA_PLUGINS_ALLOW_UNPINNED=true` without a configuration file); it is false by default.
 The command never writes the configuration, which is often mounted read-only.
 
-`quanthea plugin list` shows each plugin and whether its pin matches; `quanthea plugin remove <name>` deletes one. Changes apply when querent restarts. A connector of a kind whose plugin is
+`quanthea plugin list` shows each plugin and whether its pin matches; `quanthea plugin remove <name>` deletes one. Changes apply when quanthea restarts. A connector of a kind whose plugin is
 gone stays, marked "plugin not installed", until you reinstall the plugin or delete it.

@@ -1,4 +1,4 @@
-# Agent guide: querent
+# Agent guide: quanthea
 
 Read this fully before writing code. Then read the design docs:
 
@@ -8,7 +8,7 @@ Read this fully before writing code. Then read the design docs:
 
 ## What this project is
 
-querent is a self-hosted web app. You describe a dashboard in a chat, an agent builds it against
+quanthea is a self-hosted web app. You describe a dashboard in a chat, an agent builds it against
 your data sources (Prometheus, Loki, InfluxDB, Postgres and TimescaleDB, MySQL, MariaDB,
 ClickHouse, Trino, Elasticsearch, OpenSearch, Valkey, MongoDB, HTTP APIs), you refine it in the same
 thread, and you pin the good ones. Pinned dashboards are versioned, searchable, and render without
@@ -84,7 +84,7 @@ Module boundaries are in the architecture doc, section 3 and 4, and in `.depende
   `apps/server/src/db/migrations/`. Until the first release the schema is one file,
   `0001-schema.sql`: change it in place, and start from a fresh database. No code keeps data from
   older shapes working before then. After the release, never edit an applied migration; add one.
-- `apps/web/src/ui/` holds presentational primitives in querent's visual language. Colours,
+- `apps/web/src/ui/` holds presentational primitives in quanthea's visual language. Colours,
   radii and fonts come from the tokens in `ui/theme.css`.
 - The logo, icon and mark come from `ui/brand.tsx`. The source files and the rule for each variant
   are in `docs/brand/`. The signal orange (`--color-brand-signal`) is for the brand only.
