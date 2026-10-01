@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import { fieldTypeOfName, frameValue, inferredType, nativeTypeOf } from './columns.ts';
 import { toConnectorError } from './errors.ts';
 import { influxdbConnector } from './influxdb-connector.ts';

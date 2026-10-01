@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import {
   ConnectorError,
   type ConnectorInstance,
   type ExecutionContext,
   type SqlParameter,
 } from '../_shared/index.ts';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import { devIncidentStart, devTrino, integrationFor } from '../_shared/test/dev-sources.ts';
 import { trinoConnector } from './trino-connector.ts';
 

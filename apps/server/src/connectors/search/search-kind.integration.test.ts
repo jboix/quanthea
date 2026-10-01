@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import {
   type AnyConnectorKind,
   ConnectorError,
@@ -7,7 +8,6 @@ import {
   type SearchQuery,
   searchRatioScripts,
 } from '../_shared/index.ts';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import {
   devElasticsearch,
   devIncidentStart,

@@ -1,43 +1,43 @@
 /**
- * The connector kit: everything a connector kind uses from the core. Kinds import this module and
- * nothing else from `_shared`, so its internals can change without breaking them.
+ * The server's connector kit: the public kit (`@querent/plugin-kit`), which plugins receive at
+ * load, and the policy lists only the built-in kinds and the binders use. Kinds import this module
+ * and nothing else from `_shared`, so its internals can change without breaking them.
  */
 export {
   type AnyConnectorKind,
+  type BoundQuery,
+  ConnectorError,
   type ConnectorIcon,
   type ConnectorInstance,
+  createFrameBuilder,
+  createHttpClient,
   defineConnector,
-} from './connector-kind.ts';
-export { ConnectorError } from './errors.ts';
-export { createFrameBuilder } from './frame-builder.ts';
-export { createHttpClient, type HttpClient, type HttpResponse } from './http.ts';
-export {
-  type BoundQuery,
   type ExecutionContext,
+  type FieldReference,
+  type HealthReport,
+  type HttpClient,
   type HttpField,
   type HttpQuery,
+  type HttpResponse,
   type LogqlQuery,
   type MongodbQuery,
-  mongodbRefusedKeys,
   type PromqlQuery,
   type QueryLanguage,
-  queryLanguages,
   type RedisQuery,
-  redisReadCommands,
+  type SampleResult,
+  type SchemaEntity,
+  type SchemaField,
+  type SchemaSnapshot,
   type SearchQuery,
+  type SeriesData,
   type SqlDialect,
   type SqlParameter,
   type SqlQuery,
-  searchRatioScripts,
-  sqlDialects,
+  seriesFrames,
   type TimeRange,
-} from './queries.ts';
-export type {
-  FieldReference,
-  HealthReport,
-  SampleResult,
-  SchemaEntity,
-  SchemaField,
-  SchemaSnapshot,
-} from './schema.ts';
-export { type SeriesData, seriesFrames } from './series-frames.ts';
+} from '@querent/plugin-kit/host';
+export {
+  mongodbRefusedKeys,
+  redisReadCommands,
+  searchRatioScripts,
+} from './policies.ts';

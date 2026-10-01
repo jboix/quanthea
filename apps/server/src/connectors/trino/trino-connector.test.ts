@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import { toEntities } from './catalog.ts';
 import { fieldTypeOf, frameValue, parseTime } from './columns.ts';
 import { toConnectorError } from './errors.ts';

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import { answerError, redactLiterals } from './api.ts';
 import { lokiConnector } from './loki-connector.ts';
 import { streamsFrame } from './streams.ts';

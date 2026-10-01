@@ -74,8 +74,8 @@ The two paths that matter:
 │   │       ├── gate/                what the model may see: access levels, hidden columns, error sanitizing
 │   │       ├── query/               executor: variable binding, guardrails, timeouts, result cache
 │   │       ├── connections/         configured connectors: CRUD, sealed secrets, open instances, schema cache
-│   │       ├── connectors/          registry + _shared/ (Frame, interface) + one folder per kind
-│   │       │   ├── _shared/         the connector kit: contract, errors, frames, HTTP client
+│   │       ├── connectors/          registry + _shared/ + one folder per kind
+│   │       │   ├── _shared/         the server's kit: the public kit plus its policy lists
 │   │       │   ├── postgres/  mysql/  clickhouse/  trino/
 │   │       │   ├── prometheus/  loki/
 │   │       │   └── search/          Elasticsearch and OpenSearch: two kinds, one engine
@@ -104,6 +104,8 @@ The two paths that matter:
 │           ├── ui/                  presentational primitives (Button, Card, Pill, Tabs, Switch…), brand
 │           └── lib/                 typed API client (from shared contract), utils
 ├── packages/
+│   ├── plugin-kit/                  @querent/plugin-kit: the connector kit, public types,
+│   │                                a test kit and the conformance suite
 │   └── shared/                      @querent/shared  (isomorphic: browser + Bun)
 │       └── src/
 │           ├── spec/                dashboard spec Zod schemas + types
@@ -645,6 +647,24 @@ folder under `connectors/`, declares itself with `defineConnector`, and uses the
 the **connector kit**, `connectors/_shared/index.ts` (dependency-cruiser rule
 `connector-kinds-use-the-kit`). [`connectors.md`](connectors.md) walks through adding a kind.
 
+The kit lives in its own workspace, `packages/plugin-kit` (`@querent/plugin-kit`), because the
+same kit serves connector plugins. It has three entry points:
+
+- `.`: the types a kind is written against (`ConnectorKind`, `ConnectorInstance`, the bound
+  queries, the schema and health types, `Frame`), the `ConnectorKit` a plugin receives, and
+  `kitVersion`. No runtime code but the version.
+- `./testing`: `createTestKit()`, the kit a plugin's tests call it with, and
+  `testConnectorConformance`.
+- `./host`: the live kit, `hostKit`, frozen, with the server's own `z`, `defineConnector`,
+  `ConnectorError`, `createFrameBuilder`, `createHttpClient` and `seriesFrames`. Only
+  `connectors/_shared/index.ts` imports it (rule `only-the-server-kit-uses-the-host`).
+
+`connectors/_shared/index.ts` re-exports the live kit and adds what only built-in kinds and the
+binders use, querent's policy lists (`policies.ts`): `searchRatioScripts`, `mongodbRefusedKeys`,
+`redisReadCommands`. The public kit leaves them out. The kit imports only `@querent/shared` and
+Zod (rule `plugin-kit-stays-small`), and a plugin receives the server's Zod and error class, so
+its schemas build the forms and `instanceof ConnectorError` holds.
+
 ```ts
 // connectors/<kind>/<kind>-connector.ts (shape)
 export const exampleConnector = defineConnector({
@@ -686,7 +706,7 @@ export const exampleConnector = defineConnector({
   resolves to when the request starts. It stops at a timeout (120 seconds by default, on top of the
   caller's signal) and reads at most 64 MiB of a body. A request names a path under the base URL,
   or an absolute URL on the same origin, such as a next-page link.
-- `connectors/_shared/test/conformance.ts` is the suite every kind runs in its test file: static
+- `@querent/plugin-kit/testing` holds the suite every kind runs in its test file: static
   checks of the declaration, and live checks against a source (health, schema, valid frames, row
   limit, abort, error messages, sample limit). `test/memory-connector.ts` is an in-memory kind for
   tests.

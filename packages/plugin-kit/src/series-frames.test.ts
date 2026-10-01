@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { frameProblems } from '@querent/shared';
-import type { ExecutionContext } from './index.ts';
+import type { ExecutionContext } from './queries.ts';
 import { sampleValue, seriesFrames, seriesName } from './series-frames.ts';
 
 const context: ExecutionContext = {

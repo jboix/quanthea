@@ -17,6 +17,7 @@ COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
 COPY dev/package.json dev/package.json
 # The root prepare script installs git hooks, which an image has no use for.
 RUN bun install --frozen-lockfile --ignore-scripts
@@ -32,6 +33,7 @@ COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
 COPY dev/package.json dev/package.json
 RUN bun install --frozen-lockfile --ignore-scripts --production --filter @querent/server
 RUN mkdir -p /volume/data /volume/keys /volume/etc/querent \
@@ -52,9 +54,12 @@ COPY --from=deps /volume/ /
 COPY --from=deps /repo/node_modules node_modules
 COPY --from=deps /repo/apps/server/node_modules apps/server/node_modules
 COPY --from=deps /repo/packages/shared/node_modules packages/shared/node_modules
+COPY --from=deps /repo/packages/plugin-kit/node_modules packages/plugin-kit/node_modules
 COPY package.json ./
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/shared/src packages/shared/src
+COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
+COPY packages/plugin-kit/src packages/plugin-kit/src
 COPY apps/server/package.json apps/server/package.json
 COPY apps/server/src apps/server/src
 COPY --from=build /repo/apps/web/dist apps/web/dist

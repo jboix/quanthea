@@ -3,7 +3,7 @@
  *
  * Three kinds of rules live here:
  *   1. Hygiene: cycles, orphans, unresolvable and undeclared imports.
- *   2. Boundaries between the workspaces (web, server, shared).
+ *   2. Boundaries between the workspaces (web, server, shared, plugin-kit).
  *   3. Architecture rules inside each app, most importantly: the agent never
  *      sees connector output except through the access gate.
  *
@@ -125,6 +125,46 @@ module.exports = {
         pathNot: ['^packages/shared/src/', '(^|/)node_modules/zod/'],
         dependencyTypesNot: ['type-only'],
       },
+    },
+
+    {
+      name: 'plugin-kit-is-a-leaf',
+      severity: 'error',
+      comment:
+        'packages/plugin-kit is what plugins are written against: it imports shared and zod, ' +
+        'never an app, and shared never imports it.',
+      from: { path: '^packages/plugin-kit/' },
+      to: { path: '^apps/' },
+    },
+    {
+      name: 'shared-not-to-plugin-kit',
+      severity: 'error',
+      from: { path: '^packages/shared/' },
+      to: { path: '^packages/plugin-kit/' },
+    },
+    {
+      name: 'plugin-kit-stays-small',
+      severity: 'error',
+      comment:
+        'The kit runs inside plugins as well as the server: its only runtime dependencies are ' +
+        'shared and zod. The testing entry and tests may use bun:test.',
+      from: { path: '^packages/plugin-kit/src/', pathNot: ['[.]test[.]ts$', '/testing[.]ts$'] },
+      to: {
+        pathNot: ['^packages/plugin-kit/src/', '^packages/shared/src/', '(^|/)node_modules/zod/'],
+        dependencyTypesNot: ['type-only', 'core'],
+      },
+    },
+    {
+      name: 'only-the-server-kit-uses-the-host',
+      severity: 'error',
+      comment:
+        'The live kit (plugin-kit/host) reaches the server through connectors/_shared/index.ts only, ' +
+        'so built-in kinds and plugins see the same functions.',
+      from: {
+        path: '^apps/',
+        pathNot: ['^apps/server/src/connectors/_shared/index[.]ts$'],
+      },
+      to: { path: '^packages/plugin-kit/src/host[.]ts$' },
     },
 
     // ------------------------------------------------------------ server layers

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import { z } from 'zod';
 import { ConnectorError } from '../_shared/index.ts';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import { aggregationsFrame } from './aggregations.ts';
 import { patternOf, toEntities } from './catalog.ts';
 import { fieldTypeOf, mappingFields } from './columns.ts';

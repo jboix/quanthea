@@ -20,7 +20,7 @@ export interface FrameBuilder {
 }
 
 /** What a frame builder needs to know. */
-interface FrameBuilderOptions {
+export interface FrameBuilderOptions {
   /** The frame name the query was given (`ExecutionContext.refId`). */
   readonly refId: string;
   /** The fields, in column order. */

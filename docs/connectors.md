@@ -4,8 +4,9 @@ A **connector kind** teaches querent to read one kind of source, such as Postgre
 adds one. A kind is a folder in `apps/server/src/connectors/` and one line in the registry. It ships
 no UI and no routes.
 
-Kinds are compiled into the server today. Each kind already talks to the core only through the
-connector kit, `connectors/_shared/index.ts`, so the same folder can later be loaded as a plugin.
+Kinds are compiled into the server today. Each kind talks to the core only through the connector
+kit, `connectors/_shared/index.ts`, which re-exports the public kit of `packages/plugin-kit`
+(`@querent/plugin-kit`), so the same code can be loaded as a plugin.
 
 ## Who does what
 
@@ -152,7 +153,7 @@ kinds in that order.
 ## 6. Test the kind
 
 - Run the conformance suite in `<kind>-connector.integration.test.ts`:
-  `testConnectorConformance(warehouseConnector, fixture)` from `_shared/test/conformance.ts`. It
+  `testConnectorConformance(warehouseConnector, fixture)` from `@querent/plugin-kit/testing`. It
   checks the declaration on every run, and the health, schema, frames, row limit, abort, errors and
   samples against a live source with `bun run test:integration`.
 - Add a dev source to `dev/docker-compose.yml` with seed data, under a profile named after its set,

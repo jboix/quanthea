@@ -16,6 +16,9 @@
     "packages/shared": {
       "project": ["src/**/*.ts"]
     },
+    "packages/plugin-kit": {
+      "project": ["src/**/*.ts"]
+    },
     "dev": {
       "entry": [
         "metrics/history.ts",

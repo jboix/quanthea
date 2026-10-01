@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import {
   type AnyConnectorKind,
   ConnectorError,
   type ConnectorInstance,
   type ExecutionContext,
 } from '../_shared/index.ts';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import { devIncidentStart, devMysqlServers, integrationFor } from '../_shared/test/dev-sources.ts';
 import { mariadbConnector } from './mariadb-connector.ts';
 import { mysqlConnector } from './mysql-connector.ts';

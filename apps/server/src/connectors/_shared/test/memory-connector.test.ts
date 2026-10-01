@@ -1,4 +1,4 @@
-import { testConnectorConformance } from './conformance.ts';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import { memoryConnector } from './memory-connector.ts';
 
 testConnectorConformance(memoryConnector, {

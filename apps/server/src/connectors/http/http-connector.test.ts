@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import { atPointer, cellValue, inferredFields, responseFrame } from './extract.ts';
 import { httpConnector } from './http-connector.ts';
 import { describeApi } from './openapi.ts';

@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import type {
   ConnectorError,
   ConnectorInstance,
   ExecutionContext,
   RedisQuery,
 } from '../_shared/index.ts';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import {
   devIncidentStart,
   devValkey,

@@ -28,6 +28,7 @@
         "@ai-sdk/mistral": "^4.0.52",
         "@ai-sdk/openai": "^4.0.78",
         "@ai-sdk/openai-compatible": "^3.0.57",
+        "@querent/plugin-kit": "workspace:*",
         "@querent/shared": "workspace:*",
         "ai": "^7.0.118",
         "hono": "^4.13.9",
@@ -65,6 +66,14 @@
     "dev": {
       "name": "@querent/dev",
       "version": "0.0.0",
+    },
+    "packages/plugin-kit": {
+      "name": "@querent/plugin-kit",
+      "version": "0.0.0",
+      "dependencies": {
+        "@querent/shared": "workspace:*",
+        "zod": "^4.6.5",
+      },
     },
     "packages/shared": {
       "name": "@querent/shared",
@@ -300,6 +309,8 @@
     "@pnpm/npm-conf": ["@pnpm/npm-conf@3.0.3", "", { "dependencies": { "@pnpm/config.env-replace": "^1.1.0", "@pnpm/network.ca-file": "^1.0.1", "config-chain": "^1.1.11" } }, "sha512-//0sR/cow/s4ICQaYoAobOl4aU8cjU6x/V24V7XkKotb9+O+3zySIYp146vpaobYHnxa4pZX8NkV54Z5AwbDKA=="],
 
     "@querent/dev": ["@querent/dev@workspace:dev"],
+
+    "@querent/plugin-kit": ["@querent/plugin-kit@workspace:packages/plugin-kit"],
 
     "@querent/server": ["@querent/server@workspace:apps/server"],
 

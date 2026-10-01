@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import type { ExecutionContext } from '../_shared/index.ts';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import {
   devIncidentStart,
   devPrometheus,

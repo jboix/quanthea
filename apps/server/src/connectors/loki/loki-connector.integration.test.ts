@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import type {
   ConnectorError,
   ConnectorInstance,
   ExecutionContext,
   LogqlQuery,
 } from '../_shared/index.ts';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import { devIncidentStart, devLoki, integrationFor } from '../_shared/test/dev-sources.ts';
 import { lokiConnector } from './loki-connector.ts';
 

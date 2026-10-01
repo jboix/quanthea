@@ -1,21 +1,17 @@
 /**
- * The conformance suite every connector kind runs: `testConnectorConformance(kind, fixture)` in the
- * kind's test file. The static checks always run; the live checks need a source to talk to.
+ * Testing a connector kind, for built-in kinds and plugins alike: a kit to call a plugin with, and
+ * the conformance suite every kind runs, `testConnectorConformance(kind, fixture)` in the kind's
+ * test file. The static checks always run; the live checks need a source to talk to.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { frameProblems } from '@querent/shared';
+import { frameProblems, queryLanguages } from '@querent/shared';
 import { z } from 'zod';
-import {
-  type AnyConnectorKind,
-  type BoundQuery,
-  ConnectorError,
-  type ConnectorInstance,
-  type ExecutionContext,
-  type FieldReference,
-  queryLanguages,
-  sqlDialects,
-  type TimeRange,
-} from '../index.ts';
+import type { ConnectorInstance, ConnectorKind } from './connector-kind.ts';
+import { ConnectorError } from './errors.ts';
+import { hostKit } from './host.ts';
+import type { ConnectorKit } from './kit.ts';
+import { type BoundQuery, type ExecutionContext, sqlDialects, type TimeRange } from './queries.ts';
+import type { FieldReference } from './schema.ts';
 
 /** What the suite needs to exercise a kind. */
 export interface ConformanceFixture {
@@ -35,6 +31,15 @@ export interface ConformanceFixture {
   readonly live: boolean;
   /** Names the source in the test titles, when a kind runs against several. */
   readonly label?: string;
+}
+
+/**
+ * The kit to call a plugin with in its tests: the same functions querent passes at load.
+ *
+ * @returns The kit.
+ */
+export function createTestKit(): ConnectorKit {
+  return hostKit;
 }
 
 /**
@@ -77,7 +82,7 @@ function contextFor(
  * @param kind - The connector kind.
  * @param fixture - The fixture.
  */
-function testDeclaration(kind: AnyConnectorKind, fixture: ConformanceFixture): void {
+function testDeclaration(kind: ConnectorKind, fixture: ConformanceFixture): void {
   test('declares an identifier, a name and a known language', () => {
     expect(kind.kind).toMatch(/^[a-z][a-z0-9-]*$/);
     expect(kind.displayName.length).toBeGreaterThan(0);
@@ -188,10 +193,7 @@ function testExecution(connection: () => ConnectorInstance, fixture: Conformance
  * @param kind - The connector kind under test.
  * @param fixture - How to exercise it.
  */
-export function testConnectorConformance(
-  kind: AnyConnectorKind,
-  fixture: ConformanceFixture,
-): void {
+export function testConnectorConformance(kind: ConnectorKind, fixture: ConformanceFixture): void {
   const name = fixture.label ? `${kind.kind}" on "${fixture.label}` : kind.kind;
   describe(`connector kind "${name}": declaration`, () => testDeclaration(kind, fixture));
 

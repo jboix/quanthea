@@ -48,11 +48,12 @@ Run one test file with `bun test apps/server/src/app.test.ts`.
 
 ## Layout
 
-| Workspace         | Package           | What it is                                                         |
-| ----------------- | ----------------- | ------------------------------------------------------------------ |
-| `apps/server`     | `@querent/server` | Bun + Hono API, SQLite, serves the built SPA.                      |
-| `apps/web`        | `@querent/web`    | React SPA, React Router in data mode, Vite. No SSR.                |
-| `packages/shared` | `@querent/shared` | API contracts, roles, and later the spec and formatters. Zod only. |
+| Workspace             | Package               | What it is                                                            |
+| --------------------- | --------------------- | --------------------------------------------------------------------- |
+| `apps/server`         | `@querent/server`     | Bun + Hono API, SQLite, serves the built SPA.                         |
+| `apps/web`            | `@querent/web`        | React SPA, React Router in data mode, Vite. No SSR.                   |
+| `packages/shared`     | `@querent/shared`     | API contracts, roles, and later the spec and formatters. Zod only.    |
+| `packages/plugin-kit` | `@querent/plugin-kit` | The connector kit: public types, the live kit, the conformance suite. |
 
 Module boundaries are in the architecture doc, section 3 and 4, and in `.dependency-cruiser.cjs`.
 

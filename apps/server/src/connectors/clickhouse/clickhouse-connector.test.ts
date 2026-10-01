@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import type { ConnectorError } from '../_shared/index.ts';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import { quoteIdentifier, toEntities } from './catalog.ts';
 import { clickhouseConnector } from './clickhouse-connector.ts';
 import { fieldTypeOf, frameValue, innerType } from './columns.ts';

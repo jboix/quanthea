@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import { BSON, MongoServerError } from 'mongodb';
 import type { ConnectorError, MongodbQuery } from '../_shared/index.ts';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import { fieldsOf } from './catalog.ts';
 import { toConnectorError, urlOf } from './client.ts';
 import { frameOf, leafOf } from './frames.ts';

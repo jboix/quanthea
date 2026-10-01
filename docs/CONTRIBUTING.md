@@ -32,13 +32,14 @@ Markdown.
 
 ## Layout
 
-| Path              | Contents                                                          |
-| ----------------- | ----------------------------------------------------------------- |
-| `apps/server`     | `@querent/server`: Bun + Hono API, SQLite, serves the built SPA   |
-| `apps/web`        | `@querent/web`: React SPA, React Router in data mode, Vite        |
-| `packages/shared` | `@querent/shared`: API contracts and roles, imported by both apps |
-| `dev`             | `@querent/dev`: the local data sources and the synthetic metrics  |
-| `docs`            | Architecture, dashboard spec, brand, contributing, security       |
+| Path                  | Contents                                                                 |
+| --------------------- | ------------------------------------------------------------------------ |
+| `apps/server`         | `@querent/server`: Bun + Hono API, SQLite, serves the built SPA          |
+| `apps/web`            | `@querent/web`: React SPA, React Router in data mode, Vite               |
+| `packages/shared`     | `@querent/shared`: API contracts and roles, imported by both apps        |
+| `packages/plugin-kit` | `@querent/plugin-kit`: the connector kit, for built-in kinds and plugins |
+| `dev`                 | `@querent/dev`: the local data sources and the synthetic metrics         |
+| `docs`                | Architecture, dashboard spec, brand, contributing, security              |
 
 ## Local data sources
 

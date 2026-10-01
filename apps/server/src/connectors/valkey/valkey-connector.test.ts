@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import type { RedisQuery } from '../_shared/index.ts';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import { groupKeys, patternOf } from './catalog.ts';
 import { frameOf, tableOf } from './frames.ts';
 import { toConnectorError } from './session.ts';

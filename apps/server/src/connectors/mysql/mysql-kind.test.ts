@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { testConnectorConformance } from '@querent/plugin-kit/testing';
 import { ConnectorError } from '../_shared/index.ts';
-import { testConnectorConformance } from '../_shared/test/conformance.ts';
 import { fieldTypeOf, fieldTypeOfName, frameValue } from './columns.ts';
 import { toConnectorError } from './errors.ts';
 import { mariadbConnector } from './mariadb-connector.ts';
