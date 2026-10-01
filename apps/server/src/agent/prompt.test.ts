@@ -16,7 +16,8 @@ const facts: TurnFacts = {
   draft: undefined,
   mentions: [],
   queries: { builtIn: ['rate', 'sql-stat'], saved: [] },
-  guides: [{ text: 'PostgreSQL (SQL). Bind the range with :__from and :__to.' }],
+  languages: ['sql'],
+  guides: [{ kind: 'postgres' }],
 };
 
 describe('instructionsFor', () => {
@@ -43,7 +44,7 @@ describe('instructionsFor', () => {
     expect(instructionsFor({ ...facts, state: 'ready' })).toContain('Building with edit_dashboard');
   });
 
-  test('lists the thread’s builders with their columns, the shapes, the charts and the connector guides', () => {
+  test('lists the thread’s builders with their columns, the shapes, the charts and the guides to read', () => {
     const text = instructionsFor({ ...facts, state: 'ready' });
     expect(text).toContain(
       '- rate: a counter per second; columns time, the "by" labels, series, value',
@@ -52,7 +53,15 @@ describe('instructionsFor', () => {
     expect(text).not.toContain('- latency:');
     expect(text).toContain('- matrix: One row per cell');
     expect(text).toContain('trend.line (long): A number over time');
-    expect(text).toContain('PostgreSQL (SQL). Bind the range');
+    expect(text).toContain("Read a kind's guide with read_guide");
+    expect(text).toContain('Kinds: postgres.');
+  });
+
+  test('writes the raw query syntax of the languages in use only', () => {
+    const text = instructionsFor({ ...facts, state: 'ready' });
+    expect(text).toContain('SQL uses :name variables');
+    expect(text).not.toContain('PromQL uses $name');
+    expect(text).not.toContain('MongoDB query');
   });
 
   test('lists saved queries with their placeholders', () => {

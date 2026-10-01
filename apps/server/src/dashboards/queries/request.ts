@@ -4,7 +4,7 @@
  * This is part of the edit tool's input schema, so it stays small: name checks run in code rather
  * than as JSON schema patterns.
  */
-import type { SavedQuery } from '@querent/shared';
+import { queryBuilders, type SavedQuery } from '@querent/shared';
 import { z } from 'zod';
 import {
   connectorSchema,
@@ -206,6 +206,25 @@ export interface AvailableQueries {
   readonly builtIn: readonly string[];
   /** The saved queries. */
   readonly saved: readonly SavedQuery[];
+}
+
+/**
+ * The queries of a run that its connectors can run: builders and saved queries in a language one
+ * of them speaks.
+ *
+ * @param available - The builders and saved queries the thread may use.
+ * @param languages - The query languages of the connectors.
+ * @returns Those in these languages.
+ */
+export function availableIn(
+  available: AvailableQueries,
+  languages: ReadonlySet<string>,
+): AvailableQueries {
+  const builders = new Map(queryBuilders.map((builder) => [builder.id, builder.language]));
+  return {
+    builtIn: available.builtIn.filter((id) => languages.has(builders.get(id) ?? '')),
+    saved: available.saved.filter((query) => languages.has(query.language)),
+  };
 }
 
 /**

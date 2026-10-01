@@ -18,6 +18,7 @@ import { cachedInstructions, withCachedTail } from './cache.ts';
 import { chartTools } from './chart-tools.ts';
 import { compactHistory, compactSteps, endingOnPersonTurn } from './compact.ts';
 import { dataTools } from './data-tools.ts';
+import { guideTools } from './guide-tools.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
 import { phaseOf, phaseTools } from './phases.ts';
 import { instructionParts } from './prompt.ts';
@@ -86,6 +87,7 @@ export async function turnInstructions(
     declinedMatches: messages.at(-1)?.parts.some((part) => part.type === 'data-matches') ?? false,
     queries: context.queries,
     charts: context.charts,
+    languages: [...new Set(context.modelView.connectors().map((connector) => connector.language))],
     guides: context.modelView.guides(),
   });
   return cachedInstructions(parts, context.settings.provider);
@@ -103,6 +105,7 @@ function turnTools(context: RunContext, now: () => number) {
     ...dataTools(context, (expression) => resolveTime(expression, now())),
     ...buildTools(context),
     ...chartTools(context.charts),
+    ...guideTools(context.modelView.guides()),
     ask_person: askPersonTool(context),
   };
 }

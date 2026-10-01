@@ -116,7 +116,7 @@ function testQueryTool(context: RunContext, resolveTime: (expression: string) =>
   const { modelView, signal } = context;
   return tool({
     description:
-      'Run a query and see its result as your access level allows: shapes, row counts, and more at higher levels. Use it before putting a query in a dashboard. SQL uses :name variables and :__from, :__to; PromQL uses $name in label matchers, $__interval, $__range, $__rate_interval; LogQL the same, also in line and label filters; a search body uses {"$var": "name"} nodes and __from, __to, __interval; an HTTP request uses $name in its path and query parameters, {"$var": "name"} in a POST body, $__from and $__to (ISO), $__from_ms, $__from_s and the same for __to, and extract.rows, a JSON pointer to its rows; a Redis command takes $name in its arguments, and $__from_ms, $__to_ms for scores and stream ids; a MongoDB pipeline is Extended JSON with {"$var": "name"} nodes, __from and __to as dates and __interval_ms, for $dateTrunc with unit millisecond.',
+      "Run a query and see its result as your access level allows: shapes, row counts, and more at higher levels. Use it before putting a query in a dashboard. Write it as the connector kind's guide says (read_guide); variables and the time range work as in a panel.",
     inputSchema: z.object({
       connector: z.string(),
       query: testQuerySchema,

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { queryText, type SavedQuery, savedQuerySchema } from '@querent/shared';
 import { z } from 'zod';
 import { buildData } from './build.ts';
-import { dataSchemaFor } from './request.ts';
+import { availableIn, dataSchemaFor } from './request.ts';
 
 const failedBy: SavedQuery = savedQuerySchema.parse({
   id: 'failed-by',
@@ -160,6 +160,18 @@ describe('saved queries', () => {
       'needs a value for table',
     );
     expect(() => queryOf({ ...base, name: 'nope' })).toThrow('No saved query "nope".');
+  });
+
+  test('keep the builders and saved queries of the connectors’ languages', () => {
+    expect(
+      availableIn(
+        { builtIn: ['rate', 'sql-stat', 'search-ratio'], saved: [failedBy, queueDepth] },
+        new Set(['sql']),
+      ),
+    ).toEqual({
+      builtIn: ['sql-stat'],
+      saved: [failedBy],
+    });
   });
 
   test('offer only the thread’s queries in the tool schema', () => {

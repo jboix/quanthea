@@ -372,6 +372,7 @@ shows depends on the connector's access level.
 | `propose_plan(plan)`                                | `{ planId, status, next }`                                                                                | Streams a `data-plan` part and moves the thread to `plan_pending`; the run then stops.   |
 | `edit_dashboard(edit)`                              | the new version, each panel's test result, and the new panels left out; or the issues and failures to fix | Panels of data and a chart; see "Writing a version".                                     |
 | `chart_recipe(id)`                                  | a chart recipe's roles, variants, pitfalls and option template                                            | The instructions list every recipe in one line; this reads one in full.                  |
+| `read_guide(kind)`                                  | a connector kind's query guide: each shape of data from it, with examples, and its raw query syntax       | The instructions name the kinds in use; this reads one in full.                          |
 
 `search_library` and `get_dashboard` arrive with the library and variants.
 
@@ -558,16 +559,21 @@ for which service or table, and over which time. It never asks in words for appr
 card has the buttons. The thread's state sets the phase
 (`agent/phases.ts`), and each phase offers only its tools:
 
-| Phase    | Thread states          | Tools                                                                       | Adds to the instructions                          |
-| -------- | ---------------------- | --------------------------------------------------------------------------- | ------------------------------------------------- |
-| planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`                   | one question before the first plan, then the plan |
-| building | `building`             | `describe`, `sample_values`, `test_query`, `chart_recipe`, `edit_dashboard` | the panel guide, the plan                         |
-| editing  | `ready`                | all of the above, `ask_person` and `propose_plan`                           | the panel guide                                   |
+| Phase    | Thread states          | Tools                                                                                     | Adds to the instructions                          |
+| -------- | ---------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`                                 | one question before the first plan, then the plan |
+| building | `building`             | `describe`, `sample_values`, `read_guide`, `test_query`, `chart_recipe`, `edit_dashboard` | the panel guide, the plan                         |
+| editing  | `ready`                | all of the above, `ask_person` and `propose_plan`                                         | the panel guide                                   |
 
 Planning never runs a query: the build test-runs every query anyway. The panel guide only comes
 once there is something to write, so planning requests stay short. It lists the thread's builders
 with the columns each returns, raw and saved queries, the shapes of data, one line per chart
-recipe, and the query guide of each connector kind in use.
+recipe, and the connector kinds in use. Only builders and saved queries in a language a
+connector speaks are offered, in the guide and in the tool schema (`availableIn`), and the raw
+query syntax covers those languages only. A connector kind's query guide (how to get each shape
+of data from it, with examples) is not in the instructions: the agent reads it with `read_guide`
+before the kind's first raw query or test query, as it reads a chart recipe with
+`chart_recipe`. The instructions stay about the same size however many kinds are in use.
 
 ### Keeping requests small
 
@@ -581,7 +587,7 @@ Every request carries the whole conversation, so what the model rereads is compa
   and its results stay whole, so a repair sees exactly what failed.
 
 Providers bill a repeated start of a request at a fraction of the input price (prompt caching), so
-the instructions put what lasts first: the persona, the rules, the guides and the catalog, then
+the instructions put what lasts first: the persona, the rules, the panel guide and the catalog, then
 the time, the draft, the mentions and the phase's rules (`instructionParts`). OpenAI and Gemini
 cache a stable start on their own. Anthropic caches only up to marked points (`agent/cache.ts`):
 the lasting instructions are a separate system block marked as a cache point, and before each

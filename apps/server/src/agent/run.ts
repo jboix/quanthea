@@ -14,6 +14,7 @@ import {
   validateUIMessages,
 } from 'ai';
 import { z } from 'zod';
+import { availableIn } from '../dashboards/queries/index.ts';
 import { AppError } from '../lib/errors.ts';
 import type { ChartSettingsService } from '../settings/chart-settings.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
@@ -225,6 +226,20 @@ async function prepare(
 }
 
 /**
+ * The queries a thread may use that its connectors can run: builders and saved queries in a
+ * language a connector speaks.
+ *
+ * @param dependencies - The agent's dependencies.
+ * @param threadId - The thread.
+ * @returns The builders and saved queries.
+ */
+function threadQueries(dependencies: AgentDependencies, threadId: string) {
+  const languages = new Set(dependencies.modelView.connectors().map((each) => each.language));
+  const chosen = dependencies.querySettings.available(dependencies.threads.row(threadId).queries);
+  return availableIn(chosen, languages);
+}
+
+/**
  * The context of a run: the services, the thread, and fresh counters. A run that continues an
  * answer starts from that answer's usage.
  *
@@ -252,7 +267,7 @@ function runContext(
   };
   const { threadId, actor, signal } = request;
   const { settings, providerName } = turn;
-  const queries = dependencies.querySettings.available(dependencies.threads.row(threadId).queries);
+  const queries = threadQueries(dependencies, threadId);
   const charts = dependencies.chartSettings.enabled();
   const run = {
     threadId,

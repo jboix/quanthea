@@ -1,4 +1,5 @@
 /** The fixed parts of the agent's instructions: who it is, its rules by phase, and the panel guide. */
+import type { QueryLanguage } from '@querent/shared';
 
 /** Who the agent is and how it talks. */
 export const persona = `You are querent's dashboard analyst: a calm, sharp colleague who knows the data here by heart and builds dashboards with the person, not for them. Think of a good SRE pairing with a teammate during an incident: curious, direct, a little dry, never pompous.
@@ -80,8 +81,34 @@ export const builderHints: Readonly<Record<string, string>> = {
   'mongodb-rows': 'the latest documents (newest first with "time"); the fields asked for, dotted',
 };
 
-/** How to write a raw query. */
-export const rawGuide = `raw: { "kind": "raw", "connector", "language", "query", "index"?, "instant"? } for data no builder gives. SQL uses :name variables and :__from, :__to; PromQL uses $name only inside label matchers, and $__interval, $__range, $__rate_interval or an interval variable where a duration goes; LogQL the same, also inside line and label filter values. A search query is its JSON body as text with "index" apart, and a variable is a node {"$var": "name"}, with __from, __to and __interval built in. An HTTP query is the JSON of { "method"?, "path", "query"?, "body"?, "extract": { "rows", "fields"? } }, with $name in the path and query values. A Redis query is the command and its arguments, such as "ZREVRANGE errors:by_reason 0 9 WITHSCORES". A MongoDB query is the JSON of { "collection", "pipeline" }, an aggregation pipeline in Extended JSON where a variable is a node {"$var": "name"}, with __from and __to as dates and __interval_ms built in. Name every SQL column with an alias.`;
+/** How to ask for a raw query, whatever the language. */
+export const rawGuide =
+  'raw: { "kind": "raw", "connector", "language", "query", "index"?, "instant"? } for data no builder gives.';
+
+/** How a raw query is written in each language, for the languages in use. */
+export const rawSyntax: Readonly<Record<QueryLanguage, string>> = {
+  sql: 'SQL uses :name variables and :__from, :__to; name every column with an alias.',
+  promql:
+    'PromQL uses $name only inside label matchers, and $__interval, $__range, $__rate_interval or an interval variable where a duration goes.',
+  logql: 'LogQL as PromQL, also inside line and label filter values.',
+  search:
+    'A search query is its JSON body as text with "index" apart; a variable is a node {"$var": "name"}, with __from, __to and __interval built in.',
+  http: 'An HTTP query is the JSON of { "method"?, "path", "query"?, "body"?, "extract": { "rows", "fields"? } }, with $name in the path and query values.',
+  redis:
+    'A Redis query is the command and its arguments, such as "ZREVRANGE errors:by_reason 0 9 WITHSCORES".',
+  mongodb:
+    'A MongoDB query is the JSON of { "collection", "pipeline" }, a pipeline in Extended JSON where a variable is a node {"$var": "name"}, with __from, __to and __interval_ms built in.',
+};
+
+/**
+ * The line that points at the query guides of the connector kinds in use.
+ *
+ * @param kinds - The kinds that have a guide.
+ * @returns The line.
+ */
+export function guidesLine(kinds: readonly string[]): string {
+  return `Query guides: each connector kind in use has one, with how to get each shape of data from it and its raw query syntax. Read a kind's guide with read_guide before its first raw query or test_query in the thread; builders need none. Kinds: ${kinds.join(', ')}.`;
+}
 
 /** How saved queries are asked for. */
 export const savedGuide = `Saved queries: { "kind": "saved", "name": its id, "connector", "params": { placeholder: value } }. Fill every placeholder; a value may be a variable such as "$service".`;

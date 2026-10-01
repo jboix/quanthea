@@ -1,15 +1,17 @@
 /**
  * The guide to edit_dashboard for one thread: the query builders and saved queries it may use and
- * the columns each returns, raw queries, the shapes of data, the chart recipes, and the query guide
- * of each connector kind in use.
+ * the columns each returns, raw queries in the languages in use, the shapes of data, the chart
+ * recipes, and the connector kinds whose query guide read_guide gives.
  */
 import {
   type BuilderLanguage,
   builderLanguages,
   chartIndex,
   chartRecipes,
+  type QueryLanguage,
   queryBuilders,
   queryLanguageNames,
+  queryLanguages,
   type SavedQuery,
   shapeGuides,
   shapeKinds,
@@ -19,8 +21,10 @@ import {
   builderHints,
   chartGuide,
   editRules,
+  guidesLine,
   panelIntro,
   rawGuide,
+  rawSyntax,
   savedGuide,
 } from './prompt-text.ts';
 
@@ -54,38 +58,52 @@ function savedLine(query: SavedQuery): string {
   return `- "${query.id}" (${query.language}, ${query.shape}): ${query.description}${placeholders}`;
 }
 
+/** What the panel guide depends on. */
+export interface PanelGuideFacts {
+  /** The query builders and saved queries the thread may use. */
+  readonly queries: AvailableQueries;
+  /** The query languages of the connectors in use. */
+  readonly languages: readonly QueryLanguage[];
+  /** The connector kinds in use that have a query guide. */
+  readonly guides: readonly { readonly kind: string }[];
+  /** The chart recipes offered, by id; every one when not given. */
+  readonly charts?: readonly string[] | undefined;
+}
+
 /**
- * The lines about data: the builders by language, the saved queries, and raw queries.
+ * The lines about data: the builders by language, the saved queries, raw queries in the languages
+ * in use, and where the connector kinds' guides are.
  *
- * @param available - The builders and saved queries.
+ * @param facts - The queries, languages and guides.
  * @returns The lines.
  */
-function dataLines(available: AvailableQueries): string[] {
+function dataLines(facts: PanelGuideFacts): string[] {
+  const available = facts.queries;
   const none = available.builtIn.length === 0 && available.saved.length === 0;
+  const syntax = queryLanguages
+    .filter((language) => facts.languages.includes(language))
+    .map((language) => rawSyntax[language]);
+  const raw = [rawGuide, ...syntax].join(' ');
   return [
     ...builderLanguages.flatMap((language) =>
       builderLines(`${queryLanguageNames[language]} builders`, language, available.builtIn),
     ),
     ...(available.saved.length === 0 ? [] : [savedGuide, ...available.saved.map(savedLine)]),
     none
-      ? `${rawGuide} This thread uses no query builders: every panel's data is a raw query.`
-      : `${rawGuide} Prefer builders: their queries do not break.`,
+      ? `${raw} This thread uses no query builders: every panel's data is a raw query.`
+      : `${raw} Prefer builders: their queries do not break.`,
+    ...(facts.guides.length === 0 ? [] : [guidesLine(facts.guides.map((guide) => guide.kind))]),
   ];
 }
 
 /**
  * The guide to edit_dashboard with the queries a thread may use.
  *
- * @param available - The builders and saved queries.
- * @param guides - The query guides of the connector kinds in use.
- * @param charts - The chart recipes offered, by id; every one when not given.
+ * @param facts - The queries, languages, guides and charts of the thread.
  * @returns The guide.
  */
-export function panelGuideFor(
-  available: AvailableQueries,
-  guides: readonly { readonly text: string }[],
-  charts?: readonly string[],
-): string {
+export function panelGuideFor(facts: PanelGuideFacts): string {
+  const { charts } = facts;
   const offered = charts
     ? chartRecipes.filter((recipe) => charts.includes(recipe.id))
     : chartRecipes;
@@ -93,13 +111,12 @@ export function panelGuideFor(
   return [
     panelIntro,
     'Data, the "data" of a panel:',
-    ...dataLines(available),
+    ...dataLines(facts),
     'Shapes of data:',
     ...shapes,
     chartGuide,
     'Chart recipes, id (shape): when to use it:',
     chartIndex(offered),
-    ...guides.map((guide) => guide.text),
     editRules,
   ].join('\n');
 }

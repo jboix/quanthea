@@ -4,7 +4,7 @@
  * what is true now: the time, the current draft, the panels the person mentions, and last what the
  * thread's phase asks of it.
  */
-import type { DashboardSpec, Plan } from '@querent/shared';
+import type { DashboardSpec, Plan, QueryLanguage } from '@querent/shared';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import type { ThreadState } from '../threads/state.ts';
 import { panelGuideFor } from './panel-guide.ts';
@@ -37,8 +37,10 @@ export interface TurnFacts {
   readonly declinedMatches?: boolean;
   /** The query builders and saved queries the thread may use. */
   readonly queries: AvailableQueries;
-  /** The query guides of the connector kinds in use. */
-  readonly guides: readonly { readonly text: string }[];
+  /** The query languages of the connectors in use. */
+  readonly languages: readonly QueryLanguage[];
+  /** The connector kinds in use that have a query guide, which read_guide gives. */
+  readonly guides: readonly { readonly kind: string }[];
   /** The chart recipes the agent is offered, by id; every one when not given. */
   readonly charts?: readonly string[];
 }
@@ -127,10 +129,7 @@ export interface InstructionParts {
  * @returns The lasting part and the turn's part.
  */
 export function instructionParts(facts: TurnFacts): InstructionParts {
-  const writing =
-    phaseOf(facts.state) === 'planning'
-      ? []
-      : [panelGuideFor(facts.queries, facts.guides, facts.charts)];
+  const writing = phaseOf(facts.state) === 'planning' ? [] : [panelGuideFor(facts)];
   const catalog = `Connectors and their data (the catalog):\n${facts.catalog}`;
   return {
     lasting: [persona, generalRules, ...writing, catalog].join('\n\n'),
