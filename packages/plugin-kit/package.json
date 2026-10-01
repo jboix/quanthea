@@ -1,6 +1,6 @@
 {
   "name": "@quanthea/plugin-kit",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "private": true,
   "description": "The connector kit: the types a quanthea connector plugin is written against, a test kit and the conformance suite.",
   "type": "module",
@@ -13,9 +13,15 @@
   },
   "scripts": {
     "dist": "bun scripts/dist.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "release:ci": "semantic-release"
   },
   "dependencies": {
     "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@semantic-release/exec": "^7.1.0",
+    "semantic-release": "^25.0.9",
+    "semantic-release-monorepo": "^8.0.2"
   }
 }

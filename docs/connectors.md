@@ -207,9 +207,10 @@ is a complete one to start from.
   Build the schemas with `kit.z` and throw `kit.ConnectorError`: they are quanthea's own. Import
   only types from `@quanthea/plugin-kit`, as a development dependency.
 - **The kit version.** The kit's major version equals `kitVersion`. The kit is in beta, 0.x with
-  kit version 0, and follows npm's caret: a minor bump (0.1.0 to 0.2.0) is a breaking change, a
-  patch bump (0.1.0 to 0.1.1) an addition or a fix. Declare `^0.<minor>.0`, such as `^0.1.0`. At
-  1.0, `kitVersion` becomes 1 and quanthea stops loading plugins built for kit version 0.
+  kit version 0: a minor version (0.2.0) adds to the kit, a patch version (0.1.1) fixes it.
+  Declare `^0.<minor>.0`, such as `^0.1.0`: npm's caret then takes the fixes, and a new minor
+  version is your choice. At 1.0, `kitVersion` becomes 1 and quanthea stops loading plugins built
+  for kit version 0.
 - **The manifest.** `package.json` names the package `quanthea-plugin-<name>` or
   `@scope/quanthea-plugin-<name>`, carries the `quanthea-plugin` keyword, and the `quanthea` field:
   `{ "kitVersion": 0, "main": "dist/plugin.js" }`. Set `"files": ["dist"]`, so the tarball holds

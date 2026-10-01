@@ -90,13 +90,14 @@ publishes the Docker image to GHCR. The type you choose is the version bump you 
 - `fix:` patch, `feat:` minor, `feat!:` or `BREAKING CHANGE:` major.
 - `docs:`, `chore:`, `test:`, `refactor:`, `ci:`, `build:` produce no release.
 
-The plugin kit (`@quanthea/plugin-kit`) has its own version, and the Release workflow publishes it
-to npm when that version is new. Bump it by hand in the commit that changes the kit's API, run
-`bun install` so `bun.lock` follows, and scope the commit `plugin-kit`. The kit's major version
-equals `kitVersion`. While the kit is in 0.x:
+The plugin kit (`@quanthea/plugin-kit`) has its own version. The Release workflow runs
+semantic-release for it on the commits that changed `packages/plugin-kit`, with the same rules,
+and publishes it to npm. Scope those commits `plugin-kit`. The kit's major version equals
+`kitVersion`, so while the kit is in 0.x:
 
-- A breaking change bumps the minor version, such as 0.1.0 to 0.2.0.
-- An addition or a fix bumps the patch version, such as 0.1.0 to 0.1.1.
+- Never mark a kit commit `!` or `BREAKING CHANGE`. Going to 1.0 is a deliberate breaking
+  release, with `kitVersion` set to 1 in the same commit.
+- A `feat` makes a minor version, such as 0.1.0 to 0.2.0; a `fix` a patch, such as 0.1.1.
 
 Write the subject line for the changelog reader, not the diff reader.
 

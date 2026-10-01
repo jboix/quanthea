@@ -49,14 +49,14 @@ complete plugin to start from.
 
 ## Versions
 
-The kit's major version equals `kitVersion`. While the kit is in 0.x, versions follow npm's caret:
+The kit's major version equals `kitVersion`. While the kit is in 0.x:
 
-- A **minor** bump, such as 0.1.0 to 0.2.0, is a breaking change.
-- A **patch** bump, such as 0.1.0 to 0.1.1, is an addition or a fix.
+- A **minor** version, such as 0.2.0, adds to the kit.
+- A **patch** version, such as 0.1.1, fixes it.
 
-Declare `^0.<minor>.0`, such as `^0.1.0`, to get additions and fixes without a breaking change.
-At 1.0, the kit becomes 1.0.0 and `kitVersion` becomes 1, and quanthea stops loading plugins
-built for kit version 0.
+npm's caret stays within one minor version on 0.x: `^0.1.0` takes the 0.1.x fixes, and moving to
+0.2.0 is your choice. At 1.0, the kit becomes 1.0.0 and `kitVersion` becomes 1, and quanthea stops
+loading plugins built for kit version 0.
 
 ## Licence
 

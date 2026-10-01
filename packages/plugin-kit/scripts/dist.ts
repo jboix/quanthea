@@ -2,9 +2,13 @@
  * Builds the publishable kit in `dist/`: the bundled entries, their declarations, a generated
  * `package.json`, the README and the licence. The workspace's own `package.json` points at the
  * sources and stays private; `npm publish packages/plugin-kit/dist` publishes this folder.
+ *
+ * Usage: `bun scripts/dist.ts [version]`. The release passes the version semantic-release cut,
+ * from the `plugin-kit-v*` tags; without one, the build is `<kitVersion>.0.0-local`.
  */
 import { copyFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { kitVersion } from '../src/kit.ts';
 
 const root = join(import.meta.dir, '..');
 const dist = join(root, 'dist');
@@ -17,8 +21,6 @@ const entries = ['index', 'testing'] as const;
 interface WorkspaceManifest {
   /** The package name. */
   readonly name: string;
-  /** The kit's version. */
-  readonly version: string;
   /** One line about the package. */
   readonly description: string;
   /** The runtime dependencies, zod alone. */
@@ -63,16 +65,31 @@ function declare(): void {
 }
 
 /**
+ * The version to build: the one given, whose major version must be the kit version.
+ *
+ * @param given - The version semantic-release cut, if any.
+ * @returns The version.
+ * @throws {Error} When the major version is not {@link kitVersion}.
+ */
+function versionToBuild(given: string | undefined): string {
+  const version = given ?? `${kitVersion}.0.0-local`;
+  if (Number(version.split('.')[0]) !== kitVersion)
+    throw new Error(`Version ${version} does not match kit version ${kitVersion}.`);
+  return version;
+}
+
+/**
  * The manifest npm publishes: the entries pointing at `dist`, zod as the one dependency.
  *
  * @param workspace - The workspace's manifest.
+ * @param version - The version to publish.
  * @returns The published manifest.
  */
-function publishedManifest(workspace: WorkspaceManifest): Record<string, unknown> {
+function publishedManifest(workspace: WorkspaceManifest, version: string): Record<string, unknown> {
   const entry = (name: string) => ({ types: `./${name}.d.ts`, default: `./${name}.js` });
   return {
     name: workspace.name,
-    version: workspace.version,
+    version,
     description: workspace.description,
     keywords: ['quanthea', 'connector', 'plugin', 'kit'],
     license: 'MIT',
@@ -98,11 +115,12 @@ function publishedManifest(workspace: WorkspaceManifest): Record<string, unknown
  * @returns Once every file is written.
  */
 async function main(): Promise<void> {
+  const version = versionToBuild(process.argv[2]);
   rmSync(dist, { recursive: true, force: true });
   await bundle();
   declare();
   const workspace = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  const manifest = publishedManifest(workspace as WorkspaceManifest);
+  const manifest = publishedManifest(workspace as WorkspaceManifest, version);
   writeFileSync(join(dist, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   copyFileSync(join(root, 'README.md'), join(dist, 'README.md'));
   copyFileSync(join(root, '../../LICENSE'), join(dist, 'LICENSE'));

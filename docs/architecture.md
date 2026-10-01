@@ -680,8 +680,8 @@ with zod as the one dependency. `bun run check:package` builds it and runs publi
 repository with a copy of the SQLite example, and typechecks, builds and tests the example there,
 as an outside author would. That install reads zod, TypeScript and the Bun types from the
 registry, or from Bun's cache.
-The kit has its own version, and its major version equals `kitVersion`: 0 during the beta, where
-a minor bump is a breaking change and a patch bump an addition or a fix.
+The kit has its own version, cut by semantic-release from the commits that changed it (see
+Releases), and its major version equals `kitVersion`: 0 during the beta.
 
 `connectors/_shared/index.ts` re-exports the live kit and adds what only built-in kinds and the
 binders use, quanthea's policy lists (`policies.ts`): `searchRatioScripts`, `mongodbRefusedKeys`,
@@ -1690,16 +1690,20 @@ The Release workflow (`.github/workflows/release.yml`) runs on demand:
    commit, so the ruleset on `main` can stay closed to everyone else.
 3. The image job builds the image at the tag for `linux/amd64` and `linux/arm64` and pushes it to
    `ghcr.io/<owner>/quanthea` as `:vX.Y.Z` and `:latest`. A released image is never rebuilt.
-4. The plugin-kit job runs on every release, whether the app released or not. It runs
-   `bun run check:package`, then publishes `packages/plugin-kit/dist` to npm when the kit's
-   version is not there yet, through trusted publishing (OIDC), which signs the provenance. It
-   tags `plugin-kit-vX.Y.Z` and creates a GitHub Release that lists the commits that changed the
-   kit since its last tag, and leaves the app's release as the latest one.
+4. Before the app's run, in the same job, semantic-release runs for the plugin kit alone, from
+   `packages/plugin-kit/.releaserc.json` with `semantic-release-monorepo`. It reads only the
+   commits that changed `packages/plugin-kit` since the last `plugin-kit-vX.Y.Z` tag, with the
+   same rules: `fix` a patch, `feat` a minor version. Its prepare step builds `dist/` with that
+   version (`scripts/dist.ts`, which refuses a major version other than `kitVersion`), then
+   `@semantic-release/npm` publishes `dist` through trusted publishing (OIDC), which signs the
+   provenance. It tags the kit and creates its GitHub Release, and makes no commit. The app's run
+   comes second, so the app's release is the latest one when both release.
 
-The root `package.json` holds the app's version. `/api/health` reports it. semantic-release reads
-`v*` tags only. The workspace `package.json` files stay at `0.0.0`, because `bun.lock` records
+The root `package.json` holds the app's version. `/api/health` reports it. The app's semantic-release
+reads `v*` tags only. The workspace `package.json` files stay at `0.0.0`, because `bun.lock` records
 their versions and a bump there would break `bun install --frozen-lockfile`.
 
-The kit is the exception: `packages/plugin-kit/package.json` holds the kit's own version, bumped by
-hand in the commit that changes its API, with `bun install` run so `bun.lock` follows. Its major
-version equals `kitVersion`.
+The kit's version lives in its `plugin-kit-v*` tags and on npm, never in a `package.json` in the
+repository, so a kit release changes neither `bun.lock` nor `main`. Its major version equals
+`kitVersion`. During 0.x, no kit commit carries `!` or `BREAKING CHANGE`: going to 1.0 is a
+deliberate breaking release, with `kitVersion` set to 1.
