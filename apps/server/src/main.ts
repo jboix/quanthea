@@ -35,7 +35,7 @@ const pluginKinds = await loadPlugins({
   offered: connectorKinds,
   logger,
 });
-for (const name of missingPinned(config.pluginPins, pluginKinds))
+for (const name of missingPinned(config.pluginsDir, config.pluginPins))
   logger.warn('pinned plugin not installed', { plugin: name });
 const { keys: keyInputs, dataDir, keysDir } = config;
 const keys = await loadKeys({ keys: keyInputs, dataDir, keysDir, logger });

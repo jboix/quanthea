@@ -156,11 +156,10 @@ describe('loadPlugins', () => {
     expect(empty).toBe('the module exports no plugin function as default');
   });
 
-  test('names pinned plugins that are not installed', async () => {
+  test('names pinned plugins with no folder, not those refused', () => {
     const pin = install('querent-plugin-a', source());
-    const loaded = await load({ 'querent-plugin-a': pin, 'querent-plugin-gone': pin });
-    expect(missingPinned({ 'querent-plugin-a': pin, 'querent-plugin-gone': pin }, loaded)).toEqual([
-      'querent-plugin-gone',
-    ]);
+    install('querent-plugin-b', source('b-kind'));
+    const pins = { 'querent-plugin-a': pin, 'querent-plugin-b': pin, 'querent-plugin-gone': pin };
+    expect(missingPinned(dir, pins)).toEqual(['querent-plugin-gone']);
   });
 });

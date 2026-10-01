@@ -6,7 +6,7 @@
  * clashes with a kind already offered. The bundle that runs is a private copy of the bytes the pin
  * was checked on, so a file swapped after the check never runs.
  */
-import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -19,7 +19,7 @@ import {
 } from '../connectors/_shared/index.ts';
 import type { Logger } from '../lib/logger.ts';
 import { type Manifest, readManifest } from './manifest.ts';
-import { pinOf, pluginFiles } from './pin.ts';
+import { folderOf, pinOf, pluginFiles } from './pin.ts';
 
 /** What loading needs. */
 export interface LoadOptions {
@@ -203,16 +203,13 @@ export async function loadPlugins(options: LoadOptions): Promise<RegisteredKind[
 }
 
 /**
- * The pinned plugins that are not installed, to warn about.
+ * The pinned plugins that have no folder in the plugins directory, to warn about. A plugin that
+ * is there but refused has its own log line.
  *
+ * @param dir - The plugins directory.
  * @param pins - The pins.
- * @param loaded - The kinds the plugins added.
  * @returns The package names.
  */
-export function missingPinned(
-  pins: Readonly<Record<string, string>>,
-  loaded: readonly RegisteredKind[],
-): string[] {
-  const names = new Set(loaded.map((kind) => kind.plugin?.name));
-  return Object.keys(pins).filter((name) => !names.has(name));
+export function missingPinned(dir: string, pins: Readonly<Record<string, string>>): string[] {
+  return Object.keys(pins).filter((name) => !existsSync(join(dir, folderOf(name))));
 }
