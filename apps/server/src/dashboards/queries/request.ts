@@ -15,6 +15,7 @@ import {
   tableSchema,
 } from './fields.ts';
 import { logqlBuilderSchemas } from './logql-request.ts';
+import { mongodbBuilderSchemas } from './mongodb-request.ts';
 import { searchBuilderSchemas } from './search-request.ts';
 
 /** What every PromQL builder takes. */
@@ -152,6 +153,7 @@ export const builderSchemas = {
   'sql-rows': sqlRowsSchema,
   ...searchBuilderSchemas,
   ...logqlBuilderSchemas,
+  ...mongodbBuilderSchemas,
 } as const;
 
 /** Validates a data request of any kind. */
@@ -167,6 +169,7 @@ export const dataSchema = z.discriminatedUnion('kind', [
   sqlRowsSchema,
   ...Object.values(searchBuilderSchemas),
   ...Object.values(logqlBuilderSchemas),
+  ...Object.values(mongodbBuilderSchemas),
   rawSchema,
   savedSchema,
 ]);

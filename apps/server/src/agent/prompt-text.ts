@@ -67,6 +67,15 @@ export const builderHints: Readonly<Record<string, string>> = {
     'lines or a number by label over the range, largest first; columns the "by" labels, Value',
   'logql-stat': 'one count or number over the range; column Value',
   'logql-lines': 'the latest lines; columns time, line, a column per label',
+  'mongodb-series':
+    'a count or measure over time (needs "time"); columns time, series (when "by" is given), value (value p50 and the like for percentiles)',
+  'mongodb-ratio':
+    'the share of documents matching "match" among those matching "of" (all when empty), "complement" for one minus it; over "time": columns time, series (with "by"), value; over "range": the "by" field and value, or value alone; "counts" adds matching and total',
+  'mongodb-breakdown':
+    'a count or measure by the values of a field, largest first; columns the "by" field, series (with "series"), value',
+  'mongodb-stat': 'one count or measure; column value',
+  'mongodb-histogram': 'documents per bin of a numeric field; columns bin, value',
+  'mongodb-rows': 'the latest documents (newest first with "time"); the fields asked for, dotted',
 };
 
 /** How to write a raw query. */

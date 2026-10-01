@@ -8,6 +8,14 @@ import {
   logqlSeriesData,
   logqlStatData,
 } from './logql.ts';
+import {
+  mongodbBreakdownData,
+  mongodbHistogramData,
+  mongodbRatioData,
+  mongodbRowsData,
+  mongodbSeriesData,
+  mongodbStatData,
+} from './mongodb.ts';
 import { gaugeData, latencyData, rateData, ratioData, topData } from './promql.ts';
 import type { DataOf, DataRequest } from './request.ts';
 import { savedData } from './saved.ts';
@@ -62,6 +70,12 @@ const builders: {
   'logql-breakdown': logqlBreakdownData,
   'logql-stat': logqlStatData,
   'logql-lines': logqlLinesData,
+  'mongodb-series': mongodbSeriesData,
+  'mongodb-ratio': mongodbRatioData,
+  'mongodb-breakdown': mongodbBreakdownData,
+  'mongodb-stat': mongodbStatData,
+  'mongodb-histogram': mongodbHistogramData,
+  'mongodb-rows': mongodbRowsData,
   raw: rawData,
 };
 

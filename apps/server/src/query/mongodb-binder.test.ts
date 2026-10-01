@@ -71,6 +71,20 @@ describe('bindMongodb', () => {
     });
   });
 
+  test('gives a duration variable in milliseconds with "as": "ms"', () => {
+    const stage = (name: string) => ({
+      $group: {
+        _id: { $dateTrunc: { date: '$t', unit: 'millisecond', binSize: { $var: name, as: 'ms' } } },
+      },
+    });
+    const binSize = (pipeline: unknown) =>
+      (pipeline as [{ $group: { _id: { $dateTrunc: { binSize: unknown } } } }])[0].$group._id
+        .$dateTrunc.binSize;
+    expect(binSize(bind([stage('interval')], { interval: '5m' }).pipeline)).toBe(300_000);
+    expect(binSize(bind([stage('__interval_ms')]).pipeline)).toBe(5000);
+    expect(() => bind([stage('service')], { service: 'checkout' })).toThrow('not a duration');
+  });
+
   test('keeps a value one string, whatever it holds', () => {
     const attack = '{"$where": "sleep(1000)"}';
     expect(bind([{ $match: { status: { $var: 'status' } } }], { status: attack }).pipeline).toEqual(

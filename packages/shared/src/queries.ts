@@ -154,6 +154,44 @@ export const queryBuilders: readonly QueryBuilder[] = [
     language: 'logql',
     description: 'The latest log lines, newest first, with their labels.',
   },
+  {
+    id: 'mongodb-series',
+    name: 'MongoDB over time',
+    language: 'mongodb',
+    description:
+      'A count or a measure of documents over time, one series per value of "by", such as orders per country.',
+  },
+  {
+    id: 'mongodb-ratio',
+    name: 'MongoDB ratio',
+    language: 'mongodb',
+    description:
+      'The share of documents matching "match" among those matching "of", such as a failure rate, over time or over the range.',
+  },
+  {
+    id: 'mongodb-breakdown',
+    name: 'MongoDB breakdown',
+    language: 'mongodb',
+    description: 'A count or a measure by the values of a field, largest first.',
+  },
+  {
+    id: 'mongodb-stat',
+    name: 'MongoDB number',
+    language: 'mongodb',
+    description: 'One count or measure over the range, such as revenue.',
+  },
+  {
+    id: 'mongodb-histogram',
+    name: 'MongoDB histogram',
+    language: 'mongodb',
+    description: 'How the values of a numeric field spread, in bins, such as order totals.',
+  },
+  {
+    id: 'mongodb-rows',
+    name: 'Latest MongoDB documents',
+    language: 'mongodb',
+    description: 'The latest documents of a collection, newest first.',
+  },
 ];
 
 /** What a saved query's placeholder may hold, checked and quoted for its language. */

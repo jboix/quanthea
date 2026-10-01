@@ -469,6 +469,15 @@ directly onto an ECharts `dataset`.
     (`quantile_over_time(0.95, … | unwrap duration_ms | __error__="" [$__interval]) by (route)`).
     `logql-ratio` divides the counts with and without the `match` filters, over time or over the
     range.
+    MongoDB (`dashboards/queries/mongodb.ts`): `mongodb-series`, `mongodb-ratio`,
+    `mongodb-breakdown`, `mongodb-stat`, `mongodb-histogram`, `mongodb-rows`, as aggregation
+    pipelines that start with a `$match` on the range and the filters and end with a `$project`
+    naming the columns (dotted paths become nested fields, flattened back to dotted columns). A
+    literal that reads as a number or a boolean also matches as one, since MongoDB compares types
+    strictly. Time is bucketed with `$dateTrunc` in milliseconds: a literal duration converted, an
+    interval variable or `__interval_ms` as `{"$var": "name", "as": "ms"}`. Percentiles use
+    `$percentile` (MongoDB 7 and later). `mongodb-ratio` counts the part and the whole with
+    `$cond` in one `$group` and divides them in the `$project`.
   - **Saved queries.** An admin saves a query with typed placeholders (`{{name}}`: metric, label,
     table, column, value or duration) and the shape it returns. The model asks for it by id with a
     value per placeholder. Each value is checked and written for its kind like the builders write
@@ -878,7 +887,8 @@ that changes with its settings).
      argument that is a multi-value variable alone becomes one per value. The built-ins are those
      of HTTP, `$__from_ms` and `$__to_ms` for scores and stream ids.
    - **MongoDB** (`query/mongodb-binder.ts`): a collection and an aggregation pipeline in Extended
-     JSON. Variables are `{"$var": "name"}` nodes, as in a search body, and operator keys pass.
+     JSON. Variables are `{"$var": "name"}` nodes, as in a search body, and operator keys pass;
+     `"as": "ms"` gives a duration variable, such as an interval, in milliseconds.
      `__from` and `__to` are `{"$date": …}` dates; `__interval_ms` is the search bucket width in
      milliseconds. Each stage is an object with one `$` key. A stage that writes (`$out`,
      `$merge`), waits for changes (`$changeStream`) or lists the server's operations and sessions

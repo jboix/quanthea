@@ -2,6 +2,7 @@
  * Binds the variables of a JSON document, structurally: a variable is a node of its own,
  * `{"$var": "service"}`, replaced by the value as a JSON value, never text inside a string.
  */
+import { parseDuration } from './promql-binder.ts';
 import { QueryError } from './query-error.ts';
 import type { Variables } from './variables.ts';
 
@@ -25,9 +26,12 @@ export interface JsonBindContext {
 /** How deep a document may nest. */
 const maxDepth = 64;
 
+/** What a reference may ask its value as: a list, or a duration in milliseconds. */
+const conversions = new Set(['list', 'ms']);
+
 /**
- * Whether a node is a variable reference: `{"$var": "name"}`, or `{"$var": "name", "as": "list"}`
- * for a list whatever the number of values.
+ * Whether a node is a variable reference: `{"$var": "name"}`, `{"$var": "name", "as": "list"}`
+ * for a list whatever the number of values, or `"as": "ms"` for a duration in milliseconds.
  *
  * @param node - The node.
  * @returns `true` for a well-formed reference.
@@ -35,7 +39,7 @@ const maxDepth = 64;
 function wellFormed(node: Readonly<Record<string, unknown>>): boolean {
   const keys = Object.keys(node).sort().join(',');
   if (typeof node.$var !== 'string') return false;
-  return keys === '$var' || (keys === '$var,as' && node.as === 'list');
+  return keys === '$var' || (keys === '$var,as' && conversions.has(String(node.as)));
 }
 
 /**
@@ -51,16 +55,33 @@ function variableValue(node: Readonly<Record<string, unknown>>, context: JsonBin
   if (!wellFormed(node)) {
     throw new QueryError(
       'invalid',
-      'A variable is a node of its own: {"$var": "service"}, or {"$var": "service", "as": "list"}.',
+      'A variable is a node of its own: {"$var": "service"}, with "as": "list" or "ms" if needed.',
     );
   }
   const name = String(node.$var);
   const builtIn = context.builtIns[name];
-  if (builtIn !== undefined) return node.as === 'list' ? [builtIn] : builtIn;
-  const binding = context.variables[name];
-  if (!binding) throw new QueryError('invalid', `Unknown variable ${name}.`);
-  if (typeof binding.value !== 'string') return [...binding.value];
-  return node.as === 'list' ? [binding.value] : binding.value;
+  const value = builtIn ?? context.variables[name]?.value;
+  if (value === undefined) throw new QueryError('invalid', `Unknown variable ${name}.`);
+  if (node.as === 'ms') return millisecondsOf(name, value);
+  if (Array.isArray(value)) return [...value];
+  return node.as === 'list' ? [value] : value;
+}
+
+/**
+ * A duration value in milliseconds: a number as it is (a built-in such as `__interval_ms`), or a
+ * duration such as `5m`.
+ *
+ * @param name - The variable, for the message.
+ * @param value - Its value.
+ * @returns Milliseconds.
+ * @throws {QueryError} `invalid` for a value that is not one duration.
+ */
+function millisecondsOf(name: string, value: unknown): number {
+  if (typeof value === 'number') return value;
+  const seconds = typeof value === 'string' ? parseDuration(value) : undefined;
+  if (seconds === undefined)
+    throw new QueryError('invalid', `${name} is not a duration such as 5m, so it has no "ms".`);
+  return seconds * 1000;
 }
 
 /**
