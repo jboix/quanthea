@@ -34,6 +34,7 @@
     "env:up:clickhouse": "docker compose -f dev/docker-compose.yml --profile clickhouse up -d --wait clickhouse",
     "env:up:trino": "docker compose -f dev/docker-compose.yml --profile trino up -d --wait trino",
     "env:up:search": "docker compose -f dev/docker-compose.yml --profile search up -d --wait elasticsearch opensearch && docker compose -f dev/docker-compose.yml --profile search run --rm search-seed",
+    "env:up:influxdb": "docker compose -f dev/docker-compose.yml --profile influxdb up -d --wait influxdb && docker compose -f dev/docker-compose.yml --profile influxdb run --rm influxdb-seed",
     "env:up:http": "docker compose -f dev/docker-compose.yml --profile http up -d --wait http-api",
     "env:up:loki": "docker compose -f dev/docker-compose.yml --profile loki up -d loki && docker compose -f dev/docker-compose.yml --profile loki run --rm loki-seed",
     "dev:seed": "bun dev/seed/seed.ts",
@@ -46,7 +47,8 @@
     "test:integration:trino": "QUERENT_INTEGRATION=trino bun test integration",
     "test:integration:search": "QUERENT_INTEGRATION=search bun test integration",
     "test:integration:loki": "QUERENT_INTEGRATION=loki bun test integration",
-    "test:integration:http": "QUERENT_INTEGRATION=http bun test integration"
+    "test:integration:http": "QUERENT_INTEGRATION=http bun test integration",
+    "test:integration:influxdb": "QUERENT_INTEGRATION=influxdb bun test integration"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

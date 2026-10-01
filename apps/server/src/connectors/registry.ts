@@ -5,6 +5,7 @@
 import type { AnyConnectorKind } from './_shared/index.ts';
 import { clickhouseConnector } from './clickhouse/clickhouse-connector.ts';
 import { httpConnector } from './http/http-connector.ts';
+import { influxdbConnector } from './influxdb/influxdb-connector.ts';
 import { lokiConnector } from './loki/loki-connector.ts';
 import { mariadbConnector } from './mysql/mariadb-connector.ts';
 import { mysqlConnector } from './mysql/mysql-connector.ts';
@@ -22,6 +23,7 @@ export const connectorKinds: readonly AnyConnectorKind[] = [
   clickhouseConnector,
   trinoConnector,
   prometheusConnector,
+  influxdbConnector,
   elasticsearchConnector,
   opensearchConnector,
   lokiConnector,

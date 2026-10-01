@@ -11,7 +11,7 @@
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
 A self-hosted app where you describe a dashboard in a chat and an agent builds it against your data
-sources: Prometheus, Loki, Postgres and TimescaleDB, MySQL, MariaDB, ClickHouse, Trino,
+sources: Prometheus, Loki, InfluxDB, Postgres and TimescaleDB, MySQL, MariaDB, ClickHouse, Trino,
 Elasticsearch, OpenSearch and HTTP APIs. You refine it in the same thread and pin the good ones.
 Pinned dashboards are versioned, searchable, and render without any model involved.
 

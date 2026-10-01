@@ -4,12 +4,14 @@ import type { AnyConnectorKind } from '../../connectors/_shared/index.ts';
 import {
   devClickhouseAs,
   devIncidentStart,
+  devInfluxdb,
   devMysqlServers,
   devTimescale,
   devTrino,
   integrationFor,
 } from '../../connectors/_shared/test/dev-sources.ts';
 import { clickhouseConnector } from '../../connectors/clickhouse/clickhouse-connector.ts';
+import { influxdbConnector } from '../../connectors/influxdb/influxdb-connector.ts';
 import { mariadbConnector } from '../../connectors/mysql/mariadb-connector.ts';
 import { mysqlConnector } from '../../connectors/mysql/mysql-connector.ts';
 import { postgresConnector } from '../../connectors/postgres/postgres-connector.ts';
@@ -186,3 +188,44 @@ for (const target of targets) {
     });
   });
 }
+
+describe.skipIf(!integrationFor('influxdb'))('the SQL builders on the dev InfluxDB 3', () => {
+  const connection = influxdbConnector.open({
+    config: influxdbConnector.configSchema.parse(devInfluxdb.config),
+    secret: influxdbConnector.secretSchema.parse(devInfluxdb.secret),
+  });
+  afterAll(() => connection.close());
+
+  test('buckets the errors of checkout-svc, with an interval variable, peaking after the deploy', async () => {
+    const [query] = buildData(
+      dataSchema.parse({
+        kind: 'sql-series',
+        connector: 'telemetry',
+        table: 'http_requests',
+        time: 'time',
+        bucket: '$interval',
+        measure: { fn: 'sum', column: 'errors' },
+        filters: [{ field: 'service', value: '$service' }],
+      }),
+      { saved: [], dialectOf: () => 'influxdb' },
+    ).queries;
+    if (!query) throw new Error('Nothing was built.');
+    const variables = {
+      interval: { value: '5m', duration: true },
+      service: { value: ['checkout-svc'] },
+    };
+    const bound = bindTemplate(query, variables, timeRange, { dialect: 'influxdb' });
+    const signal = AbortSignal.timeout(10_000);
+    const [frame] = await connection.execute(bound, {
+      refId: 'A',
+      signal,
+      timeoutMs: 10_000,
+      maxRows: 5000,
+      timeRange,
+    });
+    const [times, values] = (frame?.values ?? [[], []]) as [number[], number[]];
+    const peak = times[values.indexOf(Math.max(...values))] ?? 0;
+    expect(peak - incident.getTime()).toBeGreaterThanOrEqual(5 * 60_000);
+    expect(peak - incident.getTime()).toBeLessThanOrEqual(25 * 60_000);
+  });
+});

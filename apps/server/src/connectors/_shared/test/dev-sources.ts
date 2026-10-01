@@ -7,7 +7,8 @@
  * (`bun run test:integration:clickhouse`), `trino` for Trino over the dev Postgres
  * (`bun run test:integration:trino`), `search` for Elasticsearch and OpenSearch
  * (`bun run test:integration:search`), `loki` for Loki (`bun run test:integration:loki`), `http`
- * for the dev HTTP API (`bun run test:integration:http`).
+ * for the dev HTTP API (`bun run test:integration:http`), `influxdb` for InfluxDB 3
+ * (`bun run test:integration:influxdb`).
  */
 
 /** A set of data sources that start together. */
@@ -19,7 +20,8 @@ type SourceSet =
   | 'trino'
   | 'search'
   | 'loki'
-  | 'http';
+  | 'http'
+  | 'influxdb';
 
 /** The sets the integration tests run against. */
 const integrationSets = new Set(
@@ -158,6 +160,15 @@ export const devHttpApi = {
     auth: 'bearer',
   },
   secret: { token: 'dev-token' },
+};
+
+/** The dev InfluxDB 3, holding the request metrics of the incident. */
+export const devInfluxdb = {
+  config: {
+    url: `http://127.0.0.1:${process.env.QUERENT_DEV_INFLUXDB_PORT ?? 8186}`,
+    database: 'telemetry',
+  },
+  secret: { token: 'apiv3_querent-dev-token' },
 };
 
 /** The dev Prometheus, in the Prometheus connector's configuration shape. */

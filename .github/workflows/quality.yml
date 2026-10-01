@@ -129,6 +129,9 @@ jobs:
           - sources: http
             up: env:up:http
             test: test:integration:http
+          - sources: influxdb
+            up: env:up:influxdb
+            test: test:integration:influxdb
     permissions:
       contents: read
     steps:

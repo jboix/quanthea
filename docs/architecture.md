@@ -745,6 +745,14 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   the fields Loki detects in the lines (`detected_fields`, such as `route` from `| json`) and the
   number of lines, over the last day. Loki answers errors in plain text; quoted literals are
   removed from the safe message.
+- **InfluxDB 3:** SQL over the HTTP API and the kit's HTTP client: `POST /api/v3/query_sql` with the
+  database, the statement and its values as named parameters (`$p1`…), answered as JSON lines that
+  the reader stops at the row limit. The query endpoint runs no DML, and a Core token cannot be
+  limited to reading, so the connection test reports `readOnly: null` and says the connector only
+  queries. The answer carries no types: each column is typed from its values, and timestamps,
+  written in UTC without a zone, are read as UTC. `describe` reads `information_schema` (tags,
+  fields and time); `sampleValues` reads the distinct values of the last seven days. Errors come
+  as text; the safe message keeps the kind of error and drops what it quotes.
 - **HTTP JSON:** any JSON API, over the kit's HTTP client. The admin sets the base URL, the only
   origin called, whose path prefixes every request; the methods (GET, or GET and POST); the path
   patterns a query may call (`*` within a segment, `**` across segments, `/**` by default); the
@@ -1403,19 +1411,20 @@ provider's name, so two setups of the same vendor stay apart.
   (`dev/seed/checkout-incident.json`) with its time range around the incident, and prints its
   address. `QUERENT_URL` points at the server (`http://localhost:3000` by default).
 
-| Source        | Address          | Contents                                                                                                                                                                                                                                                 |
-| ------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Postgres      | `localhost:5433` | Database `orders`: `customers`, `orders`, `order_items`, `payments`, `refunds`, `deploys`. Users `querent_admin` (password `querent-dev`) and the read-only `dash_ro` (password `dash-ro-dev`).                                                          |
-| TimescaleDB   | `localhost:5434` | The same database as Postgres on TimescaleDB 2.30, with the hypertable `order_events` and the continuous aggregate `orders_per_minute` (`dev/timescaledb`). Same users. Started by `bun run env:up:timescale`.                                           |
-| Prometheus    | `localhost:9091` | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                                                                          |
-| MySQL         | `localhost:3307` | Database `orders` (`dev/mysql`): `customers`, `orders`, `deploys` and the view `failed_orders`, one order every five seconds. Same users as Postgres. Started by `bun run env:up:mysql`.                                                                 |
-| MariaDB       | `localhost:3308` | The same database as MySQL, from the same scripts. Started by `bun run env:up:mysql`.                                                                                                                                                                    |
-| Trino         | `localhost:8081` | Catalog `orders`: the dev Postgres, read as its owner, so a write would succeed without the connector's read-only transactions. Any user name, no password. Started by `bun run env:up:trino`, with Postgres.                                            |
-| ClickHouse    | `localhost:8124` | Database `orders` (`dev/clickhouse`), over HTTP: the same tables and view as MySQL. Users `querent_admin`, and `dash_ro`, `dash_ro_2` (`readonly=2`) and `dash_ro_1` (`readonly=1`) with password `dash-ro-dev`. Started by `bun run env:up:clickhouse`. |
-| Elasticsearch | `localhost:9201` | The request logs of every service in daily indices `logs-YYYY.MM.DD` (`dev/log-seed`), without security. Started and seeded by `bun run env:up:search`.                                                                                                  |
-| OpenSearch    | `localhost:9202` | The same logs, from the same seed. Started by `bun run env:up:search`.                                                                                                                                                                                   |
-| Loki          | `localhost:3101` | The same logs, labelled `service`, `env` and `level`, each line the event as JSON (`dev/loki`). Started and seeded by `bun run env:up:loki`.                                                                                                             |
-| HTTP API      | `localhost:8085` | A JSON API over the incident (`dev/http-api`): services, deploys, errors over time, a POST search and a status object, described at `/openapi.json`. `/api` routes need `Authorization: Bearer dev-token`. Started by `bun run env:up:http`.             |
+| Source        | Address          | Contents                                                                                                                                                                                                                                                               |
+| ------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Postgres      | `localhost:5433` | Database `orders`: `customers`, `orders`, `order_items`, `payments`, `refunds`, `deploys`. Users `querent_admin` (password `querent-dev`) and the read-only `dash_ro` (password `dash-ro-dev`).                                                                        |
+| TimescaleDB   | `localhost:5434` | The same database as Postgres on TimescaleDB 2.30, with the hypertable `order_events` and the continuous aggregate `orders_per_minute` (`dev/timescaledb`). Same users. Started by `bun run env:up:timescale`.                                                         |
+| Prometheus    | `localhost:9091` | `http_requests_total{service,env,code}` and `http_request_duration_seconds{service,env,route}`, from a synthetic traffic model.                                                                                                                                        |
+| MySQL         | `localhost:3307` | Database `orders` (`dev/mysql`): `customers`, `orders`, `deploys` and the view `failed_orders`, one order every five seconds. Same users as Postgres. Started by `bun run env:up:mysql`.                                                                               |
+| MariaDB       | `localhost:3308` | The same database as MySQL, from the same scripts. Started by `bun run env:up:mysql`.                                                                                                                                                                                  |
+| Trino         | `localhost:8081` | Catalog `orders`: the dev Postgres, read as its owner, so a write would succeed without the connector's read-only transactions. Any user name, no password. Started by `bun run env:up:trino`, with Postgres.                                                          |
+| ClickHouse    | `localhost:8124` | Database `orders` (`dev/clickhouse`), over HTTP: the same tables and view as MySQL. Users `querent_admin`, and `dash_ro`, `dash_ro_2` (`readonly=2`) and `dash_ro_1` (`readonly=1`) with password `dash-ro-dev`. Started by `bun run env:up:clickhouse`.               |
+| Elasticsearch | `localhost:9201` | The request logs of every service in daily indices `logs-YYYY.MM.DD` (`dev/log-seed`), without security. Started and seeded by `bun run env:up:search`.                                                                                                                |
+| OpenSearch    | `localhost:9202` | The same logs, from the same seed. Started by `bun run env:up:search`.                                                                                                                                                                                                 |
+| Loki          | `localhost:3101` | The same logs, labelled `service`, `env` and `level`, each line the event as JSON (`dev/loki`). Started and seeded by `bun run env:up:loki`.                                                                                                                           |
+| HTTP API      | `localhost:8085` | A JSON API over the incident (`dev/http-api`): services, deploys, errors over time, a POST search and a status object, described at `/openapi.json`. `/api` routes need `Authorization: Bearer dev-token`. Started by `bun run env:up:http`.                           |
+| InfluxDB 3    | `localhost:8186` | InfluxDB 3 Core (`dev/influxdb`): the database `telemetry` with `http_requests` (tags `service`, `env`; fields `requests`, `errors`, `p95_ms`) every 30 seconds around the incident. Token `apiv3_querent-dev-token`. Started and seeded by `bun run env:up:influxdb`. |
 
 - Both sources tell one story, the checkout incident: deploy #481 of `checkout-svc` yesterday at
   12:02 UTC, 5xx errors of checkout rising to 8.4% and its p95 latency to about 3 s, failed orders
@@ -1446,7 +1455,8 @@ provider's name, so two setups of the same vendor stay apart.
   (`bun run env:up:trino`, then `bun run test:integration:trino`) or `search` (Elasticsearch and
   OpenSearch: `bun run env:up:search`, then `bun run test:integration:search`) or `loki`
   (`bun run env:up:loki`, then `bun run test:integration:loki`) or `http` (the dev HTTP API:
-  `bun run env:up:http`, then `bun run test:integration:http`). Every connector kind also runs
+  `bun run env:up:http`, then `bun run test:integration:http`) or `influxdb`
+  (`bun run env:up:influxdb`, then `bun run test:integration:influxdb`). Every connector kind also runs
   the conformance suite there. A kind ships only with a free server image its tests run against,
   so nothing is written against a service no one can run. CI runs one `integration` job per set.
   `dashboards/checkout-fixture.integration.test.ts` pins the seed's fixture and runs every panel as
