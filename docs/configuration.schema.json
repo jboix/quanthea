@@ -429,7 +429,7 @@
       "properties": {
         "disabled": {
           "default": [],
-          "maxItems": 20,
+          "maxItems": 100,
           "type": "array",
           "items": {
             "type": "string",
@@ -459,7 +459,7 @@
               },
               "language": {
                 "type": "string",
-                "enum": ["sql", "promql"]
+                "enum": ["sql", "promql", "search", "logql", "http", "redis", "mongodb"]
               },
               "query": {
                 "type": "string",

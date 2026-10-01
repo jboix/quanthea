@@ -478,10 +478,16 @@ directly onto an ECharts `dataset`.
     interval variable or `__interval_ms` as `{"$var": "name", "as": "ms"}`. Percentiles use
     `$percentile` (MongoDB 7 and later). `mongodb-ratio` counts the part and the whole with
     `$cond` in one `$group` and divides them in the `$project`.
-  - **Saved queries.** An admin saves a query with typed placeholders (`{{name}}`: metric, label,
-    table, column, value or duration) and the shape it returns. The model asks for it by id with a
-    value per placeholder. Each value is checked and written for its kind like the builders write
-    theirs.
+  - **Saved queries.** An admin saves a query in any language with typed placeholders
+    (`{{name}}`: metric, label, table, column, value or duration) and the shape it returns. The
+    model asks for it by id with a value per placeholder. Each value is checked and written for
+    its kind like the builders write theirs (`dashboards/queries/saved.ts`). SQL, PromQL and LogQL
+    are text: values quoted or bound, names checked and quoted. A Redis command is filled word by
+    word, each word one argument; the command takes no placeholder. Search, MongoDB and HTTP
+    queries are the JSON of their template (`saved-json.ts`): a placeholder is a whole string or a
+    whole key, and a variable value becomes a `{"$var": "name"}` node, never text in a string.
+    Only an HTTP path (its literal encoded) and its query values take a placeholder inside text,
+    where `$name` is their own variable syntax.
   - **Raw queries**, for data no builder gives.
 - **Shapes.** `long` (x, series, value), `wide` (x, a column per series), `single`, `values` (raw
   numbers to bin), `matrix`, `hierarchical`, `graph`, `geo`, `ohlc` and `rows`. A Prometheus

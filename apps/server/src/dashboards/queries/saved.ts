@@ -1,11 +1,14 @@
 /**
- * Saved queries: an admin's query with typed placeholders. Each placeholder is checked for its
- * kind and written for the query's language, like the builders write theirs: names
- * checked and quoted, values escaped or bound, durations checked.
+ * Saved queries: an admin's query with typed placeholders, in any language. Each placeholder is
+ * checked for its kind and written for the query's language, like the builders write theirs:
+ * names checked and quoted, values escaped or bound, durations checked. SQL, PromQL and LogQL are
+ * text; a Redis command is filled word by word; the other languages are JSON (`saved-json.ts`).
  */
 import type { PanelQuery, QueryParamKind, SavedQuery } from '@querent/shared';
 import type { BuildContext, BuiltData } from './built.ts';
+import { redisWords, templateQuery } from './raw.ts';
 import type { DataOf } from './request.ts';
+import { filledJson } from './saved-json.ts';
 import { durationText, type SqlWriter, sqlName, sqlWriterFor } from './sql-writers.ts';
 import { metricName, QueryError, variableOf } from './text.ts';
 
@@ -17,6 +20,15 @@ const tableName = /^[A-Za-z_]\w*(\.[A-Za-z_]\w*)?$/;
 
 /** A duration, or an interval variable. */
 const duration = /^(\d{1,5}[smhd]|\$[A-Za-z_]\w*)$/;
+
+/** A Redis key or field name: no space, no `$`. */
+const redisName = /^[^\s$]{1,200}$/;
+
+/** A placeholder anywhere in the text. */
+const placeholder = /\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g;
+
+/** How each kind of placeholder is written in one language. */
+type Writers = Readonly<Record<QueryParamKind, (value: string) => string>>;
 
 /**
  * Checks a value against a pattern.
@@ -33,79 +45,146 @@ function checked(value: string, pattern: RegExp, what: string): string {
 }
 
 /**
- * A value in a query: a bound variable, or an escaped literal.
+ * A writer that refuses its kind in a language.
  *
- * @param value - Such as `checkout-svc` or `$service`.
- * @param sql - The SQL writer, or `undefined` for PromQL.
- * @returns Such as `"checkout-svc"` in PromQL or `:service` in SQL.
+ * @param message - Why.
+ * @returns The writer.
  */
-function valueText(value: string, sql: SqlWriter | undefined): string {
-  const variable = variableOf(value);
-  if (!sql) return variable ? `"${value}"` : JSON.stringify(value);
-  return variable ? `:${variable}` : sql.string(value);
+function refused(message: string): (value: string) => string {
+  return () => {
+    throw new QueryError(message);
+  };
 }
 
-/** How each kind of placeholder is written: in SQL with the dialect's writer, or in PromQL. */
-const writers: Readonly<
-  Record<QueryParamKind, (value: string, sql: SqlWriter | undefined) => string>
-> = {
-  value: valueText,
-  duration: (value, sql) => {
-    const checkedDuration = checked(value, duration, 'a duration such as 5m');
-    return sql ? sql.interval(durationText(checkedDuration)) : checkedDuration;
+/**
+ * The writers of SQL, in a dialect: names quoted, values bound or escaped.
+ *
+ * @param sql - The dialect's writer.
+ * @returns The writers.
+ */
+function sqlWriters(sql: SqlWriter): Writers {
+  const name = (value: string) => sqlName(sql, checked(value, plainName, 'a plain name'));
+  return {
+    value: (value) => {
+      const variable = variableOf(value);
+      return variable ? `:${variable}` : sql.string(value);
+    },
+    duration: (value) =>
+      sql.interval(durationText(checked(value, duration, 'a duration such as 5m'))),
+    metric: refused('A SQL query has no metrics.'),
+    table: (value) => sqlName(sql, checked(value, tableName, 'a table name')),
+    label: name,
+    column: name,
+  };
+}
+
+/** The writers of PromQL: values quoted, variables left for the binder. */
+const promqlWriters: Writers = {
+  value: (value) => (variableOf(value) ? `"${value}"` : JSON.stringify(value)),
+  duration: (value) => checked(value, duration, 'a duration such as 5m'),
+  metric: metricName,
+  table: refused('A PromQL query has no tables.'),
+  label: (value) => checked(value, plainName, 'a plain name'),
+  column: (value) => checked(value, plainName, 'a plain name'),
+};
+
+/** The writers of LogQL: as PromQL, without metrics. */
+const logqlWriters: Writers = {
+  ...promqlWriters,
+  metric: refused('A LogQL query has no metrics; select streams by label.'),
+  table: refused('A LogQL query has no tables.'),
+};
+
+/** The writers of a Redis argument: a variable stays `$name`, which the binder fills. */
+const redisWriters: Writers = {
+  value: (value) => {
+    if (variableOf(value)) return value;
+    if (value.includes('$')) throw new QueryError(`"${value}" holds a $; use a variable instead.`);
+    return value;
   },
-  metric: (value, sql) => {
-    if (sql) throw new QueryError('A SQL query has no metrics.');
-    return metricName(value);
-  },
-  table: (value, sql) => {
-    if (!sql) throw new QueryError('A PromQL query has no tables.');
-    return sqlName(sql, checked(value, tableName, 'a table name'));
-  },
-  label: (value, sql) => {
-    const name = checked(value, plainName, 'a plain name');
-    return sql ? sqlName(sql, name) : name;
-  },
-  column: (value, sql) => {
-    const name = checked(value, plainName, 'a plain name');
-    return sql ? sqlName(sql, name) : name;
-  },
+  duration: (value) => checked(value, duration, 'a duration such as 5m'),
+  metric: refused('A Redis command has no metrics.'),
+  table: (value) => checked(value, redisName, 'a key'),
+  label: (value) => checked(value, redisName, 'a key or field'),
+  column: (value) => checked(value, redisName, 'a key or field'),
 };
 
 /**
- * The text a placeholder becomes.
- *
- * @param kind - The placeholder's kind.
- * @param sql - The SQL writer, or `undefined` for PromQL.
- * @param value - The value the agent gave.
- * @returns The text.
- * @throws {QueryError} When the value does not fit its kind or its language.
- */
-function paramText(kind: QueryParamKind, sql: SqlWriter | undefined, value: string): string {
-  return writers[kind](value, sql);
-}
-
-/**
- * A saved query's text with its placeholders filled.
+ * A text with its placeholders filled.
  *
  * @param template - The saved query.
+ * @param text - The text, the query or one of its words.
  * @param params - The values by placeholder.
- * @param sql - The SQL writer of the connector, or `undefined` for PromQL.
- * @returns The query text.
+ * @param writers - How the language writes each kind.
+ * @returns The text.
  * @throws {QueryError} When a placeholder has no value or a value does not fit.
  */
 function filled(
   template: SavedQuery,
+  text: string,
   params: Readonly<Record<string, string>>,
-  sql: SqlWriter | undefined,
+  writers: Writers,
 ): string {
-  return template.query.replace(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g, (_match, name: string) => {
+  return text.replace(placeholder, (_match, name: string) => {
     const param = template.params.find((each) => each.name === name);
     const value = params[name];
     if (!param || value === undefined)
       throw new QueryError(`${template.name} needs a value for ${name}.`);
-    return paramText(param.kind, sql, value);
+    return writers[param.kind](value);
   });
+}
+
+/**
+ * A Redis saved query: its words, each filled as one argument. The command takes no placeholder.
+ *
+ * @param template - The saved query.
+ * @param request - The connector and the values.
+ * @returns The query.
+ * @throws {QueryError} For a placeholder in the command, or a value that does not fit.
+ */
+function redisQuery(template: SavedQuery, request: DataOf<'saved'>): PanelQuery {
+  const [command = '', ...words] = redisWords(template.query);
+  if (command.includes('{{')) throw new QueryError('A Redis command takes no placeholder.');
+  const args = words.map((word) => filled(template, word, request.params, redisWriters));
+  return templateQuery(request.connector, 'redis', { command, args });
+}
+
+/**
+ * The panel query of a saved query, its placeholders filled for its language.
+ *
+ * @param template - The saved query.
+ * @param request - The connector and the values.
+ * @param context - Each connector's dialect.
+ * @returns The query.
+ * @throws {QueryError} When a value does not fit, or the filled query is not a template.
+ */
+function savedQuery(
+  template: SavedQuery,
+  request: DataOf<'saved'>,
+  context: BuildContext,
+): PanelQuery {
+  const { connector, params } = request;
+  switch (template.language) {
+    case 'sql': {
+      const writers = sqlWriters(sqlWriterFor(context.dialectOf?.(connector)));
+      return {
+        refId: 'A',
+        connector,
+        language: 'sql',
+        sql: filled(template, template.query, params, writers),
+      };
+    }
+    case 'promql':
+    case 'logql': {
+      const writers = template.language === 'promql' ? promqlWriters : logqlWriters;
+      const expr = filled(template, template.query, params, writers);
+      return { refId: 'A', connector, language: template.language, expr };
+    }
+    case 'redis':
+      return redisQuery(template, request);
+    default:
+      return templateQuery(connector, template.language, filledJson(template, params));
+  }
 }
 
 /** A chart that suits each shape, for previews and as a hint. */
@@ -133,15 +212,8 @@ const chartsByShape: Readonly<Record<SavedQuery['shape'], string>> = {
 export function savedData(request: DataOf<'saved'>, context: BuildContext): BuiltData {
   const template = context.saved.find((each) => each.id === request.name);
   if (!template) throw new QueryError(`No saved query "${request.name}".`);
-  const sql =
-    template.language === 'sql' ? sqlWriterFor(context.dialectOf?.(request.connector)) : undefined;
-  const text = filled(template, request.params, sql);
-  const query: PanelQuery =
-    template.language === 'sql'
-      ? { refId: 'A', connector: request.connector, language: 'sql', sql: text }
-      : { refId: 'A', connector: request.connector, language: 'promql', expr: text };
   return {
-    queries: [query],
+    queries: [savedQuery(template, request, context)],
     output: { shape: template.shape, columns: [], chart: chartsByShape[template.shape] },
   };
 }

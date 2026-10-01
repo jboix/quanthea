@@ -33,7 +33,87 @@ const queueDepth: SavedQuery = savedQuerySchema.parse({
   shape: 'long',
 });
 
-const available = { builtIn: ['rate'], saved: [failedBy, queueDepth] };
+/**
+ * A saved query with placeholders of the kind `value` unless named otherwise.
+ *
+ * @param id - Its id.
+ * @param language - Its language.
+ * @param query - Its text.
+ * @param kinds - The kind of each placeholder.
+ * @returns The saved query.
+ */
+function saved(
+  id: string,
+  language: SavedQuery['language'],
+  query: string,
+  kinds: Record<string, string>,
+): SavedQuery {
+  const params = Object.entries(kinds).map(([name, kind]) => ({ name, kind }));
+  return savedQuerySchema.parse({ id, name: id, description: id, language, query, params });
+}
+
+const mediaErrors = saved(
+  'media-errors',
+  'search',
+  JSON.stringify({
+    index: '{{index}}',
+    body: {
+      query: { bool: { filter: [{ term: { 'session.media.id': '{{media}}' } }] } },
+      aggs: { '{{field}}': { terms: { field: '{{field}}' } } },
+    },
+  }),
+  { index: 'table', media: 'value', field: 'column' },
+);
+
+const mediaList = saved(
+  'media-list',
+  'http',
+  JSON.stringify({
+    path: '/integrationlayer/2.0/mediaList/byUrns/{{bu}}',
+    query: { urns: '{{urns}}' },
+    body: { note: '{{urns}}' },
+    extract: { rows: '/mediaList' },
+  }),
+  { bu: 'value', urns: 'value' },
+);
+
+const errorLines = saved(
+  'error-lines',
+  'logql',
+  'sum by ({{label}}) (count_over_time({service={{service}}} |= {{text}} [{{window}}]))',
+  { label: 'label', service: 'value', text: 'value', window: 'duration' },
+);
+
+const serviceHash = saved('service-hash', 'redis', 'HGETALL service:{{service}}', {
+  service: 'value',
+});
+
+const failedOrders = saved(
+  'failed-orders',
+  'mongodb',
+  JSON.stringify({
+    collection: '{{collection}}',
+    pipeline: [{ $match: { status: '{{status}}' } }],
+  }),
+  { collection: 'table', status: 'value' },
+);
+
+const available = {
+  builtIn: ['rate'],
+  saved: [failedBy, queueDepth, mediaErrors, mediaList, errorLines, serviceHash, failedOrders],
+};
+
+/**
+ * The query a saved query builds.
+ *
+ * @param name - The saved query.
+ * @param params - The values.
+ * @returns The panel query.
+ */
+function savedOf(name: string, params: Record<string, string>) {
+  const request = dataSchemaFor(available).parse({ kind: 'saved', name, connector: 'c', params });
+  return buildData(request, { saved: available.saved }).queries[0];
+}
 
 /**
  * The query text a saved query builds.
@@ -94,7 +174,92 @@ describe('saved queries', () => {
   });
 });
 
+describe('saved queries in JSON languages', () => {
+  test('fill a search with names as keys and a variable as a node', () => {
+    const query = savedOf('media-errors', {
+      index: 'events-*',
+      media: '$media',
+      field: 'data.error_type',
+    });
+    expect(query).toEqual({
+      refId: 'A',
+      connector: 'c',
+      language: 'search',
+      index: 'events-*',
+      body: {
+        query: { bool: { filter: [{ term: { 'session.media.id': { $var: 'media' } } }] } },
+        aggs: { 'data.error_type': { terms: { field: 'data.error_type' } } },
+      },
+    });
+    expect(() => savedOf('media-errors', { index: 'x', media: 'y', field: 'a b' })).toThrow(
+      'is not a field name',
+    );
+  });
+
+  test('fill an HTTP path and query inside text, the body only whole', () => {
+    expect(savedOf('media-list', { bu: 'srf/../x', urns: '$urns' })).toMatchObject({
+      path: '/integrationlayer/2.0/mediaList/byUrns/srf%2F..%2Fx',
+      query: { urns: '$urns' },
+      body: { note: { $var: 'urns' } },
+    });
+    expect(() => savedOf('media-list', { bu: 'a$b', urns: 'x' })).toThrow('holds a $');
+  });
+
+  test('fill a MongoDB pipeline, and refuse a placeholder inside a string', () => {
+    expect(savedOf('failed-orders', { collection: 'orders', status: 'failed' })).toMatchObject({
+      collection: 'orders',
+      pipeline: [{ $match: { status: 'failed' } }],
+    });
+    const partial = saved(
+      'partial',
+      'mongodb',
+      JSON.stringify({ collection: 'o', pipeline: [{ $match: { id: 'urn:{{id}}' } }] }),
+      { id: 'value' },
+    );
+    expect(() =>
+      buildData(
+        dataSchemaFor({ builtIn: [], saved: [partial] }).parse({
+          kind: 'saved',
+          name: 'partial',
+          connector: 'c',
+          params: { id: '1' },
+        }),
+        { saved: [partial] },
+      ),
+    ).toThrow('alone in its string');
+  });
+});
+
+describe('saved queries in LogQL and Redis', () => {
+  test('quote LogQL values and check its names and durations', () => {
+    const query = savedOf('error-lines', {
+      label: 'route',
+      service: '$service',
+      text: 'time"out',
+      window: '5m',
+    });
+    expect(query && queryText(query)).toBe(
+      'sum by (route) (count_over_time({service="$service"} |= "time\\"out" [5m]))',
+    );
+  });
+
+  test('fill a Redis argument, keeping a variable for the binder', () => {
+    expect(savedOf('service-hash', { service: '$service' })).toMatchObject({
+      command: 'HGETALL',
+      args: ['service:$service'],
+    });
+    expect(savedOf('service-hash', { service: 'cart svc' })).toMatchObject({
+      args: ['service:cart svc'],
+    });
+  });
+});
+
 describe('saved query settings', () => {
+  test('need JSON templates for JSON languages', () => {
+    const result = savedQuerySchema.safeParse({ ...failedOrders, query: '{"collection": {{c}}}' });
+    expect(result.error?.issues[0]?.message).toContain('JSON object');
+  });
+
   test('need every placeholder declared and used', () => {
     const result = savedQuerySchema.safeParse({
       ...failedBy,

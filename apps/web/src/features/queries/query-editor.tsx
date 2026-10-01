@@ -1,5 +1,9 @@
 import {
+  jsonQueryLanguages,
+  type QueryLanguage,
   type QueryParamKind,
+  queryLanguageNames,
+  queryLanguages,
   queryParamKinds,
   type SavedQuery,
   shapeGuides,
@@ -19,11 +23,27 @@ import { SavedPreview } from './saved-preview.tsx';
 /** What a placeholder of each kind may hold, for the admin. */
 const kindHints: Readonly<Record<QueryParamKind, string>> = {
   metric: 'a metric name',
-  label: 'a label name (PromQL) or a column (SQL)',
-  table: 'a table, or schema.table',
-  column: 'a column name',
+  label: 'a label (PromQL, LogQL), a column (SQL) or a field',
+  table: 'a table or schema.table, an index or a collection',
+  column: 'a column or a field name',
   value: 'a quoted literal, or a bound $variable',
   duration: 'such as 5m, or $interval',
+};
+
+/** How a query is written in each language, for the admin. */
+const formatHints: Readonly<Record<QueryLanguage, string>> = {
+  sql: 'Write placeholders as {{name}}, unquoted: the server quotes each value. Use :__from and :__to for the time range, unquoted.',
+  promql:
+    'Write placeholders as {{name}}, unquoted: the server quotes each value. Use $__rate_interval or a duration placeholder for windows.',
+  logql:
+    'Write placeholders as {{name}}, unquoted: the server quotes each value. Select streams by label; use $__interval or a duration placeholder for windows.',
+  search:
+    'The JSON of {"index": …, "body": {…}}. Put each placeholder alone in quotes, "{{name}}", as a value or a key. {"$var": "__from"} and {"$var": "__to"} are the time range.',
+  mongodb:
+    'The JSON of {"collection": …, "pipeline": […]}. Put each placeholder alone in quotes, "{{name}}". {"$var": "__from"} and {"$var": "__to"} are the time range, as dates.',
+  http: 'The JSON of {"path": …, "query"?: {…}, "body"?: {…}, "extract": {"rows": …}}. A placeholder may sit inside the path and query values; elsewhere alone in quotes.',
+  redis:
+    'A read command and its arguments, such as HGETALL service:{{service}}. The command takes no placeholder.',
 };
 
 /** Props of the editor's parts. */
@@ -82,27 +102,23 @@ function NameFields({ draft, change, issues, isNew }: PartProps & { readonly isN
  * @returns The fields.
  */
 function QueryFields({ draft, change, issues }: PartProps) {
-  const time =
-    draft.language === 'sql'
-      ? 'Use :__from and :__to for the time range, unquoted.'
-      : 'Use $__rate_interval or a duration placeholder for windows.';
   return (
     <>
       <Select
         label="Language"
         value={draft.language}
-        options={[
-          { value: 'promql', label: 'PromQL' },
-          { value: 'sql', label: 'SQL' },
-        ]}
+        options={queryLanguages.map((language) => ({
+          value: language,
+          label: queryLanguageNames[language],
+        }))}
         onChange={(event) => change({ language: event.target.value as SavedQuery['language'] })}
       />
       <TextArea
         label="Query"
         mono
-        rows={4}
+        rows={jsonQueryLanguages.has(draft.language) ? 10 : 4}
         value={draft.query}
-        hint={`Write placeholders as {{name}}, unquoted: the server quotes each value. ${time}`}
+        hint={formatHints[draft.language]}
         onChange={(event) => change({ query: event.target.value })}
         error={issues.query}
       />

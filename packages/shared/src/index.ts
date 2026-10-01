@@ -285,13 +285,10 @@ export {
   turnUsageSchema,
 } from './model-usage.ts';
 export {
-  type BuilderLanguage,
-  builderLanguages,
+  jsonQueryLanguages,
   placeholdersOf,
-  type QueryBuilder,
   type QueryParamKind,
   type QuerySettings,
-  queryBuilders,
   queryParamKinds,
   querySettingsSchema,
   type SavedQuery,
@@ -299,6 +296,12 @@ export {
   type ThreadQueries,
   threadQueriesSchema,
 } from './queries.ts';
+export {
+  type BuilderLanguage,
+  builderLanguages,
+  type QueryBuilder,
+  queryBuilders,
+} from './query-builders.ts';
 export {
   hasRole,
   type Principal,
