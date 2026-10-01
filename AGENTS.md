@@ -35,6 +35,7 @@ bun run env:up:clickhouse && bun run test:integration:clickhouse  # the same for
 bun run env:up:trino && bun run test:integration:trino  # the same for Trino
 bun run env:up:search && bun run test:integration:search  # Elasticsearch and OpenSearch
 bun run env:up:loki && bun run test:integration:loki  # Loki
+bun run env:up:http && bun run test:integration:http  # the HTTP JSON connector, on a dev API
 bun run build        # build the SPA into apps/web/dist
 bun run start        # run the server, serving the built SPA
 ```

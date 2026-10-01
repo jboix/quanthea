@@ -126,6 +126,9 @@ jobs:
           - sources: loki
             up: env:up:loki
             test: test:integration:loki
+          - sources: http
+            up: env:up:http
+            test: test:integration:http
     permissions:
       contents: read
     steps:

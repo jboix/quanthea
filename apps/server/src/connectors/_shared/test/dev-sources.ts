@@ -6,11 +6,20 @@
  * (`bun run test:integration:mysql`), `clickhouse` for ClickHouse
  * (`bun run test:integration:clickhouse`), `trino` for Trino over the dev Postgres
  * (`bun run test:integration:trino`), `search` for Elasticsearch and OpenSearch
- * (`bun run test:integration:search`), `loki` for Loki (`bun run test:integration:loki`).
+ * (`bun run test:integration:search`), `loki` for Loki (`bun run test:integration:loki`), `http`
+ * for the dev HTTP API (`bun run test:integration:http`).
  */
 
 /** A set of data sources that start together. */
-type SourceSet = 'core' | 'timescale' | 'mysql' | 'clickhouse' | 'trino' | 'search' | 'loki';
+type SourceSet =
+  | 'core'
+  | 'timescale'
+  | 'mysql'
+  | 'clickhouse'
+  | 'trino'
+  | 'search'
+  | 'loki'
+  | 'http';
 
 /** The sets the integration tests run against. */
 const integrationSets = new Set(
@@ -137,6 +146,18 @@ export const devOpensearch = {
 export const devLoki = {
   config: { url: `http://127.0.0.1:${process.env.QUERENT_DEV_LOKI_PORT ?? 3101}` },
   secret: {},
+};
+
+/** The dev HTTP API, with its token and its OpenAPI description. */
+export const devHttpApi = {
+  config: {
+    url: `http://127.0.0.1:${process.env.QUERENT_DEV_HTTP_PORT ?? 8085}`,
+    methods: 'GET and POST',
+    paths: '/api/v1/**',
+    openapi: '/openapi.json',
+    auth: 'bearer',
+  },
+  secret: { token: 'dev-token' },
 };
 
 /** The dev Prometheus, in the Prometheus connector's configuration shape. */

@@ -744,8 +744,20 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   the fields Loki detects in the lines (`detected_fields`, such as `route` from `| json`) and the
   number of lines, over the last day. Loki answers errors in plain text; quoted literals are
   removed from the safe message.
-- **HTTP JSON:** GET only by default. The response is mapped to frames with a small declarative
-  extractor (JSON pointer paths), not code.
+- **HTTP JSON:** any JSON API, over the kit's HTTP client. The admin sets the base URL, the only
+  origin called, whose path prefixes every request; the methods (GET, or GET and POST); the path
+  patterns a query may call (`*` within a segment, `**` across segments, `/**` by default); the
+  authentication (none, bearer, basic, or a key in a named header), sealed like every secret; and
+  the path of an OpenAPI (or Swagger 2) description, JSON or YAML. The connector refuses a method
+  or a path its settings do not allow before it sends anything. The response becomes a table
+  through `extract`: a JSON pointer to the rows (an array, or one object as one row), and the
+  columns as pointers into each row with an optional type (`time` reads ISO text, or epoch
+  seconds or milliseconds); without columns, every value of the first rows becomes one, nested
+  ones as dotted names, typed from their values. Nothing in it is code. `describe` lists the
+  operations the description has and the settings allow, `GET /orders/{id}`, with their
+  parameters, where their rows are and the fields of the rows, following local `$ref`s and
+  `allOf`. `sampleValues` returns the values the description lists (`enum`). A failed response
+  maps by status; its body may quote data, so only the full message holds it.
 
 ### Query engine (`query/`)
 
@@ -1400,6 +1412,7 @@ provider's name, so two setups of the same vendor stay apart.
 | Elasticsearch | `localhost:9201` | The request logs of every service in daily indices `logs-YYYY.MM.DD` (`dev/log-seed`), without security. Started and seeded by `bun run env:up:search`.                                                                                                  |
 | OpenSearch    | `localhost:9202` | The same logs, from the same seed. Started by `bun run env:up:search`.                                                                                                                                                                                   |
 | Loki          | `localhost:3101` | The same logs, labelled `service`, `env` and `level`, each line the event as JSON (`dev/loki`). Started and seeded by `bun run env:up:loki`.                                                                                                             |
+| HTTP API      | `localhost:8085` | A JSON API over the incident (`dev/http-api`): services, deploys, errors over time, a POST search and a status object, described at `/openapi.json`. `/api` routes need `Authorization: Bearer dev-token`. Started by `bun run env:up:http`.             |
 
 - Both sources tell one story, the checkout incident: deploy #481 of `checkout-svc` yesterday at
   12:02 UTC, 5xx errors of checkout rising to 8.4% and its p95 latency to about 3 s, failed orders
@@ -1429,7 +1442,8 @@ provider's name, so two setups of the same vendor stay apart.
   (`bun run env:up:clickhouse`, then `bun run test:integration:clickhouse`) or `trino`
   (`bun run env:up:trino`, then `bun run test:integration:trino`) or `search` (Elasticsearch and
   OpenSearch: `bun run env:up:search`, then `bun run test:integration:search`) or `loki`
-  (`bun run env:up:loki`, then `bun run test:integration:loki`). Every connector kind also runs
+  (`bun run env:up:loki`, then `bun run test:integration:loki`) or `http` (the dev HTTP API:
+  `bun run env:up:http`, then `bun run test:integration:http`). Every connector kind also runs
   the conformance suite there. A kind ships only with a free server image its tests run against,
   so nothing is written against a service no one can run. CI runs one `integration` job per set.
   `dashboards/checkout-fixture.integration.test.ts` pins the seed's fixture and runs every panel as

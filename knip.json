@@ -22,9 +22,10 @@
         "metrics/serve.ts",
         "seed/seed.ts",
         "log-seed/seed-search.ts",
-        "log-seed/seed-loki.ts"
+        "log-seed/seed-loki.ts",
+        "http-api/serve.ts"
       ],
-      "project": ["metrics/**/*.ts", "seed/**/*.ts", "log-seed/**/*.ts"]
+      "project": ["metrics/**/*.ts", "seed/**/*.ts", "log-seed/**/*.ts", "http-api/**/*.ts"]
     }
   }
 }
