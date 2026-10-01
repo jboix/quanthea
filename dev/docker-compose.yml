@@ -21,6 +21,9 @@
 # - influxdb (profile "influxdb"): InfluxDB 3 Core on localhost:8186 (dev/influxdb), the database
 #   telemetry with the request metrics of the incident, seeded by influxdb-seed. Token
 #   apiv3_querent-dev-token.
+# - valkey (profile "valkey"): Valkey on localhost:6380 (dev/valkey), the incident as hashes, sorted
+#   sets and streams, seeded by valkey-seed. The default user (password querent-dev) can write; the
+#   ACL user dash_ro (password dash-ro-dev) only reads.
 # - http-api (profile "http"): a JSON API over the incident (dev/http-api), on localhost:8085, with
 #   its OpenAPI description at /openapi.json; /api routes need Authorization: Bearer dev-token.
 # - loki (profile "loki"): on localhost:3101 (dev/loki), with the same logs, seeded by loki-seed.
@@ -273,6 +276,42 @@ services:
       - ./:/dev-sources:ro
     command: ['bun', 'influxdb/seed.ts', 'http://influxdb:8181', 'apiv3_querent-dev-token']
 
+  valkey:
+    profiles: [valkey]
+    image: valkey/valkey:9.0.6-alpine
+    command:
+      - valkey-server
+      - --requirepass
+      - querent-dev
+      - --user
+      - dash_ro
+      - 'on'
+      - '>dash-ro-dev'
+      - '~*'
+      - '+@read'
+      - '-@dangerous'
+      - '+info'
+      - '+acl|whoami'
+      - '+acl|dryrun'
+    ports:
+      - '6380:6379'
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ['CMD', 'valkey-cli', '-a', 'querent-dev', '--no-auth-warning', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Run once after Valkey is up: bun run env:up:valkey does.
+  valkey-seed:
+    profiles: [valkey]
+    image: oven/bun:1.3.14-slim
+    working_dir: /dev-sources
+    volumes:
+      - ./:/dev-sources:ro
+    command: ['bun', 'valkey/seed.ts', 'redis://default:querent-dev@valkey:6379/0']
+
   http-api:
     profiles: [http]
     image: oven/bun:1.3.14-slim
@@ -317,5 +356,6 @@ volumes:
   opensearch-data:
   loki-data:
   influxdb-data:
+  valkey-data:
   metrics-seed:
   prometheus-data:

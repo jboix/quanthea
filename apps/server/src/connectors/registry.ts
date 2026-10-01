@@ -14,6 +14,7 @@ import { prometheusConnector } from './prometheus/prometheus-connector.ts';
 import { elasticsearchConnector } from './search/elasticsearch-connector.ts';
 import { opensearchConnector } from './search/opensearch-connector.ts';
 import { trinoConnector } from './trino/trino-connector.ts';
+import { valkeyConnector } from './valkey/valkey-connector.ts';
 
 /** The connector kinds, in the order the add form lists them. */
 export const connectorKinds: readonly AnyConnectorKind[] = [
@@ -27,6 +28,7 @@ export const connectorKinds: readonly AnyConnectorKind[] = [
   elasticsearchConnector,
   opensearchConnector,
   lokiConnector,
+  valkeyConnector,
   httpConnector,
 ];
 

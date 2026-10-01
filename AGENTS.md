@@ -10,8 +10,8 @@ Read this fully before writing code. Then read the design docs:
 
 querent is a self-hosted web app. You describe a dashboard in a chat, an agent builds it against
 your data sources (Prometheus, Loki, InfluxDB, Postgres and TimescaleDB, MySQL, MariaDB,
-ClickHouse, Trino, Elasticsearch, OpenSearch, HTTP APIs), you refine it in the same thread, and you
-pin the good ones. Pinned dashboards are versioned, searchable, and render without any model
+ClickHouse, Trino, Elasticsearch, OpenSearch, Valkey, HTTP APIs), you refine it in the same thread,
+and you pin the good ones. Pinned dashboards are versioned, searchable, and render without any model
 involved.
 
 ## Commands
@@ -38,6 +38,7 @@ bun run env:up:search && bun run test:integration:search  # Elasticsearch and Op
 bun run env:up:loki && bun run test:integration:loki  # Loki
 bun run env:up:http && bun run test:integration:http  # the HTTP JSON connector, on a dev API
 bun run env:up:influxdb && bun run test:integration:influxdb  # InfluxDB 3
+bun run env:up:valkey && bun run test:integration:valkey  # Valkey
 bun run build        # build the SPA into apps/web/dist
 bun run start        # run the server, serving the built SPA
 ```

@@ -132,6 +132,9 @@ jobs:
           - sources: influxdb
             up: env:up:influxdb
             test: test:integration:influxdb
+          - sources: valkey
+            up: env:up:valkey
+            test: test:integration:valkey
     permissions:
       contents: read
     steps:

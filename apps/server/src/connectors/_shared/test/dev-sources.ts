@@ -8,7 +8,7 @@
  * (`bun run test:integration:trino`), `search` for Elasticsearch and OpenSearch
  * (`bun run test:integration:search`), `loki` for Loki (`bun run test:integration:loki`), `http`
  * for the dev HTTP API (`bun run test:integration:http`), `influxdb` for InfluxDB 3
- * (`bun run test:integration:influxdb`).
+ * (`bun run test:integration:influxdb`), `valkey` for Valkey (`bun run test:integration:valkey`).
  */
 
 /** A set of data sources that start together. */
@@ -21,7 +21,8 @@ type SourceSet =
   | 'search'
   | 'loki'
   | 'http'
-  | 'influxdb';
+  | 'influxdb'
+  | 'valkey';
 
 /** The sets the integration tests run against. */
 const integrationSets = new Set(
@@ -169,6 +170,22 @@ export const devInfluxdb = {
     database: 'telemetry',
   },
   secret: { token: 'apiv3_querent-dev-token' },
+};
+
+/** The dev Valkey as the read-only ACL user. */
+export const devValkey = {
+  config: {
+    host: '127.0.0.1',
+    port: Number(process.env.QUERENT_DEV_VALKEY_PORT ?? 6380),
+    username: 'dash_ro',
+  },
+  secret: { password: 'dash-ro-dev' },
+};
+
+/** The dev Valkey as the default user, which can write. */
+export const devValkeyOwner = {
+  config: { host: devValkey.config.host, port: devValkey.config.port },
+  secret: { password: 'querent-dev' },
 };
 
 /** The dev Prometheus, in the Prometheus connector's configuration shape. */

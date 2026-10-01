@@ -24,14 +24,16 @@
         "log-seed/seed-search.ts",
         "log-seed/seed-loki.ts",
         "http-api/serve.ts",
-        "influxdb/seed.ts"
+        "influxdb/seed.ts",
+        "valkey/seed.ts"
       ],
       "project": [
         "metrics/**/*.ts",
         "seed/**/*.ts",
         "log-seed/**/*.ts",
         "http-api/**/*.ts",
-        "influxdb/**/*.ts"
+        "influxdb/**/*.ts",
+        "valkey/**/*.ts"
       ]
     }
   }
