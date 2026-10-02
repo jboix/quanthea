@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { type Draft, questionsFor, resolveAnswers } from './questions.ts';
+import { choicesFor, type Draft, questionsFor, resolveAnswers } from './questions.ts';
 
 /**
  * Resolves answers without prompts, the git user being Ada.
@@ -50,6 +50,17 @@ describe('the questions', () => {
     await expect(
       resolveAnswers(questionsFor(undefined), { name: 'quanthea-plugin-x' }),
     ).rejects.toThrow('Give --author.');
+  });
+
+  test('show each choice with what it means, and keep the bare value as the answer', () => {
+    const [placeholders] = questionsFor(undefined).filter(({ field }) => field === 'placeholders');
+    if (!placeholders) throw new Error('No placeholders question.');
+    expect(choicesFor(placeholders)[1]).toEqual({
+      name: 'WHERE id = $1    numbered, as PostgreSQL drivers write it',
+      value: '$1',
+    });
+    for (const question of questionsFor(undefined))
+      for (const choice of choicesFor(question)) expect(choice.name).not.toBe(choice.value);
   });
 
   test('ask only what the flags leave out, with each question’s default', async () => {

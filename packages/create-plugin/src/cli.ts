@@ -136,6 +136,10 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
   const defaults = readDefaults();
+  if (!flags.yes)
+    process.stdout.write(
+      'Creating a quanthea plugin. Press Enter to keep the answer shown in brackets.\n\n',
+    );
   const { folder, answers } = await createPlugin(draftOf(flags), {
     templates: fileURLToPath(new URL('./templates', import.meta.url)),
     cwd: process.cwd(),

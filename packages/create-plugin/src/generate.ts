@@ -9,6 +9,7 @@ import { languageText } from './languages.ts';
 import {
   type Answers,
   type Ask,
+  choicesFor,
   type Draft,
   problemOf,
   questionsFor,
@@ -79,7 +80,7 @@ function folderFor(answers: Answers, setup: Setup): string {
 function askWith(inquirer: Inquirer): Ask {
   return async (question, fallback) => {
     const kind = question.choices
-      ? { type: 'list', choices: [...question.choices] }
+      ? { type: 'list', choices: choicesFor(question), pageSize: 10 }
       : { type: 'input', validate: (value: string) => problemOf(question, value) ?? true };
     const prompt = { name: 'value', message: question.message, default: fallback, ...kind };
     const answered = await inquirer.prompt([prompt] as Parameters<Inquirer['prompt']>[0]);

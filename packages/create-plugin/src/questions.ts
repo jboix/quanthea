@@ -11,6 +11,7 @@ import {
   sqlPlaceholderStyles,
   sqlRowLimits,
 } from '@quanthea/plugin-kit/contract';
+import { dialectLabels, languageLabels, placeholderLabels, rowLimitLabels } from './labels.ts';
 
 /** The answers a project is generated from. */
 export interface Answers {
@@ -48,6 +49,8 @@ export interface Question {
   readonly message: string;
   /** The answers it accepts, when it is a choice. */
   readonly choices?: readonly string[];
+  /** What each choice shows in a prompt, by value: what it means in plain words. */
+  readonly labels?: Readonly<Record<string, string>>;
   /** Its default, from the answers before it. */
   readonly fallback?: (draft: Draft) => string | undefined;
   /** Whether it is asked, from the answers before it. */
@@ -105,7 +108,7 @@ const isAnsi = (draft: Draft) => isSql(draft) && draft.dialect === 'ansi';
 const nameQuestion: Question = {
   field: 'name',
   flag: 'name',
-  message: 'Package name (quanthea-plugin-<name> or @scope/quanthea-plugin-<name>)',
+  message: 'npm package name (for example quanthea-plugin-duckdb):',
   problem: (value) =>
     pluginNamePattern.test(value)
       ? undefined
@@ -116,7 +119,7 @@ const nameQuestion: Question = {
 const kindQuestion: Question = {
   field: 'kind',
   flag: 'kind',
-  message: 'Connector kind identifier',
+  message: 'Short id for this kind of connector (lowercase letters, digits, dashes):',
   fallback: (draft) => kindFromName(draft.name),
   problem: (value) =>
     kindPattern.test(value)
@@ -128,7 +131,7 @@ const kindQuestion: Question = {
 const displayNameQuestion: Question = {
   field: 'displayName',
   flag: 'display-name',
-  message: 'Display name',
+  message: 'Name people see in quanthea when they add this connector:',
   fallback: (draft) => nameFromKind(draft.kind),
   problem: (value) => {
     if (value.trim().length === 0 || value.length > 60)
@@ -139,27 +142,37 @@ const displayNameQuestion: Question = {
 
 /** The query language and, for SQL, the dialect and the ansi styles. */
 const languageQuestions: readonly Question[] = [
-  { field: 'language', flag: 'language', message: 'Query language', choices: queryLanguages },
+  {
+    field: 'language',
+    flag: 'language',
+    message: 'Which query language does your data source understand?',
+    choices: queryLanguages,
+    labels: languageLabels,
+  },
   {
     field: 'dialect',
     flag: 'dialect',
-    message: 'SQL dialect (ansi for a source the others do not fit)',
+    message: 'Which SQL does your database speak?',
     choices: sqlDialects,
+    labels: dialectLabels,
     fallback: () => 'ansi',
     applies: isSql,
   },
   {
     field: 'placeholders',
     flag: 'placeholders',
-    message: 'How the source writes a placeholder',
+    message:
+      "How does your database's driver mark where a value goes in a query? Check its docs if unsure.",
     choices: sqlPlaceholderStyles,
+    labels: placeholderLabels,
     applies: isAnsi,
   },
   {
     field: 'rowLimit',
     flag: 'row-limit',
-    message: 'How the source limits rows (FETCH FIRST or LIMIT)',
+    message: 'How does your database cap the number of rows a query returns?',
     choices: sqlRowLimits,
+    labels: rowLimitLabels,
     applies: isAnsi,
   },
 ];
@@ -174,11 +187,24 @@ export function questionsFor(gitName: string | undefined): readonly Question[] {
   const author: Question = {
     field: 'author',
     flag: 'author',
-    message: 'Copyright holder, for the licence',
+    message: 'Your name, for the MIT licence:',
     fallback: () => gitName,
     problem: (value) => (value.trim().length > 0 ? undefined : 'Give a name.'),
   };
   return [nameQuestion, kindQuestion, displayNameQuestion, ...languageQuestions, author];
+}
+
+/**
+ * The choices a prompt lists: each value with its label, if it has one.
+ *
+ * @param question - A question with choices.
+ * @returns The choices, as the prompt library takes them.
+ */
+export function choicesFor(question: Question): { name: string; value: string }[] {
+  return (question.choices ?? []).map((value) => ({
+    name: question.labels?.[value] ?? value,
+    value,
+  }));
 }
 
 /**
