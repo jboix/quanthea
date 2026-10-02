@@ -2,6 +2,7 @@
 
 import type { z } from 'zod';
 import type { Frame } from './frames.ts';
+import { kindPattern } from './naming.ts';
 import {
   type BoundQuery,
   type ExecutionContext,
@@ -136,9 +137,6 @@ export interface ConnectorKind<
 /** A connector kind whatever its schemas, as the registry holds them. */
 export type AnyConnectorKind = ConnectorKind<z.ZodType, z.ZodType>;
 
-/** What a kind identifier looks like: lowercase letters, digits and dashes. */
-const kindPattern = /^[a-z][a-z0-9-]*$/;
-
 /** SVG path data: commands and numbers, nothing else. */
 const pathPattern = /^[MmZzLlHhVvCcSsQqTtAa0-9eE.,\s+-]+$/;
 
@@ -196,7 +194,7 @@ export function defineConnector<ConfigSchema extends z.ZodType, SecretSchema ext
 ): ConnectorKind<ConfigSchema, SecretSchema> {
   if (!kindPattern.test(definition.kind)) {
     throw new Error(
-      `Connector kind "${definition.kind}" must be lowercase letters, digits and dashes.`,
+      `Connector kind "${definition.kind}" must be lowercase letters, digits and dashes, up to 40.`,
     );
   }
   if (definition.language === 'sql' && definition.dialect === undefined)

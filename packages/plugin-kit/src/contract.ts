@@ -1,8 +1,10 @@
 /**
  * The contract between connectors and the rest of quanthea, with its runtime checks: the frames a
- * kind returns and the query languages it speaks. A workspace entry for `@quanthea/shared` and the
+ * kind returns, the query languages it speaks, and how plugins and kinds are named. A workspace entry for `@quanthea/shared` and the
  * kit itself; plugins get the types from the kit's main entry.
  */
+
+export { sqlDialects, sqlPlaceholderStyles, sqlRowLimits } from './dialects.ts';
 export {
   compareFrameValues,
   type Field,
@@ -14,3 +16,4 @@ export {
   frameSchema,
 } from './frames.ts';
 export { type QueryLanguage, queryLanguageSchema, queryLanguages } from './languages.ts';
+export { kindPattern, pluginNamePattern } from './naming.ts';

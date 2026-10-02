@@ -6,11 +6,9 @@
  */
 
 import { z } from 'zod';
+import { sqlDialects, sqlPlaceholderStyles, sqlRowLimits } from './dialects.ts';
 import { queryLanguages } from './languages.ts';
-import { sqlDialects, sqlPlaceholderStyles, sqlRowLimits } from './queries.ts';
-
-/** What a kind identifier looks like. */
-const kindPattern = /^[a-z][a-z0-9-]{0,39}$/;
+import { kindPattern } from './naming.ts';
 
 /** SVG path data: commands and numbers, nothing else. */
 const pathPattern = /^[MmZzLlHhVvCcSsQqTtAa0-9eE.,\s+-]+$/;

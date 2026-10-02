@@ -9,6 +9,7 @@ export {
   fieldTypes,
   frameProblems,
   frameSchema,
+  pluginNamePattern,
   type QueryLanguage,
   queryLanguageSchema,
   queryLanguages,

@@ -5,7 +5,7 @@
  * environment or the keys directory, never the file. Plugin pins come from the file only.
  */
 import { join, resolve } from 'node:path';
-import type { SettingSource } from '@quanthea/shared';
+import { pluginNamePattern, type SettingSource } from '@quanthea/shared';
 import { z } from 'zod';
 import { type LogFormat, type LogLevel, logFormats, logLevels } from '../lib/logger.ts';
 import type { KeyInput, KeyInputs } from '../secrets/keys.ts';
@@ -47,10 +47,7 @@ const flagSchema = z.union([
 /** A plugin's npm package name: `quanthea-plugin-<name>`, scoped or not. */
 export const pluginNameSchema = z
   .string()
-  .regex(
-    /^(@[a-z0-9][a-z0-9._-]*\/)?quanthea-plugin-[a-z0-9][a-z0-9._-]*$/,
-    'Name it quanthea-plugin-<name> or @scope/quanthea-plugin-<name>.',
-  );
+  .regex(pluginNamePattern, 'Name it quanthea-plugin-<name> or @scope/quanthea-plugin-<name>.');
 
 /** A plugin pin, as `quanthea plugin install` prints it. */
 export const pinSchema = z
