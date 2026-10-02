@@ -30,6 +30,10 @@
       "entry": ["src/plugin.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
+    "evals": {
+      "entry": ["run.ts"],
+      "project": ["*.ts"]
+    },
     "dev": {
       "entry": [
         "metrics/history.ts",

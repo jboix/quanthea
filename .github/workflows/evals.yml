@@ -1,0 +1,83 @@
+name: Evals
+
+# Asks the agent the eval questions against the dev data sources, on Gemini,
+# and uploads the report. Run by hand from main, by the repository's owner
+# only: it spends the GEMINI_API_KEY secret's quota. Never part of the
+# Quality workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: The model for every job, such as gemini-3.5-flash-lite
+        default: gemini-3.5-flash-lite
+        required: true
+      build-model:
+        description: Another model for building and repairs (empty for the same)
+        default: ''
+        required: false
+      only:
+        description: Only these questions, such as q3,q7 (empty for all)
+        default: ''
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: '.tool-versions'
+
+      - name: Install dependencies
+        env:
+          CI: true
+          HUSKY: "0"
+        run: bun install --frozen-lockfile
+
+      - name: Start the dev data sources
+        run: bun run env:up
+
+      # Keeps the responses of earlier runs: a rerun on the same day with the
+      # same prompts calls Gemini only for what changed.
+      - name: Restore the response cache
+        uses: actions/cache@v4
+        with:
+          path: evals/.cache
+          key: evals-cache-${{ github.run_id }}
+          restore-keys: evals-cache-
+
+      - name: Ask the questions
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MODEL: ${{ inputs.model }}
+          BUILD_MODEL: ${{ inputs.build-model }}
+          ONLY: ${{ inputs.only }}
+        run: |
+          set -- --model "$MODEL"
+          if [ -n "$BUILD_MODEL" ]; then set -- "$@" --build-model "$BUILD_MODEL"; fi
+          if [ -n "$ONLY" ]; then set -- "$@" --only "$ONLY"; fi
+          bun run evals "$@"
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evals-report
+          path: evals/reports/
+          if-no-files-found: ignore
+
+      - name: Data source logs
+        if: failure()
+        run: docker compose -f dev/docker-compose.yml --profile '*' logs --no-color

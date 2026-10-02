@@ -8,7 +8,8 @@
     "apps/*",
     "packages/*",
     "examples/*",
-    "dev"
+    "dev",
+    "evals"
   ],
   "scripts": {
     "dev": "bun run --filter '*' dev",
@@ -42,6 +43,7 @@
     "env:up:http": "docker compose -f dev/docker-compose.yml --profile http up -d --wait http-api",
     "env:up:loki": "docker compose -f dev/docker-compose.yml --profile loki up -d loki && docker compose -f dev/docker-compose.yml --profile loki run --rm loki-seed",
     "dev:seed": "bun dev/seed/seed.ts",
+    "evals": "bun evals/run.ts",
     "env:stop": "docker compose -f dev/docker-compose.yml --profile '*' stop",
     "env:down": "docker compose -f dev/docker-compose.yml --profile '*' down -v",
     "test:integration": "QUANTHEA_INTEGRATION=core bun test integration",

@@ -1,0 +1,16 @@
+{
+  "name": "@quanthea/evals",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Questions the agent answers against the dev data, scored: bun run evals.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "^4.0.18",
+    "@quanthea/server": "workspace:*",
+    "@quanthea/shared": "workspace:*",
+    "ai": "^7.0.118"
+  }
+}

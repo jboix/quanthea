@@ -21,6 +21,7 @@ COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
 COPY packages/create-plugin/package.json packages/create-plugin/package.json
 COPY examples/quanthea-plugin-sqlite/package.json examples/quanthea-plugin-sqlite/package.json
 COPY dev/package.json dev/package.json
+COPY evals/package.json evals/package.json
 # The root prepare script installs git hooks, which an image has no use for.
 RUN bun install --frozen-lockfile --ignore-scripts
 COPY tsconfig.base.json ./
@@ -40,6 +41,7 @@ COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
 COPY packages/create-plugin/package.json packages/create-plugin/package.json
 COPY examples/quanthea-plugin-sqlite/package.json examples/quanthea-plugin-sqlite/package.json
 COPY dev/package.json dev/package.json
+COPY evals/package.json evals/package.json
 RUN bun install --frozen-lockfile --ignore-scripts --production --filter @quanthea/server
 # /plugins is not a volume: a derived image installs plugins into it at build time.
 RUN mkdir -p /volume/data /volume/keys /volume/etc/quanthea /volume/plugins \

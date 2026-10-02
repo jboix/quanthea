@@ -69,6 +69,16 @@
       "name": "@quanthea/dev",
       "version": "0.0.0",
     },
+    "evals": {
+      "name": "@quanthea/evals",
+      "version": "0.0.0",
+      "dependencies": {
+        "@ai-sdk/provider": "^4.0.18",
+        "@quanthea/server": "workspace:*",
+        "@quanthea/shared": "workspace:*",
+        "ai": "^7.0.118",
+      },
+    },
     "examples/quanthea-plugin-sqlite": {
       "name": "quanthea-plugin-sqlite",
       "version": "0.1.0",
@@ -360,6 +370,8 @@
     "@quanthea/create-plugin": ["@quanthea/create-plugin@workspace:packages/create-plugin"],
 
     "@quanthea/dev": ["@quanthea/dev@workspace:dev"],
+
+    "@quanthea/evals": ["@quanthea/evals@workspace:evals"],
 
     "@quanthea/plugin-kit": ["@quanthea/plugin-kit@workspace:packages/plugin-kit"],
 

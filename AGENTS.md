@@ -30,6 +30,7 @@ bun run knip         # unused files, exports and dependencies
 bun run typecheck    # tsc in every workspace
 bun test             # unit tests (bun:test)
 bun run env:up       # the local data sources: Postgres :5433, Prometheus :9091
+bun run evals        # the agent's evals against them, on Gemini (GEMINI_API_KEY); see evals/
 bun run test:integration  # connector tests against the local data sources
 bun run env:up:timescale && bun run test:integration:timescale  # the same for TimescaleDB
 bun run env:up:mysql && bun run test:integration:mysql  # the same for MySQL and MariaDB

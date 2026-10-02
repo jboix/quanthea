@@ -34,6 +34,9 @@ keys/
 # secrets
 *.pem
 
+# eval reports (bun run evals); the response cache is under .cache
+evals/reports/
+
 # generated
 dependency-graph.svg
 
