@@ -59,8 +59,8 @@ function messagesOf(world: EvalWorld, threadId: string): StoredMessage[] {
 }
 
 /**
- * What to send next: the approval's continuation, the answer to the agent's question, or nothing
- * when the thread is done or stuck.
+ * What to send next: the approval's continuation, the answer to the agent's question (asked with
+ * ask_person or in prose before any plan), or nothing when the thread is done or stuck.
  *
  * @param world - The world.
  * @param threadId - The thread.
@@ -77,8 +77,11 @@ function nextMessage(world: EvalWorld, threadId: string, question: Question): un
     return { id: last.id, role: 'assistant', parts: [] };
   }
   const asked = last.parts.find((part) => part.type === 'tool-ask_person')?.input;
-  if (!asked) return undefined;
-  return userMessage(question.answer ?? asked.options?.[0] ?? 'Your pick.', question.timeZone);
+  if (asked)
+    return userMessage(question.answer ?? asked.options?.[0] ?? 'Your pick.', question.timeZone);
+  // A question asked in prose, while nothing is planned yet: a person would reply too.
+  if (thread.state !== 'idle') return undefined;
+  return userMessage(question.answer ?? 'Go ahead with what you think fits.', question.timeZone);
 }
 
 /**

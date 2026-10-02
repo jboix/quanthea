@@ -2,7 +2,8 @@
 
 The questions the agent answers against the dev data, each with what a good answer holds. A run
 asks each question as a person would: it answers the agent's question with the question's scripted
-answer, or else its first option, approves the plan, and lets the build run. Then it scores what
+answer, or else its first option, approves the plan, and lets the build run. A question the agent
+asks in prose before any plan gets the scripted answer, or "go ahead". Then it scores what
 was built:
 
 - a dashboard was built, with a number of panels in the expected range;
