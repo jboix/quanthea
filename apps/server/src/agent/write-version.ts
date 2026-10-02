@@ -340,7 +340,7 @@ export function writeVersion(
   if (failing.length === 0)
     return { ok: true, version: saveWhole(context, checked.spec, changeSummary), panels };
   const version = saveBuilt(context, checked.spec, changeSummary);
-  const next = `These new panels were left out because they do not work. ${nextAttempt(context, 'Fix them and add them again')}`;
+  const next = `These new panels were left out because they do not work, so the draft does not have them. ${nextAttempt(context, 'Fix them and add them again as new panels, without "replaces"')}`;
   writeRepair(context, { kind: 'left-out', spec, panels, failing });
   return { ok: true, version, panels, leftOut: { panelIds: failing, next } };
 }

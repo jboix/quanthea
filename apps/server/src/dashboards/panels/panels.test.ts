@@ -111,10 +111,30 @@ describe('applyEdit', () => {
     expect(issuesOf(changed)).toEqual([]);
   });
 
+  test('rebuilds a panel sent again with its title, in place of adding another', () => {
+    const built = specOf(undefined, firstBuild);
+    const latency = built.panels.find((panel) => panel.id === 'latency');
+    const again = specOf(
+      built,
+      edit({
+        panels: [
+          {
+            title: ` ${latency?.title.toUpperCase()}`,
+            data: { kind: 'gauge', connector: 'prom', metric: 'process_resident_memory_bytes' },
+            chart: { recipe: 'trend.line' },
+          },
+        ],
+        summary: 'same panel again',
+      }),
+    );
+    expect(again.panels.map((panel) => panel.id)).toEqual(built.panels.map((panel) => panel.id));
+    expect(again.panels.find((panel) => panel.id === 'latency')?.grid).toEqual(latency?.grid);
+  });
+
   test('says which panels exist when an edit names another', () => {
     const built = specOf(undefined, firstBuild);
     expect(() => applyEdit(built, edit({ remove: ['nope'], summary: 'x' }))).toThrow(
-      'No panel "nope". The panels are: error-rate, failed-orders, latency, orders-by-status, top-codes.',
+      'No panel "nope". The panels are: error-rate, failed-orders, latency, orders-by-status, top-codes. A panel the draft does not have, such as one left out, is new: send it without "replaces".',
     );
   });
 

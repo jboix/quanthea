@@ -4,7 +4,7 @@
  * also the rows. Hidden fields and labels are removed at every level; below level 4 errors carry
  * only safe messages.
  */
-import type { Field, Frame } from '@quanthea/shared';
+import { datasetOfFrames, type Field, type Frame } from '@quanthea/shared';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../query/executor.ts';
 import { QueryError } from '../query/query-error.ts';
 import { type GateSubject, hiddenResultNames } from './subject.ts';
@@ -33,7 +33,12 @@ export interface ModelFrame {
 
 /** A test query result for the model. */
 export type ModelTestResult =
-  | { readonly ok: true; readonly frames?: readonly ModelFrame[] }
+  | {
+      readonly ok: true;
+      /** For a panel's query: the columns of the table its chart draws, which roles name. */
+      readonly columns?: readonly string[];
+      readonly frames?: readonly ModelFrame[];
+    }
   | { readonly ok: false; readonly error: string };
 
 /**
@@ -116,6 +121,24 @@ export function modelTestResult(subject: GateSubject, frames: readonly Frame[]):
     ok: true,
     frames: frames.map((frame) => modelFrame(frame, subject.accessLevel, hidden)),
   };
+}
+
+/**
+ * A panel's query result as the model receives it: the test result, and from level 2 the columns
+ * of the table its chart draws, such as `time`, `code`, `series` and `value` for Prometheus
+ * series. Chart roles name these columns, not the frames' fields. An empty result has none.
+ *
+ * @param subject - The connector.
+ * @param frames - The frames.
+ * @returns The result for the model.
+ */
+export function modelPanelResult(subject: GateSubject, frames: readonly Frame[]): ModelTestResult {
+  const result = modelTestResult(subject, frames);
+  if (!result.ok || subject.accessLevel < 2 || frames.length === 0) return result;
+  const hidden = hiddenResultNames(subject);
+  const dataset = datasetOfFrames(frames.map((frame) => withoutHidden(frame, hidden)));
+  const columns = dataset.dimensions.map((dimension) => `${dimension.name}: ${dimension.type}`);
+  return { ...result, columns };
 }
 
 /**

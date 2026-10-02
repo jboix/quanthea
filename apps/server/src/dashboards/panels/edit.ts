@@ -65,7 +65,9 @@ function checkIds(panels: readonly Panel[], ids: readonly string[]): void {
   const known = new Set(panels.map((panel) => panel.id));
   const unknown = ids.find((id) => !known.has(id));
   if (unknown !== undefined) {
-    throw new QueryError(`No panel "${unknown}". The panels are: ${[...known].join(', ')}.`);
+    throw new QueryError(
+      `No panel "${unknown}". The panels are: ${[...known].join(', ')}. A panel the draft does not have, such as one left out, is new: send it without "replaces".`,
+    );
   }
 }
 
@@ -86,6 +88,29 @@ function panelOf(
   return { id, grid, ...content };
 }
 
+/**
+ * The edit's panels, each new one that has the title of a current panel set to replace it, so a
+ * model that sends the whole dashboard again changes it in place.
+ *
+ * @param panels - The current panels.
+ * @param requested - The edit's panels.
+ * @returns The panels, with `replaces` set where a title matches.
+ */
+function matchedByTitle(
+  panels: readonly Panel[],
+  requested: EditRequest['panels'],
+): EditRequest['panels'] {
+  const keyOf = (title: string) => title.trim().toLowerCase();
+  const taken = new Set(requested.flatMap((panel) => panel.replaces ?? []));
+  const byTitle = new Map(panels.map((panel) => [keyOf(panel.title), panel.id]));
+  return requested.map((panel) => {
+    const id = byTitle.get(keyOf(panel.title));
+    if (panel.replaces !== undefined || id === undefined || taken.has(id)) return panel;
+    taken.add(id);
+    return { ...panel, replaces: id };
+  });
+}
+
 /** The charts of the panels an edit builds, by panel id, to complete after they run. */
 export type ChartChoices = Map<string, PanelChart>;
 
@@ -104,10 +129,9 @@ function editedPanels(
   context: BuildContext,
   charts: ChartChoices,
 ): Panel[] {
+  const requested = matchedByTitle(panels, request.panels);
   const rebuilt = new Map(
-    request.panels.flatMap((panel) =>
-      panel.replaces === undefined ? [] : [[panel.replaces, panel]],
-    ),
+    requested.flatMap((panel) => (panel.replaces === undefined ? [] : [[panel.replaces, panel]])),
   );
   checkIds(panels, [...request.remove, ...rebuilt.keys()]);
   const kept = panels
@@ -119,7 +143,7 @@ function editedPanels(
       charts.set(panel.id, draft.chart);
       return panelOf(draft, panel.id, panel.grid);
     });
-  const drafts = request.panels
+  const drafts = requested
     .filter((panel) => panel.replaces === undefined)
     .map((panel) => expandPanel(panel, context));
   const taken = new Set(kept.map((panel) => panel.id));

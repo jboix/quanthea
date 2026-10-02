@@ -472,7 +472,9 @@ describe('an agent run', () => {
       ),
       userMessage('u1', 'Build it'),
     );
-    expect(stream).toContain('These new panels were left out because they do not work.');
+    expect(stream).toContain(
+      'These new panels were left out because they do not work, so the draft does not have them.',
+    );
     expect(stream).toContain('"outcome":"left-out"');
     expect(stream).toContain('"outcome":"repaired"');
     const { dashboardId } = services.threads.get(threadId);

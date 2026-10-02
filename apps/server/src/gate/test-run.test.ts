@@ -3,7 +3,7 @@ import type { AccessLevel, Frame } from '@quanthea/shared';
 import { ConnectorError } from '../connectors/_shared/index.ts';
 import { QueryError } from '../query/query-error.ts';
 import type { GateSubject } from './subject.ts';
-import { modelRowLimit, modelTestError, modelTestResult } from './test-run.ts';
+import { modelPanelResult, modelRowLimit, modelTestError, modelTestResult } from './test-run.ts';
 
 const frame: Frame = {
   refId: 'A',
@@ -117,5 +117,22 @@ describe('modelTestError', () => {
       ok: false,
       error: 'The query failed.',
     });
+  });
+});
+
+describe('modelPanelResult', () => {
+  test('names the columns a chart draws from, without the hidden ones', () => {
+    const result = modelPanelResult(subjectAt(2), [frame]);
+    expect(result.ok && result.columns).toEqual([
+      'time: time',
+      'service: string',
+      'series: string',
+      'value: number',
+    ]);
+  });
+
+  test('names no columns at level 1, or for an empty result', () => {
+    expect(modelPanelResult(subjectAt(1), [frame])).toEqual({ ok: true });
+    expect(modelPanelResult(subjectAt(2), [])).toEqual({ ok: true, frames: [] });
   });
 });

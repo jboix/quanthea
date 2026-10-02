@@ -10,7 +10,7 @@ import { buildCatalog, createValueCache, type ValueCache } from './catalog.ts';
 import { type ModelEntity, modelSchema } from './model-schema.ts';
 import { type ModelSample, sampleForModel } from './sample.ts';
 import type { GateSubject } from './subject.ts';
-import { type ModelTestResult, modelTestResult, testQueryForModel } from './test-run.ts';
+import { type ModelTestResult, modelPanelResult, testQueryForModel } from './test-run.ts';
 
 /** What the gate needs from the connectors service. */
 export interface ConnectorAccess {
@@ -212,7 +212,7 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
       const subject = subjects().get(name);
       if (!subject) return { ok: false, error: unreachable(name) };
       return outcome.error === null
-        ? modelTestResult(subject, outcome.frames)
+        ? modelPanelResult(subject, outcome.frames)
         : { ok: false, error: outcome.error };
     },
   };

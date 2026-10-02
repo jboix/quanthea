@@ -539,7 +539,9 @@ directly onto an ECharts `dataset`.
 - **Which charts.** Every chart recipe is offered to the agent until an admin switches it off in
   Settings → Charts (`charts` settings section, `GET/PUT /api/settings/charts`); at least one
   stays on. The tool schema, the guide and `chart_recipe` offer only those.
-- **Layout.** Existing panels keep their place; a rebuilt panel keeps its id and place; new
+- **Layout.** Existing panels keep their place; a rebuilt panel keeps its id and place. A panel
+  sent without `replaces` but with the title of a current panel rebuilds that panel, so a model
+  that sends the whole dashboard again changes it in place instead of adding copies. New
   panels are packed in reading order into rows below, as wide as asked or as their kind usually
   is (numbers a quarter, time charts full width, tables and category charts half).
 - **Markers.** Deploy markers are one annotation (`markers`) put on every time chart.
@@ -552,7 +554,9 @@ to it. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/wr
 2. The spec is built and checked, views aside, then every panel is test-run with its defaults.
 3. Each built chart is completed from its first query's result (`dashboards/panels/complete.ts`):
    roles the model left out take the first fitting columns, and roles naming a column the result
-   has not, or of the wrong type, become the panel's problems. An empty result is data, not a
+   has not, or of the wrong type, become the panel's problems. The result the model gets lists
+   each query's `columns`, the table the chart draws (such as `time`, `code`, `series`, `value`
+   for Prometheus series), so it names roles by those and not by the frames' fields. An empty result is data, not a
    mistake: the chart is completed from the columns its data request declares.
    A new or changed query that names a fixed time is a problem too (`fixedTimeOf` in
    `@quanthea/shared`, `agent/panel-problems.ts`): SQL that compares with a date literal or reads
