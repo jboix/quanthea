@@ -127,7 +127,8 @@ function markdownRow({ outcome, score }: Result): string {
  */
 function markdownDetails({ outcome }: Result): string {
   const asked = outcome.asked.map((text) => `The agent asked: “${text}” It got its first option.`);
-  const panels = outcome.panels.flatMap((panel) => [
+  const shown = [...outcome.panels, ...(outcome.markers ? [outcome.markers] : [])];
+  const panels = shown.flatMap((panel) => [
     `- **${panel.title}** · ${panel.connectors.join(', ')}`,
     ...queriesOf(panel).map(
       (query) =>
@@ -193,7 +194,8 @@ function htmlQuestion({ outcome, score }: Result): string {
         `<p class="asked">The agent asked “${escapeHtml(text)}” and got its first option.</p>`,
     )
     .join('');
-  const panels = outcome.panels.map((panel) => {
+  const shown = [...outcome.panels, ...(outcome.markers ? [outcome.markers] : [])];
+  const panels = shown.map((panel) => {
     const queries = queriesOf(panel)
       .map((query) => `<pre>${escapeHtml(query.text)}</pre>`)
       .join('');

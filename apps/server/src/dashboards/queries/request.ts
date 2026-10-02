@@ -136,7 +136,7 @@ const sqlRatioSchema = z.strictObject({
  * the command and its arguments, separated by spaces, or their JSON array when an argument holds a
  * space; a MongoDB query is the JSON of its collection and pipeline.
  */
-const rawSchema = z
+export const rawDataSchema = z
   .strictObject({
     kind: z.literal('raw'),
     connector: connectorSchema,
@@ -190,7 +190,7 @@ export const dataSchema = z.discriminatedUnion('kind', [
   ...Object.values(searchBuilderSchemas),
   ...Object.values(logqlBuilderSchemas),
   ...Object.values(mongodbBuilderSchemas),
-  rawSchema,
+  rawDataSchema,
   savedSchema,
 ]);
 
@@ -239,5 +239,5 @@ export function dataSchemaFor(available: AvailableQueries) {
     .filter(([kind]) => available.builtIn.includes(kind))
     .map(([, schema]) => schema);
   const saved = available.saved.length > 0 ? [savedSchema] : [];
-  return z.discriminatedUnion('kind', [rawSchema, ...builders, ...saved]);
+  return z.discriminatedUnion('kind', [rawDataSchema, ...builders, ...saved]);
 }

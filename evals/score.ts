@@ -25,6 +25,8 @@ export interface Outcome {
   readonly built: boolean;
   /** The panels of the last version. */
   readonly panels: readonly BuiltPanel[];
+  /** The markers of the last version, shaped like a panel, if it has them. */
+  readonly markers?: BuiltPanel;
   /** The queries of the last version that fail when run again, by panel. */
   readonly failing: readonly { readonly panelId: string; readonly error: string }[];
   /** How many writes failed their checks or test runs. */
@@ -108,11 +110,12 @@ function duplicates(outcome: Outcome): string[] {
  * @returns The reasons.
  */
 function missing(outcome: Outcome, expect: Expectation): string[] {
-  const texts = outcome.panels.map((panel) => panel.text);
+  const shown = [...outcome.panels, ...(outcome.markers ? [outcome.markers] : [])];
+  const texts = shown.map((panel) => panel.text);
   const topics = expect.topics
     .filter((topic) => !texts.some((text) => topic.test(text)))
     .map((topic) => `no panel about ${topic.source.split('|').join(' or ')}`);
-  const used = new Set(outcome.panels.flatMap((panel) => panel.connectors));
+  const used = new Set(shown.flatMap((panel) => panel.connectors));
   const connectors = expect.connectors
     .filter((connector) => !used.has(connector))
     .map((connector) => `never queries ${connector}`);

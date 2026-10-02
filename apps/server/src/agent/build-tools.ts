@@ -12,7 +12,7 @@ import {
   editRequestSchemaFor,
 } from '../dashboards/panels/index.ts';
 import { QueryError } from '../dashboards/queries/index.ts';
-import { panelProblems } from './panel-problems.ts';
+import { markerIssues, panelProblems } from './panel-problems.ts';
 import type { RunContext } from './run-context.ts';
 import { providerSchema } from './tool-schema.ts';
 import { type WriteResult, writeVersion } from './write-version.ts';
@@ -129,6 +129,7 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
   const run = {
     tests,
     panelProblems: panelProblems(current, completion.spec, completion.problems),
+    ...(request.markers ? { markerIssues: markerIssues(completion.spec, tests) } : {}),
   };
   return writeVersion(context, completion.spec, request.summary, samePanels, added, run);
 }

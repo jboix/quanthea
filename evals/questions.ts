@@ -77,7 +77,8 @@ export const questions: readonly Question[] = [
     timeZone: zurich,
     expect: {
       connectors: [postgres, prometheus],
-      panels: [2, 8],
+      // Errors on a chart with the deploys as markers is a good answer in one panel.
+      panels: [1, 8],
       topics: [/deploy/i, /error|5xx/i],
       maxRepairs: 2,
     },

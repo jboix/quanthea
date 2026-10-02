@@ -47,6 +47,8 @@ export interface WriteRun {
   readonly tests: readonly PanelTest[];
   /** What is wrong with each panel beyond its queries' errors, by panel id. */
   readonly panelProblems: ReadonlyMap<string, readonly string[]>;
+  /** What is wrong with the markers the edit sets, if it sets them. */
+  readonly markerIssues?: readonly { path: string; message: string }[];
 }
 
 /**
@@ -305,6 +307,29 @@ function failWrite(
 }
 
 /**
+ * Fails a write whose spec or markers have issues, counted, and streams it for the build log.
+ *
+ * @param context - The run.
+ * @param failure - The spec, the panel reports, the failing panels, the issues and what failed.
+ * @returns The result the model sees.
+ */
+function failIssues(
+  context: RunContext,
+  failure: {
+    spec: DashboardSpec;
+    panels: readonly PanelReport[];
+    failing: readonly string[];
+    issues: readonly { path: string; message: string }[];
+    error: string;
+  },
+): WriteResult {
+  const { spec, panels, failing, issues, error } = failure;
+  const result = { ...failed(context, error), issues, panels };
+  writeRepair(context, { kind: 'failed', spec, panels, failing, issues });
+  return result;
+}
+
+/**
  * Writes a version for the agent.
  *
  * @param context - The run.
@@ -326,14 +351,18 @@ export function writeVersion(
   const refused = refusal(context, onlyExistingPanels, droppable.size);
   if (refused !== undefined) return { ok: false, error: refused };
   const panels = reportsOf(context, spec, run);
+  const markerIssues = run.markerIssues ?? [];
+  if (markerIssues.length > 0) {
+    const error = 'The markers do not work.';
+    return failIssues(context, { spec, panels, failing: [], issues: markerIssues, error });
+  }
   const failing = failingPanels(panels, context.settings.behaviour.testRun);
   const kept = failing.length === 0 ? spec : withoutFailing(spec, failing, droppable);
   if (!kept) return failWrite(context, spec, panels, failing);
   const checked = context.dashboards.check(kept);
   if (!checked.ok) {
-    const result = { ...failed(context, 'The spec is invalid.'), issues: checked.issues, panels };
-    writeRepair(context, { kind: 'failed', spec, panels, failing, issues: checked.issues });
-    return result;
+    const { issues } = checked;
+    return failIssues(context, { spec, panels, failing, issues, error: 'The spec is invalid.' });
   }
   context.counters.leftOut =
     Math.max(0, context.counters.leftOut - droppable.size) + failing.length;

@@ -89,10 +89,11 @@ const dataKinds = new Set(['raw', 'saved', ...queryBuilders.map((builder) => bui
 function offeredKinds(model: ReturnType<typeof scriptedStreamModel>): string[] {
   const edit = model.doStreamCalls[0]?.tools?.find((each) => each.name === 'edit_dashboard');
   const schema = JSON.stringify(edit && 'inputSchema' in edit ? edit.inputSchema : {});
-  return [...schema.matchAll(/"kind":\{"type":"string","const":"([a-z-]+)"/g)]
+  const kinds = [...schema.matchAll(/"kind":\{"type":"string","const":"([a-z-]+)"/g)]
     .map((match) => match[1] ?? '')
-    .filter((kind) => dataKinds.has(kind))
-    .sort();
+    .filter((kind) => dataKinds.has(kind));
+  // A raw query shows twice: as a panel's data, and as the markers' query.
+  return [...new Set(kinds)].sort();
 }
 
 describe('a thread’s queries', () => {

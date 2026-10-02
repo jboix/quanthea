@@ -12,6 +12,7 @@ import {
   dataSchemaFor,
   filtersSchema,
   nameSchema,
+  rawDataSchema,
   tableSchema,
 } from '../queries/index.ts';
 
@@ -68,15 +69,31 @@ function panelSchemaWith<Data extends z.ZodType, Chart extends z.ZodType>(
   });
 }
 
-/** Deploy markers: events from a table, drawn on every time chart. */
-const markersSchema = z.strictObject({
+/** The panels that show the markers, by id or title; every time chart when left out. */
+const markedPanelsSchema = z.array(z.string().max(200)).max(20).optional();
+
+/** Deploy markers from a table of a SQL connector: the time and text columns of its rows. */
+const tableMarkersSchema = z.strictObject({
   label: z.string().min(1).max(60),
   connector: connectorSchema,
   table: tableSchema,
   time: nameSchema,
   text: nameSchema,
   filters: filtersSchema,
+  panels: markedPanelsSchema,
 });
+
+/** Deploy markers from a raw query in any language, which returns a time and a text column. */
+const queryMarkersSchema = z.strictObject({
+  label: z.string().min(1).max(60),
+  data: rawDataSchema,
+  time: nameSchema.default('time'),
+  text: nameSchema.default('text'),
+  panels: markedPanelsSchema,
+});
+
+/** Deploy markers: events drawn as lines on time charts, from a table or from a query. */
+const markersSchema = z.union([queryMarkersSchema, tableMarkersSchema]);
 
 /**
  * The edit's fields around its panels.

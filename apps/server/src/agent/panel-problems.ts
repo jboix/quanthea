@@ -5,6 +5,7 @@
  * checked again, so an older panel never blocks a new edit.
  */
 import { type DashboardSpec, fixedTimeOf } from '@quanthea/shared';
+import type { PanelTest } from '../dashboards/dashboards.ts';
 
 /**
  * The problems of each panel, by id: the chart's, then each new query that names a fixed time.
@@ -30,4 +31,31 @@ export function panelProblems(
     if (fixed.length > 0) problems.set(panel.id, [...(problems.get(panel.id) ?? []), ...fixed]);
   }
   return problems;
+}
+
+/**
+ * What is wrong with markers an edit sets: they show on no chart, their query names a fixed time,
+ * or it fails. Markers an edit leaves as they were are not checked again.
+ *
+ * @param spec - The spec the edit makes.
+ * @param tests - The test run of each panel, with the markers of the charts that show them.
+ * @returns The issues, each at the path `markers`.
+ */
+export function markerIssues(
+  spec: DashboardSpec,
+  tests: readonly PanelTest[],
+): { path: string; message: string }[] {
+  const annotation = spec.annotations.find((each) => each.id === 'markers');
+  if (!annotation) return [];
+  const outcomes = tests.flatMap((test) =>
+    test.run.markers.filter((marker) => marker.annotation === annotation.id),
+  );
+  const fixed = fixedTimeOf(annotation.query);
+  const failure = outcomes.find((outcome) => outcome.error !== null)?.error?.message;
+  const messages = [
+    ...(outcomes.length === 0 ? ['No time chart shows the markers: name one in "panels".'] : []),
+    ...(fixed ? [`the query ${fixed.replace(/^the query /, '')}`] : []),
+    ...(failure ? [`the query fails: ${failure}`] : []),
+  ];
+  return messages.map((message) => ({ path: 'markers', message }));
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { Expectation } from './questions.ts';
-import { type Outcome, score } from './score.ts';
+import { type BuiltPanel, type Outcome, score } from './score.ts';
 
 const expectation: Expectation = {
   connectors: ['prometheus-dev', 'postgres-orders'],
@@ -53,6 +53,22 @@ describe('scoring an answer', () => {
       'no panel about deploy',
       'never queries postgres-orders',
     ]);
+  });
+
+  test('counts the markers for their topic and their connector', () => {
+    const markers = {
+      id: 'markers',
+      title: 'Markers: deploy',
+      connectors: ['postgres-orders'],
+      text: 'Markers: deploy\nSELECT ...',
+    };
+    const errorsOnly: Outcome = { ...outcome, panels: [outcome.panels[0] as BuiltPanel] };
+    const single: Expectation = { ...expectation, panels: [1, 4] };
+    expect(score(errorsOnly, single).reasons).toEqual([
+      'no panel about deploy',
+      'never queries postgres-orders',
+    ]);
+    expect(score({ ...errorsOnly, markers }, single)).toEqual({ pass: true, reasons: [] });
   });
 
   test('fails a query on a fixed time, and two panels running the same query', () => {

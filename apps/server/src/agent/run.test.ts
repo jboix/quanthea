@@ -418,6 +418,27 @@ describe('an agent run', () => {
     expect(services.threads.get(threadId).dashboardId).toBeNull();
   });
 
+  test('hands back markers whose query fails, and saves nothing', async () => {
+    services.threads.proposePlan(threadId, plan, true);
+    const data = {
+      kind: 'raw',
+      connector: 'events',
+      language: 'sql',
+      query: 'SELECT * FROM missing',
+    };
+    const marked = { ...buildEdit, markers: { label: 'deploy', data } };
+    const stream = await chat(
+      agentWith(
+        { tool: 'edit_dashboard', input: marked },
+        { text: 'The deploys table is missing.' },
+      ),
+      userMessage('u1', 'Build it'),
+    );
+    expect(stream).toContain('The markers do not work.');
+    expect(stream).toContain('markers: the query fails: Unknown query.');
+    expect(services.threads.get(threadId).dashboardId).toBeNull();
+  });
+
   test('does not offer edit_dashboard before a plan is approved', async () => {
     const agent = agentWith(
       { tool: 'edit_dashboard', input: buildEdit },

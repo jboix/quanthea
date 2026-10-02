@@ -1,17 +1,15 @@
 /**
  * Applies an edit to a dashboard: settings, removed panels, panels rebuilt in place, new panels
- * placed below, and deploy markers on the time charts. The result is a spec to check, test-run
+ * placed below, and deploy markers on time charts (markers.ts). The result is a spec to check, test-run
  * and save like any other.
  */
-import type { Annotation, DashboardSpec, Panel } from '@quanthea/shared';
-import { type BuildContext, markersQuery, QueryError } from '../queries/index.ts';
+import type { DashboardSpec, Panel } from '@quanthea/shared';
+import { type BuildContext, QueryError } from '../queries/index.ts';
 import type { PanelDraft } from './draft.ts';
-import { expandPanel, isTimeChart, type PanelChart } from './expand.ts';
+import { expandPanel, type PanelChart } from './expand.ts';
 import { compactGrid, panelId, placeBelow } from './layout.ts';
-import type { EditRequest, MarkersRequest } from './request.ts';
-
-/** The id of the deploy markers' annotation. */
-const markersId = 'markers';
+import { editedAnnotations, placeMarkers } from './markers.ts';
+import type { EditRequest } from './request.ts';
 
 /** The time range of a new dashboard. */
 const defaultTime = { from: 'now-6h', to: 'now' };
@@ -157,58 +155,6 @@ function editedPanels(
 }
 
 /**
- * The markers' annotation.
- *
- * @param request - The markers request.
- * @param context - The build context, for the connector's dialect.
- * @returns The annotation.
- */
-function markersAnnotation(request: MarkersRequest, context: BuildContext): Annotation {
-  return {
-    id: markersId,
-    label: request.label,
-    query: markersQuery(request, context),
-    timeField: 'time',
-    textField: 'text',
-  };
-}
-
-/**
- * The annotations after the edit: the markers set, removed, or kept as they were.
- *
- * @param annotations - The current annotations.
- * @param markers - The edit's markers: a request, `null` to remove, `undefined` to keep.
- * @param context - The build context, for the connector's dialect.
- * @returns The annotations.
- */
-function editedAnnotations(
-  annotations: readonly Annotation[],
-  markers: EditRequest['markers'],
-  context: BuildContext,
-): Annotation[] {
-  if (markers === undefined) return [...annotations];
-  const others = annotations.filter((annotation) => annotation.id !== markersId);
-  return markers === null ? others : [...others, markersAnnotation(markers, context)];
-}
-
-/**
- * Every time chart with the markers when there are markers, and without them when there are not.
- *
- * @param panels - The panels.
- * @param marked - Whether the markers' annotation exists.
- * @returns The panels.
- */
-function withMarkers(panels: readonly Panel[], marked: boolean): Panel[] {
-  return panels.map((panel) => {
-    if (panel.view.kind !== 'chart' || !isTimeChart(panel.view)) return panel;
-    const others = (panel.view.markers ?? []).filter((marker) => marker.annotation !== markersId);
-    const markers = marked ? [...others, { annotation: markersId }] : others;
-    const { markers: _old, ...view } = panel.view;
-    return { ...panel, view: markers.length === 0 ? view : { ...view, markers } };
-  });
-}
-
-/**
  * Applies an edit.
  *
  * @param current - The current spec, or `undefined` before the first version.
@@ -225,11 +171,10 @@ export function applyEdit(
 ): { spec: DashboardSpec; charts: ChartChoices } {
   const spec = withSettings(startingSpec(current, request), request);
   const annotations = editedAnnotations(spec.annotations, request.markers, context);
-  const marked = annotations.some((annotation) => annotation.id === markersId);
   const charts: ChartChoices = new Map();
   const edited = editedPanels(spec.panels, request, context, charts);
   // Removed panels leave holes; the rest move up into them.
   const placed = request.remove.length > 0 ? compactGrid(edited) : edited;
-  const panels = withMarkers(placed, marked);
+  const panels = placeMarkers(spec.panels, placed, request.markers);
   return { spec: { ...spec, annotations, panels }, charts };
 }
