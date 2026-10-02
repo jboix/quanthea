@@ -2,7 +2,7 @@
  * The words a failed run shows the person: the error, and the provider's own message when it gave
  * one, such as Mistral's "Service tier capacity exceeded for this model."
  */
-import { APICallError, RetryError } from 'ai';
+import { APICallError, InvalidToolInputError, RetryError } from 'ai';
 
 /**
  * The first `message` string in a parsed error body, however the provider nests it.
@@ -39,12 +39,16 @@ export function providerMessage(error: unknown): string | undefined {
 }
 
 /**
- * The words a stream error shows the person.
+ * The words a stream error shows the person. Text passes as it is: it is a message this function
+ * already wrote, which the stream hands over again when one stream is merged into another.
  *
  * @param error - What failed.
  * @returns The message.
  */
 export function publicError(error: unknown): string {
+  if (typeof error === 'string') return error.slice(0, 400);
+  if (InvalidToolInputError.isInstance(error))
+    return `The agent's ${error.toolName} call did not fit the tool's schema, so it did not run. The agent sees why and can try again.`;
   if (!(error instanceof Error)) return 'The run failed.';
   const detail = providerMessage(error);
   const said = detail && !error.message.includes(detail) ? ` The provider says: ${detail}` : '';

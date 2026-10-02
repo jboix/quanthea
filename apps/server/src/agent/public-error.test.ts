@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { APICallError, RetryError } from 'ai';
+import { APICallError, InvalidToolInputError, RetryError } from 'ai';
 import { publicError } from './public-error.ts';
 
 /**
@@ -40,6 +40,19 @@ describe('publicError', () => {
 
   test('keeps the plain message when the body has none', () => {
     expect(publicError(tooMany('not json'))).toBe('The run failed: Too Many Requests');
-    expect(publicError('odd')).toBe('The run failed.');
+    expect(publicError({ odd: true })).toBe('The run failed.');
+  });
+
+  test('says a tool call did not fit its schema without quoting the input, and keeps text', () => {
+    const invalid = new InvalidToolInputError({
+      toolName: 'edit_dashboard',
+      toolInput: '{"panels":[{"data":{"kind":"sum"}}]}',
+      cause: new Error('Invalid option'),
+    });
+    const said = publicError(invalid);
+    expect(said).toBe(
+      "The agent's edit_dashboard call did not fit the tool's schema, so it did not run. The agent sees why and can try again.",
+    );
+    expect(publicError(said)).toBe(said);
   });
 });
