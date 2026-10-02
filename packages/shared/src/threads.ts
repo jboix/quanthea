@@ -6,6 +6,7 @@
 import { queryLanguageSchema } from '@quanthea/plugin-kit/contract';
 import { z } from 'zod';
 import { connectorNameSchema } from './connectors.ts';
+import { slugSchema } from './spec/names.ts';
 
 /** Where a thread is: asking, waiting for plan approval, building, or ready for small edits. */
 export const threadStates = ['idle', 'plan_pending', 'building', 'ready'] as const;
@@ -28,7 +29,11 @@ export const planPanelKinds = [
   'gauge',
 ] as const;
 
-/** Validates a plan: what the agent proposes to build, for a person to approve. */
+/**
+ * Validates a plan: what the agent proposes to build, for a person to approve. A plan for an
+ * existing draft, such as a copy of another dashboard, says how it changes it: the panels it
+ * replaces, those it removes and the changes outside panels; the panels it leaves out stay.
+ */
 export const planSchema = z.object({
   title: z.string().min(1).max(200),
   /** The variables and time range, in words, such as `time = 26 Sep 13:30–15:00`. */
@@ -40,10 +45,20 @@ export const planSchema = z.object({
         title: z.string().min(1).max(200),
         language: queryLanguageSchema,
         connector: connectorNameSchema,
+        /** The id of the draft's panel this one changes; a panel without it is new. */
+        replaces: slugSchema.optional(),
+        /** What changes in the replaced panel, in a few words. */
+        change: z.string().min(1).max(200).optional(),
+        /** The query the panel will run, when the settings ask plans to show it. */
+        query: z.string().min(1).max(4000).optional(),
       }),
     )
     .min(1)
     .max(30),
+  /** The ids of the draft's panels the plan drops. */
+  removes: z.array(slugSchema).max(60).optional(),
+  /** Changes outside panels, in words, such as `time range: last 7 days`. */
+  changes: z.array(z.string().min(1).max(200)).max(10).optional(),
 });
 
 /** A plan. */

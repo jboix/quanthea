@@ -28,6 +28,15 @@ export const planningRules = `Now: understand what the person wants, then plan.
 - After propose_plan, stop. Never ask the person in words to approve it: the plan card has the buttons.
 - You do not run queries now: once the plan is approved, the build test-runs every query.`;
 
+/**
+ * How a plan for an existing draft is written: as changes to it, so the plan card can mark each
+ * panel changed, new, removed or kept.
+ */
+export const changePlanRules = `A plan for the current draft says how it changes it. Each panel you change carries "replaces", the id of the draft's panel, and "change", what changes in a few words. A panel without "replaces" is new. Put the ids of the panels you drop in "removes", and changes outside panels, such as the time range or a variable, in "changes", such as "time range: last 7 days". Panels the plan leaves out stay as they are: do not list them.`;
+
+/** What a plan adds when the settings ask plans to show their queries. */
+export const planQueryRule = `Give every panel of a plan its "query": the query you will run, written out in its language. For a builder or a saved query, write the query it makes.`;
+
 /** What the agent does once the plan is approved. */
 export const buildingRules = `Now: build the approved plan in one edit_dashboard call: the title, the time range, the variables and every panel of the plan. Do not test queries first: edit_dashboard test-runs them. New panels whose queries fail or whose chart does not fit their data are left out and reported; fix only those and add them again. Then say in one or two sentences what the dashboard shows, and what the data says if your access level lets you see it.`;
 

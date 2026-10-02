@@ -51,6 +51,31 @@ function JobsCard({ form, issues }: SectionProps) {
   );
 }
 
+/** The behaviour switches, in the order the card lists them. */
+const behaviourSwitches = [
+  {
+    key: 'planApproval',
+    label: 'Ask for plan approval before building',
+    description: 'Small edits to an existing panel skip the plan.',
+  },
+  {
+    key: 'testRun',
+    label: 'Test-run every query before showing a panel',
+    description: 'Failed queries go back to the model with the error.',
+  },
+  {
+    key: 'shortReasoning',
+    label: "Keep the model's reasoning short",
+    description: 'Faster and cheaper. Turn it off if a gateway rejects the reasoning effort.',
+  },
+  {
+    key: 'planQueries',
+    label: 'Show the queries in a plan',
+    description:
+      "A plan for an existing dashboard also shows each panel's new query, and how it changes. Plans take longer and cost more.",
+  },
+] as const;
+
 /**
  * The behaviour switches.
  *
@@ -61,24 +86,15 @@ function BehaviourCard({ form }: SectionProps) {
   const { behaviour } = form.settings;
   return (
     <Card title="Behaviour">
-      <Switch
-        label="Ask for plan approval before building"
-        description="Small edits to an existing panel skip the plan."
-        checked={behaviour.planApproval}
-        onChange={(on) => form.set('behaviour.planApproval', on)}
-      />
-      <Switch
-        label="Test-run every query before showing a panel"
-        description="Failed queries go back to the model with the error."
-        checked={behaviour.testRun}
-        onChange={(on) => form.set('behaviour.testRun', on)}
-      />
-      <Switch
-        label="Keep the model's reasoning short"
-        description="Faster and cheaper. Turn it off if a gateway rejects the reasoning effort."
-        checked={behaviour.shortReasoning}
-        onChange={(on) => form.set('behaviour.shortReasoning', on)}
-      />
+      {behaviourSwitches.map(({ key, label, description }) => (
+        <Switch
+          key={key}
+          label={label}
+          description={description}
+          checked={behaviour[key]}
+          onChange={(on) => form.set(`behaviour.${key}`, on)}
+        />
+      ))}
       <Switch
         label="Custom JS formatters"
         description="Not available. Specs format values with named formatters only."

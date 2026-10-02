@@ -356,6 +356,22 @@ describe('an agent run', () => {
     ).toBe('Errors, worst minute');
   });
 
+  test('refuses a plan that names panels the draft does not have', async () => {
+    await builtThread();
+    const [first] = plan.panels;
+    const changing = {
+      ...plan,
+      panels: [{ ...first, replaces: 'nope', change: 'by region' }],
+      removes: ['gone'],
+    };
+    const stream = await chat(
+      agentWith({ tool: 'propose_plan', input: changing }, { text: 'I will use the right ids.' }),
+      userMessage('u2', 'Split it by region'),
+    );
+    expect(stream).toContain('The draft has no panel nope, gone.');
+    expect(services.threads.get(threadId).plans).toHaveLength(1);
+  });
+
   test('does not offer edit_dashboard before a plan is approved', async () => {
     const agent = agentWith(
       { tool: 'edit_dashboard', input: buildEdit },

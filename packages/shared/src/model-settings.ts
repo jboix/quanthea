@@ -49,6 +49,8 @@ const modelSettingsFields = z.object({
     testRun: z.boolean(),
     /** Ask the model to reason briefly: faster and cheaper. Off for gateways that reject it. */
     shortReasoning: z.boolean().default(true),
+    /** Have plans show each panel's query, so changes show as a diff: slower and dearer plans. */
+    planQueries: z.boolean().default(false),
   }),
 });
 
@@ -66,7 +68,7 @@ export const defaultModelSettings: ModelSettings = {
     metadata: 'claude-haiku-4-5',
   },
   limits: { threadTokens: 200_000, toolCallsPerTurn: 25, repairAttempts: 3 },
-  behaviour: { planApproval: true, testRun: true, shortReasoning: true },
+  behaviour: { planApproval: true, testRun: true, shortReasoning: true, planQueries: false },
 };
 
 /** Validates a provider id: lowercase letters, digits and dashes. */

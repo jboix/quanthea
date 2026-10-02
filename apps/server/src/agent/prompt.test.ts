@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { Plan } from '@quanthea/shared';
+import type { DashboardSpec, Plan } from '@quanthea/shared';
 import { instructionsFor, type TurnFacts } from './prompt.ts';
 
 const plan: Plan = {
@@ -96,6 +96,25 @@ describe('instructionsFor', () => {
 
   test('ends with what the phase asks for', () => {
     expect(instructionsFor(facts).endsWith('No plan yet.')).toBe(true);
+  });
+
+  test('asks a plan for a draft to say what it changes, with the copy it came from', () => {
+    const draft = {
+      version: 1,
+      spec: { title: 'Checkout', panels: [] } as unknown as DashboardSpec,
+    };
+    const copyOf = { title: 'Checkout incident', version: 3 };
+    const text = instructionsFor({ ...facts, state: 'ready', draft, copyOf });
+    expect(text).toContain('The draft started as a copy of "Checkout incident" v3');
+    expect(text).toContain('Each panel you change carries "replaces"');
+    expect(text).not.toContain('Give every panel of a plan its "query"');
+    expect(instructionsFor({ ...facts, state: 'ready', draft, planQueries: true })).toContain(
+      'Give every panel of a plan its "query"',
+    );
+    // A first plan has no draft to change, and a build plans nothing.
+    expect(instructionsFor(facts)).not.toContain('"replaces"');
+    const building = { ...facts, state: 'building' as const, draft, copyOf };
+    expect(instructionsFor(building)).not.toContain('started as a copy');
   });
 
   test('names the mentioned panels', () => {

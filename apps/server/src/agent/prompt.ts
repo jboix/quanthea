@@ -11,10 +11,12 @@ import { panelGuideFor } from './panel-guide.ts';
 import { phaseOf } from './phases.ts';
 import {
   buildingRules,
+  changePlanRules,
   editingRules,
   generalRules,
   persona,
   planningRules,
+  planQueryRule,
 } from './prompt-text.ts';
 
 /** What the instructions of a turn depend on. */
@@ -29,6 +31,10 @@ export interface TurnFacts {
   readonly plan: { readonly body: Plan; readonly status: string } | undefined;
   /** The thread's current draft, if it has a dashboard. */
   readonly draft: { readonly version: number; readonly spec: DashboardSpec } | undefined;
+  /** The dashboard the draft was copied from, when it started as a copy. */
+  readonly copyOf?: { readonly title: string; readonly version: number } | undefined;
+  /** Whether plans show each panel's query. */
+  readonly planQueries?: boolean;
   /** Panels the person mentioned in the latest message, by id and title. */
   readonly mentions: readonly { readonly panelId: string; readonly title: string }[];
   /** The person's IANA time zone, when their browser said. */
@@ -90,6 +96,23 @@ function nowLine(now: number, timeZone: string | undefined): string {
 }
 
 /**
+ * How the turn's plans are written: as changes when there is a draft, with its origin when it is
+ * a copy, and with their queries when the settings ask.
+ *
+ * @param facts - The facts of the turn.
+ * @returns The lines, none when the turn plans nothing.
+ */
+function planLines(facts: TurnFacts): string[] {
+  if (phaseOf(facts.state) === 'building') return [];
+  const lines = facts.draft ? [changePlanRules] : [];
+  if (facts.copyOf)
+    lines.unshift(
+      `The draft started as a copy of "${facts.copyOf.title}" v${facts.copyOf.version}; the original stays pinned as it is.`,
+    );
+  return facts.planQueries ? [...lines, planQueryRule] : lines;
+}
+
+/**
  * The part of the instructions that changes every turn: the time, the draft, the mentions, and
  * what the phase asks.
  *
@@ -110,7 +133,7 @@ function situation(facts: TurnFacts): string {
       `The person mentions these panels: ${named}. Change only those unless they ask for more.`,
     );
   }
-  return [...lines, stateLine(facts)].join('\n\n');
+  return [...lines, ...planLines(facts), stateLine(facts)].join('\n\n');
 }
 
 /** A turn's instructions, split where a cache can end. */

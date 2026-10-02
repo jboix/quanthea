@@ -315,6 +315,10 @@
             "shortReasoning": {
               "default": true,
               "type": "boolean"
+            },
+            "planQueries": {
+              "default": false,
+              "type": "boolean"
             }
           },
           "required": ["planApproval", "testRun"]

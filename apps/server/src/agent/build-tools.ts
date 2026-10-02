@@ -2,7 +2,7 @@
  * The tools that build: propose a plan, and edit the dashboard with panels of data and charts. The
  * thread's state machine decides whether each may run, whatever the model tries.
  */
-import { type DashboardSpec, dashboardSpecSchema, planSchema } from '@quanthea/shared';
+import { type DashboardSpec, dashboardSpecSchema, type Plan, planSchema } from '@quanthea/shared';
 import { tool } from 'ai';
 import {
   applyEdit,
@@ -16,6 +16,22 @@ import type { RunContext } from './run-context.ts';
 import { type WriteResult, writeVersion } from './write-version.ts';
 
 /**
+ * The panel ids a plan names that the draft does not have.
+ *
+ * @param plan - The plan.
+ * @param draft - The current draft, if any.
+ * @returns The unknown ids.
+ */
+function unknownPanels(plan: Plan, draft: DashboardSpec | undefined): string[] {
+  const named = [
+    ...plan.panels.flatMap((panel) => (panel.replaces === undefined ? [] : [panel.replaces])),
+    ...(plan.removes ?? []),
+  ];
+  const known = new Set(draft?.panels.map((panel) => panel.id) ?? []);
+  return [...new Set(named.filter((id) => !known.has(id)))];
+}
+
+/**
  * The tool that proposes a plan.
  *
  * @param context - The run.
@@ -24,9 +40,14 @@ import { type WriteResult, writeVersion } from './write-version.ts';
 function proposePlanTool(context: RunContext) {
   return tool({
     description:
-      'Propose what you will build, before building it: a title, the variables and time range in words, and each panel with its kind, title, language and connector. The person approves it; then you build. Call it once, as your last action.',
+      'Propose what you will build, before building it: a title, the variables and time range in words, and each panel with its kind, title, language and connector. For an existing draft, mark the panels you change with replaces and change, and list the ones you drop in removes. The person approves it; then you build. Call it once, as your last action.',
     inputSchema: planSchema,
     execute: (plan) => {
+      const unknown = unknownPanels(plan, currentSpec(context));
+      if (unknown.length > 0)
+        return {
+          error: `The draft has no panel ${unknown.join(', ')}. Use the ids of the current draft's panels in replaces and removes.`,
+        };
       const autoApprove = !context.settings.behaviour.planApproval;
       const proposed = context.threads.proposePlan(context.threadId, plan, autoApprove);
       context.writer.write({

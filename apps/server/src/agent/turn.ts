@@ -53,6 +53,27 @@ function questionsOf(messages: readonly ThreadMessage[]): string {
 }
 
 /**
+ * Where a draft that started as a copy came from: the parent's title, or a placeholder when the
+ * parent is gone, and the version copied.
+ *
+ * @param context - The run.
+ * @param dashboardId - The thread's dashboard.
+ * @returns The origin, when the dashboard is a copy.
+ */
+function copyOrigin(context: RunContext, dashboardId: string) {
+  const { parentDashboardId, parentVersion } = context.dashboards.get(dashboardId, 'editor');
+  if (parentDashboardId === null || parentVersion === null) return undefined;
+  try {
+    return {
+      title: context.dashboards.get(parentDashboardId, 'editor').title,
+      version: parentVersion,
+    };
+  } catch {
+    return { title: 'a dashboard that was deleted since', version: parentVersion };
+  }
+}
+
+/**
  * The instructions of this turn.
  *
  * @param context - The run.
@@ -82,6 +103,8 @@ export async function turnInstructions(
     state,
     plan: latest ? { body: latest.body, status: latest.status } : undefined,
     draft: spec ? { version, spec } : undefined,
+    copyOf: dashboardId === null ? undefined : copyOrigin(context, dashboardId),
+    planQueries: context.settings.behaviour.planQueries,
     mentions: hints.mentions,
     timeZone: hints.timeZone,
     declinedMatches: messages.at(-1)?.parts.some((part) => part.type === 'data-matches') ?? false,

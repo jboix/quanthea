@@ -332,7 +332,14 @@ edits, with no model involved:
 - `edit` attaches the dashboard itself. Only a dashboard without a thread allows it, such as one
   created through the API ("Edit in a new thread"). A dashboard with a thread is edited there.
 
-Later, the plan for a copy may describe changes as CHANGED / NEW / SAME against its parent.
+A plan for an existing draft, a copy's or any built dashboard's, says how it changes it: each
+panel it changes carries `replaces` (the draft's panel id) and `change` (what changes, in words);
+a panel without `replaces` is new; `removes` lists the panels it drops and `changes` the changes
+outside panels, such as the time range. Panels it leaves out stay. `propose_plan` refuses ids the
+draft does not have. The agent is told when the draft started as a copy, and of what. With
+`behaviour.planQueries` on (Settings → Model, off by default), each plan panel also carries the
+query it will run, so the plan card can show how a changed query changes; plans take longer and
+cost more.
 
 ### 5.5 The thread bin
 
