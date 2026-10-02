@@ -1,0 +1,22 @@
+{
+  "branches": ["main"],
+  "extends": "semantic-release-monorepo",
+  "tagFormat": "create-plugin-v${version}",
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "bun scripts/dist.ts ${nextRelease.version}"
+      }
+    ],
+    [
+      "@semantic-release/npm",
+      {
+        "pkgRoot": "dist"
+      }
+    ],
+    "@semantic-release/github"
+  ]
+}

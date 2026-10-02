@@ -23,6 +23,7 @@
     },
     "packages/create-plugin": {
       "entry": ["src/cli.ts", "scripts/*.ts"],
+      "ignoreDependencies": ["@semantic-release/exec", "semantic-release-monorepo"],
       "project": ["src/**/*.ts", "scripts/**/*.ts"]
     },
     "examples/quanthea-plugin-sqlite": {

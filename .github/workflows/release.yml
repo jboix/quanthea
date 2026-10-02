@@ -14,6 +14,8 @@ name: Release
 # commits that changed packages/plugin-kit since the last plugin-kit-vX.Y.Z tag,
 # publishes the kit to npm through trusted publishing, tags it and creates its
 # GitHub Release. It makes no commit: the kit's version lives in its tags.
+# @quanthea/create-plugin follows the same way (packages/create-plugin, its
+# create-plugin-vX.Y.Z tags), after the kit and before the app.
 #
 # When main has no release-worthy commits, no tag is cut and no image is built.
 
@@ -31,7 +33,7 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
-      id-token: write # npm trusted publishing of the plugin kit, with provenance
+      id-token: write # npm trusted publishing of the kit and the generator, with provenance
     outputs:
       released: ${{ steps.version.outputs.released }}
       version: ${{ steps.version.outputs.version }}
@@ -81,6 +83,14 @@ jobs:
       # before the app's, so the app's GitHub Release is created last.
       - name: Semantic Release for the plugin kit (tag + GitHub Release + npm via OIDC)
         working-directory: packages/plugin-kit
+        env:
+          GITHUB_TOKEN: ${{ steps.bot-token.outputs.token }}
+        run: bun run release:ci
+
+      # The generator next, after the kit: a new generator release writes the
+      # kit version the kit's run may just have tagged.
+      - name: Semantic Release for the plugin generator (tag + GitHub Release + npm via OIDC)
+        working-directory: packages/create-plugin
         env:
           GITHUB_TOKEN: ${{ steps.bot-token.outputs.token }}
         run: bun run release:ci

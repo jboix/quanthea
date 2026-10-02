@@ -84,6 +84,9 @@
       },
       "devDependencies": {
         "@quanthea/plugin-kit": "workspace:*",
+        "@semantic-release/exec": "^7.1.0",
+        "semantic-release": "^25.0.9",
+        "semantic-release-monorepo": "^8.0.2",
       },
     },
     "packages/plugin-kit": {

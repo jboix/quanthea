@@ -99,6 +99,9 @@ and publishes it to npm. Scope those commits `plugin-kit`. The kit's major versi
   release, with `kitVersion` set to 1 in the same commit.
 - A `feat` makes a minor version, such as 0.1.0 to 0.2.0; a `fix` a patch, such as 0.1.1.
 
+The plugin generator (`@quanthea/create-plugin`) is released the same way from the commits that
+changed `packages/create-plugin`. Scope those commits `create-plugin`.
+
 Write the subject line for the changelog reader, not the diff reader.
 
 ## Changing behavior

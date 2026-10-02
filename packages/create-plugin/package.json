@@ -6,12 +6,16 @@
   "type": "module",
   "scripts": {
     "dist": "bun scripts/dist.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "release:ci": "semantic-release"
   },
   "dependencies": {
     "node-plop": "^0.32.3"
   },
   "devDependencies": {
-    "@quanthea/plugin-kit": "workspace:*"
+    "@quanthea/plugin-kit": "workspace:*",
+    "@semantic-release/exec": "^7.1.0",
+    "semantic-release": "^25.0.9",
+    "semantic-release-monorepo": "^8.0.2"
   }
 }

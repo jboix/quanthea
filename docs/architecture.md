@@ -1718,8 +1718,11 @@ The Release workflow (`.github/workflows/release.yml`) runs on demand:
    same rules: `fix` a patch, `feat` a minor version. Its prepare step builds `dist/` with that
    version (`scripts/dist.ts`, which refuses a major version other than `kitVersion`), then
    `@semantic-release/npm` publishes `dist` through trusted publishing (OIDC), which signs the
-   provenance. It tags the kit and creates its GitHub Release, and makes no commit. The app's run
-   comes second, so the app's release is the latest one when both release.
+   provenance. It tags the kit and creates its GitHub Release, and makes no commit.
+5. The plugin generator follows the same way, after the kit: `packages/create-plugin`, its
+   `create-plugin-vX.Y.Z` tags, its `dist/` built with the cut version. Coming after the kit, a
+   generator release writes the kit version the kit's run may just have tagged. The app's run
+   comes last, so the app's release is the latest one when several release.
 
 The root `package.json` holds the app's version. `/api/health` reports it. The app's semantic-release
 reads `v*` tags only. The workspace `package.json` files stay at `0.0.0`, because `bun.lock` records
