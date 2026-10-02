@@ -1,12 +1,15 @@
 # Evals
 
 The questions the agent answers against the dev data, each with what a good answer holds. A run
-asks each question as a person would: it answers the agent's question with its first option,
-approves the plan, and lets the build run. Then it scores what was built:
+asks each question as a person would: it answers the agent's question with the question's scripted
+answer, or else its first option, approves the plan, and lets the build run. Then it scores what
+was built:
 
 - a dashboard was built, with a number of panels in the expected range;
 - every expected topic shows in a panel's title or query, and every expected connector is queried;
 - no query of the last version fails when run again;
+- no query names a fixed date or the current time instead of following the time range;
+- no two panels run the same query;
 - the build took no more failed writes than allowed.
 
 The report adds the tokens, the cost at list price and the time of each question.

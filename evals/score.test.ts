@@ -55,6 +55,29 @@ describe('scoring an answer', () => {
     ]);
   });
 
+  test('fails a query on a fixed time, and two panels running the same query', () => {
+    const sql = (text: string) =>
+      JSON.stringify([{ refId: 'A', connector: 'postgres-orders', language: 'sql', sql: text }]);
+    const panel = (id: string, text: string) => ({
+      id,
+      title: id,
+      connectors: ['postgres-orders', 'prometheus-dev'],
+      text: `${id}\n${sql(text)}`,
+    });
+    const fixed: Outcome = {
+      ...outcome,
+      panels: [
+        panel('deploys', "SELECT 1 FROM deploys WHERE deployed_at >= NOW() - INTERVAL '2 days'"),
+        panel('errors', 'SELECT 1 FROM errors WHERE at BETWEEN :__from AND :__to'),
+        panel('errors-again', 'SELECT 1 FROM errors WHERE at BETWEEN :__from AND :__to'),
+      ],
+    };
+    expect(score(fixed, expectation).reasons).toEqual([
+      'deploys: the query reads the current time',
+      'errors-again runs the same query as errors',
+    ]);
+  });
+
   test('fails a run with no dashboard, or one that broke, before anything else', () => {
     expect(score({ ...outcome, built: false }, expectation).reasons).toEqual([
       'no dashboard was built',

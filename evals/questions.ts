@@ -40,6 +40,7 @@ export const questions: readonly Question[] = [
     id: 'q1',
     question: 'What happened to checkout yesterday around 14:00?',
     timeZone: zurich,
+    answer: 'Errors and latency of checkout, from the metrics.',
     expect: {
       connectors: [prometheus],
       panels: [3, 8],

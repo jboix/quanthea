@@ -7,7 +7,7 @@
 import { questions } from './questions.ts';
 import type { Report, Result } from './report.ts';
 import { cacheSentence, dollars, tokensOf, totalUsage } from './report.ts';
-import type { BuiltPanel } from './score.ts';
+import { type BuiltPanel, panelQueries } from './score.ts';
 
 /** One panel's query, written out, with its language for highlighting. */
 interface PanelQuery {
@@ -18,30 +18,29 @@ interface PanelQuery {
 }
 
 /**
- * A panel's queries, from the text the outcome keeps: its title, then its queries as JSON.
+ * A panel's queries, written out for reading.
  *
  * @param panel - The panel.
  * @returns Its queries.
  */
 function queriesOf(panel: BuiltPanel): PanelQuery[] {
-  try {
-    const queries = JSON.parse(panel.text.slice(panel.text.indexOf('\n') + 1)) as Record<
-      string,
-      unknown
-    >[];
-    return queries.map((query) => {
-      const { sql, expr, language, refId: _refId, connector: _connector, ...rest } = query;
-      const text =
-        typeof sql === 'string'
-          ? sql
-          : typeof expr === 'string'
-            ? expr
-            : JSON.stringify(rest, null, 2);
-      return { language: String(language ?? ''), text };
-    });
-  } catch {
-    return [];
-  }
+  return panelQueries(panel).map((query) => {
+    const {
+      sql,
+      expr,
+      language,
+      refId: _refId,
+      connector: _connector,
+      ...rest
+    } = query as Record<string, unknown>;
+    const text =
+      typeof sql === 'string'
+        ? sql
+        : typeof expr === 'string'
+          ? expr
+          : JSON.stringify(rest, null, 2);
+    return { language: String(language ?? ''), text };
+  });
 }
 
 /**

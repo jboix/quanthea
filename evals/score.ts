@@ -2,7 +2,7 @@
  * Scores what the agent built for a question against what a good answer holds. Pure, so a saved
  * report can be scored again with no model call (`--rescore`).
  */
-import type { TurnUsage } from '@quanthea/shared';
+import { fixedTimeOf, type PanelQuery, type TurnUsage } from '@quanthea/shared';
 import type { Expectation } from './questions.ts';
 
 /** One panel of the dashboard built, as the scoring reads it. */
@@ -49,6 +49,55 @@ export interface Score {
   readonly pass: boolean;
   /** What did not hold. */
   readonly reasons: readonly string[];
+}
+
+/**
+ * A panel's queries, from the text the outcome keeps: its title, then its queries as JSON.
+ *
+ * @param panel - The panel.
+ * @returns Its queries; none when the text holds none.
+ */
+export function panelQueries(panel: BuiltPanel): PanelQuery[] {
+  try {
+    return JSON.parse(panel.text.slice(panel.text.indexOf('\n') + 1)) as PanelQuery[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Queries that name a fixed time instead of following the dashboard's range.
+ *
+ * @param outcome - What was built.
+ * @returns The reasons.
+ */
+function fixedTimes(outcome: Outcome): string[] {
+  return outcome.panels.flatMap((panel) =>
+    panelQueries(panel).flatMap((query) => {
+      const why = fixedTimeOf(query);
+      return why ? [`${panel.id}: ${why.split(':')[0]}`] : [];
+    }),
+  );
+}
+
+/**
+ * Panels that run the same query as an earlier one.
+ *
+ * @param outcome - What was built.
+ * @returns The reasons.
+ */
+function duplicates(outcome: Outcome): string[] {
+  const seen = new Map<string, string>();
+  const reasons: string[] = [];
+  for (const panel of outcome.panels) {
+    const queries = panelQueries(panel);
+    if (queries.length === 0) continue;
+    const key = JSON.stringify(queries.map(({ refId: _refId, ...query }) => query));
+    const first = seen.get(key);
+    if (first) reasons.push(`${panel.id} runs the same query as ${first}`);
+    else seen.set(key, panel.id);
+  }
+  return reasons;
 }
 
 /**
@@ -99,6 +148,11 @@ export function score(outcome: Outcome, expect: Expectation): Score {
   if (outcome.error !== undefined)
     return { pass: false, reasons: [`the run failed: ${outcome.error}`] };
   if (!outcome.built) return { pass: false, reasons: ['no dashboard was built'] };
-  const reasons = [...faults(outcome, expect), ...missing(outcome, expect)];
+  const reasons = [
+    ...faults(outcome, expect),
+    ...missing(outcome, expect),
+    ...fixedTimes(outcome),
+    ...duplicates(outcome),
+  ];
   return { pass: reasons.length === 0, reasons };
 }
