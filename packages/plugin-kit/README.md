@@ -17,7 +17,7 @@ kit to the plugin when it loads it, so the bundle carries none of the kit's code
 ## Write a plugin
 
 The plugin is one bundled ES module. It exports the kit version it is built for and, as default, a
-function that receives the kit and returns its kinds:
+function that receives the kit and returns what the plugin adds, its connector kinds:
 
 ```ts
 import type { ConnectorKit } from '@quanthea/plugin-kit';
@@ -25,7 +25,9 @@ import type { ConnectorKit } from '@quanthea/plugin-kit';
 export const kitVersion = 0;
 
 export default function plugin(kit: ConnectorKit) {
-  return [kit.defineConnector({ kind: 'example', configSchema: kit.z.object({ … }), … })];
+  return {
+    connectors: [kit.defineConnector({ kind: 'example', configSchema: kit.z.object({ … }), … })],
+  };
 }
 ```
 

@@ -1,7 +1,7 @@
 /**
  * A quanthea connector plugin: SQLite files in one directory, read-only. It shows what a plugin is:
  * one bundled module that exports the kit version it was built for and, as default, a function
- * that receives the live kit and returns its connector kinds. It runs SQL in the `ansi` dialect
+ * that receives the live kit and returns what it adds, its connector kinds. It runs SQL in the `ansi` dialect
  * with `?` placeholders and `LIMIT`; the core binds every value and checks every statement.
  *
  * A file opens only under QUANTHEA_SQLITE_ROOT, read-only and with writes refused by `query_only`.
@@ -17,6 +17,7 @@ import type {
   FieldReference,
   Frame,
   HealthReport,
+  PluginContributions,
   SqlParameter,
 } from '@quanthea/plugin-kit';
 import { describeFile, sampleColumn } from './catalog.ts';
@@ -202,10 +203,10 @@ async function test(
  * The plugin: one connector kind, a SQLite file.
  *
  * @param kit - The live kit quanthea passes at load.
- * @returns The kinds.
+ * @returns What it adds: one connector kind.
  */
-export default function plugin(kit: ConnectorKit) {
-  return [
+export default function plugin(kit: ConnectorKit): PluginContributions {
+  const connectors = [
     kit.defineConnector({
       kind: 'sqlite-file',
       displayName: 'SQLite file',
@@ -232,4 +233,5 @@ export default function plugin(kit: ConnectorKit) {
       open: ({ config }) => openFile(kit, config.file),
     }),
   ];
+  return { connectors };
 }

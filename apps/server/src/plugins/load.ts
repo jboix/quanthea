@@ -107,25 +107,47 @@ async function run(verified: Verified): Promise<unknown> {
   }
 }
 
+/** The contributions this server loads. */
+const knownContributions = new Set(['connectors']);
+
+/**
+ * The connector kinds a plugin contributes, from what its function returned.
+ *
+ * @param returned - What the plugin function returned.
+ * @returns The connector kinds, unchecked.
+ * @throws {Refusal} When it returned no contributions object, one this server does not load, or
+ *   no connector kinds.
+ */
+function contributedConnectors(returned: unknown): unknown[] {
+  if (typeof returned !== 'object' || returned === null || Array.isArray(returned))
+    throw new Refusal('it returned no contributions: return { connectors: [...] }');
+  const unknown = Object.keys(returned).filter((key) => !knownContributions.has(key));
+  if (unknown.length > 0)
+    throw new Refusal(`it contributes ${unknown.join(', ')}, which this quanthea does not load`);
+  const { connectors } = returned as { connectors?: unknown };
+  if (!Array.isArray(connectors) || connectors.length === 0)
+    throw new Refusal('it contributes no connector kinds');
+  return connectors;
+}
+
 /**
  * Checks what a plugin returned: kinds that pass the static checks and clash with nothing offered.
  *
  * @param returned - What the plugin function returned.
  * @param taken - The kind identifiers offered already.
  * @returns The kinds.
- * @throws {Refusal} For no kinds, a kind that fails a check, or a clash.
+ * @throws {Refusal} For no contributions, a kind that fails a check, or a clash.
  */
 function checkKinds(returned: unknown, taken: ReadonlySet<string>): AnyConnectorKind[] {
-  if (!Array.isArray(returned) || returned.length === 0)
-    throw new Refusal('it returned no connector kinds');
-  for (const kind of returned) {
+  const connectors = contributedConnectors(returned);
+  for (const kind of connectors) {
     const problems = kindProblems(kind);
     if (problems.length > 0)
       throw new Refusal(`a kind fails the static checks: ${problems.join('; ')}`);
     const id = (kind as AnyConnectorKind).kind;
     if (taken.has(id)) throw new Refusal(`the kind "${id}" is offered already`);
   }
-  return returned as AnyConnectorKind[];
+  return connectors as AnyConnectorKind[];
 }
 
 /**

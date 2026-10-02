@@ -37,7 +37,7 @@ afterAll(() => {
   rmSync(outside, { recursive: true, force: true });
 });
 
-const [first] = plugin(createTestKit()) as unknown as ConnectorKind[];
+const [first] = plugin(createTestKit()).connectors;
 if (!first) throw new Error('The plugin returned no kind.');
 const kind: ConnectorKind = first;
 

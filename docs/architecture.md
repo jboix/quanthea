@@ -744,7 +744,12 @@ export const exampleConnector = defineConnector({
 A plugin adds connector kinds without a change to quanthea: an npm package whose `package.json`
 (the manifest) names a kit version and its bundle, `"quanthea": { "kitVersion": 0, "main":
 "dist/plugin.js" }`, and whose bundle is one ES module that exports `kitVersion` and, as default,
-a function that receives the live kit and returns its kinds.
+a function that receives the live kit and returns what the plugin adds: `{ connectors: [...] }`.
+
+A plugin is the package: one bundle, one manifest, one pin. What it adds is named by kind of
+contribution, connector kinds today, so later kinds of contribution (such as query languages or
+chart recipes) are additions to that object and leave existing plugins loading. The loader refuses
+a contribution it does not know, so a newer plugin never half-loads on an older server.
 
 - **Where:** a folder per plugin in the plugins directory (`QUANTHEA_PLUGINS_DIR` or
   `plugins.dir`; `<data dir>/plugins` by default, `/plugins` in the image), holding
@@ -760,7 +765,8 @@ a function that receives the live kit and returns its kinds.
 - **Loading:** the loader reads the two files, checks the manifest (a `quanthea-plugin-<name>`
   package, a semantic version, a kit version this server supports) and the pin, then imports a
   private copy of the bytes it checked, so a file swapped after the check never runs. The
-  module's `kitVersion` must match the manifest's. Each kind it returns must pass `kindProblems`
+  module's `kitVersion` must match the manifest's. Each connector kind it contributes must pass
+  `kindProblems`
   (the static checks the conformance suite also runs) and clash with no built-in kind or kind of
   an earlier plugin, in folder name order. A plugin is loaded whole or refused whole, with one
   log line either way; a pinned plugin that is not installed is logged too.

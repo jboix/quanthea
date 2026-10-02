@@ -23,20 +23,22 @@ describe('the public kit', () => {
   });
 
   test('builds a plugin’s kinds whose schemas the server reads', () => {
-    const plugin = (kit: publicKit.ConnectorKit) => [
-      kit.defineConnector({
-        kind: 'example',
-        displayName: 'Example',
-        language: 'sql',
-        dialect: 'postgres',
-        configSchema: kit.z.object({ host: kit.z.string().meta({ title: 'Host' }) }),
-        secretSchema: kit.z.object({ password: kit.z.string().optional() }),
-        open: () => {
-          throw new kit.ConnectorError('unreachable', 'Not in this test.');
-        },
-      }),
-    ];
-    const [kind] = plugin(createTestKit());
+    const plugin: publicKit.Plugin = (kit) => ({
+      connectors: [
+        kit.defineConnector({
+          kind: 'example',
+          displayName: 'Example',
+          language: 'sql',
+          dialect: 'postgres',
+          configSchema: kit.z.object({ host: kit.z.string().meta({ title: 'Host' }) }),
+          secretSchema: kit.z.object({ password: kit.z.string().optional() }),
+          open: () => {
+            throw new kit.ConnectorError('unreachable', 'Not in this test.');
+          },
+        }),
+      ],
+    });
+    const [kind] = plugin(createTestKit()).connectors;
     if (!kind) throw new Error('No kind.');
     const form = z.toJSONSchema(kind.configSchema, { io: 'input' }) as { properties: object };
     expect(Object.keys(form.properties)).toEqual(['host']);

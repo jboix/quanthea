@@ -198,13 +198,15 @@ is a complete one to start from.
   dependencies or runs its scripts. Pure JavaScript only; a native module cannot work, since the
   image runs on amd64 and arm64.
 - **The entry.** The module exports `kitVersion` (0) and, as default, a function that receives the
-  live kit and returns the plugin's kinds:
+  live kit and returns what the plugin adds, its connector kinds:
 
   ```ts
   import type { ConnectorKit } from '@quanthea/plugin-kit';
   export const kitVersion = 0;
   export default function plugin(kit: ConnectorKit) {
-    return [kit.defineConnector({ kind: 'example', configSchema: kit.z.object({ … }), … })];
+    return {
+      connectors: [kit.defineConnector({ kind: 'example', configSchema: kit.z.object({ … }), … })],
+    };
   }
   ```
 

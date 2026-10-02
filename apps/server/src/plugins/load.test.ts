@@ -12,7 +12,7 @@ function source(kind = 'events-file', kitVersion = 0, body = ''): string {
   return `export const kitVersion = ${kitVersion};
 export default function plugin(kit) {
   ${body}
-  return [kit.defineConnector({
+  return { connectors: [kit.defineConnector({
     kind: '${kind}',
     displayName: 'Events file',
     language: 'sql',
@@ -22,7 +22,7 @@ export default function plugin(kit) {
     configSchema: kit.z.object({ file: kit.z.string() }),
     secretSchema: kit.z.object({}),
     open: () => { throw new kit.ConnectorError('unreachable', 'Not in this test.'); },
-  })];
+  })] };
 }
 `;
 }
@@ -145,7 +145,7 @@ describe('loadPlugins', () => {
       ),
       'quanthea-plugin-b': install(
         'quanthea-plugin-b',
-        'export const kitVersion = 0;\nexport default () => [{ kind: "b-kind", language: "sql" }];',
+        'export const kitVersion = 0;\nexport default () => ({ connectors: [{ kind: "b-kind", language: "sql" }] });',
       ),
       'quanthea-plugin-c': install('quanthea-plugin-c', 'export const kitVersion = 0;'),
     };
@@ -154,6 +154,22 @@ describe('loadPlugins', () => {
     expect(thrown).toBe('it failed to load: boom');
     expect(failed).toStartWith('a kind fails the static checks: displayName must be a name');
     expect(empty).toBe('the module exports no plugin function as default');
+  });
+
+  test('refuses a function that returns no contributions, unknown ones, or no connector kinds', async () => {
+    const module = (returned: string) =>
+      `export const kitVersion = 0;\nexport default () => (${returned});`;
+    const pins = {
+      'quanthea-plugin-a': install('quanthea-plugin-a', module('[]')),
+      'quanthea-plugin-b': install('quanthea-plugin-b', module('{ connectors: [], charts: [] }')),
+      'quanthea-plugin-c': install('quanthea-plugin-c', module('{ connectors: [] }')),
+    };
+    expect(await load(pins)).toEqual([]);
+    expect(refusals()).toEqual([
+      'it returned no contributions: return { connectors: [...] }',
+      'it contributes charts, which this quanthea does not load',
+      'it contributes no connector kinds',
+    ]);
   });
 
   test('names pinned plugins with no folder, not those refused', () => {

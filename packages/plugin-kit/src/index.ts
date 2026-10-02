@@ -6,7 +6,7 @@
  * import type { ConnectorKit } from '@quanthea/plugin-kit';
  * export const kitVersion = 0;
  * export default function plugin(kit: ConnectorKit) {
- *   return [kit.defineConnector({ kind: 'example', … })];
+ *   return { connectors: [kit.defineConnector({ kind: 'example', … })] };
  * }
  * ```
  */
@@ -21,7 +21,7 @@ export type { ConnectorError, ConnectorErrorCode } from './errors.ts';
 export type { FrameBuilder, FrameBuilderOptions } from './frame-builder.ts';
 export type { Field, FieldType, Frame } from './frames.ts';
 export type { HttpClient, HttpClientOptions, HttpRequest, HttpResponse } from './http.ts';
-export { type ConnectorKit, type ConnectorPlugin, kitVersion } from './kit.ts';
+export { type ConnectorKit, kitVersion, type Plugin, type PluginContributions } from './kit.ts';
 export type {
   BoundQuery,
   ExecutionContext,

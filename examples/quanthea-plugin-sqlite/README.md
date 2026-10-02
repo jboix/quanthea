@@ -8,7 +8,7 @@ plugin is, and it is small enough to copy as a start for your own.
 - One bundled ES module, `dist/plugin.js`, built with `bun build` from `src/plugin.ts`. It
   includes everything it needs; quanthea installs no dependency and runs no install script.
 - It exports `kitVersion`, the kit version it is built for, and as default a function that
-  receives the live kit and returns its connector kinds.
+  receives the live kit and returns what the plugin adds: `{ connectors: [...] }`.
 - The kit is quanthea's own: `kit.z` builds the forms' schemas, `kit.ConnectorError` reports a
   failure with a message safe to show, `kit.createFrameBuilder` lays out the result.
 - `package.json` carries the `quanthea-plugin` keyword and the manifest field:

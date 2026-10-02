@@ -8,11 +8,11 @@ import { tarball } from './test/tarball.ts';
 /** A plugin bundle with one kind. */
 function bundle(kind = 'events-file'): string {
   return `export const kitVersion = 0;
-export default (kit) => [kit.defineConnector({
+export default (kit) => ({ connectors: [kit.defineConnector({
   kind: '${kind}', displayName: 'Events file', language: 'sql', dialect: 'ansi',
   configSchema: kit.z.object({ file: kit.z.string() }), secretSchema: kit.z.object({}),
   open: () => { throw new kit.ConnectorError('unreachable', 'Not here.'); },
-})];
+})] });
 `;
 }
 

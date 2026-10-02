@@ -1,5 +1,5 @@
 /**
- * The kit quanthea hands a plugin when it loads it, and the shape of a plugin. The kit is the live
+ * The kit quanthea hands a plugin when it loads it, and the shape of a plugin and what it adds. The kit is the live
  * one: its Zod, its error class and its helpers are the server's own, so a plugin's schemas and
  * errors are the ones the core checks.
  */
@@ -32,9 +32,18 @@ export interface ConnectorKit {
 }
 
 /**
- * A plugin's default export: given the kit, the connector kinds it adds.
+ * What a plugin adds to quanthea, by kind of contribution. Connector kinds are the one kind today;
+ * others will be added beside them, so a plugin written now keeps loading.
+ */
+export interface PluginContributions {
+  /** The connector kinds the plugin adds. */
+  readonly connectors: readonly ConnectorKind[];
+}
+
+/**
+ * A plugin's default export: given the kit, what the plugin adds.
  *
  * @param kit - The kit.
- * @returns The kinds.
+ * @returns The contributions.
  */
-export type ConnectorPlugin = (kit: ConnectorKit) => readonly ConnectorKind[];
+export type Plugin = (kit: ConnectorKit) => PluginContributions;
