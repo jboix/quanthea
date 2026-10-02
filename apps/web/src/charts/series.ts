@@ -145,11 +145,38 @@ export function expandSeries(prepared: Prepared): Loose[] {
 }
 
 /**
- * Adds the annotation markers to the first series, as dashed vertical lines labelled with their
- * time and text. The labels are drawn on the canvas, never as HTML.
+ * The line of one marker: at its time, in its set's colour, labelled with its time and text, and
+ * with its set's label in the tooltip. The colour is a theme token, replaced with the rest.
+ *
+ * @param marker - The set of markers.
+ * @param point - The marker.
+ * @param time - Formats its time.
+ * @returns The `markLine` data item.
+ */
+function markerLine(
+  marker: MarkerOutcome,
+  point: MarkerOutcome['points'][number],
+  time: (value: unknown) => string,
+): Loose {
+  const name = `${time(point.time)} ${point.text}`;
+  const tip = `${marker.label}\n${name}`;
+  return {
+    xAxis: point.time,
+    name,
+    lineStyle: { color: marker.color },
+    label: { backgroundColor: marker.color },
+    // A function, so ECharts reads no template in the text.
+    tooltip: { formatter: () => tip },
+  };
+}
+
+/**
+ * Adds the annotation markers to the first series, as dashed vertical lines in the colour of their
+ * set, labelled with their time and text, the set's label in their tooltip. Labels and tooltips are
+ * drawn on the canvas, never as HTML.
  *
  * @param series - The series.
- * @param markers - The markers of the panel.
+ * @param markers - The sets of markers of the panel.
  * @param theme - The chart theme.
  * @param timeZone - The time zone of the labels.
  * @returns The series, the first with a `markLine`.
@@ -163,22 +190,18 @@ export function withMarkers(
   const [first, ...rest] = series;
   const time = createFormatter({ $fmt: 'datetime', pattern: 'time' }, { timeZone });
   const data = markers.flatMap((marker) =>
-    marker.points.map((point) => ({
-      xAxis: point.time,
-      name: `${time(point.time)} ${point.text}`,
-    })),
+    marker.points.map((point) => markerLine(marker, point, time)),
   );
   if (!first || data.length === 0) return [...series];
   const markLine = {
     symbol: ['none', 'none'],
-    silent: true,
     animation: false,
-    lineStyle: { color: theme.ink, type: 'dashed', width: 1 },
+    tooltip: { trigger: 'item' },
+    lineStyle: { type: 'dashed', width: 1 },
     label: {
       formatter: '{b}',
       position: 'end',
       color: theme.surface,
-      backgroundColor: theme.ink,
       padding: [3, 6],
       borderRadius: 4,
       fontFamily: theme.monoFamily,

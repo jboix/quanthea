@@ -316,6 +316,8 @@ export {
   type DashboardSpec,
   dashboardSpecSchema,
   gridColumns,
+  type MarkerColor,
+  markerColors,
   type Panel,
 } from './spec/dashboard.ts';
 export {

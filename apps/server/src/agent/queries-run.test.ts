@@ -92,7 +92,7 @@ function offeredKinds(model: ReturnType<typeof scriptedStreamModel>): string[] {
   const kinds = [...schema.matchAll(/"kind":\{"type":"string","const":"([a-z-]+)"/g)]
     .map((match) => match[1] ?? '')
     .filter((kind) => dataKinds.has(kind));
-  // A raw query shows twice: as a panel's data, and as the markers' query.
+  // A raw query shows twice: as a panel's data, and as a set of markers' query.
   return [...new Set(kinds)].sort();
 }
 

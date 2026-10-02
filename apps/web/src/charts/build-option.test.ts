@@ -64,7 +64,15 @@ function build(option: ChartView['option'], frames: Frame[], extra: Partial<Char
     {
       annotation: 'deploys',
       label: 'deploy',
+      color: '@ink' as const,
       points: [{ time: t0 + 120_000, text: 'deploy #481' }],
+      error: null,
+    },
+    {
+      annotation: 'incidents',
+      label: 'incident',
+      color: '@palette.5' as const,
+      points: [{ time: t0 + 180_000, text: 'INC-12 {b} opened' }],
       error: null,
     },
   ];
@@ -149,11 +157,29 @@ describe('buildChartOption', () => {
     expect(at(option, 'yAxis.axisLabel.color')).toBe(defaultTheme.inkSecondary);
   });
 
-  test('marks annotations on the first series with their time and text', () => {
+  test('marks each set on the first series in its colour, its label in the tooltip', () => {
     const option = build(lineOption, [series('checkout-svc', [1]), series('payments-svc', [1])]);
-    expect(at(option, 'series.0.markLine.data')).toEqual([
-      { xAxis: t0 + 120_000, name: '12:02 deploy #481' },
+    expect(at(option, 'series.0.markLine.data')).toMatchObject([
+      {
+        xAxis: t0 + 120_000,
+        name: '12:02 deploy #481',
+        lineStyle: { color: defaultTheme.ink },
+        label: { backgroundColor: defaultTheme.ink },
+      },
+      {
+        xAxis: t0 + 180_000,
+        name: '12:03 INC-12 {b} opened',
+        lineStyle: { color: defaultTheme.palette[5] },
+        label: { backgroundColor: defaultTheme.palette[5] },
+      },
     ]);
+    expect(formatWith(option, 'series.0.markLine.data.0.tooltip.formatter', {})).toBe(
+      'deploy\n12:02 deploy #481',
+    );
+    expect(formatWith(option, 'series.0.markLine.data.1.tooltip.formatter', {})).toBe(
+      'incident\n12:03 INC-12 {b} opened',
+    );
+    expect(at(option, 'series.0.markLine.tooltip.trigger')).toBe('item');
     expect(at(option, 'series.1.markLine')).toBeUndefined();
   });
 

@@ -426,7 +426,7 @@ describe('an agent run', () => {
       language: 'sql',
       query: 'SELECT * FROM missing',
     };
-    const marked = { ...buildEdit, markers: { label: 'deploy', data } };
+    const marked = { ...buildEdit, markers: [{ id: 'deploys', label: 'deploy', data }] };
     const stream = await chat(
       agentWith(
         { tool: 'edit_dashboard', input: marked },
@@ -435,7 +435,7 @@ describe('an agent run', () => {
       userMessage('u1', 'Build it'),
     );
     expect(stream).toContain('The markers do not work.');
-    expect(stream).toContain('markers: the query fails: Unknown query.');
+    expect(stream).toContain('markers[0]: the query fails: Unknown query.');
     expect(services.threads.get(threadId).dashboardId).toBeNull();
   });
 

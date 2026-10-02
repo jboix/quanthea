@@ -5,6 +5,7 @@
 
 import { frameSchema } from '@quanthea/plugin-kit/contract';
 import { z } from 'zod';
+import { markerColors } from '../spec/dashboard.ts';
 import { timeRangeSchema } from '../spec/time.ts';
 import { variableValuesSchema } from '../spec/variables.ts';
 import { defineEndpoint } from './contract.ts';
@@ -38,6 +39,7 @@ export type QueryOutcome = z.infer<typeof queryOutcomeSchema>;
 const markerOutcomeSchema = z.object({
   annotation: z.string(),
   label: z.string(),
+  color: z.enum(markerColors),
   points: z.array(z.object({ time: z.number(), text: z.string() })),
   error: queryFailureSchema.nullable(),
 });

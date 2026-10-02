@@ -38,10 +38,29 @@ export const panelSchema = z.strictObject({
 /** A panel. */
 export type Panel = z.infer<typeof panelSchema>;
 
-/** Validates an annotation: dashboard-wide markers, such as deploys, from a query. */
+/**
+ * The colours a set of markers may take: theme tokens, so a set reads in the light and the dark
+ * scheme and no free colour reaches the renderer. `@ink` is the text colour; `@palette.0` to
+ * `@palette.5` are the series colours. Listed in the order new sets take them.
+ */
+export const markerColors = [
+  '@ink',
+  '@palette.5',
+  '@palette.1',
+  '@palette.3',
+  '@palette.2',
+  '@palette.4',
+  '@palette.0',
+] as const;
+
+/** A colour of a set of markers. */
+export type MarkerColor = (typeof markerColors)[number];
+
+/** Validates an annotation: a set of dashboard-wide markers, such as deploys, from a query. */
 const annotationSchema = z.strictObject({
   id: slugSchema,
   label: z.string().min(1).max(60),
+  color: z.enum(markerColors).optional(),
   query: panelQuerySchema,
   timeField: z.string().min(1).max(200),
   textField: z.string().min(1).max(200),

@@ -12,6 +12,7 @@ const example = {
     {
       id: 'deploys',
       label: 'deploy',
+      color: '@ink',
       query: {
         refId: 'D',
         connector: 'postgres-orders',
@@ -128,6 +129,14 @@ describe('dashboardSpecSchema', () => {
   test('fills empty variables and annotations', () => {
     const { variables: _variables, annotations: _annotations, ...bare } = example;
     expect(dashboardSpecSchema.parse(bare)).toMatchObject({ variables: [], annotations: [] });
+  });
+
+  test('takes a marker colour from the theme tokens only', () => {
+    const colored = (color: string) =>
+      changed((spec) => Object.assign(spec.annotations[0] ?? {}, { color }));
+    expect(issuePaths(colored('@palette.3'))).toEqual([]);
+    expect(issuePaths(colored('#ff0000'))).toEqual(['annotations.0.color']);
+    expect(issuePaths(colored('red; background: url(x)'))).toEqual(['annotations.0.color']);
   });
 
   test('refuses keys it does not know, so nothing rides along', () => {

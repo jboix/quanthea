@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { type DashboardSpec, type Frame, planSchema } from '@quanthea/shared';
+import { type Frame, planSchema } from '@quanthea/shared';
 import { z } from 'zod';
 import type { PanelTest } from '../dashboards.ts';
 import { completeCharts } from './complete.ts';
@@ -32,18 +32,6 @@ function testOf(panelId: string, fields: Frame['fields'], values: unknown[][]): 
       durationMs: 1,
     },
   };
-}
-
-/**
- * The panels whose chart shows the markers.
- *
- * @param spec - The spec.
- * @returns Their ids.
- */
-function markedPanelIds(spec: DashboardSpec): string[] {
-  return spec.panels
-    .filter((panel) => panel.view.kind === 'chart' && panel.view.markers?.length)
-    .map((panel) => panel.id);
 }
 
 describe('applyEdit', () => {
@@ -148,89 +136,6 @@ describe('applyEdit', () => {
     expect(() => applyEdit(built, edit({ remove: ['nope'], summary: 'x' }))).toThrow(
       'No panel "nope". The panels are: error-rate, failed-orders, latency, orders-by-status, top-codes. A panel the draft does not have, such as one left out, is new: send it without "replaces".',
     );
-  });
-
-  test('puts deploy markers on every time chart, and takes them off', () => {
-    const markers = {
-      label: 'deploy',
-      connector: 'shop',
-      table: 'deploys',
-      time: 'deployed_at',
-      text: 'version',
-    };
-    const marked = specOf(specOf(undefined, firstBuild), edit({ markers, summary: 'markers' }));
-    const markedIds = marked.panels
-      .filter((panel) => panel.view.kind === 'chart' && panel.view.markers?.length)
-      .map((panel) => panel.id);
-    expect(markedIds).toEqual(['latency', 'orders-by-status']);
-    expect(issuesOf(marked)).toEqual([]);
-    const cleared = specOf(marked, edit({ markers: null, summary: 'no markers' }));
-    expect(cleared.annotations).toEqual([]);
-    expect(cleared.panels.some((panel) => panel.view.kind === 'chart' && panel.view.markers)).toBe(
-      false,
-    );
-  });
-
-  test('takes markers from a query in any language, on the charts the edit names', () => {
-    const markers = {
-      label: 'deploy',
-      data: {
-        kind: 'raw',
-        connector: 'logs',
-        language: 'logql',
-        query: '{app="deployer"} |= "deployed"',
-      },
-      panels: ['Latency'],
-    };
-    const marked = specOf(specOf(undefined, firstBuild), edit({ markers, summary: 'markers' }));
-    expect(marked.annotations).toEqual([
-      {
-        id: 'markers',
-        label: 'deploy',
-        query: {
-          refId: 'M',
-          connector: 'logs',
-          language: 'logql',
-          expr: '{app="deployer"} |= "deployed"',
-        },
-        timeField: 'time',
-        textField: 'text',
-      },
-    ]);
-    expect(markedPanelIds(marked)).toEqual(['latency']);
-  });
-
-  test('keeps markers on a rebuilt chart, and adds them to new charts when every chart has them', () => {
-    const table = { label: 'deploy', connector: 'shop', table: 'deploys', time: 'at', text: 'v' };
-    const everyChart = specOf(
-      specOf(undefined, firstBuild),
-      edit({ markers: table, summary: 'm' }),
-    );
-    const memory = {
-      title: 'Memory',
-      data: { kind: 'gauge', connector: 'prom', metric: 'process_resident_memory_bytes' },
-      chart: { recipe: 'trend.line' },
-    };
-    const rebuilt = { ...memory, title: 'Latency', replaces: 'latency' };
-    const grown = specOf(everyChart, edit({ panels: [rebuilt, memory], summary: 'more' }));
-    expect(markedPanelIds(grown)).toEqual(['latency', 'orders-by-status', 'memory']);
-    const one = specOf(
-      everyChart,
-      edit({ markers: { ...table, panels: ['latency'] }, summary: 'm' }),
-    );
-    const added = specOf(one, edit({ panels: [memory], summary: 'more' }));
-    expect(markedPanelIds(added)).toEqual(['latency']);
-  });
-
-  test('says when the markers name a panel that is no time chart', () => {
-    const markers = { label: 'deploy', connector: 'shop', table: 'deploys', time: 'at', text: 'v' };
-    const built = specOf(undefined, firstBuild);
-    expect(() =>
-      applyEdit(built, edit({ markers: { ...markers, panels: ['Top codes'] }, summary: 'm' })),
-    ).toThrow('Markers go on time charts, and "Top codes" is not one.');
-    expect(() =>
-      applyEdit(built, edit({ markers: { ...markers, panels: ['nope'] }, summary: 'm' })),
-    ).toThrow('No panel "nope" to show the markers.');
   });
 
   test('needs a title for a new dashboard, and a chart recipe that exists', () => {

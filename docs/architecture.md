@@ -286,7 +286,8 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
    (`$__all`) and a missing default run the variable's source query for the options.
 5. Each query goes to `query/`, which binds it, applies the connector's guardrails, runs it with a
    timeout and caches the frames for 15 s by connector, bound query and time range. The chart's
-   markers run their annotation queries the same way and come back as `{time, text}` points.
+   markers run their annotation queries the same way and come back, per set with its label and
+   colour, as `{time, text}` points.
 6. The browser receives `{ time, queries: [{ refId, frames, error }], markers, durationMs }`, and
    `charts/` builds the ECharts option.
 
@@ -549,15 +550,18 @@ directly onto an ECharts `dataset`.
   that sends the whole dashboard again changes it in place instead of adding copies. New
   panels are packed in reading order into rows below, as wide as asked or as their kind usually
   is (numbers a quarter, time charts full width, tables and category charts half).
-- **Markers.** Deploy markers are one annotation (`markers`, `dashboards/panels/markers.ts`):
-  events drawn as lines on time charts, from any connector, whatever the charts query. They come
-  from a table of a SQL connector (its time and text columns), or from a raw query in any language
-  that returns a time column and a text column. They go on every time chart, or on the charts the
-  edit names in `panels`, by id or title. An edit that leaves them out keeps them where they were:
-  a rebuilt chart keeps them, and a new time chart gets them when every time chart has them. When
-  an edit sets them, they must show on a chart, follow the time range and run; otherwise the write
-  fails with the issue at `markers`. The prompt asks for markers, not a panel of events, when a
-  question asks whether something followed an event.
+- **Markers.** Sets of markers are annotations (`dashboards/panels/markers.ts`,
+  `marker-placement.ts`): events such as deploys, incidents or feature flags, drawn as lines on
+  time charts, from any connector, whatever the charts query. Each set has an id (a slug), a label
+  and a colour. A set comes from a table of a SQL connector (its time and text columns), or from a
+  raw query in any language that returns a time column and a text column. An edit's `markers`
+  adds or replaces sets by id, and `removeMarkers` removes sets by id; sets it leaves out stay as
+  they were. A set without a colour keeps the one it had, or takes the first colour no other set
+  has. Each set goes on every time chart, or on the charts its `panels` names, by id or title. A
+  set an edit leaves out keeps its charts: a rebuilt chart keeps it, and a new time chart gets it
+  when every time chart has it. Each set an edit sets must show on a chart, follow the time range
+  and run; otherwise the write fails with the issue at that set (`markers[1]`). The prompt asks
+  for markers, not a panel of events, when a question asks whether something followed an event.
 
 The edit's schema is the tool's input schema, so providers that constrain tool input keep the model
 to it. Providers get it without array length bounds (`agent/tool-schema.ts`): Gemini refuses a
@@ -1480,7 +1484,10 @@ one, and enables them again. Without any admin, it creates the default one.
 - **Tooltip safety:** tooltips are forced to `renderMode: 'richText'`, drawn on the canvas, so a
   series named `<img src=x onerror=alert(1)>` is shown as text and never parsed as HTML. Legends
   and marker labels are canvas text too. A test holds this.
-- Annotation markers are dashed vertical lines on the first series, labelled `14:02 deploy #481`.
+- Annotation markers are dashed vertical lines on the first series, labelled `14:02 deploy #481`,
+  in the colour of their set. A set's colour is a theme token (`@ink`, `@palette.0` to
+  `@palette.5`), so it follows the scheme. Hovering a line shows the set's label and the marker in
+  a rich-text tooltip.
 - Stat and table panels are plain React components, not ECharts. They read the same dataset as
   charts, so a column has one name whichever view shows it: a stat reduces a column (`last`,
   `first`, `max`, `min`, `mean`, `sum`, `count`); a table reads columns by name, labels of range

@@ -1,14 +1,15 @@
 /**
  * Applies an edit to a dashboard: settings, removed panels, panels rebuilt in place, new panels
- * placed below, and deploy markers on time charts (markers.ts). The result is a spec to check, test-run
- * and save like any other.
+ * placed below, and sets of markers on time charts (markers.ts). The result is a spec to check,
+ * test-run and save like any other.
  */
 import type { DashboardSpec, Panel } from '@quanthea/shared';
 import { type BuildContext, QueryError } from '../queries/index.ts';
 import type { PanelDraft } from './draft.ts';
 import { expandPanel, type PanelChart } from './expand.ts';
 import { compactGrid, panelId, placeBelow } from './layout.ts';
-import { editedAnnotations, placeMarkers } from './markers.ts';
+import { placeMarkers } from './marker-placement.ts';
+import { editedAnnotations } from './markers.ts';
 import type { EditRequest } from './request.ts';
 
 /** The time range of a new dashboard. */
@@ -170,11 +171,11 @@ export function applyEdit(
   context: BuildContext = { saved: [] },
 ): { spec: DashboardSpec; charts: ChartChoices } {
   const spec = withSettings(startingSpec(current, request), request);
-  const annotations = editedAnnotations(spec.annotations, request.markers, context);
+  const annotations = editedAnnotations(spec.annotations, request, context);
   const charts: ChartChoices = new Map();
   const edited = editedPanels(spec.panels, request, context, charts);
   // Removed panels leave holes; the rest move up into them.
   const placed = request.remove.length > 0 ? compactGrid(edited) : edited;
-  const panels = placeMarkers(spec.panels, placed, request.markers);
+  const panels = placeMarkers(spec.panels, placed, annotations, request);
   return { spec: { ...spec, annotations, panels }, charts };
 }

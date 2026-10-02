@@ -24,7 +24,7 @@ type DashboardSpec = {
   time: TimeDefault                        // default range of the built-in time variable
   variables: Variable[]                    // the time variable is implicit and not listed here
   panels: Panel[]
-  annotations?: Annotation[]               // dashboard-wide markers, e.g. deploys
+  annotations?: Annotation[]               // dashboard-wide sets of markers, e.g. deploys, ≤ 10
 }
 
 // ---------------------------------------------------------------- variables
@@ -156,12 +156,18 @@ type NamedFormatter =
 
 // ---------------------------------------------------------------- annotations
 type Annotation = {
-  id: string
-  label: string
+  id: string                                // slug, e.g. "deploys"; charts name it in `markers`
+  label: string                             // shown in each marker's tooltip, e.g. "deploy"
+  color?: MarkerColor                       // default '@ink'
   query: QueryTemplate                      // must return a time field and a text field
   timeField: string
   textField: string
 }
+
+// A theme token, never a free colour, so a set reads in the light and the dark scheme:
+// the text colour or one of the series colours.
+type MarkerColor =
+  | '@ink' | '@palette.0' | '@palette.1' | '@palette.2' | '@palette.3' | '@palette.4' | '@palette.5'
 ```
 
 ## The schemas
@@ -178,6 +184,8 @@ they differ from the sketch above, the schemas win:
 - A query-backed variable's `source` has no `refId`.
 - Time expressions are `now`, `now-<n><unit>` (units `s m h d w M y`) or an ISO 8601 timestamp
   with an offset.
+- An annotation's `color` is a theme token (`@ink`, `@palette.0` to `@palette.5`), replaced by
+  the renderer like the option's tokens.
 - An "All" choice of a query-backed variable with `includeAll` has the value `$__all`.
 - Formatter defaults: `number` 2 decimals, `percent` 1 decimal with `input: 'ratio'`, `bytes`
   base 1024, `duration`, `si` and `bytes` 1 decimal, `datetime` pattern `datetime`. Numbers use
@@ -224,6 +232,7 @@ A dashboard about a checkout incident, abbreviated to three panels.
     {
       "id": "deploys",
       "label": "deploy",
+      "color": "@ink",
       "query": {
         "refId": "D", "connector": "postgres-orders", "language": "sql",
         "sql": "SELECT deployed_at AS time, 'deploy #' || id AS text FROM deploys WHERE service IN ('checkout-svc','payments-svc') AND deployed_at BETWEEN :__from AND :__to"

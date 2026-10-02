@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, mock, spyOn, test } from 'bun:test';
-import { type ChartRecipe, chartRecipes, fillView } from '@quanthea/shared';
+import { type ChartRecipe, chartRecipes, fillView, type MarkerOutcome } from '@quanthea/shared';
 import { getMap, init, use } from 'echarts/core';
 import { SVGRenderer } from 'echarts/renderers';
 import { buildChartOption } from './build-option.ts';
@@ -39,9 +39,10 @@ afterAll(() => {
  *
  * @param recipe - The recipe.
  * @param variants - The variants.
+ * @param markers - The sets of markers to draw.
  * @returns The option.
  */
-function optionOf(recipe: ChartRecipe, variants: string[]) {
+function optionOf(recipe: ChartRecipe, variants: string[], markers: MarkerOutcome[] = []) {
   const choice = {
     recipe: recipe.id,
     roles: recipe.sample.roles,
@@ -52,7 +53,7 @@ function optionOf(recipe: ChartRecipe, variants: string[]) {
   if (!('view' in filled) || filled.view.kind !== 'chart')
     throw new Error(`${recipe.id} is not a chart.`);
   return buildChartOption(
-    { view: filled.view, datasets: recipe.sample.datasets, markers: [] },
+    { view: filled.view, datasets: recipe.sample.datasets, markers },
     { theme: defaultTheme, timeZone: 'UTC' },
   );
 }
@@ -112,4 +113,26 @@ describe('every common chart recipe draws its sample with the common modules', (
 
 describe('every other chart recipe draws its sample once its modules load', () => {
   for (const sample of samples.filter((each) => needsOtherModules(each.option))) drawsIt(sample);
+});
+
+describe('markers', () => {
+  test('draw each set in its colour on a time chart, with no complaint', async () => {
+    const recipe = chartRecipes.find((each) => each.id === 'trend.line');
+    if (!recipe) throw new Error('No line chart.');
+    const [first] = recipe.sample.datasets;
+    const timeIndex = first?.dimensions.findIndex((column) => column.type === 'time') ?? -1;
+    const time = Number(first?.source[1]?.[timeIndex]);
+    const set = (color: MarkerOutcome['color'], text: string): MarkerOutcome => ({
+      annotation: text,
+      label: text,
+      color,
+      points: [{ time, text }],
+      error: null,
+    });
+    const option = optionOf(recipe, [], [set('@ink', 'deploy'), set('@palette.5', 'incident')]);
+    const drawn = await draw(option);
+    expect(drawn.complaints).toEqual([]);
+    expect(drawn.svg).toContain(defaultTheme.palette[5] ?? 'none');
+    expect(drawn.svg).toContain('incident');
+  });
 });

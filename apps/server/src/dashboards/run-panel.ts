@@ -231,6 +231,7 @@ export async function runPanel(
         return {
           annotation: annotation.id,
           label: annotation.label,
+          color: annotation.color ?? '@ink',
           points: markersOf(annotation, outcome.frames),
           error: outcome.error,
         };

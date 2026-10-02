@@ -129,13 +129,16 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
   const run = {
     tests,
     panelProblems: panelProblems(current, completion.spec, completion.problems),
-    ...(request.markers ? { markerIssues: markerIssues(completion.spec, tests) } : {}),
+    ...(request.markers.length > 0
+      ? { markerIssues: markerIssues(completion.spec, request.markers, tests) }
+      : {}),
   };
   return writeVersion(context, completion.spec, request.summary, samePanels, added, run);
 }
 
 /**
- * The tool that changes the dashboard: its settings, panels of data and charts, and deploy markers.
+ * The tool that changes the dashboard: its settings, panels of data and charts, and its sets of
+ * markers.
  *
  * @param context - The run.
  * @returns The tool.
@@ -143,7 +146,7 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
 function editDashboardTool(context: RunContext) {
   return tool({
     description:
-      'Change the dashboard in one new version: set its title, time range and variables; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); remove panels; set deploy markers. The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work; otherwise you get the errors to fix.',
+      'Change the dashboard in one new version: set its title, time range and variables; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); remove panels; add, replace or remove sets of markers (deploys, incidents) by id. The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work; otherwise you get the errors to fix.',
     inputSchema: providerSchema(editRequestSchemaFor(context.queries, context.charts)),
     execute: (request) => editDashboard(context, request),
   });

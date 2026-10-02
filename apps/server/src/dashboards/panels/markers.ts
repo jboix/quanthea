@@ -1,166 +1,118 @@
 /**
- * Deploy markers: events such as deploys, drawn as lines on time charts. They come from a table of
- * a SQL connector, or from a query in any language that returns a time column and a text column,
- * on any connector, whatever the charts query. They go on every time chart, or on the panels the
- * edit names; an edit that leaves them out keeps them where they were.
+ * Sets of markers: events such as deploys or incidents, drawn as lines on time charts, each set
+ * with its id, label and colour. A set comes from a table of a SQL connector, or from a query in
+ * any language that returns a time column and a text column, on any connector, whatever the
+ * charts query. An edit adds or replaces sets by id and removes others; the sets it leaves out
+ * stay as they were. Where each set shows is in marker-placement.ts.
  */
-import type { Annotation, Panel } from '@quanthea/shared';
+import { type Annotation, type MarkerColor, markerColors, slugSchema } from '@quanthea/shared';
 import { type BuildContext, markersQuery, QueryError, rawData } from '../queries/index.ts';
-import { isTimeChart } from './expand.ts';
 import type { EditRequest, MarkersRequest } from './request.ts';
 
-/** The id of the markers' annotation. */
-export const markersId = 'markers';
+/** What an edit says about the sets of markers. */
+export type MarkersEdit = Pick<EditRequest, 'markers' | 'removeMarkers'>;
 
 /**
- * The markers' annotation.
+ * The annotation of one set of markers.
  *
- * @param request - The markers request: a table, or a query and its columns.
+ * @param request - The set: its id, label, and a table or a query and its columns.
+ * @param color - Its colour.
  * @param context - The build context, for the connector's dialect.
  * @returns The annotation.
+ * @throws {QueryError} When the query is empty.
  */
-function markersAnnotation(request: MarkersRequest, context: BuildContext): Annotation {
+function markersAnnotation(
+  request: MarkersRequest,
+  color: MarkerColor,
+  context: BuildContext,
+): Annotation {
+  const { id, label } = request;
   if (!('data' in request))
     return {
-      id: markersId,
-      label: request.label,
+      id,
+      label,
+      color,
       query: markersQuery(request, context),
       timeField: 'time',
       textField: 'text',
     };
   const [query] = rawData(request.data).queries;
-  if (!query) throw new QueryError('The markers query is empty.');
-  return {
-    id: markersId,
-    label: request.label,
-    query: { ...query, refId: 'M' },
-    timeField: request.time,
-    textField: request.text,
-  };
+  if (!query) throw new QueryError(`The query of the markers "${id}" is empty.`);
+  const timeField = request.time;
+  const textField = request.text;
+  return { id, label, color, query: { ...query, refId: 'M' }, timeField, textField };
 }
 
 /**
- * The annotations after the edit: the markers set, removed, or kept as they were.
+ * The first colour no set takes yet, so each new set reads apart from the others.
+ *
+ * @param annotations - The sets so far.
+ * @returns The colour; the first one when every colour is taken.
+ */
+function freeColor(annotations: readonly Annotation[]): MarkerColor {
+  const taken = new Set(annotations.map((annotation) => annotation.color ?? markerColors[0]));
+  return markerColors.find((color) => !taken.has(color)) ?? markerColors[0];
+}
+
+/**
+ * Checks the ids of the sets an edit sets: slugs, each once.
+ *
+ * @param edit - The edit's sets of markers.
+ * @throws {QueryError} For an id that is no slug, or one set twice or both set and removed.
+ */
+function checkSetIds(edit: MarkersEdit): void {
+  const ids = edit.markers.map((set) => set.id);
+  const bad = ids.find((id) => !slugSchema.safeParse(id).success);
+  if (bad !== undefined)
+    throw new QueryError(
+      `The markers id "${bad}" is no slug: use lowercase letters, digits and dashes, such as "deploys".`,
+    );
+  const twice = ids.find(
+    (id, index) => ids.indexOf(id) !== index || edit.removeMarkers.includes(id),
+  );
+  if (twice !== undefined)
+    throw new QueryError(`The markers "${twice}" are named twice: set or remove them once.`);
+}
+
+/**
+ * Checks the edit's sets of markers against the dashboard's.
+ *
+ * @param annotations - The current sets.
+ * @param edit - The edit's sets of markers.
+ * @throws {QueryError} For a bad or repeated id, or a removed set the dashboard does not have.
+ */
+function checkMarkersEdit(annotations: readonly Annotation[], edit: MarkersEdit): void {
+  checkSetIds(edit);
+  const known = annotations.map((annotation) => annotation.id);
+  const unknown = edit.removeMarkers.find((id) => !known.includes(id));
+  if (unknown === undefined) return;
+  const list = known.length === 0 ? 'The dashboard has none.' : `They are: ${known.join(', ')}.`;
+  throw new QueryError(`No markers "${unknown}" to remove. ${list}`);
+}
+
+/**
+ * The annotations after the edit: removed sets gone, sets it sets added or replaced in place, the
+ * others kept. A set without a colour keeps the one it had, or takes a free one.
  *
  * @param annotations - The current annotations.
- * @param markers - The edit's markers: a request, `null` to remove, `undefined` to keep.
+ * @param edit - The edit's sets of markers.
  * @param context - The build context, for the connector's dialect.
  * @returns The annotations.
+ * @throws {QueryError} When the edit names a set wrongly, or a set cannot build.
  */
 export function editedAnnotations(
   annotations: readonly Annotation[],
-  markers: EditRequest['markers'],
+  edit: MarkersEdit,
   context: BuildContext,
 ): Annotation[] {
-  if (markers === undefined) return [...annotations];
-  const others = annotations.filter((annotation) => annotation.id !== markersId);
-  return markers === null ? others : [...others, markersAnnotation(markers, context)];
-}
-
-/**
- * Whether a panel is a time chart.
- *
- * @param panel - The panel.
- * @returns Whether its x axis is time.
- */
-function isTimePanel(panel: Panel): boolean {
-  return panel.view.kind === 'chart' && isTimeChart(panel.view);
-}
-
-/**
- * Whether a panel shows the markers.
- *
- * @param panel - The panel.
- * @returns Whether its chart names the markers' annotation.
- */
-function showsMarkers(panel: Panel): boolean {
-  return (
-    panel.view.kind === 'chart' &&
-    (panel.view.markers ?? []).some((marker) => marker.annotation === markersId)
-  );
-}
-
-/**
- * The panels an edit names for the markers, by id or title.
- *
- * @param panels - The panels after the edit.
- * @param names - Their ids or titles.
- * @returns Their ids.
- * @throws {QueryError} When a name is no panel, or a panel is not a time chart.
- */
-function namedPanels(panels: readonly Panel[], names: readonly string[]): Set<string> {
-  const keyOf = (text: string) => text.trim().toLowerCase();
-  return new Set(
-    names.map((name) => {
-      const panel = panels.find((each) => each.id === name || keyOf(each.title) === keyOf(name));
-      if (!panel)
-        throw new QueryError(
-          `No panel "${name}" to show the markers. The panels are: ${panels.map((each) => each.id).join(', ')}.`,
-        );
-      if (!isTimePanel(panel))
-        throw new QueryError(`Markers go on time charts, and "${panel.title}" is not one.`);
-      return panel.id;
-    }),
-  );
-}
-
-/**
- * The panels that keep showing markers the edit leaves as they were: those that showed them, and
- * new time charts when every time chart showed them.
- *
- * @param before - The panels before the edit.
- * @param after - The panels after it.
- * @returns Their ids.
- */
-function keptPanels(before: readonly Panel[], after: readonly Panel[]): Set<string> {
-  const charts = before.filter(isTimePanel);
-  const everyChart = charts.length > 0 && charts.every(showsMarkers);
-  const known = new Set(before.map((panel) => panel.id));
-  const fresh = everyChart
-    ? after.filter((panel) => !known.has(panel.id) && isTimePanel(panel))
-    : [];
-  return new Set([...before.filter(showsMarkers), ...fresh].map((panel) => panel.id));
-}
-
-/**
- * The panels that show the markers after the edit.
- *
- * @param before - The panels before the edit.
- * @param after - The panels after it.
- * @param markers - The edit's markers: a request, `null` to remove, `undefined` to keep.
- * @returns Their ids.
- */
-function markedIds(
-  before: readonly Panel[],
-  after: readonly Panel[],
-  markers: EditRequest['markers'],
-): Set<string> {
-  if (markers === null) return new Set();
-  if (markers === undefined) return keptPanels(before, after);
-  if (markers.panels) return namedPanels(after, markers.panels);
-  return new Set(after.filter(isTimePanel).map((panel) => panel.id));
-}
-
-/**
- * The panels with the markers on the charts that show them, and off every other chart.
- *
- * @param before - The panels before the edit.
- * @param after - The panels after it.
- * @param markers - The edit's markers: a request, `null` to remove, `undefined` to keep.
- * @returns The panels.
- * @throws {QueryError} When the edit names a panel that is no time chart of the dashboard.
- */
-export function placeMarkers(
-  before: readonly Panel[],
-  after: readonly Panel[],
-  markers: EditRequest['markers'],
-): Panel[] {
-  const marked = markedIds(before, after, markers);
-  return after.map((panel) => {
-    if (panel.view.kind !== 'chart') return panel;
-    const others = (panel.view.markers ?? []).filter((marker) => marker.annotation !== markersId);
-    const shown = marked.has(panel.id) ? [...others, { annotation: markersId }] : others;
-    const { markers: _old, ...view } = panel.view;
-    return { ...panel, view: shown.length === 0 ? view : { ...view, markers: shown } };
-  });
+  checkMarkersEdit(annotations, edit);
+  const result = annotations.filter((annotation) => !edit.removeMarkers.includes(annotation.id));
+  for (const set of edit.markers) {
+    const index = result.findIndex((annotation) => annotation.id === set.id);
+    const color = set.color ?? result[index]?.color ?? freeColor(result);
+    const annotation = markersAnnotation(set, color, context);
+    if (index < 0) result.push(annotation);
+    else result[index] = annotation;
+  }
+  return result;
 }

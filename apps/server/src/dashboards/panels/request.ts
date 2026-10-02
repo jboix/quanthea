@@ -1,9 +1,15 @@
 /**
  * What the agent asks for, instead of writing a spec: panels, each a data request and a chart
- * recipe, and the dashboard's variables, time range and deploy markers. This is the edit tool's
+ * recipe, and the dashboard's variables, time range and sets of markers. This is the edit tool's
  * input schema, so providers that constrain tool input keep the model to it.
  */
-import { chartRecipes, chartUnits, timeRangeSchema, variableSchema } from '@quanthea/shared';
+import {
+  chartRecipes,
+  chartUnits,
+  markerColors,
+  timeRangeSchema,
+  variableSchema,
+} from '@quanthea/shared';
 import { z } from 'zod';
 import {
   type AvailableQueries,
@@ -69,30 +75,42 @@ function panelSchemaWith<Data extends z.ZodType, Chart extends z.ZodType>(
   });
 }
 
-/** The panels that show the markers, by id or title; every time chart when left out. */
+/** The panels that show a set of markers, by id or title; every time chart when left out. */
 const markedPanelsSchema = z.array(z.string().max(200)).max(20).optional();
 
-/** Deploy markers from a table of a SQL connector: the time and text columns of its rows. */
-const tableMarkersSchema = z.strictObject({
+/**
+ * The id of a set of markers, a slug such as `deploys`, which a later edit names to change it. The
+ * slug is checked in code (markers.ts), to keep patterns out of the tool's schema.
+ */
+const markerIdSchema = z.string().min(1).max(40);
+
+/** What every set of markers has: its id, label, colour and charts. */
+const markerSetFields = {
+  id: markerIdSchema,
   label: z.string().min(1).max(60),
+  color: z.enum(markerColors).optional(),
+  panels: markedPanelsSchema,
+};
+
+/** Markers from a table of a SQL connector: the time and text columns of its rows. */
+const tableMarkersSchema = z.strictObject({
+  ...markerSetFields,
   connector: connectorSchema,
   table: tableSchema,
   time: nameSchema,
   text: nameSchema,
   filters: filtersSchema,
-  panels: markedPanelsSchema,
 });
 
-/** Deploy markers from a raw query in any language, which returns a time and a text column. */
+/** Markers from a raw query in any language, which returns a time and a text column. */
 const queryMarkersSchema = z.strictObject({
-  label: z.string().min(1).max(60),
+  ...markerSetFields,
   data: rawDataSchema,
   time: nameSchema.default('time'),
   text: nameSchema.default('text'),
-  panels: markedPanelsSchema,
 });
 
-/** Deploy markers: events drawn as lines on time charts, from a table or from a query. */
+/** A set of markers: events drawn as lines on time charts, from a table or from a query. */
 const markersSchema = z.union([queryMarkersSchema, tableMarkersSchema]);
 
 /**
@@ -109,7 +127,8 @@ function editSchemaWith<Panel extends z.ZodType>(panels: Panel) {
     variables: z.array(variableSchema).max(20).optional(),
     panels: z.array(panels).max(20).default([]),
     remove: z.array(z.string()).max(20).default([]),
-    markers: markersSchema.nullable().optional(),
+    markers: z.array(markersSchema).max(10).default([]),
+    removeMarkers: z.array(z.string().max(63)).max(10).default([]),
     summary: z.string().min(1).max(200),
   });
 }
@@ -142,5 +161,5 @@ export type EditRequest = z.output<typeof editRequestSchema>;
 /** One panel of an edit. */
 export type PanelRequest = EditRequest['panels'][number];
 
-/** Markers. */
+/** One set of markers an edit adds or replaces. */
 export type MarkersRequest = z.output<typeof markersSchema>;

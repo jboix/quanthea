@@ -122,13 +122,16 @@ function everyBuilder() {
         chart: { recipe: 'table.rows' },
       },
     ],
-    markers: {
-      label: 'deploy',
-      connector: shop,
-      table: 'deploys',
-      time: 'deployed_at',
-      text: 'version',
-    },
+    markers: [
+      {
+        id: 'deploys',
+        label: 'deploy',
+        connector: shop,
+        table: 'deploys',
+        time: 'deployed_at',
+        text: 'version',
+      },
+    ],
     summary: 'every builder',
   });
 }

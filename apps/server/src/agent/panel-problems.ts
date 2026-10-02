@@ -34,28 +34,44 @@ export function panelProblems(
 }
 
 /**
- * What is wrong with markers an edit sets: they show on no chart, their query names a fixed time,
- * or it fails. Markers an edit leaves as they were are not checked again.
+ * What is wrong with one set of markers: it shows on no chart, its query names a fixed time, or it
+ * fails.
  *
  * @param spec - The spec the edit makes.
+ * @param id - The set's id.
  * @param tests - The test run of each panel, with the markers of the charts that show them.
- * @returns The issues, each at the path `markers`.
+ * @returns The messages.
  */
-export function markerIssues(
-  spec: DashboardSpec,
-  tests: readonly PanelTest[],
-): { path: string; message: string }[] {
-  const annotation = spec.annotations.find((each) => each.id === 'markers');
+function setIssues(spec: DashboardSpec, id: string, tests: readonly PanelTest[]): string[] {
+  const annotation = spec.annotations.find((each) => each.id === id);
   if (!annotation) return [];
   const outcomes = tests.flatMap((test) =>
-    test.run.markers.filter((marker) => marker.annotation === annotation.id),
+    test.run.markers.filter((marker) => marker.annotation === id),
   );
   const fixed = fixedTimeOf(annotation.query);
   const failure = outcomes.find((outcome) => outcome.error !== null)?.error?.message;
-  const messages = [
+  return [
     ...(outcomes.length === 0 ? ['No time chart shows the markers: name one in "panels".'] : []),
     ...(fixed ? [`the query ${fixed.replace(/^the query /, '')}`] : []),
     ...(failure ? [`the query fails: ${failure}`] : []),
   ];
-  return messages.map((message) => ({ path: 'markers', message }));
+}
+
+/**
+ * What is wrong with the sets of markers an edit sets, each checked on its own. Sets an edit leaves
+ * as they were are not checked again.
+ *
+ * @param spec - The spec the edit makes.
+ * @param sets - The sets the edit sets, in its order.
+ * @param tests - The test run of each panel, with the markers of the charts that show them.
+ * @returns The issues, each at the path of its set, such as `markers[1]`.
+ */
+export function markerIssues(
+  spec: DashboardSpec,
+  sets: readonly { readonly id: string }[],
+  tests: readonly PanelTest[],
+): { path: string; message: string }[] {
+  return sets.flatMap((set, index) =>
+    setIssues(spec, set.id, tests).map((message) => ({ path: `markers[${index}]`, message })),
+  );
 }
