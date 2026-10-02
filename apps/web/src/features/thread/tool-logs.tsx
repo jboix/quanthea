@@ -40,8 +40,8 @@ interface PanelReport {
     readonly error?: string;
     readonly frames?: readonly { rowCount?: number }[];
   }[];
-  /** What is wrong with the chart for the data, if anything. */
-  readonly chart?: readonly string[];
+  /** What is wrong with the panel beyond its queries' errors: its chart, or a fixed time. */
+  readonly problems?: readonly string[];
 }
 
 /** What a write tool returned. */
@@ -64,13 +64,13 @@ interface WriteOutput {
  * The line of one panel's test run.
  *
  * @param panel - The panel's report.
- * @returns Such as `error-rate: 1 row`, or its query's error, or its chart's problem.
+ * @returns Such as `error-rate: 1 row`, or its query's error, or its other problem.
  */
 function panelLine(panel: PanelReport): { text: string; failed: boolean } {
   const failure = panel.queries.find((query) => !query.ok);
   if (failure) return { text: `${panel.panelId}: ${failure.error ?? 'failed'}`, failed: true };
-  const chart = panel.chart?.[0];
-  if (chart) return { text: `${panel.panelId}: ${chart}`, failed: true };
+  const problem = panel.problems?.[0];
+  if (problem) return { text: `${panel.panelId}: ${problem}`, failed: true };
   const frames = panel.queries.flatMap((query) => query.frames ?? []);
   return {
     text: `${panel.panelId}: ${shapeOf(frames.length > 0 ? frames : undefined)}`,

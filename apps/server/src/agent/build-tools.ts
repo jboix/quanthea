@@ -12,6 +12,7 @@ import {
   editRequestSchemaFor,
 } from '../dashboards/panels/index.ts';
 import { QueryError } from '../dashboards/queries/index.ts';
+import { panelProblems } from './panel-problems.ts';
 import type { RunContext } from './run-context.ts';
 import { type WriteResult, writeVersion } from './write-version.ts';
 
@@ -124,7 +125,10 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
   const before = current ? idsOf(current) : new Set<string>();
   const added = new Set([...idsOf(completion.spec)].filter((id) => !before.has(id)));
   const samePanels = current !== undefined && sameIds(before, idsOf(completion.spec));
-  const run = { tests, chartProblems: completion.problems };
+  const run = {
+    tests,
+    panelProblems: panelProblems(current, completion.spec, completion.problems),
+  };
   return writeVersion(context, completion.spec, request.summary, samePanels, added, run);
 }
 

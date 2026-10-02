@@ -397,6 +397,24 @@ describe('an agent run', () => {
     }
   });
 
+  test('hands back a new query that names a fixed time, to filter on the time range', async () => {
+    services.threads.proposePlan(threadId, plan, true);
+    const fixed = {
+      title: 'Events',
+      panels: [
+        eventsPanel('Errors', 'stat', "SELECT * FROM events WHERE at >= '2026-10-01 13:00:00'"),
+      ],
+      summary: 'x',
+    };
+    const stream = await chat(
+      agentWith({ tool: 'edit_dashboard', input: fixed }, { text: 'I will use the range.' }),
+      userMessage('u1', 'Build it'),
+    );
+    expect(stream).toContain('compares with a fixed date: filter with :__from and :__to instead');
+    expect(stream).toContain('"outcome":"failed"');
+    expect(services.threads.get(threadId).dashboardId).toBeNull();
+  });
+
   test('does not offer edit_dashboard before a plan is approved', async () => {
     const agent = agentWith(
       { tool: 'edit_dashboard', input: buildEdit },

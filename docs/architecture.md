@@ -554,6 +554,12 @@ to it. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/wr
    roles the model left out take the first fitting columns, and roles naming a column the result
    has not, or of the wrong type, become the panel's problems. An empty result is data, not a
    mistake: the chart is completed from the columns its data request declares.
+   A new or changed query that names a fixed time is a problem too (`fixedTimeOf` in
+   `@quanthea/shared`, `agent/panel-problems.ts`): SQL that compares with a date literal or reads
+   the current time (`now()`, `current_date`…), and an instant PromQL or LogQL query over a fixed
+   window such as `[24h]`. The model is told to filter on `:__from` and `:__to`, or to use
+   `[$__range]`, so every panel follows the time picker. Panels whose queries did not change are
+   not checked again.
 4. With the "test-run every query" switch on, a version is saved only with panels that work. New
    panels whose queries fail or whose chart does not fit their data are left out and reported, so
    the model re-adds only those; it may, in the same run, without a new plan. The panels kept

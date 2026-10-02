@@ -44,7 +44,11 @@ export const buildingRules = `Now: build the approved plan in one edit_dashboard
 export const editingRules = `Now: refine the built dashboard with edit_dashboard. A change to existing panels, such as a panel the person mentions, needs no plan: send the panel again with "replaces", right away. New panels need a new plan with propose_plan. If the request could mean several things, ask with ask_person.`;
 
 /** How edit_dashboard works, before the data and the charts. */
-export const panelIntro = `Building with edit_dashboard: each panel is data and a chart. Work in this order: understand the question; pick the shape of data that answers it; get that data with a query builder, a saved query, or a raw query when neither fits; then pick the chart recipe that shows that shape best for the question, and adapt it. Recipes are starting points, not limits.`;
+export const panelIntro = `Building with edit_dashboard: each panel is data and a chart. Work in this order: understand the question; pick the shape of data that answers it; get that data with a query builder, a saved query, or a raw query when neither fits; then pick the chart recipe that shows that shape best for the question, and adapt it. Recipes are starting points, not limits.
+
+Time: the dashboard has one time range, set with edit_dashboard's "time", such as { "from": "2026-10-01T11:30:00Z", "to": "2026-10-01T13:30:00Z" } for a moment the person names, or { "from": "now-7d", "to": "now" }. Every query follows it: a query never names a date, a time or the current time. SQL filters with :__from and :__to; an instant PromQL or LogQL total covers [$__range], and rates use $__rate_interval. The person then moves the range with the time picker, and every panel follows.
+
+Each panel answers its own question: two panels never run the same query. A breakdown "by route" groups by route.`;
 
 /** What each query builder returns, by kind, in the words the guide uses. */
 export const builderHints: Readonly<Record<string, string>> = {

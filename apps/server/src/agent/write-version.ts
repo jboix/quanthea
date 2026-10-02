@@ -34,16 +34,19 @@ interface PanelReport {
   readonly panelId: string;
   /** Each query's result, shaped by the gate. */
   readonly queries: readonly ({ readonly refId: string } & ModelTestResult)[];
-  /** What is wrong with the chart for the data the queries returned, if anything. */
-  readonly chart?: readonly string[];
+  /**
+   * What is wrong with the panel beyond its queries' errors, if anything: its chart for the data
+   * the queries returned, or a query that names a fixed time.
+   */
+  readonly problems?: readonly string[];
 }
 
-/** The test run an edit made before writing, and the chart problems of each panel. */
+/** The test run an edit made before writing, and the other problems of each panel. */
 export interface WriteRun {
   /** The test run of each panel. */
   readonly tests: readonly PanelTest[];
-  /** What is wrong with each panel's chart, by panel id. */
-  readonly chartProblems: ReadonlyMap<string, readonly string[]>;
+  /** What is wrong with each panel beyond its queries' errors, by panel id. */
+  readonly panelProblems: ReadonlyMap<string, readonly string[]>;
 }
 
 /**
@@ -66,8 +69,8 @@ function reportsOf(context: RunContext, spec: DashboardSpec, run: WriteRun): Pan
         ...context.modelView.panelResult(connector, { frames: outcome.frames, error }),
       };
     });
-    const chart = run.chartProblems.get(test.panelId);
-    return { panelId: test.panelId, queries, ...(chart ? { chart } : {}) };
+    const problems = run.panelProblems.get(test.panelId);
+    return { panelId: test.panelId, queries, ...(problems ? { problems } : {}) };
   });
 }
 
@@ -170,8 +173,8 @@ function save(context: RunContext, spec: DashboardSpec, changeSummary: string): 
 }
 
 /**
- * The panels that do not work: their chart does not fit their data, or, when every query is
- * test-run, a query fails.
+ * The panels that do not work: they have a problem, such as a chart that does not fit their data
+ * or a query on a fixed time, or, when every query is test-run, a query fails.
  *
  * @param panels - The reports.
  * @param testRun - Whether failing queries count.
@@ -180,7 +183,8 @@ function save(context: RunContext, spec: DashboardSpec, changeSummary: string): 
 function failingPanels(panels: readonly PanelReport[], testRun: boolean): string[] {
   return panels
     .filter(
-      (panel) => panel.chart !== undefined || (testRun && panel.queries.some((query) => !query.ok)),
+      (panel) =>
+        panel.problems !== undefined || (testRun && panel.queries.some((query) => !query.ok)),
     )
     .map((panel) => panel.panelId);
 }
@@ -226,7 +230,7 @@ function saveBuilt(context: RunContext, spec: DashboardSpec, changeSummary: stri
  */
 function problemsOf(report: PanelReport): string[] {
   const queries = report.queries.flatMap((query) => (query.ok ? [] : [query.error]));
-  return [...queries, ...(report.chart ?? [])].slice(0, 10);
+  return [...queries, ...(report.problems ?? [])].slice(0, 10);
 }
 
 /** What a repair part says about one write. */
