@@ -33,8 +33,9 @@
 # - loki (profile "loki"): on localhost:3101 (dev/loki), with the same logs, seeded by loki-seed.
 #
 # Every source tells the same story: deploy #481 of checkout-svc, yesterday at 12:02 UTC,
-# and the errors that follow. `bun run env:down` deletes the data; the next `env:up` seeds it again
-# around the new yesterday.
+# and the errors that follow. Each `env:up` script runs dev/refresh.ts first, which removes the
+# volumes seeded before today, so the incident is always yesterday. `bun run env:down` deletes all
+# the data.
 
 name: quanthea-dev
 

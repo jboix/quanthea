@@ -1701,8 +1701,12 @@ provider's name, so two setups of the same vendor stay apart.
 - `dev/metrics/incident.ts` holds the traffic model. `history.ts` writes the metrics from eight
   hours before the incident until now, which `promtool` backfills into Prometheus on the first
   start; `serve.ts` serves the same model live. The Postgres, MySQL and ClickHouse seeds
-  (`dev/postgres`, `dev/mysql`, `dev/clickhouse`) compute the incident from the same instant. The seed runs once per data volume, so after `env:down` the next
-  `env:up` moves the incident to the new yesterday.
+  (`dev/postgres`, `dev/mysql`, `dev/clickhouse`) compute the incident from the same instant.
+- Each seed runs once per data volume, around that day's yesterday. So that the incident is always
+  yesterday, every `env:up` script first runs `dev/refresh.ts` for its profile: it removes the
+  profile's volumes created before today (UTC), with their containers, and the `up` that follows
+  seeds them again. `bun run evals` and `bun run dev:seed` stop with what to run when the dev
+  Postgres tells of an incident on another day (`dev/freshness.ts`).
 
 ## 15. Testing and evals
 

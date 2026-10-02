@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^4.0.18",
+    "@quanthea/dev": "workspace:*",
     "@quanthea/server": "workspace:*",
     "@quanthea/shared": "workspace:*",
     "ai": "^7.0.118"

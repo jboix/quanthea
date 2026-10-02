@@ -25,8 +25,9 @@ bun run env:up                      # the dev Postgres and Prometheus
 GEMINI_API_KEY=… bun run evals      # every question, on gemini-3.5-flash-lite
 ```
 
-The dev data tells of an incident yesterday, as of when `env:up` seeded it. When the data sources
-were seeded on another day, seed them again: `bun run env:down && bun run env:up`.
+The dev data tells of an incident yesterday. `bun run env:up` seeds the data again when it was
+seeded on an earlier day, and the evals stop with that advice when the data's incident is not
+yesterday's.
 
 | Flag                          | What it does                                                                  |
 | ----------------------------- | ----------------------------------------------------------------------------- |

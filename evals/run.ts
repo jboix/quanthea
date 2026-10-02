@@ -6,6 +6,7 @@
 import { appendFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { staleDataReason } from '@quanthea/dev/freshness.ts';
 import { waitForFirstScrape } from '@quanthea/server/src/connectors/_shared/test/dev-sources.ts';
 import { drive } from './drive.ts';
 import { selectQuestions } from './questions.ts';
@@ -99,6 +100,8 @@ async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<
   await waitForFirstScrape().catch(() => {
     throw new Error('The dev data sources do not answer. Start them with bun run env:up.');
   });
+  const stale = await staleDataReason(new Date());
+  if (stale) throw new Error(stale);
   const cache = { dir: join(here, '.cache'), read: !flags['no-cache'], minIntervalMs: 4000 };
   const world = await openWorld(models, process.env.GEMINI_API_KEY || undefined, cache);
   const startedAt = new Date().toISOString();

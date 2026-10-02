@@ -49,6 +49,9 @@ bun run env:up     # Postgres on :5433 and Prometheus on :9091, seeded with the 
 bun run env:down   # stop them and delete their data
 ```
 
+The incident is always yesterday: each `env:up` script seeds its sources again when their data
+was seeded on an earlier day.
+
 `bun run test:integration` runs the connector tests against them. `bun run env:up:timescale`
 starts TimescaleDB on :5434, and `bun run test:integration:timescale` runs its tests. `bun run env:up:mysql` starts
 MySQL on :3307 and MariaDB on :3308, and `bun run test:integration:mysql` runs their tests.

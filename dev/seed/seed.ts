@@ -5,6 +5,7 @@
  * `QUANTHEA_ADMIN_PASSWORD`, whose account is set up.
  */
 
+import { staleDataReason } from '../freshness.ts';
 import { incidentStart } from '../metrics/incident.ts';
 import fixture from './checkout-incident.json' with { type: 'json' };
 
@@ -111,6 +112,8 @@ function incidentSpec() {
   return { ...fixture, time };
 }
 
+const stale = await staleDataReason(new Date());
+if (stale) throw new Error(stale);
 await signIn();
 await ensureConnectors();
 const created = (await api('POST', '/dashboards', {
