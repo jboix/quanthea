@@ -253,7 +253,10 @@ describe('an agent run', () => {
     const [proposed] = services.threads.get(threadId).plans;
     services.threads.decidePlan(threadId, proposed?.id ?? '', 'approve', 'editor-1');
     const assistant = services.threads.get(threadId).messages[1] as { id: string };
-    const model = scriptedStreamModel({ text: 'Building.' });
+    const model = scriptedStreamModel(
+      { tool: 'edit_dashboard', input: buildEdit },
+      { text: 'Built.' },
+    );
     const agent = createAgent({ ...services, buildModel: () => model });
     await chat(agent, { id: assistant.id, role: 'assistant', parts: [] });
     const prompt = JSON.stringify(model.doStreamCalls[0]?.prompt);
@@ -423,6 +426,19 @@ describe('an agent run', () => {
     const stream = await chat(agent, userMessage('u1', 'Build it'));
     expect(stream).toContain("unavailable tool 'edit_dashboard'");
     expect(services.threads.get(threadId).dashboardId).toBeNull();
+  });
+
+  test('makes the model call a tool until the approved plan is built', async () => {
+    services.threads.proposePlan(threadId, plan, true);
+    const model = scriptedStreamModel(
+      { tool: 'edit_dashboard', input: buildEdit },
+      { text: 'Built.' },
+    );
+    const agent = createAgent({ ...services, buildModel: () => model });
+    await chat(agent, userMessage('u1', 'Build it'));
+    expect(model.doStreamCalls[0]?.toolChoice).toEqual({ type: 'required' });
+    expect(model.doStreamCalls[1]?.toolChoice).not.toEqual({ type: 'required' });
+    expect(services.threads.get(threadId).state).toBe('ready');
   });
 
   test('lets the model explain, with no tool, once the repair attempts are spent', async () => {

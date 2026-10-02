@@ -7,6 +7,7 @@ import {
   convertToModelMessages,
   type Instructions,
   type LanguageModelUsage,
+  type ModelMessage,
   type StopCondition,
   streamText,
   type ToolSet,
@@ -187,6 +188,20 @@ function stepModel(context: RunContext, modelOf: ModelOf, job: ModelJob) {
 }
 
 /**
+ * What the next step must do while an approved plan is not built yet and no write has failed in
+ * this run: call a tool. A model may otherwise say it is building and end the turn with nothing
+ * built. After a failed write it may answer in words, to say what it cannot fix.
+ *
+ * @param context - The run.
+ * @returns The step's tool choice, while the thread is building.
+ */
+function buildingStep(context: RunContext) {
+  if (context.counters.failedWrites > 0) return {};
+  const { state } = context.threads.row(context.threadId);
+  return state === 'building' ? { toolChoice: 'required' as const } : {};
+}
+
+/**
  * What the next step may do: once the repair attempts are spent, no tool, so the model explains
  * what failed to the person and the turn ends after it.
  *
@@ -197,6 +212,23 @@ function explainingStep(context: RunContext) {
   if (context.counters.failedWrites < context.settings.limits.repairAttempts) return {};
   context.counters.explaining = true;
   return { activeTools: [], toolChoice: 'none' as const };
+}
+
+/**
+ * Sets up each step: its model, the tool it must or may not call, and the messages it reads.
+ *
+ * @param context - The run.
+ * @param modelOf - Gives the model of a job.
+ * @param job - The turn's job.
+ * @returns The step callback.
+ */
+function stepSettings(context: RunContext, modelOf: ModelOf, job: ModelJob) {
+  return ({ messages }: { messages: ModelMessage[] }) => ({
+    ...stepModel(context, modelOf, job),
+    ...buildingStep(context),
+    ...explainingStep(context),
+    messages: withCachedTail(endingOnPersonTurn(compactSteps(messages)), context.settings.provider),
+  });
 }
 
 /**
@@ -225,11 +257,7 @@ export async function streamTurn(
     model: modelOf(job),
     instructions,
     messages: await convertToModelMessages(compactHistory(messages), { tools }),
-    prepareStep: ({ messages: next }) => ({
-      ...stepModel(context, modelOf, job),
-      ...explainingStep(context),
-      messages: withCachedTail(endingOnPersonTurn(compactSteps(next)), context.settings.provider),
-    }),
+    prepareStep: stepSettings(context, modelOf, job),
     tools,
     activeTools: [...phaseTools[phaseOf(state)]],
     ...reasoningOption(context.settings),

@@ -547,7 +547,9 @@ directly onto an ECharts `dataset`.
 - **Markers.** Deploy markers are one annotation (`markers`) put on every time chart.
 
 The edit's schema is the tool's input schema, so providers that constrain tool input keep the model
-to it. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/write-version.ts`):
+to it. Providers get it without array length bounds (`agent/tool-schema.ts`): Gemini refuses a
+forced tool call on a schema this large with them. The input is still checked against the whole
+schema. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/write-version.ts`):
 
 1. The thread's state machine decides: after an approved plan, or in a ready thread when the set of
    panels stays the same.
@@ -649,6 +651,9 @@ the test; turning the switch off sends the provider's default.
   one more step runs with no tool, so the model explains to the person what still fails; the run
   ends after it, and the thread stays in `building`, so a reply or Try again starts a new run with
   fresh attempts.
+- While an approved plan is not built yet (the thread is `building`) and no write has failed in
+  the run, every step must call a tool, so a model cannot say it is building and end the run with
+  nothing built.
 - Each counted failure streams a `data-repair` part for the build log: the try and the limit, the
   outcome (`failed`, `left-out`, `exhausted`), and the panels that failed, by title, with their
   problems (each failing query's error as the gate shapes it, and the chart's problems). The write

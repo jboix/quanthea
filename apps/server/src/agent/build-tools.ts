@@ -14,6 +14,7 @@ import {
 import { QueryError } from '../dashboards/queries/index.ts';
 import { panelProblems } from './panel-problems.ts';
 import type { RunContext } from './run-context.ts';
+import { providerSchema } from './tool-schema.ts';
 import { type WriteResult, writeVersion } from './write-version.ts';
 
 /**
@@ -42,7 +43,7 @@ function proposePlanTool(context: RunContext) {
   return tool({
     description:
       'Propose what you will build, before building it: a title, the variables and time range in words, and each panel with its kind, title, language and connector. For an existing draft, mark the panels you change with replaces and change, and list the ones you drop in removes. The person approves it; then you build. Call it once, as your last action.',
-    inputSchema: planSchema,
+    inputSchema: providerSchema(planSchema),
     execute: (plan) => {
       const unknown = unknownPanels(plan, currentSpec(context));
       if (unknown.length > 0)
@@ -142,7 +143,7 @@ function editDashboardTool(context: RunContext) {
   return tool({
     description:
       'Change the dashboard in one new version: set its title, time range and variables; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); remove panels; set deploy markers. The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work; otherwise you get the errors to fix.',
-    inputSchema: editRequestSchemaFor(context.queries, context.charts),
+    inputSchema: providerSchema(editRequestSchemaFor(context.queries, context.charts)),
     execute: (request) => editDashboard(context, request),
   });
 }

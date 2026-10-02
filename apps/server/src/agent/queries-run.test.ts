@@ -121,9 +121,17 @@ describe('a thread’s queries', () => {
       mode: 'chosen',
       ids: ['sql-stat'],
     });
-    const done = { text: 'Nothing to build.' };
-    expect(offeredKinds(await build(chosen.id, done))).toEqual(['raw', 'sql-stat']);
+    const data = { kind: 'raw', connector: 'events', language: 'sql', query: 'SELECT 1' };
+    const edit = {
+      title: 'Events',
+      panels: [{ title: 'One', data, chart: { recipe: 'kpi.stat' } }],
+    };
+    const done: ScriptedStep[] = [
+      { tool: 'edit_dashboard', input: { ...edit, summary: 'built' } },
+      { text: 'Built.' },
+    ];
+    expect(offeredKinds(await build(chosen.id, ...done))).toEqual(['raw', 'sql-stat']);
     const free = services.threads.create('editor-1', undefined, { mode: 'free' });
-    expect(offeredKinds(await build(free.id, done))).toEqual(['raw']);
+    expect(offeredKinds(await build(free.id, ...done))).toEqual(['raw']);
   });
 });
