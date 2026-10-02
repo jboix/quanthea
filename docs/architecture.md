@@ -1757,9 +1757,10 @@ provider's name, so two setups of the same vendor stay apart.
 - **Web:** unit tests for the chart adapter, the panel reductions and tables, and the URL state.
   Component tests for the plan card, diff card and variables bar (happy-dom) and Playwright smoke
   tests later.
-- **Evals** (`evals/`, `bun run evals`): 12 questions about the dev data's checkout incident,
+- **Evals** (`evals/`, `bun run evals`): 13 questions about the dev data's checkout incident,
   each with what a good answer holds: the connectors it queries, the range of panels, the topics
-  its panels' titles and queries show, and the failed writes it may take. A run builds the
+  its panels' titles and queries show, the failed writes it may take, and, when the answer needs
+  them, the markers its charts carry (every annotation of the spec is a marker set). A run builds the
   server's services on a database of its own, adds the dev Postgres and Prometheus, and drives the
   agent headless with Gemini through the OpenAI-compatible provider (`gemini-3.5-flash-lite` by
   default; `--model` and `--build-model` change it). It answers the agent's question with the

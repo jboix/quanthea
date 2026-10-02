@@ -25,8 +25,8 @@ export interface Outcome {
   readonly built: boolean;
   /** The panels of the last version. */
   readonly panels: readonly BuiltPanel[];
-  /** The markers of the last version, shaped like a panel, if it has them. */
-  readonly markers?: BuiltPanel;
+  /** The marker sets of the last version, each shaped like a panel, if it has any. */
+  readonly markers?: readonly BuiltPanel[];
   /** The queries of the last version that fail when run again, by panel. */
   readonly failing: readonly { readonly panelId: string; readonly error: string }[];
   /** How many writes failed their checks or test runs. */
@@ -68,13 +68,34 @@ export function panelQueries(panel: BuiltPanel): PanelQuery[] {
 }
 
 /**
- * Queries that name a fixed time instead of following the dashboard's range.
+ * What the dashboard shows: its panels, then its marker sets.
+ *
+ * @param outcome - What was built.
+ * @returns The panels and the marker sets.
+ */
+export function shownOf(outcome: Outcome): BuiltPanel[] {
+  return [...outcome.panels, ...(outcome.markers ?? [])];
+}
+
+/**
+ * A topic pattern, for a reason: its alternatives joined with "or".
+ *
+ * @param topic - The pattern.
+ * @returns The words.
+ */
+function topicWords(topic: RegExp): string {
+  return topic.source.split('|').join(' or ');
+}
+
+/**
+ * Queries that name a fixed time instead of following the dashboard's range, in the panels and
+ * the marker sets.
  *
  * @param outcome - What was built.
  * @returns The reasons.
  */
 function fixedTimes(outcome: Outcome): string[] {
-  return outcome.panels.flatMap((panel) =>
+  return shownOf(outcome).flatMap((panel) =>
     panelQueries(panel).flatMap((query) => {
       const why = fixedTimeOf(query);
       return why ? [`${panel.id}: ${why.split(':')[0]}`] : [];
@@ -110,15 +131,37 @@ function duplicates(outcome: Outcome): string[] {
  * @returns The reasons.
  */
 function missing(outcome: Outcome, expect: Expectation): string[] {
-  const shown = [...outcome.panels, ...(outcome.markers ? [outcome.markers] : [])];
+  const shown = shownOf(outcome);
   const texts = shown.map((panel) => panel.text);
   const topics = expect.topics
     .filter((topic) => !texts.some((text) => topic.test(text)))
-    .map((topic) => `no panel about ${topic.source.split('|').join(' or ')}`);
+    .map((topic) => `no panel about ${topicWords(topic)}`);
   const used = new Set(shown.flatMap((panel) => panel.connectors));
   const connectors = expect.connectors
     .filter((connector) => !used.has(connector))
     .map((connector) => `never queries ${connector}`);
+  return [...topics, ...connectors];
+}
+
+/**
+ * What the markers miss, when the answer needs them: any marker set at all, then the topics and
+ * the connectors the expectation names.
+ *
+ * @param outcome - What was built.
+ * @param expect - What a good answer holds.
+ * @returns The reasons.
+ */
+function unmarked(outcome: Outcome, expect: Expectation): string[] {
+  if (!expect.markers) return [];
+  const markers = outcome.markers ?? [];
+  if (markers.length === 0) return ['no markers on the charts'];
+  const topics = expect.markers.topics
+    .filter((topic) => !markers.some((marker) => topic.test(marker.text)))
+    .map((topic) => `no markers about ${topicWords(topic)}`);
+  const used = new Set(markers.flatMap((marker) => marker.connectors));
+  const connectors = expect.markers.connectors
+    .filter((connector) => !used.has(connector))
+    .map((connector) => `no markers from ${connector}`);
   return [...topics, ...connectors];
 }
 
@@ -154,6 +197,7 @@ export function score(outcome: Outcome, expect: Expectation): Score {
   const reasons = [
     ...faults(outcome, expect),
     ...missing(outcome, expect),
+    ...unmarked(outcome, expect),
     ...fixedTimes(outcome),
     ...duplicates(outcome),
   ];

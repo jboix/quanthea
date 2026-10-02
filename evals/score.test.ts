@@ -68,7 +68,48 @@ describe('scoring an answer', () => {
       'no panel about deploy',
       'never queries postgres-orders',
     ]);
-    expect(score({ ...errorsOnly, markers }, single)).toEqual({ pass: true, reasons: [] });
+    expect(score({ ...errorsOnly, markers: [markers] }, single)).toEqual({
+      pass: true,
+      reasons: [],
+    });
+  });
+
+  describe('when the answer needs markers', () => {
+    const errorsOnly: Outcome = { ...outcome, panels: [outcome.panels[0] as BuiltPanel] };
+    const needsMarkers: Expectation = {
+      connectors: ['prometheus-dev'],
+      panels: [1, 4],
+      topics: [/error/i],
+      maxRepairs: 1,
+      markers: { topics: [/deploy/i], connectors: ['postgres-orders'] },
+    };
+    const marked = (id: string, connector: string, text: string): BuiltPanel => ({
+      id,
+      title: `Markers: ${id}`,
+      connectors: [connector],
+      text: `Markers: ${id}\n${text}`,
+    });
+
+    test('passes with a marker set on the topic, from the connector', () => {
+      const deploys = marked('deploys', 'postgres-orders', 'SELECT * FROM deploys');
+      const incidents = marked('incidents', 'prometheus-dev', 'ALERTS');
+      expect(score({ ...errorsOnly, markers: [incidents, deploys] }, needsMarkers)).toEqual({
+        pass: true,
+        reasons: [],
+      });
+    });
+
+    test('fails without markers, even with a panel on the topic', () => {
+      expect(score(outcome, needsMarkers).reasons).toEqual(['no markers on the charts']);
+    });
+
+    test('fails markers on another topic, or from another connector', () => {
+      const wrong = marked('incidents', 'prometheus-dev', 'ALERTS');
+      expect(score({ ...errorsOnly, markers: [wrong] }, needsMarkers).reasons).toEqual([
+        'no markers about deploy',
+        'no markers from postgres-orders',
+      ]);
+    });
   });
 
   test('fails a query on a fixed time, and two panels running the same query', () => {

@@ -14,6 +14,16 @@ export interface Expectation {
   readonly topics: readonly RegExp[];
   /** How many failed writes the build may take. */
   readonly maxRepairs: number;
+  /** The markers the charts must carry, when a good answer needs them. */
+  readonly markers?: MarkersExpectation;
+}
+
+/** What the markers of a good answer hold. */
+export interface MarkersExpectation {
+  /** What they must mark: each pattern matches a marker set's label or query. */
+  readonly topics: readonly RegExp[];
+  /** Connectors the marker sets must query, each at least once. */
+  readonly connectors: readonly string[];
 }
 
 /** One question. */
@@ -149,6 +159,19 @@ export const questions: readonly Question[] = [
     question: 'Orders per hour yesterday, with the share that failed.',
     timeZone: zurich,
     expect: { connectors: [postgres], panels: [1, 6], topics: [/order/i, /fail/i], maxRepairs: 1 },
+  },
+  {
+    id: 'q13',
+    question: 'Show the 5xx errors per service yesterday, in prod, with the deploys marked.',
+    timeZone: zurich,
+    expect: {
+      connectors: [prometheus, postgres],
+      panels: [1, 6],
+      topics: [/error|5xx/i],
+      maxRepairs: 1,
+      // The deploys belong on the error charts as markers from the deploys table, not in a panel.
+      markers: { topics: [/deploy/i], connectors: [postgres] },
+    },
   },
 ];
 

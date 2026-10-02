@@ -7,7 +7,7 @@
 import { questions } from './questions.ts';
 import type { Report, Result } from './report.ts';
 import { cacheSentence, dollars, tokensOf, totalUsage } from './report.ts';
-import { type BuiltPanel, panelQueries } from './score.ts';
+import { type BuiltPanel, panelQueries, shownOf } from './score.ts';
 
 /** One panel's query, written out, with its language for highlighting. */
 interface PanelQuery {
@@ -127,7 +127,7 @@ function markdownRow({ outcome, score }: Result): string {
  */
 function markdownDetails({ outcome }: Result): string {
   const asked = outcome.asked.map((text) => `The agent asked: “${text}” It got its first option.`);
-  const shown = [...outcome.panels, ...(outcome.markers ? [outcome.markers] : [])];
+  const shown = shownOf(outcome);
   const panels = shown.flatMap((panel) => [
     `- **${panel.title}** · ${panel.connectors.join(', ')}`,
     ...queriesOf(panel).map(
@@ -194,7 +194,7 @@ function htmlQuestion({ outcome, score }: Result): string {
         `<p class="asked">The agent asked “${escapeHtml(text)}” and got its first option.</p>`,
     )
     .join('');
-  const shown = [...outcome.panels, ...(outcome.markers ? [outcome.markers] : [])];
+  const shown = shownOf(outcome);
   const panels = shown.map((panel) => {
     const queries = queriesOf(panel)
       .map((query) => `<pre>${escapeHtml(query.text)}</pre>`)

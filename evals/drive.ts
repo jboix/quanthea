@@ -115,28 +115,28 @@ function panelsOf(spec: DashboardSpec | undefined): BuiltPanel[] {
 }
 
 /**
- * A spec's markers, shaped like a panel for the scoring: their label and query.
+ * A spec's marker sets, each shaped like a panel for the scoring: its label and query.
  *
  * @param spec - The spec.
- * @returns The markers, if the spec has them.
+ * @returns One entry per annotation, in the spec's order; none when it has none.
  */
-function markersOf(spec: DashboardSpec | undefined): BuiltPanel | undefined {
-  const annotation = spec?.annotations.find((each) => each.id === 'markers');
-  if (!annotation) return undefined;
-  const title = `Markers: ${annotation.label}`;
-  const text = `${title}\n${JSON.stringify([annotation.query])}`;
-  return { id: 'markers', title, connectors: [annotation.query.connector], text };
+function markersOf(spec: DashboardSpec | undefined): BuiltPanel[] {
+  return (spec?.annotations ?? []).map((annotation) => {
+    const title = `Markers: ${annotation.label}`;
+    const text = `${title}\n${JSON.stringify([annotation.query])}`;
+    return { id: annotation.id, title, connectors: [annotation.query.connector], text };
+  });
 }
 
 /**
- * The outcome's markers field: the markers when the spec has them, else nothing.
+ * The outcome's markers field: the marker sets when the spec has any, else nothing.
  *
  * @param spec - The spec.
  * @returns The field to spread.
  */
-function markersField(spec: DashboardSpec | undefined): { markers?: BuiltPanel } {
+function markersField(spec: DashboardSpec | undefined): { markers?: BuiltPanel[] } {
   const markers = markersOf(spec);
-  return markers ? { markers } : {};
+  return markers.length > 0 ? { markers } : {};
 }
 
 /**

@@ -7,7 +7,10 @@ asks in prose before any plan gets the scripted answer, or "go ahead". Then it s
 was built:
 
 - a dashboard was built, with a number of panels in the expected range;
-- every expected topic shows in a panel's title or query, and every expected connector is queried;
+- every expected topic shows in a panel's title or query, or in a marker set's label or query, and
+  every expected connector is queried;
+- when the answer needs markers, the charts carry a marker set, and the marker sets show every
+  expected marker topic and query every expected marker connector;
 - no query of the last version fails when run again;
 - no query names a fixed date or the current time instead of following the time range;
 - no two panels run the same query;
@@ -72,3 +75,7 @@ input allows.
 Add it to `questions.ts`, with what a good answer holds: the connectors it queries, the range of
 panels, the topics that must show, and the failed writes it may take. Write the topics as
 patterns over the panels' titles and queries.
+
+When a good answer marks events on its charts, such as deploys, add `markers` with their own
+topics and connectors. Each annotation of the dashboard is a marker set; the topics match a set's
+label or query. A run without markers then fails with "no markers on the charts".
