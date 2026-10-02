@@ -26,7 +26,7 @@ the good ones. Pinned dashboards are versioned, searchable, and render without a
   </tr>
   <tr>
     <td><a href="docs/screenshots/library.webp"><img src="docs/screenshots/library.webp" alt="The library of pinned dashboards, searchable by panel and query" width="400"></a></td>
-    <td><a href="docs/screenshots/dashboard-dark.webp"><img src="docs/screenshots/dashboard-dark.webp" alt="A pinned dashboard in the dark scheme" width="400"></a></td>
+    <td><a href="docs/screenshots/dashboard-dark.webp"><img src="docs/screenshots/dashboard-dark.webp" alt="A pinned dashboard in the dark scheme: errors rise after a deploy marker and fall after the rollback" width="400"></a></td>
   </tr>
   <tr>
     <td align="center"><sub>Pin the good ones</sub></td>
