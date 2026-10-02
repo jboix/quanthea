@@ -142,8 +142,8 @@ function tooltipOf(spec: unknown, series: readonly Loose[], theme: ChartTheme): 
 }
 
 /**
- * A series whose labels get their halo in the surface colour, so text drawn over lines and bars
- * stays readable in either scheme. A halo the recipe sets stays.
+ * A series whose labels get their halo in the surface colour, and the ink colour outside shapes,
+ * so text drawn over lines and bars stays readable in either scheme. What the recipe sets stays.
  *
  * @param series - The series.
  * @param theme - The theme.
@@ -152,7 +152,10 @@ function tooltipOf(spec: unknown, series: readonly Loose[], theme: ChartTheme): 
 function withLabelHalo(series: Loose, theme: ChartTheme): Loose {
   const label = series.label;
   if (!isObject(label) || label.show === false || 'textBorderColor' in label) return series;
-  return { ...series, label: { textBorderColor: theme.surface, ...label } };
+  // A label inside a shape keeps the colour ECharts picks against the shape's fill.
+  const inside = typeof label.position === 'string' && label.position.startsWith('inside');
+  const ink = inside ? {} : { color: theme.ink };
+  return { ...series, label: { ...ink, textBorderColor: theme.surface, ...label } };
 }
 
 /**
