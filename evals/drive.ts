@@ -15,6 +15,8 @@ const maxTurns = 6;
 interface StoredPart {
   /** The part's type, such as `text`, `tool-ask_person` or `data-repair`. */
   readonly type: string;
+  /** A text part's text. */
+  readonly text?: string;
   /** A tool call's input. */
   readonly input?: { readonly question?: string; readonly options?: readonly string[] };
   /** A data part's data. */
@@ -145,7 +147,11 @@ function tally(messages: readonly StoredMessage[]) {
   for (const answer of answers)
     for (const [model, tokens] of Object.entries(answer.metadata?.usage ?? {}))
       usage = addUsage(usage, model, tokens as TokenUsage);
-  return { repairs, asked, usage };
+  const said = answers
+    .at(-1)
+    ?.parts.flatMap((part) => (part.type === 'text' && part.text ? [part.text] : []));
+  const lastWords = said?.join(' ').trim().slice(0, 600);
+  return { repairs, asked, usage, ...(lastWords ? { lastWords } : {}) };
 }
 
 /**

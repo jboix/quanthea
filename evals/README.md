@@ -30,10 +30,14 @@ were seeded on another day, seed them again: `bun run env:down && bun run env:up
 | `--model <id>`                | The model for every job. `gemini-3.5-flash-lite` by default.                  |
 | `--build-model <id>`          | Another model for building and repairs, such as `gemini-3.8-flash`.           |
 | `--no-cache`                  | Asks the provider again, and keeps its answers.                               |
+| `--allow-failures <n>`        | Exits with success when at most n questions fail. 0 by default.               |
 | `--rescore <report.json>`     | Scores a report again with the questions as they are now, with no model call. |
 | `--compare <a.json> <b.json>` | Each question's verdict and tokens from one report to the next.               |
 
-Reports go to `evals/reports/`, which git ignores.
+Reports go to `evals/reports/`, which git ignores: an HTML page to read, with each question's
+verdict and why, what the agent asked or said last, and each panel with its query; and the JSON
+that `--rescore` and `--compare` read. The command exits with an error when more questions fail
+than `--allow-failures` allows, none by default.
 
 ## Spend little
 
@@ -53,8 +57,10 @@ Live calls are spaced 4 seconds apart, to stay under the free tier's limit per m
 
 The Evals workflow runs by hand only: Actions, Evals, Run workflow, on `main`. Its job runs for
 the repository's owner alone, since it spends the quota of the `GEMINI_API_KEY` secret. It starts
-the dev data sources, asks the questions with the models given, keeps the cache between runs,
-and uploads the report as the `evals-report` artifact.
+the dev data sources, asks the questions with the models given, and keeps the cache between
+runs. The summary table shows on the run's page; the HTML report and the JSON are the
+`evals-report` artifact. The job fails when more questions fail than its `allowed-failures`
+input allows.
 
 ## Add a question
 

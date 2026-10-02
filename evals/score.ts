@@ -39,6 +39,8 @@ export interface Outcome {
   readonly durationMs: number;
   /** Why a run failed, when one did, such as a provider error. */
   readonly error?: string;
+  /** What the agent said last, to read when nothing was built. */
+  readonly lastWords?: string;
 }
 
 /** A question's score: pass or not, and why not. */
@@ -60,7 +62,7 @@ function missing(outcome: Outcome, expect: Expectation): string[] {
   const texts = outcome.panels.map((panel) => panel.text);
   const topics = expect.topics
     .filter((topic) => !texts.some((text) => topic.test(text)))
-    .map((topic) => `no panel about ${topic.source}`);
+    .map((topic) => `no panel about ${topic.source.split('|').join(' or ')}`);
   const used = new Set(outcome.panels.flatMap((panel) => panel.connectors));
   const connectors = expect.connectors
     .filter((connector) => !used.has(connector))

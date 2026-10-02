@@ -1724,9 +1724,11 @@ provider's name, so two setups of the same vendor stay apart.
   and scores (`evals/score.ts`, unit-tested). A middleware keeps every model response in
   `evals/.cache`, under a hash of the model and the request, with the clock fixed at 10:00 UTC for
   the day, so reruns call the provider only for what changed; `--only`, `--rescore` (scoring with
-  no model call) and `--compare` keep runs cheap. Reports go to `evals/reports/`. The Evals
-  workflow runs them by hand on `main`, for the repository's owner only, with the
-  `GEMINI_API_KEY` secret, and uploads the report. They are never part of `verify`, because they
+  no model call) and `--compare` keep runs cheap. Reports go to `evals/reports/` as an HTML page
+  and as JSON (`evals/render.ts`); the command fails when more questions fail than
+  `--allow-failures` allows. The Evals workflow runs them by hand on `main`, for the repository's
+  owner only, with the `GEMINI_API_KEY` secret: the summary shows on the run's page, the report
+  is its artifact, and the job fails like the command. They are never part of `verify`, because they
   cost tokens and are not deterministic.
 
 ## 16. Quality gates

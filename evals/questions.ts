@@ -43,7 +43,7 @@ export const questions: readonly Question[] = [
     expect: {
       connectors: [prometheus],
       panels: [3, 8],
-      topics: [/error|5xx/i, /latenc|p95|duration/i],
+      topics: [/error|5xx/i, /latency|p95|duration/i],
       maxRepairs: 2,
     },
   },
@@ -66,7 +66,7 @@ export const questions: readonly Question[] = [
     expect: {
       connectors: [prometheus],
       panels: [1, 6],
-      topics: [/p95|latenc|quantile/i],
+      topics: [/p95|latency|quantile/i],
       maxRepairs: 1,
     },
   },
@@ -110,7 +110,7 @@ export const questions: readonly Question[] = [
     expect: {
       connectors: [prometheus],
       panels: [1, 6],
-      topics: [/slow|latenc|p95|quantile/i],
+      topics: [/slow|latency|p95|quantile/i],
       maxRepairs: 1,
     },
   },

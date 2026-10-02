@@ -78,7 +78,7 @@ export function readReport(path: string): Report {
  * @param usage - The usage, by model.
  * @returns The total.
  */
-function tokensOf(usage: TurnUsage): number {
+export function tokensOf(usage: TurnUsage): number {
   return Object.values(usage).reduce(
     (sum, tokens) => sum + tokens.input + tokens.cachedInput + tokens.cacheWrite + tokens.output,
     0,
@@ -91,7 +91,7 @@ function tokensOf(usage: TurnUsage): number {
  * @param results - The results.
  * @returns The usage, by model.
  */
-function totalUsage(results: readonly Result[]): TurnUsage {
+export function totalUsage(results: readonly Result[]): TurnUsage {
   let total: TurnUsage = {};
   for (const { outcome } of results)
     for (const [model, tokens] of Object.entries(outcome.usage))
@@ -105,9 +105,24 @@ function totalUsage(results: readonly Result[]): TurnUsage {
  * @param usage - The usage.
  * @returns Such as `$0.0123`.
  */
-function dollars(usage: TurnUsage): string {
+export function dollars(usage: TurnUsage): string {
   const { dollars: amount, unpriced } = costOf(usage);
   return `$${amount.toFixed(4)}${unpriced.length > 0 ? ' (some unpriced)' : ''}`;
+}
+
+/**
+ * Where the model's answers came from, in words: the cache or the provider.
+ *
+ * @param cache - The cache's hits and misses.
+ * @returns The sentence.
+ */
+export function cacheSentence({ hits, misses }: CacheCounts): string {
+  if (hits + misses === 0) return 'No model was called.';
+  if (misses === 0)
+    return `All ${hits} model answers came from the cache: no call to the provider.`;
+  if (hits === 0)
+    return `All ${misses} model answers came from the provider: the cache had none of these requests yet. A rerun on the same day replays the answers that did not change.`;
+  return `${hits} model answers came from the cache, ${misses} from the provider.`;
 }
 
 /**
@@ -120,8 +135,8 @@ function line({ outcome, score: scored }: Result): string {
   const cells = [
     outcome.id.padEnd(4),
     (scored.pass ? 'pass' : 'FAIL').padEnd(4),
-    `${outcome.panels.length} panels`.padEnd(10),
-    `${outcome.repairs} repairs`.padEnd(10),
+    `${outcome.panels.length} ${outcome.panels.length === 1 ? 'panel' : 'panels'}`.padEnd(10),
+    `${outcome.repairs} ${outcome.repairs === 1 ? 'repair' : 'repairs'}`.padEnd(10),
     `${tokensOf(outcome.usage)} tokens`.padEnd(14),
     dollars(outcome.usage).padEnd(10),
     `${Math.round(outcome.durationMs / 1000)} s`.padEnd(6),
@@ -140,13 +155,13 @@ export function summary(report: Report): string {
   const usage = totalUsage(report.results);
   const { build, model } = report.models;
   const models = build ? `${model}, building with ${build}` : model;
-  const { hits, misses } = report.cache;
   return [
     `Evals of ${report.startedAt} on ${models}`,
     '',
     ...report.results.map(line),
     '',
-    `${passed} of ${report.results.length} pass · ${tokensOf(usage)} tokens · ${dollars(usage)} at list price · ${hits} cached responses, ${misses} from the provider`,
+    `${passed} of ${report.results.length} pass · ${tokensOf(usage)} tokens · ${dollars(usage)} at list price`,
+    cacheSentence(report.cache),
   ].join('\n');
 }
 
