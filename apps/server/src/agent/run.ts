@@ -29,6 +29,7 @@ import {
   modelIdFor,
 } from './model.ts';
 import { publicError } from './public-error.ts';
+import { withoutRawInput } from './raw-input.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
 import { streamTurn, turnInstructions } from './turn.ts';
 import { startingUsage } from './usage.ts';
@@ -218,7 +219,7 @@ async function prepare(
   const { modelOf, settings, providerName } = await modelsFor(dependencies, request.threadId);
   const { history, hints, plans } = accept(dependencies, request, settings.limits.threadTokens);
   const validated = await validateUIMessages<ThreadMessage>({
-    messages: history,
+    messages: withoutRawInput(history),
     dataSchemas: threadDataSchemas,
   });
   const messages = withPlanDecisions(validated, plans);
@@ -311,7 +312,7 @@ function respond(
     },
     onEnd: ({ messages }) => {
       done();
-      dependencies.threads.saveMessages(request.threadId, messages, request.actor);
+      dependencies.threads.saveMessages(request.threadId, withoutRawInput(messages), request.actor);
     },
     onError: publicError,
   });

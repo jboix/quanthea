@@ -372,6 +372,31 @@ describe('an agent run', () => {
     expect(services.threads.get(threadId).plans).toHaveLength(1);
   });
 
+  test('stores a failed tool input as input, so later turns raise no deprecation warning', async () => {
+    const settings: string[] = [];
+    const global = globalThis as { AI_SDK_LOG_WARNINGS?: unknown };
+    const previous = global.AI_SDK_LOG_WARNINGS;
+    global.AI_SDK_LOG_WARNINGS = ({ warnings }: { warnings: { setting?: string }[] }) =>
+      settings.push(...warnings.map((warning) => warning.setting ?? ''));
+    try {
+      // ask_person without its options: the input fails the tool's schema.
+      const invalid = { tool: 'ask_person', input: { question: 'Which errors?' } };
+      await chat(
+        agentWith(invalid, { text: 'Which errors do you mean?' }),
+        userMessage('u1', 'Errors'),
+      );
+      const answer = services.threads.get(threadId).messages[1] as { parts: object[] };
+      const failed = answer.parts.find((part) => 'state' in part && part.state === 'output-error');
+      expect(failed).toMatchObject({ input: { question: 'Which errors?' } });
+      expect(failed).not.toHaveProperty('rawInput');
+      settings.length = 0;
+      await chat(agentWith({ text: 'The 5xx ones, then.' }), userMessage('u2', 'The 5xx ones'));
+      expect(settings).not.toContain('rawInput in output-error UI message parts');
+    } finally {
+      global.AI_SDK_LOG_WARNINGS = previous;
+    }
+  });
+
   test('does not offer edit_dashboard before a plan is approved', async () => {
     const agent = agentWith(
       { tool: 'edit_dashboard', input: buildEdit },

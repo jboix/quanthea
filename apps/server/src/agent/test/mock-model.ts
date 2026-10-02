@@ -81,13 +81,13 @@ function chunksOf(step: ScriptedStep, index: number): StreamPart[] {
     ];
   }
   const toolCallId = step.id ?? `call-${index}`;
+  const input = JSON.stringify(step.input);
+  // Streamed as real providers do: the input in parts, then the call.
   return [
-    {
-      type: 'tool-call' as const,
-      toolCallId,
-      toolName: step.tool,
-      input: JSON.stringify(step.input),
-    },
+    { type: 'tool-input-start' as const, id: toolCallId, toolName: step.tool },
+    { type: 'tool-input-delta' as const, id: toolCallId, delta: input },
+    { type: 'tool-input-end' as const, id: toolCallId },
+    { type: 'tool-call' as const, toolCallId, toolName: step.tool, input },
     {
       type: 'finish' as const,
       finishReason: { unified: 'tool-calls' as const, raw: undefined },
