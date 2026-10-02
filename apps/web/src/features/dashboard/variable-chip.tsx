@@ -22,7 +22,7 @@ interface ChipProps {
  * @param value - One value or several.
  * @returns Such as `prod`, `All` or `a, b`.
  */
-function shown(value: string | readonly string[]): string {
+export function shown(value: string | readonly string[]): string {
   const values = [value].flat();
   if (values.includes(allValue)) return 'All';
   return values.length > 3

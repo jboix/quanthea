@@ -101,6 +101,19 @@ describe.skipIf(!integrationEnabled)('the checkout incident fixture, with no mod
     expect(chart.markers[0]?.points.map((point) => point.text)).toContain('deploy #481');
   });
 
+  test('a snapshot freezes the incident, and opens with its peak and deploy marker', async () => {
+    const lifetime = '1d' as const;
+    const request = { dashboardId, version: 1, variables: {}, hiddenMarkers: [], lifetime };
+    const taken = await services.snapshots.take(request, 'editor', 'editor-1');
+    expect(taken.time.from).toBe(devIncidentStart().getTime() - 30 * 60_000);
+    const opened = services.snapshots.open(taken.id);
+    const peak = opened.panels['error-rate-peak']?.queries[0]?.frames[0]?.values[1] as number[];
+    expect(Math.max(...peak)).toBeCloseTo(0.084, 2);
+    const chart = opened.panels['error-rate-by-service'];
+    expect(chart?.markers[0]?.points.map((point) => point.text)).toContain('deploy #481');
+    expect(taken.bytes).toBeLessThan(1024 * 1024);
+  });
+
   test('runs through the real HTTP app for a viewer, the way the browser asks', async () => {
     const viewer = { id: 'viewer-1', name: 'Vera', role: 'viewer' as const };
     const app = createApp({

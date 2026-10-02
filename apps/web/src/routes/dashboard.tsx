@@ -6,6 +6,7 @@ import type { SessionLoader } from '../app/session.ts';
 import {
   changeDashboard,
   loadDashboard,
+  loadDashboardSnapshots,
   loadPanelRun,
   loadVariableOptions,
 } from '../features/dashboard/index.ts';
@@ -51,7 +52,8 @@ function screenRoute(loadSession: SessionLoader, path: GuardedPath, api: ApiClie
 }
 
 /**
- * The dashboard routes. The resource routes load only when a panel or a variable menu asks.
+ * The dashboard routes. The resource routes load only when a panel, a variable menu or the
+ * Snapshot menu asks.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -60,6 +62,7 @@ function screenRoute(loadSession: SessionLoader, path: GuardedPath, api: ApiClie
 export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
   const panels = '/d/:dashboardId/v/:version/panels/:panelId';
   const options = '/d/:dashboardId/v/:version/options/:name';
+  const snapshots = '/d/:dashboardId/snapshots';
   return [
     screenRoute(loadSession, '/d/:dashboardId', api),
     screenRoute(loadSession, '/d/:dashboardId/v/:version', api),
@@ -73,5 +76,7 @@ export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): Rou
       loader: guarded(loadSession, options, loadVariableOptions(api)),
       shouldRevalidate: () => false,
     },
+    // Loads again after a snapshot is taken or revoked, so the list stays current.
+    { path: snapshots, loader: guarded(loadSession, snapshots, loadDashboardSnapshots(api)) },
   ];
 }

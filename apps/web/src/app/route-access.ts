@@ -13,6 +13,8 @@ export const routeAccess = {
   '/d/:dashboardId/v/:version': 'viewer',
   '/d/:dashboardId/v/:version/panels/:panelId': 'viewer',
   '/d/:dashboardId/v/:version/options/:name': 'viewer',
+  '/d/:dashboardId/snapshots': 'editor',
+  '/s/:snapshotId': 'viewer',
   '/bin': 'editor',
   '/connectors': 'admin',
   '/connectors/new': 'admin',
@@ -26,6 +28,7 @@ export const routeAccess = {
   '/settings/queries': 'admin',
   '/settings/usage': 'admin',
   '/settings/server': 'admin',
+  '/settings/snapshots': 'admin',
 } as const satisfies Record<string, Role>;
 
 /** A guarded screen path. */

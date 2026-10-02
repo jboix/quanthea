@@ -16,6 +16,10 @@ import {
 } from '@quanthea/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
+import { type Loaded, loaded } from './loaded.ts';
+import { runSnapshotIntent, type SnapshotIntent } from './snapshot-data.ts';
+
+export type { Loaded } from './loaded.ts';
 
 /** What the dashboard screen shows. */
 export interface DashboardData {
@@ -24,11 +28,6 @@ export interface DashboardData {
   /** The version shown, with its spec. */
   readonly version: DashboardVersion;
 }
-
-/** The outcome of a load a fetcher makes: the data, or why it failed. */
-export type Loaded<Value> =
-  | { readonly ok: true; readonly value: Value }
-  | { readonly ok: false; readonly message: string };
 
 /** The URL parameter prefix of a variable. */
 const variablePrefix = 'var-';
@@ -106,29 +105,15 @@ function choicesOf(url: URL) {
 }
 
 /**
- * Awaits a call a fetcher made, keeping any API error as a message.
- *
- * @param call - The pending call.
- * @returns The value, or the message.
- */
-async function loaded<Value>(call: Promise<Value>): Promise<Loaded<Value>> {
-  try {
-    return { ok: true, value: await call };
-  } catch (error) {
-    if (!(error instanceof ApiError)) throw error;
-    return { ok: false, message: error.message };
-  }
-}
-
-/**
- * What the dashboard screen submits, as JSON: show a version in the library or none, or open a
- * new thread on a copy of a version or on the dashboard itself.
+ * What the dashboard screen submits, as JSON: show a version in the library or none, open a new
+ * thread on a copy of a version or on the dashboard itself, or take or revoke a snapshot.
  */
 export type DashboardIntent =
   | { readonly intent: 'pin'; readonly version: number }
   | { readonly intent: 'unpin' }
   | { readonly intent: 'copy'; readonly version: number }
-  | { readonly intent: 'edit' };
+  | { readonly intent: 'edit' }
+  | SnapshotIntent;
 
 /**
  * Opens a new thread on a dashboard and goes to it.
@@ -154,8 +139,29 @@ async function openThread(
 }
 
 /**
- * The action of the dashboard screen: pin a version, then open the dashboard as the library shows
- * it; unpin, and stay; or open a new thread on it. A refusal, such as a failing panel, comes back
+ * Shows a version in the library, then opens the dashboard as the library shows it; or shows none,
+ * and stays.
+ *
+ * @param api - The API client.
+ * @param dashboardId - The dashboard.
+ * @param intent - Pin a version, or unpin.
+ * @returns The redirect after pinning, or the outcome.
+ */
+async function changePin(
+  api: ApiClient,
+  dashboardId: string,
+  intent: Extract<DashboardIntent, { intent: 'pin' | 'unpin' }>,
+): Promise<Response | Loaded<unknown>> {
+  const params = { dashboardId };
+  if (intent.intent === 'unpin') return loaded(api.call(unpinDashboardEndpoint, { params }));
+  const body = { version: intent.version };
+  const outcome = await loaded(api.call(pinDashboardEndpoint, { params, body }));
+  return outcome.ok ? redirect(`/d/${dashboardId}`) : outcome;
+}
+
+/**
+ * The action of the dashboard screen: pin a version or unpin, open a new thread on it, or take or
+ * revoke a snapshot. A refusal, such as a failing panel or a snapshot over the size cap, comes back
  * as a message.
  *
  * @param api - The API client.
@@ -165,15 +171,16 @@ export function changeDashboard(api: ApiClient) {
   return async ({ params, request }: ActionFunctionArgs): Promise<Response | Loaded<unknown>> => {
     const dashboardId = params.dashboardId ?? '';
     const intent = (await request.json()) as DashboardIntent;
-    if (intent.intent === 'copy' || intent.intent === 'edit') {
-      return openThread(api, dashboardId, intent);
+    switch (intent.intent) {
+      case 'snapshot':
+      case 'revoke':
+        return runSnapshotIntent(api, dashboardId, intent);
+      case 'copy':
+      case 'edit':
+        return openThread(api, dashboardId, intent);
+      default:
+        return changePin(api, dashboardId, intent);
     }
-    if (intent.intent === 'unpin') {
-      return loaded(api.call(unpinDashboardEndpoint, { params: { dashboardId } }));
-    }
-    const body = { version: intent.version };
-    const outcome = await loaded(api.call(pinDashboardEndpoint, { params: { dashboardId }, body }));
-    return outcome.ok ? redirect(`/d/${dashboardId}`) : outcome;
   };
 }
 

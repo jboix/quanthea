@@ -32,6 +32,12 @@
   border-color: var(--color-accent);
 }
 
+.frozen {
+  border-style: dashed;
+  background: var(--color-surface-muted);
+  cursor: default;
+}
+
 .chipName {
   font-size: 13px;
   color: var(--color-ink-secondary);

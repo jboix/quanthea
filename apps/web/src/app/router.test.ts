@@ -52,6 +52,9 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'GET /dashboards/:dashboardId/versions/:version': { version: 1, spec: { panels: [] } },
   'POST /panels/run': { time: { from: 0, to: 1 }, queries: [], markers: [], durationMs: 1 },
   'POST /variables/options': { options: [] },
+  'GET /dashboards/:dashboardId/snapshots': { snapshots: [] },
+  'GET /snapshots': { snapshots: [] },
+  'GET /snapshots/:snapshotId': { id: 'sample-snapshotId', spec: { panels: [] }, panels: {} },
   'GET /threads': [],
   'GET /model-providers': {
     providers: [

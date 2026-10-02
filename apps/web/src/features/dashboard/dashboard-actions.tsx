@@ -7,6 +7,7 @@ import { useMediaQuery } from '../../ui/use-media-query.ts';
 import styles from './dashboard.module.css';
 import { History, HistoryPopover } from './dashboard-about.tsx';
 import type { DashboardData, DashboardIntent, Loaded } from './data.ts';
+import { SnapshotMenu, SnapshotPopover } from './snapshot-menu.tsx';
 import { useCanEdit } from './use-can-edit.ts';
 
 /** Below this width the header actions fold into one menu. */
@@ -94,18 +95,21 @@ function ThreadActions({ dashboard, version }: DashboardData) {
 }
 
 /**
- * The header's actions: History, the thread, a new dashboard from this one, and Copy link. On a
- * narrow screen they fold into one menu, with the history listed in it.
+ * The header's actions: History, Snapshot for editors, the thread, a new dashboard from this one,
+ * and Copy link. On a narrow screen they fold into one menu, with the history and the snapshots
+ * listed in it.
  *
  * @param props - The dashboard and the version shown.
  * @returns The actions.
  */
 export function HeaderActions(props: DashboardData) {
   const narrow = useMediaQuery(narrowScreen);
+  const canEdit = useCanEdit();
   if (!narrow) {
     return (
       <div className={styles.headerActions}>
         <HistoryPopover {...props} />
+        {canEdit && <SnapshotPopover {...props} />}
         <ThreadActions {...props} />
         <CopyLinkButton />
       </div>
@@ -118,6 +122,8 @@ export function HeaderActions(props: DashboardData) {
         <CopyLinkButton />
         <h2 className={styles.sideHeading}>History</h2>
         <History {...props} />
+        {canEdit && <h2 className={styles.sideHeading}>Snapshot</h2>}
+        {canEdit && <SnapshotMenu {...props} />}
       </div>
     </Popover>
   );

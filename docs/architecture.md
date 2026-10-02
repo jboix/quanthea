@@ -96,7 +96,8 @@ The two paths that matter:
 │           ├── routes/              thin route modules; compose features
 │           ├── features/
 │           │   ├── thread/          chat stream, plan card, diff and repair cards, composer, @mentions
-│           │   ├── dashboard/       dashboard pane, variables bar, panels, inspector
+│           │   ├── dashboard/       dashboard pane, variables bar, panels, inspector, snapshot menu
+│           │   ├── snapshot/        a snapshot's page, Settings → Snapshots
 │           │   ├── library/         search, connector and tag filters, cards with a live panel
 │           │   ├── bin/
 │           │   ├── connectors/
@@ -195,6 +196,8 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/d/:dashboardId/v/:version`                       | a specific version                                         | viewer   |
 | `/d/:dashboardId/v/:version/panels/:panelId`       | resource route: one panel's run, for fetchers              | viewer   |
 | `/d/:dashboardId/v/:version/options/:name`         | resource route: a variable's options, for fetchers         | viewer   |
+| `/d/:dashboardId/snapshots`                        | resource route: a dashboard's live snapshots, for fetchers | editor   |
+| `/s/:snapshotId`                                   | a snapshot: a version frozen with its data, read-only      | viewer   |
 | `/bin`                                             | Bin: deleted threads, restore; retention, delete (admin)   | editor   |
 | `/connectors`, `/connectors/:connectorId`          | Connectors: list, access level, guardrails, schema         | admin    |
 | `/connectors/new`, `/connectors/:connectorId/edit` | add and edit a connection                                  | admin    |
@@ -203,6 +206,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/settings/auth`                                   | Authentication: sign-in providers, passwords               | admin    |
 | `/settings/users`                                  | Users: invite, roles, disable, reset links, sign out       | admin    |
 | `/settings/usage`                                  | Usage: tokens, cost and views; by model and by person      | admin    |
+| `/settings/snapshots`                              | Snapshots: every live snapshot, revoke one                 | admin    |
 | `/settings/queries`                                | Queries: builders on or off, your own with placeholders    | admin    |
 | `/settings/charts`                                 | Charts: every chart recipe drawn from its sample           | admin    |
 | `/settings/server`                                 | Server: system settings and keys, read-only, with sources  | admin    |
@@ -1511,6 +1515,14 @@ one, and enables them again. Without any admin, it creates the default one.
   link to the thread that edits the dashboard while that thread exists
   (`GET /api/dashboards/:id` returns its `threadId`), or Edit in a new thread when it has none,
   and New from this. Below 720 px the actions fold into one menu that lists the history too.
+- **Snapshots.** Editors take one from the header's Snapshot menu, which sends the version, the
+  time range, the variables and the hidden sets of markers in the address, and a lifetime. The
+  menu lists the dashboard's live snapshots, each with Revoke. The snapshot page (`/s/:id`,
+  `features/snapshot`) draws the frozen runs with the dashboard's panel components
+  (`FrozenCanvas`): the time range and the variables are fixed chips, and the marker toggles still
+  show or hide sets, in the page only. A banner names the dashboard and version, with a link, who
+  took it and when, and until when it lives. Settings → Snapshots lists every live snapshot for
+  admins.
 - Each panel has an info bubble: its connector, language and query text, and the chart recipe
   that draws it. It shows what the saved panel runs, so a viewer can trace a number to its source.
 - Each panel loads its run through a fetcher from a resource route

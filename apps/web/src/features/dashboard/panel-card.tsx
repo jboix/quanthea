@@ -182,25 +182,32 @@ function PlanNote({ mark }: { readonly mark: PanelPlanMark }) {
   );
 }
 
+/** Props of {@link PanelFrame}. */
+type PanelFrameProps = Omit<PanelCardProps, 'target' | 'onRun'> & {
+  /** The run to show, if it has finished. */
+  readonly run: Loaded<PanelRun> | undefined;
+  /** Whether a run is loading. */
+  readonly loading: boolean;
+};
+
 /**
- * One panel on the grid: its title and its view, loading and failing on its own.
+ * One panel on the grid, around a run it is given: its title, any plan mark, and its view.
  *
- * @param props - The panel, the spec, what to run, the run callback, its selection, and the sets of
- *   markers the viewer hid.
+ * @param props - The panel, the spec, the run, its selection and marks, and the hidden sets of
+ *   markers.
  * @returns The panel card.
  */
-export function PanelCard({
+export function PanelFrame({
   panel,
   spec,
-  target,
-  onRun,
+  run,
+  loading,
   selected = false,
   marked = false,
   onSelect,
   planMark,
   hiddenMarkers,
-}: PanelCardProps) {
-  const { run, loading } = usePanelRun(panel, target, onRun);
+}: PanelFrameProps) {
   const { x, y, w, h } = panel.grid;
   const place = {
     '--column': `${x + 1} / span ${w}`,
@@ -228,6 +235,18 @@ export function PanelCard({
       />
     </section>
   );
+}
+
+/**
+ * One panel on the grid: its title and its view, loading and failing on its own.
+ *
+ * @param props - The panel, the spec, what to run, the run callback, its selection, and the sets of
+ *   markers the viewer hid.
+ * @returns The panel card.
+ */
+export function PanelCard({ target, onRun, ...props }: PanelCardProps) {
+  const { run, loading } = usePanelRun(props.panel, target, onRun);
+  return <PanelFrame {...props} run={run} loading={loading} />;
 }
 
 /**

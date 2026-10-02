@@ -22,6 +22,7 @@ import { querySettingsRoute } from '../routes/settings-queries.tsx';
 import { serverSettingsRoute } from '../routes/settings-server.tsx';
 import { usageSettingsRoute } from '../routes/settings-usage.tsx';
 import { usersSettingsRoute } from '../routes/settings-users.tsx';
+import { snapshotRoute, snapshotsSettingsRoute } from '../routes/snapshot.tsx';
 import { threadRoutes } from '../routes/thread.tsx';
 import { ErrorPage } from './error-page.tsx';
 import { AppLayout, LoadingScreen } from './layout.tsx';
@@ -58,6 +59,7 @@ function settingsRoute({ loadSession, api }: RouteDependencies): RouteObject {
       chartSettingsRoute(loadSession, api),
       querySettingsRoute(loadSession, api),
       usageSettingsRoute(loadSession, api),
+      snapshotsSettingsRoute(loadSession, api),
       usersSettingsRoute(loadSession, api),
       authSettingsRoute(loadSession, api),
       serverSettingsRoute(loadSession, api),
@@ -82,6 +84,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
     libraryRoute(loadSession, api),
     accountRoute(loadSession, api),
     ...dashboardRoutes(loadSession, api),
+    snapshotRoute(loadSession, api),
     binRoute(loadSession, api),
     connectorRoutes(loadSession, api),
     settingsRoute({ loadSession, api }),
