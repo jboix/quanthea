@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "$schema": "https://biomejs.dev/schemas/{{versions.biome}}/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -50,7 +50,6 @@
       "correctness": {
         "noUnusedImports": "error",
         "noUnusedVariables": "error",
-        "useExhaustiveDependencies": "error",
         "noUndeclaredDependencies": "error"
       },
       "suspicious": {
@@ -81,27 +80,23 @@
           "level": "error",
           "options": {
             "deniedGlobals": {
-              "Function": "No model-written code runs. Use a named formatter instead.",
-              "eval": "No model-written code runs. Use a named formatter instead."
+              "Function": "quanthea runs no code built from text.",
+              "eval": "quanthea runs no code built from text."
             }
           }
         }
       },
-      "security": {
-        "noDangerouslySetInnerHtml": "error",
-        "noGlobalEval": "error"
-      },
       "nursery": {
         "noImpliedEval": "error"
+      },
+      "security": {
+        "noGlobalEval": "error"
       }
-    },
-    "domains": {
-      "react": "recommended"
     }
   },
   "overrides": [
     {
-      "includes": ["**/*.config.ts", "**/*.config.js", "**/*.config.mjs", ".remarkrc.mjs"],
+      "includes": ["src/plugin.ts"],
       "linter": {
         "rules": {
           "style": {
@@ -111,60 +106,7 @@
       }
     },
     {
-      "includes": ["scripts/remark-check-formatted.mjs", "examples/*/src/plugin.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noDefaultExport": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["packages/create-plugin/src/**", "!**/*.test.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedGlobals": {
-              "level": "error",
-              "options": {
-                "deniedGlobals": {
-                  "Function": "No model-written code runs. Use a named formatter instead.",
-                  "eval": "No model-written code runs. Use a named formatter instead.",
-                  "Bun": "The generator runs on Node, from npm create: use node: modules."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": [
-        "apps/server/src/connectors/**",
-        "!apps/server/src/connectors/_shared/http.ts",
-        "!**/*.test.ts",
-        "!**/test/**"
-      ],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedGlobals": {
-              "level": "error",
-              "options": {
-                "deniedGlobals": {
-                  "Function": "No model-written code runs. Use a named formatter instead.",
-                  "eval": "No model-written code runs. Use a named formatter instead.",
-                  "fetch": "Connectors call HTTP through createHttpClient from the connector kit."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["**/*.test.ts", "**/*.test.tsx", "**/test/**"],
+      "includes": ["test/**"],
       "linter": {
         "rules": {
           "complexity": {

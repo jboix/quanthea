@@ -103,14 +103,15 @@ old one as `QUANTHEA_SECRET_KEY_PREVIOUS`, restart once, then remove the old one
 
 ## Layout
 
-| Path                  | What it is                                                   |
-| --------------------- | ------------------------------------------------------------ |
-| `apps/server`         | Bun + Hono API, SQLite, serves the built SPA.                |
-| `apps/web`            | React SPA, React Router in data mode, Vite.                  |
-| `packages/shared`     | API contracts and roles, shared by both apps.                |
-| `packages/plugin-kit` | The connector kit, on npm as `@quanthea/plugin-kit`.         |
-| `examples/`           | An example connector plugin: read-only SQLite files.         |
-| `docs`                | Architecture, dashboard spec, brand, contributing, security. |
+| Path                     | What it is                                                   |
+| ------------------------ | ------------------------------------------------------------ |
+| `apps/server`            | Bun + Hono API, SQLite, serves the built SPA.                |
+| `apps/web`               | React SPA, React Router in data mode, Vite.                  |
+| `packages/shared`        | API contracts and roles, shared by both apps.                |
+| `packages/plugin-kit`    | The connector kit, on npm as `@quanthea/plugin-kit`.         |
+| `packages/create-plugin` | The plugin generator: `npm create @quanthea/plugin`.         |
+| `examples/`              | An example connector plugin: read-only SQLite files.         |
+| `docs`                   | Architecture, dashboard spec, brand, contributing, security. |
 
 [`AGENTS.md`](AGENTS.md) holds the conventions for anyone, human or agent, writing code here.
 

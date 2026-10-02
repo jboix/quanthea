@@ -1,0 +1,17 @@
+{
+  "name": "@quanthea/create-plugin",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Creates a quanthea plugin project: npm create @quanthea/plugin.",
+  "type": "module",
+  "scripts": {
+    "dist": "bun scripts/dist.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "node-plop": "^0.32.3"
+  },
+  "devDependencies": {
+    "@quanthea/plugin-kit": "workspace:*"
+  }
+}

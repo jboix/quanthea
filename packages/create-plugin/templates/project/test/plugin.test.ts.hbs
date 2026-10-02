@@ -1,0 +1,23 @@
+import { expect, test } from 'bun:test';
+import { createTestKit, testConnectorConformance } from '@quanthea/plugin-kit/testing';
+import plugin, { kitVersion } from '../src/plugin.ts';
+
+const [kind] = plugin(createTestKit()).connectors;
+if (!kind) throw new Error('The plugin adds no connector kind.');
+
+test('exports the kit version it is built for', () => {
+  expect(kitVersion).toBe(0);
+});
+
+// The tests every connector kind passes. With live: false, only the static checks run: the ones
+// quanthea runs when it installs and loads the plugin. Set live to true once CI has a source to
+// query, and make the fixture's queries ones that source answers and refuses.
+testConnectorConformance(kind, {
+  config: { url: 'https://example.com' },
+  secret: {},
+  query: {{{text.query}}},
+  invalidQuery: {{{text.invalidQuery}}},
+  sampleField: { entity: 'example', field: 'id' },
+  timeRange: { from: new Date('2026-01-01T00:00:00Z'), to: new Date('2026-01-02T00:00:00Z') },
+  live: false,
+});

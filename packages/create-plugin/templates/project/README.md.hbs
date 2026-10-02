@@ -1,0 +1,85 @@
+# {{{name}}}
+
+A [quanthea](https://github.com/jboix/quanthea) plugin. It adds the connector kind
+`{{{kind}}}`, "{{{displayName}}}", which speaks {{{text.title}}}.
+
+## Develop
+
+```sh
+bun install
+bun run verify     # Biome, tsc, the tests and the bundle
+bun test           # the conformance suite and your tests
+bun run build      # dist/plugin.js
+```
+
+`src/plugin.ts` holds the kind and its connection. The connection answers with empty results:
+replace `test`, `describe`, `sampleValues` and `execute` with calls to your source, and the
+settings and credential schemas with what it needs. The conformance suite in
+`test/plugin.test.ts` runs the static checks quanthea runs at install and load; set its `live` to
+`true` once CI has a source to query.
+
+[`quanthea-plugin-sqlite`](https://github.com/jboix/quanthea/tree/main/examples/quanthea-plugin-sqlite)
+is a complete plugin to compare with: a real source, the live checks and read-only safety.
+
+## How a plugin works
+
+- **One bundled ES module.** `bun run build` writes `dist/plugin.js` with everything the plugin
+  needs. quanthea installs no dependency and runs no script of a plugin. Pure JavaScript only: a
+  native module cannot work, since quanthea's image runs on amd64 and arm64.
+- **The entry.** `src/plugin.ts` exports `kitVersion` and, as default, a function that receives
+  the live kit and returns what the plugin adds: `{ connectors: [...] }`.
+- **The kit is quanthea's own.** Build the schemas with `kit.z` and throw `kit.ConnectorError`.
+  Import only types from `@quanthea/plugin-kit`: quanthea passes the live kit at load, so the
+  bundle carries none of its code.
+- **The manifest.** `package.json` holds the `quanthea` field and `"files": ["dist"]`, so the
+  tarball holds the manifest and the bundle. Keep the `quanthea-plugin` keyword: it is how people
+  find plugins on npm.
+- **The query.** quanthea binds every variable before `execute` runs. Never build query text from
+  a value.
+
+[Publishing a plugin](https://github.com/jboix/quanthea/blob/main/docs/connectors.md#publishing-a-plugin)
+in quanthea's docs covers each of these in detail.
+
+## Try it in quanthea
+
+```sh
+bun pm pack
+quanthea plugin install ./{{{tarball}}}
+```
+
+`quanthea plugin install` prints the pin to paste into the configuration file's `plugins.pins`.
+Restart quanthea and add a connector of the kind "{{{displayName}}}".
+
+In Docker, build a derived image:
+
+```dockerfile
+FROM ghcr.io/jboix/quanthea
+COPY {{{tarball}}} /tmp/
+RUN quanthea plugin install /tmp/{{{tarball}}}
+```
+
+## Publish
+
+The Publish workflow publishes to npm when you publish a GitHub release whose tag is `v` and the
+version in `package.json`, such as `v0.1.0`. It uses npm trusted publishing, which signs the
+package with provenance and needs no token.
+
+1. Publish the first version by hand: `npm login`, then `npm publish --access public`.
+2. On npmjs.com, open the package's Settings, then Trusted publishing, and add GitHub Actions with
+   your repository and the workflow `publish.yml`.
+3. For each next version: set `version` in `package.json`, merge, then publish a GitHub release
+   tagged `v<version>`.
+
+People then install it with `quanthea plugin install {{{name}}}@<version>`.
+
+## Kit versions
+
+This plugin is built for kit version 0, the kit's beta, and depends on
+`@quanthea/plugin-kit@{{{kit}}}`. While the kit is in 0.x, a minor version adds to it and a patch
+version fixes it. npm's caret takes the fixes; moving to a new minor version is your choice, and
+Dependabot opens a pull request for it. At 1.0, the kit's `kitVersion` becomes 1, and quanthea
+stops loading plugins built for kit version 0.
+
+## Licence
+
+MIT

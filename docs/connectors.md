@@ -187,8 +187,15 @@ kinds in that order.
 ## Publishing a plugin
 
 A kind can also ship outside quanthea, as a plugin: an npm package the admin installs with
-`quanthea plugin install`. [`examples/quanthea-plugin-sqlite`](../examples/quanthea-plugin-sqlite)
-is a complete one to start from.
+`quanthea plugin install`. Start one with the generator, which asks for its name, kind and query
+language and writes a project that builds, passes the static checks and installs:
+
+```sh
+npm create @quanthea/plugin
+```
+
+[`examples/quanthea-plugin-sqlite`](../examples/quanthea-plugin-sqlite) is a complete plugin to
+compare with: a real source, the live checks and read-only safety.
 
 - **The kit.** Install [`@quanthea/plugin-kit`](https://www.npmjs.com/package/@quanthea/plugin-kit)
   from npm as a development dependency: `bun add -d @quanthea/plugin-kit@^0.1.0`. It holds the

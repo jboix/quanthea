@@ -1,0 +1,117 @@
+/**
+ * {{{displayName}}}: a quanthea plugin. It adds the connector kind "{{{kind}}}", which speaks
+ * {{{text.title}}}.
+ *
+ * A plugin is one bundled module. It exports the kit version it is built for and, as default, a
+ * function that receives the live kit and returns what the plugin adds. The connection below
+ * answers with empty results: replace each method with calls to your source.
+ */
+import type {
+  BoundQuery,
+  ConnectorInstance,
+  ConnectorKit,
+  ExecutionContext,
+  Frame,
+  PluginContributions,
+} from '@quanthea/plugin-kit';
+
+/** The kit version this plugin is built for. */
+export const kitVersion = 0;
+
+/** The kind's name in the interface. */
+const displayName = {{{tsString displayName}}};
+
+/**
+ * How to query this source, for the agent: one line per shape of answer a panel needs, with a
+ * short example. Keep it under 8 KB.
+ */
+const queryGuide = `${displayName} answers {{{text.title}}}.
+{{{text.guide}}}`;
+
+/** A connector's settings, as an admin enters them in the form. */
+interface Settings {
+  /** Where the source answers. */
+  readonly url: string;
+}
+
+/**
+ * Runs a bound query. quanthea has bound every variable already: never build query text here.
+ *
+ * @param kit - The kit.
+ * @param query - The bound query.
+ * @param context - The time range, the row limit and the cancellation signal.
+ * @returns The result, as a frame.
+ */
+function execute(kit: ConnectorKit, query: BoundQuery, context: ExecutionContext): Frame {
+  if (query.language !== '{{{language}}}')
+    throw new kit.ConnectorError('rejected', `${displayName} runs {{{language}}} only.`);
+  if (context.signal.aborted)
+    throw new kit.ConnectorError('timeout', 'The query was cancelled before it started.');
+  const frame = kit.createFrameBuilder({
+    refId: context.refId,
+    fields: [],
+    maxRows: context.maxRows,
+  });
+  return frame.build(0);
+}
+
+/**
+ * A connection to one configured source. Each method answers with an empty result for now.
+ *
+ * @param kit - The kit.
+ * @param settings - The connector's settings.
+ * @returns The connection.
+ */
+function connect(kit: ConnectorKit, settings: Settings): ConnectorInstance {
+  return {
+    test: async () => ({
+      ok: false,
+      latencyMs: 0,
+      message: `Not connected to ${settings.url} yet: write test() in src/plugin.ts.`,
+      readOnly: null,
+    }),
+    describe: async () => ({ entities: [] }),
+    sampleValues: async () => ({ values: [], complete: true }),
+    execute: async (query, context) => [execute(kit, query, context)],
+    close: async () => {},
+  };
+}
+
+/**
+ * The plugin: what it adds to quanthea.
+ *
+ * @param kit - The live kit quanthea passes at load.
+ * @returns Its contributions: one connector kind.
+ */
+export default function plugin(kit: ConnectorKit): PluginContributions {
+  const connectors = [
+    kit.defineConnector({
+      kind: '{{{kind}}}',
+      displayName,
+      language: '{{{language}}}',
+{{#if sql}}
+      dialect: '{{{dialect}}}',
+{{/if}}
+{{#if ansi}}
+      placeholders: '{{{placeholders}}}',
+      rowLimit: '{{{rowLimit}}}',
+{{/if}}
+      queryGuide,
+      // Shown as a form when an admin adds a connector. Credentials go in secretSchema: quanthea
+      // seals them and never shows them again.
+      configSchema: kit.z.object({
+        url: kit.z.url().meta({
+          title: 'URL',
+          description: 'Where the source answers.',
+          examples: ['https://example.com'],
+        }),
+      }),
+      secretSchema: kit.z.object({
+        token: kit.z.string().optional().meta({ title: 'Token' }),
+      }),
+      describeTarget: (config) => config.url,
+      open: ({ config }) => connect(kit, config),
+    }),
+  ];
+  return { connectors };
+}

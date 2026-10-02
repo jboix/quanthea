@@ -21,6 +21,10 @@
       "ignoreDependencies": ["@semantic-release/exec", "semantic-release-monorepo"],
       "project": ["src/**/*.ts", "scripts/**/*.ts"]
     },
+    "packages/create-plugin": {
+      "entry": ["src/cli.ts", "scripts/*.ts"],
+      "project": ["src/**/*.ts", "scripts/**/*.ts"]
+    },
     "examples/quanthea-plugin-sqlite": {
       "entry": ["src/plugin.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]

@@ -672,7 +672,7 @@ same kit serves connector plugins. It has four entry points:
   shared; shared may import nothing else from the kit (rule `shared-uses-the-kit-contract-only`).
   It is a workspace entry: plugins get the types from `.`.
 
-The kit is the one package published to npm. Its workspace `package.json` points at the sources
+The kit is one of the two packages published to npm, with the plugin generator. Its workspace `package.json` points at the sources
 and stays private; `packages/plugin-kit/scripts/dist.ts` builds `dist/`, the folder npm publishes:
 `.` and `./testing` bundled by Bun, their declarations from `tsc`, and a generated `package.json`
 with zod as the one dependency. `bun run check:package` builds it and runs publint and attw on it. Then
@@ -682,6 +682,22 @@ as an outside author would. That install reads zod, TypeScript and the Bun types
 registry, or from Bun's cache.
 The kit has its own version, cut by semantic-release from the commits that changed it (see
 Releases), and its major version equals `kitVersion`: 0 during the beta.
+
+The plugin generator, `packages/create-plugin` (`@quanthea/create-plugin`), is what
+`npm create @quanthea/plugin` runs. It asks for the package name, the kind's identifier and display
+name, its query language and, for SQL, the dialect and its styles (`src/questions.ts`); every
+question has a flag, and `--yes` takes the defaults. node-plop writes the project from the
+Handlebars templates in `templates/` (`src/generate.ts`): a logic-free connector kind whose
+connection answers with empty results, its conformance test with the live checks off, Biome, tsc,
+CI and Publish workflows and a README. It runs on Node, so its sources use no Bun API (a Biome
+rule), and it takes the naming rules, languages and dialects from the kit's contract entry, bundled
+into its `cli.js`. Generated code is already laid out as Biome formats it, so a new project passes
+its own lint. `scripts/dist.ts` builds `dist/` like the kit's, with the tool versions and the
+newest kit version written into `defaults.json`; at run time the kit range comes from npm, with that
+version as the fallback. In `check:package`, `scripts/generated.ts` runs the built `cli.js` with
+Node once per query language and once for a built-in SQL dialect, with the packed kit, and each
+project installs and passes its own `bun run verify`; the ansi one installs with
+`quanthea plugin install`.
 
 `connectors/_shared/index.ts` re-exports the live kit and adds what only built-in kinds and the
 binders use, quanthea's policy lists (`policies.ts`): `searchRatioScripts`, `mongodbRefusedKeys`,

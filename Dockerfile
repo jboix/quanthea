@@ -18,6 +18,7 @@ COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
+COPY packages/create-plugin/package.json packages/create-plugin/package.json
 COPY examples/quanthea-plugin-sqlite/package.json examples/quanthea-plugin-sqlite/package.json
 COPY dev/package.json dev/package.json
 # The root prepare script installs git hooks, which an image has no use for.
@@ -36,6 +37,7 @@ COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
+COPY packages/create-plugin/package.json packages/create-plugin/package.json
 COPY examples/quanthea-plugin-sqlite/package.json examples/quanthea-plugin-sqlite/package.json
 COPY dev/package.json dev/package.json
 RUN bun install --frozen-lockfile --ignore-scripts --production --filter @quanthea/server
