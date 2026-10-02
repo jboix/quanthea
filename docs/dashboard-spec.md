@@ -159,7 +159,8 @@ type Annotation = {
   id: string                                // slug, e.g. "deploys"; charts name it in `markers`
   label: string                             // shown in each marker's tooltip, e.g. "deploy"
   color?: MarkerColor                       // default '@ink'
-  query: QueryTemplate                      // must return a time field and a text field
+  query: QueryTemplate                      // must return a time field and a text field; binds
+                                            // the variables like a panel's query
   timeField: string
   textField: string
 }
@@ -184,6 +185,8 @@ they differ from the sketch above, the schemas win:
 - A query-backed variable's `source` has no `refId`.
 - Time expressions are `now`, `now-<n><unit>` (units `s m h d w M y`) or an ISO 8601 timestamp
   with an offset.
+- An annotation's query binds the dashboard's variables like a panel's query, so a set can mark
+  only the deploys of `$service`. Each run binds the values the viewer chose.
 - An annotation's `color` is a theme token (`@ink`, `@palette.0` to `@palette.5`), replaced by
   the renderer like the option's tokens.
 - An "All" choice of a query-backed variable with `includeAll` has the value `$__all`.

@@ -132,6 +132,34 @@ describe('sets of markers', () => {
     });
   });
 
+  test('binds the variables of a set, from its filters or its query, like a panel', () => {
+    const filters = [{ field: 'service', value: '$service' }];
+    const query = `${incidents.data.query} AND service IN (:service)`;
+    const marked = markedWith(
+      { ...deploys, filters },
+      { ...incidents, data: { ...incidents.data, query } },
+    );
+    expect(marked.annotations.map((annotation) => annotation.query)).toMatchObject([
+      {
+        sql: 'SELECT "deployed_at" AS time, "version"::text AS text FROM "deploys" WHERE "deployed_at" BETWEEN :__from AND :__to AND "service" IN (:service) ORDER BY 1',
+      },
+      { sql: query },
+    ]);
+    expect(issuesOf(marked)).toEqual([]);
+  });
+
+  test('reports a variable the dashboard does not declare, in a filter or a query', () => {
+    const query = `${incidents.data.query} AND team = :team`;
+    const marked = markedWith(
+      { ...deploys, filters: [{ field: 'service', value: '$nope' }] },
+      { ...incidents, data: { ...incidents.data, query } },
+    );
+    expect(issuesOf(marked)).toEqual([
+      'annotations[0].query.sql: Unknown variables: :nope.',
+      'annotations[1].query.sql: Unknown variables: :team.',
+    ]);
+  });
+
   test('says when an edit names a set or a panel wrongly', () => {
     const built = specOf(undefined, firstBuild);
     const failing = (input: Record<string, unknown>) => () =>

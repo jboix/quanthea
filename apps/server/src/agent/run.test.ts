@@ -439,6 +439,25 @@ describe('an agent run', () => {
     expect(services.threads.get(threadId).dashboardId).toBeNull();
   });
 
+  test('hands back markers filtered by a variable the dashboard lacks, at the set', async () => {
+    services.threads.proposePlan(threadId, plan, true);
+    const filters = [{ field: 'service', value: '$service' }];
+    const deploys = { connector: 'events', table: 'events', time: 'time', text: 'service' };
+    const marked = {
+      ...buildEdit,
+      markers: [{ id: 'deploys', label: 'deploy', ...deploys, filters }],
+    };
+    const stream = await chat(
+      agentWith({ tool: 'edit_dashboard', input: marked }, { text: 'I will declare it.' }),
+      userMessage('u1', 'Build it'),
+    );
+    expect(stream).toContain('The dashboard is invalid.');
+    expect(stream).toContain(
+      '"path":"markers[0]","message":"Unknown variables: :service. The dashboard has no variables',
+    );
+    expect(services.threads.get(threadId).dashboardId).toBeNull();
+  });
+
   test('does not offer edit_dashboard before a plan is approved', async () => {
     const agent = agentWith(
       { tool: 'edit_dashboard', input: buildEdit },

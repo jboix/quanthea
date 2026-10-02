@@ -12,7 +12,7 @@ import {
   editRequestSchemaFor,
 } from '../dashboards/panels/index.ts';
 import { QueryError } from '../dashboards/queries/index.ts';
-import { markerIssues, panelProblems } from './panel-problems.ts';
+import { atMarkerSets, markerIssues, panelProblems } from './panel-problems.ts';
 import type { RunContext } from './run-context.ts';
 import { providerSchema } from './tool-schema.ts';
 import { type WriteResult, writeVersion } from './write-version.ts';
@@ -97,14 +97,18 @@ function edited(context: RunContext, current: DashboardSpec | undefined, request
 
 /**
  * The problems of a spec that are not about views: views are completed once the queries have run.
+ * Those of a set of markers the edit sets are at that set, such as `markers[1]`.
  *
  * @param context - The run.
  * @param spec - The spec.
+ * @param request - The edit, for its sets of markers.
  * @returns The problems.
  */
-function problemsBeforeRun(context: RunContext, spec: DashboardSpec) {
+function problemsBeforeRun(context: RunContext, spec: DashboardSpec, request: EditRequest) {
   const checked = context.dashboards.check(spec);
-  return checked.ok ? [] : checked.issues.filter((issue) => !/(^|\.)view(\.|$)/.test(issue.path));
+  if (checked.ok) return [];
+  const issues = checked.issues.filter((issue) => !/(^|\.)view(\.|$)/.test(issue.path));
+  return atMarkerSets(spec, request.markers, issues);
 }
 
 /**
@@ -119,7 +123,7 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
   const current = currentSpec(context);
   const result = edited(context, current, request);
   if ('error' in result) return { ok: false, error: result.error };
-  const issues = problemsBeforeRun(context, result.spec);
+  const issues = problemsBeforeRun(context, result.spec, request);
   if (issues.length > 0) return { ok: false, error: 'The dashboard is invalid.', issues };
   const tests = await context.dashboards.testRun(result.spec);
   const completion = completeCharts(result.spec, result.charts as ChartChoices, tests);
@@ -146,7 +150,7 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
 function editDashboardTool(context: RunContext) {
   return tool({
     description:
-      'Change the dashboard in one new version: set its title, time range and variables; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); remove panels; add, replace or remove sets of markers (deploys, incidents) by id. The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work; otherwise you get the errors to fix.',
+      'Change the dashboard in one new version: set its title, time range and variables; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); remove panels; add, replace or remove sets of markers (deploys, incidents) by id, filtered by a variable like panels (the deploys of $service). The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work; otherwise you get the errors to fix.',
     inputSchema: providerSchema(editRequestSchemaFor(context.queries, context.charts)),
     execute: (request) => editDashboard(context, request),
   });

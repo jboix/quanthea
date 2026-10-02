@@ -171,4 +171,41 @@ describe.skipIf(!integrationEnabled)('query builders over the dev data', () => {
       outcomes.map((outcome) => ({ panel: outcome.panel, errors: [], rows: true })),
     );
   });
+
+  test('marks only the deploys of the service the viewer chose', async () => {
+    const names = ['checkout-svc', 'payments-svc'];
+    const builders = everyBuilder();
+    const service = { kind: 'custom', name: 'service', options: names, default: names[0] };
+    const { spec, charts } = applyEdit(
+      undefined,
+      editRequestSchema.parse({
+        title: 'Deploys by service',
+        time: builders.time,
+        variables: [...(builders.variables ?? []), service],
+        panels: builders.panels.filter((panel) => panel.title === 'Orders'),
+        markers: [
+          {
+            id: 'deploys',
+            label: 'deploy',
+            connector: shop,
+            table: 'deploys',
+            time: 'deployed_at',
+            text: 'service',
+            filters: [{ field: 'service', value: '$service' }],
+          },
+        ],
+        summary: 'deploys of $service',
+      }),
+    );
+    const completed = completeCharts(spec, charts, await services.dashboards.testRun(spec));
+    const { id } = services.dashboards.create(completed.spec, undefined, 'editor-1');
+    const marked = async (variables: Record<string, string>) => {
+      const target = { dashboardId: id, version: 1, variables };
+      const [markers] = (await services.dashboards.runPanel(target, 'orders', 'editor')).markers;
+      expect(markers?.error).toBeNull();
+      return new Set(markers?.points.map((point) => point.text));
+    };
+    expect(await marked({})).toEqual(new Set(['checkout-svc']));
+    expect(await marked({ service: 'payments-svc' })).toEqual(new Set(['payments-svc']));
+  });
 });

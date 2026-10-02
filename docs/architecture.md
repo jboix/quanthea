@@ -286,8 +286,9 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
    (`$__all`) and a missing default run the variable's source query for the options.
 5. Each query goes to `query/`, which binds it, applies the connector's guardrails, runs it with a
    timeout and caches the frames for 15 s by connector, bound query and time range. The chart's
-   markers run their annotation queries the same way and come back, per set with its label and
-   colour, as `{time, text}` points.
+   markers run their annotation queries the same way, with the same variables, and come back, per
+   set with its label and colour, as `{time, text}` points. A change of variable runs the panel
+   again, its markers with it.
 6. The browser receives `{ time, queries: [{ refId, frames, error }], markers, durationMs }`, and
    `charts/` builds the ECharts option.
 
@@ -562,6 +563,12 @@ directly onto an ECharts `dataset`.
   when every time chart has it. Each set an edit sets must show on a chart, follow the time range
   and run; otherwise the write fails with the issue at that set (`markers[1]`). The prompt asks
   for markers, not a panel of events, when a question asks whether something followed an event.
+- **Markers that follow the variables.** A set uses the dashboard's variables as a panel does: a
+  table set's filter takes a value such as `$service`, which becomes a bound `:service`, and a raw
+  query names them in its language. The binders bind them at run time, never into the query text,
+  so a dashboard with a service variable marks only the deploys of the chosen service. The spec
+  check reports a variable the dashboard does not declare at the set that names it, with the
+  dashboard's variables, and the test run runs each set with the variables' defaults.
 
 The edit's schema is the tool's input schema, so providers that constrain tool input keep the model
 to it. Providers get it without array length bounds (`agent/tool-schema.ts`): Gemini refuses a

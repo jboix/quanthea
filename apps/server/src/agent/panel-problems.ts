@@ -75,3 +75,50 @@ export function markerIssues(
     setIssues(spec, set.id, tests).map((message) => ({ path: `markers[${index}]`, message })),
   );
 }
+
+/** An issue, at its path. */
+interface Issue {
+  /** Where it is, such as `markers[1]`. */
+  readonly path: string;
+  /** What is wrong. */
+  readonly message: string;
+}
+
+/**
+ * Names the dashboard's variables, for a set of markers whose query names one the dashboard lacks.
+ *
+ * @param spec - The spec the edit makes.
+ * @returns The sentence.
+ */
+function variablesHint(spec: DashboardSpec): string {
+  const names = spec.variables.map((variable) => `$${variable.name}`);
+  return names.length === 0
+    ? 'The dashboard has no variables: declare it in "variables", or filter on a value.'
+    : `The dashboard's variables are ${names.join(', ')}: use one, or declare it in "variables".`;
+}
+
+/**
+ * The spec's issues, each issue of a set the edit sets moved to that set's path (`markers[1]`), so
+ * the model fixes the set it sent. An unknown variable there comes with the dashboard's variables.
+ * Other issues stay as they are.
+ *
+ * @param spec - The spec the edit makes.
+ * @param sets - The sets the edit sets, in its order.
+ * @param issues - The spec's issues.
+ * @returns The issues.
+ */
+export function atMarkerSets(
+  spec: DashboardSpec,
+  sets: readonly { readonly id: string }[],
+  issues: readonly Issue[],
+): Issue[] {
+  return issues.map((issue) => {
+    const annotation = /^annotations\[(\d+)\]/.exec(issue.path)?.[1];
+    const id = annotation === undefined ? undefined : spec.annotations[Number(annotation)]?.id;
+    const index = sets.findIndex((set) => set.id === id);
+    if (index < 0) return issue;
+    const unknown = /^Unknown variable/.test(issue.message);
+    const message = unknown ? `${issue.message} ${variablesHint(spec)}` : issue.message;
+    return { path: `markers[${index}]`, message };
+  });
+}
