@@ -60,6 +60,49 @@ export function themeColors(theme: ChartTheme): Record<string, string> {
   };
 }
 
+/**
+ * The relative luminance of a colour, as WCAG defines it.
+ *
+ * @param channels - Its red, green and blue, from 0 to 255.
+ * @returns The luminance, from 0 (black) to 1 (white).
+ */
+function luminanceOf(channels: readonly number[]): number {
+  const [red = 0, green = 0, blue = 0] = channels.map((value) => {
+    const share = value / 255;
+    return share <= 0.03928 ? share / 12.92 : ((share + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+/**
+ * The WCAG contrast ratio of two hex colours.
+ *
+ * @param first - One colour, such as `#2a55c9`.
+ * @param second - The other.
+ * @returns The ratio, from 1 to 21; 0 when either is not a hex colour.
+ */
+function contrastOf(first: string, second: string): number {
+  const [a, b] = [channelsOf(first), channelsOf(second)];
+  if (!a || !b) return 0;
+  const [light = 0, dark = 0] = [luminanceOf(a), luminanceOf(b)].sort((x, y) => y - x);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+/**
+ * The text colour that reads on a fill: the theme's ink or its surface, whichever contrasts more,
+ * so a label reads on every series colour in both schemes.
+ *
+ * @param fill - A theme token such as `@palette.4`, or a hex colour.
+ * @param theme - The theme.
+ * @returns The ink or the surface colour; the surface when the fill is no hex colour.
+ */
+export function textOn(fill: string, theme: ChartTheme): string {
+  const color = themeColors(theme)[fill] ?? fill;
+  return contrastOf(theme.ink, color) > contrastOf(theme.surface, color)
+    ? theme.ink
+    : theme.surface;
+}
+
 /** What replacing tokens needs. */
 interface TokenContext {
   /** The colours by theme token. */

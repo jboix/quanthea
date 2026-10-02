@@ -1497,8 +1497,9 @@ one, and enables them again. Without any admin, it creates the default one.
   and marker labels are canvas text too. A test holds this.
 - Annotation markers are dashed vertical lines on the first series, labelled `14:02 deploy #481`,
   in the colour of their set. A set's colour is a theme token (`@ink`, `@palette.0` to
-  `@palette.5`), so it follows the scheme. Hovering a line shows the set's label and the marker in
-  a rich-text tooltip.
+  `@palette.5`), so it follows the scheme. A label's text takes the ink or the surface colour,
+  whichever contrasts more with its set's colour, so it reads on every colour in both schemes.
+  Hovering a line shows the set's label and the marker in a rich-text tooltip.
 - Stat and table panels are plain React components, not ECharts. They read the same dataset as
   charts, so a column has one name whichever view shows it: a stat reduces a column (`last`,
   `first`, `max`, `min`, `mean`, `sum`, `count`); a table reads columns by name, labels of range

@@ -8,6 +8,7 @@ import { isObject, type Loose } from './loose.ts';
 import type { Prepared } from './prepare/types.ts';
 import { allColumns } from './roles.ts';
 import type { ChartTheme } from './theme.ts';
+import { textOn } from './tokens.ts';
 
 /** Series types that draw one item per category rather than points on axes. */
 const itemTypes: ReadonlySet<unknown> = new Set(['pie', 'funnel', 'gauge']);
@@ -146,17 +147,20 @@ export function expandSeries(prepared: Prepared): Loose[] {
 
 /**
  * The line of one marker: at its time, in its set's colour, labelled with its time and text, and
- * with its set's label in the tooltip. The colour is a theme token, replaced with the rest.
+ * with its set's label in the tooltip. The colour is a theme token, replaced with the rest. The
+ * label's text takes the theme's ink or surface, whichever reads on that colour.
  *
  * @param marker - The set of markers.
  * @param point - The marker.
  * @param time - Formats its time.
+ * @param theme - The chart theme.
  * @returns The `markLine` data item.
  */
 function markerLine(
   marker: MarkerOutcome,
   point: MarkerOutcome['points'][number],
   time: (value: unknown) => string,
+  theme: ChartTheme,
 ): Loose {
   const name = `${time(point.time)} ${point.text}`;
   const tip = `${marker.label}\n${name}`;
@@ -164,7 +168,7 @@ function markerLine(
     xAxis: point.time,
     name,
     lineStyle: { color: marker.color },
-    label: { backgroundColor: marker.color },
+    label: { backgroundColor: marker.color, color: textOn(marker.color, theme) },
     // A function, so ECharts reads no template in the text.
     tooltip: { formatter: () => tip },
   };
@@ -190,7 +194,7 @@ export function withMarkers(
   const [first, ...rest] = series;
   const time = createFormatter({ $fmt: 'datetime', pattern: 'time' }, { timeZone });
   const data = markers.flatMap((marker) =>
-    marker.points.map((point) => markerLine(marker, point, time)),
+    marker.points.map((point) => markerLine(marker, point, time, theme)),
   );
   if (!first || data.length === 0) return [...series];
   const markLine = {
@@ -201,7 +205,6 @@ export function withMarkers(
     label: {
       formatter: '{b}',
       position: 'end',
-      color: theme.surface,
       padding: [3, 6],
       borderRadius: 4,
       fontFamily: theme.monoFamily,
