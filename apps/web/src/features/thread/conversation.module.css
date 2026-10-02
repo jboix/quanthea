@@ -79,6 +79,10 @@
   color: var(--color-ink-secondary);
 }
 
+.logTitle[data-failed="true"] {
+  color: var(--color-draft);
+}
+
 .logLines {
   display: flex;
   flex-direction: column;

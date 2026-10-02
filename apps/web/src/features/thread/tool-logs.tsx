@@ -40,6 +40,8 @@ interface PanelReport {
     readonly error?: string;
     readonly frames?: readonly { rowCount?: number }[];
   }[];
+  /** What is wrong with the chart for the data, if anything. */
+  readonly chart?: readonly string[];
 }
 
 /** What a write tool returned. */
@@ -62,11 +64,13 @@ interface WriteOutput {
  * The line of one panel's test run.
  *
  * @param panel - The panel's report.
- * @returns Such as `error-rate: 1 row`, or its error.
+ * @returns Such as `error-rate: 1 row`, or its query's error, or its chart's problem.
  */
 function panelLine(panel: PanelReport): { text: string; failed: boolean } {
   const failure = panel.queries.find((query) => !query.ok);
   if (failure) return { text: `${panel.panelId}: ${failure.error ?? 'failed'}`, failed: true };
+  const chart = panel.chart?.[0];
+  if (chart) return { text: `${panel.panelId}: ${chart}`, failed: true };
   const frames = panel.queries.flatMap((query) => query.frames ?? []);
   return {
     text: `${panel.panelId}: ${shapeOf(frames.length > 0 ? frames : undefined)}`,
@@ -92,11 +96,22 @@ function buildTitle(part: ToolPart, output: WriteOutput, running: boolean, teste
 }
 
 /**
- * One write of a version: "Built · 6 of 6 queries test-run", or what to fix.
+ * Whether a write failed its test run or its checks: the repair card that follows it says what
+ * failed, by panel title, so the log shows nothing.
+ *
+ * @param output - What the write returned.
+ * @returns Whether the repair card covers it.
+ */
+function repairCovers(output: WriteOutput): boolean {
+  return output.ok === false && ((output.panels?.length ?? 0) > 0 || !!output.issues?.length);
+}
+
+/**
+ * One write of a version: "Built · 6 of 6 queries test-run", or why it was refused.
  *
  * @param props - The write tool part.
  * @param props.part - The part.
- * @returns The log.
+ * @returns The log, or nothing when a repair card shows the failure.
  */
 export function BuildLog({ part }: { readonly part: ToolPart }) {
   const output = (part.output ?? {}) as WriteOutput;
@@ -104,6 +119,7 @@ export function BuildLog({ part }: { readonly part: ToolPart }) {
   const queries = panels.flatMap((panel) => panel.queries);
   const passed = queries.filter((query) => query.ok).length;
   const running = part.state !== 'output-available' && part.state !== 'output-error';
+  if (!running && repairCovers(output)) return null;
   const title = buildTitle(part, output, running, `${passed} of ${queries.length}`);
   return (
     <section className={styles.log} aria-label="Built">
@@ -120,15 +136,7 @@ export function BuildLog({ part }: { readonly part: ToolPart }) {
             </li>
           );
         })}
-        {(output.issues ?? []).map((issue) => (
-          <li key={issue.path} data-failed="true">
-            <span className={styles.logMark}>✗</span>
-            {issue.path}: {issue.message}
-          </li>
-        ))}
-        {output.ok === false && panels.length === 0 && !output.issues?.length && output.error && (
-          <li data-failed="true">{output.error}</li>
-        )}
+        {output.ok === false && output.error && <li data-failed="true">{output.error}</li>}
         {part.state === 'output-error' && <li data-failed="true">{part.errorText}</li>}
       </ul>
     </section>

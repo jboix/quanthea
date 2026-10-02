@@ -108,7 +108,7 @@ interface ActionContext {
 
 /**
  * The thread's actions: approve and continue, edit a plan, undo, start from a pinned dashboard,
- * build a new one instead, pin, unpin.
+ * build a new one instead, try a stopped build again, pin, unpin.
  *
  * @param context - What the actions need.
  * @returns The actions.
@@ -137,6 +137,7 @@ function useThreadActions(context: ActionContext) {
       revalidate();
     },
     buildNew: () => void chat.sendMessage(),
+    tryAgain: () => void chat.sendMessage(),
     ...usePinActions(context),
   };
 }

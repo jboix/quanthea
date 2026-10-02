@@ -94,7 +94,7 @@ The two paths that matter:
 │           ├── app/                 router, session, route guards, layout with nav rail, error page
 │           ├── routes/              thin route modules; compose features
 │           ├── features/
-│           │   ├── thread/          chat stream, plan card, diff cards, composer, @mentions
+│           │   ├── thread/          chat stream, plan card, diff and repair cards, composer, @mentions
 │           │   ├── dashboard/       dashboard pane, variables bar, panels, inspector
 │           │   ├── library/         search, connector and tag filters, cards with a live panel
 │           │   ├── bin/
@@ -628,6 +628,11 @@ the test; turning the switch off sends the provider's default.
   problems (each failing query's error as the gate shapes it, and the chart's problems). The write
   that works after failures streams one with the outcome `repaired`. The parts are stored with the
   answer, like the others.
+- The thread shows each part as a card (`features/thread/repair-card.tsx`): amber "Not saved · the
+  agent fixes it, try 1 of 3" with each failing panel by title and why, red "Stopped after 3 failed
+  tries" with Try again, which continues the answer with fresh attempts, and a green "Fixed after
+  1 failed try". A failed write's own log line stays only for a refusal, which has no card. The
+  draft pane says "build stopped · try again" while a building thread's latest answer stopped.
 - Each job has its model; an empty one means the build model. Planning turns (the conversation,
   questions and plans) use the plan model, building and editing use the build model, and once a
   write fails in a run, its later steps use the repair model. So a cheap model can talk and plan

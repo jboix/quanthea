@@ -10,6 +10,7 @@ import { Composer } from './composer.tsx';
 import { Conversation } from './conversation.tsx';
 import { DraftPane } from './draft-pane.tsx';
 import type { ThreadMessage } from './messages.ts';
+import { buildStopped } from './repairs.ts';
 import styles from './thread.module.css';
 import { costText } from './usage-line.tsx';
 import { useThread } from './use-thread.ts';
@@ -209,6 +210,37 @@ function ThreadComposer({ state }: { readonly state: ScreenState }) {
 }
 
 /**
+ * The conversation with the thread's actions wired in.
+ *
+ * @param props - The screen's state.
+ * @param props.state - The screen's state.
+ * @returns The conversation.
+ */
+function ThreadConversation({ state }: { readonly state: ScreenState }) {
+  const { chat, running, intents, actions } = state;
+  const { thread, dashboard } = state.data;
+  const levels = Object.fromEntries(thread.connectors.map((item) => [item.name, item.accessLevel]));
+  return (
+    <Conversation
+      messages={chat.messages}
+      plans={thread.plans}
+      levels={levels}
+      latestVersion={dashboard?.versions.at(-1)?.version ?? 0}
+      busy={running || intents.busy || thread.readOnly}
+      onApprove={(planId) => void actions.approve(planId)}
+      onEditPlan={(planId) => void actions.editPlan(planId)}
+      onUndo={(target) => void actions.undo(target)}
+      onCompare={state.showVersion}
+      onAnswer={(answer) => state.composer.send(answer)}
+      onStartFrom={(dashboardId) => void actions.startFrom(dashboardId)}
+      onBuildNew={actions.buildNew}
+      onTryAgain={actions.tryAgain}
+      hasDraft={dashboard !== null}
+    />
+  );
+}
+
+/**
  * The left pane: the thread's title and connectors, the conversation, and the composer.
  *
  * @param props - The screen's state.
@@ -216,29 +248,13 @@ function ThreadComposer({ state }: { readonly state: ScreenState }) {
  * @returns The pane.
  */
 function ThreadPane({ state }: { readonly state: ScreenState }) {
-  const { data, chat, running, intents, actions } = state;
-  const { thread, dashboard } = data;
-  const scroller = useStickToEnd(chat.messages);
-  const levels = Object.fromEntries(thread.connectors.map((item) => [item.name, item.accessLevel]));
+  const { thread } = state.data;
+  const scroller = useStickToEnd(state.chat.messages);
   return (
     <section className={styles.thread} aria-label="Thread">
-      <ThreadHeader thread={thread} messages={chat.messages} />
+      <ThreadHeader thread={thread} messages={state.chat.messages} />
       <div ref={scroller} className={styles.scroller}>
-        <Conversation
-          messages={chat.messages}
-          plans={thread.plans}
-          levels={levels}
-          latestVersion={dashboard?.versions.at(-1)?.version ?? 0}
-          busy={running || intents.busy || thread.readOnly}
-          onApprove={(planId) => void actions.approve(planId)}
-          onEditPlan={(planId) => void actions.editPlan(planId)}
-          onUndo={(target) => void actions.undo(target)}
-          onCompare={state.showVersion}
-          onAnswer={(answer) => state.composer.send(answer)}
-          onStartFrom={(dashboardId) => void actions.startFrom(dashboardId)}
-          onBuildNew={actions.buildNew}
-          hasDraft={dashboard !== null}
-        />
+        <ThreadConversation state={state} />
         <StatusLine state={state} />
       </div>
       {thread.readOnly ? (
@@ -267,6 +283,7 @@ export function ThreadScreen() {
         data={data}
         plan={data.thread.plans.at(-1)?.body}
         running={running}
+        stopped={buildStopped(chat.messages)}
         selectedPanelId={selection.selectedPanelId}
         onSelectPanel={selection.setSelectedPanelId}
         markedPanelIds={lastMentions(chat.messages)}

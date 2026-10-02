@@ -15,6 +15,7 @@ import {
   toolName,
 } from './messages.ts';
 import { PlanCard } from './plan-card.tsx';
+import { RepairCard } from './repair-card.tsx';
 import { TextBlock } from './text-block.tsx';
 import { BuildLog, ExploreLog } from './tool-logs.tsx';
 import { UsageLine } from './usage-line.tsx';
@@ -43,6 +44,8 @@ export interface ConversationContext {
   readonly onStartFrom: (dashboardId: string) => void;
   /** Asks the agent for a new dashboard after the matches. */
   readonly onBuildNew: () => void;
+  /** Starts a new run with fresh repair attempts after a build stopped. */
+  readonly onTryAgain: () => void;
   /** Whether the thread has a draft, which settles the matches card. */
   readonly hasDraft: boolean;
 }
@@ -119,6 +122,41 @@ function toolView(part: ToolPart, key: string, context: PartContext): ReactNode 
 }
 
 /**
+ * Renders a card of the agent's own: matches, a plan, a diff, a repair try.
+ *
+ * @param part - The data part.
+ * @param key - Its key.
+ * @param context - The conversation context.
+ * @returns The card, or nothing when there is nothing to show.
+ */
+function dataView(part: ThreadPart, key: string, context: PartContext): ReactNode {
+  if (part.type === 'data-plan') return planCard(part.data, key, context);
+  if (part.type === 'data-diff') return diffCard(part.data, key, context);
+  if (part.type === 'data-repair') {
+    const { answerable, busy, onTryAgain } = context;
+    return (
+      <RepairCard
+        key={key}
+        repair={part.data}
+        answerable={answerable}
+        busy={busy}
+        onTryAgain={onTryAgain}
+      />
+    );
+  }
+  if (part.type !== 'data-matches') return null;
+  return (
+    <MatchesCard
+      key={key}
+      data={part.data}
+      answerable={context.answerable && !context.hasDraft}
+      onStartFrom={context.onStartFrom}
+      onBuildNew={context.onBuildNew}
+    />
+  );
+}
+
+/**
  * Renders one non-explore part.
  *
  * @param part - The part.
@@ -130,19 +168,7 @@ function partView(part: ThreadPart, key: string, context: PartContext): ReactNod
   if (part.type === 'text') {
     return readableText(part.text) === '' ? null : <TextBlock key={key} text={part.text} />;
   }
-  if (part.type === 'data-plan') return planCard(part.data, key, context);
-  if (part.type === 'data-diff') return diffCard(part.data, key, context);
-  if (part.type === 'data-matches') {
-    return (
-      <MatchesCard
-        key={key}
-        data={part.data}
-        answerable={context.answerable && !context.hasDraft}
-        onStartFrom={context.onStartFrom}
-        onBuildNew={context.onBuildNew}
-      />
-    );
-  }
+  if (part.type.startsWith('data-')) return dataView(part, key, context);
   return isToolPart(part) ? toolView(part, key, context) : null;
 }
 

@@ -94,7 +94,7 @@ function BehaviourCard({ form }: SectionProps) {
 const limitFields = [
   { key: 'threadTokens', label: 'Stop a thread after (tokens)' },
   { key: 'toolCallsPerTurn', label: 'Max tool calls per turn' },
-  { key: 'repairAttempts', label: 'Repair attempts per panel' },
+  { key: 'repairAttempts', label: 'Repair attempts per answer' },
 ] as const;
 
 /**

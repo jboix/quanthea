@@ -15,6 +15,8 @@ export interface DraftPaneProps {
   readonly plan: Plan | undefined;
   /** Whether the agent is working. */
   readonly running: boolean;
+  /** Whether the latest answer stopped with panels that still fail. */
+  readonly stopped: boolean;
   /** The panel the inspector shows. */
   readonly selectedPanelId: string | undefined;
   /** Picks a panel, or closes the inspector with `undefined`. */
@@ -66,6 +68,7 @@ function PlanSkeleton({ plan }: { readonly plan: Plan }) {
  *
  * @param state - The thread state.
  * @param running - Whether the agent is working.
+ * @param stopped - Whether the latest answer stopped with panels that still fail.
  * @param shown - The version shown, if any.
  * @param latest - The latest version, if any.
  * @returns The pill's tone and words.
@@ -73,6 +76,7 @@ function PlanSkeleton({ plan }: { readonly plan: Plan }) {
 function statusOf(
   state: ThreadState,
   running: boolean,
+  stopped: boolean,
   shown: number | undefined,
   latest: number | undefined,
 ) {
@@ -81,6 +85,8 @@ function statusOf(
   if (shown !== undefined) return { tone: 'draft', text: `v${shown} · draft` } as const;
   if (state === 'plan_pending')
     return { tone: 'neutral', text: 'waiting for plan approval' } as const;
+  if (state === 'building' && !running && stopped)
+    return { tone: 'danger', text: 'build stopped · try again' } as const;
   if (state === 'building') return { tone: 'neutral', text: 'building…' } as const;
   return { tone: 'neutral', text: running ? 'exploring…' : 'no dashboard yet' } as const;
 }
@@ -122,7 +128,7 @@ function PaneHeader(props: DraftPaneProps) {
   const shown = data.version?.version;
   const latest = data.dashboard?.versions.at(-1)?.version;
   const pinned = data.dashboard?.pinnedVersion ?? null;
-  const status = statusOf(data.thread.state, running, shown, latest);
+  const status = statusOf(data.thread.state, running, props.stopped, shown, latest);
   return (
     <header className={styles.head}>
       <h2 className={styles.title}>
