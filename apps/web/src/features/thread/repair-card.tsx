@@ -2,6 +2,7 @@ import type { Repair } from '@quanthea/shared';
 import { Button } from '../../ui/button.tsx';
 import { CheckIcon, WarningIcon } from '../../ui/icons.tsx';
 import styles from './cards.module.css';
+import repairStyles from './repair-card.module.css';
 import { repairTitle } from './repairs.ts';
 
 /** Props of {@link RepairCard}. */
@@ -34,12 +35,12 @@ export function RepairCard({ repair, answerable, busy, onTryAgain }: RepairCardP
     );
   }
   return (
-    <section className={styles.repair} data-outcome={repair.outcome} aria-label={title}>
-      <h4 className={styles.repairHead}>
+    <section className={repairStyles.repair} data-outcome={repair.outcome} aria-label={title}>
+      <h4 className={repairStyles.repairHead}>
         <WarningIcon />
         {title}
       </h4>
-      <ul className={styles.repairLines}>
+      <ul className={repairStyles.repairLines}>
         {repair.panels.map((panel) => (
           <li key={panel.id}>
             <strong>{panel.title}</strong>: {panel.problems.join('; ') || 'it does not work'}

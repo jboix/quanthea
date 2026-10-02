@@ -6,7 +6,7 @@ import type { DashboardSpec, PanelRun } from '@quanthea/shared';
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { Loaded } from './data.ts';
-import { PanelCard, type RunTarget } from './panel-card.tsx';
+import { PanelCard, type PanelPlanMark, type RunTarget } from './panel-card.tsx';
 import panelStyles from './panels.module.css';
 import { RunStatus } from './run-status.tsx';
 import { VariablesBar } from './variables-bar.tsx';
@@ -55,6 +55,8 @@ export interface DashboardCanvasProps {
   readonly onSelectPanel?: ((panelId: string) => void) | undefined;
   /** Panels the conversation is about, marked "in chat". */
   readonly markedPanelIds?: readonly string[];
+  /** How a waiting plan would change each panel, by id, while the draft pane previews it. */
+  readonly planMarks?: Readonly<Record<string, PanelPlanMark>> | undefined;
 }
 
 /**
@@ -81,6 +83,7 @@ function PanelGrid(
           selected={panel.id === props.selectedPanelId}
           marked={props.markedPanelIds?.includes(panel.id) ?? false}
           onSelect={props.onSelectPanel}
+          planMark={props.planMarks?.[panel.id]}
         />
       ))}
     </div>

@@ -120,3 +120,35 @@
   font-size: 13px;
   color: var(--color-ink-secondary);
 }
+
+.lineage {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+  font-size: 13px;
+}
+
+.lineage > svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--color-ink-secondary);
+}
+
+.lineage p {
+  margin: 0;
+}
+
+.lineage a {
+  color: var(--color-accent);
+}
+
+.lineageNote {
+  font-size: 12px;
+  color: var(--color-ink-secondary);
+}

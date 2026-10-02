@@ -341,6 +341,15 @@ draft does not have. The agent is told when the draft started as a copy, and of 
 query it will run, so the plan card can show how a changed query changes; plans take longer and
 cost more.
 
+The thread shows such a plan as changes (`features/thread/plan-changes.ts`): CHANGED rows for the
+changes outside panels and the replaced panels, with their note and, when the plan carries the
+query, its diff; NEW rows for the panels it adds; REMOVED rows; and one SAME row counting the
+panels kept. While it waits, the draft pane previews it on the latest version: changed panels get
+an orange outline and their note over the current chart, dimmed; removed panels a dashed red one;
+kept panels are greyed; new panels follow as dashed blue placeholders; a legend says which is
+which. A copy's thread opens with a banner naming the dashboard and version it was copied from,
+or that it was deleted since.
+
 ### 5.5 The thread bin
 
 The bin holds threads, not dashboards: a dashboard lives in its thread, and leaves the library by

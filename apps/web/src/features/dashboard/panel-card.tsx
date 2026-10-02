@@ -19,6 +19,28 @@ export interface RunTarget {
 }
 
 /** Props of {@link PanelCard}. */
+/** How a waiting plan would change a panel, for the draft pane's preview. */
+export interface PanelPlanMark {
+  /** What the plan does to it. */
+  readonly tag: 'changed' | 'removed' | 'same';
+  /** What changes, for a changed panel. */
+  readonly note?: string;
+}
+
+/** The words of each mark, as the panel shows them. */
+const planMarkWords: Readonly<Record<PanelPlanMark['tag'], string>> = {
+  changed: 'changed',
+  removed: 'removed',
+  same: 'kept',
+};
+
+/** What a marked panel says under its title. */
+const planMarkNotes: Readonly<Record<PanelPlanMark['tag'], string>> = {
+  changed: 'Current chart · rebuilds after approval',
+  removed: 'Leaves the dashboard after approval',
+  same: '',
+};
+
 interface PanelCardProps {
   /** The panel. */
   readonly panel: Panel;
@@ -34,6 +56,8 @@ interface PanelCardProps {
   readonly marked?: boolean;
   /** Called when the person picks the panel, if panels can be picked. */
   readonly onSelect?: ((panelId: string) => void) | undefined;
+  /** How a waiting plan would change the panel, while the draft pane previews it. */
+  readonly planMark?: PanelPlanMark | undefined;
 }
 
 /**
@@ -115,7 +139,8 @@ function PanelHeading({
   panel,
   marked,
   onSelect,
-}: Pick<PanelCardProps, 'panel' | 'marked' | 'onSelect'>) {
+  planMark,
+}: Pick<PanelCardProps, 'panel' | 'marked' | 'onSelect' | 'planMark'>) {
   const title = onSelect ? (
     <button type="button" className={styles.titleButton} onClick={() => onSelect(panel.id)}>
       {panel.title}
@@ -129,8 +154,27 @@ function PanelHeading({
         {title}
       </h3>
       {marked && <span className={styles.mark}>in chat</span>}
+      {planMark && <span className={styles.planTag}>{planMarkWords[planMark.tag]}</span>}
       <PanelInfo panel={panel} />
     </div>
+  );
+}
+
+/**
+ * What a waiting plan does to the panel, under its title: the change, and what happens next.
+ *
+ * @param props - The mark.
+ * @param props.mark - How the plan changes the panel.
+ * @returns The note, or nothing for a kept panel.
+ */
+function PlanNote({ mark }: { readonly mark: PanelPlanMark }) {
+  if (mark.tag === 'same') return null;
+  const note = mark.note ? `${mark.note} · ` : '';
+  return (
+    <p className={styles.planNote}>
+      {note}
+      {planMarkNotes[mark.tag]}
+    </p>
   );
 }
 
@@ -148,6 +192,7 @@ export function PanelCard({
   selected = false,
   marked = false,
   onSelect,
+  planMark,
 }: PanelCardProps) {
   const { run, loading } = usePanelRun(panel, target, onRun);
   const { x, y, w, h } = panel.grid;
@@ -161,11 +206,13 @@ export function PanelCard({
       className={styles.panel}
       data-kind={panel.view.kind}
       data-selected={selected}
+      data-plan={planMark?.tag}
       aria-labelledby={`panel-${panel.id}`}
       aria-busy={loading}
       style={place}
     >
-      <PanelHeading panel={panel} marked={marked} onSelect={onSelect} />
+      <PanelHeading panel={panel} marked={marked} onSelect={onSelect} planMark={planMark} />
+      {planMark && <PlanNote mark={planMark} />}
       <PanelBody panel={panel} spec={spec} run={run} loading={loading} />
     </section>
   );

@@ -1,8 +1,10 @@
-import type { AccessLevel, Plan, PlanView } from '@quanthea/shared';
+import { type AccessLevel, type Plan, type PlanView, queryLanguageNames } from '@quanthea/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { CheckIcon } from '../../ui/icons.tsx';
 import styles from './cards.module.css';
+import { ChangeList } from './change-list.tsx';
+import { changeRows, type DraftPanel, isChangePlan } from './plan-changes.ts';
 
 /** What each access level lets the model see, in the plan card's words. */
 const accessWords: Readonly<Record<AccessLevel, string>> = {
@@ -28,6 +30,8 @@ export interface PlanCardProps {
   readonly onApprove: (planId: string) => void;
   /** Rejects it and asks for changes in the composer. */
   readonly onEdit: (planId: string) => void;
+  /** The draft's panels the plan changes, while it waits; absent before the first build. */
+  readonly draftPanels?: readonly DraftPanel[] | undefined;
 }
 
 /**
@@ -45,12 +49,39 @@ function lowestLevel(plan: Plan, levels: PlanCardProps['levels']): AccessLevel |
 }
 
 /**
- * The body of a plan: variables, access, and one row per panel.
+ * A first plan's panels: one row each, with its kind and language.
+ *
+ * @param props - The plan.
+ * @param props.plan - The plan.
+ * @returns The list.
+ */
+function PanelList({ plan }: { readonly plan: Plan }) {
+  return (
+    <ul className={styles.planPanels}>
+      {plan.panels.map((panel) => (
+        <li key={`${panel.kind}:${panel.title}`}>
+          <span className={styles.kind}>{panel.kind.toUpperCase()}</span>
+          <span className={styles.panelTitle}>{panel.title}</span>
+          <span className={styles.language} data-language={panel.language}>
+            {queryLanguageNames[panel.language]}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The body of a plan: variables, access, and its panels, or its changes to the draft.
  *
  * @param props - The plan and the access levels.
  * @returns The rows.
  */
-function PlanBody({ plan, levels }: Pick<PlanCardProps, 'plan' | 'levels'>) {
+function PlanBody({
+  plan,
+  levels,
+  draftPanels,
+}: Pick<PlanCardProps, 'plan' | 'levels' | 'draftPanels'>) {
   const level = lowestLevel(plan, levels);
   return (
     <div className={styles.planBody}>
@@ -68,17 +99,11 @@ function PlanBody({ plan, levels }: Pick<PlanCardProps, 'plan' | 'levels'>) {
           </>
         )}
       </dl>
-      <ul className={styles.planPanels}>
-        {plan.panels.map((panel) => (
-          <li key={`${panel.kind}:${panel.title}`}>
-            <span className={styles.kind}>{panel.kind.toUpperCase()}</span>
-            <span className={styles.panelTitle}>{panel.title}</span>
-            <span className={styles.language} data-language={panel.language}>
-              {panel.language === 'sql' ? 'SQL' : 'PromQL'}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {isChangePlan(plan, draftPanels) ? (
+        <ChangeList rows={changeRows(plan, draftPanels)} />
+      ) : (
+        <PanelList plan={plan} />
+      )}
     </div>
   );
 }
@@ -114,7 +139,7 @@ export function PlanCard(props: PlanCardProps) {
         <span className={styles.planTitle}>{plan.title}</span>
         <span className={styles.planCount}>{plan.panels.length} panels</span>
       </header>
-      <PlanBody plan={plan} levels={props.levels} />
+      <PlanBody plan={plan} levels={props.levels} draftPanels={props.draftPanels} />
       <footer className={styles.planActions}>
         <Button
           variant="primary"

@@ -36,6 +36,18 @@ export interface ThreadData {
   readonly dashboard: DashboardDetail | null;
   /** The version the right pane shows: `?v=`, else the latest. */
   readonly version: DashboardVersion | null;
+  /** The dashboard the draft was copied from, when it is a copy; its title is null once gone. */
+  readonly parent: ParentDashboard | null;
+}
+
+/** The dashboard a draft was copied from. */
+export interface ParentDashboard {
+  /** Its id. */
+  readonly dashboardId: string;
+  /** Its title, or null when it was deleted since. */
+  readonly title: string | null;
+  /** The version copied. */
+  readonly version: number;
 }
 
 /** What the thread screen submits, as JSON. */
@@ -78,6 +90,32 @@ async function versionToShow(
 }
 
 /**
+ * The dashboard a draft was copied from, if it is a copy.
+ *
+ * @param api - The API client.
+ * @param dashboard - The thread's dashboard, if any.
+ * @param signal - Aborted when the navigation changes.
+ * @returns The parent, with no title when it is gone; or `null` for a draft that is no copy.
+ */
+async function parentOf(
+  api: ApiClient,
+  dashboard: DashboardDetail | null,
+  signal: AbortSignal,
+): Promise<ParentDashboard | null> {
+  const dashboardId = dashboard?.parentDashboardId;
+  const version = dashboard?.parentVersion;
+  if (!dashboardId || version === undefined || version === null) return null;
+  try {
+    const parent = await api.call(getDashboardEndpoint, { params: { dashboardId } }, { signal });
+    return { dashboardId, title: parent.title, version };
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'not_found')
+      return { dashboardId, title: null, version };
+    throw error;
+  }
+}
+
+/**
  * Fetches a thread, its dashboard and the version to show.
  *
  * @param api - The API client.
@@ -98,7 +136,8 @@ async function fetchThread(
     ? await api.call(getDashboardEndpoint, { params: { dashboardId: thread.dashboardId } }, options)
     : null;
   const version = await versionToShow(api, dashboard, url.searchParams.get('v'), signal);
-  return { thread, dashboard, version };
+  const parent = await parentOf(api, dashboard, signal);
+  return { thread, dashboard, version, parent };
 }
 
 /**

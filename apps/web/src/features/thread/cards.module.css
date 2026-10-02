@@ -121,56 +121,6 @@
   color: var(--color-ink-secondary);
 }
 
-.repair {
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-draft) 30%, var(--color-surface));
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-}
-
-.repair[data-outcome="exhausted"] {
-  border-color: color-mix(in srgb, var(--color-danger) 35%, var(--color-surface));
-}
-
-.repairHead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 9px 12px;
-  background: var(--color-draft-soft);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-draft);
-}
-
-.repairHead > svg {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-}
-
-.repair[data-outcome="exhausted"] .repairHead {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-}
-
-.repairLines {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 10px 12px 10px 36px;
-  font-size: 13px;
-  color: var(--color-ink-label);
-  overflow-wrap: anywhere;
-}
-
-.repairLines strong {
-  font-weight: 600;
-  color: var(--color-ink);
-}
-
 .folded {
   display: flex;
   flex-wrap: wrap;

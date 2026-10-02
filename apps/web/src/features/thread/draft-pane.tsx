@@ -2,10 +2,17 @@ import type { Plan, ThreadState } from '@quanthea/shared';
 import type { CSSProperties } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
-import { DashboardCanvas } from '../dashboard/index.ts';
+import { DashboardCanvas, type PanelPlanMark } from '../dashboard/index.ts';
 import type { ThreadData } from './data.ts';
 import styles from './draft-pane.module.css';
 import { Inspector } from './inspector.tsx';
+import {
+  type ChangeRow,
+  changeRows,
+  draftPanelsOf,
+  isChangePlan,
+  panelMarks,
+} from './plan-changes.ts';
 
 /** Props of {@link DraftPane}. */
 export interface DraftPaneProps {
@@ -117,6 +124,20 @@ function PinButton(props: DraftPaneProps & { readonly shown: number | undefined 
 }
 
 /**
+ * The words of the status pill: pinned, previewing a plan, or the thread's status.
+ *
+ * @param props - The pane's props.
+ * @param status - The thread's status, in words.
+ * @param pinned - The version the library shows, if any.
+ * @returns The words.
+ */
+function pillText(props: DraftPaneProps, status: string, pinned: number | null): string {
+  const shown = props.data.version?.version;
+  if (shown !== undefined && shown === pinned) return `v${shown} · pinned`;
+  return planPreviewOf(props) ? `v${shown} · plan preview` : status;
+}
+
+/**
  * The header of the pane: the title, the version and the one the library shows, Back, and Pin or
  * Unpin.
  *
@@ -135,7 +156,7 @@ function PaneHeader(props: DraftPaneProps) {
         {data.version?.spec.title ?? plan?.title ?? 'Untitled dashboard'}
       </h2>
       <Pill tone={status.tone} mono>
-        {shown !== undefined && shown === pinned ? `v${shown} · pinned` : status.text}
+        {pillText(props, status.text, pinned)}
       </Pill>
       {pinned !== null && shown !== pinned && <Pill mono>library shows v{pinned}</Pill>}
       <span className={styles.spacer} />
@@ -144,6 +165,71 @@ function PaneHeader(props: DraftPaneProps) {
       )}
       <PinButton {...props} shown={shown} />
     </header>
+  );
+}
+
+/** A waiting plan's preview on the draft: how it marks each panel, and the panels it adds. */
+interface PlanPreview {
+  /** The mark of each draft panel, by id. */
+  readonly marks: Readonly<Record<string, PanelPlanMark>>;
+  /** The panels the plan adds. */
+  readonly added: readonly Extract<ChangeRow, { tag: 'new' }>[];
+}
+
+/**
+ * The preview of a waiting plan that changes the latest version, if the pane shows one.
+ *
+ * @param props - The pane's props.
+ * @returns The preview, or nothing when no change plan waits on the version shown.
+ */
+function planPreviewOf(props: DraftPaneProps): PlanPreview | undefined {
+  const { data, plan } = props;
+  const latest = data.dashboard?.versions.at(-1)?.version;
+  if (data.thread.state !== 'plan_pending' || !plan || !data.version) return undefined;
+  if (data.version.version !== latest) return undefined;
+  const draft = draftPanelsOf(data.version.spec);
+  if (!isChangePlan(plan, draft)) return undefined;
+  const added = changeRows(plan, draft).filter(
+    (row): row is Extract<ChangeRow, { tag: 'new' }> => row.tag === 'new',
+  );
+  return { marks: panelMarks(plan, draft), added };
+}
+
+/**
+ * What the preview's marks mean.
+ *
+ * @returns The legend.
+ */
+function PreviewLegend() {
+  return (
+    <p className={styles.legend}>
+      Plan preview:
+      <span data-tag="changed">changed</span>
+      <span data-tag="new">new</span>
+      <span data-tag="removed">removed</span>
+      <span data-tag="same">kept</span>
+    </p>
+  );
+}
+
+/**
+ * The panels a waiting plan adds, as dashed placeholders after the draft's panels.
+ *
+ * @param props - The new panels.
+ * @param props.panels - The plan's new panels.
+ * @returns The placeholders.
+ */
+function NewPanels({ panels }: { readonly panels: PlanPreview['added'] }) {
+  return (
+    <div className={styles.skeleton}>
+      {panels.map((panel) => (
+        <div key={panel.title} className={styles.newPanel}>
+          <span className={styles.newTitle}>{panel.title}</span>
+          <span className={styles.newKind}>new · {panel.kind}</span>
+          {panel.query && <code className={styles.newQuery}>{panel.query}</code>}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -157,15 +243,21 @@ function PaneBody(props: DraftPaneProps) {
   const { data, plan } = props;
   const { dashboard, version } = data;
   if (dashboard && version) {
+    const preview = planPreviewOf(props);
     return (
-      <DashboardCanvas
-        dashboardId={dashboard.id}
-        version={version.version}
-        spec={version.spec}
-        selectedPanelId={props.selectedPanelId}
-        onSelectPanel={props.onSelectPanel}
-        markedPanelIds={props.markedPanelIds}
-      />
+      <>
+        {preview && <PreviewLegend />}
+        <DashboardCanvas
+          dashboardId={dashboard.id}
+          version={version.version}
+          spec={version.spec}
+          selectedPanelId={props.selectedPanelId}
+          onSelectPanel={props.onSelectPanel}
+          markedPanelIds={props.markedPanelIds}
+          planMarks={preview?.marks}
+        />
+        {preview && preview.added.length > 0 && <NewPanels panels={preview.added} />}
+      </>
     );
   }
   if (plan) return <PlanSkeleton plan={plan} />;

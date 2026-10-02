@@ -9,7 +9,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Composer } from './composer.tsx';
 import { Conversation } from './conversation.tsx';
 import { DraftPane } from './draft-pane.tsx';
+import { LineageBanner } from './lineage-banner.tsx';
 import type { ThreadMessage } from './messages.ts';
+import { draftPanelsOf } from './plan-changes.ts';
 import { buildStopped } from './repairs.ts';
 import styles from './thread.module.css';
 import { costText } from './usage-line.tsx';
@@ -218,8 +220,9 @@ function ThreadComposer({ state }: { readonly state: ScreenState }) {
  */
 function ThreadConversation({ state }: { readonly state: ScreenState }) {
   const { chat, running, intents, actions } = state;
-  const { thread, dashboard } = state.data;
+  const { thread, dashboard, version } = state.data;
   const levels = Object.fromEntries(thread.connectors.map((item) => [item.name, item.accessLevel]));
+  const latest = version && version.version === dashboard?.versions.at(-1)?.version;
   return (
     <Conversation
       messages={chat.messages}
@@ -236,6 +239,7 @@ function ThreadConversation({ state }: { readonly state: ScreenState }) {
       onBuildNew={actions.buildNew}
       onTryAgain={actions.tryAgain}
       hasDraft={dashboard !== null}
+      draftPanels={latest ? draftPanelsOf(version.spec) : undefined}
     />
   );
 }
@@ -254,6 +258,7 @@ function ThreadPane({ state }: { readonly state: ScreenState }) {
     <section className={styles.thread} aria-label="Thread">
       <ThreadHeader thread={thread} messages={state.chat.messages} />
       <div ref={scroller} className={styles.scroller}>
+        {state.data.parent && <LineageBanner parent={state.data.parent} />}
         <ThreadConversation state={state} />
         <StatusLine state={state} />
       </div>

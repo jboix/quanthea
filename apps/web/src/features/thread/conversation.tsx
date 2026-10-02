@@ -15,6 +15,7 @@ import {
   toolName,
 } from './messages.ts';
 import { PlanCard } from './plan-card.tsx';
+import type { DraftPanel } from './plan-changes.ts';
 import { RepairCard } from './repair-card.tsx';
 import { TextBlock } from './text-block.tsx';
 import { BuildLog, ExploreLog } from './tool-logs.tsx';
@@ -48,6 +49,8 @@ export interface ConversationContext {
   readonly onTryAgain: () => void;
   /** Whether the thread has a draft, which settles the matches card. */
   readonly hasDraft: boolean;
+  /** The latest draft's panels, which a waiting plan reads as changes to. */
+  readonly draftPanels?: readonly DraftPanel[] | undefined;
 }
 
 /** The conversation context of one message's parts. */
@@ -76,6 +79,7 @@ function planCard(data: ThreadData['plan'], key: string, context: ConversationCo
       busy={context.busy}
       onApprove={context.onApprove}
       onEdit={context.onEditPlan}
+      draftPanels={status === 'pending' ? context.draftPanels : undefined}
     />
   );
 }
