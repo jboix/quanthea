@@ -19,7 +19,8 @@ logs
 .env.*
 !.env.example
 
-# runtime state (QUANTHEA_DATA_DIR, QUANTHEA_KEYS_DIR)
+# runtime state (QUANTHEA_DATA_DIR, QUANTHEA_KEYS_DIR), and the demo's
+.demo/
 data/
 keys/
 *.sqlite

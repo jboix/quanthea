@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=../../docs/configuration.schema.json
+#
+# The demo: `bun run demo` starts quanthea with this file, on the dev Postgres and Prometheus of
+# `bun run env:up`, with Gemini as the model. Its state goes to .demo/, which git ignores.
+
+server:
+  publicUrl: http://localhost:3000
+
+users:
+  admin:
+    password: ${QUANTHEA_DEMO_PASSWORD}
+
+model:
+  defaultProviderId: gemini
+  providers:
+    - id: gemini
+      name: Gemini
+      provider: openai-compatible
+      baseUrl: https://generativelanguage.googleapis.com/v1beta/openai
+      models:
+        plan: gemini-3.5-flash-lite
+        build: gemini-3.5-flash-lite
+        repair: ''
+        metadata: gemini-3.5-flash-lite
+      apiKey: ${GEMINI_API_KEY}
+
+connectors:
+  postgres-orders:
+    kind: postgres
+    config:
+      host: localhost
+      port: 5433
+      database: orders
+      username: dash_ro
+      tls: disable
+    secret:
+      password: ${QUANTHEA_DEMO_DB_PASSWORD}
+    hiddenFields: [customers.email, customers.phone]
+  prometheus-dev:
+    kind: prometheus
+    config:
+      url: http://localhost:9091

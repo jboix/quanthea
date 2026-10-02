@@ -46,6 +46,7 @@ bun run build        # build the SPA into apps/web/dist
 bun run check:package  # build the publishable plugin kit, check it, and build and test the
                        # SQLite example against the packed tarball
 bun run start        # run the server, serving the built SPA
+GEMINI_API_KEY=… bun run demo  # the demo: the built app on the dev data, with Gemini, state in .demo/
 ```
 
 Run one test file with `bun test apps/server/src/app.test.ts`.

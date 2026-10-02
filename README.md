@@ -15,8 +15,43 @@ sources: Prometheus, Loki, InfluxDB, Postgres and TimescaleDB, MySQL, MariaDB, C
 Elasticsearch, OpenSearch, Valkey, MongoDB and HTTP APIs. You refine it in the same thread and pin
 the good ones. Pinned dashboards are versioned, searchable, and render without any model involved.
 
-quanthea is at an early stage: the repository, the tooling and an app shell. The design lives in
+<table>
+  <tr>
+    <td><a href="docs/screenshots/plan.webp"><img src="docs/screenshots/plan.webp" alt="The agent proposes a plan: three panels with their queries, to approve before it builds" width="400"></a></td>
+    <td><a href="docs/screenshots/thread.webp"><img src="docs/screenshots/thread.webp" alt="The thread beside the dashboard the agent built, with each query test-run" width="400"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Ask, and approve a plan</sub></td>
+    <td align="center"><sub>Watch it build, then refine it</sub></td>
+  </tr>
+  <tr>
+    <td><a href="docs/screenshots/library.webp"><img src="docs/screenshots/library.webp" alt="The library of pinned dashboards, searchable by panel and query" width="400"></a></td>
+    <td><a href="docs/screenshots/dashboard-dark.webp"><img src="docs/screenshots/dashboard-dark.webp" alt="A pinned dashboard in the dark scheme" width="400"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Pin the good ones</sub></td>
+    <td align="center"><sub>Light or dark</sub></td>
+  </tr>
+</table>
+
+quanthea is young: it works end to end, and it changes quickly. The design lives in
 [`docs/`](docs/).
+
+## Try it
+
+The demo runs on a Postgres and a Prometheus with a day of sample data, an incident included, and
+uses Gemini as the model. It needs [Bun](https://bun.sh), Docker and a
+[Gemini API key](https://aistudio.google.com/apikey).
+
+```sh
+bun install
+bun run env:up                     # the sample Postgres and Prometheus, in Docker
+GEMINI_API_KEY=… bun run demo      # builds the app and starts it on port 3000
+```
+
+Open <http://localhost:3000>, sign in as `admin` with the password `quanthea-demo`, and ask
+"What happened to checkout yesterday around 14:00?". The demo keeps its state in `.demo/`; delete
+it to start over. `bun run env:down` removes the sample data sources.
 
 ## Run it
 
