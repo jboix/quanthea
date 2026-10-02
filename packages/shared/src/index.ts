@@ -367,6 +367,7 @@ export {
   planSchema,
   planStatuses,
   planViewSchema,
+  type Repair,
   type ThreadData,
   type ThreadState,
   threadDataSchemas,

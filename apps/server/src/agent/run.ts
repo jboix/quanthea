@@ -260,6 +260,7 @@ function runContext(
     planPending: false,
     asked: false,
     failedWrites: 0,
+    explaining: false,
     leftOut: 0,
     modelId: modelIdFor(turn.settings, 'build'),
     job: 'build',

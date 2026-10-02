@@ -72,7 +72,32 @@ const panelDiffSchema = z.object({
   ),
 });
 
-/** The custom parts of thread messages, by name: `data-plan`, `data-version`, `data-diff`. */
+/**
+ * Validates a write that failed its checks, or the write that worked after failures: which try it
+ * was out of how many, the panels that failed and why, and the spec's other problems.
+ */
+const repairSchema = z.object({
+  /** How many writes failed so far in this answer. */
+  attempt: z.int().min(0),
+  /** How many failed writes the answer may have before the agent stops. */
+  of: z.int().min(0),
+  /**
+   * `failed`: nothing was saved and the agent tries again; `left-out`: saved without the new
+   * panels that fail, which the agent adds again; `repaired`: this write worked after failures;
+   * `exhausted`: it failed and no attempt is left.
+   */
+  outcome: z.enum(['failed', 'left-out', 'repaired', 'exhausted']),
+  /** The panels that failed, with what is wrong with each. */
+  panels: z
+    .array(z.object({ id: z.string(), title: z.string(), problems: z.array(z.string()).max(10) }))
+    .max(60),
+  /** What is wrong with the dashboard as a whole, such as an invalid layout. */
+  issues: z.array(z.string()).max(20),
+});
+
+/** A failed write, or the repaired one. */
+export type Repair = z.infer<typeof repairSchema>;
+
 /** Validates a pinned dashboard that may already answer a question. */
 const pinnedMatchSchema = z.object({
   dashboardId: z.string(),
@@ -88,6 +113,8 @@ export const threadDataSchemas = {
   plan: z.object({ planId: z.string(), body: planSchema }),
   /** A new dashboard version; the right pane moves to it. */
   version: z.object({ dashboardId: z.string(), version: z.int(), summary: z.string() }),
+  /** A failed write, or the repaired one, for the build log. */
+  repair: repairSchema,
   /** What changed from one version to the next, for the diff card. */
   diff: z.object({
     dashboardId: z.string(),

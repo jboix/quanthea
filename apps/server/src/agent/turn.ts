@@ -112,7 +112,7 @@ function turnTools(context: RunContext, now: () => number) {
 
 /**
  * When the turn stops: at the tool call limit, when a plan waits, when the agent asked the person,
- * or when failed writes reach the repair attempts.
+ * or after the step that explains what failed once the repair attempts are spent.
  *
  * @param context - The run.
  * @returns The stop conditions.
@@ -125,7 +125,7 @@ function stopConditions(context: RunContext): StopCondition<ToolSet>[] {
     toolCalls,
     () => context.counters.planPending,
     () => context.counters.asked,
-    () => context.counters.failedWrites >= limits.repairAttempts,
+    () => context.counters.explaining,
   ];
 }
 
@@ -164,6 +164,19 @@ function stepModel(context: RunContext, modelOf: ModelOf, job: ModelJob) {
 }
 
 /**
+ * What the next step may do: once the repair attempts are spent, no tool, so the model explains
+ * what failed to the person and the turn ends after it.
+ *
+ * @param context - The run.
+ * @returns The step's tool settings, if it is the explaining step.
+ */
+function explainingStep(context: RunContext) {
+  if (context.counters.failedWrites < context.settings.limits.repairAttempts) return {};
+  context.counters.explaining = true;
+  return { activeTools: [], toolChoice: 'none' as const };
+}
+
+/**
  * Streams one turn of the model into the writer, with the answer's usage in its metadata.
  *
  * @param context - The run.
@@ -191,6 +204,7 @@ export async function streamTurn(
     messages: await convertToModelMessages(compactHistory(messages), { tools }),
     prepareStep: ({ messages: next }) => ({
       ...stepModel(context, modelOf, job),
+      ...explainingStep(context),
       messages: withCachedTail(endingOnPersonTurn(compactSteps(next)), context.settings.provider),
     }),
     tools,

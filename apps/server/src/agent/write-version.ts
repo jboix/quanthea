@@ -5,7 +5,7 @@
  * other failure keeps the version from being saved. The results the model sees pass through the
  * gate.
  */
-import { type DashboardSpec, diffSpecs, type PanelDiff } from '@quanthea/shared';
+import { type DashboardSpec, diffSpecs, type PanelDiff, type Repair } from '@quanthea/shared';
 import type { PanelTest } from '../dashboards/dashboards.ts';
 import { compactGrid } from '../dashboards/panels/index.ts';
 import type { ModelTestResult } from '../gate/test-run.ts';
@@ -219,6 +219,88 @@ function saveBuilt(context: RunContext, spec: DashboardSpec, changeSummary: stri
 }
 
 /**
+ * What is wrong with one panel, as the build log shows it: each failing query, then the chart.
+ *
+ * @param report - The panel's report.
+ * @returns The problems, at most ten.
+ */
+function problemsOf(report: PanelReport): string[] {
+  const queries = report.queries.flatMap((query) => (query.ok ? [] : [query.error]));
+  return [...queries, ...(report.chart ?? [])].slice(0, 10);
+}
+
+/** What a repair part says about one write. */
+interface RepairNote {
+  /** What happened: `exhausted` is derived when no attempt is left. */
+  readonly kind: 'failed' | 'left-out' | 'repaired';
+  /** The spec, for the panels' titles. */
+  readonly spec: DashboardSpec;
+  /** The test run of each panel. */
+  readonly panels?: readonly PanelReport[];
+  /** The ids of the panels that failed. */
+  readonly failing?: readonly string[];
+  /** The spec's other problems. */
+  readonly issues?: readonly { readonly path: string; readonly message: string }[];
+}
+
+/**
+ * Streams a failed write, or the write that worked after failures, for the build log.
+ *
+ * @param context - The run, after the failure was counted.
+ * @param note - What happened.
+ */
+function writeRepair(context: RunContext, note: RepairNote): void {
+  const attempt = context.counters.failedWrites;
+  const of = context.settings.limits.repairAttempts;
+  const outcome: Repair['outcome'] =
+    note.kind !== 'repaired' && attempt >= of ? 'exhausted' : note.kind;
+  const failing = new Set(note.failing ?? []);
+  const panels = (note.panels ?? [])
+    .filter((report) => failing.has(report.panelId))
+    .map((report) => ({
+      id: report.panelId,
+      title: note.spec.panels.find((panel) => panel.id === report.panelId)?.title ?? report.panelId,
+      problems: problemsOf(report),
+    }));
+  const issues = (note.issues ?? []).map(({ path, message }) => `${path}: ${message}`).slice(0, 20);
+  context.writer.write({ type: 'data-repair', data: { attempt, of, outcome, panels, issues } });
+}
+
+/**
+ * Saves a version that kept every panel, and says so in the build log when it repaired a failure.
+ *
+ * @param context - The run.
+ * @param spec - The spec to save.
+ * @param changeSummary - What changed.
+ * @returns The version number.
+ */
+function saveWhole(context: RunContext, spec: DashboardSpec, changeSummary: string): number {
+  const version = saveBuilt(context, spec, changeSummary);
+  if (context.counters.failedWrites > 0) writeRepair(context, { kind: 'repaired', spec });
+  return version;
+}
+
+/**
+ * Fails a write whose panels or spec do not work, counted, and streams it for the build log.
+ *
+ * @param context - The run.
+ * @param spec - The spec the edit made.
+ * @param panels - The panel reports.
+ * @param failing - The ids of the failing panels.
+ * @returns The result the model sees.
+ */
+function failWrite(
+  context: RunContext,
+  spec: DashboardSpec,
+  panels: readonly PanelReport[],
+  failing: readonly string[],
+): WriteResult {
+  const result = { ...failed(context, 'Some panels do not work.'), panels };
+  writeRepair(context, { kind: 'failed', spec, panels, failing });
+  return result;
+}
+
+/**
  * Writes a version for the agent.
  *
  * @param context - The run.
@@ -242,14 +324,19 @@ export function writeVersion(
   const panels = reportsOf(context, spec, run);
   const failing = failingPanels(panels, context.settings.behaviour.testRun);
   const kept = failing.length === 0 ? spec : withoutFailing(spec, failing, droppable);
-  if (!kept) return { ...failed(context, 'Some panels do not work.'), panels };
+  if (!kept) return failWrite(context, spec, panels, failing);
   const checked = context.dashboards.check(kept);
-  if (!checked.ok)
-    return { ...failed(context, 'The spec is invalid.'), issues: checked.issues, panels };
-  const version = saveBuilt(context, checked.spec, changeSummary);
+  if (!checked.ok) {
+    const result = { ...failed(context, 'The spec is invalid.'), issues: checked.issues, panels };
+    writeRepair(context, { kind: 'failed', spec, panels, failing, issues: checked.issues });
+    return result;
+  }
   context.counters.leftOut =
     Math.max(0, context.counters.leftOut - droppable.size) + failing.length;
-  if (failing.length === 0) return { ok: true, version, panels };
+  if (failing.length === 0)
+    return { ok: true, version: saveWhole(context, checked.spec, changeSummary), panels };
+  const version = saveBuilt(context, checked.spec, changeSummary);
   const next = `These new panels were left out because they do not work. ${nextAttempt(context, 'Fix them and add them again')}`;
+  writeRepair(context, { kind: 'left-out', spec, panels, failing });
   return { ok: true, version, panels, leftOut: { panelIds: failing, next } };
 }

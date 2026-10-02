@@ -619,7 +619,15 @@ the test; turning the switch off sends the provider's default.
   after an approval, and the stored copy is used, so a client cannot forge the agent's side.
 - One run per thread at a time. A run stops when a plan waits for approval, when the agent asked
   the person a question, when it has made the maximum number of tool calls (setting, default 25),
-  or when failed writes reach the repair attempts (setting, default 3).
+  or after failed writes reach the repair attempts (setting, default 3, counted per answer). Then
+  one more step runs with no tool, so the model explains to the person what still fails; the run
+  ends after it, and the thread stays in `building`, so a reply or Try again starts a new run with
+  fresh attempts.
+- Each counted failure streams a `data-repair` part for the build log: the try and the limit, the
+  outcome (`failed`, `left-out`, `exhausted`), and the panels that failed, by title, with their
+  problems (each failing query's error as the gate shapes it, and the chart's problems). The write
+  that works after failures streams one with the outcome `repaired`. The parts are stored with the
+  answer, like the others.
 - Each job has its model; an empty one means the build model. Planning turns (the conversation,
   questions and plans) use the plan model, building and editing use the build model, and once a
   write fails in a run, its later steps use the repair model. So a cheap model can talk and plan

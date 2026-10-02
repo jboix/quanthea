@@ -329,6 +329,10 @@ describe('an agent run', () => {
     const stream = await chat(agent, userMessage('u1', 'Build it'));
     expect(stream).toContain('The table does not exist.');
     expect([build.doStreamCalls.length, repair.doStreamCalls.length]).toEqual([1, 1]);
+    // The build log learns which try failed and why, by panel title.
+    expect(stream).toContain('"type":"data-repair"');
+    expect(stream).toContain('"attempt":1,"of":3,"outcome":"failed"');
+    expect(stream).toContain('"title":"Errors"');
   });
 
   test('patches a mentioned panel of a ready thread without a plan, and streams the diff', async () => {
@@ -362,7 +366,7 @@ describe('an agent run', () => {
     expect(services.threads.get(threadId).dashboardId).toBeNull();
   });
 
-  test('stops after the repair attempts are spent', async () => {
+  test('lets the model explain, with no tool, once the repair attempts are spent', async () => {
     await services.modelSettings.save(
       gatewayWith({ limits: { repairAttempts: 1 } }),
       {},
@@ -374,13 +378,19 @@ describe('an agent run', () => {
       panels: [eventsPanel('Errors', 'stat', 'SELECT * FROM missing')],
       summary: 'x',
     };
-    const agent = agentWith(
+    const model = scriptedStreamModel(
       { tool: 'edit_dashboard', input: broken },
-      { text: 'This step never runs.' },
+      { text: 'The events table has no table named missing.' },
+      { tool: 'edit_dashboard', input: broken, id: 'never' },
     );
+    const agent = createAgent({ ...services, buildModel: () => model });
     const stream = await chat(agent, userMessage('u1', 'Build it'));
     expect(stream).toContain('No attempts left');
-    expect(stream).not.toContain('This step never runs.');
+    expect(stream).toContain('"outcome":"exhausted"');
+    expect(stream).toContain('The events table has no table named missing.');
+    // The explaining step is offered no tool, and the turn ends after it.
+    expect(model.doStreamCalls).toHaveLength(2);
+    expect(model.doStreamCalls[1]?.toolChoice).toEqual({ type: 'none' });
     expect(services.threads.get(threadId).state).toBe('building');
   });
 
@@ -404,6 +414,8 @@ describe('an agent run', () => {
       userMessage('u1', 'Build it'),
     );
     expect(stream).toContain('These new panels were left out because they do not work.');
+    expect(stream).toContain('"outcome":"left-out"');
+    expect(stream).toContain('"outcome":"repaired"');
     const { dashboardId } = services.threads.get(threadId);
     const first = services.dashboards.getVersion(dashboardId ?? '', 1, 'editor').spec;
     expect(first.panels.map((panel) => panel.id)).toEqual(['errors']);
