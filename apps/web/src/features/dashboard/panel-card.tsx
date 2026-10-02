@@ -58,6 +58,8 @@ interface PanelCardProps {
   readonly onSelect?: ((panelId: string) => void) | undefined;
   /** How a waiting plan would change the panel, while the draft pane previews it. */
   readonly planMark?: PanelPlanMark | undefined;
+  /** The ids of the sets of markers the viewer hid, which the chart does not draw. */
+  readonly hiddenMarkers?: ReadonlySet<string> | undefined;
 }
 
 /**
@@ -87,7 +89,7 @@ function usePanelRun(panel: Panel, target: RunTarget, onRun: PanelCardProps['onR
 /**
  * The body of a panel: its view, or why it has nothing to show.
  *
- * @param props - The panel, the spec and the run.
+ * @param props - The panel, the spec, the hidden sets of markers and the run.
  * @param props.run - The latest run, if any.
  * @param props.loading - Whether a run is loading.
  * @returns The body.
@@ -95,9 +97,10 @@ function usePanelRun(panel: Panel, target: RunTarget, onRun: PanelCardProps['onR
 function PanelBody({
   panel,
   spec,
+  hiddenMarkers,
   run,
   loading,
-}: Pick<PanelCardProps, 'panel' | 'spec'> & ReturnType<typeof usePanelRun>) {
+}: Pick<PanelCardProps, 'panel' | 'spec' | 'hiddenMarkers'> & ReturnType<typeof usePanelRun>) {
   if (!run) return <p className={styles.loading}>Loading…</p>;
   if (!run.ok) return <p className={styles.error}>{run.message}</p>;
   const failures = run.value.queries.filter((query) => query.error);
@@ -120,6 +123,7 @@ function PanelBody({
             panel={panel}
             queries={run.value.queries}
             markers={run.value.markers}
+            hiddenMarkers={hiddenMarkers}
             timeZone={spec.timezone}
           />
         </div>
@@ -181,7 +185,8 @@ function PlanNote({ mark }: { readonly mark: PanelPlanMark }) {
 /**
  * One panel on the grid: its title and its view, loading and failing on its own.
  *
- * @param props - The panel, the spec, what to run, the run callback, and its selection.
+ * @param props - The panel, the spec, what to run, the run callback, its selection, and the sets of
+ *   markers the viewer hid.
  * @returns The panel card.
  */
 export function PanelCard({
@@ -193,6 +198,7 @@ export function PanelCard({
   marked = false,
   onSelect,
   planMark,
+  hiddenMarkers,
 }: PanelCardProps) {
   const { run, loading } = usePanelRun(panel, target, onRun);
   const { x, y, w, h } = panel.grid;
@@ -213,7 +219,13 @@ export function PanelCard({
     >
       <PanelHeading panel={panel} marked={marked} onSelect={onSelect} planMark={planMark} />
       {planMark && <PlanNote mark={planMark} />}
-      <PanelBody panel={panel} spec={spec} run={run} loading={loading} />
+      <PanelBody
+        panel={panel}
+        spec={spec}
+        hiddenMarkers={hiddenMarkers}
+        run={run}
+        loading={loading}
+      />
     </section>
   );
 }

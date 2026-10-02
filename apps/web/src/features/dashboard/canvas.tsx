@@ -6,6 +6,7 @@ import type { DashboardSpec, PanelRun } from '@quanthea/shared';
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { Loaded } from './data.ts';
+import { hiddenMarkersOf, runSearchOf } from './marker-sets.ts';
 import { PanelCard, type PanelPlanMark, type RunTarget } from './panel-card.tsx';
 import panelStyles from './panels.module.css';
 import { RunStatus } from './run-status.tsx';
@@ -62,13 +63,15 @@ export interface DashboardCanvasProps {
 /**
  * The panels of one version, on the grid.
  *
- * @param props - The canvas props, what to run, and the callback each finished run reports to.
+ * @param props - The canvas props, what to run, the callback each finished run reports to, and the
+ *   sets of markers the viewer hid.
  * @returns The grid.
  */
 function PanelGrid(
   props: DashboardCanvasProps & {
     readonly target: RunTarget;
     readonly onRun: (panelId: string, run: Loaded<PanelRun>) => void;
+    readonly hiddenMarkers: ReadonlySet<string>;
   },
 ) {
   return (
@@ -84,6 +87,7 @@ function PanelGrid(
           marked={props.markedPanelIds?.includes(panel.id) ?? false}
           onSelect={props.onSelectPanel}
           planMark={props.planMarks?.[panel.id]}
+          hiddenMarkers={props.hiddenMarkers}
         />
       ))}
     </div>
@@ -101,7 +105,8 @@ export function DashboardCanvas(props: DashboardCanvasProps) {
   const [search, setSearch] = useSearchParams();
   const [refresh, setRefresh] = useState(0);
   const choices = useMemo(() => choicesFromSearch(search, spec), [search, spec]);
-  const target: RunTarget = { dashboardId, version, search: search.toString(), refresh };
+  const hiddenMarkers = useMemo(() => hiddenMarkersOf(search, spec), [search, spec]);
+  const target: RunTarget = { dashboardId, version, search: runSearchOf(search), refresh };
   const { runs, report } = useRuns(`${dashboardId}@${version}?${target.search}#${refresh}`);
   const onRefresh = () => setRefresh((count) => count + 1);
   const actions = props.refreshable && <RunStatus spec={spec} runs={runs} onRefresh={onRefresh} />;
@@ -110,11 +115,13 @@ export function DashboardCanvas(props: DashboardCanvasProps) {
       <VariablesBar
         spec={spec}
         choices={choices}
+        search={search}
+        hiddenMarkers={hiddenMarkers}
         target={target}
         onSearch={setSearch}
         actions={actions}
       />
-      <PanelGrid {...props} target={target} onRun={report} />
+      <PanelGrid {...props} target={target} onRun={report} hiddenMarkers={hiddenMarkers} />
     </>
   );
 }

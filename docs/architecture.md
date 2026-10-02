@@ -1444,6 +1444,10 @@ one, and enables them again. Without any admin, it creates the default one.
 - The dashboard screen (`features/dashboard`) loads the spec once. Variables and the time range
   live in the URL (`from`, `to`, `var-env=prod`, repeated for several values), so a link shares
   the view and changing them never reloads the spec.
+- The variables row ends with a toggle per set of markers the charts show, in the set's colour.
+  A hidden set is drawn on no chart. Hiding is a view choice, kept in the URL like the variables
+  (`hide-markers=deploys`, repeated for several) and never saved; panels run without it, so a
+  toggle redraws the charts without running them again.
 - The dashboard header holds the title with an About bubble (description, tags, the connectors
   and how many panels use each), a History button that lists the versions (newest first, each
   its number, when it was made and whether it is pinned; what changed shows on hover), and, for editors, a

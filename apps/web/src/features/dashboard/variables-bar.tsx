@@ -1,5 +1,7 @@
 import type { DashboardSpec, TimeRangeExpression } from '@quanthea/shared';
 import type { ReactNode } from 'react';
+import { withMarkersShown } from './marker-sets.ts';
+import { MarkerToggles } from './marker-toggles.tsx';
 import type { RunTarget } from './panel-card.tsx';
 import { TimePicker } from './time-picker.tsx';
 import { OptionChip, TextChip } from './variable-chip.tsx';
@@ -12,6 +14,10 @@ interface VariablesBarProps {
   readonly spec: DashboardSpec;
   /** The viewer's choices. */
   readonly choices: ViewChoices;
+  /** The URL's search parameters, every choice included. */
+  readonly search: URLSearchParams;
+  /** The ids of the sets of markers the viewer hid. */
+  readonly hiddenMarkers: ReadonlySet<string>;
   /** The version the options load from. */
   readonly target: RunTarget;
   /** Called with the new URL parameters. */
@@ -21,14 +27,14 @@ interface VariablesBarProps {
 }
 
 /**
- * The time range and the variables, as chips, and any controls at the end. Changing them changes
- * the URL and what the panels show, never the saved dashboard.
+ * The time range and the variables, as chips, a toggle per set of markers, and any controls at the
+ * end. Changing them changes the URL and what the panels show, never the saved dashboard.
  *
  * @param props - The spec, the choices, the target, the change callback and the controls.
  * @returns The bar.
  */
-export function VariablesBar({ spec, choices, target, onSearch, actions }: VariablesBarProps) {
-  const search = new URLSearchParams(target.search);
+export function VariablesBar(props: VariablesBarProps) {
+  const { spec, choices, target, search, onSearch, actions } = props;
   const setTime = (time: TimeRangeExpression | undefined) => onSearch(withTime(search, time));
   return (
     <div className={styles.bar}>
@@ -50,6 +56,11 @@ export function VariablesBar({ spec, choices, target, onSearch, actions }: Varia
           />
         );
       })}
+      <MarkerToggles
+        spec={spec}
+        hidden={props.hiddenMarkers}
+        onToggle={(id, shown) => onSearch(withMarkersShown(search, id, shown))}
+      />
       {actions && <span className={styles.actions}>{actions}</span>}
     </div>
   );
