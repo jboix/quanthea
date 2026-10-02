@@ -8,7 +8,7 @@ import { buildChartOption, type ChartInput } from './build-option.ts';
 import styles from './chart.module.css';
 import { ensureMaps } from './maps.ts';
 import { ensureModules, modulesGeneration } from './register.ts';
-import { readTheme } from './theme.ts';
+import { useChartTheme } from './theme.ts';
 
 /** Props of {@link Chart}. */
 interface ChartProps {
@@ -89,9 +89,10 @@ function useResizeAndDispose(
 export function Chart({ input, timeZone, label }: ChartProps) {
   const container = useRef<HTMLDivElement>(null);
   const holder = useRef<Instance | null>(null);
+  const theme = useChartTheme();
   const option = useMemo(
-    () => buildChartOption(input, { theme: readTheme(document.documentElement), timeZone }),
-    [input, timeZone],
+    () => buildChartOption(input, { theme, timeZone }),
+    [input, theme, timeZone],
   );
   useResizeAndDispose(container, holder);
   useEffect(() => {

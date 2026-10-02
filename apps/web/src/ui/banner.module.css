@@ -9,13 +9,13 @@
 
 .warning {
   background: var(--color-draft-soft);
-  border-color: #f0dcb8;
+  border-color: var(--color-draft-border);
   color: var(--color-draft);
 }
 
 .info {
   background: var(--color-accent-soft);
-  border-color: #d6e0f7;
+  border-color: var(--color-accent-border);
   color: var(--color-accent);
 }
 

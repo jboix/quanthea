@@ -1,6 +1,7 @@
 import type { Principal } from '@quanthea/shared';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useFetcher } from 'react-router';
+import { type ColorScheme, useColorScheme } from '../../ui/color-scheme.ts';
 import { Dialog } from '../../ui/dialog.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import styles from './account.module.css';
@@ -33,6 +34,40 @@ function MenuItem({
     <button type="button" className={styles.menuItem} disabled={disabled} onClick={onClick}>
       {children}
     </button>
+  );
+}
+
+/** The schemes the menu offers, in order. */
+const schemes: readonly { scheme: ColorScheme; label: string }[] = [
+  { scheme: 'light', label: 'Light' },
+  { scheme: 'dark', label: 'Dark' },
+  { scheme: 'system', label: 'System' },
+];
+
+/**
+ * The appearance: light, dark, or the system's, kept in this browser.
+ *
+ * @returns The choice, as three buttons.
+ */
+function AppearanceChoice() {
+  const [current, choose] = useColorScheme();
+  return (
+    <fieldset className={styles.appearance}>
+      <legend className={styles.legend}>Appearance</legend>
+      <div className={styles.schemes}>
+        {schemes.map(({ scheme, label }) => (
+          <button
+            key={scheme}
+            type="button"
+            className={styles.scheme}
+            aria-pressed={current === scheme}
+            onClick={() => choose(scheme)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
@@ -96,8 +131,8 @@ interface AccountMenuProps {
 }
 
 /**
- * The account menu behind the user icon: who is signed in, changing the password and the
- * providers in dialogs, and signing out.
+ * The account menu behind the user icon: who is signed in, the appearance, changing the password
+ * and the providers in dialogs, and signing out.
  *
  * @param props - Who is signed in, and the button.
  * @returns The menu and its dialogs.
@@ -119,6 +154,7 @@ export function AccountMenu({ principal, trigger, triggerClassName }: AccountMen
             <strong>{principal.name}</strong>
             <span className={styles.note}>{principal.role}</span>
           </div>
+          <AppearanceChoice />
           <MenuItems identities={identities} open={setDialog} />
         </div>
       </Popover>

@@ -176,6 +176,11 @@ the kit's HTTP client for every kind that speaks HTTP.
   once and removes. Each question carries the browser's time zone.
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
+- **Colour scheme.** Light, dark or the system's, picked under Appearance in the account menu and
+  kept in the browser's `localStorage` (`ui/color-scheme.ts`). Light is the default. The choice
+  sets `data-theme` on the document element before the first render, and `ui/theme.css`
+  redefines the colour tokens for `dark`. Charts read their colours from the tokens again when the
+  scheme changes. The icon tiles keep their brand colours in both schemes.
 
 **Routes** (React Router data mode):
 

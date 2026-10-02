@@ -49,7 +49,7 @@
 }
 
 .test[data-tone="failed"] {
-  border-color: #f0dcb8;
+  border-color: var(--color-draft-border);
   background: var(--color-draft-soft);
   color: var(--color-draft);
 }

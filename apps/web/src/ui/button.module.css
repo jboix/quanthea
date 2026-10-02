@@ -21,13 +21,13 @@
 
 .primary {
   background: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-on-accent);
   font-weight: 600;
 }
 
 .primary:hover:not(:disabled) {
   background: var(--color-accent-hover);
-  color: #ffffff;
+  color: var(--color-on-accent);
 }
 
 .secondary {
@@ -43,13 +43,13 @@
 
 .dark {
   background: var(--color-ink);
-  color: #ffffff;
+  color: var(--color-ink-inverse);
   font-weight: 600;
 }
 
 .dark:hover:not(:disabled) {
-  background: var(--color-rail-active);
-  color: #ffffff;
+  background: var(--color-ink-hover);
+  color: var(--color-ink-inverse);
 }
 
 .danger {

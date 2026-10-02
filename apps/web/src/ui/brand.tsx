@@ -1,6 +1,7 @@
 import logoOnLightUrl from './brand/quanthea-logo.svg';
 import logoOnDarkUrl from './brand/quanthea-logo-dark.svg';
 import styles from './brand.module.css';
+import { useResolvedScheme } from './color-scheme.ts';
 
 /** Accessible name of a brand graphic. Without one, the graphic is decorative and hidden. */
 interface BrandLabel {
@@ -93,7 +94,7 @@ export function BrandIcon({ size = 32, tone = 'accent', label }: BrandIconProps)
 
 /** Props of {@link Logo}. */
 interface LogoProps {
-  /** The surface it sits on: `light` uses ink lettering, `dark` white lettering. */
+  /** The surface it sits on: `light` uses ink lettering, `dark` white lettering. The page's scheme by default. */
   readonly surface?: 'light' | 'dark';
   /** Height in pixels. The width follows the 228 × 64 artwork. */
   readonly height?: number;
@@ -105,10 +106,11 @@ interface LogoProps {
  * @param props - The surface colour and the height.
  * @returns The image element, named "quanthea".
  */
-export function Logo({ surface = 'light', height = 32 }: LogoProps) {
+export function Logo({ surface, height = 32 }: LogoProps) {
+  const scheme = useResolvedScheme();
   return (
     <img
-      src={surface === 'light' ? logoOnLightUrl : logoOnDarkUrl}
+      src={(surface ?? scheme) === 'light' ? logoOnLightUrl : logoOnDarkUrl}
       alt="quanthea"
       height={height}
       width={Math.round((height * 228) / 64)}

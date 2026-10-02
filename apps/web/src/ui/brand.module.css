@@ -4,11 +4,11 @@
 }
 
 .tileAccent {
-  fill: var(--color-accent);
+  fill: var(--color-brand-accent);
 }
 
 .tileInk {
-  fill: var(--color-ink);
+  fill: var(--color-brand-ink);
 }
 
 .logo {

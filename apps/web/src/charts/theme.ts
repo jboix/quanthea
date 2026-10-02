@@ -1,4 +1,5 @@
 /** The chart theme, read from the design tokens in `ui/theme.css`. */
+import { type ResolvedScheme, useResolvedScheme } from '../ui/color-scheme.ts';
 
 /** The colours and fonts a chart uses. */
 export interface ChartTheme {
@@ -60,4 +61,19 @@ export function readTheme(element: Element): ChartTheme {
     read(token, defaultTheme[key as keyof typeof tokens]),
   ]);
   return { ...defaultTheme, ...Object.fromEntries(entries), palette };
+}
+
+/** The theme of each scheme, read once the scheme is showing. */
+const themes = new Map<ResolvedScheme, ChartTheme>();
+
+/**
+ * The chart theme of the scheme the page shows, so charts redraw when the scheme changes.
+ *
+ * @returns The theme.
+ */
+export function useChartTheme(): ChartTheme {
+  const scheme = useResolvedScheme();
+  const theme = themes.get(scheme) ?? readTheme(document.documentElement);
+  themes.set(scheme, theme);
+  return theme;
 }

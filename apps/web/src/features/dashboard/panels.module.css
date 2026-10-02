@@ -51,7 +51,7 @@
   background: var(--color-accent);
   font-family: var(--font-mono);
   font-size: 12px;
-  color: #ffffff;
+  color: var(--color-on-accent);
 }
 
 .title {

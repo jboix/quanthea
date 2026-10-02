@@ -142,6 +142,20 @@ function tooltipOf(spec: unknown, series: readonly Loose[], theme: ChartTheme): 
 }
 
 /**
+ * A series whose labels get their halo in the surface colour, so text drawn over lines and bars
+ * stays readable in either scheme. A halo the recipe sets stays.
+ *
+ * @param series - The series.
+ * @param theme - The theme.
+ * @returns The series.
+ */
+function withLabelHalo(series: Loose, theme: ChartTheme): Loose {
+  const label = series.label;
+  if (!isObject(label) || label.show === false || 'textBorderColor' in label) return series;
+  return { ...series, label: { textBorderColor: theme.surface, ...label } };
+}
+
+/**
  * The option styled with the theme: axes and legends only where the chart has them.
  *
  * @param option - The option, tokens replaced.
@@ -180,6 +194,7 @@ function styleOption(
       : {}),
     ...(showLegend ? { legend: merge(legendDefaults, option.legend) } : {}),
     tooltip: tooltipOf(option.tooltip, series, theme),
+    ...('series' in option ? { series: series.map((each) => withLabelHalo(each, theme)) } : {}),
   };
 }
 

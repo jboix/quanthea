@@ -26,6 +26,9 @@ The wordmark is IBM Plex Sans SemiBold at 40 px, on a baseline at y=45, with tra
 | `--color-ink`          | `#17181C` | Wordmark lettering, the dark tile.          |
 | `--color-brand-signal` | `#F29A4A` | The signal dot of the mark. Brand use only. |
 
+The icon tiles take `--color-brand-accent` and `--color-brand-ink`, which keep these values in the
+dark scheme, where the UI accent and ink change.
+
 The signal orange is not a chart colour. The second chart series stays `#D0691C`
 (`--color-series-2`), so data never reads as the brand.
 
@@ -36,7 +39,7 @@ The signal orange is not a chart colour. The second chart series stays `#D0691C`
 | Nav rail, home link           | Blue icon, 32 px (`BrandIcon`).                                                                          |
 | Browser tab                   | `apps/web/public/favicon.svg` (blue icon), `favicon-32.png` fallback.                                    |
 | Home screen and installed app | `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, via `site.webmanifest`. |
-| Sign-in page                  | Logo for light grounds (`Logo`).                                                                         |
+| Sign-in page                  | Logo for the scheme shown (`Logo`): ink lettering in light, white lettering in dark.                     |
 | Loading screen                | The mark in secondary ink (`BrandMark`).                                                                 |
 | `/ui` kit                     | Every variant on the ground it is meant for.                                                             |
 | The repository README         | Logo, with the dark variant in GitHub's dark mode.                                                       |
