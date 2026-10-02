@@ -49,6 +49,16 @@ const report: UsageReport = {
       output: 0,
       events: 3,
     },
+    {
+      ...step(day + 10 * hour, '', 0),
+      kind: 'snapshot_view',
+      provider: '',
+      input: 0,
+      cachedInput: 0,
+      cacheWrite: 0,
+      output: 0,
+      events: 2,
+    },
     step(day + 11 * hour, 'mistral-large-latest', 0.01, 'bob'),
   ],
   people: { ada: { name: 'Ada', role: 'admin' }, bob: { name: 'Bob', role: 'editor' } },
@@ -65,7 +75,7 @@ describe('dailyUsage', () => {
       output: 60,
       dollars: 0.022,
       steps: 6,
-      views: 3,
+      views: 5,
       byModel: {
         'mistral-large-latest': { tokens: 360, dollars: 0.02 },
         'mistral-small-latest': { tokens: 180, dollars: 0.002 },
@@ -81,7 +91,7 @@ describe('dailyUsage', () => {
       output: 60,
       dollars: 0.022,
       steps: 6,
-      views: 3,
+      views: 5,
     });
   });
 });

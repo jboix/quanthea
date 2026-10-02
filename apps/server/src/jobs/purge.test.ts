@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { captureLogs, temporaryDir, testServices } from '../test/fixtures.ts';
-import { purgeExpired } from './purge.ts';
+import { purgeExpired, purgeSnapshots } from './purge.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let services: Awaited<ReturnType<typeof testServices>>;
@@ -43,5 +43,13 @@ describe('the purge job', () => {
     expect(runAt(Date.now() + 3650 * 86_400_000)).toBe(0);
     services.retention.save({ binDays: 0 }, 'admin-1');
     expect(runAt(Date.now())).toBe(1);
+  });
+
+  test('deletes the snapshots whose time is up, and says how many', () => {
+    const { logger, lines } = captureLogs();
+    const snapshots = { purgeExpired: () => 2 };
+    const dependencies = { bin: services.bin, retention: services.retention, snapshots, logger };
+    expect(purgeSnapshots(dependencies)).toBe(2);
+    expect(JSON.stringify(lines)).toContain('purged expired snapshots');
   });
 });

@@ -123,6 +123,19 @@ describe('route access', () => {
     expect(threadRoutes.every((route) => route.access === 'editor')).toBe(true);
   });
 
+  test('a snapshot opens for any role; editors take and revoke; admins list them all', () => {
+    const snapshotRoutes = listApiRouteAccess(buildApp())
+      .filter((route) => /snapshots/.test(route.path))
+      .map((route) => `${route.access} ${route.method} ${route.path}`);
+    expect(snapshotRoutes.sort()).toEqual([
+      'admin GET /api/snapshots',
+      'editor DELETE /api/snapshots/:snapshotId',
+      'editor GET /api/dashboards/:dashboardId/snapshots',
+      'editor POST /api/snapshots',
+      'viewer GET /api/snapshots/:snapshotId',
+    ]);
+  });
+
   test('the audit reports a route mounted without an access declaration', () => {
     const app = buildApp();
     app.get('/api/sneaky', (context) => context.json({}));

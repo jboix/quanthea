@@ -1,10 +1,10 @@
 /**
  * The usage ledger: every model step's tokens and list-price cost, and every view of a pinned
- * dashboard, kept apart from threads so deleting one keeps its history. The cost is priced when
+ * dashboard or a snapshot, kept apart from threads so deleting one keeps its history. The cost is priced when
  * the step happens, so later price changes do not rewrite the past.
  */
 import { costOf, pricesCheckedOn, type TokenUsage, type UsageReport } from '@quanthea/shared';
-import type { UsageEventRow, UsageRepository } from '../db/usage-repository.ts';
+import type { UsageEventRow, UsageKind, UsageRepository } from '../db/usage-repository.ts';
 import { newId } from '../lib/ids.ts';
 
 /** A model step to record. */
@@ -50,6 +50,12 @@ export interface Usage {
    * @param dashboardId - The dashboard.
    */
   recordPinnedView(dashboardId: string): void;
+  /**
+   * Records a view of a snapshot.
+   *
+   * @param dashboardId - The dashboard the snapshot froze.
+   */
+  recordSnapshotView(dashboardId: string): void;
   /**
    * The report of the last days, by hour.
    *
@@ -158,16 +164,21 @@ function stepEvent(step: ModelStep, at: number): UsageEventRow {
 }
 
 /**
- * The ledger event of a pinned dashboard's view.
+ * The ledger event of a view, which spends no tokens.
  *
+ * @param kind - A view of a pinned dashboard, or of a snapshot.
  * @param dashboardId - The dashboard.
  * @param at - When.
  * @returns The event.
  */
-function viewEvent(dashboardId: string, at: number): UsageEventRow {
+function viewEvent(
+  kind: Exclude<UsageKind, 'model'>,
+  dashboardId: string,
+  at: number,
+): UsageEventRow {
   const none = { threadId: null, provider: null, model: null, job: null, costMicros: null };
   const tokens = { input: 0, cachedInput: 0, cacheWrite: 0, output: 0 };
-  return { id: newId(), at, kind: 'pinned_view', dashboardId, ...none, ...tokens };
+  return { id: newId(), at, kind, dashboardId, ...none, ...tokens };
 }
 
 /**
@@ -181,7 +192,10 @@ export function createUsage(dependencies: UsageDependencies): Usage {
   const now = dependencies.now ?? Date.now;
   return {
     recordStep: (step) => repository.record(stepEvent(step, now())),
-    recordPinnedView: (dashboardId) => repository.record(viewEvent(dashboardId, now())),
+    recordPinnedView: (dashboardId) =>
+      repository.record(viewEvent('pinned_view', dashboardId, now())),
+    recordSnapshotView: (dashboardId) =>
+      repository.record(viewEvent('snapshot_view', dashboardId, now())),
     report: (days) => reportOf(repository, now() - days * dayMs, now() + 1),
     month: () => {
       const since = monthStart(now());

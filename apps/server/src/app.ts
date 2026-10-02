@@ -14,6 +14,7 @@ import type { UserAdminDependencies } from './auth/user-admin.ts';
 import type { Users } from './auth/users.ts';
 import type { Connections } from './connections/connections.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
+import type { Snapshots } from './dashboards/snapshots.ts';
 import type { ModelView } from './gate/model-view.ts';
 import type { AppEnv } from './http/app-env.ts';
 import { authenticate } from './http/authenticate.ts';
@@ -34,6 +35,7 @@ import { mountQueryEndpoints } from './http/routes/query-routes.ts';
 import { mountServerSettingsEndpoints } from './http/routes/server-settings-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSignInSettingsEndpoints } from './http/routes/sign-in-settings-routes.ts';
+import { mountSnapshotEndpoints } from './http/routes/snapshot-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
 import { mountThreadEndpoints } from './http/routes/thread-routes.ts';
 import { mountUsageEndpoints } from './http/routes/usage-routes.ts';
@@ -86,6 +88,8 @@ export interface AppDependencies {
   readonly managed: Managed;
   /** The dashboards service. */
   readonly dashboards: Dashboards;
+  /** Snapshots of dashboards, frozen with their results. */
+  readonly snapshots: Snapshots;
   /** The model gateway settings. */
   readonly modelSettings: ModelSettingsService;
   /** The threads. */
@@ -155,6 +159,11 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
     onPinnedView: dependencies.usage.recordPinnedView,
     ownerOf: dependencies.bin.ownerOf,
     describe: dependencies.describeForPin,
+  });
+  mountSnapshotEndpoints(app, {
+    ...dependencies,
+    ownerOf: dependencies.bin.ownerOf,
+    onSnapshotView: dependencies.usage.recordSnapshotView,
   });
   mountSettingsRoutes(app, dependencies);
   mountThreadEndpoints(app, dependencies);

@@ -18,7 +18,7 @@ export interface DayUsage {
   readonly dollars: number;
   /** Model steps. */
   readonly steps: number;
-  /** Views of pinned dashboards. */
+  /** Views of pinned dashboards and of snapshots. */
   readonly views: number;
   /** The tokens and cost of each model that ran that day, by model id. */
   readonly byModel: Readonly<Record<string, ModelDay>>;
@@ -91,7 +91,7 @@ function withModel(
  * @returns The day with the bucket.
  */
 function withBucket(day: DayUsage, bucket: UsageBucket): DayUsage {
-  if (bucket.kind === 'pinned_view') return { ...day, views: day.views + bucket.events };
+  if (bucket.kind !== 'model') return { ...day, views: day.views + bucket.events };
   return {
     ...day,
     byModel: withModel(day.byModel, bucket),

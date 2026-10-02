@@ -26,7 +26,7 @@ flowchart LR
     Conn["connectors/ postgres · mysql · clickhouse · trino · prometheus · elasticsearch · loki"]
     Dom["dashboards/ threads/ search/ settings/ auth/"]
     DB[("SQLite: data dir")]
-    Jobs["jobs/ thread bin purge"]
+    Jobs["jobs/ purge: thread bin, expired snapshots"]
   end
 
   LLM["Model gateway (Anthropic / OpenAI / OpenAI-compatible)"]
@@ -79,12 +79,13 @@ The two paths that matter:
 │   │       │   ├── postgres/  mysql/  clickhouse/  trino/
 │   │       │   ├── prometheus/  loki/
 │   │       │   └── search/          Elasticsearch and OpenSearch: two kinds, one engine
-│   │       ├── dashboards/          versions, validate, pin, copies, library; queries/ (builders,
-│   │       │                        saved and raw queries) and panels/ (edits: data + chart, layout)
+│   │       ├── dashboards/          versions, validate, pin, copies, library, snapshots; queries/
+│   │       │                        (builders, saved and raw queries) and panels/ (edits: data +
+│   │       │                        chart, layout)
 │   │       ├── threads/             threads, messages, plans (state machine)
 │   │       ├── settings/            typed settings store (auth, gateway, retention)
 │   │       ├── secrets/             encrypt/decrypt credentials at rest
-│   │       ├── jobs/                in-process jobs: the hourly purge of the thread bin
+│   │       ├── jobs/                in-process jobs: the hourly purge of the bin and of snapshots
 │   │       └── db/                  bun:sqlite client, migrations, repositories
 │   └── web/                         @quanthea/web
 │       ├── index.html
@@ -371,8 +372,8 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
 - `GET /api/bin` and `POST /api/bin/:id/restore` (editor+) list and restore binned threads.
 - `DELETE /api/bin/:id` and `DELETE /api/bin` (admin) purge: in one transaction, the thread with
   its messages and plans, then its dashboard with every version, unless that dashboard is pinned
-  or another thread uses it. The library index drops it through its trigger. Copies keep their
-  `parent_dashboard_id`.
+  or another thread uses it. The library index drops it through its trigger, and its snapshots go
+  with it. Copies keep their `parent_dashboard_id`.
 - The usage ledger has no foreign keys, so purging never changes Settings → Usage.
 - **Retention** (the Retention dialog on the bin, `GET/PUT /api/settings/retention`, admin): binned threads
   are kept for `binDays` days, 30 by default, or until someone deletes them (`null`).
@@ -381,6 +382,39 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
 - The Bin screen says, for each thread, when it goes for good.
 
 `threads/bin.ts` holds these rules over `db/thread-bin.ts`.
+
+### 5.6 Snapshot links
+
+A snapshot shares a moment, such as an incident: a version frozen with the results its panels
+showed, at a link that opens with no query and no model (`dashboards/snapshots.ts`, over
+`db/snapshot-repository.ts`).
+
+1. `POST /api/snapshots` (editor+) names the version, the time range and variables as shown, the
+   hidden sets of markers, and a lifetime: `1d`, `7d`, `30d` or `forever`. The version is read as
+   for a panel run, so a draft is snapshotted only by those who may see it.
+2. The server resolves the time range to absolute times once and runs every panel through the
+   panel run path (`dashboards/run-panel.ts`), with the same variables, guardrails and row limits.
+   The browser never sends results, which it could forge.
+3. It stores the version's spec and each panel's run in the shape `POST /api/panels/run` returns,
+   with the absolute range, the variable values (the chosen ones, else the defaults), the hidden
+   sets of markers, the taker and `expires_at` (`NULL` for `forever`). A failing query is frozen as
+   it failed. Over 10 MiB of spec and results, the snapshot is refused with its size: a query
+   returns at most 50,000 rows by default, a few MB as JSON.
+4. The id is 128 random bits from WebCrypto in URL-safe base64 (`newSnapshotId`), so a link can't
+   be guessed. `GET /api/snapshots/:id` (viewer+) returns it with no query; an unknown, revoked or
+   expired id gets the same "not found". An expired snapshot is refused from the moment it
+   expires; the hourly purge job (`jobs/purge.ts`) then deletes it.
+5. `GET /api/dashboards/:id/snapshots` (editor+) lists a dashboard's live snapshots and
+   `GET /api/snapshots` (admin) every live one. `DELETE /api/snapshots/:id` (editor+) revokes one
+   at once: the row is deleted.
+6. The taker is recorded on the snapshot and in the audit log (`snapshot.take`,
+   `snapshot.revoke`), for accountability only: any editor revokes any snapshot.
+7. A snapshot keeps working while its dashboard's thread is in the bin. Purging the thread deletes
+   the dashboard with every version, and its snapshots with them (`ON DELETE CASCADE`), as it does
+   every other part of the dashboard. A pinned dashboard's thread can't be binned, so a snapshot
+   of a pinned dashboard goes only when it expires, is revoked, or the dashboard is unpinned and
+   its thread purged.
+8. Each opening counts in the usage ledger as a `snapshot_view`, with the dashboard's id.
 
 ## 6. The agent
 
@@ -1250,25 +1284,37 @@ CREATE TABLE audit_log (
   id TEXT PRIMARY KEY, at INTEGER NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL,
   target TEXT, detail TEXT);
 
+-- a version frozen with its panels' runs; deleted when revoked, expired or its dashboard goes
+CREATE TABLE snapshots (
+  id TEXT PRIMARY KEY,               -- 128 random bits, URL-safe base64: the link
+  dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL, title TEXT NOT NULL,
+  time_from INTEGER NOT NULL, time_to INTEGER NOT NULL,  -- the absolute range the panels ran over
+  variables TEXT NOT NULL, hidden_markers TEXT NOT NULL,  -- JSON
+  spec TEXT NOT NULL, panels TEXT NOT NULL,  -- JSON: the spec, and each panel's run by panel id
+  bytes INTEGER NOT NULL, taken_by TEXT NOT NULL, taken_at INTEGER NOT NULL,
+  expires_at INTEGER);               -- NULL: until revoked
+
 -- the usage ledger: no foreign keys, it outlives the threads and dashboards it names
 CREATE TABLE usage_events (
-  id TEXT PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL,   -- 'model' | 'pinned_view'
+  id TEXT PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL,   -- 'model' | 'pinned_view' | 'snapshot_view'
   thread_id TEXT, dashboard_id TEXT, provider TEXT, model TEXT, job TEXT,
   input INTEGER, cached_input INTEGER, cache_write INTEGER, output INTEGER,
   cost_micros INTEGER);                        -- list price when recorded; NULL when unknown
 ```
 
 The usage ledger (`usage/usage.ts`) records every model step, with its provider, model, job,
-tokens and list-price cost at that moment, and every read of a pinned version, which spends no
-tokens. A model step also records who it ran for: the owner of its thread at that moment, kept
+tokens and list-price cost at that moment, and every read of a pinned version and every opening
+of a snapshot, which spend no tokens. A model step also records who it ran for: the owner of its thread at that moment, kept
 after the thread is purged; a step outside a thread, such as tagging at pin time, names no one.
 Deleting a thread keeps its history. `GET /api/settings/usage?days=` returns it by hour, model and
 user, with each user's name and role, and the browser adds the hours up into its own days.
 Settings → Usage draws tokens and cost per day stacked by model (the five costliest, then
 `Other`), and lists the models and, ten a page, the people who spent the most.
 
-Migrations are plain numbered `.sql` files in `db/migrations/`. Until the first release there is
-one, `0001-schema.sql`, changed in place.
+Migrations are plain numbered `.sql` files in `db/migrations/`. `0001-schema.sql` is the schema
+of the first release; each change since is a new file, never an edit of an applied one
+(`0002-snapshots.sql` adds the snapshots and the `snapshot_view` kind).
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Timestamps (`at`, `*_at`) are Unix epoch milliseconds. SQLite runs with `journal_mode=WAL`,
@@ -1306,6 +1352,10 @@ indicative; the contract files are the source of truth.
 | `GET /bin`, `POST /bin/:threadId/restore`                                                         | the thread bin                               | editor   |
 | `DELETE /bin/:threadId`, `DELETE /bin`                                                            | delete threads and their dashboards for good | admin    |
 | `POST /panels/run`, `POST /variables/options`                                                     | run one saved panel, options                 | viewer   |
+| `POST /snapshots` (a version as shown, and a lifetime)                                            | take a snapshot: the server runs the panels  | editor   |
+| `GET /snapshots/:snapshotId`                                                                      | open a live snapshot, no query               | viewer   |
+| `GET /dashboards/:id/snapshots`, `DELETE /snapshots/:snapshotId`                                  | a dashboard's live snapshots, revoke one     | editor   |
+| `GET /snapshots`                                                                                  | every live snapshot                          | admin    |
 | `GET /connector-kinds` (with the JSON Schemas of their forms)                                     | connector kinds                              | admin    |
 | `GET/POST /connectors`, `GET/PATCH/DELETE /connectors/:connectorId`                               | connectors                                   | admin    |
 | `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`                  | connection test, schema                      | admin    |
@@ -1517,7 +1567,8 @@ one, and enables them again. Without any admin, it creates the default one.
   address (`createHttpClient`).
 - Secrets are encrypted at rest and never returned by the API (connector GETs show
   `secret: "••••1234"`). See "Keys" below.
-- Audit log entries for pin, bin, restore, purge, connector changes and settings changes.
+- Audit log entries for pin, bin, restore, purge, snapshots taken and revoked, connector changes
+  and settings changes.
 - Response headers: CSP `default-src 'self'; connect-src 'self'; img-src 'self' data:;
   style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'self'` (ECharts
   sets inline styles), `frame-ancestors 'none'`, `X-Frame-Options: DENY`,

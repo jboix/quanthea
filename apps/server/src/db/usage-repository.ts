@@ -1,17 +1,20 @@
 /** Reads and writes the usage ledger. */
 import type { Database } from 'bun:sqlite';
 
+/** What an event of the ledger is: a model step, or a view of a pinned dashboard or a snapshot. */
+export type UsageKind = 'model' | 'pinned_view' | 'snapshot_view';
+
 /** One event of the ledger. */
 export interface UsageEventRow {
   /** The id. */
   readonly id: string;
   /** When it happened, epoch milliseconds. */
   readonly at: number;
-  /** A model step, or a view of a pinned dashboard. */
-  readonly kind: 'model' | 'pinned_view';
+  /** A model step, or a view of a pinned dashboard or of a snapshot. */
+  readonly kind: UsageKind;
   /** The thread, for a model step. */
   readonly threadId: string | null;
-  /** The dashboard, for a pinned view. */
+  /** The dashboard, for a view. */
   readonly dashboardId: string | null;
   /** The provider, for a model step. */
   readonly provider: string | null;
@@ -36,7 +39,7 @@ export interface UsageBucketRow {
   /** The hour, as epoch milliseconds of its start. */
   readonly hour: number;
   /** The kind. */
-  readonly kind: 'model' | 'pinned_view';
+  readonly kind: UsageKind;
   /** The provider, empty for a pinned view. */
   readonly provider: string;
   /** The model, empty for a pinned view. */

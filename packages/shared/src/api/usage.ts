@@ -10,8 +10,8 @@ import { defineEndpoint } from './contract.ts';
 export const usageBucketSchema = z.object({
   /** The start of the hour, epoch milliseconds. */
   hour: z.number(),
-  /** A model step, or a view of a pinned dashboard. */
-  kind: z.enum(['model', 'pinned_view']),
+  /** A model step, or a view of a pinned dashboard or of a snapshot. */
+  kind: z.enum(['model', 'pinned_view', 'snapshot_view']),
   /** The provider; empty for pinned views. */
   provider: z.string(),
   /** The model id; empty for pinned views. */

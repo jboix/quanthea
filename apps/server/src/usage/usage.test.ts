@@ -90,6 +90,20 @@ describe('the usage ledger', () => {
     });
   });
 
+  test('counts snapshot views apart from pinned views, with no tokens', () => {
+    const ledger = usage();
+    ledger.recordSnapshotView('d1');
+    ledger.recordPinnedView('d1');
+    const kinds = ledger
+      .report(1)
+      .buckets.map((bucket) => [bucket.kind, bucket.events, bucket.input]);
+    expect(kinds).toEqual([
+      ['pinned_view', 1, 0],
+      ['snapshot_view', 1, 0],
+    ]);
+    expect(ledger.month().pinnedViews).toBe(1);
+  });
+
   test('keeps only the days asked for', () => {
     const ledger = usage();
     ledger.recordPinnedView('old');

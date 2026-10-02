@@ -167,6 +167,19 @@ export {
   type SettingSource,
 } from './api/server-settings.ts';
 export {
+  getSnapshotEndpoint,
+  listDashboardSnapshotsEndpoint,
+  listSnapshotsEndpoint,
+  revokeSnapshotEndpoint,
+  type Snapshot,
+  type SnapshotLifetime,
+  type SnapshotSummary,
+  snapshotLifetimes,
+  snapshotSchema,
+  snapshotSummarySchema,
+  takeSnapshotEndpoint,
+} from './api/snapshots.ts';
+export {
   approvePlanEndpoint,
   createThreadEndpoint,
   deleteThreadEndpoint,

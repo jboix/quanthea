@@ -12,11 +12,13 @@ import { type Connections, createConnections } from './connections/connections.t
 import { resealConnectors } from './connections/reseal.ts';
 import type { RegisteredKind } from './connectors/_shared/index.ts';
 import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
+import { createSnapshots, type Snapshots } from './dashboards/snapshots.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import { createIdentityRepository } from './db/identity-repository.ts';
 import { createProvisionedRepository } from './db/provisioned-repository.ts';
+import { createSnapshotRepository } from './db/snapshot-repository.ts';
 import { createThreadBinRepository } from './db/thread-bin.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
@@ -54,6 +56,8 @@ export interface Services extends Accounts {
   readonly connections: Connections;
   /** The dashboards. */
   readonly dashboards: Dashboards;
+  /** Snapshots of dashboards, frozen with their results. */
+  readonly snapshots: Snapshots;
   /** The model gateway settings. */
   readonly modelSettings: ModelSettingsService;
   /** The connectors as the model sees them, through the gate. */
@@ -89,8 +93,8 @@ const resultTtlMs = 15_000;
 const maxCachedResults = 500;
 
 /**
- * The services over the data sources: connectors, the query executor, dashboards and the
- * model's view of the connectors, which share one executor and its cache.
+ * The services over the data sources: connectors, the query executor, dashboards, their snapshots
+ * and the model's view of the connectors, which share one executor and its cache.
  *
  * @param dependencies - The database, the connector kinds and the secret box.
  * @param audit - The audit log.
@@ -106,16 +110,21 @@ function dataServices(
   const executor = createQueryExecutor(
     createResultCache({ ttlMs: resultTtlMs, maxEntries: maxCachedResults }),
   );
-  const dashboards = createDashboards({
+  const dashboardDependencies = {
     repository: createDashboardRepository(database),
     audit,
     lookup: connections.lookup,
-    openSource: async (name) => (await connections.open(name)).source,
+    openSource: async (name: string) => (await connections.open(name)).source,
     executor,
+  };
+  const dashboards = createDashboards(dashboardDependencies);
+  const snapshots = createSnapshots({
+    ...dashboardDependencies,
+    snapshots: createSnapshotRepository(database),
   });
   const { subjects: list, open, snapshot } = connections;
   const modelView = createModelView({ list, open, snapshot }, executor);
-  return { connections, dashboards, modelView };
+  return { connections, dashboards, snapshots, modelView };
 }
 
 /**

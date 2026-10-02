@@ -1,8 +1,10 @@
 /**
  * The purge job: once at startup and then every hour, it deletes for good the threads that have
- * waited in the bin longer than the retention setting allows, and the sessions that have ended.
+ * waited in the bin longer than the retention setting allows, the snapshots whose time is up, and
+ * the sessions that have ended.
  */
 import type { Sessions } from '../auth/sessions.ts';
+import type { Snapshots } from '../dashboards/snapshots.ts';
 import type { Logger } from '../lib/logger.ts';
 import type { RetentionSettingsService } from '../settings/retention-settings.ts';
 import type { ThreadBin } from '../threads/bin.ts';
@@ -13,6 +15,8 @@ export interface PurgeJobDependencies {
   readonly bin: Pick<ThreadBin, 'purgeAll'>;
   /** The retention settings. */
   readonly retention: Pick<RetentionSettingsService, 'get'>;
+  /** The snapshots, whose expired ones the job deletes. */
+  readonly snapshots?: Pick<Snapshots, 'purgeExpired'> | undefined;
   /** The sessions, whose ended rows the job deletes. */
   readonly sessions?: Pick<Sessions, 'purgeEnded'> | undefined;
   /** Where it reports what it purged, and failures. */
@@ -43,15 +47,30 @@ export function purgeExpired(dependencies: PurgeJobDependencies): number {
 }
 
 /**
+ * Deletes the snapshots whose time is up. Opening one is refused from the moment it expires; this
+ * frees the space.
+ *
+ * @param dependencies - The snapshots and the logger.
+ * @returns How many snapshots it deleted.
+ */
+export function purgeSnapshots(dependencies: PurgeJobDependencies): number {
+  const purged = dependencies.snapshots?.purgeExpired() ?? 0;
+  if (purged > 0) dependencies.logger.info('purged expired snapshots', { purged });
+  return purged;
+}
+
+/**
  * Starts the purge job: now, then every hour. A failed run is logged and the next one tries again.
  *
- * @param dependencies - The bin, the retention settings, the logger and the clock.
+ * @param dependencies - The bin, the retention settings, the snapshots, the sessions, the logger
+ *   and the clock.
  * @returns Stops the job.
  */
 export function startPurgeJob(dependencies: PurgeJobDependencies): () => void {
   const run = () => {
     try {
       purgeExpired(dependencies);
+      purgeSnapshots(dependencies);
       dependencies.sessions?.purgeEnded();
     } catch (error) {
       dependencies.logger.error('the purge job failed', { error: String(error) });

@@ -84,7 +84,7 @@ function Figures({
     ],
     ['List-price cost', dollarsText(total.dollars), `Prices checked on ${checkedOn}`],
     ['Model steps', String(total.steps), 'One request each'],
-    ['Pinned views', String(total.views), 'No tokens: no model runs'],
+    ['Views', String(total.views), 'Pinned dashboards and snapshots; no model runs'],
   ] as const;
   return (
     <dl className={styles.figures}>
@@ -179,7 +179,10 @@ export function UsageScreen() {
       <div className={styles.charts}>
         <ChartCard title="Tokens per day, by model" input={tokensChart(daily, charted)} />
         <ChartCard title="List-price cost per day, by model" input={costChart(daily, charted)} />
-        <ChartCard title="Pinned dashboard views per day" input={viewsChart(daily)} />
+        <ChartCard
+          title="Views per day, pinned dashboards and snapshots"
+          input={viewsChart(daily)}
+        />
       </div>
       <Card title="By model">
         <ModelsTable models={models} />

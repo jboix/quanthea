@@ -1,6 +1,6 @@
 import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { temporaryDir } from '../test/fixtures.ts';
 import { openDatabase } from './database.ts';
@@ -58,7 +58,7 @@ describe('openDatabase', () => {
 
 describe('runMigrations', () => {
   test('applies the shipped migrations once', () => {
-    expect(runMigrations(database)).toEqual(['0001-schema.sql']);
+    expect(runMigrations(database)).toEqual(['0001-schema.sql', '0002-snapshots.sql']);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
       'audit_log',
@@ -80,6 +80,7 @@ describe('runMigrations', () => {
       'schema_cache',
       'sessions',
       'settings',
+      'snapshots',
       'threads',
       'usage_events',
       'users',
@@ -96,6 +97,33 @@ describe('runMigrations', () => {
     );
     expect(() => runMigrations(database, migrationsDir)).toThrow('missing_table');
     expect(tableNames()).toEqual(['good', 'migrations']);
+  });
+});
+
+describe('the snapshots migration', () => {
+  test('keeps the usage ledger while it lets the ledger count snapshot views', () => {
+    const shipped = join(import.meta.dir, 'migrations');
+    const migrationsDir = join(dataDir.path, 'migrations');
+    mkdirSync(migrationsDir);
+    copyFileSync(join(shipped, '0001-schema.sql'), join(migrationsDir, '0001-schema.sql'));
+    runMigrations(database, migrationsDir);
+    const view = (id: string, kind: string) =>
+      database.run("INSERT INTO usage_events (id, at, kind, dashboard_id) VALUES (?, 1, ?, 'd')", [
+        id,
+        kind,
+      ]);
+    view('before', 'pinned_view');
+    expect(() => view('refused', 'snapshot_view')).toThrow('CHECK');
+    copyFileSync(join(shipped, '0002-snapshots.sql'), join(migrationsDir, '0002-snapshots.sql'));
+    expect(runMigrations(database, migrationsDir)).toEqual(['0002-snapshots.sql']);
+    view('after', 'snapshot_view');
+    const rows = database
+      .query<{ id: string; kind: string }, []>('SELECT id, kind FROM usage_events ORDER BY id')
+      .all();
+    expect(rows).toEqual([
+      { id: 'after', kind: 'snapshot_view' },
+      { id: 'before', kind: 'pinned_view' },
+    ]);
   });
 });
 
