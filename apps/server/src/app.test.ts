@@ -137,12 +137,29 @@ describe('route access', () => {
     ]);
   });
 
-  test('an analyst reaches exactly the routes a viewer reaches', () => {
+  test('an analyst reaches what a viewer reaches, and asks about dashboards', () => {
     const reachable = (role: Role) =>
       listApiRouteAccess(buildApp())
         .filter((route) => route.access === 'public' || hasRole(role, route.access ?? 'admin'))
         .map((route) => `${route.method} ${route.path}`);
-    expect(reachable('analyst')).toEqual(reachable('viewer'));
+    const viewers = new Set(reachable('viewer'));
+    expect(reachable('analyst').filter((route) => !viewers.has(route))).toEqual([
+      'POST /api/dashboards/:dashboardId/questions',
+    ]);
+    expect(reachable('viewer').every((route) => reachable('analyst').includes(route))).toBe(true);
+  });
+
+  test('every role reads and searches questions; analysts and above ask', () => {
+    const questionRoutes = listApiRouteAccess(buildApp())
+      .filter((route) => /questions|sources/.test(route.path))
+      .map((route) => `${route.access} ${route.method} ${route.path}`);
+    expect(questionRoutes.sort()).toEqual([
+      'analyst POST /api/dashboards/:dashboardId/questions',
+      'viewer GET /api/dashboards/:dashboardId/questions',
+      'viewer GET /api/dashboards/:dashboardId/questions/:questionId',
+      'viewer GET /api/dashboards/:dashboardId/similar-questions',
+      'viewer GET /api/dashboards/:dashboardId/versions/:version/sources',
+    ]);
   });
 
   test('the audit reports a route mounted without an access declaration', () => {

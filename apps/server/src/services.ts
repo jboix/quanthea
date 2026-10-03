@@ -14,12 +14,14 @@ import { type Connections, createConnections } from './connections/connections.t
 import { resealConnectors } from './connections/reseal.ts';
 import type { RegisteredKind } from './connectors/_shared/index.ts';
 import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
+import { createQuestions, type Questions } from './dashboards/questions.ts';
 import { createSnapshots, type Snapshots } from './dashboards/snapshots.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import { createIdentityRepository } from './db/identity-repository.ts';
 import { createProvisionedRepository } from './db/provisioned-repository.ts';
+import { createQuestionRepository } from './db/question-repository.ts';
 import { createSnapshotRepository } from './db/snapshot-repository.ts';
 import { createThreadBinRepository } from './db/thread-bin.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
@@ -60,6 +62,8 @@ export interface Services extends Accounts {
   readonly dashboards: Dashboards;
   /** Snapshots of dashboards, frozen with their results. */
   readonly snapshots: Snapshots;
+  /** Questions asked about dashboards, stored with their answers. */
+  readonly questions: Questions;
   /** The model gateway settings. */
   readonly modelSettings: ModelSettingsService;
   /** The connectors as the model sees them, through the gate. */
@@ -98,7 +102,7 @@ const maxCachedResults = 500;
 
 /**
  * The services over the data sources: connectors, the query executor, dashboards, their snapshots
- * and the model's view of the connectors, which share one executor and its cache.
+ * and questions, and the model's view of the connectors, which share one executor and its cache.
  *
  * @param dependencies - The database, the connector kinds and the secret box.
  * @param audit - The audit log.
@@ -128,7 +132,12 @@ function dataServices(
   });
   const { subjects: list, open, snapshot } = connections;
   const modelView = createModelView({ list, open, snapshot }, executor);
-  return { connections, dashboards, snapshots, modelView };
+  const questions = createQuestions({
+    ...dashboardDependencies,
+    questions: createQuestionRepository(database),
+    connectorLevels: () => modelView.connectors(),
+  });
+  return { connections, dashboards, snapshots, questions, modelView };
 }
 
 /**

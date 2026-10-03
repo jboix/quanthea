@@ -145,3 +145,43 @@ export function mountEndpoint<Target extends Endpoint>(
     },
   );
 }
+
+/** How a route answers an endpoint that streams: with a response of its own, not JSON. */
+interface StreamRoute<Target extends Endpoint> {
+  /** Who may call it. Every route declares this. */
+  readonly access: Access;
+  /**
+   * Handles a request whose input already passed the endpoint schemas.
+   *
+   * @param request - The parsed input and the principal.
+   * @returns The response, such as a UI message stream.
+   */
+  handle(request: EndpointRequest<Target>): Promise<Response>;
+}
+
+/**
+ * Mounts an endpoint that streams its answer at `/api` + its path. The route checks access and
+ * parses the input as {@link mountEndpoint} does; the handler's response goes out as it is.
+ *
+ * @param app - The app to mount on.
+ * @param endpoint - The shared endpoint contract.
+ * @param route - The access declaration and the handler.
+ */
+export function mountStreamEndpoint<Target extends Endpoint>(
+  app: Hono<AppEnv>,
+  endpoint: Target,
+  route: StreamRoute<Target>,
+): void {
+  app.on(
+    endpoint.method,
+    `${apiPrefix}${endpoint.path}`,
+    accessMiddleware(route.access),
+    async (context) =>
+      route.handle({
+        ...(await parseInput(context, endpoint)),
+        principal: context.get('principal'),
+        requestId: context.get('requestId'),
+        signal: context.req.raw.signal,
+      }),
+  );
+}

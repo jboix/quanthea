@@ -139,14 +139,14 @@ function notFound(): AppError {
 }
 
 /**
- * The variable values a snapshot shows: the chosen ones, else the defaults, for the declared
- * variables only.
+ * The variable values a version shows: the chosen ones, else the defaults, for the declared
+ * variables only. Snapshots and questions record these.
  *
  * @param spec - The spec.
  * @param picked - The choices.
  * @returns The values.
  */
-function shownVariables(spec: DashboardSpec, picked: VariableValues): VariableValues {
+export function shownVariables(spec: DashboardSpec, picked: VariableValues): VariableValues {
   const entries = spec.variables.flatMap((variable) => {
     const value = picked[variable.name] ?? variable.default;
     return value === undefined ? [] : [[variable.name, value] as const];

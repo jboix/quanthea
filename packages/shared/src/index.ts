@@ -161,6 +161,7 @@ export {
   queryChoiceSchema,
   saveQuerySettingsEndpoint,
 } from './api/queries.ts';
+export * from './api/questions.ts';
 export {
   getRetentionSettingsEndpoint,
   type RetentionSettings,

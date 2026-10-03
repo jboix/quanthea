@@ -62,11 +62,13 @@ describe('runMigrations', () => {
       '0001-schema.sql',
       '0002-snapshots.sql',
       '0003-analyst-role.sql',
+      '0004-dashboard-questions.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
       'audit_log',
       'connectors',
+      'dashboard_questions',
       'dashboard_versions',
       'dashboards',
       'identities',
@@ -81,6 +83,12 @@ describe('runMigrations', () => {
       'password_links',
       'plans',
       'provisioned',
+      'question_fts',
+      'question_fts_config',
+      'question_fts_content',
+      'question_fts_data',
+      'question_fts_docsize',
+      'question_fts_idx',
       'schema_cache',
       'sessions',
       'settings',

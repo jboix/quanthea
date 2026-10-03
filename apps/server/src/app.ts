@@ -2,6 +2,7 @@
 import { apiPrefix, type ServerSettingsView } from '@quanthea/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
+import type { Answers } from './agent/answer-types.ts';
 import type { Agent } from './agent/run.ts';
 import type { Authenticator } from './auth/authenticator.ts';
 import type { DefaultAdminDependencies } from './auth/default-admin.ts';
@@ -14,6 +15,7 @@ import type { UserAdminDependencies } from './auth/user-admin.ts';
 import type { Users } from './auth/users.ts';
 import type { Connections } from './connections/connections.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
+import type { Questions } from './dashboards/questions.ts';
 import type { Snapshots } from './dashboards/snapshots.ts';
 import type { ModelView } from './gate/model-view.ts';
 import type { AppEnv } from './http/app-env.ts';
@@ -32,6 +34,7 @@ import {
 } from './http/routes/dashboard-routes.ts';
 import { mountProviderFlowRoutes } from './http/routes/provider-routes.ts';
 import { mountQueryEndpoints } from './http/routes/query-routes.ts';
+import { mountQuestionEndpoints } from './http/routes/question-routes.ts';
 import { mountServerSettingsEndpoints } from './http/routes/server-settings-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSignInSettingsEndpoints } from './http/routes/sign-in-settings-routes.ts';
@@ -90,6 +93,10 @@ export interface AppDependencies {
   readonly dashboards: Dashboards;
   /** Snapshots of dashboards, frozen with their results. */
   readonly snapshots: Snapshots;
+  /** Questions asked about dashboards, stored with their answers. */
+  readonly questions: Questions;
+  /** Answers questions about a dashboard. */
+  readonly answers: Pick<Answers, 'stream'>;
   /** The model gateway settings. */
   readonly modelSettings: ModelSettingsService;
   /** The threads. */
@@ -165,6 +172,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
     ownerOf: dependencies.bin.ownerOf,
     onSnapshotView: dependencies.usage.recordSnapshotView,
   });
+  mountQuestionEndpoints(app, { ...dependencies, ownerOf: dependencies.bin.ownerOf });
   mountSettingsRoutes(app, dependencies);
   mountThreadEndpoints(app, dependencies);
   mountBinEndpoints(app, dependencies);

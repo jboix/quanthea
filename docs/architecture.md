@@ -218,8 +218,8 @@ the kit's HTTP client for every kind that speaks HTTP.
 
 The roles rank viewer, analyst, editor, admin (`roles` in `@quanthea/shared`), and `hasRole` is
 the one check of a minimum role, on the server and in the browser. An analyst reads everything a
-viewer reads and asks questions about dashboards; until those questions exist, an analyst has
-exactly a viewer's access to every route and screen.
+viewer reads and also asks questions about pinned dashboards (`POST
+/api/dashboards/:id/questions`); every role reads the questions asked and their answers.
 
 Route loaders fetch through the typed API client. The root loader loads the session
 (`GET /api/me`, once per page load). Without a session, every screen redirects to
@@ -819,6 +819,39 @@ usage in its metadata (`answerDataSchemas` in `@quanthea/shared`). The model's s
 into the writer to its end before the outcome is written, so `data-outcome` is always the last data
 part and only the `finish` follows it. It calls back with the outcome, to store it.
 
+### Questions about a pinned dashboard
+
+A question is a shared record of the dashboard, not a thread (`dashboards/questions.ts`, over
+`db/question-repository.ts`). Every role reads a dashboard's questions and their answers; asking
+needs the analyst role. The asker is recorded for accountability only: no one owns a question.
+
+1. `POST /api/dashboards/:id/questions` (analyst+) names the version shown, the question, the time
+   range and variables as shown, the hidden sets of markers, the browser's time zone, and the
+   question it follows up on, if any. The browser never sends a query.
+2. The version is read as a viewer reads it, so only a pinned version of a pinned dashboard takes
+   questions. The server resolves the range to absolute times and the variables to the values
+   shown (the chosen ones, else the defaults) as snapshots do, and the answering service binds them
+   as a panel run does. The time zone is the spec's, else the browser's.
+3. A follow-up carries its chain's earlier questions and answered texts, oldest first, at most ten,
+   as the request's `history`. The parent must be a question of the same dashboard.
+4. The route streams `Answers.stream` and names the stored question in the `X-Question-Id` header.
+   When the outcome comes, the question is stored with it: the answer's text, citations and
+   evidence, or the failure's message and evidence, the tokens by model, and whether no source of
+   the dashboard was at aggregates or full access (`explainOnly`). A failed answer is stored too.
+   A question whose asker left before the end, or that fails before the stream starts (no model
+   set up, a bad range or variable), is not stored.
+5. `GET /api/dashboards/:id/questions` lists a dashboard's questions, the newest 200, and
+   `GET /api/dashboards/:id/questions/:questionId` reads one (viewer+). The dashboard is read with
+   the person's role, so viewers see the questions of pinned dashboards only.
+6. `GET /api/dashboards/:id/similar-questions?q=` (viewer+) finds at most three earlier answered
+   questions whose question or answer shares a meaningful word with the text, as prefixes, the
+   question weighing three times the answer. The FTS5 table `question_fts` holds each question and
+   its answer; triggers keep it in step with inserts and deletes.
+7. `GET /api/dashboards/:id/versions/:v/sources` (viewer+) gives the connectors a version names,
+   by name and access level only, so the Ask tab can say when the answer can only explain.
+8. Questions go with their dashboard (`ON DELETE CASCADE`), as snapshots do, and their index rows
+   with them. The model steps stay in the usage ledger.
+
 ## 7. Connectors
 
 A **connector kind** is a kind of source, such as PostgreSQL. A **connector** is one configured
@@ -1369,6 +1402,24 @@ CREATE TABLE snapshots (
   bytes INTEGER NOT NULL, taken_by TEXT NOT NULL, taken_at INTEGER NOT NULL,
   expires_at INTEGER);               -- NULL: until revoked
 
+-- a question about a pinned dashboard, stored once with its outcome; goes with its dashboard
+CREATE TABLE dashboard_questions (
+  id TEXT PRIMARY KEY,
+  dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  parent_id TEXT REFERENCES dashboard_questions(id) ON DELETE CASCADE,  -- a follow-up's question
+  time_from INTEGER NOT NULL, time_to INTEGER NOT NULL, time_zone TEXT NOT NULL,  -- as shown
+  variables TEXT NOT NULL, hidden_markers TEXT NOT NULL,  -- JSON
+  explain_only INTEGER NOT NULL,     -- 1: no source showed numbers
+  asked_by TEXT NOT NULL, asked_at INTEGER NOT NULL, question TEXT NOT NULL,
+  answer TEXT, failure TEXT,         -- one of the two
+  citations TEXT NOT NULL, evidence TEXT NOT NULL, usage TEXT NOT NULL,  -- JSON
+  tokens INTEGER NOT NULL);
+
+-- "already answered": filled by triggers on dashboard_questions
+CREATE VIRTUAL TABLE question_fts USING fts5(
+  question_id UNINDEXED, dashboard_id UNINDEXED, question, answer, tokenize = 'porter unicode61');
+
 -- the usage ledger: no foreign keys, it outlives the threads and dashboards it names
 CREATE TABLE usage_events (
   id TEXT PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL,   -- 'model' | 'pinned_view' | 'snapshot_view'
@@ -1389,7 +1440,8 @@ Settings → Usage draws tokens and cost per day stacked by model (the five cost
 Migrations are plain numbered `.sql` files in `db/migrations/`. `0001-schema.sql` is the schema
 of the first release; each change since is a new file, never an edit of an applied one
 (`0002-snapshots.sql` adds the snapshots and the `snapshot_view` kind, `0003-analyst-role.sql`
-rebuilds `users` to allow the analyst role).
+rebuilds `users` to allow the analyst role, `0004-dashboard-questions.sql` adds the questions about
+dashboards and their full-text index).
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -1431,6 +1483,10 @@ indicative; the contract files are the source of truth.
 | `GET /bin`, `POST /bin/:threadId/restore`                                                         | the thread bin                               | editor   |
 | `DELETE /bin/:threadId`, `DELETE /bin`                                                            | delete threads and their dashboards for good | admin    |
 | `POST /panels/run`, `POST /variables/options`                                                     | run one saved panel, options                 | viewer   |
+| `POST /dashboards/:id/questions` (streams the answer)                                             | ask about a pinned version, as shown         | analyst  |
+| `GET /dashboards/:id/questions`, `GET /dashboards/:id/questions/:questionId`                      | a dashboard's questions and answers          | viewer   |
+| `GET /dashboards/:id/similar-questions?q=`                                                        | earlier answered questions sharing words     | viewer   |
+| `GET /dashboards/:id/versions/:v/sources`                                                         | a version's connectors and access levels     | viewer   |
 | `POST /snapshots` (a version as shown, and a lifetime)                                            | take a snapshot: the server runs the panels  | editor   |
 | `GET /snapshots/:snapshotId`                                                                      | open a live snapshot, no query               | viewer   |
 | `GET /dashboards/:id/snapshots`, `DELETE /snapshots/:snapshotId`                                  | a dashboard's live snapshots, revoke one     | editor   |
