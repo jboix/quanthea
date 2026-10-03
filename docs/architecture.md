@@ -759,6 +759,58 @@ to that version) and `data-diff` (the change card); their schemas are in `@quant
 whole conversation, tool parts included, is stored when the run ends, even if the person leaves, so
 a reload shows the same thread.
 
+### Answers about a dashboard
+
+Outside any thread, the answering service (`agent/answer.ts`, its contract in
+`agent/answer-types.ts`) answers about one version of a dashboard, with the `answer` model job. It
+has two modes:
+
+- **`ask`**: a question about the data. The request carries the spec, the range the person looks at
+  resolved to absolute times, the dashboard's time zone, the variables they chose, the question,
+  and the earlier questions and answers it follows up on.
+- **`explain`**: what one panel measures, where its data comes from and how to read it. The
+  request carries the spec and the panel. It reads no data at any level, sees no range and no
+  variable values, and its text must quote no data, so it can be cached and shown to every role.
+
+The model's tools are decided per connector of the dashboard:
+
+| Tool          | Offered                                                               | Does                                                                                                  |
+| ------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `describe`    | always, for the dashboard's connectors                                | the schema, as the thread's `describe`                                                                |
+| `read_data`   | in `ask` only, for the connectors at level 3 (aggregates) or 4 (full) | test-runs a panel's query (`panelId`) or one the model writes, through the gate, as `test_query` does |
+| `give_answer` | always                                                                | takes the answer: `text` with markers `[1]`, and `citations`                                          |
+
+- `read_data` runs over the range asked about, or a window the model names, with the viewer's
+  variables bound by the panel binders (`Dashboards.bindVariables`), never pasted into a query. It
+  returns what the gate allows: level 3 summaries, level 4 also rows. Nothing writes.
+- When no connector of the dashboard is at level 3 or 4, `ask` gets no read tool, and the
+  instructions tell the model to say plainly, first, that it cannot read the numbers: level 2 shows
+  low-cardinality values, never measurements.
+- The server records each read as evidence: an id (`e1`, `e2`…), the connector, the panel, the
+  query as it ran (the template, before binding), the bound variable values, the window, and the
+  gate's output. The model gets the evidence id with the result.
+- A citation is `{ n, evidenceId?, panelId?, from?, to? }` (`answerCitationSchema` in
+  `@quanthea/shared`). The server checks `give_answer` (`agent/answer-check.ts`): every marker has a
+  citation and every citation a marker, once; each points at a read that happened or a panel the
+  spec has; a window has both ends, runs forwards and lies within the range asked about; an
+  explanation has none. A failing answer goes back to the model with its issues for one repair;
+  a second failure ends with a clean failure, never an unchecked answer.
+- Every step must call a tool. Past the tool call limit (the thread's `toolCallsPerTurn`) or the
+  token budget (the thread's `threadTokens`), the step may only call `give_answer`.
+- The instructions (`agent/answer-prompt.ts`) ask for an answer from evidence only, every number
+  cited, times absolute in the dashboard's time zone, what could not be seen said, a few plain
+  sentences and no tables. They carry the dashboard as written (panels, queries, variables,
+  markers), never data, and each connector with what the model may read of it.
+- Each step goes to the usage ledger as the `answer` job, against the person who asked and the
+  dashboard. The outcome carries the answer's usage by model.
+
+`Answers.answer` returns the outcome: the checked answer (`text`, `citations`, `evidence`) and its
+usage, or a failure with its message, evidence and usage; a failing model call is a failure too.
+Given a UI message stream writer, it streams as a thread does. `Answers.stream` wraps it in a UI
+message stream response: the model's tool parts (`give_answer`'s input arrives as it is written),
+a `data-evidence` part per read, a `data-outcome` part at the end, and the usage in the message
+metadata (`answerDataSchemas` in `@quanthea/shared`). It calls back with the outcome, to store it.
+
 ## 7. Connectors
 
 A **connector kind** is a kind of source, such as PostgreSQL. A **connector** is one configured

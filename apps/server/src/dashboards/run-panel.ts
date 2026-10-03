@@ -242,6 +242,28 @@ export async function runPanel(
 }
 
 /**
+ * Binds a viewer's variable choices as a run of the spec's panels binds them: checked against the
+ * declarations, defaults filled in, "All" expanded to the options.
+ *
+ * @param dependencies - The connectors, the executor and the clock.
+ * @param spec - The spec.
+ * @param choices - The viewer's variables and time range.
+ * @param signal - Aborted when the caller gives up.
+ * @returns The bindings.
+ * @throws {AppError} `bad_request` for a choice the declaration refuses, `source_failed` when a
+ *   variable's source fails.
+ */
+export async function bindChoices(
+  dependencies: RunnerDependencies,
+  spec: DashboardSpec,
+  choices: RunChoices,
+  signal?: AbortSignal,
+): Promise<Variables> {
+  const { loadOptions } = prepare(dependencies, spec, choices, signal);
+  return resolveVariables(spec, choices.variables, loadOptions);
+}
+
+/**
  * Lists the options of a query-backed variable, bound with the choices for the variables before it.
  *
  * @param dependencies - The connectors, the executor and the clock.

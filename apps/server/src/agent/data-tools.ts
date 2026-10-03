@@ -20,7 +20,7 @@ const expressionOptions = {
 };
 
 /** Validates a query to test: SQL, PromQL or LogQL with its options, or a search. */
-const testQuerySchema = z.discriminatedUnion('language', [
+export const testQuerySchema = z.discriminatedUnion('language', [
   z.object({ language: z.literal('sql'), sql: z.string().min(1).max(20_000) }),
   z.object({ language: z.literal('promql'), ...expressionOptions }),
   z.object({ language: z.literal('logql'), ...expressionOptions }),

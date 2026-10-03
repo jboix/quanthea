@@ -15,6 +15,14 @@ export {
   queryLanguages,
 } from '@quanthea/plugin-kit/contract';
 export {
+  type Answer,
+  type AnswerCitation,
+  type AnswerData,
+  type AnswerEvidence,
+  answerCitationSchema,
+  answerDataSchemas,
+} from './answers.ts';
+export {
   changePasswordEndpoint,
   completeSetupEndpoint,
   setPasswordEndpoint,

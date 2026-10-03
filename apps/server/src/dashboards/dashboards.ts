@@ -12,6 +12,7 @@ import {
   type Role,
 } from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
+import type { Variables } from '../query/variables.ts';
 import {
   type DashboardsDependencies,
   get,
@@ -25,7 +26,7 @@ import {
 import { type LibraryQuery, searchLibrary } from './library.ts';
 import { copyPinned, copyVersion, findPinned, type PinnedMatch } from './pinned.ts';
 import { newRows } from './rows.ts';
-import { listVariableOptions, runPanel } from './run-panel.ts';
+import { bindChoices, listVariableOptions, type RunChoices, runPanel } from './run-panel.ts';
 import { type ValidationResult, validateSpec } from './validate.ts';
 import { addVersion, failuresOf, type PanelTest, restoreVersion, testRunSpec } from './versions.ts';
 
@@ -122,6 +123,16 @@ export interface Dashboards {
     role: Role,
     signal?: AbortSignal,
   ): Promise<string[]>;
+  /**
+   * Binds a viewer's variable choices for a spec, as a panel run binds them, so queries run for
+   * the same choices see the same values. The values stay bound, never pasted into a query.
+   *
+   * @param spec - The spec.
+   * @param choices - The viewer's variables and time range.
+   * @param signal - Aborted when the caller gives up.
+   * @returns The bindings by variable name.
+   */
+  bindVariables(spec: DashboardSpec, choices: RunChoices, signal?: AbortSignal): Promise<Variables>;
   /**
    * Validates a spec against the current connectors, without saving it.
    *
@@ -294,6 +305,7 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
       runPanel(context, specOf(context, target, role), panelId, target, signal),
     variableOptions: (target, name, role, signal) =>
       listVariableOptions(context, specOf(context, target, role), name, target, signal),
+    bindVariables: (spec, choices, signal) => bindChoices(context, spec, choices, signal),
     check: (spec) => validateSpec(spec, { lookup: context.lookup, now: context.now() }),
     testRun: (spec) => testRunSpec(context, spec),
     addVersion: (id, spec, changeSummary, actor) =>

@@ -5,6 +5,8 @@
 
 import type { DashboardSpec } from '@quanthea/shared';
 import { type AccountDependencies, type Accounts, createAccounts } from './accounts.ts';
+import { createAnswers } from './agent/answer.ts';
+import type { Answers } from './agent/answer-types.ts';
 import { createMetadataWriter, type PinMetadata } from './agent/metadata.ts';
 import { type Agent, createAgent } from './agent/run.ts';
 import { resealIdentities, resealSignInCredentials, resealUsers } from './auth/reseal-users.ts';
@@ -76,6 +78,8 @@ export interface Services extends Accounts {
   ) => Promise<PinMetadata | null>;
   /** The agent that authors dashboards in threads. */
   readonly agent: Agent;
+  /** Answers questions about a dashboard and explains its panels. */
+  readonly answers: Answers;
   /** The usage ledger. */
   readonly usage: Usage;
   /** The query settings. */
@@ -237,6 +241,7 @@ export function createServices(dependencies: ServiceDependencies): Services {
     bin,
     describeForPin,
     agent,
+    answers: createAnswers({ ...data, usage, modelSettings: settings.modelSettings }),
     usage,
     ...settings,
     ...provisioning,
