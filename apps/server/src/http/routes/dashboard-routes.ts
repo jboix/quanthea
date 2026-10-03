@@ -8,6 +8,7 @@ import {
   type DashboardSpec,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
+  hasRole,
   type Principal,
   pinDashboardEndpoint,
   runPanelEndpoint,
@@ -55,7 +56,7 @@ function threadFacts(principal: Principal, owner: ThreadOwner | null) {
     threadId: readable && !owner.binned ? owner.threadId : null,
     threadBinned: readable && owner.binned,
     threadOfOther: owner !== null && !readable,
-    canChange: principal.role !== 'viewer' && canChangeDashboard(principal, owner),
+    canChange: hasRole(principal.role, 'editor') && canChangeDashboard(principal, owner),
   };
 }
 

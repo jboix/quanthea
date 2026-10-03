@@ -30,8 +30,9 @@ test('screen roles match the route table in docs/architecture.md', () => {
   });
 });
 
-test('viewers start in the library, editors and admins in a new thread', () => {
+test('viewers and analysts start in the library, editors and admins in a new thread', () => {
   expect(homePathFor('viewer')).toBe('/library');
+  expect(homePathFor('analyst')).toBe('/library');
   expect(homePathFor('editor')).toBe('/threads/new');
   expect(homePathFor('admin')).toBe('/threads/new');
 });

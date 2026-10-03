@@ -25,6 +25,7 @@ import { mountDashboardEndpoints } from './dashboard-routes.ts';
 
 const editor: Principal = { id: 'editor-1', name: 'Eddie', role: 'editor' };
 const viewer: Principal = { id: 'viewer-1', name: 'Vera', role: 'viewer' };
+const analyst: Principal = { id: 'analyst-1', name: 'Ana', role: 'analyst' };
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let fixture: Awaited<ReturnType<typeof testServices>>;
@@ -91,6 +92,18 @@ describe('dashboard routes', () => {
     expect((await asViewer('POST', `/api/dashboards/${id}/unpin`)).status).toBe(403);
     expect((await asEditor('POST', `/api/dashboards/${id}/unpin`)).status).toBe(200);
     expect((await asViewer('GET', `/api/dashboards/${id}`)).status).toBe(404);
+  });
+
+  test('analysts read a pinned dashboard as viewers do, and may not change it', async () => {
+    const asAnalyst = client(analyst);
+    expect((await asAnalyst('POST', '/api/dashboards', { spec: eventsSpec() })).status).toBe(403);
+    const created = await client(editor)('POST', '/api/dashboards', { spec: eventsSpec() });
+    const { id } = dashboardDetailSchema.parse(created.body);
+    expect((await asAnalyst('GET', `/api/dashboards/${id}`)).status).toBe(404);
+    await client(editor)('POST', `/api/dashboards/${id}/pin`, { version: 1 });
+    const page = await asAnalyst('GET', `/api/dashboards/${id}`);
+    expect(dashboardPageSchema.parse(page.body).canChange).toBe(false);
+    expect((await asAnalyst('POST', `/api/dashboards/${id}/unpin`)).status).toBe(403);
   });
 
   test('names the thread that edits a dashboard, while the thread exists', async () => {

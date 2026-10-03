@@ -81,7 +81,7 @@
           "role": {
             "default": "viewer",
             "type": "string",
-            "enum": ["viewer", "editor", "admin"]
+            "enum": ["viewer", "analyst", "editor", "admin"]
           },
           "disabled": {
             "default": false,

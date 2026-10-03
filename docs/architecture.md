@@ -188,7 +188,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 
 | Path                                               | Screen                                                     | Min role |
 | -------------------------------------------------- | ---------------------------------------------------------- | -------- |
-| `/`                                                | redirect → `/library` (viewer) or `/threads/new` (editor+) | viewer   |
+| `/`                                                | redirect → `/library` (viewer, analyst) or `/threads/new`  | viewer   |
 | `/threads/new`, `/threads/:threadId`               | Plan, Build and refine, Variant                            | editor   |
 | `/library`                                         | Library: search pinned dashboards and their panels         | viewer   |
 | `/account`                                         | resource route: the account menu's providers and actions   | viewer   |
@@ -215,6 +215,11 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/login`                                           | sign in                                                    | —        |
 | `/setup`                                           | the default admin chooses their own email and password     | —        |
 | `/set-password`                                    | choose a password from an invite or reset link             | —        |
+
+The roles rank viewer, analyst, editor, admin (`roles` in `@quanthea/shared`), and `hasRole` is
+the one check of a minimum role, on the server and in the browser. An analyst reads everything a
+viewer reads and asks questions about dashboards; until those questions exist, an analyst has
+exactly a viewer's access to every route and screen.
 
 Route loaders fetch through the typed API client. The root loader loads the session
 (`GET /api/me`, once per page load). Without a session, every screen redirects to
@@ -1195,7 +1200,7 @@ CREATE TABLE users (
   id TEXT PRIMARY KEY,
   email_index BLOB NOT NULL UNIQUE,  -- keyed hash of the normalised email
   email_sealed BLOB NOT NULL, name_sealed BLOB NOT NULL,  -- AES-GCM sealed, bound to the user
-  role TEXT NOT NULL CHECK (role IN ('viewer','editor','admin')),
+  role TEXT NOT NULL CHECK (role IN ('viewer','analyst','editor','admin')),
   password_hash TEXT, pepper_id TEXT,  -- NULL until a password is set
   disabled_at INTEGER, last_sign_in_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
 
@@ -1318,7 +1323,8 @@ Settings → Usage draws tokens and cost per day stacked by model (the five cost
 
 Migrations are plain numbered `.sql` files in `db/migrations/`. `0001-schema.sql` is the schema
 of the first release; each change since is a new file, never an edit of an applied one
-(`0002-snapshots.sql` adds the snapshots and the `snapshot_view` kind).
+(`0002-snapshots.sql` adds the snapshots and the `snapshot_view` kind, `0003-analyst-role.sql`
+rebuilds `users` to allow the analyst role).
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -1413,7 +1419,7 @@ one, and enables them again. Without any admin, it creates the default one.
 - Each route module declares its minimum role next to its handler. A test walks the router and
   fails if any `/api` route (except the public ones) has no declared role, and another lists the
   public ones.
-- **Users** (`auth/users.ts`, table `users`): a role each (viewer, editor, admin). Names and emails
+- **Users** (`auth/users.ts`, table `users`): a role each (viewer, analyst, editor, admin). Names and emails
   are sealed, bound to their user. An email is found through a keyed hash of its normalised form
   (trimmed, NFKC, lowercase) under a key derived from the secret key, so the database holds no
   readable email; after a key rotation the hashes are computed again with the reseal. The audit

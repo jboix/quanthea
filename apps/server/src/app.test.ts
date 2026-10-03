@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { hasRole, type Role } from '@quanthea/shared';
 import { z } from 'zod';
 import { createApp } from './app.ts';
 import { listApiRouteAccess } from './http/access.ts';
@@ -134,6 +135,14 @@ describe('route access', () => {
       'editor POST /api/snapshots',
       'viewer GET /api/snapshots/:snapshotId',
     ]);
+  });
+
+  test('an analyst reaches exactly the routes a viewer reaches', () => {
+    const reachable = (role: Role) =>
+      listApiRouteAccess(buildApp())
+        .filter((route) => route.access === 'public' || hasRole(role, route.access ?? 'admin'))
+        .map((route) => `${route.method} ${route.path}`);
+    expect(reachable('analyst')).toEqual(reachable('viewer'));
   });
 
   test('the audit reports a route mounted without an access declaration', () => {

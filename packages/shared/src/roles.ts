@@ -1,8 +1,11 @@
 /** Roles and the principal a request acts as. */
 import { z } from 'zod';
 
-/** The three roles, weakest first. The order is the privilege order. */
-export const roles = ['viewer', 'editor', 'admin'] as const;
+/**
+ * The four roles, weakest first. The order is the privilege order: viewers read pinned
+ * dashboards, analysts also ask questions about them, editors build them, admins run quanthea.
+ */
+export const roles = ['viewer', 'analyst', 'editor', 'admin'] as const;
 
 /** Validates a role name. */
 export const roleSchema = z.enum(roles);

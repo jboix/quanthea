@@ -3,9 +3,10 @@ import { hasRole, type Role, roles } from './roles.ts';
 
 describe('hasRole', () => {
   const expected: Record<Role, Record<Role, boolean>> = {
-    viewer: { viewer: true, editor: false, admin: false },
-    editor: { viewer: true, editor: true, admin: false },
-    admin: { viewer: true, editor: true, admin: true },
+    viewer: { viewer: true, analyst: false, editor: false, admin: false },
+    analyst: { viewer: true, analyst: true, editor: false, admin: false },
+    editor: { viewer: true, analyst: true, editor: true, admin: false },
+    admin: { viewer: true, analyst: true, editor: true, admin: true },
   };
 
   for (const actual of roles) {
@@ -15,4 +16,8 @@ describe('hasRole', () => {
       });
     }
   }
+
+  test('ranks the roles viewer, analyst, editor, admin', () => {
+    expect(roles).toEqual(['viewer', 'analyst', 'editor', 'admin']);
+  });
 });

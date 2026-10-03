@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { type Principal, type Role, roles } from '@quanthea/shared';
+import { hasRole, type Principal, type Role, roles } from '@quanthea/shared';
 import { createMemoryRouter } from 'react-router';
 import type { ApiClient } from '../lib/api-client.ts';
 import { routeAccess } from './route-access.ts';
@@ -162,7 +162,7 @@ function errorStatuses(errors: Record<string, unknown> | null): unknown[] {
 describe('screen access', () => {
   for (const [pattern, minimum] of Object.entries(routeAccess)) {
     for (const role of roles) {
-      const allowed = roles.indexOf(role) >= roles.indexOf(minimum);
+      const allowed = hasRole(role, minimum);
       test(`${role} ${allowed ? 'opens' : 'gets 403 on'} ${pattern}`, async () => {
         const state = await navigate(samplePath(pattern), sessionFor(role));
         expect(state.location.pathname).toBe(samplePath(pattern));
@@ -175,6 +175,7 @@ describe('screen access', () => {
 describe('redirects', () => {
   test.each([
     ['viewer', '/library'],
+    ['analyst', '/library'],
     ['editor', '/threads/new'],
     ['admin', '/threads/new'],
   ] as const)('/ sends a %s to %s', async (role, target) => {

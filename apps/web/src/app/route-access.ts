@@ -35,7 +35,7 @@ export const routeAccess = {
 export type GuardedPath = keyof typeof routeAccess;
 
 /**
- * Where `/` sends a user: editors start a thread, viewers browse the library.
+ * Where `/` sends a user: editors start a thread, viewers and analysts browse the library.
  *
  * @param role - The user's role.
  * @returns The path to redirect to.
