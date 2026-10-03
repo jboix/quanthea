@@ -1,7 +1,7 @@
 import type { DashboardSpec } from '@quanthea/shared';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
-import { HistoryIcon, QuestionIcon } from '../../ui/icons.tsx';
+import { HistoryIcon, InfoIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import styles from './dashboard.module.css';
@@ -122,7 +122,7 @@ export function History({ dashboard, version }: DashboardData) {
 }
 
 /**
- * What the dashboard is about, behind a question mark by its title: its description, tags and
+ * What the dashboard is about, behind an info icon by its title: its description, tags and
  * sources.
  *
  * @param props - The dashboard and the version shown.
@@ -130,7 +130,7 @@ export function History({ dashboard, version }: DashboardData) {
  */
 export function AboutPopover(props: DashboardData) {
   return (
-    <Popover label="About this dashboard" trigger={<QuestionIcon />}>
+    <Popover label="About this dashboard" trigger={<InfoIcon />}>
       <AboutBody {...props} />
     </Popover>
   );
@@ -168,23 +168,15 @@ export function AboutBody({ dashboard, version }: DashboardData) {
 }
 
 /**
- * The dashboard's versions, behind a History button in the header.
+ * The dashboard's versions, behind an icon button in the header named History, which says so
+ * under it on hover and focus.
  *
  * @param props - The dashboard and the version shown.
  * @returns The popover.
  */
 export function HistoryPopover(props: DashboardData) {
   return (
-    <Popover
-      label="History"
-      shape="button"
-      align="end"
-      trigger={
-        <>
-          <HistoryIcon /> History
-        </>
-      }
-    >
+    <Popover label="History" tip="History" shape="iconButton" align="end" trigger={<HistoryIcon />}>
       <History {...props} />
     </Popover>
   );

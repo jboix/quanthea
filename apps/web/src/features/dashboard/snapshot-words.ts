@@ -50,3 +50,14 @@ export function rangeWords(time: SnapshotSummary['time'], timeZone?: string): st
 export function untilWords(expiresAt: number | null): string {
   return expiresAt === null ? 'until revoked' : `until ${dateTimeWords(expiresAt)}`;
 }
+
+/**
+ * The Share menu's way to the dashboard's live snapshots, with how many there are once known.
+ *
+ * @param count - How many live snapshots, or `undefined` while they load or when they failed to.
+ * @returns Such as `Snapshots of this dashboard (3)`.
+ */
+export function snapshotsLabel(count: number | undefined): string {
+  const label = 'Snapshots of this dashboard';
+  return count === undefined ? label : `${label} (${count})`;
+}

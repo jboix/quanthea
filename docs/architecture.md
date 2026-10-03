@@ -351,9 +351,9 @@ edits, with no model involved:
 
 - `copy` makes a new dashboard whose v1 is a copy of a version (the pinned one by default), with
   `parent_dashboard_id` and `parent_version` set. The dashboard screen copies the version it
-  shows; library cards copy the pinned one ("New from this").
+  shows; library cards copy the pinned one ("New dashboard from this").
 - `edit` attaches the dashboard itself. Only a dashboard without a thread allows it, such as one
-  created through the API ("Edit in a new thread"). A dashboard with a thread is edited there.
+  created through the API ("Edit with the agent"). A dashboard with a thread is edited there.
 
 A plan for an existing draft, a copy's or any built dashboard's, says how it changes it: each
 panel it changes carries `replaces` (the draft's panel id) and `change` (what changes, in words);
@@ -382,8 +382,8 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
   and `deleted_by` and writes a `thread.bin` audit event. A thread whose dashboard is pinned is
   refused: unpin first.
 - A binned thread is out of reach: the thread reads skip it, its dashboard can't be pinned, and
-  "Edit in a new thread" is refused for its dashboard. Its dashboard still opens for editors, with
-  a link to the bin.
+  an `edit` thread on its dashboard is refused. Its dashboard still opens for editors, and its
+  Change menu's Edit with the agent says the conversation is in the bin and links there.
 - `GET /api/bin` and `POST /api/bin/:id/restore` (editor+) list and restore binned threads.
 - `DELETE /api/bin/:id` and `DELETE /api/bin` (admin) purge: in one transaction, the thread with
   its messages and plans, then its dashboard with every version, unless that dashboard is pinned
@@ -1684,15 +1684,22 @@ one, and enables them again. Without any admin, it creates the default one.
   A hidden set is drawn on no chart. Hiding is a view choice, kept in the URL like the variables
   (`hide-markers=deploys`, repeated for several) and never saved; panels run without it, so a
   toggle redraws the charts without running them again.
-- The dashboard header holds the title with an About bubble (description, tags, the connectors
-  and how many panels use each), a History button that lists the versions (newest first, each
-  its number, when it was made and whether it is pinned; what changed shows on hover), and, for editors, a
-  link to the thread that edits the dashboard while that thread exists
-  (`GET /api/dashboards/:id` returns its `threadId`), or Edit in a new thread when it has none,
-  and New from this. Below 720 px the actions fold into one menu that lists the history too.
-- **Snapshots.** Editors take one from the header's Snapshot menu, which sends the version, the
-  time range, the variables and the hidden sets of markers in the address, and a lifetime. The
-  menu lists the dashboard's live snapshots, each with Revoke. The snapshot page (`/s/:id`,
+- The dashboard header holds the title with an About bubble behind an info icon (description,
+  tags, the connectors and how many panels use each). Its actions are Ask about this, Change,
+  Share and History (`dashboard-actions.tsx`).
+  - Change (editors and admins) holds Edit with the agent and New dashboard from this, each with
+    a line saying what it does (`change-items.ts`). Edit with the agent opens the conversation
+    that built the dashboard (`GET /api/dashboards/:id` returns its `threadId`), starts one when
+    it has none, or says that conversation is in the bin and links there. When the thread is
+    someone else's, only New dashboard from this shows.
+  - Share holds Copy link and, for editors, the snapshots.
+  - History is an icon button, named by a tip under it. It lists the versions, newest first, each
+    its number, when it was made and whether it is pinned; what changed shows on hover.
+  - Below 720 px the actions fold into one menu, with sections Change, Share and History under
+    Ask about this, and the same names and hints.
+- **Snapshots.** Editors take one from the header's Share menu (Take a snapshot…), which sends
+  the version, the time range, the variables and the hidden sets of markers in the address, and a
+  lifetime. Snapshots of this dashboard, counted, lists the live ones, each with Revoke. The snapshot page (`/s/:id`,
   `features/snapshot`) draws the frozen runs with the dashboard's panel components
   (`FrozenCanvas`): the time range and the variables are fixed chips, and the marker toggles still
   show or hide sets, in the page only. A banner names the dashboard and version, with a link, who

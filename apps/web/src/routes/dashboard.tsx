@@ -89,7 +89,7 @@ function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
 
 /**
  * The dashboard routes. The resource routes load only when a panel, its info bubble, a variable
- * menu, the Snapshot menu or the Ask tab asks.
+ * menu, the Share menu or the Ask tab asks.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.

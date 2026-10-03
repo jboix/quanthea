@@ -82,7 +82,7 @@ function NewFromThis({ entry }: { readonly entry: LibraryEntry }) {
   return (
     <>
       <Button disabled={fetcher.state !== 'idle'} onClick={copy}>
-        New from this
+        New dashboard from this
       </Button>
       {fetcher.data?.ok === false && <span className={styles.error}>{fetcher.data.message}</span>}
     </>

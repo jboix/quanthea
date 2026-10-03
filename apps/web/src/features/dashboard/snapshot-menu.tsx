@@ -1,13 +1,11 @@
 /**
- * The Snapshot menu of the dashboard header, for editors: take a snapshot of the version as shown,
- * copy its link, and see and revoke the dashboard's live snapshots.
+ * The snapshot parts of the dashboard header's Share menu, for editors: take a snapshot of the
+ * version as shown, copy its link, and see and revoke the dashboard's live snapshots.
  */
 import type { SnapshotLifetime, SnapshotSummary } from '@quanthea/shared';
 import { useEffect, useState } from 'react';
 import { Link, type SubmitTarget, useFetcher, useSearchParams } from 'react-router';
 import { Button } from '../../ui/button.tsx';
-import { CameraIcon } from '../../ui/icons.tsx';
-import { Popover } from '../../ui/popover.tsx';
 import { Select } from '../../ui/select.tsx';
 import styles from './dashboard.module.css';
 import type { DashboardData } from './data.ts';
@@ -63,7 +61,7 @@ function TakenLink({ snapshot }: { readonly snapshot: SnapshotSummary }) {
  * @param props - The dashboard and the version shown.
  * @returns The form.
  */
-function TakeSnapshot({ version }: DashboardData) {
+export function TakeSnapshot({ version }: DashboardData) {
   const [search] = useSearchParams();
   const [lifetime, setLifetime] = useState<SnapshotLifetime>('7d');
   const { submit, busy, outcome } = useSnapshotIntent();
@@ -134,63 +132,41 @@ function SnapshotRow({
 /**
  * The dashboard's live snapshots, loaded when the menu opens and again after each change.
  *
- * @param props - The dashboard and the version shown.
- * @returns The list.
+ * @param dashboardId - The dashboard.
+ * @returns The snapshots, or `undefined` while they load.
  */
-function LiveSnapshots({ dashboard, version }: DashboardData) {
+export function useLiveSnapshots(dashboardId: string): Loaded<SnapshotSummary[]> | undefined {
   const fetcher = useFetcher<Loaded<SnapshotSummary[]>>();
   const { load } = fetcher;
   useEffect(() => {
-    void load(`/d/${dashboard.id}/snapshots`);
-  }, [load, dashboard.id]);
-  const loaded = fetcher.data;
+    void load(`/d/${dashboardId}/snapshots`);
+  }, [load, dashboardId]);
+  return fetcher.data;
+}
+
+/** Props of {@link SnapshotList}. */
+interface SnapshotListProps {
+  /** The live snapshots, or `undefined` while they load. */
+  readonly loaded: Loaded<SnapshotSummary[]> | undefined;
+  /** The dashboard's time zone, if it sets one. */
+  readonly timeZone: string | undefined;
+}
+
+/**
+ * The dashboard's live snapshots, each with Revoke.
+ *
+ * @param props - The snapshots and the dashboard's time zone.
+ * @returns The list.
+ */
+export function SnapshotList({ loaded, timeZone }: SnapshotListProps) {
   if (!loaded) return <p className={styles.muted}>Loading…</p>;
   if (!loaded.ok) return <p className={styles.error}>{loaded.message}</p>;
   if (loaded.value.length === 0) return <p className={styles.muted}>No live snapshots.</p>;
   return (
     <ul className={styles.snapshots}>
       {loaded.value.map((snapshot) => (
-        <SnapshotRow key={snapshot.id} snapshot={snapshot} timeZone={version.spec.timezone} />
+        <SnapshotRow key={snapshot.id} snapshot={snapshot} timeZone={timeZone} />
       ))}
     </ul>
-  );
-}
-
-/**
- * The Snapshot button of the header, which opens the menu.
- *
- * @param props - The dashboard and the version shown.
- * @returns The popover.
- */
-export function SnapshotPopover(props: DashboardData) {
-  return (
-    <Popover
-      label="Snapshots"
-      shape="button"
-      align="end"
-      trigger={
-        <>
-          <CameraIcon /> Snapshot
-        </>
-      }
-    >
-      <SnapshotMenu {...props} />
-    </Popover>
-  );
-}
-
-/**
- * What the Snapshot menu holds: the form, and the live snapshots.
- *
- * @param props - The dashboard and the version shown.
- * @returns The menu's content.
- */
-export function SnapshotMenu(props: DashboardData) {
-  return (
-    <div className={styles.popoverBody}>
-      <TakeSnapshot {...props} />
-      <h2 className={styles.sideHeading}>Live snapshots</h2>
-      <LiveSnapshots {...props} />
-    </div>
   );
 }

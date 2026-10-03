@@ -148,6 +148,18 @@
   margin-top: 6px;
 }
 
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 260px;
+  max-width: 340px;
+}
+
+.menu > :not(button, a) {
+  padding: 4px 10px 8px;
+}
+
 .headerActions {
   display: flex;
   flex-wrap: wrap;
