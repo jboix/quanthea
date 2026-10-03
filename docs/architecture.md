@@ -1321,6 +1321,10 @@ of the first release; each change since is a new file, never an edit of an appli
 (`0002-snapshots.sql` adds the snapshots and the `snapshot_view` kind).
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
+Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
+changes a CHECK only that way, following its documented 12-step procedure) without the cascades
+deleting their rows. Before each commit `PRAGMA foreign_key_check` must find no broken reference,
+or the file rolls back; foreign keys are turned back on after the last file.
 Timestamps (`at`, `*_at`) are Unix epoch milliseconds. SQLite runs with `journal_mode=WAL`,
 `foreign_keys=ON` and `busy_timeout=5000`. IDs are ULIDs, so they sort by time.
 

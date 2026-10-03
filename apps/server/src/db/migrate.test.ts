@@ -98,6 +98,25 @@ describe('runMigrations', () => {
     expect(() => runMigrations(database, migrationsDir)).toThrow('missing_table');
     expect(tableNames()).toEqual(['good', 'migrations']);
   });
+
+  test('rolls back a migration that leaves a broken reference, and keeps foreign keys on', () => {
+    const migrationsDir = join(dataDir.path, 'migrations');
+    mkdirSync(migrationsDir);
+    writeFileSync(
+      join(migrationsDir, '0001-broken.sql'),
+      `CREATE TABLE parent (id TEXT PRIMARY KEY);
+       CREATE TABLE child (parent_id TEXT REFERENCES parent (id));
+       INSERT INTO child VALUES ('nobody');`,
+    );
+    expect(() => runMigrations(database, migrationsDir)).toThrow('breaks foreign keys');
+    expect(tableNames()).toEqual(['migrations']);
+    expect(pragma('foreign_keys')).toBe(1);
+  });
+
+  test('turns foreign keys back on after the migrations', () => {
+    runMigrations(database);
+    expect(pragma('foreign_keys')).toBe(1);
+  });
 });
 
 describe('the snapshots migration', () => {
