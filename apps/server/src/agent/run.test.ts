@@ -283,6 +283,7 @@ describe('an agent run', () => {
       ['claude-haiku-4-5', 1],
       ['claude-sonnet-5', 2],
     ]);
+    expect(steps.map((bucket) => bucket.feature)).toEqual(['building', 'building']);
   });
 
   test('runs a thread on the provider it was started with', async () => {

@@ -13,14 +13,22 @@ const hour = 3_600_000;
  * @param model - Its model.
  * @param dollars - Its cost.
  * @param userId - Who it ran for.
+ * @param feature - The feature it served.
  * @returns The bucket.
  */
-function step(at: number, model: string, dollars: number, userId = 'ada'): UsageBucket {
+function step(
+  at: number,
+  model: string,
+  dollars: number,
+  userId = 'ada',
+  feature: UsageBucket['feature'] = 'building',
+): UsageBucket {
   return {
     hour: at,
     kind: 'model',
     provider: 'mistral',
     model,
+    feature,
     userId,
     input: 100,
     cachedInput: 50,
@@ -42,6 +50,7 @@ const report: UsageReport = {
     {
       ...step(day + 10 * hour, '', 0),
       kind: 'pinned_view',
+      feature: null,
       provider: '',
       input: 0,
       cachedInput: 0,
@@ -52,6 +61,7 @@ const report: UsageReport = {
     {
       ...step(day + 10 * hour, '', 0),
       kind: 'snapshot_view',
+      feature: null,
       provider: '',
       input: 0,
       cachedInput: 0,

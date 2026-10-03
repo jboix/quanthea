@@ -43,7 +43,7 @@ describe('the metadata model at pin time', () => {
       description: 'Errors of each service.',
       tags: ['errors', 'services'],
     });
-    expect(steps).toMatchObject([{ threadId: 'thread-1', job: 'metadata' }]);
+    expect(steps).toMatchObject([{ threadId: 'thread-1', job: 'metadata', feature: 'building' }]);
   });
 
   test('gives nothing when the model fails, and pinning goes on without tags', async () => {

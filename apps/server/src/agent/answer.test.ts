@@ -255,10 +255,19 @@ describe('usage and streaming', () => {
     const outcome = await answers.answer(ask('All good?'));
     expect(steps).toHaveLength(2);
     expect(steps[0]).toMatchObject({ job: 'answer', userId: 'viewer-1', dashboardId: 'd1' });
+    expect(steps.map((step) => step.feature)).toEqual(['question', 'question']);
     expect(services.usage.report(1).buckets.map((bucket) => bucket.userId)).toEqual(['viewer-1']);
     expect(outcome.usage).toEqual({
       'claude-sonnet-5': { input: 20, cachedInput: 0, cacheWrite: 0, output: 10 },
     });
+  });
+
+  test('records the steps of a panel explanation as the answer job, as an explanation', async () => {
+    const { answers } = answersWith(panelAnswer('It counts errors per minute [1].'));
+    await answers.answer(explain('errors-over-time'));
+    expect(steps.map((step) => [step.job, step.feature])).toEqual([['answer', 'explanation']]);
+    const features = services.usage.report(1).buckets.map((bucket) => bucket.feature);
+    expect(features).toEqual(['explanation']);
   });
 
   test('streams the reads and the outcome as data parts, as threads stream', async () => {

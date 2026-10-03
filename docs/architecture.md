@@ -328,7 +328,7 @@ shown.
    failing query by path.
 2. The _metadata_ model (`agent/metadata.ts`) writes a one-line description and 3 to 6 lowercase
    tags, with the provider of the dashboard's thread (the default one without a thread). Its
-   tokens go to the usage ledger as the `metadata` job. **This is best effort**: when the model
+   tokens go to the usage ledger as the `metadata` job, under building dashboards. **This is best effort**: when the model
    is not set up, fails or takes more than 20 seconds, the dashboard is pinned without tags.
    The dashboards service gets it as a function, so `dashboards/` never imports the agent.
 3. Set `dashboards.pinned_version_id`, the title from the version, the description from the
@@ -814,7 +814,8 @@ The model's tools are decided per connector of the dashboard:
   sentences and no tables. They carry the dashboard as written (panels, queries, variables,
   markers), never data, and each connector with what the model may read of it.
 - Each step goes to the usage ledger as the `answer` job, against the person who asked and the
-  dashboard. The outcome carries the answer's usage by model.
+  dashboard, with the feature of its mode: `question` for `ask`, `explanation` for `explain`.
+  The outcome carries the answer's usage by model.
 
 `Answers.answer` returns the outcome: the checked answer (`text`, `citations`, `evidence`) and its
 usage, or a failure with its message, evidence and usage; a failing model call is a failure too.
@@ -882,7 +883,7 @@ else, so it reads no data at any access level and is shown to every role.
    because the schema's descriptions may change. Asking again (analyst+) adds a row and the latest
    is shown; rows are never rewritten (a trigger refuses updates).
 6. Explanations go with their dashboard (`ON DELETE CASCADE`). The model steps stay in the usage
-   ledger, as the `answer` job against who asked.
+   ledger, as the `answer` job and the `explanation` feature, against who asked.
 
 ## 7. Connectors
 
@@ -1463,17 +1464,27 @@ CREATE VIRTUAL TABLE question_fts USING fts5(
 -- the usage ledger: no foreign keys, it outlives the threads and dashboards it names
 CREATE TABLE usage_events (
   id TEXT PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL,   -- 'model' | 'pinned_view' | 'snapshot_view'
-  thread_id TEXT, dashboard_id TEXT, provider TEXT, model TEXT, job TEXT,
+  thread_id TEXT, dashboard_id TEXT, user_id TEXT, provider TEXT, model TEXT, job TEXT,
+  feature TEXT,                          -- 'building' | 'question' | 'explanation'; NULL for views
   input INTEGER, cached_input INTEGER, cache_write INTEGER, output INTEGER,
   cost_micros INTEGER);                        -- list price when recorded; NULL when unknown
 ```
 
 The usage ledger (`usage/usage.ts`) records every model step, with its provider, model, job,
-tokens and list-price cost at that moment, and every read of a pinned version and every opening
+feature, tokens and list-price cost at that moment, and every read of a pinned version and every opening
 of a snapshot, which spend no tokens. A model step also records who it ran for: the owner of its thread at that moment, kept
 after the thread is purged; tagging at pin time names no one; an answer about a dashboard names who asked, and the dashboard.
-Deleting a thread keeps its history. `GET /api/settings/usage?days=` returns it by hour, model and
-user, with each user's name and role, and the browser adds the hours up into its own days.
+The feature says what a step served, set where the step runs; the job says which model setting
+ran it, so the two are separate axes:
+
+- `building`: building dashboards, every step of a thread's run (plan, build, repair) and the tags
+  at pin time.
+- `question`: a question about a pinned dashboard (the answering service's `ask` mode).
+- `explanation`: a panel's explanation (its `explain` mode).
+
+The connection and capability tests in Settings → Model record nothing.
+Deleting a thread keeps its history. `GET /api/settings/usage?days=` returns it by hour, model,
+feature and user (`feature` is `null` for views), with each user's name and role, and the browser adds the hours up into its own days.
 Settings → Usage draws tokens and cost per day stacked by model (the five costliest, then
 `Other`), and lists the models and, ten a page, the people who spent the most.
 
@@ -1482,7 +1493,11 @@ of the first release; each change since is a new file, never an edit of an appli
 (`0002-snapshots.sql` adds the snapshots and the `snapshot_view` kind, `0003-analyst-role.sql`
 rebuilds `users` to allow the analyst role, `0004-dashboard-questions.sql` adds the questions about
 dashboards and their full-text index, `0005-panel-explanations.sql` adds the explanations of
-panels).
+panels, `0006-usage-feature.sql` adds the ledger's `feature` and fills it for past steps).
+That backfill is a best effort: a step in a thread or of any job but `answer` built dashboards;
+an `answer` step explained a panel when the same person started an explanation of the same
+dashboard in the ten minutes before it, later than any question they asked there; every other
+`answer` step answered a question.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -1539,7 +1554,7 @@ indicative; the contract files are the source of truth.
 | `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`                  | connection test, schema                      | admin    |
 | `GET/PUT /settings/:section`                                                                      | model, auth, retention, limits               | admin    |
 | `POST /settings/model/test`                                                                       | gateway capability test                      | admin    |
-| `GET /settings/usage?days=`                                                                       | usage by hour, model and user                | admin    |
+| `GET /settings/usage?days=`                                                                       | usage by hour, model, feature and user       | admin    |
 | `GET /settings/server`                                                                            | system settings and key sources, read-only   | admin    |
 | `GET /settings/managed`                                                                           | settings sections the config file manages    | admin    |
 | `GET /model-providers`                                                                            | the providers a thread may use, without keys | editor   |

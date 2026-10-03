@@ -34,6 +34,7 @@ function threadWithDashboard() {
     provider: 'p',
     model: 'm',
     job: 'build',
+    feature: 'building',
     tokens,
   });
   services.usage.recordPinnedView(dashboard.id);

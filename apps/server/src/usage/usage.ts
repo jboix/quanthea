@@ -4,7 +4,12 @@
  * the step happens, so later price changes do not rewrite the past.
  */
 import { costOf, pricesCheckedOn, type TokenUsage, type UsageReport } from '@quanthea/shared';
-import type { UsageEventRow, UsageKind, UsageRepository } from '../db/usage-repository.ts';
+import type {
+  UsageEventRow,
+  UsageFeature,
+  UsageKind,
+  UsageRepository,
+} from '../db/usage-repository.ts';
 import { newId } from '../lib/ids.ts';
 
 /** A model step to record. */
@@ -17,6 +22,11 @@ export interface ModelStep {
   readonly model: string;
   /** The job, such as `plan` or `build`. */
   readonly job: string;
+  /**
+   * The feature the step served: `building` for a thread's steps and tags at pin time,
+   * `question` for a question about a dashboard, `explanation` for a panel's explanation.
+   */
+  readonly feature: NonNullable<UsageFeature>;
   /** The step's tokens. */
   readonly tokens: TokenUsage;
   /** Who the step ran for, outside a thread, such as who asked about a dashboard. */
@@ -151,7 +161,7 @@ function monthStart(now: number): number {
  * @returns The event.
  */
 function stepEvent(step: ModelStep, at: number): UsageEventRow {
-  const { threadId, provider, model, job, tokens } = step;
+  const { threadId, provider, model, job, feature, tokens } = step;
   const cost = costMicros(step);
   return {
     id: newId(),
@@ -165,6 +175,7 @@ function stepEvent(step: ModelStep, at: number): UsageEventRow {
     provider,
     model,
     job,
+    feature,
   };
 }
 
@@ -187,6 +198,7 @@ function viewEvent(
     provider: null,
     model: null,
     job: null,
+    feature: null,
     costMicros: null,
   };
   const tokens = { input: 0, cachedInput: 0, cacheWrite: 0, output: 0 };

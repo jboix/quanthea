@@ -39,6 +39,7 @@ describe('the usage ledger', () => {
       provider: 'mistral',
       model: 'mistral-large-latest',
       job: 'build',
+      feature: 'building',
       tokens,
     });
     now += 60_000;
@@ -47,6 +48,7 @@ describe('the usage ledger', () => {
       provider: 'mistral',
       model: 'mistral-large-latest',
       job: 'build',
+      feature: 'building',
       tokens,
     });
     ledger.recordStep({
@@ -54,6 +56,7 @@ describe('the usage ledger', () => {
       provider: 'openai-compatible',
       model: 'gemma-4',
       job: 'plan',
+      feature: 'building',
       tokens,
     });
     const report = ledger.report(1);
@@ -80,6 +83,7 @@ describe('the usage ledger', () => {
       provider: 'mistral',
       model: 'mistral-small-latest',
       job: 'plan',
+      feature: 'building',
       tokens,
     });
     expect(ledger.month()).toEqual({
@@ -118,8 +122,9 @@ describe('the usage ledger', () => {
     );
     const ledger = usage();
     const step = { provider: 'mistral', model: 'mistral-large-latest', job: 'build', tokens };
-    ledger.recordStep({ ...step, threadId: 't9' });
-    ledger.recordStep({ ...step, threadId: null });
+    const building = { ...step, feature: 'building' as const };
+    ledger.recordStep({ ...building, threadId: 't9' });
+    ledger.recordStep({ ...building, threadId: null });
     database.run("DELETE FROM threads WHERE id = 't9'");
     const users = ledger
       .report(1)
@@ -131,7 +136,13 @@ describe('the usage ledger', () => {
   test('names who a step outside a thread ran for, and the dashboard it was about', () => {
     const ledger = usage();
     const step = { provider: 'mistral', model: 'mistral-large-latest', job: 'answer', tokens };
-    ledger.recordStep({ ...step, threadId: null, userId: 'grace', dashboardId: 'd1' });
+    ledger.recordStep({
+      ...step,
+      feature: 'question',
+      threadId: null,
+      userId: 'grace',
+      dashboardId: 'd1',
+    });
     expect(ledger.report(1).buckets.map((bucket) => bucket.userId)).toEqual(['grace']);
     const row = database
       .query<{ job: string; dashboard_id: string }, []>(
@@ -139,5 +150,25 @@ describe('the usage ledger', () => {
       )
       .get();
     expect(row).toEqual({ job: 'answer', dashboard_id: 'd1' });
+  });
+
+  test('adds steps up by feature, apart from the job, and gives views no feature', () => {
+    const ledger = usage();
+    const step = { provider: 'mistral', model: 'mistral-large-latest', tokens };
+    ledger.recordStep({ ...step, threadId: 't1', job: 'plan', feature: 'building' });
+    ledger.recordStep({ ...step, threadId: 't1', job: 'build', feature: 'building' });
+    const answer = { ...step, threadId: null, userId: 'grace', dashboardId: 'd1', job: 'answer' };
+    ledger.recordStep({ ...answer, feature: 'question' });
+    ledger.recordStep({ ...answer, feature: 'explanation' });
+    ledger.recordPinnedView('d1');
+    const features = ledger
+      .report(1)
+      .buckets.map((bucket) => [bucket.kind, bucket.feature, bucket.userId, bucket.events]);
+    expect(features).toEqual([
+      ['model', 'building', '', 2],
+      ['model', 'explanation', 'grace', 1],
+      ['model', 'question', 'grace', 1],
+      ['pinned_view', null, '', 1],
+    ]);
   });
 });

@@ -114,6 +114,7 @@ export function createMetadataWriter(dependencies: MetadataDependencies) {
         provider: resolved.providerName,
         model: modelIdFor(resolved.settings, 'metadata'),
         job: 'metadata',
+        feature: 'building',
         tokens: tokensOf(result.usage),
       });
       const { description, tags } = result.output;

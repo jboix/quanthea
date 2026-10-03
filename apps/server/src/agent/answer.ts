@@ -228,7 +228,8 @@ function stepSettings(prepared: PreparedAnswer) {
 }
 
 /**
- * Records a step's tokens: in the answer's usage, and in the ledger against who asked.
+ * Records a step's tokens: in the answer's usage, and in the ledger against who asked, as a
+ * question or a panel explanation by the request's mode.
  *
  * @param dependencies - The service's dependencies.
  * @param prepared - The answer.
@@ -237,13 +238,14 @@ function stepSettings(prepared: PreparedAnswer) {
 function countStep(dependencies: AnswerDependencies, prepared: PreparedAnswer) {
   const { settings, providerName } = prepared.resolved;
   const model = modelIdFor(settings, 'answer');
-  const { actor: userId, dashboardId } = prepared.request;
+  const { actor: userId, dashboardId, mode } = prepared.request;
+  const feature = mode === 'ask' ? 'question' : 'explanation';
   return ({ usage }: { usage: LanguageModelUsage }) => {
     prepared.tokens += usage.totalTokens ?? 0;
     prepared.usage = withStep(prepared.usage, model, usage);
     const tokens = tokensOf(usage);
     const step = { threadId: null, userId, dashboardId, provider: providerName, model, tokens };
-    dependencies.usage.recordStep({ ...step, job: 'answer' });
+    dependencies.usage.recordStep({ ...step, job: 'answer', feature });
   };
 }
 
