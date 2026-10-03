@@ -8,8 +8,13 @@ interface PopoverProps {
   readonly label: string;
   /** What the button shows: an icon, or text. */
   readonly trigger: ReactNode;
-  /** Whether the button is a small round icon button, or a text button. */
-  readonly shape?: 'icon' | 'button';
+  /**
+   * The button: a small round icon button, a text button, or an icon button as tall as a text
+   * button. The icon shapes carry the label as their accessible name.
+   */
+  readonly shape?: 'icon' | 'button' | 'iconButton';
+  /** A short visible note under the button while it is hovered or focused and the card is shut. */
+  readonly tip?: string;
   /** Which edge of the button the popover lines up with. */
   readonly align?: 'start' | 'end';
   /** Where the card opens: below the button, or beside it, rising from its bottom edge. */
@@ -22,15 +27,17 @@ interface PopoverProps {
 
 /**
  * A button that opens a small floating card of details, closed by a press outside or Escape, or by
- * its content when an action in it is chosen.
+ * its content when an action in it is chosen. Closing it from inside gives focus back to the
+ * button.
  *
- * @param props - The label, the trigger, its shape and class, where it opens, and the content.
+ * @param props - The label, the trigger, its shape, tip and class, where it opens, and the content.
  * @returns The button and, when open, its card.
  */
 export function Popover({
   label,
   trigger,
   shape = 'icon',
+  tip,
   align = 'start',
   placement = 'below',
   triggerClassName,
@@ -40,15 +47,17 @@ export function Popover({
   return (
     <span ref={popover.container} className={styles.popover}>
       <button
+        ref={popover.trigger}
         type="button"
-        className={triggerClassName ?? (shape === 'icon' ? styles.icon : styles.button)}
-        aria-label={shape === 'icon' ? label : undefined}
+        className={triggerClassName ?? styles[shape]}
+        aria-label={shape === 'button' ? undefined : label}
         aria-expanded={popover.open}
         aria-haspopup="dialog"
         onClick={popover.toggle}
       >
         {trigger}
       </button>
+      {tip && !popover.open && <PopoverTip text={tip} />}
       {popover.open && (
         <div
           role="dialog"
@@ -57,9 +66,25 @@ export function Popover({
           data-align={align}
           data-placement={placement}
         >
-          {typeof children === 'function' ? children(() => popover.setOpen(false)) : children}
+          {typeof children === 'function' ? children(popover.close) : children}
         </div>
       )}
+    </span>
+  );
+}
+
+/**
+ * The visible name of an icon button, under it while it is hovered or focused. The button carries
+ * the same words as its accessible name, so screen readers skip this.
+ *
+ * @param props - The words.
+ * @param props.text - The words.
+ * @returns The note.
+ */
+function PopoverTip({ text }: { readonly text: string }) {
+  return (
+    <span className={styles.tip} aria-hidden="true">
+      {text}
     </span>
   );
 }
