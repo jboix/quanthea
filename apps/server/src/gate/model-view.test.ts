@@ -57,6 +57,19 @@ describe('the model view of the connectors', () => {
     });
   });
 
+  test('describes a schema as level 1 shows it, for text every role sees', async () => {
+    const full = await services.modelView.describe('events', undefined, signal());
+    expect(JSON.stringify(full)).toContain('"rows":5');
+    expect(JSON.stringify(full)).toContain('"distinctValues":3');
+    const schemaOnly = await services.modelView.describeSchemaOnly('events', undefined, signal());
+    expect(schemaOnly.ok && schemaOnly.entities[0]?.fields.map((field) => field.name)).toEqual([
+      'time',
+      'service',
+    ]);
+    expect(JSON.stringify(schemaOnly)).not.toContain('"rows"');
+    expect(JSON.stringify(schemaOnly)).not.toContain('distinctValues');
+  });
+
   test('samples values, and never a hidden field', async () => {
     const sampled = await services.modelView.sample(
       'events',

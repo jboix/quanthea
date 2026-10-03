@@ -97,6 +97,21 @@ export interface ModelView {
    */
   describe(name: string, scope: string | undefined, signal: AbortSignal): Promise<ModelDescription>;
   /**
+   * Describes a connector's schema as level 1 shows it, whatever the connector's level: entities,
+   * fields, types and descriptions, with no row estimates and no distinct counts. For text shown
+   * to every role, such as a panel's explanation.
+   *
+   * @param name - The connector.
+   * @param scope - Only entities whose name contains this text, if given.
+   * @param signal - Aborted when the caller gives up.
+   * @returns At most {@link maxEntities} entities, and how many more matched.
+   */
+  describeSchemaOnly(
+    name: string,
+    scope: string | undefined,
+    signal: AbortSignal,
+  ): Promise<ModelDescription>;
+  /**
    * Lists distinct values of a field.
    *
    * @param name - The connector.
@@ -183,6 +198,16 @@ function guidesOf(access: ConnectorAccess): { kind: string; text: string }[] {
 }
 
 /**
+ * A connector as level 1 sees it, whatever its level; its hidden fields stay hidden.
+ *
+ * @param subject - The connector, if it exists.
+ * @returns The connector at level 1.
+ */
+function schemaOnly(subject: GateSubject | undefined): GateSubject | undefined {
+  return subject && { ...subject, accessLevel: 1 };
+}
+
+/**
  * Creates the model's view of the connectors.
  *
  * @param access - What the connectors service provides.
@@ -198,6 +223,8 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
     guides: () => guidesOf(access),
     describe: (name, scope, signal) =>
       describeFor(access, subjects().get(name), name, scope, signal),
+    describeSchemaOnly: (name, scope, signal) =>
+      describeFor(access, schemaOnly(subjects().get(name)), name, scope, signal),
     async sample(name, field, limit, signal) {
       const opened = await access.open(name).catch(() => undefined);
       if (!opened) return { ok: false, error: unreachable(name) };
