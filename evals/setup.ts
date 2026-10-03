@@ -6,6 +6,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { LanguageModelV4 } from '@ai-sdk/provider';
+import { createAnswers } from '@quanthea/server/src/agent/answer.ts';
+import type { Answers } from '@quanthea/server/src/agent/answer-types.ts';
 import { languageModel } from '@quanthea/server/src/agent/model.ts';
 import { type Agent, createAgent } from '@quanthea/server/src/agent/run.ts';
 import {
@@ -38,6 +40,8 @@ export interface EvalWorld {
   readonly services: Awaited<ReturnType<typeof testServices>>;
   /** The agent, its models behind the cache. */
   readonly agent: Agent;
+  /** The dashboard answering service, its model behind the cache. */
+  readonly answers: Answers;
   /** The cache's hits and misses. */
   readonly counts: CacheCounts;
   /** Closes the services and deletes the database. */
@@ -93,7 +97,8 @@ async function addConnectors(services: EvalWorld['services']): Promise<void> {
 }
 
 /**
- * Opens the world: services on a new database, the connectors, Gemini, the agent behind the cache.
+ * Opens the world: services on a new database, the connectors, Gemini, and the agent and the
+ * answering service with their models behind the cache.
  *
  * @param models - The models.
  * @param apiKey - The Gemini key, if there is one; without it, only cached responses play.
@@ -115,15 +120,13 @@ export async function openWorld(
   );
   const counts: CacheCounts = { hits: 0, misses: 0 };
   const middleware = cachingMiddleware({ ...cache, live: apiKey !== undefined }, counts);
-  const agent = createAgent({
-    ...services,
-    now: evalsNow,
-    buildModel: (resolved, job) =>
-      wrapLanguageModel({ model: languageModel(resolved, job) as LanguageModelV4, middleware }),
-  });
+  const buildModel: typeof languageModel = (resolved, job) =>
+    wrapLanguageModel({ model: languageModel(resolved, job) as LanguageModelV4, middleware });
+  const agent = createAgent({ ...services, now: evalsNow, buildModel });
+  const answers = createAnswers({ ...services, buildModel });
   const close = async () => {
     await services.close();
     rmSync(dir, { recursive: true, force: true });
   };
-  return { services, agent, counts, close };
+  return { services, agent, answers, counts, close };
 }
