@@ -2054,7 +2054,14 @@ provider's name, so two setups of the same vendor stay apart.
   agent headless with Gemini through the OpenAI-compatible provider (`gemini-3.5-flash-lite` by
   default; `--model` and `--build-model` change it). It answers the agent's question with the
   first option, approves the plan, lets the build run, then runs the last version's queries again
-  and scores (`evals/score.ts`, unit-tested). A middleware keeps every model response in
+  and scores (`evals/score.ts`, unit-tested). Then four answer cases (`evals/answer-cases.ts`)
+  call the answering service on the dev seed's checkout incident dashboard, pinned: a question at
+  aggregates (it must read, cite a read, name the errors, the deploy and a time range), the same
+  question at schema and metadata only (it must read nothing, say it cannot read the numbers, and
+  quote no measurement), a panel's explanation (no read, no citation, no measurement), and a
+  follow-up (a duration). Each case sets both dev connectors' access level and makes one service
+  call, prepared and stored as the question and explanation endpoints do; the scoring is in
+  `evals/answer-score.ts`, unit-tested. A middleware keeps every model response in
   `evals/.cache`, under a hash of the model and the request, with the clock fixed at 10:00 UTC for
   the day, so reruns call the provider only for what changed; `--only`, `--rescore` (scoring with
   no model call) and `--compare` keep runs cheap. Reports go to `evals/reports/` as an HTML page

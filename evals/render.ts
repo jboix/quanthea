@@ -1,13 +1,17 @@
 /**
  * A report to read: Markdown for the job's summary page in GitHub Actions, and a self-contained
  * HTML page. Both show each question's verdict and why, its cost, what the agent asked, and each
- * panel with its query.
+ * panel with its query; for an answer case, the answer's text and each read.
  */
 
+import { answerCases, caseText } from './answer-cases.ts';
+import { isAnswer } from './answer-score.ts';
+import { escapeHtml } from './html.ts';
 import { questions } from './questions.ts';
+import { htmlAnswerBody, markdownAnswerBody } from './render-answer.ts';
 import type { Report, Result } from './report.ts';
-import { cacheSentence, dollars, tokensOf, totalUsage } from './report.ts';
-import { type BuiltPanel, panelQueries, shownOf } from './score.ts';
+import { cacheSentence, counted, dollars, madeOf, tokensOf, totalUsage } from './report.ts';
+import { type BuiltPanel, type Outcome, panelQueries, shownOf } from './score.ts';
 
 /** One panel's query, written out, with its language for highlighting. */
 interface PanelQuery {
@@ -44,25 +48,16 @@ function queriesOf(panel: BuiltPanel): PanelQuery[] {
 }
 
 /**
- * A count with its noun, such as `1 panel` or `2 panels`.
+ * What the person asked, by question or answer case id.
  *
- * @param count - The count.
- * @param one - The noun, singular.
- * @param many - The noun, plural.
- * @returns The phrase.
- */
-function counted(count: number, one: string, many: string): string {
-  return `${count.toLocaleString('en')} ${count === 1 ? one : many}`;
-}
-
-/**
- * What the person asked, by question id.
- *
- * @param id - The question's id.
- * @returns The question.
+ * @param id - The id.
+ * @returns The question, or the panel an explanation is about.
  */
 function questionText(id: string): string {
-  return questions.find((question) => question.id === id)?.question ?? id;
+  const question = questions.find((each) => each.id === id);
+  if (question) return question.question;
+  const answerCase = answerCases.find((each) => each.id === id);
+  return answerCase ? caseText(answerCase) : id;
 }
 
 /**
@@ -109,8 +104,7 @@ function markdownRow({ outcome, score }: Result): string {
   const cells = [
     `${score.pass ? '✅' : '❌'} ${outcome.id}`,
     cell(questionText(outcome.id)),
-    String(outcome.panels.length),
-    String(outcome.repairs),
+    ...madeOf(outcome),
     tokensOf(outcome.usage).toLocaleString('en'),
     dollars(outcome.usage),
     `${Math.round(outcome.durationMs / 1000)} s`,
@@ -120,12 +114,24 @@ function markdownRow({ outcome, score }: Result): string {
 }
 
 /**
- * A question's details in Markdown: what the agent asked, and each panel with its queries.
+ * A question's or answer case's details in Markdown, folded.
  *
- * @param result - The question's result.
+ * @param result - The result.
  * @returns The block.
  */
 function markdownDetails({ outcome }: Result): string {
+  const body = isAnswer(outcome) ? markdownAnswerBody(outcome) : markdownBuild(outcome);
+  if (outcome.error) body.unshift(`The run failed: ${outcome.error}`);
+  return `<details><summary>${outcome.id} · ${questionText(outcome.id)}</summary>\n\n${body.join('\n')}\n\n</details>`;
+}
+
+/**
+ * A question's details in Markdown: what the agent asked, and each panel with its queries.
+ *
+ * @param outcome - The question's outcome.
+ * @returns The lines.
+ */
+function markdownBuild(outcome: Outcome): string[] {
   const asked = outcome.asked.map((text) => `The agent asked: “${text}” It got its first option.`);
   const shown = shownOf(outcome);
   const panels = shown.flatMap((panel) => [
@@ -137,9 +143,7 @@ function markdownDetails({ outcome }: Result): string {
   ]);
   const last =
     !outcome.built && outcome.lastWords ? [`The agent's last words: “${outcome.lastWords}”`] : [];
-  const body = [...asked, ...last, '', ...(panels.length > 0 ? panels : ['No panel was built.'])];
-  if (outcome.error) body.unshift(`The run failed: ${outcome.error}`);
-  return `<details><summary>${outcome.id} · ${questionText(outcome.id)}</summary>\n\n${body.join('\n')}\n\n</details>`;
+  return [...asked, ...last, '', ...(panels.length > 0 ? panels : ['No panel was built.'])];
 }
 
 /**
@@ -157,7 +161,7 @@ export function markdownReport(report: Report): string {
     '',
     cache,
     '',
-    '| | Question | Panels | Repairs | Tokens | Cost | Time | Why it fails |',
+    '| | Question | Built or read | Repairs or steps | Tokens | Cost | Time | Why it fails |',
     '| --- | --- | --: | --: | --: | --: | --: | --- |',
     ...report.results.map(markdownRow),
     '',
@@ -167,57 +171,52 @@ export function markdownReport(report: Report): string {
 }
 
 /**
- * Text safe in HTML.
+ * A question's body in HTML: what the agent asked or said last, and each panel with its queries.
  *
- * @param text - The text.
- * @returns The escaped text.
- */
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
-/**
- * A question's section of the HTML page.
- *
- * @param result - The question's result.
+ * @param outcome - The question's outcome.
  * @returns The HTML.
  */
-function htmlQuestion({ outcome, score }: Result): string {
-  const reasons = score.reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join('');
+function htmlBuild(outcome: Outcome): string {
   const asked = outcome.asked
     .map(
       (text) =>
         `<p class="asked">The agent asked “${escapeHtml(text)}” and got its first option.</p>`,
     )
     .join('');
-  const shown = shownOf(outcome);
-  const panels = shown.map((panel) => {
+  const panels = shownOf(outcome).map((panel) => {
     const queries = queriesOf(panel)
       .map((query) => `<pre>${escapeHtml(query.text)}</pre>`)
       .join('');
     return `<li><strong>${escapeHtml(panel.title)}</strong> <span class="muted">${escapeHtml(panel.connectors.join(', '))}</span>${queries}</li>`;
   });
-  const stats = [
-    counted(outcome.panels.length, 'panel', 'panels'),
-    counted(outcome.repairs, 'repair', 'repairs'),
-    counted(tokensOf(outcome.usage), 'token', 'tokens'),
-    dollars(outcome.usage),
-    `${Math.round(outcome.durationMs / 1000)} s`,
-  ].join(' · ');
   const last =
     !outcome.built && outcome.lastWords
       ? `<p class="asked">The agent's last words: “${escapeHtml(outcome.lastWords)}”</p>`
       : '';
+  return `${asked}${last}
+<details><summary>${panels.length > 0 ? 'Panels and queries' : 'No panel was built'}</summary><ul class="panels">${panels.join('')}</ul></details>`;
+}
+
+/**
+ * A question's or answer case's section of the HTML page.
+ *
+ * @param result - The result.
+ * @returns The HTML.
+ */
+function htmlQuestion({ outcome, score }: Result): string {
+  const reasons = score.reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join('');
+  const stats = [
+    ...madeOf(outcome),
+    counted(tokensOf(outcome.usage), 'token', 'tokens'),
+    dollars(outcome.usage),
+    `${Math.round(outcome.durationMs / 1000)} s`,
+  ].join(' · ');
+  const body = isAnswer(outcome) ? htmlAnswerBody(outcome) : htmlBuild(outcome);
   return `<section class="question" data-pass="${score.pass}">
 <h2><span class="verdict">${score.pass ? 'pass' : 'fail'}</span> ${escapeHtml(outcome.id)} · ${escapeHtml(questionText(outcome.id))}</h2>
 <p class="muted">${stats}</p>
 ${reasons ? `<ul class="reasons">${reasons}</ul>` : ''}${outcome.error ? `<p class="reasons">The run failed: ${escapeHtml(outcome.error)}</p>` : ''}
-${asked}${last}
-<details><summary>${panels.length > 0 ? 'Panels and queries' : 'No panel was built'}</summary><ul class="panels">${panels.join('')}</ul></details>
+${body}
 </section>`;
 }
 
@@ -238,7 +237,8 @@ h2 { margin: 0; font-size: 16px; }
 .panels { padding-left: 18px; }
 .panels li { margin: 10px 0; }
 pre { margin: 6px 0 0; padding: 8px 10px; overflow-x: auto; border-radius: 8px; background: var(--ground); font: 12.5px/1.5 ui-monospace, monospace; white-space: pre-wrap; }
-summary { cursor: pointer; color: var(--muted); }`;
+summary { cursor: pointer; color: var(--muted); }
+.answer { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--border); white-space: pre-wrap; }`;
 
 /**
  * The report as one HTML page, with no script and no external resource.

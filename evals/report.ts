@@ -6,15 +6,20 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { addUsage, costOf, type TokenUsage, type TurnUsage } from '@quanthea/shared';
+import { answerCases } from './answer-cases.ts';
+import { type AnswerCaseOutcome, isAnswer, scoreAnswer } from './answer-score.ts';
 import type { CacheCounts } from './cache.ts';
 import { questions } from './questions.ts';
 import { type Outcome, type Score, score } from './score.ts';
 import type { EvalModels } from './setup.ts';
 
-/** One question's result. */
+/** What happened for a dashboard question, or for an answer case. */
+export type EvalOutcome = Outcome | AnswerCaseOutcome;
+
+/** One question's or answer case's result. */
 export interface Result {
   /** What happened. */
-  readonly outcome: Outcome;
+  readonly outcome: EvalOutcome;
   /** How it scored. */
   readonly score: Score;
 }
@@ -31,20 +36,32 @@ export interface Report {
   readonly results: readonly Result[];
 }
 
+/** The score of an outcome whose question or case is gone. */
+const gone: Score = { pass: false, reasons: ['the question is gone'] };
+
 /**
- * Scores outcomes against the questions as they are now.
+ * Scores one outcome against its question or answer case as it is now.
+ *
+ * @param outcome - The outcome.
+ * @returns The score.
+ */
+function scoreOne(outcome: EvalOutcome): Score {
+  if (isAnswer(outcome)) {
+    const answerCase = answerCases.find((each) => each.id === outcome.id);
+    return answerCase ? scoreAnswer(outcome, answerCase.expect) : gone;
+  }
+  const question = questions.find((each) => each.id === outcome.id);
+  return question ? score(outcome, question.expect) : gone;
+}
+
+/**
+ * Scores outcomes against the questions and the answer cases as they are now.
  *
  * @param outcomes - The outcomes.
  * @returns The results.
  */
-export function scoreAll(outcomes: readonly Outcome[]): Result[] {
-  return outcomes.map((outcome) => {
-    const question = questions.find((each) => each.id === outcome.id);
-    const scored = question
-      ? score(outcome, question.expect)
-      : { pass: false, reasons: ['the question is gone'] };
-    return { outcome, score: scored };
-  });
+export function scoreAll(outcomes: readonly EvalOutcome[]): Result[] {
+  return outcomes.map((outcome) => ({ outcome, score: scoreOne(outcome) }));
 }
 
 /**
@@ -126,17 +143,55 @@ export function cacheSentence({ hits, misses }: CacheCounts): string {
 }
 
 /**
+ * A count with its noun, such as `1 panel` or `2 panels`.
+ *
+ * @param count - The count.
+ * @param one - The noun, singular.
+ * @param many - The noun, plural.
+ * @returns The phrase.
+ */
+export function counted(count: number, one: string, many: string): string {
+  return `${count.toLocaleString('en')} ${count === 1 ? one : many}`;
+}
+
+/**
+ * The reads an answer case made: its `read_data` calls.
+ *
+ * @param outcome - The answer case's outcome.
+ * @returns How many.
+ */
+export function readsOf(outcome: AnswerCaseOutcome): number {
+  return outcome.toolCalls.read_data ?? 0;
+}
+
+/**
+ * What an outcome made, in two counts: panels and repairs, or reads and model steps.
+ *
+ * @param outcome - The outcome.
+ * @returns The two phrases.
+ */
+export function madeOf(outcome: EvalOutcome): readonly [string, string] {
+  if (isAnswer(outcome))
+    return [counted(readsOf(outcome), 'read', 'reads'), counted(outcome.steps, 'step', 'steps')];
+  return [
+    counted(outcome.panels.length, 'panel', 'panels'),
+    counted(outcome.repairs, 'repair', 'repairs'),
+  ];
+}
+
+/**
  * One line of the table.
  *
- * @param result - A question's result.
+ * @param result - A question's or answer case's result.
  * @returns The line.
  */
 function line({ outcome, score: scored }: Result): string {
+  const [made, spent] = madeOf(outcome);
   const cells = [
     outcome.id.padEnd(4),
     (scored.pass ? 'pass' : 'FAIL').padEnd(4),
-    `${outcome.panels.length} ${outcome.panels.length === 1 ? 'panel' : 'panels'}`.padEnd(10),
-    `${outcome.repairs} ${outcome.repairs === 1 ? 'repair' : 'repairs'}`.padEnd(10),
+    made.padEnd(10),
+    spent.padEnd(10),
     `${tokensOf(outcome.usage)} tokens`.padEnd(14),
     dollars(outcome.usage).padEnd(10),
     `${Math.round(outcome.durationMs / 1000)} s`.padEnd(6),

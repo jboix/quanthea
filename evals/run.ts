@@ -8,18 +8,30 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { staleDataReason } from '@quanthea/dev/freshness.ts';
 import { waitForFirstScrape } from '@quanthea/server/src/connectors/_shared/test/dev-sources.ts';
+import { type AnswerCase, answerCases, selectAnswerCases } from './answer-cases.ts';
+import { driveAnswer, openBench } from './answer-drive.ts';
 import { drive } from './drive.ts';
 import { selectQuestions } from './questions.ts';
 import { htmlReport, markdownReport } from './render.ts';
-import { comparison, type Report, readReport, scoreAll, summary, writeReport } from './report.ts';
-import type { Outcome } from './score.ts';
-import { type EvalModels, openWorld } from './setup.ts';
+import {
+  comparison,
+  type EvalOutcome,
+  type Report,
+  readReport,
+  scoreAll,
+  summary,
+  writeReport,
+} from './report.ts';
+import { type EvalModels, type EvalWorld, openWorld } from './setup.ts';
 
 /** What `--help` prints. */
-const usage = `Asks the agent each question against the dev data, and scores what it builds.
+const usage = `Asks the agent each question against the dev data, and scores what it builds. Then
+asks the dashboard answering service the answer cases (a1 to a4) on the pinned checkout incident
+dashboard, and scores its answers and explanations.
 
-  bun run evals                         every question, on gemini-3.5-flash-lite
+  bun run evals                         every question and answer case, on gemini-3.5-flash-lite
   bun run evals --only q3,q7            only these questions
+  bun run evals --only a1,a2,a3,a4      only the answer cases
   bun run evals --model gemini-3.8-flash
   bun run evals --build-model gemini-3.8-flash   another model for building and repairs
   bun run evals --no-cache              ask the provider again, and keep its answers
@@ -89,30 +101,71 @@ function exitCodeOf(report: Report, allowed: number): number {
 }
 
 /**
- * Asks every selected question, one after the other, and prints each verdict as it comes.
+ * Checks the dev data sources: they answer, and their incident is yesterday's.
  *
- * @param flags - The flags.
- * @returns The report.
+ * @returns Once they are ready.
+ * @throws {Error} With the advice to start or seed them again.
  */
-async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<Report> {
-  const selected = selectQuestions(flags.only?.split(',').map((id) => id.trim()) ?? []);
-  const models: EvalModels = { model: flags.model, build: flags['build-model'] };
+async function checkSources(): Promise<void> {
   await waitForFirstScrape().catch(() => {
     throw new Error('The dev data sources do not answer. Start them with bun run env:up.');
   });
   const stale = await staleDataReason(new Date());
   if (stale) throw new Error(stale);
+}
+
+/**
+ * Keeps an outcome and prints its verdict.
+ *
+ * @param outcomes - The outcomes so far.
+ * @param outcome - The new one.
+ */
+function keep(outcomes: EvalOutcome[], outcome: EvalOutcome): void {
+  outcomes.push(outcome);
+  const [result] = scoreAll([outcome]);
+  process.stdout.write(`${outcome.id}: ${result?.score.pass ? 'pass' : 'FAIL'}\n`);
+}
+
+/**
+ * Runs the answer cases on the pinned checkout incident dashboard, one after the other.
+ *
+ * @param world - The world.
+ * @param cases - The cases.
+ * @param outcomes - The outcomes so far, which theirs join.
+ * @returns Once every case has run.
+ */
+async function answerAll(
+  world: EvalWorld,
+  cases: readonly AnswerCase[],
+  outcomes: EvalOutcome[],
+): Promise<void> {
+  if (cases.length === 0) return;
+  const bench = await openBench(world);
+  for (const answerCase of cases) keep(outcomes, await driveAnswer(world, bench, answerCase));
+}
+
+/**
+ * Asks every selected question, then runs every selected answer case, one after the other, and
+ * prints each verdict as it comes.
+ *
+ * @param flags - The flags.
+ * @returns The report.
+ */
+async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<Report> {
+  const only = flags.only?.split(',').map((id) => id.trim()) ?? [];
+  const selected = selectQuestions(
+    only,
+    answerCases.map((each) => each.id),
+  );
+  const models: EvalModels = { model: flags.model, build: flags['build-model'] };
+  await checkSources();
   const cache = { dir: join(here, '.cache'), read: !flags['no-cache'], minIntervalMs: 4000 };
   const world = await openWorld(models, process.env.GEMINI_API_KEY || undefined, cache);
   const startedAt = new Date().toISOString();
-  const outcomes: Outcome[] = [];
+  const outcomes: EvalOutcome[] = [];
   try {
-    for (const question of selected) {
-      const outcome = await drive(world, question);
-      outcomes.push(outcome);
-      const [result] = scoreAll([outcome]);
-      process.stdout.write(`${question.id}: ${result?.score.pass ? 'pass' : 'FAIL'}\n`);
-    }
+    for (const question of selected) keep(outcomes, await drive(world, question));
+    await answerAll(world, selectAnswerCases(only), outcomes);
   } finally {
     await world.close();
   }

@@ -179,12 +179,17 @@ export const questions: readonly Question[] = [
  * The questions `--only` keeps, in their order.
  *
  * @param only - The ids to keep, or none for every question.
+ * @param others - The ids of the other cases `--only` may name, such as the answer cases.
  * @returns The questions.
- * @throws {Error} When an id names no question.
+ * @throws {Error} When an id names no question and no other case.
  */
-export function selectQuestions(only: readonly string[]): readonly Question[] {
+export function selectQuestions(
+  only: readonly string[],
+  others: readonly string[] = [],
+): readonly Question[] {
   if (only.length === 0) return questions;
-  const unknown = only.filter((id) => !questions.some((question) => question.id === id));
+  const known = new Set([...questions.map((question) => question.id), ...others]);
+  const unknown = only.filter((id) => !known.has(id));
   if (unknown.length > 0) throw new Error(`No question ${unknown.join(', ')}.`);
   return questions.filter((question) => only.includes(question.id));
 }
