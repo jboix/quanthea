@@ -214,3 +214,38 @@ export function withMarkers(
   };
   return [{ ...first, markLine }, ...rest];
 }
+
+/**
+ * Shades windows on the first series of a time chart, such as the ones an answer cites, each
+ * numbered as it is cited. The shade is the accent colour, faint, so the lines stay readable;
+ * its label is canvas text.
+ *
+ * @param series - The series.
+ * @param highlights - The windows, with their numbers.
+ * @param theme - The chart theme.
+ * @returns The series, the first with a `markArea`.
+ */
+export function withHighlights(
+  series: readonly Loose[],
+  highlights: readonly { readonly n: number; readonly from: number; readonly to: number }[],
+  theme: ChartTheme,
+): Loose[] {
+  const [first, ...rest] = series;
+  if (!first || highlights.length === 0) return [...series];
+  const markArea = {
+    silent: true,
+    animation: false,
+    itemStyle: { color: theme.palette[0], opacity: 0.12 },
+    label: {
+      position: 'insideTopLeft',
+      color: theme.ink,
+      fontFamily: theme.monoFamily,
+      fontSize: 11,
+    },
+    data: highlights.map((window) => [
+      { xAxis: window.from, name: `[${window.n}]` },
+      { xAxis: window.to },
+    ]),
+  };
+  return [{ ...first, markArea }, ...rest];
+}

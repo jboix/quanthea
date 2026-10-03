@@ -1,4 +1,5 @@
 /** The dashboard screen: its route component and loaders. */
+export { loadQuestions, loadSimilarQuestions, loadSources } from './ask-data.ts';
 export { DashboardCanvas } from './canvas.tsx';
 export { changeDashboard, loadDashboard, loadPanelRun, loadVariableOptions } from './data.ts';
 export { FrozenCanvas } from './frozen-canvas.tsx';

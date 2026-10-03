@@ -1,6 +1,7 @@
 import type { DashboardSpec, Panel, PanelRun } from '@quanthea/shared';
 import { type CSSProperties, useEffect } from 'react';
 import { useFetcher } from 'react-router';
+import type { PanelMark } from './ask-marks.ts';
 import type { Loaded } from './data.ts';
 import { PanelInfo } from './panel-info.tsx';
 import { PanelView } from './panel-views.tsx';
@@ -60,6 +61,8 @@ interface PanelCardProps {
   readonly planMark?: PanelPlanMark | undefined;
   /** The ids of the sets of markers the viewer hid, which the chart does not draw. */
   readonly hiddenMarkers?: ReadonlySet<string> | undefined;
+  /** What the open answer cites on the panel: badges, and windows to shade on a time chart. */
+  readonly answerMark?: PanelMark | undefined;
 }
 
 /**
@@ -89,7 +92,7 @@ function usePanelRun(panel: Panel, target: RunTarget, onRun: PanelCardProps['onR
 /**
  * The body of a panel: its view, or why it has nothing to show.
  *
- * @param props - The panel, the spec, the hidden sets of markers and the run.
+ * @param props - The panel, the spec, the hidden sets of markers, the answer's marks and the run.
  * @param props.run - The latest run, if any.
  * @param props.loading - Whether a run is loading.
  * @returns The body.
@@ -98,9 +101,11 @@ function PanelBody({
   panel,
   spec,
   hiddenMarkers,
+  answerMark,
   run,
   loading,
-}: Pick<PanelCardProps, 'panel' | 'spec' | 'hiddenMarkers'> & ReturnType<typeof usePanelRun>) {
+}: Pick<PanelCardProps, 'panel' | 'spec' | 'hiddenMarkers' | 'answerMark'> &
+  ReturnType<typeof usePanelRun>) {
   if (!run) return <p className={styles.loading}>Loading…</p>;
   if (!run.ok) return <p className={styles.error}>{run.message}</p>;
   const failures = run.value.queries.filter((query) => query.error);
@@ -124,6 +129,7 @@ function PanelBody({
             queries={run.value.queries}
             markers={run.value.markers}
             hiddenMarkers={hiddenMarkers}
+            highlights={answerMark?.windows}
             timeZone={spec.timezone}
           />
         </div>
@@ -134,9 +140,9 @@ function PanelBody({
 
 /**
  * The heading of a panel: its title, as a button when panels can be picked, the "in chat" mark,
- * and where its data comes from.
+ * the numbers the open answer cites it with, and where its data comes from.
  *
- * @param props - The panel, whether it is marked, and the pick callback.
+ * @param props - The panel, whether it is marked, the pick callback and the marks.
  * @returns The heading.
  */
 function PanelHeading({
@@ -144,7 +150,8 @@ function PanelHeading({
   marked,
   onSelect,
   planMark,
-}: Pick<PanelCardProps, 'panel' | 'marked' | 'onSelect' | 'planMark'>) {
+  answerMark,
+}: Pick<PanelCardProps, 'panel' | 'marked' | 'onSelect' | 'planMark' | 'answerMark'>) {
   const title = onSelect ? (
     <button type="button" className={styles.titleButton} onClick={() => onSelect(panel.id)}>
       {panel.title}
@@ -159,6 +166,11 @@ function PanelHeading({
       </h3>
       {marked && <span className={styles.mark}>in chat</span>}
       {planMark && <span className={styles.planTag}>{planMarkWords[planMark.tag]}</span>}
+      {answerMark?.numbers.map((n) => (
+        <span key={n} className={styles.answerMark} title="Cited in the open answer">
+          {n}
+        </span>
+      ))}
       <PanelInfo panel={panel} />
     </div>
   );
@@ -193,48 +205,43 @@ type PanelFrameProps = Omit<PanelCardProps, 'target' | 'onRun'> & {
 /**
  * One panel on the grid, around a run it is given: its title, any plan mark, and its view.
  *
- * @param props - The panel, the spec, the run, its selection and marks, and the hidden sets of
- *   markers.
+ * @param props - The panel, the spec, the run, its selection and marks, the hidden sets of
+ *   markers, and what the open answer cites on it.
  * @returns The panel card.
  */
-export function PanelFrame({
-  panel,
-  spec,
-  run,
-  loading,
-  selected = false,
-  marked = false,
-  onSelect,
-  planMark,
-  hiddenMarkers,
-}: PanelFrameProps) {
-  const { x, y, w, h } = panel.grid;
-  const place = {
-    '--column': `${x + 1} / span ${w}`,
-    '--row': `${y + 1} / span ${h}`,
-    '--rows': h,
-  } as CSSProperties;
+export function PanelFrame(props: PanelFrameProps) {
+  const { panel, loading, selected = false, planMark, answerMark } = props;
   return (
     <section
       className={styles.panel}
       data-kind={panel.view.kind}
       data-selected={selected}
       data-plan={planMark?.tag}
+      data-cited={answerMark !== undefined}
       aria-labelledby={`panel-${panel.id}`}
       aria-busy={loading}
-      style={place}
+      style={gridPlace(panel)}
     >
-      <PanelHeading panel={panel} marked={marked} onSelect={onSelect} planMark={planMark} />
+      <PanelHeading {...props} />
       {planMark && <PlanNote mark={planMark} />}
-      <PanelBody
-        panel={panel}
-        spec={spec}
-        hiddenMarkers={hiddenMarkers}
-        run={run}
-        loading={loading}
-      />
+      <PanelBody {...props} />
     </section>
   );
+}
+
+/**
+ * Where a panel sits on the grid, as the custom properties the stylesheet reads.
+ *
+ * @param panel - The panel.
+ * @returns The style.
+ */
+function gridPlace(panel: Panel): CSSProperties {
+  const { x, y, w, h } = panel.grid;
+  return {
+    '--column': `${x + 1} / span ${w}`,
+    '--row': `${y + 1} / span ${h}`,
+    '--rows': h,
+  } as CSSProperties;
 }
 
 /**

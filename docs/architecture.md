@@ -96,7 +96,7 @@ The two paths that matter:
 │           ├── routes/              thin route modules; compose features
 │           ├── features/
 │           │   ├── thread/          chat stream, plan card, diff and repair cards, composer, @mentions
-│           │   ├── dashboard/       dashboard pane, variables bar, panels, inspector, snapshot menu
+│           │   ├── dashboard/       dashboard pane, variables bar, panels, inspector, snapshot menu, Ask tab
 │           │   ├── snapshot/        a snapshot's page, Settings → Snapshots
 │           │   ├── library/         search, connector and tag filters, cards with a live panel
 │           │   ├── bin/
@@ -197,6 +197,9 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/d/:dashboardId/v/:version/panels/:panelId`       | resource route: one panel's run, for fetchers              | viewer   |
 | `/d/:dashboardId/v/:version/options/:name`         | resource route: a variable's options, for fetchers         | viewer   |
 | `/d/:dashboardId/snapshots`                        | resource route: a dashboard's live snapshots, for fetchers | editor   |
+| `/d/:dashboardId/questions`                        | resource route: a dashboard's questions and answers        | viewer   |
+| `/d/:dashboardId/similar-questions`                | resource route: earlier answered questions like a text     | viewer   |
+| `/d/:dashboardId/v/:version/sources`               | resource route: a version's sources and access levels      | viewer   |
 | `/s/:snapshotId`                                   | a snapshot: a version frozen with its data, read-only      | viewer   |
 | `/bin`                                             | Bin: deleted threads, restore; retention, delete (admin)   | editor   |
 | `/connectors`, `/connectors/:connectorId`          | Connectors: list, access level, guardrails, schema         | admin    |
@@ -1654,6 +1657,35 @@ one, and enables them again. Without any admin, it creates the default one.
   show or hide sets, in the page only. A banner names the dashboard and version, with a link, who
   took it and when, and until when it lives. Settings → Snapshots lists every live snapshot for
   admins.
+- **Ask about this.** On a pinned version, the header's Ask about this opens a side panel beside
+  the panels, with two tabs: About (the description, tags and sources) and Ask
+  (`features/dashboard/ask-*.ts(x)`). Below 960 px the panel comes first, over the full width.
+  - Every role reads the questions asked, newest first, each expandable, with its follow-ups under
+    it. Analysts and above get the question box, whose label says what the question is about:
+    the range shown in absolute times in the dashboard's time zone, and the variable values
+    (`Ask about this dashboard, as shown: 26 Sep 13:30–15:00, $env prod`). Viewers get a line
+    saying who can ask, and a search of the questions asked so far.
+  - Asking posts the version, the question, the range and variables as shown, the hidden sets
+    of markers and the question it follows up on, never a query, and reads the UI message stream
+    (`ask-stream.ts`, with the AI SDK's `readUIMessageStream`): the answer's text as it is
+    written, the reads as they come, then the checked answer from `data-outcome`. The list loads
+    again when the answer ends, and the new question opens.
+  - An answer is plain text: its `[n]` markers become small numbered badges, never markup. Its
+    header line says when it was asked, by whom, on which version, over which range and values.
+    "What I looked at" lists each read: the panel or a query of its own, the connector, and a
+    few lines summing up what the gate let out (rows, each field's extremes and when, spikes, top
+    values) in the mono font, never the raw JSON.
+  - While the typed text pauses, the tab looks up earlier answered questions that share its
+    words and shows at most three above the box (`Asked on 26 Sep by Ana: …`); opening one
+    scrolls to it, expands it and highlights it for a moment.
+  - When no source of the dashboard is at Aggregates or Full access, a note above the questions
+    says answers can only explain, lists the sources with their levels, and says an admin can
+    raise one in Connectors. An answer given so carries the same note.
+  - The open answer, expanded or just given, marks the dashboard while the Ask tab shows: each
+    panel it cites gets its citation numbers as badges in its header, and a citation's window is
+    shaded on that panel's time chart (an ECharts `markArea`, `withHighlights` in
+    `charts/series.ts`). This is view state only. An answer about another version marks nothing
+    and says on which version it was asked.
 - Each panel has an info bubble: its connector, language and query text, and the chart recipe
   that draws it. It shows what the saved panel runs, so a viewer can trace a number to its source.
 - Each panel loads its run through a fetcher from a resource route

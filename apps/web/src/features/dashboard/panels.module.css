@@ -253,6 +253,21 @@
   color: var(--color-ink-secondary);
 }
 
+.answerMark {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  text-align: center;
+  color: var(--color-on-accent);
+}
+
+.panel[data-cited="true"] {
+  border-color: var(--color-accent-border);
+}
+
 .planTag {
   padding: 2px 8px;
   border-radius: 6px;

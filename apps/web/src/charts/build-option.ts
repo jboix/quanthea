@@ -9,9 +9,19 @@ import { wireFormatters } from './formatters.ts';
 import { isObject, type Loose } from './loose.ts';
 import { type Prepared, prepareChart } from './prepare/index.ts';
 import { oneColumn } from './roles.ts';
-import { expandSeries, withMarkers } from './series.ts';
+import { expandSeries, withHighlights, withMarkers } from './series.ts';
 import type { ChartTheme } from './theme.ts';
 import { replaceTokens, themeColors } from './tokens.ts';
+
+/** A window to shade on a time chart, such as one an answer cites, numbered as it is cited. */
+export interface ChartHighlight {
+  /** The number shown on it. */
+  readonly n: number;
+  /** The start, in epoch milliseconds. */
+  readonly from: number;
+  /** The end, in epoch milliseconds. */
+  readonly to: number;
+}
 
 /** What a chart draws. */
 export interface ChartInput {
@@ -21,6 +31,8 @@ export interface ChartInput {
   readonly datasets: readonly Dataset[];
   /** The annotation markers of the panel. */
   readonly markers: readonly MarkerOutcome[];
+  /** Windows to shade, on a time chart only. */
+  readonly highlights?: readonly ChartHighlight[] | undefined;
 }
 
 /** How a chart looks. */
@@ -37,14 +49,16 @@ export interface ChartContext {
  * @param view - The chart view.
  * @param queries - The outcome of each query of the panel.
  * @param markers - The annotation markers.
+ * @param highlights - Windows to shade, if any.
  * @returns The input.
  */
 export function chartInputOf(
   view: ChartView,
   queries: readonly QueryOutcome[],
   markers: readonly MarkerOutcome[],
+  highlights?: readonly ChartHighlight[],
 ): ChartInput {
-  return { view, datasets: viewDatasets(view, queries), markers };
+  return { view, datasets: viewDatasets(view, queries), markers, highlights };
 }
 
 /**
@@ -255,22 +269,27 @@ function ownedParts(prepared: Prepared, option: Loose, theme: ChartTheme, empty:
 }
 
 /**
- * The option with its series expanded, the markers on a time chart, and the tokens replaced.
+ * The option with its series expanded, the markers and the highlights on a time chart, and the
+ * tokens replaced.
  *
  * @param prepared - The prepared data and option.
- * @param markers - The annotation markers.
+ * @param input - The annotation markers and the windows to shade.
  * @param context - The theme and the time zone.
  * @returns The resolved option.
  */
 function resolvedOption(
   prepared: Prepared,
-  markers: readonly MarkerOutcome[],
+  input: Pick<ChartInput, 'markers' | 'highlights'>,
   context: ChartContext,
 ): Loose {
   const expanded = expandSeries(prepared);
   const onTime = isObject(prepared.option.xAxis) && prepared.option.xAxis.type === 'time';
   const series = onTime
-    ? withMarkers(expanded, markers, context.theme, context.timeZone)
+    ? withHighlights(
+        withMarkers(expanded, input.markers, context.theme, context.timeZone),
+        input.highlights ?? [],
+        context.theme,
+      )
     : expanded;
   const tokens = {
     colors: themeColors(context.theme),
@@ -298,7 +317,7 @@ export function buildChartOption(input: ChartInput, context: ChartContext): Loos
     limit: view.limit,
     format,
   });
-  const resolved = resolvedOption(prepared, input.markers, context);
+  const resolved = resolvedOption(prepared, input, context);
   const [main] = prepared.datasets;
   const x = oneColumn(prepared.roles, 'x');
   const timeCategories = main?.dimensions.find((column) => column.name === x)?.type === 'time';

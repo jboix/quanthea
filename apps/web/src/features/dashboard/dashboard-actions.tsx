@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
-import { BinIcon, CopyIcon, MoreIcon, ThreadsIcon } from '../../ui/icons.tsx';
+import { BinIcon, CopyIcon, MoreIcon, QuestionIcon, ThreadsIcon } from '../../ui/icons.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import { useMediaQuery } from '../../ui/use-media-query.ts';
 import styles from './dashboard.module.css';
@@ -94,15 +94,38 @@ function ThreadActions({ dashboard, version }: DashboardData) {
   );
 }
 
+/** The header's way into the Ask tab. */
+export interface AskAction {
+  /** Opens the Ask tab; left out where questions can't be asked, off a pinned version. */
+  readonly onAsk?: (() => void) | undefined;
+  /** Whether the Ask tab is open. */
+  readonly asking?: boolean | undefined;
+}
+
 /**
- * The header's actions: History, Snapshot for editors, the thread, a new dashboard from this one,
- * and Copy link. On a narrow screen they fold into one menu, with the history and the snapshots
- * listed in it.
+ * Opens the Ask tab, pressed while it is open.
  *
- * @param props - The dashboard and the version shown.
+ * @param props - The callback and whether the tab is open.
+ * @returns The button, or nothing where questions can't be asked.
+ */
+function AskButton({ onAsk, asking = false }: AskAction) {
+  if (!onAsk) return null;
+  return (
+    <Button aria-pressed={asking} onClick={onAsk}>
+      <QuestionIcon /> Ask about this
+    </Button>
+  );
+}
+
+/**
+ * The header's actions: History, Snapshot for editors, Ask about this, the thread, a new
+ * dashboard from this one, and Copy link. On a narrow screen they fold into one menu, with the
+ * history and the snapshots listed in it.
+ *
+ * @param props - The dashboard, the version shown, and the way into the Ask tab.
  * @returns The actions.
  */
-export function HeaderActions(props: DashboardData) {
+export function HeaderActions({ onAsk, asking, ...props }: DashboardData & AskAction) {
   const narrow = useMediaQuery(narrowScreen);
   const canEdit = useCanEdit();
   if (!narrow) {
@@ -110,6 +133,7 @@ export function HeaderActions(props: DashboardData) {
       <div className={styles.headerActions}>
         <HistoryPopover {...props} />
         {canEdit && <SnapshotPopover {...props} />}
+        <AskButton onAsk={onAsk} asking={asking} />
         <ThreadActions {...props} />
         <CopyLinkButton />
       </div>
@@ -118,6 +142,7 @@ export function HeaderActions(props: DashboardData) {
   return (
     <Popover label="Dashboard actions" trigger={<MoreIcon />} align="end">
       <div className={styles.actionMenu}>
+        <AskButton onAsk={onAsk} asking={asking} />
         <ThreadActions {...props} />
         <CopyLinkButton />
         <h2 className={styles.sideHeading}>History</h2>

@@ -7,7 +7,7 @@ import {
   type TableView as TableViewSpec,
 } from '@quanthea/shared';
 import { lazy, Suspense, useMemo } from 'react';
-import { chartInputOf } from '../../charts/input.ts';
+import { type ChartHighlight, chartInputOf } from '../../charts/input.ts';
 import { shownMarkers } from './marker-sets.ts';
 import styles from './panels.module.css';
 import { reduceResult } from './reduce.ts';
@@ -119,20 +119,30 @@ interface PanelViewProps extends ViewProps {
   readonly markers: readonly MarkerOutcome[];
   /** The ids of the sets of markers not to draw. */
   readonly hiddenMarkers?: ReadonlySet<string> | undefined;
+  /** Windows an open answer cites, shaded on a time chart. */
+  readonly highlights?: readonly ChartHighlight[] | undefined;
 }
 
 /**
  * The view of a panel, by kind.
  *
- * @param props - The panel, its outcomes and markers, the sets of markers hidden, and the time zone.
+ * @param props - The panel, its outcomes and markers, the sets of markers hidden, the windows an
+ *   open answer cites, and the time zone.
  * @returns The view.
  */
-export function PanelView({ panel, queries, markers, hiddenMarkers, timeZone }: PanelViewProps) {
+export function PanelView({
+  panel,
+  queries,
+  markers,
+  hiddenMarkers,
+  highlights,
+  timeZone,
+}: PanelViewProps) {
   const { view } = panel;
   const input = useMemo(() => {
     if (view.kind !== 'chart') return undefined;
-    return chartInputOf(view, queries, shownMarkers(markers, hiddenMarkers));
-  }, [view, queries, markers, hiddenMarkers]);
+    return chartInputOf(view, queries, shownMarkers(markers, hiddenMarkers), highlights);
+  }, [view, queries, markers, hiddenMarkers, highlights]);
   if (view.kind === 'stat') return <StatView view={view} queries={queries} timeZone={timeZone} />;
   if (view.kind === 'table') return <TableView view={view} queries={queries} timeZone={timeZone} />;
   if (!input) return null;

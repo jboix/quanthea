@@ -45,6 +45,12 @@
   align-items: stretch;
 }
 
+@media (max-width: 960px) {
+  .body[data-side="true"] {
+    flex-direction: column;
+  }
+}
+
 .main {
   display: flex;
   flex-direction: column;

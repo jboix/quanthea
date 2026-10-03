@@ -16,7 +16,7 @@ export const usageBucketSchema = z.object({
   provider: z.string(),
   /** The model id; empty for pinned views. */
   model: z.string(),
-  /** Who the model steps ran for: their thread's owner; empty outside a thread and for views. */
+  /** Who the model steps ran for: their thread's owner, or who asked about a dashboard; empty for tags at pin time and for views. */
   userId: z.string(),
   /** Fresh input tokens. */
   input: z.number(),

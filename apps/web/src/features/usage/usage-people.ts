@@ -1,9 +1,9 @@
-/** What each user spent: the model steps that ran in their threads. */
+/** What each user spent: the model steps of their threads and of their questions about dashboards. */
 import type { Role, UsageReport } from '@quanthea/shared';
 
 /** What one user spent over the range. */
 export interface PersonUsage {
-  /** The user's id; empty for steps outside a thread, such as tagging a dashboard at pin time. */
+  /** The user's id; empty for steps that ran for no one, such as tagging a dashboard at pin time. */
   readonly userId: string;
   /** Their name. */
   readonly name: string;
@@ -32,7 +32,7 @@ export function usageByUser(report: UsageReport): PersonUsage[] {
     const known = report.people[bucket.userId];
     const before = people.get(bucket.userId) ?? {
       userId: bucket.userId,
-      name: known?.name ?? 'Outside a thread',
+      name: known?.name ?? 'No one: tags at pin time',
       role: known?.role ?? null,
       steps: 0,
       tokens: 0,

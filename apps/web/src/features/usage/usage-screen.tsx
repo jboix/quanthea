@@ -187,7 +187,10 @@ export function UsageScreen() {
       <Card title="By model">
         <ModelsTable models={models} />
       </Card>
-      <Card title="By person" description="The model steps that ran in each person’s threads.">
+      <Card
+        title="By person"
+        description="The model steps of each person’s threads and of their questions about dashboards."
+      >
         <PeopleTable people={usageByUser(report)} />
       </Card>
     </Page>

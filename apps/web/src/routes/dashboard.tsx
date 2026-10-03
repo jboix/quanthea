@@ -8,6 +8,9 @@ import {
   loadDashboard,
   loadDashboardSnapshots,
   loadPanelRun,
+  loadQuestions,
+  loadSimilarQuestions,
+  loadSources,
   loadVariableOptions,
 } from '../features/dashboard/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
@@ -52,8 +55,32 @@ function screenRoute(loadSession: SessionLoader, path: GuardedPath, api: ApiClie
 }
 
 /**
- * The dashboard routes. The resource routes load only when a panel, a variable menu or the
- * Snapshot menu asks.
+ * The resource routes of the Ask tab: a dashboard's questions, the earlier ones like a text, and
+ * a version's sources with their access levels.
+ *
+ * @param loadSession - Loads the current session.
+ * @param api - The API client.
+ * @returns The route objects.
+ */
+function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
+  const questions = '/d/:dashboardId/questions';
+  const similar = '/d/:dashboardId/similar-questions';
+  const sources = '/d/:dashboardId/v/:version/sources';
+  return [
+    // Loads again when the tab asks, after an answer ends.
+    { path: questions, loader: guarded(loadSession, questions, loadQuestions(api)) },
+    { path: similar, loader: guarded(loadSession, similar, loadSimilarQuestions(api)) },
+    {
+      path: sources,
+      loader: guarded(loadSession, sources, loadSources(api)),
+      shouldRevalidate: () => false,
+    },
+  ];
+}
+
+/**
+ * The dashboard routes. The resource routes load only when a panel, a variable menu, the
+ * Snapshot menu or the Ask tab asks.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -78,5 +105,6 @@ export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): Rou
     },
     // Loads again after a snapshot is taken or revoked, so the list stays current.
     { path: snapshots, loader: guarded(loadSession, snapshots, loadDashboardSnapshots(api)) },
+    ...askRoutes(loadSession, api),
   ];
 }

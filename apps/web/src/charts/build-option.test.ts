@@ -7,7 +7,7 @@ import {
   fillView,
   type QueryOutcome,
 } from '@quanthea/shared';
-import { buildChartOption, chartInputOf } from './build-option.ts';
+import { buildChartOption, type ChartHighlight, chartInputOf } from './build-option.ts';
 
 import { defaultTheme } from './theme.ts';
 
@@ -48,9 +48,15 @@ function series(service: string, rates: number[]): Frame {
  * @param option - The spec's ECharts option.
  * @param frames - The frames of query A.
  * @param extra - More of the view, such as datasets with transforms.
+ * @param highlights - Windows to shade.
  * @returns The option.
  */
-function build(option: ChartView['option'], frames: Frame[], extra: Partial<ChartView> = {}) {
+function build(
+  option: ChartView['option'],
+  frames: Frame[],
+  extra: Partial<ChartView> = {},
+  highlights: ChartHighlight[] = [],
+) {
   const view: ChartView = {
     kind: 'chart',
     prepare: 'cartesian',
@@ -76,7 +82,7 @@ function build(option: ChartView['option'], frames: Frame[], extra: Partial<Char
       error: null,
     },
   ];
-  return buildChartOption(chartInputOf(view, queries, markers), {
+  return buildChartOption(chartInputOf(view, queries, markers, highlights), {
     theme: defaultTheme,
     timeZone: 'UTC',
   });
@@ -181,6 +187,25 @@ describe('buildChartOption', () => {
     );
     expect(at(option, 'series.0.markLine.tooltip.trigger')).toBe('item');
     expect(at(option, 'series.1.markLine')).toBeUndefined();
+  });
+
+  test('shades the windows an answer cites on a time chart, numbered, and on no other', () => {
+    const window = { n: 2, from: t0 + 60_000, to: t0 + 180_000 };
+    const option = build(lineOption, [series('checkout-svc', [1, 2, 3])], {}, [window]);
+    expect(at(option, 'series.0.markArea')).toMatchObject({
+      silent: true,
+      itemStyle: { color: defaultTheme.palette[0] },
+      data: [[{ xAxis: t0 + 60_000, name: '[2]' }, { xAxis: t0 + 180_000 }]],
+    });
+    expect(at(option, 'series.0.markLine')).toBeDefined();
+    const bars = {
+      xAxis: { type: 'category' },
+      yAxis: { type: 'value' },
+      series: [{ type: 'bar' }],
+    };
+    const categories = build(bars, [series('checkout-svc', [1])], {}, [window]);
+    expect(at(categories, 'series.0.markArea')).toBeUndefined();
+    expect(at(build(lineOption, [series('a', [1])]), 'series.0.markArea')).toBeUndefined();
   });
 
   test('renders tooltips as rich text, so a hostile series name stays text', () => {

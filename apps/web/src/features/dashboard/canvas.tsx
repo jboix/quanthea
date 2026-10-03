@@ -5,6 +5,7 @@
 import type { DashboardSpec, PanelRun } from '@quanthea/shared';
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import type { PanelMark } from './ask-marks.ts';
 import type { Loaded } from './data.ts';
 import { hiddenMarkersOf, runSearchOf } from './marker-sets.ts';
 import { PanelCard, type PanelPlanMark, type RunTarget } from './panel-card.tsx';
@@ -58,6 +59,8 @@ export interface DashboardCanvasProps {
   readonly markedPanelIds?: readonly string[];
   /** How a waiting plan would change each panel, by id, while the draft pane previews it. */
   readonly planMarks?: Readonly<Record<string, PanelPlanMark>> | undefined;
+  /** What the open answer cites on each panel, by id: badges and shaded windows. */
+  readonly answerMarks?: Readonly<Record<string, PanelMark>> | undefined;
 }
 
 /**
@@ -87,6 +90,7 @@ function PanelGrid(
           marked={props.markedPanelIds?.includes(panel.id) ?? false}
           onSelect={props.onSelectPanel}
           planMark={props.planMarks?.[panel.id]}
+          answerMark={props.answerMarks?.[panel.id]}
           hiddenMarkers={props.hiddenMarkers}
         />
       ))}

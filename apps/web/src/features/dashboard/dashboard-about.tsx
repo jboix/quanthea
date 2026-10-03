@@ -128,30 +128,42 @@ export function History({ dashboard, version }: DashboardData) {
  * @param props - The dashboard and the version shown.
  * @returns The popover.
  */
-export function AboutPopover({ dashboard, version }: DashboardData) {
-  const { spec } = version;
+export function AboutPopover(props: DashboardData) {
   return (
     <Popover label="About this dashboard" trigger={<QuestionIcon />}>
-      <div className={styles.popoverBody}>
-        {spec.description ? (
-          <p className={styles.about}>{spec.description}</p>
-        ) : (
-          <p className={styles.muted}>No description.</p>
-        )}
-        {dashboard.tags.length > 0 && (
-          <p className={styles.tags}>{dashboard.tags.map((tag) => `#${tag}`).join(' ')}</p>
-        )}
-        <h2 className={styles.sideHeading}>Sources</h2>
-        <dl className={styles.sources}>
-          {sourcesOf(spec).map(([name, usage]) => (
-            <div key={name} className={styles.source}>
-              <dt>{name}</dt>
-              <dd>{usage}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+      <AboutBody {...props} />
     </Popover>
+  );
+}
+
+/**
+ * What the dashboard is about: its description, tags and sources, with how each source is used.
+ *
+ * @param props - The dashboard and the version shown.
+ * @returns The description, the tags and the sources.
+ */
+export function AboutBody({ dashboard, version }: DashboardData) {
+  const { spec } = version;
+  return (
+    <div className={styles.popoverBody}>
+      {spec.description ? (
+        <p className={styles.about}>{spec.description}</p>
+      ) : (
+        <p className={styles.muted}>No description.</p>
+      )}
+      {dashboard.tags.length > 0 && (
+        <p className={styles.tags}>{dashboard.tags.map((tag) => `#${tag}`).join(' ')}</p>
+      )}
+      <h2 className={styles.sideHeading}>Sources</h2>
+      <dl className={styles.sources}>
+        {sourcesOf(spec).map(([name, usage]) => (
+          <div key={name} className={styles.source}>
+            <dt>{name}</dt>
+            <dd>{usage}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
