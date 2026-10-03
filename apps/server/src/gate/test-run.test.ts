@@ -67,6 +67,12 @@ describe('modelTestResult', () => {
       labels: { service: 'checkout-svc' },
     });
     expect(modelFrame?.summaries?.map((summary) => summary.field)).toEqual(['time', 'Value']);
+    // When, not rows: the times of the extremes and of the spikes.
+    expect(modelFrame?.summaries?.[1]).toMatchObject({
+      minAt: '1970-01-01T00:00:00.000Z',
+      maxAt: '1970-01-01T00:01:00.000Z',
+      spikeWindows: [],
+    });
     expect(modelFrame?.rows).toBeUndefined();
     expect(JSON.stringify(result)).not.toContain('example.com');
     expect(JSON.stringify(result)).not.toContain('acme');

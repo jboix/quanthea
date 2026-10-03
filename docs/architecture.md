@@ -1166,13 +1166,17 @@ Injection tests cover every binder, and integration tests run the attacks agains
 Everything the model receives from a connector passes through `gate/`. Its functions return
 model-ready results and never throw.
 
-| Access level          | `modelSchema` (describe)                                           | `testQueryForModel` (test-run)                                                                      |
-| --------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| 1 schema only         | entities, fields, types, descriptions                              | `{ ok }`, or the safe error message                                                                 |
-| 2 schema and metadata | also row estimates, and distinct counts of fields with ≤ 50 values | also the shape: fields, types, row counts, label names (not values)                                 |
-| 3 aggregates          | same                                                               | also labels with values and per-field summaries: min, max, mean, spikes (> mean + 3σ), top 5 values |
-| 4 full access         | same                                                               | also the rows, at most 500, and the source's own error text                                         |
+| Access level          | `modelSchema` (describe)                                           | `testQueryForModel` (test-run)                                                                                                                                                        |
+| --------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 schema only         | entities, fields, types, descriptions                              | `{ ok }`, or the safe error message                                                                                                                                                   |
+| 2 schema and metadata | also row estimates, and distinct counts of fields with ≤ 50 values | also the shape: fields, types, row counts, label names (not values)                                                                                                                   |
+| 3 aggregates          | same                                                               | also labels with values and per-field summaries: min, max, mean, spikes (> mean + 3σ), top 5 values, and with a time column, when: the time of the min and max, and the spike windows |
+| 4 full access         | same                                                               | also the rows, at most 500, and the source's own error text                                                                                                                           |
 
+- A level 3 summary says when, never what each row was (`gate/summaries.ts`). With a time column,
+  a number's summary gives the time its min and max were first reached (`minAt`, `maxAt`), and its
+  spike windows (`spikeWindows`): consecutive points above mean + 3σ, in time order, merged into
+  `{ from, to, peak }`, the five highest peaks.
 - Hidden fields (`entity.field`, or a bare `field`) are removed at every level: from the schema, and
   from results by column name and label name. Results do not say which table a column came from,
   so a query that renames a hidden column gets past the name match. A database role or view that

@@ -139,7 +139,7 @@ const maxEntities = 60;
 const levelMeanings: Readonly<Record<AccessLevel, string>> = {
   1: 'level 1, schema only: test runs say ok or the error',
   2: 'level 2, schema and metadata: test runs return shapes and row counts, never values',
-  3: 'level 3, aggregates: test runs also return min, max, mean, spikes and top values',
+  3: 'level 3, aggregates: test runs also return min, max, mean, spikes and top values, and when the extremes and spikes happened',
   4: 'level 4, full access: test runs return rows',
 };
 
