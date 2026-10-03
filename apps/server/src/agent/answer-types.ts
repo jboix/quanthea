@@ -18,7 +18,10 @@ import type { languageModel } from './model.ts';
 /** What the answering service needs. It reaches data only through the model view, the gate. */
 export interface AnswerDependencies {
   /** The connectors as the model sees them. */
-  readonly modelView: Pick<ModelView, 'connectors' | 'describe' | 'testQuery'>;
+  readonly modelView: Pick<
+    ModelView,
+    'connectors' | 'describe' | 'describeSchemaOnly' | 'testQuery'
+  >;
   /** The dashboards, to bind the viewer's variables as panels bind them. */
   readonly dashboards: Pick<Dashboards, 'bindVariables'>;
   /** The usage ledger. */

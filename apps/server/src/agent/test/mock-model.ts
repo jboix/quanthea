@@ -8,10 +8,21 @@ const usage = {
   outputTokens: { total: 5, text: 5, reasoning: undefined },
 };
 
-/** One scripted answer: some text, or one tool call. */
+/** One tool call of a scripted answer. */
+interface ScriptedCall {
+  /** The tool. */
+  readonly tool: string;
+  /** Its input. */
+  readonly input: unknown;
+  /** Its call id; one is made up when left out. */
+  readonly id?: string;
+}
+
+/** One scripted answer: some text, one tool call, or several calls in one step (streamed only). */
 export type ScriptedStep =
   | { readonly text: string }
-  | { readonly tool: string; readonly input: unknown; readonly id?: string };
+  | ScriptedCall
+  | { readonly calls: readonly ScriptedCall[] };
 
 /**
  * The content of a scripted answer.
@@ -22,15 +33,28 @@ export type ScriptedStep =
  */
 function contentOf(step: ScriptedStep, index: number) {
   if ('text' in step) return [{ type: 'text' as const, text: step.text }];
-  const toolCallId = step.id ?? `call-${index}`;
-  return [
-    {
-      type: 'tool-call' as const,
-      toolCallId,
-      toolName: step.tool,
-      input: JSON.stringify(step.input),
-    },
-  ];
+  return callsOf(step, index).map(({ toolCallId, tool, input }) => ({
+    type: 'tool-call' as const,
+    toolCallId,
+    toolName: tool,
+    input,
+  }));
+}
+
+/**
+ * The tool calls of a scripted answer, with their ids and their input as JSON.
+ *
+ * @param step - The answer: one call, or several.
+ * @param index - Its position, for default ids.
+ * @returns The calls.
+ */
+function callsOf(step: ScriptedCall | { readonly calls: readonly ScriptedCall[] }, index: number) {
+  const calls = 'calls' in step ? step.calls : [step];
+  return calls.map((call, at) => ({
+    toolCallId: call.id ?? (at === 0 ? `call-${index}` : `call-${index}-${at}`),
+    tool: call.tool,
+    input: JSON.stringify(call.input),
+  }));
 }
 
 /**
@@ -80,14 +104,15 @@ function chunksOf(step: ScriptedStep, index: number): StreamPart[] {
       },
     ];
   }
-  const toolCallId = step.id ?? `call-${index}`;
-  const input = JSON.stringify(step.input);
-  // Streamed as real providers do: the input in parts, then the call.
-  return [
-    { type: 'tool-input-start' as const, id: toolCallId, toolName: step.tool },
+  // Streamed as real providers do: each call's input in parts, then the call.
+  const calls = callsOf(step, index).flatMap(({ toolCallId, tool, input }) => [
+    { type: 'tool-input-start' as const, id: toolCallId, toolName: tool },
     { type: 'tool-input-delta' as const, id: toolCallId, delta: input },
     { type: 'tool-input-end' as const, id: toolCallId },
-    { type: 'tool-call' as const, toolCallId, toolName: step.tool, input },
+    { type: 'tool-call' as const, toolCallId, toolName: tool, input },
+  ]);
+  return [
+    ...calls,
     {
       type: 'finish' as const,
       finishReason: { unified: 'tool-calls' as const, raw: undefined },

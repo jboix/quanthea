@@ -15,6 +15,7 @@ import { z } from 'zod';
 import type { Dashboards } from '../dashboards/dashboards.ts';
 import type { ModelView } from '../gate/model-view.ts';
 import { answerIssues } from './answer-check.ts';
+import type { ResponseWatch } from './answer-watch.ts';
 import { testQuerySchema } from './data-tools.ts';
 
 /** The variables of a run, bound as panels bind them. */
@@ -36,11 +37,13 @@ export interface AnswerState {
 /** What the tools of one answer share. */
 export interface AnswerToolContext {
   /** The connectors as the model sees them: the gate. */
-  readonly modelView: Pick<ModelView, 'describe' | 'testQuery'>;
+  readonly modelView: Pick<ModelView, 'describe' | 'describeSchemaOnly' | 'testQuery'>;
   /** The dashboard's spec. */
   readonly spec: DashboardSpec;
   /** The dashboard's connectors that exist. */
   readonly connectors: readonly string[];
+  /** Whether describe shows only what level 1 shows: an explanation, which every role sees. */
+  readonly schemaOnly: boolean;
   /** Those whose access level shows numbers; empty for an explanation. */
   readonly readable: readonly string[];
   /** The range asked about, epoch milliseconds; `undefined` for an explanation. */
@@ -51,6 +54,8 @@ export interface AnswerToolContext {
   readonly signal: AbortSignal;
   /** The answer's state, which the tools fill. */
   readonly state: AnswerState;
+  /** The model's latest response, to know every tool its step calls. */
+  readonly watch: ResponseWatch;
   /** Called with each read as it is recorded, to stream it. */
   readonly onEvidence: (evidence: AnswerEvidence) => void;
 }
@@ -92,7 +97,10 @@ function describeTool(context: AnswerToolContext) {
       connector: namesEnum(context.connectors),
       scope: z.string().max(100).optional(),
     }),
-    execute: ({ connector, scope }) => context.modelView.describe(connector, scope, context.signal),
+    execute: ({ connector, scope }) =>
+      context.schemaOnly
+        ? context.modelView.describeSchemaOnly(connector, scope, context.signal)
+        : context.modelView.describe(connector, scope, context.signal),
   });
 }
 
@@ -184,7 +192,9 @@ function readInput(readable: readonly string[]) {
     time: z
       .object({ from: z.string().max(40), to: z.string().max(40) })
       .optional()
-      .describe('A window, ISO 8601 with offsets; the range asked about when left out.'),
+      .describe(
+        'A window, ISO 8601 with offsets, inside or outside the range asked about; that range when left out.',
+      ),
   });
 }
 
@@ -262,21 +272,40 @@ function giveAnswerTool(context: AnswerToolContext) {
       text: z.string().max(4000).describe('A few plain sentences with markers such as [1].'),
       citations: z.array(answerCitationSchema).max(50),
     }),
-    execute: (given) => {
-      const scope = {
-        panelIds: new Set(context.spec.panels.map((panel) => panel.id)),
-        evidenceIds: new Set(context.state.evidence.map((evidence) => evidence.id)),
-        range: context.range,
-      };
-      const issues = answerIssues(given, scope);
-      if (issues.length === 0) {
-        context.state.given = given;
-        return { ok: true };
-      }
-      context.state.failedAnswers += 1;
-      return { ok: false, issues };
-    },
+    execute: (given) => checkAnswer(context, given),
   });
+}
+
+/** Why an answer given in the same step as a read is refused. */
+const sameStepRead =
+  'Answer in a step of its own, after your reads: this step also calls read_data, whose results you have not seen. Nothing was recorded as your answer.';
+
+/**
+ * Checks an answer once its step's response is complete, so every read of the step is known: an
+ * answer beside a read is refused without counting as a try. A failing check counts as one.
+ *
+ * @param context - The answer's tools' context.
+ * @param given - The answer as the model gave it.
+ * @returns What the model receives: `{ ok }`, or the issues to fix.
+ */
+async function checkAnswer(
+  context: AnswerToolContext,
+  given: { readonly text: string; readonly citations: readonly AnswerCitation[] },
+) {
+  const calls = (await context.watch.latest) ?? [];
+  if (calls.includes('read_data')) return { ok: false, issues: [sameStepRead] };
+  const scope = {
+    panelIds: new Set(context.spec.panels.map((panel) => panel.id)),
+    evidenceIds: new Set(context.state.evidence.map((evidence) => evidence.id)),
+    range: context.range,
+  };
+  const issues = answerIssues(given, scope);
+  if (issues.length === 0) {
+    context.state.given = given;
+    return { ok: true };
+  }
+  context.state.failedAnswers += 1;
+  return { ok: false, issues };
 }
 
 /**

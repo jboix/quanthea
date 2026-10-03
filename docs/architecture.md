@@ -774,15 +774,21 @@ has two modes:
 
 The model's tools are decided per connector of the dashboard:
 
-| Tool          | Offered                                                               | Does                                                                                                  |
-| ------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `describe`    | always, for the dashboard's connectors                                | the schema, as the thread's `describe`                                                                |
-| `read_data`   | in `ask` only, for the connectors at level 3 (aggregates) or 4 (full) | test-runs a panel's query (`panelId`) or one the model writes, through the gate, as `test_query` does |
-| `give_answer` | always                                                                | takes the answer: `text` with markers `[1]`, and `citations`                                          |
+| Tool          | Offered                                                               | Does                                                                                                                                                             |
+| ------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `describe`    | always, for the dashboard's connectors                                | in `ask`, the schema as the thread's `describe`; in `explain`, as level 1 shows it (`describeSchemaOnly`), with no row estimates or distinct counts at any level |
+| `read_data`   | in `ask` only, for the connectors at level 3 (aggregates) or 4 (full) | test-runs a panel's query (`panelId`) or one the model writes, through the gate, as `test_query` does                                                            |
+| `give_answer` | always                                                                | takes the answer: `text` with markers `[1]`, and `citations`                                                                                                     |
 
 - `read_data` runs over the range asked about, or a window the model names, with the viewer's
   variables bound by the panel binders (`Dashboards.bindVariables`), never pasted into a query. It
   returns what the gate allows: level 3 summaries, level 4 also rows. Nothing writes.
+- A read's window may lie outside the range asked about, to compare with a baseline such as the
+  day before. A citation's window may not.
+- `give_answer` is checked only once its step's response is complete (`agent/answer-watch.ts`
+  records each response's tool calls). An answer given in the same step as a `read_data` call is
+  refused, whatever their order, without counting as a try: the model has not seen that read's
+  result, so it answers again in a step of its own.
 - When no connector of the dashboard is at level 3 or 4, `ask` gets no read tool, and the
   instructions tell the model to say plainly, first, that it cannot read the numbers: level 2 shows
   low-cardinality values, never measurements.
@@ -808,8 +814,10 @@ The model's tools are decided per connector of the dashboard:
 usage, or a failure with its message, evidence and usage; a failing model call is a failure too.
 Given a UI message stream writer, it streams as a thread does. `Answers.stream` wraps it in a UI
 message stream response: the model's tool parts (`give_answer`'s input arrives as it is written),
-a `data-evidence` part per read, a `data-outcome` part at the end, and the usage in the message
-metadata (`answerDataSchemas` in `@quanthea/shared`). It calls back with the outcome, to store it.
+a `data-evidence` part per read, then a `data-outcome` part, and the message's `finish` with the
+usage in its metadata (`answerDataSchemas` in `@quanthea/shared`). The model's stream is copied
+into the writer to its end before the outcome is written, so `data-outcome` is always the last data
+part and only the `finish` follows it. It calls back with the outcome, to store it.
 
 ## 7. Connectors
 

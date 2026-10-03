@@ -281,5 +281,48 @@ describe('usage and streaming', () => {
     expect(answerDataSchemas.evidence.parse(evidence?.data).id).toBe('e1');
     expect(answerDataSchemas.outcome.parse(outcome?.data)).toMatchObject({ ok: true });
     expect(stored).toMatchObject({ ok: true, answer: { text: 'Fine [1].' } });
+    // The outcome comes after every part of the model's message, and only the finish follows it.
+    const types = parts.map((part) => part.type);
+    expect(types.slice(-2)).toEqual(['data-outcome', 'finish']);
+    expect(types.filter((type) => type === 'finish')).toHaveLength(1);
+    expect(types.indexOf('tool-output-available')).toBeLessThan(types.indexOf('data-outcome'));
+    expect(parts.at(-1)).toMatchObject({ messageMetadata: { usage: { 'claude-sonnet-5': {} } } });
+  });
+});
+
+describe('what the model sees and when', () => {
+  test('explain mode describes the schema as level 1 shows it, whatever the level', async () => {
+    await addConnector('events', 4);
+    await addConnector('logs', 4);
+    const describe = { tool: 'describe', input: { connector: 'events' } };
+    const explaining = answersWith(describe, panelAnswer('It counts errors [1].'));
+    await explaining.answers.answer(explain('errors-over-time'));
+    const explained = JSON.stringify(explaining.model.doStreamCalls[1]?.prompt);
+    expect(explained).toContain('"name":"service"');
+    expect(explained).not.toContain('"rows"');
+    expect(explained).not.toContain('distinctValues');
+    const asking = answersWith(describe, panelAnswer('Errors over time [1].'));
+    await asking.answers.answer(ask('What is there?'));
+    expect(JSON.stringify(asking.model.doStreamCalls[1]?.prompt)).toContain('"rows":5');
+  });
+
+  test('refuses an answer given in the same step as a read, whatever their order', async () => {
+    await addConnector('events', 3);
+    await addConnector('logs', 3);
+    const early = {
+      tool: 'give_answer',
+      input: { text: 'Fine [1].', citations: [{ n: 1, panelId: 'errors-peak' }] },
+    };
+    const read = { tool: 'read_data', input: { panelId: 'errors-peak' } };
+    const cited = { n: 1, evidenceId: 'e1', panelId: 'errors-peak' };
+    const { answers, model } = answersWith(
+      { calls: [early, read] },
+      { tool: 'give_answer', input: { text: 'Errors peaked at 8 [1].', citations: [cited] } },
+    );
+    const outcome = await answers.answer(ask('What was the peak?'));
+    const second = JSON.stringify(model.doStreamCalls[1]?.prompt);
+    expect(second).toContain('Answer in a step of its own, after your reads');
+    expect(outcome.ok && outcome.answer.text).toBe('Errors peaked at 8 [1].');
+    expect(outcome.ok && outcome.answer.evidence.map((evidence) => evidence.id)).toEqual(['e1']);
   });
 });

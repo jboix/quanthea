@@ -30,6 +30,7 @@ import type {
   AskRequest,
   PreparedAnswer,
 } from './answer-types.ts';
+import { type ResponseWatch, watchedModel } from './answer-watch.ts';
 import { languageModel, ModelUnavailableError, modelIdFor, reasoningOption } from './model.ts';
 import { publicError } from './public-error.ts';
 import { tokensOf, withStep } from './usage.ts';
@@ -142,25 +143,43 @@ async function prepare(
   dependencies: AnswerDependencies,
   request: AnswerRequest,
 ): Promise<PreparedAnswer> {
+  const watch: ResponseWatch = { latest: undefined };
   const { resolved, model } = await answerModel(dependencies, request.providerId);
   const names = connectorNamesOf(request.spec);
   const connectors = dependencies.modelView.connectors().filter(({ name }) => names.has(name));
   const { instructions, messages, bindings } = await framing(dependencies, request, connectors);
-  const asking = request.mode === 'ask';
   const sink: PreparedAnswer['sink'] = {};
   const tools: AnswerToolContext = {
+    ...toolScope(request, connectors),
     modelView: dependencies.modelView,
+    bindings,
+    watch,
+    state: { evidence: [], given: undefined, failedAnswers: 0 },
+    onEvidence: (data) => sink.writer?.write({ type: 'data-evidence', id: data.id, data }),
+  };
+  const watched = watchedModel(model, watch);
+  const prepared = { request, resolved, model: watched, instructions, messages, tools, sink };
+  return { ...prepared, usage: {}, tokens: 0 };
+}
+
+/**
+ * What the tools of a request may reach: in `ask`, the readable connectors over the range asked
+ * about; in `explain`, the schema as level 1 shows it and nothing else.
+ *
+ * @param request - The request.
+ * @param connectors - The dashboard's connectors that exist.
+ * @returns That part of the tools' context.
+ */
+function toolScope(request: AnswerRequest, connectors: readonly AnswerConnector[]) {
+  const asking = request.mode === 'ask';
+  return {
     spec: request.spec,
     connectors: connectors.map(({ name }) => name),
     readable: asking ? readableNames(connectors) : [],
     range: asking ? request.time : undefined,
-    bindings,
+    schemaOnly: !asking,
     signal: request.signal,
-    state: { evidence: [], given: undefined, failedAnswers: 0 },
-    onEvidence: (data) => sink.writer?.write({ type: 'data-evidence', id: data.id, data }),
   };
-  const prepared = { request, resolved, model, instructions, messages, tools, sink };
-  return { ...prepared, usage: {}, tokens: 0 };
 }
 
 /**
@@ -278,11 +297,33 @@ function start(dependencies: AnswerDependencies, prepared: PreparedAnswer) {
 }
 
 /**
+ * Copies the model's UI stream into the writer, chunk by chunk, and waits for its end, so what
+ * the run writes after it comes after every part of the model's message. The message's finish is
+ * left for the run to write last.
+ *
+ * @param result - The streaming result.
+ * @param writer - The writer.
+ */
+async function relay(
+  result: ReturnType<typeof start>,
+  writer: UIMessageStreamWriter<AnswerMessage>,
+): Promise<void> {
+  const chunks = toUIMessageStream<ToolSet, AnswerMessage>({
+    stream: result.stream,
+    onError: publicError,
+    sendFinish: false,
+  }).getReader();
+  for (let read = await chunks.read(); !read.done; read = await chunks.read()) {
+    writer.write(read.value);
+  }
+}
+
+/**
  * Runs a prepared answer to its end.
  *
  * @param dependencies - The service's dependencies.
  * @param prepared - The answer.
- * @param writer - Streams the model's parts and the outcome, when given.
+ * @param writer - Streams the model's parts, then the outcome and the finish, when given.
  * @returns The outcome; a failing model call is a failed outcome.
  */
 async function run(
@@ -292,12 +333,7 @@ async function run(
 ): Promise<AnswerOutcome> {
   if (writer) prepared.sink.writer = writer;
   const result = start(dependencies, prepared);
-  const messageMetadata = ({ part }: { part: { type: string } }) =>
-    part.type === 'finish' ? { usage: prepared.usage } : undefined;
-  if (writer)
-    writer.merge(
-      toUIMessageStream({ stream: result.stream, onError: publicError, messageMetadata }),
-    );
+  if (writer) await relay(result, writer);
   else await result.consumeStream({ onError: () => undefined });
   const outcome = await Promise.resolve(result.steps).then(
     () => outcomeOf(prepared),
@@ -306,7 +342,9 @@ async function run(
   const data = outcome.ok
     ? { ok: true as const, answer: outcome.answer }
     : { ok: false as const, message: outcome.message };
+  // The outcome is the last data part; the finish after it carries the usage.
   writer?.write({ type: 'data-outcome', data });
+  writer?.write({ type: 'finish', messageMetadata: { usage: prepared.usage } });
   return outcome;
 }
 
