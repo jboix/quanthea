@@ -210,7 +210,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/settings/model`                                        | Model: the providers, their keys and limits                | admin    |
 | `/settings/auth`                                         | Authentication: sign-in providers, passwords               | admin    |
 | `/settings/users`                                        | Users: invite, roles, disable, reset links, sign out       | admin    |
-| `/settings/usage`                                        | Usage: tokens, cost and views; by model and by person      | admin    |
+| `/settings/usage`                                        | Usage: tokens, cost and views; by feature, model, person   | admin    |
 | `/settings/snapshots`                                    | Snapshots: every live snapshot, revoke one                 | admin    |
 | `/settings/queries`                                      | Queries: builders on or off, your own with placeholders    | admin    |
 | `/settings/charts`                                       | Charts: every chart recipe drawn from its sample           | admin    |
@@ -1486,7 +1486,9 @@ The connection and capability tests in Settings → Model record nothing.
 Deleting a thread keeps its history. `GET /api/settings/usage?days=` returns it by hour, model,
 feature and user (`feature` is `null` for views), with each user's name and role, and the browser adds the hours up into its own days.
 Settings → Usage draws tokens and cost per day stacked by model (the five costliest, then
-`Other`), and lists the models and, ten a page, the people who spent the most.
+`Other`) or, with `?by=feature`, by feature (every feature, always in the same order, so each
+keeps its colour). It lists the features by their plain names (Building dashboards, Questions
+about dashboards, Panel explanations), the models and, ten a page, the people who spent the most.
 
 Migrations are plain numbered `.sql` files in `db/migrations/`. `0001-schema.sql` is the schema
 of the first release; each change since is a new file, never an edit of an applied one

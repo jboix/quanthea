@@ -3,6 +3,7 @@
  * one row per model. The server sends hours, so a day here is the viewer's own day.
  */
 import type { UsageBucket, UsageReport } from '@quanthea/shared';
+import type { UsageFeature } from './usage-features.ts';
 
 /** One day of usage. */
 export interface DayUsage {
@@ -21,11 +22,13 @@ export interface DayUsage {
   /** Views of pinned dashboards and of snapshots. */
   readonly views: number;
   /** The tokens and cost of each model that ran that day, by model id. */
-  readonly byModel: Readonly<Record<string, ModelDay>>;
+  readonly byModel: Readonly<Partial<Record<string, DaySpend>>>;
+  /** The tokens and cost of each feature that ran a model that day. */
+  readonly byFeature: Readonly<Partial<Record<UsageFeature, DaySpend>>>;
 }
 
-/** What one model spent on one day. */
-export interface ModelDay {
+/** What one model, or one feature, spent on one day. */
+export interface DaySpend {
   /** All its tokens: input, cache reads and writes, and output. */
   readonly tokens: number;
   /** Its list-price cost, in US dollars. */
@@ -52,8 +55,20 @@ export interface ModelUsage {
   readonly unpriced: boolean;
 }
 
+/** The sums of some days, without the split by model or feature. */
+type DayTotals = Omit<DayUsage, 'day' | 'byModel' | 'byFeature'>;
+
 /** A day with nothing in it. */
-const emptyDay = { input: 0, cached: 0, output: 0, dollars: 0, steps: 0, views: 0, byModel: {} };
+const emptyDay = {
+  input: 0,
+  cached: 0,
+  output: 0,
+  dollars: 0,
+  steps: 0,
+  views: 0,
+  byModel: {},
+  byFeature: {},
+};
 
 /**
  * The local midnight of an instant.
@@ -67,20 +82,22 @@ export function localDay(at: number): number {
 }
 
 /**
- * Adds a bucket to what its model spent that day.
+ * Adds a bucket to what one of its series, its model or its feature, spent that day.
  *
- * @param byModel - What each model spent that day so far.
+ * @param spent - What each series spent that day so far.
+ * @param key - The bucket's series.
  * @param bucket - A model step bucket.
- * @returns What each model spent, with the bucket.
+ * @returns What each series spent, with the bucket.
  */
-function withModel(
-  byModel: Readonly<Record<string, ModelDay>>,
+function withSpend<Key extends string>(
+  spent: Readonly<Partial<Record<Key, DaySpend>>>,
+  key: Key,
   bucket: UsageBucket,
-): Readonly<Record<string, ModelDay>> {
-  const before = byModel[bucket.model] ?? { tokens: 0, dollars: 0 };
+): Readonly<Partial<Record<Key, DaySpend>>> {
+  const before = spent[key] ?? { tokens: 0, dollars: 0 };
   const tokens = bucket.input + bucket.cachedInput + bucket.cacheWrite + bucket.output;
   const after = { tokens: before.tokens + tokens, dollars: before.dollars + bucket.dollars };
-  return { ...byModel, [bucket.model]: after };
+  return { ...spent, [key]: after };
 }
 
 /**
@@ -94,7 +111,8 @@ function withBucket(day: DayUsage, bucket: UsageBucket): DayUsage {
   if (bucket.kind !== 'model') return { ...day, views: day.views + bucket.events };
   return {
     ...day,
-    byModel: withModel(day.byModel, bucket),
+    byModel: withSpend(day.byModel, bucket.model, bucket),
+    byFeature: bucket.feature ? withSpend(day.byFeature, bucket.feature, bucket) : day.byFeature,
     input: day.input + bucket.input + bucket.cacheWrite,
     cached: day.cached + bucket.cachedInput,
     output: day.output + bucket.output,
@@ -127,8 +145,8 @@ export function dailyUsage(report: UsageReport): DayUsage[] {
  * @param days - The days.
  * @returns Their sums.
  */
-export function totalUsage(days: readonly DayUsage[]): Omit<DayUsage, 'day' | 'byModel'> {
-  return days.reduce<Omit<DayUsage, 'day' | 'byModel'>>(
+export function totalUsage(days: readonly DayUsage[]): DayTotals {
+  return days.reduce<DayTotals>(
     (sum, day) => ({
       input: sum.input + day.input,
       cached: sum.cached + day.cached,

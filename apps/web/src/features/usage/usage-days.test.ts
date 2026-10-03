@@ -69,7 +69,7 @@ const report: UsageReport = {
       output: 0,
       events: 2,
     },
-    step(day + 11 * hour, 'mistral-large-latest', 0.01, 'bob'),
+    step(day + 11 * hour, 'mistral-large-latest', 0.01, 'bob', 'question'),
   ],
   people: { ada: { name: 'Ada', role: 'admin' }, bob: { name: 'Bob', role: 'editor' } },
 };
@@ -89,6 +89,10 @@ describe('dailyUsage', () => {
       byModel: {
         'mistral-large-latest': { tokens: 360, dollars: 0.02 },
         'mistral-small-latest': { tokens: 180, dollars: 0.002 },
+      },
+      byFeature: {
+        building: { tokens: 360, dollars: 0.012 },
+        question: { tokens: 180, dollars: 0.01 },
       },
     });
     expect(days[0]?.steps).toBe(0);

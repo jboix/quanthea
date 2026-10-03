@@ -1,7 +1,11 @@
 /** The usage charts: days as frames, drawn by the same chart code as dashboards. */
 import { datasetOfFrames, type Formatter, type Frame } from '@quanthea/shared';
 import type { ChartInput } from '../../charts/index.ts';
-import type { chartedModels, DayUsage, ModelDay } from './usage-days.ts';
+import type { chartedModels, DaySpend, DayUsage } from './usage-days.ts';
+import { featureNames, usageFeatures } from './usage-features.ts';
+
+/** How the token and cost charts split each day: by model, or by feature. */
+export type UsageSplit = 'model' | 'feature';
 
 /** A series of the chart: its name and how a day gives its value. */
 type Series = readonly [name: string, value: (day: DayUsage) => number];
@@ -78,7 +82,7 @@ type Charted = ReturnType<typeof chartedModels>;
  * @param measure - What a series adds up: tokens or dollars.
  * @returns The series.
  */
-function modelSeries(charted: Charted, measure: keyof ModelDay): Series[] {
+function modelSeries(charted: Charted, measure: keyof DaySpend): Series[] {
   const shown = new Set(charted.shown);
   const series: Series[] = charted.shown.map((model) => [
     model,
@@ -88,31 +92,68 @@ function modelSeries(charted: Charted, measure: keyof ModelDay): Series[] {
   const rest = (day: DayUsage) =>
     Object.entries(day.byModel)
       .filter(([model]) => !shown.has(model))
-      .reduce((sum, [, used]) => sum + used[measure], 0);
+      .reduce((sum, [, used]) => sum + (used?.[measure] ?? 0), 0);
   return [...series, ['Other', rest]];
 }
 
 /**
- * Tokens per day, stacked by model.
+ * One series per feature, every feature always, so each keeps its colour from one range to the
+ * next.
  *
- * @param days - The days.
- * @param charted - The models drawn one by one.
- * @returns The chart input.
+ * @param measure - What a series adds up: tokens or dollars.
+ * @returns The series.
  */
-export function tokensChart(days: readonly DayUsage[], charted: Charted): ChartInput {
-  return barsPerDay(days, modelSeries(charted, 'tokens'), { $fmt: 'number', compact: true });
+function featureSeries(measure: keyof DaySpend): Series[] {
+  return usageFeatures.map((feature) => [
+    featureNames[feature],
+    (day) => day.byFeature[feature]?.[measure] ?? 0,
+  ]);
 }
 
 /**
- * The list-price cost per day, stacked by model.
+ * The series of a split.
+ *
+ * @param split - By model or by feature.
+ * @param charted - The models drawn one by one, for the split by model.
+ * @param measure - What a series adds up.
+ * @returns The series.
+ */
+function splitSeries(split: UsageSplit, charted: Charted, measure: keyof DaySpend): Series[] {
+  return split === 'feature' ? featureSeries(measure) : modelSeries(charted, measure);
+}
+
+/**
+ * Tokens per day, stacked by model or by feature.
  *
  * @param days - The days.
  * @param charted - The models drawn one by one.
+ * @param split - By model or by feature.
  * @returns The chart input.
  */
-export function costChart(days: readonly DayUsage[], charted: Charted): ChartInput {
+export function tokensChart(
+  days: readonly DayUsage[],
+  charted: Charted,
+  split: UsageSplit = 'model',
+): ChartInput {
+  const format: Formatter = { $fmt: 'number', compact: true };
+  return barsPerDay(days, splitSeries(split, charted, 'tokens'), format);
+}
+
+/**
+ * The list-price cost per day, stacked by model or by feature.
+ *
+ * @param days - The days.
+ * @param charted - The models drawn one by one.
+ * @param split - By model or by feature.
+ * @returns The chart input.
+ */
+export function costChart(
+  days: readonly DayUsage[],
+  charted: Charted,
+  split: UsageSplit = 'model',
+): ChartInput {
   const format: Formatter = { $fmt: 'currency', code: 'USD', decimals: 3 };
-  return barsPerDay(days, modelSeries(charted, 'dollars'), format);
+  return barsPerDay(days, splitSeries(split, charted, 'dollars'), format);
 }
 
 /**

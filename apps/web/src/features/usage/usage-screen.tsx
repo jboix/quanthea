@@ -3,17 +3,20 @@ import { Link, useLoaderData } from 'react-router';
 import type { ChartInput } from '../../charts/index.ts';
 import { Card } from '../../ui/card.tsx';
 import { Page } from '../../ui/page.tsx';
-import { type UsageData, usageRanges } from './data.ts';
+import { type UsageData, usageRanges, usageSearch } from './data.ts';
+import { FeaturesTable } from './features-table.tsx';
 import { PeopleTable } from './people-table.tsx';
 import styles from './usage.module.css';
-import { costChart, tokensChart, viewsChart } from './usage-charts.ts';
+import { costChart, tokensChart, type UsageSplit, viewsChart } from './usage-charts.ts';
 import {
   chartedModels,
+  type DayUsage,
   dailyUsage,
   type ModelUsage,
   totalUsage,
   usageByModel,
 } from './usage-days.ts';
+import { usageByFeature } from './usage-features.ts';
 import { usageByUser } from './usage-people.ts';
 
 /** The chart, loaded when first drawn, so pages without charts never load ECharts. */
@@ -37,27 +40,46 @@ function dollarsText(dollars: number): string {
   }).format(dollars);
 }
 
+/** The splits the token and cost charts offer. */
+const splits: readonly UsageSplit[] = ['model', 'feature'];
+
 /**
- * The range links: 7, 30 or 90 days.
+ * The view links: the split of the charts, by model or by feature, and the range, 7, 30 or 90
+ * days. Each keeps the other.
  *
- * @param props - The range shown.
+ * @param props - The range and the split shown.
  * @param props.days - The range, in days.
+ * @param props.split - The split.
  * @returns The links.
  */
-function RangeLinks({ days }: { readonly days: number }) {
+function ViewLinks({ days, split }: { readonly days: number; readonly split: UsageSplit }) {
   return (
-    <nav className={styles.ranges} aria-label="Range">
-      {usageRanges.map((range) => (
-        <Link
-          key={range}
-          to={`?days=${range}`}
-          className={styles.range}
-          aria-current={range === days ? 'page' : undefined}
-        >
-          {range} days
-        </Link>
-      ))}
-    </nav>
+    <div className={styles.views}>
+      <nav className={styles.ranges} aria-label="Split the charts">
+        {splits.map((each) => (
+          <Link
+            key={each}
+            to={usageSearch(days, each)}
+            className={styles.range}
+            aria-current={each === split ? 'page' : undefined}
+          >
+            By {each}
+          </Link>
+        ))}
+      </nav>
+      <nav className={styles.ranges} aria-label="Range">
+        {usageRanges.map((range) => (
+          <Link
+            key={range}
+            to={usageSearch(range, split)}
+            className={styles.range}
+            aria-current={range === days ? 'page' : undefined}
+          >
+            {range} days
+          </Link>
+        ))}
+      </nav>
+    </div>
   );
 }
 
@@ -159,37 +181,66 @@ function ModelsTable({ models }: { readonly models: readonly ModelUsage[] }) {
 }
 
 /**
+ * The charts per day: tokens and cost, split by model or by feature, and views.
+ *
+ * @param props - The days, the models drawn one by one and the split.
+ * @param props.daily - The days.
+ * @param props.models - The usage of each model, the costliest first.
+ * @param props.split - By model or by feature.
+ * @returns The charts.
+ */
+function Charts({
+  daily,
+  models,
+  split,
+}: {
+  readonly daily: readonly DayUsage[];
+  readonly models: readonly ModelUsage[];
+  readonly split: UsageSplit;
+}) {
+  const charted = chartedModels(models);
+  return (
+    <div className={styles.charts}>
+      <ChartCard title={`Tokens per day, by ${split}`} input={tokensChart(daily, charted, split)} />
+      <ChartCard
+        title={`List-price cost per day, by ${split}`}
+        input={costChart(daily, charted, split)}
+      />
+      <ChartCard title="Views per day, pinned dashboards and snapshots" input={viewsChart(daily)} />
+    </div>
+  );
+}
+
+/**
  * Settings → Usage: what the model steps spent and how often pinned dashboards were read, from the
  * ledger that outlives threads.
  *
  * @returns The screen.
  */
 export function UsageScreen() {
-  const { report, days } = useLoaderData() as UsageData;
+  const { report, days, split } = useLoaderData() as UsageData;
   const daily = dailyUsage(report);
   const models = usageByModel(report);
-  const charted = chartedModels(models);
   return (
     <Page
       title="Usage"
       subtitle="What the models spent, at list prices, and how often pinned dashboards were read. Kept when threads are deleted."
-      actions={<RangeLinks days={days} />}
+      actions={<ViewLinks days={days} split={split} />}
     >
       <Figures total={totalUsage(daily)} checkedOn={report.pricesCheckedOn} />
-      <div className={styles.charts}>
-        <ChartCard title="Tokens per day, by model" input={tokensChart(daily, charted)} />
-        <ChartCard title="List-price cost per day, by model" input={costChart(daily, charted)} />
-        <ChartCard
-          title="Views per day, pinned dashboards and snapshots"
-          input={viewsChart(daily)}
-        />
-      </div>
+      <Charts daily={daily} models={models} split={split} />
+      <Card
+        title="By feature"
+        description="Building dashboards in threads, tags at pin time included; questions asked about pinned dashboards; explanations of their panels."
+      >
+        <FeaturesTable features={usageByFeature(report)} />
+      </Card>
       <Card title="By model">
         <ModelsTable models={models} />
       </Card>
       <Card
         title="By person"
-        description="The model steps of each person’s threads and of their questions about dashboards."
+        description="The model steps of each person’s threads, of their questions about dashboards and of the panel explanations they asked for."
       >
         <PeopleTable people={usageByUser(report)} />
       </Card>

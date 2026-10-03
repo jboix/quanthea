@@ -113,3 +113,10 @@
   font-size: 13px;
   color: var(--color-ink-secondary);
 }
+
+.views {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
