@@ -57,6 +57,10 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'GET /dashboards/:dashboardId/questions/:questionId': {},
   'GET /dashboards/:dashboardId/similar-questions': { questions: [] },
   'GET /dashboards/:dashboardId/versions/:version/sources': { sources: [] },
+  'GET /dashboards/:dashboardId/versions/:version/panels/:panelId/explanation': {
+    explanation: null,
+    generating: false,
+  },
   'GET /snapshots': { snapshots: [] },
   'GET /snapshots/:snapshotId': { id: 'sample-snapshotId', spec: { panels: [] }, panels: {} },
   'GET /threads': [],

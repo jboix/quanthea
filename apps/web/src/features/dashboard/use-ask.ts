@@ -53,7 +53,7 @@ function postQuestion(dashboardId: string, body: AskBody, signal: AbortSignal): 
  * @param response - A response with an error status.
  * @returns The server's message, or a plain one.
  */
-async function refusalOf(response: Response): Promise<string> {
+export async function refusalOf(response: Response): Promise<string> {
   const parsed = apiErrorBodySchema.safeParse(await response.json().catch(() => undefined));
   return parsed.success ? parsed.data.error.message : `The server answered ${response.status}.`;
 }

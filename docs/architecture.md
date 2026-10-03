@@ -186,39 +186,40 @@ the kit's HTTP client for every kind that speaks HTTP.
 
 **Routes** (React Router data mode):
 
-| Path                                               | Screen                                                     | Min role |
-| -------------------------------------------------- | ---------------------------------------------------------- | -------- |
-| `/`                                                | redirect → `/library` (viewer, analyst) or `/threads/new`  | viewer   |
-| `/threads/new`, `/threads/:threadId`               | Plan, Build and refine, Variant                            | editor   |
-| `/library`                                         | Library: search pinned dashboards and their panels         | viewer   |
-| `/account`                                         | resource route: the account menu's providers and actions   | viewer   |
-| `/d/:dashboardId`                                  | the pinned version; for editors, the latest if unpinned    | viewer   |
-| `/d/:dashboardId/v/:version`                       | a specific version                                         | viewer   |
-| `/d/:dashboardId/v/:version/panels/:panelId`       | resource route: one panel's run, for fetchers              | viewer   |
-| `/d/:dashboardId/v/:version/options/:name`         | resource route: a variable's options, for fetchers         | viewer   |
-| `/d/:dashboardId/snapshots`                        | resource route: a dashboard's live snapshots, for fetchers | editor   |
-| `/d/:dashboardId/questions`                        | resource route: a dashboard's questions and answers        | viewer   |
-| `/d/:dashboardId/questions/:questionId`            | resource route: one question, older than those listed      | viewer   |
-| `/d/:dashboardId/similar-questions`                | resource route: earlier answered questions like a text     | viewer   |
-| `/d/:dashboardId/v/:version/sources`               | resource route: a version's sources and access levels      | viewer   |
-| `/s/:snapshotId`                                   | a snapshot: a version frozen with its data, read-only      | viewer   |
-| `/bin`                                             | Bin: deleted threads, restore; retention, delete (admin)   | editor   |
-| `/connectors`, `/connectors/:connectorId`          | Connectors: list, access level, guardrails, schema         | admin    |
-| `/connectors/new`, `/connectors/:connectorId/edit` | add and edit a connection                                  | admin    |
-| `/connectors/:connectorId/health`                  | resource route: the connection test, for fetchers          | admin    |
-| `/settings/model`                                  | Model: the providers, their keys and limits                | admin    |
-| `/settings/auth`                                   | Authentication: sign-in providers, passwords               | admin    |
-| `/settings/users`                                  | Users: invite, roles, disable, reset links, sign out       | admin    |
-| `/settings/usage`                                  | Usage: tokens, cost and views; by model and by person      | admin    |
-| `/settings/snapshots`                              | Snapshots: every live snapshot, revoke one                 | admin    |
-| `/settings/queries`                                | Queries: builders on or off, your own with placeholders    | admin    |
-| `/settings/charts`                                 | Charts: every chart recipe drawn from its sample           | admin    |
-| `/settings/server`                                 | Server: system settings and keys, read-only, with sources  | admin    |
-| `/settings`                                        | redirect → `/settings/model`                               | admin    |
-| `/ui`                                              | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
-| `/login`                                           | sign in                                                    | —        |
-| `/setup`                                           | the default admin chooses their own email and password     | —        |
-| `/set-password`                                    | choose a password from an invite or reset link             | —        |
+| Path                                                     | Screen                                                     | Min role |
+| -------------------------------------------------------- | ---------------------------------------------------------- | -------- |
+| `/`                                                      | redirect → `/library` (viewer, analyst) or `/threads/new`  | viewer   |
+| `/threads/new`, `/threads/:threadId`                     | Plan, Build and refine, Variant                            | editor   |
+| `/library`                                               | Library: search pinned dashboards and their panels         | viewer   |
+| `/account`                                               | resource route: the account menu's providers and actions   | viewer   |
+| `/d/:dashboardId`                                        | the pinned version; for editors, the latest if unpinned    | viewer   |
+| `/d/:dashboardId/v/:version`                             | a specific version                                         | viewer   |
+| `/d/:dashboardId/v/:version/panels/:panelId`             | resource route: one panel's run, for fetchers              | viewer   |
+| `/d/:dashboardId/v/:version/panels/:panelId/explanation` | resource route: a panel's latest explanation               | viewer   |
+| `/d/:dashboardId/v/:version/options/:name`               | resource route: a variable's options, for fetchers         | viewer   |
+| `/d/:dashboardId/snapshots`                              | resource route: a dashboard's live snapshots, for fetchers | editor   |
+| `/d/:dashboardId/questions`                              | resource route: a dashboard's questions and answers        | viewer   |
+| `/d/:dashboardId/questions/:questionId`                  | resource route: one question, older than those listed      | viewer   |
+| `/d/:dashboardId/similar-questions`                      | resource route: earlier answered questions like a text     | viewer   |
+| `/d/:dashboardId/v/:version/sources`                     | resource route: a version's sources and access levels      | viewer   |
+| `/s/:snapshotId`                                         | a snapshot: a version frozen with its data, read-only      | viewer   |
+| `/bin`                                                   | Bin: deleted threads, restore; retention, delete (admin)   | editor   |
+| `/connectors`, `/connectors/:connectorId`                | Connectors: list, access level, guardrails, schema         | admin    |
+| `/connectors/new`, `/connectors/:connectorId/edit`       | add and edit a connection                                  | admin    |
+| `/connectors/:connectorId/health`                        | resource route: the connection test, for fetchers          | admin    |
+| `/settings/model`                                        | Model: the providers, their keys and limits                | admin    |
+| `/settings/auth`                                         | Authentication: sign-in providers, passwords               | admin    |
+| `/settings/users`                                        | Users: invite, roles, disable, reset links, sign out       | admin    |
+| `/settings/usage`                                        | Usage: tokens, cost and views; by model and by person      | admin    |
+| `/settings/snapshots`                                    | Snapshots: every live snapshot, revoke one                 | admin    |
+| `/settings/queries`                                      | Queries: builders on or off, your own with placeholders    | admin    |
+| `/settings/charts`                                       | Charts: every chart recipe drawn from its sample           | admin    |
+| `/settings/server`                                       | Server: system settings and keys, read-only, with sources  | admin    |
+| `/settings`                                              | redirect → `/settings/model`                               | admin    |
+| `/ui`                                                    | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
+| `/login`                                                 | sign in                                                    | —        |
+| `/setup`                                                 | the default admin chooses their own email and password     | —        |
+| `/set-password`                                          | choose a password from an invite or reset link             | —        |
 
 The roles rank viewer, analyst, editor, admin (`roles` in `@quanthea/shared`), and `hasRole` is
 the one check of a minimum role, on the server and in the browser. An analyst reads everything a
@@ -1730,6 +1731,18 @@ one, and enables them again. Without any admin, it creates the default one.
     and says on which version it was asked.
 - Each panel has an info bubble: its connector, language and query text, and the chart recipe
   that draws it. It shows what the saved panel runs, so a viewer can trace a number to its source.
+- **Explain.** On a pinned version the info bubble opens on the panel's explanation
+  (`panel-explain.tsx`, `use-explain.ts`), above where its data comes from, so the panel header
+  keeps one button. The explanation loads when the bubble opens: its short paragraphs as plain
+  text, any `[n]` marker dropped, and "Explained on 3 Oct 2026 for Ana", since the schema's
+  descriptions may change after it was written.
+  - Analysts and above get Explain, or Explain again in place of the latest. The explanation
+    streams in as the Ask tab's answers do (`ask-stream.ts`); when it ends, the stored one loads.
+    The request goes on if the bubble closes, so the explanation is kept all the same.
+  - Viewers read an explanation once someone asked for it. Before that they see Explain disabled,
+    with the line "Not explained yet; an analyst can ask for it."
+  - While someone else's explanation is written, the bubble says so and looks again every three
+    seconds. A `conflict` refusal shows its message, and the latest explanation loads.
 - Each panel loads its run through a fetcher from a resource route
   (`/d/:id/v/:version/panels/:panelId`), so panels load, fail and refresh on their own. A
   query-backed variable loads its options the same way when its menu opens.

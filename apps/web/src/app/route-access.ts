@@ -12,6 +12,7 @@ export const routeAccess = {
   '/d/:dashboardId': 'viewer',
   '/d/:dashboardId/v/:version': 'viewer',
   '/d/:dashboardId/v/:version/panels/:panelId': 'viewer',
+  '/d/:dashboardId/v/:version/panels/:panelId/explanation': 'viewer',
   '/d/:dashboardId/v/:version/options/:name': 'viewer',
   '/d/:dashboardId/snapshots': 'editor',
   '/d/:dashboardId/questions': 'viewer',

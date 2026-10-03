@@ -3,6 +3,7 @@ import { type CSSProperties, useEffect } from 'react';
 import { useFetcher } from 'react-router';
 import type { PanelMark } from './ask-marks.ts';
 import type { Loaded } from './data.ts';
+import type { ExplainPlace } from './panel-explain.tsx';
 import { PanelInfo } from './panel-info.tsx';
 import { PanelView } from './panel-views.tsx';
 import styles from './panels.module.css';
@@ -63,6 +64,8 @@ interface PanelCardProps {
   readonly hiddenMarkers?: ReadonlySet<string> | undefined;
   /** What the open answer cites on the panel: badges, and windows to shade on a time chart. */
   readonly answerMark?: PanelMark | undefined;
+  /** Where the panel's explanation is kept, on a pinned version; left out elsewhere. */
+  readonly explain?: ExplainPlace | undefined;
 }
 
 /**
@@ -140,9 +143,11 @@ function PanelBody({
 
 /**
  * The heading of a panel: its title, as a button when panels can be picked, the "in chat" mark,
- * the numbers the open answer cites it with, and where its data comes from.
+ * the numbers the open answer cites it with, and its info bubble: its explanation on a pinned
+ * version, and where its data comes from.
  *
- * @param props - The panel, whether it is marked, the pick callback and the marks.
+ * @param props - The panel, whether it is marked, the pick callback, the marks and where its
+ *   explanation is kept.
  * @returns The heading.
  */
 function PanelHeading({
@@ -151,7 +156,8 @@ function PanelHeading({
   onSelect,
   planMark,
   answerMark,
-}: Pick<PanelCardProps, 'panel' | 'marked' | 'onSelect' | 'planMark' | 'answerMark'>) {
+  explain,
+}: Pick<PanelCardProps, 'panel' | 'marked' | 'onSelect' | 'planMark' | 'answerMark' | 'explain'>) {
   const title = onSelect ? (
     <button type="button" className={styles.titleButton} onClick={() => onSelect(panel.id)}>
       {panel.title}
@@ -171,7 +177,7 @@ function PanelHeading({
           {n}
         </span>
       ))}
-      <PanelInfo panel={panel} />
+      <PanelInfo panel={panel} explain={explain} />
     </div>
   );
 }

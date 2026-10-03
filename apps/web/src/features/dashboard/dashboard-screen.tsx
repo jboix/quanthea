@@ -73,18 +73,13 @@ export function DashboardScreen() {
   const shownSide = askable ? side : null;
   const marks = shownSide === 'ask' ? marksOnVersion(open, version.version) : undefined;
   const onAsk = askable ? () => setSide('ask') : undefined;
+  const shown = { dashboardId: dashboard.id, version: version.version, spec: version.spec };
   return (
     <div className={styles.screen}>
       <DashboardHeader {...loaded} onAsk={onAsk} asking={shownSide === 'ask'} />
       <div className={styles.body} data-side={shownSide !== null}>
         <div className={styles.main}>
-          <DashboardCanvas
-            refreshable
-            dashboardId={dashboard.id}
-            version={version.version}
-            spec={version.spec}
-            answerMarks={marks}
-          />
+          <DashboardCanvas refreshable {...shown} answerMarks={marks} explainable={askable} />
         </div>
         {shownSide && (
           <SidePanel

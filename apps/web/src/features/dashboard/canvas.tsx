@@ -61,6 +61,8 @@ export interface DashboardCanvasProps {
   readonly planMarks?: Readonly<Record<string, PanelPlanMark>> | undefined;
   /** What the open answer cites on each panel, by id: badges and shaded windows. */
   readonly answerMarks?: Readonly<Record<string, PanelMark>> | undefined;
+  /** Whether the panels offer their explanations: on a pinned version only. */
+  readonly explainable?: boolean;
 }
 
 /**
@@ -77,9 +79,12 @@ function PanelGrid(
     readonly hiddenMarkers: ReadonlySet<string>;
   },
 ) {
+  const { dashboardId, version, spec } = props;
+  const timeZone = spec.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const explain = props.explainable ? { dashboardId, version, timeZone } : undefined;
   return (
     <div className={panelStyles.grid}>
-      {props.spec.panels.map((panel) => (
+      {spec.panels.map((panel) => (
         <PanelCard
           key={panel.id}
           panel={panel}
@@ -92,6 +97,7 @@ function PanelGrid(
           planMark={props.planMarks?.[panel.id]}
           answerMark={props.answerMarks?.[panel.id]}
           hiddenMarkers={props.hiddenMarkers}
+          explain={explain}
         />
       ))}
     </div>

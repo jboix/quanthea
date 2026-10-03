@@ -1,6 +1,7 @@
 import { type Panel, queryLanguageNames, queryText } from '@quanthea/shared';
 import { InfoIcon } from '../../ui/icons.tsx';
 import { Popover } from '../../ui/popover.tsx';
+import { type ExplainPlace, PanelExplain } from './panel-explain.tsx';
 import styles from './panels.module.css';
 
 /**
@@ -17,18 +18,38 @@ function drawnAs(panel: Panel): string {
   return [view.recipe.id, ...view.recipe.variants].join(' · ');
 }
 
+/** Props of {@link PanelInfo}. */
+interface PanelInfoProps {
+  /** The panel. */
+  readonly panel: Panel;
+  /** Where its explanation is kept, on a pinned version; left out elsewhere. */
+  readonly explain?: ExplainPlace | undefined;
+}
+
 /**
- * Where a panel's data comes from, behind an i by its title: each query with its connector and
+ * The info bubble by a panel's title. On a pinned version it opens on the panel's explanation;
+ * below, or alone elsewhere, where its data comes from: each query with its connector and
  * language, and how it draws.
  *
- * @param props - The panel.
- * @param props.panel - The panel.
+ * @param props - The panel, and where its explanation is kept.
  * @returns The popover.
  */
-export function PanelInfo({ panel }: { readonly panel: Panel }) {
+export function PanelInfo({ panel, explain }: PanelInfoProps) {
+  const label = explain ? `Explain ${panel.title}` : `Where ${panel.title} comes from`;
   return (
-    <Popover label={`Where ${panel.title} comes from`} trigger={<InfoIcon />} align="end">
+    <Popover label={label} trigger={<InfoIcon />} align="end">
       <div className={styles.info}>
+        {explain && (
+          <PanelExplain
+            target={{
+              dashboardId: explain.dashboardId,
+              version: explain.version,
+              panelId: panel.id,
+            }}
+            timeZone={explain.timeZone}
+          />
+        )}
+        {explain && <span className={styles.infoHeading}>Where it comes from</span>}
         {panel.description && <p className={styles.infoText}>{panel.description}</p>}
         {panel.queries.map((query) => (
           <div key={query.refId} className={styles.infoQuery}>

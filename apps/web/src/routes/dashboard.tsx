@@ -7,6 +7,7 @@ import {
   changeDashboard,
   loadDashboard,
   loadDashboardSnapshots,
+  loadExplanation,
   loadPanelRun,
   loadQuestion,
   loadQuestions,
@@ -87,8 +88,8 @@ function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
 }
 
 /**
- * The dashboard routes. The resource routes load only when a panel, a variable menu, the
- * Snapshot menu or the Ask tab asks.
+ * The dashboard routes. The resource routes load only when a panel, its info bubble, a variable
+ * menu, the Snapshot menu or the Ask tab asks.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -96,6 +97,7 @@ function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
  */
 export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
   const panels = '/d/:dashboardId/v/:version/panels/:panelId';
+  const explanation = '/d/:dashboardId/v/:version/panels/:panelId/explanation';
   const options = '/d/:dashboardId/v/:version/options/:name';
   const snapshots = '/d/:dashboardId/snapshots';
   return [
@@ -104,6 +106,12 @@ export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): Rou
     {
       path: panels,
       loader: guarded(loadSession, panels, loadPanelRun(api)),
+      shouldRevalidate: () => false,
+    },
+    // Loads when a panel's info bubble opens, and again when an explanation ends.
+    {
+      path: explanation,
+      loader: guarded(loadSession, explanation, loadExplanation(api)),
       shouldRevalidate: () => false,
     },
     {
