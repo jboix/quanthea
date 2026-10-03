@@ -1320,7 +1320,7 @@ CREATE TABLE usage_events (
 The usage ledger (`usage/usage.ts`) records every model step, with its provider, model, job,
 tokens and list-price cost at that moment, and every read of a pinned version and every opening
 of a snapshot, which spend no tokens. A model step also records who it ran for: the owner of its thread at that moment, kept
-after the thread is purged; a step outside a thread, such as tagging at pin time, names no one.
+after the thread is purged; tagging at pin time names no one; an answer about a dashboard names who asked, and the dashboard.
 Deleting a thread keeps its history. `GET /api/settings/usage?days=` returns it by hour, model and
 user, with each user's name and role, and the browser adds the hours up into its own days.
 Settings → Usage draws tokens and cost per day stacked by model (the five costliest, then

@@ -127,4 +127,17 @@ describe('the usage ledger', () => {
       .sort();
     expect(users).toEqual(['', 'ada']);
   });
+
+  test('names who a step outside a thread ran for, and the dashboard it was about', () => {
+    const ledger = usage();
+    const step = { provider: 'mistral', model: 'mistral-large-latest', job: 'answer', tokens };
+    ledger.recordStep({ ...step, threadId: null, userId: 'grace', dashboardId: 'd1' });
+    expect(ledger.report(1).buckets.map((bucket) => bucket.userId)).toEqual(['grace']);
+    const row = database
+      .query<{ job: string; dashboard_id: string }, []>(
+        'SELECT job, dashboard_id FROM usage_events',
+      )
+      .get();
+    expect(row).toEqual({ job: 'answer', dashboard_id: 'd1' });
+  });
 });

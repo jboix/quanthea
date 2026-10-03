@@ -19,6 +19,10 @@ export interface ModelStep {
   readonly job: string;
   /** The step's tokens. */
   readonly tokens: TokenUsage;
+  /** Who the step ran for, outside a thread, such as who asked about a dashboard. */
+  readonly userId?: string | null;
+  /** The dashboard the step was about, outside a thread. */
+  readonly dashboardId?: string | null;
 }
 
 /** The usage report as the ledger has it; the API adds the names of the users it names. */
@@ -153,7 +157,8 @@ function stepEvent(step: ModelStep, at: number): UsageEventRow {
     id: newId(),
     at,
     kind: 'model',
-    dashboardId: null,
+    dashboardId: step.dashboardId ?? null,
+    userId: step.userId ?? null,
     costMicros: cost,
     ...tokens,
     threadId,
@@ -176,7 +181,14 @@ function viewEvent(
   dashboardId: string,
   at: number,
 ): UsageEventRow {
-  const none = { threadId: null, provider: null, model: null, job: null, costMicros: null };
+  const none = {
+    threadId: null,
+    userId: null,
+    provider: null,
+    model: null,
+    job: null,
+    costMicros: null,
+  };
   const tokens = { input: 0, cachedInput: 0, cacheWrite: 0, output: 0 };
   return { id: newId(), at, kind, dashboardId, ...none, ...tokens };
 }

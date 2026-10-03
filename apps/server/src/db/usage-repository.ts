@@ -14,8 +14,10 @@ export interface UsageEventRow {
   readonly kind: UsageKind;
   /** The thread, for a model step. */
   readonly threadId: string | null;
-  /** The dashboard, for a view. */
+  /** The dashboard, for a view, or a model step about one outside a thread. */
   readonly dashboardId: string | null;
+  /** Who a model step outside a thread ran for; a thread's steps name its owner instead. */
+  readonly userId: string | null;
   /** The provider, for a model step. */
   readonly provider: string | null;
   /** The model id, for a model step. */
@@ -97,13 +99,14 @@ function recorder(database: Database): (event: UsageEventRow) => void {
   const insert = database.query(
     `INSERT INTO usage_events (id, at, kind, thread_id, dashboard_id, provider, model, job, input,
        cached_input, cache_write, output, cost_micros, user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT created_by FROM threads WHERE id = ?))`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+       coalesce(?, (SELECT created_by FROM threads WHERE id = ?)))`,
   );
   return (event) => {
     const { id, at, kind, threadId, dashboardId, provider, model, job } = event;
-    const { input, cachedInput, cacheWrite, output, costMicros } = event;
+    const { input, cachedInput, cacheWrite, output, costMicros, userId } = event;
     const names = [id, at, kind, threadId, dashboardId, provider, model, job];
-    insert.run(...names, input, cachedInput, cacheWrite, output, costMicros, threadId);
+    insert.run(...names, input, cachedInput, cacheWrite, output, costMicros, userId, threadId);
   };
 }
 
