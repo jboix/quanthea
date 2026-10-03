@@ -40,7 +40,9 @@ export default defineConfig({
           groups: [
             { name: 'react', test: /node_modules\/(react|react-dom|scheduler)\// },
             { name: 'router', test: /node_modules\/(react-router|cookie|set-cookie-parser)\// },
-            { name: 'zod', test: /node_modules\/zod\// },
+            // Zod's chunk carries the module that turns its JIT off, so the flag is set before
+            // any other chunk builds a schema, and Zod never probes `new Function`.
+            { name: 'zod', test: /node_modules\/zod\/|src\/lib\/zod-without-eval\.ts$/ },
           ],
         },
       },

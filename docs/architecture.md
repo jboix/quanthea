@@ -1808,7 +1808,8 @@ one, and enables them again. Without any admin, it creates the default one.
 - Fonts are self-hosted from `@fontsource` packages, because this CSP blocks Google Fonts. Vite
   never inlines them as `data:` URIs.
 - The SPA turns off Zod's JIT (`lib/zod-without-eval.ts`), which otherwise probes `new Function`
-  and triggers a CSP violation report.
+  and triggers a CSP violation report. The build puts that module in Zod's chunk, so it runs
+  before any other chunk builds a schema.
 
 ### Keys
 
