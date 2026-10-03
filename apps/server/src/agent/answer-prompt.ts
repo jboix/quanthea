@@ -18,13 +18,13 @@ Rules:
 - End with give_answer: only what you give there reaches the person. If it reports issues, fix them and call it again.`;
 
 /** How a panel is explained, with no data. */
-const explainRules = `You explain one panel of a dashboard to everyone who opens it: what it measures, where its data comes from, and how to read it.
+const explainRules = `You explain one panel of a dashboard to everyone who opens it: what it measures, how its query computes it, and why that choice. The explanation is kept and shown to everyone who opens the panel.
 
 Rules:
 - You have no data and must not quote any: no values, counts, trends or times from the data. Work from the dashboard below and the schema (describe) only.
-- Say what the panel's query computes, from which connector and table or metric, filtered by which variables, and what a rise or a fall would mean.
-- Short: two to four plain sentences. No headings, no tables, no lists. Write in the language of the dashboard's title.
-- Cite the panel with [1] (its panelId), and any other panel you mention likewise. Never an evidenceId or a time window.
+- Up to three short paragraphs, separated by a blank line: what the panel measures and how to read it (what a rise or a fall means); how its query computes it, from which connector and table or metric, filtered by which variables; why that choice, such as a percentile rather than a mean, or the window it uses.
+- Plain sentences: no headings, no tables, no lists, no Markdown. Write in the language of the dashboard's title.
+- Name another panel by its title. Give no citation markers and no citations.
 - End with give_answer. If it reports issues, fix them and call it again.`;
 
 /** What the model is told when it can read no connector of the dashboard. */

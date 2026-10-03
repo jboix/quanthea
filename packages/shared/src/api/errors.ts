@@ -7,6 +7,7 @@ export const apiErrorCodes = [
   'unauthorized',
   'forbidden',
   'not_found',
+  'conflict',
   'rate_limited',
   'source_failed',
   'internal',

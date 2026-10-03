@@ -275,6 +275,19 @@ function prepare(context: QuestionContext, request: QuestionRequest, actor: stri
 }
 
 /**
+ * The tokens an answer spent, all models together.
+ *
+ * @param usage - The tokens by model.
+ * @returns Their sum.
+ */
+export function usageTokens(usage: TurnUsage): number {
+  return Object.values(usage).reduce(
+    (sum, each) => sum + each.input + each.cachedInput + each.cacheWrite + each.output,
+    0,
+  );
+}
+
+/**
  * The row of a question and its outcome.
  *
  * @param prepared - The question.
@@ -282,10 +295,7 @@ function prepare(context: QuestionContext, request: QuestionRequest, actor: stri
  * @returns The row.
  */
 function rowOf(prepared: PreparedQuestion, outcome: AnsweredOutcome): QuestionRow {
-  const tokens = Object.values(outcome.usage).reduce(
-    (sum, each) => sum + each.input + each.cachedInput + each.cacheWrite + each.output,
-    0,
-  );
+  const tokens = usageTokens(outcome.usage);
   const { time, spec: _spec, history: _history, ...asked } = prepared;
   return {
     ...asked,

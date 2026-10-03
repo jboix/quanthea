@@ -95,6 +95,7 @@ export {
   apiErrorBodySchema,
   apiErrorCodes,
 } from './api/errors.ts';
+export * from './api/explanations.ts';
 export { healthEndpoint } from './api/health.ts';
 export {
   enableIdentityProviderEndpoint,
@@ -162,12 +163,7 @@ export {
   saveQuerySettingsEndpoint,
 } from './api/queries.ts';
 export * from './api/questions.ts';
-export {
-  getRetentionSettingsEndpoint,
-  type RetentionSettings,
-  retentionSettingsSchema,
-  saveRetentionSettingsEndpoint,
-} from './api/retention.ts';
+export * from './api/retention.ts';
 export {
   getManagedSettingsEndpoint,
   getServerSettingsEndpoint,

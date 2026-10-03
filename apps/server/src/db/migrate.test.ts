@@ -63,6 +63,7 @@ describe('runMigrations', () => {
       '0002-snapshots.sql',
       '0003-analyst-role.sql',
       '0004-dashboard-questions.sql',
+      '0005-panel-explanations.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
@@ -80,6 +81,7 @@ describe('runMigrations', () => {
       'library_fts_idx',
       'messages',
       'migrations',
+      'panel_explanations',
       'password_links',
       'plans',
       'provisioned',

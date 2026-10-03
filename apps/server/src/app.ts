@@ -15,6 +15,7 @@ import type { UserAdminDependencies } from './auth/user-admin.ts';
 import type { Users } from './auth/users.ts';
 import type { Connections } from './connections/connections.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
+import type { Explanations } from './dashboards/explanations.ts';
 import type { Questions } from './dashboards/questions.ts';
 import type { Snapshots } from './dashboards/snapshots.ts';
 import type { ModelView } from './gate/model-view.ts';
@@ -32,6 +33,7 @@ import {
   type DashboardRouteOptions,
   mountDashboardEndpoints,
 } from './http/routes/dashboard-routes.ts';
+import { mountExplanationEndpoints } from './http/routes/explanation-routes.ts';
 import { mountProviderFlowRoutes } from './http/routes/provider-routes.ts';
 import { mountQueryEndpoints } from './http/routes/query-routes.ts';
 import { mountQuestionEndpoints } from './http/routes/question-routes.ts';
@@ -95,7 +97,9 @@ export interface AppDependencies {
   readonly snapshots: Snapshots;
   /** Questions asked about dashboards, stored with their answers. */
   readonly questions: Questions;
-  /** Answers questions about a dashboard. */
+  /** Explanations of panels, kept per version and panel. */
+  readonly explanations: Explanations;
+  /** Answers questions about a dashboard and explains its panels. */
   readonly answers: Pick<Answers, 'stream'>;
   /** The model gateway settings. */
   readonly modelSettings: ModelSettingsService;
@@ -173,6 +177,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
     onSnapshotView: dependencies.usage.recordSnapshotView,
   });
   mountQuestionEndpoints(app, { ...dependencies, ownerOf: dependencies.bin.ownerOf });
+  mountExplanationEndpoints(app, { ...dependencies, ownerOf: dependencies.bin.ownerOf });
   mountSettingsRoutes(app, dependencies);
   mountThreadEndpoints(app, dependencies);
   mountBinEndpoints(app, dependencies);

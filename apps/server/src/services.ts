@@ -13,12 +13,15 @@ import { resealIdentities, resealSignInCredentials, resealUsers } from './auth/r
 import { type Connections, createConnections } from './connections/connections.ts';
 import { resealConnectors } from './connections/reseal.ts';
 import type { RegisteredKind } from './connectors/_shared/index.ts';
+import type { DashboardsDependencies } from './dashboards/context.ts';
 import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
+import { createExplanations, type Explanations } from './dashboards/explanations.ts';
 import { createQuestions, type Questions } from './dashboards/questions.ts';
 import { createSnapshots, type Snapshots } from './dashboards/snapshots.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
+import { createExplanationRepository } from './db/explanation-repository.ts';
 import { createIdentityRepository } from './db/identity-repository.ts';
 import { createProvisionedRepository } from './db/provisioned-repository.ts';
 import { createQuestionRepository } from './db/question-repository.ts';
@@ -64,6 +67,8 @@ export interface Services extends Accounts {
   readonly snapshots: Snapshots;
   /** Questions asked about dashboards, stored with their answers. */
   readonly questions: Questions;
+  /** Explanations of panels, kept per version and panel. */
+  readonly explanations: Explanations;
   /** The model gateway settings. */
   readonly modelSettings: ModelSettingsService;
   /** The connectors as the model sees them, through the gate. */
@@ -101,8 +106,9 @@ const resultTtlMs = 15_000;
 const maxCachedResults = 500;
 
 /**
- * The services over the data sources: connectors, the query executor, dashboards, their snapshots
- * and questions, and the model's view of the connectors, which share one executor and its cache.
+ * The services over the data sources: connectors, the query executor, dashboards, their snapshots,
+ * questions and explanations, and the model's view of the connectors, which share one executor
+ * and its cache.
  *
  * @param dependencies - The database, the connector kinds and the secret box.
  * @param audit - The audit log.
@@ -132,12 +138,33 @@ function dataServices(
   });
   const { subjects: list, open, snapshot } = connections;
   const modelView = createModelView({ list, open, snapshot }, executor);
+  const answered = answerServices(database, dashboardDependencies, modelView);
+  return { connections, dashboards, snapshots, ...answered, modelView };
+}
+
+/**
+ * The services that keep what the answering service writes: questions and explanations.
+ *
+ * @param database - The database.
+ * @param dashboardDependencies - What the dashboards' services share.
+ * @param modelView - The connectors as the model sees them, for their access levels.
+ * @returns The questions and the explanations.
+ */
+function answerServices(
+  database: ServiceDependencies['database'],
+  dashboardDependencies: DashboardsDependencies,
+  modelView: ModelView,
+): Pick<Services, 'questions' | 'explanations'> {
   const questions = createQuestions({
     ...dashboardDependencies,
     questions: createQuestionRepository(database),
     connectorLevels: () => modelView.connectors(),
   });
-  return { connections, dashboards, snapshots, questions, modelView };
+  const explanations = createExplanations({
+    ...dashboardDependencies,
+    explanations: createExplanationRepository(database),
+  });
+  return { questions, explanations };
 }
 
 /**

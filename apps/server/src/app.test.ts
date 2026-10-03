@@ -137,7 +137,7 @@ describe('route access', () => {
     ]);
   });
 
-  test('an analyst reaches what a viewer reaches, and asks about dashboards', () => {
+  test('an analyst reaches what a viewer reaches, and asks about dashboards and panels', () => {
     const reachable = (role: Role) =>
       listApiRouteAccess(buildApp())
         .filter((route) => route.access === 'public' || hasRole(role, route.access ?? 'admin'))
@@ -145,6 +145,7 @@ describe('route access', () => {
     const viewers = new Set(reachable('viewer'));
     expect(reachable('analyst').filter((route) => !viewers.has(route))).toEqual([
       'POST /api/dashboards/:dashboardId/questions',
+      'POST /api/dashboards/:dashboardId/versions/:version/panels/:panelId/explanation',
     ]);
     expect(reachable('viewer').every((route) => reachable('analyst').includes(route))).toBe(true);
   });
@@ -159,6 +160,16 @@ describe('route access', () => {
       'viewer GET /api/dashboards/:dashboardId/questions/:questionId',
       'viewer GET /api/dashboards/:dashboardId/similar-questions',
       'viewer GET /api/dashboards/:dashboardId/versions/:version/sources',
+    ]);
+  });
+
+  test('every role reads a panel explanation; analysts and above ask for one', () => {
+    const explanationRoutes = listApiRouteAccess(buildApp())
+      .filter((route) => /explanation/.test(route.path))
+      .map((route) => `${route.access} ${route.method} ${route.path}`);
+    expect(explanationRoutes.sort()).toEqual([
+      'analyst POST /api/dashboards/:dashboardId/versions/:version/panels/:panelId/explanation',
+      'viewer GET /api/dashboards/:dashboardId/versions/:version/panels/:panelId/explanation',
     ]);
   });
 

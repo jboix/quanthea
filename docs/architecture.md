@@ -222,7 +222,8 @@ the kit's HTTP client for every kind that speaks HTTP.
 The roles rank viewer, analyst, editor, admin (`roles` in `@quanthea/shared`), and `hasRole` is
 the one check of a minimum role, on the server and in the browser. An analyst reads everything a
 viewer reads and also asks questions about pinned dashboards (`POST
-/api/dashboards/:id/questions`); every role reads the questions asked and their answers.
+/api/dashboards/:id/questions`) and asks for a panel's explanation; every role reads the questions
+asked, their answers and the explanations.
 
 Route loaders fetch through the typed API client. The root loader loads the session
 (`GET /api/me`, once per page load). Without a session, every screen redirects to
@@ -855,6 +856,32 @@ needs the analyst role. The asker is recorded for accountability only: no one ow
 8. Questions go with their dashboard (`ON DELETE CASCADE`), as snapshots do, and their index rows
    with them. The model steps stay in the usage ledger.
 
+### Explanations of a panel
+
+An explanation says what one panel of a pinned version measures, how its query computes it, and
+why that choice (`dashboards/explanations.ts`, over `db/explanation-repository.ts`). It is the
+answering service's `explain` mode: the request carries the spec and the panel id, and nothing
+else, so it reads no data at any access level and is shown to every role.
+
+1. `GET /api/dashboards/:id/versions/:v/panels/:panelId/explanation` (viewer+) gives the panel's
+   latest explanation, or `null`, and whether one is being written now. The version is read with
+   the person's role, so viewers reach pinned versions only.
+2. `POST` on the same path (analyst+) asks for one. The version is read as a viewer reads it, so
+   only a pinned version of a pinned dashboard is explained. The body names the explanation the
+   person saw (`replaces`), `null` for none.
+3. Only one explanation of a panel is written at a time. The service claims the panel in memory
+   before the stream starts and releases it when the outcome comes, or when the stream fails to
+   start. A second request while one is written, or one whose `replaces` is not the latest, gets
+   `conflict` (409) and pays for nothing; the browser then reads the latest. A claim that never
+   reports back lapses after ten minutes.
+4. The route streams `Answers.stream` as the Ask tab's answers stream. A good outcome is stored
+   with who asked, when, the text and the tokens by model; a failed one is not stored.
+5. A version's spec never changes, so its explanation stays valid; the browser shows the date,
+   because the schema's descriptions may change. Asking again (analyst+) adds a row and the latest
+   is shown; rows are never rewritten (a trigger refuses updates).
+6. Explanations go with their dashboard (`ON DELETE CASCADE`). The model steps stay in the usage
+   ledger, as the `answer` job against who asked.
+
 ## 7. Connectors
 
 A **connector kind** is a kind of source, such as PostgreSQL. A **connector** is one configured
@@ -1419,6 +1446,14 @@ CREATE TABLE dashboard_questions (
   citations TEXT NOT NULL, evidence TEXT NOT NULL, usage TEXT NOT NULL,  -- JSON
   tokens INTEGER NOT NULL);
 
+-- an explanation of a panel of a version, from the spec and the schema only; never rewritten
+CREATE TABLE panel_explanations (
+  id TEXT PRIMARY KEY,
+  dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL, panel_id TEXT NOT NULL,
+  explained_by TEXT NOT NULL, explained_at INTEGER NOT NULL, text TEXT NOT NULL,
+  usage TEXT NOT NULL, tokens INTEGER NOT NULL);  -- JSON: tokens by model; and their sum
+
 -- "already answered": filled by triggers on dashboard_questions
 CREATE VIRTUAL TABLE question_fts USING fts5(
   question_id UNINDEXED, dashboard_id UNINDEXED, question, answer, tokenize = 'porter unicode61');
@@ -1444,7 +1479,8 @@ Migrations are plain numbered `.sql` files in `db/migrations/`. `0001-schema.sql
 of the first release; each change since is a new file, never an edit of an applied one
 (`0002-snapshots.sql` adds the snapshots and the `snapshot_view` kind, `0003-analyst-role.sql`
 rebuilds `users` to allow the analyst role, `0004-dashboard-questions.sql` adds the questions about
-dashboards and their full-text index).
+dashboards and their full-text index, `0005-panel-explanations.sql` adds the explanations of
+panels).
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -1490,6 +1526,8 @@ indicative; the contract files are the source of truth.
 | `GET /dashboards/:id/questions`, `GET /dashboards/:id/questions/:questionId`                      | a dashboard's questions and answers          | viewer   |
 | `GET /dashboards/:id/similar-questions?q=`                                                        | earlier answered questions sharing words     | viewer   |
 | `GET /dashboards/:id/versions/:v/sources`                                                         | a version's connectors and access levels     | viewer   |
+| `GET /dashboards/:id/versions/:v/panels/:panelId/explanation`                                     | a panel's latest explanation                 | viewer   |
+| `POST /dashboards/:id/versions/:v/panels/:panelId/explanation` (streams it)                       | explain a panel of a pinned version          | analyst  |
 | `POST /snapshots` (a version as shown, and a lifetime)                                            | take a snapshot: the server runs the panels  | editor   |
 | `GET /snapshots/:snapshotId`                                                                      | open a live snapshot, no query               | viewer   |
 | `GET /dashboards/:id/snapshots`, `DELETE /snapshots/:snapshotId`                                  | a dashboard's live snapshots, revoke one     | editor   |
@@ -1511,7 +1549,8 @@ indicative; the contract files are the source of truth.
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
 so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the
 invalid params, query and body fields in `details`), `unauthorized` (401), `forbidden` (403),
-`not_found` (404), `source_failed` (502, a data source failed; the message quotes no data) and
+`not_found` (404), `conflict` (409, such as a panel already being explained), `rate_limited` (429),
+`source_failed` (502, a data source failed; the message quotes no data) and
 `internal` (500, with the request id and no internal message).
 
 Every endpoint is mounted through `http/endpoint.ts`: it checks the declared access, parses the
