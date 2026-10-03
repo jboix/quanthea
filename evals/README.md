@@ -27,12 +27,12 @@ it. Each case sets the access level of both dev connectors, then makes one call 
 prepared and stored as the question and explanation endpoints do. The range asked about is
 yesterday from 06:00 to 18:00 UTC, relative to the run's clock, so no date is written down.
 
-| Case | What it asks                                       | A good answer                                                                                                       |
-| ---- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `a1` | "What happened around 14:00?", at aggregates (3)   | reads data, cites at least one read, mentions the errors and the deploy, and states a time range ("14:02 to 14:38") |
-| `a2` | the same question, at schema and metadata (2) only | reads nothing, says it cannot read the numbers, and quotes no data                                                  |
-| `a3` | the explanation of "Error rate by service, 1m"     | reads nothing (at level 3 still), mentions the rate, the 5xx errors and the requests, quotes no data, cites nothing |
-| `a4` | "How long did it last?", following up on `a1`      | gives a duration, such as "36 minutes"                                                                              |
+| Case | What it asks                                                       | A good answer                                                                                                       |
+| ---- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `a1` | "What happened around 14:00?" (13:00 in winter), at aggregates (3) | reads data, cites at least one read, mentions the errors and the deploy, and states a time range ("14:02 to 14:38") |
+| `a2` | the same question, at schema and metadata (2) only                 | reads nothing, says it cannot read the numbers, and quotes no data                                                  |
+| `a3` | the explanation of "Error rate by service, 1m"                     | reads nothing (at level 3 still), mentions the rate, the 5xx errors and the requests, quotes no data, cites nothing |
+| `a4` | "How long did it last?", following up on `a1`                      | gives a duration, such as "36 minutes"                                                                              |
 
 Every case also needs the service's outcome to be ok: an answer whose citations the server
 checked. A read is a `read_data` call, counted from the stream the service writes. `a4` asks `a1`

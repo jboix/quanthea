@@ -1,10 +1,11 @@
 /**
  * The answer cases: questions and explanations about the dev seed's checkout incident dashboard,
  * pinned, through the dashboard answering service rather than a thread. The incident is deploy
- * #481 of checkout-svc, yesterday at 12:02 UTC (14:02 in Zurich in summer), rolled back 36
+ * #481 of checkout-svc, yesterday at 12:02 UTC (14:02 in Zurich in summer, 13:02 in winter), rolled back 36
  * minutes later. Each case says what a good answer holds.
  */
 import type { AccessLevel, TimeRangeExpression } from '@quanthea/shared';
+import { incidentHour, zurich } from './questions.ts';
 
 /** What a good answer or explanation holds. */
 export interface AnswerExpectation {
@@ -57,12 +58,13 @@ export interface ExplainCase extends CaseBase {
 /** One answer case. */
 export type AnswerCase = AskCase | ExplainCase;
 
-const zurich = 'Europe/Zurich';
-
 /** Yesterday from 06:00 to 18:00 UTC, as seen from the evals' clock. */
 const yesterdayDaytime: TimeRangeExpression = { from: 'now-28h', to: 'now-16h' };
 
-/** "Around 14:00": what happened, from the error rate and the deploy markers. */
+/** The question of a1 and a2, at the incident's hour in Zurich. */
+const aroundTheIncident = `What happened around ${incidentHour(zurich)}?`;
+
+/** What happened: the error rate. */
 const whatHappened = /error|5xx|fail/i;
 
 /** The deploy that started it. */
@@ -73,7 +75,7 @@ export const answerCases: readonly AnswerCase[] = [
   {
     id: 'a1',
     mode: 'ask',
-    question: 'What happened around 14:00?',
+    question: aroundTheIncident,
     timeZone: zurich,
     time: yesterdayDaytime,
     accessLevel: 3,
@@ -82,7 +84,7 @@ export const answerCases: readonly AnswerCase[] = [
   {
     id: 'a2',
     mode: 'ask',
-    question: 'What happened around 14:00?',
+    question: aroundTheIncident,
     timeZone: zurich,
     time: yesterdayDaytime,
     accessLevel: 2,

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { type AnswerExpectation, answerCases } from './answer-cases.ts';
 import { type AnswerCaseOutcome, dataNumbers, isAnswer, scoreAnswer } from './answer-score.ts';
+import { incidentHour, zurich } from './questions.ts';
 import { htmlReport, markdownReport } from './render.ts';
 import { scoreAll } from './report.ts';
 
@@ -162,7 +163,7 @@ describe('answer cases in the report', () => {
       results: scoreAll([asked]),
     };
     const html = htmlReport(report);
-    expect(html).toContain('What happened around 14:00?');
+    expect(html).toContain(`What happened around ${incidentHour(zurich)}?`);
     expect(html).toContain('e1 · prometheus-dev · panel error-rate-by-service');
     expect(html).toContain('1 read · 2 steps');
     expect(markdownReport(report)).toContain('> Checkout errors spiked from 14:02 to 14:38');

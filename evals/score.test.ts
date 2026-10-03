@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { Expectation } from './questions.ts';
+import { type Expectation, incidentHour, zurich } from './questions.ts';
 import { type BuiltPanel, type Outcome, score } from './score.ts';
 
 const expectation: Expectation = {
@@ -142,5 +142,13 @@ describe('scoring an answer', () => {
     expect(score({ ...outcome, error: '429 quota' }, expectation).reasons).toEqual([
       'the run failed: 429 quota',
     ]);
+  });
+});
+
+describe('incidentHour', () => {
+  test('names the hour of yesterday noon UTC on the clock of the time zone', () => {
+    expect(incidentHour(zurich, new Date('2026-10-03T10:00:00Z'))).toBe('14:00');
+    expect(incidentHour(zurich, new Date('2026-11-03T10:00:00Z'))).toBe('13:00');
+    expect(incidentHour('UTC', new Date('2026-11-03T10:00:00Z'))).toBe('12:00');
   });
 });
