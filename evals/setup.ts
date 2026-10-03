@@ -71,7 +71,7 @@ function geminiGateway(models: EvalModels): ModelGateway {
         name: 'Gemini',
         provider: 'openai-compatible',
         baseUrl: geminiUrl,
-        models: { plan: models.model, build, repair: build, metadata: models.model },
+        models: { plan: models.model, build, repair: build, metadata: models.model, answer: build },
       },
     ],
     defaultProviderId: 'gemini',

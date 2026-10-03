@@ -734,7 +734,8 @@ the test; turning the switch off sends the provider's default.
 - Each job has its model; an empty one means the build model. Planning turns (the conversation,
   questions and plans) use the plan model, building and editing use the build model, and once a
   write fails in a run, its later steps use the repair model. So a cheap model can talk and plan
-  while a strong one builds.
+  while a strong one builds. Questions about a dashboard and explanations of its panels use the
+  answer model.
 - A model call that fails with a 429 is retried twice, which rides out a per-minute limit. A 429
   that says a quota is spent for the day (Gemini's `PerDay` quotas, OpenAI's `insufficient_quota`)
   is not retried: a middleware on every model (`agent/quota.ts`) turns it into an error that tells
@@ -1739,7 +1740,7 @@ The model gateway (**Settings → Model**) is a settings section: the saved prov
 one, the limits of a run and the behaviour switches. Each provider has a name (such as "Mistral
 free"), a vendor (Anthropic, OpenAI, Mistral, or an OpenAI-compatible base URL such as LiteLLM,
 Ollama or Gemini's OpenAI endpoint), its base URL, and the model for each job (plan, build, repair,
-metadata). Choosing a vendor fills in its API's base URL and its starting models; the
+metadata, answer). Choosing a vendor fills in its API's base URL and its starting models; the
 OpenAI-compatible choice offers the common gateways' base URLs. The job fields offer the vendor's
 current models by name (`providerProfiles` in `@quanthea/shared`), then the rest of the chat models
 the provider's own `/models` API returns (`POST /api/settings/model/models`).

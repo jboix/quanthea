@@ -33,6 +33,8 @@ const modelSettingsFields = z.object({
     repair: modelIdSchema,
     /** Writes titles, tags and descriptions; empty uses the build model. */
     metadata: modelIdSchema,
+    /** Answers questions about a pinned dashboard and explains its panels; empty uses build. */
+    answer: modelIdSchema.default(''),
   }),
   limits: z.object({
     /** A thread stops after spending this many tokens. */
@@ -66,6 +68,7 @@ export const defaultModelSettings: ModelSettings = {
     build: 'claude-sonnet-5',
     repair: '',
     metadata: 'claude-haiku-4-5',
+    answer: '',
   },
   limits: { threadTokens: 200_000, toolCallsPerTurn: 25, repairAttempts: 3 },
   behaviour: { planApproval: true, testRun: true, shortReasoning: true, planQueries: false },

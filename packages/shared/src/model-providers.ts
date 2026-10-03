@@ -24,6 +24,7 @@ export interface ProviderProfile {
     readonly build: string;
     readonly repair: string;
     readonly metadata: string;
+    readonly answer: string;
   };
 }
 
@@ -42,6 +43,7 @@ export const providerProfiles: Readonly<Record<ModelProvider, ProviderProfile>> 
       build: 'claude-sonnet-5',
       repair: '',
       metadata: 'claude-haiku-4-5',
+      answer: '',
     },
   },
   openai: {
@@ -54,7 +56,13 @@ export const providerProfiles: Readonly<Record<ModelProvider, ProviderProfile>> 
       { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' },
       { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna' },
     ],
-    defaults: { plan: 'gpt-6-luna', build: 'gpt-6-sol', repair: '', metadata: 'gpt-6-luna' },
+    defaults: {
+      plan: 'gpt-6-luna',
+      build: 'gpt-6-sol',
+      repair: '',
+      metadata: 'gpt-6-luna',
+      answer: '',
+    },
   },
   mistral: {
     baseUrl: 'https://api.mistral.ai/v1',
@@ -71,12 +79,13 @@ export const providerProfiles: Readonly<Record<ModelProvider, ProviderProfile>> 
       build: 'mistral-large-latest',
       repair: '',
       metadata: 'mistral-small-latest',
+      answer: '',
     },
   },
   'openai-compatible': {
     baseUrl: null,
     models: [],
-    defaults: { plan: '', build: '', repair: '', metadata: '' },
+    defaults: { plan: '', build: '', repair: '', metadata: '', answer: '' },
   },
 };
 

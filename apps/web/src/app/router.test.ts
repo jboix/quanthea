@@ -91,7 +91,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
           name: 'Anthropic',
           provider: 'anthropic',
           baseUrl: null,
-          models: { plan: '', build: 'claude-sonnet-5', repair: '', metadata: '' },
+          models: { plan: '', build: 'claude-sonnet-5', repair: '', metadata: '', answer: '' },
         },
       ],
       defaultProviderId: 'anthropic',

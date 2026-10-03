@@ -18,6 +18,7 @@ const jobs = [
   { key: 'build', label: 'Build and edit dashboards' },
   { key: 'repair', label: 'Repair a failed query' },
   { key: 'metadata', label: 'Titles, tags and descriptions' },
+  { key: 'answer', label: 'Answer questions about a dashboard' },
 ] as const;
 
 /**

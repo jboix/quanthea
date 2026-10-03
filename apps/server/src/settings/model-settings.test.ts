@@ -40,7 +40,7 @@ const twoProviders: ModelGateway = {
       name: 'Mistral free',
       provider: 'mistral',
       baseUrl: null,
-      models: { plan: '', build: 'mistral-large-latest', repair: '', metadata: '' },
+      models: { plan: '', build: 'mistral-large-latest', repair: '', metadata: '', answer: '' },
     },
   ],
   defaultProviderId: 'mistral-free',

@@ -364,6 +364,11 @@
                   "metadata": {
                     "type": "string",
                     "maxLength": 200
+                  },
+                  "answer": {
+                    "default": "",
+                    "type": "string",
+                    "maxLength": 200
                   }
                 },
                 "required": ["build", "repair", "metadata"]

@@ -291,7 +291,7 @@ describe('an agent run', () => {
       name: 'Mistral free',
       provider: 'mistral' as const,
       baseUrl: null,
-      models: { plan: '', build: 'mistral-large-latest', repair: '', metadata: '' },
+      models: { plan: '', build: 'mistral-large-latest', repair: '', metadata: '', answer: '' },
     };
     const gateway = {
       ...defaultModelGateway,
