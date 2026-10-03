@@ -34,9 +34,6 @@ the good ones. Pinned dashboards are versioned, searchable, and render without a
   </tr>
 </table>
 
-quanthea is young: it works end to end, and it changes quickly. The design lives in
-[`docs/`](docs/).
-
 ## Try it
 
 The demo runs on a Postgres and a Prometheus with a day of sample data, an incident included, and
