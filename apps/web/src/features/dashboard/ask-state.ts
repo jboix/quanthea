@@ -128,6 +128,41 @@ export function useOpenQuestion() {
 }
 
 /**
+ * Opens a question in the list, or, when it is older than the questions listed, loads it by id,
+ * adds it to the list and opens it once it arrives.
+ *
+ * @param dashboardId - The dashboard.
+ * @param listed - The questions listed.
+ * @param open - Opens a question in the list.
+ * @returns The questions with the one loaded, the open callback, and why a load failed.
+ */
+export function useAnyQuestion(
+  dashboardId: string,
+  listed: readonly DashboardQuestion[],
+  open: (questionId: string) => void,
+) {
+  const fetcher = useFetcher<Loaded<DashboardQuestion>>();
+  const { load, data, state } = fetcher;
+  const [wanted, setWanted] = useState<string | undefined>();
+  const older = data?.ok && !listed.some((each) => each.id === data.value.id) ? data.value : null;
+  const questions = useMemo(() => (older ? [...listed, older] : listed), [listed, older]);
+  useEffect(() => {
+    if (wanted === undefined || state !== 'idle' || data === undefined) return;
+    setWanted(undefined);
+    if (data.ok && data.value.id === wanted) open(wanted);
+  }, [wanted, state, data, open]);
+  const openAny = useCallback(
+    (questionId: string) => {
+      if (questions.some((each) => each.id === questionId)) return open(questionId);
+      setWanted(questionId);
+      void load(`/d/${dashboardId}/questions/${encodeURIComponent(questionId)}`);
+    },
+    [questions, open, load, dashboardId],
+  );
+  return { questions, open: openAny, failed: data?.ok === false ? data.message : undefined };
+}
+
+/**
  * The answer the dashboard marks: the one just answered, else the open question's.
  *
  * @param live - The answer on its way or just ended.

@@ -198,6 +198,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/d/:dashboardId/v/:version/options/:name`         | resource route: a variable's options, for fetchers         | viewer   |
 | `/d/:dashboardId/snapshots`                        | resource route: a dashboard's live snapshots, for fetchers | editor   |
 | `/d/:dashboardId/questions`                        | resource route: a dashboard's questions and answers        | viewer   |
+| `/d/:dashboardId/questions/:questionId`            | resource route: one question, older than those listed      | viewer   |
 | `/d/:dashboardId/similar-questions`                | resource route: earlier answered questions like a text     | viewer   |
 | `/d/:dashboardId/v/:version/sources`               | resource route: a version's sources and access levels      | viewer   |
 | `/s/:snapshotId`                                   | a snapshot: a version frozen with its data, read-only      | viewer   |
@@ -1716,7 +1717,9 @@ one, and enables them again. Without any admin, it creates the default one.
     values) in the mono font, never the raw JSON.
   - While the typed text pauses, the tab looks up earlier answered questions that share its
     words and shows at most three above the box (`Asked on 26 Sep by Ana: …`); opening one
-    scrolls to it, expands it and highlights it for a moment.
+    scrolls to it, expands it and highlights it for a moment. One older than the questions
+    listed is loaded by id first, and joins the list.
+  - On a narrow screen, choosing Ask about this in the actions menu closes the menu.
   - When no source of the dashboard is at Aggregates or Full access, a note above the questions
     says answers can only explain, lists the sources with their levels, and says an admin can
     raise one in Connectors. An answer given so carries the same note.

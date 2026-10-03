@@ -16,12 +16,13 @@ interface PopoverProps {
   readonly placement?: 'below' | 'side';
   /** A class for the button, in place of the shape's, such as a navigation rail link's. */
   readonly triggerClassName?: string;
-  /** The content. */
-  readonly children: ReactNode;
+  /** The content, or a function of the callback that closes the card, for content that acts. */
+  readonly children: ReactNode | ((close: () => void) => ReactNode);
 }
 
 /**
- * A button that opens a small floating card of details, closed by a press outside or Escape.
+ * A button that opens a small floating card of details, closed by a press outside or Escape, or by
+ * its content when an action in it is chosen.
  *
  * @param props - The label, the trigger, its shape and class, where it opens, and the content.
  * @returns The button and, when open, its card.
@@ -56,7 +57,7 @@ export function Popover({
           data-align={align}
           data-placement={placement}
         >
-          {children}
+          {typeof children === 'function' ? children(() => popover.setOpen(false)) : children}
         </div>
       )}
     </span>

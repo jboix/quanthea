@@ -13,6 +13,7 @@ test('screen roles match the route table in docs/architecture.md', () => {
     '/d/:dashboardId/v/:version/options/:name': 'viewer',
     '/d/:dashboardId/snapshots': 'editor',
     '/d/:dashboardId/questions': 'viewer',
+    '/d/:dashboardId/questions/:questionId': 'viewer',
     '/d/:dashboardId/similar-questions': 'viewer',
     '/d/:dashboardId/v/:version/sources': 'viewer',
     '/s/:snapshotId': 'viewer',

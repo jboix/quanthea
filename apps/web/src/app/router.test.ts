@@ -54,6 +54,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'POST /variables/options': { options: [] },
   'GET /dashboards/:dashboardId/snapshots': { snapshots: [] },
   'GET /dashboards/:dashboardId/questions': { questions: [] },
+  'GET /dashboards/:dashboardId/questions/:questionId': {},
   'GET /dashboards/:dashboardId/similar-questions': { questions: [] },
   'GET /dashboards/:dashboardId/versions/:version/sources': { sources: [] },
   'GET /snapshots': { snapshots: [] },

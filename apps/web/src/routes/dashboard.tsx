@@ -8,6 +8,7 @@ import {
   loadDashboard,
   loadDashboardSnapshots,
   loadPanelRun,
+  loadQuestion,
   loadQuestions,
   loadSimilarQuestions,
   loadSources,
@@ -55,8 +56,8 @@ function screenRoute(loadSession: SessionLoader, path: GuardedPath, api: ApiClie
 }
 
 /**
- * The resource routes of the Ask tab: a dashboard's questions, the earlier ones like a text, and
- * a version's sources with their access levels.
+ * The resource routes of the Ask tab: a dashboard's questions, one by id, the earlier ones like a
+ * text, and a version's sources with their access levels.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -64,11 +65,18 @@ function screenRoute(loadSession: SessionLoader, path: GuardedPath, api: ApiClie
  */
 function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
   const questions = '/d/:dashboardId/questions';
+  const question = '/d/:dashboardId/questions/:questionId';
   const similar = '/d/:dashboardId/similar-questions';
   const sources = '/d/:dashboardId/v/:version/sources';
   return [
     // Loads again when the tab asks, after an answer ends.
     { path: questions, loader: guarded(loadSession, questions, loadQuestions(api)) },
+    // A stored question never changes.
+    {
+      path: question,
+      loader: guarded(loadSession, question, loadQuestion(api)),
+      shouldRevalidate: () => false,
+    },
     { path: similar, loader: guarded(loadSession, similar, loadSimilarQuestions(api)) },
     {
       path: sources,

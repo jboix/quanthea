@@ -12,6 +12,7 @@ import { type OpenAnswer, questionThreads } from './ask-marks.ts';
 import { LiveAnswerCard, QuestionCard } from './ask-question.tsx';
 import {
   browserTimeZone,
+  useAnyQuestion,
   useCanAsk,
   useOpenAnswer,
   useOpenQuestion,
@@ -65,9 +66,11 @@ function useShown(version: DashboardData['version']) {
  */
 function useAskAsShown({ dashboard, version }: DashboardData) {
   const { body, label, timeZone } = useShown(version);
-  const questions = useQuestions(dashboard.id);
+  const listed = useQuestions(dashboard.id);
   const opened = useOpenQuestion();
-  const { reload } = questions;
+  const any = useAnyQuestion(dashboard.id, listed.questions, opened.open);
+  const questions = { ...listed, questions: any.questions };
+  const { reload } = listed;
   const { setExpanded } = opened;
   const onEnd = useCallback(
     (questionId: string | null) => {
@@ -79,7 +82,8 @@ function useAskAsShown({ dashboard, version }: DashboardData) {
   const { live, ask, clear } = useAsk(dashboard.id, onEnd);
   const send = (question: string, parentId: string | undefined) =>
     void ask(body(question, parentId));
-  return { dashboardId: dashboard.id, questions, live, clear, send, label, timeZone, ...opened };
+  const shown = { questions, live, clear, send, label, timeZone, openFailed: any.failed };
+  return { dashboardId: dashboard.id, ...shown, ...opened, open: any.open };
 }
 
 /**
@@ -139,6 +143,7 @@ function QuestionList({
   );
   return (
     <div className={styles.threads}>
+      {state.openFailed && <p className={styles.failure}>{state.openFailed}</p>}
       {threads.map(({ root, followUps }) => (
         <div key={root.id} className={styles.thread}>
           {card(root)}

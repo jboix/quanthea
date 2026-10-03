@@ -118,6 +118,18 @@ function AskButton({ onAsk, asking = false }: AskAction) {
 }
 
 /**
+ * Closes the actions menu, then runs the action chosen in it, so the menu does not stay over what
+ * the action opens.
+ *
+ * @param close - Closes the menu.
+ * @param action - The action.
+ */
+function closeThen(close: () => void, action: () => void): void {
+  close();
+  action();
+}
+
+/**
  * The header's actions: History, Snapshot for editors, Ask about this, the thread, a new
  * dashboard from this one, and Copy link. On a narrow screen they fold into one menu, with the
  * history and the snapshots listed in it.
@@ -141,15 +153,17 @@ export function HeaderActions({ onAsk, asking, ...props }: DashboardData & AskAc
   }
   return (
     <Popover label="Dashboard actions" trigger={<MoreIcon />} align="end">
-      <div className={styles.actionMenu}>
-        <AskButton onAsk={onAsk} asking={asking} />
-        <ThreadActions {...props} />
-        <CopyLinkButton />
-        <h2 className={styles.sideHeading}>History</h2>
-        <History {...props} />
-        {canEdit && <h2 className={styles.sideHeading}>Snapshot</h2>}
-        {canEdit && <SnapshotMenu {...props} />}
-      </div>
+      {(close) => (
+        <div className={styles.actionMenu}>
+          <AskButton onAsk={onAsk && (() => closeThen(close, onAsk))} asking={asking} />
+          <ThreadActions {...props} />
+          <CopyLinkButton />
+          <h2 className={styles.sideHeading}>History</h2>
+          <History {...props} />
+          {canEdit && <h2 className={styles.sideHeading}>Snapshot</h2>}
+          {canEdit && <SnapshotMenu {...props} />}
+        </div>
+      )}
     </Popover>
   );
 }

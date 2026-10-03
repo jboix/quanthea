@@ -15,6 +15,7 @@ export const routeAccess = {
   '/d/:dashboardId/v/:version/options/:name': 'viewer',
   '/d/:dashboardId/snapshots': 'editor',
   '/d/:dashboardId/questions': 'viewer',
+  '/d/:dashboardId/questions/:questionId': 'viewer',
   '/d/:dashboardId/similar-questions': 'viewer',
   '/d/:dashboardId/v/:version/sources': 'viewer',
   '/s/:snapshotId': 'viewer',
