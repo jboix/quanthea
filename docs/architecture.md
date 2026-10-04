@@ -2414,6 +2414,7 @@ indicative; the contract files are the source of truth.
 | `POST /reports/:id/activate` (a version), `POST /reports/:id/deactivate`                          | put a version on the schedule, or stop       | editor   |
 | `POST /reports/:id/run` (`send`), `POST /reports/preview` (a spec)                                | run now, preview over the latest period      | editor   |
 | `POST /reports/:id/versions/:v/test`                                                              | send a version's message as a test           | editor   |
+| `POST /threads/:id/report-draft` (the whole spec)                                                 | a hand edit: a new draft version and a card  | editor   |
 | `GET/PUT /settings/reports`                                                                       | retries, their delay, how long runs are kept | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,

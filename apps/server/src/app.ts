@@ -45,6 +45,7 @@ import { mountNotificationEndpoints } from './http/routes/notification-routes.ts
 import { mountProviderFlowRoutes } from './http/routes/provider-routes.ts';
 import { mountQueryEndpoints } from './http/routes/query-routes.ts';
 import { mountQuestionEndpoints } from './http/routes/question-routes.ts';
+import { mountReportDraftEndpoints } from './http/routes/report-draft-routes.ts';
 import { mountReportEndpoints } from './http/routes/report-routes.ts';
 import { mountServerSettingsEndpoints } from './http/routes/server-settings-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
@@ -210,6 +211,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountAlertDraftEndpoints(app, dependencies);
   mountAlertLinkEndpoints(app, dependencies);
   mountReportEndpoints(app, dependencies);
+  mountReportDraftEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent, dependencies.threads);
 }
 

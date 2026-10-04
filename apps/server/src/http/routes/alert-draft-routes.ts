@@ -10,7 +10,6 @@ import {
   alertSpecSchema,
   handEditAlertEndpoint,
   type Principal,
-  type SpecChange,
   testAlertEndpoint,
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
@@ -32,18 +31,6 @@ export interface AlertDraftRouteServices {
   readonly alerts: Alerts;
 }
 
-/** A hand edit, as its card in the conversation shows it. */
-interface HandEdit {
-  /** The alert. */
-  readonly alertId: string;
-  /** The version it started from. */
-  readonly from: number;
-  /** The version it saved. */
-  readonly to: number;
-  /** The fields that changed. */
-  readonly changes: readonly SpecChange[];
-}
-
 /**
  * The thread's alert and its latest version.
  *
@@ -62,15 +49,20 @@ function latestDraft(services: AlertDraftRouteServices, threadId: string) {
 }
 
 /**
- * Adds the hand-edit card to a conversation, as a message of the person who made it.
+ * Adds a hand-edit card to a conversation, as a message of the person who made it.
  *
  * @param threads - The threads.
  * @param threadId - The conversation.
- * @param data - The versions and the changes.
+ * @param part - The card's part: `data-handEdit` for an alert, `data-reportHandEdit` for a report.
  * @param actor - Who made it.
  */
-function addCard(threads: Threads, threadId: string, data: HandEdit, actor: string): void {
-  const message = { id: `hand-${newId()}`, role: 'user', parts: [{ type: 'data-handEdit', data }] };
+export function addCard(
+  threads: Threads,
+  threadId: string,
+  part: { readonly type: string; readonly data: unknown },
+  actor: string,
+): void {
+  const message = { id: `hand-${newId()}`, role: 'user', parts: [part] };
   const { messages } = threads.get(threadId);
   threads.saveMessages(threadId, [...(messages as never[]), message], actor);
 }
@@ -100,7 +92,7 @@ function handEdit(
   const input = { alertId: draft.alertId, spec: body.spec, note, threadId };
   const { version } = services.alerts.saveVersion(input, actorOf(principal));
   const data = { alertId: draft.alertId, from: draft.version, to: version, changes };
-  addCard(services.threads, threadId, data, actorOf(principal));
+  addCard(services.threads, threadId, { type: 'data-handEdit', data }, actorOf(principal));
   return { alertId: draft.alertId, version, changes };
 }
 
@@ -124,7 +116,7 @@ async function activateChanges(
   const { version, changes } = await services.alerts.activateChange(alertId, change, actor);
   const data = { alertId, from: change.basedOn, to: version, changes };
   if (threadId !== null && isOpen(services.threads, threadId))
-    addCard(services.threads, threadId, data, actor);
+    addCard(services.threads, threadId, { type: 'data-handEdit', data }, actor);
   return { alertId, version, changes };
 }
 
