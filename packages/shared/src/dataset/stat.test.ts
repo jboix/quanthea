@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import type { Frame } from '@quanthea/shared';
-import { columnValues, reduceResult, reduceValues } from './reduce.ts';
+import type { Frame } from '@quanthea/plugin-kit/contract';
+import { reduceResult, reduceValues, resultColumn } from './stat.ts';
 
 const frame: Frame = {
   refId: 'A',
@@ -28,9 +28,9 @@ describe('reductions', () => {
   });
 
   test('read the first number field unless the view names one', () => {
-    expect(columnValues([frame])).toEqual([0.003, 0.084, null]);
-    expect(columnValues([frame], 'Time')).toEqual([1, 2, 3]);
-    expect(columnValues([frame], 'missing')).toEqual([]);
+    expect(resultColumn([frame])).toEqual([0.003, 0.084, null]);
+    expect(resultColumn([frame], 'Time')).toEqual([1, 2, 3]);
+    expect(resultColumn([frame], 'missing')).toEqual([]);
   });
 
   test('reduce a named result of the panel', () => {
@@ -63,6 +63,6 @@ describe('reading results as datasets', () => {
     expect(reduceResult([{ refId: 'A', frames: [series], error: null }], 'A', 'max', 'Value')).toBe(
       5,
     );
-    expect(columnValues([series])).toEqual([3, 5]);
+    expect(resultColumn([series])).toEqual([3, 5]);
   });
 });

@@ -9,9 +9,9 @@ import {
   datasetOfFrames,
   type Frame,
   type QueryOutcome,
+  statColumnIndex,
   type TableView,
 } from '@quanthea/shared';
-import { columnIn } from './reduce.ts';
 
 /** A table ready to render. */
 export interface TableRows {
@@ -35,7 +35,7 @@ const maxRows = 500;
  */
 function rawRows(view: TableView, frames: readonly Frame[]): unknown[][] {
   const dataset = datasetOfFrames(frames);
-  const indexes = view.columns.map((column) => columnIn(dataset, column.field));
+  const indexes = view.columns.map((column) => statColumnIndex(dataset, column.field));
   return dataset.source.map((row) =>
     indexes.map((index) => (index < 0 ? null : (row[index] ?? null))),
   );

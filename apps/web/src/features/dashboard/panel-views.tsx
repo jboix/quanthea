@@ -3,6 +3,7 @@ import {
   type MarkerOutcome,
   type Panel,
   type QueryOutcome,
+  reduceResult,
   type StatView as StatViewSpec,
   type TableView as TableViewSpec,
 } from '@quanthea/shared';
@@ -10,7 +11,6 @@ import { lazy, Suspense, useMemo } from 'react';
 import { type AlertMarks, type ChartHighlight, chartInputOf } from '../../charts/input.ts';
 import { shownMarkers } from './marker-sets.ts';
 import styles from './panels.module.css';
-import { reduceResult } from './reduce.ts';
 import { tableRows } from './table-rows.ts';
 
 /** The chart component, loaded with ECharts the first time a dashboard draws a chart. */

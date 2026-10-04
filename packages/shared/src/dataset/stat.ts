@@ -1,14 +1,12 @@
 /**
- * Reduces a result column to one number, for stat panels. Results are read as datasets, the same
+ * Reduces a result column to one number, for stat panels and the headline numbers of reports. Results are read as datasets, the same
  * table the charts read, so a column has the same name whichever view shows it.
  */
-import {
-  type Dataset,
-  datasetOfFrames,
-  type Frame,
-  type QueryOutcome,
-  type Reduce,
-} from '@quanthea/shared';
+import type { Frame } from '@quanthea/plugin-kit/contract';
+import type { QueryOutcome } from '../api/panels.ts';
+import type { Reduce } from '../spec/views.ts';
+import type { Dataset } from './contract.ts';
+import { datasetOfFrames } from './from-frames.ts';
 
 /** The reductions over a list of finite numbers. */
 const reducers: Readonly<Record<Reduce, (numbers: readonly number[]) => number | undefined>> = {
@@ -32,7 +30,7 @@ const reducers: Readonly<Record<Reduce, (numbers: readonly number[]) => number |
  * @param field - The column's name, if the view names one.
  * @returns The index, or -1.
  */
-export function columnIn(dataset: Dataset, field?: string): number {
+export function statColumnIndex(dataset: Dataset, field?: string): number {
   const names = dataset.dimensions.map((column) => column.name);
   if (field === undefined)
     return dataset.dimensions.findIndex((column) => column.type === 'number');
@@ -47,9 +45,9 @@ export function columnIn(dataset: Dataset, field?: string): number {
  * @param field - The column name, if the view names one.
  * @returns The values, row after row.
  */
-export function columnValues(frames: readonly Frame[], field?: string): unknown[] {
+export function resultColumn(frames: readonly Frame[], field?: string): unknown[] {
   const dataset = datasetOfFrames(frames);
-  const index = columnIn(dataset, field);
+  const index = statColumnIndex(dataset, field);
   return index < 0 ? [] : dataset.source.map((row) => row[index] ?? null);
 }
 
@@ -83,5 +81,5 @@ export function reduceResult(
   field?: string,
 ): number | undefined {
   const frames = queries.find((query) => query.refId === ref)?.frames ?? [];
-  return reduceValues(columnValues(frames, field), reduce);
+  return reduceValues(resultColumn(frames, field), reduce);
 }

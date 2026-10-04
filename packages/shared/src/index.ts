@@ -168,19 +168,7 @@ export {
   type ServerSettingsView,
   type SettingSource,
 } from './api/server-settings.ts';
-export {
-  getSnapshotEndpoint,
-  listDashboardSnapshotsEndpoint,
-  listSnapshotsEndpoint,
-  revokeSnapshotEndpoint,
-  type Snapshot,
-  type SnapshotLifetime,
-  type SnapshotSummary,
-  snapshotLifetimes,
-  snapshotSchema,
-  snapshotSummarySchema,
-  takeSnapshotEndpoint,
-} from './api/snapshots.ts';
+export * from './api/snapshots.ts';
 export {
   approvePlanEndpoint,
   binDraftsEndpoint,
@@ -199,13 +187,7 @@ export {
   threadFromDashboardEndpoint,
   threadSummarySchema,
 } from './api/threads.ts';
-export {
-  type UsageBucket,
-  type UsageReport,
-  usageBucketSchema,
-  usageReportEndpoint,
-  usageReportSchema,
-} from './api/usage.ts';
+export * from './api/usage.ts';
 export {
   endUserSessionsEndpoint,
   inviteUserEndpoint,
@@ -257,6 +239,7 @@ export {
   sortRows,
   type TreeNode,
 } from './dataset/reshape.ts';
+export * from './dataset/stat.ts';
 export {
   type CalendarParts,
   calendarParts,
