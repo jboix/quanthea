@@ -33,7 +33,8 @@ const recentShown = 3;
 
 /**
  * The bar above the conversation: who started it and when, or that it is new; Move to bin for its
- * starter and admins, after a question; and New conversation for those who may ask.
+ * starter and admins, after a question; and New conversation for those who may ask, once a
+ * conversation is open.
  *
  * @param props - The conversation, the dashboard and whether the person may ask.
  * @param props.conversation - The open conversation.
@@ -98,16 +99,18 @@ function startedLine(conversation: ConversationState): string {
 }
 
 /**
- * New conversation: starts over, unless the conversation is new already.
+ * New conversation: starts over. A new conversation already says so in its header line, so the
+ * button shows only once a conversation is open.
  *
  * @param props - The conversation.
  * @param props.conversation - The open conversation.
- * @returns The button.
+ * @returns The button, or nothing while the conversation is new.
  */
 function NewButton({ conversation }: { readonly conversation: ConversationState }) {
   const empty = conversation.conversationId === undefined && !conversation.live;
+  if (empty) return null;
   return (
-    <Button size="small" disabled={empty} onClick={conversation.startNew}>
+    <Button size="small" onClick={conversation.startNew}>
       New conversation
     </Button>
   );

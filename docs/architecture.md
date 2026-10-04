@@ -2380,7 +2380,8 @@ one, and enables them again. Without any admin, it creates the default one.
   - The tab opens on a new conversation, with the three latest ones to open and a link to
     History. Each shows its first question on one line, and who started it and when below, smaller
     and in the secondary ink. Each question continues the open conversation: the request names it, and the server
-    makes the question follow up on its latest question. New conversation starts over.
+    makes the question follow up on its latest question. New conversation starts over; it shows once a
+    conversation is open, since a new one already says New conversation in its header.
   - Each question keeps its own version, range and values. When they differ from the question
     before it, a line before the question says so
     (`Now asking about 27 Sep 09:00–10:00, $env prod`, with the version when it changed). The
