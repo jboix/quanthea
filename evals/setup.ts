@@ -1,6 +1,7 @@
 /**
  * The world the evals run in: the server's services on a database of their own, the dev data
- * sources as connectors, Gemini as the model, a clock fixed for the day, and the response cache.
+ * sources as connectors, one notification channel that sends nowhere, Gemini as the model, a clock
+ * fixed for the day, and the response cache.
  */
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -16,7 +17,12 @@ import {
 } from '@quanthea/server/src/connectors/_shared/test/dev-sources.ts';
 import { connectorKinds } from '@quanthea/server/src/connectors/registry.ts';
 import { testServices } from '@quanthea/server/src/test/fixtures.ts';
-import { connectorInputSchema, defaultModelGateway, type ModelGateway } from '@quanthea/shared';
+import {
+  channelInputSchema,
+  connectorInputSchema,
+  defaultModelGateway,
+  type ModelGateway,
+} from '@quanthea/shared';
 import { wrapLanguageModel } from 'ai';
 import { type CacheCounts, type CacheOptions, cachingMiddleware } from './cache.ts';
 
@@ -44,6 +50,10 @@ export interface EvalWorld {
   readonly answers: Answers;
   /** The cache's hits and misses. */
   readonly counts: CacheCounts;
+  /** The notification channel alerts may name: a webhook to a closed local port. */
+  readonly channelId: string;
+  /** The ids the run made, with the stable alias the cache writes for each. */
+  readonly aliases: Map<string, string>;
   /** Closes the services and deletes the database. */
   readonly close: () => Promise<void>;
 }
@@ -97,6 +107,39 @@ async function addConnectors(services: EvalWorld['services']): Promise<void> {
 }
 
 /**
+ * Adds the one notification channel alerts may name. Its webhook points at a closed local port,
+ * and nothing in a run sends: the evaluator does not run and no test message is asked for.
+ *
+ * @param services - The services.
+ * @returns The channel's id.
+ */
+async function addChannel(services: EvalWorld['services']): Promise<string> {
+  const channel = {
+    name: 'Evals test channel',
+    kind: 'webhook',
+    target: 'http://127.0.0.1:9/hook',
+  };
+  const created = await services.notifications.create(
+    channelInputSchema.parse(channel),
+    evalsActor,
+  );
+  return created.id;
+}
+
+/**
+ * Builds the models behind the response cache.
+ *
+ * @param cache - The cache's place, behaviour and aliases.
+ * @param counts - Counts the hits and misses.
+ * @returns The model builder the agent and the answering service use.
+ */
+function cachedModels(cache: CacheOptions, counts: CacheCounts): typeof languageModel {
+  const middleware = cachingMiddleware(cache, counts);
+  return (resolved, job) =>
+    wrapLanguageModel({ model: languageModel(resolved, job) as LanguageModelV4, middleware });
+}
+
+/**
  * Opens the world: services on a new database, the connectors, Gemini, and the agent and the
  * answering service with their models behind the cache.
  *
@@ -108,25 +151,26 @@ async function addConnectors(services: EvalWorld['services']): Promise<void> {
 export async function openWorld(
   models: EvalModels,
   apiKey: string | undefined,
-  cache: Omit<CacheOptions, 'live'>,
+  cache: Omit<CacheOptions, 'live' | 'aliases'>,
 ): Promise<EvalWorld> {
   const dir = mkdtempSync(join(tmpdir(), 'quanthea-evals-'));
   const services = await testServices(dir, connectorKinds, evalsNow);
   await addConnectors(services);
+  const channelId = await addChannel(services);
+  const aliases = new Map([[channelId, 'evals-channel']]);
   await services.modelSettings.save(
     geminiGateway(models),
     { gemini: apiKey ?? 'none' },
     evalsActor,
   );
   const counts: CacheCounts = { hits: 0, misses: 0 };
-  const middleware = cachingMiddleware({ ...cache, live: apiKey !== undefined }, counts);
-  const buildModel: typeof languageModel = (resolved, job) =>
-    wrapLanguageModel({ model: languageModel(resolved, job) as LanguageModelV4, middleware });
-  const agent = createAgent({ ...services, now: evalsNow, buildModel });
+  const buildModel = cachedModels({ ...cache, live: apiKey !== undefined, aliases }, counts);
+  const channels = () => services.notifications.picker();
+  const agent = createAgent({ ...services, channels, now: evalsNow, buildModel });
   const answers = createAnswers({ ...services, buildModel });
   const close = async () => {
     await services.close();
     rmSync(dir, { recursive: true, force: true });
   };
-  return { services, agent, answers, counts, close };
+  return { services, agent, answers, counts, channelId, aliases, close };
 }

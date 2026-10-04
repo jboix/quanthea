@@ -49,6 +49,7 @@ interface Tally {
 export async function openBench(world: EvalWorld): Promise<AnswerBench> {
   const { dashboards, connections } = world.services;
   const { id } = dashboards.create(fixture, 'the dev seed', evalsActor);
+  world.aliases.set(id, 'evals-dashboard');
   await dashboards.pin(id, 1, evalsActor);
   const connectorIds = connections.list().map((connector) => connector.id);
   return { dashboardId: id, connectorIds, asked: new Map() };
