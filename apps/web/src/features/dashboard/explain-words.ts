@@ -2,9 +2,7 @@
  * The words of a panel's explanation: its text cut into paragraphs, and the line that says when it
  * was written and by whose request. Plain text only: nothing the model writes is read as markup.
  */
-
-/** The months' short names, the same in every browser whatever its locale data. */
-const monthNames = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
+import { calendarParts } from '@quanthea/shared';
 
 /**
  * Cuts an explanation into paragraphs, dropping any citation marker such as `[1]`: an
@@ -29,15 +27,8 @@ export function explanationParagraphs(text: string): string[] {
  * @returns Such as `3 Oct 2026`.
  */
 function dayWithYear(instant: number, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    day: 'numeric',
-    month: 'numeric',
-    year: 'numeric',
-    timeZone,
-  }).formatToParts(new Date(instant));
-  const part = (type: string) => parts.find((each) => each.type === type)?.value ?? '';
-  const month = monthNames[Number(part('month')) - 1] ?? part('month');
-  return `${part('day')} ${month} ${part('year')}`;
+  const { day, month, year } = calendarParts(instant, timeZone);
+  return `${day} ${month} ${year}`;
 }
 
 /**

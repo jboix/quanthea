@@ -5,6 +5,7 @@
  */
 import {
   allValue,
+  calendarParts,
   type DashboardSpec,
   resolveTimeRange,
   type TimeRangeExpression,
@@ -35,9 +36,6 @@ export function answerSegments(text: string): AnswerSegment[] {
   return segments;
 }
 
-/** The months' short names, the same in every browser whatever its locale data. */
-const monthNames = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
-
 /**
  * Formats an instant as a short day and a time of day in a time zone.
  *
@@ -46,17 +44,8 @@ const monthNames = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
  * @returns The day, such as `26 Sep`, and the time, such as `13:30`.
  */
 function dayAndTime(instant: number, timeZone: string) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    day: 'numeric',
-    month: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-    timeZone,
-  }).formatToParts(new Date(instant));
-  const part = (type: string) => parts.find((each) => each.type === type)?.value ?? '';
-  const month = monthNames[Number(part('month')) - 1] ?? part('month');
-  return { day: `${part('day')} ${month}`, time: `${part('hour')}:${part('minute')}` };
+  const { day, month, time } = calendarParts(instant, timeZone);
+  return { day: `${day} ${month}`, time };
 }
 
 /**

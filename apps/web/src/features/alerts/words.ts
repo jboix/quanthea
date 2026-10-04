@@ -5,6 +5,7 @@
 import {
   type AlertListItem,
   type AlertState,
+  calendarParts,
   createFormatter,
   durationMs,
   type NamedFormatter,
@@ -103,14 +104,10 @@ export function pendingProgress(since: number, wait: string, now: number): strin
  * @returns Such as `18:00`, `Tue 09:00` or `28 Sep 14:02`.
  */
 export function clockWhen(at: number, now: number, timeZone?: string): string {
-  const zone = timeZone ? { timeZone } : {};
-  const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', ...zone });
-  const dayOf = (instant: number) =>
-    new Intl.DateTimeFormat('en-GB', { dateStyle: 'short', ...zone }).format(instant);
-  if (dayOf(at) === dayOf(now)) return time.format(at);
-  const near = Math.abs(at - now) < 6 * day;
-  const date = near
-    ? { weekday: 'short' as const }
-    : { day: 'numeric' as const, month: 'short' as const };
-  return `${new Intl.DateTimeFormat('en-GB', { ...date, ...zone }).format(at)} ${time.format(at)}`;
+  const when = calendarParts(at, timeZone);
+  const today = calendarParts(now, timeZone);
+  const sameDay = ['year', 'month', 'day'] as const;
+  if (sameDay.every((part) => when[part] === today[part])) return when.time;
+  if (Math.abs(at - now) < 6 * day) return `${when.weekday} ${when.time}`;
+  return `${when.day} ${when.month} ${when.time}`;
 }

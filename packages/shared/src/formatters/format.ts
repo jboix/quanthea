@@ -2,6 +2,7 @@
  * The named formatter library: pure functions from a value to display text, shared by the chart
  * adapter, stat panels and tables.
  */
+import { calendarParts } from './calendar.ts';
 import type { Formatter, NamedFormatter } from './schema.ts';
 
 /** What formatting depends on besides the value. */
@@ -133,18 +134,8 @@ function bytes(value: number, base: 1000 | 1024, decimals: number): string {
  */
 function datetime(instant: number, pattern: string, options: FormatOptions): string {
   if (pattern === 'relative') return relative(instant, options.now ?? Date.now());
-  const parts = new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-    timeZone: options.timeZone,
-  }).formatToParts(instant);
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((candidate) => candidate.type === type)?.value ?? '';
-  const date = `${part('day')} ${part('month')}`;
-  const time = `${part('hour')}:${part('minute')}`;
+  const { day, month, time } = calendarParts(instant, options.timeZone);
+  const date = `${day} ${month}`;
   if (pattern === 'time') return time;
   return pattern === 'date' ? date : `${date}, ${time}`;
 }

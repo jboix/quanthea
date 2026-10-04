@@ -2228,6 +2228,9 @@ one, and enables them again. Without any admin, it creates the default one.
   loaded and registered only when a chart draws a map; no map is fetched from elsewhere.
 - **Formatters:** every `{"$fmt": …}` object becomes a function from
   `@quanthea/shared/formatters`. ECharts string templates pass through unchanged.
+- **Days and times** read `25 Sep 14:02` everywhere: on axes, in the Ask tab, on the alert pages
+  and in notifications. The month's name comes from a fixed list (`calendarParts` in
+  `@quanthea/shared`), since newer locale data writes `Sept` for British English.
 - The adapter owns the dataset, the grid, the palette, fonts and axis colours (from the tokens in
   `ui/theme.css`), and the tooltip's render mode, whatever the spec says.
 - **Tooltip safety:** tooltips are forced to `renderMode: 'richText'`, drawn on the canvas, so a

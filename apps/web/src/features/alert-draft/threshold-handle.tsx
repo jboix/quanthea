@@ -4,6 +4,7 @@
  * Arrow keys move it too, and the key's release lets it go. The spikes too short to fire are
  * marked along the bottom.
  */
+import { calendarParts, dayMonth } from '@quanthea/shared';
 import { type KeyboardEvent, type PointerEvent, type RefObject, useRef } from 'react';
 import type { ValueAxis } from '../../charts/index.ts';
 import styles from './alert-draft.module.css';
@@ -106,7 +107,7 @@ function SpikeMarks({ axis, spikes }: Pick<ThresholdHandleProps, 'spikes'> & { a
       key={spike.from}
       className={styles.spike}
       style={{ left: axis.xOf(spike.from) }}
-      title={`Too short to fire: ${new Date(spike.from).toLocaleString()}`}
+      title={`Too short to fire: ${dayMonth(spike.from)}, ${calendarParts(spike.from).time}`}
     />
   ));
 }

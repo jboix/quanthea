@@ -2,6 +2,7 @@
  * The values an alert's message template is filled with, from one series: the server's
  * notifications and the draft pane's previews fill them the same way.
  */
+import { calendarParts } from '../formatters/calendar.ts';
 import { createFormatter } from '../formatters/format.ts';
 import type { MessagePlaceholder } from '../notifications.ts';
 import type { AlertSpec } from '../spec/alert.ts';
@@ -49,14 +50,12 @@ export function thresholdText(spec: Pick<AlertSpec, 'value' | 'condition'>): str
  * @returns Such as `4 Oct, 12:04 UTC`.
  */
 function timeText(spec: Pick<AlertSpec, 'timezone'>, at: number): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: spec.timezone ?? 'UTC',
-    timeZoneName: 'short',
-  }).format(at);
+  const timeZone = spec.timezone ?? 'UTC';
+  const zone = new Intl.DateTimeFormat('en-GB', { timeZone, timeZoneName: 'short' })
+    .formatToParts(at)
+    .find((part) => part.type === 'timeZoneName')?.value;
+  const { day, month, time } = calendarParts(at, timeZone);
+  return `${day} ${month}, ${time}${zone ? ` ${zone}` : ''}`;
 }
 
 /**

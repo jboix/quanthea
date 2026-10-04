@@ -58,5 +58,5 @@ test('times read as the clock today, the weekday within a week, else the date', 
   const now = Date.UTC(2026, 9, 4, 15, 0);
   expect(clockWhen(Date.UTC(2026, 9, 4, 9, 5), now, 'UTC')).toBe('09:05');
   expect(clockWhen(Date.UTC(2026, 9, 2, 14, 22), now, 'UTC')).toBe('Fri 14:22');
-  expect(clockWhen(Date.UTC(2026, 8, 20, 8, 0), now, 'UTC')).toBe('20 Sept 08:00');
+  expect(clockWhen(Date.UTC(2026, 8, 20, 8, 0), now, 'UTC')).toBe('20 Sep 08:00');
 });
