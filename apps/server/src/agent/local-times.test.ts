@@ -5,8 +5,14 @@ describe('withLocalTimes', () => {
   test('writes UTC instants on the clock of the time zone, in summer and in winter', () => {
     const read = { maxAt: '2026-10-03T12:05:00.000Z', spikes: [{ from: '2026-11-03T12:04:00Z' }] };
     expect(withLocalTimes(read, 'Europe/Zurich')).toEqual({
-      maxAt: '2026-10-03 14:05 Europe/Zurich',
-      spikes: [{ from: '2026-11-03 13:04 Europe/Zurich' }],
+      maxAt: '2026-10-03T14:05+02:00',
+      spikes: [{ from: '2026-11-03T13:04+01:00' }],
+    });
+  });
+
+  test('writes UTC itself with a zero offset', () => {
+    expect(withLocalTimes({ at: '2026-10-03T12:05:00Z' }, 'UTC')).toEqual({
+      at: '2026-10-03T12:05+00:00',
     });
   });
 

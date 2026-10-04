@@ -8,18 +8,19 @@
 const utcInstant = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z$/;
 
 /**
- * An instant on a time zone's clock, such as `2026-10-03 14:02 Europe/Zurich`.
+ * An instant on a time zone's clock, as ISO with that clock's offset, such as
+ * `2026-10-03T14:02+02:00`: it reads as the local time and is still a valid instant to cite.
  *
  * @param iso - The instant, in UTC.
- * @param clock - The formatter of the time zone.
- * @param timeZone - The time zone's name.
+ * @param clock - The formatter of the time zone, with its offset.
  * @returns The instant on that clock.
  */
-function onClock(iso: string, clock: Intl.DateTimeFormat, timeZone: string): string {
+function onClock(iso: string, clock: Intl.DateTimeFormat): string {
   const parts = Object.fromEntries(
     clock.formatToParts(Date.parse(iso)).map((part) => [part.type, part.value]),
   );
-  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} ${timeZone}`;
+  const offset = (parts.timeZoneName ?? 'GMT').replace('GMT', '') || '+00:00';
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}${offset}`;
 }
 
 /**
@@ -40,11 +41,12 @@ export function withLocalTimes<T>(value: T, timeZone: string): T {
       hour: '2-digit',
       minute: '2-digit',
       hourCycle: 'h23',
+      timeZoneName: 'longOffset',
     });
   } catch {
     return value;
   }
-  return rewrite(value, (iso) => onClock(iso, clock, timeZone)) as T;
+  return rewrite(value, (iso) => onClock(iso, clock)) as T;
 }
 
 /**

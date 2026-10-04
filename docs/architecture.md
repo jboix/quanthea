@@ -1506,7 +1506,7 @@ The model's tools are decided per connector of the dashboard:
   variables bound by the panel binders (`Dashboards.bindVariables`), never pasted into a query. It
   returns what the gate allows: level 3 summaries, level 4 also rows. Nothing writes.
 - The instants in a read's result reach the model on the question's clock
-  (`2026-10-03 14:02 Europe/Zurich`, `agent/local-times.ts`), so "around 14:00" compares with
+  (ISO with the local offset, `2026-10-03T14:02+02:00`, `agent/local-times.ts`), so "around 14:00" compares with
   local times. The stored evidence keeps UTC.
 - A read's window may lie outside the range asked about, to compare with a baseline such as the
   day before. A citation's window may not.
