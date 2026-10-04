@@ -34,6 +34,7 @@ import {
   mountDashboardEndpoints,
 } from './http/routes/dashboard-routes.ts';
 import { mountExplanationEndpoints } from './http/routes/explanation-routes.ts';
+import { mountNotificationEndpoints } from './http/routes/notification-routes.ts';
 import { mountProviderFlowRoutes } from './http/routes/provider-routes.ts';
 import { mountQueryEndpoints } from './http/routes/query-routes.ts';
 import { mountQuestionEndpoints } from './http/routes/question-routes.ts';
@@ -48,6 +49,7 @@ import { mountUserEndpoints } from './http/routes/user-routes.ts';
 import { noStoreApi, securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
+import type { Notifications } from './notifications/notifications.ts';
 import type { Managed } from './provisioning/managed.ts';
 import type { ChartSettingsService } from './settings/chart-settings.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
@@ -123,6 +125,8 @@ export interface AppDependencies {
   readonly retention: RetentionSettingsService;
   /** The system settings, as read at startup, for Settings → Server. */
   readonly serverSettings: ServerSettingsView;
+  /** The notification channels. */
+  readonly notifications: Notifications;
 }
 
 /**
@@ -142,7 +146,8 @@ function mountAccountRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): v
 }
 
 /**
- * Mounts the settings routes: the model gateway, the server, usage, queries and charts.
+ * Mounts the settings routes: the model gateway, the server, usage, queries, charts and
+ * notification channels.
  *
  * @param app - The app.
  * @param dependencies - The services the routes use.
@@ -154,6 +159,7 @@ function mountSettingsRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): 
   mountUsageEndpoints(app, dependencies);
   mountQueryEndpoints(app, dependencies);
   mountChartEndpoints(app, dependencies.chartSettings, managed);
+  mountNotificationEndpoints(app, dependencies);
 }
 
 /**

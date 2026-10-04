@@ -226,4 +226,27 @@ describe('the new tables after the upgrade', () => {
     const tables = ['snapshots', 'dashboard_questions', 'question_fts', 'panel_explanations'];
     expect(tables.map(countOf)).toEqual([0, 0, 0, 0]);
   });
+
+  test('hold notification channels and their log, which goes with its channel', () => {
+    upgradeDatabase(releasedDatabase());
+    database.run(
+      `INSERT INTO notification_channels (id, name, kind, target_hint, secret, created_by,
+         created_at, updated_at) VALUES ('c', 'Ops', 'webhook', 'ops.test', x'00', 'ada', 1, 1)`,
+    );
+    const send = (id: string, event: string) =>
+      database.run(
+        `INSERT INTO notification_sends (id, channel_id, event, alert_id, series_key, at, ok,
+           attempts) VALUES (?, 'c', ?, 'a', '', 1, 1, 1)`,
+        [id, event],
+      );
+    send('s', 'alert.firing');
+    expect(() => send('t', 'alert.unknown')).toThrow('CHECK');
+    expect(() =>
+      database.run(
+        "INSERT INTO notification_channels (id, name, kind, target_hint, secret, created_by, created_at, updated_at) VALUES ('d', 'Ops', 'slack', 'x', x'00', 'ada', 1, 1)",
+      ),
+    ).toThrow('UNIQUE');
+    database.run("DELETE FROM notification_channels WHERE id = 'c'");
+    expect(countOf('notification_sends')).toBe(0);
+  });
 });

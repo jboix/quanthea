@@ -78,6 +78,8 @@ describe('runMigrations', () => {
       'library_fts_idx',
       'messages',
       'migrations',
+      'notification_channels',
+      'notification_sends',
       'panel_explanations',
       'password_links',
       'plans',

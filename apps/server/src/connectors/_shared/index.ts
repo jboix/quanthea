@@ -22,6 +22,7 @@ export {
   type HttpQuery,
   type HttpResponse,
   hostKit,
+  isMetadataAddress,
   kindProblems,
   type LogqlQuery,
   type MongodbQuery,

@@ -1,11 +1,12 @@
 /**
  * The purge job: once at startup and then every hour, it deletes for good the threads that have
- * waited in the bin longer than the retention setting allows, the snapshots whose time is up, and
- * the sessions that have ended.
+ * waited in the bin longer than the retention setting allows, the snapshots whose time is up, the
+ * sessions that have ended, and the old sends of the notification channels' log.
  */
 import type { Sessions } from '../auth/sessions.ts';
 import type { Snapshots } from '../dashboards/snapshots.ts';
 import type { Logger } from '../lib/logger.ts';
+import type { Notifications } from '../notifications/notifications.ts';
 import type { RetentionSettingsService } from '../settings/retention-settings.ts';
 import type { ThreadBin } from '../threads/bin.ts';
 
@@ -19,6 +20,8 @@ export interface PurgeJobDependencies {
   readonly snapshots?: Pick<Snapshots, 'purgeExpired'> | undefined;
   /** The sessions, whose ended rows the job deletes. */
   readonly sessions?: Pick<Sessions, 'purgeEnded'> | undefined;
+  /** The notification channels, whose log keeps only recent sends. */
+  readonly notifications?: Pick<Notifications, 'purgeSends'> | undefined;
   /** Where it reports what it purged, and failures. */
   readonly logger: Logger;
   /** The clock; `Date.now` by default. */
@@ -62,8 +65,8 @@ export function purgeSnapshots(dependencies: PurgeJobDependencies): number {
 /**
  * Starts the purge job: now, then every hour. A failed run is logged and the next one tries again.
  *
- * @param dependencies - The bin, the retention settings, the snapshots, the sessions, the logger
- *   and the clock.
+ * @param dependencies - The bin, the retention settings, the snapshots, the sessions, the
+ *   notifications, the logger and the clock.
  * @returns Stops the job.
  */
 export function startPurgeJob(dependencies: PurgeJobDependencies): () => void {
@@ -72,6 +75,7 @@ export function startPurgeJob(dependencies: PurgeJobDependencies): () => void {
       purgeExpired(dependencies);
       purgeSnapshots(dependencies);
       dependencies.sessions?.purgeEnded();
+      dependencies.notifications?.purgeSends();
     } catch (error) {
       dependencies.logger.error('the purge job failed', { error: String(error) });
     }

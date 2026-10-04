@@ -142,6 +142,7 @@ export {
   saveModelSettingsEndpoint,
   testModelSettingsEndpoint,
 } from './api/model-settings.ts';
+export * from './api/notification-channels.ts';
 export {
   type MarkerOutcome,
   type PanelRun,

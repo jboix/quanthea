@@ -232,6 +232,22 @@ module.exports = {
       to: { path: '^apps/server/src/(http|agent)/' },
     },
     {
+      name: 'notifications-stay-in-their-lane',
+      severity: 'error',
+      comment:
+        'notifications/ keeps the channels and sends to them. It stores through db/, seals through ' +
+        'secrets/ and checks addresses with the connector kit, nothing above them. Its tests may ' +
+        'use the shared test helpers in src/test/.',
+      from: { path: '^apps/server/src/notifications/', pathNot: ['[.]test[.]ts$'] },
+      to: {
+        path: '^apps/server/src/',
+        pathNot: [
+          '^apps/server/src/(notifications|db|secrets|lib)/',
+          '^apps/server/src/connectors/_shared/index[.]ts$',
+        ],
+      },
+    },
+    {
       name: 'secrets-is-a-leaf',
       severity: 'error',
       comment:

@@ -110,7 +110,7 @@ describe('route access', () => {
     const settingsRoutes = listApiRouteAccess(buildApp()).filter((route) =>
       /^\/api\/settings/.test(route.path),
     );
-    expect(settingsRoutes.length).toBe(20);
+    expect(settingsRoutes.length).toBe(26);
     expect(settingsRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 
@@ -171,6 +171,22 @@ describe('route access', () => {
     expect(explanationRoutes.sort()).toEqual([
       'analyst POST /api/dashboards/:dashboardId/versions/:version/panels/:panelId/explanation',
       'viewer GET /api/dashboards/:dashboardId/versions/:version/panels/:panelId/explanation',
+    ]);
+  });
+
+  test('admins keep notification channels; editors pick them and preview messages', () => {
+    const channelRoutes = listApiRouteAccess(buildApp())
+      .filter((route) => /notification/.test(route.path))
+      .map((route) => `${route.access} ${route.method} ${route.path}`);
+    expect(channelRoutes.sort()).toEqual([
+      'admin DELETE /api/settings/notification-channels/:channelId',
+      'admin GET /api/settings/notification-channels',
+      'admin GET /api/settings/notification-channels/:channelId/sends',
+      'admin PATCH /api/settings/notification-channels/:channelId',
+      'admin POST /api/settings/notification-channels',
+      'admin POST /api/settings/notification-channels/:channelId/test',
+      'editor GET /api/notification-channels',
+      'editor POST /api/notification-channels/preview',
     ]);
   });
 

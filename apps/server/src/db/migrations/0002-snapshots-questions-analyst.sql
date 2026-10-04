@@ -212,3 +212,47 @@ BEFORE UPDATE ON panel_explanations
 BEGIN
   SELECT RAISE(ABORT, 'panel explanations are never rewritten');
 END;
+
+-- ---------------------------------------------------------------------------------------------
+-- Notification channels: where alerts send their messages, and the log of what was sent.
+-- ---------------------------------------------------------------------------------------------
+
+-- A channel an admin added. The URL or routing key and any signing secret are sealed together,
+-- bound to the channel id; `target_hint` is the masked form the settings show. The code checks the
+-- kind, so a new kind needs no table rebuild.
+CREATE TABLE notification_channels (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  kind TEXT NOT NULL,
+  target_hint TEXT NOT NULL,
+  -- JSON: the mentions added when an alert starts firing, in the service's syntax.
+  mentions TEXT NOT NULL DEFAULT '[]',
+  signed INTEGER NOT NULL DEFAULT 0 CHECK (signed IN (0, 1)),
+  secret BLOB NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  -- The channel's status: the last message that got through, and the last failure.
+  last_sent_at INTEGER,
+  last_error_at INTEGER,
+  last_error TEXT,
+  last_error_status INTEGER
+);
+
+-- One message sent to a channel, after its retries. The hourly purge keeps the newest rows of
+-- each channel for a while; the rows go with their channel.
+CREATE TABLE notification_sends (
+  id TEXT PRIMARY KEY,
+  channel_id TEXT NOT NULL REFERENCES notification_channels (id) ON DELETE CASCADE,
+  event TEXT NOT NULL CHECK (event IN ('alert.firing', 'alert.resolved', 'alert.test')),
+  alert_id TEXT NOT NULL,
+  series_key TEXT NOT NULL,
+  at INTEGER NOT NULL,
+  ok INTEGER NOT NULL CHECK (ok IN (0, 1)),
+  http_status INTEGER,
+  attempts INTEGER NOT NULL,
+  -- Why it failed, without the target.
+  error TEXT
+);
+
+CREATE INDEX notification_sends_by_channel ON notification_sends (channel_id, at);

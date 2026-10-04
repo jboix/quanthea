@@ -32,6 +32,7 @@ export {
 export { ConnectorError, type ConnectorErrorCode } from './errors.ts';
 export { createFrameBuilder } from './frame-builder.ts';
 export { createHttpClient, type HttpClient, type HttpResponse } from './http.ts';
+export { isMetadataAddress } from './http-address.ts';
 export { kitVersion } from './kit.ts';
 export {
   type BoundQuery,

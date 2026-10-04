@@ -19,6 +19,7 @@ import { createExplanations, type Explanations } from './dashboards/explanations
 import { createQuestions, type Questions } from './dashboards/questions.ts';
 import { createSnapshots, type Snapshots } from './dashboards/snapshots.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
+import { createChannelRepository } from './db/channel-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import { createExplanationRepository } from './db/explanation-repository.ts';
@@ -31,6 +32,8 @@ import { createThreadRepository } from './db/thread-repository.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
 import { createUserRepository } from './db/user-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
+import { createNotifications, type Notifications } from './notifications/notifications.ts';
+import { resealChannels } from './notifications/reseal.ts';
 import { createManaged, type Managed } from './provisioning/managed.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
@@ -97,6 +100,8 @@ export interface Services extends Accounts {
   readonly chartSettings: ChartSettingsService;
   /** How long deleted threads stay in the bin. */
   readonly retention: RetentionSettingsService;
+  /** The notification channels, and sending to them. */
+  readonly notifications: Notifications;
 }
 
 /** How long a query result stays cached, in milliseconds. */
@@ -190,8 +195,8 @@ function pinDescriber(
 }
 
 /**
- * Seals again every secret not sealed with the current key: connector credentials and model API
- * keys. Run at startup, so a rotated-out key can be dropped after one restart.
+ * Seals again every secret not sealed with the current key: connector credentials, model API
+ * keys, users, sign-in providers and notification channels. Run at startup, so a rotated-out key can be dropped after one restart.
  *
  * @param dependencies - The database, the secret box and the settings.
  * @returns How many secrets were sealed again.
@@ -205,9 +210,9 @@ export async function resealSecrets(
   const identities = createIdentityRepository(database);
   const linked = await resealIdentities(identities, secretBox, emailIndex);
   const clients = await resealSignInCredentials(settings, secretBox);
-  return (
-    connectors + users + linked + clients + (await resealModelKeys({ store: settings, secretBox }))
-  );
+  const channels = await resealChannels(createChannelRepository(database), secretBox);
+  const models = await resealModelKeys({ store: settings, secretBox });
+  return connectors + users + linked + clients + channels + models;
 }
 
 /**
@@ -269,7 +274,6 @@ export function createServices(dependencies: ServiceDependencies): Services {
   const agent = createAgent({ ...data, threads, usage, ...settings });
   const writer = createMetadataWriter({ modelSettings: settings.modelSettings, usage });
   const describeForPin = pinDescriber(writer, threads, bin);
-  const provisioning = provisioningParts(dependencies);
   return {
     ...data,
     threads,
@@ -280,6 +284,26 @@ export function createServices(dependencies: ServiceDependencies): Services {
     answers: createAnswers({ ...data, usage, modelSettings: settings.modelSettings }),
     usage,
     ...settings,
-    ...provisioning,
+    ...provisioningParts(dependencies),
+    notifications: notificationService(dependencies, audit),
   };
+}
+
+/**
+ * The notification channels, and sending to them.
+ *
+ * @param dependencies - The database, the secret box and the public URL.
+ * @param audit - The audit log.
+ * @returns The service.
+ */
+function notificationService(
+  dependencies: ServiceDependencies,
+  audit: ReturnType<typeof createAuditRepository>,
+): Notifications {
+  return createNotifications({
+    repository: createChannelRepository(dependencies.database),
+    secretBox: dependencies.secretBox,
+    audit,
+    publicUrl: dependencies.publicUrl,
+  });
 }

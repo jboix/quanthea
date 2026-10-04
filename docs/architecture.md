@@ -26,7 +26,7 @@ flowchart LR
     Conn["connectors/ postgres · mysql · clickhouse · trino · prometheus · elasticsearch · loki"]
     Dom["dashboards/ threads/ search/ settings/ auth/"]
     DB[("SQLite: data dir")]
-    Jobs["jobs/ purge: thread bin, expired snapshots"]
+    Jobs["jobs/ purge: thread bin, expired snapshots, old sends"]
   end
 
   LLM["Model gateway (Anthropic / OpenAI / OpenAI-compatible)"]
@@ -85,6 +85,7 @@ The two paths that matter:
 │   │       ├── threads/             threads, messages, plans (state machine)
 │   │       ├── settings/            typed settings store (auth, gateway, retention)
 │   │       ├── secrets/             encrypt/decrypt credentials at rest
+│   │       ├── notifications/       notification channels: one recipe per service, sending, the log
 │   │       ├── jobs/                in-process jobs: the hourly purge of the bin and of snapshots
 │   │       └── db/                  bun:sqlite client, migrations, repositories
 │   └── web/                         @quanthea/web
@@ -152,6 +153,7 @@ them.
 | `http/`              | validate, authorize, call services, stream                  | services, `agent`, `auth`                                           | `connectors`, `db`                              |
 | `auth/`              | modes, sessions, Principal                                  | `settings`, `db` via repositories, `lib`                            | `agent`                                         |
 | `provisioning/`      | apply the configuration file; what it manages               | `config`, `connections`, `db`, `secrets` types, `lib`               | `http`, `agent`                                 |
+| `notifications/`     | notification channels, their recipes, sending, the log      | `db`, `secrets`, `lib`, `connectors/_shared` (addresses), shared    | everything else                                 |
 
 Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, and only `db/` imports
 `bun:sqlite`. Each connector kind owns its driver: `postgres` and `mysql2` in their folders, and
@@ -430,6 +432,81 @@ showed, at a link that opens with no query and no model (`dashboards/snapshots.t
    of a pinned dashboard goes only when it expires, is revoked, or the dashboard is unpinned and
    its thread purged.
 8. Each opening counts in the usage ledger as a `snapshot_view`, with the dashboard's id.
+
+### 5.7 Notification channels
+
+Alerts send their messages to notification channels, which admins keep in Settings → Notifications
+(`notifications/`, over `db/channel-repository.ts`). A message leaves quanthea when it is sent, so
+only admins add, change and delete channels.
+
+- **Kinds.** `webhook` (a generic JSON webhook), `slack` (an incoming webhook), `discord` (a
+  webhook), `teams` (a Workflows webhook) and `pagerduty` (an Events API v2 routing key). The
+  shared contract (`api/notification-channels.ts`) says what each kind takes: an https URL (a plain
+  http URL for the generic webhook only, never with a user name or password), or a routing key of
+  32 letters and digits.
+- **At rest.** The URL or routing key and the webhook's signing secret are sealed together with
+  the secret key, bound to the channel id, and sealed again at startup after a key rotation. The
+  row keeps a masked form (`hooks.slack.com/services/…/9fQx`, `••••00ab` for a routing key), which
+  is all the API ever returns.
+- **Mentions.** An admin sets them per channel: Slack `<!here>`, `<!channel>`,
+  `<!subteam^ID>` or `<@U…>`; Discord `<@&role id>` or `<@user id>`. Other kinds take none.
+  They are added on `alert.firing` only, never from the template or the values.
+- **Recipes.** One module per kind (`webhook.ts`, `slack.ts`, `discord.ts`, `teams.ts`,
+  `pagerduty.ts`) implements `ChannelRecipe.build(notification, { target, mentions })`, which
+  returns the URL and the JSON body and sends nothing; `registry.ts` holds them by kind. A recipe
+  fills the template: each `{placeholder}` becomes its value escaped for the service, a missing
+  value a dash, and the template's own words are escaped only as much as the service needs to keep
+  them plain text.
+- **Escaping.**
+  - Slack: `&`, `<` and `>` become entities everywhere, so nothing becomes a link or a mention.
+    In values, `*`, `_`, `~` and `` ` `` are fenced with zero-width spaces, so they cannot pair
+    into formatting. The header is plain text; the body, fields and context line are mrkdwn.
+  - Discord: every markdown character (the backslash, `*`, `_`, `~`, the backtick, `|`, `>`,
+    `#`, `-`, `[`, `]`, `(`, `)`, `<`, `@` and `:`) gets a backslash, in the template's words and
+    the values alike. `allowed_mentions` is `{ parse: [] }` plus the
+    channel's own role and user ids, so even an escaped `@everyone` pings no one.
+  - Teams: Adaptive Card text blocks read a subset of markdown, so every markdown character gets a
+    backslash, in the template's words and the values alike.
+  - PagerDuty and the generic webhook: no escaping. PagerDuty shows text as it is, and the
+    webhook's receiver gets the values as the data gave them.
+- **What each sends.** Slack: the title (and the mentions) as the notification text, and an
+  attachment coloured by state holding a header, the body, the fields, a context line (state,
+  severity, series, time) and an "Open in quanthea" button. Discord: an embed with the title,
+  body, link, colour, fields and the context line as its footer; the mentions as its content.
+  Teams: an Adaptive Card with a coloured header, the body, the fields as facts, the context line
+  and an "Open in quanthea" action. PagerDuty: `trigger` on firing and `resolve` on resolved, with
+  the dedup key `<alert id>/<series key>` (the series key's SHA-256 when that passes 255
+  characters), the severity as given, the body, fields and labels as custom details, and the link;
+  a test is a change event, which pages no one. The webhook: the notification (`event`, `alert`,
+  `series`, `values`, `at`) and its `message` filled. A button or link appears only when the
+  alert's URL is absolute. Colours: red, amber or blue by severity while firing, green once
+  resolved, grey for a test.
+- **Signing.** A generic webhook with a secret carries `X-Quanthea-Timestamp` (Unix seconds) and
+  `X-Quanthea-Signature: sha256=<hex>`, the HMAC-SHA-256 of `<timestamp>.<body>` with the secret.
+  The signature covers the timestamp, so a receiver that refuses an old timestamp refuses a
+  replay. Every webhook request also carries `X-Quanthea-Event` and `X-Quanthea-Delivery` (the
+  send's id).
+- **Sending.** `notifications.send(channelIds, notification)` sends to every channel at once and
+  returns each channel's result (`ok`, `httpStatus`, `attempts`, `error`); it never throws. Each
+  attempt times out after 10 seconds. A network error, a 429 or a 5xx is retried twice, after 1
+  then 4 seconds, or after the `Retry-After` the service asks for when it is 30 seconds or less;
+  a longer one stops the retries. A redirect is not followed. `notifications.test(channelId)`
+  sends a sample message titled "Test from quanthea", as `alert.test`.
+- **Outbound policy.** Channels follow the connectors' policy: they never call a cloud metadata
+  address, by IP or by a name resolving to one, checked when the channel is saved and before each
+  send. Private addresses are allowed, since only admins set channels, as they set connectors.
+- **The log.** Each send is one row in `notification_sends`: the channel, the event, the alert id,
+  the series key, the time, whether it got through, the last HTTP status, the attempts and the
+  error. An error never quotes the target. The channel keeps its last success and last failure.
+  The hourly purge job deletes sends older than 30 days and all but the newest 200 of each
+  channel; a channel's sends go with it.
+- **Alerts using a channel.** The channel list shows how many alerts send to each channel, and a
+  channel alerts send to can't be deleted (`conflict`). Until alerts exist the count is 0: the
+  service takes the count as a function (`alertsUsing`).
+- **Previews.** `POST /api/notification-channels/preview` (editor+) returns what each kind, or one
+  kind, would send for a template, values, an alert's title and severity and labels, with
+  stand-in targets. Nothing is sent. `GET /api/notification-channels` (editor+) lists channels by
+  id, name and kind only, to pick from.
 
 ## 6. The agent
 
@@ -1478,6 +1555,22 @@ CREATE TABLE panel_explanations (
 CREATE VIRTUAL TABLE question_fts USING fts5(
   question_id UNINDEXED, dashboard_id UNINDEXED, question, answer, tokenize = 'porter unicode61');
 
+-- a notification channel: the target and signing secret sealed, a masked form for the settings
+CREATE TABLE notification_channels (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, kind TEXT NOT NULL,  -- the code checks the kind
+  target_hint TEXT NOT NULL, mentions TEXT NOT NULL DEFAULT '[]', signed INTEGER NOT NULL,
+  secret BLOB NOT NULL,              -- AES-GCM sealed JSON {target, signingSecret}, bound to the id
+  created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  last_sent_at INTEGER, last_error_at INTEGER, last_error TEXT, last_error_status INTEGER);
+
+-- one message sent to a channel, after its retries; the purge job keeps 30 days, 200 per channel
+CREATE TABLE notification_sends (
+  id TEXT PRIMARY KEY,
+  channel_id TEXT NOT NULL REFERENCES notification_channels(id) ON DELETE CASCADE,
+  event TEXT NOT NULL CHECK (event IN ('alert.firing','alert.resolved','alert.test')),
+  alert_id TEXT NOT NULL, series_key TEXT NOT NULL, at INTEGER NOT NULL,
+  ok INTEGER NOT NULL, http_status INTEGER, attempts INTEGER NOT NULL, error TEXT);
+
 -- the usage ledger: no foreign keys, it outlives the threads and dashboards it names
 CREATE TABLE usage_events (
   id TEXT PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL,   -- 'model' | 'pinned_view' | 'snapshot_view'
@@ -1513,7 +1606,8 @@ one file that follows it, edited in place until the next release, so a database 
 upgrades in one step and keeps its data working. `0001-schema.sql` is the schema of v0.2.0;
 `0002-snapshots-questions-analyst.sql` adds the snapshots, the analyst role, the questions about
 dashboards with their conversations and full-text index, the explanations of panels, and the
-ledger's `snapshot_view` kind and `feature` (every earlier model step built dashboards).
+ledger's `snapshot_view` kind and `feature` (every earlier model step built dashboards), and
+the notification channels with their log.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -1578,6 +1672,10 @@ indicative; the contract files are the source of truth.
 | `GET /queries`                                                                                    | the queries a thread may use                 | editor   |
 | `GET /settings/queries/guide`, `POST /settings/queries/preview`                                   | how builders work, a test run of a query     | admin    |
 | `GET/PUT /settings/charts`                                                                        | chart recipes on or off                      | admin    |
+| `GET/POST /settings/notification-channels`, `PATCH/DELETE /settings/notification-channels/:id`    | notification channels, targets masked        | admin    |
+| `POST /settings/notification-channels/:id/test`, `GET …/:id/sends`                                | send a test, a channel's recent sends        | admin    |
+| `GET /notification-channels`                                                                      | channels by id, name and kind, to pick from  | editor   |
+| `POST /notification-channels/preview`                                                             | what each kind would send for a template     | editor   |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
 so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the
@@ -1856,7 +1954,8 @@ one, and enables them again. Without any admin, it creates the default one.
 - Guardrails are enforced by the executor. Connectors use read-only credentials, verified on
   test where possible.
 - Connectors that speak HTTP stay on their source's origin and never call a cloud metadata
-  address (`createHttpClient`).
+  address (`createHttpClient`). Notification channels never call one either, follow no redirect,
+  and escape every value for their service (section 5.7).
 - Secrets are encrypted at rest and never returned by the API (connector GETs show
   `secret: "••••1234"`). See "Keys" below.
 - Audit log entries for pin, bin, restore, purge, snapshots taken and revoked, connector changes
@@ -1905,8 +2004,8 @@ says nothing about the key).
 
 **Rotation:** set the new key, and the old one as `QUANTHEA_SECRET_KEY_PREVIOUS`, then restart. At
 startup every connector credential and model API key not sealed with the current key is sealed
-again (`resealSecrets`), with users' names and emails, provider credentials and provider
-identities, so the previous key can be removed after that restart. The pepper
+again (`resealSecrets`), with users' names and emails, provider credentials, provider
+identities and notification channels' targets, so the previous key can be removed after that restart. The pepper
 rotates the same way with `QUANTHEA_PASSWORD_PEPPER_PREVIOUS`: passwords are rehashed at their next
 sign-in.
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { captureLogs, temporaryDir, testServices } from '../test/fixtures.ts';
-import { purgeExpired, purgeSnapshots } from './purge.ts';
+import { purgeExpired, purgeSnapshots, startPurgeJob } from './purge.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let services: Awaited<ReturnType<typeof testServices>>;
@@ -51,5 +51,24 @@ describe('the purge job', () => {
     const dependencies = { bin: services.bin, retention: services.retention, snapshots, logger };
     expect(purgeSnapshots(dependencies)).toBe(2);
     expect(JSON.stringify(lines)).toContain('purged expired snapshots');
+  });
+
+  test('trims the log of the notification channels on each run', () => {
+    let trimmed = 0;
+    const notifications = {
+      purgeSends: () => {
+        trimmed += 1;
+        return 0;
+      },
+    };
+    const { logger } = captureLogs();
+    const stop = startPurgeJob({
+      bin: services.bin,
+      retention: services.retention,
+      notifications,
+      logger,
+    });
+    stop();
+    expect(trimmed).toBe(1);
   });
 });
