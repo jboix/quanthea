@@ -50,6 +50,7 @@ export const buildTools: ReadonlySet<string> = new Set([
   'write_dashboard',
   'patch_panel',
   'edit_alert',
+  'edit_report',
 ]);
 
 /**

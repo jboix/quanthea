@@ -5,7 +5,7 @@
  */
 export { AlertDraftPane } from './alert-draft-pane.tsx';
 export { durationWords, everyWords, withThreshold } from './condition.ts';
-export { ConditionSentence } from './condition-sentence.tsx';
+export { ConditionSentence, ValueEditor } from './condition-sentence.tsx';
 export {
   type AlertDraftData,
   type AlertIntent,

@@ -93,13 +93,18 @@ export function AlertPlanCard({ data, status, busy, onApprove, onEdit }: AlertPl
 }
 
 /**
- * The person's change to the draft: the versions, and each field before and after.
+ * The person's change to an alert or a report draft: the versions, and each field before and
+ * after.
  *
  * @param props - The hand edit.
  * @param props.data - The hand edit.
  * @returns The card.
  */
-export function HandEditCard({ data }: { readonly data: ThreadData['handEdit'] }) {
+export function HandEditCard({
+  data,
+}: {
+  readonly data: Pick<ThreadData['handEdit'], 'from' | 'to' | 'changes'>;
+}) {
   return (
     <section className={styles.diff} aria-label="Changed by hand">
       <div className={styles.diffPanel}>

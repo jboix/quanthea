@@ -1,6 +1,6 @@
 /**
  * A snapshot's dashboard: the time range and variables it was taken with, which can't change, and
- * its panels drawn from the results frozen with it. Nothing runs; only the markers can be shown or
+ * its panels drawn from the results frozen with it. A report's preview and runs draw the same way. Nothing runs; only the markers can be shown or
  * hidden, in the page.
  */
 import type { DashboardSpec, PanelRun, VariableValues } from '@quanthea/shared';
@@ -25,6 +25,8 @@ export interface FrozenCanvasProps {
   readonly variables: VariableValues;
   /** The sets of markers hidden when it was taken. */
   readonly hiddenMarkers: readonly string[];
+  /** What the time chip says on hover; that the snapshot fixed it, by default. */
+  readonly fixedNote?: string | undefined;
 }
 
 /** The class of a chip that can't be changed. */
@@ -59,7 +61,7 @@ function FrozenBar(props: FrozenCanvasProps & ReturnType<typeof useHiddenMarkers
   const range = { from: new Date(time.from).toISOString(), to: new Date(time.to).toISOString() };
   return (
     <div className={styles.bar}>
-      <span className={frozenChip} title="Fixed when the snapshot was taken">
+      <span className={frozenChip} title={props.fixedNote ?? 'Fixed when the snapshot was taken'}>
         <span className={styles.chipName}>time</span>
         {timeLabel(range, spec.timezone)}
       </span>

@@ -3,7 +3,7 @@
  * composer's text, and the panel the inspector shows.
  */
 import { useChat } from '@ai-sdk/react';
-import type { AlertSpec, NotifiedSeries } from '@quanthea/shared';
+import type { AlertSpec, NotifiedSeries, ReportSpec } from '@quanthea/shared';
 import { DefaultChatTransport } from 'ai';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -16,6 +16,13 @@ import {
 } from 'react-router';
 import type { ThreadData, ThreadIntent, ThreadOutcome } from './data.ts';
 import type { ThreadMessage } from './messages.ts';
+
+/** The parts that say a new version was written, which the draft pane loads. */
+const versionParts: ReadonlySet<string> = new Set([
+  'data-version',
+  'data-alertVersion',
+  'data-reportVersion',
+]);
 
 /**
  * The chat of a thread, streamed from its chat endpoint. Only the new message is sent; the server
@@ -41,7 +48,7 @@ function useThreadChat(data: ThreadData, onChange: () => void) {
     messages: thread.messages as ThreadMessage[],
     transport,
     onData: (part) => {
-      if (part.type === 'data-version' || part.type === 'data-alertVersion') onChange();
+      if (versionParts.has(part.type)) onChange();
     },
     onFinish: onChange,
   });
@@ -186,6 +193,28 @@ function useAlertActions({ run, revalidate }: Pick<ActionContext, 'run' | 'reval
 }
 
 /**
+ * The report draft pane's actions: a hand edit, activation and a test send.
+ *
+ * @param context - What the actions need.
+ * @returns The actions.
+ */
+function useReportActions({ run, revalidate }: Pick<ActionContext, 'run' | 'revalidate'>) {
+  return {
+    handEdit: async (spec: ReportSpec) => {
+      await run({ intent: 'handEditReport', spec });
+      revalidate();
+    },
+    activate: async (reportId: string, version: number) => {
+      await run({ intent: 'activateReport', reportId, version });
+      revalidate();
+    },
+    test: async (reportId: string, version: number) => {
+      await run({ intent: 'testReport', reportId, version });
+    },
+  };
+}
+
+/**
  * Shows a version in the draft pane through `?v=`, or the latest without it.
  *
  * @returns The setter.
@@ -261,7 +290,10 @@ export function useThread() {
     setDraft: composer.setDraft,
   });
   const running = chat.status === 'submitted' || chat.status === 'streaming';
-  const alertActions = useAlertActions({ run: intents.run, revalidate: () => void revalidate() });
+  const draftContext = { run: intents.run, revalidate: () => void revalidate() };
+  const alertActions = useAlertActions(draftContext);
+  const reportActions = useReportActions(draftContext);
   useStoredMessages(data, chat, running);
-  return { data, chat, running, intents, composer, selection, showVersion, actions, alertActions };
+  const panes = { alertActions, reportActions };
+  return { data, chat, running, intents, composer, selection, showVersion, actions, ...panes };
 }

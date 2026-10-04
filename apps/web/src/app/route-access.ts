@@ -8,6 +8,7 @@ export const routeAccess = {
   '/threads/new': 'editor',
   '/threads/:threadId': 'editor',
   '/threads/:threadId/alert-previews': 'editor',
+  '/threads/:threadId/report-preview': 'editor',
   '/library': 'viewer',
   '/alerts': 'viewer',
   '/alerts/firing': 'viewer',

@@ -1,0 +1,204 @@
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  background: var(--color-ground);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.spacer {
+  flex-grow: 1;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.link {
+  font-size: 14px;
+  color: var(--color-accent);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 18px;
+  min-height: 0;
+  padding: 20px 24px 32px;
+  overflow: auto;
+}
+
+.empty {
+  margin: auto;
+  max-width: 340px;
+  font-size: 14px;
+  color: var(--color-ink-secondary);
+  text-align: center;
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.notice[data-failed="true"] {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+  border-color: transparent;
+}
+
+/* The schedule as a sentence of values. */
+.sentence {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.9;
+}
+
+.next {
+  color: var(--color-ink-secondary);
+}
+
+/* The preview over the latest period. */
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.previewHead {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-secondary);
+}
+
+.note {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-ink-secondary);
+}
+
+.failure {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: 14px;
+}
+
+.headlines {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.headline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+}
+
+.headlineTitle {
+  font-size: 13px;
+  color: var(--color-ink-label);
+}
+
+.headlineValue {
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.change {
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.change[data-direction="up"] {
+  color: var(--color-ok-ink);
+}
+
+.change[data-direction="down"] {
+  color: var(--color-draft);
+}
+
+/* See also and Sends to. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+@media (max-width: 720px) {
+  .head,
+  .body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

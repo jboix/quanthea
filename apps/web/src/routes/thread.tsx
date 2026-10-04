@@ -4,6 +4,7 @@ import { ErrorPage } from '../app/error-page.tsx';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { alertPreviewsAction } from '../features/alert-draft/index.ts';
+import { reportPreviewLoader } from '../features/report-draft/index.ts';
 import {
   changeThread,
   loadRecentThreads,
@@ -14,7 +15,8 @@ import type { ApiClient } from '../lib/api-client.ts';
 
 /**
  * The thread routes. Starting a thread redirects to it with the first question in `?ask=`. An
- * alert thread's draft pane asks for its previews through a resource route.
+ * alert thread's draft pane asks for its previews through a resource route, and a report thread's
+ * for the preview of its draft.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -23,7 +25,6 @@ import type { ApiClient } from '../lib/api-client.ts';
 export function threadRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
   const start = '/threads/new';
   const thread = '/threads/:threadId';
-  const previews = '/threads/:threadId/alert-previews';
   return [
     {
       path: start,
@@ -44,11 +45,32 @@ export function threadRoutes(loadSession: SessionLoader, api: ApiClient): RouteO
       lazy: { Component: async () => (await import('../features/thread/screens.ts')).ThreadScreen },
       ErrorBoundary: ErrorPage,
     },
-    // What each channel of an alert draft would send; a fetcher asks, nothing else reloads.
+    ...draftRoutes(loadSession, api),
+  ];
+}
+
+/**
+ * The resource routes of the draft panes, which fetchers ask and nothing else reloads: what each
+ * channel of an alert draft would send, and a report draft run over its latest period.
+ *
+ * @param loadSession - Loads the current session.
+ * @param api - The API client.
+ * @returns The route objects.
+ */
+function draftRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
+  const previews = '/threads/:threadId/alert-previews';
+  const reportPreview = '/threads/:threadId/report-preview';
+  return [
     {
       path: previews,
       loader: guarded(loadSession, previews, () => Promise.resolve(null)),
       action: guarded(loadSession, previews, alertPreviewsAction(api)),
+      shouldRevalidate: () => false,
+    },
+    // A fetcher asks again for each new version of the draft.
+    {
+      path: reportPreview,
+      loader: guarded(loadSession, reportPreview, reportPreviewLoader(api)),
       shouldRevalidate: () => false,
     },
   ];

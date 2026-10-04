@@ -9,6 +9,7 @@ import {
 } from '@quanthea/shared';
 import { useEffect, useRef, useState } from 'react';
 import { AlertDraftPane } from '../alert-draft/index.ts';
+import { ReportDraftPane } from '../report-draft/index.ts';
 import { Composer } from './composer.tsx';
 import { Conversation } from './conversation.tsx';
 import { DraftPane } from './draft-pane.tsx';
@@ -313,6 +314,30 @@ function AlertPane({ state }: { readonly state: ScreenState }) {
 }
 
 /**
+ * The draft pane of a report thread, with its actions.
+ *
+ * @param props - The screen's state.
+ * @param props.state - The screen's state.
+ * @returns The pane.
+ */
+function ReportPane({ state }: { readonly state: ScreenState }) {
+  const { data, running, intents, reportActions } = state;
+  const outcome = intents.outcome;
+  const notice = outcome?.message ? { text: outcome.message, failed: !outcome.ok } : undefined;
+  return (
+    <ReportDraftPane
+      threadId={data.thread.id}
+      draft={data.reportDraft}
+      busy={running || intents.busy || data.thread.readOnly}
+      notice={notice}
+      onHandEdit={(spec) => void reportActions.handEdit(spec)}
+      onActivate={(reportId, version) => void reportActions.activate(reportId, version)}
+      onTest={(reportId, version) => void reportActions.test(reportId, version)}
+    />
+  );
+}
+
+/**
  * The thread screen: the conversation on the left, the draft the agent builds on the right.
  *
  * @returns The screen.
@@ -320,11 +345,11 @@ function AlertPane({ state }: { readonly state: ScreenState }) {
 export function ThreadScreen() {
   const state = useThread();
   const { data, chat, running, intents, selection, actions } = state;
-  if (data.thread.kind === 'alert')
+  if (data.thread.kind !== 'dashboard')
     return (
       <div className={styles.screen}>
         <ThreadPane state={state} />
-        <AlertPane state={state} />
+        {data.thread.kind === 'alert' ? <AlertPane state={state} /> : <ReportPane state={state} />}
       </div>
     );
   return (

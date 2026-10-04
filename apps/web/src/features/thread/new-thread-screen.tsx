@@ -11,8 +11,8 @@ import { type SubmitTarget, useLoaderData, useSearchParams, useSubmit } from 're
 import { BellIcon, DashboardIcon, ReportIcon } from '../../ui/icons.tsx';
 import { Segmented } from '../../ui/segmented.tsx';
 import { Select } from '../../ui/select.tsx';
-import type { NewThreadData, NewThreadIntent } from './data.ts';
 import styles from './new-thread.module.css';
+import type { NewThreadData, NewThreadIntent } from './new-thread-data.ts';
 import { QueryModeMenu, QueryPicker, useQueryChoice } from './query-choice.tsx';
 import { kindFrom, kindWords, promptFrom } from './thread-kinds.ts';
 import { ThreadsDrawer } from './threads-drawer.tsx';

@@ -4,30 +4,19 @@
  */
 import {
   approvePlanEndpoint,
-  binDraftsEndpoint,
-  createThreadEndpoint,
   type DashboardDetail,
   type DashboardVersion,
-  deleteThreadEndpoint,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
   getThreadEndpoint,
-  listProviderChoicesEndpoint,
-  listQueryChoicesEndpoint,
-  listThreadsEndpoint,
-  type ProviderChoice,
   pinDashboardEndpoint,
-  type QueryChoice,
   rejectPlanEndpoint,
   restoreVersionEndpoint,
   startFromPinnedEndpoint,
   type ThreadDetail,
-  type ThreadKind,
-  type ThreadListItem,
-  type ThreadQueries,
   unpinDashboardEndpoint,
 } from '@quanthea/shared';
-import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
+import { type ActionFunctionArgs, data, type LoaderFunctionArgs } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 import {
   type AlertDraftData,
@@ -37,6 +26,13 @@ import {
   loadAlertDraft,
   runAlertIntent,
 } from '../alert-draft/index.ts';
+import {
+  isReportIntent,
+  loadReportDraft,
+  type ReportDraftData,
+  type ReportIntent,
+  runReportIntent,
+} from '../report-draft/index.ts';
 
 /** What the thread screen shows. */
 export interface ThreadData {
@@ -50,6 +46,8 @@ export interface ThreadData {
   readonly parent: ParentDashboard | null;
   /** An alert thread's draft, once the agent wrote one. */
   readonly alertDraft: AlertDraftData | null;
+  /** A report thread's draft, once the agent wrote one. */
+  readonly reportDraft: ReportDraftData | null;
   /** The panel an alert thread started from, if any. */
   readonly origin: SeedPanel | null;
 }
@@ -84,7 +82,8 @@ export type ThreadIntent =
   | { readonly intent: 'restore'; readonly version: number }
   | DashboardIntent
   | { readonly intent: 'startFrom'; readonly dashboardId: string }
-  | AlertIntent;
+  | AlertIntent
+  | ReportIntent;
 
 /** What the thread screen asks of its dashboard: show a version in the library, or none. */
 type DashboardIntent =
@@ -187,17 +186,20 @@ async function fetchThread(
 ): Promise<ThreadData> {
   const options = { signal };
   const thread = await api.call(getThreadEndpoint, { params: { threadId } }, options);
+  const none = { dashboard: null, version: null, parent: null, alertDraft: null, origin: null };
   if (thread.kind === 'alert') {
     const alertDraft = await loadAlertDraft(api, thread.alertId, signal);
     const origin = await originOf(api, thread.seed, signal);
-    return { thread, dashboard: null, version: null, parent: null, alertDraft, origin };
+    return { ...none, thread, alertDraft, origin, reportDraft: null };
   }
+  if (thread.kind === 'report')
+    return { ...none, thread, reportDraft: await loadReportDraft(api, thread.reportId, signal) };
   const dashboard = thread.dashboardId
     ? await api.call(getDashboardEndpoint, { params: { dashboardId: thread.dashboardId } }, options)
     : null;
   const version = await versionToShow(api, dashboard, url.searchParams.get('v'), signal);
   const parent = await parentOf(api, dashboard, signal);
-  return { thread, dashboard, version, parent, alertDraft: null, origin: null };
+  return { thread, dashboard, version, parent, alertDraft: null, reportDraft: null, origin: null };
 }
 
 /**
@@ -214,99 +216,6 @@ export function loadThread(api: ApiClient) {
       if (!(error instanceof ApiError) || error.code !== 'not_found') throw error;
       throw data(null, { status: 404, statusText: 'Not Found' });
     }
-  };
-}
-
-/** What the new-thread screen shows: the past threads, and the providers a thread may use. */
-export interface NewThreadData {
-  /** Every past thread, the latest first, each marked when its dashboard is pinned. */
-  readonly threads: readonly ThreadListItem[];
-  /** The providers a thread may use. */
-  readonly providers: readonly ProviderChoice[];
-  /** The default provider. */
-  readonly defaultProviderId: string;
-  /** The query builders and saved queries a thread may use. */
-  readonly queries: readonly QueryChoice[];
-}
-
-/**
- * The loader of the new-thread screen: the past threads and the providers.
- *
- * @param api - The API client.
- * @returns The loader.
- */
-export function loadRecentThreads(api: ApiClient) {
-  return async ({ request }: LoaderFunctionArgs): Promise<NewThreadData> => {
-    const options = { signal: request.signal };
-    const [threads, choices, { queries }] = await Promise.all([
-      // Admins get everyone's threads, the drawer shows their own first; others get their own.
-      api.call(listThreadsEndpoint, { query: { scope: 'everyone' } }, options),
-      api.call(listProviderChoicesEndpoint, undefined, options),
-      api.call(listQueryChoicesEndpoint, undefined, options),
-    ]);
-    return { threads, ...choices, queries };
-  };
-}
-
-/** What the new-thread screen submits, as JSON: a first question, or a past thread to delete. */
-export type NewThreadIntent =
-  | {
-      readonly intent: 'start';
-      readonly question: string;
-      readonly providerId?: string;
-      readonly queries?: ThreadQueries;
-      readonly kind?: ThreadKind;
-    }
-  | { readonly intent: 'delete'; readonly threadId: string }
-  | { readonly intent: 'binDrafts' };
-
-/**
- * Moves a past thread to the bin, or every draft of the person.
- *
- * @param api - The API client.
- * @param threadId - The thread, or `null` for every draft.
- * @returns Done, or why not, such as a pinned dashboard.
- */
-async function binThread(api: ApiClient, threadId: string | null): Promise<ThreadOutcome> {
-  try {
-    if (threadId === null) await api.call(binDraftsEndpoint);
-    else await api.call(deleteThreadEndpoint, { params: { threadId } });
-    return { ok: true };
-  } catch (error) {
-    if (!(error instanceof ApiError)) throw error;
-    return { ok: false, message: error.message };
-  }
-}
-
-/**
- * What a delete intent moves to the bin.
- *
- * @param intent - One past thread, or every draft.
- * @returns The thread, or `null` for every draft.
- */
-function binTarget(intent: Exclude<NewThreadIntent, { readonly intent: 'start' }>): string | null {
-  return intent.intent === 'delete' ? intent.threadId : null;
-}
-
-/**
- * The action of the new-thread screen: starts a thread and hands the first question over, or
- * moves a past thread, or every draft of the person, to the bin.
- *
- * @param api - The API client.
- * @returns The action. Starting redirects to the thread, which sends the question.
- */
-export function newThreadAction(api: ApiClient) {
-  return async ({ request }: ActionFunctionArgs): Promise<Response | ThreadOutcome> => {
-    const intent = (await request.json()) as NewThreadIntent;
-    if (intent.intent !== 'start') return binThread(api, binTarget(intent));
-    const { providerId, queries, kind } = intent;
-    const body = {
-      ...(providerId === undefined ? {} : { providerId }),
-      ...(queries === undefined ? {} : { queries }),
-      ...(kind === undefined ? {} : { kind }),
-    };
-    const thread = await api.call(createThreadEndpoint, { body });
-    return redirect(`/threads/${thread.id}?ask=${encodeURIComponent(intent.question)}`);
   };
 }
 
@@ -343,6 +252,7 @@ async function run(
   intent: ThreadIntent,
 ): Promise<string | undefined> {
   if (isAlertIntent(intent)) return runAlertIntent(api, threadId, intent);
+  if (isReportIntent(intent)) return runReportIntent(api, threadId, intent);
   if (intent.intent === 'restore') {
     await api.call(restoreVersionEndpoint, {
       params: { threadId },

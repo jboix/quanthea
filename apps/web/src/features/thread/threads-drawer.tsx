@@ -13,7 +13,8 @@ import {
   SearchIcon,
 } from '../../ui/icons.tsx';
 import { BinDrafts } from './bin-drafts.tsx';
-import type { NewThreadIntent, ThreadOutcome } from './data.ts';
+import type { ThreadOutcome } from './data.ts';
+import type { NewThreadIntent } from './new-thread-data.ts';
 import {
   binBlocker,
   filterThreads,

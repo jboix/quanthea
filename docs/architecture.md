@@ -110,6 +110,7 @@ The two paths that matter:
 │           │   ├── notifications/   Settings → Notifications: channels, tests, the webhook example
 │           │   ├── alerts/          the alerts list, an alert's page, the rail's count, the settings
 │           │   ├── alert-draft/     an alert thread's draft pane: condition sentence, replay, previews
+│           │   ├── report-draft/    a report thread's draft pane: schedule sentence, preview, links
 │           │   └── settings/        gateway, auth, retention
 │           ├── charts/              view + datasets → ECharts option: preparations, tokens, maps
 │           ├── ui/                  presentational primitives (Button, Card, Pill, Tabs, Switch…), brand
@@ -233,6 +234,29 @@ the kit's HTTP client for every kind that speaks HTTP.
   Every change saved here (a value of the sentence, the released threshold, the template) is a
   hand edit (`POST /api/threads/:id/alert-draft`): a new draft version, and the card in the
   conversation that the agent reads next turn.
+- **A report thread** shows report plan cards (Runs, Covers, Compares, Shows, See also, Sends
+  to; approved like a dashboard plan) and the same "You changed it by hand" cards. **The report
+  draft pane** (`features/report-draft/`) replaces the dashboard draft pane there. Its header has
+  the title, the version pill (`v2 · draft`, or `active`), Send a test now (the version's message
+  to its channels, marked as a test), Activate (the refusal lists the issues), and once a version
+  is active a link to `/reports/:reportId`. Under it:
+
+  - the schedule as a sentence ("Every Monday at 08:00 Europe/Zurich, covering the previous week,
+    compared with the week before. Next run Mon 13 Oct, 08:00."), each value a button that opens
+    an inline editor (the editor of the alert pane's sentence): the weekday or the day of the
+    month, the time, the time zone, the period and the comparison. The next run is computed in
+    the browser with the shared `nextRunAt`;
+  - "Preview on last week · week 40, 29 Sep – 5 Oct": the latest version run once over its latest
+    period through the `/threads/:threadId/report-preview` resource route, which sends the spec
+    the server gave to `POST /api/reports/preview` and stores nothing. The headline numbers come
+    first, each with its change and the number before (`▲ 6.2% · was CHF 173,560`); the other
+    panels follow, drawn from the preview's results by the dashboard's `FrozenCanvas`, moved up
+    into the rows the headlines left;
+  - See also, the pinned dashboards it links to, by their label or title; and Sends to, its
+    channels by name and kind, and the Reports page.
+
+  A value changed in the sentence is a hand edit (`POST /api/threads/:id/report-draft`): a new
+  draft version, and a `data-reportHandEdit` card the agent reads next turn.
 - **The rail** shows the screens the role opens: Threads (editors), Library, Alerts, Connectors
   (admins), then the Bin (analysts), Settings (admins) and the account menu. Alerts carries a badge
   in the danger colour with the number of alerts firing (active, with a series firing, muted or
@@ -305,6 +329,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/`                                                      | redirect → `/library` (viewer, analyst) or `/threads/new`   | viewer   |
 | `/threads/new`, `/threads/:threadId`                     | Plan, Build and refine, Variant                             | editor   |
 | `/threads/:threadId/alert-previews`                      | resource route: what an alert draft's channels would send   | editor   |
+| `/threads/:threadId/report-preview`                      | resource route: a report draft run over its latest period   | editor   |
 | `/library`                                               | Library: search pinned dashboards and their panels          | viewer   |
 | `/alerts`                                                | Alerts: search, filter by state, sections by state          | viewer   |
 | `/alerts/firing`                                         | resource route: how many alerts fire, for the rail          | viewer   |

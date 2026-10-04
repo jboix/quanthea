@@ -7,7 +7,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Dialog } from '../../ui/dialog.tsx';
-import type { NewThreadIntent, ThreadOutcome } from './data.ts';
+import type { ThreadOutcome } from './data.ts';
+import type { NewThreadIntent } from './new-thread-data.ts';
 import { binDraftsQuestion } from './thread-list.ts';
 import styles from './threads-drawer.module.css';
 

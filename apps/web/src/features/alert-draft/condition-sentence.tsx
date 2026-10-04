@@ -44,7 +44,7 @@ export interface ConditionSentenceProps {
 }
 
 /** Props of {@link ValueEditor}. */
-interface ValueEditorProps {
+export interface ValueEditorProps {
   /** The editor's name, for screen readers. */
   readonly label: string;
   /** What the button shows. */
@@ -65,7 +65,14 @@ interface ValueEditorProps {
  * @param props - The label, the text, the fields and the save.
  * @returns The button and its editor.
  */
-function ValueEditor({ label, text, disabled, saveLabel, children, onSave }: ValueEditorProps) {
+export function ValueEditor({
+  label,
+  text,
+  disabled,
+  saveLabel,
+  children,
+  onSave,
+}: ValueEditorProps) {
   const [error, setError] = useState<string | undefined>(undefined);
   if (disabled) {
     return (

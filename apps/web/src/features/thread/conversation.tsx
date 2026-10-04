@@ -19,6 +19,7 @@ import {
 import { PlanCard } from './plan-card.tsx';
 import type { DraftPanel } from './plan-changes.ts';
 import { RepairCard } from './repair-card.tsx';
+import { ReportPlanCard } from './report-cards.tsx';
 import { TextBlock } from './text-block.tsx';
 import { BuildLog, ExploreLog } from './tool-logs.tsx';
 import { UsageLine } from './usage-line.tsx';
@@ -114,15 +115,46 @@ function alertPlanCard(
 }
 
 /**
- * The person's message: their words, or the card of a change they made to the draft by hand.
+ * The card of a report plan part.
+ *
+ * @param data - The part's data.
+ * @param key - The element key.
+ * @param context - The conversation context.
+ * @returns The card.
+ */
+function reportPlanCard(
+  data: ThreadData['reportPlan'],
+  key: string,
+  context: ConversationContext,
+): ReactNode {
+  const status = context.plans.find((plan) => plan.id === data.planId)?.status ?? 'pending';
+  const { busy, onApprove, onEditPlan } = context;
+  return (
+    <ReportPlanCard
+      key={key}
+      data={data}
+      status={status}
+      busy={busy}
+      onApprove={onApprove}
+      onEdit={onEditPlan}
+    />
+  );
+}
+
+/**
+ * The person's message: their words, or the card of a change they made to the alert or report
+ * draft by hand.
  *
  * @param props - The message.
  * @param props.message - The user message.
  * @returns The bubble or the card.
  */
 function PersonMessage({ message }: { readonly message: ThreadMessage }) {
-  const edit = message.parts.find((part) => part.type === 'data-handEdit');
-  if (edit?.type === 'data-handEdit') return <HandEditCard data={edit.data} />;
+  const edit = message.parts.find(
+    (part) => part.type === 'data-handEdit' || part.type === 'data-reportHandEdit',
+  );
+  if (edit?.type === 'data-handEdit' || edit?.type === 'data-reportHandEdit')
+    return <HandEditCard data={edit.data} />;
   return <UserBubble message={message} />;
 }
 
@@ -168,6 +200,21 @@ function toolView(part: ToolPart, key: string, context: PartContext): ReactNode 
 }
 
 /**
+ * Renders a plan card of any kind of thread.
+ *
+ * @param part - The data part.
+ * @param key - Its key.
+ * @param context - The conversation context.
+ * @returns The card, or `undefined` when the part is no plan.
+ */
+function planView(part: ThreadPart, key: string, context: PartContext): ReactNode | undefined {
+  if (part.type === 'data-plan') return planCard(part.data, key, context);
+  if (part.type === 'data-alertPlan') return alertPlanCard(part.data, key, context);
+  if (part.type === 'data-reportPlan') return reportPlanCard(part.data, key, context);
+  return undefined;
+}
+
+/**
  * Renders a card of the agent's own: matches, a plan, a diff, a repair try.
  *
  * @param part - The data part.
@@ -176,8 +223,8 @@ function toolView(part: ToolPart, key: string, context: PartContext): ReactNode 
  * @returns The card, or nothing when there is nothing to show.
  */
 function dataView(part: ThreadPart, key: string, context: PartContext): ReactNode {
-  if (part.type === 'data-plan') return planCard(part.data, key, context);
-  if (part.type === 'data-alertPlan') return alertPlanCard(part.data, key, context);
+  const plan = planView(part, key, context);
+  if (plan !== undefined) return plan;
   if (part.type === 'data-diff') return diffCard(part.data, key, context);
   if (part.type === 'data-repair') {
     const { answerable, busy, onTryAgain } = context;

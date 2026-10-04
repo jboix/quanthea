@@ -1,2 +1,3 @@
 /** The thread feature: the new-thread screen, the thread screen, their loaders and actions. */
-export { changeThread, loadRecentThreads, loadThread, newThreadAction } from './data.ts';
+export { changeThread, loadThread } from './data.ts';
+export { loadRecentThreads, newThreadAction } from './new-thread-data.ts';
