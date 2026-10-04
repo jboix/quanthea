@@ -18,6 +18,7 @@ import {
 import type { Hono } from 'hono';
 import type { Answers, AskRequest } from '../../agent/answer-types.ts';
 import type { Users } from '../../auth/users.ts';
+import { mayBin } from '../../dashboards/conversation-bin.ts';
 import type { ConversationInfo, QuestionInfo } from '../../dashboards/question-info.ts';
 import type { PreparedQuestion, Questions } from '../../dashboards/questions.ts';
 import type { ThreadOwner } from '../../threads/bin.ts';
@@ -53,16 +54,19 @@ function namer(users: Pick<Users, 'nameOf'>) {
 }
 
 /**
- * Names the people who started conversations, looking each up once per request.
+ * Names the people who started conversations, looking each up once per request, and says whether
+ * the principal may move each to the bin.
  *
  * @param users - The users.
+ * @param principal - Who asks.
  * @returns A function that replaces a conversation's starter id with their name.
  */
-function starterNamer(users: Pick<Users, 'nameOf'>) {
+function starterNamer(users: Pick<Users, 'nameOf'>, principal: Principal) {
   const nameOf = ownerNames(users);
   return async ({ starterId, ...info }: ConversationInfo) => ({
     ...info,
     startedBy: await nameOf(starterId),
+    canBin: mayBin(principal, starterId),
   });
 }
 
@@ -84,7 +88,8 @@ function mountConversationEndpoints(
     handle: async ({ params: { dashboardId }, query, principal }) => {
       const role = roleFor(principal, dashboardId);
       const listed = questions.conversations(dashboardId, query.q, role);
-      return { conversations: await Promise.all(listed.map(starterNamer(users))) };
+      const named = starterNamer(users, signedIn(principal));
+      return { conversations: await Promise.all(listed.map(named)) };
     },
   });
   mountEndpoint(app, getConversationEndpoint, {
@@ -92,7 +97,12 @@ function mountConversationEndpoints(
     handle: async ({ params: { dashboardId, conversationId }, principal }) => {
       const role = roleFor(principal, dashboardId);
       const asked = questions.conversation(dashboardId, conversationId, role);
-      return { id: conversationId, questions: await Promise.all(asked.map(namer(users))) };
+      const starterId = asked.find((each) => each.id === conversationId)?.askerId ?? '';
+      return {
+        id: conversationId,
+        questions: await Promise.all(asked.map(namer(users))),
+        canBin: mayBin(signedIn(principal), starterId),
+      };
     },
   });
 }

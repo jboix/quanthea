@@ -1,6 +1,6 @@
 /**
  * The bin endpoints: list and restore threads for editors, delete them for good and set how long
- * they are kept for admins.
+ * they are kept for admins. Emptying the bin deletes the binned conversations too.
  */
 import {
   emptyBinEndpoint,
@@ -13,6 +13,7 @@ import {
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Users } from '../../auth/users.ts';
+import type { ConversationBin } from '../../dashboards/conversation-bin.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { Managed } from '../../provisioning/managed.ts';
 import type { RetentionSettingsService } from '../../settings/retention-settings.ts';
@@ -51,6 +52,8 @@ function mountRetentionEndpoints(
 export interface BinRouteServices {
   /** The bin of threads. */
   readonly bin: ThreadBin;
+  /** The bin of conversations, emptied with the threads. */
+  readonly conversationBin: Pick<ConversationBin, 'purgeAll'>;
   /** The retention settings. */
   readonly retention: RetentionSettingsService;
   /** The users, for owners' names. */
@@ -128,6 +131,9 @@ export function mountBinEndpoints(app: Hono<AppEnv>, services: BinRouteServices)
   });
   mountEndpoint(app, emptyBinEndpoint, {
     access: 'admin',
-    handle: ({ principal }) => ({ purged: bin.purgeAll(actorOf(principal)) }),
+    handle: ({ principal }) => {
+      const actor = actorOf(principal);
+      return { purged: bin.purgeAll(actor) + services.conversationBin.purgeAll(actor) };
+    },
   });
 }

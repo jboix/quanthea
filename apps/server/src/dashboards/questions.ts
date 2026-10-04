@@ -21,8 +21,14 @@ import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
 import { meaningfulWords } from '../lib/words.ts';
 import { type DashboardsDependencies, get, type ServiceContext, specOf } from './context.ts';
-import { listConversations, questionsOf, readConversation } from './conversations.ts';
+import {
+  type ConversationContext,
+  listConversations,
+  questionsOf,
+  readConversation,
+} from './conversations.ts';
 import { type ConversationInfo, infoOf, type QuestionInfo } from './question-info.ts';
+import { sourcesOf } from './question-sources.ts';
 import { shownVariables } from './snapshots.ts';
 
 /** The most earlier questions a search offers. */
@@ -172,46 +178,14 @@ export interface Questions {
 export interface QuestionsDependencies {
   /** Stores questions. */
   readonly questions: QuestionRepository;
+  /** The bin of conversations, so a binned one is not continued. */
+  readonly binnedConversations: ConversationContext['binnedConversations'];
   /** The configured connectors' names and access levels. */
   readonly connectorLevels: () => readonly { name: string; accessLevel: number }[];
 }
 
 /** The service's context. */
 type QuestionContext = ServiceContext & QuestionsDependencies;
-
-/**
- * The connectors a spec names: in its panels, its markers and its query-backed variables.
- *
- * @param spec - The spec.
- * @returns The names, in order of first use.
- */
-function connectorNamesOf(spec: DashboardSpec): string[] {
-  return [
-    ...new Set([
-      ...spec.panels.flatMap((panel) => panel.queries.map((query) => query.connector)),
-      ...spec.annotations.map((annotation) => annotation.query.connector),
-      ...spec.variables.flatMap((variable) =>
-        variable.kind === 'query' ? [variable.source.connector] : [],
-      ),
-    ]),
-  ];
-}
-
-/**
- * The sources of a spec with their access levels.
- *
- * @param context - The service context.
- * @param spec - The spec.
- * @returns The sources.
- */
-function sourcesOf(context: QuestionContext, spec: DashboardSpec): DashboardSource[] {
-  const levels = new Map(context.connectorLevels().map((each) => [each.name, each.accessLevel]));
-  return connectorNamesOf(spec).map((name) => {
-    const level = levels.get(name);
-    const accessLevel = level === 1 || level === 2 || level === 3 || level === 4 ? level : null;
-    return { name, accessLevel };
-  });
-}
 
 /**
  * Checks a time zone is one the runtime knows.
@@ -291,7 +265,9 @@ function prepare(context: QuestionContext, request: QuestionRequest, actor: stri
     timeZone: knownTimeZone(spec.timezone ?? request.timeZone),
     variables: shownVariables(spec, request.variables),
     hiddenMarkers: [...new Set(request.hiddenMarkers)].filter((id) => known.has(id)),
-    explainOnly: !sourcesOf(context, spec).some(({ accessLevel }) => (accessLevel ?? 0) >= 3),
+    explainOnly: !sourcesOf(context.connectorLevels, spec).some(
+      ({ accessLevel }) => (accessLevel ?? 0) >= 3,
+    ),
     question: request.question,
     parentId: parent?.id ?? null,
     rootId: parent?.rootId ?? questionId,
@@ -391,6 +367,6 @@ export function createQuestions(
     get: (dashboardId, questionId, role) => questionOf(context, dashboardId, questionId, role),
     similar: (dashboardId, text, role) => similar(context, dashboardId, text, role),
     sources: (target, role) =>
-      sourcesOf(context, specOf(context, { ...target, variables: {} }, role)),
+      sourcesOf(context.connectorLevels, specOf(context, { ...target, variables: {} }, role)),
   };
 }

@@ -84,6 +84,8 @@ export const conversationSchema = z.object({
   lastAt: z.number(),
   /** In a search, its question that matches best; `null` outside a search. */
   match: z.object({ questionId: z.string(), question: z.string() }).nullable(),
+  /** Whether the person asking may move it to the bin: its starter, or an admin. */
+  canBin: z.boolean(),
 });
 
 /** A conversation about a dashboard. */
@@ -150,7 +152,12 @@ export const getConversationEndpoint = defineEndpoint({
   method: 'GET',
   path: '/dashboards/:dashboardId/conversations/:conversationId',
   params: dashboardParams.extend({ conversationId: z.string().min(1).max(64) }),
-  output: z.object({ id: z.string(), questions: z.array(dashboardQuestionSchema) }),
+  output: z.object({
+    id: z.string(),
+    questions: z.array(dashboardQuestionSchema),
+    /** Whether the person asking may move it to the bin: its starter, or an admin. */
+    canBin: z.boolean(),
+  }),
 });
 
 /** Reads one question of a dashboard. */

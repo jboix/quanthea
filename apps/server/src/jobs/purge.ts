@@ -1,12 +1,13 @@
 /**
- * The purge job: once at startup and then every hour, it deletes for good the threads that have
- * waited in the bin longer than the retention setting allows, the snapshots whose time is up, the
+ * The purge job: once at startup and then every hour, it deletes for good the threads and the
+ * conversations that have waited in the bin longer than the retention setting allows, the snapshots whose time is up, the
  * sessions that have ended, the old sends of the notification channels' log, and the alerts'
  * changes of state older than 90 days.
  */
 
 import type { Alerts } from '../alerts/alerts.ts';
 import type { Sessions } from '../auth/sessions.ts';
+import type { ConversationBin } from '../dashboards/conversation-bin.ts';
 import type { Snapshots } from '../dashboards/snapshots.ts';
 import type { Logger } from '../lib/logger.ts';
 import type { Notifications } from '../notifications/notifications.ts';
@@ -17,6 +18,8 @@ import type { ThreadBin } from '../threads/bin.ts';
 export interface PurgeJobDependencies {
   /** The bin of threads. */
   readonly bin: Pick<ThreadBin, 'purgeAll'>;
+  /** The bin of conversations about dashboards. */
+  readonly conversationBin?: Pick<ConversationBin, 'purgeAll'> | undefined;
   /** The retention settings. */
   readonly retention: Pick<RetentionSettingsService, 'get'>;
   /** The snapshots, whose expired ones the job deletes. */
@@ -40,18 +43,23 @@ const dayMs = 86_400_000;
 const hourMs = 3_600_000;
 
 /**
- * Deletes for good the threads binned longer ago than the retention setting allows.
+ * Deletes for good the threads and the conversations binned longer ago than the retention setting
+ * allows.
  *
- * @param dependencies - The bin, the retention settings, the logger and the clock.
- * @returns How many threads it deleted; none when the bin keeps threads until someone deletes them.
+ * @param dependencies - The bins, the retention settings, the logger and the clock.
+ * @returns How many threads and conversations it deleted; none when the bin keeps them until
+ *   someone deletes them.
  */
 export function purgeExpired(dependencies: PurgeJobDependencies): number {
   const { binDays } = dependencies.retention.get();
   if (binDays === null) return 0;
-  const now = (dependencies.now ?? Date.now)();
-  const purged = dependencies.bin.purgeAll('retention', now - binDays * dayMs + 1);
+  const before = (dependencies.now ?? Date.now)() - binDays * dayMs + 1;
+  const purged = dependencies.bin.purgeAll('retention', before);
   if (purged > 0) dependencies.logger.info('purged binned threads', { purged, binDays });
-  return purged;
+  const conversations = dependencies.conversationBin?.purgeAll('retention', before) ?? 0;
+  if (conversations > 0)
+    dependencies.logger.info('purged binned conversations', { purged: conversations, binDays });
+  return purged + conversations;
 }
 
 /**

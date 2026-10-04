@@ -4,11 +4,9 @@
  * continues one follows up on its latest question.
  */
 import type { Role } from '@quanthea/shared';
-import type {
-  ConversationRow,
-  QuestionRepository,
-  QuestionRow,
-} from '../db/question-repository.ts';
+import type { ConversationBinRepository } from '../db/conversation-bin.ts';
+import type { ConversationRow } from '../db/conversation-queries.ts';
+import type { QuestionRepository, QuestionRow } from '../db/question-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import { get, type ServiceContext } from './context.ts';
 import { type ConversationInfo, infoOf, type QuestionInfo } from './question-info.ts';
@@ -22,8 +20,11 @@ const maxFound = 50;
 /** The most words a search looks for. */
 const maxWords = 8;
 
-/** What the conversations need: the dashboards' context and the questions' store. */
-export type ConversationContext = ServiceContext & { readonly questions: QuestionRepository };
+/** What the conversations need: the dashboards' context, the questions' store and the bin's. */
+export type ConversationContext = ServiceContext & {
+  readonly questions: QuestionRepository;
+  readonly binnedConversations: Pick<ConversationBinRepository, 'get'>;
+};
 
 /**
  * The words of a search: letters and digits, lowercase, each once.
@@ -97,7 +98,8 @@ export function listConversations(
  * @param dashboardId - The dashboard.
  * @param conversationId - The conversation's first question.
  * @returns The questions.
- * @throws {AppError} `not_found` when the dashboard has no such conversation.
+ * @throws {AppError} `not_found` when the dashboard has no such conversation, `conflict` when it is
+ *   in the bin.
  */
 export function questionsOf(
   context: ConversationContext,
@@ -105,6 +107,9 @@ export function questionsOf(
   conversationId: string,
 ): QuestionRow[] {
   const rows = context.questions.inConversation(dashboardId, conversationId);
+  const binned = context.binnedConversations.get(conversationId);
+  if (binned?.dashboardId === dashboardId)
+    throw new AppError('conflict', 'This conversation is in the bin. Restore it to continue.');
   if (rows.length === 0)
     throw new AppError('not_found', `No conversation ${conversationId} on this dashboard.`);
   return rows;

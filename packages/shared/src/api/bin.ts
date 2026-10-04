@@ -54,7 +54,7 @@ export const purgeThreadEndpoint = defineEndpoint({
   output: z.object({ purged: z.literal(true) }),
 });
 
-/** Deletes every binned thread for good. */
+/** Deletes everything in the bin for good: every binned thread, and every binned conversation. */
 export const emptyBinEndpoint = defineEndpoint({
   method: 'DELETE',
   path: '/bin',

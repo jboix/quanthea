@@ -72,6 +72,7 @@ describe('runMigrations', () => {
       'alerts',
       'audit_log',
       'connectors',
+      'conversation_bin',
       'dashboard_questions',
       'dashboard_versions',
       'dashboards',

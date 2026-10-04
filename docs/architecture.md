@@ -27,7 +27,7 @@ flowchart LR
     Conn["connectors/ postgres · mysql · clickhouse · trino · prometheus · elasticsearch · loki"]
     Dom["dashboards/ alerts/ threads/ search/ settings/ auth/"]
     DB[("SQLite: data dir")]
-    Jobs["jobs/ purge: thread bin, expired snapshots, old sends · alert evaluator"]
+    Jobs["jobs/ purge: bin, expired snapshots, old sends · alert evaluator"]
   end
 
   LLM["Model gateway (Anthropic / OpenAI / OpenAI-compatible)"]
@@ -509,11 +509,14 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
 - The usage ledger has no foreign keys, so purging never changes Settings → Usage.
 - **Retention** (the Retention dialog on the bin, `GET/PUT /api/settings/retention`, admin): binned threads
   are kept for `binDays` days, 30 by default, or until someone deletes them (`null`).
-  `jobs/purge.ts` runs at startup and then every hour, and purges the threads binned longer ago,
-  as the actor `retention`. With 0 days, the next run purges everything in the bin.
+  `jobs/purge.ts` runs at startup and then every hour, and purges the threads and the
+  conversations binned longer ago, as the actor `retention`. With 0 days, the next run purges everything in the bin.
 - The Bin screen says, for each thread, when it goes for good.
 
 `threads/bin.ts` holds these rules over `db/thread-bin.ts`.
+
+The bin also holds conversations about pinned dashboards (`dashboards/conversation-bin.ts`, over
+`db/conversation-bin.ts`). See "Questions about a pinned dashboard" for the rules.
 
 ### 5.6 Snapshot links
 
@@ -1298,6 +1301,23 @@ earlier question of the chain, which older data may hold, still reads in place.
    by name and access level only, so the Ask tab can say when the answer can only explain.
 8. Questions go with their dashboard (`ON DELETE CASCADE`), as snapshots do, and their index rows
    with them. The model steps stay in the usage ledger.
+9. **The bin.** `DELETE /api/dashboards/:id/conversations/:conversationId` (analyst+) moves a
+   conversation to the bin. Whoever asked its first question may, and admins may bin any; anyone
+   else gets 403. It adds a row to `conversation_bin`, keyed by the first question, and writes a
+   `conversation.bin` audit event. The questions stay as they were stored.
+10. A binned conversation is out of reach: History, its search, "already answered" and the reads
+    of its questions skip it, and continuing it is refused (409, "in the bin"). The lists of
+    conversations say for each whether the person may bin it (`canBin`), and so does the read of
+    one.
+11. `GET /api/bin/conversations` (analyst+) lists the binned conversations someone may restore,
+    with the bin's retention: the ones they started or binned, every one for admins. Each names its
+    dashboard, its first question, who started it, how many questions it holds, and who binned it
+    and when. `POST /api/bin/conversations/:id/restore` (analyst+) takes one out for its starter,
+    whoever binned it, or an admin; anyone else gets "not found".
+12. `DELETE /api/bin/conversations/:id` (admin) deletes a binned conversation for good: its
+    questions, their index rows, and its bin row, in one transaction. `DELETE /api/bin` empties
+    both kinds. The hourly purge deletes the conversations binned longer ago than `binDays`, as it
+    does threads. The usage ledger keeps their model steps.
 
 ### Explanations of a panel
 
@@ -1893,6 +1913,11 @@ CREATE TABLE dashboard_questions (
   citations TEXT NOT NULL, evidence TEXT NOT NULL, usage TEXT NOT NULL,  -- JSON
   tokens INTEGER NOT NULL);
 
+-- a conversation in the bin, by its first question; goes with that question
+CREATE TABLE conversation_bin (
+  conversation_id TEXT PRIMARY KEY REFERENCES dashboard_questions(id) ON DELETE CASCADE,
+  binned_by TEXT NOT NULL, binned_at INTEGER NOT NULL);
+
 -- an explanation of a panel of a version, from the spec and the schema only; never rewritten
 CREATE TABLE panel_explanations (
   id TEXT PRIMARY KEY,
@@ -2027,7 +2052,7 @@ release (a `vX.Y.Z` tag) is never edited. Every schema change since the last rel
 one file that follows it, edited in place until the next release, so a database of the last release
 upgrades in one step and keeps its data working. `0001-schema.sql` is the schema of v0.2.0;
 `0002-snapshots-questions-analyst.sql` adds the snapshots, the analyst role, the questions about
-dashboards with their conversations and full-text index, the explanations of panels, and the
+dashboards with their conversations, full-text index and bin, the explanations of panels, and the
 ledger's `snapshot_view` kind, `feature` (every earlier model step built dashboards) and `vendor`
 (NULL for earlier steps: their `provider` holds a name, which names no vendor reliably), and the
 notification channels with their log.
@@ -2076,6 +2101,9 @@ indicative; the contract files are the source of truth.
 | `POST /dashboards/:id/threads` (`copy` a version, or `edit` one without a thread)                 | new thread on a dashboard                    | editor   |
 | `GET /bin`, `POST /bin/:threadId/restore`                                                         | the thread bin                               | editor   |
 | `DELETE /bin/:threadId`, `DELETE /bin`                                                            | delete threads and their dashboards for good | admin    |
+| `DELETE /dashboards/:id/conversations/:conversationId`                                            | move a conversation to the bin               | analyst  |
+| `GET /bin/conversations`, `POST /bin/conversations/:conversationId/restore`                       | the bin's conversations                      | analyst  |
+| `DELETE /bin/conversations/:conversationId`                                                       | delete a conversation for good               | admin    |
 | `POST /panels/run`, `POST /variables/options`                                                     | run one saved panel, options                 | viewer   |
 | `POST /dashboards/:id/questions` (streams the answer)                                             | ask about a pinned version, as shown         | analyst  |
 | `GET /dashboards/:id/questions`, `GET /dashboards/:id/questions/:questionId`                      | a dashboard's questions and answers          | viewer   |
@@ -2206,7 +2234,8 @@ one, and enables them again. Without any admin, it creates the default one.
   no one copies another's draft by its number. A dashboard with no thread is open to editors, as
   before.
 - The bin keeps to owners: editors list and restore their own binned threads; admins list,
-  restore and delete everyone's.
+  restore and delete everyone's. Analysts and above list and restore the conversations they
+  started or binned; admins list, restore and delete everyone's.
 - **Sign-in providers** (Settings → Authentication, `auth/providers/`): GitHub, Google, GitLab
   (gitlab.com or a self-managed one) and Microsoft Entra ID (one tenant, never `common`). quanthea
   is only their client: an admin registers it with the provider, pastes the client id and secret,

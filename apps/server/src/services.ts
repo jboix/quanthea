@@ -17,6 +17,7 @@ import { type Connections, createConnections } from './connections/connections.t
 import { resealConnectors } from './connections/reseal.ts';
 import type { RegisteredKind } from './connectors/_shared/index.ts';
 import type { DashboardsDependencies } from './dashboards/context.ts';
+import { type ConversationBin, createConversationBin } from './dashboards/conversation-bin.ts';
 import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
 import { createExplanations, type Explanations } from './dashboards/explanations.ts';
 import { createQuestions, type Questions } from './dashboards/questions.ts';
@@ -29,6 +30,7 @@ import { createAlertStateRepository } from './db/alert-state-repository.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
 import { createChannelRepository } from './db/channel-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
+import { createConversationBinRepository } from './db/conversation-bin.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import { createExplanationRepository } from './db/explanation-repository.ts';
 import { createIdentityRepository } from './db/identity-repository.ts';
@@ -81,6 +83,8 @@ export interface Services extends Accounts {
   readonly questions: Questions;
   /** Explanations of panels, kept per version and panel. */
   readonly explanations: Explanations;
+  /** The bin of conversations about dashboards. */
+  readonly conversationBin: ConversationBin;
   /** The model gateway settings. */
   readonly modelSettings: ModelSettingsService;
   /** The connectors as the model sees them, through the gate. */
@@ -211,28 +215,34 @@ function alertServices(
 }
 
 /**
- * The services that keep what the answering service writes: questions and explanations.
+ * The services that keep what the answering service writes: questions, their bin, and
+ * explanations.
  *
  * @param database - The database.
  * @param dashboardDependencies - What the dashboards' services share.
  * @param modelView - The connectors as the model sees them, for their access levels.
- * @returns The questions and the explanations.
+ * @returns The questions, the bin of conversations and the explanations.
  */
 function answerServices(
   database: ServiceDependencies['database'],
   dashboardDependencies: DashboardsDependencies,
   modelView: ModelView,
-): Pick<Services, 'questions' | 'explanations'> {
+): Pick<Services, 'questions' | 'conversationBin' | 'explanations'> {
+  const stored = {
+    questions: createQuestionRepository(database),
+    binnedConversations: createConversationBinRepository(database),
+  };
   const questions = createQuestions({
     ...dashboardDependencies,
-    questions: createQuestionRepository(database),
+    ...stored,
     connectorLevels: () => modelView.connectors(),
   });
+  const conversationBin = createConversationBin({ ...dashboardDependencies, ...stored });
   const explanations = createExplanations({
     ...dashboardDependencies,
     explanations: createExplanationRepository(database),
   });
-  return { questions, explanations };
+  return { questions, conversationBin, explanations };
 }
 
 /**

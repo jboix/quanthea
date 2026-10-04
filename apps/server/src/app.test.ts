@@ -148,19 +148,26 @@ describe('route access', () => {
         .filter((route) => !viewers.has(route))
         .sort(),
     ).toEqual([
+      'DELETE /api/dashboards/:dashboardId/conversations/:conversationId',
+      'GET /api/bin/conversations',
       'POST /api/alerts/:alertId/mute',
       'POST /api/alerts/:alertId/unmute',
+      'POST /api/bin/conversations/:conversationId/restore',
       'POST /api/dashboards/:dashboardId/questions',
       'POST /api/dashboards/:dashboardId/versions/:version/panels/:panelId/explanation',
     ]);
     expect(reachable('viewer').every((route) => reachable('analyst').includes(route))).toBe(true);
   });
 
-  test('every role reads and searches conversations; analysts and above ask', () => {
+  test('every role reads and searches conversations; analysts and above ask and bin', () => {
     const questionRoutes = listApiRouteAccess(buildApp())
       .filter((route) => /questions|conversations|sources/.test(route.path))
       .map((route) => `${route.access} ${route.method} ${route.path}`);
     expect(questionRoutes.sort()).toEqual([
+      'admin DELETE /api/bin/conversations/:conversationId',
+      'analyst DELETE /api/dashboards/:dashboardId/conversations/:conversationId',
+      'analyst GET /api/bin/conversations',
+      'analyst POST /api/bin/conversations/:conversationId/restore',
       'analyst POST /api/dashboards/:dashboardId/questions',
       'viewer GET /api/dashboards/:dashboardId/conversations',
       'viewer GET /api/dashboards/:dashboardId/conversations/:conversationId',

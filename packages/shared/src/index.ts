@@ -71,6 +71,7 @@ export {
   type HttpMethod,
   type ParsedEndpointInput,
 } from './api/contract.ts';
+export * from './api/conversation-bin.ts';
 export {
   createDashboardEndpoint,
   type DashboardDetail,

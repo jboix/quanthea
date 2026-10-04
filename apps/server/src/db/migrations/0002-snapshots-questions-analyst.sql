@@ -1,7 +1,7 @@
 -- Everything since v0.2.0, in one step:
 -- - snapshot links, and the `snapshot_view` kind in the usage ledger;
 -- - the analyst role, between viewer and editor;
--- - questions about a pinned dashboard, in conversations, with their full-text index;
+-- - questions about a pinned dashboard, in conversations, with their full-text index and their bin;
 -- - explanations of the panels of a version;
 -- - the feature each model step served, and the vendor it reached, in the usage ledger.
 -- - alerts, their versions, the state of their series and what happened to them.
@@ -189,6 +189,18 @@ CREATE TRIGGER question_fts_on_delete AFTER DELETE ON dashboard_questions
 BEGIN
   DELETE FROM question_fts WHERE question_id = OLD.id;
 END;
+
+-- The conversations in the bin, by their first question. A row of its own keeps the questions
+-- stored once and never changed: binning adds a row, restoring removes it. Every read of the
+-- questions skips a binned conversation. Purging deletes its questions, and this row with its
+-- first question.
+CREATE TABLE conversation_bin (
+  conversation_id TEXT PRIMARY KEY REFERENCES dashboard_questions (id) ON DELETE CASCADE,
+  binned_by TEXT NOT NULL,
+  binned_at INTEGER NOT NULL
+);
+
+CREATE INDEX conversation_bin_by_time ON conversation_bin (binned_at);
 
 -- Explanations of the panels of a version: written from the spec and the schema, never from data,
 -- so they are shown to every role. A version's spec never changes, so an explanation stays valid.

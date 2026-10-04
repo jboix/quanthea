@@ -15,8 +15,8 @@ export type QuestionInfo = Omit<DashboardQuestion, 'askedBy'> & {
   readonly askerId: string;
 };
 
-/** A conversation, naming who started it by user id. */
-export type ConversationInfo = Omit<Conversation, 'startedBy'> & {
+/** A conversation, naming who started it by user id; the routes say who may bin it. */
+export type ConversationInfo = Omit<Conversation, 'startedBy' | 'canBin'> & {
   /** The user id of whoever asked the first question. */
   readonly starterId: string;
 };

@@ -16,6 +16,7 @@ import type { Sessions } from './auth/sessions.ts';
 import type { UserAdminDependencies } from './auth/user-admin.ts';
 import type { Users } from './auth/users.ts';
 import type { Connections } from './connections/connections.ts';
+import type { ConversationBin } from './dashboards/conversation-bin.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
 import type { Explanations } from './dashboards/explanations.ts';
 import type { Questions } from './dashboards/questions.ts';
@@ -34,6 +35,7 @@ import { mountBinEndpoints } from './http/routes/bin-routes.ts';
 import { mountChartEndpoints } from './http/routes/chart-routes.ts';
 import { mountChatRoute } from './http/routes/chat-route.ts';
 import { mountConnectorRoutes } from './http/routes/connector-routes.ts';
+import { mountConversationBinEndpoints } from './http/routes/conversation-bin-routes.ts';
 import {
   type DashboardRouteOptions,
   mountDashboardEndpoints,
@@ -107,6 +109,8 @@ export interface AppDependencies {
   readonly questions: Questions;
   /** Explanations of panels, kept per version and panel. */
   readonly explanations: Explanations;
+  /** The bin of conversations about dashboards. */
+  readonly conversationBin: ConversationBin;
   /** Answers questions about a dashboard and explains its panels. */
   readonly answers: Pick<Answers, 'stream'>;
   /** The model gateway settings. */
@@ -199,6 +203,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountSettingsRoutes(app, dependencies);
   mountThreadEndpoints(app, dependencies);
   mountBinEndpoints(app, dependencies);
+  mountConversationBinEndpoints(app, { ...dependencies, ownerOf: dependencies.bin.ownerOf });
   mountAlertEndpoints(app, dependencies);
   mountAlertDraftEndpoints(app, dependencies);
   mountAlertLinkEndpoints(app, dependencies);
