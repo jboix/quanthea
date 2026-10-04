@@ -41,13 +41,6 @@
   overflow-wrap: anywhere;
 }
 
-.headerActions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
 .pillDot,
 .dot {
   display: inline-block;

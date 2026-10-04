@@ -1,0 +1,28 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.folded {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 260px;
+  max-width: min(340px, calc(100vw - 32px));
+}
+
+.section + .section {
+  padding-top: 6px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.heading {
+  margin: 6px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-label);
+}

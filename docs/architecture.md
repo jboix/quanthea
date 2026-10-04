@@ -244,7 +244,9 @@ the kit's HTTP client for every kind that speaks HTTP.
   conversation that wrote it, and Deactivate or Activate again), Mute for analysts and above (1
   hour, 4 hours, until tomorrow 09:00, a custom end within 7 days, and Until I unmute for
   editors; Unmute when muted), and Versions (who saved each and when, the active one marked;
-  editors activate another after confirming). It has no Ask about this: the Ask panel answers
+  editors activate another after confirming). Below 720 px wide they fold into one ⋯ menu with
+  a section each (Change, Mute, Versions) for the role, as a dashboard's header does. It has no
+  Ask about this: the Ask panel answers
   about a dashboard's version and range, and an alert is neither.
   - The chart replays the version shown over 6 h, 24 h or 7 d through a resource route, with the
     threshold as a dashed line and the firing periods shaded, both in the danger colour

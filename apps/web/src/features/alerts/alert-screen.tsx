@@ -8,10 +8,9 @@ import { Link, useLoaderData } from 'react-router';
 import { WarningIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import styles from './alert.module.css';
+import { HeaderActions } from './alert-actions.tsx';
 import { AlertChartCard, useAlertReplay, windows } from './alert-chart-card.tsx';
-import { ChangePopover, MutePopover } from './alert-menus.tsx';
 import { Notifies, SeriesNow, WhatHappened } from './alert-sections.tsx';
-import { VersionsPopover } from './alert-versions.tsx';
 import type { AlertData, ReplayWindow } from './data.ts';
 import { muteEnd, type StateTone, statePill } from './state-text.ts';
 import { UnsavedBar } from './unsaved-bar.tsx';
@@ -70,11 +69,7 @@ function AlertHeader({ alert, now }: { readonly alert: AlertDetail; readonly now
           <VersionPill alert={alert} />
         </div>
       </div>
-      <div className={styles.headerActions}>
-        <ChangePopover alert={alert} />
-        <MutePopover alert={alert} />
-        <VersionsPopover alert={alert} />
-      </div>
+      <HeaderActions alert={alert} />
     </header>
   );
 }

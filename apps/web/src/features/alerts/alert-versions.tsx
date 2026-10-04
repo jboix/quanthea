@@ -105,7 +105,7 @@ function ConfirmActivation({
  * @param props.close - Closes the popover once an activation is sent.
  * @returns The content.
  */
-function VersionsBody({
+export function VersionsBody({
   alert,
   close,
 }: {
