@@ -20,6 +20,17 @@
   align-items: start;
 }
 
+.name {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.name > div:first-child {
+  align-self: stretch;
+}
+
 .keyRow {
   display: flex;
   align-items: flex-end;

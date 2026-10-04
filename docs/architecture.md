@@ -2583,6 +2583,9 @@ A thread runs on the provider it was started with (`POST /api/threads` with `pro
 the default when it named none or its provider was removed. Editors see the providers' names and
 build models, never their keys (`GET /api/model-providers`). The usage ledger records the
 provider's name, so two setups of the same vendor stay apart, and the vendor its base URL reaches.
+While a provider's name is empty or one quanthea gave (a vendor's name, or `Provider 2` for a new
+one), the Name field proposes the vendor its base URL reaches; the admin applies it with one click
+(`suggestedProviderName`).
 
 | Variable                      | Default         | Purpose                                                             |
 | ----------------------------- | --------------- | ------------------------------------------------------------------- |

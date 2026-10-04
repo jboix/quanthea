@@ -1,5 +1,5 @@
 /** The card of one provider: its name, vendor, base URL, key and connection test. */
-import { gatewayPresets } from '@quanthea/shared';
+import { gatewayPresets, suggestedProviderName } from '@quanthea/shared';
 import { useState } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
@@ -175,6 +175,38 @@ function BaseUrlField({ form, issues }: SectionProps) {
 }
 
 /**
+ * The provider's name, with the vendor its base URL reaches proposed while the name is empty or
+ * one quanthea gave. The proposal is applied only when the admin takes it.
+ *
+ * @param props - The form and the issues.
+ * @returns The field, and the proposal when there is one.
+ */
+function NameField({ form, issues }: SectionProps) {
+  const suggestion = form.selected ? suggestedProviderName(form.selected) : null;
+  return (
+    <div className={styles.name}>
+      <Input
+        label="Name"
+        value={form.selected?.name ?? ''}
+        placeholder={suggestion ?? undefined}
+        onChange={(event) => form.rename(event.target.value)}
+        hint={
+          suggestion
+            ? `Its base URL reaches ${suggestion}. Threads and the usage show the name.`
+            : 'Threads show it, and so does the usage.'
+        }
+        error={issues.name}
+      />
+      {suggestion && (
+        <Button size="small" onClick={() => form.rename(suggestion)}>
+          Name it {suggestion}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/**
  * The card of the provider being edited: its name, the vendor, where it is, its key and the
  * connection test.
  *
@@ -190,13 +222,7 @@ export function ProviderCard({
   const id = form.selected?.id ?? '';
   return (
     <Card title="Provider">
-      <Input
-        label="Name"
-        value={form.selected?.name ?? ''}
-        onChange={(event) => form.rename(event.target.value)}
-        hint="Threads show it, and so does the usage."
-        error={issues.name}
-      />
+      <NameField form={form} issues={issues} />
       <RadioCards
         label="Provider"
         options={providerOptions}
