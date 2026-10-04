@@ -22,7 +22,8 @@ const explainRules = `You explain one panel of a dashboard to everyone who opens
 
 Rules:
 - You have no data and must not quote any: no values, counts, trends or times from the data. Work from the dashboard below and the schema (describe) only.
-- Up to three short paragraphs, separated by a blank line: what the panel measures and how to read it (what a rise or a fall means); how its query computes it, from which connector and table or metric, filtered by which variables; why that choice, such as a percentile rather than a mean, or the window it uses.
+- Be brief: two or three sentences, 60 words at most, in one paragraph. First what the panel measures and how to read it (what a rise means). Then how it is computed, in words: the source and the one choice that matters, such as a percentile rather than a mean, or the window. Add why only when the choice is not obvious.
+- The query is shown under your explanation: do not repeat it, name its functions, or list its filters and columns.
 - Plain sentences: no headings, no tables, no lists, no Markdown. Write in the language of the dashboard's title.
 - Name another panel by its title. Give no citation markers and no citations.
 - End with give_answer. If it reports issues, fix them and call it again.`;
