@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import type { UsageBucket, UsageReport } from '@quanthea/shared';
-import { chartedModels, dailyUsage, localDay, totalUsage, usageByModel } from './usage-days.ts';
+import {
+  chartedModels,
+  dailyUsage,
+  localDay,
+  providerNames,
+  totalUsage,
+  usageByModel,
+} from './usage-days.ts';
 import { usageByUser } from './usage-people.ts';
 
 const day = localDay(Date.parse('2026-09-28T12:00:00'));
@@ -27,6 +34,7 @@ function step(
     hour: at,
     kind: 'model',
     provider: 'mistral',
+    vendor: 'mistral',
     model,
     feature,
     userId,
@@ -52,6 +60,7 @@ const report: UsageReport = {
       kind: 'pinned_view',
       feature: null,
       provider: '',
+      vendor: '',
       input: 0,
       cachedInput: 0,
       cacheWrite: 0,
@@ -63,6 +72,7 @@ const report: UsageReport = {
       kind: 'snapshot_view',
       feature: null,
       provider: '',
+      vendor: '',
       input: 0,
       cachedInput: 0,
       cacheWrite: 0,
@@ -116,6 +126,44 @@ describe('usageByModel', () => {
       ['mistral-large-latest', 4, 0.02],
       ['mistral-small-latest', 2, 0.002],
     ]);
+  });
+
+  test('keeps a model apart by the vendor its steps reached, with the provider name', () => {
+    const gemini = {
+      ...step(day, 'gemini-3.7-flash', 0.01),
+      provider: 'Anthropic',
+      vendor: 'gemini',
+    };
+    const older = { ...gemini, vendor: '' };
+    const rows = usageByModel({ ...report, buckets: [gemini, older, gemini] });
+    expect(rows.map(({ provider, vendor, steps }) => [provider, vendor, steps])).toEqual([
+      ['Anthropic', 'gemini', 4],
+      ['Anthropic', '', 2],
+    ]);
+  });
+});
+
+describe('providerNames', () => {
+  test('names the vendor, with the provider name when it differs', () => {
+    expect(providerNames({ provider: 'Anthropic', vendor: 'gemini' })).toEqual({
+      vendor: 'Gemini',
+      name: 'Anthropic',
+    });
+    expect(providerNames({ provider: 'Gemini', vendor: 'gemini' })).toEqual({
+      vendor: 'Gemini',
+      name: null,
+    });
+    expect(providerNames({ provider: 'LiteLLM', vendor: 'openai-compatible' })).toEqual({
+      vendor: 'OpenAI compatible',
+      name: 'LiteLLM',
+    });
+  });
+
+  test('falls back to the provider name for steps recorded before the vendor was kept', () => {
+    expect(providerNames({ provider: 'Anthropic', vendor: '' })).toEqual({
+      vendor: 'Anthropic',
+      name: null,
+    });
   });
 });
 

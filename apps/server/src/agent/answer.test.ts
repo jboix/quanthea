@@ -270,6 +270,25 @@ describe('usage and streaming', () => {
     expect(features).toEqual(['explanation']);
   });
 
+  test('records the provider name and the vendor its base URL reaches', async () => {
+    const [anthropic] = defaultModelGateway.providers;
+    if (!anthropic) throw new Error('The default gateway has a provider.');
+    const openRouter = {
+      ...anthropic,
+      provider: 'openai-compatible' as const,
+      baseUrl: 'https://openrouter.ai/api/v1',
+    };
+    const gateway = { ...defaultModelGateway, providers: [openRouter] };
+    await services.modelSettings.save(gateway, {}, 'admin-1');
+    const { answers } = answersWith(panelAnswer('It counts errors per minute [1].'));
+    await answers.answer(explain('errors-over-time'));
+    expect(steps.map((step) => [step.provider, step.vendor])).toEqual([
+      ['Anthropic', 'openrouter'],
+    ]);
+    const [bucket] = services.usage.report(1).buckets;
+    expect(bucket).toMatchObject({ provider: 'Anthropic', vendor: 'openrouter' });
+  });
+
   test('streams the reads and the outcome as data parts, as threads stream', async () => {
     await addConnector('events', 3);
     await addConnector('logs', 3);

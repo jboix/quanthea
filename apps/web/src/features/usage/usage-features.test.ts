@@ -21,6 +21,7 @@ function step(feature: UsageBucket['feature'], dollars: number, events = 1): Usa
     hour: day + 9 * hour,
     kind: 'model',
     provider: 'mistral',
+    vendor: 'mistral',
     model: 'mistral-large-latest',
     feature,
     userId: 'ada',
@@ -34,7 +35,13 @@ function step(feature: UsageBucket['feature'], dollars: number, events = 1): Usa
   };
 }
 
-const view: UsageBucket = { ...step(null, 0, 4), kind: 'pinned_view', provider: '', model: '' };
+const view: UsageBucket = {
+  ...step(null, 0, 4),
+  kind: 'pinned_view',
+  provider: '',
+  vendor: '',
+  model: '',
+};
 
 const report: UsageReport = {
   from: day,

@@ -1925,6 +1925,7 @@ CREATE TABLE notification_sends (
 CREATE TABLE usage_events (
   id TEXT PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL,   -- 'model' | 'pinned_view' | 'snapshot_view'
   thread_id TEXT, dashboard_id TEXT, user_id TEXT, provider TEXT, model TEXT, job TEXT,
+  vendor TEXT,                   -- who the step reached, such as 'gemini'; NULL for views and older steps
   feature TEXT,                  -- 'building' | 'alert' | 'question' | 'explanation'; NULL for views
   input INTEGER, cached_input INTEGER, cache_write INTEGER, output INTEGER,
   cost_micros INTEGER);                        -- list price when recorded; NULL when unknown
@@ -1978,8 +1979,8 @@ CREATE TABLE alert_link_dismissals (
   PRIMARY KEY (alert_id, dashboard_id, panel_id));
 ```
 
-The usage ledger (`usage/usage.ts`) records every model step, with its provider, model, job,
-feature, tokens and list-price cost at that moment, and every read of a pinned version and every opening
+The usage ledger (`usage/usage.ts`) records every model step, with its provider's name, its vendor,
+model, job, feature, tokens and list-price cost at that moment, and every read of a pinned version and every opening
 of a snapshot, which spend no tokens. A model step also records who it ran for: the owner of its thread at that moment, kept
 after the thread is purged; tagging at pin time names no one; an answer about a dashboard names who asked, and the dashboard.
 The feature says what a step served, set where the step runs; the job says which model setting
@@ -1991,13 +1992,35 @@ ran it, so the two are separate axes:
 - `question`: a question about a pinned dashboard (the answering service's `ask` mode).
 - `explanation`: a panel's explanation (its `explain` mode).
 
+The vendor says who a step's requests reached, since a provider's name is free text and may name
+someone else. It comes from the provider's base URL when its host is known, else from its kind
+(`vendorOf` in `@quanthea/shared`):
+
+| Base URL host                       | Vendor            |
+| ----------------------------------- | ----------------- |
+| `api.anthropic.com`                 | Anthropic         |
+| `api.openai.com`                    | OpenAI            |
+| `api.mistral.ai`                    | Mistral           |
+| `generativelanguage.googleapis.com` | Gemini            |
+| `openrouter.ai`                     | OpenRouter        |
+| `api.groq.com`                      | Groq              |
+| `api.deepseek.com`                  | DeepSeek          |
+| `api.together.xyz`                  | Together          |
+| any host on port `11434`            | Ollama            |
+| anything else                       | the kind's vendor |
+
+The kind's vendor is Anthropic, OpenAI, Mistral, or "OpenAI compatible" for a gateway such as
+LiteLLM or vLLM, which no URL gives away. Steps recorded before the ledger kept the vendor have
+none, and show their provider's name instead.
+
 The connection and capability tests in Settings → Model record nothing.
-Deleting a thread keeps its history. `GET /api/settings/usage?days=` returns it by hour, model,
-feature and user (`feature` is `null` for views), with each user's name and role, and the browser adds the hours up into its own days.
+Deleting a thread keeps its history. `GET /api/settings/usage?days=` returns it by hour, provider,
+vendor, model, feature and user (`feature` is `null` for views), with each user's name and role, and the browser adds the hours up into its own days.
 Settings → Usage draws tokens and cost per day stacked by model (the five costliest, then
 `Other`) or, with `?by=feature`, by feature (every feature, always in the same order, so each
 keeps its colour). It lists the features by their plain names (Building dashboards, Building
-alerts, Questions about dashboards, Panel explanations), the models and, ten a page, the people who spent the most.
+alerts, Questions about dashboards, Panel explanations), the models with the vendor they reached
+(and the provider's name under it when the two differ) and, ten a page, the people who spent the most.
 
 Migrations are plain numbered `.sql` files in `db/migrations/`. A migration that shipped in a
 release (a `vX.Y.Z` tag) is never edited. Every schema change since the last release goes into the
@@ -2005,9 +2028,9 @@ one file that follows it, edited in place until the next release, so a database 
 upgrades in one step and keeps its data working. `0001-schema.sql` is the schema of v0.2.0;
 `0002-snapshots-questions-analyst.sql` adds the snapshots, the analyst role, the questions about
 dashboards with their conversations and full-text index, the explanations of panels, and the
-ledger's `snapshot_view` kind and `feature` (every earlier model step built dashboards), and
-the notification channels with their log.
-ledger's `snapshot_view` kind and `feature` (every earlier model step built dashboards).
+ledger's `snapshot_view` kind, `feature` (every earlier model step built dashboards) and `vendor`
+(NULL for earlier steps: their `provider` holds a name, which names no vendor reliably), and the
+notification channels with their log.
 The same file adds the alerts, their versions, the state of their series and their changes of
 state, in a section of their own at its end. A last section adds what a thread makes (`kind`) and the panel an alert
 thread starts from (`seed`), and the ledger's `alert` feature. The last one adds the links
@@ -2559,7 +2582,7 @@ provider drops its key.
 A thread runs on the provider it was started with (`POST /api/threads` with `providerId`), or on
 the default when it named none or its provider was removed. Editors see the providers' names and
 build models, never their keys (`GET /api/model-providers`). The usage ledger records the
-provider's name, so two setups of the same vendor stay apart.
+provider's name, so two setups of the same vendor stay apart, and the vendor its base URL reaches.
 
 | Variable                      | Default         | Purpose                                                             |
 | ----------------------------- | --------------- | ------------------------------------------------------------------- |

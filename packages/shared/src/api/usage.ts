@@ -12,8 +12,13 @@ export const usageBucketSchema = z.object({
   hour: z.number(),
   /** A model step, or a view of a pinned dashboard or of a snapshot. */
   kind: z.enum(['model', 'pinned_view', 'snapshot_view']),
-  /** The provider; empty for pinned views. */
+  /** The provider's name as configured; empty for views. */
   provider: z.string(),
+  /**
+   * Who the model steps' requests reached, such as `gemini` (`modelVendors`); empty for views and
+   * for steps recorded before the ledger kept it.
+   */
+  vendor: z.string(),
   /** The model id; empty for pinned views. */
   model: z.string(),
   /**

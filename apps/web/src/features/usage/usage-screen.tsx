@@ -13,6 +13,7 @@ import {
   type DayUsage,
   dailyUsage,
   type ModelUsage,
+  providerNames,
   totalUsage,
   usageByModel,
 } from './usage-days.ts';
@@ -142,6 +143,23 @@ function ChartCard({ title, input }: { readonly title: string; readonly input: C
 }
 
 /**
+ * Who a row's steps reached, and the provider's configured name under it when that differs.
+ *
+ * @param props - The row.
+ * @param props.row - The model's usage.
+ * @returns The cell's content.
+ */
+function ProviderCell({ row }: { readonly row: ModelUsage }) {
+  const { vendor, name } = providerNames(row);
+  return (
+    <>
+      {vendor}
+      {name && <span className={styles.secondary}>{name}</span>}
+    </>
+  );
+}
+
+/**
  * The usage of each model.
  *
  * @param props - The rows.
@@ -165,9 +183,11 @@ function ModelsTable({ models }: { readonly models: readonly ModelUsage[] }) {
       </thead>
       <tbody>
         {models.map((row) => (
-          <tr key={`${row.provider}/${row.model}`}>
+          <tr key={`${row.provider}/${row.vendor}/${row.model}`}>
             <td className={styles.mono}>{row.model}</td>
-            <td>{row.provider}</td>
+            <td>
+              <ProviderCell row={row} />
+            </td>
             <td>{row.steps}</td>
             <td>{count.format(row.input)}</td>
             <td>{count.format(row.cached)}</td>

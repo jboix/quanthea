@@ -5,7 +5,7 @@
  * text can be shown to every role. The answer is a `give_answer` call whose citations the server
  * checks; it gets one repair try. Every step is recorded in the usage ledger against who asked.
  */
-import type { DashboardSpec } from '@quanthea/shared';
+import { type DashboardSpec, vendorOf } from '@quanthea/shared';
 import {
   consumeStream,
   createUIMessageStream,
@@ -240,12 +240,13 @@ function countStep(dependencies: AnswerDependencies, prepared: PreparedAnswer) {
   const model = modelIdFor(settings, 'answer');
   const { actor: userId, dashboardId, mode } = prepared.request;
   const feature = mode === 'ask' ? 'question' : 'explanation';
+  const vendor = vendorOf(settings);
   return ({ usage }: { usage: LanguageModelUsage }) => {
     prepared.tokens += usage.totalTokens ?? 0;
     prepared.usage = withStep(prepared.usage, model, usage);
     const tokens = tokensOf(usage);
     const step = { threadId: null, userId, dashboardId, provider: providerName, model, tokens };
-    dependencies.usage.recordStep({ ...step, job: 'answer', feature });
+    dependencies.usage.recordStep({ ...step, vendor, job: 'answer', feature });
   };
 }
 

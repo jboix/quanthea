@@ -2,7 +2,7 @@
  * The usage report in the shapes the screen shows: days in the browser's time zone, totals, and
  * one row per model. The server sends hours, so a day here is the viewer's own day.
  */
-import type { UsageBucket, UsageReport } from '@quanthea/shared';
+import { type UsageBucket, type UsageReport, vendorLabel } from '@quanthea/shared';
 import type { UsageFeature } from './usage-features.ts';
 
 /** One day of usage. */
@@ -37,8 +37,10 @@ export interface DaySpend {
 
 /** One model's usage over the range. */
 export interface ModelUsage {
-  /** The provider. */
+  /** The provider's name as configured. */
   readonly provider: string;
+  /** Who the steps reached, such as `gemini`; empty for steps recorded before it was kept. */
+  readonly vendor: string;
   /** The model id. */
   readonly model: string;
   /** Model steps. */
@@ -177,15 +179,16 @@ export function chartedModels(
  * The usage of each model over the range, the costliest first.
  *
  * @param report - The report.
- * @returns One row per provider and model.
+ * @returns One row per provider, vendor and model.
  */
 export function usageByModel(report: UsageReport): ModelUsage[] {
   const models = new Map<string, ModelUsage>();
   for (const bucket of report.buckets) {
     if (bucket.kind !== 'model') continue;
-    const key = `${bucket.provider}\u0000${bucket.model}`;
+    const key = `${bucket.provider}\u0000${bucket.vendor}\u0000${bucket.model}`;
     const before = models.get(key) ?? {
       provider: bucket.provider,
+      vendor: bucket.vendor,
       model: bucket.model,
       steps: 0,
       input: 0,
@@ -207,4 +210,27 @@ export function usageByModel(report: UsageReport): ModelUsage[] {
   return [...models.values()].sort(
     (first, second) => second.dollars - first.dollars || second.steps - first.steps,
   );
+}
+
+/** How the usage names a provider: who it reached, and its configured name when that differs. */
+export interface ProviderNames {
+  /** The vendor's name, such as `Gemini`, or the configured name when no vendor was recorded. */
+  readonly vendor: string;
+  /** The configured name, when it says something the vendor's name does not. */
+  readonly name: string | null;
+}
+
+/**
+ * The names of a row's provider: the vendor first, since a configured name may name someone else.
+ *
+ * @param row - The provider's configured name and vendor.
+ * @returns The names; steps recorded before the vendor was kept show their configured name.
+ */
+export function providerNames(row: Pick<ModelUsage, 'provider' | 'vendor'>): ProviderNames {
+  const label = vendorLabel(row.vendor);
+  if (!label) return { vendor: row.provider, name: null };
+  return {
+    vendor: label,
+    name: row.provider !== '' && row.provider !== label ? row.provider : null,
+  };
 }

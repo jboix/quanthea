@@ -315,6 +315,27 @@ describe('an agent run', () => {
     expect(steps.map((bucket) => bucket.provider)).toEqual(['Mistral free']);
   });
 
+  test('records the vendor the steps reached, whatever the provider is named', async () => {
+    const [anthropic] = gatewayWith({ models: { build: 'gemini-3.7-flash' } }).providers;
+    if (!anthropic) throw new Error('The default gateway has a provider.');
+    const gemini = {
+      ...anthropic,
+      provider: 'openai-compatible' as const,
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    };
+    const gateway = { ...defaultModelGateway, providers: [gemini] };
+    await services.modelSettings.save(gateway, {}, 'admin-1');
+    const agent = createAgent({
+      ...services,
+      buildModel: () => scriptedStreamModel({ text: 'Hi' }),
+    });
+    await chat(agent, userMessage('u1', 'Hello'));
+    const steps = services.usage.report(1).buckets.filter((bucket) => bucket.kind === 'model');
+    expect(steps.map(({ provider, vendor }) => [provider, vendor])).toEqual([
+      ['Anthropic', 'gemini'],
+    ]);
+  });
+
   test('hands the steps after a failed write to the repair model', async () => {
     const gateway = gatewayWith({ models: { repair: 'claude-opus-5-5' } });
     await services.modelSettings.save(gateway, {}, 'admin-1');

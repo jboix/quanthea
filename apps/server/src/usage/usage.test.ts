@@ -37,6 +37,7 @@ describe('the usage ledger', () => {
     ledger.recordStep({
       threadId: 't1',
       provider: 'mistral',
+      vendor: 'mistral',
       model: 'mistral-large-latest',
       job: 'build',
       feature: 'building',
@@ -46,6 +47,7 @@ describe('the usage ledger', () => {
     ledger.recordStep({
       threadId: 't1',
       provider: 'mistral',
+      vendor: 'mistral',
       model: 'mistral-large-latest',
       job: 'build',
       feature: 'building',
@@ -54,6 +56,7 @@ describe('the usage ledger', () => {
     ledger.recordStep({
       threadId: 't2',
       provider: 'openai-compatible',
+      vendor: 'openai-compatible',
       model: 'gemma-4',
       job: 'plan',
       feature: 'building',
@@ -74,6 +77,23 @@ describe('the usage ledger', () => {
     ]);
   });
 
+  test('keeps the vendor of each step apart from the provider name, and none for views', () => {
+    const ledger = usage();
+    const step = { threadId: 't1', provider: 'Anthropic', model: 'gemini-3.7-flash', tokens };
+    ledger.recordStep({ ...step, vendor: 'gemini', job: 'build', feature: 'building' });
+    ledger.recordStep({ ...step, vendor: 'gemini', job: 'plan', feature: 'building' });
+    ledger.recordStep({ ...step, vendor: 'openrouter', job: 'build', feature: 'building' });
+    ledger.recordPinnedView('d1');
+    const rows = ledger
+      .report(1)
+      .buckets.map(({ kind, provider, vendor, events }) => [kind, provider, vendor, events]);
+    expect(rows).toEqual([
+      ['model', 'Anthropic', 'gemini', 2],
+      ['model', 'Anthropic', 'openrouter', 1],
+      ['pinned_view', '', '', 1],
+    ]);
+  });
+
   test('counts pinned views, which spend nothing, and sums the month', () => {
     const ledger = usage();
     ledger.recordPinnedView('d1');
@@ -81,6 +101,7 @@ describe('the usage ledger', () => {
     ledger.recordStep({
       threadId: 't1',
       provider: 'mistral',
+      vendor: 'mistral',
       model: 'mistral-small-latest',
       job: 'plan',
       feature: 'building',
@@ -121,7 +142,13 @@ describe('the usage ledger', () => {
       "INSERT INTO threads (id, created_by, created_at, updated_at) VALUES ('t9', 'ada', 1, 1)",
     );
     const ledger = usage();
-    const step = { provider: 'mistral', model: 'mistral-large-latest', job: 'build', tokens };
+    const step = {
+      provider: 'mistral',
+      vendor: 'mistral' as const,
+      model: 'mistral-large-latest',
+      job: 'build',
+      tokens,
+    };
     const building = { ...step, feature: 'building' as const };
     ledger.recordStep({ ...building, threadId: 't9' });
     ledger.recordStep({ ...building, threadId: null });
@@ -135,7 +162,13 @@ describe('the usage ledger', () => {
 
   test('names who a step outside a thread ran for, and the dashboard it was about', () => {
     const ledger = usage();
-    const step = { provider: 'mistral', model: 'mistral-large-latest', job: 'answer', tokens };
+    const step = {
+      provider: 'mistral',
+      vendor: 'mistral' as const,
+      model: 'mistral-large-latest',
+      job: 'answer',
+      tokens,
+    };
     ledger.recordStep({
       ...step,
       feature: 'question',
@@ -154,7 +187,12 @@ describe('the usage ledger', () => {
 
   test('adds steps up by feature, apart from the job, and gives views no feature', () => {
     const ledger = usage();
-    const step = { provider: 'mistral', model: 'mistral-large-latest', tokens };
+    const step = {
+      provider: 'mistral',
+      vendor: 'mistral' as const,
+      model: 'mistral-large-latest',
+      tokens,
+    };
     ledger.recordStep({ ...step, threadId: 't1', job: 'plan', feature: 'building' });
     ledger.recordStep({ ...step, threadId: 't1', job: 'build', feature: 'building' });
     const answer = { ...step, threadId: null, userId: 'grace', dashboardId: 'd1', job: 'answer' };

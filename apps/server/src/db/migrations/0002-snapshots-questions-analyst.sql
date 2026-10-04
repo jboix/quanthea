@@ -3,7 +3,7 @@
 -- - the analyst role, between viewer and editor;
 -- - questions about a pinned dashboard, in conversations, with their full-text index;
 -- - explanations of the panels of a version;
--- - the feature each model step served, in the usage ledger.
+-- - the feature each model step served, and the vendor it reached, in the usage ledger.
 -- - alerts, their versions, the state of their series and what happened to them.
 -- - what a thread makes, a dashboard or an alert, and the panel an alert thread starts from.
 
@@ -48,7 +48,11 @@ CREATE TABLE usage_events_next (
   dashboard_id TEXT,
   -- Who the model step ran for: the owner of its thread, kept after the thread is purged.
   user_id TEXT,
+  -- The provider's name, as configured.
   provider TEXT,
+  -- Who the step's requests reached, such as `gemini`, from the provider's kind and base URL. NULL
+  -- for views, and for steps recorded before it was kept: their provider names no vendor.
+  vendor TEXT,
   model TEXT,
   job TEXT,
   input INTEGER NOT NULL DEFAULT 0,

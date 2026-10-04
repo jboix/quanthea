@@ -172,6 +172,20 @@ describe('the usage ledger after the upgrade', () => {
       ),
     ).toThrow('CHECK');
   });
+
+  test('keeps the provider name of past steps, with no vendor, which they never recorded', () => {
+    const migrationsDir = releasedDatabase();
+    database.run(
+      "INSERT INTO usage_events (id, at, kind, provider) VALUES ('old', 1, 'model', 'Anthropic')",
+    );
+    upgradeDatabase(migrationsDir);
+    const row = database
+      .query<{ provider: string; vendor: string | null }, []>(
+        'SELECT provider, vendor FROM usage_events',
+      )
+      .get();
+    expect(row).toEqual({ provider: 'Anthropic', vendor: null });
+  });
 });
 
 /** Stores the dashboard `d`, then a snapshot, a question and an explanation of it. */

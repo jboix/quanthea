@@ -52,7 +52,7 @@ const tokens = { input: 1000, cachedInput: 0, cacheWrite: 0, output: 100 };
 
 describe('usage route', () => {
   test('gives admins the buckets by feature, with the fields they had before', async () => {
-    const step = { provider: 'p', model: 'm', tokens };
+    const step = { provider: 'p', vendor: 'openai' as const, model: 'm', tokens };
     fixture.usage.recordStep({ ...step, threadId: null, job: 'metadata', feature: 'building' });
     const answer = { ...step, threadId: null, job: 'answer', userId: 'grace', dashboardId: 'd1' };
     fixture.usage.recordStep({ ...answer, feature: 'question' });

@@ -32,6 +32,7 @@ function threadWithDashboard() {
   services.usage.recordStep({
     threadId: thread.id,
     provider: 'p',
+    vendor: 'openai',
     model: 'm',
     job: 'build',
     feature: 'building',

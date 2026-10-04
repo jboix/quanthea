@@ -2,7 +2,7 @@
  * One turn of the model: its instructions, its tools for the thread's phase, when it stops, and
  * what each step records. The run (`run.ts`) prepares the turn and stores the conversation.
  */
-import { isDashboardPlan, resolveTime } from '@quanthea/shared';
+import { isDashboardPlan, resolveTime, vendorOf } from '@quanthea/shared';
 import {
   convertToModelMessages,
   type Instructions,
@@ -191,7 +191,8 @@ function countStep(context: RunContext) {
     const { threadId, providerName: provider } = context;
     const tokens = tokensOf(usage);
     const feature = context.threads.row(threadId).kind === 'alert' ? 'alert' : 'building';
-    context.usage.recordStep({ threadId, provider, model, job, feature, tokens });
+    const vendor = vendorOf(context.settings);
+    context.usage.recordStep({ threadId, provider, vendor, model, job, feature, tokens });
   };
 }
 

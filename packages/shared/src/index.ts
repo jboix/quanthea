@@ -300,6 +300,13 @@ export {
   tokenUsageSchema,
   turnUsageSchema,
 } from './model-usage.ts';
+export {
+  type ModelVendor,
+  modelVendors,
+  suggestedProviderName,
+  vendorLabel,
+  vendorOf,
+} from './model-vendors.ts';
 export * from './notifications.ts';
 export {
   jsonQueryLanguages,

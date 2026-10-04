@@ -22,8 +22,10 @@ export interface UsageEventRow {
   readonly dashboardId: string | null;
   /** Who a model step outside a thread ran for; a thread's steps name its owner instead. */
   readonly userId: string | null;
-  /** The provider, for a model step. */
+  /** The provider's name as configured, for a model step. */
   readonly provider: string | null;
+  /** Who the model step's requests reached, such as `gemini`; `null` for a view. */
+  readonly vendor: string | null;
   /** The model id, for a model step. */
   readonly model: string | null;
   /** The job, such as `plan` or `build`, for a model step. */
@@ -42,14 +44,16 @@ export interface UsageEventRow {
   readonly costMicros: number | null;
 }
 
-/** The events of one hour, one kind, one model, one feature and one user, added up. */
+/** The events of one hour, one kind, one provider and model, one feature and one user, added up. */
 export interface UsageBucketRow {
   /** The hour, as epoch milliseconds of its start. */
   readonly hour: number;
   /** The kind. */
   readonly kind: UsageKind;
-  /** The provider, empty for a pinned view. */
+  /** The provider's name, empty for a pinned view. */
   readonly provider: string;
+  /** Who the requests reached, such as `gemini`; empty for a view and for steps that predate it. */
+  readonly vendor: string;
   /** The model, empty for a pinned view. */
   readonly model: string;
   /** The feature the steps served; `null` for views. */
@@ -105,15 +109,15 @@ export interface UsageRepository {
  */
 function recorder(database: Database): (event: UsageEventRow) => void {
   const insert = database.query(
-    `INSERT INTO usage_events (id, at, kind, thread_id, dashboard_id, provider, model, job,
+    `INSERT INTO usage_events (id, at, kind, thread_id, dashboard_id, provider, vendor, model, job,
        feature, input, cached_input, cache_write, output, cost_micros, user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
        coalesce(?, (SELECT created_by FROM threads WHERE id = ?)))`,
   );
   return (event) => {
-    const { id, at, kind, threadId, dashboardId, provider, model, job, feature } = event;
+    const { id, at, kind, threadId, dashboardId, provider, vendor, model, job, feature } = event;
     const { input, cachedInput, cacheWrite, output, costMicros, userId } = event;
-    const names = [id, at, kind, threadId, dashboardId, provider, model, job, feature];
+    const names = [id, at, kind, threadId, dashboardId, provider, vendor, model, job, feature];
     insert.run(...names, input, cachedInput, cacheWrite, output, costMicros, userId, threadId);
   };
 }
@@ -127,14 +131,14 @@ function recorder(database: Database): (event: UsageEventRow) => void {
 export function createUsageRepository(database: Database): UsageRepository {
   const select = database.query<UsageBucketRow, [number, number]>(
     `SELECT (at / 3600000) * 3600000 AS hour, kind, coalesce(provider, '') AS provider,
-       coalesce(model, '') AS model, feature, coalesce(user_id, '') AS userId, sum(input) AS input,
+       coalesce(vendor, '') AS vendor, coalesce(model, '') AS model, feature, coalesce(user_id, '') AS userId, sum(input) AS input,
        sum(cached_input) AS cachedInput,
        sum(cache_write) AS cacheWrite, sum(output) AS output,
        coalesce(sum(cost_micros), 0) AS costMicros, count(*) AS events,
        sum(kind = 'model' AND cost_micros IS NULL) AS unpriced
      FROM usage_events WHERE at >= ? AND at < ?
-     GROUP BY hour, kind, provider, model, feature, userId
-     ORDER BY hour, kind, provider, model, feature, userId`,
+     GROUP BY hour, kind, provider, vendor, model, feature, userId
+     ORDER BY hour, kind, provider, vendor, model, feature, userId`,
   );
   const threads = database.query<{ count: number }, [number]>(
     `SELECT count(DISTINCT thread_id) AS count FROM usage_events WHERE kind = 'model' AND at >= ?`,

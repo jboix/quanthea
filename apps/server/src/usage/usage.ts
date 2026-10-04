@@ -3,7 +3,13 @@
  * dashboard or a snapshot, kept apart from threads so deleting one keeps its history. The cost is priced when
  * the step happens, so later price changes do not rewrite the past.
  */
-import { costOf, pricesCheckedOn, type TokenUsage, type UsageReport } from '@quanthea/shared';
+import {
+  costOf,
+  type ModelVendor,
+  pricesCheckedOn,
+  type TokenUsage,
+  type UsageReport,
+} from '@quanthea/shared';
 import type {
   UsageEventRow,
   UsageFeature,
@@ -16,8 +22,10 @@ import { newId } from '../lib/ids.ts';
 export interface ModelStep {
   /** The thread; `null` for a call outside one, such as tagging a dashboard at pin time. */
   readonly threadId: string | null;
-  /** The provider, such as `mistral`. */
+  /** The provider's name as configured, such as `Mistral free`. */
   readonly provider: string;
+  /** Who the requests reached, from the provider's kind and base URL (`vendorOf`). */
+  readonly vendor: ModelVendor;
   /** The model id. */
   readonly model: string;
   /** The job, such as `plan` or `build`. */
@@ -162,7 +170,7 @@ function monthStart(now: number): number {
  * @returns The event.
  */
 function stepEvent(step: ModelStep, at: number): UsageEventRow {
-  const { threadId, provider, model, job, feature, tokens } = step;
+  const { threadId, provider, vendor, model, job, feature, tokens } = step;
   const cost = costMicros(step);
   return {
     id: newId(),
@@ -174,6 +182,7 @@ function stepEvent(step: ModelStep, at: number): UsageEventRow {
     ...tokens,
     threadId,
     provider,
+    vendor,
     model,
     job,
     feature,
@@ -197,6 +206,7 @@ function viewEvent(
     threadId: null,
     userId: null,
     provider: null,
+    vendor: null,
     model: null,
     job: null,
     feature: null,

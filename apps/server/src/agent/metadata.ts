@@ -3,7 +3,7 @@
  * dashboard in the library. It is best effort: when the model is not set up, fails or is slow, the
  * dashboard is pinned without them.
  */
-import type { DashboardSpec } from '@quanthea/shared';
+import { type DashboardSpec, vendorOf } from '@quanthea/shared';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
@@ -112,6 +112,7 @@ export function createMetadataWriter(dependencies: MetadataDependencies) {
       dependencies.usage.recordStep({
         threadId: request.threadId,
         provider: resolved.providerName,
+        vendor: vendorOf(resolved.settings),
         model: modelIdFor(resolved.settings, 'metadata'),
         job: 'metadata',
         feature: 'building',
