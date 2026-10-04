@@ -31,6 +31,7 @@ const thread: ThreadRow = {
   kind: 'dashboard',
   seed: null,
   alertId: null,
+  alertActive: false,
   createdAt: 1000,
   updatedAt: 1000,
 };

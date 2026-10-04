@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { ThreadListItem } from '@quanthea/shared';
-import { filterThreads, groupByDay } from './thread-list.ts';
+import { binBlocker, filterThreads, groupByDay } from './thread-list.ts';
 
 const now = new Date(2026, 8, 29, 15, 0);
 
@@ -22,6 +22,7 @@ function thread(id: string, title: string | null, daysAgo: number, pinned = fals
     kind: 'dashboard',
     dashboardId: null,
     alertId: null,
+    alertActive: false,
     tokensUsed: 0,
     providerId: null,
     queries: { mode: 'default' },
@@ -64,6 +65,16 @@ describe('the past threads', () => {
   test('keep only pinned ones when asked', () => {
     const pinned = filterThreads(threads, { text: '', pinnedOnly: true, everyone: false });
     expect(pinned.map((each) => each.id)).toEqual(['a', 'd']);
+  });
+
+  test('say why a thread cannot go to the bin: a pinned dashboard, or an active alert', () => {
+    expect(binBlocker(thread('a', 'x', 0))).toBeNull();
+    expect(binBlocker(thread('a', 'x', 0, true))).toBe('Unpin its dashboard to delete this thread');
+    const alert = { ...thread('b', 'y', 0), kind: 'alert' as const, alertId: 'al1' };
+    expect(binBlocker({ ...alert, alertActive: true })).toBe(
+      'Deactivate its alert to delete this thread',
+    );
+    expect(binBlocker(alert)).toBeNull();
   });
 
   test('group by how long ago they changed', () => {

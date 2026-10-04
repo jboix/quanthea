@@ -43,6 +43,28 @@ function threadWithDashboard() {
 }
 
 /**
+ * An alert thread whose alert has a first version, over the in-memory events.
+ *
+ * @returns The thread and its alert.
+ */
+function threadWithAlert() {
+  const thread = services.threads.create('editor-1', undefined, undefined, { kind: 'alert' });
+  const spec = {
+    specVersion: 1,
+    title: 'Errors by service',
+    query: { refId: 'A', connector: 'events', language: 'sql', sql: 'SELECT * FROM events' },
+    value: { field: 'errors', by: ['service'], reduce: 'max' },
+    condition: { kind: 'threshold', op: 'above', value: 4, for: '5m' },
+    every: '1m',
+    lookback: '10m',
+    severity: 'warning',
+    message: { title: '{alert}', body: '{series} at {value}.' },
+  };
+  const { alertId } = services.alerts.saveVersion({ spec, threadId: thread.id }, 'editor-1');
+  return { threadId: thread.id, alertId };
+}
+
+/**
  * The error a call throws.
  *
  * @param call - The call.
@@ -85,6 +107,31 @@ describe('the bin of threads', () => {
     services.dashboards.unpin(dashboardId, 'editor-1');
     services.bin.bin(threadId, 'editor-1');
     expect(services.bin.list()).toHaveLength(1);
+  });
+
+  test('refuses a thread whose alert is active, and takes it once the alert is deactivated', async () => {
+    const { threadId, alertId } = threadWithAlert();
+    await services.alerts.activate(alertId, 1, 'editor-1');
+    expect(services.threads.get(threadId).alertActive).toBe(true);
+    expect(failureOf(() => services.bin.bin(threadId, 'editor-1')).message).toBe(
+      'Its alert is active. Deactivate it before deleting.',
+    );
+    await services.alerts.deactivate(alertId, 'editor-1');
+    expect(services.threads.get(threadId).alertActive).toBe(false);
+    services.bin.bin(threadId, 'editor-1');
+    expect(services.bin.list().map((thread) => thread.id)).toEqual([threadId]);
+  });
+
+  test('purging a thread keeps its alert and every version of it', async () => {
+    const { threadId, alertId } = threadWithAlert();
+    services.alerts.saveVersion(
+      { alertId, spec: services.alerts.get(alertId, 'editor').versions[0]?.spec },
+      'editor-1',
+    );
+    services.bin.bin(threadId, 'editor-1');
+    services.bin.purge(threadId, 'admin-1');
+    const alert = services.alerts.get(alertId, 'editor');
+    expect(alert.versions.map((version) => version.version)).toEqual([2, 1]);
   });
 
   test('purges the thread and its dashboard, and keeps the usage', () => {

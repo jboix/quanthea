@@ -15,6 +15,8 @@ export const threadSummarySchema = z.object({
   dashboardId: z.string().nullable(),
   /** The alert it makes, once it saved a first version. */
   alertId: z.string().nullable(),
+  /** Whether its alert is active (activated, not deactivated): the thread can't go to the bin. */
+  alertActive: z.boolean(),
   tokensUsed: z.number(),
   /** The model provider it uses; `null` for the default. */
   providerId: z.string().nullable(),

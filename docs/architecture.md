@@ -183,7 +183,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 - **Thread screen.** The conversation streams through `useChat`, which posts only the new message
   to `/api/threads/:threadId/chat`; the server holds the conversation. Approving a plan, undoing
   and pinning go through the route action, and approving then continues the assistant message.
-  The version the draft pane shows lives in `?v=`, so a reload or a shared link keeps it. The new-thread screen is one question box in the middle of the screen, with a Past threads button at the top right. It opens a drawer from the right (from the top on a phone) that searches the titles, can show only threads whose dashboard is pinned (each marked with a pin), groups the threads by day, and moves one to the bin after asking. A thread whose dashboard is pinned can't be deleted. A link can fill the question box with `?question=`. It creates the thread and hands the first question over in `?ask=`, which the thread screen sends
+  The version the draft pane shows lives in `?v=`, so a reload or a shared link keeps it. The new-thread screen is one question box in the middle of the screen, with a Past threads button at the top right. It opens a drawer from the right (from the top on a phone) that searches the titles, can show only threads whose dashboard is pinned (each marked with a pin), groups the threads by day, and moves one to the bin after asking. A thread whose dashboard is pinned, or whose alert is active, can't be deleted: its bin button is disabled and says what to do first (`binBlocker`). A link can fill the question box with `?question=`. It creates the thread and hands the first question over in `?ask=`, which the thread screen sends
   once and removes. Each question carries the browser's time zone.
 - **What a conversation makes.** Above the question box, a switch picks A dashboard or An alert
   (dashboard by default; `?make=alert` picks the alert), with example requests for each that fill
@@ -502,7 +502,9 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
 
 - `DELETE /api/threads/:id` (editor+) moves the thread to the bin: it sets `threads.deleted_at`
   and `deleted_by` and writes a `thread.bin` audit event. A thread whose dashboard is pinned is
-  refused: unpin first.
+  refused: unpin first. A thread whose alert is active (it has an active version and is not
+  deactivated) is refused too: deactivate it first. Once deactivated, the thread goes to the bin,
+  and its alert keeps `thread_id` until the thread is purged.
 - A binned thread is out of reach: the thread reads skip it, its dashboard can't be pinned, and
   an `edit` thread on its dashboard is refused. Its dashboard still opens for editors, and its
   Change menu's Edit with the agent says the conversation is in the bin and links there.
@@ -510,7 +512,8 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
 - `DELETE /api/bin/:id` and `DELETE /api/bin` (admin) purge: in one transaction, the thread with
   its messages and plans, then its dashboard with every version, unless that dashboard is pinned
   or another thread uses it. The library index drops it through its trigger, and its snapshots go
-  with it. Copies keep their `parent_dashboard_id`.
+  with it. Copies keep their `parent_dashboard_id`. An alert the thread made is never deleted: it
+  keeps every version, and its `thread_id` becomes `NULL` (`ON DELETE SET NULL`).
 - The usage ledger has no foreign keys, so purging never changes Settings → Usage.
 - **Retention** (the Retention dialog on the bin, `GET/PUT /api/settings/retention`, admin): binned threads
   are kept for `binDays` days, 30 by default, or until someone deletes them (`null`).

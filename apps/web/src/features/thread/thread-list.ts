@@ -44,6 +44,19 @@ export function filterThreads(
 }
 
 /**
+ * Why a thread cannot go to the bin, as the server refuses it: its dashboard is pinned, or its
+ * alert is active.
+ *
+ * @param thread - The thread.
+ * @returns What to do first, or `null` when it can go.
+ */
+export function binBlocker(thread: ThreadListItem): string | null {
+  if (thread.pinned) return 'Unpin its dashboard to delete this thread';
+  if (thread.alertActive) return 'Deactivate its alert to delete this thread';
+  return null;
+}
+
+/**
  * Groups threads by how long ago they last changed.
  *
  * @param threads - The threads, the latest first.

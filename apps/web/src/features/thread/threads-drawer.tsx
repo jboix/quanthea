@@ -12,7 +12,13 @@ import {
   SearchIcon,
 } from '../../ui/icons.tsx';
 import type { NewThreadIntent, ThreadOutcome } from './data.ts';
-import { filterThreads, groupByDay, type ThreadFilter, untitled } from './thread-list.ts';
+import {
+  binBlocker,
+  filterThreads,
+  groupByDay,
+  type ThreadFilter,
+  untitled,
+} from './thread-list.ts';
 import styles from './threads-drawer.module.css';
 
 /** What a thread's state adds to its date, when it waits on the person or the agent. */
@@ -53,8 +59,8 @@ function ConfirmDelete({
 }
 
 /**
- * The button that moves a thread to the bin. A thread whose dashboard is pinned can't go, so its
- * button says why instead.
+ * The button that moves a thread to the bin. A thread whose dashboard is pinned, or whose alert is
+ * active, can't go, so its button says why instead.
  *
  * @param props - The thread, its title and the click callback.
  * @param props.thread - The thread.
@@ -71,16 +77,14 @@ function DeleteButton({
   readonly title: string;
   readonly onClick: () => void;
 }) {
-  const label = thread.pinned
-    ? `Unpin its dashboard to delete ${title}`
-    : `Move ${title} to the bin`;
+  const blocker = binBlocker(thread);
   return (
     <button
       type="button"
       className={styles.delete}
-      aria-label={label}
-      title={thread.pinned ? 'Unpin its dashboard to delete this thread' : 'Move to the bin'}
-      disabled={thread.pinned}
+      aria-label={blocker ? `${blocker}: ${title}` : `Move ${title} to the bin`}
+      title={blocker ?? 'Move to the bin'}
+      disabled={blocker !== null}
       onClick={onClick}
     >
       <BinIcon />

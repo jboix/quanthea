@@ -1,6 +1,7 @@
 /**
  * The bin of threads: moving a thread in and out, listing it, and purging it with its dashboard.
- * The other thread reads (`thread-repository.ts`) skip binned threads.
+ * The other thread reads (`thread-repository.ts`) skip binned threads. Purging a thread never
+ * deletes an alert it made: the alert keeps its versions, and its `thread_id` becomes `NULL`.
  */
 import type { Database } from 'bun:sqlite';
 
@@ -33,18 +34,19 @@ export interface ThreadOwner {
 }
 
 /** What moving a thread to the bin did. */
-export type BinOutcome = 'binned' | 'missing' | 'pinned';
+export type BinOutcome = 'binned' | 'missing' | 'pinned' | 'alert_active';
 
 /** Stores the bin. */
 export interface ThreadBinRepository {
   /**
-   * Moves a thread to the bin, unless its dashboard is pinned.
+   * Moves a thread to the bin, unless its dashboard is pinned or its alert is active.
    *
    * @param id - The thread.
    * @param at - When.
    * @param actor - Who.
    * @returns `binned`; `missing` when there is no such thread outside the bin; `pinned` when its
-   *   dashboard is pinned.
+   *   dashboard is pinned; `alert_active` when an alert it made has an active version and is not
+   *   deactivated.
    */
   bin(id: string, at: number, actor: string): BinOutcome;
   /**
@@ -103,6 +105,10 @@ interface StoredBinned {
   created_by: string | null;
 }
 
+/** Whether an alert the thread `t` made has an active version and is not deactivated. */
+const alertActive = `EXISTS (SELECT 1 FROM alerts a WHERE a.thread_id = t.id
+  AND a.active_version IS NOT NULL AND a.deactivated_at IS NULL)`;
+
 /**
  * Prepares the statements of the bin.
  *
@@ -111,9 +117,10 @@ interface StoredBinned {
  */
 function binStatements(database: Database) {
   return {
-    live: database.query<{ pinned: number }, [string]>(
-      `SELECT d.pinned_version_id IS NOT NULL AS pinned FROM threads t
-       LEFT JOIN dashboards d ON d.id = t.dashboard_id WHERE t.id = ? AND t.deleted_at IS NULL`,
+    live: database.query<{ pinned: number; alert_active: number }, [string]>(
+      `SELECT d.pinned_version_id IS NOT NULL AS pinned, ${alertActive} AS alert_active
+       FROM threads t LEFT JOIN dashboards d ON d.id = t.dashboard_id
+       WHERE t.id = ? AND t.deleted_at IS NULL`,
     ),
     bin: database.query('UPDATE threads SET deleted_at = ?, deleted_by = ? WHERE id = ?'),
     restore: database.query(
@@ -159,6 +166,7 @@ function binner(
     const live = statements.live.get(id);
     if (!live) return 'missing';
     if (live.pinned) return 'pinned';
+    if (live.alert_active) return 'alert_active';
     statements.bin.run(at, actor, id);
     return 'binned';
   });

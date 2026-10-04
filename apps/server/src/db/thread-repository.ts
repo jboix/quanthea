@@ -1,12 +1,7 @@
 /** Reads and writes threads, their messages and their plans. */
 import type { Database } from 'bun:sqlite';
-import {
-  type AlertSeed,
-  alertSeedSchema,
-  type ThreadKind,
-  type ThreadQueries,
-  threadQueriesSchema,
-} from '@quanthea/shared';
+import type { AlertSeed, ThreadKind, ThreadQueries } from '@quanthea/shared';
+import { queriesOf, seedOf } from './thread-json.ts';
 
 /** A thread state, as stored. */
 type StoredState = 'idle' | 'plan_pending' | 'building' | 'ready';
@@ -35,6 +30,8 @@ export interface ThreadRow {
   readonly seed: AlertSeed | null;
   /** The alert it makes, once it saved a first version; read, never written here. */
   readonly alertId: string | null;
+  /** Whether an alert it made has an active version and is not deactivated; read only. */
+  readonly alertActive: boolean;
   /** Creation time, in epoch milliseconds. */
   readonly createdAt: number;
   /** Last change, in epoch milliseconds. */
@@ -191,6 +188,8 @@ interface StoredThread {
   seed: string | null;
   /** The alert it made, from the alerts that name it. */
   alert_id: string | null;
+  /** 1 when an alert it made is active. */
+  alert_active: number;
   /** Creation time. */
   created_at: number;
   /** Last change. */
@@ -250,6 +249,7 @@ function toThread(stored: StoredThread): ThreadRow {
     kind: stored.kind,
     seed: seedOf(stored.seed),
     alertId: stored.alert_id,
+    alertActive: stored.alert_active === 1,
     createdAt: stored.created_at,
     updatedAt: stored.updated_at,
   };
@@ -273,20 +273,10 @@ function toPlan(stored: StoredPlan): PlanRow {
   };
 }
 
-/** A thread's columns, with the alert it made: the first one that names it. */
+/** A thread's columns, with its first alert, and whether an alert it made is active. */
 const threadColumns = `t.*, (SELECT a.id FROM alerts a WHERE a.thread_id = t.id
-  ORDER BY a.created_at, a.id LIMIT 1) AS alert_id`;
-
-/**
- * Reads a stored seed.
- *
- * @param stored - The JSON, or `NULL`.
- * @returns The seed, or `null` when there is none or it no longer parses.
- */
-function seedOf(stored: string | null): AlertSeed | null {
-  if (stored === null) return null;
-  return alertSeedSchema.safeParse(JSON.parse(stored)).data ?? null;
-}
+  ORDER BY a.created_at, a.id LIMIT 1) AS alert_id, EXISTS (SELECT 1 FROM alerts a WHERE
+  a.thread_id = t.id AND a.active_version IS NOT NULL AND a.deactivated_at IS NULL) AS alert_active`;
 
 /**
  * Prepares the statements on threads.
@@ -315,17 +305,6 @@ function threadStatements(database: Database) {
     ),
     remove: database.query('DELETE FROM threads WHERE id = ?'),
   };
-}
-
-/**
- * The queries of a stored thread.
- *
- * @param stored - The stored JSON, or `null`.
- * @returns The queries; the default set when none or invalid.
- */
-function queriesOf(stored: string | null): ThreadQueries {
-  if (stored === null) return { mode: 'default' };
-  return threadQueriesSchema.safeParse(JSON.parse(stored)).data ?? { mode: 'default' };
 }
 
 /**

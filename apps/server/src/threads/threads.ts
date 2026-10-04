@@ -192,7 +192,7 @@ function timesOf(row: ThreadRow) {
 function toSummary(row: ThreadRow): ThreadSummary {
   const { id, title, state, kind, dashboardId, alertId, tokensUsed, providerId, queries } = row;
   const summary = { id, title, state, kind, dashboardId, alertId, tokensUsed, providerId, queries };
-  return { ...summary, ownerId: row.createdBy, ...timesOf(row) };
+  return { ...summary, alertActive: row.alertActive, ownerId: row.createdBy, ...timesOf(row) };
 }
 
 /**
@@ -365,6 +365,7 @@ function create(
     kind: start.kind,
     seed: start.kind === 'alert' ? (start.seed ?? null) : null,
     alertId: null,
+    alertActive: false,
     createdAt: at,
     updatedAt: at,
   };
