@@ -1,7 +1,8 @@
 /**
  * The phases of a thread as the agent sees them, and what each gives the model: planning talks
- * and plans, building writes the approved plan, editing refines the built dashboard. Each phase
- * offers only the tools it needs, so every request carries fewer tool definitions.
+ * and plans, building writes the approved plan, editing refines the built dashboard or alert.
+ * Each phase offers only the tools it needs, so every request carries fewer tool definitions. A
+ * dashboard thread and an alert thread have tools of their own.
  */
 import type { ThreadState } from '../threads/state.ts';
 
@@ -17,7 +18,10 @@ export type ToolName =
   | 'propose_plan'
   | 'edit_dashboard'
   | 'chart_recipe'
-  | 'read_guide';
+  | 'read_guide'
+  | 'propose_alert'
+  | 'edit_alert'
+  | 'replay_alert';
 
 /** The tools each phase offers. */
 export const phaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
@@ -39,6 +43,26 @@ export const phaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
     'propose_plan',
     'chart_recipe',
     'edit_dashboard',
+  ],
+};
+
+/**
+ * The tools each phase offers in an alert thread: planning describes the data and proposes what
+ * to watch; building and editing test queries, read the alert guide and write the alert, and
+ * replay it where the access level shows numbers.
+ */
+export const alertPhaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
+  planning: ['describe', 'sample_values', 'ask_person', 'propose_alert'],
+  building: ['describe', 'sample_values', 'read_guide', 'test_query', 'edit_alert', 'replay_alert'],
+  editing: [
+    'describe',
+    'sample_values',
+    'read_guide',
+    'test_query',
+    'ask_person',
+    'propose_alert',
+    'edit_alert',
+    'replay_alert',
   ],
 };
 

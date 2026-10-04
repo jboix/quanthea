@@ -3,6 +3,7 @@
  * every change. The agent and the HTTP layer both go through it.
  */
 import type {
+  AlertPlan,
   AlertSeed,
   Plan,
   PlanView,
@@ -34,6 +35,9 @@ export interface StoredMessage {
   /** The metadata, if any. */
   readonly metadata?: unknown;
 }
+
+/** A plan of either kind of thread. */
+type AnyPlan = Plan | AlertPlan;
 
 /** What a new thread makes, and the panel an alert thread starts from. */
 export interface ThreadStart {
@@ -125,7 +129,7 @@ export interface Threads {
    * @param autoApprove - Whether plans are approved without asking.
    * @returns The plan.
    */
-  proposePlan(id: string, body: Plan, autoApprove: boolean): PlanView;
+  proposePlan(id: string, body: AnyPlan, autoApprove: boolean): PlanView;
   /**
    * Approves or rejects the pending plan.
    *
@@ -199,7 +203,7 @@ function toSummary(row: ThreadRow): ThreadSummary {
  */
 function toPlanView(row: PlanRow): PlanView {
   const { id, status, decidedBy, createdAt, decidedAt } = row;
-  return { id, status, body: row.body as Plan, decidedBy, createdAt, decidedAt };
+  return { id, status, body: row.body as AnyPlan, decidedBy, createdAt, decidedAt };
 }
 
 /**
@@ -243,7 +247,7 @@ function apply(context: Context, id: string, event: ThreadEvent): ThreadState {
  * @param autoApprove - Whether plans are approved without asking.
  * @returns The plan.
  */
-function proposePlan(context: Context, id: string, body: Plan, autoApprove: boolean): PlanView {
+function proposePlan(context: Context, id: string, body: AnyPlan, autoApprove: boolean): PlanView {
   apply(context, id, 'propose');
   const at = context.now();
   for (const plan of context.repository.plans(id).filter((each) => each.status === 'pending')) {

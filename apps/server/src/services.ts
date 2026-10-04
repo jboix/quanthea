@@ -322,7 +322,8 @@ export function createServices(dependencies: ServiceDependencies): Services {
     repository: createThreadBinRepository(dependencies.database),
     audit,
   });
-  const agent = createAgent({ ...data, threads, usage, ...settings });
+  const channels = () => data.notifications.picker();
+  const agent = createAgent({ ...data, threads, usage, ...settings, channels });
   const writer = createMetadataWriter({ modelSettings: settings.modelSettings, usage });
   const describeForPin = pinDescriber(writer, threads, bin);
   return {

@@ -19,6 +19,7 @@ const writeTools: ReadonlySet<string> = new Set([
   'edit_dashboard',
   'write_dashboard',
   'patch_panel',
+  'edit_alert',
 ]);
 
 /** A loosely read tool input or output. */
@@ -69,6 +70,12 @@ const summaries: Readonly<Record<string, (input: Loose, output: Loose) => string
     `edit_dashboard(${String(input?.summary ?? '')}): ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
   write_dashboard: (_input, output) =>
     `write_dashboard: ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
+  propose_alert: (input, output) =>
+    `propose_alert: "${String(input?.title ?? '')}", ${String(output?.status ?? 'pending')}`,
+  edit_alert: (input, output) =>
+    `edit_alert(${String(input?.note ?? '')}): ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
+  replay_alert: (input, output) =>
+    `replay_alert(${String(input?.window ?? '7d')}): ${outcome(output, () => `${String(output?.firings ?? 0)} firings`)}`,
   patch_panel: (input, output) =>
     `patch_panel(${String(input?.panelId ?? '')}): ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
 };
@@ -185,7 +192,7 @@ const decisionWords: Readonly<Partial<Record<PlanStatus, string>>> = {
  * @returns The part, with the decision when there is one.
  */
 function decidedPart(part: LoosePart, statuses: ReadonlyMap<string, PlanStatus>): LoosePart {
-  if (part.type !== 'tool-propose_plan') return part;
+  if (part.type !== 'tool-propose_plan' && part.type !== 'tool-propose_alert') return part;
   const output = part.output as { planId?: string } | undefined;
   const status = statuses.get(output?.planId ?? '');
   const next = status === undefined ? undefined : decisionWords[status];
@@ -210,4 +217,34 @@ export function withPlanDecisions(
     );
     return { ...message, parts: parts as unknown as ThreadMessage['parts'] };
   });
+}
+
+/** A hand edit of an alert draft, as its data part carries it. */
+interface HandEdit {
+  /** The version before. */
+  readonly from: number;
+  /** The version the edit saved. */
+  readonly to: number;
+  /** The fields that changed. */
+  readonly changes: readonly { path: string; before?: string; after?: string }[];
+}
+
+/**
+ * The text the model reads for a data part: a hand edit of the alert draft says which fields the
+ * person changed; other data parts are left out.
+ *
+ * @param part - The data part.
+ * @returns The text part, or `undefined` to leave the part out.
+ */
+export function handEditText(part: {
+  type: string;
+  data: unknown;
+}): { type: 'text'; text: string } | undefined {
+  if (part.type !== 'data-handEdit') return undefined;
+  const edit = part.data as HandEdit;
+  const changes = edit.changes.map(
+    (change) => `${change.path}: ${change.before ?? '(none)'} → ${change.after ?? '(none)'}`,
+  );
+  const text = `[I changed the alert by hand, v${edit.from} → v${edit.to}] ${changes.join('; ')}`;
+  return { type: 'text', text };
 }

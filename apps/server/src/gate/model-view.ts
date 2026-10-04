@@ -6,6 +6,13 @@
 import type { AccessLevel, Frame } from '@quanthea/shared';
 import type { SchemaSnapshot } from '../connectors/_shared/index.ts';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../query/executor.ts';
+import {
+  type AlertSeriesNow,
+  type ModelAlertCheck,
+  modelAlertCheck,
+  modelAlertReplay,
+  type ReplayView,
+} from './alert-view.ts';
 import { buildCatalog, createValueCache, type ValueCache } from './catalog.ts';
 import { type ModelEntity, modelSchema } from './model-schema.ts';
 import { type ModelSample, sampleForModel } from './sample.ts';
@@ -145,6 +152,25 @@ export interface ModelView {
     name: string,
     outcome: { frames: readonly Frame[]; error: string | null },
   ): ModelTestResult;
+  /**
+   * Shapes an alert's check for the model: the series it would watch now.
+   *
+   * @param name - The connector the alert's query ran on.
+   * @param series - The series the check found.
+   * @returns What the access level lets through.
+   */
+  alertCheck(
+    name: string,
+    series: readonly AlertSeriesNow[],
+  ): ModelAlertCheck | { readonly ok: false; readonly error: string };
+  /**
+   * Shapes an alert's replay for the model: a summary, from level 3 only.
+   *
+   * @param name - The connector the alert's query ran on.
+   * @param replay - The replay.
+   * @returns The summary, or why not.
+   */
+  alertReplay(name: string, replay: ReplayView): ReturnType<typeof modelAlertReplay>;
 }
 
 /** The most entities one description returns. */
@@ -208,6 +234,27 @@ function schemaOnly(subject: GateSubject | undefined): GateSubject | undefined {
 }
 
 /**
+ * The model view's shaping of an alert's check and replay, by connector.
+ *
+ * @param subjects - The connectors by name, as the gate sees them.
+ * @returns The methods.
+ */
+function alertMethods(
+  subjects: () => ReadonlyMap<string, GateSubject>,
+): Pick<ModelView, 'alertCheck' | 'alertReplay'> {
+  return {
+    alertCheck(name, series) {
+      const subject = subjects().get(name);
+      return subject ? modelAlertCheck(subject, series) : { ok: false, error: unreachable(name) };
+    },
+    alertReplay(name, replay) {
+      const subject = subjects().get(name);
+      return subject ? modelAlertReplay(subject, replay) : { ok: false, error: unreachable(name) };
+    },
+  };
+}
+
+/**
  * Creates the model's view of the connectors.
  *
  * @param access - What the connectors service provides.
@@ -235,6 +282,7 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
       if (!opened) return { ok: false, error: unreachable(name) };
       return testQueryForModel(opened.subject, executor, opened.source, request);
     },
+    ...alertMethods(subjects),
     panelResult(name, outcome) {
       const subject = subjects().get(name);
       if (!subject) return { ok: false, error: unreachable(name) };

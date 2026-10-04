@@ -80,11 +80,45 @@ export const planSchema = z.object({
 /** A plan. */
 export type Plan = z.infer<typeof planSchema>;
 
-/** Validates a plan as the API returns it. */
+/**
+ * Validates an alert plan: what an alert thread proposes to watch, when it fires, how often it
+ * checks and whom it notifies, in words, for a person to approve before the agent writes it.
+ */
+export const alertPlanSchema = z.strictObject({
+  kind: z.literal('alert'),
+  title: z.string().min(1).max(200),
+  /** What it watches, such as `the 5xx share of requests, per service`. */
+  watch: z.string().min(1).max(300),
+  /** The connector it reads. */
+  connector: connectorNameSchema,
+  /** When it fires, such as `above 2% for 5 minutes`. */
+  condition: z.string().min(1).max(300),
+  /** How often it checks, such as `every minute`. */
+  every: z.string().min(1).max(100),
+  /** The channels it notifies, by id and name. */
+  channels: z.array(z.object({ id: z.string().max(64), name: z.string().max(200) })).max(20),
+  /** When it notifies, such as `on firing and resolved, again every 30 minutes`. */
+  notify: z.string().max(300).optional(),
+});
+
+/** An alert plan. */
+export type AlertPlan = z.infer<typeof alertPlanSchema>;
+
+/**
+ * Whether a plan is a dashboard plan, not an alert thread's.
+ *
+ * @param body - The plan.
+ * @returns `true` for a dashboard plan.
+ */
+export function isDashboardPlan(body: Plan | AlertPlan): body is Plan {
+  return !('kind' in body);
+}
+
+/** Validates a plan as the API returns it: a dashboard plan, or an alert thread's plan. */
 export const planViewSchema = z.object({
   id: z.string(),
   status: z.enum(planStatuses),
-  body: planSchema,
+  body: z.union([planSchema, alertPlanSchema]),
   decidedBy: z.string().nullable(),
   createdAt: z.number(),
   decidedAt: z.number().nullable(),
@@ -129,6 +163,32 @@ const repairSchema = z.object({
 /** A failed write, or the repaired one. */
 export type Repair = z.infer<typeof repairSchema>;
 
+/** Validates the change of one field of an alert spec, as the hand-edit card shows it. */
+const specChangeSchema = z.object({
+  /** The field, such as `condition.value`. */
+  path: z.string().max(200),
+  before: z.string().max(2000).optional(),
+  after: z.string().max(2000).optional(),
+});
+
+/** The change of one field of an alert spec. */
+export type SpecChange = z.infer<typeof specChangeSchema>;
+
+/** The custom parts of an alert thread. */
+const alertDataSchemas = {
+  /** A proposed alert plan, for the plan card. */
+  alertPlan: z.object({ planId: z.string(), body: alertPlanSchema }),
+  /** A new alert version; the draft pane moves to it. */
+  alertVersion: z.object({ alertId: z.string(), version: z.int(), note: z.string() }),
+  /** The person changed the draft by hand: the versions and the fields that changed. */
+  handEdit: z.object({
+    alertId: z.string(),
+    from: z.int(),
+    to: z.int(),
+    changes: z.array(specChangeSchema).max(40),
+  }),
+};
+
 /** Validates a pinned dashboard that may already answer a question. */
 const pinnedMatchSchema = z.object({
   dashboardId: z.string(),
@@ -153,6 +213,7 @@ export const threadDataSchemas = {
     to: z.int(),
     panels: z.array(panelDiffSchema),
   }),
+  ...alertDataSchemas,
 };
 
 /** The data of each custom part. */

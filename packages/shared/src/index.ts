@@ -343,6 +343,7 @@ export {
 export { fixedTimeOf } from './spec/fixed-time.ts';
 export { refIdSchema, slugSchema, variableNameSchema } from './spec/names.ts';
 export {
+  durationSchema,
   type PanelQuery,
   panelQuerySchema,
   type QueryTemplate,

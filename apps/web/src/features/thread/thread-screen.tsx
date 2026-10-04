@@ -1,6 +1,8 @@
 import {
   type AccessLevel,
   addUsage,
+  isDashboardPlan,
+  type Plan,
   pricesCheckedOn,
   type ThreadDetail,
   type TurnUsage,
@@ -274,6 +276,17 @@ function ThreadPane({ state }: { readonly state: ScreenState }) {
 }
 
 /**
+ * The thread's latest plan, when it is a dashboard plan.
+ *
+ * @param thread - The thread.
+ * @returns The plan, if any.
+ */
+function dashboardPlanOf(thread: ThreadDetail): Plan | undefined {
+  const body = thread.plans.at(-1)?.body;
+  return body && isDashboardPlan(body) ? body : undefined;
+}
+
+/**
  * The thread screen: the conversation on the left, the draft the agent builds on the right.
  *
  * @returns The screen.
@@ -286,7 +299,7 @@ export function ThreadScreen() {
       <ThreadPane state={state} />
       <DraftPane
         data={data}
-        plan={data.thread.plans.at(-1)?.body}
+        plan={dashboardPlanOf(data.thread)}
         running={running}
         stopped={buildStopped(chat.messages)}
         selectedPanelId={selection.selectedPanelId}

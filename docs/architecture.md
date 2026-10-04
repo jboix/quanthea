@@ -996,6 +996,58 @@ to that version) and `data-diff` (the change card); their schemas are in `@quant
 whole conversation, tool parts included, is stored when the run ends, even if the person leaves, so
 a reload shows the same thread.
 
+### Alert threads
+
+A thread makes a dashboard or an alert (`threads.kind`), chosen by the person when it starts and
+fixed. The two are distinct modes of the agent, with their own instructions, tools and draft
+pane; the agent never switches mode. In a dashboard thread, asked to "tell me when…", it says in
+one sentence that an alert conversation does that. In an alert thread, asked for a dashboard, it
+says the reverse. An alert thread looks for no pinned dashboard on its first question.
+
+The state machine is the same: the agent proposes an alert plan, the person approves it, the agent
+writes the alert, and the thread is ready for changes, which need no new plan. The thread's alert
+is the one whose `thread_id` names it; every write adds one of its versions, a draft until someone
+activates one.
+
+| Phase    | Tools                                                                                                                |
+| -------- | -------------------------------------------------------------------------------------------------------------------- |
+| planning | `describe`, `sample_values`, `ask_person`, `propose_alert`                                                           |
+| building | `describe`, `sample_values`, `read_guide`, `test_query`, `edit_alert`, `replay_alert`                                |
+| editing  | `describe`, `sample_values`, `read_guide`, `test_query`, `ask_person`, `propose_alert`, `edit_alert`, `replay_alert` |
+
+- **`propose_alert`** takes the plan in words (what it watches on which connector, when it fires,
+  how often it checks) and the channels by id. It refuses an id no channel has. The plan card
+  (`data-alertPlan`) names them.
+- **`edit_alert`** takes the fields to set and a one-line note: the whole alert the first time,
+  then only what changes. `value`, `notify` and `message` merge field by field over the draft;
+  the rest replace (`agent/alert-edit.ts`). A query is a raw query in the connector's language.
+  The tool refuses a channel id not in the list, then `services.alerts.check` validates the merged
+  spec and runs its query once, and `saveVersion` adds the version with the thread's id. A failure
+  is counted like a failed dashboard write, streams a `data-repair` part with the issues by path,
+  and the model repairs it within the same attempts. A write streams `data-alertVersion`. The
+  model learns the series the alert would watch now through the gate (`gate/alert-view.ts`):
+  level 1 that the query ran, level 2 how many series and their label names, levels 3 and 4 the
+  labels, values and whether the condition holds.
+- **`replay_alert`** replays the draft over the last 24 hours or 7 days, at another threshold when
+  asked, without saving it. It returns a summary through the gate: counts, firing periods and the
+  spikes too short to fire, for the ten series that fired most, never the points. It is offered
+  only when a connector is at level 3 or 4, and refused for a draft whose connector is not; the
+  instructions then tell the agent to say once that the draft pane shows the replay.
+- **`read_guide("alert")`** gives the alert guide: every field of the spec, the placeholders and
+  an example.
+
+The instructions (`agent/alert-prompt.ts`, `agent/alert-turn.ts`) carry the persona and rules of
+the mode and the catalog, then the time, the channels it may notify by id, name and kind (none:
+say an admin adds one in Settings → Notifications, and leave the channels empty), the current
+draft, the panel the thread started from with its title and queries, whether a replay can be read,
+and what the phase asks. The message template uses the placeholders only; the agent writes it once
+and nothing fills it with a model later.
+
+The person's own changes to the draft feed the conversation: a hand edit stores a user message
+with a `data-handEdit` part (the versions and the fields that changed), and the next turn reads it
+as text, "I changed the alert by hand, v1 → v2: condition.value: 0.03 → 0.02". Each step goes to
+the usage ledger with the `alert` feature.
+
 ### Answers about a dashboard
 
 Outside any thread, the answering service (`agent/answer.ts`, its contract in

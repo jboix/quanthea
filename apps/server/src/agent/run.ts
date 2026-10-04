@@ -323,6 +323,27 @@ function respond(
 }
 
 /**
+ * The pinned dashboards that may already answer a dashboard thread's first question. An alert
+ * thread looks for none, and runs only where the alerts are wired in.
+ *
+ * @param dependencies - The agent's dependencies.
+ * @param threadId - The thread.
+ * @param messages - The conversation.
+ * @returns The matches, none for an alert thread.
+ * @throws {AppError} `bad_request` for an alert thread without the alerts.
+ */
+function matchesFor(
+  dependencies: AgentDependencies,
+  threadId: string,
+  messages: readonly ThreadMessage[],
+) {
+  if (dependencies.threads.row(threadId).kind !== 'alert')
+    return firstQuestionMatches(dependencies, threadId, messages);
+  if (!dependencies.alerts) throw new AppError('bad_request', 'Alerts are not available here.');
+  return [];
+}
+
+/**
  * Creates the agent.
  *
  * @param dependencies - The services, the model settings, and optionally a model builder.
@@ -336,7 +357,7 @@ export function createAgent(dependencies: AgentDependencies): Agent {
         throw new AppError('bad_request', 'The agent is already working in this thread.');
       }
       const turn = await prepare(dependencies, request);
-      const matches = firstQuestionMatches(dependencies, request.threadId, turn.messages);
+      const matches = matchesFor(dependencies, request.threadId, turn.messages);
       if (matches.length > 0) {
         const save = (messages: ThreadMessage[]) =>
           dependencies.threads.saveMessages(request.threadId, messages, request.actor);

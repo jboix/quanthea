@@ -42,7 +42,7 @@ export const minEvaluationMs = 60_000;
 const maxLookbackMs = 7 * 86_400_000;
 
 /** Validates how a number column of the result becomes one value per series. */
-const alertValueSchema = z.strictObject({
+export const alertValueSchema = z.strictObject({
   /** The number field compared; the first number field when left out. */
   field: z.string().min(1).max(200).optional(),
   /** How the points of a series within the window become one value. */
@@ -59,7 +59,7 @@ const alertValueSchema = z.strictObject({
 });
 
 /** Validates a variable's fixed value: no viewer picks it, the alert names it. */
-const alertVariableSchema = z.strictObject({
+export const alertVariableSchema = z.strictObject({
   name: variableNameSchema,
   value: z.union([z.string().max(200), z.array(z.string().max(200)).min(1).max(200)]),
   /** A duration that goes where a duration goes, such as `[$window]` in PromQL. */
@@ -85,16 +85,16 @@ const noDataConditionSchema = z.strictObject({
 });
 
 /** Validates the condition that fires. */
-const conditionSchema = z.discriminatedUnion('kind', [
+export const alertConditionSchema = z.discriminatedUnion('kind', [
   thresholdConditionSchema,
   noDataConditionSchema,
 ]);
 
 /** The condition that fires. */
-export type AlertCondition = z.infer<typeof conditionSchema>;
+export type AlertCondition = z.infer<typeof alertConditionSchema>;
 
 /** Validates when notifications go out besides the first one of a firing. */
-const notifySchema = z.strictObject({
+export const alertNotifySchema = z.strictObject({
   /** Whether a series that stops firing notifies. */
   onResolved: z.boolean().default(true),
   /** How often a series that keeps firing notifies again; once when left out. */
@@ -109,7 +109,7 @@ const alertSpecFields = z.strictObject({
   query: panelQuerySchema,
   value: alertValueSchema.prefault({}),
   variables: z.array(alertVariableSchema).max(20).default([]),
-  condition: conditionSchema,
+  condition: alertConditionSchema,
   /** How often the alert is evaluated; at least a minute. */
   every: durationSchema,
   /** The window each evaluation queries, ending at the evaluation; covers the condition's `for`. */
@@ -117,7 +117,7 @@ const alertSpecFields = z.strictObject({
   severity: z.enum(alertSeverities),
   /** The notification channels, by id. */
   channels: z.array(z.string().min(1).max(64)).max(20).default([]),
-  notify: notifySchema.prefault({}),
+  notify: alertNotifySchema.prefault({}),
   message: messageTemplateSchema,
   /** The IANA time zone notifications name times in; UTC when left out. */
   timezone: z.string().min(1).max(64).optional(),

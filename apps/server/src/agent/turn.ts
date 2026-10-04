@@ -2,7 +2,7 @@
  * One turn of the model: its instructions, its tools for the thread's phase, when it stops, and
  * what each step records. The run (`run.ts`) prepares the turn and stores the conversation.
  */
-import { resolveTime } from '@quanthea/shared';
+import { isDashboardPlan, resolveTime } from '@quanthea/shared';
 import {
   convertToModelMessages,
   type Instructions,
@@ -13,11 +13,12 @@ import {
   type ToolSet,
   toUIMessageStream,
 } from 'ai';
+import { alertActiveTools, alertInstructions, alertTurnTools } from './alert-turn.ts';
 import { askPersonTool } from './ask-tool.ts';
 import { buildTools, currentSpec } from './build-tools.ts';
 import { cachedInstructions, withCachedTail } from './cache.ts';
 import { chartTools } from './chart-tools.ts';
-import { compactHistory, compactSteps, endingOnPersonTurn } from './compact.ts';
+import { compactHistory, compactSteps, endingOnPersonTurn, handEditText } from './compact.ts';
 import { dataTools } from './data-tools.ts';
 import { guideTools } from './guide-tools.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
@@ -75,6 +76,30 @@ function copyOrigin(context: RunContext, dashboardId: string) {
 }
 
 /**
+ * The latest plan of the thread, when it is a dashboard plan.
+ *
+ * @param plans - The thread's plans.
+ * @returns The plan and its status.
+ */
+function latestDashboardPlan(plans: Plans) {
+  const latest = plans.at(-1);
+  if (!latest || !isDashboardPlan(latest.body)) return undefined;
+  return { body: latest.body, status: latest.status };
+}
+
+/**
+ * The latest version of the thread's dashboard.
+ *
+ * @param context - The run.
+ * @param dashboardId - The thread's dashboard, if it has one.
+ * @returns The version, 0 before the first.
+ */
+function draftVersion(context: RunContext, dashboardId: string | null): number {
+  if (dashboardId === null) return 0;
+  return context.dashboards.get(dashboardId, 'editor').versions.at(-1)?.version ?? 0;
+}
+
+/**
  * The instructions of this turn.
  *
  * @param context - The run.
@@ -91,19 +116,16 @@ export async function turnInstructions(
   hints: TurnHints,
   now: number,
 ): Promise<Instructions> {
+  if (context.threads.row(context.threadId).kind === 'alert')
+    return alertInstructions(context, plans, hints, now, questionsOf(messages));
   const spec = currentSpec(context);
   const { dashboardId, state } = context.threads.row(context.threadId);
-  const version =
-    dashboardId === null
-      ? 0
-      : (context.dashboards.get(dashboardId, 'editor').versions.at(-1)?.version ?? 0);
-  const latest = plans.at(-1);
   const parts = instructionParts({
     now,
     catalog: await context.modelView.catalog(context.signal, questionsOf(messages)),
     state,
-    plan: latest ? { body: latest.body, status: latest.status } : undefined,
-    draft: spec ? { version, spec } : undefined,
+    plan: latestDashboardPlan(plans),
+    draft: spec ? { version: draftVersion(context, dashboardId), spec } : undefined,
     copyOf: dashboardId === null ? undefined : copyOrigin(context, dashboardId),
     planQueries: context.settings.behaviour.planQueries,
     mentions: hints.mentions,
@@ -250,18 +272,22 @@ export async function streamTurn(
   instructions: Instructions,
   now: () => number,
 ): Promise<void> {
-  const tools = turnTools(context, now);
-  const { state } = context.threads.row(context.threadId);
+  const { state, kind } = context.threads.row(context.threadId);
+  const alert = kind === 'alert';
+  const tools: ToolSet = alert ? alertTurnTools(context, now) : turnTools(context, now);
   const job = phaseOf(state) === 'planning' ? 'plan' : 'build';
   context.counters.modelId = modelIdFor(context.settings, job);
   context.counters.job = job;
   const result = streamText({
     model: modelOf(job),
     instructions,
-    messages: await convertToModelMessages(compactHistory(messages), { tools }),
+    messages: await convertToModelMessages(compactHistory(messages), {
+      tools,
+      convertDataPart: handEditText,
+    }),
     prepareStep: stepSettings(context, modelOf, job),
     tools,
-    activeTools: [...phaseTools[phaseOf(state)]],
+    activeTools: alert ? alertActiveTools(context) : [...phaseTools[phaseOf(state)]],
     ...reasoningOption(context.settings),
     stopWhen: stopConditions(context),
     abortSignal: context.signal,

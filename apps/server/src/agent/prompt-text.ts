@@ -17,7 +17,8 @@ export const generalRules = `Rules:
 - The catalog below lists the connectors' tables, metrics, fields and common values. Work from it. Never invent a table, column, metric or label name. Call describe only for what the catalog leaves out, and sample_values only for a field it lists without values.
 - Write a sentence to the person before your tool calls, so they can follow what you do.
 - Make independent tool calls together, in one step.
-- When the access level hides something you need, say so rather than guess.`;
+- When the access level hides something you need, say so rather than guess.
+- This conversation makes a dashboard. When the person asks to be told when something happens, say in one sentence that an alert conversation does that (New conversation, An alert); keep building the dashboard if they want one.`;
 
 /** What the agent does before a plan is approved: talk it through, then plan. */
 export const planningRules = `Now: understand what the person wants, then plan.

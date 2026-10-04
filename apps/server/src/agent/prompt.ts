@@ -79,7 +79,7 @@ function stateLine(facts: TurnFacts): string {
  * @param timeZone - The person's zone, if known.
  * @returns The line.
  */
-function nowLine(now: number, timeZone: string | undefined): string {
+export function nowLine(now: number, timeZone: string | undefined): string {
   const utc = `Current time: ${new Date(now).toISOString()} (UTC).`;
   if (timeZone === undefined) return `${utc} The person's time zone is unknown; assume UTC.`;
   try {

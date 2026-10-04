@@ -1,6 +1,7 @@
 /** What one agent run shares between its tools: the services, the thread, and its counters. */
 import type { ModelSettings, ThreadData, TurnUsage } from '@quanthea/shared';
 import type { UIMessage, UIMessageStreamWriter } from 'ai';
+import type { Alerts } from '../alerts/alerts.ts';
 import type { Dashboards } from '../dashboards/dashboards.ts';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import type { ModelView } from '../gate/model-view.ts';
@@ -20,6 +21,23 @@ export interface AgentServices {
   readonly modelView: ModelView;
   /** The usage ledger, which records every step. */
   readonly usage: Usage;
+  /** The alerts, which alert threads write; alert threads refuse to run without them. */
+  readonly alerts?: AlertAuthoring | undefined;
+  /** The notification channels an alert may notify, by id, name and kind. */
+  readonly channels?: (() => readonly ChannelChoice[]) | undefined;
+}
+
+/** What an alert thread needs of the alerts: check, save, replay and read a draft. */
+export type AlertAuthoring = Pick<Alerts, 'check' | 'saveVersion' | 'replaySpec' | 'get'>;
+
+/** A notification channel an alert may notify. */
+export interface ChannelChoice {
+  /** The id the spec names. */
+  readonly id: string;
+  /** The name people know it by. */
+  readonly name: string;
+  /** The service, such as `slack`. */
+  readonly kind: string;
 }
 
 /** One run of the agent in one thread. */
