@@ -1,6 +1,7 @@
 import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { temporaryDir } from '../test/fixtures.ts';
+import { createAlertChannelUsage } from './alert-channel-usage.ts';
 import { createAlertRepository } from './alert-repository.ts';
 import { createAlertStateRepository } from './alert-state-repository.ts';
 import { openDatabase } from './database.ts';
@@ -67,6 +68,17 @@ describe('the alert repository', () => {
     expect(alerts.evaluated()).toEqual([]);
     alerts.activate('a', 1, 4);
     expect(alerts.get('a')?.deactivatedAt).toBeNull();
+  });
+
+  test('counts the alerts whose active version lists a channel', () => {
+    const alerts = createAlertRepository(database);
+    const usage = createAlertChannelUsage(database);
+    alerts.addVersion({ ...version('First', 1), spec: { title: 'First', channels: ['oncall'] } });
+    expect(usage('oncall')).toBe(0);
+    alerts.activate('a', 1, 2);
+    expect([usage('oncall'), usage('other')]).toEqual([1, 0]);
+    alerts.addVersion({ ...version('Second', 3), spec: { title: 'Second', channels: ['other'] } });
+    expect([usage('oncall'), usage('other')]).toEqual([1, 0]);
   });
 
   test('mutes and unmutes', () => {

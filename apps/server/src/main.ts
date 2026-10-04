@@ -49,7 +49,6 @@ const dependencies = {
   sessionHashes: keys.sessionHashes,
   peppers: keys.peppers,
   publicUrl: config.publicUrl,
-  logger,
 };
 const resealed = await resealSecrets(dependencies);
 if (resealed > 0) logger.info('sealed secrets again with the current key', { resealed });

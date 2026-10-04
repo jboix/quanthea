@@ -18,13 +18,13 @@ import {
   type AlertsDependencies,
   activate,
   alertOrThrow,
-  deactivate,
   mute,
   type NewVersion,
   saveVersion,
   unmute,
 } from './changes.ts';
 import { type AlertCheck, checkAlert } from './check.ts';
+import { deactivate } from './deactivate.ts';
 import type { EvaluatedAlert } from './evaluate.ts';
 import { type ReplayRequest, replayAlert } from './replay.ts';
 import { validateAlertSpec } from './validate.ts';
@@ -85,7 +85,7 @@ export interface Alerts {
    * @param actor - Who deactivates.
    * @returns The alert.
    */
-  deactivate(id: string, actor: string): AlertSummary;
+  deactivate(id: string, actor: string): Promise<AlertSummary>;
   /**
    * Mutes an alert's notifications.
    *
@@ -99,10 +99,10 @@ export interface Alerts {
    * Unmutes an alert.
    *
    * @param id - The alert.
-   * @param actor - Who unmutes.
+   * @param principal - Who unmutes.
    * @returns The alert.
    */
-  unmute(id: string, actor: string): AlertSummary;
+  unmute(id: string, principal: Principal): AlertSummary;
   /**
    * Replays a spec, such as a draft, over a past window.
    *
@@ -139,13 +139,19 @@ export interface Alerts {
  *
  * @param context - The service context.
  * @param alert - The alert.
+ * @param role - The role of the reader: drafts show to editors only.
  * @param counts - How many series it has in each state.
  * @returns The summary.
  */
-function summaryOf(context: AlertsContext, alert: AlertRow, counts?: StateCounts): AlertSummary {
+function summaryOf(
+  context: AlertsContext,
+  alert: AlertRow,
+  role: Role,
+  counts?: StateCounts,
+): AlertSummary {
   const shown = context.repository.version(alert.id, alert.activeVersion ?? alert.latestVersion);
   if (!shown) throw new AppError('not_found', `No alert ${alert.id}.`);
-  return toSummary(alert, shown, counts ?? context.states.stateCounts().get(alert.id));
+  return toSummary(alert, shown, role, counts ?? context.states.stateCounts().get(alert.id));
 }
 
 /**
@@ -165,7 +171,7 @@ function detailOf(context: AlertsContext, id: string, role: Role): AlertDetail {
     series: context.states.series(id),
     events: context.states.events(id, recentEvents),
   };
-  return toDetail(summaryOf(context, alert), parts, role);
+  return toDetail(summaryOf(context, alert, role), parts, role);
 }
 
 /**
@@ -231,7 +237,7 @@ function listAlerts(context: AlertsContext, role: Role): AlertSummary[] {
   return context.repository
     .list()
     .filter((alert) => canSeeAlert(alert, role))
-    .map((alert) => summaryOf(context, alert, counts.get(alert.id) ?? {}));
+    .map((alert) => summaryOf(context, alert, role, counts.get(alert.id) ?? {}));
 }
 
 /**
@@ -243,24 +249,25 @@ function listAlerts(context: AlertsContext, role: Role): AlertSummary[] {
 function changeMethods(
   context: AlertsContext,
 ): Pick<Alerts, 'saveVersion' | 'activate' | 'deactivate' | 'mute' | 'unmute'> {
-  const summary = (id: string) => summaryOf(context, alertOrThrow(context, id));
+  const summary = (id: string, role: Role = 'editor') =>
+    summaryOf(context, alertOrThrow(context, id), role);
   return {
     saveVersion: (input, actor) => saveVersion(context, input, actor),
     activate: async (id, version, actor) => {
       await activate(context, id, version, actor);
       return summary(id);
     },
-    deactivate: (id, actor) => {
-      deactivate(context, id, actor);
+    deactivate: async (id, actor) => {
+      await deactivate(context, id, actor);
       return summary(id);
     },
     mute: (id, until, principal) => {
       mute(context, id, until, principal);
-      return summary(id);
+      return summary(id, principal.role);
     },
-    unmute: (id, actor) => {
-      unmute(context, id, actor);
-      return summary(id);
+    unmute: (id, principal) => {
+      unmute(context, id, principal.id);
+      return summary(id, principal.role);
     },
   };
 }

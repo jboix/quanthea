@@ -27,7 +27,8 @@ export const alertSummarySchema = z.object({
   /** The severity of the active version, else of the latest. */
   severity: z.enum(alertSeverities),
   activeVersion: z.int().nullable(),
-  latestVersion: z.int(),
+  /** The latest version, maybe a draft; `null` below editor. */
+  latestVersion: z.int().nullable(),
   /** Whether evaluation is stopped. */
   deactivated: z.boolean(),
   muted: muteSchema.nullable(),

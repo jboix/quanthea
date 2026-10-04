@@ -94,6 +94,7 @@ The schema catches shape errors and checks across fields: `every` is at least a 
 covers the condition's `for`, `repeatEvery` is no shorter than `every`, a variable is named once and
 an interval variable holds a duration. `alerts/validate.ts` (`validateAlertSpec`) also checks:
 
+- every channel id names a notification channel (on save and activation);
 - the connector exists and runs the query's language;
 - the query binds with the fixed variables exactly as it will at run time: a variable without a
   value, a misplaced variable, or a SQL template that is not one read statement is reported;

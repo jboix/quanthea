@@ -3,14 +3,14 @@
  * the dashboards. The bootstrap and the tests wire them the same way.
  */
 
-import type { DashboardSpec } from '@quanthea/shared';
+import type { DashboardSpec, Notification } from '@quanthea/shared';
 import { type AccountDependencies, type Accounts, createAccounts } from './accounts.ts';
 import { createAnswers } from './agent/answer.ts';
 import type { Answers } from './agent/answer-types.ts';
 import { createMetadataWriter, type PinMetadata } from './agent/metadata.ts';
 import { type Agent, createAgent } from './agent/run.ts';
 import { type Alerts, createAlerts } from './alerts/alerts.ts';
-import type { EvaluationDependencies, Notify } from './alerts/evaluate.ts';
+import type { EvaluationDependencies } from './alerts/evaluate.ts';
 import { resealIdentities, resealSignInCredentials, resealUsers } from './auth/reseal-users.ts';
 import { type Connections, createConnections } from './connections/connections.ts';
 import { resealConnectors } from './connections/reseal.ts';
@@ -20,6 +20,7 @@ import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
 import { createExplanations, type Explanations } from './dashboards/explanations.ts';
 import { createQuestions, type Questions } from './dashboards/questions.ts';
 import { createSnapshots, type Snapshots } from './dashboards/snapshots.ts';
+import { createAlertChannelUsage } from './db/alert-channel-usage.ts';
 import { createAlertRepository } from './db/alert-repository.ts';
 import { createAlertStateRepository } from './db/alert-state-repository.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
@@ -36,7 +37,6 @@ import { createThreadRepository } from './db/thread-repository.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
 import { createUserRepository } from './db/user-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
-import type { Logger } from './lib/logger.ts';
 import { createNotifications, type Notifications } from './notifications/notifications.ts';
 import { resealChannels } from './notifications/reseal.ts';
 import { createManaged, type Managed } from './provisioning/managed.ts';
@@ -62,10 +62,6 @@ import { createUsage, type Usage } from './usage/usage.ts';
 export interface ServiceDependencies extends AccountDependencies {
   /** The connector kinds on offer. */
   readonly kinds: readonly RegisteredKind[];
-  /** Sends alert notifications to channels; logs them when left out. */
-  readonly notify?: Notify;
-  /** Where the default `notify` logs. */
-  readonly logger?: Logger;
 }
 
 /** The services the HTTP layer calls. */
@@ -133,7 +129,7 @@ const maxCachedResults = 500;
  *
  * @param dependencies - The database, the connector kinds and the secret box.
  * @param audit - The audit log.
- * @returns The data services.
+ * @returns The data services, and the notification channels the alerts send to.
  */
 function dataServices(
   dependencies: ServiceDependencies,
@@ -160,56 +156,43 @@ function dataServices(
   const { subjects: list, open, snapshot } = connections;
   const modelView = createModelView({ list, open, snapshot }, executor);
   const answered = answerServices(database, dashboardDependencies, modelView);
-  const alerting = alertServices(dependencies, audit, dashboardDependencies);
-  return { connections, dashboards, snapshots, ...answered, modelView, ...alerting };
-}
-
-/**
- * Logs the notifications an alert sends, until notification channels are connected.
- *
- * @param logger - Where to log; nothing is logged without one.
- * @returns The sender.
- */
-function logNotifications(logger: Logger | undefined): Notify {
-  return (channelIds, notification) => {
-    const { event, alert, series } = notification;
-    logger?.info('alert notification', {
-      event,
-      alertId: alert.id,
-      series: series.key,
-      channelIds,
-    });
-    return Promise.resolve();
-  };
+  const notifications = notificationService(dependencies, audit);
+  const alerting = alertServices(dependencies, audit, { ...dashboardDependencies, notifications });
+  return { connections, dashboards, snapshots, ...answered, modelView, ...alerting, notifications };
 }
 
 /**
  * The alerts, their settings, and what evaluating one needs. They share the panels' executor.
  *
- * @param dependencies - The database, the settings store, the sender and the public URL.
+ * @param dependencies - The database, the settings store and the public URL.
  * @param audit - The audit log.
- * @param dashboardDependencies - The connectors and the executor the dashboards use.
+ * @param shared - The connectors and the executor the dashboards use, and the channels.
  * @returns The services.
  */
 function alertServices(
   dependencies: ServiceDependencies,
   audit: ReturnType<typeof createAuditRepository>,
-  dashboardDependencies: Pick<DashboardsDependencies, 'lookup' | 'openSource' | 'executor'>,
+  shared: Pick<DashboardsDependencies, 'lookup' | 'openSource' | 'executor'> & {
+    readonly notifications: Notifications;
+  },
 ): Pick<Services, 'alerts' | 'alertSettings' | 'alertEvaluation'> {
   const { database } = dependencies;
+  const { notifications, openSource, executor } = shared;
   const states = createAlertStateRepository(database);
   const alertSettings = createAlertSettings({ store: dependencies.settings, audit });
-  const repository = createAlertRepository(database);
-  const base = { ...dashboardDependencies, states, audit, repository };
-  const alerts = createAlerts({ ...base, settings: alertSettings });
   const origin = dependencies.publicUrl?.replace(/\/$/, '') ?? '';
   const alertEvaluation = {
-    openSource: dashboardDependencies.openSource,
-    executor: dashboardDependencies.executor,
+    openSource,
+    executor,
     states,
-    notify: dependencies.notify ?? logNotifications(dependencies.logger),
+    notify: (channelIds: readonly string[], notification: Notification) =>
+      notifications.send(channelIds, notification),
     alertUrl: (alertId: string) => `${origin}/alerts/${encodeURIComponent(alertId)}`,
   };
+  const channelExists = (id: string) => notifications.picker().some((each) => each.id === id);
+  const repository = createAlertRepository(database);
+  const base = { ...shared, ...alertEvaluation, audit, repository, channelExists };
+  const alerts = createAlerts({ ...base, settings: alertSettings });
   return { alerts, alertSettings, alertEvaluation };
 }
 
@@ -351,7 +334,6 @@ export function createServices(dependencies: ServiceDependencies): Services {
     usage,
     ...settings,
     ...provisioningParts(dependencies),
-    notifications: notificationService(dependencies, audit),
   };
 }
 
@@ -371,5 +353,6 @@ function notificationService(
     secretBox: dependencies.secretBox,
     audit,
     publicUrl: dependencies.publicUrl,
+    alertsUsing: createAlertChannelUsage(dependencies.database),
   });
 }

@@ -109,15 +109,27 @@ describe('reading alerts', () => {
       (await client(editor)('POST', `/api/alerts/${id}/activate`, { version: 1 })).status,
     ).toBe(200);
     const listed = await client(viewer)('GET', '/api/alerts');
-    expect(listed.body.alerts).toMatchObject([{ id, activeVersion: 1, latestVersion: 2 }]);
+    expect(listed.body.alerts).toMatchObject([{ id, activeVersion: 1, latestVersion: null }]);
     const detail = alertDetailSchema.parse((await client(viewer)('GET', `/api/alerts/${id}`)).body);
+    expect(detail.latestVersion).toBeNull();
     expect(detail.versions.map((version) => [version.version, version.createdBy])).toEqual([
       [1, 'Eddie'],
     ]);
     const forEditors = alertDetailSchema.parse(
       (await client(editor)('GET', `/api/alerts/${id}`)).body,
     );
+    expect(forEditors.latestVersion).toBe(2);
     expect(forEditors.versions.map((version) => version.version)).toEqual([2, 1]);
+  });
+
+  test('refuses a version that names a notification channel that does not exist', () => {
+    const spec = { ...eventsAlert(), channels: ['nowhere'] };
+    expect(() => fixture.alerts.saveVersion({ spec }, editor.id)).toThrow(
+      expect.objectContaining({
+        code: 'bad_request',
+        details: [expect.objectContaining({ path: 'channels[0]' })],
+      }),
+    );
   });
 
   test('viewers and analysts change nothing but a mute', async () => {

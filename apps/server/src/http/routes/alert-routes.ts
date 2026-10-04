@@ -119,7 +119,8 @@ function mountChangeEndpoints(app: Hono<AppEnv>, services: AlertRouteServices): 
   });
   mountEndpoint(app, deactivateAlertEndpoint, {
     access: 'editor',
-    handle: ({ params, principal }) => named(alerts.deactivate(params.alertId, actorOf(principal))),
+    handle: async ({ params, principal }) =>
+      named(await alerts.deactivate(params.alertId, actorOf(principal))),
   });
   mountEndpoint(app, muteAlertEndpoint, {
     access: 'analyst',
@@ -128,7 +129,7 @@ function mountChangeEndpoints(app: Hono<AppEnv>, services: AlertRouteServices): 
   });
   mountEndpoint(app, unmuteAlertEndpoint, {
     access: 'analyst',
-    handle: ({ params, principal }) => named(alerts.unmute(params.alertId, actorOf(principal))),
+    handle: ({ params, principal }) => named(alerts.unmute(params.alertId, signedIn(principal))),
   });
 }
 

@@ -22,6 +22,8 @@ export interface AlertValidationContext {
   readonly lookup: ConnectorLookup;
   /** The current instant. */
   readonly now: number;
+  /** Whether a notification channel exists; channels are not checked without it. */
+  readonly channelExists?: ((channelId: string) => boolean) | undefined;
 }
 
 /** The outcome of validation: a clean spec, or the issues. */
@@ -111,6 +113,27 @@ export function validateAlertSpec(
     return { ok: false, issues };
   }
   const spec = parsed.data;
-  const issues = [...checkTimezone(spec.timezone), ...checkQuery(spec, context)];
+  const issues = [
+    ...checkTimezone(spec.timezone),
+    ...checkChannels(spec, context),
+    ...checkQuery(spec, context),
+  ];
   return issues.length > 0 ? { ok: false, issues } : { ok: true, spec };
+}
+
+/**
+ * Checks that every channel the spec names exists, when the context can tell.
+ *
+ * @param spec - The spec.
+ * @param context - Whether a channel exists, if the caller checks channels.
+ * @returns An issue per unknown channel, at `channels[i]`.
+ */
+function checkChannels(spec: AlertSpec, context: AlertValidationContext): SpecIssue[] {
+  const { channelExists } = context;
+  if (!channelExists) return [];
+  return spec.channels.flatMap((id, index) =>
+    channelExists(id)
+      ? []
+      : [{ path: `channels[${index}]`, message: `No notification channel has the id "${id}".` }],
+  );
 }

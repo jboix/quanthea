@@ -58,17 +58,18 @@ function readSeries(spec: AlertSpec, frames: Parameters<typeof seriesOf>[0]): Al
 /**
  * Checks an alert spec and runs its query once.
  *
- * @param dependencies - The connectors, the executor and the lookup of connectors.
+ * @param dependencies - The connectors, the executor, the lookup of connectors and of channels.
  * @param input - The spec, as JSON.
  * @param now - The current instant.
  * @returns The valid spec with the series it sees now, or every issue.
  */
 export async function checkAlert(
-  dependencies: AlertQueryDependencies & Pick<AlertValidationContext, 'lookup'>,
+  dependencies: AlertQueryDependencies & Pick<AlertValidationContext, 'lookup' | 'channelExists'>,
   input: unknown,
   now: number,
 ): Promise<AlertCheck> {
-  const validation = validateAlertSpec(input, { lookup: dependencies.lookup, now });
+  const { lookup, channelExists } = dependencies;
+  const validation = validateAlertSpec(input, { lookup, channelExists, now });
   if (!validation.ok) return validation;
   const { spec } = validation;
   const outcome = await runAlertQuery(dependencies, spec, windowAt(spec, now));

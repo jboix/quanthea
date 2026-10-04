@@ -92,12 +92,6 @@ export interface AlertStateRepository {
    */
   saveEvaluation(alertId: string, record: EvaluationRecord): void;
   /**
-   * Forgets the series of an alert, when it stops being evaluated.
-   *
-   * @param alertId - The alert.
-   */
-  clearSeries(alertId: string): void;
-  /**
    * Deletes the changes of state older than a time.
    *
    * @param before - The time.
@@ -183,7 +177,6 @@ function stateStatements(database: Database) {
          at, value, message, notified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     evaluated: database.query('UPDATE alerts SET evaluated_at = ? WHERE id = ?'),
-    clear: database.query('DELETE FROM alert_series WHERE alert_id = ?'),
     purge: database.query('DELETE FROM alert_events WHERE at < ?'),
   };
 }
@@ -285,9 +278,6 @@ export function createAlertStateRepository(database: Database): AlertStateReposi
     stateCounts: counter(statements),
     events: (alertId, limit) => statements.events.all(alertId, limit).map(eventOf),
     saveEvaluation: evaluationSaver(database, statements),
-    clearSeries: (alertId) => {
-      statements.clear.run(alertId);
-    },
     purgeEvents: (before) => statements.purge.run(before).changes,
   };
 }

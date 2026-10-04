@@ -508,8 +508,9 @@ only admins add, change and delete channels.
   The hourly purge job deletes sends older than 30 days and all but the newest 200 of each
   channel; a channel's sends go with it.
 - **Alerts using a channel.** The channel list shows how many alerts send to each channel, and a
-  channel alerts send to can't be deleted (`conflict`). Until alerts exist the count is 0: the
-  service takes the count as a function (`alertsUsing`).
+  channel alerts send to can't be deleted (`conflict`). The service takes the count as a function
+  (`alertsUsing`): the alerts whose active version lists the channel, deactivated or not
+  (`db/alert-channel-usage.ts`).
 - **Previews.** `POST /api/notification-channels/preview` (editor+) returns what each kind, or one
   kind, would send for a template, values, an alert's title and severity and labels, with
   stand-in targets. Nothing is sent. `GET /api/notification-channels` (editor+) lists channels by
@@ -531,15 +532,21 @@ limit and timeout, and never through the gate.
 
 **Versions.** Like dashboards, alerts have versions that are never rewritten (a trigger enforces
 it). One version at a time is active (`alerts.active_version`), and activating chooses it, as pinning
-does for a dashboard. A version keeps the time it was first activated. `alerts/changes.ts`:
+does for a dashboard. A version keeps the time it was first activated. Below editor, an alert shows
+once a version is active, with the versions ever active only: no draft, and no latest version
+number (`latestVersion` is `null`). `alerts/changes.ts` and `alerts/deactivate.ts`:
 
 - `saveVersion` validates a spec (`validateAlertSpec`) and adds a version, creating the alert with
   its first one, and the thread that made it when there is one. The conversation that writes
-  alerts calls it, after `checkAlert` has run the query once.
-- Activating validates the version again, runs its query once (a failing query refuses it), and
+  alerts calls it, after `checkAlert` has run the query once. A version that names a channel id no
+  channel has is refused, at `channels[i]`.
+- Activating validates the version again, channels included, runs its query once (a failing query
+  refuses it), and
   holds to the cap of active alerts per connector (`maxActivePerConnector`, Settings, 50 by
   default; `conflict` past it). It resumes evaluation.
-- Deactivating stops evaluation, keeps the active version and forgets the series' states.
+- Deactivating stops evaluation, keeps the active version and ends the series: each that was not ok
+  records its change to ok, and each that announced firing sends `alert.resolved` (when the version
+  asks for it and the alert is not muted), so a channel such as PagerDuty closes its incident.
 - Muting stops notifications only: evaluation and state go on. An analyst mutes until a time at
   most seven days ahead; an editor may also mute until someone unmutes. A series still firing when
   the mute ends notifies then.
@@ -579,9 +586,9 @@ transaction (`alert_series`, `alert_events`). Then it sends what is due:
 
 A notification is the shared contract (`Notification`): the version's message template and the
 values filled from the series. The evaluator hands it to an injected
-`notify(channelIds, notification): Promise<unknown>`. The bootstrap's default logs each
-notification; notification channels provide the sender. A failing sender is logged and does not
-stop the other notifications.
+`notify(channelIds, notification): Promise<unknown>`, which the bootstrap wires to the
+notification channels' `send` (it never throws). A failing sender is logged and does not stop the
+other notifications.
 
 **Replay** (`alerts/replay.ts`, `alerts/replay-core.ts`) answers "how would this have fired over
 the last 7 days". It runs the query once over the whole window, PromQL and LogQL as a range query
@@ -1799,7 +1806,7 @@ indicative; the contract files are the source of truth.
 | `POST /settings/notification-channels/:id/test`, `GET …/:id/sends`                                | send a test, a channel's recent sends        | admin    |
 | `GET /notification-channels`                                                                      | channels by id, name and kind, to pick from  | editor   |
 | `POST /notification-channels/preview`                                                             | what each kind would send for a template     | editor   |
-| `GET /alerts`, `GET /alerts/:id` (versions ever active, series, recent changes; drafts: editor)   | alerts and their state                       | viewer   |
+| `GET /alerts`, `GET /alerts/:id` (versions ever active, series, changes; drafts: editor only)     | alerts and their state                       | viewer   |
 | `POST /alerts/:id/mute` (an end at most 7 days ahead; no end: editor), `POST /alerts/:id/unmute`  | stop or resume notifications                 | analyst  |
 | `POST /alerts/:id/activate` (a version), `POST /alerts/:id/deactivate`                            | choose the version evaluated, or stop        | editor   |
 | `POST /alerts/replay` (a spec), `POST /alerts/:id/versions/:v/replay`                             | how it would have fired over a past window   | editor   |

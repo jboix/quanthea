@@ -1,5 +1,5 @@
 /**
- * The changes people make to alerts: save a version, activate one, deactivate, mute and unmute.
+ * The changes people make to alerts: save a version, activate one, mute and unmute.
  * Versions are never rewritten. Activating checks the spec again and runs its query once, and
  * holds to the cap of active alerts per connector.
  */
@@ -12,6 +12,7 @@ import type { AuditRepository } from '../db/audit-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
 import { checkAlert } from './check.ts';
+import type { Notify } from './evaluate.ts';
 import type { AlertQueryDependencies } from './run-query.ts';
 import { validateAlertSpec } from './validate.ts';
 
@@ -27,6 +28,12 @@ export interface AlertsDependencies extends AlertQueryDependencies {
   readonly lookup: ConnectorLookup;
   /** The alert settings. */
   readonly settings: { readonly get: () => AlertSettings };
+  /** Whether a notification channel exists, checked on save and activation. */
+  readonly channelExists?: ((channelId: string) => boolean) | undefined;
+  /** Sends notifications: the resolved ones when an alert is deactivated. */
+  readonly notify: Notify;
+  /** The link to an alert. */
+  readonly alertUrl: (alertId: string) => string;
   /** The clock; `Date.now` by default. */
   readonly now?: () => number;
 }
@@ -79,7 +86,8 @@ export function saveVersion(
 ): { alertId: string; version: number } {
   if (input.alertId !== undefined) alertOrThrow(context, input.alertId);
   const now = context.now();
-  const validation = validateAlertSpec(input.spec, { lookup: context.lookup, now });
+  const { lookup, channelExists } = context;
+  const validation = validateAlertSpec(input.spec, { lookup, channelExists, now });
   if (!validation.ok) refuseSpec('The alert spec is invalid.', validation.issues);
   const alertId = input.alertId ?? newId();
   const { spec } = validation;
@@ -134,21 +142,6 @@ export async function activate(
   checkCap(context, id, check.spec);
   context.repository.activate(id, version, context.now());
   context.audit.append({ actor, action: 'alert.activate', target: id, detail: { version } });
-}
-
-/**
- * Stops evaluating an alert and forgets the state of its series.
- *
- * @param context - The service context.
- * @param id - The alert.
- * @param actor - Who deactivates.
- * @throws {AppError} `not_found`.
- */
-export function deactivate(context: AlertsContext, id: string, actor: string): void {
-  alertOrThrow(context, id);
-  context.repository.deactivate(id, context.now());
-  context.states.clearSeries(id);
-  context.audit.append({ actor, action: 'alert.deactivate', target: id });
 }
 
 /**

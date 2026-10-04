@@ -44,12 +44,14 @@ function canSeeVersion(version: AlertVersionRow, role: Role): boolean {
  *
  * @param alert - The alert.
  * @param shown - The version that sets its severity: the active one, else the latest.
+ * @param role - The role of the reader: the latest version, a draft maybe, shows to editors only.
  * @param counts - How many series it has in each state.
  * @returns The summary.
  */
 export function toSummary(
   alert: AlertRow,
   shown: AlertVersionRow,
+  role: Role,
   counts: StateCounts = {},
 ): AlertSummary {
   const { mutedAt, mutedBy, mutedUntil } = alert;
@@ -59,7 +61,7 @@ export function toSummary(
     title: alert.title,
     severity: alertSpecSchema.parse(shown.spec).severity,
     activeVersion: alert.activeVersion,
-    latestVersion: alert.latestVersion,
+    latestVersion: hasRole(role, 'editor') ? alert.latestVersion : null,
     deactivated: alert.deactivatedAt !== null,
     muted,
     evaluatedAt: alert.evaluatedAt,
