@@ -6,7 +6,7 @@ import type { AlertSpec } from '@quanthea/shared';
 import styles from './alert-draft.module.css';
 import { byWords } from './condition.ts';
 import type { TrackedSeries } from './replay-model.ts';
-import { seriesName } from './replay-section.tsx';
+import { seriesName } from './tunable-chart.tsx';
 
 /** The most series the list names; the rest are counted. */
 const maxListed = 8;

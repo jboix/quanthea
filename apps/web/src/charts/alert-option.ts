@@ -21,13 +21,15 @@ export interface AlertChartSeries {
 export interface AlertChartInput {
   /** The series. */
   readonly series: readonly AlertChartSeries[];
-  /** The threshold, or `null` for a condition without one. */
+  /** The saved threshold, or `null` for a condition without one; the value axis shows it. */
   readonly threshold: number | null;
   /**
-   * Whether the chart draws the threshold's line; `false` when an overlay draws it, such as a
-   * threshold a person drags. The value axis keeps the threshold in view either way.
+   * Where a person moved the threshold without saving it: the line goes there, and the saved
+   * threshold stays as a faint line marked `was`.
    */
-  readonly thresholdLine?: boolean;
+  readonly moved?: number | null | undefined;
+  /** Whether a handle at the right writes the threshold: the line has no label, and room is left. */
+  readonly handle?: boolean | undefined;
   /** When the alert fired. */
   readonly firing: readonly { readonly from: number; readonly to: number }[];
   /** Writes a value as the alert's format does. */
@@ -39,24 +41,41 @@ export interface AlertChartInput {
 }
 
 /**
- * The threshold line, and the firing periods, on the first series.
+ * The points of the threshold's line: where it is, and where it was saved when it moved.
  *
- * @param input - The threshold and the periods.
- * @param theme - The theme.
- * @returns The marks to spread on the first series.
+ * @param input - Where it moved, the format and the handle.
+ * @param threshold - The saved threshold.
+ * @returns The mark line's data.
  */
-function marks(input: AlertChartInput, theme: ChartTheme): Loose {
-  const { threshold, firing, format } = input;
-  const markArea = {
-    silent: true,
-    animation: false,
-    itemStyle: { color: theme.danger, opacity: 0.1 },
-    data: firing.map((period) => [{ xAxis: period.from }, { xAxis: period.to }]),
+function lineData(input: AlertChartInput, threshold: number): Loose[] {
+  const { format } = input;
+  const shown = input.moved ?? threshold;
+  const show = input.handle !== true;
+  const line = { yAxis: shown, label: { show, formatter: () => format(shown) } };
+  if (shown === threshold) return [line];
+  const was = {
+    yAxis: threshold,
+    lineStyle: { opacity: 0.45, width: 1 },
+    label: { position: 'insideEndBottom', formatter: () => `was ${format(threshold)}` },
   };
-  if (threshold === null || input.thresholdLine === false) return { markArea };
-  const markLine = {
+  return [line, was];
+}
+
+/**
+ * The dashed line of a threshold. Its value is exact: ECharts rounds a mark line's value to its
+ * `precision`, two decimals by default, which drew a threshold of 0.0231 at 0.02.
+ *
+ * @param input - The threshold, where it moved, the format and the handle.
+ * @param theme - The theme.
+ * @returns The mark line, or nothing without a threshold.
+ */
+function thresholdLine(input: AlertChartInput, theme: ChartTheme): Loose | undefined {
+  if (input.threshold === null) return undefined;
+  return {
     silent: true,
     animation: false,
+    // A negative precision leaves the value as it is.
+    precision: -1,
     symbol: ['none', 'none'],
     lineStyle: { color: theme.danger, type: 'dashed', width: 1.5 },
     label: {
@@ -64,11 +83,27 @@ function marks(input: AlertChartInput, theme: ChartTheme): Loose {
       color: theme.danger,
       fontFamily: theme.monoFamily,
       fontSize: 11,
-      formatter: () => format(threshold),
     },
-    data: [{ yAxis: threshold }],
+    data: lineData(input, input.threshold),
   };
-  return { markArea, markLine };
+}
+
+/**
+ * The threshold line, and the firing periods, on the first series.
+ *
+ * @param input - The threshold and the periods.
+ * @param theme - The theme.
+ * @returns The marks to spread on the first series.
+ */
+function marks(input: AlertChartInput, theme: ChartTheme): Loose {
+  const markArea = {
+    silent: true,
+    animation: false,
+    itemStyle: { color: theme.danger, opacity: 0.1 },
+    data: input.firing.map((period) => [{ xAxis: period.from }, { xAxis: period.to }]),
+  };
+  const markLine = thresholdLine(input, theme);
+  return markLine ? { markArea, markLine } : { markArea };
 }
 
 /**
@@ -196,7 +231,7 @@ function frame(input: AlertChartInput, theme: ChartTheme): Loose {
   const note = { text: 'No data in this range', left: 'center', top: 'middle' };
   const title = { ...note, textStyle: { color: theme.inkSecondary, fontSize: 13 } };
   return {
-    grid: { left: 8, right: 16, top: several ? 36 : 16, bottom: 8, ...bounded },
+    grid: { left: 8, right: input.handle ? 72 : 16, top: several ? 36 : 16, bottom: 8, ...bounded },
     ...(several ? { legend } : {}),
     ...(empty ? { title } : {}),
   };

@@ -1,7 +1,8 @@
 /**
- * The threshold drawn over a replay chart, as a dashed line with a handle a person drags: the
- * value follows the pointer while it moves, and the release saves it. Arrow keys move it too, and
- * the key's release saves it. The spikes too short to fire are marked along the bottom.
+ * The handle of the threshold a replay chart draws, at the right end of its dashed line, which a
+ * person drags: the value follows the pointer while it moves, and the release lets it go there.
+ * Arrow keys move it too, and the key's release lets it go. The spikes too short to fire are
+ * marked along the bottom.
  */
 import { type KeyboardEvent, type PointerEvent, type RefObject, useRef } from 'react';
 import type { ValueAxis } from '../../charts/index.ts';
@@ -125,7 +126,6 @@ export function ThresholdHandle(props: ThresholdHandleProps) {
   return (
     <div ref={overlay} className={styles.overlay}>
       <SpikeMarks axis={axis} spikes={props.spikes} />
-      <span className={styles.line} style={{ top }} />
       <button
         type="button"
         role="slider"

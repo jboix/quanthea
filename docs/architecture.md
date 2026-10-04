@@ -200,12 +200,15 @@ the kit's HTTP client for every kind that speaks HTTP.
   - the condition as a sentence ("Fires when errors of each service is above 2% for 5 minutes,
     checked every minute"), each value a button that opens an inline editor;
   - the replay of the latest version over 7 days or 24 hours, from the alert pages' replay route,
-    drawn by the alert chart of `charts/`, with the threshold as a dashed line and a handle to drag
-    (or move with the arrow keys). While it moves, the browser replays the values again with the
-    shared rules (`replayAtThreshold`), so the shading, the dots of the spikes too short to fire,
-    the series list and the summary ("Would have fired 2 times · 23 minutes in total · 1 spike
-    too short to fire") follow at once. The chart reports its axes (`ValueAxis`) so the handle
-    converts pixels to values without ECharts leaving `charts/`;
+    drawn by the alert chart of `charts/`, with the threshold as a dashed line and a handle at its
+    right to drag (or move with the arrow keys). The chart draws the line where the threshold is
+    shown, and the saved one as a faint line marked `was` once it moved; the saved threshold keeps
+    the value axis, so the axis stays still under the pointer. While it moves, the browser
+    replays the values again with the shared rules (`replayAtThreshold`), so the shading, the
+    dots of the spikes too short to fire, the series list and the summary ("Would have fired 2
+    times · 23 minutes in total · 1 spike too short to fire") follow at once. The chart reports
+    its axes (`ValueAxis`) so the handle converts pixels to values without ECharts leaving
+    `charts/`;
   - the series, one alert each, which would have fired and how often;
   - Notifies: the channels, when they hear, and a preview per channel, drawn roughly as the
     service shows it (a Slack message with its coloured bar, a Discord embed, a Teams card, a
@@ -242,7 +245,9 @@ the kit's HTTP client for every kind that speaks HTTP.
   about a dashboard's version and range, and an alert is neither.
   - The chart replays the version shown over 6 h, 24 h or 7 d through a resource route, with the
     threshold as a dashed line and the firing periods shaded, both in the danger colour
-    (`charts/alert-option.ts`), and says how often it fired. It draws the 12 series that fired
+    (`charts/alert-option.ts`), and says how often it fired. The line sits at the threshold's
+    exact value: an ECharts mark line rounds its value to two decimals unless told otherwise,
+    which drew a threshold of 2.31% (0.0231) at 2%. It draws the 12 series that fired
     longest. The line under it states the condition, the interval and the window; hand tuning
     goes there.
   - Each series now (state, value, since), What happened (the changes of state, whether each

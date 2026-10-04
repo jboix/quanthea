@@ -195,13 +195,6 @@
   pointer-events: none;
 }
 
-.line {
-  position: absolute;
-  left: 0;
-  right: 64px;
-  border-top: 2px dashed var(--color-danger);
-}
-
 .handle {
   position: absolute;
   right: 0;
