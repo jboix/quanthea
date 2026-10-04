@@ -1,0 +1,52 @@
+.group {
+  display: inline-flex;
+  gap: 4px;
+  margin: 0;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+/* The group's name, for screen readers only. */
+.legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 9px;
+  color: var(--color-ink-secondary);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.option:hover {
+  color: var(--color-ink);
+}
+
+.option:has(:checked) {
+  background: var(--color-ink);
+  color: var(--color-ink-inverse);
+  font-weight: 500;
+}
+
+.option:has(:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* The native radio stays for the keyboard and screen readers; the label shows the choice. */
+.input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}

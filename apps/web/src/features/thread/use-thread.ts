@@ -3,6 +3,7 @@
  * composer's text, and the panel the inspector shows.
  */
 import { useChat } from '@ai-sdk/react';
+import type { AlertSpec, NotifiedSeries } from '@quanthea/shared';
 import { DefaultChatTransport } from 'ai';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -40,7 +41,7 @@ function useThreadChat(data: ThreadData, onChange: () => void) {
     messages: thread.messages as ThreadMessage[],
     transport,
     onData: (part) => {
-      if (part.type === 'data-version') onChange();
+      if (part.type === 'data-version' || part.type === 'data-alertVersion') onChange();
     },
     onFinish: onChange,
   });
@@ -163,6 +164,28 @@ function usePinActions({ data, run, revalidate }: ActionContext) {
 }
 
 /**
+ * The alert draft pane's actions: a hand edit, activation and a test notification.
+ *
+ * @param context - What the actions need.
+ * @returns The actions.
+ */
+function useAlertActions({ run, revalidate }: Pick<ActionContext, 'run' | 'revalidate'>) {
+  return {
+    handEdit: async (spec: AlertSpec) => {
+      await run({ intent: 'handEdit', spec });
+      revalidate();
+    },
+    activate: async (alertId: string, version: number) => {
+      await run({ intent: 'activateAlert', alertId, version });
+      revalidate();
+    },
+    test: async (alertId: string, version: number, series: NotifiedSeries | null) => {
+      await run({ intent: 'testAlert', alertId, version, ...(series ? { series } : {}) });
+    },
+  };
+}
+
+/**
  * Shows a version in the draft pane through `?v=`, or the latest without it.
  *
  * @returns The setter.
@@ -194,6 +217,27 @@ function useDraft(chat: ReturnType<typeof useThreadChat>) {
 }
 
 /**
+ * Takes the stored conversation when it grew outside a run, such as by a hand edit of an alert
+ * draft, whose card the server adds; the chat only reads the stored messages when it starts.
+ *
+ * @param data - The thread's data, loaded again after each change.
+ * @param chat - The chat.
+ * @param running - Whether a run is on its way, which then owns the messages.
+ */
+function useStoredMessages(
+  data: ThreadData,
+  chat: ReturnType<typeof useThreadChat>,
+  running: boolean,
+): void {
+  const stored = data.thread.messages as ThreadMessage[];
+  const { setMessages } = chat;
+  const shown = chat.messages.length;
+  useEffect(() => {
+    if (!running && stored.length > shown) setMessages(stored);
+  }, [stored, shown, running, setMessages]);
+}
+
+/**
  * The state and actions of the thread screen.
  *
  * @returns Everything the screen renders and does.
@@ -217,5 +261,7 @@ export function useThread() {
     setDraft: composer.setDraft,
   });
   const running = chat.status === 'submitted' || chat.status === 'streaming';
-  return { data, chat, running, intents, composer, selection, showVersion, actions };
+  const alertActions = useAlertActions({ run: intents.run, revalidate: () => void revalidate() });
+  useStoredMessages(data, chat, running);
+  return { data, chat, running, intents, composer, selection, showVersion, actions, alertActions };
 }

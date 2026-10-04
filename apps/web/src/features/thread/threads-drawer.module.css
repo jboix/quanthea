@@ -235,3 +235,16 @@
   font-size: 13px;
   color: var(--color-ink-secondary);
 }
+
+/* What the thread makes: a dashboard or an alert. */
+.kind {
+  display: inline-flex;
+  vertical-align: -4px;
+  margin-right: 6px;
+  color: var(--color-ink-secondary);
+}
+
+.kind svg {
+  width: 16px;
+  height: 16px;
+}

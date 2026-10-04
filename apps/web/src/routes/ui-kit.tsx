@@ -11,6 +11,7 @@ import { Page } from '../ui/page.tsx';
 import { Pill } from '../ui/pill.tsx';
 import { Popover } from '../ui/popover.tsx';
 import { RadioCards } from '../ui/radio-cards.tsx';
+import { Segmented } from '../ui/segmented.tsx';
 import { Select } from '../ui/select.tsx';
 import { StatusDot } from '../ui/status-dot.tsx';
 import { Switch } from '../ui/switch.tsx';
@@ -70,6 +71,26 @@ function TabsSample() {
       <p role="tabpanel" className={styles.panel}>
         {selected === 'query' ? 'sum by (service) (rate(http_requests_total[1m]))' : selected}
       </p>
+    </Card>
+  );
+}
+
+/** The kinds of conversation, as the segmented sample offers them. */
+const makeChoices = [
+  { value: 'dashboard', label: 'A dashboard' },
+  { value: 'alert', label: 'An alert' },
+] as const;
+
+/**
+ * A segmented switch, as the new-conversation screen uses it.
+ *
+ * @returns The card.
+ */
+function SegmentedSample() {
+  const [make, setMake] = useState<'dashboard' | 'alert'>('dashboard');
+  return (
+    <Card title="Segmented switch" description="A few choices in one pill; arrow keys move it.">
+      <Segmented label="What to make" options={makeChoices} value={make} onChange={setMake} />
     </Card>
   );
 }
@@ -297,6 +318,7 @@ export function UiKitRoute() {
         <BrandSample />
         <ButtonsAndPills />
         <TabsSample />
+        <SegmentedSample />
         <FormControls />
         <ChoicesAndStatuses />
         <Overlays />

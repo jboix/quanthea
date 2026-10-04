@@ -107,6 +107,7 @@ The two paths that matter:
 │           │   ├── connectors/
 │           │   ├── notifications/   Settings → Notifications: channels, tests, the webhook example
 │           │   ├── alerts/          the alerts list, an alert's page, the rail's count, Settings → Alerts
+│           │   ├── alert-draft/     an alert thread's draft pane: condition sentence, replay, previews
 │           │   └── settings/        gateway, auth, retention
 │           ├── charts/              view + datasets → ECharts option: preparations, tokens, maps
 │           ├── ui/                  presentational primitives (Button, Card, Pill, Tabs, Switch…), brand
@@ -184,6 +185,38 @@ the kit's HTTP client for every kind that speaks HTTP.
   and pinning go through the route action, and approving then continues the assistant message.
   The version the draft pane shows lives in `?v=`, so a reload or a shared link keeps it. The new-thread screen is one question box in the middle of the screen, with a Past threads button at the top right. It opens a drawer from the right (from the top on a phone) that searches the titles, can show only threads whose dashboard is pinned (each marked with a pin), groups the threads by day, and moves one to the bin after asking. A thread whose dashboard is pinned can't be deleted. A link can fill the question box with `?question=`. It creates the thread and hands the first question over in `?ask=`, which the thread screen sends
   once and removes. Each question carries the browser's time zone.
+- **What a conversation makes.** Above the question box, a switch picks A dashboard or An alert
+  (dashboard by default; `?make=alert` picks the alert), with example requests for each that fill
+  the box. The kind goes with the new thread and stays. The past threads drawer marks each thread
+  with tiles or a bell. In an alert thread, the conversation shows alert plan cards (Watch, Fires
+  when, Checks, Notifies; approved like a dashboard plan) and, for each change the person made by
+  hand, a "You changed it by hand" card with the versions and each field before and after.
+- **The alert draft pane** (`features/alert-draft/`) replaces the dashboard draft pane in an alert
+  thread. Its header has the title, the version pill (`v2 · draft`, or `active`), Send a test
+  notification (the version's message to its channels as `alert.test`, filled from the replay's
+  first firing), Activate (the refusal lists the issues), and once a version is active a link to
+  `/alerts/:alertId`. Under it:
+
+  - the condition as a sentence ("Fires when errors of each service is above 2% for 5 minutes,
+    checked every minute"), each value a button that opens an inline editor;
+  - the replay of the latest version over 7 days or 24 hours, from the alert pages' replay route,
+    drawn by the alert chart of `charts/`, with the threshold as a dashed line and a handle to drag
+    (or move with the arrow keys). While it moves, the browser replays the values again with the
+    shared rules (`replayAtThreshold`), so the shading, the dots of the spikes too short to fire,
+    the series list and the summary ("Would have fired 2 times · 23 minutes in total · 1 spike
+    too short to fire") follow at once. The chart reports its axes (`ValueAxis`) so the handle
+    converts pixels to values without ECharts leaving `charts/`;
+  - the series, one alert each, which would have fired and how often;
+  - Notifies: the channels, when they hear, and a preview per channel, drawn roughly as the
+    service shows it (a Slack message with its coloured bar, a Discord embed, a Teams card, a
+    PagerDuty incident line, a webhook's JSON), read from what the preview endpoint says each
+    recipe would send and kept as plain text. The previews come through the
+    `/threads/:threadId/alert-previews` resource route. Edit the message opens the template
+    (title, body, fields) and refuses an unknown placeholder before saving.
+
+  Every change saved here (a value of the sentence, the released threshold, the template) is a
+  hand edit (`POST /api/threads/:id/alert-draft`): a new draft version, and the card in the
+  conversation that the agent reads next turn.
 - **The rail** shows the screens the role opens: Threads (editors), Library, Alerts, Connectors
   (admins), then the Bin (editors), Settings (admins) and the account menu. Alerts carries a badge
   in the danger colour with the number of alerts firing (active, with a series firing, muted or
@@ -230,6 +263,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 | -------------------------------------------------------- | ---------------------------------------------------------- | -------- |
 | `/`                                                      | redirect → `/library` (viewer, analyst) or `/threads/new`  | viewer   |
 | `/threads/new`, `/threads/:threadId`                     | Plan, Build and refine, Variant                            | editor   |
+| `/threads/:threadId/alert-previews`                      | resource route: what an alert draft's channels would send  | editor   |
 | `/library`                                               | Library: search pinned dashboards and their panels         | viewer   |
 | `/alerts`                                                | Alerts: search, filter by state, sections by state         | viewer   |
 | `/alerts/firing`                                         | resource route: how many alerts fire, for the rail         | viewer   |

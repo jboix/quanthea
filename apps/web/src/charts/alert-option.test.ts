@@ -41,3 +41,11 @@ test('keeps the threshold in view and tooltips on the canvas', () => {
   expect((without.series as Record<string, unknown>[])[0]?.markLine).toBeUndefined();
   expect(without.yAxis).not.toHaveProperty('max');
 });
+
+test('leaves the line to an overlay when asked, and keeps the threshold in view', () => {
+  const option = buildAlertOption({ ...input, thresholdLine: false }, defaultTheme, 'UTC');
+  const [first] = option.series as Record<string, unknown>[];
+  expect(first?.markLine).toBeUndefined();
+  expect(first?.markArea).toBeDefined();
+  expect(option.yAxis).toMatchObject({ max: 6 });
+});

@@ -8,6 +8,7 @@ import {
   type TurnUsage,
 } from '@quanthea/shared';
 import { useEffect, useRef, useState } from 'react';
+import { AlertDraftPane } from '../alert-draft/index.ts';
 import { Composer } from './composer.tsx';
 import { Conversation } from './conversation.tsx';
 import { DraftPane } from './draft-pane.tsx';
@@ -287,6 +288,30 @@ function dashboardPlanOf(thread: ThreadDetail): Plan | undefined {
 }
 
 /**
+ * The draft pane of an alert thread, with its actions.
+ *
+ * @param props - The screen's state.
+ * @param props.state - The screen's state.
+ * @returns The pane.
+ */
+function AlertPane({ state }: { readonly state: ScreenState }) {
+  const { data, running, intents, alertActions } = state;
+  const outcome = intents.outcome;
+  const notice = outcome?.message ? { text: outcome.message, failed: !outcome.ok } : undefined;
+  return (
+    <AlertDraftPane
+      threadId={data.thread.id}
+      draft={data.alertDraft}
+      busy={running || intents.busy || data.thread.readOnly}
+      notice={notice}
+      onHandEdit={(spec) => void alertActions.handEdit(spec)}
+      onActivate={(alertId, version) => void alertActions.activate(alertId, version)}
+      onTest={(alertId, version, series) => void alertActions.test(alertId, version, series)}
+    />
+  );
+}
+
+/**
  * The thread screen: the conversation on the left, the draft the agent builds on the right.
  *
  * @returns The screen.
@@ -294,6 +319,13 @@ function dashboardPlanOf(thread: ThreadDetail): Plan | undefined {
 export function ThreadScreen() {
   const state = useThread();
   const { data, chat, running, intents, selection, actions } = state;
+  if (data.thread.kind === 'alert')
+    return (
+      <div className={styles.screen}>
+        <ThreadPane state={state} />
+        <AlertPane state={state} />
+      </div>
+    );
   return (
     <div className={styles.screen}>
       <ThreadPane state={state} />

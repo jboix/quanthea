@@ -21,12 +21,21 @@ import {
   restoreVersionEndpoint,
   startFromPinnedEndpoint,
   type ThreadDetail,
+  type ThreadKind,
   type ThreadListItem,
   type ThreadQueries,
   unpinDashboardEndpoint,
 } from '@quanthea/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
+import {
+  type AlertDraftData,
+  type AlertIntent,
+  errorText,
+  isAlertIntent,
+  loadAlertDraft,
+  runAlertIntent,
+} from '../alert-draft/index.ts';
 
 /** What the thread screen shows. */
 export interface ThreadData {
@@ -38,6 +47,8 @@ export interface ThreadData {
   readonly version: DashboardVersion | null;
   /** The dashboard the draft was copied from, when it is a copy; its title is null once gone. */
   readonly parent: ParentDashboard | null;
+  /** An alert thread's draft, once the agent wrote one. */
+  readonly alertDraft: AlertDraftData | null;
 }
 
 /** The dashboard a draft was copied from. */
@@ -55,7 +66,8 @@ export type ThreadIntent =
   | { readonly intent: 'approve' | 'reject'; readonly planId: string }
   | { readonly intent: 'restore'; readonly version: number }
   | DashboardIntent
-  | { readonly intent: 'startFrom'; readonly dashboardId: string };
+  | { readonly intent: 'startFrom'; readonly dashboardId: string }
+  | AlertIntent;
 
 /** What the thread screen asks of its dashboard: show a version in the library, or none. */
 type DashboardIntent =
@@ -64,7 +76,7 @@ type DashboardIntent =
 
 /** The outcome of an intent: done, or why not. */
 export type ThreadOutcome =
-  | { readonly ok: true }
+  | { readonly ok: true; readonly message?: string | undefined }
   | { readonly ok: false; readonly message: string };
 
 /**
@@ -132,12 +144,16 @@ async function fetchThread(
 ): Promise<ThreadData> {
   const options = { signal };
   const thread = await api.call(getThreadEndpoint, { params: { threadId } }, options);
+  if (thread.kind === 'alert') {
+    const alertDraft = await loadAlertDraft(api, thread.alertId, signal);
+    return { thread, dashboard: null, version: null, parent: null, alertDraft };
+  }
   const dashboard = thread.dashboardId
     ? await api.call(getDashboardEndpoint, { params: { dashboardId: thread.dashboardId } }, options)
     : null;
   const version = await versionToShow(api, dashboard, url.searchParams.get('v'), signal);
   const parent = await parentOf(api, dashboard, signal);
-  return { thread, dashboard, version, parent };
+  return { thread, dashboard, version, parent, alertDraft: null };
 }
 
 /**
@@ -195,6 +211,7 @@ export type NewThreadIntent =
       readonly question: string;
       readonly providerId?: string;
       readonly queries?: ThreadQueries;
+      readonly kind?: ThreadKind;
     }
   | { readonly intent: 'delete'; readonly threadId: string };
 
@@ -226,10 +243,11 @@ export function newThreadAction(api: ApiClient) {
   return async ({ request }: ActionFunctionArgs): Promise<Response | ThreadOutcome> => {
     const intent = (await request.json()) as NewThreadIntent;
     if (intent.intent === 'delete') return binThread(api, intent.threadId);
-    const { providerId, queries } = intent;
+    const { providerId, queries, kind } = intent;
     const body = {
       ...(providerId === undefined ? {} : { providerId }),
       ...(queries === undefined ? {} : { queries }),
+      ...(kind === undefined ? {} : { kind }),
     };
     const thread = await api.call(createThreadEndpoint, { body });
     return redirect(`/threads/${thread.id}?ask=${encodeURIComponent(intent.question)}`);
@@ -263,7 +281,12 @@ async function runOnDashboard(
  * @param intent - The intent.
  * @returns When it is done.
  */
-async function run(api: ApiClient, threadId: string, intent: ThreadIntent): Promise<void> {
+async function run(
+  api: ApiClient,
+  threadId: string,
+  intent: ThreadIntent,
+): Promise<string | undefined> {
+  if (isAlertIntent(intent)) return runAlertIntent(api, threadId, intent);
   if (intent.intent === 'restore') {
     await api.call(restoreVersionEndpoint, {
       params: { threadId },
@@ -284,6 +307,7 @@ async function run(api: ApiClient, threadId: string, intent: ThreadIntent): Prom
   }
   const endpoint = intent.intent === 'approve' ? approvePlanEndpoint : rejectPlanEndpoint;
   await api.call(endpoint, { params: { threadId, planId: intent.planId } });
+  return undefined;
 }
 
 /**
@@ -295,11 +319,11 @@ async function run(api: ApiClient, threadId: string, intent: ThreadIntent): Prom
 export function changeThread(api: ApiClient) {
   return async ({ request, params }: ActionFunctionArgs): Promise<ThreadOutcome> => {
     try {
-      await run(api, params.threadId ?? '', (await request.json()) as ThreadIntent);
-      return { ok: true };
+      const message = await run(api, params.threadId ?? '', (await request.json()) as ThreadIntent);
+      return { ok: true, message };
     } catch (error) {
       if (!(error instanceof ApiError)) throw error;
-      return { ok: false, message: error.message };
+      return { ok: false, message: errorText(error) };
     }
   };
 }

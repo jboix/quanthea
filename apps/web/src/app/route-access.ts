@@ -7,6 +7,7 @@ import type { Session, SessionLoader } from './session.ts';
 export const routeAccess = {
   '/threads/new': 'editor',
   '/threads/:threadId': 'editor',
+  '/threads/:threadId/alert-previews': 'editor',
   '/library': 'viewer',
   '/alerts': 'viewer',
   '/alerts/firing': 'viewer',

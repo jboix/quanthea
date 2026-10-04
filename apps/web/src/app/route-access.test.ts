@@ -5,6 +5,7 @@ test('screen roles match the route table in docs/architecture.md', () => {
   expect(routeAccess).toEqual({
     '/threads/new': 'editor',
     '/threads/:threadId': 'editor',
+    '/threads/:threadId/alert-previews': 'editor',
     '/library': 'viewer',
     '/alerts': 'viewer',
     '/alerts/firing': 'viewer',

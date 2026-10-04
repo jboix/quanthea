@@ -41,6 +41,7 @@ export const exploreTools: ReadonlySet<string> = new Set([
   'describe',
   'sample_values',
   'test_query',
+  'replay_alert',
 ]);
 
 /** The tools that write a version, shown as "Built". */
@@ -48,6 +49,7 @@ export const buildTools: ReadonlySet<string> = new Set([
   'edit_dashboard',
   'write_dashboard',
   'patch_panel',
+  'edit_alert',
 ]);
 
 /**
@@ -103,6 +105,8 @@ interface Output {
   readonly values?: readonly unknown[];
   /** Frames tested. */
   readonly frames?: readonly ShapeFrame[];
+  /** How many times a replayed alert would have fired. */
+  readonly firings?: number;
 }
 
 /**
@@ -123,6 +127,7 @@ const resultWords: Readonly<Record<string, (output: Output) => string>> = {
   describe: entityWords,
   sample_values: (output) => `${output.values?.length ?? 0} values`,
   test_query: (output) => shapeOf(output.frames),
+  replay_alert: (output) => `${output.firings ?? 0} firings`,
 };
 
 /**

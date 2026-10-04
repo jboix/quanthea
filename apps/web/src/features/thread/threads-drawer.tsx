@@ -3,7 +3,14 @@ import { useMemo, useState } from 'react';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Drawer } from '../../ui/drawer.tsx';
-import { BinIcon, HistoryIcon, PinIcon, SearchIcon } from '../../ui/icons.tsx';
+import {
+  BellIcon,
+  BinIcon,
+  DashboardIcon,
+  HistoryIcon,
+  PinIcon,
+  SearchIcon,
+} from '../../ui/icons.tsx';
 import type { NewThreadIntent, ThreadOutcome } from './data.ts';
 import { filterThreads, groupByDay, type ThreadFilter, untitled } from './thread-list.ts';
 import styles from './threads-drawer.module.css';
@@ -82,6 +89,22 @@ function DeleteButton({
 }
 
 /**
+ * What a thread makes, as an icon: a bell for an alert, tiles for a dashboard.
+ *
+ * @param props - The kind.
+ * @param props.kind - What the thread makes.
+ * @returns The icon, named for screen readers.
+ */
+function KindIcon({ kind }: { readonly kind: ThreadListItem['kind'] }) {
+  const words = kind === 'alert' ? 'An alert' : 'A dashboard';
+  return (
+    <span className={styles.kind} title={words} role="img" aria-label={words}>
+      {kind === 'alert' ? <BellIcon /> : <DashboardIcon />}
+    </span>
+  );
+}
+
+/**
  * One past thread: a link to it with a pin when its dashboard is pinned, and a delete button that
  * asks before deleting.
  *
@@ -112,7 +135,10 @@ function ThreadRow({
       ) : (
         <>
           <Link to={`/threads/${thread.id}`} className={styles.item}>
-            <span className={styles.itemTitle}>{title}</span>
+            <span className={styles.itemTitle}>
+              <KindIcon kind={thread.kind} />
+              {title}
+            </span>
             <span className={styles.itemMeta}>
               {thread.ownerName && <span className={styles.owner}>{thread.ownerName}</span>}
               {thread.pinned && (

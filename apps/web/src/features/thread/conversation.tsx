@@ -1,5 +1,6 @@
 import type { AccessLevel, PlanView, ThreadData } from '@quanthea/shared';
 import type { ReactNode } from 'react';
+import { AlertPlanCard, HandEditCard } from './alert-cards.tsx';
 import { AskCard } from './ask-card.tsx';
 import styles from './conversation.module.css';
 import { DiffCard } from './diff-card.tsx';
@@ -85,6 +86,46 @@ function planCard(data: ThreadData['plan'], key: string, context: ConversationCo
 }
 
 /**
+ * The card of an alert plan part.
+ *
+ * @param data - The part's data.
+ * @param key - The element key.
+ * @param context - The conversation context.
+ * @returns The card.
+ */
+function alertPlanCard(
+  data: ThreadData['alertPlan'],
+  key: string,
+  context: ConversationContext,
+): ReactNode {
+  const status = context.plans.find((plan) => plan.id === data.planId)?.status ?? 'pending';
+  const { busy, onApprove, onEditPlan } = context;
+  return (
+    <AlertPlanCard
+      key={key}
+      data={data}
+      status={status}
+      busy={busy}
+      onApprove={onApprove}
+      onEdit={onEditPlan}
+    />
+  );
+}
+
+/**
+ * The person's message: their words, or the card of a change they made to the draft by hand.
+ *
+ * @param props - The message.
+ * @param props.message - The user message.
+ * @returns The bubble or the card.
+ */
+function PersonMessage({ message }: { readonly message: ThreadMessage }) {
+  const edit = message.parts.find((part) => part.type === 'data-handEdit');
+  if (edit?.type === 'data-handEdit') return <HandEditCard data={edit.data} />;
+  return <UserBubble message={message} />;
+}
+
+/**
  * The diff card of a diff part.
  *
  * @param data - The part's data.
@@ -135,6 +176,7 @@ function toolView(part: ToolPart, key: string, context: PartContext): ReactNode 
  */
 function dataView(part: ThreadPart, key: string, context: PartContext): ReactNode {
   if (part.type === 'data-plan') return planCard(part.data, key, context);
+  if (part.type === 'data-alertPlan') return alertPlanCard(part.data, key, context);
   if (part.type === 'data-diff') return diffCard(part.data, key, context);
   if (part.type === 'data-repair') {
     const { answerable, busy, onTryAgain } = context;
@@ -251,7 +293,7 @@ export function Conversation({ messages, ...context }: ConversationProps) {
       {messages.map((message, index) => (
         <li key={message.id} className={styles.message} data-role={message.role}>
           {message.role === 'user' ? (
-            <UserBubble message={message} />
+            <PersonMessage message={message} />
           ) : (
             [
               ...assistantParts(message, {

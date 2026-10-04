@@ -3,4 +3,4 @@
 export { AlertChart } from './alert-chart.tsx';
 export type { AlertChartInput } from './alert-option.ts';
 export type { ChartInput } from './build-option.ts';
-export { Chart } from './chart.tsx';
+export { Chart, type ValueAxis } from './chart.tsx';

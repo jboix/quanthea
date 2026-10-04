@@ -90,6 +90,7 @@ function panelLine(panel: PanelReport): { text: string; failed: boolean } {
 function buildTitle(part: ToolPart, output: WriteOutput, running: boolean, tested: string): string {
   if (running) return `${toolName(part) === 'patch_panel' ? 'Changing a panel' : 'Building'}…`;
   if (!output.ok) return 'Not saved';
+  if (toolName(part) === 'edit_alert') return `Wrote the alert, v${output.version}`;
   const leftOut = output.leftOut?.panelIds.length ?? 0;
   const note = leftOut > 0 ? ` · ${leftOut} left out` : '';
   return `Built v${output.version} · ${tested} queries test-run${note}`;

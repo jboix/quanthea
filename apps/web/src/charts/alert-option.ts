@@ -23,6 +23,11 @@ export interface AlertChartInput {
   readonly series: readonly AlertChartSeries[];
   /** The threshold, or `null` for a condition without one. */
   readonly threshold: number | null;
+  /**
+   * Whether the chart draws the threshold's line; `false` when an overlay draws it, such as a
+   * threshold a person drags. The value axis keeps the threshold in view either way.
+   */
+  readonly thresholdLine?: boolean;
   /** When the alert fired. */
   readonly firing: readonly { readonly from: number; readonly to: number }[];
   /** Writes a value as the alert's format does. */
@@ -48,7 +53,7 @@ function marks(input: AlertChartInput, theme: ChartTheme): Loose {
     itemStyle: { color: theme.danger, opacity: 0.1 },
     data: firing.map((period) => [{ xAxis: period.from }, { xAxis: period.to }]),
   };
-  if (threshold === null) return { markArea };
+  if (threshold === null || input.thresholdLine === false) return { markArea };
   const markLine = {
     silent: true,
     animation: false,
