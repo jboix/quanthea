@@ -7,7 +7,7 @@ import { runMigrations } from '../db/migrate.ts';
 import { AppError } from '../lib/errors.ts';
 import { openSecretBox, type SecretBox } from '../secrets/secret-box.ts';
 import { temporaryDir, testSecretBox } from '../test/fixtures.ts';
-import { openTarget } from './channel-store.ts';
+import { maskTarget, openTarget } from './channel-store.ts';
 import { createNotifications, type Notifications } from './notifications.ts';
 import { resealChannels } from './reseal.ts';
 import { signBody } from './signature.ts';
@@ -141,6 +141,10 @@ describe('channels at rest', () => {
   test('a routing key shows its last four characters only', async () => {
     await add({ name: 'PD', kind: 'pagerduty', target: 'R0UT1NGKEY00000000000000000000ab' });
     expect(notifications.list()[0]?.target).toBe('••••00ab');
+    expect(maskTarget('discord', 'https://discord.test/api/webhooks/1/xyz')).toBe(
+      'discord.test/api/…/xyz',
+    );
+    expect(maskTarget('webhook', 'https://ops.test/')).toBe('ops.test');
   });
 
   test('a change keeps the sealed target and secret unless it gives new ones', async () => {

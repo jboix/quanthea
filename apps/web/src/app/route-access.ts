@@ -34,6 +34,7 @@ export const routeAccess = {
   '/settings/usage': 'admin',
   '/settings/server': 'admin',
   '/settings/snapshots': 'admin',
+  '/settings/notifications': 'admin',
 } as const satisfies Record<string, Role>;
 
 /** A guarded screen path. */

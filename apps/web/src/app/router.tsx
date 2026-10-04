@@ -18,6 +18,7 @@ import { authSettingsRoute } from '../routes/settings-auth.tsx';
 import { chartSettingsRoute } from '../routes/settings-charts.tsx';
 import { SettingsLayout } from '../routes/settings-layout.tsx';
 import { modelSettingsRoute } from '../routes/settings-model.tsx';
+import { notificationsSettingsRoute } from '../routes/settings-notifications.tsx';
 import { querySettingsRoute } from '../routes/settings-queries.tsx';
 import { serverSettingsRoute } from '../routes/settings-server.tsx';
 import { usageSettingsRoute } from '../routes/settings-usage.tsx';
@@ -59,6 +60,7 @@ function settingsRoute({ loadSession, api }: RouteDependencies): RouteObject {
       chartSettingsRoute(loadSession, api),
       querySettingsRoute(loadSession, api),
       usageSettingsRoute(loadSession, api),
+      notificationsSettingsRoute(loadSession, api),
       snapshotsSettingsRoute(loadSession, api),
       usersSettingsRoute(loadSession, api),
       authSettingsRoute(loadSession, api),

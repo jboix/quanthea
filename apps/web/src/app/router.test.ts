@@ -88,6 +88,8 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   },
   'GET /queries': { queries: [] },
   'GET /settings/charts': { disabled: [] },
+  'GET /settings/notification-channels': { channels: [] },
+  'POST /notification-channels/preview': { previews: [] },
   'GET /settings/queries': { disabled: [], saved: [] },
   'GET /settings/queries/guide': { builders: [], connectors: [] },
   'GET /settings/usage': { from: 0, to: 1, pricesCheckedOn: '2026-09-29', buckets: [] },

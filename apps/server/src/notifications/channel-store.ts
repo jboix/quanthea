@@ -72,7 +72,7 @@ export function maskTarget(kind: ChannelKind, target: string): string {
   const url = new URL(target);
   const [first] = url.pathname.split('/').filter(Boolean);
   if (!first) return url.host;
-  return `${url.host}/${first}/…/${tail}`;
+  return `${url.host}/${first}/…/${tail.replace(/^\/+/, '')}`;
 }
 
 /**

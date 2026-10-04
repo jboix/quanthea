@@ -102,6 +102,7 @@ The two paths that matter:
 │           │   ├── library/         search, connector and tag filters, cards with a live panel
 │           │   ├── bin/
 │           │   ├── connectors/
+│           │   ├── notifications/   Settings → Notifications: channels, tests, the webhook example
 │           │   └── settings/        gateway, auth, retention
 │           ├── charts/              view + datasets → ECharts option: preparations, tokens, maps
 │           ├── ui/                  presentational primitives (Button, Card, Pill, Tabs, Switch…), brand
@@ -213,6 +214,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/settings/auth`                                         | Authentication: sign-in providers, passwords               | admin    |
 | `/settings/users`                                        | Users: invite, roles, disable, reset links, sign out       | admin    |
 | `/settings/usage`                                        | Usage: tokens, cost and views; by feature, model, person   | admin    |
+| `/settings/notifications`                                | Notifications: channels, tests, what a webhook receives    | admin    |
 | `/settings/snapshots`                                    | Snapshots: every live snapshot, revoke one                 | admin    |
 | `/settings/queries`                                      | Queries: builders on or off, your own with placeholders    | admin    |
 | `/settings/charts`                                       | Charts: every chart recipe drawn from its sample           | admin    |
@@ -507,6 +509,13 @@ only admins add, change and delete channels.
   kind, would send for a template, values, an alert's title and severity and labels, with
   stand-in targets. Nothing is sent. `GET /api/notification-channels` (editor+) lists channels by
   id, name and kind only, to pick from.
+- **Settings → Notifications** (`features/notifications/`, admin) lists the channels with their
+  kind, masked target, status (last sent, or the last failure with its HTTP status) and how many
+  alerts send to each. Add a channel opens a form whose fields follow the kind (the URL or routing
+  key, the webhook's signing secret, the mentions), then offers a test. Each channel has Send a
+  test, Recent sends (its log), Edit (an empty target or secret keeps the stored one) and Delete,
+  asked twice and refused while alerts send to it. A panel shows what a generic webhook receives,
+  headers and body, built by the preview endpoint from the sample message.
 
 ## 6. The agent
 
