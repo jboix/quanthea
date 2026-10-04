@@ -9,6 +9,7 @@ import {
   type AnswerEvidence,
   answerCitationSchema,
   type DashboardSpec,
+  type FollowUp,
 } from '@quanthea/shared';
 import { tool } from 'ai';
 import { z } from 'zod';
@@ -17,6 +18,7 @@ import type { ModelView } from '../gate/model-view.ts';
 import { answerIssues } from './answer-check.ts';
 import type { ResponseWatch } from './answer-watch.ts';
 import { testQuerySchema } from './data-tools.ts';
+import type { FrozenRun } from './frozen-run.ts';
 import { withLocalTimes } from './local-times.ts';
 
 /** The variables of a run, bound as panels bind them. */
@@ -33,12 +35,17 @@ export interface AnswerState {
   given: { readonly text: string; readonly citations: readonly AnswerCitation[] } | undefined;
   /** How many answers failed their checks. */
   failedAnswers: number;
+  /** What the answer proposes to watch next, about a report's run. */
+  followUps: readonly FollowUp[];
 }
 
 /** What the tools of one answer share. */
 export interface AnswerToolContext {
   /** The connectors as the model sees them: the gate. */
-  readonly modelView: Pick<ModelView, 'describe' | 'describeSchemaOnly' | 'testQuery'>;
+  readonly modelView: Pick<
+    ModelView,
+    'describe' | 'describeSchemaOnly' | 'testQuery' | 'panelResult'
+  >;
   /** The dashboard's spec. */
   readonly spec: DashboardSpec;
   /** The dashboard's connectors that exist. */
@@ -51,6 +58,8 @@ export interface AnswerToolContext {
   readonly timeZone: string;
   /** The range asked about, epoch milliseconds; `undefined` for an explanation. */
   readonly range: { readonly from: number; readonly to: number } | undefined;
+  /** The report's run asked about, frozen, if the question is about one. */
+  readonly run?: FrozenRun | undefined;
   /** The viewer's variables, bound. */
   readonly bindings: Bindings;
   /** Aborted when the person leaves. */

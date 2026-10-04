@@ -9,6 +9,7 @@ import {
   nextRunAt,
   periodLabel,
   type ReportDetail,
+  type ReportListItem,
   type ReportPreview,
   type ReportRunDetail,
   type ReportRunSummary,
@@ -28,11 +29,11 @@ import {
   saveVersion,
 } from './changes.ts';
 import { type ReportsContext, type ReportsDependencies, reportOrThrow } from './context.ts';
+import { listForReader } from './listing.ts';
 import { reportMessage } from './messages.ts';
 import { listRuns, type RunPage, readRun } from './reading.ts';
 import { attemptRun, createRun } from './runs.ts';
 import {
-  listReports,
   toReportDetail,
   toReportSummary,
   toRunSummary,
@@ -52,12 +53,14 @@ export interface ScheduledRun {
 /** The reports service. */
 export interface Reports {
   /**
-   * Lists the reports the role may see, with their latest run.
+   * Lists the reports the role may see, with their latest run, whether the reader has a finished
+   * run to open, and the history of the first headline number.
    *
    * @param role - The role of the reader.
+   * @param readerId - The reader, by user id.
    * @returns The reports, the newest first.
    */
-  list(role: Role): ReportSummary[];
+  list(role: Role, readerId: string): ReportListItem[];
   /**
    * Reads a report with its versions.
    *
@@ -85,6 +88,14 @@ export interface Reports {
    * @returns The run.
    */
   run(id: string, runId: string, role: Role): ReportRunDetail;
+  /**
+   * Records that a person opened a run, so the list stops showing it as new to them.
+   *
+   * @param id - The report.
+   * @param runId - The run.
+   * @param readerId - Who opened it, by user id.
+   */
+  see(id: string, runId: string, readerId: string): void;
   /**
    * Saves a new version from a spec, creating the report when none is named. The conversation
    * that writes reports calls it.
@@ -356,13 +367,14 @@ export function createReports(dependencies: ReportsDependencies): Reports {
     busy: new Set(),
   };
   return {
-    list: (role) => listReports(context, role),
+    list: (role, readerId) => listForReader(context, role, readerId),
     get: (id, role) => {
       visibleReport(context, id, role);
       return toReportDetail(summaryOf(context, id, role), versionSpecs(context, id), role);
     },
     runs: (id, role, page) => listRuns(context, id, role, page),
     run: (id, runId, role) => readRun(context, id, runId, role),
+    see: (id, runId, readerId) => context.seen?.see(readerId, id, runId, context.now()),
     saveVersion: (input, actor) => saveVersion(context, input, actor),
     activate: async (id, version, actor) => {
       await activate(context, id, version, actor);

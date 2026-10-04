@@ -254,6 +254,7 @@ describe('the bin of conversations', () => {
           id: started.id,
           dashboardId: id,
           dashboardTitle: eventsSpec().title,
+          run: null,
           question: 'What happened around 14:00?',
           startedBy: 'Ana',
           startedAt: expect.any(Number),

@@ -1,17 +1,22 @@
 /**
- * The bin also holds conversations about dashboards. Whoever started a conversation moves it to
- * the bin, and admins move any; analysts and above only. Its starter, whoever binned it, and admins
- * restore it; admins delete it for good, with its questions. Usage is kept.
+ * The bin also holds conversations about dashboards and about reports' runs. Whoever started a
+ * conversation moves it to the bin, and admins move any; analysts and above only. Its starter,
+ * whoever binned it, and admins restore it; admins delete it for good, with its questions. Usage
+ * is kept.
  */
 import { z } from 'zod';
 import { defineEndpoint } from './contract.ts';
 
-/** Validates a conversation in the bin. */
+/** Validates a conversation in the bin: about a dashboard, or about a report's run. */
 export const binnedConversationSchema = z.object({
   /** The id of its first question. */
   id: z.string(),
-  dashboardId: z.string(),
+  /** The dashboard it is about; `null` for a conversation about a run. */
+  dashboardId: z.string().nullable(),
+  /** The dashboard's title, or the report's for a conversation about a run. */
   dashboardTitle: z.string(),
+  /** The run it is about, with its period; `null` for a conversation about a dashboard. */
+  run: z.object({ reportId: z.string(), runId: z.string(), period: z.string() }).nullable(),
   /** Its first question. */
   question: z.string(),
   /** The name of the person who asked the first question. */

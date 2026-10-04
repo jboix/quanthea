@@ -7,6 +7,8 @@
 -- - alerts, their versions, the state of their series and what happened to them.
 -- - what a thread makes, a dashboard or an alert, and the panel an alert thread starts from.
 -- - reports, their versions and their runs.
+-- - questions about a report's run, in conversations, with their index and their bin, and the
+--   latest run each person opened of each report.
 
 -- Snapshot links: a dashboard version frozen with the results its panels showed. The id is the
 -- unguessable part of the link (128 random bits). A snapshot goes when its time is up, when someone
@@ -562,3 +564,87 @@ WHEN OLD.sent_at IS NOT NULL
 BEGIN
   SELECT RAISE(ABORT, 'a report run records its message once');
 END;
+
+-- ------------------------------------------------------------------------- questions about runs
+-- Questions about a report's run: a shared record of the run, as questions about a pinned
+-- dashboard are of the dashboard. Each row keeps who asked, the question and its outcome, with what
+-- the answer proposed to watch next. A question goes with its run, so the runs' retention takes
+-- them too. A conversation is the chain of questions from a first one, on one run; each question
+-- names the first question of its chain.
+CREATE TABLE report_questions (
+  id TEXT PRIMARY KEY,
+  report_id TEXT NOT NULL REFERENCES reports (id) ON DELETE CASCADE,
+  run_id TEXT NOT NULL REFERENCES report_runs (id) ON DELETE CASCADE,
+  -- The question this one follows up on, on the same run.
+  parent_id TEXT REFERENCES report_questions (id) ON DELETE CASCADE,
+  -- The first question of its conversation: a first question names itself.
+  root_id TEXT NOT NULL,
+  -- The time zone the answer names times in: the schedule's.
+  time_zone TEXT NOT NULL,
+  -- 1 when no source of the run showed numbers, so the answer saw shapes only.
+  explain_only INTEGER NOT NULL CHECK (explain_only IN (0, 1)),
+  -- Who asked, for accountability only: it gives them no rights over it.
+  asked_by TEXT NOT NULL,
+  asked_at INTEGER NOT NULL,
+  question TEXT NOT NULL,
+  -- The answer's text, or NULL when it failed; then `failure` says why.
+  answer TEXT,
+  failure TEXT,
+  -- JSON: the answer's citations, every read the model made, and the follow-up cards.
+  citations TEXT NOT NULL,
+  evidence TEXT NOT NULL,
+  follow_ups TEXT NOT NULL DEFAULT '[]',
+  -- JSON: the tokens by model, and their sum.
+  usage TEXT NOT NULL,
+  tokens INTEGER NOT NULL,
+  CHECK ((answer IS NULL) <> (failure IS NULL))
+);
+
+CREATE INDEX report_questions_by_conversation ON report_questions (run_id, root_id, asked_at);
+
+CREATE INDEX report_questions_by_parent ON report_questions (parent_id)
+WHERE parent_id IS NOT NULL;
+
+CREATE INDEX report_questions_by_report ON report_questions (report_id);
+
+-- The full-text index of the questions about runs and their answers, for History's search and
+-- "already answered", kept in step as `question_fts` is.
+CREATE VIRTUAL TABLE report_question_fts USING fts5(
+  question_id UNINDEXED,
+  run_id UNINDEXED,
+  question,
+  answer,
+  tokenize = 'porter unicode61'
+);
+
+CREATE TRIGGER report_question_fts_on_insert AFTER INSERT ON report_questions
+BEGIN
+  INSERT INTO report_question_fts (question_id, run_id, question, answer)
+  VALUES (NEW.id, NEW.run_id, NEW.question, coalesce(NEW.answer, ''));
+END;
+
+CREATE TRIGGER report_question_fts_on_delete AFTER DELETE ON report_questions
+BEGIN
+  DELETE FROM report_question_fts WHERE question_id = OLD.id;
+END;
+
+-- The conversations about runs in the bin, by their first question, as `conversation_bin` holds
+-- those about dashboards.
+CREATE TABLE report_conversation_bin (
+  conversation_id TEXT PRIMARY KEY REFERENCES report_questions (id) ON DELETE CASCADE,
+  binned_by TEXT NOT NULL,
+  binned_at INTEGER NOT NULL
+);
+
+CREATE INDEX report_conversation_bin_by_time ON report_conversation_bin (binned_at);
+
+-- The latest run each person opened of each report, so the list and the rail show a run they have
+-- not. Run ids are ULIDs, which sort by time; a purged run leaves its id here. People are disabled,
+-- never deleted, so the user id needs no reference.
+CREATE TABLE report_seen (
+  user_id TEXT NOT NULL,
+  report_id TEXT NOT NULL REFERENCES reports (id) ON DELETE CASCADE,
+  run_id TEXT NOT NULL,
+  seen_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, report_id)
+);

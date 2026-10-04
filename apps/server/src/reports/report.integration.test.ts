@@ -129,6 +129,6 @@ describe.skipIf(!integrationEnabled)('a weekly orders report on the dev Postgres
     expect(ordersHeadline).toMatchObject({ value: orders, previous: ordersBefore });
     expect(revenueHeadline?.value).toBeCloseTo(revenue, 2);
     expect(run.panels?.orders?.queries[0]?.error).toBeNull();
-    expect(reports.list('viewer')[0]?.nextRunAt).toBe(nextRunAt(mondays, clock.now));
+    expect(reports.list('viewer', 'someone')[0]?.nextRunAt).toBe(nextRunAt(mondays, clock.now));
   });
 });

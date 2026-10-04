@@ -1,9 +1,30 @@
 /**
- * Reads the conversations about dashboards: the chain of questions from a first one, listed,
- * summed up and searched. A conversation in the bin is skipped by every read.
+ * Reads conversations: the chain of questions from a first one, listed, summed up and searched.
+ * The questions about dashboards and about reports' runs share the shape, each in its own tables,
+ * scoped by the dashboard or the run. A conversation in the bin is skipped by every read.
  */
 import type { Database } from 'bun:sqlite';
 import { outsideBin } from './conversation-bin.ts';
+
+/** Where a kind of conversation is stored. The names are constants of the code, never input. */
+export interface ConversationTables {
+  /** The questions' table. */
+  readonly questions: string;
+  /** Its full-text index, with the scope's column. */
+  readonly fts: string;
+  /** The column that scopes a conversation: the dashboard, or the run. */
+  readonly scope: string;
+  /** The bin's table. */
+  readonly bin: string;
+}
+
+/** The conversations about dashboards. */
+export const dashboardConversationTables: ConversationTables = {
+  questions: 'dashboard_questions',
+  fts: 'question_fts',
+  scope: 'dashboard_id',
+  bin: 'conversation_bin',
+};
 
 /** A conversation: the chain of questions from a first one. */
 export interface ConversationRow {
@@ -34,9 +55,9 @@ export interface ConversationHit {
 /** The reads of conversations. */
 export interface ConversationQueries {
   /**
-   * Lists a dashboard's conversations, the latest activity first.
+   * Lists the conversations of a dashboard or a run, the latest activity first.
    *
-   * @param dashboardId - The dashboard.
+   * @param dashboardId - The dashboard, or the run.
    * @param limit - The most to list.
    * @returns The conversations.
    */
@@ -44,16 +65,16 @@ export interface ConversationQueries {
   /**
    * Reads one conversation's summary.
    *
-   * @param dashboardId - The dashboard.
+   * @param dashboardId - The dashboard, or the run.
    * @param conversationId - The conversation's first question.
-   * @returns The summary, or `undefined` when the dashboard has no such conversation.
+   * @returns The summary, or `undefined` when there is no such conversation.
    */
   conversation(dashboardId: string, conversationId: string): ConversationRow | undefined;
   /**
-   * Finds a dashboard's conversations whose questions and answers hold every word, as prefixes,
-   * in any of them. The question weighs more than the answer.
+   * Finds the conversations of a dashboard or a run whose questions and answers hold every word,
+   * as prefixes, in any of them. The question weighs more than the answer.
    *
-   * @param dashboardId - The dashboard.
+   * @param dashboardId - The dashboard, or the run.
    * @param words - The words, letters and digits only.
    * @param limit - The most to return.
    * @returns The hits, the best first.
@@ -75,13 +96,17 @@ function prefixOf(word: string): string {
   return `"${word.replaceAll('"', '')}"*`;
 }
 
-/** Keeps the questions of conversations outside the bin. */
-const live = outsideBin('asked');
-
-/** The summary of each conversation, with its first question; filtered by the caller. */
-const summaries = `SELECT root.id, root.question, root.asked_by AS startedBy,
+/**
+ * The summary of each conversation, with its first question; filtered by the caller.
+ *
+ * @param tables - Where the conversations are stored.
+ * @returns The SQL.
+ */
+function summariesOf(tables: ConversationTables): string {
+  return `SELECT root.id, root.question, root.asked_by AS startedBy,
     root.asked_at AS startedAt, count(*) AS count, max(asked.asked_at) AS lastAt
-  FROM dashboard_questions AS asked JOIN dashboard_questions AS root ON root.id = asked.root_id`;
+  FROM ${tables.questions} AS asked JOIN ${tables.questions} AS root ON root.id = asked.root_id`;
+}
 
 /**
  * The FTS5 query of words, matched as prefixes in the question or the answer.
@@ -123,29 +148,49 @@ function narrowed(found: ConversationHit[], hits: readonly ConversationHit[]): C
 }
 
 /**
+ * Prepares the statements of the conversation reads.
+ *
+ * @param database - A database the migrations have run on.
+ * @param tables - Where the conversations are stored.
+ * @returns The statements.
+ */
+function conversationStatements(database: Database, tables: ConversationTables) {
+  const { questions, fts, scope } = tables;
+  const live = outsideBin('asked', tables.bin);
+  const summaries = summariesOf(tables);
+  return {
+    list: database.query<ConversationRow, [string, number]>(
+      `${summaries} WHERE asked.${scope} = ? AND ${live} GROUP BY asked.root_id
+       ORDER BY lastAt DESC, root.id DESC LIMIT ?`,
+    ),
+    one: database.query<ConversationRow, [string, string]>(
+      `${summaries} WHERE asked.${scope} = ? AND asked.root_id = ? AND ${live}
+       GROUP BY asked.root_id`,
+    ),
+    // BM25 can't run inside an aggregate, so the hits are ranked first, then grouped.
+    search: database.query<ConversationHit, [string, string]>(
+      `WITH hits AS MATERIALIZED (
+         SELECT asked.root_id, question_id, bm25(${fts}, 0, 0, 3, 1) AS rank
+         FROM ${fts} JOIN ${questions} AS asked ON asked.id = question_id
+         WHERE ${fts} MATCH ? AND ${fts}.${scope} = ? AND ${live})
+       SELECT root_id AS id, question_id AS questionId, min(rank) AS rank
+       FROM hits GROUP BY root_id`,
+    ),
+  };
+}
+
+/**
  * The repository's reads of conversations.
  *
  * @param database - A database the migrations have run on.
+ * @param tables - Where the conversations are stored; those about dashboards by default.
  * @returns The conversation reads.
  */
-export function conversationQueries(database: Database): ConversationQueries {
-  const list = database.query<ConversationRow, [string, number]>(
-    `${summaries} WHERE asked.dashboard_id = ? AND ${live} GROUP BY asked.root_id
-     ORDER BY lastAt DESC, root.id DESC LIMIT ?`,
-  );
-  const one = database.query<ConversationRow, [string, string]>(
-    `${summaries} WHERE asked.dashboard_id = ? AND asked.root_id = ? AND ${live}
-     GROUP BY asked.root_id`,
-  );
-  // BM25 can't run inside an aggregate, so the hits are ranked first, then grouped.
-  const search = database.query<ConversationHit, [string, string]>(
-    `WITH hits AS MATERIALIZED (
-       SELECT asked.root_id, question_id, bm25(question_fts, 0, 0, 3, 1) AS rank
-       FROM question_fts JOIN dashboard_questions AS asked ON asked.id = question_id
-       WHERE question_fts MATCH ? AND question_fts.dashboard_id = ? AND ${live})
-     SELECT root_id AS id, question_id AS questionId, min(rank) AS rank
-     FROM hits GROUP BY root_id`,
-  );
+export function conversationQueries(
+  database: Database,
+  tables: ConversationTables = dashboardConversationTables,
+): ConversationQueries {
+  const { list, one, search } = conversationStatements(database, tables);
   return {
     conversations: (dashboardId, limit) => list.all(dashboardId, limit),
     conversation: (dashboardId, conversationId) =>

@@ -1,7 +1,8 @@
 /**
- * The endpoints of the bin of conversations about dashboards. Analysts and above move the
- * conversations they started to the bin, list the ones they started or binned, and restore them;
- * admins do so for every conversation, and delete them for good.
+ * The endpoints of the bin of conversations about dashboards and about reports' runs. Analysts and
+ * above move the conversations they started to the bin, list the ones they started or binned, and
+ * restore them; admins do so for every conversation, and delete them for good. Moving a
+ * conversation about a run to the bin is mounted with the other run question endpoints.
  */
 import {
   binConversationEndpoint,
@@ -12,7 +13,7 @@ import {
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Users } from '../../auth/users.ts';
-import type { ConversationBin } from '../../dashboards/conversation-bin.ts';
+import type { ConversationBins } from '../../conversation-bins.ts';
 import type { RetentionSettingsService } from '../../settings/retention-settings.ts';
 import type { ThreadOwner } from '../../threads/bin.ts';
 import type { AppEnv } from '../app-env.ts';
@@ -22,8 +23,8 @@ import { actorOf, signedIn } from '../principal.ts';
 
 /** What the endpoints of the bin of conversations need. */
 export interface ConversationBinRouteServices {
-  /** The bin of conversations. */
-  readonly conversationBin: ConversationBin;
+  /** The bins of conversations. */
+  readonly conversationBin: ConversationBins;
   /** The retention settings, for how long the bin keeps them. */
   readonly retention: Pick<RetentionSettingsService, 'get'>;
   /** The users, for the starters' names and who binned. */

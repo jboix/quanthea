@@ -16,7 +16,7 @@ import type { Sessions } from './auth/sessions.ts';
 import type { UserAdminDependencies } from './auth/user-admin.ts';
 import type { Users } from './auth/users.ts';
 import type { Connections } from './connections/connections.ts';
-import type { ConversationBin } from './dashboards/conversation-bin.ts';
+import type { ConversationBins } from './conversation-bins.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
 import type { Explanations } from './dashboards/explanations.ts';
 import type { Questions } from './dashboards/questions.ts';
@@ -47,6 +47,7 @@ import { mountQueryEndpoints } from './http/routes/query-routes.ts';
 import { mountQuestionEndpoints } from './http/routes/question-routes.ts';
 import { mountReportDraftEndpoints } from './http/routes/report-draft-routes.ts';
 import { mountReportEndpoints } from './http/routes/report-routes.ts';
+import { mountRunQuestionEndpoints } from './http/routes/run-question-routes.ts';
 import { mountServerSettingsEndpoints } from './http/routes/server-settings-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSignInSettingsEndpoints } from './http/routes/sign-in-settings-routes.ts';
@@ -112,8 +113,8 @@ export interface AppDependencies extends ReportServices {
   readonly questions: Questions;
   /** Explanations of panels, kept per version and panel. */
   readonly explanations: Explanations;
-  /** The bin of conversations about dashboards. */
-  readonly conversationBin: ConversationBin;
+  /** The bins of conversations about dashboards and about reports' runs. */
+  readonly conversationBin: ConversationBins;
   /** Answers questions about a dashboard and explains its panels. */
   readonly answers: Pick<Answers, 'stream'>;
   /** The model gateway settings. */
@@ -212,6 +213,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountAlertLinkEndpoints(app, dependencies);
   mountReportEndpoints(app, dependencies);
   mountReportDraftEndpoints(app, dependencies);
+  mountRunQuestionEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent, dependencies.threads);
 }
 

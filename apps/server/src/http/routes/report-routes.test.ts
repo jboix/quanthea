@@ -194,7 +194,7 @@ describe('changing and trying reports', () => {
     const preview = reportPreviewSchema.parse(previewed.body);
     expect(preview).toMatchObject({ failure: null, comparison: { label: expect.any(String) } });
     expect(preview.headlines).toHaveLength(1);
-    expect(fixture.reports.list('editor')).toEqual([]);
+    expect(fixture.reports.list('editor', 'someone')).toEqual([]);
     const refused = await client(editor)('POST', '/api/reports/preview', {
       spec: { ...eventsReport(), summaryPanels: ['nothing'] },
     });

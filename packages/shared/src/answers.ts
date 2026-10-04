@@ -22,6 +22,42 @@ export const answerCitationSchema = z.strictObject({
 /** A citation. */
 export type AnswerCitation = z.infer<typeof answerCitationSchema>;
 
+/** What a follow-up card would start: an alert conversation, or a dashboard conversation. */
+export const followUpKinds = ['alert', 'dashboard'] as const;
+
+/** The most follow-up cards one answer carries. */
+export const maxFollowUps = 3;
+
+/**
+ * Something worth watching that an answer about a report's run proposes: an alert or a dashboard,
+ * and the first message of the conversation that would make it. The model writes the words; they
+ * are shown as plain text, and a person starts the conversation, never the model.
+ */
+export const followUpSchema = z.strictObject({
+  /** What the conversation would make. */
+  kind: z.enum(followUpKinds).describe('alert: something to be told about; dashboard: to look at.'),
+  /** A few words naming it, on one line. */
+  title: z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .regex(/^[^\r\n]*$/, 'One line.')
+    .describe('A few plain words naming it, on one line.'),
+  /** The first message of the conversation it would start. */
+  prompt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(600)
+    .describe(
+      'The first message of the conversation it would start, in plain words: what to watch or show, the source, and the threshold or window.',
+    ),
+});
+
+/** A follow-up card. */
+export type FollowUp = z.infer<typeof followUpSchema>;
+
 /** One read of data the model made, recorded by the server: what ran and what the gate let out. */
 export const answerEvidenceSchema = z.object({
   /** Its id, such as `e1`, which citations name. */
@@ -38,6 +74,8 @@ export const answerEvidenceSchema = z.object({
   time: z.object({ from: z.string(), to: z.string() }),
   /** What the model received: the result as the connector's access level allows. */
   result: z.unknown(),
+  /** Whether it read a report run's frozen results, which ran no query. */
+  frozen: z.boolean().optional(),
 });
 
 /** A recorded read. */
@@ -53,6 +91,8 @@ export const answerSchema = z.object({
   citations: z.array(answerCitationSchema),
   /** Every read the model made while answering. */
   evidence: z.array(answerEvidenceSchema),
+  /** What is worth watching next, for an answer about a report's run. */
+  followUps: z.array(followUpSchema).max(maxFollowUps).optional(),
 });
 
 /** An answer. */

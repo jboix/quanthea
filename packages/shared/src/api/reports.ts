@@ -66,11 +66,33 @@ export type ReportDetail = z.infer<typeof reportDetailSchema>;
 /** The path parameter of one report. */
 const reportParams = z.object({ reportId: z.string().min(1).max(64) });
 
-/** Lists the reports, with their latest run. Below editor, a report shows once it is active. */
+/** How many finished runs the list's history of the first headline number covers. */
+export const reportHistoryRuns = 8;
+
+/** Validates a report as the list shows it, for the person reading it. */
+export const reportListItemSchema = reportSummarySchema.extend({
+  /** Whether a finished run exists that this person has not opened. */
+  unseen: z.boolean(),
+  /**
+   * The first headline number over the latest successful runs, oldest first, read from the stored
+   * runs: no query runs.
+   */
+  history: z.array(
+    z.object({ runId: z.string(), label: z.string(), value: z.number().nullable() }),
+  ),
+});
+
+/** A report as the list shows it. */
+export type ReportListItem = z.infer<typeof reportListItemSchema>;
+
+/**
+ * Lists the reports, with their latest run, whether the reader has opened it, and the history of
+ * the first headline number. Below editor, a report shows once it is active.
+ */
 export const listReportsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/reports',
-  output: z.object({ reports: z.array(reportSummarySchema) }),
+  output: z.object({ reports: z.array(reportListItemSchema) }),
 });
 
 /** Reads a report with its versions. */
@@ -94,7 +116,10 @@ export const listReportRunsEndpoint = defineEndpoint({
   output: z.object({ runs: z.array(reportRunSummarySchema) }),
 });
 
-/** Reads one run with its frozen results, and the runs of the periods either side. */
+/**
+ * Reads one run with its frozen results, and the runs of the periods either side. Opening a run
+ * marks it seen for the reader.
+ */
 export const getReportRunEndpoint = defineEndpoint({
   method: 'GET',
   path: '/reports/:reportId/runs/:runId',

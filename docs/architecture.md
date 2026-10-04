@@ -561,7 +561,8 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
 `threads/bin.ts` holds these rules over `db/thread-bin.ts`.
 
 The bin also holds conversations about pinned dashboards (`dashboards/conversation-bin.ts`, over
-`db/conversation-bin.ts`). See "Questions about a pinned dashboard" for the rules.
+`db/conversation-bin.ts`) and about reports' runs (`reports/conversation-bin.ts`). See "Questions
+about a pinned dashboard" and "Questions about a report's run" for the rules.
 
 ### 5.6 Snapshot links
 
@@ -978,12 +979,18 @@ as they read dashboards. Below editor a report shows once a version is active, w
 ever active and their runs only: no draft, and no latest version number.
 
 - The list gives each report its schedule and period (of the active version, else the latest),
-  its next run, and its latest run with its headline numbers and their change.
+  its next run, and its latest run with its headline numbers and their change
+  (`reports/listing.ts`). It is read for one person: `unseen` says a finished run exists that
+  they have not opened, and `history` holds the first headline number of the latest successful
+  runs (at most 8), oldest first, read from the stored runs' headlines with no query.
+- Opening a run (`GET /api/reports/:id/runs/:runId`) records it for the reader in `report_seen`:
+  the latest run they opened of each report. Run ids are ULIDs, so a later run has a greater id,
+  and opening an older run never moves it back.
 - A report's detail adds its versions.
 - A report's runs list by period, the latest first, in pages (`before`, `limit`).
 - One run comes with its spec, its frozen results over the period and the period before, its
-  links to dashboards, how its message went per channel, and the runs of the periods before and
-  after it, to step through.
+  links to dashboards, how its message went per channel (with the channel's name while it
+  exists), and the runs of the periods before and after it, to step through.
 
 **Trying a report** (editors).
 
@@ -1559,6 +1566,51 @@ earlier question of the chain, which older data may hold, still reads in place.
     questions, their index rows, and its bin row, in one transaction. `DELETE /api/bin` empties
     both kinds. The hourly purge deletes the conversations binned longer ago than `binDays`, as it
     does threads. The usage ledger keeps their model steps.
+
+### Questions about a report's run
+
+A run of a report takes questions as a pinned dashboard does (`reports/questions.ts`, over
+`db/report-question-repository.ts`): a shared record of the run, read by every role, asked by
+analysts and above. The asker is recorded for accountability only.
+
+1. `POST /api/reports/:id/runs/:runId/questions` (analyst+) names the question and the
+   conversation it continues, if any. The run is read with the asker's role, so below editor only
+   runs of versions ever active take questions, and only a run that succeeded: one that failed has
+   no results to ask about (400). The browser sends no query and no result.
+2. The answering service gets the report's panels over the run's period (`dashboardOfReport`) as
+   its spec, the period as its range, the schedule's time zone, the variables the run bound, and
+   the run itself (`FrozenRun` in `agent/frozen-run.ts`): the period's name, the comparison period
+   and each panel's frozen run over both. Its instructions are the run's
+   (`agent/answer-run-prompt.ts`).
+3. **`read_run`** (`agent/answer-run-tools.ts`) reads one panel's frozen results, over the run's
+   period or the one before, and runs no query. The server computed them when the run ran; the
+   tool passes each query's outcome through the gate's shaping of a saved panel's result
+   (`ModelView.panelResult`), with the connector's access level: level 1 whether the query ran,
+   level 2 the shape (fields, types, row counts, label names), level 3 summaries, level 4 rows. Each
+   query read is evidence (`frozen: true`), cited like a read. When no connector of the report is
+   at level 3 or 4, the instructions tell the model it sees shapes only and to say so first.
+4. `read_data` is offered as for a dashboard, on the connectors at level 3 or 4, over the period
+   or a window the model names; the model says when a connector would need more rights.
+5. **`propose_follow_up`** offers at most three cards worth watching: `{ kind: 'alert' |
+   'dashboard', title, prompt }` (`followUpSchema` in `@quanthea/shared`): the title one line of
+   at most 80 characters, the prompt at most 600, both trimmed. The prompt is the first message of
+   the conversation a person may start; nothing starts on its own. A second call replaces the
+   first. The cards come with the answer (`followUps`) and are stored with the question.
+6. The route streams `Answers.stream` and names the stored question in `X-Question-Id`, as for a
+   dashboard. Each step goes to the usage ledger as the `answer` job and the `question` feature,
+   against who asked, with no dashboard.
+7. Conversations are per run: a first question and the questions that follow it on the same run.
+   `GET …/runs/:runId/conversations` (with `?q=`), `GET …/conversations/:conversationId`,
+   `GET …/similar-questions?q=` and `GET …/sources` (viewer+) read them as a dashboard's are read,
+   over the FTS5 table `report_question_fts`. The listing and search queries are the dashboards'
+   own, over another set of tables (`ConversationTables` in `db/conversation-queries.ts`).
+8. Questions go with their run (`ON DELETE CASCADE`), so the runs' retention takes them too.
+9. **The bin.** `DELETE …/runs/:runId/conversations/:conversationId` (analyst+) moves a
+   conversation about a run to the bin (`report_conversation_bin`), under the dashboards' rules:
+   its starter or an admin. The bin lists both kinds together (`conversation-bins.ts` joins
+   `dashboards/conversation-bin.ts` and `reports/conversation-bin.ts`); a conversation about a run
+   names its report and the run's period. Restoring, deleting for good and the hourly purge treat
+   both kinds alike, by id.
 
 ### Explanations of a panel
 
@@ -2287,6 +2339,25 @@ CREATE TABLE report_runs (
   notify INTEGER NOT NULL, started_by TEXT,       -- started_by NULL: the schedule
   created_at INTEGER NOT NULL, ran_at INTEGER, sent_at INTEGER, delivery TEXT,
   FOREIGN KEY (report_id, version) REFERENCES report_versions(report_id, version));
+
+-- a question about a run, stored once with its outcome; it goes with its run
+CREATE TABLE report_questions (
+  id TEXT PRIMARY KEY, report_id TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+  run_id TEXT NOT NULL REFERENCES report_runs(id) ON DELETE CASCADE,
+  parent_id TEXT REFERENCES report_questions(id) ON DELETE CASCADE, root_id TEXT NOT NULL,
+  time_zone TEXT NOT NULL, explain_only INTEGER NOT NULL, asked_by TEXT NOT NULL,
+  asked_at INTEGER NOT NULL, question TEXT NOT NULL, answer TEXT, failure TEXT,
+  citations TEXT NOT NULL, evidence TEXT NOT NULL, follow_ups TEXT NOT NULL DEFAULT '[]',
+  usage TEXT NOT NULL, tokens INTEGER NOT NULL);
+-- report_question_fts (FTS5: question_id, run_id, question, answer), kept by triggers
+CREATE TABLE report_conversation_bin (
+  conversation_id TEXT PRIMARY KEY REFERENCES report_questions(id) ON DELETE CASCADE,
+  binned_by TEXT NOT NULL, binned_at INTEGER NOT NULL);
+
+-- the latest run each person opened of each report
+CREATE TABLE report_seen (
+  user_id TEXT NOT NULL, report_id TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+  run_id TEXT NOT NULL, seen_at INTEGER NOT NULL, PRIMARY KEY (user_id, report_id));
 ```
 
 The usage ledger (`usage/usage.ts`) records every model step, with its provider's name, its vendor,
@@ -2344,9 +2415,10 @@ notification channels with their log.
 The same file adds the alerts, their versions, the state of their series and their changes of
 state, in a section of their own. A last section adds what a thread makes (`kind`) and the panel an alert
 thread starts from (`seed`), and the ledger's `alert` feature. Another adds the links
-between alerts and panels and the dismissed suggestions. The last one adds the reports, their
+between alerts and panels and the dismissed suggestions. Another adds the reports, their
 versions and their runs; the report events and `report_id` of the notification log are in its
-`notification_sends`.
+`notification_sends`. The last one adds the questions about runs, their index and their bin, and
+the runs each person has opened (`report_seen`).
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -2441,6 +2513,10 @@ indicative; the contract files are the source of truth.
 | `POST /reports/:id/versions/:v/test`                                                              | send a version's message as a test           | editor   |
 | `POST /threads/:id/report-draft` (the whole spec)                                                 | a hand edit: a new draft version and a card  | editor   |
 | `GET/PUT /settings/reports`                                                                       | retries, their delay, how long runs are kept | admin    |
+| `POST /reports/:id/runs/:runId/questions` (streams the answer)                                    | ask about a run, from its frozen results     | analyst  |
+| `GET /reports/:id/runs/:runId/conversations`, `…/conversations/:conversationId`                   | a run's conversations, or a search           | viewer   |
+| `GET /reports/:id/runs/:runId/similar-questions?q=`, `GET /reports/:id/runs/:runId/sources`       | already answered, the sources' levels        | viewer   |
+| `DELETE /reports/:id/runs/:runId/conversations/:conversationId`                                   | move a conversation about a run to the bin   | analyst  |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
 so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the

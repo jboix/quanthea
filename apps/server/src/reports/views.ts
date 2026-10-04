@@ -181,22 +181,3 @@ export function toReportDetail(
     }));
   return { ...summary, versions: shown };
 }
-
-/**
- * Lists the reports a role may see.
- *
- * @param context - The service context.
- * @param role - The role.
- * @returns The summaries, the newest report first.
- */
-export function listReports(context: ReportsContext, role: Role): ReportSummary[] {
-  return context.repository
-    .list()
-    .filter((report) => canSeeReport(report, role))
-    .map((report) => {
-      const versions = versionSpecs(context, report.id);
-      const options = { versions: visibleVersions(versions, role), limit: 1 };
-      const [last] = context.runs.list(report.id, options);
-      return toReportSummary(report, versions, role, last);
-    });
-}

@@ -64,7 +64,7 @@ export interface AskFacts {
  * @param timeZone - An IANA time zone.
  * @returns The time.
  */
-function localTime(instant: number, timeZone: string): string {
+export function localTime(instant: number, timeZone: string): string {
   try {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone,
@@ -100,7 +100,7 @@ function panelOutline(panel: Panel) {
  * @param spec - The spec.
  * @returns JSON text.
  */
-function dashboardText(spec: DashboardSpec): string {
+export function dashboardText(spec: DashboardSpec): string {
   const { title, description, variables, annotations } = spec;
   const panels = spec.panels.map(panelOutline);
   return JSON.stringify({ title, description, variables, panels, markers: annotations });
@@ -132,7 +132,7 @@ function connectorLines(
  * @param chosen - The choices.
  * @returns The line, or `undefined` without variables.
  */
-function variablesLine(spec: DashboardSpec, chosen: VariableValues): string | undefined {
+export function variablesLine(spec: DashboardSpec, chosen: VariableValues): string | undefined {
   if (spec.variables.length === 0) return undefined;
   const values = spec.variables.map((variable) => {
     const value = [chosen[variable.name] ?? variable.default ?? ''].flat();

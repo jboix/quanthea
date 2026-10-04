@@ -20,6 +20,8 @@ import {
 } from 'ai';
 import { AppError } from '../lib/errors.ts';
 import { type AnswerConnector, askInstructions, explainInstructions } from './answer-prompt.ts';
+import { runInstructions } from './answer-run-prompt.ts';
+import { runTools } from './answer-run-tools.ts';
 import { type AnswerToolContext, answerTools } from './answer-tools.ts';
 import type {
   AnswerDependencies,
@@ -124,11 +126,10 @@ async function framing(
   const choices = { variables: request.variables, time };
   const bindings = await dependencies.dashboards.bindVariables(spec, choices, request.signal);
   const facts = { ...request, connectors, range: request.time };
-  return {
-    instructions: askInstructions(facts, readable),
-    messages: askMessages(request),
-    bindings,
-  };
+  const instructions = request.run
+    ? runInstructions({ ...facts, run: request.run }, readable)
+    : askInstructions(facts, readable);
+  return { instructions, messages: askMessages(request), bindings };
 }
 
 /**
@@ -154,7 +155,7 @@ async function prepare(
     modelView: dependencies.modelView,
     bindings,
     watch,
-    state: { evidence: [], given: undefined, failedAnswers: 0 },
+    state: { evidence: [], given: undefined, failedAnswers: 0, followUps: [] },
     onEvidence: (data) => sink.writer?.write({ type: 'data-evidence', id: data.id, data }),
   };
   const watched = watchedModel(model, watch);
@@ -177,6 +178,7 @@ function toolScope(request: AnswerRequest, connectors: readonly AnswerConnector[
     connectors: connectors.map(({ name }) => name),
     readable: asking ? readableNames(connectors) : [],
     range: asking ? request.time : undefined,
+    run: asking ? request.run : undefined,
     timeZone: asking ? request.timeZone : 'UTC',
     schemaOnly: !asking,
     signal: request.signal,
@@ -265,7 +267,8 @@ function outcomeOf(prepared: PreparedAnswer, failure?: string): AnswerOutcome {
   if (state.given && failure === undefined) {
     const { text, citations } = state.given;
     const answer = { mode: prepared.request.mode, text, citations: [...citations], evidence };
-    return { ok: true, answer, usage };
+    const followUps = state.followUps.length > 0 ? { followUps: [...state.followUps] } : {};
+    return { ok: true, answer: { ...answer, ...followUps }, usage };
   }
   const message =
     failure ??
@@ -283,7 +286,7 @@ function outcomeOf(prepared: PreparedAnswer, failure?: string): AnswerOutcome {
  * @returns The streaming result.
  */
 function start(dependencies: AnswerDependencies, prepared: PreparedAnswer) {
-  const tools: ToolSet = answerTools(prepared.tools);
+  const tools: ToolSet = { ...answerTools(prepared.tools), ...runTools(prepared.tools) };
   return streamText({
     model: prepared.model,
     instructions: prepared.instructions,

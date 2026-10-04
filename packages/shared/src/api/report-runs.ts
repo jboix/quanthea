@@ -84,8 +84,8 @@ export const reportRunDetailSchema = reportRunSummarySchema.extend({
   /** The run of the period before, and of the period after, when there is one. */
   previous: neighbourSchema.nullable(),
   next: neighbourSchema.nullable(),
-  /** How its message went, per channel; `null` until sent. */
-  delivery: z.array(sendResultSchema).nullable(),
+  /** How its message went, per channel, with the channel's name when it still exists. */
+  delivery: z.array(sendResultSchema.extend({ channelName: z.string().optional() })).nullable(),
 });
 
 /** One run with its frozen results. */

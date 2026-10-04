@@ -25,6 +25,10 @@ export {
   type AnswerEvidence,
   answerCitationSchema,
   answerDataSchemas,
+  type FollowUp,
+  followUpKinds,
+  followUpSchema,
+  maxFollowUps,
 } from './answers.ts';
 export * from './api/alert-drafts.ts';
 export * from './api/alert-links.ts';
@@ -161,6 +165,7 @@ export {
 } from './api/queries.ts';
 export * from './api/questions.ts';
 export * from './api/report-drafts.ts';
+export * from './api/report-questions.ts';
 export * from './api/report-runs.ts';
 export * from './api/reports.ts';
 export * from './api/retention.ts';

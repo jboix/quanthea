@@ -13,6 +13,7 @@ import type { ModelView } from '../gate/model-view.ts';
 import type { ModelSettingsService, ResolvedModelSettings } from '../settings/model-settings.ts';
 import type { Usage } from '../usage/usage.ts';
 import type { AnswerToolContext } from './answer-tools.ts';
+import type { FrozenRun } from './frozen-run.ts';
 import type { languageModel } from './model.ts';
 
 /** What the answering service needs. It reaches data only through the model view, the gate. */
@@ -20,7 +21,7 @@ export interface AnswerDependencies {
   /** The connectors as the model sees them. */
   readonly modelView: Pick<
     ModelView,
-    'connectors' | 'describe' | 'describeSchemaOnly' | 'testQuery'
+    'connectors' | 'describe' | 'describeSchemaOnly' | 'testQuery' | 'panelResult'
   >;
   /** The dashboards, to bind the viewer's variables as panels bind them. */
   readonly dashboards: Pick<Dashboards, 'bindVariables'>;
@@ -34,9 +35,9 @@ export interface AnswerDependencies {
 
 /** What every answer request names. */
 interface RequestBase {
-  /** The dashboard, for the usage ledger. */
-  readonly dashboardId: string;
-  /** The spec of the version asked about. */
+  /** The dashboard, for the usage ledger; `null` for a question about a report's run. */
+  readonly dashboardId: string | null;
+  /** The spec of the version asked about; a report's panels over the run's period for a run. */
   readonly spec: DashboardSpec;
   /** Who asks: the ledger records the steps against them. */
   readonly actor: string;
@@ -60,6 +61,8 @@ export interface AskRequest extends RequestBase {
   readonly question: string;
   /** Earlier questions and answers this one follows up on, oldest first. */
   readonly history?: readonly { readonly question: string; readonly answer: string }[];
+  /** The report's run it is about, frozen; the range is then the run's period. */
+  readonly run?: FrozenRun;
 }
 
 /** A request to explain a panel, with no data. */

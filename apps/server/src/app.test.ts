@@ -144,6 +144,8 @@ describe('route access', () => {
     expect(reportRoutes.sort()).toEqual([
       'admin GET /api/settings/reports',
       'admin PUT /api/settings/reports',
+      'analyst DELETE /api/reports/:reportId/runs/:runId/conversations/:conversationId',
+      'analyst POST /api/reports/:reportId/runs/:runId/questions',
       'editor POST /api/reports/:reportId/activate',
       'editor POST /api/reports/:reportId/deactivate',
       'editor POST /api/reports/:reportId/run',
@@ -153,6 +155,10 @@ describe('route access', () => {
       'viewer GET /api/reports/:reportId',
       'viewer GET /api/reports/:reportId/runs',
       'viewer GET /api/reports/:reportId/runs/:runId',
+      'viewer GET /api/reports/:reportId/runs/:runId/conversations',
+      'viewer GET /api/reports/:reportId/runs/:runId/conversations/:conversationId',
+      'viewer GET /api/reports/:reportId/runs/:runId/similar-questions',
+      'viewer GET /api/reports/:reportId/runs/:runId/sources',
     ]);
   });
 
@@ -168,12 +174,14 @@ describe('route access', () => {
         .sort(),
     ).toEqual([
       'DELETE /api/dashboards/:dashboardId/conversations/:conversationId',
+      'DELETE /api/reports/:reportId/runs/:runId/conversations/:conversationId',
       'GET /api/bin/conversations',
       'POST /api/alerts/:alertId/mute',
       'POST /api/alerts/:alertId/unmute',
       'POST /api/bin/conversations/:conversationId/restore',
       'POST /api/dashboards/:dashboardId/questions',
       'POST /api/dashboards/:dashboardId/versions/:version/panels/:panelId/explanation',
+      'POST /api/reports/:reportId/runs/:runId/questions',
     ]);
     expect(reachable('viewer').every((route) => reachable('analyst').includes(route))).toBe(true);
   });
@@ -185,14 +193,20 @@ describe('route access', () => {
     expect(questionRoutes.sort()).toEqual([
       'admin DELETE /api/bin/conversations/:conversationId',
       'analyst DELETE /api/dashboards/:dashboardId/conversations/:conversationId',
+      'analyst DELETE /api/reports/:reportId/runs/:runId/conversations/:conversationId',
       'analyst GET /api/bin/conversations',
       'analyst POST /api/bin/conversations/:conversationId/restore',
       'analyst POST /api/dashboards/:dashboardId/questions',
+      'analyst POST /api/reports/:reportId/runs/:runId/questions',
       'viewer GET /api/dashboards/:dashboardId/conversations',
       'viewer GET /api/dashboards/:dashboardId/conversations/:conversationId',
       'viewer GET /api/dashboards/:dashboardId/questions/:questionId',
       'viewer GET /api/dashboards/:dashboardId/similar-questions',
       'viewer GET /api/dashboards/:dashboardId/versions/:version/sources',
+      'viewer GET /api/reports/:reportId/runs/:runId/conversations',
+      'viewer GET /api/reports/:reportId/runs/:runId/conversations/:conversationId',
+      'viewer GET /api/reports/:reportId/runs/:runId/similar-questions',
+      'viewer GET /api/reports/:reportId/runs/:runId/sources',
     ]);
   });
 

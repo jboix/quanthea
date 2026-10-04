@@ -1,7 +1,8 @@
 /**
  * The report endpoints. Everyone signed in reads reports and their runs (below editor, once a
- * version is active, and the runs of versions ever active); editors activate, deactivate, run one
- * now, preview a spec and send a test; admins set the retries and how long runs are kept.
+ * version is active, and the runs of versions ever active); opening a run marks it seen for the
+ * reader. Editors activate, deactivate, run one now, preview a spec and send a test; admins set the
+ * retries and how long runs are kept.
  */
 import {
   activateReportEndpoint,
@@ -12,6 +13,7 @@ import {
   listReportRunsEndpoint,
   listReportsEndpoint,
   previewReportEndpoint,
+  type ReportRunDetail,
   type ReportRunSummary,
   type ReportSummary,
   runReportNowEndpoint,
@@ -20,6 +22,7 @@ import {
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Users } from '../../auth/users.ts';
+import type { Notifications } from '../../notifications/notifications.ts';
 import type { Reports } from '../../reports/reports.ts';
 import type { ReportSettingsService } from '../../settings/report-settings.ts';
 import type { AppEnv } from '../app-env.ts';
@@ -35,6 +38,8 @@ export interface ReportRouteServices {
   readonly reportSettings: ReportSettingsService;
   /** The users, for names. */
   readonly users: Pick<Users, 'nameOf'>;
+  /** The notification channels, for the names of those a run went to. */
+  readonly notifications: Pick<Notifications, 'picker'>;
 }
 
 /** Looks a name up by user id. */
@@ -68,6 +73,26 @@ async function nameSummary<Summary extends ReportSummary>(
 }
 
 /**
+ * Names the channels a run's message went to, those that still exist.
+ *
+ * @param notifications - The notification channels.
+ * @param run - The run.
+ * @returns The run with its channels named.
+ */
+function withChannelNames(
+  notifications: Pick<Notifications, 'picker'>,
+  run: ReportRunDetail,
+): ReportRunDetail {
+  if (run.delivery === null) return run;
+  const names = new Map(notifications.picker().map((channel) => [channel.id, channel.name]));
+  const delivery = run.delivery.map((sent) => {
+    const channelName = names.get(sent.channelId);
+    return channelName === undefined ? sent : { ...sent, channelName };
+  });
+  return { ...run, delivery };
+}
+
+/**
  * Mounts the endpoints that read reports.
  *
  * @param app - The app.
@@ -79,7 +104,8 @@ function mountReadEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): v
     access: 'viewer',
     handle: async ({ principal }) => {
       const nameOf = ownerNames(users);
-      const listed = reports.list(signedIn(principal).role);
+      const reader = signedIn(principal);
+      const listed = reports.list(reader.role, reader.id);
       return { reports: await Promise.all(listed.map((each) => nameSummary(nameOf, each))) };
     },
   });
@@ -114,11 +140,12 @@ function mountRunEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): vo
   });
   mountEndpoint(app, getReportRunEndpoint, {
     access: 'viewer',
-    handle: ({ params, principal }) =>
-      nameRun(
-        ownerNames(users),
-        reports.run(params.reportId, params.runId, signedIn(principal).role),
-      ),
+    handle: ({ params, principal }) => {
+      const reader = signedIn(principal);
+      const run = reports.run(params.reportId, params.runId, reader.role);
+      reports.see(params.reportId, params.runId, reader.id);
+      return nameRun(ownerNames(users), withChannelNames(services.notifications, run));
+    },
   });
 }
 

@@ -16,6 +16,7 @@ import { resealIdentities, resealSignInCredentials, resealUsers } from './auth/r
 import { type Connections, createConnections } from './connections/connections.ts';
 import { resealConnectors } from './connections/reseal.ts';
 import type { RegisteredKind } from './connectors/_shared/index.ts';
+import { type ConversationBins, combineConversationBins } from './conversation-bins.ts';
 import type { DashboardsDependencies } from './dashboards/context.ts';
 import { type ConversationBin, createConversationBin } from './dashboards/conversation-bin.ts';
 import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
@@ -48,7 +49,11 @@ import { resealChannels } from './notifications/reseal.ts';
 import { createManaged, type Managed } from './provisioning/managed.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
-import { createReportServices, type ReportServices } from './report-services.ts';
+import {
+  createReportServices,
+  type ReportServiceDependencies,
+  type ReportServices,
+} from './report-services.ts';
 import { type AlertSettingsService, createAlertSettings } from './settings/alert-settings.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
 import {
@@ -85,8 +90,8 @@ export interface Services extends Accounts, ReportServices {
   readonly questions: Questions;
   /** Explanations of panels, kept per version and panel. */
   readonly explanations: Explanations;
-  /** The bin of conversations about dashboards. */
-  readonly conversationBin: ConversationBin;
+  /** The bins of conversations about dashboards and about reports' runs. */
+  readonly conversationBin: ConversationBins;
   /** The model gateway settings. */
   readonly modelSettings: ModelSettingsService;
   /** The connectors as the model sees them, through the gate. */
@@ -185,11 +190,14 @@ function dataServices(
   const { subjects: list, open, snapshot } = connections;
   const modelView = createModelView({ list, open, snapshot }, executor);
   const answered = answerServices(database, dashboardDependencies, modelView);
-  const messaging = messagingServices(dependencies, audit, {
+  const { runConversationBin, ...messaging } = messagingServices(dependencies, audit, {
     ...dashboardDependencies,
     dashboards,
+    connectorLevels: () => modelView.connectors(),
   });
-  return { connections, dashboards, snapshots, ...answered, modelView, ...messaging };
+  const conversationBin = combineConversationBins(answered.conversationBin, runConversationBin);
+  const data = { connections, dashboards, snapshots, modelView, ...messaging };
+  return { ...data, ...answered, conversationBin };
 }
 
 /**
@@ -204,7 +212,10 @@ function dataServices(
 function messagingServices(
   dependencies: ServiceDependencies,
   audit: ReturnType<typeof createAuditRepository>,
-  shared: DashboardsDependencies & { readonly dashboards: Dashboards },
+  shared: DashboardsDependencies & {
+    readonly dashboards: Dashboards;
+    readonly connectorLevels: ReportServiceDependencies['connectorLevels'];
+  },
 ) {
   const notifications = notificationService(dependencies, audit);
   const alerting = alertServices(dependencies, audit, { ...shared, notifications });
@@ -270,7 +281,7 @@ function answerServices(
   database: ServiceDependencies['database'],
   dashboardDependencies: DashboardsDependencies,
   modelView: ModelView,
-): Pick<Services, 'questions' | 'conversationBin' | 'explanations'> {
+): Pick<Services, 'questions' | 'explanations'> & { readonly conversationBin: ConversationBin } {
   const stored = {
     questions: createQuestionRepository(database),
     binnedConversations: createConversationBinRepository(database),

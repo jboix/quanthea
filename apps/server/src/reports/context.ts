@@ -6,6 +6,7 @@ import type { AuditRepository } from '../db/audit-repository.ts';
 import type { DashboardRow } from '../db/dashboard-repository.ts';
 import type { ReportRepository, ReportRow } from '../db/report-repository.ts';
 import type { ReportRunRepository } from '../db/report-run-repository.ts';
+import type { ReportSeenRepository } from '../db/report-seen-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import type { Logger } from '../lib/logger.ts';
 
@@ -17,6 +18,8 @@ export interface ReportsDependencies extends Omit<RunnerDependencies, 'now'> {
   readonly runs: ReportRunRepository;
   /** Records who did what. */
   readonly audit: AuditRepository;
+  /** The latest run each person opened, for the runs new to them; none are new without it. */
+  readonly seen?: ReportSeenRepository | undefined;
   /** Finds a connector by name, for validation. */
   readonly lookup: ConnectorLookup;
   /** Reads a dashboard, for the links to pinned dashboards. */
