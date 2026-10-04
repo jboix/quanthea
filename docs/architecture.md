@@ -513,6 +513,7 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
   an `edit` thread on its dashboard is refused. Its dashboard still opens for editors, and its
   Change menu's Edit with the agent says the conversation is in the bin and links there.
 - `GET /api/bin` and `POST /api/bin/:id/restore` (editor+) list and restore binned threads.
+  Each binned thread names who binned it by name, as owners are named, never by id or email.
 - `DELETE /api/bin/:id` and `DELETE /api/bin` (admin) purge: in one transaction, the thread with
   its messages and plans, then its dashboard with every version, unless that dashboard is pinned
   or another thread uses it. The library index drops it through its trigger, and its snapshots go

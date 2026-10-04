@@ -64,7 +64,7 @@ export interface BinRouteServices {
 
 /**
  * The binned threads someone sees: their own, or everyone's for an admin, each named by its owner
- * when it is someone else's.
+ * when it is someone else's, and by the name of whoever binned it.
  *
  * @param services - The bin route services.
  * @param principal - Who asks.
@@ -74,8 +74,9 @@ function binnedFor(services: BinRouteServices, principal: Principal) {
   const nameOf = ownerNames(services.users);
   const shown = services.bin.list().filter((thread) => canRead(principal, thread.ownerId));
   return Promise.all(
-    shown.map(async ({ ownerId, ...thread }) => ({
+    shown.map(async ({ ownerId, deletedBy, ...thread }) => ({
       ...thread,
+      deletedBy: deletedBy === null ? null : await nameOf(deletedBy),
       ownerName: ownerId === principal.id ? null : await nameOf(ownerId),
     })),
   );

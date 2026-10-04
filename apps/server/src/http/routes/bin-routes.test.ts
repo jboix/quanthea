@@ -40,7 +40,8 @@ function client(principal: Principal) {
   const app = new Hono<AppEnv>();
   app.use(requestId());
   app.use(authenticate(fixedAuthenticator(principal)));
-  mountBinEndpoints(app, fixture);
+  const names: Record<string, string> = { 'admin-1': 'Ada', 'editor-1': 'Eddie' };
+  mountBinEndpoints(app, { ...fixture, users: { nameOf: (id) => Promise.resolve(names[id]) } });
   app.onError(handleErrors(captureLogs().logger));
   app.notFound(handleNotFound);
   return async (method: string, path: string, body?: unknown) => {
@@ -77,5 +78,21 @@ describe('bin routes', () => {
     expect((await client(editor)('POST', `/api/bin/${first.id}/restore`)).status).toBe(200);
     expect((await client(admin)('DELETE', `/api/bin/${first.id}`)).status).toBe(404);
     expect((await client(admin)('DELETE', '/api/bin')).body).toEqual({ purged: 1 });
+  });
+
+  test('name who moved each thread to the bin, never by their id', async () => {
+    const own = fixture.threads.create('editor-1');
+    fixture.bin.bin(own.id, 'admin-1');
+    const gone = fixture.threads.create('editor-1');
+    fixture.bin.bin(gone.id, 'someone-removed');
+    const byId = async (principal: Principal) => {
+      const { body } = await client(principal)('GET', '/api/bin');
+      const { threads } = body as { threads: { id: string }[] };
+      return Object.fromEntries(threads.map((thread) => [thread.id, thread]));
+    };
+    const forEditor = await byId(editor);
+    expect(forEditor[own.id]).toMatchObject({ deletedBy: 'Ada', ownerName: null });
+    expect(forEditor[gone.id]).toMatchObject({ deletedBy: 'A removed user' });
+    expect((await byId(admin))[own.id]).toMatchObject({ deletedBy: 'Ada', ownerName: 'Eddie' });
   });
 });

@@ -12,6 +12,7 @@ export const binnedThreadSchema = z.object({
   dashboardId: z.string().nullable(),
   dashboardTitle: z.string().nullable(),
   deletedAt: z.number(),
+  /** The name of whoever moved it to the bin, as names are shown elsewhere; never an email. */
   deletedBy: z.string().nullable(),
   /** The owner's name, when it is someone else's thread; `null` for one's own. */
   ownerName: z.string().nullable(),
