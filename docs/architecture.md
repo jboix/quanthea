@@ -205,8 +205,9 @@ the kit's HTTP client for every kind that speaks HTTP.
   - the replay of the latest version over 7 days or 24 hours, from the alert pages' replay route,
     drawn by the alert chart of `charts/`, with the threshold as a dashed line and a handle at its
     right to drag (or move with the arrow keys). The chart draws the line where the threshold is
-    shown, and the saved one as a faint line marked `was` once it moved; the saved threshold keeps
-    the value axis, so the axis stays still under the pointer. While it moves, the browser
+    shown, and the saved one as a faint line marked `was` once it moved. The value axis keeps
+    both in view once the threshold is let go, and stays still under the pointer while it is
+    dragged. A series keeps its colour as the threshold moves. While it moves, the browser
     replays the values again with the shared rules (`replayAtThreshold`), so the shading, the
     dots of the spikes too short to fire, the series list and the summary ("Would have fired 2
     times · 23 minutes in total · 1 spike too short to fire") follow at once. The chart reports

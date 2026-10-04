@@ -1,9 +1,8 @@
 /**
  * A replay chart whose threshold a person drags: the alert chart of `charts/` draws the series,
  * the firing periods at the threshold shown and the threshold's dashed line, and a handle at its
- * right moves it. The saved threshold keeps the value axis, so the axis stays still under the
- * pointer, and stays as a faint line once the threshold moved. The draft pane and the alert page
- * share it.
+ * right moves it. The saved threshold stays as a faint line once the threshold moved, and the
+ * value axis keeps both in view. The draft pane and the alert page share it.
  */
 import { type AlertSpec, alertValueText } from '@quanthea/shared';
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
@@ -62,7 +61,12 @@ function chartInput(
   props: Pick<TunableChartProps, 'replay' | 'spec' | 'series' | 'drawn' | 'threshold'>,
   format: (value: number) => string,
 ): AlertChartInput {
-  const { replay, spec, series, drawn } = props;
+  const { replay, spec, series } = props;
+  // In the replay's order, so a series keeps its colour as the threshold moves.
+  const order = new Map(replay.series.map((each, index) => [each.key, index]));
+  const drawn = [...props.drawn].sort(
+    (first, second) => (order.get(first.key) ?? 0) - (order.get(second.key) ?? 0),
+  );
   return {
     series: drawn.map((each) => ({ name: seriesName(each.labels), points: each.track.points })),
     threshold: spec.condition.kind === 'threshold' ? spec.condition.value : null,
@@ -94,10 +98,14 @@ function useFormat(spec: AlertSpec): (value: number) => string {
 export function TunableChart(props: TunableChartProps) {
   const { replay, spec, series, drawn, threshold } = props;
   const [axis, setAxis] = useState<ValueAxis | undefined>(undefined);
+  const drag = useDragStart(props);
   const format = useFormat(spec);
   const input = useMemo(
-    () => chartInput({ replay, spec, series, drawn, threshold }, format),
-    [replay, spec, series, drawn, threshold, format],
+    () => ({
+      ...chartInput({ replay, spec, series, drawn, threshold }, format),
+      axisMoved: drag.start,
+    }),
+    [replay, spec, series, drawn, threshold, format, drag.start],
   );
   return (
     <div className={styles.chartBox}>
@@ -113,10 +121,32 @@ export function TunableChart(props: TunableChartProps) {
           format={format}
           spikes={series.flatMap((each) => each.track.tooShort)}
           disabled={props.disabled}
-          onMove={props.onMove}
-          onRelease={props.onRelease}
+          onMove={drag.onMove}
+          onRelease={drag.onRelease}
         />
       )}
     </div>
   );
+}
+
+/**
+ * Where a drag of the threshold started, so the value axis stays still under the pointer
+ * until the threshold is let go.
+ *
+ * @param props - The threshold shown and the callbacks.
+ * @returns The start while a drag goes on, and the callbacks that follow it.
+ */
+function useDragStart(props: Pick<TunableChartProps, 'threshold' | 'onMove' | 'onRelease'>) {
+  const [start, setStart] = useState<number | null>(null);
+  return {
+    start,
+    onMove: (value: number) => {
+      setStart((started) => started ?? props.threshold);
+      props.onMove(value);
+    },
+    onRelease: (value: number) => {
+      setStart(null);
+      props.onRelease(value);
+    },
+  };
 }

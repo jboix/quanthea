@@ -101,4 +101,14 @@ test('moves the line where a person moved it, the saved one faint, the axis kept
   expect(markLine?.data[1]?.label.formatter()).toBe('was 5%');
   expect(option.yAxis).toMatchObject({ max: 6 });
   expect(option.grid).toMatchObject({ right: 72 });
+  // Moved past the values, the axis keeps the line in view too.
+  expect(thresholdBounds({ ...input, moved: 8 })).toEqual({ max: 10 });
+  expect(thresholdBounds({ ...input, threshold: 1.5, moved: 0.2 })).toEqual({ min: 0 });
+  // While it is dragged, the axis keeps where the drag started.
+  expect(thresholdBounds({ ...input, moved: 8, axisMoved: 5 })).toEqual({ max: 6 });
+});
+
+test('keeps a threshold that falls on a round step a step below the top', () => {
+  const ratio = { ...input, series: [{ name: 'a', points: [{ at: 0, value: 0.034 }] }] };
+  expect(thresholdBounds({ ...ratio, threshold: 0.04 }).max).toBeCloseTo(0.042, 9);
 });

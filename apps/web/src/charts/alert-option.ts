@@ -28,6 +28,11 @@ export interface AlertChartInput {
    * threshold stays as a faint line marked `was`.
    */
   readonly moved?: number | null | undefined;
+  /**
+   * Where the value axis takes the moved threshold to be; `moved` by default. A drag keeps where
+   * it started, so the axis stays still under the pointer.
+   */
+  readonly axisMoved?: number | null | undefined;
   /** Whether a handle at the right writes the threshold: the line has no label, and room is left. */
   readonly handle?: boolean | undefined;
   /** When the alert fired. */
@@ -122,26 +127,29 @@ function niceStep(span: number): number {
 }
 
 /**
- * The bounds of the value axis that keep the threshold in view, rounded, when it lies outside the
- * values; none when it lies among them, so the axis keeps its own round bounds.
+ * The bounds of the value axis that keep the threshold in view, and where it moved, rounded, when
+ * they lie outside the values; none when they lie among them, so the axis keeps its own round
+ * bounds.
  *
- * @param input - The series and the threshold.
+ * @param input - The series, the threshold and where it moved.
  * @returns The `min` or `max` to set, if any.
  */
 export function thresholdBounds(input: AlertChartInput): { min?: number; max?: number } {
-  const { threshold } = input;
+  if (input.threshold === null) return {};
+  const lines = [input.threshold, input.axisMoved ?? input.moved ?? input.threshold];
   const values = input.series.flatMap((each) =>
     each.points.flatMap((point) => (point.value === null ? [] : [point.value])),
   );
-  if (threshold === null) return {};
-  const low = Math.min(threshold, ...values);
-  const high = Math.max(threshold, ...values);
-  const step = niceStep(high - low || Math.abs(threshold));
-  // A round bound past the threshold, a step further when it falls on one.
-  if (values.length === 0 || threshold > Math.max(...values))
-    return { max: (Math.floor(threshold / step) + 1) * step };
-  if (threshold < Math.min(...values)) return { min: (Math.ceil(threshold / step) - 1) * step };
-  return {};
+  const top = Math.max(...lines);
+  const bottom = Math.min(...lines);
+  const step = niceStep(Math.max(top, ...values) - Math.min(bottom, ...values) || Math.abs(top));
+  // A round bound past the line, a step further when it falls on one.
+  const bounds: { min?: number; max?: number } = {};
+  if (values.length === 0 || top > Math.max(...values))
+    bounds.max = (Math.floor(top / step + 1e-9) + 1) * step;
+  if (values.length > 0 && bottom < Math.min(...values))
+    bounds.min = (Math.ceil(bottom / step - 1e-9) - 1) * step;
+  return bounds;
 }
 
 /**

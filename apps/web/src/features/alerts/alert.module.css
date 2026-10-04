@@ -356,6 +356,8 @@
 
 @media (max-width: 720px) {
   .header {
+    flex-wrap: nowrap;
+    align-items: flex-start;
     padding: 14px 16px;
   }
 
