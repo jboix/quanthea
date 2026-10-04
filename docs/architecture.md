@@ -568,7 +568,7 @@ showed, at a link that opens with no query and no model (`dashboards/snapshots.t
 
 ### 5.7 Notification channels
 
-Alerts send their messages to notification channels, which admins keep in Settings → Notifications
+Alerts and reports send their messages to notification channels, which admins keep in Settings → Notifications
 (`notifications/`, over `db/channel-repository.ts`). A message leaves quanthea when it is sent, so
 only admins add, change and delete channels.
 
@@ -583,7 +583,8 @@ only admins add, change and delete channels.
   is all the API ever returns.
 - **Mentions.** An admin sets them per channel: Slack `<!here>`, `<!channel>`,
   `<!subteam^ID>` or `<@U…>`; Discord `<@&role id>` or `<@user id>`. Other kinds take none.
-  They are added on `alert.firing` and `alert.error` only, never from the template or the values.
+  They are added on `alert.firing`, `alert.error` and `report.failed` only, never from the
+  template or the values.
 - **Recipes.** One module per kind (`webhook.ts`, `slack.ts`, `discord.ts`, `teams.ts`,
   `pagerduty.ts`) implements `ChannelRecipe.build(notification, { target, mentions })`, which
   returns the URL and the JSON body and sends nothing; `registry.ts` holds them by kind. A recipe
@@ -616,6 +617,20 @@ only admins add, change and delete channels.
   filled. A button or link appears only when the alert's URL is absolute. Colours: red, amber or
   blue by severity while firing, amber (Teams: `warning`) when it cannot be checked, green once
   resolved or checked again, grey for a test.
+- **Report messages.** `report.ready` and `report.failed` (`ReportNotification` in
+  `report-notifications.ts`) carry no template: our code builds the title with the period, the
+  headline numbers with their change, the reason a run failed, a link to the run and links to
+  dashboards. One more recipe per kind (`report-slack.ts`, `report-discord.ts`, `report-teams.ts`,
+  `report-pagerduty.ts`, `report-webhook.ts`, held by `reportRecipes` in `registry.ts`) builds the
+  request, and escapes every title, label, number and reason as a value, as the alert recipes
+  escape values. Slack: the title as the notification text and an attachment (blue when ready,
+  amber when failed, grey for a test) with the numbers one a line, the context line and a button
+  per link. Discord: an embed with the numbers as fields and the links as masked links. Teams: a
+  card with the numbers as facts and an action per link. The webhook: the notification as it is.
+  PagerDuty: a report is not an incident, so `report.ready` pages no one; it resolves the dedup key
+  `<report id>/failed`, which PagerDuty ignores when there is no such incident. `report.failed`
+  triggers that incident at `warning`, so the next good run closes it. A test is a change event.
+  `notifications.sendReport(channelIds, notification)` sends one, as `send` sends an alert's.
 - **Checking messages.** `alert.error` and `alert.recovered` are about the alert as a whole (the
   series with the empty key), and their message is quanthea's own, not the alert's template:
   "{alert} cannot be checked: {reason}" and "{alert} can be checked again". `{reason}` is a
@@ -636,15 +651,16 @@ only admins add, change and delete channels.
 - **Outbound policy.** Channels follow the connectors' policy: they never call a cloud metadata
   address, by IP or by a name resolving to one, checked when the channel is saved and before each
   send. Private addresses are allowed, since only admins set channels, as they set connectors.
-- **The log.** Each send is one row in `notification_sends`: the channel, the event, the alert id,
-  the series key, the time, whether it got through, the last HTTP status, the attempts and the
+- **The log.** Each send is one row in `notification_sends`: the channel, the event, the alert id
+  and the series key (for a report, its id in `report_id` and its run as the series key), the time, whether it got through, the last HTTP status, the attempts and the
   error. An error never quotes the target. The channel keeps its last success and last failure.
   The hourly purge job deletes sends older than 30 days and all but the newest 200 of each
   channel; a channel's sends go with it.
 - **Alerts using a channel.** The channel list shows how many alerts send to each channel, and a
   channel alerts send to can't be deleted (`conflict`). The service takes the count as a function
   (`alertsUsing`): the alerts whose active version lists the channel, deactivated or not
-  (`db/alert-channel-usage.ts`).
+  (`db/alert-channel-usage.ts`). A channel reports send to can't be deleted either
+  (`reportsUsing`, the reports whose active version lists it).
 - **Previews.** `POST /api/notification-channels/preview` (editor+) returns what each kind, or one
   kind, would send for a template, values, an alert's title and severity and labels, with
   stand-in targets. Nothing is sent. `GET /api/notification-channels` (editor+) lists channels by
@@ -1991,7 +2007,10 @@ CREATE TABLE notification_sends (
   channel_id TEXT NOT NULL REFERENCES notification_channels(id) ON DELETE CASCADE,
   event TEXT NOT NULL,               -- 'alert.firing' | 'alert.resolved' | 'alert.test'
                                      -- | 'alert.error' | 'alert.recovered'
-  alert_id TEXT NOT NULL, series_key TEXT NOT NULL, at INTEGER NOT NULL,
+                                     -- | 'report.ready' | 'report.failed'
+  alert_id TEXT NOT NULL,            -- '' for a report's message
+  report_id TEXT,                    -- the report, for a report's message
+  series_key TEXT NOT NULL, at INTEGER NOT NULL,  -- a report's run as its series key
   ok INTEGER NOT NULL, http_status INTEGER, attempts INTEGER NOT NULL, error TEXT);
 
 -- the usage ledger: no foreign keys, it outlives the threads and dashboards it names

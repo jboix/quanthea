@@ -42,6 +42,8 @@ export interface StoreContext {
   readonly audit: AuditRepository;
   /** How many alerts send to a channel. */
   readonly alertsUsing: (channelId: string) => number;
+  /** How many reports send to a channel. */
+  readonly reportsUsing: (channelId: string) => number;
   /** Resolves a host name, to refuse a metadata address. */
   readonly resolve: (host: string) => Promise<readonly string[]>;
   /** The clock, in epoch milliseconds. */
@@ -262,19 +264,23 @@ export async function updateChannel(
 }
 
 /**
- * Deletes a channel no alert sends to, with its log.
+ * Deletes a channel no alert or report sends to, with its log.
  *
  * @param context - The store.
  * @param id - The channel id.
  * @param actor - Who deletes it.
- * @throws {AppError} `not_found` for an unknown id, `conflict` while alerts send to it.
+ * @throws {AppError} `not_found` for an unknown id, `conflict` while alerts or reports send to it.
  */
 export function removeChannel(context: StoreContext, id: string, actor: string): void {
   const row = channelRow(context, id);
-  const alerts = context.alertsUsing(id);
-  if (alerts > 0) {
-    const count = alerts === 1 ? '1 alert sends' : `${alerts} alerts send`;
-    throw new AppError('conflict', `${count} to this channel. Take it off them first.`);
+  const users = [
+    { count: context.alertsUsing(id), one: 'alert' },
+    { count: context.reportsUsing(id), one: 'report' },
+  ];
+  for (const { count, one } of users) {
+    if (count === 0) continue;
+    const words = count === 1 ? `1 ${one} sends` : `${count} ${one}s send`;
+    throw new AppError('conflict', `${words} to this channel. Take it off them first.`);
   }
   context.repository.remove(id);
   context.audit.append({ actor, action: 'channel.delete', target: id, detail: { name: row.name } });

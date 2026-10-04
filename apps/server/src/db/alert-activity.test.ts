@@ -44,7 +44,7 @@ afterEach(() => {
  */
 function send(id: string, channelId: string, alertId: string, at: number, ok = true): void {
   createChannelRepository(database).recordSend({
-    ...{ id, channelId, event: 'alert.firing', alertId, seriesKey: '', at, ok },
+    ...{ id, channelId, event: 'alert.firing', alertId, reportId: null, seriesKey: '', at, ok },
     ...{ httpStatus: ok ? 200 : 500, attempts: 1, error: ok ? null : 'HTTP 500' },
   });
 }

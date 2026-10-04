@@ -320,6 +320,7 @@ export {
   type QueryBuilder,
   queryBuilders,
 } from './query-builders.ts';
+export * from './report-notifications.ts';
 export * from './reports/headline.ts';
 export * from './reports/period.ts';
 export * from './reports/schedule.ts';

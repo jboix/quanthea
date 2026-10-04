@@ -258,14 +258,19 @@ CREATE TABLE notification_channels (
 );
 
 -- One message sent to a channel, after its retries. The hourly purge keeps the newest rows of
--- each channel for a while; the rows go with their channel.
+-- each channel for a while; the rows go with their channel. A report's message names its report
+-- and, as its series key, its run; its `alert_id` is empty.
 CREATE TABLE notification_sends (
   id TEXT PRIMARY KEY,
   channel_id TEXT NOT NULL REFERENCES notification_channels (id) ON DELETE CASCADE,
   event TEXT NOT NULL CHECK (
-    event IN ('alert.firing', 'alert.resolved', 'alert.test', 'alert.error', 'alert.recovered')
+    event IN (
+      'alert.firing', 'alert.resolved', 'alert.test', 'alert.error', 'alert.recovered',
+      'report.ready', 'report.failed'
+    )
   ),
   alert_id TEXT NOT NULL,
+  report_id TEXT,
   series_key TEXT NOT NULL,
   at INTEGER NOT NULL,
   ok INTEGER NOT NULL CHECK (ok IN (0, 1)),

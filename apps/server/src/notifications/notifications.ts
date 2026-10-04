@@ -9,6 +9,7 @@ import type {
   ChannelSend,
   Notification,
   PreviewInput,
+  ReportNotification,
   SendResult,
 } from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
@@ -25,7 +26,14 @@ import {
   updateChannel,
 } from './channel-store.ts';
 import { type DeliveryOptions, resolveHost } from './delivery.ts';
-import { previewBodies, type SendContext, sendToChannels, testNotification } from './sending.ts';
+import {
+  alertOutbound,
+  previewBodies,
+  reportOutbound,
+  type SendContext,
+  sendToChannels,
+  testNotification,
+} from './sending.ts';
 
 /** What the notifications service needs. */
 export interface NotificationsDependencies {
@@ -37,6 +45,8 @@ export interface NotificationsDependencies {
   readonly audit: AuditRepository;
   /** How many alerts send to a channel; none until alerts say otherwise. */
   readonly alertsUsing?: (channelId: string) => number;
+  /** How many reports send to a channel; none until reports say otherwise. */
+  readonly reportsUsing?: (channelId: string) => number;
   /** How messages are posted; the platform's `fetch`, timers and resolver by default. */
   readonly delivery?: Partial<DeliveryOptions>;
   /** quanthea's public URL, for the test message's link. */
@@ -93,6 +103,17 @@ export interface Notifications {
    * @returns Each channel's result; an unknown channel's is a failure.
    */
   send(channelIds: readonly string[], notification: Notification): Promise<SendResult[]>;
+  /**
+   * Sends a report notification to channels, logging each send. It never throws.
+   *
+   * @param channelIds - The channels.
+   * @param notification - The notification.
+   * @returns Each channel's result; an unknown channel's is a failure.
+   */
+  sendReport(
+    channelIds: readonly string[],
+    notification: ReportNotification,
+  ): Promise<SendResult[]>;
   /**
    * Sends the test message to a channel.
    *
@@ -159,6 +180,7 @@ function contextOf(dependencies: NotificationsDependencies): SendContext {
   return {
     ...dependencies,
     alertsUsing: dependencies.alertsUsing ?? (() => 0),
+    reportsUsing: dependencies.reportsUsing ?? (() => 0),
     resolve: delivery.resolve,
     now: dependencies.now ?? Date.now,
     delivery,
@@ -204,15 +226,15 @@ export function createNotifications(dependencies: NotificationsDependencies): No
   const context = contextOf(dependencies);
   return {
     ...channelMethods(context),
-    send: (channelIds, notification) => sendToChannels(context, channelIds, notification),
+    send: (channelIds, notification) =>
+      sendToChannels(context, channelIds, alertOutbound(notification)),
+    sendReport: (channelIds, notification) =>
+      sendToChannels(context, channelIds, reportOutbound(notification)),
     test: async (id, actor) => {
       channelRow(context, id);
       context.audit.append({ actor, action: 'channel.test', target: id });
-      const [result] = await sendToChannels(
-        context,
-        [id],
-        testNotification(context.publicUrl, context.now()),
-      );
+      const test = alertOutbound(testNotification(context.publicUrl, context.now()));
+      const [result] = await sendToChannels(context, [id], test);
       return result as SendResult;
     },
     preview: (input) => previewBodies(input, context.now()),

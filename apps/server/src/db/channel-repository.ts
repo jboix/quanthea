@@ -1,6 +1,6 @@
 /** Reads and writes notification channels and the log of what was sent to them. */
 import type { Database } from 'bun:sqlite';
-import type { NotificationEvent } from '@quanthea/shared';
+import type { ChannelEvent } from '@quanthea/shared';
 
 /** The last failure of a channel. */
 export interface ChannelFailure {
@@ -47,9 +47,11 @@ export interface SendRow {
   /** The channel. */
   readonly channelId: string;
   /** What the message reported. */
-  readonly event: NotificationEvent;
-  /** The alert it came from. */
+  readonly event: ChannelEvent;
+  /** The alert it came from; empty for a report's message. */
   readonly alertId: string;
+  /** The report it came from; `null` for an alert's message. */
+  readonly reportId: string | null;
   /** The series it was about. */
   readonly seriesKey: string;
   /** When the last attempt ended, in epoch milliseconds. */
@@ -155,9 +157,11 @@ interface StoredSend {
   /** The channel. */
   channel_id: string;
   /** The event. */
-  event: NotificationEvent;
+  event: ChannelEvent;
   /** The alert. */
   alert_id: string;
+  /** The report. */
+  report_id: string | null;
   /** The series. */
   series_key: string;
   /** When. */
@@ -214,6 +218,7 @@ function toSend(stored: StoredSend): SendRow {
     channelId: stored.channel_id,
     event: stored.event,
     alertId: stored.alert_id,
+    reportId: stored.report_id,
     seriesKey: stored.series_key,
     at: stored.at,
     ok: stored.ok === 1,
@@ -230,8 +235,9 @@ function toSend(stored: StoredSend): SendRow {
  * @returns The values.
  */
 function sendValues(send: SendRow) {
-  const { id, channelId, event, alertId, seriesKey, at, ok, httpStatus, attempts, error } = send;
-  return [id, channelId, event, alertId, seriesKey, at, ok ? 1 : 0, httpStatus, attempts, error];
+  const { id, channelId, event, alertId, reportId, seriesKey, at, ok, httpStatus } = send;
+  const outcome = [at, ok ? 1 : 0, httpStatus, send.attempts, send.error];
+  return [id, channelId, event, alertId, reportId, seriesKey, ...outcome];
 }
 
 /**
@@ -243,8 +249,9 @@ function sendValues(send: SendRow) {
 function sendRecorder(database: Database): (send: SendRow) => void {
   const insert = database.query(
     `INSERT INTO notification_sends
-       (id, channel_id, event, alert_id, series_key, at, ok, http_status, attempts, error)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, channel_id, event, alert_id, report_id, series_key, at, ok, http_status, attempts,
+        error)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const sent = database.query('UPDATE notification_channels SET last_sent_at = ? WHERE id = ?');
   const failed = database.query(

@@ -338,7 +338,8 @@ describe('the log', () => {
   test('keeps the newest sends of each channel, for a while', async () => {
     const id = await add({ name: 'Ops', kind: 'webhook', target: 'https://ops.test/hook' });
     const repository = createChannelRepository(database);
-    const send = { channelId: id, event: 'alert.firing' as const, alertId: 'a', seriesKey: '' };
+    const event = 'alert.firing' as const;
+    const send = { channelId: id, event, alertId: 'a', reportId: null, seriesKey: '' };
     const outcome = { ok: true, httpStatus: 200, attempts: 1, error: null };
     for (let index = 0; index < 205; index += 1)
       repository.recordSend({

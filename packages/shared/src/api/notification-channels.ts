@@ -10,6 +10,7 @@ import {
   messageTemplateSchema,
   notificationEvents,
 } from '../notifications.ts';
+import { channelEvents } from '../report-notifications.ts';
 import { defineEndpoint } from './contract.ts';
 
 /** The services a channel can send to. */
@@ -187,8 +188,12 @@ export type ChannelView = z.infer<typeof channelViewSchema>;
 /** Validates one message sent to a channel, as its log keeps it. */
 export const channelSendSchema = z.object({
   id: z.string(),
-  event: z.enum(notificationEvents),
+  event: z.enum(channelEvents),
+  /** The alert it came from; empty for a report's message. */
   alertId: z.string(),
+  /** The report it came from; `null` for an alert's message. */
+  reportId: z.string().nullable(),
+  /** The series it was about; the run for a report's message. */
   seriesKey: z.string(),
   at: z.number(),
   ok: z.boolean(),
