@@ -9,6 +9,7 @@ test('screen roles match the route table in docs/architecture.md', () => {
     '/library': 'viewer',
     '/alerts': 'viewer',
     '/alerts/firing': 'viewer',
+    '/alerts/settings': 'admin',
     '/alerts/:alertId': 'viewer',
     '/alerts/:alertId/v/:version/replay': 'viewer',
     '/alerts/:alertId/links': 'viewer',
@@ -41,7 +42,6 @@ test('screen roles match the route table in docs/architecture.md', () => {
     '/settings/server': 'admin',
     '/settings/snapshots': 'admin',
     '/settings/notifications': 'admin',
-    '/settings/alerts': 'admin',
   });
 });
 

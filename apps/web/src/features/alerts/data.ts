@@ -24,6 +24,9 @@ import { type ActionFunctionArgs, data, type LoaderFunctionArgs } from 'react-ro
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 import { isLinkIntent, type LinkIntent, readAlertLinks, runLinkIntent } from './link-data.ts';
 
+/** The resource route of the alert settings, which the Alerts page's Settings dialog loads. */
+export const alertSettingsPath = '/alerts/settings';
+
 /** What the alerts list shows. */
 export interface AlertsData {
   /** Every alert the role sees. */

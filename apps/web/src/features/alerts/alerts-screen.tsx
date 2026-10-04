@@ -3,12 +3,13 @@
  * in sections Firing, Pending and OK, then drafts and deactivated alerts.
  */
 import { hasRole } from '@quanthea/shared';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useLoaderData, useSearchParams } from 'react-router';
-import { buttonClassName } from '../../ui/button.tsx';
+import { Button, buttonClassName } from '../../ui/button.tsx';
 import { SearchIcon } from '../../ui/icons.tsx';
 import { Page } from '../../ui/page.tsx';
 import { AlertRow } from './alert-row.tsx';
+import { AlertSettingsDialog } from './alert-settings-dialog.tsx';
 import styles from './alerts.module.css';
 import type { AlertsData } from './data.ts';
 import {
@@ -120,6 +121,48 @@ function EmptyNote({ any }: { readonly any: boolean }) {
   );
 }
 
+/** Where admins keep the channels alerts send to. */
+const channelsPath = '/settings/notifications';
+
+/**
+ * What admins set for every alert: the Settings dialog, and a link to the notification channels.
+ *
+ * @returns The button, the link and the dialog.
+ */
+function AdminActions() {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  return (
+    <>
+      <Link to={channelsPath} className={buttonClassName('secondary', 'large')}>
+        Notification channels
+      </Link>
+      <Button size="large" onClick={() => setOpen(true)}>
+        Settings
+      </Button>
+      <AlertSettingsDialog open={open} onClose={close} />
+    </>
+  );
+}
+
+/**
+ * The header's actions: for admins the settings and the channels, for editors New alert.
+ *
+ * @returns The actions, or nothing below editor.
+ */
+function HeaderActions() {
+  const role = useRole();
+  if (!hasRole(role, 'editor')) return null;
+  return (
+    <div className={styles.headerActions}>
+      {role === 'admin' && <AdminActions />}
+      <Link to={newAlertPath} className={buttonClassName('primary', 'large')}>
+        New alert
+      </Link>
+    </div>
+  );
+}
+
 /**
  * The Alerts screen.
  *
@@ -133,13 +176,8 @@ export function AlertsScreen() {
   const filter = filterFrom(params.get('show'));
   const now = Date.now();
   const sections = alertSections(alerts, filter === 'drafts' && !editor ? 'all' : filter, search);
-  const action = editor && (
-    <Link to={newAlertPath} className={buttonClassName('primary', 'large')}>
-      New alert
-    </Link>
-  );
   return (
-    <Page title="Alerts" actions={action}>
+    <Page title="Alerts" actions={<HeaderActions />}>
       <search className={styles.search}>
         <span className={styles.searchIcon}>
           <SearchIcon />

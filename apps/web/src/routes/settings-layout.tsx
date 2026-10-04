@@ -11,7 +11,6 @@ const sections = [
   { to: '/settings/queries', label: 'Queries' },
   { to: '/settings/usage', label: 'Usage' },
   { to: '/settings/notifications', label: 'Notifications' },
-  { to: '/settings/alerts', label: 'Alerts' },
   { to: '/settings/snapshots', label: 'Snapshots' },
   { to: '/settings/users', label: 'Users' },
   { to: '/settings/auth', label: 'Authentication' },

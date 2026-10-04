@@ -3,15 +3,18 @@ import type { RouteObject } from 'react-router';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import {
+  alertSettingsPath,
   alertsRouteId,
   changeAlert,
   firingPath,
   loadAlert,
   loadAlertLinks,
   loadAlertReplay,
+  loadAlertSettings,
   loadAlerts,
   loadFiring,
   loadLinkTargets,
+  saveAlertSettings,
 } from '../features/alerts/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
@@ -36,6 +39,13 @@ export function alertRoutes(loadSession: SessionLoader, api: ApiClient): RouteOb
     },
     // Counts the firing alerts for the rail; loads again after every action.
     { path: firingPath, loader: guarded(loadSession, firingPath, loadFiring(api)) },
+    // The alert settings, for admins: the Settings dialog loads them when it opens and saves them.
+    {
+      path: alertSettingsPath,
+      loader: guarded(loadSession, alertSettingsPath, loadAlertSettings(api)),
+      action: guarded(loadSession, alertSettingsPath, saveAlertSettings(api)),
+      shouldRevalidate: () => false,
+    },
     {
       path: '/alerts/:alertId',
       loader: guarded(loadSession, '/alerts/:alertId', loadAlert(api)),

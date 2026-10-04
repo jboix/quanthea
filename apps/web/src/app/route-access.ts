@@ -11,6 +11,7 @@ export const routeAccess = {
   '/library': 'viewer',
   '/alerts': 'viewer',
   '/alerts/firing': 'viewer',
+  '/alerts/settings': 'admin',
   '/alerts/:alertId': 'viewer',
   '/alerts/:alertId/v/:version/replay': 'viewer',
   '/alerts/:alertId/links': 'viewer',
@@ -43,7 +44,6 @@ export const routeAccess = {
   '/settings/server': 'admin',
   '/settings/snapshots': 'admin',
   '/settings/notifications': 'admin',
-  '/settings/alerts': 'admin',
 } as const satisfies Record<string, Role>;
 
 /** A guarded screen path. */

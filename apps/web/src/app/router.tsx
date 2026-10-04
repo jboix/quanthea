@@ -15,7 +15,6 @@ import { dashboardRoutes } from '../routes/dashboard.tsx';
 import { libraryRoute } from '../routes/library.tsx';
 import { loginRoute, setPasswordRoute, setupRoute } from '../routes/login.tsx';
 import { NotFoundRoute } from '../routes/not-found.tsx';
-import { alertSettingsRoute } from '../routes/settings-alerts.tsx';
 import { authSettingsRoute } from '../routes/settings-auth.tsx';
 import { chartSettingsRoute } from '../routes/settings-charts.tsx';
 import { SettingsLayout } from '../routes/settings-layout.tsx';
@@ -63,7 +62,6 @@ function settingsRoute({ loadSession, api }: RouteDependencies): RouteObject {
       querySettingsRoute(loadSession, api),
       usageSettingsRoute(loadSession, api),
       notificationsSettingsRoute(loadSession, api),
-      alertSettingsRoute(loadSession, api),
       snapshotsSettingsRoute(loadSession, api),
       usersSettingsRoute(loadSession, api),
       authSettingsRoute(loadSession, api),

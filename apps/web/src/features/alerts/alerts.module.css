@@ -199,3 +199,32 @@
     text-align: left;
   }
 }
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings > button {
+  align-self: flex-start;
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+.failure {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-danger);
+}

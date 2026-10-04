@@ -106,7 +106,7 @@ The two paths that matter:
 │           │   ├── bin/
 │           │   ├── connectors/
 │           │   ├── notifications/   Settings → Notifications: channels, tests, the webhook example
-│           │   ├── alerts/          the alerts list, an alert's page, the rail's count, Settings → Alerts
+│           │   ├── alerts/          the alerts list, an alert's page, the rail's count, the settings
 │           │   ├── alert-draft/     an alert thread's draft pane: condition sentence, replay, previews
 │           │   └── settings/        gateway, auth, retention
 │           ├── charts/              view + datasets → ECharts option: preparations, tokens, maps
@@ -281,7 +281,12 @@ the kit's HTTP client for every kind that speaks HTTP.
     Editors get × to unlink, Link to a panel… (pick a pinned dashboard, then one of its panels,
     from the `/alert-link-targets` resource route) and the suggested panels ("Also on _Checkout
     incident_ · _Error rate by service_") with Link and Dismiss.
-- **Settings → Alerts** sets the most alerts active per connector.
+- **The Alerts page's header**, for admins, has Notification channels, a link to Settings →
+  Notifications, and Settings, a dialog laid out like the bin's Retention dialog
+  (`alert-settings-dialog.tsx`). It loads and saves the alert settings through the
+  `/alerts/settings` resource route: the most alerts active per connector, and the switch Notify
+  when an alert cannot be checked (`notifyOnError`). Editors and below see neither; editors see
+  New alert.
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
 - **Colour scheme.** Light, dark or the system's, picked under Appearance in the account menu and
@@ -300,6 +305,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/library`                                               | Library: search pinned dashboards and their panels          | viewer   |
 | `/alerts`                                                | Alerts: search, filter by state, sections by state          | viewer   |
 | `/alerts/firing`                                         | resource route: how many alerts fire, for the rail          | viewer   |
+| `/alerts/settings`                                       | resource route: the alert settings, for the Settings dialog | admin    |
 | `/alerts/:alertId`                                       | an alert: state, chart, series, what happened, channels     | viewer   |
 | `/alerts/:alertId/v/:version/replay`                     | resource route: a version replayed over 6 h, 24 h or 7 d    | viewer   |
 | `/alerts/:alertId/links`                                 | resource route: where an alert is shown, for the agent card | viewer   |
@@ -326,7 +332,6 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/settings/users`                                        | Users: invite, roles, disable, reset links, sign out        | admin    |
 | `/settings/usage`                                        | Usage: tokens, cost and views; by feature, model, person    | admin    |
 | `/settings/notifications`                                | Notifications: channels, tests, what a webhook receives     | admin    |
-| `/settings/alerts`                                       | Alerts: the most alerts active per connector                | admin    |
 | `/settings/snapshots`                                    | Snapshots: every live snapshot, revoke one                  | admin    |
 | `/settings/queries`                                      | Queries: builders on or off, your own with placeholders     | admin    |
 | `/settings/charts`                                       | Charts: every chart recipe drawn from its sample            | admin    |
@@ -663,8 +668,8 @@ number (`latestVersion` is `null`). `alerts/changes.ts` and `alerts/deactivate.t
   channel has is refused, at `channels[i]`.
 - Activating validates the version again, channels included, runs its query once (a failing query
   refuses it), and
-  holds to the cap of active alerts per connector (`maxActivePerConnector`, Settings, 50 by
-  default; `conflict` past it). It resumes evaluation.
+  holds to the cap of active alerts per connector (`maxActivePerConnector`, the Alerts page's
+  Settings, 50 by default; `conflict` past it). It resumes evaluation.
 - `activateChange` takes changes an editor made by hand on a live alert's page: the whole spec
   and the active version it starts from (`conflict` once another version is active). It refuses
   a spec that changes nothing, checks it and runs its query once (`checkAlert`), then saves it as
@@ -727,8 +732,8 @@ evaluations in a row (`failuresBeforeError`) is in error. One failure is a blip 
   if it had sent `alert.error`.
 - A mute holds both back; an alert still in error when the mute ends sends `alert.error` then. A
   recovery during a mute sends nothing.
-- The alert settings' `notifyOnError` (on by default) turns both off: the evaluator then records
-  and logs only.
+- The alert settings' `notifyOnError` (the Alerts page's Settings, on by default) turns both
+  off: the evaluator then records and logs only.
 - Each going into error, each `alert.error` sent later, and each recovery is a row of
   `alert_check_events` (the reason, whether it notified), shown in What happened. The count of
   failures, since when it is in error and whether that was announced stay on the alert's row, and
@@ -2184,7 +2189,7 @@ indicative; the contract files are the source of truth.
 | `POST /alerts/:id/link-dismissals`                                                                | dismiss a suggested panel                    | editor   |
 | `GET /alert-link-targets`                                                                         | pinned dashboards and panels, to link one    | editor   |
 | `GET /dashboards/:id/alerts?from=&to=` (suggestions: editors only)                                | the alerts on its panels, firing periods     | viewer   |
-| `GET/PUT /settings/alerts`                                                                        | the most alerts active per connector         | admin    |
+| `GET/PUT /settings/alerts`                                                                        | the alert cap, and errors notify or not      | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
 so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the

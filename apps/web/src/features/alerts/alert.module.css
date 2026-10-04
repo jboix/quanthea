@@ -369,11 +369,3 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
-
-.form {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  max-width: 320px;
-}
