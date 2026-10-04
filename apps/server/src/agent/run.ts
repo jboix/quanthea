@@ -323,23 +323,27 @@ function respond(
 }
 
 /**
- * The pinned dashboards that may already answer a dashboard thread's first question. An alert
- * thread looks for none, and runs only where the alerts are wired in.
+ * The pinned dashboards that may already answer a dashboard thread's first question. An alert or
+ * a report thread looks for none, and runs only where the alerts or the reports are wired in.
  *
  * @param dependencies - The agent's dependencies.
  * @param threadId - The thread.
  * @param messages - The conversation.
- * @returns The matches, none for an alert thread.
- * @throws {AppError} `bad_request` for an alert thread without the alerts.
+ * @returns The matches, none for an alert or a report thread.
+ * @throws {AppError} `bad_request` for an alert thread without the alerts, or a report thread
+ *   without the reports.
  */
 function matchesFor(
   dependencies: AgentDependencies,
   threadId: string,
   messages: readonly ThreadMessage[],
 ) {
-  if (dependencies.threads.row(threadId).kind !== 'alert')
-    return firstQuestionMatches(dependencies, threadId, messages);
-  if (!dependencies.alerts) throw new AppError('bad_request', 'Alerts are not available here.');
+  const { kind } = dependencies.threads.row(threadId);
+  if (kind === 'dashboard') return firstQuestionMatches(dependencies, threadId, messages);
+  if (kind === 'alert' && !dependencies.alerts)
+    throw new AppError('bad_request', 'Alerts are not available here.');
+  if (kind === 'report' && !dependencies.reports)
+    throw new AppError('bad_request', 'Reports are not available here.');
   return [];
 }
 

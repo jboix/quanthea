@@ -2,7 +2,7 @@
  * The phases of a thread as the agent sees them, and what each gives the model: planning talks
  * and plans, building writes the approved plan, editing refines the built dashboard or alert.
  * Each phase offers only the tools it needs, so every request carries fewer tool definitions. A
- * dashboard thread and an alert thread have tools of their own.
+ * dashboard thread, an alert thread and a report thread have tools of their own.
  */
 import type { ThreadState } from '../threads/state.ts';
 
@@ -22,7 +22,9 @@ export type ToolName =
   | 'propose_alert'
   | 'edit_alert'
   | 'replay_alert'
-  | 'propose_link';
+  | 'propose_link'
+  | 'propose_report'
+  | 'edit_report';
 
 /** The tools each phase offers. */
 export const phaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
@@ -74,6 +76,33 @@ export const alertPhaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
     'edit_alert',
     'replay_alert',
     'propose_link',
+  ],
+};
+
+/**
+ * The tools each phase offers in a report thread: planning describes the data and proposes the
+ * report; building and editing test queries, read the guides and chart recipes, and write the
+ * report, whose panels are built as a dashboard's.
+ */
+export const reportPhaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
+  planning: ['describe', 'sample_values', 'ask_person', 'propose_report'],
+  building: [
+    'describe',
+    'sample_values',
+    'read_guide',
+    'test_query',
+    'chart_recipe',
+    'edit_report',
+  ],
+  editing: [
+    'describe',
+    'sample_values',
+    'read_guide',
+    'test_query',
+    'ask_person',
+    'propose_report',
+    'chart_recipe',
+    'edit_report',
   ],
 };
 

@@ -20,6 +20,7 @@ const writeTools: ReadonlySet<string> = new Set([
   'write_dashboard',
   'patch_panel',
   'edit_alert',
+  'edit_report',
 ]);
 
 /** A loosely read tool input or output. */
@@ -74,6 +75,10 @@ const summaries: Readonly<Record<string, (input: Loose, output: Loose) => string
     `propose_alert: "${String(input?.title ?? '')}", ${String(output?.status ?? 'pending')}`,
   edit_alert: (input, output) =>
     `edit_alert(${String(input?.note ?? '')}): ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
+  propose_report: (input, output) =>
+    `propose_report: "${String(input?.title ?? '')}", ${String(output?.status ?? 'pending')}`,
+  edit_report: (input, output) =>
+    `edit_report(${String(input?.summary ?? '')}): ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
   replay_alert: (input, output) =>
     `replay_alert(${String(input?.window ?? '7d')}): ${outcome(output, () => `${String(output?.firings ?? 0)} firings`)}`,
   patch_panel: (input, output) =>
@@ -183,6 +188,13 @@ const decisionWords: Readonly<Partial<Record<PlanStatus, string>>> = {
   superseded: 'A later plan replaced this one.',
 };
 
+/** The parts of the tools that propose a plan. */
+const planTools: ReadonlySet<string> = new Set([
+  'tool-propose_plan',
+  'tool-propose_alert',
+  'tool-propose_report',
+]);
+
 /**
  * A `propose_plan` part with the plan's current status. Its stored result says the plan waits for
  * approval; once the person decides, the model must read the decision, not the old wait.
@@ -192,7 +204,7 @@ const decisionWords: Readonly<Partial<Record<PlanStatus, string>>> = {
  * @returns The part, with the decision when there is one.
  */
 function decidedPart(part: LoosePart, statuses: ReadonlyMap<string, PlanStatus>): LoosePart {
-  if (part.type !== 'tool-propose_plan' && part.type !== 'tool-propose_alert') return part;
+  if (!planTools.has(part.type)) return part;
   const output = part.output as { planId?: string } | undefined;
   const status = statuses.get(output?.planId ?? '');
   const next = status === undefined ? undefined : decisionWords[status];
@@ -219,7 +231,7 @@ export function withPlanDecisions(
   });
 }
 
-/** A hand edit of an alert draft, as its data part carries it. */
+/** A hand edit of an alert or a report draft, as its data part carries it. */
 interface HandEdit {
   /** The version before. */
   readonly from: number;
@@ -229,9 +241,15 @@ interface HandEdit {
   readonly changes: readonly { path: string; before?: string; after?: string }[];
 }
 
+/** What each hand-edit part changed. */
+const handEdited: Readonly<Record<string, string>> = {
+  'data-handEdit': 'alert',
+  'data-reportHandEdit': 'report',
+};
+
 /**
- * The text the model reads for a data part: a hand edit of the alert draft says which fields the
- * person changed; other data parts are left out.
+ * The text the model reads for a data part: a hand edit of the alert or the report draft says
+ * which fields the person changed; other data parts are left out.
  *
  * @param part - The data part.
  * @returns The text part, or `undefined` to leave the part out.
@@ -240,11 +258,12 @@ export function handEditText(part: {
   type: string;
   data: unknown;
 }): { type: 'text'; text: string } | undefined {
-  if (part.type !== 'data-handEdit') return undefined;
+  const what = handEdited[part.type];
+  if (what === undefined) return undefined;
   const edit = part.data as HandEdit;
   const changes = edit.changes.map(
     (change) => `${change.path}: ${change.before ?? '(none)'} → ${change.after ?? '(none)'}`,
   );
-  const text = `[I changed the alert by hand, v${edit.from} → v${edit.to}] ${changes.join('; ')}`;
+  const text = `[I changed the ${what} by hand, v${edit.from} → v${edit.to}] ${changes.join('; ')}`;
   return { type: 'text', text };
 }

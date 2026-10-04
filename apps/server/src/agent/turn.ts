@@ -22,9 +22,10 @@ import { compactHistory, compactSteps, endingOnPersonTurn, handEditText } from '
 import { dataTools } from './data-tools.ts';
 import { guideTools } from './guide-tools.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
-import { phaseOf, phaseTools } from './phases.ts';
+import { phaseOf, phaseTools, type ToolName } from './phases.ts';
 import { instructionParts } from './prompt.ts';
 import { publicError } from './public-error.ts';
+import { reportActiveTools, reportInstructions, reportTurnTools } from './report-turn.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
 import { tokensOf, withStep } from './usage.ts';
 
@@ -116,8 +117,10 @@ export async function turnInstructions(
   hints: TurnHints,
   now: number,
 ): Promise<Instructions> {
-  if (context.threads.row(context.threadId).kind === 'alert')
-    return alertInstructions(context, plans, hints, now, questionsOf(messages));
+  const { kind } = context.threads.row(context.threadId);
+  if (kind === 'alert') return alertInstructions(context, plans, hints, now, questionsOf(messages));
+  if (kind === 'report')
+    return reportInstructions(context, plans, hints, now, questionsOf(messages));
   const spec = currentSpec(context);
   const { dashboardId, state } = context.threads.row(context.threadId);
   const parts = instructionParts({
@@ -175,6 +178,25 @@ function stopConditions(context: RunContext): StopCondition<ToolSet>[] {
   ];
 }
 
+/** The usage feature each kind of thread's steps serve. */
+const featureOf = { dashboard: 'building', alert: 'alert', report: 'report' } as const;
+
+/**
+ * The tools of a thread's kind, and those a step offers in its state.
+ *
+ * @param context - The run.
+ * @param now - The clock.
+ * @returns Every tool, and the names a step offers.
+ */
+function kindTools(context: RunContext, now: () => number): { tools: ToolSet; active: ToolName[] } {
+  const { state, kind } = context.threads.row(context.threadId);
+  if (kind === 'alert')
+    return { tools: alertTurnTools(context, now), active: alertActiveTools(context) };
+  if (kind === 'report')
+    return { tools: reportTurnTools(context, now), active: reportActiveTools(context) };
+  return { tools: turnTools(context, now), active: [...phaseTools[phaseOf(state)]] };
+}
+
 /**
  * Records a step's tokens: on the thread, for its budget; by model, for the answer's usage; and
  * in the ledger.
@@ -190,7 +212,7 @@ function countStep(context: RunContext) {
     context.counters.usage = withStep(context.counters.usage, model, usage);
     const { threadId, providerName: provider } = context;
     const tokens = tokensOf(usage);
-    const feature = context.threads.row(threadId).kind === 'alert' ? 'alert' : 'building';
+    const feature = featureOf[context.threads.row(threadId).kind];
     const vendor = vendorOf(context.settings);
     context.usage.recordStep({ threadId, provider, vendor, model, job, feature, tokens });
   };
@@ -273,9 +295,8 @@ export async function streamTurn(
   instructions: Instructions,
   now: () => number,
 ): Promise<void> {
-  const { state, kind } = context.threads.row(context.threadId);
-  const alert = kind === 'alert';
-  const tools: ToolSet = alert ? alertTurnTools(context, now) : turnTools(context, now);
+  const { state } = context.threads.row(context.threadId);
+  const { tools, active } = kindTools(context, now);
   const job = phaseOf(state) === 'planning' ? 'plan' : 'build';
   context.counters.modelId = modelIdFor(context.settings, job);
   context.counters.job = job;
@@ -288,7 +309,7 @@ export async function streamTurn(
     }),
     prepareStep: stepSettings(context, modelOf, job),
     tools,
-    activeTools: alert ? alertActiveTools(context) : [...phaseTools[phaseOf(state)]],
+    activeTools: active,
     ...reasoningOption(context.settings),
     stopWhen: stopConditions(context),
     abortSignal: context.signal,

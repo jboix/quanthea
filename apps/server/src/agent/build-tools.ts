@@ -4,15 +4,8 @@
  */
 import { type DashboardSpec, dashboardSpecSchema, type Plan, planSchema } from '@quanthea/shared';
 import { tool } from 'ai';
-import {
-  applyEdit,
-  type ChartChoices,
-  completeCharts,
-  type EditRequest,
-  editRequestSchemaFor,
-} from '../dashboards/panels/index.ts';
-import { QueryError } from '../dashboards/queries/index.ts';
-import { atMarkerSets, markerIssues, panelProblems } from './panel-problems.ts';
+import { type EditRequest, editRequestSchemaFor } from '../dashboards/panels/index.ts';
+import { buildPanels } from './panel-build.ts';
 import type { RunContext } from './run-context.ts';
 import { providerSchema } from './tool-schema.ts';
 import { type WriteResult, writeVersion } from './write-version.ts';
@@ -67,51 +60,6 @@ function proposePlanTool(context: RunContext) {
 }
 
 /**
- * The panel ids of a spec.
- *
- * @param spec - The spec.
- * @returns The ids.
- */
-function idsOf(spec: DashboardSpec): Set<string> {
-  return new Set(spec.panels.map((panel) => panel.id));
-}
-
-/**
- * The spec an edit makes, or why it cannot.
- *
- * @param context - The run.
- * @param current - The current spec, if any.
- * @param request - The edit.
- * @returns The spec and the chart choice of each panel it builds, or the error.
- */
-function edited(context: RunContext, current: DashboardSpec | undefined, request: EditRequest) {
-  try {
-    const dialectOf = (name: string) =>
-      context.modelView.connectors().find((connector) => connector.name === name)?.dialect;
-    return applyEdit(current, request, { saved: context.queries.saved, dialectOf });
-  } catch (error) {
-    if (!(error instanceof QueryError)) throw error;
-    return { error: error.message };
-  }
-}
-
-/**
- * The problems of a spec that are not about views: views are completed once the queries have run.
- * Those of a set of markers the edit sets are at that set, such as `markers[1]`.
- *
- * @param context - The run.
- * @param spec - The spec.
- * @param request - The edit, for its sets of markers.
- * @returns The problems.
- */
-function problemsBeforeRun(context: RunContext, spec: DashboardSpec, request: EditRequest) {
-  const checked = context.dashboards.check(spec);
-  if (checked.ok) return [];
-  const issues = checked.issues.filter((issue) => !/(^|\.)view(\.|$)/.test(issue.path));
-  return atMarkerSets(spec, request.markers, issues);
-}
-
-/**
  * Makes the edit: builds the spec, test-runs it, completes the charts from the data, and writes the
  * panels that work.
  *
@@ -120,24 +68,15 @@ function problemsBeforeRun(context: RunContext, spec: DashboardSpec, request: Ed
  * @returns What the model learns.
  */
 async function editDashboard(context: RunContext, request: EditRequest): Promise<WriteResult> {
-  const current = currentSpec(context);
-  const result = edited(context, current, request);
-  if ('error' in result) return { ok: false, error: result.error };
-  const issues = problemsBeforeRun(context, result.spec, request);
-  if (issues.length > 0) return { ok: false, error: 'The dashboard is invalid.', issues };
-  const tests = await context.dashboards.testRun(result.spec);
-  const completion = completeCharts(result.spec, result.charts as ChartChoices, tests);
-  const before = current ? idsOf(current) : new Set<string>();
-  const added = new Set([...idsOf(completion.spec)].filter((id) => !before.has(id)));
-  const samePanels = current !== undefined && sameIds(before, idsOf(completion.spec));
-  const run = {
-    tests,
-    panelProblems: panelProblems(current, completion.spec, completion.problems),
-    ...(request.markers.length > 0
-      ? { markerIssues: markerIssues(completion.spec, request.markers, tests) }
-      : {}),
-  };
-  return writeVersion(context, completion.spec, request.summary, samePanels, added, run);
+  const built = await buildPanels(
+    context,
+    currentSpec(context),
+    request,
+    'The dashboard is invalid.',
+  );
+  if ('error' in built) return built;
+  const { spec, samePanels, added, run } = built;
+  return writeVersion(context, spec, request.summary, samePanels, added, run);
 }
 
 /**
@@ -154,17 +93,6 @@ function editDashboardTool(context: RunContext) {
     inputSchema: providerSchema(editRequestSchemaFor(context.queries, context.charts)),
     execute: (request) => editDashboard(context, request),
   });
-}
-
-/**
- * Whether two sets of panel ids are equal.
- *
- * @param first - One set.
- * @param second - The other.
- * @returns Whether they hold the same ids.
- */
-function sameIds(first: ReadonlySet<string>, second: ReadonlySet<string>): boolean {
-  return first.size === second.size && [...first].every((id) => second.has(id));
 }
 
 /**

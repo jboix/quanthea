@@ -1305,9 +1305,9 @@ a reload shows the same thread.
 
 ### Alert threads
 
-A thread makes a dashboard or an alert (`threads.kind`), chosen by the person when it starts and
-fixed. The two are distinct modes of the agent, with their own instructions, tools and draft
-pane; the agent never switches mode. In a dashboard thread, asked to "tell me when…", it says in
+A thread makes a dashboard, an alert or a report (`threads.kind`), chosen by the person when it
+starts and fixed. They are distinct modes of the agent, with their own instructions, tools and
+draft pane; the agent never switches mode. In a dashboard thread, asked to "tell me when…", it says in
 one sentence that an alert conversation does that. In an alert thread, asked for a dashboard, it
 says the reverse. An alert thread looks for no pinned dashboard on its first question.
 
@@ -1358,6 +1358,53 @@ as text, "I changed the alert by hand, v1 → v2: condition.value: 0.03 → 0.02
 activates from the alert's page add the same card, so the agent knows the version it continues
 from. Each step goes to
 the usage ledger with the `alert` feature.
+
+### Report threads
+
+A report thread (`threads.kind = 'report'`) is a third mode, with its own instructions, tools and
+draft pane. The agent writes one report there; asked for a dashboard or an alert, it says in one
+sentence that a dashboard or an alert conversation does that. A report thread looks for no pinned
+dashboard on its first question. The state machine is the same: the agent proposes a
+report plan, the person approves it, the agent writes the report, and the thread is ready for
+changes, which need no new plan. The thread's report is the one whose `thread_id` names it; every
+write adds one of its versions, a draft until someone activates one.
+
+| Phase    | Tools                                                                                                                  |
+| -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| planning | `describe`, `sample_values`, `ask_person`, `propose_report`                                                            |
+| building | `describe`, `sample_values`, `read_guide`, `test_query`, `chart_recipe`, `edit_report`                                 |
+| editing  | `describe`, `sample_values`, `read_guide`, `test_query`, `ask_person`, `propose_report`, `chart_recipe`, `edit_report` |
+
+- **`propose_report`** takes the plan in words (when it runs, what it covers, what it compares
+  with, what it shows, the connectors), the pinned dashboards it links to and the channels, both
+  by id. It refuses an id no channel or pinned dashboard has. The plan card (`data-reportPlan`)
+  names them: Runs, Covers, Compares, Shows, See also, Sends to.
+- **`edit_report`** takes a dashboard edit's panels, the same panels of data and charts as
+  `edit_dashboard`, without the time range, and the report's own fields: the schedule, the period,
+  the comparison, the headline stat panels (by id or title), the links and the channels, with a
+  one-line summary. The first write sets the title, the schedule and the period; later ones send
+  only what changes, and the rest keeps the draft's (`agent/report-edit.ts`).
+- The panels go through the dashboards' own path (`agent/panel-build.ts`, which `edit_dashboard`
+  uses too): the spec is built and checked views aside, every panel is test-run over the latest
+  period, and each chart is completed from its data. Every panel must work: a report has no
+  panels left out. Then the tool refuses a channel or a dashboard id not in the lists, and the
+  reports service previews the merged spec once over its latest period (`reports.preview`), which
+  validates it as a version is validated. `saveVersion` adds the version with the thread's id.
+- A failure is counted like a failed dashboard write, streams a `data-repair` part with the
+  failing panels and the issues by path, and the model repairs it within the same attempts. A
+  write streams `data-reportVersion`. The model learns each panel's test result through the gate,
+  as `edit_dashboard` does, and the preview's period, comparison and next run; never the headline
+  numbers.
+- **`read_guide("report")`** gives the report guide: every field, the schedule's shapes, the
+  periods and an example.
+
+The instructions (`agent/report-prompt.ts`, `agent/report-turn.ts`) carry the persona and rules of
+the mode, the panel guide once the thread writes, and the catalog; then the time, the channels it
+may send to by id, name and kind, the pinned dashboards it may link by id and title (from the
+library), the current draft, and what the phase asks. The person's hand edits in the draft pane
+store a `data-reportHandEdit` card, which the next turn reads as "I changed the report by hand,
+v1 → v2: schedule.weekday: monday → friday". Each step goes to the usage ledger with the `report`
+feature.
 
 ### Answers about a dashboard
 

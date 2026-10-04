@@ -29,7 +29,7 @@ export type WriteResult =
     };
 
 /** One panel's test run, as the model may see it. */
-interface PanelReport {
+export interface PanelReport {
   /** The panel. */
   readonly panelId: string;
   /** Each query's result, shaped by the gate. */
@@ -59,7 +59,7 @@ export interface WriteRun {
  * @param run - The test runs and the chart problems.
  * @returns One report per panel.
  */
-function reportsOf(context: RunContext, spec: DashboardSpec, run: WriteRun): PanelReport[] {
+export function reportsOf(context: RunContext, spec: DashboardSpec, run: WriteRun): PanelReport[] {
   return run.tests.map((test) => {
     const panel = spec.panels.find((each) => each.id === test.panelId);
     const queries = test.run.queries.map((outcome) => {
@@ -105,7 +105,7 @@ function refusal(
  * @param fix - What to do while attempts are left, such as `Fix it and write again`.
  * @returns The next step, with the attempts left.
  */
-function nextAttempt(context: RunContext, fix: string): string {
+export function nextAttempt(context: RunContext, fix: string): string {
   context.counters.failedWrites += 1;
   const left = context.settings.limits.repairAttempts - context.counters.failedWrites;
   return left > 0
@@ -182,7 +182,7 @@ function save(context: RunContext, spec: DashboardSpec, changeSummary: string): 
  * @param testRun - Whether failing queries count.
  * @returns Their ids.
  */
-function failingPanels(panels: readonly PanelReport[], testRun: boolean): string[] {
+export function failingPanels(panels: readonly PanelReport[], testRun: boolean): string[] {
   return panels
     .filter(
       (panel) =>
@@ -236,11 +236,11 @@ function problemsOf(report: PanelReport): string[] {
 }
 
 /** What a repair part says about one write. */
-interface RepairNote {
+export interface RepairNote {
   /** What happened: `exhausted` is derived when no attempt is left. */
   readonly kind: 'failed' | 'left-out' | 'repaired';
   /** The spec, for the panels' titles. */
-  readonly spec: DashboardSpec;
+  readonly spec: Pick<DashboardSpec, 'panels'>;
   /** The test run of each panel. */
   readonly panels?: readonly PanelReport[];
   /** The ids of the panels that failed. */
@@ -255,7 +255,7 @@ interface RepairNote {
  * @param context - The run, after the failure was counted.
  * @param note - What happened.
  */
-function writeRepair(context: RunContext, note: RepairNote): void {
+export function writeRepair(context: RunContext, note: RepairNote): void {
   const attempt = context.counters.failedWrites;
   const of = context.settings.limits.repairAttempts;
   const outcome: Repair['outcome'] =

@@ -6,6 +6,7 @@ import type { PanelLinks } from '../alerts/links.ts';
 import type { Dashboards } from '../dashboards/dashboards.ts';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import type { ModelView } from '../gate/model-view.ts';
+import type { Reports } from '../reports/reports.ts';
 import type { Threads } from '../threads/threads.ts';
 import type { Usage } from '../usage/usage.ts';
 
@@ -24,16 +25,21 @@ export interface AgentServices {
   readonly usage: Usage;
   /** The alerts, which alert threads write; alert threads refuse to run without them. */
   readonly alerts?: AlertAuthoring | undefined;
+  /** The reports, which report threads write; report threads refuse to run without them. */
+  readonly reports?: ReportAuthoring | undefined;
   /** The panels whose query matches an alert's, for the agent to propose linking. */
   readonly panelLinks?: Pick<PanelLinks, 'candidates'> | undefined;
-  /** The notification channels an alert may notify, by id, name and kind. */
+  /** The notification channels an alert or a report may notify, by id, name and kind. */
   readonly channels?: (() => readonly ChannelChoice[]) | undefined;
 }
 
 /** What an alert thread needs of the alerts: check, save, replay and read a draft. */
 export type AlertAuthoring = Pick<Alerts, 'check' | 'saveVersion' | 'replaySpec' | 'get'>;
 
-/** A notification channel an alert may notify. */
+/** What a report thread needs of the reports: preview a spec, save it, and read the draft. */
+export type ReportAuthoring = Pick<Reports, 'preview' | 'saveVersion' | 'get'>;
+
+/** A notification channel an alert or a report may notify. */
 export interface ChannelChoice {
   /** The id the spec names. */
   readonly id: string;
