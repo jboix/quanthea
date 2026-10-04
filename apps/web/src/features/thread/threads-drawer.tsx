@@ -1,4 +1,4 @@
-import type { ThreadListItem } from '@quanthea/shared';
+import { dayMonthTime, type ThreadListItem } from '@quanthea/shared';
 import { useMemo, useState } from 'react';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
@@ -116,18 +116,12 @@ function KindIcon({ kind }: { readonly kind: ThreadListItem['kind'] }) {
  * One past thread: a link to it with a pin when its dashboard is pinned, and a delete button that
  * asks before deleting.
  *
- * @param props - The thread and the date format.
+ * @param props - The thread and the current time.
  * @param props.thread - The thread.
- * @param props.date - Formats the last change.
+ * @param props.now - The current time, for the year of the last change.
  * @returns The row.
  */
-function ThreadRow({
-  thread,
-  date,
-}: {
-  readonly thread: ThreadListItem;
-  readonly date: Intl.DateTimeFormat;
-}) {
+function ThreadRow({ thread, now }: { readonly thread: ThreadListItem; readonly now: number }) {
   const [confirming, setConfirming] = useState(false);
   const fetcher = useFetcher<ThreadOutcome>();
   const title = thread.title ?? untitled;
@@ -159,7 +153,7 @@ function ThreadRow({
                   <BellIcon /> Active
                 </span>
               )}
-              {date.format(thread.updatedAt)}
+              {dayMonthTime(thread.updatedAt, now)}
               {note && ` · ${note}`}
             </span>
           </Link>
@@ -284,7 +278,7 @@ function ThreadGroups({
     () => groupByDay(filterThreads(threads, filter), new Date()),
     [threads, filter],
   );
-  const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const now = Date.now();
   if (groups.length === 0) return <p className={styles.empty}>No thread matches.</p>;
   return (
     <nav className={styles.groups} aria-label="Past threads">
@@ -293,7 +287,7 @@ function ThreadGroups({
           <h3 className={styles.groupLabel}>{group.label}</h3>
           <ul className={styles.list}>
             {group.threads.map((thread) => (
-              <ThreadRow key={thread.id} thread={thread} date={date} />
+              <ThreadRow key={thread.id} thread={thread} now={now} />
             ))}
           </ul>
         </section>

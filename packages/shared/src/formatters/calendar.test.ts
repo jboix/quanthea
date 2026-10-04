@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { calendarParts, dayMonth } from './calendar.ts';
+import { calendarParts, dayMonth, dayMonthTime, dayMonthYear } from './calendar.ts';
 
 test('writes the month from a fixed list, never the locale data’s Sept', () => {
   const at = Date.UTC(2026, 8, 25, 21, 5);
@@ -18,4 +18,11 @@ test('reads the day and time in the time zone, on a 24-hour clock', () => {
   expect(dayMonth(at, 'Europe/Madrid')).toBe('26 Sep');
   expect(calendarParts(at, 'Europe/Madrid').time).toBe('01:00');
   expect(calendarParts(Date.UTC(2026, 0, 1, 0, 0), 'UTC').time).toBe('00:00');
+});
+
+test('writes a day and time, with the year only when it is not the current one', () => {
+  const at = Date.UTC(2026, 9, 4, 17, 55);
+  expect(dayMonthTime(at, Date.UTC(2026, 11, 1), 'UTC')).toBe('4 Oct 17:55');
+  expect(dayMonthTime(at, Date.UTC(2027, 0, 2), 'UTC')).toBe('4 Oct 2026 17:55');
+  expect(dayMonthYear(at, 'UTC')).toBe('4 Oct 2026');
 });

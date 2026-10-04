@@ -1,4 +1,4 @@
-import type { BinnedThread } from '@quanthea/shared';
+import { type BinnedThread, dayMonthTime } from '@quanthea/shared';
 import { Fragment, useCallback, useState } from 'react';
 import { useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
@@ -27,7 +27,7 @@ function BinRow({
 }) {
   const admin = useIsAdmin();
   const { submit, busy, failure } = useBinIntent();
-  const when = new Date(thread.deletedAt).toLocaleString();
+  const when = dayMonthTime(thread.deletedAt, Date.now());
   const title = thread.title ?? 'Untitled thread';
   return (
     <li className={styles.row} data-busy={busy}>

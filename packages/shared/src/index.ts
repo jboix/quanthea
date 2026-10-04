@@ -257,7 +257,13 @@ export {
   sortRows,
   type TreeNode,
 } from './dataset/reshape.ts';
-export { type CalendarParts, calendarParts, dayMonth } from './formatters/calendar.ts';
+export {
+  type CalendarParts,
+  calendarParts,
+  dayMonth,
+  dayMonthTime,
+  dayMonthYear,
+} from './formatters/calendar.ts';
 export {
   createFormatter,
   type FormatFunction,

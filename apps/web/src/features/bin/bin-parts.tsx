@@ -1,5 +1,5 @@
 /** What the rows of the bin share: who may delete for good, the intents, asking first, and dates. */
-import { hasRole, type Role } from '@quanthea/shared';
+import { dayMonthYear, hasRole, type Role } from '@quanthea/shared';
 import { useState } from 'react';
 import { type SubmitTarget, useFetcher, useRouteLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
@@ -79,10 +79,10 @@ const dayMs = 86_400_000;
  *
  * @param binnedAt - When it went to the bin, in epoch milliseconds.
  * @param binDays - How many days the bin keeps it, or `null`.
- * @returns Such as ` · deleted for good after 12/10/2026`, or nothing when it is kept.
+ * @returns Such as ` · deleted for good after 3 Nov 2026`, or nothing when it is kept.
  */
 export function purgeNote(binnedAt: number, binDays: number | null): string {
   if (binDays === null) return '';
-  const on = new Date(binnedAt + binDays * dayMs).toLocaleDateString();
+  const on = dayMonthYear(binnedAt + binDays * dayMs);
   return ` · deleted for good after ${on}`;
 }

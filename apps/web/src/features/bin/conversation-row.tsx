@@ -1,5 +1,5 @@
 /** A conversation about a dashboard in the bin, with Restore and, for admins, Delete for good. */
-import type { BinnedConversation } from '@quanthea/shared';
+import { type BinnedConversation, dayMonthTime } from '@quanthea/shared';
 import { Button } from '../../ui/button.tsx';
 import styles from './bin.module.css';
 import { ConfirmButton, purgeNote, useBinIntent, useIsAdmin } from './bin-parts.tsx';
@@ -22,7 +22,7 @@ export function ConversationBinRow({
 }) {
   const admin = useIsAdmin();
   const { submit, busy, failure } = useBinIntent();
-  const when = new Date(conversation.binnedAt).toLocaleString();
+  const when = dayMonthTime(conversation.binnedAt, Date.now());
   const count = `${conversation.count} ${conversation.count === 1 ? 'question' : 'questions'}`;
   const conversationId = conversation.id;
   return (
