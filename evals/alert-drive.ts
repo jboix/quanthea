@@ -191,6 +191,20 @@ function toolCallsOf(messages: readonly StoredMessage[]): Record<string, number>
 }
 
 /**
+ * What a message part adds to what the agent said: its text, or what a refused write reported, so
+ * the report shows why a version was not saved.
+ *
+ * @param part - The part.
+ * @returns The lines.
+ */
+function saidIn(part: StoredMessage['parts'][number]): string[] {
+  if (part.text) return [part.text];
+  const output = (part as { output?: { ok?: boolean } }).output;
+  if (part.type !== 'tool-edit_alert' || output?.ok !== false) return [];
+  return [`[edit_alert refused] ${JSON.stringify(output).slice(0, 600)}`];
+}
+
+/**
  * What the agent did and said in the messages of a case.
  *
  * @param messages - The case's messages.
@@ -200,7 +214,7 @@ function conductOf(messages: readonly StoredMessage[]) {
   const { repairs, asked, usage } = tally(messages);
   const said = messages
     .filter((message) => message.role === 'assistant')
-    .flatMap((message) => message.parts.flatMap((part) => (part.text ? [part.text] : [])))
+    .flatMap((message) => message.parts.flatMap(saidIn))
     .join('\n')
     .slice(0, saidChars);
   return { repairs, asked, usage, said, toolCalls: toolCallsOf(messages) };

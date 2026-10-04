@@ -92,12 +92,20 @@ describe('scoring an answer case', () => {
     ]);
   });
 
-  test('fails an answer that misses a topic or a time range', () => {
+  test('fails an answer that misses a topic or does not name two times', () => {
     const vague = { ...asked, text: 'Errors rose around 14:00 [1] [2].' };
     expect(scoreAnswer(vague, expectationOf('a1')).reasons).toEqual([
       'the text never mentions deploy or #481 or release or rollout',
-      'the text states no time range',
+      'the text names no two times',
     ]);
+  });
+
+  test('takes a start and a peak as placing what happened in time', () => {
+    const placed = {
+      ...asked,
+      text: 'Deploy #481 went out at 14:02 [2]; errors peaked at 14:14 [1].',
+    };
+    expect(scoreAnswer(placed, expectationOf('a1')).reasons).toEqual([]);
   });
 
   test('fails an answer at level 2 that reads, quotes data, or never says it cannot read', () => {
@@ -126,9 +134,14 @@ describe('scoring an answer case', () => {
 
   test('fails a follow-up that gives no duration', () => {
     const undated = { ...followed, text: 'It ended with the rollback [1].' };
-    expect(scoreAnswer(undated, expectationOf('a4')).reasons).toEqual([
-      'the text never mentions \\d+\\s*(?:min or minute or hour or h\\b) or half an hour',
-    ]);
+    const { reasons } = scoreAnswer(undated, expectationOf('a4'));
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0]).toStartWith('the text never mentions');
+  });
+
+  test('takes a span of two times as a duration', () => {
+    const spanned = { ...followed, text: 'It lasted from 14:09 to 14:30 [1].' };
+    expect(scoreAnswer(spanned, expectationOf('a4')).reasons).toEqual([]);
   });
 });
 

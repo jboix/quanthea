@@ -91,9 +91,19 @@ export function dataNumbers(text: string): string[] {
   return found;
 }
 
-/** Two clock times joined as a range, such as "14:02 to 14:38" or "14:02–14:38". */
-const clockRange =
-  /\b\d{1,2}:\d{2}\b[^.\n]{0,40}?(?:\bto\b|\band\b|\buntil\b|\btill\b|\bthrough\b|[-\u2013\u2014])\s*\d{1,2}:\d{2}\b/i;
+/** A clock time, such as "14:02". */
+const clockTime = /\b\d{1,2}:\d{2}\b/g;
+
+/**
+ * Whether a text places what happened in time: two clock times at least, such as a range ("14:02
+ * to 14:38") or a start and a peak ("at 14:02 … peaking around 14:14").
+ *
+ * @param text - The answer's text.
+ * @returns Whether it names two times.
+ */
+function placesInTime(text: string): boolean {
+  return (text.match(clockTime) ?? []).length >= 2;
+}
 
 /** Words that say the answer cannot do something, such as read the numbers. */
 const cannotRead = /\b(?:cannot|can't|can’t|can not|unable to|not able to|no access)\b/i;
@@ -140,7 +150,7 @@ function missingTopics(text: string, expect: AnswerExpectation): string[] {
 }
 
 /**
- * What the text should say and does not: that it cannot read the numbers, and a time range.
+ * What the text should say and does not: that it cannot read the numbers, and when it happened.
  *
  * @param text - The answer's text.
  * @param expect - What a good answer holds.
@@ -150,7 +160,7 @@ function unsaid(text: string, expect: AnswerExpectation): string[] {
   const reasons: string[] = [];
   if (expect.admitsNoData && !cannotRead.test(text))
     reasons.push('the text does not say it cannot read the numbers');
-  if (expect.timeRange && !clockRange.test(text)) reasons.push('the text states no time range');
+  if (expect.timeRange && !placesInTime(text)) reasons.push('the text names no two times');
   return reasons;
 }
 

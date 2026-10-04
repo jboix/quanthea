@@ -15,7 +15,7 @@ export interface AnswerExpectation {
   readonly topics: readonly RegExp[];
   /** Whether the text must say it cannot read the numbers. */
   readonly admitsNoData?: boolean;
-  /** Whether the text must state a time range, such as "14:02 to 14:38". */
+  /** Whether the text must place what happened in time: two clock times at least. */
   readonly timeRange?: boolean;
   /** Whether the text must quote no measurement (see `dataNumbers`). */
   readonly noDataNumbers?: boolean;
@@ -111,7 +111,11 @@ export const answerCases: readonly AnswerCase[] = [
     time: yesterdayDaytime,
     accessLevel: 3,
     follows: 'a1',
-    expect: { topics: [/\d+\s*(?:min|minute|hour|h\b)|half an hour/i] },
+    expect: {
+      topics: [
+        /\d+\s*(?:min|minute|hour|h\b)|half an hour|\d{1,2}:\d{2}\s*(?:to|until|till|-|\u2013)\s*\d{1,2}:\d{2}/i,
+      ],
+    },
   },
 ];
 
