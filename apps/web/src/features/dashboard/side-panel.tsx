@@ -136,6 +136,9 @@ export function SidePanel({ tab, onTab, onClose, onOpenAnswer, ...data }: SidePa
             timeZone={conversation.shown.timeZone}
             openId={conversation.conversationId}
             onOpen={open}
+            onBinned={(conversationId) => {
+              if (conversationId === conversation.conversationId) conversation.startNew();
+            }}
           />
         )}
       </div>

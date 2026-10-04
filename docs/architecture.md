@@ -231,7 +231,7 @@ the kit's HTTP client for every kind that speaks HTTP.
   hand edit (`POST /api/threads/:id/alert-draft`): a new draft version, and the card in the
   conversation that the agent reads next turn.
 - **The rail** shows the screens the role opens: Threads (editors), Library, Alerts, Connectors
-  (admins), then the Bin (editors), Settings (admins) and the account menu. Alerts carries a badge
+  (admins), then the Bin (analysts), Settings (admins) and the account menu. Alerts carries a badge
   in the danger colour with the number of alerts firing (active, with a series firing, muted or
   not), named with the link (`Alerts, 2 firing`). It reads the list while the list is on screen,
   and otherwise the `/alerts/firing` resource route, which loads when the rail mounts and again
@@ -317,7 +317,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/d/:dashboardId/v/:version/sources`                     | resource route: a version's sources and access levels       | viewer   |
 | `/d/:dashboardId/alerts`                                 | resource route: the alerts on its panels, over a range      | viewer   |
 | `/s/:snapshotId`                                         | a snapshot: a version frozen with its data, read-only       | viewer   |
-| `/bin`                                                   | Bin: deleted threads, restore; retention, delete (admin)    | editor   |
+| `/bin`                                                   | Bin: threads, conversations; restore, delete (admin)        | analyst  |
 | `/connectors`, `/connectors/:connectorId`                | Connectors: list, access level, guardrails, schema          | admin    |
 | `/connectors/new`, `/connectors/:connectorId/edit`       | add and edit a connection                                   | admin    |
 | `/connectors/:connectorId/health`                        | resource route: the connection test, for fetchers           | admin    |
@@ -511,7 +511,9 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
   are kept for `binDays` days, 30 by default, or until someone deletes them (`null`).
   `jobs/purge.ts` runs at startup and then every hour, and purges the threads and the
   conversations binned longer ago, as the actor `retention`. With 0 days, the next run purges everything in the bin.
-- The Bin screen says, for each thread, when it goes for good.
+- The Bin screen says, for each thread, when it goes for good. It lists binned threads and
+  conversations together, the most recently binned first. Analysts open it for their
+  conversations; they have no threads.
 
 `threads/bin.ts` holds these rules over `db/thread-bin.ts`.
 
@@ -2317,12 +2319,14 @@ one, and enables them again. Without any admin, it creates the default one.
   - Ask shows one conversation, like a chat (`ask-tab.tsx`, `ask-message.tsx`,
     `use-conversation.ts`): each question as a bubble on the right with who asked it and when,
     then its answer, the newest at the bottom. A bar above it says who started the conversation,
-    when, and how many questions it holds. The question box is pinned at the bottom, and its
-    label says what the question is about: the range shown in absolute times in the dashboard's
+    when, and how many questions it holds; for its starter and admins it offers Move to bin, which
+    asks first and then starts a new conversation (`ask-bin.tsx`). The question box is pinned at
+    the bottom, and its label says what the question is about: the range shown in absolute times in the dashboard's
     time zone, and the variable values
     (`Ask about this dashboard, as shown: 26 Sep 13:30–15:00, $env prod`).
   - The tab opens on a new conversation, with the three latest ones to open and a link to
-    History. Each question continues the open conversation: the request names it, and the server
+    History. Each shows its first question on one line, and who started it and when below, smaller
+    and in the secondary ink. Each question continues the open conversation: the request names it, and the server
     makes the question follow up on its latest question. New conversation starts over.
   - Each question keeps its own version, range and values. When they differ from the question
     before it, a line before the question says so
@@ -2351,7 +2355,8 @@ one, and enables them again. Without any admin, it creates the default one.
     days are in the dashboard's time zone, written as the Ask tab writes them (`4 Oct 09:12`). The search goes
     to the server and finds the conversations whose questions and answers hold every word, each
     with the question that matched. Opening one shows it in the Ask tab, where analysts and above
-    continue it and viewers read it.
+    continue it and viewers read it. Each row the person may bin has a bin button, shown on hover
+    as in the past threads, which asks before moving it to the bin.
   - On a narrow screen, choosing Ask about this in the actions menu closes the menu.
   - When no source of the dashboard is at Aggregates or Full access, a note above the conversation
     says answers can only explain, lists the sources with their levels, and says an admin can

@@ -65,7 +65,7 @@ const topItems: readonly RailItem[] = [
 
 /** The items at the bottom of the rail. */
 const bottomItems: readonly RailItem[] = [
-  { label: 'Bin', to: '/bin', section: '/bin', minimum: 'editor', icon: <BinIcon /> },
+  { label: 'Bin', to: '/bin', section: '/bin', minimum: 'analyst', icon: <BinIcon /> },
   {
     label: 'Settings',
     to: '/settings/model',

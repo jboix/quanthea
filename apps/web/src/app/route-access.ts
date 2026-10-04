@@ -28,7 +28,7 @@ export const routeAccess = {
   '/d/:dashboardId/v/:version/sources': 'viewer',
   '/d/:dashboardId/alerts': 'viewer',
   '/s/:snapshotId': 'viewer',
-  '/bin': 'editor',
+  '/bin': 'analyst',
   '/connectors': 'admin',
   '/connectors/new': 'admin',
   '/connectors/:connectorId': 'admin',

@@ -5,9 +5,10 @@
  * over; History holds the others.
  */
 import type { Conversation } from '@quanthea/shared';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import styles from './ask.module.css';
+import { ConfirmBin, useBinConversation } from './ask-bin.tsx';
 import { askedContextOf, contextChange } from './ask-conversation.ts';
 import { AskForm, ExplainOnlyCard, SimilarQuestions, WhoCanAsk } from './ask-form.tsx';
 import { LiveTurn, StoredTurn } from './ask-message.tsx';
@@ -31,36 +32,84 @@ interface AskTabProps extends DashboardData {
 const recentShown = 3;
 
 /**
- * The bar above the conversation: who started it and when, or that it is new, and New
- * conversation for those who may ask.
+ * The bar above the conversation: who started it and when, or that it is new; Move to bin for its
+ * starter and admins, after a question; and New conversation for those who may ask.
  *
- * @param props - The conversation and whether the person may ask.
+ * @param props - The conversation, the dashboard and whether the person may ask.
  * @param props.conversation - The open conversation.
+ * @param props.dashboardId - The dashboard.
  * @param props.canAsk - Whether the person may ask.
  * @returns The bar.
  */
 function ConversationBar({
   conversation,
+  dashboardId,
   canAsk,
 }: {
   readonly conversation: ConversationState;
+  readonly dashboardId: string;
   readonly canAsk: boolean;
 }) {
+  const [confirming, setConfirming] = useState(false);
+  const { startNew } = conversation;
+  const binned = useCallback(() => {
+    setConfirming(false);
+    startNew();
+  }, [startNew]);
+  const binning = useBinConversation(dashboardId, binned);
   const [first] = conversation.questions;
-  const count = conversation.questions.length;
-  const started = first
-    ? `Started by ${first.askedBy}, ${instantLabel(first.askedAt, first.timeZone)} · ${count} ${count === 1 ? 'question' : 'questions'}`
-    : 'New conversation';
-  const empty = conversation.conversationId === undefined && !conversation.live;
+  if (confirming && first)
+    return (
+      <div className={styles.bar}>
+        <ConfirmBin
+          question={first.question}
+          onConfirm={() => binning.bin(first.conversationId)}
+          onCancel={() => setConfirming(false)}
+        />
+      </div>
+    );
   return (
     <div className={styles.bar}>
-      <p className={styles.barText}>{started}</p>
-      {canAsk && (
-        <Button size="small" disabled={empty} onClick={conversation.startNew}>
-          New conversation
-        </Button>
-      )}
+      <p className={styles.barText}>{binning.failure ?? startedLine(conversation)}</p>
+      <div className={styles.barActions}>
+        {first && conversation.loaded.canBin && (
+          <Button size="small" disabled={binning.busy} onClick={() => setConfirming(true)}>
+            Move to bin
+          </Button>
+        )}
+        {canAsk && <NewButton conversation={conversation} />}
+      </div>
     </div>
+  );
+}
+
+/**
+ * Who started the conversation, when, and how many questions it holds, or that it is new.
+ *
+ * @param conversation - The open conversation.
+ * @returns Such as `Started by Ana, 4 Oct 09:12 · 3 questions`.
+ */
+function startedLine(conversation: ConversationState): string {
+  const [first] = conversation.questions;
+  const count = conversation.questions.length;
+  if (!first) return 'New conversation';
+  const when = instantLabel(first.askedAt, first.timeZone);
+  return `Started by ${first.askedBy}, ${when} · ${count} ${count === 1 ? 'question' : 'questions'}`;
+}
+
+/**
+ * New conversation: starts over, unless the conversation is new already.
+ *
+ * @param props - The conversation.
+ * @param props.conversation - The open conversation.
+ * @returns The button.
+ */
+function NewButton({ conversation }: { readonly conversation: ConversationState }) {
+  const empty = conversation.conversationId === undefined && !conversation.live;
+  return (
+    <Button size="small" disabled={empty} onClick={conversation.startNew}>
+      New conversation
+    </Button>
   );
 }
 
@@ -103,10 +152,13 @@ function NewConversation({
             <button
               key={each.id}
               type="button"
-              className={styles.similarItem}
+              className={`${styles.similarItem} ${styles.recentItem}`}
               onClick={() => onOpen(each)}
             >
-              {each.question} · {each.startedBy}, {dayLabel(each.lastAt, timeZone)}
+              <span className={styles.recentQuestion}>{each.question}</span>
+              <span className={styles.recentMeta}>
+                {each.startedBy}, {dayLabel(each.lastAt, timeZone)}
+              </span>
             </button>
           ))}
           <button type="button" className={styles.linkButton} onClick={onHistory}>
@@ -235,7 +287,11 @@ export function AskTab({ conversation, onHistory, ...data }: AskTabProps) {
   const failed = conversation.loaded.failed;
   return (
     <div className={styles.tab}>
-      <ConversationBar conversation={conversation} canAsk={canAsk} />
+      <ConversationBar
+        conversation={conversation}
+        dashboardId={data.dashboard.id}
+        canAsk={canAsk}
+      />
       <div className={styles.scroll} ref={scroller}>
         {explainOnly && sources && <ExplainOnlyCard sources={sources} />}
         {failed && <p className={styles.failure}>{failed}</p>}

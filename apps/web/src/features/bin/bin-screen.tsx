@@ -1,92 +1,13 @@
-import { type BinnedThread, hasRole, type Role } from '@quanthea/shared';
-import { useCallback, useState } from 'react';
-import { type SubmitTarget, useFetcher, useLoaderData, useRouteLoaderData } from 'react-router';
+import type { BinnedThread } from '@quanthea/shared';
+import { Fragment, useCallback, useState } from 'react';
+import { useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Page } from '../../ui/page.tsx';
 import styles from './bin.module.css';
-import type { BinData, BinIntent, BinOutcome } from './data.ts';
+import { ConfirmButton, purgeNote, useBinIntent, useIsAdmin } from './bin-parts.tsx';
+import { ConversationBinRow } from './conversation-row.tsx';
+import type { BinData } from './data.ts';
 import { RetentionDialog } from './retention-dialog.tsx';
-
-/**
- * Whether the person is an admin, who may delete for good.
- *
- * @returns `true` for admins.
- */
-function useIsAdmin(): boolean {
-  const session = useRouteLoaderData('root') as { principal: { role: Role } } | undefined;
-  return session !== undefined && hasRole(session.principal.role, 'admin');
-}
-
-/**
- * Submits bin intents, and keeps the last outcome.
- *
- * @returns The submit function, whether one is on its way, and the last refusal.
- */
-function useBinIntent() {
-  const fetcher = useFetcher<BinOutcome>();
-  const submit = (intent: BinIntent) =>
-    void fetcher.submit(intent as SubmitTarget, { method: 'post', encType: 'application/json' });
-  const failure = fetcher.data?.ok === false ? fetcher.data.message : undefined;
-  return { submit, busy: fetcher.state !== 'idle', failure };
-}
-
-/**
- * Two buttons that ask before an action that can't be undone.
- *
- * @param props - The button's words, the question, and the action.
- * @param props.label - The button's words.
- * @param props.question - What to ask.
- * @param props.onConfirm - Runs the action.
- * @param props.disabled - Whether the button is off.
- * @returns The button, or the question with Delete and Cancel.
- */
-function ConfirmButton({
-  label,
-  question,
-  onConfirm,
-  disabled,
-}: {
-  readonly label: string;
-  readonly question: string;
-  readonly onConfirm: () => void;
-  readonly disabled: boolean;
-}) {
-  const [asking, setAsking] = useState(false);
-  if (!asking) {
-    return (
-      <Button variant="danger" disabled={disabled} onClick={() => setAsking(true)}>
-        {label}
-      </Button>
-    );
-  }
-  return (
-    <span className={styles.confirm}>
-      <span>{question}</span>
-      <Button variant="danger" size="small" onClick={onConfirm}>
-        Delete
-      </Button>
-      <Button size="small" onClick={() => setAsking(false)}>
-        Cancel
-      </Button>
-    </span>
-  );
-}
-
-/** A day, in milliseconds. */
-const dayMs = 86_400_000;
-
-/**
- * When a binned thread is deleted for good.
- *
- * @param thread - The binned thread.
- * @param binDays - How many days the bin keeps a thread, or `null`.
- * @returns Such as `deleted for good after 12/10/2026`, or nothing when it is kept.
- */
-function purgeNote(thread: BinnedThread, binDays: number | null): string {
-  if (binDays === null) return '';
-  const on = new Date(thread.deletedAt + binDays * dayMs).toLocaleDateString();
-  return ` · deleted for good after ${on}`;
-}
 
 /**
  * One binned thread: what it was, when it went to the bin and when it goes for good, and Restore
@@ -117,7 +38,7 @@ function BinRow({
           {thread.dashboardTitle ? `Dashboard: ${thread.dashboardTitle} · ` : 'No dashboard · '}
           deleted {when}
           {thread.deletedBy ? ` by ${thread.deletedBy}` : ''}
-          {purgeNote(thread, binDays)}
+          {purgeNote(thread.deletedAt, binDays)}
         </span>
         {failure && <span className={styles.failure}>{failure}</span>}
       </div>
@@ -149,8 +70,8 @@ function BinSubtitle({ binDays }: { readonly binDays: number | null }) {
   const stay = binDays === null ? 'until someone deletes them' : `for ${binDays} days`;
   return (
     <>
-      Deleted threads wait here {stay}, with their dashboards. Deleting one for good frees its
-      space; usage is kept.
+      Deleted threads, with their dashboards, and deleted conversations about dashboards wait here{' '}
+      {stay}. Deleting one for good frees its space; usage is kept.
     </>
   );
 }
@@ -166,14 +87,14 @@ function AdminActions({ data }: { readonly data: BinData }) {
   const empty = useBinIntent();
   const [retention, setRetention] = useState(false);
   const close = useCallback(() => setRetention(false), []);
-  const count = data.threads.length;
+  const count = data.threads.length + data.conversations.length;
   return (
     <div className={styles.headerActions}>
       <Button onClick={() => setRetention(true)}>Retention</Button>
       {count > 0 && (
         <ConfirmButton
           label="Empty bin"
-          question={`Delete ${count === 1 ? 'this thread' : `all ${count} threads`} for good?`}
+          question={`Delete ${count === 1 ? 'it' : `all ${count}`} for good?`}
           disabled={empty.busy}
           onConfirm={() => empty.submit({ intent: 'empty' })}
         />
@@ -190,30 +111,53 @@ function AdminActions({ data }: { readonly data: BinData }) {
 }
 
 /**
- * The bin: deleted threads with their dashboards, until someone restores them or they are
- * deleted for good. Usage stays in Settings → Usage either way.
+ * The binned threads and conversations, the most recently binned first.
+ *
+ * @param props - The bin.
+ * @param props.data - The bin.
+ * @returns The list.
+ */
+function BinList({ data }: { readonly data: BinData }) {
+  const { binDays } = data;
+  const rows = [
+    ...data.threads.map((thread) => ({
+      at: thread.deletedAt,
+      key: `thread-${thread.id}`,
+      row: <BinRow thread={thread} binDays={binDays} />,
+    })),
+    ...data.conversations.map((conversation) => ({
+      at: conversation.binnedAt,
+      key: `conversation-${conversation.id}`,
+      row: <ConversationBinRow conversation={conversation} binDays={binDays} />,
+    })),
+  ].sort((one, other) => other.at - one.at);
+  return (
+    <ul className={styles.list}>
+      {rows.map(({ key, row }) => (
+        <Fragment key={key}>{row}</Fragment>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The bin: deleted threads with their dashboards, and deleted conversations about dashboards,
+ * until someone restores them or they are deleted for good. Usage stays in Settings → Usage either
+ * way.
  *
  * @returns The screen.
  */
 export function BinScreen() {
   const data = useLoaderData() as BinData;
-  const { threads, binDays } = data;
   const admin = useIsAdmin();
+  const empty = data.threads.length === 0 && data.conversations.length === 0;
   return (
     <Page
       title="Bin"
-      subtitle={<BinSubtitle binDays={binDays} />}
+      subtitle={<BinSubtitle binDays={data.binDays} />}
       actions={admin && <AdminActions data={data} />}
     >
-      {threads.length === 0 ? (
-        <p className={styles.empty}>The bin is empty.</p>
-      ) : (
-        <ul className={styles.list}>
-          {threads.map((thread) => (
-            <BinRow key={thread.id} thread={thread} binDays={binDays} />
-          ))}
-        </ul>
-      )}
+      {empty ? <p className={styles.empty}>The bin is empty.</p> : <BinList data={data} />}
     </Page>
   );
 }

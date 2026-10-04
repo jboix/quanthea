@@ -3,9 +3,10 @@
  * question, with a search through every question and answer. Opening one shows it in the Ask tab.
  */
 import type { Conversation } from '@quanthea/shared';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { groupByDay } from '../../lib/day-groups.ts';
 import { SearchIcon } from '../../ui/icons.tsx';
+import { BinButton, ConfirmBin, useBinConversation } from './ask-bin.tsx';
 import { useConversations } from './ask-state.ts';
 import { instantLabel } from './ask-words.ts';
 import styles from './history.module.css';
@@ -20,7 +21,12 @@ interface HistoryTabProps {
   readonly openId: string | undefined;
   /** Opens a conversation in the Ask tab, at a question when a search found one. */
   readonly onOpen: (conversationId: string, questionId: string | undefined) => void;
+  /** Called once a conversation is in the bin. */
+  readonly onBinned: (conversationId: string) => void;
 }
+
+/** What a row needs to move its conversation to the bin. */
+type RowBin = ReturnType<typeof useBinConversation>;
 
 /**
  * How many questions a conversation holds, and when the latest was asked.
@@ -36,16 +42,68 @@ function rowMeta(conversation: Conversation, timeZone: string): string {
 
 /**
  * One past conversation: its first question, who started it, when, how many questions and the
- * latest activity. In a search, the question that matched, when it is not the first.
+ * latest activity. In a search, the question that matched, when it is not the first. Its starter
+ * and admins may move it to the bin, after a question.
+ *
+ * @param props - The conversation, the time zone, whether it is open, and the callbacks.
+ * @param props.conversation - The conversation.
+ * @param props.timeZone - The time zone of the dates.
+ * @param props.current - Whether the Ask tab shows it.
+ * @param props.onOpen - Opens it.
+ * @param props.binning - Moves it to the bin.
+ * @returns The row.
+ */
+function ConversationRow({
+  conversation,
+  timeZone,
+  current,
+  onOpen,
+  binning,
+}: {
+  readonly conversation: Conversation;
+  readonly timeZone: string;
+  readonly current: boolean;
+  readonly onOpen: HistoryTabProps['onOpen'];
+  readonly binning: RowBin;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  if (confirming)
+    return (
+      <li className={styles.row}>
+        <ConfirmBin
+          question={conversation.question}
+          onConfirm={() => binning.bin(conversation.id)}
+          onCancel={() => setConfirming(false)}
+        />
+      </li>
+    );
+  return (
+    <li className={styles.row}>
+      <ConversationItem
+        conversation={conversation}
+        timeZone={timeZone}
+        current={current}
+        onOpen={onOpen}
+      />
+      {conversation.canBin && (
+        <BinButton question={conversation.question} onClick={() => setConfirming(true)} />
+      )}
+    </li>
+  );
+}
+
+/**
+ * The button that opens a past conversation: its first question on one line, and who started it,
+ * when, how many questions and the latest activity on the line below.
  *
  * @param props - The conversation, the time zone, whether it is open, and the open callback.
  * @param props.conversation - The conversation.
  * @param props.timeZone - The time zone of the dates.
  * @param props.current - Whether the Ask tab shows it.
  * @param props.onOpen - Opens it.
- * @returns The row.
+ * @returns The button.
  */
-function ConversationRow({
+function ConversationItem({
   conversation,
   timeZone,
   current,
@@ -59,22 +117,19 @@ function ConversationRow({
   const { match } = conversation;
   const other = match && match.questionId !== conversation.id ? match : null;
   return (
-    <li className={styles.row}>
-      <button
-        type="button"
-        className={styles.item}
-        aria-current={current || undefined}
-        onClick={() => onOpen(conversation.id, match?.questionId)}
-      >
-        <span className={styles.itemTitle}>{conversation.question}</span>
-        {other && <span className={styles.matched}>Matches: {other.question}</span>}
-        <span className={styles.itemMeta}>
-          <span className={styles.owner}>{conversation.startedBy}</span>
-          started {instantLabel(conversation.startedAt, timeZone)} ·{' '}
-          {rowMeta(conversation, timeZone)}
-        </span>
-      </button>
-    </li>
+    <button
+      type="button"
+      className={styles.item}
+      aria-current={current || undefined}
+      onClick={() => onOpen(conversation.id, match?.questionId)}
+    >
+      <span className={styles.itemTitle}>{conversation.question}</span>
+      {other && <span className={styles.matched}>Matches: {other.question}</span>}
+      <span className={styles.itemMeta}>
+        <span className={styles.owner}>{conversation.startedBy}</span>
+        started {instantLabel(conversation.startedAt, timeZone)} · {rowMeta(conversation, timeZone)}
+      </span>
+    </button>
   );
 }
 
@@ -92,10 +147,12 @@ function ConversationGroups({
   timeZone,
   openId,
   onOpen,
-}: Omit<HistoryTabProps, 'dashboardId'> & {
+  binning,
+}: Omit<HistoryTabProps, 'dashboardId' | 'onBinned'> & {
   readonly conversations: readonly Conversation[];
   readonly searching: boolean;
   readonly loading: boolean;
+  readonly binning: RowBin;
 }) {
   const groups = useMemo(
     () => groupByDay(conversations, (each) => each.lastAt, new Date(), timeZone),
@@ -121,6 +178,7 @@ function ConversationGroups({
                 timeZone={timeZone}
                 current={each.id === openId}
                 onOpen={onOpen}
+                binning={binning}
               />
             ))}
           </ul>
@@ -131,35 +189,65 @@ function ConversationGroups({
 }
 
 /**
+ * The search box of History. Escape clears the words first; the panel closes on Escape once it is
+ * empty.
+ *
+ * @param props - The words and the callback.
+ * @param props.search - The words typed.
+ * @param props.onSearch - Receives the words.
+ * @returns The search box.
+ */
+function HistorySearch({
+  search,
+  onSearch,
+}: {
+  readonly search: string;
+  readonly onSearch: (search: string) => void;
+}) {
+  return (
+    <search className={styles.search}>
+      <SearchIcon />
+      <input
+        type="search"
+        aria-label="Search past conversations"
+        placeholder="Search questions and answers"
+        className={styles.searchInput}
+        value={search}
+        onChange={(event) => onSearch(event.target.value)}
+        onKeyDown={(event) => {
+          // Escape clears the words first; the panel closes on Escape once it is empty.
+          if (event.key !== 'Escape' || search === '') return;
+          event.preventDefault();
+          onSearch('');
+        }}
+      />
+    </search>
+  );
+}
+
+/**
  * The History tab: a search box, and the past conversations.
  *
- * @param props - The dashboard, the open conversation, and the open callback.
+ * @param props - The dashboard, the open conversation, and the open and binned callbacks.
  * @returns The tab's content.
  */
-export function HistoryTab({ dashboardId, timeZone, openId, onOpen }: HistoryTabProps) {
+export function HistoryTab({ dashboardId, timeZone, openId, onOpen, onBinned }: HistoryTabProps) {
   const [search, setSearch] = useState('');
-  const { conversations, failed, loading } = useConversations(dashboardId, search);
+  const { conversations, failed, loading, reload } = useConversations(dashboardId, search);
+  const binned = useCallback(
+    (conversationId: string) => {
+      reload();
+      onBinned(conversationId);
+    },
+    [reload, onBinned],
+  );
+  const binning = useBinConversation(dashboardId, binned);
   return (
     <div className={styles.tab}>
-      <search className={styles.search}>
-        <SearchIcon />
-        <input
-          type="search"
-          aria-label="Search past conversations"
-          placeholder="Search questions and answers"
-          className={styles.searchInput}
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          onKeyDown={(event) => {
-            // Escape clears the words first; the panel closes on Escape once it is empty.
-            if (event.key !== 'Escape' || search === '') return;
-            event.preventDefault();
-            setSearch('');
-          }}
-        />
-      </search>
+      <HistorySearch search={search} onSearch={setSearch} />
       {failed && <p className={styles.failure}>{failed}</p>}
-      <div className={styles.results} aria-busy={loading}>
+      {binning.failure && <p className={styles.failure}>{binning.failure}</p>}
+      <div className={styles.results} aria-busy={loading || binning.busy}>
         <ConversationGroups
           conversations={conversations}
           searching={search.trim() !== ''}
@@ -167,6 +255,7 @@ export function HistoryTab({ dashboardId, timeZone, openId, onOpen }: HistoryTab
           timeZone={timeZone}
           openId={openId}
           onOpen={onOpen}
+          binning={binning}
         />
       </div>
     </div>

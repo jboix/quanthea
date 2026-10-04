@@ -4,6 +4,7 @@ import { ErrorPage } from '../app/error-page.tsx';
 import { type GuardedPath, guarded, requireRole } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import {
+  binConversation,
   changeDashboard,
   loadConversation,
   loadConversations,
@@ -58,8 +59,9 @@ function screenRoute(loadSession: SessionLoader, path: GuardedPath, api: ApiClie
 }
 
 /**
- * The resource routes of the side panel: a dashboard's conversations, one conversation, the
- * earlier questions like a text, and a version's sources with their access levels.
+ * The resource routes of the side panel: a dashboard's conversations, one conversation (and
+ * moving it to the bin, for analysts and above), the earlier questions like a text, and a version's
+ * sources with their access levels.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -70,6 +72,8 @@ function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
   const conversation = '/d/:dashboardId/conversations/:conversationId';
   const similar = '/d/:dashboardId/similar-questions';
   const sources = '/d/:dashboardId/v/:version/sources';
+  const analyst = requireRole(loadSession, 'analyst');
+  const bin = binConversation(api);
   return [
     // Each loads again when the panel asks, after an answer ends.
     {
@@ -80,6 +84,10 @@ function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
     {
       path: conversation,
       loader: guarded(loadSession, conversation, loadConversation(api)),
+      action: async (args) => {
+        await analyst(args);
+        return bin(args);
+      },
       shouldRevalidate: () => false,
     },
     { path: similar, loader: guarded(loadSession, similar, loadSimilarQuestions(api)) },

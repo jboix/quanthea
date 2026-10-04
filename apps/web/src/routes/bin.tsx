@@ -6,7 +6,8 @@ import { changeBin, loadBin } from '../features/bin/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
 /**
- * The bin route, for editors. Deleting for good is for admins; the API checks it again.
+ * The bin route, for analysts and above: analysts see their conversations, editors their threads
+ * too. Deleting for good is for admins; the API checks it again.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -14,9 +15,10 @@ import type { ApiClient } from '../lib/api-client.ts';
  */
 export function binRoute(loadSession: SessionLoader, api: ApiClient): RouteObject {
   const path = '/bin';
+  const roleOf = async () => (await loadSession())?.principal.role ?? null;
   return {
     path,
-    loader: guarded(loadSession, path, loadBin(api)),
+    loader: guarded(loadSession, path, loadBin(api, roleOf)),
     action: guarded(loadSession, path, changeBin(api)),
     lazy: { Component: async () => (await import('../features/bin/screens.ts')).BinScreen },
   };

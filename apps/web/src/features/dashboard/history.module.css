@@ -74,14 +74,22 @@
 }
 
 .row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   border-radius: var(--radius-control);
+}
+
+.row:hover {
+  background: var(--color-surface-muted);
 }
 
 .item {
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
   gap: 2px;
-  width: 100%;
+  min-width: 0;
   padding: 8px 10px;
   border: 0;
   border-radius: var(--radius-control);
@@ -143,4 +151,53 @@
   margin: 0;
   font-size: 13px;
   color: var(--color-danger);
+}
+
+/* Moves a conversation to the bin: shown on hover, always on touch screens. */
+.bin {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-right: 4px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--color-ink-secondary);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.row:hover .bin,
+.bin:focus-visible {
+  opacity: 1;
+}
+
+.bin:hover {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+@media (hover: none) {
+  .bin {
+    opacity: 1;
+  }
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.confirm > span {
+  flex-grow: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

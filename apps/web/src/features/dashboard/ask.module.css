@@ -337,6 +337,30 @@
   border-color: var(--color-accent);
 }
 
+/* A recent conversation: its first question, then who started it and when, quieter. */
+.recentItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recentQuestion {
+  font-size: 13.5px;
+  color: var(--color-ink);
+}
+
+.recentMeta {
+  font-size: 12px;
+  color: var(--color-ink-secondary);
+}
+
+.barActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
 @media (max-width: 960px) {
   .side {
     position: fixed;

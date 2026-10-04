@@ -2,6 +2,7 @@
 
 export { loadDashboardAlerts } from './alerts-data.ts';
 export {
+  binConversation,
   loadConversation,
   loadConversations,
   loadSimilarQuestions,

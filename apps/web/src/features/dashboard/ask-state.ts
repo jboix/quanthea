@@ -13,6 +13,7 @@ import {
 } from '@quanthea/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { useFetcher, useRouteLoaderData } from 'react-router';
+import type { OpenConversation } from './ask-data.ts';
 import type { Loaded } from './loaded.ts';
 
 /** How long typing pauses before the earlier answers are looked up, in milliseconds. */
@@ -71,10 +72,11 @@ export function useConversations(dashboardId: string, search: string) {
  *
  * @param dashboardId - The dashboard.
  * @param conversationId - The conversation, or `undefined` for a new one, which has none.
- * @returns The questions, whether they failed to load, and the reload function.
+ * @returns The questions, whether the person may bin it, whether they failed to load, and the
+ *   reload function.
  */
 export function useConversationQuestions(dashboardId: string, conversationId: string | undefined) {
-  const fetcher = useFetcher<Loaded<DashboardQuestion[]>>();
+  const fetcher = useFetcher<Loaded<OpenConversation>>();
   const { load, data } = fetcher;
   const url =
     conversationId && `/d/${dashboardId}/conversations/${encodeURIComponent(conversationId)}`;
@@ -85,13 +87,14 @@ export function useConversationQuestions(dashboardId: string, conversationId: st
     if (url) void load(url);
   }, [load, url]);
   const current = url !== undefined && data !== undefined;
-  const loadedFor = current && data.ok ? data.value : noQuestions;
+  const loadedFor = current && data.ok ? data.value.questions : noQuestions;
   // A conversation's questions all name it, so stale ones of another conversation never show.
   const questions = loadedFor.every((each) => each.conversationId === conversationId)
     ? loadedFor
     : noQuestions;
   const failed = current && data.ok === false ? data.message : undefined;
-  return { questions, failed, reload };
+  const canBin = questions !== noQuestions && data?.ok === true && data.value.canBin;
+  return { questions, canBin, failed, reload };
 }
 
 /**
