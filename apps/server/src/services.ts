@@ -20,6 +20,7 @@ import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
 import { createExplanations, type Explanations } from './dashboards/explanations.ts';
 import { createQuestions, type Questions } from './dashboards/questions.ts';
 import { createSnapshots, type Snapshots } from './dashboards/snapshots.ts';
+import { createAlertActivityRepository } from './db/alert-activity.ts';
 import { createAlertChannelUsage } from './db/alert-channel-usage.ts';
 import { createAlertRepository } from './db/alert-repository.ts';
 import { createAlertStateRepository } from './db/alert-state-repository.ts';
@@ -191,7 +192,8 @@ function alertServices(
   };
   const channelExists = (id: string) => notifications.picker().some((each) => each.id === id);
   const repository = createAlertRepository(database);
-  const base = { ...shared, ...alertEvaluation, audit, repository, channelExists };
+  const activity = createAlertActivityRepository(database);
+  const base = { ...shared, ...alertEvaluation, audit, repository, channelExists, activity };
   const alerts = createAlerts({ ...base, settings: alertSettings });
   return { alerts, alertSettings, alertEvaluation };
 }

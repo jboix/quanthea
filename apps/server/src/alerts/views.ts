@@ -4,6 +4,7 @@
  */
 import {
   type AlertDetail,
+  type AlertListItem,
   type AlertState,
   type AlertSummary,
   alertSpecSchema,
@@ -35,8 +36,20 @@ export function canSeeAlert(alert: AlertRow, role: Role): boolean {
  * @param role - The role.
  * @returns `true` when the role may see it.
  */
-function canSeeVersion(version: AlertVersionRow, role: Role): boolean {
+export function canSeeVersion(version: AlertVersionRow, role: Role): boolean {
   return hasRole(role, 'editor') || version.activatedAt !== null;
+}
+
+/**
+ * Counts series by state.
+ *
+ * @param series - The series.
+ * @returns How many are in each state.
+ */
+export function countStates(series: readonly SeriesRow[]): StateCounts {
+  const counts: StateCounts = {};
+  for (const each of series) counts[each.state] = (counts[each.state] ?? 0) + 1;
+  return counts;
 }
 
 /**
@@ -75,22 +88,22 @@ export function toSummary(
 }
 
 /**
- * Builds an alert's detail.
+ * Builds an alert's detail, but for its channels, sends and activity.
  *
- * @param summary - Its summary.
+ * @param summary - Its list item.
  * @param parts - Its versions, series and recent changes of state.
  * @param role - The role of the reader, for the versions shown.
  * @returns The detail.
  */
 export function toDetail(
-  summary: AlertSummary,
+  summary: AlertListItem,
   parts: {
     readonly versions: readonly AlertVersionRow[];
     readonly series: readonly SeriesRow[];
     readonly events: readonly EventRow[];
   },
   role: Role,
-): AlertDetail {
+): Omit<AlertDetail, 'channels' | 'sends' | 'activity'> {
   const versions = parts.versions
     .filter((version) => canSeeVersion(version, role))
     .map((version) => ({

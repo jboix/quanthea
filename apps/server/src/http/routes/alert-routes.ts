@@ -1,7 +1,7 @@
 /**
- * The alert endpoints. Everyone signed in reads alerts; analysts mute and unmute, for at most
- * seven days; editors activate, deactivate, mute without an end and replay; admins set how many
- * alerts may be active per connector.
+ * The alert endpoints. Everyone signed in reads alerts and replays the versions ever active;
+ * analysts mute and unmute, for at most seven days; editors activate, deactivate, mute without an
+ * end and replay any spec; admins set how many alerts may be active per connector.
  */
 import {
   type AlertDetail,
@@ -52,7 +52,7 @@ async function nameMuter<Summary extends AlertSummary>(
 }
 
 /**
- * Names the people of an alert's detail: whoever muted it and saved each version.
+ * Names the people of an alert's detail: whoever muted it, saved each version and changed it.
  *
  * @param nameOf - Looks a name up by user id.
  * @param detail - The alert.
@@ -68,7 +68,10 @@ async function nameDetail(
       createdBy: await nameOf(version.createdBy),
     })),
   );
-  return nameMuter(nameOf, { ...detail, versions });
+  const activity = await Promise.all(
+    detail.activity.map(async (change) => ({ ...change, by: await nameOf(change.by) })),
+  );
+  return nameMuter(nameOf, { ...detail, versions, activity });
 }
 
 /**
@@ -97,9 +100,9 @@ function mountReadEndpoints(app: Hono<AppEnv>, services: AlertRouteServices): vo
     handle: ({ body: { spec, ...window } }) => alerts.replaySpec(spec, window),
   });
   mountEndpoint(app, replayAlertVersionEndpoint, {
-    access: 'editor',
-    handle: ({ params, body }) =>
-      alerts.replayVersion(params.alertId, Number(params.version), body),
+    access: 'viewer',
+    handle: ({ params, body, principal }) =>
+      alerts.replayVersion(params.alertId, Number(params.version), body, signedIn(principal).role),
   });
 }
 

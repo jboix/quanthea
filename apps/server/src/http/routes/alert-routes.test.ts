@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import {
   alertDetailSchema,
+  alertListItemSchema,
   alertReplaySchema,
   alertSummarySchema,
   connectorInputSchema,
@@ -224,5 +225,81 @@ describe('replaying', () => {
     });
     expect(refused.status).toBe(400);
     expect(refused.body).toMatchObject({ error: { details: [{ part: 'spec', path: 'every' }] } });
+  });
+});
+
+/**
+ * A series as an evaluation leaves it.
+ *
+ * @param service - Its label.
+ * @param state - Its state.
+ * @param value - Its value.
+ * @returns The series row.
+ */
+function seriesRow(service: string, state: 'ok' | 'firing', value: number) {
+  return {
+    key: `{service="${service}"}`,
+    labels: { service },
+    ...{ state, since: 5, value, lastSeenAt: 9, evaluatedAt: 9, notifiedAt: null },
+    announced: false,
+  };
+}
+
+describe('what the alert pages show', () => {
+  test('viewers replay a version ever active, never a draft or a spec', async () => {
+    const id = saveAlert();
+    fixture.alerts.saveVersion({ alertId: id, spec: eventsAlert(), note: 'Draft' }, editor.id);
+    const window = { from: Date.now() - 2 * hour, to: Date.now() - hour };
+    const path = (version: number) => `/api/alerts/${id}/versions/${version}/replay`;
+    expect((await client(viewer)('POST', path(1), window)).status).toBe(404);
+    await client(editor)('POST', `/api/alerts/${id}/activate`, { version: 1 });
+    const replayed = await client(viewer)('POST', path(1), window);
+    expect(alertReplaySchema.parse(replayed.body).replayable).toBe(true);
+    expect((await client(viewer)('POST', path(2), window)).status).toBe(404);
+    expect((await client(editor)('POST', path(2), window)).status).toBe(200);
+  });
+
+  test('lists each alert with its condition and the series in the worst state', async () => {
+    const id = saveAlert();
+    await client(editor)('POST', `/api/alerts/${id}/activate`, { version: 1 });
+    fixture.alertEvaluation.states.saveEvaluation(id, {
+      evaluatedAt: 9,
+      series: [
+        seriesRow('cart', 'ok', 9),
+        seriesRow('pay', 'firing', 6),
+        seriesRow('web', 'firing', 8),
+      ],
+      removed: [],
+      events: [],
+    });
+    const listed = (await client(viewer)('GET', '/api/alerts')).body.alerts as unknown[];
+    expect(listed).toHaveLength(1);
+    expect(alertListItemSchema.parse(listed[0])).toMatchObject({
+      condition: { kind: 'threshold', op: 'above', value: 4, for: '5m' },
+      format: null,
+      lead: { labels: { service: 'web' }, state: 'firing', value: 8 },
+      seriesCount: 3,
+      states: { firing: 2, ok: 1 },
+      lastNotification: null,
+    });
+  });
+
+  test('names who activated and muted an alert, and lists its channels', async () => {
+    const id = saveAlert();
+    await client(editor)('POST', `/api/alerts/${id}/activate`, { version: 1 });
+    const until = Date.now() + day;
+    await client(analyst)('POST', `/api/alerts/${id}/mute`, { until });
+    const detail = alertDetailSchema.parse((await client(viewer)('GET', `/api/alerts/${id}`)).body);
+    const activity = detail.activity.map((each) => [
+      each.action,
+      each.by,
+      each.version,
+      each.until,
+    ]);
+    expect(activity).toEqual([
+      ['mute', 'Ana', null, until],
+      ['activate', 'Eddie', 1, null],
+    ]);
+    expect(detail).toMatchObject({ channels: [], sends: [], lead: null, seriesCount: 0 });
   });
 });

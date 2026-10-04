@@ -602,6 +602,21 @@ that fired least come without their points.
 
 **The purge job** deletes the changes of state older than 90 days.
 
+**Reading alerts** (`alerts/listing.ts`, over `db/alert-activity.ts`). Every role reads what the
+alert pages show:
+
+- The list gives each alert the condition and value format of the version shown (the active one,
+  else the latest), how many series it has, the series that stands for it (the worst state, then
+  the value furthest past the threshold), and the latest message sent about it: the channel's name,
+  the time, and whether it got through.
+- An alert's detail adds the channels of the version shown, by name and kind; the latest 20
+  messages sent about it, by channel name, event, series and time; and the latest 50 activations,
+  deactivations, mutes and unmutes from the audit log, each with who did it. Channel targets never
+  leave the settings.
+- A version replays for every role that sees it: viewers and analysts replay the versions ever
+  active, as they read them. A replay runs the version's saved query, as a panel run does, so it
+  shows nothing a dashboard of the same query would not.
+
 ## 6. The agent
 
 ### Tools
@@ -1809,7 +1824,8 @@ indicative; the contract files are the source of truth.
 | `GET /alerts`, `GET /alerts/:id` (versions ever active, series, changes; drafts: editor only)     | alerts and their state                       | viewer   |
 | `POST /alerts/:id/mute` (an end at most 7 days ahead; no end: editor), `POST /alerts/:id/unmute`  | stop or resume notifications                 | analyst  |
 | `POST /alerts/:id/activate` (a version), `POST /alerts/:id/deactivate`                            | choose the version evaluated, or stop        | editor   |
-| `POST /alerts/replay` (a spec), `POST /alerts/:id/versions/:v/replay`                             | how it would have fired over a past window   | editor   |
+| `POST /alerts/replay` (a spec)                                                                    | how a draft would have fired over a window   | editor   |
+| `POST /alerts/:id/versions/:v/replay` (below editor: a version ever active)                       | how a version fired over a past window       | viewer   |
 | `GET/PUT /settings/alerts`                                                                        | the most alerts active per connector         | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,

@@ -4,6 +4,8 @@
  * never rewritten, and one version at a time is active.
  */
 import { z } from 'zod';
+import { namedFormatterSchema } from '../formatters/schema.ts';
+import { notificationEvents } from '../notifications.ts';
 import { alertSeverities, alertSpecSchema } from '../spec/alert.ts';
 import { durationSchema } from '../spec/queries.ts';
 import { defineEndpoint } from './contract.ts';
@@ -51,6 +53,49 @@ export const alertSummarySchema = z.object({
 /** An alert without its history. */
 export type AlertSummary = z.infer<typeof alertSummarySchema>;
 
+/** Validates the condition of the version shown, as the spec has it. */
+const listedConditionSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('threshold'),
+    op: z.enum(['above', 'below']),
+    value: z.number(),
+    for: z.string(),
+  }),
+  z.object({ kind: z.literal('no_data'), for: z.string() }),
+]);
+
+/** Validates the series that stands for an alert: the worst state, then the worst value. */
+const leadSeriesSchema = z.object({
+  labels: labelsSchema,
+  state: z.enum(alertStates),
+  since: z.number(),
+  value: z.number().nullable(),
+});
+
+/** Validates the latest message sent about an alert: the channel by name only, never its target. */
+const lastNotificationSchema = z.object({
+  channel: z.string(),
+  at: z.number(),
+  ok: z.boolean(),
+});
+
+/** Validates an alert as the list shows it: its summary, its condition and its worst series. */
+export const alertListItemSchema = alertSummarySchema.extend({
+  /** The condition of the active version, else of the latest. */
+  condition: listedConditionSchema,
+  /** How the value reads, from the same version. */
+  format: namedFormatterSchema.nullable(),
+  /** The series in the worst state, with the worst value; `null` before the first evaluation. */
+  lead: leadSeriesSchema.nullable(),
+  /** How many series the last evaluation kept, the alert as a whole included. */
+  seriesCount: z.int(),
+  /** The latest message sent about it, if any. */
+  lastNotification: lastNotificationSchema.nullable(),
+});
+
+/** An alert as the list shows it. */
+export type AlertListItem = z.infer<typeof alertListItemSchema>;
+
 /** Validates a version of an alert. */
 const alertVersionSchema = z.object({
   version: z.int(),
@@ -89,11 +134,45 @@ const alertEventSchema = z.object({
   notified: z.boolean(),
 });
 
+/** Validates a channel an alert sends to, by name and kind only. */
+const alertChannelSchema = z.object({ id: z.string(), name: z.string(), kind: z.string() });
+
+/** Validates a message sent about an alert: the channel by name, never its target. */
+const alertSendSchema = z.object({
+  channel: z.string(),
+  kind: z.string(),
+  event: z.enum(notificationEvents),
+  seriesKey: z.string(),
+  at: z.number(),
+  ok: z.boolean(),
+});
+
+/** What people did to an alert, for the timeline. */
+export const alertActions = ['activate', 'deactivate', 'mute', 'unmute'] as const;
+
+/** Validates something someone did to an alert. */
+const alertActivitySchema = z.object({
+  action: z.enum(alertActions),
+  at: z.number(),
+  /** The name of whoever did it. */
+  by: z.string(),
+  /** The version activated. */
+  version: z.int().nullable(),
+  /** The end of a mute; `null` until someone unmutes, or for other actions. */
+  until: z.number().nullable(),
+});
+
 /** Validates an alert with its versions, series and recent changes of state. */
-export const alertDetailSchema = alertSummarySchema.extend({
+export const alertDetailSchema = alertListItemSchema.extend({
   versions: z.array(alertVersionSchema),
   series: z.array(alertSeriesSchema),
   events: z.array(alertEventSchema),
+  /** The channels the version shown sends to; a channel deleted since is left out. */
+  channels: z.array(alertChannelSchema),
+  /** The latest messages sent about it, the latest first. */
+  sends: z.array(alertSendSchema),
+  /** Activations, deactivations and mutes, the latest first. */
+  activity: z.array(alertActivitySchema),
 });
 
 /** An alert with its versions, series and recent changes of state. */
@@ -106,7 +185,7 @@ const alertParams = z.object({ alertId: z.string().min(1).max(64) });
 export const listAlertsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/alerts',
-  output: z.object({ alerts: z.array(alertSummarySchema) }),
+  output: z.object({ alerts: z.array(alertListItemSchema) }),
 });
 
 /** Reads an alert. Viewers see the versions that were ever active. */
@@ -202,7 +281,7 @@ export const replayAlertSpecEndpoint = defineEndpoint({
   output: alertReplaySchema,
 });
 
-/** Replays a saved version over a past window. */
+/** Replays a saved version over a past window. Viewers replay the versions ever active. */
 export const replayAlertVersionEndpoint = defineEndpoint({
   method: 'POST',
   path: '/alerts/:alertId/versions/:version/replay',

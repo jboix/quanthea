@@ -170,7 +170,7 @@ describe('route access', () => {
     ]);
   });
 
-  test('every role reads alerts; analysts mute; editors activate and replay', () => {
+  test('every role reads and replays alerts; analysts mute; editors activate and replay drafts', () => {
     const alertRoutes = listApiRouteAccess(buildApp())
       .filter((route) => /^\/api\/alerts/.test(route.path))
       .map((route) => `${route.access} ${route.method} ${route.path}`);
@@ -179,10 +179,10 @@ describe('route access', () => {
       'analyst POST /api/alerts/:alertId/unmute',
       'editor POST /api/alerts/:alertId/activate',
       'editor POST /api/alerts/:alertId/deactivate',
-      'editor POST /api/alerts/:alertId/versions/:version/replay',
       'editor POST /api/alerts/replay',
       'viewer GET /api/alerts',
       'viewer GET /api/alerts/:alertId',
+      'viewer POST /api/alerts/:alertId/versions/:version/replay',
     ]);
   });
 

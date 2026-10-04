@@ -6,6 +6,7 @@
 import { type AlertSettings, type AlertSpec, hasRole, type Principal } from '@quanthea/shared';
 import type { ConnectorLookup } from '../dashboards/check-queries.ts';
 import { refuseSpec } from '../dashboards/context.ts';
+import type { AlertActivityRepository } from '../db/alert-activity.ts';
 import type { AlertRepository, AlertRow } from '../db/alert-repository.ts';
 import type { AlertStateRepository } from '../db/alert-state-repository.ts';
 import type { AuditRepository } from '../db/audit-repository.ts';
@@ -24,6 +25,8 @@ export interface AlertsDependencies extends AlertQueryDependencies {
   readonly states: AlertStateRepository;
   /** Records who did what. */
   readonly audit: AuditRepository;
+  /** Reads the channels, the sends and the audited changes of alerts; none when left out. */
+  readonly activity?: AlertActivityRepository | undefined;
   /** Finds a connector by name, for validation. */
   readonly lookup: ConnectorLookup;
   /** The alert settings. */
