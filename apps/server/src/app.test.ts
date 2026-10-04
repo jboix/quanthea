@@ -110,7 +110,7 @@ describe('route access', () => {
     const settingsRoutes = listApiRouteAccess(buildApp()).filter((route) =>
       /^\/api\/settings/.test(route.path),
     );
-    expect(settingsRoutes.length).toBe(26);
+    expect(settingsRoutes.length).toBe(28);
     expect(settingsRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 
@@ -143,7 +143,13 @@ describe('route access', () => {
         .filter((route) => route.access === 'public' || hasRole(role, route.access ?? 'admin'))
         .map((route) => `${route.method} ${route.path}`);
     const viewers = new Set(reachable('viewer'));
-    expect(reachable('analyst').filter((route) => !viewers.has(route))).toEqual([
+    expect(
+      reachable('analyst')
+        .filter((route) => !viewers.has(route))
+        .sort(),
+    ).toEqual([
+      'POST /api/alerts/:alertId/mute',
+      'POST /api/alerts/:alertId/unmute',
       'POST /api/dashboards/:dashboardId/questions',
       'POST /api/dashboards/:dashboardId/versions/:version/panels/:panelId/explanation',
     ]);
@@ -161,6 +167,22 @@ describe('route access', () => {
       'viewer GET /api/dashboards/:dashboardId/questions/:questionId',
       'viewer GET /api/dashboards/:dashboardId/similar-questions',
       'viewer GET /api/dashboards/:dashboardId/versions/:version/sources',
+    ]);
+  });
+
+  test('every role reads alerts; analysts mute; editors activate and replay', () => {
+    const alertRoutes = listApiRouteAccess(buildApp())
+      .filter((route) => /^\/api\/alerts/.test(route.path))
+      .map((route) => `${route.access} ${route.method} ${route.path}`);
+    expect(alertRoutes.sort()).toEqual([
+      'analyst POST /api/alerts/:alertId/mute',
+      'analyst POST /api/alerts/:alertId/unmute',
+      'editor POST /api/alerts/:alertId/activate',
+      'editor POST /api/alerts/:alertId/deactivate',
+      'editor POST /api/alerts/:alertId/versions/:version/replay',
+      'editor POST /api/alerts/replay',
+      'viewer GET /api/alerts',
+      'viewer GET /api/alerts/:alertId',
     ]);
   });
 

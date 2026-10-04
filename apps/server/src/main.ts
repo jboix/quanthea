@@ -11,6 +11,7 @@ import { connectorKinds } from './connectors/registry.ts';
 import { openDatabase } from './db/database.ts';
 import { runMigrations } from './db/migrate.ts';
 import { createSettingsRepository } from './db/settings-repository.ts';
+import { startAlertEvaluator } from './jobs/alert-evaluator.ts';
 import { startPurgeJob } from './jobs/purge.ts';
 import { createLogger } from './lib/logger.ts';
 import { loadPlugins, missingPinned } from './plugins/load.ts';
@@ -48,6 +49,7 @@ const dependencies = {
   sessionHashes: keys.sessionHashes,
   peppers: keys.peppers,
   publicUrl: config.publicUrl,
+  logger,
 };
 const resealed = await resealSecrets(dependencies);
 if (resealed > 0) logger.info('sealed secrets again with the current key', { resealed });
@@ -77,6 +79,11 @@ const app = createApp({
   ...services,
 });
 const stopPurgeJob = startPurgeJob({ ...services, logger });
+const stopAlertEvaluator = startAlertEvaluator({
+  alerts: services.alerts,
+  evaluation: services.alertEvaluation,
+  logger,
+});
 
 // A model call or a chat stream can go quiet for longer than Bun's default of 10 seconds.
 const server = Bun.serve({ port: config.port, fetch: app.fetch, idleTimeout: 255 });
@@ -90,6 +97,7 @@ logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir
 async function shutdown(signal: string): Promise<void> {
   logger.info('shutting down', { signal });
   stopPurgeJob();
+  stopAlertEvaluator();
   await server.stop();
   await services.connections.closeAll();
   database.close();

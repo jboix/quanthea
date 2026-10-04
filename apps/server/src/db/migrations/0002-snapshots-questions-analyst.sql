@@ -4,6 +4,7 @@
 -- - questions about a pinned dashboard, in conversations, with their full-text index;
 -- - explanations of the panels of a version;
 -- - the feature each model step served, in the usage ledger.
+-- - alerts, their versions, the state of their series and what happened to them.
 
 -- Snapshot links: a dashboard version frozen with the results its panels showed. The id is the
 -- unguessable part of the link (128 random bits). A snapshot goes when its time is up, when someone
@@ -256,3 +257,101 @@ CREATE TABLE notification_sends (
 );
 
 CREATE INDEX notification_sends_by_channel ON notification_sends (channel_id, at);
+-- ---------------------------------------------------------------------------------------- alerts
+-- Alerts: a query, a condition and a message, evaluated by the server with no model. Like
+-- dashboards they have versions that are never rewritten; one version at a time is active.
+-- Deactivating stops evaluation and keeps the active version. Muting stops notifications only:
+-- evaluation and state go on. `muted_until` NULL with `muted_at` set mutes until someone unmutes.
+CREATE TABLE alerts (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  -- The conversation that made it, if any; the alert outlives a purged thread.
+  thread_id TEXT REFERENCES threads (id) ON DELETE SET NULL,
+  active_version INTEGER,
+  deactivated_at INTEGER,
+  muted_at INTEGER,
+  muted_by TEXT,
+  muted_until INTEGER,
+  -- When it was last evaluated, so the evaluator knows when it is due.
+  evaluated_at INTEGER,
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY (id, active_version) REFERENCES alert_versions (alert_id, version),
+  CHECK ((muted_at IS NULL) = (muted_by IS NULL)),
+  CHECK (muted_until IS NULL OR muted_at IS NOT NULL)
+);
+
+CREATE INDEX alerts_evaluated ON alerts (active_version)
+WHERE active_version IS NOT NULL AND deactivated_at IS NULL;
+
+CREATE INDEX alerts_by_thread ON alerts (thread_id) WHERE thread_id IS NOT NULL;
+
+-- The versions of an alert, numbered from 1. `activated_at` is when a version was first active.
+CREATE TABLE alert_versions (
+  alert_id TEXT NOT NULL REFERENCES alerts (id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  -- JSON: the alert spec.
+  spec TEXT NOT NULL,
+  note TEXT,
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  activated_at INTEGER,
+  PRIMARY KEY (alert_id, version)
+);
+
+-- Every version is immutable, whatever the application code does.
+CREATE TRIGGER alert_versions_are_immutable
+BEFORE UPDATE OF alert_id, version, spec, note, created_by, created_at ON alert_versions
+BEGIN
+  SELECT RAISE(ABORT, 'alert versions are immutable');
+END;
+
+-- A version keeps the time it was first activated.
+CREATE TRIGGER alert_first_activation_is_kept
+BEFORE UPDATE OF activated_at ON alert_versions
+WHEN OLD.activated_at IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'a version keeps the time it was first activated');
+END;
+
+-- The state of each series of an alert, as the last evaluation left it. The key is the series'
+-- labels written in order; the empty key stands for the alert as a whole.
+CREATE TABLE alert_series (
+  alert_id TEXT NOT NULL REFERENCES alerts (id) ON DELETE CASCADE,
+  series_key TEXT NOT NULL,
+  -- JSON: the labels.
+  labels TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('ok', 'pending', 'firing', 'no_data', 'error')),
+  -- When it entered its state.
+  since INTEGER NOT NULL,
+  value REAL,
+  -- When the result last held it: a series left out resolves after a grace period.
+  last_seen_at INTEGER NOT NULL,
+  evaluated_at INTEGER NOT NULL,
+  notified_at INTEGER,
+  -- 1 once it announced firing, until it announces resolving.
+  announced INTEGER NOT NULL DEFAULT 0 CHECK (announced IN (0, 1)),
+  PRIMARY KEY (alert_id, series_key)
+);
+
+-- What happened: each change of state of a series, kept 90 days by the purge job.
+CREATE TABLE alert_events (
+  id TEXT PRIMARY KEY,
+  alert_id TEXT NOT NULL REFERENCES alerts (id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  series_key TEXT NOT NULL,
+  labels TEXT NOT NULL,
+  from_state TEXT NOT NULL CHECK (from_state IN ('ok', 'pending', 'firing', 'no_data', 'error')),
+  to_state TEXT NOT NULL CHECK (to_state IN ('ok', 'pending', 'firing', 'no_data', 'error')),
+  at INTEGER NOT NULL,
+  value REAL,
+  -- Why the query failed, for a change to `error`.
+  message TEXT,
+  -- 1 when the change sent a notification.
+  notified INTEGER NOT NULL DEFAULT 0 CHECK (notified IN (0, 1))
+);
+
+CREATE INDEX alert_events_by_alert ON alert_events (alert_id, at);
+
+CREATE INDEX alert_events_by_time ON alert_events (at);

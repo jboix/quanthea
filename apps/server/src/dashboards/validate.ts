@@ -34,7 +34,7 @@ export type ValidationResult =
  * @param timezone - The IANA zone, if any.
  * @returns The issue, if any.
  */
-function checkTimezone(timezone: string | undefined): SpecIssue[] {
+export function checkTimezone(timezone: string | undefined): SpecIssue[] {
   if (timezone === undefined) return [];
   try {
     new Intl.DateTimeFormat('en', { timeZone: timezone });

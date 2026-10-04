@@ -97,7 +97,7 @@ function sampleBinding(variable: Variable) {
  * @param timeRange - The default time range.
  * @returns The issue, if any.
  */
-function checkBinding(
+export function checkBinding(
   located: LocatedQuery,
   connector: ConnectorFacts,
   variables: Variables,
@@ -121,7 +121,7 @@ function checkBinding(
  * @param connector - The connector, if it exists.
  * @returns The issues.
  */
-function checkConnector(
+export function checkConnector(
   located: LocatedQuery,
   connector: ConnectorFacts | MissingKind | undefined,
 ): SpecIssue[] {

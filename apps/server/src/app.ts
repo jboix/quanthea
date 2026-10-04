@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import type { Answers } from './agent/answer-types.ts';
 import type { Agent } from './agent/run.ts';
+import type { Alerts } from './alerts/alerts.ts';
 import type { Authenticator } from './auth/authenticator.ts';
 import type { DefaultAdminDependencies } from './auth/default-admin.ts';
 import type { PasswordAccounts } from './auth/password-accounts.ts';
@@ -24,6 +25,7 @@ import { authenticate } from './http/authenticate.ts';
 import { refuseCrossSite } from './http/csrf.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
+import { mountAlertEndpoints } from './http/routes/alert-routes.ts';
 import { mountAuthRoutes } from './http/routes/auth-routes.ts';
 import { mountBinEndpoints } from './http/routes/bin-routes.ts';
 import { mountChartEndpoints } from './http/routes/chart-routes.ts';
@@ -51,6 +53,7 @@ import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
 import type { Notifications } from './notifications/notifications.ts';
 import type { Managed } from './provisioning/managed.ts';
+import type { AlertSettingsService } from './settings/alert-settings.ts';
 import type { ChartSettingsService } from './settings/chart-settings.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
 import type { QuerySettingsService } from './settings/query-settings.ts';
@@ -127,6 +130,10 @@ export interface AppDependencies {
   readonly serverSettings: ServerSettingsView;
   /** The notification channels. */
   readonly notifications: Notifications;
+  /** The alerts. */
+  readonly alerts: Alerts;
+  /** How many alerts may be active per connector. */
+  readonly alertSettings: AlertSettingsService;
 }
 
 /**
@@ -187,6 +194,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountSettingsRoutes(app, dependencies);
   mountThreadEndpoints(app, dependencies);
   mountBinEndpoints(app, dependencies);
+  mountAlertEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent, dependencies.threads);
 }
 

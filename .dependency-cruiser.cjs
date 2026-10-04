@@ -214,6 +214,19 @@ module.exports = {
       },
     },
     {
+      name: 'alerts-stay-in-their-lane',
+      severity: 'error',
+      comment:
+        'alerts/ validates, stores, evaluates and replays alert specs, with no model. It reaches ' +
+        'connectors and notification channels only through the functions the bootstrap hands it, ' +
+        "so it imports the database, query/, the dashboards' spec checks and lib/, nothing else.",
+      from: { path: '^apps/server/src/alerts/', pathNot: ['[.]test[.]ts$'] },
+      to: {
+        path: '^apps/server/src/',
+        pathNot: '^apps/server/src/(alerts|dashboards|db|query|lib)/',
+      },
+    },
+    {
       name: 'connections-below-http',
       severity: 'error',
       comment:

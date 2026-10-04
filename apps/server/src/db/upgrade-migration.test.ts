@@ -250,3 +250,50 @@ describe('the new tables after the upgrade', () => {
     expect(countOf('notification_sends')).toBe(0);
   });
 });
+
+/** Stores a thread, and the alert `a` it made with an active version, a series and an event. */
+function storeAlertRecords(): void {
+  database.run("INSERT INTO threads (id, created_at, updated_at) VALUES ('t', 0, 0)");
+  database.run(
+    `INSERT INTO alerts (id, title, thread_id, created_by, created_at, updated_at)
+     VALUES ('a', 'Checkout 5xx', 't', 'ada', 0, 0)`,
+  );
+  database.run(
+    `INSERT INTO alert_versions (alert_id, version, spec, created_by, created_at)
+     VALUES ('a', 1, '{}', 'ada', 0)`,
+  );
+  database.run("UPDATE alerts SET active_version = 1 WHERE id = 'a'");
+  database.run(
+    `INSERT INTO alert_series (alert_id, series_key, labels, state, since, last_seen_at,
+       evaluated_at) VALUES ('a', '{}', '{}', 'firing', 0, 0, 0)`,
+  );
+  database.run(
+    `INSERT INTO alert_events (id, alert_id, version, series_key, labels, from_state, to_state, at)
+     VALUES ('e', 'a', 1, '{}', '{}', 'pending', 'firing', 0)`,
+  );
+}
+
+describe('the alerts after the upgrade', () => {
+  test('hold versions that are never rewritten, and an active version that exists', () => {
+    upgradeDatabase(releasedDatabase());
+    storeAlertRecords();
+    expect(() => database.run("UPDATE alert_versions SET spec = '[]'")).toThrow('immutable');
+    database.run("UPDATE alert_versions SET activated_at = 1 WHERE alert_id = 'a'");
+    expect(() => database.run('UPDATE alert_versions SET activated_at = 2')).toThrow('first');
+    expect(() => database.run("UPDATE alerts SET active_version = 9 WHERE id = 'a'")).toThrow(
+      'FOREIGN KEY',
+    );
+    expect(() => database.run("UPDATE alert_series SET state = 'loud'")).toThrow('CHECK');
+  });
+
+  test('outlive the thread that made them, and take their state with them when deleted', () => {
+    upgradeDatabase(releasedDatabase());
+    storeAlertRecords();
+    database.run("DELETE FROM threads WHERE id = 't'");
+    const thread = database.query<{ thread_id: string | null }, []>('SELECT thread_id FROM alerts');
+    expect(thread.get()).toEqual({ thread_id: null });
+    database.run("DELETE FROM alerts WHERE id = 'a'");
+    const tables = ['alerts', 'alert_versions', 'alert_series', 'alert_events'];
+    expect(tables.map(countOf)).toEqual([0, 0, 0, 0]);
+  });
+});

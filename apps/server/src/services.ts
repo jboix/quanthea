@@ -9,6 +9,8 @@ import { createAnswers } from './agent/answer.ts';
 import type { Answers } from './agent/answer-types.ts';
 import { createMetadataWriter, type PinMetadata } from './agent/metadata.ts';
 import { type Agent, createAgent } from './agent/run.ts';
+import { type Alerts, createAlerts } from './alerts/alerts.ts';
+import type { EvaluationDependencies, Notify } from './alerts/evaluate.ts';
 import { resealIdentities, resealSignInCredentials, resealUsers } from './auth/reseal-users.ts';
 import { type Connections, createConnections } from './connections/connections.ts';
 import { resealConnectors } from './connections/reseal.ts';
@@ -18,6 +20,8 @@ import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
 import { createExplanations, type Explanations } from './dashboards/explanations.ts';
 import { createQuestions, type Questions } from './dashboards/questions.ts';
 import { createSnapshots, type Snapshots } from './dashboards/snapshots.ts';
+import { createAlertRepository } from './db/alert-repository.ts';
+import { createAlertStateRepository } from './db/alert-state-repository.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
 import { createChannelRepository } from './db/channel-repository.ts';
 import { createConnectorRepository } from './db/connector-repository.ts';
@@ -32,11 +36,13 @@ import { createThreadRepository } from './db/thread-repository.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
 import { createUserRepository } from './db/user-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
+import type { Logger } from './lib/logger.ts';
 import { createNotifications, type Notifications } from './notifications/notifications.ts';
 import { resealChannels } from './notifications/reseal.ts';
 import { createManaged, type Managed } from './provisioning/managed.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
+import { type AlertSettingsService, createAlertSettings } from './settings/alert-settings.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
 import {
   createModelSettings,
@@ -56,6 +62,10 @@ import { createUsage, type Usage } from './usage/usage.ts';
 export interface ServiceDependencies extends AccountDependencies {
   /** The connector kinds on offer. */
   readonly kinds: readonly RegisteredKind[];
+  /** Sends alert notifications to channels; logs them when left out. */
+  readonly notify?: Notify;
+  /** Where the default `notify` logs. */
+  readonly logger?: Logger;
 }
 
 /** The services the HTTP layer calls. */
@@ -102,6 +112,12 @@ export interface Services extends Accounts {
   readonly retention: RetentionSettingsService;
   /** The notification channels, and sending to them. */
   readonly notifications: Notifications;
+  /** Alerts: their versions, state, mutes and replays. */
+  readonly alerts: Alerts;
+  /** How many alerts may be active per connector. */
+  readonly alertSettings: AlertSettingsService;
+  /** What the alert evaluator needs to evaluate one alert, but the logger. */
+  readonly alertEvaluation: Omit<EvaluationDependencies, 'logger'>;
 }
 
 /** How long a query result stays cached, in milliseconds. */
@@ -144,7 +160,57 @@ function dataServices(
   const { subjects: list, open, snapshot } = connections;
   const modelView = createModelView({ list, open, snapshot }, executor);
   const answered = answerServices(database, dashboardDependencies, modelView);
-  return { connections, dashboards, snapshots, ...answered, modelView };
+  const alerting = alertServices(dependencies, audit, dashboardDependencies);
+  return { connections, dashboards, snapshots, ...answered, modelView, ...alerting };
+}
+
+/**
+ * Logs the notifications an alert sends, until notification channels are connected.
+ *
+ * @param logger - Where to log; nothing is logged without one.
+ * @returns The sender.
+ */
+function logNotifications(logger: Logger | undefined): Notify {
+  return (channelIds, notification) => {
+    const { event, alert, series } = notification;
+    logger?.info('alert notification', {
+      event,
+      alertId: alert.id,
+      series: series.key,
+      channelIds,
+    });
+    return Promise.resolve();
+  };
+}
+
+/**
+ * The alerts, their settings, and what evaluating one needs. They share the panels' executor.
+ *
+ * @param dependencies - The database, the settings store, the sender and the public URL.
+ * @param audit - The audit log.
+ * @param dashboardDependencies - The connectors and the executor the dashboards use.
+ * @returns The services.
+ */
+function alertServices(
+  dependencies: ServiceDependencies,
+  audit: ReturnType<typeof createAuditRepository>,
+  dashboardDependencies: Pick<DashboardsDependencies, 'lookup' | 'openSource' | 'executor'>,
+): Pick<Services, 'alerts' | 'alertSettings' | 'alertEvaluation'> {
+  const { database } = dependencies;
+  const states = createAlertStateRepository(database);
+  const alertSettings = createAlertSettings({ store: dependencies.settings, audit });
+  const repository = createAlertRepository(database);
+  const base = { ...dashboardDependencies, states, audit, repository };
+  const alerts = createAlerts({ ...base, settings: alertSettings });
+  const origin = dependencies.publicUrl?.replace(/\/$/, '') ?? '';
+  const alertEvaluation = {
+    openSource: dashboardDependencies.openSource,
+    executor: dashboardDependencies.executor,
+    states,
+    notify: dependencies.notify ?? logNotifications(dependencies.logger),
+    alertUrl: (alertId: string) => `${origin}/alerts/${encodeURIComponent(alertId)}`,
+  };
+  return { alerts, alertSettings, alertEvaluation };
 }
 
 /**

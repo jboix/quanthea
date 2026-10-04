@@ -1,5 +1,6 @@
 /** The typed settings store: one Zod-validated JSON document per section. */
 import {
+  alertSettingsSchema,
   chartSettingsSchema,
   defaultModelGateway,
   modelGatewaySchema,
@@ -27,6 +28,8 @@ const sectionSchemas = {
   'sign-in': storedSignInSchema,
   /** Each provider's client id and secret, sealed together, by provider id. */
   'sign-in-credentials': z.object({ sealed: z.record(z.string(), z.string()) }),
+  /** How many alerts may be active per connector. */
+  alerts: alertSettingsSchema,
 };
 
 /** A settings section name. */
@@ -44,6 +47,7 @@ const sectionDefaults: { readonly [Name in SectionName]: SectionValue<Name> } = 
   retention: { binDays: 30 },
   'sign-in': { providers: [], passwordSignIn: true },
   'sign-in-credentials': { sealed: {} },
+  alerts: { maxActivePerConnector: 50 },
 };
 
 /** Reads and writes settings sections. */

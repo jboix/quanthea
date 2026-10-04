@@ -1,8 +1,11 @@
 /**
  * The purge job: once at startup and then every hour, it deletes for good the threads that have
  * waited in the bin longer than the retention setting allows, the snapshots whose time is up, the
- * sessions that have ended, and the old sends of the notification channels' log.
+ * sessions that have ended, the old sends of the notification channels' log, and the alerts'
+ * changes of state older than 90 days.
  */
+
+import type { Alerts } from '../alerts/alerts.ts';
 import type { Sessions } from '../auth/sessions.ts';
 import type { Snapshots } from '../dashboards/snapshots.ts';
 import type { Logger } from '../lib/logger.ts';
@@ -18,6 +21,8 @@ export interface PurgeJobDependencies {
   readonly retention: Pick<RetentionSettingsService, 'get'>;
   /** The snapshots, whose expired ones the job deletes. */
   readonly snapshots?: Pick<Snapshots, 'purgeExpired'> | undefined;
+  /** The alerts, whose changes of state older than 90 days the job deletes. */
+  readonly alerts?: Pick<Alerts, 'purgeEvents'> | undefined;
   /** The sessions, whose ended rows the job deletes. */
   readonly sessions?: Pick<Sessions, 'purgeEnded'> | undefined;
   /** The notification channels, whose log keeps only recent sends. */
@@ -66,7 +71,7 @@ export function purgeSnapshots(dependencies: PurgeJobDependencies): number {
  * Starts the purge job: now, then every hour. A failed run is logged and the next one tries again.
  *
  * @param dependencies - The bin, the retention settings, the snapshots, the sessions, the
- *   notifications, the logger and the clock.
+ *   notifications, the alerts, the logger and the clock.
  * @returns Stops the job.
  */
 export function startPurgeJob(dependencies: PurgeJobDependencies): () => void {
@@ -76,6 +81,7 @@ export function startPurgeJob(dependencies: PurgeJobDependencies): () => void {
       purgeSnapshots(dependencies);
       dependencies.sessions?.purgeEnded();
       dependencies.notifications?.purgeSends();
+      dependencies.alerts?.purgeEvents();
     } catch (error) {
       dependencies.logger.error('the purge job failed', { error: String(error) });
     }

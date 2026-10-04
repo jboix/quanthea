@@ -4,7 +4,8 @@ How quanthea is laid out and how the pieces talk to each other. The design is de
 simple: one Bun process, one SQLite file, one React SPA. The complexity budget goes to the parts
 that deserve it: the spec, the access gate and the agent loop.
 
-The spec format is in [dashboard-spec.md](dashboard-spec.md).
+The spec format is in [dashboard-spec.md](dashboard-spec.md); alerts have their own,
+[alert-spec.md](alert-spec.md).
 
 ---
 
@@ -24,9 +25,9 @@ flowchart LR
     Gate["gate/ access levels + redaction"]
     Query["query/ executor: bind vars, guardrails, cache"]
     Conn["connectors/ postgres · mysql · clickhouse · trino · prometheus · elasticsearch · loki"]
-    Dom["dashboards/ threads/ search/ settings/ auth/"]
+    Dom["dashboards/ alerts/ threads/ search/ settings/ auth/"]
     DB[("SQLite: data dir")]
-    Jobs["jobs/ purge: thread bin, expired snapshots, old sends"]
+    Jobs["jobs/ purge: thread bin, expired snapshots, old sends · alert evaluator"]
   end
 
   LLM["Model gateway (Anthropic / OpenAI / OpenAI-compatible)"]
@@ -82,11 +83,13 @@ The two paths that matter:
 │   │       ├── dashboards/          versions, validate, pin, copies, library, snapshots; queries/
 │   │       │                        (builders, saved and raw queries) and panels/ (edits: data +
 │   │       │                        chart, layout)
+│   │       ├── alerts/              alert specs: validate, versions, mute, the state machine,
+│   │       │                        evaluate one alert, replay over a past window
 │   │       ├── threads/             threads, messages, plans (state machine)
-│   │       ├── settings/            typed settings store (auth, gateway, retention)
+│   │       ├── settings/            typed settings store (auth, gateway, retention, alerts)
 │   │       ├── secrets/             encrypt/decrypt credentials at rest
 │   │       ├── notifications/       notification channels: one recipe per service, sending, the log
-│   │       ├── jobs/                in-process jobs: the hourly purge of the bin and of snapshots
+│   │       ├── jobs/                in-process jobs: the hourly purge, the alert evaluator
 │   │       └── db/                  bun:sqlite client, migrations, repositories
 │   └── web/                         @quanthea/web
 │       ├── index.html
@@ -113,7 +116,7 @@ The two paths that matter:
 │   │                                query languages every connector shares (frames.ts)
 │   └── shared/                      @quanthea/shared  (isomorphic: browser + Bun)
 │       └── src/
-│           ├── spec/                dashboard spec Zod schemas + types
+│           ├── spec/                dashboard and alert spec Zod schemas + types
 │           ├── api/                 endpoint contracts (method, path, input, output)
 │           ├── formatters/          named formatter library (pure functions)
 │           ├── dataset/             the data contract: datasets, shapes, reshaping, from frames
@@ -147,6 +150,7 @@ them.
 | `gate/`              | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                    | `agent`, `http`                                 |
 | `agent/`             | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `settings`, `lib`                  | **`connectors`, `query`, `db`**                 |
 | `dashboards/`        | validate, store, pin and run specs                          | `db`, `query`, `lib`, shared; connectors through injected functions | `http`, `agent`, `connections`, `connectors`    |
+| `alerts/`            | validate, store, evaluate and replay alert specs            | `db`, `query`, `dashboards`, `lib`, shared; the rest injected       | everything else                                 |
 | `threads/`           | domain logic                                                | `db`, `lib`, shared                                                 | `http`, `agent`                                 |
 | `settings/`          | typed settings sections; the model key, sealed              | `db`, `secrets`, `lib`, shared                                      | `http`, `agent`                                 |
 | `connections/`       | configured connectors: CRUD, sealed secrets, open instances | `db`, `secrets`, `connectors`, `gate`, `query` types, `lib`         | `http`, `auth`, `agent`                         |
@@ -229,7 +233,8 @@ The roles rank viewer, analyst, editor, admin (`roles` in `@quanthea/shared`), a
 the one check of a minimum role, on the server and in the browser. An analyst reads everything a
 viewer reads and also asks questions about pinned dashboards (`POST
 /api/dashboards/:id/questions`) and asks for a panel's explanation; every role reads the questions
-asked, their answers, the conversations they form and the explanations.
+asked, their answers, the conversations they form and the explanations. An analyst also mutes an
+alert for up to seven days.
 
 Route loaders fetch through the typed API client. The root loader loads the session
 (`GET /api/me`, once per page load). Without a session, every screen redirects to
@@ -516,6 +521,79 @@ only admins add, change and delete channels.
   test, Recent sends (its log), Edit (an empty target or secret keeps the stored one) and Delete,
   asked twice and refused while alerts send to it. A panel shows what a generic webhook receives,
   headers and body, built by the preview endpoint from the sample message.
+
+### 5.8 Alerts (no model)
+
+An alert watches one query and notifies channels when a condition holds. The spec is in
+[alert-spec.md](alert-spec.md). The server evaluates it with no model: the query runs through
+`query/` like a panel's, with the alert's fixed variables bound, the connector's guardrails, row
+limit and timeout, and never through the gate.
+
+**Versions.** Like dashboards, alerts have versions that are never rewritten (a trigger enforces
+it). One version at a time is active (`alerts.active_version`), and activating chooses it, as pinning
+does for a dashboard. A version keeps the time it was first activated. `alerts/changes.ts`:
+
+- `saveVersion` validates a spec (`validateAlertSpec`) and adds a version, creating the alert with
+  its first one, and the thread that made it when there is one. The conversation that writes
+  alerts calls it, after `checkAlert` has run the query once.
+- Activating validates the version again, runs its query once (a failing query refuses it), and
+  holds to the cap of active alerts per connector (`maxActivePerConnector`, Settings, 50 by
+  default; `conflict` past it). It resumes evaluation.
+- Deactivating stops evaluation, keeps the active version and forgets the series' states.
+- Muting stops notifications only: evaluation and state go on. An analyst mutes until a time at
+  most seven days ahead; an editor may also mute until someone unmutes. A series still firing when
+  the mute ends notifies then.
+
+**The state machine** (`alerts/state.ts`, pure). Each evaluation observes each series and moves it:
+
+```
+ok ──holds──▶ pending ──held for `for`──▶ firing
+ ▲              │ stops holding              │ stops holding (resolved)
+ └──────────────┴────────────────────────────┘
+```
+
+- `for` of `0m` goes from `ok` to `firing` at once.
+- An empty result moves every known series to `no_data`.
+- A failed query moves the alert as a whole (the series with the empty key) to `error`, once; the
+  other series keep their state. It is logged once, recorded once, and notifies no one.
+- A series the result leaves out while others come back keeps its state for a grace period of
+  three intervals, then resolves and goes.
+- The `no_data` condition is observed on the alert as a whole: it holds while the query returns no
+  value.
+- Hysteresis is not modelled: a value that crosses the threshold back and forth moves each time.
+
+**The evaluator** (`jobs/alert-evaluator.ts`) ticks every 15 seconds, in process like the purge
+job. Each tick lists the active, not deactivated alerts and evaluates those whose interval has
+passed since their last evaluation (`alerts.evaluated_at`). After downtime an alert is evaluated
+once, not once per missed interval. Evaluations run at most 8 at once and 2 per connector, an alert
+still being evaluated is skipped, and one failing alert never stops the others.
+
+`alerts/evaluate.ts` evaluates one alert: it runs the query over the window ending now
+(`lookback`), reads the series (`alerts/series.ts`, `alerts/observe.ts`), moves each through the
+state machine, and saves the new states, the series gone and the changes of state in one
+transaction (`alert_series`, `alert_events`). Then it sends what is due:
+
+- `alert.firing` when a series fires, and again every `repeatEvery` while it keeps firing;
+- `alert.resolved` when a series that announced firing is ok again or gone, if `onResolved`;
+- nothing while muted.
+
+A notification is the shared contract (`Notification`): the version's message template and the
+values filled from the series. The evaluator hands it to an injected
+`notify(channelIds, notification): Promise<unknown>`. The bootstrap's default logs each
+notification; notification channels provide the sender. A failing sender is logged and does not
+stop the other notifications.
+
+**Replay** (`alerts/replay.ts`, `alerts/replay-core.ts`) answers "how would this have fired over
+the last 7 days". It runs the query once over the whole window, PromQL and LogQL as a range query
+at the evaluation step, then feeds the state machine in time order, each step reading the points
+of its own window. For each series it returns the value at each step, the firing periods (the last
+one marked ongoing when it still fired at the end), the number of firings, the total firing time
+and the spikes too short to fire (the condition held, but not for `for`), with their peak. A result
+without a time column, such as a SQL query that is not grouped by time, cannot be replayed, and the
+replay says why. A replay covers at most 31 days and 20,000 steps; past 50,000 points, the series
+that fired least come without their points.
+
+**The purge job** deletes the changes of state older than 90 days.
 
 ## 6. The agent
 
@@ -1587,6 +1665,39 @@ CREATE TABLE usage_events (
   feature TEXT,                          -- 'building' | 'question' | 'explanation'; NULL for views
   input INTEGER, cached_input INTEGER, cache_write INTEGER, output INTEGER,
   cost_micros INTEGER);                        -- list price when recorded; NULL when unknown
+
+-- an alert; evaluated while it has an active version and is not deactivated
+CREATE TABLE alerts (
+  id TEXT PRIMARY KEY, title TEXT NOT NULL,
+  thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,  -- the conversation that made it
+  active_version INTEGER, deactivated_at INTEGER,
+  muted_at INTEGER, muted_by TEXT, muted_until INTEGER,  -- muted_until NULL: until unmuted
+  evaluated_at INTEGER, created_by TEXT NOT NULL, created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY (id, active_version) REFERENCES alert_versions(alert_id, version));
+
+-- every version is immutable (trigger); activated_at is set once, at the first activation
+CREATE TABLE alert_versions (
+  alert_id TEXT NOT NULL REFERENCES alerts(id) ON DELETE CASCADE, version INTEGER NOT NULL,
+  spec TEXT NOT NULL, note TEXT, created_by TEXT NOT NULL, created_at INTEGER NOT NULL,
+  activated_at INTEGER, PRIMARY KEY (alert_id, version));
+
+-- each series as the last evaluation left it; the empty key is the alert as a whole
+CREATE TABLE alert_series (
+  alert_id TEXT NOT NULL REFERENCES alerts(id) ON DELETE CASCADE, series_key TEXT NOT NULL,
+  labels TEXT NOT NULL,              -- JSON
+  state TEXT NOT NULL CHECK (state IN ('ok','pending','firing','no_data','error')),
+  since INTEGER NOT NULL, value REAL, last_seen_at INTEGER NOT NULL, evaluated_at INTEGER NOT NULL,
+  notified_at INTEGER, announced INTEGER NOT NULL DEFAULT 0,  -- 1: announced firing, not resolving
+  PRIMARY KEY (alert_id, series_key));
+
+-- "What happened": each change of state, kept 90 days by the purge job
+CREATE TABLE alert_events (
+  id TEXT PRIMARY KEY, alert_id TEXT NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL, series_key TEXT NOT NULL, labels TEXT NOT NULL,
+  from_state TEXT NOT NULL, to_state TEXT NOT NULL, at INTEGER NOT NULL, value REAL,
+  message TEXT,                      -- why the query failed, for a change to 'error'
+  notified INTEGER NOT NULL DEFAULT 0);
 ```
 
 The usage ledger (`usage/usage.ts`) records every model step, with its provider, model, job,
@@ -1617,6 +1728,9 @@ upgrades in one step and keeps its data working. `0001-schema.sql` is the schema
 dashboards with their conversations and full-text index, the explanations of panels, and the
 ledger's `snapshot_view` kind and `feature` (every earlier model step built dashboards), and
 the notification channels with their log.
+ledger's `snapshot_view` kind and `feature` (every earlier model step built dashboards).
+The same file adds the alerts, their versions, the state of their series and their changes of
+state, in a section of their own at its end.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -1685,6 +1799,11 @@ indicative; the contract files are the source of truth.
 | `POST /settings/notification-channels/:id/test`, `GET …/:id/sends`                                | send a test, a channel's recent sends        | admin    |
 | `GET /notification-channels`                                                                      | channels by id, name and kind, to pick from  | editor   |
 | `POST /notification-channels/preview`                                                             | what each kind would send for a template     | editor   |
+| `GET /alerts`, `GET /alerts/:id` (versions ever active, series, recent changes; drafts: editor)   | alerts and their state                       | viewer   |
+| `POST /alerts/:id/mute` (an end at most 7 days ahead; no end: editor), `POST /alerts/:id/unmute`  | stop or resume notifications                 | analyst  |
+| `POST /alerts/:id/activate` (a version), `POST /alerts/:id/deactivate`                            | choose the version evaluated, or stop        | editor   |
+| `POST /alerts/replay` (a spec), `POST /alerts/:id/versions/:v/replay`                             | how it would have fired over a past window   | editor   |
+| `GET/PUT /settings/alerts`                                                                        | the most alerts active per connector         | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
 so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the
