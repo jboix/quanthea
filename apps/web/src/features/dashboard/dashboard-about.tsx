@@ -5,6 +5,7 @@ import { HistoryIcon, InfoIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import styles from './dashboard.module.css';
+import { DashboardAlertList } from './dashboard-alert-list.tsx';
 import type { DashboardData, DashboardIntent, Loaded } from './data.ts';
 
 /**
@@ -137,10 +138,11 @@ export function AboutPopover(props: DashboardData) {
 }
 
 /**
- * What the dashboard is about: its description, tags and sources, with how each source is used.
+ * What the dashboard is about: its description, tags and sources, with how each source is used,
+ * and the alerts on its panels.
  *
  * @param props - The dashboard and the version shown.
- * @returns The description, the tags and the sources.
+ * @returns The description, the tags, the sources and the alerts.
  */
 export function AboutBody({ dashboard, version }: DashboardData) {
   const { spec } = version;
@@ -163,6 +165,7 @@ export function AboutBody({ dashboard, version }: DashboardData) {
           </div>
         ))}
       </dl>
+      <DashboardAlertList dashboardId={dashboard.id} />
     </div>
   );
 }

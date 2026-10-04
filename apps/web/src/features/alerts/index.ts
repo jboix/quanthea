@@ -8,3 +8,4 @@ export {
   saveAlertSettings,
 } from './data.ts';
 export { alertsRouteId, firingPath, loadFiring, useFiringAlerts } from './firing.ts';
+export { type LinkIntent, type LinkLoad, loadAlertLinks, loadLinkTargets } from './link-data.ts';

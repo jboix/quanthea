@@ -4,6 +4,7 @@
  * grid, the theme and how tooltips render.
  */
 import type { ChartView, Dataset, MarkerOutcome, QueryOutcome } from '@quanthea/shared';
+import { type AlertMarks, withAlertMarks } from './alert-marks.ts';
 import { viewDatasets } from './datasets.ts';
 import { wireFormatters } from './formatters.ts';
 import { isObject, type Loose } from './loose.ts';
@@ -33,6 +34,8 @@ export interface ChartInput {
   readonly markers: readonly MarkerOutcome[];
   /** Windows to shade, on a time chart only. */
   readonly highlights?: readonly ChartHighlight[] | undefined;
+  /** The thresholds and firing periods of the alerts linked to the panel, on a time chart only. */
+  readonly alertMarks?: AlertMarks | undefined;
 }
 
 /** How a chart looks. */
@@ -50,6 +53,7 @@ export interface ChartContext {
  * @param queries - The outcome of each query of the panel.
  * @param markers - The annotation markers.
  * @param highlights - Windows to shade, if any.
+ * @param alertMarks - The linked alerts' thresholds and firing periods, if any.
  * @returns The input.
  */
 export function chartInputOf(
@@ -57,8 +61,9 @@ export function chartInputOf(
   queries: readonly QueryOutcome[],
   markers: readonly MarkerOutcome[],
   highlights?: readonly ChartHighlight[],
+  alertMarks?: AlertMarks,
 ): ChartInput {
-  return { view, datasets: viewDatasets(view, queries), markers, highlights };
+  return { view, datasets: viewDatasets(view, queries), markers, highlights, alertMarks };
 }
 
 /**
@@ -269,28 +274,25 @@ function ownedParts(prepared: Prepared, option: Loose, theme: ChartTheme, empty:
 }
 
 /**
- * The option with its series expanded, the markers and the highlights on a time chart, and the
- * tokens replaced.
+ * The option with its series expanded, the markers, the highlights and the linked alerts' marks on
+ * a time chart, and the tokens replaced.
  *
  * @param prepared - The prepared data and option.
- * @param input - The annotation markers and the windows to shade.
+ * @param input - The annotation markers, the windows to shade and the alerts' marks.
  * @param context - The theme and the time zone.
  * @returns The resolved option.
  */
 function resolvedOption(
   prepared: Prepared,
-  input: Pick<ChartInput, 'markers' | 'highlights'>,
+  input: Pick<ChartInput, 'markers' | 'highlights' | 'alertMarks'>,
   context: ChartContext,
 ): Loose {
   const expanded = expandSeries(prepared);
   const onTime = isObject(prepared.option.xAxis) && prepared.option.xAxis.type === 'time';
-  const series = onTime
-    ? withHighlights(
-        withMarkers(expanded, input.markers, context.theme, context.timeZone),
-        input.highlights ?? [],
-        context.theme,
-      )
-    : expanded;
+  const { theme } = context;
+  const marked = withMarkers(expanded, input.markers, theme, context.timeZone);
+  const highlighted = withHighlights(marked, input.highlights ?? [], theme);
+  const series = onTime ? withAlertMarks(highlighted, input.alertMarks, theme) : expanded;
   const tokens = {
     colors: themeColors(context.theme),
     roles: prepared.roles,

@@ -4,6 +4,7 @@ import { AlertPlanCard, HandEditCard } from './alert-cards.tsx';
 import { AskCard } from './ask-card.tsx';
 import styles from './conversation.module.css';
 import { DiffCard } from './diff-card.tsx';
+import { LinkProposalCard } from './link-card.tsx';
 import { MatchesCard } from './matches-card.tsx';
 import {
   buildTools,
@@ -190,6 +191,7 @@ function dataView(part: ThreadPart, key: string, context: PartContext): ReactNod
       />
     );
   }
+  if (part.type === 'data-linkProposal') return <LinkProposalCard key={key} data={part.data} />;
   if (part.type !== 'data-matches') return null;
   return (
     <MatchesCard

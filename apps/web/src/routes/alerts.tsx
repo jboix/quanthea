@@ -7,9 +7,11 @@ import {
   changeAlert,
   firingPath,
   loadAlert,
+  loadAlertLinks,
   loadAlertReplay,
   loadAlerts,
   loadFiring,
+  loadLinkTargets,
 } from '../features/alerts/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
@@ -23,6 +25,8 @@ import type { ApiClient } from '../lib/api-client.ts';
 export function alertRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
   const screens = async () => import('../features/alerts/screens.ts');
   const replay = '/alerts/:alertId/v/:version/replay';
+  const links = '/alerts/:alertId/links';
+  const targets = '/alert-link-targets';
   return [
     {
       id: alertsRouteId,
@@ -42,6 +46,14 @@ export function alertRoutes(loadSession: SessionLoader, api: ApiClient): RouteOb
     {
       path: replay,
       loader: guarded(loadSession, replay, loadAlertReplay(api)),
+      shouldRevalidate: () => false,
+    },
+    // Where an alert is shown, for the agent's card; again after every action.
+    { path: links, loader: guarded(loadSession, links, loadAlertLinks(api)) },
+    // The pinned dashboards' panels, when Link to a panel… opens.
+    {
+      path: targets,
+      loader: guarded(loadSession, targets, loadLinkTargets(api)),
       shouldRevalidate: () => false,
     },
   ];

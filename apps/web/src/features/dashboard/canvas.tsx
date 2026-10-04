@@ -2,17 +2,20 @@
  * The working part of a dashboard: the variables with the Refresh button, and the panel grid. The pinned
  * view and the thread's draft pane both show it.
  */
-import type { DashboardSpec, PanelRun } from '@quanthea/shared';
+import type { DashboardAlerts, DashboardSpec, PanelRun } from '@quanthea/shared';
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { dashboardAlertsPath, useDashboardAlerts } from './alerts-data.ts';
 import type { PanelMark } from './ask-marks.ts';
 import type { Loaded } from './data.ts';
 import { hiddenMarkersOf, runSearchOf } from './marker-sets.ts';
+import type { PanelAlertView } from './panel-alert-view.tsx';
+import { linkedAlertsOf, panelAlertsOf, type Selection, selectionOf } from './panel-alerts.ts';
 import { PanelCard, type PanelPlanMark, type RunTarget } from './panel-card.tsx';
 import panelStyles from './panels.module.css';
 import { RunStatus } from './run-status.tsx';
 import { VariablesBar } from './variables-bar.tsx';
-import { choicesFromSearch } from './view-state.ts';
+import { choicesFromSearch, type ViewChoices } from './view-state.ts';
 
 /** The finished runs of the panels, for one set of choices. */
 interface RunsState {
@@ -63,6 +66,42 @@ export interface DashboardCanvasProps {
   readonly answerMarks?: Readonly<Record<string, PanelMark>> | undefined;
   /** Whether the panels offer their explanations: on a pinned version only. */
   readonly explainable?: boolean;
+  /** Whether the panels show their alerts: on the dashboard screen only. */
+  readonly withAlerts?: boolean;
+}
+
+/** The alerts on the panels, and the values chosen, once loaded. */
+interface AlertsShown {
+  /** The alerts on the dashboard's panels. */
+  readonly data: DashboardAlerts | undefined;
+  /** The values the viewer chose. */
+  readonly selection: Selection;
+}
+
+/**
+ * What each panel knows of its alerts, kept while the alerts and the choices stay the same, so the
+ * charts are not built again.
+ *
+ * @param spec - The spec, for its panels.
+ * @param shown - The alerts on the panels and the values chosen, if the panels show alerts.
+ * @param pinnedVersion - The version shown, when it is pinned.
+ * @returns Each panel's alerts, by panel id.
+ */
+function usePanelAlertViews(
+  spec: DashboardSpec,
+  shown: AlertsShown | undefined,
+  pinnedVersion: number | undefined,
+): ReadonlyMap<string, PanelAlertView> {
+  return useMemo(() => {
+    if (!shown) return new Map();
+    const { data, selection } = shown;
+    return new Map(
+      spec.panels.map((panel) => {
+        const alerts = panelAlertsOf(data, panel.id);
+        return [panel.id, { alerts, selection, pinnedVersion }] as const;
+      }),
+    );
+  }, [spec, shown, pinnedVersion]);
 }
 
 /**
@@ -77,11 +116,13 @@ function PanelGrid(
     readonly target: RunTarget;
     readonly onRun: (panelId: string, run: Loaded<PanelRun>) => void;
     readonly hiddenMarkers: ReadonlySet<string>;
+    readonly alerts: AlertsShown | undefined;
   },
 ) {
   const { dashboardId, version, spec } = props;
   const timeZone = spec.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const explain = props.explainable ? { dashboardId, version, timeZone } : undefined;
+  const views = usePanelAlertViews(spec, props.alerts, props.explainable ? version : undefined);
   return (
     <div className={panelStyles.grid}>
       {spec.panels.map((panel) => (
@@ -98,9 +139,30 @@ function PanelGrid(
           answerMark={props.answerMarks?.[panel.id]}
           hiddenMarkers={props.hiddenMarkers}
           explain={explain}
+          alerts={views.get(panel.id)}
         />
       ))}
     </div>
+  );
+}
+
+/**
+ * Loads the alerts on the panels over the range shown, when the panels show alerts.
+ *
+ * @param props - The canvas props.
+ * @param choices - The viewer's choices.
+ * @returns The alerts and the values chosen, or nothing.
+ */
+function useAlertsShown(
+  props: DashboardCanvasProps,
+  choices: ViewChoices,
+): AlertsShown | undefined {
+  const { dashboardId, spec, withAlerts } = props;
+  const path = withAlerts ? dashboardAlertsPath(dashboardId, choices.time, spec.time) : undefined;
+  const data = useDashboardAlerts(dashboardId, path);
+  return useMemo(
+    () => (withAlerts ? { data, selection: selectionOf(spec, choices) } : undefined),
+    [withAlerts, data, spec, choices],
   );
 }
 
@@ -118,20 +180,19 @@ export function DashboardCanvas(props: DashboardCanvasProps) {
   const hiddenMarkers = useMemo(() => hiddenMarkersOf(search, spec), [search, spec]);
   const target: RunTarget = { dashboardId, version, search: runSearchOf(search), refresh };
   const { runs, report } = useRuns(`${dashboardId}@${version}?${target.search}#${refresh}`);
+  const alerts = useAlertsShown(props, choices);
   const onRefresh = () => setRefresh((count) => count + 1);
   const actions = props.refreshable && <RunStatus spec={spec} runs={runs} onRefresh={onRefresh} />;
+  const shown = { search, hiddenMarkers, target, onSearch: setSearch, actions };
   return (
     <>
       <VariablesBar
         spec={spec}
         choices={choices}
-        search={search}
-        hiddenMarkers={hiddenMarkers}
-        target={target}
-        onSearch={setSearch}
-        actions={actions}
+        {...shown}
+        alertSets={linkedAlertsOf(alerts?.data)}
       />
-      <PanelGrid {...props} target={target} onRun={report} hiddenMarkers={hiddenMarkers} />
+      <PanelGrid {...props} {...shown} onRun={report} alerts={alerts} />
     </>
   );
 }

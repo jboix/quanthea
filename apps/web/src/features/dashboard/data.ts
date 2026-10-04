@@ -16,6 +16,7 @@ import {
 } from '@quanthea/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
+import { type AlertIntent, runAlertIntent } from './alerts-data.ts';
 import { type Loaded, loaded } from './loaded.ts';
 import { runSnapshotIntent, type SnapshotIntent } from './snapshot-data.ts';
 
@@ -106,14 +107,16 @@ function choicesOf(url: URL) {
 
 /**
  * What the dashboard screen submits, as JSON: show a version in the library or none, open a new
- * thread on a copy of a version or on the dashboard itself, or take or revoke a snapshot.
+ * thread on a copy of a version or on the dashboard itself, take or revoke a snapshot, or act on a
+ * panel's alerts.
  */
 export type DashboardIntent =
   | { readonly intent: 'pin'; readonly version: number }
   | { readonly intent: 'unpin' }
   | { readonly intent: 'copy'; readonly version: number }
   | { readonly intent: 'edit' }
-  | SnapshotIntent;
+  | SnapshotIntent
+  | AlertIntent;
 
 /**
  * Opens a new thread on a dashboard and goes to it.
@@ -160,9 +163,9 @@ async function changePin(
 }
 
 /**
- * The action of the dashboard screen: pin a version or unpin, open a new thread on it, or take or
- * revoke a snapshot. A refusal, such as a failing panel or a snapshot over the size cap, comes back
- * as a message.
+ * The action of the dashboard screen: pin a version or unpin, open a new thread on it, take or
+ * revoke a snapshot, or act on a panel's alerts. A refusal, such as a failing panel or a snapshot
+ * over the size cap, comes back as a message.
  *
  * @param api - The API client.
  * @returns The action.
@@ -178,6 +181,10 @@ export function changeDashboard(api: ApiClient) {
       case 'copy':
       case 'edit':
         return openThread(api, dashboardId, intent);
+      case 'alertFromPanel':
+      case 'linkAlert':
+      case 'dismissAlert':
+        return runAlertIntent(api, dashboardId, intent);
       default:
         return changePin(api, dashboardId, intent);
     }

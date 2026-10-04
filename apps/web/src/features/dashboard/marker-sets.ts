@@ -5,6 +5,7 @@
  * hiding a set never runs them again.
  */
 import type { Annotation, DashboardSpec, MarkerColor, MarkerOutcome } from '@quanthea/shared';
+import { alertSetPrefix } from './panel-alerts.ts';
 
 /** The URL parameter that names a hidden set of markers. */
 const hiddenParam = 'hide-markers';
@@ -25,15 +26,16 @@ export function markerSetsOf(spec: DashboardSpec): Annotation[] {
 }
 
 /**
- * The sets of markers the viewer hid.
+ * The sets of markers the viewer hid, the firing periods of linked alerts among them.
  *
  * @param search - The URL's search parameters.
  * @param spec - The spec, for the sets it has.
  * @returns Their ids; ids of no set are ignored.
  */
 export function hiddenMarkersOf(search: URLSearchParams, spec: DashboardSpec): ReadonlySet<string> {
-  const hidden = new Set(search.getAll(hiddenParam));
-  return new Set(spec.annotations.map(({ id }) => id).filter((id) => hidden.has(id)));
+  const hidden = search.getAll(hiddenParam);
+  const sets = new Set(spec.annotations.map(({ id }) => id));
+  return new Set(hidden.filter((id) => sets.has(id) || id.startsWith(alertSetPrefix)));
 }
 
 /**

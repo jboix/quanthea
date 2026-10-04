@@ -1,8 +1,10 @@
 import type { DashboardSpec, Panel, PanelRun } from '@quanthea/shared';
-import { type CSSProperties, useEffect } from 'react';
+import { type CSSProperties, useEffect, useMemo } from 'react';
 import { useFetcher } from 'react-router';
 import type { PanelMark } from './ask-marks.ts';
 import type { Loaded } from './data.ts';
+import { PanelAlertPill, type PanelAlertView } from './panel-alert-view.tsx';
+import { alertMarksOf } from './panel-alerts.ts';
 import type { ExplainPlace } from './panel-explain.tsx';
 import { PanelInfo } from './panel-info.tsx';
 import { PanelView } from './panel-views.tsx';
@@ -66,6 +68,8 @@ interface PanelCardProps {
   readonly answerMark?: PanelMark | undefined;
   /** Where the panel's explanation is kept, on a pinned version; left out elsewhere. */
   readonly explain?: ExplainPlace | undefined;
+  /** The panel's alerts, on the dashboard screen; left out elsewhere. */
+  readonly alerts?: PanelAlertView | undefined;
 }
 
 /**
@@ -93,9 +97,29 @@ function usePanelRun(panel: Panel, target: RunTarget, onRun: PanelCardProps['onR
 }
 
 /**
+ * What the panel's linked alerts draw on its time chart, kept while they and the hidden sets stay
+ * the same.
+ *
+ * @param alerts - The panel's alerts, if it shows them.
+ * @param hiddenMarkers - The sets of markers the viewer hid.
+ * @returns The marks, if any.
+ */
+function useAlertMarks(
+  alerts: PanelAlertView | undefined,
+  hiddenMarkers: ReadonlySet<string> | undefined,
+) {
+  return useMemo(() => {
+    if (!alerts) return undefined;
+    const hidden = hiddenMarkers ?? new Set<string>();
+    return alertMarksOf(alerts.alerts.linked, alerts.selection, hidden, Date.now());
+  }, [alerts, hiddenMarkers]);
+}
+
+/**
  * The body of a panel: its view, or why it has nothing to show.
  *
- * @param props - The panel, the spec, the hidden sets of markers, the answer's marks and the run.
+ * @param props - The panel, the spec, the hidden sets of markers, the answer's marks, the alerts
+ *   and the run.
  * @param props.run - The latest run, if any.
  * @param props.loading - Whether a run is loading.
  * @returns The body.
@@ -105,10 +129,12 @@ function PanelBody({
   spec,
   hiddenMarkers,
   answerMark,
+  alerts,
   run,
   loading,
-}: Pick<PanelCardProps, 'panel' | 'spec' | 'hiddenMarkers' | 'answerMark'> &
+}: Pick<PanelCardProps, 'panel' | 'spec' | 'hiddenMarkers' | 'answerMark' | 'alerts'> &
   ReturnType<typeof usePanelRun>) {
+  const alertMarks = useAlertMarks(alerts, hiddenMarkers);
   if (!run) return <p className={styles.loading}>Loading…</p>;
   if (!run.ok) return <p className={styles.error}>{run.message}</p>;
   const failures = run.value.queries.filter((query) => query.error);
@@ -133,6 +159,7 @@ function PanelBody({
             markers={run.value.markers}
             hiddenMarkers={hiddenMarkers}
             highlights={answerMark?.windows}
+            alertMarks={alertMarks}
             timeZone={spec.timezone}
           />
         </div>
@@ -143,11 +170,11 @@ function PanelBody({
 
 /**
  * The heading of a panel: its title, as a button when panels can be picked, the "in chat" mark,
- * the numbers the open answer cites it with, and its info bubble: its explanation on a pinned
- * version, and where its data comes from.
+ * the numbers the open answer cites it with, the pill of its alerts, and its info bubble: its
+ * explanation on a pinned version, its alerts, and where its data comes from.
  *
- * @param props - The panel, whether it is marked, the pick callback, the marks and where its
- *   explanation is kept.
+ * @param props - The panel, whether it is marked, the pick callback, the marks, where its
+ *   explanation is kept and its alerts.
  * @returns The heading.
  */
 function PanelHeading({
@@ -157,7 +184,11 @@ function PanelHeading({
   planMark,
   answerMark,
   explain,
-}: Pick<PanelCardProps, 'panel' | 'marked' | 'onSelect' | 'planMark' | 'answerMark' | 'explain'>) {
+  alerts,
+}: Pick<
+  PanelCardProps,
+  'panel' | 'marked' | 'onSelect' | 'planMark' | 'answerMark' | 'explain' | 'alerts'
+>) {
   const title = onSelect ? (
     <button type="button" className={styles.titleButton} onClick={() => onSelect(panel.id)}>
       {panel.title}
@@ -177,7 +208,8 @@ function PanelHeading({
           {n}
         </span>
       ))}
-      <PanelInfo panel={panel} explain={explain} />
+      {alerts && <PanelAlertPill view={alerts} />}
+      <PanelInfo panel={panel} explain={explain} alerts={alerts} />
     </div>
   );
 }

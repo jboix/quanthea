@@ -79,7 +79,13 @@ export function DashboardScreen() {
       <div className={styles.content}>
         <DashboardHeader {...loaded} onAsk={onAsk} asking={shownSide !== null} />
         <div className={styles.main}>
-          <DashboardCanvas refreshable {...shown} answerMarks={marks} explainable={askable} />
+          <DashboardCanvas
+            refreshable
+            withAlerts
+            {...shown}
+            answerMarks={marks}
+            explainable={askable}
+          />
         </div>
       </div>
       {shownSide && (

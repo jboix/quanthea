@@ -8,6 +8,7 @@ import {
   loadConversation,
   loadConversations,
   loadDashboard,
+  loadDashboardAlerts,
   loadDashboardSnapshots,
   loadExplanation,
   loadPanelRun,
@@ -92,7 +93,7 @@ function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
 
 /**
  * The dashboard routes. The resource routes load only when a panel, its info bubble, a variable
- * menu, the Share menu or the Ask tab asks.
+ * menu, the Share menu, the Ask tab or the panels' alerts ask.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -103,6 +104,7 @@ export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): Rou
   const explanation = '/d/:dashboardId/v/:version/panels/:panelId/explanation';
   const options = '/d/:dashboardId/v/:version/options/:name';
   const snapshots = '/d/:dashboardId/snapshots';
+  const alerts = '/d/:dashboardId/alerts';
   return [
     screenRoute(loadSession, '/d/:dashboardId', api),
     screenRoute(loadSession, '/d/:dashboardId/v/:version', api),
@@ -124,6 +126,8 @@ export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): Rou
     },
     // Loads again after a snapshot is taken or revoked, so the list stays current.
     { path: snapshots, loader: guarded(loadSession, snapshots, loadDashboardSnapshots(api)) },
+    // The alerts on the panels: loads with the range, and again after every action.
+    { path: alerts, loader: guarded(loadSession, alerts, loadDashboardAlerts(api)) },
     ...askRoutes(loadSession, api),
   ];
 }

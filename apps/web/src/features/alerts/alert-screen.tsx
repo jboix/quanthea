@@ -1,6 +1,7 @@
 /**
  * An alert's page, laid out like a pinned dashboard: a header with its state, version and actions,
- * the chart of its query, each series now, what happened, and where it notifies.
+ * the chart of its query, each series now, what happened, the panels it is shown on, and where it
+ * notifies.
  */
 import type { AlertDetail } from '@quanthea/shared';
 import { useState } from 'react';
@@ -12,6 +13,7 @@ import { HeaderActions } from './alert-actions.tsx';
 import { AlertChartCard, useAlertReplay, windows } from './alert-chart-card.tsx';
 import { Notifies, SeriesNow, WhatHappened } from './alert-sections.tsx';
 import type { AlertData, ReplayWindow } from './data.ts';
+import { ShownOnCard } from './shown-on.tsx';
 import { muteEnd, type StateTone, statePill } from './state-text.ts';
 import { UnsavedBar } from './unsaved-bar.tsx';
 import { useAlertChange } from './use-alert-change.ts';
@@ -95,7 +97,7 @@ function Refusal() {
  * @returns The screen.
  */
 export function AlertScreen() {
-  const { alert } = useLoaderData() as AlertData;
+  const { alert, links } = useLoaderData() as AlertData;
   const now = Date.now();
   const [window, setWindow] = useState<ReplayWindow>('24h');
   const outcome = useAlertReplay(alert, window);
@@ -118,6 +120,7 @@ export function AlertScreen() {
           <SeriesNow alert={alert} now={now} />
           <WhatHappened alert={alert} now={now} />
         </div>
+        <ShownOnCard links={links} />
         <Notifies alert={alert} now={now} />
       </div>
     </div>

@@ -1,0 +1,81 @@
+.pillLink {
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+}
+
+.pillLink svg {
+  width: 13px;
+  height: 13px;
+}
+
+.pillLink:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.create {
+  /* Pulls the menu item out by its padding, so its text lines up with the lines under it. */
+  margin: 0 -10px;
+}
+
+.section[data-busy="true"] {
+  opacity: 0.6;
+}
+
+.line {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-label);
+  overflow-wrap: anywhere;
+}
+
+.suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.listItem a {
+  overflow-wrap: anywhere;
+}

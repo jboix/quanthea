@@ -1,0 +1,79 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row,
+.suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 14px;
+}
+
+.suggestion {
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  color: var(--color-ink-label);
+}
+
+.where {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.missing {
+  color: var(--color-ink-secondary);
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.unlink {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-ink-secondary);
+  cursor: pointer;
+}
+
+.unlink:hover {
+  border-color: var(--color-border-control);
+  color: var(--color-danger);
+}
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* The card holds 32 px less than the screen beside the rail, and pads 14 px each side. */
+  width: min(300px, calc(100vw - var(--rail-width) - 64px));
+}
+
+.note,
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+.error {
+  color: var(--color-danger);
+}

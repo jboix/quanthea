@@ -4,6 +4,7 @@
  */
 import {
   type AlertDetail,
+  type AlertLinks,
   type AlertListItem,
   type AlertReplay,
   type AlertSettings,
@@ -21,6 +22,7 @@ import {
 } from '@quanthea/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
+import { isLinkIntent, type LinkIntent, readAlertLinks, runLinkIntent } from './link-data.ts';
 
 /** What the alerts list shows. */
 export interface AlertsData {
@@ -32,6 +34,8 @@ export interface AlertsData {
 export interface AlertData {
   /** The alert with its versions, series, changes, channels and sends. */
   readonly alert: AlertDetail;
+  /** The panels it is shown on, and for editors the panels suggested. */
+  readonly links: AlertLinks;
 }
 
 /** What the alert page submits, as JSON. */
@@ -40,7 +44,8 @@ export type AlertIntent =
   | { readonly intent: 'unmute' }
   | { readonly intent: 'activate'; readonly version: number }
   | { readonly intent: 'activateChanges'; readonly basedOn: number; readonly spec: AlertSpec }
-  | { readonly intent: 'deactivate' };
+  | { readonly intent: 'deactivate' }
+  | LinkIntent;
 
 /** What an intent answers. */
 export type AlertOutcome = { readonly ok: true } | { readonly ok: false; readonly message: string };
@@ -75,9 +80,14 @@ export function loadAlerts(api: ApiClient) {
  */
 export function loadAlert(api: ApiClient) {
   return async ({ params, request }: LoaderFunctionArgs): Promise<AlertData> => {
-    const input = { params: { alertId: params.alertId ?? '' } };
+    const alertId = params.alertId ?? '';
+    const { signal } = request;
     try {
-      return { alert: await api.call(getAlertEndpoint, input, { signal: request.signal }) };
+      const [alert, links] = await Promise.all([
+        api.call(getAlertEndpoint, { params: { alertId } }, { signal }),
+        readAlertLinks(api, alertId, signal),
+      ]);
+      return { alert, links };
     } catch (error) {
       if (error instanceof ApiError && error.code === 'not_found')
         throw data(null, { status: 404, statusText: 'Not Found' });
@@ -95,7 +105,8 @@ export function loadAlert(api: ApiClient) {
  */
 async function run(api: ApiClient, alertId: string, intent: AlertIntent): Promise<void> {
   const params = { alertId };
-  if (intent.intent === 'mute')
+  if (isLinkIntent(intent)) await runLinkIntent(api, alertId, intent);
+  else if (intent.intent === 'mute')
     await api.call(muteAlertEndpoint, { params, body: { until: intent.until } });
   else if (intent.intent === 'unmute') await api.call(unmuteAlertEndpoint, { params });
   else if (intent.intent === 'activate')
@@ -108,7 +119,7 @@ async function run(api: ApiClient, alertId: string, intent: AlertIntent): Promis
 
 /**
  * The action of the alert page: mute, unmute, activate a version or the changes made by hand,
- * deactivate.
+ * deactivate, and link, unlink or dismiss a panel.
  *
  * @param api - The API client.
  * @returns The action. A refusal comes back as a message.

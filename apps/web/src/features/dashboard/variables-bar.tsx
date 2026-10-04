@@ -1,4 +1,4 @@
-import type { DashboardSpec, TimeRangeExpression } from '@quanthea/shared';
+import type { DashboardSpec, PanelAlert, TimeRangeExpression } from '@quanthea/shared';
 import type { ReactNode } from 'react';
 import { withMarkersShown } from './marker-sets.ts';
 import { MarkerToggles } from './marker-toggles.tsx';
@@ -18,6 +18,8 @@ interface VariablesBarProps {
   readonly search: URLSearchParams;
   /** The ids of the sets of markers the viewer hid. */
   readonly hiddenMarkers: ReadonlySet<string>;
+  /** The alerts linked to panels, whose firing periods toggle like a set of markers. */
+  readonly alertSets?: readonly PanelAlert[] | undefined;
   /** The version the options load from. */
   readonly target: RunTarget;
   /** Called with the new URL parameters. */
@@ -27,8 +29,8 @@ interface VariablesBarProps {
 }
 
 /**
- * The time range and the variables, as chips, a toggle per set of markers, and any controls at the
- * end. Changing them changes the URL and what the panels show, never the saved dashboard.
+ * The time range and the variables, as chips, a toggle per set of markers and per linked alert's
+ * firing periods, and any controls at the end. Changing them changes the URL and what the panels show, never the saved dashboard.
  *
  * @param props - The spec, the choices, the target, the change callback and the controls.
  * @returns The bar.
@@ -58,6 +60,7 @@ export function VariablesBar(props: VariablesBarProps) {
       })}
       <MarkerToggles
         spec={spec}
+        alerts={props.alertSets ?? []}
         hidden={props.hiddenMarkers}
         onToggle={(id, shown) => onSearch(withMarkersShown(search, id, shown))}
       />

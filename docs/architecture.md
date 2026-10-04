@@ -190,7 +190,11 @@ the kit's HTTP client for every kind that speaks HTTP.
   the box. The kind goes with the new thread and stays. The past threads drawer marks each thread
   with tiles or a bell. In an alert thread, the conversation shows alert plan cards (Watch, Fires
   when, Checks, Notifies; approved like a dashboard plan) and, for each change the person made by
-  hand, a "You changed it by hand" card with the versions and each field before and after.
+  hand, a "You changed it by hand" card with the versions and each field before and after. The
+  agent's offer to show the alert on a panel is a card ("This watches the same thing as _Error rate
+  by service_ on _Checkout incident_. Show it there?") with Link and Not now
+  (`features/thread/link-card.tsx`). It submits to the alert page's action and reads the
+  `/alerts/:alertId/links` resource route, so after a reload it says what was decided.
 - **The alert draft pane** (`features/alert-draft/`) replaces the dashboard draft pane in an alert
   thread. Its header has the title, the version pill (`v2 · draft`, or `active`), Send a test
   notification (the version's message to its channels as `alert.test`, filled from the replay's
@@ -270,6 +274,11 @@ the kit's HTTP client for every kind that speaks HTTP.
   - Each series now (state, value, since), What happened (the changes of state, whether each
     notified, and the activations, deactivations, mutes and unmutes from the audit log, the latest
     first), and Notifies (the channels by name and kind, the latest messages with their outcome).
+  - **Shown on** (`shown-on.tsx`) lists the panels the alert is linked to: the dashboard and the
+    panel, each a link, or "not on the shown version" when the version shown has no such panel.
+    Editors get × to unlink, Link to a panel… (pick a pinned dashboard, then one of its panels,
+    from the `/alert-link-targets` resource route) and the suggested panels ("Also on _Checkout
+    incident_ · _Error rate by service_") with Link and Dismiss.
 - **Settings → Alerts** sets the most alerts active per connector.
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
@@ -281,47 +290,50 @@ the kit's HTTP client for every kind that speaks HTTP.
 
 **Routes** (React Router data mode):
 
-| Path                                                     | Screen                                                     | Min role |
-| -------------------------------------------------------- | ---------------------------------------------------------- | -------- |
-| `/`                                                      | redirect → `/library` (viewer, analyst) or `/threads/new`  | viewer   |
-| `/threads/new`, `/threads/:threadId`                     | Plan, Build and refine, Variant                            | editor   |
-| `/threads/:threadId/alert-previews`                      | resource route: what an alert draft's channels would send  | editor   |
-| `/library`                                               | Library: search pinned dashboards and their panels         | viewer   |
-| `/alerts`                                                | Alerts: search, filter by state, sections by state         | viewer   |
-| `/alerts/firing`                                         | resource route: how many alerts fire, for the rail         | viewer   |
-| `/alerts/:alertId`                                       | an alert: state, chart, series, what happened, channels    | viewer   |
-| `/alerts/:alertId/v/:version/replay`                     | resource route: a version replayed over 6 h, 24 h or 7 d   | viewer   |
-| `/account`                                               | resource route: the account menu's providers and actions   | viewer   |
-| `/d/:dashboardId`                                        | the pinned version; for editors, the latest if unpinned    | viewer   |
-| `/d/:dashboardId/v/:version`                             | a specific version                                         | viewer   |
-| `/d/:dashboardId/v/:version/panels/:panelId`             | resource route: one panel's run, for fetchers              | viewer   |
-| `/d/:dashboardId/v/:version/panels/:panelId/explanation` | resource route: a panel's latest explanation               | viewer   |
-| `/d/:dashboardId/v/:version/options/:name`               | resource route: a variable's options, for fetchers         | viewer   |
-| `/d/:dashboardId/snapshots`                              | resource route: a dashboard's live snapshots, for fetchers | editor   |
-| `/d/:dashboardId/conversations`                          | resource route: a dashboard's conversations, or a search   | viewer   |
-| `/d/:dashboardId/conversations/:conversationId`          | resource route: one conversation's questions and answers   | viewer   |
-| `/d/:dashboardId/similar-questions`                      | resource route: earlier answered questions like a text     | viewer   |
-| `/d/:dashboardId/v/:version/sources`                     | resource route: a version's sources and access levels      | viewer   |
-| `/s/:snapshotId`                                         | a snapshot: a version frozen with its data, read-only      | viewer   |
-| `/bin`                                                   | Bin: deleted threads, restore; retention, delete (admin)   | editor   |
-| `/connectors`, `/connectors/:connectorId`                | Connectors: list, access level, guardrails, schema         | admin    |
-| `/connectors/new`, `/connectors/:connectorId/edit`       | add and edit a connection                                  | admin    |
-| `/connectors/:connectorId/health`                        | resource route: the connection test, for fetchers          | admin    |
-| `/settings/model`                                        | Model: the providers, their keys and limits                | admin    |
-| `/settings/auth`                                         | Authentication: sign-in providers, passwords               | admin    |
-| `/settings/users`                                        | Users: invite, roles, disable, reset links, sign out       | admin    |
-| `/settings/usage`                                        | Usage: tokens, cost and views; by feature, model, person   | admin    |
-| `/settings/notifications`                                | Notifications: channels, tests, what a webhook receives    | admin    |
-| `/settings/alerts`                                       | Alerts: the most alerts active per connector               | admin    |
-| `/settings/snapshots`                                    | Snapshots: every live snapshot, revoke one                 | admin    |
-| `/settings/queries`                                      | Queries: builders on or off, your own with placeholders    | admin    |
-| `/settings/charts`                                       | Charts: every chart recipe drawn from its sample           | admin    |
-| `/settings/server`                                       | Server: system settings and keys, read-only, with sources  | admin    |
-| `/settings`                                              | redirect → `/settings/model`                               | admin    |
-| `/ui`                                                    | UI kit: every `ui/` primitive, for checking the visuals    | viewer   |
-| `/login`                                                 | sign in                                                    | —        |
-| `/setup`                                                 | the default admin chooses their own email and password     | —        |
-| `/set-password`                                          | choose a password from an invite or reset link             | —        |
+| Path                                                     | Screen                                                      | Min role |
+| -------------------------------------------------------- | ----------------------------------------------------------- | -------- |
+| `/`                                                      | redirect → `/library` (viewer, analyst) or `/threads/new`   | viewer   |
+| `/threads/new`, `/threads/:threadId`                     | Plan, Build and refine, Variant                             | editor   |
+| `/threads/:threadId/alert-previews`                      | resource route: what an alert draft's channels would send   | editor   |
+| `/library`                                               | Library: search pinned dashboards and their panels          | viewer   |
+| `/alerts`                                                | Alerts: search, filter by state, sections by state          | viewer   |
+| `/alerts/firing`                                         | resource route: how many alerts fire, for the rail          | viewer   |
+| `/alerts/:alertId`                                       | an alert: state, chart, series, what happened, channels     | viewer   |
+| `/alerts/:alertId/v/:version/replay`                     | resource route: a version replayed over 6 h, 24 h or 7 d    | viewer   |
+| `/alerts/:alertId/links`                                 | resource route: where an alert is shown, for the agent card | viewer   |
+| `/alert-link-targets`                                    | resource route: pinned dashboards' panels, to link one      | editor   |
+| `/account`                                               | resource route: the account menu's providers and actions    | viewer   |
+| `/d/:dashboardId`                                        | the pinned version; for editors, the latest if unpinned     | viewer   |
+| `/d/:dashboardId/v/:version`                             | a specific version                                          | viewer   |
+| `/d/:dashboardId/v/:version/panels/:panelId`             | resource route: one panel's run, for fetchers               | viewer   |
+| `/d/:dashboardId/v/:version/panels/:panelId/explanation` | resource route: a panel's latest explanation                | viewer   |
+| `/d/:dashboardId/v/:version/options/:name`               | resource route: a variable's options, for fetchers          | viewer   |
+| `/d/:dashboardId/snapshots`                              | resource route: a dashboard's live snapshots, for fetchers  | editor   |
+| `/d/:dashboardId/conversations`                          | resource route: a dashboard's conversations, or a search    | viewer   |
+| `/d/:dashboardId/conversations/:conversationId`          | resource route: one conversation's questions and answers    | viewer   |
+| `/d/:dashboardId/similar-questions`                      | resource route: earlier answered questions like a text      | viewer   |
+| `/d/:dashboardId/v/:version/sources`                     | resource route: a version's sources and access levels       | viewer   |
+| `/d/:dashboardId/alerts`                                 | resource route: the alerts on its panels, over a range      | viewer   |
+| `/s/:snapshotId`                                         | a snapshot: a version frozen with its data, read-only       | viewer   |
+| `/bin`                                                   | Bin: deleted threads, restore; retention, delete (admin)    | editor   |
+| `/connectors`, `/connectors/:connectorId`                | Connectors: list, access level, guardrails, schema          | admin    |
+| `/connectors/new`, `/connectors/:connectorId/edit`       | add and edit a connection                                   | admin    |
+| `/connectors/:connectorId/health`                        | resource route: the connection test, for fetchers           | admin    |
+| `/settings/model`                                        | Model: the providers, their keys and limits                 | admin    |
+| `/settings/auth`                                         | Authentication: sign-in providers, passwords                | admin    |
+| `/settings/users`                                        | Users: invite, roles, disable, reset links, sign out        | admin    |
+| `/settings/usage`                                        | Usage: tokens, cost and views; by feature, model, person    | admin    |
+| `/settings/notifications`                                | Notifications: channels, tests, what a webhook receives     | admin    |
+| `/settings/alerts`                                       | Alerts: the most alerts active per connector                | admin    |
+| `/settings/snapshots`                                    | Snapshots: every live snapshot, revoke one                  | admin    |
+| `/settings/queries`                                      | Queries: builders on or off, your own with placeholders     | admin    |
+| `/settings/charts`                                       | Charts: every chart recipe drawn from its sample            | admin    |
+| `/settings/server`                                       | Server: system settings and keys, read-only, with sources   | admin    |
+| `/settings`                                              | redirect → `/settings/model`                                | admin    |
+| `/ui`                                                    | UI kit: every `ui/` primitive, for checking the visuals     | viewer   |
+| `/login`                                                 | sign in                                                     | —        |
+| `/setup`                                                 | the default admin chooses their own email and password      | —        |
+| `/set-password`                                          | choose a password from an invite or reset link              | —        |
 
 The roles rank viewer, analyst, editor, admin (`roles` in `@quanthea/shared`), and `hasRole` is
 the one check of a minimum role, on the server and in the browser. An analyst reads everything a
@@ -777,6 +789,11 @@ suggestions.
   still fires; a series firing since before the changes kept starts when it entered its state.
   Viewers get the links of the alerts they may see; editors also the suggestions.
 - `GET /api/alert-link-targets` (editors) lists the pinned dashboards with their panels.
+
+**What shows where.** A linked panel shows a state pill, its info bubble says which alert
+watches it, and its time chart draws the threshold and the firing periods, which the variables row
+toggles; the About tab lists the dashboard's alerts. The alert page lists the panels it is shown
+on. Section 11 has the details.
 
 Snapshots are unchanged: the alert pills and firing periods are not part of a panel's run, so a
 snapshot freezes the panels without them.
@@ -2212,7 +2229,9 @@ one, and enables them again. Without any admin, it creates the default one.
 - The variables row ends with a toggle per set of markers the charts show, in the set's colour.
   A hidden set is drawn on no chart. Hiding is a view choice, kept in the URL like the variables
   (`hide-markers=deploys`, repeated for several) and never saved; panels run without it, so a
-  toggle redraws the charts without running them again.
+  toggle redraws the charts without running them again. Each alert linked to a panel adds a
+  toggle of its own, labelled with its title, for its firing periods: shown by default, hidden as
+  `hide-markers=alert:<alert id>`.
 - The dashboard header holds the title with an About bubble behind an info icon (description,
   tags, the connectors and how many panels use each). Its actions are Ask about this, Change,
   Share and Versions (`dashboard-actions.tsx`).
@@ -2291,6 +2310,23 @@ one, and enables them again. Without any admin, it creates the default one.
     version than the one shown marks nothing and says on which version it was asked.
 - Each panel has an info bubble: its connector, language and query text, and the chart recipe
   that draws it. It shows what the saved panel runs, so a viewer can trace a number to its source.
+- **Alerts on panels.** The dashboard screen loads the alerts on its panels over the range shown
+  (the `/d/:dashboardId/alerts` resource route, again after every action), and each panel reads
+  its own (`panel-alerts.ts`, `panel-alert-view.tsx`):
+  - The header shows a small pill linking to the alert: Firing (danger), Pending (amber), Muted
+    (quiet) only while firing underneath, and nothing when OK. The pill follows the values chosen:
+    a series counts when each of its labels named like a variable holds a chosen value
+    (`$service = payments-svc` shows payments' state); a variable on All, or one no label is named
+    like, filters nothing, so the panel shows the worst state of every series. An alert whose fixed
+    variables take none of the chosen values watches something else and shows nothing.
+  - The info bubble says "Watched by _Checkout 5xx rate_, firing", for editors on a pinned version
+    offers Create an alert on this ("starts an alert conversation with this query"), which starts
+    an alert thread seeded with the panel and opens it, and shows the alerts whose query matches
+    the panel's ("An alert watches the same query: … Link"), with Link and Dismiss.
+  - A time chart draws each linked alert's threshold as a dashed line at its exact value and
+    shades its firing periods in the series the values chosen show, both in the danger colour
+    (`charts/alert-marks.ts`, with the annotation markers on the first series).
+  - The About tab lists Alerts on this dashboard, each with its state.
 - **Explain.** On a pinned version the info bubble opens on the panel's explanation
   (`panel-explain.tsx`, `use-explain.ts`), above where its data comes from, so the panel header
   keeps one button. The explanation loads when the bubble opens: its short paragraphs as plain

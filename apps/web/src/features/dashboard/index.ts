@@ -1,4 +1,6 @@
 /** The dashboard screen: its route component and loaders. */
+
+export { loadDashboardAlerts } from './alerts-data.ts';
 export {
   loadConversation,
   loadConversations,

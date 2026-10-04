@@ -71,6 +71,13 @@ describe('sets of markers in the view', () => {
     expect(runSearchOf(search)).toBe('from=now-1h&to=now');
   });
 
+  test('keeps the firing periods of a linked alert hidden, like a set', () => {
+    const search = withMarkersShown(new URLSearchParams(), 'alert:01ALERT', false);
+    expect(search.toString()).toBe('hide-markers=alert%3A01ALERT');
+    expect([...hiddenMarkersOf(search, spec)]).toEqual(['alert:01ALERT']);
+    expect(runSearchOf(search)).toBe('');
+  });
+
   test('draws no marker of a hidden set', () => {
     const outcome = (annotation: string) => ({
       annotation,
