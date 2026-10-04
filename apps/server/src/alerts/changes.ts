@@ -4,6 +4,7 @@
  * holds to the cap of active alerts per connector.
  */
 import {
+  type AlertSeed,
   type AlertSettings,
   type AlertSpec,
   alertSpecChanges,
@@ -15,6 +16,7 @@ import {
 import type { ConnectorLookup } from '../dashboards/check-queries.ts';
 import { refuseSpec } from '../dashboards/context.ts';
 import type { AlertActivityRepository } from '../db/alert-activity.ts';
+import type { AlertLinkRepository } from '../db/alert-link-repository.ts';
 import type { AlertRepository, AlertRow } from '../db/alert-repository.ts';
 import type { AlertStateRepository } from '../db/alert-state-repository.ts';
 import type { AuditRepository } from '../db/audit-repository.ts';
@@ -45,6 +47,8 @@ export interface AlertsDependencies extends AlertQueryDependencies {
   readonly notify: Notify;
   /** The link to an alert. */
   readonly alertUrl: (alertId: string) => string;
+  /** Stores the links to panels: an alert made from a panel links to it. None when left out. */
+  readonly links?: Pick<AlertLinkRepository, 'add'> | undefined;
   /** The clock; `Date.now` by default. */
   readonly now?: () => number;
 }
@@ -62,6 +66,8 @@ export interface NewVersion {
   readonly note?: string | null | undefined;
   /** The conversation that made it, for a new alert. */
   readonly threadId?: string | null | undefined;
+  /** The panel that conversation started from: a new alert links to it. */
+  readonly seed?: AlertSeed | null | undefined;
 }
 
 /** A change made by hand to an active alert. */
@@ -115,7 +121,27 @@ export function saveVersion(
   const row = { alertId, title: spec.title, spec, note: input.note ?? null, createdBy: actor };
   const version = context.repository.addVersion({ ...row, createdAt: now }, input.threadId);
   context.audit.append({ actor, action: 'alert.version', target: alertId, detail: { version } });
+  if (input.alertId === undefined && input.seed) linkSeed(context, alertId, input.seed, actor);
   return { alertId, version };
+}
+
+/**
+ * Links a new alert to the panel its conversation started from. A dashboard deleted since leaves
+ * no link.
+ *
+ * @param context - The service context.
+ * @param alertId - The new alert.
+ * @param seed - The panel.
+ * @param actor - Who saved the alert.
+ */
+function linkSeed(context: AlertsContext, alertId: string, seed: AlertSeed, actor: string): void {
+  const { dashboardId, panelId } = seed;
+  const link = { alertId, dashboardId, panelId, createdBy: actor, createdAt: context.now() };
+  try {
+    context.links?.add({ ...link, how: 'from_panel' });
+  } catch {
+    // The dashboard is gone: its foreign key refuses the link.
+  }
 }
 
 /**

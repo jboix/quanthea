@@ -116,7 +116,8 @@ function failAlert(context: RunContext, error: string, issues: readonly Issue[])
 function saveAlert(context: RunContext, spec: AlertSpec, note: string) {
   const alerts = context.alerts as NonNullable<RunContext['alerts']>;
   const alertId = currentAlert(context)?.alertId;
-  const input = { spec, note, threadId: context.threadId, ...(alertId ? { alertId } : {}) };
+  const { seed } = context.threads.row(context.threadId);
+  const input = { spec, note, threadId: context.threadId, ...(alertId ? { alertId } : { seed }) };
   const saved = alerts.saveVersion(input, context.actor);
   context.threads.apply(context.threadId, 'built');
   context.threads.name(context.threadId, spec.title);

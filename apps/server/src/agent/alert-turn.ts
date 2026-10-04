@@ -28,6 +28,7 @@ import { askPersonTool } from './ask-tool.ts';
 import { cachedInstructions } from './cache.ts';
 import { dataTools } from './data-tools.ts';
 import { guideTools } from './guide-tools.ts';
+import { linkLines, proposeLinkTool } from './link-tool.ts';
 import { alertPhaseTools, phaseOf, type ToolName } from './phases.ts';
 import { nowLine } from './prompt.ts';
 import type { RunContext } from './run-context.ts';
@@ -131,6 +132,7 @@ export async function alertInstructions(
     channelsLine(context),
     ...(draft ? [`Current draft, version ${draft.version}:\n${JSON.stringify(draft.spec)}`] : []),
     ...seedLines(context),
+    ...linkLines(context),
     canReplay(context) ? replayRule : noReplayRule,
     phaseLine(context, latestAlertPlan(plans)),
   ];
@@ -157,18 +159,21 @@ export function alertTurnTools(context: RunContext, now: () => number) {
     ...guideTools(guides),
     ...alertTools(context, now),
     ask_person: askPersonTool(context),
+    propose_link: proposeLinkTool(context),
   };
 }
 
 /**
  * The tools a step of an alert thread offers in a state: the phase's, without the replay when no
- * connector shows numbers.
+ * connector shows numbers, and without `propose_link` when no pinned panel matches the draft.
  *
  * @param context - The run.
  * @returns The tool names.
  */
 export function alertActiveTools(context: RunContext): ToolName[] {
   const { state } = context.threads.row(context.threadId);
-  const tools = alertPhaseTools[phaseOf(state)];
-  return canReplay(context) ? [...tools] : tools.filter((name) => name !== 'replay_alert');
+  const left = new Set<ToolName>();
+  if (!canReplay(context)) left.add('replay_alert');
+  if (linkLines(context).length === 0) left.add('propose_link');
+  return alertPhaseTools[phaseOf(state)].filter((name) => !left.has(name));
 }

@@ -5,6 +5,7 @@ import { requestId } from 'hono/request-id';
 import type { Answers } from './agent/answer-types.ts';
 import type { Agent } from './agent/run.ts';
 import type { Alerts } from './alerts/alerts.ts';
+import type { PanelLinks } from './alerts/links.ts';
 import type { Authenticator } from './auth/authenticator.ts';
 import type { DefaultAdminDependencies } from './auth/default-admin.ts';
 import type { PasswordAccounts } from './auth/password-accounts.ts';
@@ -26,6 +27,7 @@ import { refuseCrossSite } from './http/csrf.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
 import { mountAlertDraftEndpoints } from './http/routes/alert-draft-routes.ts';
+import { mountAlertLinkEndpoints } from './http/routes/alert-link-routes.ts';
 import { mountAlertEndpoints } from './http/routes/alert-routes.ts';
 import { mountAuthRoutes } from './http/routes/auth-routes.ts';
 import { mountBinEndpoints } from './http/routes/bin-routes.ts';
@@ -135,6 +137,8 @@ export interface AppDependencies {
   readonly alerts: Alerts;
   /** How many alerts may be active per connector. */
   readonly alertSettings: AlertSettingsService;
+  /** The links between alerts and dashboard panels. */
+  readonly panelLinks: PanelLinks;
 }
 
 /**
@@ -197,6 +201,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountBinEndpoints(app, dependencies);
   mountAlertEndpoints(app, dependencies);
   mountAlertDraftEndpoints(app, dependencies);
+  mountAlertLinkEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent, dependencies.threads);
 }
 

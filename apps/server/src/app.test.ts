@@ -177,14 +177,28 @@ describe('route access', () => {
     expect(alertRoutes.sort()).toEqual([
       'analyst POST /api/alerts/:alertId/mute',
       'analyst POST /api/alerts/:alertId/unmute',
+      'editor DELETE /api/alerts/:alertId/links/:dashboardId/:panelId',
       'editor POST /api/alerts/:alertId/activate',
       'editor POST /api/alerts/:alertId/deactivate',
+      'editor POST /api/alerts/:alertId/link-dismissals',
+      'editor POST /api/alerts/:alertId/links',
       'editor POST /api/alerts/:alertId/versions',
       'editor POST /api/alerts/:alertId/versions/:version/test',
       'editor POST /api/alerts/replay',
       'viewer GET /api/alerts',
       'viewer GET /api/alerts/:alertId',
+      'viewer GET /api/alerts/:alertId/links',
       'viewer POST /api/alerts/:alertId/versions/:version/replay',
+    ]);
+  });
+
+  test('every role reads the alerts on a dashboard; editors list the panels to link to', () => {
+    const linkRoutes = listApiRouteAccess(buildApp())
+      .filter((route) => /alert-link-targets|dashboardId\/alerts/.test(route.path))
+      .map((route) => `${route.access} ${route.method} ${route.path}`);
+    expect(linkRoutes.sort()).toEqual([
+      'editor GET /api/alert-link-targets',
+      'viewer GET /api/dashboards/:dashboardId/alerts',
     ]);
   });
 

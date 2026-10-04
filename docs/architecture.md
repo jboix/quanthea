@@ -728,6 +728,59 @@ alert pages show:
   active, as they read them. A replay runs the version's saved query, as a panel run does, so it
   shows nothing a dashboard of the same query would not.
 
+### 5.9 Alerts on dashboard panels
+
+A **link** says an alert watches what a dashboard panel shows (`alerts/links.ts`, over
+`db/alert-link-repository.ts`). It names the alert, the dashboard and the panel by id, never a
+version, so it follows the panel from version to version. It records who made it, when, and how:
+`from_panel`, `agent`, `by_hand` or `query_match`. It goes with its alert or its dashboard
+(`ON DELETE CASCADE`). Links are not part of the dashboard spec.
+
+A person makes every link; nothing links on its own:
+
+- **From a panel.** An alert thread started from a panel carries the panel as its `seed`. When the
+  thread's alert is first saved, `saveVersion` links it to that panel (`from_panel`). Later
+  versions add no link. A dashboard deleted since leaves no link.
+- **From the agent's card.** In an alert thread, the server finds the pinned panels whose query
+  matches the draft's (the model never queries the database). The instructions list them, and
+  `propose_link` streams a `data-linkProposal` card for one. The tool refuses a panel not in that
+  list, and is offered only while the list has one. Only the person's Link on the card links them
+  (`agent`).
+- **By hand**, on the alert page (`by_hand`), to a panel of a pinned version.
+- **From a suggestion** (`query_match`), when the alert's query matches a panel's.
+
+**Fingerprints** (`alerts/fingerprint.ts`). A query's fingerprint is its connector, its language
+and its text normalised. For SQL, comments go, spacing collapses to one space between words and
+none around punctuation, words outside quotes are lowercased, and a final semicolon goes. PromQL
+and LogQL drop `#` comments and spacing the same way, and keep the case of names. Quoted parts stay
+as written. Search, MongoDB and HTTP queries are their JSON with every object's keys in order; a
+Redis command is upper-cased. A spec keeps the query a builder rendered, so a builder's
+fingerprint is that rendered query's. The refId, the step and `instant` are left out.
+
+**Suggestions.** A panel of a pinned version is suggested for an alert when one of its queries
+has the fingerprint of the alert's active query, and the pair is neither linked nor dismissed. The
+server computes the fingerprints when it reads, from the pinned specs. Editors dismiss a
+suggestion, which is stored (`alert_link_dismissals`) and never suggested again. Not now on the
+agent's card is a dismissal too, so the agent does not offer that panel again. Only editors get
+suggestions.
+
+**Reading.** Every role reads links, as it reads alerts and dashboards:
+
+- `GET /api/alerts/:id/links` lists the panels an alert is shown on: the dashboard's title, the
+  panel's title on the version shown (the pinned one, else the latest for editors), or `null` when
+  that version has no such panel, and how the link was made. Viewers see the links to pinned
+  dashboards of an alert they may see. Editors also get the suggestions and the dismissals.
+- `GET /api/dashboards/:id/alerts?from=&to=` gives the alerts on a dashboard's panels: each
+  alert's title, whether it is evaluated and muted, the active threshold, the fixed values of its
+  variables, each series' state, and its firing periods over the range. A firing period runs from
+  a change to `firing` to the next change away from it (`alert_events`), the latest open while it
+  still fires; a series firing since before the changes kept starts when it entered its state.
+  Viewers get the links of the alerts they may see; editors also the suggestions.
+- `GET /api/alert-link-targets` (editors) lists the pinned dashboards with their panels.
+
+Snapshots are unchanged: the alert pills and firing periods are not part of a panel's run, so a
+snapshot freezes the panels without them.
+
 ## 6. The agent
 
 ### Tools
@@ -1075,11 +1128,11 @@ writes the alert, and the thread is ready for changes, which need no new plan. T
 is the one whose `thread_id` names it; every write adds one of its versions, a draft until someone
 activates one.
 
-| Phase    | Tools                                                                                                                |
-| -------- | -------------------------------------------------------------------------------------------------------------------- |
-| planning | `describe`, `sample_values`, `ask_person`, `propose_alert`                                                           |
-| building | `describe`, `sample_values`, `read_guide`, `test_query`, `edit_alert`, `replay_alert`                                |
-| editing  | `describe`, `sample_values`, `read_guide`, `test_query`, `ask_person`, `propose_alert`, `edit_alert`, `replay_alert` |
+| Phase    | Tools                                                                                                                                |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| planning | `describe`, `sample_values`, `ask_person`, `propose_alert`                                                                           |
+| building | `describe`, `sample_values`, `read_guide`, `test_query`, `edit_alert`, `replay_alert`, `propose_link`                                |
+| editing  | `describe`, `sample_values`, `read_guide`, `test_query`, `ask_person`, `propose_alert`, `edit_alert`, `replay_alert`, `propose_link` |
 
 - **`propose_alert`** takes the plan in words (what it watches on which connector, when it fires,
   how often it checks) and the channels by id. It refuses an id no channel has. The plan card
@@ -1101,6 +1154,8 @@ activates one.
   instructions then tell the agent to say once that the draft pane shows the replay.
 - **`read_guide("alert")`** gives the alert guide: every field of the spec, the placeholders and
   an example.
+- **`propose_link`**, in building and editing, while some pinned panel's query matches the
+  draft's: it offers to show the alert on that panel with a card. The person decides (see 5.9).
 
 The instructions (`agent/alert-prompt.ts`, `agent/alert-turn.ts`) carry the persona and rules of
 the mode and the catalog, then the time, the channels it may notify by id, name and kind (none:
@@ -1887,6 +1942,21 @@ CREATE TABLE alert_events (
   from_state TEXT NOT NULL, to_state TEXT NOT NULL, at INTEGER NOT NULL, value REAL,
   message TEXT,                      -- why the query failed, for a change to 'error'
   notified INTEGER NOT NULL DEFAULT 0);
+
+-- an alert shown on a dashboard panel, by panel id: it follows the panel across versions
+CREATE TABLE alert_links (
+  alert_id TEXT NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+  dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+  panel_id TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL,
+  how TEXT NOT NULL CHECK (how IN ('from_panel','agent','by_hand','query_match')),
+  PRIMARY KEY (alert_id, dashboard_id, panel_id));
+
+-- a suggested panel an editor dismissed: not suggested again
+CREATE TABLE alert_link_dismissals (
+  alert_id TEXT NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+  dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+  panel_id TEXT NOT NULL, dismissed_by TEXT NOT NULL, dismissed_at INTEGER NOT NULL,
+  PRIMARY KEY (alert_id, dashboard_id, panel_id));
 ```
 
 The usage ledger (`usage/usage.ts`) records every model step, with its provider, model, job,
@@ -1921,7 +1991,8 @@ the notification channels with their log.
 ledger's `snapshot_view` kind and `feature` (every earlier model step built dashboards).
 The same file adds the alerts, their versions, the state of their series and their changes of
 state, in a section of their own at its end. A last section adds what a thread makes (`kind`) and the panel an alert
-thread starts from (`seed`), and the ledger's `alert` feature.
+thread starts from (`seed`), and the ledger's `alert` feature. The last one adds the links
+between alerts and panels and the dismissed suggestions.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -1999,6 +2070,11 @@ indicative; the contract files are the source of truth.
 | `POST /alerts/:id/versions/:v/test` (a series to fill the values with)                            | send the version's message as `alert.test`   | editor   |
 | `POST /threads/:id/alert-draft` (the whole spec)                                                  | a hand edit: a new draft version and a card  | editor   |
 | `POST /alerts/:id/versions` (the active version it starts from, the whole spec)                   | changes from the alert page, activated       | editor   |
+| `GET /alerts/:id/links` (suggestions and dismissals: editors only)                                | the panels an alert is shown on              | viewer   |
+| `POST /alerts/:id/links`, `DELETE /alerts/:id/links/:dashboardId/:panelId`                        | link an alert to a panel, or unlink it       | editor   |
+| `POST /alerts/:id/link-dismissals`                                                                | dismiss a suggested panel                    | editor   |
+| `GET /alert-link-targets`                                                                         | pinned dashboards and panels, to link one    | editor   |
+| `GET /dashboards/:id/alerts?from=&to=` (suggestions: editors only)                                | the alerts on its panels, firing periods     | viewer   |
 | `GET/PUT /settings/alerts`                                                                        | the most alerts active per connector         | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,

@@ -2,6 +2,7 @@
 import type { ModelSettings, ThreadData, TurnUsage } from '@quanthea/shared';
 import type { UIMessage, UIMessageStreamWriter } from 'ai';
 import type { Alerts } from '../alerts/alerts.ts';
+import type { PanelLinks } from '../alerts/links.ts';
 import type { Dashboards } from '../dashboards/dashboards.ts';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import type { ModelView } from '../gate/model-view.ts';
@@ -23,6 +24,8 @@ export interface AgentServices {
   readonly usage: Usage;
   /** The alerts, which alert threads write; alert threads refuse to run without them. */
   readonly alerts?: AlertAuthoring | undefined;
+  /** The panels whose query matches an alert's, for the agent to propose linking. */
+  readonly panelLinks?: Pick<PanelLinks, 'candidates'> | undefined;
   /** The notification channels an alert may notify, by id, name and kind. */
   readonly channels?: (() => readonly ChannelChoice[]) | undefined;
 }

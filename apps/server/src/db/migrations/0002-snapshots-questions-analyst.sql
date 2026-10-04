@@ -365,3 +365,32 @@ ALTER TABLE threads ADD COLUMN kind TEXT NOT NULL DEFAULT 'dashboard'
   CHECK (kind IN ('dashboard', 'alert'));
 
 ALTER TABLE threads ADD COLUMN seed TEXT;
+
+-- --------------------------------------------------------------------------- alerts on panels
+-- A link says an alert watches what a dashboard panel shows. It names the panel by id, not a
+-- version, so it follows the panel from version to version. It goes with either side.
+CREATE TABLE alert_links (
+  alert_id TEXT NOT NULL REFERENCES alerts (id) ON DELETE CASCADE,
+  dashboard_id TEXT NOT NULL REFERENCES dashboards (id) ON DELETE CASCADE,
+  panel_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  -- How it was made: from the panel, from the agent's card, by hand, or from a matching query.
+  how TEXT NOT NULL CHECK (how IN ('from_panel', 'agent', 'by_hand', 'query_match')),
+  PRIMARY KEY (alert_id, dashboard_id, panel_id)
+);
+
+CREATE INDEX alert_links_by_dashboard ON alert_links (dashboard_id);
+
+-- A suggestion an editor dismissed: an alert and a panel whose queries match. It is not
+-- suggested again, and it goes with either side.
+CREATE TABLE alert_link_dismissals (
+  alert_id TEXT NOT NULL REFERENCES alerts (id) ON DELETE CASCADE,
+  dashboard_id TEXT NOT NULL REFERENCES dashboards (id) ON DELETE CASCADE,
+  panel_id TEXT NOT NULL,
+  dismissed_by TEXT NOT NULL,
+  dismissed_at INTEGER NOT NULL,
+  PRIMARY KEY (alert_id, dashboard_id, panel_id)
+);
+
+CREATE INDEX alert_link_dismissals_by_dashboard ON alert_link_dismissals (dashboard_id);

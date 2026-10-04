@@ -21,7 +21,8 @@ export type ToolName =
   | 'read_guide'
   | 'propose_alert'
   | 'edit_alert'
-  | 'replay_alert';
+  | 'replay_alert'
+  | 'propose_link';
 
 /** The tools each phase offers. */
 export const phaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
@@ -49,11 +50,20 @@ export const phaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
 /**
  * The tools each phase offers in an alert thread: planning describes the data and proposes what
  * to watch; building and editing test queries, read the alert guide and write the alert, and
- * replay it where the access level shows numbers.
+ * replay it where the access level shows numbers. Once written, the agent may propose showing it
+ * on a dashboard panel whose query matches.
  */
 export const alertPhaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
   planning: ['describe', 'sample_values', 'ask_person', 'propose_alert'],
-  building: ['describe', 'sample_values', 'read_guide', 'test_query', 'edit_alert', 'replay_alert'],
+  building: [
+    'describe',
+    'sample_values',
+    'read_guide',
+    'test_query',
+    'edit_alert',
+    'replay_alert',
+    'propose_link',
+  ],
   editing: [
     'describe',
     'sample_values',
@@ -63,6 +73,7 @@ export const alertPhaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
     'propose_alert',
     'edit_alert',
     'replay_alert',
+    'propose_link',
   ],
 };
 

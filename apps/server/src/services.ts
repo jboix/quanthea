@@ -11,6 +11,7 @@ import { createMetadataWriter, type PinMetadata } from './agent/metadata.ts';
 import { type Agent, createAgent } from './agent/run.ts';
 import { type Alerts, createAlerts } from './alerts/alerts.ts';
 import type { EvaluationDependencies } from './alerts/evaluate.ts';
+import { createPanelLinks, type PanelLinks } from './alerts/links.ts';
 import { resealIdentities, resealSignInCredentials, resealUsers } from './auth/reseal-users.ts';
 import { type Connections, createConnections } from './connections/connections.ts';
 import { resealConnectors } from './connections/reseal.ts';
@@ -22,6 +23,7 @@ import { createQuestions, type Questions } from './dashboards/questions.ts';
 import { createSnapshots, type Snapshots } from './dashboards/snapshots.ts';
 import { createAlertActivityRepository } from './db/alert-activity.ts';
 import { createAlertChannelUsage } from './db/alert-channel-usage.ts';
+import { createAlertLinkRepository } from './db/alert-link-repository.ts';
 import { createAlertRepository } from './db/alert-repository.ts';
 import { createAlertStateRepository } from './db/alert-state-repository.ts';
 import { createAuditRepository } from './db/audit-repository.ts';
@@ -111,6 +113,8 @@ export interface Services extends Accounts {
   readonly notifications: Notifications;
   /** Alerts: their versions, state, mutes and replays. */
   readonly alerts: Alerts;
+  /** The links between alerts and dashboard panels, and the suggestions. */
+  readonly panelLinks: PanelLinks;
   /** How many alerts may be active per connector. */
   readonly alertSettings: AlertSettingsService;
   /** What the alert evaluator needs to evaluate one alert, but the logger. */
@@ -158,7 +162,11 @@ function dataServices(
   const modelView = createModelView({ list, open, snapshot }, executor);
   const answered = answerServices(database, dashboardDependencies, modelView);
   const notifications = notificationService(dependencies, audit);
-  const alerting = alertServices(dependencies, audit, { ...dashboardDependencies, notifications });
+  const alerting = alertServices(dependencies, audit, {
+    ...dashboardDependencies,
+    notifications,
+    dashboards,
+  });
   return { connections, dashboards, snapshots, ...answered, modelView, ...alerting, notifications };
 }
 
@@ -173,10 +181,11 @@ function dataServices(
 function alertServices(
   dependencies: ServiceDependencies,
   audit: ReturnType<typeof createAuditRepository>,
-  shared: Pick<DashboardsDependencies, 'lookup' | 'openSource' | 'executor'> & {
+  shared: Pick<DashboardsDependencies, 'lookup' | 'openSource' | 'executor' | 'repository'> & {
     readonly notifications: Notifications;
+    readonly dashboards: Dashboards;
   },
-): Pick<Services, 'alerts' | 'alertSettings' | 'alertEvaluation'> {
+): Pick<Services, 'alerts' | 'alertSettings' | 'alertEvaluation' | 'panelLinks'> {
   const { database } = dependencies;
   const { notifications, openSource, executor } = shared;
   const states = createAlertStateRepository(database);
@@ -193,9 +202,12 @@ function alertServices(
   const channelExists = (id: string) => notifications.picker().some((each) => each.id === id);
   const repository = createAlertRepository(database);
   const activity = createAlertActivityRepository(database);
-  const base = { ...shared, ...alertEvaluation, audit, repository, channelExists, activity };
+  const links = createAlertLinkRepository(database);
+  const base = { ...shared, ...alertEvaluation, audit, repository, channelExists, activity, links };
   const alerts = createAlerts({ ...base, settings: alertSettings });
-  return { alerts, alertSettings, alertEvaluation };
+  const pinned = () => shared.repository.listPinned();
+  const panelLinks = createPanelLinks({ ...shared, links, repository, states, audit, pinned });
+  return { alerts, alertSettings, alertEvaluation, panelLinks };
 }
 
 /**

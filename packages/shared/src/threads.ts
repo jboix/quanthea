@@ -187,6 +187,14 @@ const alertDataSchemas = {
     to: z.int(),
     changes: z.array(specChangeSchema).max(40),
   }),
+  /** The agent offers to show the alert on a panel whose query matches; the person decides. */
+  linkProposal: z.object({
+    alertId: z.string(),
+    dashboardId: z.string(),
+    dashboardTitle: z.string(),
+    panelId: z.string(),
+    panelTitle: z.string(),
+  }),
 };
 
 /** Validates a pinned dashboard that may already answer a question. */
