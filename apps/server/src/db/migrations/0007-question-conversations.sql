@@ -14,5 +14,9 @@ WITH RECURSIVE chain (id, root_id) AS (
 UPDATE dashboard_questions
 SET root_id = (SELECT chain.root_id FROM chain WHERE chain.id = dashboard_questions.id);
 
+-- The range as chosen when it was asked, JSON: a relative expression such as `now-1h`, or
+-- absolute times. Questions stored before it was kept have NULL; their absolute range stands in.
+ALTER TABLE dashboard_questions ADD COLUMN time_chosen TEXT;
+
 CREATE INDEX dashboard_questions_by_conversation
 ON dashboard_questions (dashboard_id, root_id, asked_at);

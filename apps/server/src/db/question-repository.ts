@@ -24,6 +24,8 @@ export interface QuestionRow {
   readonly timeTo: number;
   /** The time zone of the answer. */
   readonly timeZone: string;
+  /** The range as chosen, relative or absolute; `null` for questions stored before it was kept. */
+  readonly timeChosen: unknown;
   /** The variable values. */
   readonly variables: unknown;
   /** The ids of the hidden sets of markers. */
@@ -163,6 +165,8 @@ interface StoredQuestion {
   root_id: string;
   /** The start of the range. */
   time_from: number;
+  /** The range as chosen, JSON, or `NULL`. */
+  time_chosen: string | null;
   /** The end of the range. */
   time_to: number;
   /** The time zone. */
@@ -194,7 +198,7 @@ interface StoredQuestion {
 }
 
 /** The columns of a question, in the order of the insert. */
-const columns = `id, dashboard_id, version, parent_id, root_id, time_from, time_to, time_zone, variables,
+const columns = `id, dashboard_id, version, parent_id, root_id, time_from, time_to, time_zone, time_chosen, variables,
   hidden_markers, explain_only, asked_by, asked_at, question, answer, failure, citations, evidence,
   usage, tokens`;
 
@@ -212,6 +216,7 @@ function rowOf(stored: StoredQuestion): QuestionRow {
     parentId: stored.parent_id,
     rootId: stored.root_id,
     timeFrom: stored.time_from,
+    timeChosen: stored.time_chosen === null ? null : JSON.parse(stored.time_chosen),
     timeTo: stored.time_to,
     timeZone: stored.time_zone,
     variables: JSON.parse(stored.variables),
@@ -237,7 +242,8 @@ function rowOf(stored: StoredQuestion): QuestionRow {
  */
 function valuesOf(row: QuestionRow) {
   const place = [row.id, row.dashboardId, row.version, row.parentId, row.rootId];
-  const shown = [row.timeFrom, row.timeTo, row.timeZone];
+  const chosen = row.timeChosen === null ? null : JSON.stringify(row.timeChosen);
+  const shown = [row.timeFrom, row.timeTo, row.timeZone, chosen];
   const choices = [JSON.stringify(row.variables), JSON.stringify(row.hiddenMarkers)];
   const asked = [row.explainOnly ? 1 : 0, row.askedBy, row.askedAt, row.question];
   const outcome = [row.answer, row.failure, JSON.stringify(row.citations)];
@@ -265,7 +271,7 @@ function questionStatements(database: Database) {
   return {
     insert: database.query(
       `INSERT INTO dashboard_questions (${columns})
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     get: database.query<StoredQuestion, [string]>(
       `SELECT ${columns} FROM dashboard_questions WHERE id = ?`,

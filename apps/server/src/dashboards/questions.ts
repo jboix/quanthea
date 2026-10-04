@@ -65,6 +65,8 @@ export interface PreparedQuestion {
   readonly spec: DashboardSpec;
   /** The range shown, resolved. */
   readonly time: ResolvedTimeRange;
+  /** The range as chosen: relative, such as `now-1h`, or absolute. */
+  readonly timeChosen: TimeRangeExpression;
   /** The time zone the answer names times in. */
   readonly timeZone: string;
   /** The variable values shown. */
@@ -285,6 +287,7 @@ function prepare(context: QuestionContext, request: QuestionRequest, actor: stri
     version: request.version,
     spec,
     time: resolveTimeRange(request.time ?? spec.time, context.now()),
+    timeChosen: request.time ?? spec.time,
     timeZone: knownTimeZone(spec.timezone ?? request.timeZone),
     variables: shownVariables(spec, request.variables),
     hiddenMarkers: [...new Set(request.hiddenMarkers)].filter((id) => known.has(id)),

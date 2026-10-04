@@ -33,6 +33,7 @@ function question(id: string, changes: Partial<DashboardQuestion> = {}): Dashboa
     parentId: null,
     conversationId: 'c1',
     time: { from: start, to: start + hour },
+    chosenTime: null,
     timeZone: 'UTC',
     variables: { env: 'prod' },
     hiddenMarkers: [],
@@ -83,6 +84,39 @@ describe('the context line', () => {
     expect(contextChange(last, shownContextOf(shown))).toBeUndefined();
     const staging = shownContextOf({ ...shown, variables: { env: 'staging' } });
     expect(contextChange(last, staging)).toBe('Now asking about 26 Sep 11:30–12:30, $env staging');
+  });
+});
+
+describe('a relative range', () => {
+  const spec = dashboardSpecSchema.parse({
+    specVersion: 1,
+    title: 'Checkout',
+    time: { from: 'now-1h', to: 'now' },
+    panels: [],
+  });
+  const lastHour = { from: 'now-1h', to: 'now' };
+
+  test('is no change when the hour moved on', () => {
+    const asked = askedContextOf(question('a', { chosenTime: lastHour, variables: {} }));
+    const later = { version: 3, spec, time: undefined, variables: {}, timeZone: 'UTC' };
+    expect(
+      contextChange(asked, shownContextOf({ ...later, now: start + 7 * hour })),
+    ).toBeUndefined();
+  });
+
+  test('is a change from another relative range, or from an absolute one', () => {
+    const asked = askedContextOf(question('a', { chosenTime: lastHour, variables: {} }));
+    const shown = { version: 3, spec, variables: {}, timeZone: 'UTC', now: start + hour };
+    const sixHours = shownContextOf({ ...shown, time: { from: 'now-6h', to: 'now' } });
+    expect(contextChange(asked, sixHours)).toBe('Now asking about 26 Sep 06:30–12:30');
+    const old = askedContextOf(question('b', { variables: {} }));
+    expect(contextChange(old, shownContextOf({ ...shown, time: undefined }))).toBeDefined();
+  });
+
+  test('matches two spellings of the same absolute instant', () => {
+    const iso = { from: '2026-09-26T11:30:00Z', to: '2026-09-26T12:30:00.000+00:00' };
+    const asked = askedContextOf(question('a', { chosenTime: iso }));
+    expect(contextChange(askedContextOf(question('b')), asked)).toBeUndefined();
   });
 });
 

@@ -71,6 +71,7 @@ describe('the conversations migration', () => {
     const repository = createQuestionRepository(database);
     const ids = repository.inConversation('d', 'a').map(({ id }) => id);
     expect(ids).toEqual(['a', 'a-1', 'a-branch', 'a-2']);
+    expect(repository.get('a')?.timeChosen).toBeNull();
     expect(repository.conversations('d', 10)).toEqual([
       {
         id: 'a',

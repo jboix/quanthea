@@ -48,6 +48,7 @@ export function infoOf(row: QuestionRow): QuestionInfo {
   const parsed = dashboardQuestionSchema.parse({
     ...row,
     conversationId: row.rootId,
+    chosenTime: row.timeChosen,
     time: { from: row.timeFrom, to: row.timeTo },
     outcome: outcomeOf(row),
   });

@@ -19,6 +19,11 @@ export interface AskedContext {
   readonly version: number;
   /** The range, in epoch milliseconds. */
   readonly time: { readonly from: number; readonly to: number };
+  /**
+   * The range as chosen, as a key: each end relative, such as `now-1h`, or absolute, in epoch
+   * milliseconds. A relative range keeps its key as time moves on.
+   */
+  readonly chosen: string;
   /** The time zone the range is shown in. */
   readonly timeZone: string;
   /** The variable values, such as `$env prod`. */
@@ -48,8 +53,22 @@ export interface ShownView {
  * @returns Its context.
  */
 export function askedContextOf(question: DashboardQuestion): AskedContext {
-  const { version, time, timeZone } = question;
-  return { version, time, timeZone, variables: storedVariableWords(question.variables) };
+  const { version, time, timeZone, chosenTime } = question;
+  // A question stored before the chosen range was kept is compared by its absolute range.
+  const chosen = chosenTime ? rangeKey(chosenTime) : `${time.from}|${time.to}`;
+  return { version, time, chosen, timeZone, variables: storedVariableWords(question.variables) };
+}
+
+/**
+ * The key of a range as chosen: relative ends as written, absolute ends in epoch milliseconds,
+ * so two spellings of one instant match.
+ *
+ * @param range - The range as expressions.
+ * @returns Such as `now-1h|now` or `1790000000000|1790003600000`.
+ */
+export function rangeKey(range: TimeRangeExpression): string {
+  const endKey = (end: string) => (end.startsWith('now') ? end : String(Date.parse(end)));
+  return `${endKey(range.from)}|${endKey(range.to)}`;
 }
 
 /**
@@ -59,9 +78,16 @@ export function askedContextOf(question: DashboardQuestion): AskedContext {
  * @returns The context.
  */
 export function shownContextOf(shown: ShownView): AskedContext {
-  const time = resolveTimeRange(shown.time ?? shown.spec.time, shown.now);
+  const range = shown.time ?? shown.spec.time;
+  const time = resolveTimeRange(range, shown.now);
   const variables = variableWords(shown.spec, shown.variables);
-  return { version: shown.version, time, timeZone: shown.timeZone, variables };
+  return {
+    version: shown.version,
+    time,
+    chosen: rangeKey(range),
+    timeZone: shown.timeZone,
+    variables,
+  };
 }
 
 /**
@@ -82,8 +108,8 @@ export function contextWords(context: AskedContext, withVersion = false): string
  *
  * @param previous - The context of the question before, if any.
  * @param next - The context of the question.
- * @returns Such as `Now asking about 27 Sep 09:00–10:00, $env prod`, or `undefined` when nothing
- *   shown changed, at the minute, or there is no question before.
+ * @returns Such as `Now asking about 27 Sep 09:00–10:00, $env prod`, or `undefined` when neither
+ *   the version, the range as chosen nor the values changed, or there is no question before.
  */
 export function contextChange(
   previous: AskedContext | undefined,
@@ -92,8 +118,7 @@ export function contextChange(
   if (!previous) return undefined;
   const versionChanged = previous.version !== next.version;
   const sameValues = [...previous.variables].sort().join() === [...next.variables].sort().join();
-  const sameRange =
-    contextWords({ ...previous, variables: [] }) === contextWords({ ...next, variables: [] });
+  const sameRange = previous.chosen === next.chosen;
   if (!versionChanged && sameValues && sameRange) return undefined;
   return `Now asking about ${contextWords(next, versionChanged)}`;
 }

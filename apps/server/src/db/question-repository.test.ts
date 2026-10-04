@@ -69,6 +69,7 @@ function questionRow(
     timeFrom: 1000,
     timeTo: 2000,
     timeZone: 'Europe/Zurich',
+    timeChosen: { from: 'now-1h', to: 'now' },
     variables: { env: 'prod' },
     hiddenMarkers: [],
     explainOnly: false,

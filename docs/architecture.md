@@ -846,7 +846,9 @@ earlier question of the chain, which older data may hold, still reads in place.
 2. The version is read as a viewer reads it, so only a pinned version of a pinned dashboard takes
    questions. The server resolves the range to absolute times and the variables to the values
    shown (the chosen ones, else the defaults) as snapshots do, and the answering service binds them
-   as a panel run does. The time zone is the spec's, else the browser's.
+   as a panel run does. The time zone is the spec's, else the browser's. The question also keeps
+   the range as chosen (`chosenTime`): relative, such as `now-1h`, or absolute. Questions stored
+   before it was kept have `null`, and their resolved range stands in.
 3. A follow-up carries its chain's earlier questions and answered texts, oldest first, at most ten,
    as the request's `history`. The parent must be a question of the same dashboard.
 4. The route streams `Answers.stream` and names the stored question in the `X-Question-Id` header.
@@ -1457,6 +1459,7 @@ CREATE TABLE dashboard_questions (
   parent_id TEXT REFERENCES dashboard_questions(id) ON DELETE CASCADE,  -- a follow-up's question
   root_id TEXT NOT NULL,             -- the conversation's first question; its own id for a first one
   time_from INTEGER NOT NULL, time_to INTEGER NOT NULL, time_zone TEXT NOT NULL,  -- as shown
+  time_chosen TEXT,                  -- JSON: the range as chosen; NULL before it was kept
   variables TEXT NOT NULL, hidden_markers TEXT NOT NULL,  -- JSON
   explain_only INTEGER NOT NULL,     -- 1: no source showed numbers
   asked_by TEXT NOT NULL, asked_at INTEGER NOT NULL, question TEXT NOT NULL,
@@ -1753,10 +1756,10 @@ one, and enables them again. Without any admin, it creates the default one.
     History. Each question continues the open conversation: the request names it, and the server
     makes the question follow up on its latest question. New conversation starts over.
   - Each question keeps its own version, range and values. When they differ from the question
-    before it, at the minute, a line before the question says so
+    before it, a line before the question says so
     (`Now asking about 27 Sep 09:00–10:00, $env prod`, with the version when it changed). The
-    same line shows above the box when the view changed since the conversation's latest question
-    (`ask-conversation.ts`).
+    range is compared as chosen, so "last hour" stays the same range as time moves on; absolute
+    ends compare as instants (`ask-conversation.ts`).
   - Viewers read every conversation and get a line saying who can ask, instead of the box.
   - Asking posts the version, the question, the range and variables as shown, the hidden sets
     of markers and the conversation it continues, never a query, and reads the UI message stream

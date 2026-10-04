@@ -208,6 +208,7 @@ describe('question routes', () => {
       explainOnly: false,
       timeZone: 'Europe/Zurich',
       time: { from: Date.parse('2026-10-03T12:00:00Z'), to: Date.parse('2026-10-03T13:00:00Z') },
+      chosenTime: { from: '2026-10-03T12:00:00Z', to: '2026-10-03T13:00:00Z' },
       variables: { env: 'prod', service: '$__all', order: 'A-1' },
       outcome: { ok: true, answer: { text: 'Errors over time shows them [1].' } },
       tokens: 15,
