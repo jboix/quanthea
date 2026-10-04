@@ -160,6 +160,8 @@ export {
   saveQuerySettingsEndpoint,
 } from './api/queries.ts';
 export * from './api/questions.ts';
+export * from './api/report-runs.ts';
+export * from './api/reports.ts';
 export * from './api/retention.ts';
 export {
   getManagedSettingsEndpoint,
@@ -318,6 +320,10 @@ export {
   type QueryBuilder,
   queryBuilders,
 } from './query-builders.ts';
+export * from './reports/headline.ts';
+export * from './reports/period.ts';
+export * from './reports/schedule.ts';
+export * from './reports/zoned.ts';
 export {
   hasRole,
   type Principal,
@@ -356,6 +362,7 @@ export {
   queryText,
   queryTextKey,
 } from './spec/queries.ts';
+export * from './spec/report.ts';
 export {
   type ResolvedTimeRange,
   resolveTime,

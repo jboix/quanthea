@@ -5,7 +5,7 @@ simple: one Bun process, one SQLite file, one React SPA. The complexity budget g
 that deserve it: the spec, the access gate and the agent loop.
 
 The spec format is in [dashboard-spec.md](dashboard-spec.md); alerts have their own,
-[alert-spec.md](alert-spec.md).
+[alert-spec.md](alert-spec.md), and reports theirs, [report-spec.md](report-spec.md).
 
 ---
 
