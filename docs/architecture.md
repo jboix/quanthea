@@ -1120,7 +1120,7 @@ the test; turning the switch off sends the provider's default.
   thread shows each answer's tokens and cost under it, and the thread's total in its header,
   priced from the list prices in `@quanthea/shared` (`modelPrices`, dated). A model without a price
   is named instead.
-- Each run adds its tokens to the thread, step by step, so a failed run still counts. A thread over its token budget (setting, default 200k)
+- Each run adds its tokens to the thread, step by step, so a failed run still counts. A thread over its token budget (setting, default 1,000,000)
   refuses new runs with a message that says so.
 - Plan approval is a separate request (`POST /api/threads/:id/plans/:planId/approve`) that moves the
   thread to `building`. The client then continues the assistant message, and the turn's

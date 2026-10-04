@@ -1,4 +1,4 @@
-import type { ModelSettingsView } from '@quanthea/shared';
+import { defaultModelSettings, type ModelSettingsView } from '@quanthea/shared';
 import { Link, type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
@@ -109,9 +109,13 @@ function BehaviourCard({ form }: SectionProps) {
 
 /** The limits, in the order the card lists them. */
 const limitFields = [
-  { key: 'threadTokens', label: 'Stop a thread after (tokens)' },
-  { key: 'toolCallsPerTurn', label: 'Max tool calls per turn' },
-  { key: 'repairAttempts', label: 'Repair attempts per answer' },
+  {
+    key: 'threadTokens',
+    label: 'Stop a thread after (tokens)',
+    hint: `Default ${defaultModelSettings.limits.threadTokens.toLocaleString('en')}.`,
+  },
+  { key: 'toolCallsPerTurn', label: 'Max tool calls per turn', hint: undefined },
+  { key: 'repairAttempts', label: 'Repair attempts per answer', hint: undefined },
 ] as const;
 
 /**
@@ -123,10 +127,11 @@ const limitFields = [
 function LimitsCard({ form, issues }: SectionProps) {
   return (
     <Card title="Limits">
-      {limitFields.map(({ key, label }) => (
+      {limitFields.map(({ key, label, hint }) => (
         <Input
           key={key}
           label={label}
+          hint={hint}
           mono
           inputMode="numeric"
           value={String(form.settings.limits[key])}
