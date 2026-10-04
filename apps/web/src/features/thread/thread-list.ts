@@ -1,5 +1,6 @@
 /** The past threads as the drawer lists them: filtered by words and pins, grouped by day. */
 import type { ThreadListItem } from '@quanthea/shared';
+import { groupByDay as groupByDays } from '../../lib/day-groups.ts';
 
 /** What the drawer narrows the threads to. */
 export interface ThreadFilter {
@@ -22,15 +23,6 @@ export interface ThreadGroup {
 /** The title a thread shows while it has none. */
 export const untitled = 'Untitled thread';
 
-/** The groups, by the most days since a thread last changed. */
-const groupLimits: readonly [number, string][] = [
-  [0, 'Today'],
-  [1, 'Yesterday'],
-  [7, 'Previous 7 days'],
-  [30, 'Previous 30 days'],
-  [Number.POSITIVE_INFINITY, 'Older'],
-];
-
 /**
  * The threads that pass a filter.
  *
@@ -52,19 +44,6 @@ export function filterThreads(
 }
 
 /**
- * The calendar days between two instants, in the browser's time zone.
- *
- * @param earlier - The earlier instant, in milliseconds.
- * @param now - The later instant.
- * @returns Whole days; 0 on the same day.
- */
-function daysBetween(earlier: number, now: Date): number {
-  const start = (instant: Date) =>
-    new Date(instant.getFullYear(), instant.getMonth(), instant.getDate()).getTime();
-  return Math.round((start(now) - start(new Date(earlier))) / 86_400_000);
-}
-
-/**
  * Groups threads by how long ago they last changed.
  *
  * @param threads - The threads, the latest first.
@@ -72,11 +51,8 @@ function daysBetween(earlier: number, now: Date): number {
  * @returns The groups that have threads, the latest first.
  */
 export function groupByDay(threads: readonly ThreadListItem[], now: Date): ThreadGroup[] {
-  const groups = new Map<string, ThreadListItem[]>();
-  for (const thread of threads) {
-    const days = daysBetween(thread.updatedAt, now);
-    const label = groupLimits.find(([limit]) => days <= limit)?.[1] ?? 'Older';
-    groups.set(label, [...(groups.get(label) ?? []), thread]);
-  }
-  return [...groups].map(([label, members]) => ({ label, threads: members }));
+  return groupByDays(threads, (thread) => thread.updatedAt, now).map(({ label, items }) => ({
+    label,
+    threads: items,
+  }));
 }
