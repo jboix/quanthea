@@ -174,6 +174,7 @@ function ChoicesAndStatuses() {
       <div className={styles.row}>
         <StatusDot status="ok" label="Connected" />
         <StatusDot status="failed" label="The database cannot be reached." />
+        <StatusDot status="pending" label="Pending" />
         <StatusDot status="unknown" label="Not tested" />
         {hidden.map((field) => (
           <Pill

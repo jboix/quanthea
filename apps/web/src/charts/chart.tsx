@@ -6,6 +6,7 @@ import { type EChartsType, init } from 'echarts/core';
 import { type RefObject, useEffect, useMemo, useRef } from 'react';
 import { buildChartOption, type ChartInput } from './build-option.ts';
 import styles from './chart.module.css';
+import type { Loose } from './loose.ts';
 import { ensureMaps } from './maps.ts';
 import { ensureModules, modulesGeneration } from './register.ts';
 import { useChartTheme } from './theme.ts';
@@ -87,13 +88,31 @@ function useResizeAndDispose(
  * @returns The chart container.
  */
 export function Chart({ input, timeZone, label }: ChartProps) {
-  const container = useRef<HTMLDivElement>(null);
-  const holder = useRef<Instance | null>(null);
   const theme = useChartTheme();
   const option = useMemo(
     () => buildChartOption(input, { theme, timeZone }),
     [input, theme, timeZone],
   );
+  return <OptionChart option={option} label={label} />;
+}
+
+/** Props of {@link OptionChart}. */
+interface OptionChartProps {
+  /** The ECharts option, built in this folder. */
+  readonly option: Loose;
+  /** What the chart shows, for screen readers. */
+  readonly label: string;
+}
+
+/**
+ * Draws an option built in this folder. The instance is made once the modules it needs are in.
+ *
+ * @param props - The option and a label.
+ * @returns The chart container.
+ */
+export function OptionChart({ option, label }: OptionChartProps) {
+  const container = useRef<HTMLDivElement>(null);
+  const holder = useRef<Instance | null>(null);
   useResizeAndDispose(container, holder);
   useEffect(() => {
     let current = true;

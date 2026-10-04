@@ -8,6 +8,10 @@ export const routeAccess = {
   '/threads/new': 'editor',
   '/threads/:threadId': 'editor',
   '/library': 'viewer',
+  '/alerts': 'viewer',
+  '/alerts/firing': 'viewer',
+  '/alerts/:alertId': 'viewer',
+  '/alerts/:alertId/v/:version/replay': 'viewer',
   '/account': 'viewer',
   '/d/:dashboardId': 'viewer',
   '/d/:dashboardId/v/:version': 'viewer',
@@ -35,6 +39,7 @@ export const routeAccess = {
   '/settings/server': 'admin',
   '/settings/snapshots': 'admin',
   '/settings/notifications': 'admin',
+  '/settings/alerts': 'admin',
 } as const satisfies Record<string, Role>;
 
 /** A guarded screen path. */

@@ -48,6 +48,20 @@ export function ThreadsIcon() {
 }
 
 /**
+ * A bell, for alerts.
+ *
+ * @returns The icon.
+ */
+export function BellIcon() {
+  return (
+    <Icon>
+      <path d="M6 10a6 6 0 0 1 12 0c0 5 2 7 2 7H4s2-2 2-7" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </Icon>
+  );
+}
+
+/**
  * Four tiles, for the library.
  *
  * @returns The icon.

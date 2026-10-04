@@ -15,6 +15,8 @@ export interface ChartTheme {
   readonly divider: string;
   /** Tooltip background. */
   readonly surface: string;
+  /** What fires: an alert's threshold and its firing periods. */
+  readonly danger: string;
   /** Text font. */
   readonly fontFamily: string;
   /** Font for numbers on axes. */
@@ -29,6 +31,7 @@ export const defaultTheme: ChartTheme = {
   border: '#e2e0d9',
   divider: '#f2f0ea',
   surface: '#ffffff',
+  danger: '#8f2a1c',
   fontFamily: "'IBM Plex Sans Variable', system-ui, sans-serif",
   monoFamily: "'IBM Plex Mono', ui-monospace, monospace",
 };
@@ -40,6 +43,7 @@ const tokens = {
   border: '--color-border',
   divider: '--color-divider',
   surface: '--color-surface',
+  danger: '--color-danger',
   fontFamily: '--font-sans',
   monoFamily: '--font-mono',
 } as const;

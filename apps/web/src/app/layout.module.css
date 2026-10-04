@@ -41,6 +41,7 @@
 }
 
 .railLink {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -52,6 +53,22 @@
   background: none;
   color: var(--color-rail-icon);
   cursor: pointer;
+}
+
+.badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+  color: var(--color-ink-inverse);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
 }
 
 .railLink:hover {

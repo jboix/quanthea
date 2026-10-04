@@ -2,8 +2,10 @@ import { hasRole, type Principal, type Role } from '@quanthea/shared';
 import type { ReactNode } from 'react';
 import { Link, useMatch } from 'react-router';
 import { AccountMenu } from '../features/account/index.ts';
+import { useFiringAlerts } from '../features/alerts/index.ts';
 import { BrandIcon } from '../ui/brand.tsx';
 import {
+  BellIcon,
   BinIcon,
   ConnectorsIcon,
   LibraryIcon,
@@ -25,6 +27,8 @@ interface RailItem {
   readonly minimum: Role;
   /** The icon. */
   readonly icon: ReactNode;
+  /** A count shown on the icon, such as the alerts firing. */
+  readonly badge?: number | undefined;
 }
 
 /** The items at the top of the rail. */
@@ -42,6 +46,13 @@ const topItems: readonly RailItem[] = [
     section: '/library',
     minimum: 'viewer',
     icon: <LibraryIcon />,
+  },
+  {
+    label: 'Alerts',
+    to: '/alerts',
+    section: '/alerts',
+    minimum: 'viewer',
+    icon: <BellIcon />,
   },
   {
     label: 'Connectors',
@@ -72,15 +83,22 @@ const bottomItems: readonly RailItem[] = [
  */
 function RailLink({ item }: { readonly item: RailItem }) {
   const isCurrent = useMatch(`${item.section}/*`) !== null;
+  const { badge } = item;
+  const label = badge ? `${item.label}, ${badge} firing` : item.label;
   return (
     <Link
       to={item.to}
-      aria-label={item.label}
-      title={item.label}
+      aria-label={label}
+      title={label}
       aria-current={isCurrent ? 'page' : undefined}
       className={styles.railLink}
     >
       {item.icon}
+      {badge ? (
+        <span className={styles.badge} aria-hidden="true">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -95,13 +113,16 @@ function RailLink({ item }: { readonly item: RailItem }) {
  */
 export function NavRail({ principal }: { readonly principal: Principal }) {
   const visible = (item: RailItem): boolean => hasRole(principal.role, item.minimum);
+  const firing = useFiringAlerts();
+  const withCount = (item: RailItem): RailItem =>
+    item.to === '/alerts' ? { ...item, badge: firing } : item;
   return (
     <nav aria-label="Primary" className={styles.rail}>
       <Link to="/" aria-label="quanthea home" className={styles.logo}>
         <BrandIcon size={32} />
       </Link>
       {topItems.filter(visible).map((item) => (
-        <RailLink key={item.to} item={item} />
+        <RailLink key={item.to} item={withCount(item)} />
       ))}
       <div className={styles.spacer} />
       {bottomItems.filter(visible).map((item) => (

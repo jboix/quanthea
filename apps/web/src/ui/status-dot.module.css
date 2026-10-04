@@ -14,6 +14,10 @@
   background: var(--color-danger);
 }
 
+.pending {
+  background: var(--color-draft);
+}
+
 .unknown {
   background: var(--color-switch-off);
 }

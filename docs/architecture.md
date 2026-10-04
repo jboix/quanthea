@@ -106,6 +106,7 @@ The two paths that matter:
 │           │   ├── bin/
 │           │   ├── connectors/
 │           │   ├── notifications/   Settings → Notifications: channels, tests, the webhook example
+│           │   ├── alerts/          the alerts list, an alert's page, the rail's count, Settings → Alerts
 │           │   └── settings/        gateway, auth, retention
 │           ├── charts/              view + datasets → ECharts option: preparations, tokens, maps
 │           ├── ui/                  presentational primitives (Button, Card, Pill, Tabs, Switch…), brand
@@ -183,6 +184,38 @@ the kit's HTTP client for every kind that speaks HTTP.
   and pinning go through the route action, and approving then continues the assistant message.
   The version the draft pane shows lives in `?v=`, so a reload or a shared link keeps it. The new-thread screen is one question box in the middle of the screen, with a Past threads button at the top right. It opens a drawer from the right (from the top on a phone) that searches the titles, can show only threads whose dashboard is pinned (each marked with a pin), groups the threads by day, and moves one to the bin after asking. A thread whose dashboard is pinned can't be deleted. A link can fill the question box with `?question=`. It creates the thread and hands the first question over in `?ask=`, which the thread screen sends
   once and removes. Each question carries the browser's time zone.
+- **The rail** shows the screens the role opens: Threads (editors), Library, Alerts, Connectors
+  (admins), then the Bin (editors), Settings (admins) and the account menu. Alerts carries a badge
+  in the danger colour with the number of alerts firing (active, with a series firing, muted or
+  not), named with the link (`Alerts, 2 firing`). It reads the list while the list is on screen,
+  and otherwise the `/alerts/firing` resource route, which loads when the rail mounts and again
+  after every action.
+- **Alerts** (`features/alerts/`). The list (`/alerts`) searches titles, conditions and the worst
+  series in the browser, filters by state (All, Firing, Pending, OK, Muted, and Drafts for
+  editors, each with its count, kept in `?show=`), and shows the sections Firing, Pending and OK
+  (muted alerts among them, as `Muted to 18:00`), then Drafts and Deactivated. A row links to the
+  alert: its state with a status dot and since when, its title, the condition in words
+  (`above 2% for 5m`), the worst series with its value and how many series share its state, and
+  the latest message sent (channel and time). It draws no sparkline: the server keeps only each
+  series' last value. New alert, for editors, opens `/threads/new?make=alert`.
+- **An alert's page** (`/alerts/:alertId`) is laid out like a pinned dashboard. The header holds
+  the breadcrumb, the title, the state pill (`Firing 18 min · checkout-svc`, `Pending 2 of 5 min`,
+  `OK`, `Deactivated`), a pill when muted (`Muted until 18:00`) and the version pill
+  (`v3 · active`). Its actions: Change for editors (Edit with the agent, which opens the
+  conversation that wrote it, and Deactivate or Activate again), Mute for analysts and above (1
+  hour, 4 hours, until tomorrow 09:00, a custom end within 7 days, and Until I unmute for
+  editors; Unmute when muted), and Versions (who saved each and when, the active one marked;
+  editors activate another after confirming). It has no Ask about this: the Ask panel answers
+  about a dashboard's version and range, and an alert is neither.
+  - The chart replays the version shown over 6 h, 24 h or 7 d through a resource route, with the
+    threshold as a dashed line and the firing periods shaded, both in the danger colour
+    (`charts/alert-option.ts`), and says how often it fired. It draws the 12 series that fired
+    longest. The line under it states the condition, the interval and the window; hand tuning
+    goes there.
+  - Each series now (state, value, since), What happened (the changes of state, whether each
+    notified, and the activations, deactivations, mutes and unmutes from the audit log, the latest
+    first), and Notifies (the channels by name and kind, the latest messages with their outcome).
+- **Settings → Alerts** sets the most alerts active per connector.
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
 - **Colour scheme.** Light, dark or the system's, picked under Appearance in the account menu and
@@ -198,6 +231,10 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/`                                                      | redirect → `/library` (viewer, analyst) or `/threads/new`  | viewer   |
 | `/threads/new`, `/threads/:threadId`                     | Plan, Build and refine, Variant                            | editor   |
 | `/library`                                               | Library: search pinned dashboards and their panels         | viewer   |
+| `/alerts`                                                | Alerts: search, filter by state, sections by state         | viewer   |
+| `/alerts/firing`                                         | resource route: how many alerts fire, for the rail         | viewer   |
+| `/alerts/:alertId`                                       | an alert: state, chart, series, what happened, channels    | viewer   |
+| `/alerts/:alertId/v/:version/replay`                     | resource route: a version replayed over 6 h, 24 h or 7 d   | viewer   |
 | `/account`                                               | resource route: the account menu's providers and actions   | viewer   |
 | `/d/:dashboardId`                                        | the pinned version; for editors, the latest if unpinned    | viewer   |
 | `/d/:dashboardId/v/:version`                             | a specific version                                         | viewer   |
@@ -219,6 +256,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/settings/users`                                        | Users: invite, roles, disable, reset links, sign out       | admin    |
 | `/settings/usage`                                        | Usage: tokens, cost and views; by feature, model, person   | admin    |
 | `/settings/notifications`                                | Notifications: channels, tests, what a webhook receives    | admin    |
+| `/settings/alerts`                                       | Alerts: the most alerts active per connector               | admin    |
 | `/settings/snapshots`                                    | Snapshots: every live snapshot, revoke one                 | admin    |
 | `/settings/queries`                                      | Queries: builders on or off, your own with placeholders    | admin    |
 | `/settings/charts`                                       | Charts: every chart recipe drawn from its sample           | admin    |
