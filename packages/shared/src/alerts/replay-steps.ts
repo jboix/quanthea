@@ -197,29 +197,6 @@ export function trackSeries(run: ReplayRun): ReplayTrack {
   return summarize(tracker, run.end);
 }
 
-/** The longest step between evaluations a replay of more than a day keeps: five minutes. */
-const longReplayStepMs = 300_000;
-
-/**
- * The window of a replay ending now, as the draft pane and the agent both ask for it: an alert
- * checked more often than every five minutes is replayed at a five-minute step over more than a
- * day, so a week stays a few thousand points per series.
- *
- * @param every - How often the alert is evaluated.
- * @param windowMs - How far back, in milliseconds.
- * @param now - The current instant.
- * @returns The window, and the step when it differs from `every`.
- */
-export function replayWindowFor(
-  every: string,
-  windowMs: number,
-  now: number,
-): { from: number; to: number; step?: string } {
-  const window = { from: now - windowMs, to: now };
-  const long = windowMs > 86_400_000 && durationMs(every) < longReplayStepMs;
-  return long ? { ...window, step: '5m' } : window;
-}
-
 /**
  * Replays the values of one series at another threshold, as the server would have: each point
  * is an evaluation, and a point without a value is a series the result left out.

@@ -3,7 +3,7 @@
  * thread's state machine decides whether a write may run; the alerts service checks the spec and
  * runs its query once; what the model learns of the result passes through the gate.
  */
-import { type AlertPlan, type AlertSpec, type Repair, replayWindowFor } from '@quanthea/shared';
+import type { AlertPlan, AlertSpec, Repair } from '@quanthea/shared';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { AppError } from '../lib/errors.ts';
@@ -236,7 +236,7 @@ async function replayAlert(
   const spec = replayed(draft.spec, threshold);
   if (typeof spec === 'string') return { ok: false, error: spec };
   try {
-    const request = replayWindowFor(spec.every, replayWindows[window], now);
+    const request = { from: now - replayWindows[window], to: now };
     const replay = await context.alerts.replaySpec(spec, request);
     return context.modelView.alertReplay(spec.query.connector, replay);
   } catch (error) {
