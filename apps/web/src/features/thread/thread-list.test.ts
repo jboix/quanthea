@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { ThreadListItem } from '@quanthea/shared';
-import { binBlocker, filterThreads, groupByDay } from './thread-list.ts';
+import { binBlocker, filterThreads, groupByDay, isLive } from './thread-list.ts';
 
 const now = new Date(2026, 8, 29, 15, 0);
 
@@ -45,7 +45,7 @@ const threads = [
 describe('the past threads', () => {
   test('match every word of the search in the title, and untitled ones by that name', () => {
     const ids = (text: string) =>
-      filterThreads(threads, { text, pinnedOnly: false, everyone: false }).map((each) => each.id);
+      filterThreads(threads, { text, status: 'all', everyone: false }).map((each) => each.id);
     expect(ids('checkout')).toEqual(['a', 'd']);
     expect(ids('ERRORS check')).toEqual(['d']);
     expect(ids('untitled')).toEqual(['c']);
@@ -57,14 +57,21 @@ describe('the past threads', () => {
       ...threads,
       { ...thread('f', 'Checkout for Ada', 0), ownerName: 'Ada Lovelace' },
     ];
-    expect(filterThreads(others, { text: '', pinnedOnly: false, everyone: false })).toHaveLength(5);
-    const everyone = filterThreads(others, { text: 'lovelace', pinnedOnly: false, everyone: true });
+    expect(filterThreads(others, { text: '', status: 'all', everyone: false })).toHaveLength(5);
+    const everyone = filterThreads(others, { text: 'lovelace', status: 'all', everyone: true });
     expect(everyone.map((each) => each.id)).toEqual(['f']);
   });
 
-  test('keep only pinned ones when asked', () => {
-    const pinned = filterThreads(threads, { text: '', pinnedOnly: true, everyone: false });
-    expect(pinned.map((each) => each.id)).toEqual(['a', 'd']);
+  test('show the live ones (pinned, or an active alert) or the drafts, with the search', () => {
+    const withAlert = [...threads, { ...thread('g', 'Checkout alert', 0), alertActive: true }];
+    const ids = (status: 'all' | 'live' | 'drafts', text = '') =>
+      filterThreads(withAlert, { text, status, everyone: false }).map((each) => each.id);
+    expect(ids('live')).toEqual(['a', 'd', 'g']);
+    expect(ids('drafts')).toEqual(['b', 'c', 'e']);
+    expect(ids('all')).toHaveLength(6);
+    expect(ids('live', 'checkout errors')).toEqual(['d']);
+    expect(ids('drafts', 'checkout')).toEqual([]);
+    expect(isLive(withAlert[5] ?? thread('x', null, 0))).toBe(true);
   });
 
   test('say why a thread cannot go to the bin: a pinned dashboard, or an active alert', () => {

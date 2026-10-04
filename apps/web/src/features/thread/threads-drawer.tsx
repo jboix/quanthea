@@ -17,6 +17,8 @@ import {
   filterThreads,
   groupByDay,
   type ThreadFilter,
+  type ThreadStatus,
+  threadStatuses,
   untitled,
 } from './thread-list.ts';
 import styles from './threads-drawer.module.css';
@@ -150,6 +152,11 @@ function ThreadRow({
                   <PinIcon /> Pinned
                 </span>
               )}
+              {thread.alertActive && (
+                <span className={styles.pinned}>
+                  <BellIcon /> Active
+                </span>
+              )}
               {date.format(thread.updatedAt)}
               {note && ` · ${note}`}
             </span>
@@ -162,8 +169,56 @@ function ThreadRow({
   );
 }
 
+/** What each status says. */
+const statusLabels: Readonly<Record<ThreadStatus, string>> = {
+  all: 'All',
+  live: 'Live',
+  drafts: 'Drafts',
+};
+
+/** What each status means, on hover. */
+const statusTitles: Readonly<Record<ThreadStatus, string>> = {
+  all: 'Every thread',
+  live: 'Its dashboard is pinned, or its alert is active',
+  drafts: 'No pinned dashboard and no active alert',
+};
+
 /**
- * The search box, the pinned-only switch, and for admins the everyone's switch.
+ * One status at a time: All, Live or Drafts.
+ *
+ * @param props - The filter and its setter.
+ * @param props.filter - The filter.
+ * @param props.onChange - Receives the next filter.
+ * @returns The chips.
+ */
+function StatusChips({
+  filter,
+  onChange,
+}: {
+  readonly filter: ThreadFilter;
+  readonly onChange: (next: ThreadFilter) => void;
+}) {
+  return (
+    <fieldset className={styles.statuses}>
+      <legend className={styles.visuallyHidden}>Show</legend>
+      {threadStatuses.map((status) => (
+        <button
+          key={status}
+          type="button"
+          className={styles.chip}
+          aria-pressed={filter.status === status}
+          title={statusTitles[status]}
+          onClick={() => onChange({ ...filter, status })}
+        >
+          {statusLabels[status]}
+        </button>
+      ))}
+    </fieldset>
+  );
+}
+
+/**
+ * The search box, the status chips, and for admins the everyone's switch.
  *
  * @param props - The filter, its setter, and whether others' threads are on offer.
  * @param props.filter - The filter.
@@ -193,14 +248,7 @@ function ThreadSearch({
           onChange={(event) => onChange({ ...filter, text: event.target.value })}
         />
       </search>
-      <button
-        type="button"
-        className={styles.chip}
-        aria-pressed={filter.pinnedOnly}
-        onClick={() => onChange({ ...filter, pinnedOnly: !filter.pinnedOnly })}
-      >
-        <PinIcon /> Pinned only
-      </button>
+      <StatusChips filter={filter} onChange={onChange} />
       {showEveryone && (
         <button
           type="button"
@@ -264,7 +312,7 @@ export function ThreadsDrawer({ threads }: { readonly threads: readonly ThreadLi
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<ThreadFilter>({
     text: '',
-    pinnedOnly: false,
+    status: 'all',
     everyone: false,
   });
   if (threads.length === 0) return null;

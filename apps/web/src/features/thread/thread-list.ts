@@ -1,13 +1,22 @@
-/** The past threads as the drawer lists them: filtered by words and pins, grouped by day. */
+/**
+ * The past threads as the drawer lists them: filtered by words and by status, grouped by day. A
+ * thread is live when its dashboard is pinned or its alert is active, and a draft otherwise.
+ */
 import type { ThreadListItem } from '@quanthea/shared';
 import { groupByDay as groupByDays } from '../../lib/day-groups.ts';
+
+/** The statuses the drawer shows: every thread, the live ones, or the drafts. */
+export const threadStatuses = ['all', 'live', 'drafts'] as const;
+
+/** A status the drawer shows. */
+export type ThreadStatus = (typeof threadStatuses)[number];
 
 /** What the drawer narrows the threads to. */
 export interface ThreadFilter {
   /** Words that must all appear in the title. */
   readonly text: string;
-  /** Only threads whose dashboard has a pinned version. */
-  readonly pinnedOnly: boolean;
+  /** All threads, the live ones only, or the drafts only. */
+  readonly status: ThreadStatus;
   /** Everyone's threads too, for admins; one's own only otherwise. */
   readonly everyone: boolean;
 }
@@ -24,10 +33,32 @@ export interface ThreadGroup {
 export const untitled = 'Untitled thread';
 
 /**
+ * Whether a thread is live: its dashboard is pinned, or its alert is active.
+ *
+ * @param thread - The thread.
+ * @returns `true` when live, `false` for a draft.
+ */
+export function isLive(thread: ThreadListItem): boolean {
+  return thread.pinned || thread.alertActive;
+}
+
+/**
+ * Whether a thread has a status.
+ *
+ * @param thread - The thread.
+ * @param status - The status.
+ * @returns `true` for every thread with `all`.
+ */
+function hasStatus(thread: ThreadListItem, status: ThreadStatus): boolean {
+  if (status === 'all') return true;
+  return isLive(thread) === (status === 'live');
+}
+
+/**
  * The threads that pass a filter.
  *
  * @param threads - The threads.
- * @param filter - The words, whether only pinned ones count, and whether others' count.
+ * @param filter - The words, the status, and whether others' count.
  * @returns The threads that pass, in the same order.
  */
 export function filterThreads(
@@ -36,7 +67,7 @@ export function filterThreads(
 ): ThreadListItem[] {
   const words = filter.text.toLowerCase().split(/\s+/).filter(Boolean);
   return threads.filter((thread) => {
-    if (filter.pinnedOnly && !thread.pinned) return false;
+    if (!hasStatus(thread, filter.status)) return false;
     if (!filter.everyone && thread.ownerName !== null) return false;
     const text = `${thread.title ?? untitled} ${thread.ownerName ?? ''}`.toLowerCase();
     return words.every((word) => text.includes(word));
