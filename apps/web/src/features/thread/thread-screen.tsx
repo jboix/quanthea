@@ -12,7 +12,7 @@ import { AlertDraftPane } from '../alert-draft/index.ts';
 import { Composer } from './composer.tsx';
 import { Conversation } from './conversation.tsx';
 import { DraftPane } from './draft-pane.tsx';
-import { LineageBanner } from './lineage-banner.tsx';
+import { LineageBanner, SeedBanner } from './lineage-banner.tsx';
 import type { ThreadMessage } from './messages.ts';
 import { draftPanelsOf } from './plan-changes.ts';
 import { buildStopped } from './repairs.ts';
@@ -262,6 +262,7 @@ function ThreadPane({ state }: { readonly state: ScreenState }) {
       <ThreadHeader thread={thread} messages={state.chat.messages} />
       <div ref={scroller} className={styles.scroller}>
         {state.data.parent && <LineageBanner parent={state.data.parent} />}
+        {state.data.origin && <SeedBanner origin={state.data.origin} />}
         <ThreadConversation state={state} />
         <StatusLine state={state} />
       </div>

@@ -150,6 +150,8 @@ describe('thread routes', () => {
     const alert = threadSummarySchema.parse(created.body);
     expect(alert.kind).toBe('alert');
     expect(fixture.threads.row(alert.id).seed).toEqual(seed);
+    expect((await call('GET', `/api/threads/${alert.id}`)).body).toMatchObject({ seed });
+    expect((await call('GET', `/api/threads/${plain.id}`)).body).toMatchObject({ seed: null });
     const listed = (await call('GET', '/api/threads')).body as { id: string; kind: string }[];
     expect(listed.map((each) => [each.id, each.kind])).toContainEqual([alert.id, 'alert']);
     const missing = { ...seed, panelId: 'nope' };

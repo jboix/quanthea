@@ -166,7 +166,8 @@ function mountThreadReadRoute(app: Hono<AppEnv>, services: ThreadRouteServices):
       const ownerName = await ownerNames(services.users)(thread.ownerId);
       const readOnly = !canWrite(reader, thread.ownerId);
       const model = settings.models.build;
-      return { ...thread, model, providerName, connectors, ownerName, readOnly };
+      const { seed } = threads.row(params.threadId);
+      return { ...thread, model, providerName, connectors, ownerName, readOnly, seed };
     },
   });
 }

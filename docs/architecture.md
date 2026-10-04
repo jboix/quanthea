@@ -194,7 +194,9 @@ the kit's HTTP client for every kind that speaks HTTP.
   agent's offer to show the alert on a panel is a card ("This watches the same thing as _Error rate
   by service_ on _Checkout incident_. Show it there?") with Link and Not now
   (`features/thread/link-card.tsx`). It submits to the alert page's action and reads the
-  `/alerts/:alertId/links` resource route, so after a reload it says what was decided.
+  `/alerts/:alertId/links` resource route, so after a reload it says what was decided. An alert
+  thread started from a panel (Create an alert on this) opens with a note naming the panel, its
+  dashboard and version, with a link to it: `GET /api/threads/:id` returns the thread's `seed`.
 - **The alert draft pane** (`features/alert-draft/`) replaces the dashboard draft pane in an alert
   thread. Its header has the title, the version pill (`v2 · draft`, or `active`), Send a test
   notification (the version's message to its channels as `alert.test`, filled from the replay's

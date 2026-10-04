@@ -21,7 +21,7 @@ import { nextState, type ThreadEvent, type ThreadState } from './state.ts';
 /** A thread with its conversation, as the service knows it; the HTTP layer adds the rest. */
 export type ThreadConversation = Omit<
   ThreadDetail,
-  'model' | 'providerName' | 'connectors' | 'ownerName' | 'readOnly'
+  'model' | 'providerName' | 'connectors' | 'ownerName' | 'readOnly' | 'seed'
 >;
 
 /** A message as the AI SDK hands it over: id, role, parts and metadata. */

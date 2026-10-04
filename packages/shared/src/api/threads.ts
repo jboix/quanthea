@@ -44,6 +44,8 @@ export const threadDetailSchema = threadSummarySchema.extend({
   ownerName: z.string(),
   /** Whether the person reading may only read it: an admin in someone else's thread. */
   readOnly: z.boolean(),
+  /** For an alert thread started from a panel, the panel. */
+  seed: alertSeedSchema.nullable(),
 });
 
 /** A thread with its conversation. */
