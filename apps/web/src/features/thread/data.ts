@@ -4,6 +4,7 @@
  */
 import {
   approvePlanEndpoint,
+  binDraftsEndpoint,
   createThreadEndpoint,
   type DashboardDetail,
   type DashboardVersion,
@@ -256,18 +257,20 @@ export type NewThreadIntent =
       readonly queries?: ThreadQueries;
       readonly kind?: ThreadKind;
     }
-  | { readonly intent: 'delete'; readonly threadId: string };
+  | { readonly intent: 'delete'; readonly threadId: string }
+  | { readonly intent: 'binDrafts' };
 
 /**
- * Moves a past thread to the bin.
+ * Moves a past thread to the bin, or every draft of the person.
  *
  * @param api - The API client.
- * @param threadId - The thread.
+ * @param threadId - The thread, or `null` for every draft.
  * @returns Done, or why not, such as a pinned dashboard.
  */
-async function binThread(api: ApiClient, threadId: string): Promise<ThreadOutcome> {
+async function binThread(api: ApiClient, threadId: string | null): Promise<ThreadOutcome> {
   try {
-    await api.call(deleteThreadEndpoint, { params: { threadId } });
+    if (threadId === null) await api.call(binDraftsEndpoint);
+    else await api.call(deleteThreadEndpoint, { params: { threadId } });
     return { ok: true };
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
@@ -276,8 +279,18 @@ async function binThread(api: ApiClient, threadId: string): Promise<ThreadOutcom
 }
 
 /**
+ * What a delete intent moves to the bin.
+ *
+ * @param intent - One past thread, or every draft.
+ * @returns The thread, or `null` for every draft.
+ */
+function binTarget(intent: Exclude<NewThreadIntent, { readonly intent: 'start' }>): string | null {
+  return intent.intent === 'delete' ? intent.threadId : null;
+}
+
+/**
  * The action of the new-thread screen: starts a thread and hands the first question over, or
- * moves a past thread to the bin.
+ * moves a past thread, or every draft of the person, to the bin.
  *
  * @param api - The API client.
  * @returns The action. Starting redirects to the thread, which sends the question.
@@ -285,7 +298,7 @@ async function binThread(api: ApiClient, threadId: string): Promise<ThreadOutcom
 export function newThreadAction(api: ApiClient) {
   return async ({ request }: ActionFunctionArgs): Promise<Response | ThreadOutcome> => {
     const intent = (await request.json()) as NewThreadIntent;
-    if (intent.intent === 'delete') return binThread(api, intent.threadId);
+    if (intent.intent !== 'start') return binThread(api, binTarget(intent));
     const { providerId, queries, kind } = intent;
     const body = {
       ...(providerId === undefined ? {} : { providerId }),

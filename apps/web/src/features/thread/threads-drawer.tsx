@@ -11,11 +11,13 @@ import {
   PinIcon,
   SearchIcon,
 } from '../../ui/icons.tsx';
+import { BinDrafts } from './bin-drafts.tsx';
 import type { NewThreadIntent, ThreadOutcome } from './data.ts';
 import {
   binBlocker,
   filterThreads,
   groupByDay,
+  ownDrafts,
   type ThreadFilter,
   type ThreadStatus,
   threadStatuses,
@@ -302,7 +304,7 @@ function ThreadGroups({
 
 /**
  * Past threads, behind a button: a drawer from the right (from the top on a phone) with a search,
- * a pinned-only switch, the threads grouped by day, and a way to delete each.
+ * the status filter, the threads grouped by day, and a way to delete each, or every draft at once.
  *
  * @param props - The threads.
  * @param props.threads - Every past thread, the latest first.
@@ -328,6 +330,7 @@ export function ThreadsDrawer({ threads }: { readonly threads: readonly ThreadLi
           onChange={setFilter}
           showEveryone={threads.some((thread) => thread.ownerName !== null)}
         />
+        {filter.status === 'drafts' && <BinDrafts count={ownDrafts(threads).length} />}
         <ThreadGroups threads={threads} filter={filter} />
       </Drawer>
     </>

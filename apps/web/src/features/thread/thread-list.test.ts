@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import type { ThreadListItem } from '@quanthea/shared';
-import { binBlocker, filterThreads, groupByDay, isLive } from './thread-list.ts';
+import {
+  binBlocker,
+  binDraftsQuestion,
+  filterThreads,
+  groupByDay,
+  isLive,
+  ownDrafts,
+} from './thread-list.ts';
 
 const now = new Date(2026, 8, 29, 15, 0);
 
@@ -82,6 +89,19 @@ describe('the past threads', () => {
       'Deactivate its alert to delete this thread',
     );
     expect(binBlocker(alert)).toBeNull();
+  });
+
+  test('count only one’s own drafts for Delete all my drafts, and ask before moving them', () => {
+    const mixed = [
+      ...threads,
+      { ...thread('f', 'Ada’s draft', 0), ownerName: 'Ada Lovelace' },
+      { ...thread('g', 'Live alert', 0), alertActive: true },
+    ];
+    expect(ownDrafts(mixed).map((each) => each.id)).toEqual(['b', 'c', 'e']);
+    expect(binDraftsQuestion(12)).toBe(
+      'Move 12 drafts to the bin? You can restore them from the bin until they are purged.',
+    );
+    expect(binDraftsQuestion(1)).toStartWith('Move 1 draft to the bin?');
   });
 
   test('group by how long ago they changed', () => {

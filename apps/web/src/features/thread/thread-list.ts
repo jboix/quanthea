@@ -75,6 +75,27 @@ export function filterThreads(
 }
 
 /**
+ * The person's own drafts: the threads Delete all my drafts moves to the bin.
+ *
+ * @param threads - The threads listed, others' included for an admin.
+ * @returns Their own threads that are not live.
+ */
+export function ownDrafts(threads: readonly ThreadListItem[]): ThreadListItem[] {
+  return threads.filter((thread) => thread.ownerName === null && !isLive(thread));
+}
+
+/**
+ * What Delete all my drafts asks before moving them.
+ *
+ * @param count - How many drafts.
+ * @returns The question.
+ */
+export function binDraftsQuestion(count: number): string {
+  const drafts = count === 1 ? '1 draft' : `${count} drafts`;
+  return `Move ${drafts} to the bin? You can restore them from the bin until they are purged.`;
+}
+
+/**
  * Why a thread cannot go to the bin, as the server refuses it: its dashboard is pinned, or its
  * alert is active.
  *
