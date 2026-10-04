@@ -183,10 +183,44 @@ function accept(dependencies: AgentDependencies, request: ChatRequest, budget: n
     threads.apply(request.threadId, 'message');
     threads.name(request.threadId, titleOf(message));
   }
-  const parsedHints =
-    message.role === 'user' ? hintsSchema.safeParse(message.metadata ?? {}) : undefined;
-  const hints: MessageHints = parsedHints?.data ?? { mentions: [] };
-  return { history: withIncoming(thread.messages, message), hints, plans: thread.plans };
+  const history = withIncoming(thread.messages, message);
+  return { history, hints: hintsOf(message, history), plans: thread.plans };
+}
+
+/**
+ * The hints of the new message. A turn that continues without a message from the person, such as
+ * the build after a plan is approved, keeps the time zone the person last sent.
+ *
+ * @param message - The new message.
+ * @param history - The conversation, the new message included.
+ * @returns Its mentions and time zone.
+ */
+export function hintsOf(
+  message: { role: string; metadata?: unknown },
+  history: readonly unknown[],
+) {
+  const own =
+    message.role === 'user' ? hintsSchema.safeParse(message.metadata ?? {}).data : undefined;
+  const hints: MessageHints = own ?? { mentions: [] };
+  if (hints.timeZone !== undefined) return hints;
+  const timeZone = lastTimeZone(history);
+  return timeZone === undefined ? hints : { ...hints, timeZone };
+}
+
+/**
+ * The time zone of the person's latest message that sent one.
+ *
+ * @param history - The conversation.
+ * @returns The zone, if any message sent one.
+ */
+function lastTimeZone(history: readonly unknown[]): string | undefined {
+  for (const each of [...history].reverse()) {
+    const message = each as { role?: string; metadata?: unknown };
+    if (message.role !== 'user') continue;
+    const zone = hintsSchema.safeParse(message.metadata ?? {}).data?.timeZone;
+    if (zone !== undefined) return zone;
+  }
+  return undefined;
 }
 
 /** A turn ready to stream: the model, the settings, the conversation and its context. */
