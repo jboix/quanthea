@@ -14,7 +14,9 @@ export {
   queryLanguageSchema,
   queryLanguages,
 } from '@quanthea/plugin-kit/contract';
+export * from './alerts/notification-values.ts';
 export * from './alerts/replay-steps.ts';
+export * from './alerts/spec-changes.ts';
 export * from './alerts/state-machine.ts';
 export {
   type Answer,
@@ -24,6 +26,7 @@ export {
   answerCitationSchema,
   answerDataSchemas,
 } from './answers.ts';
+export * from './api/alert-drafts.ts';
 export * from './api/alerts.ts';
 export {
   changePasswordEndpoint,

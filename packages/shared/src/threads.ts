@@ -164,7 +164,7 @@ const repairSchema = z.object({
 export type Repair = z.infer<typeof repairSchema>;
 
 /** Validates the change of one field of an alert spec, as the hand-edit card shows it. */
-const specChangeSchema = z.object({
+export const specChangeSchema = z.object({
   /** The field, such as `condition.value`. */
   path: z.string().max(200),
   before: z.string().max(2000).optional(),

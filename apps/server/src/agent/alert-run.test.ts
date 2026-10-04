@@ -277,6 +277,24 @@ describe('an alert thread', () => {
     expect(stream).not.toContain('"points"');
   });
 
+  test('reads the person’s hand edits in its next turn', async () => {
+    await addEvents(2);
+    const assistant = await approvedThread();
+    await chat(
+      agentWith({ tool: 'edit_alert', input: alertEdit() }, { text: 'Done.' }).agent,
+      assistant,
+    );
+    const changes = [{ path: 'condition.value', before: '5', after: '3' }];
+    const data = { alertId: 'a', from: 1, to: 2, changes };
+    const card = { id: 'hand-1', role: 'user', parts: [{ type: 'data-handEdit', data }] };
+    const { messages } = services.threads.get(threadId);
+    services.threads.saveMessages(threadId, [...(messages as never[]), card], 'editor-1');
+    const { agent, model } = agentWith({ text: 'Noted.' });
+    await chat(agent, userMessage('u2', 'Is 3 too low?'));
+    const prompt = JSON.stringify(model.doStreamCalls[0]?.prompt);
+    expect(prompt).toContain('I changed the alert by hand, v1 → v2] condition.value: 5 → 3');
+  });
+
   test('counts its steps as building alerts in the usage ledger', async () => {
     await addEvents(2);
     await chat(

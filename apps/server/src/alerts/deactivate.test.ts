@@ -108,3 +108,33 @@ describe('deactivating an alert', () => {
     expect(sent.map((each) => each.event)).toEqual(['alert.firing']);
   });
 });
+
+describe('a test notification', () => {
+  test("sends the version's message as alert.test, filled from the series given", async () => {
+    const { alerts, sent } = setup();
+    const { alertId } = alerts.saveVersion({ spec: specInput() }, 'ada');
+    const since = Date.UTC(2026, 9, 3, 14, 4);
+    const series = { labels: { service: 'checkout' }, value: 7.5, since };
+    await alerts.sendTest(alertId, 1, series, 'ada');
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      event: 'alert.test',
+      alert: { id: alertId, version: 1, severity: 'critical' },
+      series: { labels: { service: 'checkout' } },
+      values: {
+        series: 'service=checkout',
+        value: '7.5',
+        threshold: 'above 5',
+        since: '3 Oct, 14:04 UTC',
+      },
+    });
+  });
+
+  test('is refused for a version that notifies no channel', async () => {
+    const { alerts } = setup();
+    const { alertId } = alerts.saveVersion({ spec: specInput({ channels: [] }) }, 'ada');
+    await expect(alerts.sendTest(alertId, 1, undefined, 'ada')).rejects.toMatchObject({
+      code: 'bad_request',
+    });
+  });
+});

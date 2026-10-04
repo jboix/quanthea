@@ -6,10 +6,10 @@
 import {
   type AlertSpec,
   type AlertState,
-  createFormatter,
   durationMs,
   type Notification,
   type NotificationEvent,
+  notificationValues,
 } from '@quanthea/shared';
 
 /** What decides whether a series notifies. */
@@ -98,49 +98,6 @@ export interface NotificationSubject {
 }
 
 /**
- * Writes a value as the spec's format asks, or with four significant digits.
- *
- * @param spec - The spec.
- * @param value - The value.
- * @returns The text; empty without a value.
- */
-function formatValue(spec: AlertSpec, value: number | null): string {
-  if (value === null) return '';
-  if (spec.value.format) return createFormatter(spec.value.format)(value);
-  return new Intl.NumberFormat('en', { maximumSignificantDigits: 4 }).format(value);
-}
-
-/**
- * Writes the threshold.
- *
- * @param spec - The spec.
- * @returns Such as `above 5`, or `no data`.
- */
-function thresholdText(spec: AlertSpec): string {
-  const { condition } = spec;
-  if (condition.kind === 'no_data') return 'no data';
-  return `${condition.op} ${formatValue(spec, condition.value)}`;
-}
-
-/**
- * Writes an instant in the spec's time zone.
- *
- * @param spec - The spec.
- * @param at - The instant.
- * @returns Such as `4 Oct, 12:04 UTC`.
- */
-function timeText(spec: AlertSpec, at: number): string {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: spec.timezone ?? 'UTC',
-    timeZoneName: 'short',
-  }).format(at);
-}
-
-/**
  * Builds a notification. The template is the spec's; the values come from the series.
  *
  * @param subject - The alert, its version and spec, the series and the link.
@@ -154,7 +111,6 @@ export function buildNotification(
   now: number,
 ): Notification {
   const { spec, series } = subject;
-  const labels = Object.entries(series.labels).map(([name, value]) => `${name}=${value}`);
   return {
     event,
     alert: {
@@ -166,16 +122,7 @@ export function buildNotification(
     },
     series: { key: series.key, labels: { ...series.labels } },
     template: spec.message,
-    values: {
-      alert: spec.title,
-      series: labels.length > 0 ? labels.join(', ') : 'all',
-      value: formatValue(spec, series.value),
-      threshold: thresholdText(spec),
-      duration: spec.condition.for,
-      since: timeText(spec, series.since),
-      severity: spec.severity,
-      link: subject.url,
-    },
+    values: notificationValues(spec, series, subject.url),
     at: new Date(now).toISOString(),
   };
 }

@@ -588,6 +588,10 @@ number (`latestVersion` is `null`). `alerts/changes.ts` and `alerts/deactivate.t
 - Muting stops notifications only: evaluation and state go on. An analyst mutes until a time at
   most seven days ahead; an editor may also mute until someone unmutes. A series still firing when
   the mute ends notifies then.
+- A test (`alerts/test-send.ts`) sends any version's message to its channels as `alert.test`, its
+  values filled from a series the caller names (such as a firing from the replay) the way the
+  evaluator fills them (`notificationValues` in `@quanthea/shared`), or from a stand-in. A version
+  that notifies no channel is refused.
 
 **The state machine** (`alerts/state-machine.ts` in `@quanthea/shared`, pure, so the browser runs
 the same rules). Each evaluation observes each series and moves it:
@@ -1928,6 +1932,8 @@ indicative; the contract files are the source of truth.
 | `POST /alerts/:id/activate` (a version), `POST /alerts/:id/deactivate`                            | choose the version evaluated, or stop        | editor   |
 | `POST /alerts/replay` (a spec)                                                                    | how a draft would have fired over a window   | editor   |
 | `POST /alerts/:id/versions/:v/replay` (below editor: a version ever active)                       | how a version fired over a past window       | viewer   |
+| `POST /alerts/:id/versions/:v/test` (a series to fill the values with)                            | send the version's message as `alert.test`   | editor   |
+| `POST /threads/:id/alert-draft` (the whole spec)                                                  | a hand edit: a new draft version and a card  | editor   |
 | `GET/PUT /settings/alerts`                                                                        | the most alerts active per connector         | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,

@@ -25,6 +25,7 @@ import { authenticate } from './http/authenticate.ts';
 import { refuseCrossSite } from './http/csrf.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
+import { mountAlertDraftEndpoints } from './http/routes/alert-draft-routes.ts';
 import { mountAlertEndpoints } from './http/routes/alert-routes.ts';
 import { mountAuthRoutes } from './http/routes/auth-routes.ts';
 import { mountBinEndpoints } from './http/routes/bin-routes.ts';
@@ -195,6 +196,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountThreadEndpoints(app, dependencies);
   mountBinEndpoints(app, dependencies);
   mountAlertEndpoints(app, dependencies);
+  mountAlertDraftEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent, dependencies.threads);
 }
 

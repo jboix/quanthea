@@ -8,6 +8,7 @@ import {
   type AlertReplay,
   type AlertSummary,
   alertSpecSchema,
+  type NotifiedSeries,
   type Principal,
   type Role,
 } from '@quanthea/shared';
@@ -29,6 +30,7 @@ import { deactivate } from './deactivate.ts';
 import type { EvaluatedAlert } from './evaluate.ts';
 import { detailExtras, noActivity, toListItem } from './listing.ts';
 import { type ReplayRequest, replayAlert } from './replay.ts';
+import { sendTest } from './test-send.ts';
 import { validateAlertSpec } from './validate.ts';
 import {
   canSeeAlert,
@@ -137,6 +139,21 @@ export interface Alerts {
     request: ReplayRequest,
     role: Role,
   ): Promise<AlertReplay>;
+  /**
+   * Sends a version's message to its channels as a test, `alert.test`.
+   *
+   * @param id - The alert.
+   * @param version - The version.
+   * @param series - The series the message is about; a stand-in when left out.
+   * @param actor - Who sends it.
+   * @returns Each channel's result.
+   */
+  sendTest(
+    id: string,
+    version: number,
+    series: NotifiedSeries | undefined,
+    actor: string,
+  ): Promise<unknown>;
   /**
    * Lists the alerts to evaluate: active and not deactivated, with their active spec.
    *
@@ -278,6 +295,7 @@ export function createAlerts(dependencies: AlertsDependencies): Alerts {
       const row = replayedVersion(context, id, version, role);
       return replayAlert(context, replayable(context, row.spec), request);
     },
+    sendTest: (id, version, series, actor) => sendTest(context, id, version, series, actor),
     evaluated: () => evaluatedAlerts(context),
     purgeEvents: () => context.states.purgeEvents(context.now() - eventsKeptMs),
   };

@@ -170,7 +170,7 @@ describe('route access', () => {
     ]);
   });
 
-  test('every role reads and replays alerts; analysts mute; editors activate and replay drafts', () => {
+  test('every role reads and replays alerts; analysts mute; editors activate, replay drafts and test', () => {
     const alertRoutes = listApiRouteAccess(buildApp())
       .filter((route) => /^\/api\/alerts/.test(route.path))
       .map((route) => `${route.access} ${route.method} ${route.path}`);
@@ -179,11 +179,19 @@ describe('route access', () => {
       'analyst POST /api/alerts/:alertId/unmute',
       'editor POST /api/alerts/:alertId/activate',
       'editor POST /api/alerts/:alertId/deactivate',
+      'editor POST /api/alerts/:alertId/versions/:version/test',
       'editor POST /api/alerts/replay',
       'viewer GET /api/alerts',
       'viewer GET /api/alerts/:alertId',
       'viewer POST /api/alerts/:alertId/versions/:version/replay',
     ]);
+  });
+
+  test('editors hand-edit an alert thread’s draft', () => {
+    const draftRoutes = listApiRouteAccess(buildApp())
+      .filter((route) => /alert-draft/.test(route.path))
+      .map((route) => `${route.access} ${route.method} ${route.path}`);
+    expect(draftRoutes).toEqual(['editor POST /api/threads/:threadId/alert-draft']);
   });
 
   test('every role reads a panel explanation; analysts and above ask for one', () => {
