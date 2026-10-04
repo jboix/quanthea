@@ -309,7 +309,10 @@ export const replayAlertVersionEndpoint = defineEndpoint({
  */
 export const alertSettingsSchema = z.strictObject({
   maxActivePerConnector: z.int().min(1).max(10_000).default(50),
-  /** Notify an alert's channels when it cannot be checked, and when it can be again. */
+  /**
+   * Notify an alert's channels when it cannot be checked, and when it can be again; and a report's
+   * channels when a run fails after its retries.
+   */
   notifyOnError: z.boolean().default(true),
 });
 

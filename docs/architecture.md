@@ -27,7 +27,7 @@ flowchart LR
     Conn["connectors/ postgres · mysql · clickhouse · trino · prometheus · elasticsearch · loki"]
     Dom["dashboards/ alerts/ threads/ search/ settings/ auth/"]
     DB[("SQLite: data dir")]
-    Jobs["jobs/ purge: bin, expired snapshots, old sends · alert evaluator"]
+    Jobs["jobs/ purge: bin, expired snapshots, old sends, old runs · alert evaluator · report scheduler"]
   end
 
   LLM["Model gateway (Anthropic / OpenAI / OpenAI-compatible)"]
@@ -85,11 +85,13 @@ The two paths that matter:
 │   │       │                        chart, layout)
 │   │       ├── alerts/              alert specs: validate, versions, mute, the state machine,
 │   │       │                        evaluate one alert, replay over a past window
+│   │       ├── reports/             report specs: validate, versions, runs over a period, messages
 │   │       ├── threads/             threads, messages, plans (state machine)
-│   │       ├── settings/            typed settings store (auth, gateway, retention, alerts)
+│   │       ├── settings/            typed settings store (auth, gateway, retention, alerts, reports)
 │   │       ├── secrets/             encrypt/decrypt credentials at rest
 │   │       ├── notifications/       notification channels: one recipe per service, sending, the log
-│   │       ├── jobs/                in-process jobs: the hourly purge, the alert evaluator
+│   │       ├── jobs/                in-process jobs: the hourly purge, the alert evaluator, the
+│   │       │                        report scheduler
 │   │       └── db/                  bun:sqlite client, migrations, repositories
 │   └── web/                         @quanthea/web
 │       ├── index.html
@@ -153,6 +155,7 @@ them.
 | `agent/`             | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `settings`, `lib`                  | **`connectors`, `query`, `db`**                 |
 | `dashboards/`        | validate, store, pin and run specs                          | `db`, `query`, `lib`, shared; connectors through injected functions | `http`, `agent`, `connections`, `connectors`    |
 | `alerts/`            | validate, store, evaluate and replay alert specs            | `db`, `query`, `dashboards`, `lib`, shared; the rest injected       | everything else                                 |
+| `reports/`           | validate, store and run report specs on a schedule          | `db`, `query`, `dashboards`, `lib`, shared; the rest injected       | everything else                                 |
 | `threads/`           | domain logic                                                | `db`, `lib`, shared                                                 | `http`, `agent`                                 |
 | `settings/`          | typed settings sections; the model key, sealed              | `db`, `secrets`, `lib`, shared                                      | `http`, `agent`                                 |
 | `connections/`       | configured connectors: CRUD, sealed secrets, open instances | `db`, `secrets`, `connectors`, `gate`, `query` types, `lib`         | `http`, `auth`, `agent`                         |
@@ -285,7 +288,7 @@ the kit's HTTP client for every kind that speaks HTTP.
   Notifications, and Settings, a dialog laid out like the bin's Retention dialog
   (`alert-settings-dialog.tsx`). It loads and saves the alert settings through the
   `/alerts/settings` resource route: the most alerts active per connector, and the switch Notify
-  when an alert cannot be checked (`notifyOnError`). Editors and below see neither; editors see
+  when an alert cannot be checked or a report fails (`notifyOnError`), which reports read too. Editors and below see neither; editors see
   New alert.
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
@@ -758,7 +761,8 @@ evaluations in a row (`failuresBeforeError`) is in error. One failure is a blip 
 - A mute holds both back; an alert still in error when the mute ends sends `alert.error` then. A
   recovery during a mute sends nothing.
 - The alert settings' `notifyOnError` (the Alerts page's Settings, on by default) turns both
-  off: the evaluator then records and logs only.
+  off: the evaluator then records and logs only. A report run that fails for good follows the
+  same setting (section 5.10).
 - Each going into error, each `alert.error` sent later, and each recovery is a row of
   `alert_check_events` (the reason, whether it notified), shown in What happened. The count of
   failures, since when it is in error and whether that was announced stay on the alert's row.
@@ -862,6 +866,106 @@ on. Section 11 has the details.
 
 Snapshots are unchanged: the alert pills and firing periods are not part of a panel's run, so a
 snapshot freezes the panels without them.
+
+### 5.10 Reports (no model)
+
+A report runs a dashboard's panels on a schedule, over a period, with no model: "every Monday at
+8:00, last week's sales, compared with the week before". The spec is in
+[report-spec.md](report-spec.md): the dashboard spec's panels, variables and markers, checked by
+the dashboard's own validation, plus the schedule, the period, the comparison, links to pinned
+dashboards, the channels and the headline stat panels. The agent writes a report once in a
+conversation; each run is computed by our code and frozen like a snapshot.
+
+**Versions** (`reports/changes.ts`, over `db/report-repository.ts`). As for alerts, versions are
+never rewritten (a trigger enforces it), one version at a time is active (`reports.active_version`),
+and a version keeps the time it was first activated.
+
+- `saveVersion` validates a spec (`validateReportSpec` in `reports/validate.ts`) and adds a
+  version, creating the report with its first one, and the thread that made it when there is one.
+  The conversation that writes reports calls it. Validation runs the dashboard checks
+  (`validateSpec`) on the panels over the latest period, so a query that does not bind or a period
+  longer than a connector's `maxRangeDays` is refused on the panels' own paths (`period` for the
+  range). It also checks the time zone, that every channel exists (`delivery.channels[i]`) and that
+  every linked dashboard is pinned (`seeAlso[i].dashboardId`).
+- Activating validates the version again and runs its queries once over its latest period (a
+  failing query refuses it, at `panels`), then sets `next_run_at` from its schedule. Deactivating
+  clears `next_run_at`; the active version and the runs stay.
+
+**Runs** (`reports/runs.ts`, over `db/report-run-repository.ts`). A run names the version, the
+period and the comparison period, resolved on the schedule's clock when the run is made, and the
+variables' defaults it binds. Each attempt runs every panel through the panel run path
+(`dashboards/run-panel.ts`), with the period as the absolute time range and the guardrails, row
+limits and timeouts of a panel on a dashboard; then the comparison period (`reports/execute.ts`).
+Any failing query or set of markers fails the attempt.
+
+- A success freezes each panel's run by panel id, in the shape `POST /api/panels/run` returns, as
+  a snapshot does, with the headline numbers (`headlineOf` in `@quanthea/shared`: each summary
+  panel's stat as the panel reads it, the stat over the period before, and the change).
+- Over the snapshots' cap of 10 MiB, the attempt fails with its size.
+- A run is `running` until it succeeds (`ok`) or fails for good (`failed`).
+- Two triggers keep runs as they were: a finished run is never rewritten, and a run records once
+  when its message went out (`sent_at`, `delivery`).
+- Opening a run runs no query.
+
+**The scheduler** (`jobs/report-scheduler.ts`) ticks every 15 seconds, in process like the alert
+evaluator, with no model. Each tick:
+
+1. Lists the active reports whose `next_run_at` has passed. For each, it makes one run for the
+   latest scheduled time (`latestRunAt`) and moves `next_run_at` to the next one (`nextRunAt`).
+   After downtime that is one run, for the latest missed period, never a backlog. A unique index
+   allows one run per report and scheduled time.
+2. Lists the running runs whose retry is due, and those no attempt is making in this process,
+   such as one a restart cut short.
+3. Attempts them, at most 4 at once and 2 per connector (the connector of the report's first
+   query). A run being attempted is skipped, and one failing run never stops the others.
+
+`nextRunAt(schedule, after)` and `latestRunAt` are pure, in `@quanthea/shared`, and keep the
+local time across daylight saving: a time the clock skips runs once it jumps, and a time it shows
+twice runs the first time.
+
+**Retries and failures.** The report settings (`GET/PUT /api/settings/reports`, admin, the
+`reports` settings section) say how many times a failed run tries again (`maxRetries`, 2 by
+default) and after how long (`retryDelay`, 15 minutes by default, from 1 minute to a day). A
+failed attempt records its reason and `retry_at`; past the retries the run is `failed`. The reason
+is quanthea's own: the panel's title and the query engine's safe message, which quotes no secret,
+cut to 300 characters.
+
+**Delivery.** A run notifies when the schedule made it, or when an editor ran it by hand and
+asked to send it.
+
+- A run that succeeds sends `report.ready` to its channels.
+- A run that failed for good sends `report.failed` when the alert settings' `notifyOnError` is on
+  (the switch "Notify when an alert cannot be checked or a report fails"): one global setting for
+  whatever quanthea could not check.
+- Our code builds both (`reports/messages.ts`): the title with the period, the headline numbers
+  with their change, a link to the run, and the linked dashboards opened on the period. A
+  dashboard unpinned since is left out. Section 5.7 says how each kind of channel shows them.
+- A channel a report's active version sends to can't be deleted.
+
+**Retention.** The report settings' `keepRunsDays` keeps runs for good (`null`, the default) or
+for that many days. The hourly purge (`jobs/purge.ts`) deletes the finished runs older than
+that; reports and their versions stay. Runs use no model, so the usage ledger is untouched.
+
+**Reading** (`reports/views.ts`, `reports/reading.ts`). Every role reads reports and their runs,
+as they read dashboards. Below editor a report shows once a version is active, with the versions
+ever active and their runs only: no draft, and no latest version number.
+
+- The list gives each report its schedule and period (of the active version, else the latest),
+  its next run, and its latest run with its headline numbers and their change.
+- A report's detail adds its versions.
+- A report's runs list by period, the latest first, in pages (`before`, `limit`).
+- One run comes with its spec, its frozen results over the period and the period before, its
+  links to dashboards, how its message went per channel, and the runs of the periods before and
+  after it, to step through.
+
+**Trying a report** (editors).
+
+- Run now runs the active version, else the latest, over its latest period, as a `manual` run
+  that sends only when asked.
+- A preview runs any spec over its latest period and stores nothing, for the draft pane. It
+  returns the results even when a query fails, with the reason.
+- A test runs a version over its latest period and sends its message, marked as a test, to its
+  channels: `report.ready`, or `report.failed` when a query fails.
 
 ## 6. The agent
 
@@ -2079,6 +2183,36 @@ CREATE TABLE alert_link_dismissals (
   dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
   panel_id TEXT NOT NULL, dismissed_by TEXT NOT NULL, dismissed_at INTEGER NOT NULL,
   PRIMARY KEY (alert_id, dashboard_id, panel_id));
+
+-- a report; on the schedule while it has an active version and is not deactivated
+CREATE TABLE reports (
+  id TEXT PRIMARY KEY, title TEXT NOT NULL,
+  thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,  -- the conversation that made it
+  active_version INTEGER, deactivated_at INTEGER,
+  next_run_at INTEGER,               -- when the active version runs next; NULL while not active
+  created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  FOREIGN KEY (id, active_version) REFERENCES report_versions(report_id, version));
+
+-- every version is immutable (trigger); activated_at is set once, at the first activation
+CREATE TABLE report_versions (
+  report_id TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE, version INTEGER NOT NULL,
+  spec TEXT NOT NULL, note TEXT, created_by TEXT NOT NULL, created_at INTEGER NOT NULL,
+  activated_at INTEGER, PRIMARY KEY (report_id, version));
+
+-- a run: frozen once finished (trigger), but for recording its message once
+CREATE TABLE report_runs (
+  id TEXT PRIMARY KEY, report_id TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL, kind TEXT NOT NULL,   -- 'schedule' | 'manual'
+  scheduled_at INTEGER,              -- the schedule's time; one run per report and time (unique)
+  period_from INTEGER NOT NULL, period_to INTEGER NOT NULL,  -- both ends included
+  compare_from INTEGER, compare_to INTEGER,       -- NULL without a comparison
+  status TEXT NOT NULL,              -- 'running' | 'ok' | 'failed'
+  attempts INTEGER NOT NULL DEFAULT 0, retry_at INTEGER, error TEXT,
+  variables TEXT NOT NULL, panels TEXT, comparison TEXT,  -- JSON: each panel's run by panel id
+  headlines TEXT NOT NULL DEFAULT '[]', bytes INTEGER NOT NULL DEFAULT 0,
+  notify INTEGER NOT NULL, started_by TEXT,       -- started_by NULL: the schedule
+  created_at INTEGER NOT NULL, ran_at INTEGER, sent_at INTEGER, delivery TEXT,
+  FOREIGN KEY (report_id, version) REFERENCES report_versions(report_id, version));
 ```
 
 The usage ledger (`usage/usage.ts`) records every model step, with its provider's name, its vendor,
@@ -2134,9 +2268,11 @@ ledger's `snapshot_view` kind, `feature` (every earlier model step built dashboa
 (NULL for earlier steps: their `provider` holds a name, which names no vendor reliably), and the
 notification channels with their log.
 The same file adds the alerts, their versions, the state of their series and their changes of
-state, in a section of their own at its end. A last section adds what a thread makes (`kind`) and the panel an alert
-thread starts from (`seed`), and the ledger's `alert` feature. The last one adds the links
-between alerts and panels and the dismissed suggestions.
+state, in a section of their own. A last section adds what a thread makes (`kind`) and the panel an alert
+thread starts from (`seed`), and the ledger's `alert` feature. Another adds the links
+between alerts and panels and the dismissed suggestions. The last one adds the reports, their
+versions and their runs; the report events and `report_id` of the notification log are in its
+`notification_sends`.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -2224,6 +2360,12 @@ indicative; the contract files are the source of truth.
 | `GET /alert-link-targets`                                                                         | pinned dashboards and panels, to link one    | editor   |
 | `GET /dashboards/:id/alerts?from=&to=` (suggestions: editors only)                                | the alerts on its panels, firing periods     | viewer   |
 | `GET/PUT /settings/alerts`                                                                        | the alert cap, and errors notify or not      | admin    |
+| `GET /reports`, `GET /reports/:id` (versions ever active; drafts: editor only)                    | reports, their latest run and next run       | viewer   |
+| `GET /reports/:id/runs?before=&limit=`, `GET /reports/:id/runs/:runId` (frozen, with neighbours)  | a report's runs, one run's results           | viewer   |
+| `POST /reports/:id/activate` (a version), `POST /reports/:id/deactivate`                          | put a version on the schedule, or stop       | editor   |
+| `POST /reports/:id/run` (`send`), `POST /reports/preview` (a spec)                                | run now, preview over the latest period      | editor   |
+| `POST /reports/:id/versions/:v/test`                                                              | send a version's message as a test           | editor   |
+| `GET/PUT /settings/reports`                                                                       | retries, their delay, how long runs are kept | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
 so the UI switches on it rather than parsing messages. The codes are `bad_request` (400, with the

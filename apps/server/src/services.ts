@@ -36,6 +36,7 @@ import { createExplanationRepository } from './db/explanation-repository.ts';
 import { createIdentityRepository } from './db/identity-repository.ts';
 import { createProvisionedRepository } from './db/provisioned-repository.ts';
 import { createQuestionRepository } from './db/question-repository.ts';
+import { createReportChannelUsage } from './db/report-channel-usage.ts';
 import { createSnapshotRepository } from './db/snapshot-repository.ts';
 import { createThreadBinRepository } from './db/thread-bin.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
@@ -47,6 +48,7 @@ import { resealChannels } from './notifications/reseal.ts';
 import { createManaged, type Managed } from './provisioning/managed.ts';
 import { createQueryExecutor } from './query/executor.ts';
 import { createResultCache } from './query/result-cache.ts';
+import { createReportServices, type ReportServices } from './report-services.ts';
 import { type AlertSettingsService, createAlertSettings } from './settings/alert-settings.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
 import {
@@ -70,7 +72,7 @@ export interface ServiceDependencies extends AccountDependencies {
 }
 
 /** The services the HTTP layer calls. */
-export interface Services extends Accounts {
+export interface Services extends Accounts, ReportServices {
   /** What the configuration file manages. */
   readonly managed: Managed;
   /** The configured connectors. */
@@ -183,13 +185,35 @@ function dataServices(
   const { subjects: list, open, snapshot } = connections;
   const modelView = createModelView({ list, open, snapshot }, executor);
   const answered = answerServices(database, dashboardDependencies, modelView);
-  const notifications = notificationService(dependencies, audit);
-  const alerting = alertServices(dependencies, audit, {
+  const messaging = messagingServices(dependencies, audit, {
     ...dashboardDependencies,
-    notifications,
     dashboards,
   });
-  return { connections, dashboards, snapshots, ...answered, modelView, ...alerting, notifications };
+  return { connections, dashboards, snapshots, ...answered, modelView, ...messaging };
+}
+
+/**
+ * The services that send messages: the notification channels, the alerts and the reports. They
+ * share the panels' connectors and executor.
+ *
+ * @param dependencies - The database, the settings store and the public URL.
+ * @param audit - The audit log.
+ * @param shared - The connectors and the executor the dashboards use, and the dashboards.
+ * @returns The channels, the alerts and the reports with their settings.
+ */
+function messagingServices(
+  dependencies: ServiceDependencies,
+  audit: ReturnType<typeof createAuditRepository>,
+  shared: DashboardsDependencies & { readonly dashboards: Dashboards },
+) {
+  const notifications = notificationService(dependencies, audit);
+  const alerting = alertServices(dependencies, audit, { ...shared, notifications });
+  const { database, settings, publicUrl } = dependencies;
+  const reporting = createReportServices({
+    ...{ ...shared, database, settings, publicUrl, audit, notifications },
+    alertSettings: alerting.alertSettings,
+  });
+  return { notifications, ...alerting, ...reporting };
 }
 
 /**
@@ -398,5 +422,6 @@ function notificationService(
     audit,
     publicUrl: dependencies.publicUrl,
     alertsUsing: createAlertChannelUsage(dependencies.database),
+    reportsUsing: createReportChannelUsage(dependencies.database),
   });
 }

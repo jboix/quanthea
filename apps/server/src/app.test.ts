@@ -110,7 +110,7 @@ describe('route access', () => {
     const settingsRoutes = listApiRouteAccess(buildApp()).filter((route) =>
       /^\/api\/settings/.test(route.path),
     );
-    expect(settingsRoutes.length).toBe(28);
+    expect(settingsRoutes.length).toBe(30);
     expect(settingsRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 
@@ -134,6 +134,25 @@ describe('route access', () => {
       'editor GET /api/dashboards/:dashboardId/snapshots',
       'editor POST /api/snapshots',
       'viewer GET /api/snapshots/:snapshotId',
+    ]);
+  });
+
+  test('every role reads reports and runs; editors change and try them; admins set retries', () => {
+    const reportRoutes = listApiRouteAccess(buildApp())
+      .filter((route) => /reports/.test(route.path))
+      .map((route) => `${route.access} ${route.method} ${route.path}`);
+    expect(reportRoutes.sort()).toEqual([
+      'admin GET /api/settings/reports',
+      'admin PUT /api/settings/reports',
+      'editor POST /api/reports/:reportId/activate',
+      'editor POST /api/reports/:reportId/deactivate',
+      'editor POST /api/reports/:reportId/run',
+      'editor POST /api/reports/:reportId/versions/:version/test',
+      'editor POST /api/reports/preview',
+      'viewer GET /api/reports',
+      'viewer GET /api/reports/:reportId',
+      'viewer GET /api/reports/:reportId/runs',
+      'viewer GET /api/reports/:reportId/runs/:runId',
     ]);
   });
 

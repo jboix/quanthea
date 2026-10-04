@@ -95,9 +95,13 @@ export type ReportRunDetail = z.infer<typeof reportRunDetailSchema>;
 export const reportPreviewSchema = z.object({
   period: periodViewSchema,
   comparison: periodViewSchema.nullable(),
+  /** Each panel's run over the period; a panel that could not run is left out. */
   panels: z.record(z.string(), panelRunSchema),
+  /** Each panel's run over the comparison period; `null` without one, or after a failure. */
   comparisonPanels: z.record(z.string(), panelRunSchema).nullable(),
   headlines: z.array(headlineSchema),
+  /** Why a run would fail, in words that quote no secret; `null` when every query ran. */
+  failure: z.string().nullable(),
   /** The run that would follow, in epoch milliseconds. */
   nextRunAt: z.number(),
 });

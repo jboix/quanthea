@@ -45,6 +45,7 @@ import { mountNotificationEndpoints } from './http/routes/notification-routes.ts
 import { mountProviderFlowRoutes } from './http/routes/provider-routes.ts';
 import { mountQueryEndpoints } from './http/routes/query-routes.ts';
 import { mountQuestionEndpoints } from './http/routes/question-routes.ts';
+import { mountReportEndpoints } from './http/routes/report-routes.ts';
 import { mountServerSettingsEndpoints } from './http/routes/server-settings-routes.ts';
 import { mountSettingsEndpoints } from './http/routes/settings-routes.ts';
 import { mountSignInSettingsEndpoints } from './http/routes/sign-in-settings-routes.ts';
@@ -58,6 +59,7 @@ import { mountSpa } from './http/spa.ts';
 import type { Logger } from './lib/logger.ts';
 import type { Notifications } from './notifications/notifications.ts';
 import type { Managed } from './provisioning/managed.ts';
+import type { ReportServices } from './report-services.ts';
 import type { AlertSettingsService } from './settings/alert-settings.ts';
 import type { ChartSettingsService } from './settings/chart-settings.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
@@ -68,7 +70,7 @@ import type { Threads } from './threads/threads.ts';
 import type { Usage } from './usage/usage.ts';
 
 /** Everything the app needs from the bootstrap. */
-export interface AppDependencies {
+export interface AppDependencies extends ReportServices {
   /** The server version reported by `/api/health`. */
   readonly version: string;
   /** Identifies the principal of each request. */
@@ -207,6 +209,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountAlertEndpoints(app, dependencies);
   mountAlertDraftEndpoints(app, dependencies);
   mountAlertLinkEndpoints(app, dependencies);
+  mountReportEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent, dependencies.threads);
 }
 

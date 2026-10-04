@@ -13,6 +13,7 @@ import { runMigrations } from './db/migrate.ts';
 import { createSettingsRepository } from './db/settings-repository.ts';
 import { startAlertEvaluator } from './jobs/alert-evaluator.ts';
 import { startPurgeJob } from './jobs/purge.ts';
+import { startReportScheduler } from './jobs/report-scheduler.ts';
 import { createLogger } from './lib/logger.ts';
 import { loadPlugins, missingPinned } from './plugins/load.ts';
 import { startProvisioning } from './provisioning/start.ts';
@@ -83,6 +84,7 @@ const stopAlertEvaluator = startAlertEvaluator({
   evaluation: services.alertEvaluation,
   logger,
 });
+const stopReportScheduler = startReportScheduler({ reports: services.reports, logger });
 
 // A model call or a chat stream can go quiet for longer than Bun's default of 10 seconds.
 const server = Bun.serve({ port: config.port, fetch: app.fetch, idleTimeout: 255 });
@@ -97,6 +99,7 @@ async function shutdown(signal: string): Promise<void> {
   logger.info('shutting down', { signal });
   stopPurgeJob();
   stopAlertEvaluator();
+  stopReportScheduler();
   await server.stop();
   await services.connections.closeAll();
   database.close();

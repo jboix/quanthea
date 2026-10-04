@@ -57,8 +57,9 @@ describe('the previous week', () => {
   });
 
   test('that holds the end of summer time is an hour longer', () => {
-    const { period } = resolved('previous_week', '2026-10-26T07:00:00Z');
+    const { period, label } = resolved('previous_week', '2026-10-26T07:00:00Z');
     expect(period).toEqual(['2026-10-18T22:00:00.000Z', '2026-10-25T22:59:59.999Z']);
+    expect(label).toBe('week 43, 19 – 25 Oct');
   });
 });
 

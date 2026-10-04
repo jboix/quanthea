@@ -5,6 +5,7 @@ import {
   defaultModelGateway,
   modelGatewaySchema,
   querySettingsSchema,
+  reportSettingsSchema,
   retentionSettingsSchema,
   storedSignInSchema,
 } from '@quanthea/shared';
@@ -30,6 +31,8 @@ const sectionSchemas = {
   'sign-in-credentials': z.object({ sealed: z.record(z.string(), z.string()) }),
   /** The most alerts active per connector; whether one that cannot be checked notifies. */
   alerts: alertSettingsSchema,
+  /** How many times a failed report run tries again, after how long; how long runs are kept. */
+  reports: reportSettingsSchema,
 };
 
 /** A settings section name. */
@@ -48,6 +51,7 @@ const sectionDefaults: { readonly [Name in SectionName]: SectionValue<Name> } = 
   'sign-in': { providers: [], passwordSignIn: true },
   'sign-in-credentials': { sealed: {} },
   alerts: { maxActivePerConnector: 50, notifyOnError: true },
+  reports: { maxRetries: 2, retryDelay: '15m', keepRunsDays: null },
 };
 
 /** Reads and writes settings sections. */

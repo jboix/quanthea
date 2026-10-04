@@ -311,3 +311,68 @@ describe('the alerts after the upgrade', () => {
     expect(tables.map(countOf)).toEqual([0, 0, 0, 0]);
   });
 });
+
+/**
+ * Stores a report made by a thread, with an active version and a finished run.
+ */
+function storeReportRecords(): void {
+  database.run("INSERT INTO threads (id, created_at, updated_at) VALUES ('t', 0, 0)");
+  database.run(
+    `INSERT INTO reports (id, title, thread_id, created_by, created_at, updated_at)
+     VALUES ('r', 'Weekly sales', 't', 'ada', 0, 0)`,
+  );
+  database.run(
+    `INSERT INTO report_versions (report_id, version, spec, created_by, created_at)
+     VALUES ('r', 1, '{}', 'ada', 0)`,
+  );
+  database.run("UPDATE reports SET active_version = 1, next_run_at = 5 WHERE id = 'r'");
+  database.run(
+    `INSERT INTO report_runs (id, report_id, version, kind, scheduled_at, period_from, period_to,
+       status, variables, notify, created_at) VALUES ('run', 'r', 1, 'schedule', 1, 0, 1,
+       'running', '{}', 1, 0)`,
+  );
+  database.run("UPDATE report_runs SET status = 'ok', panels = '{}' WHERE id = 'run'");
+}
+
+describe('the reports after the upgrade', () => {
+  test('hold versions and finished runs that are never rewritten, but for their message', () => {
+    upgradeDatabase(releasedDatabase());
+    storeReportRecords();
+    expect(() => database.run("UPDATE report_versions SET spec = '[]'")).toThrow('immutable');
+    expect(() => database.run("UPDATE report_runs SET panels = '[]'")).toThrow('never rewritten');
+    database.run("UPDATE report_runs SET sent_at = 2, delivery = '[]' WHERE id = 'run'");
+    expect(() => database.run('UPDATE report_runs SET sent_at = 3')).toThrow('once');
+    expect(() => database.run("UPDATE reports SET active_version = 9 WHERE id = 'r'")).toThrow(
+      'FOREIGN KEY',
+    );
+    const again = `INSERT INTO report_runs (id, report_id, version, kind, scheduled_at,
+      period_from, period_to, status, variables, notify, created_at)
+      VALUES ('again', 'r', 1, 'schedule', 1, 0, 1, 'running', '{}', 1, 0)`;
+    expect(() => database.run(again)).toThrow('UNIQUE');
+  });
+
+  test('outlive the thread that made them, and take their runs with them when deleted', () => {
+    upgradeDatabase(releasedDatabase());
+    storeReportRecords();
+    database.run("DELETE FROM threads WHERE id = 't'");
+    const thread = database.query<{ thread_id: string | null }, []>(
+      'SELECT thread_id FROM reports',
+    );
+    expect(thread.get()).toEqual({ thread_id: null });
+    database.run("DELETE FROM reports WHERE id = 'r'");
+    expect(['reports', 'report_versions', 'report_runs'].map(countOf)).toEqual([0, 0, 0]);
+  });
+
+  test('log the messages of reports beside those of alerts', () => {
+    upgradeDatabase(releasedDatabase());
+    database.run(
+      `INSERT INTO notification_channels (id, name, kind, target_hint, secret, created_by,
+         created_at, updated_at) VALUES ('c', 'Sales', 'slack', 'x', x'00', 'ada', 0, 0)`,
+    );
+    database.run(
+      `INSERT INTO notification_sends (id, channel_id, event, alert_id, report_id, series_key, at,
+         ok, attempts) VALUES ('s', 'c', 'report.ready', '', 'r', 'run', 0, 1, 1)`,
+    );
+    expect(countOf('notification_sends')).toBe(1);
+  });
+});

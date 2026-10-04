@@ -227,6 +227,23 @@ module.exports = {
       },
     },
     {
+      name: 'reports-stay-in-their-lane',
+      severity: 'error',
+      comment:
+        'reports/ validates, stores and runs report specs on a schedule, with no model. It reaches ' +
+        'connectors and notification channels only through the functions the bootstrap hands it, ' +
+        "so it imports the database, the dashboards' checks and panel runs, the alerts' limiter " +
+        'and lib/, nothing else.',
+      from: { path: '^apps/server/src/reports/', pathNot: ['[.]test[.]ts$', '/test/'] },
+      to: {
+        path: '^apps/server/src/',
+        pathNot: [
+          '^apps/server/src/(reports|dashboards|db|query|lib)/',
+          '^apps/server/src/alerts/limiter[.]ts$',
+        ],
+      },
+    },
+    {
       name: 'connections-below-http',
       severity: 'error',
       comment:

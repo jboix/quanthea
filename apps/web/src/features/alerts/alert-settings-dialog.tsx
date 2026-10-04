@@ -1,6 +1,7 @@
 /**
  * The alert settings, in a dialog on the Alerts page, for admins: how many alerts may be active
- * per connector, and whether an alert that cannot be checked notifies its channels.
+ * per connector, and whether an alert that cannot be checked, or a report run that fails, notifies
+ * its channels.
  */
 import type { AlertSettings } from '@quanthea/shared';
 import { useEffect, useState } from 'react';
@@ -63,8 +64,8 @@ function SettingsFields({ form }: { readonly form: ReturnType<typeof useSettings
         onChange={(event) => form.setText(event.target.value)}
       />
       <Switch
-        label="Notify when an alert cannot be checked"
-        description="After its query fails twice in a row, an alert tells its channels once, and again once it can be checked."
+        label="Notify when an alert cannot be checked or a report fails"
+        description="After its query fails twice in a row, an alert tells its channels once, and again once it can be checked. A report run that still fails after its retries tells its channels."
         checked={form.notifyOnError}
         onChange={form.setNotifyOnError}
       />

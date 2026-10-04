@@ -146,6 +146,20 @@ function dayMonthOf(date: CalendarDate, withYear: boolean): string {
 }
 
 /**
+ * Two dates as a range: `6 – 12 Oct` within a month, `29 Sep – 5 Oct` across two, and with the
+ * years across two years.
+ *
+ * @param first - The first day.
+ * @param last - The last day.
+ * @returns The range.
+ */
+function dayRange(first: CalendarDate, last: CalendarDate): string {
+  const years = first.year !== last.year;
+  if (!years && first.month === last.month) return `${first.day} – ${dayMonthOf(last, false)}`;
+  return `${dayMonthOf(first, years)} – ${dayMonthOf(last, years)}`;
+}
+
+/**
  * Names a period as people read it: `Sat 4 Oct`, `week 40, 29 Sep – 5 Oct`, `September 2026`, or
  * `week 41 so far, to Fri 9 Oct 17:00`.
  *
@@ -165,6 +179,5 @@ export function periodLabel(kind: ReportPeriod, period: PeriodRange, timeZone: s
     const time = `${String(last.hour).padStart(2, '0')}:${String(last.minute).padStart(2, '0')}`;
     return `week ${week} so far, to ${weekday(last)} ${dayMonthOf(last, false)} ${time}`;
   }
-  const years = first.year !== last.year;
-  return `week ${week}, ${dayMonthOf(first, years)} – ${dayMonthOf(last, years)}`;
+  return `week ${week}, ${dayRange(first, last)}`;
 }

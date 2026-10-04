@@ -1,8 +1,8 @@
 /**
  * The purge job: once at startup and then every hour, it deletes for good the threads and the
  * conversations that have waited in the bin longer than the retention setting allows, the snapshots whose time is up, the
- * sessions that have ended, the old sends of the notification channels' log, and the alerts'
- * changes of state older than 90 days.
+ * sessions that have ended, the old sends of the notification channels' log, the alerts'
+ * changes of state older than 90 days, and the report runs past the report settings' retention.
  */
 
 import type { Alerts } from '../alerts/alerts.ts';
@@ -11,6 +11,7 @@ import type { ConversationBin } from '../dashboards/conversation-bin.ts';
 import type { Snapshots } from '../dashboards/snapshots.ts';
 import type { Logger } from '../lib/logger.ts';
 import type { Notifications } from '../notifications/notifications.ts';
+import type { Reports } from '../reports/reports.ts';
 import type { RetentionSettingsService } from '../settings/retention-settings.ts';
 import type { ThreadBin } from '../threads/bin.ts';
 
@@ -30,6 +31,8 @@ export interface PurgeJobDependencies {
   readonly sessions?: Pick<Sessions, 'purgeEnded'> | undefined;
   /** The notification channels, whose log keeps only recent sends. */
   readonly notifications?: Pick<Notifications, 'purgeSends'> | undefined;
+  /** The reports, whose runs past the retention setting the job deletes. */
+  readonly reports?: Pick<Reports, 'purgeRuns'> | undefined;
   /** Where it reports what it purged, and failures. */
   readonly logger: Logger;
   /** The clock; `Date.now` by default. */
@@ -76,10 +79,23 @@ export function purgeSnapshots(dependencies: PurgeJobDependencies): number {
 }
 
 /**
+ * Deletes the report runs older than the report settings keep them. Reports and their versions
+ * stay, and the usage ledger is untouched: runs use no model.
+ *
+ * @param dependencies - The reports and the logger.
+ * @returns How many runs it deleted.
+ */
+export function purgeReportRuns(dependencies: PurgeJobDependencies): number {
+  const purged = dependencies.reports?.purgeRuns() ?? 0;
+  if (purged > 0) dependencies.logger.info('purged old report runs', { purged });
+  return purged;
+}
+
+/**
  * Starts the purge job: now, then every hour. A failed run is logged and the next one tries again.
  *
  * @param dependencies - The bin, the retention settings, the snapshots, the sessions, the
- *   notifications, the alerts, the logger and the clock.
+ *   notifications, the alerts, the reports, the logger and the clock.
  * @returns Stops the job.
  */
 export function startPurgeJob(dependencies: PurgeJobDependencies): () => void {
@@ -90,6 +106,7 @@ export function startPurgeJob(dependencies: PurgeJobDependencies): () => void {
       dependencies.sessions?.purgeEnded();
       dependencies.notifications?.purgeSends();
       dependencies.alerts?.purgeEvents();
+      purgeReportRuns(dependencies);
     } catch (error) {
       dependencies.logger.error('the purge job failed', { error: String(error) });
     }

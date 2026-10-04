@@ -30,10 +30,11 @@ import {
 import { runPanel } from './run-panel.ts';
 
 /**
- * The most bytes of spec and results one snapshot stores by default: 10 MiB. A query returns at
+ * The most bytes of spec and results one snapshot stores by default, and one report run its
+ * results: 10 MiB. A query returns at
  * most 50,000 rows by default, a few MB as JSON, so a usual dashboard fits with room to spare.
  */
-const defaultMaxBytes = 10 * 1024 * 1024;
+export const maxSnapshotBytes = 10 * 1024 * 1024;
 
 /** A day, in milliseconds. */
 const dayMs = 86_400_000;
@@ -287,7 +288,7 @@ export function createSnapshots(dependencies: SnapshotsDependencies): Snapshots 
   const context: SnapshotContext = {
     ...dependencies,
     now: dependencies.now ?? Date.now,
-    maxBytes: dependencies.maxBytes ?? defaultMaxBytes,
+    maxBytes: dependencies.maxBytes ?? maxSnapshotBytes,
   };
   const { snapshots, audit } = context;
   return {

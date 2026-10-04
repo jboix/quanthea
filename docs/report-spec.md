@@ -60,7 +60,7 @@ Each run covers one period, resolved on the schedule's clock at the time the run
 | Period           | Covers                                                    | Named, for example                   |
 | ---------------- | --------------------------------------------------------- | ------------------------------------ |
 | `previous_day`   | yesterday, midnight to midnight                           | `Sat 4 Oct`                          |
-| `previous_week`  | the previous ISO week, Monday to Sunday                   | `week 40, 29 Sep – 5 Oct`            |
+| `previous_week`  | the previous ISO week, Monday to Sunday                   | `week 41, 6 – 12 Oct`                |
 | `previous_month` | the previous calendar month                               | `September 2026`                     |
 | `week_to_date`   | this ISO week, from Monday's midnight to the time it runs | `week 41 so far, to Fri 9 Oct 17:00` |
 
@@ -103,6 +103,23 @@ with the period, such as `Weekly sales · week 40, 29 Sep – 5 Oct`, the headli
 change, a link to the run and the links to the dashboards. When a run fails after its retries,
 each channel gets `report.failed` with the reason. Our code writes both; each channel's recipe
 escapes the titles, the numbers and the reason as values.
+
+## Validation beyond the schema
+
+The schema catches shape errors and checks across fields: `at` is a time of day, `day` is 1 to
+31, each headline is a stat panel of the spec named once, each dashboard is linked once.
+`reports/validate.ts` (`validateReportSpec`) also checks:
+
+- the time zone is known (`schedule.timezone`);
+- the panels, variables and markers pass the dashboard's own validation over the latest period,
+  with the same paths (`panels[0].queries[0].connector`): connectors, binding, read statements,
+  references, chart options;
+- the period fits every connector's `maxRangeDays` (`period`);
+- every channel exists (`delivery.channels[i]`, on save and activation);
+- every linked dashboard is pinned (`seeAlso[i].dashboardId`).
+
+Activating a version also runs its queries once over its latest period, and refuses it when one
+fails.
 
 ## Example
 
