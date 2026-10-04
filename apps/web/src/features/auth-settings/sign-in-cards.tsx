@@ -1,5 +1,6 @@
 /** The ways to sign in: the providers, each tested before it is turned on, and passwords. */
 import {
+  dayMonthYear,
   type IdentityProvidersView,
   type IdentityProviderView,
   type ManagedSettings,
@@ -44,9 +45,7 @@ function metaOf(provider: IdentityProviderView): string {
     organisation: `members of ${values.join(', ')}`,
     group: `members of ${values.join(', ')}`,
   };
-  const tested = provider.testedAt
-    ? `tested ${new Date(provider.testedAt).toLocaleDateString()}`
-    : 'not tested';
+  const tested = provider.testedAt ? `tested ${dayMonthYear(provider.testedAt)}` : 'not tested';
   const credentials = provider.hasCredentials ? '' : 'no client';
   return [kindNames[provider.kind], joins[mode], tested, credentials].filter(Boolean).join(' · ');
 }

@@ -1,5 +1,5 @@
 /** How the schema panel counts and labels entities and fields. */
-import { lowCardinalityLimit, type SchemaView } from '@quanthea/shared';
+import { lowCardinalityLimit, type SchemaView, timeOrDayTime } from '@quanthea/shared';
 
 /** One entity of a schema view. */
 type SchemaEntity = SchemaView['entities'][number];
@@ -103,9 +103,5 @@ export function fieldMarker(field: SchemaField): FieldMarker | undefined {
  * @returns The time for today, else the date and time.
  */
 export function readTime(readAt: number, now = Date.now()): string {
-  const sameDay = new Date(readAt).toDateString() === new Date(now).toDateString();
-  const format = sameDay
-    ? new Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
-    : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-  return format.format(readAt);
+  return timeOrDayTime(readAt, now);
 }

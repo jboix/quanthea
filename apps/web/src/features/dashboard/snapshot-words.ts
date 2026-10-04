@@ -1,5 +1,5 @@
 /** How snapshots read on screen: their lifetimes, their range and how long they live. */
-import type { SnapshotLifetime, SnapshotSummary } from '@quanthea/shared';
+import { dayMonthTime, type SnapshotLifetime, type SnapshotSummary } from '@quanthea/shared';
 import { timeLabel } from './view-state.ts';
 
 /** The lifetimes a taker picks from, in order, with their words. */
@@ -17,16 +17,11 @@ export const lifetimeChoices: readonly {
  * An instant as a short date and time, in the browser's zone.
  *
  * @param at - Epoch milliseconds.
- * @returns Such as `2 Oct 2026, 14:02`.
+ * @param now - The current time, for the year.
+ * @returns Such as `2 Oct 14:02`, or `2 Oct 2027 14:02` in another year.
  */
-export function dateTimeWords(at: number): string {
-  return new Date(at).toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+export function dateTimeWords(at: number, now = Date.now()): string {
+  return dayMonthTime(at, now);
 }
 
 /**

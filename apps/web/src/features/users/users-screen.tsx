@@ -1,4 +1,4 @@
-import { type Role, roles, type UserView } from '@quanthea/shared';
+import { dayMonthTime, type Role, roles, type UserView } from '@quanthea/shared';
 import { type FormEvent, useState } from 'react';
 import { type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
@@ -35,7 +35,7 @@ function useUsersIntent() {
 function LinkBox({ link }: { readonly link: Extract<UsersOutcome, { ok: true }>['link'] }) {
   const [copied, setCopied] = useState(false);
   if (!link) return null;
-  const until = new Date(link.expiresAt).toLocaleString();
+  const until = dayMonthTime(link.expiresAt, Date.now());
   const copy = async () => {
     await navigator.clipboard.writeText(link.url);
     setCopied(true);
@@ -224,7 +224,7 @@ function OutcomeRow({ outcome }: { readonly outcome: UsersOutcome | undefined })
  */
 function UserRow({ user }: { readonly user: UserView }) {
   const { submit, busy, outcome } = useUsersIntent();
-  const lastSignIn = user.lastSignInAt ? new Date(user.lastSignInAt).toLocaleString() : 'never';
+  const lastSignIn = user.lastSignInAt ? dayMonthTime(user.lastSignInAt, Date.now()) : 'never';
   const changeRole = (role: Role) => submit({ intent: 'update', userId: user.id, role });
   return (
     <>

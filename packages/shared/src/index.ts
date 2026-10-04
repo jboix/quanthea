@@ -263,6 +263,7 @@ export {
   dayMonth,
   dayMonthTime,
   dayMonthYear,
+  timeOrDayTime,
 } from './formatters/calendar.ts';
 export {
   createFormatter,

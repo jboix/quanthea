@@ -2,6 +2,7 @@ import {
   type ChannelSend,
   type ChannelView,
   channelKindInfo,
+  dayMonthTime,
   type SendResult,
 } from '@quanthea/shared';
 import { useState } from 'react';
@@ -15,15 +16,10 @@ import { useNotificationsIntent } from './use-intent.ts';
  * A time in words, short.
  *
  * @param at - Epoch milliseconds.
- * @returns The day and time.
+ * @returns The day and time, such as `4 Oct 17:55`.
  */
 export function whenWords(at: number): string {
-  return new Date(at).toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return dayMonthTime(at, Date.now());
 }
 
 /**

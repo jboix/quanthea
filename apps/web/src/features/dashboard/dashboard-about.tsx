@@ -1,4 +1,4 @@
-import type { DashboardSpec } from '@quanthea/shared';
+import { type DashboardSpec, timeOrDayTime } from '@quanthea/shared';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { HistoryIcon, InfoIcon } from '../../ui/icons.tsx';
@@ -46,14 +46,10 @@ interface VersionRowProps {
  * When a version was made, short: the time today, else the day and the time.
  *
  * @param at - The time, in epoch milliseconds.
- * @returns Such as `14:02` or `28 Sep, 14:02`.
+ * @returns Such as `14:02` or `28 Sep 14:02`.
  */
 function whenMade(at: number): string {
-  const date = new Date(at);
-  const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-  if (date.toDateString() === new Date().toDateString()) return time;
-  const day = date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-  return `${day}, ${time}`;
+  return timeOrDayTime(at, Date.now());
 }
 
 /**

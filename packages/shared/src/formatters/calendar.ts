@@ -87,3 +87,18 @@ export function dayMonthYear(instant: number, timeZone?: string): string {
   const { day, month, year } = calendarParts(instant, timeZone);
   return `${day} ${month} ${year}`;
 }
+
+/**
+ * An instant's time of day when it is today, else its day and time, in a time zone.
+ *
+ * @param instant - Epoch milliseconds.
+ * @param now - The current time.
+ * @param timeZone - An IANA time zone; the runtime's when left out.
+ * @returns Such as `14:02`, `28 Sep 14:02`, or `28 Dec 2025 14:02` in another year.
+ */
+export function timeOrDayTime(instant: number, now: number, timeZone?: string): string {
+  const when = calendarParts(instant, timeZone);
+  const today = calendarParts(now, timeZone);
+  const sameDay = when.year === today.year && when.month === today.month && when.day === today.day;
+  return sameDay ? when.time : dayMonthTime(instant, now, timeZone);
+}
