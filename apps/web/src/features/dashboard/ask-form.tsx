@@ -15,16 +15,23 @@ import { dayLabel } from './ask-words.ts';
 /**
  * The honest note when no source of the dashboard shows numbers: answers can only explain.
  *
- * @param props - The sources.
+ * @param props - The sources, and what they are the sources of.
  * @param props.sources - The dashboard's sources and their access levels.
+ * @param props.subject - Such as `dashboard` or `report`.
  * @returns The note.
  */
-export function ExplainOnlyCard({ sources }: { readonly sources: readonly DashboardSource[] }) {
+export function ExplainOnlyCard({
+  sources,
+  subject = 'dashboard',
+}: {
+  readonly sources: readonly DashboardSource[];
+  readonly subject?: string;
+}) {
   return (
     <section className={styles.gate} aria-label="Explain only">
       <h3 className={styles.gateTitle}>Explain only</h3>
       <p className={styles.gateText}>
-        No source of this dashboard is at Aggregates or Full access. Answers can explain the panels,
+        No source of this {subject} is at Aggregates or Full access. Answers can explain the panels,
         their queries and the tables, but can't read the numbers, so they can't tell you what
         happened.
       </p>
@@ -41,6 +48,9 @@ export function ExplainOnlyCard({ sources }: { readonly sources: readonly Dashbo
   );
 }
 
+/** An earlier question, as the list of those already answered shows it. */
+type SimilarMatch = Pick<SimilarQuestion, 'id' | 'askedAt' | 'askedBy' | 'question'>;
+
 /**
  * The questions already answered that share words with the text typed. Each opens its
  * conversation at its answer.
@@ -51,14 +61,14 @@ export function ExplainOnlyCard({ sources }: { readonly sources: readonly Dashbo
  * @param props.onOpen - Opens a question's conversation at it.
  * @returns The list, or nothing without matches.
  */
-export function SimilarQuestions({
+export function SimilarQuestions<Match extends SimilarMatch>({
   matches,
   timeZone,
   onOpen,
 }: {
-  readonly matches: readonly SimilarQuestion[];
+  readonly matches: readonly Match[];
   readonly timeZone: string;
-  readonly onOpen: (match: SimilarQuestion) => void;
+  readonly onOpen: (match: Match) => void;
 }) {
   if (matches.length === 0) return null;
   return (
@@ -93,6 +103,8 @@ interface AskFormProps {
   readonly onAsk: (question: string) => void;
   /** Receives the text as it is typed, to look for earlier answers. */
   readonly onType: (text: string) => void;
+  /** The example in the empty box. */
+  readonly placeholder?: string;
 }
 
 /**
@@ -102,7 +114,14 @@ interface AskFormProps {
  * @param props - The label, the state, the line of a changed view and the callbacks.
  * @returns The form.
  */
-export function AskForm({ label, busy, note, onAsk, onType }: AskFormProps) {
+export function AskForm({
+  label,
+  busy,
+  note,
+  onAsk,
+  onType,
+  placeholder = 'What happened around 14:00?',
+}: AskFormProps) {
   const [text, setText] = useState('');
   const submit = (event?: FormEvent) => {
     event?.preventDefault();
@@ -121,7 +140,7 @@ export function AskForm({ label, busy, note, onAsk, onType }: AskFormProps) {
         rows={2}
         className={styles.box}
         value={text}
-        placeholder="What happened around 14:00?"
+        placeholder={placeholder}
         onChange={(event) => {
           setText(event.target.value);
           onType(event.target.value);
@@ -138,12 +157,14 @@ export function AskForm({ label, busy, note, onAsk, onType }: AskFormProps) {
 /**
  * The line viewers get instead of the question box.
  *
+ * @param props - What questions are about.
+ * @param props.subject - Such as `this dashboard` or `this run`.
  * @returns The line.
  */
-export function WhoCanAsk() {
+export function WhoCanAsk({ subject = 'this dashboard' }: { readonly subject?: string }) {
   return (
     <p className={styles.meta}>
-      Analysts, editors and admins can ask about this dashboard. You can read every conversation.
+      Analysts, editors and admins can ask about {subject}. You can read every conversation.
     </p>
   );
 }

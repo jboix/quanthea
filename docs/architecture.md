@@ -257,8 +257,8 @@ the kit's HTTP client for every kind that speaks HTTP.
 
   A value changed in the sentence is a hand edit (`POST /api/threads/:id/report-draft`): a new
   draft version, and a `data-reportHandEdit` card the agent reads next turn.
-- **The rail** shows the screens the role opens: Threads (editors), Library, Alerts, Connectors
-  (admins), then the Bin (analysts), Settings (admins) and the account menu. Alerts carries a badge
+- **The rail** shows the screens the role opens: Threads (editors), Library, Alerts, Reports,
+  Connectors (admins), then the Bin (analysts), Settings (admins) and the account menu. Alerts carries a badge
   in the danger colour with the number of alerts firing (active, with a series firing, muted or
   not), named with the link (`Alerts, 2 firing`). It reads the list while the list is on screen,
   and otherwise the `/alerts/firing` resource route, which loads when the rail mounts and again
@@ -314,6 +314,40 @@ the kit's HTTP client for every kind that speaks HTTP.
   `/alerts/settings` resource route: the most alerts active per connector, and the switch Notify
   when an alert cannot be checked or a report fails (`notifyOnError`), which reports read too. Editors and below see neither; editors see
   New alert.
+- **Reports** (`features/reports/`). The rail's Reports carries a dot in the accent colour while a
+  report has a finished run the person has not opened (`Reports, new runs`). It reads the list
+  while the list is on screen, and otherwise the `/reports/unseen` resource route, which loads
+  when the rail mounts, after every action and when a run opens.
+- **The Reports list** (`/reports`) searches titles, schedules and numbers in the browser. Each
+  row links to the report's latest run: the title with the dot when its latest run is new to the
+  person, the schedule and period in words (`Mondays 08:00 · the previous week`), the last run's
+  first headline number with its change (`CHF 184,320 ▲ 6.2%`), or `Last run failed` in the
+  danger colour, a small bar history of that number over the last runs (`value-history.tsx`,
+  plain SVG from the list's `history`), and the next run. A draft is dashed. Editors get New
+  report (`/threads/new?make=report`); admins also get Notification channels and Settings, a
+  dialog (`report-settings-dialog.tsx`) that loads and saves the retries, their delay and how many
+  days runs are kept through the `/reports/settings` resource route.
+- **A run's page** (`/reports/:reportId/runs/:runId`; `/reports/:reportId` redirects to the
+  latest run, or shows the report before its first). The header holds the breadcrumb, ‹ and › to
+  the runs of the periods before and after, the period as the title (`Week 39 · 21 – 27 Sep`),
+  and the line `Ran Mon 28 Sep 08:00 · sent to #sales · frozen: opening it runs no query`, or the
+  failure with its reason and attempts in the danger colour. Its actions are Ask about this (a
+  run that succeeded), Change for editors (Edit with the agent, Run now, which opens the new run,
+  and Deactivate or Activate), Share (Copy link), and Versions for editors (each version, the
+  active one marked; Activate another). Below 720 px they fold into one menu. The body shows the
+  headline numbers with their change against the comparison period, the other panels drawn from
+  the frozen results by `FrozenCanvas`, moved up where the headlines stood, and See also, each
+  dashboard opened on the run's period.
+- **Ask about a run** opens a side panel laid out like a pinned dashboard's: About (the
+  description, schedule, version and sources with their levels), Ask and History. History and
+  the bin of a conversation are the dashboard's own components over the run's resource routes
+  (`HistoryTab` and `useBinConversation` take the path the routes are under). The Ask tab
+  (`run-ask-tab.tsx`) shows one conversation; its box reads `Ask about week 39, as the report froze
+  it`, and viewers get a line saying who can ask. Each answer is plain text with its reads (a read
+  of the frozen results says so) and, under Worth watching, its follow-up cards
+  (`follow-up-cards.tsx`): the kind, the title and the prompt as plain text, and for editors Start
+  this alert or Start this dashboard, a link to `/threads/new?make=alert&prompt=…` that fills the
+  question box and sends nothing.
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
 - **Colour scheme.** Light, dark or the system's, picked under Appearance in the account menu and
@@ -324,51 +358,60 @@ the kit's HTTP client for every kind that speaks HTTP.
 
 **Routes** (React Router data mode):
 
-| Path                                                     | Screen                                                      | Min role |
-| -------------------------------------------------------- | ----------------------------------------------------------- | -------- |
-| `/`                                                      | redirect → `/library` (viewer, analyst) or `/threads/new`   | viewer   |
-| `/threads/new`, `/threads/:threadId`                     | Plan, Build and refine, Variant                             | editor   |
-| `/threads/:threadId/alert-previews`                      | resource route: what an alert draft's channels would send   | editor   |
-| `/threads/:threadId/report-preview`                      | resource route: a report draft run over its latest period   | editor   |
-| `/library`                                               | Library: search pinned dashboards and their panels          | viewer   |
-| `/alerts`                                                | Alerts: search, filter by state, sections by state          | viewer   |
-| `/alerts/firing`                                         | resource route: how many alerts fire, for the rail          | viewer   |
-| `/alerts/settings`                                       | resource route: the alert settings, for the Settings dialog | admin    |
-| `/alerts/:alertId`                                       | an alert: state, chart, series, what happened, channels     | viewer   |
-| `/alerts/:alertId/v/:version/replay`                     | resource route: a version replayed over 6 h, 24 h or 7 d    | viewer   |
-| `/alerts/:alertId/links`                                 | resource route: where an alert is shown, for the agent card | viewer   |
-| `/alert-link-targets`                                    | resource route: pinned dashboards' panels, to link one      | editor   |
-| `/account`                                               | resource route: the account menu's providers and actions    | viewer   |
-| `/d/:dashboardId`                                        | the pinned version; for editors, the latest if unpinned     | viewer   |
-| `/d/:dashboardId/v/:version`                             | a specific version                                          | viewer   |
-| `/d/:dashboardId/v/:version/panels/:panelId`             | resource route: one panel's run, for fetchers               | viewer   |
-| `/d/:dashboardId/v/:version/panels/:panelId/explanation` | resource route: a panel's latest explanation                | viewer   |
-| `/d/:dashboardId/v/:version/options/:name`               | resource route: a variable's options, for fetchers          | viewer   |
-| `/d/:dashboardId/snapshots`                              | resource route: a dashboard's live snapshots, for fetchers  | editor   |
-| `/d/:dashboardId/conversations`                          | resource route: a dashboard's conversations, or a search    | viewer   |
-| `/d/:dashboardId/conversations/:conversationId`          | resource route: one conversation's questions and answers    | viewer   |
-| `/d/:dashboardId/similar-questions`                      | resource route: earlier answered questions like a text      | viewer   |
-| `/d/:dashboardId/v/:version/sources`                     | resource route: a version's sources and access levels       | viewer   |
-| `/d/:dashboardId/alerts`                                 | resource route: the alerts on its panels, over a range      | viewer   |
-| `/s/:snapshotId`                                         | a snapshot: a version frozen with its data, read-only       | viewer   |
-| `/bin`                                                   | Bin: threads, conversations; restore, delete (admin)        | analyst  |
-| `/connectors`, `/connectors/:connectorId`                | Connectors: list, access level, guardrails, schema          | admin    |
-| `/connectors/new`, `/connectors/:connectorId/edit`       | add and edit a connection                                   | admin    |
-| `/connectors/:connectorId/health`                        | resource route: the connection test, for fetchers           | admin    |
-| `/settings/model`                                        | Model: the providers, their keys and limits                 | admin    |
-| `/settings/auth`                                         | Authentication: sign-in providers, passwords                | admin    |
-| `/settings/users`                                        | Users: invite, roles, disable, reset links, sign out        | admin    |
-| `/settings/usage`                                        | Usage: tokens, cost and views; by feature, model, person    | admin    |
-| `/settings/notifications`                                | Notifications: channels, tests, what a webhook receives     | admin    |
-| `/settings/snapshots`                                    | Snapshots: every live snapshot, revoke one                  | admin    |
-| `/settings/queries`                                      | Queries: builders on or off, your own with placeholders     | admin    |
-| `/settings/charts`                                       | Charts: every chart recipe drawn from its sample            | admin    |
-| `/settings/server`                                       | Server: system settings and keys, read-only, with sources   | admin    |
-| `/settings`                                              | redirect → `/settings/model`                                | admin    |
-| `/ui`                                                    | UI kit: every `ui/` primitive, for checking the visuals     | viewer   |
-| `/login`                                                 | sign in                                                     | —        |
-| `/setup`                                                 | the default admin chooses their own email and password      | —        |
-| `/set-password`                                          | choose a password from an invite or reset link              | —        |
+| Path                                                           | Screen                                                      | Min role |
+| -------------------------------------------------------------- | ----------------------------------------------------------- | -------- |
+| `/`                                                            | redirect → `/library` (viewer, analyst) or `/threads/new`   | viewer   |
+| `/threads/new`, `/threads/:threadId`                           | Plan, Build and refine, Variant                             | editor   |
+| `/threads/:threadId/alert-previews`                            | resource route: what an alert draft's channels would send   | editor   |
+| `/threads/:threadId/report-preview`                            | resource route: a report draft run over its latest period   | editor   |
+| `/library`                                                     | Library: search pinned dashboards and their panels          | viewer   |
+| `/alerts`                                                      | Alerts: search, filter by state, sections by state          | viewer   |
+| `/alerts/firing`                                               | resource route: how many alerts fire, for the rail          | viewer   |
+| `/alerts/settings`                                             | resource route: the alert settings, for the Settings dialog | admin    |
+| `/alerts/:alertId`                                             | an alert: state, chart, series, what happened, channels     | viewer   |
+| `/alerts/:alertId/v/:version/replay`                           | resource route: a version replayed over 6 h, 24 h or 7 d    | viewer   |
+| `/alerts/:alertId/links`                                       | resource route: where an alert is shown, for the agent card | viewer   |
+| `/alert-link-targets`                                          | resource route: pinned dashboards' panels, to link one      | editor   |
+| `/reports`                                                     | Reports: search, each with its latest number and history    | viewer   |
+| `/reports/unseen`                                              | resource route: how many reports have a run not opened      | viewer   |
+| `/reports/settings`                                            | resource route: the report settings, for the dialog         | admin    |
+| `/reports/:reportId`                                           | redirect → the latest run; the report before its first run  | viewer   |
+| `/reports/:reportId/runs/:runId`                               | a run: frozen panels, headline numbers, Ask about this      | viewer   |
+| `/reports/:reportId/runs/:runId/conversations`                 | resource route: a run's conversations, or a search          | viewer   |
+| `/reports/:reportId/runs/:runId/conversations/:conversationId` | resource route: one conversation about a run                | viewer   |
+| `/reports/:reportId/runs/:runId/similar-questions`             | resource route: earlier answered questions like a text      | viewer   |
+| `/reports/:reportId/runs/:runId/sources`                       | resource route: a run's sources and access levels           | viewer   |
+| `/account`                                                     | resource route: the account menu's providers and actions    | viewer   |
+| `/d/:dashboardId`                                              | the pinned version; for editors, the latest if unpinned     | viewer   |
+| `/d/:dashboardId/v/:version`                                   | a specific version                                          | viewer   |
+| `/d/:dashboardId/v/:version/panels/:panelId`                   | resource route: one panel's run, for fetchers               | viewer   |
+| `/d/:dashboardId/v/:version/panels/:panelId/explanation`       | resource route: a panel's latest explanation                | viewer   |
+| `/d/:dashboardId/v/:version/options/:name`                     | resource route: a variable's options, for fetchers          | viewer   |
+| `/d/:dashboardId/snapshots`                                    | resource route: a dashboard's live snapshots, for fetchers  | editor   |
+| `/d/:dashboardId/conversations`                                | resource route: a dashboard's conversations, or a search    | viewer   |
+| `/d/:dashboardId/conversations/:conversationId`                | resource route: one conversation's questions and answers    | viewer   |
+| `/d/:dashboardId/similar-questions`                            | resource route: earlier answered questions like a text      | viewer   |
+| `/d/:dashboardId/v/:version/sources`                           | resource route: a version's sources and access levels       | viewer   |
+| `/d/:dashboardId/alerts`                                       | resource route: the alerts on its panels, over a range      | viewer   |
+| `/s/:snapshotId`                                               | a snapshot: a version frozen with its data, read-only       | viewer   |
+| `/bin`                                                         | Bin: threads, conversations; restore, delete (admin)        | analyst  |
+| `/connectors`, `/connectors/:connectorId`                      | Connectors: list, access level, guardrails, schema          | admin    |
+| `/connectors/new`, `/connectors/:connectorId/edit`             | add and edit a connection                                   | admin    |
+| `/connectors/:connectorId/health`                              | resource route: the connection test, for fetchers           | admin    |
+| `/settings/model`                                              | Model: the providers, their keys and limits                 | admin    |
+| `/settings/auth`                                               | Authentication: sign-in providers, passwords                | admin    |
+| `/settings/users`                                              | Users: invite, roles, disable, reset links, sign out        | admin    |
+| `/settings/usage`                                              | Usage: tokens, cost and views; by feature, model, person    | admin    |
+| `/settings/notifications`                                      | Notifications: channels, tests, what a webhook receives     | admin    |
+| `/settings/snapshots`                                          | Snapshots: every live snapshot, revoke one                  | admin    |
+| `/settings/queries`                                            | Queries: builders on or off, your own with placeholders     | admin    |
+| `/settings/charts`                                             | Charts: every chart recipe drawn from its sample            | admin    |
+| `/settings/server`                                             | Server: system settings and keys, read-only, with sources   | admin    |
+| `/settings`                                                    | redirect → `/settings/model`                                | admin    |
+| `/ui`                                                          | UI kit: every `ui/` primitive, for checking the visuals     | viewer   |
+| `/login`                                                       | sign in                                                     | —        |
+| `/setup`                                                       | the default admin chooses their own email and password      | —        |
+| `/set-password`                                                | choose a password from an invite or reset link              | —        |
 
 The roles rank viewer, analyst, editor, admin (`roles` in `@quanthea/shared`), and `hasRole` is
 the one check of a minimum role, on the server and in the browser. An analyst reads everything a

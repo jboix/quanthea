@@ -2,7 +2,7 @@
  * An answer about the dashboard: its text with the citation markers as numbered badges, and what
  * it looked at. Everything the model wrote is shown as plain text.
  */
-import type { Answer, AnswerEvidence, DashboardSpec } from '@quanthea/shared';
+import type { Answer, AnswerEvidence } from '@quanthea/shared';
 import styles from './ask.module.css';
 import { evidenceLines } from './ask-evidence.ts';
 import { answerSegments } from './ask-words.ts';
@@ -77,8 +77,8 @@ interface EvidenceListProps {
   readonly evidence: readonly AnswerEvidence[];
   /** The citations, to number each read. */
   readonly citations: Answer['citations'];
-  /** The spec, for the panels' titles. */
-  readonly spec: DashboardSpec;
+  /** The spec, for the panels' titles: a dashboard's, or a report's. */
+  readonly spec: { readonly panels: readonly { readonly id: string; readonly title: string }[] };
   /** The time zone of the times. */
   readonly timeZone: string;
 }
@@ -112,6 +112,7 @@ export function EvidenceList({ evidence, citations, spec, timeZone }: EvidenceLi
               <span>
                 <strong>{titleOf(read.panelId) ?? 'A query of its own'}</strong>
                 <span className={styles.mono}> · {read.connector}</span>
+                {read.frozen && <span className={styles.mono}> · as the report froze it</span>}
               </span>
               {evidenceLines(read.result, timeZone).map((line) => (
                 <span key={line} className={styles.evidenceLine}>

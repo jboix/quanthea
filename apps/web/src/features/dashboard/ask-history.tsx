@@ -13,8 +13,10 @@ import styles from './history.module.css';
 
 /** Props of {@link HistoryTab}. */
 interface HistoryTabProps {
-  /** The dashboard. */
-  readonly dashboardId: string;
+  /** The page the conversations' resource routes are under: `/d/<id>`, or a run's path. */
+  readonly base: string;
+  /** What the list says when no one has asked yet. */
+  readonly emptyText: string;
   /** The time zone of the dates and of the days they are grouped by: the Ask tab's. */
   readonly timeZone: string;
   /** The conversation the Ask tab shows, if any. */
@@ -148,7 +150,8 @@ function ConversationGroups({
   openId,
   onOpen,
   binning,
-}: Omit<HistoryTabProps, 'dashboardId' | 'onBinned'> & {
+  emptyText,
+}: Omit<HistoryTabProps, 'base' | 'onBinned'> & {
   readonly conversations: readonly Conversation[];
   readonly searching: boolean;
   readonly loading: boolean;
@@ -160,11 +163,7 @@ function ConversationGroups({
   );
   if (groups.length === 0 && loading) return null;
   if (groups.length === 0)
-    return (
-      <p className={styles.empty}>
-        {searching ? 'No conversation matches.' : 'No one has asked about this dashboard yet.'}
-      </p>
-    );
+    return <p className={styles.empty}>{searching ? 'No conversation matches.' : emptyText}</p>;
   return (
     <nav className={styles.groups} aria-label="Past conversations">
       {groups.map((group) => (
@@ -231,9 +230,9 @@ function HistorySearch({
  * @param props - The dashboard, the open conversation, and the open and binned callbacks.
  * @returns The tab's content.
  */
-export function HistoryTab({ dashboardId, timeZone, openId, onOpen, onBinned }: HistoryTabProps) {
+export function HistoryTab({ base, onBinned, ...shown }: HistoryTabProps) {
   const [search, setSearch] = useState('');
-  const { conversations, failed, loading, reload } = useConversations(dashboardId, search);
+  const { conversations, failed, loading, reload } = useConversations(base, search);
   const binned = useCallback(
     (conversationId: string) => {
       reload();
@@ -241,7 +240,7 @@ export function HistoryTab({ dashboardId, timeZone, openId, onOpen, onBinned }: 
     },
     [reload, onBinned],
   );
-  const binning = useBinConversation(dashboardId, binned);
+  const binning = useBinConversation(base, binned);
   return (
     <div className={styles.tab}>
       <HistorySearch search={search} onSearch={setSearch} />
@@ -252,10 +251,8 @@ export function HistoryTab({ dashboardId, timeZone, openId, onOpen, onBinned }: 
           conversations={conversations}
           searching={search.trim() !== ''}
           loading={loading}
-          timeZone={timeZone}
-          openId={openId}
-          onOpen={onOpen}
           binning={binning}
+          {...shown}
         />
       </div>
     </div>

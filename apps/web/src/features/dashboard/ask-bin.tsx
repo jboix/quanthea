@@ -12,14 +12,11 @@ import type { Loaded } from './loaded.ts';
 /**
  * Moves conversations to the bin, and tells when one went.
  *
- * @param dashboardId - The dashboard.
+ * @param base - The page the conversations' resource routes are under: `/d/<id>`, or a run's path.
  * @param onBinned - Called with the conversation once it is in the bin.
  * @returns The bin function, whether one is on its way, and the last refusal.
  */
-export function useBinConversation(
-  dashboardId: string,
-  onBinned: (conversationId: string) => void,
-) {
+export function useBinConversation(base: string, onBinned: (conversationId: string) => void) {
   const fetcher = useFetcher<Loaded<{ binned: true }>>();
   const sent = useRef<string | undefined>(undefined);
   const { data, state } = fetcher;
@@ -30,7 +27,7 @@ export function useBinConversation(
   }, [data, state, onBinned]);
   const bin = (conversationId: string) => {
     sent.current = conversationId;
-    const action = `/d/${dashboardId}/conversations/${encodeURIComponent(conversationId)}`;
+    const action = `${base}/conversations/${encodeURIComponent(conversationId)}`;
     void fetcher.submit(null, { method: 'delete', action });
   };
   const failure = data?.ok === false ? data.message : undefined;

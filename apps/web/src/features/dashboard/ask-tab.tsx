@@ -57,7 +57,7 @@ function ConversationBar({
     setConfirming(false);
     startNew();
   }, [startNew]);
-  const binning = useBinConversation(dashboardId, binned);
+  const binning = useBinConversation(`/d/${dashboardId}`, binned);
   const [first] = conversation.questions;
   if (confirming && first)
     return (
@@ -140,7 +140,7 @@ function NewConversation({
   readonly onOpen: (conversation: Conversation) => void;
   readonly onHistory: () => void;
 }) {
-  const { conversations } = useConversations(dashboardId, '');
+  const { conversations } = useConversations(`/d/${dashboardId}`, '');
   return (
     <div className={styles.empty}>
       <p className={styles.meta}>

@@ -1,11 +1,25 @@
-/** A conversation about a dashboard in the bin, with Restore and, for admins, Delete for good. */
+/**
+ * A conversation in the bin, about a dashboard or about a report's run, with Restore and, for
+ * admins, Delete for good.
+ */
 import { type BinnedConversation, dayMonthTime } from '@quanthea/shared';
 import { Button } from '../../ui/button.tsx';
 import styles from './bin.module.css';
 import { ConfirmButton, purgeNote, useBinIntent, useIsAdmin } from './bin-parts.tsx';
 
 /**
- * One binned conversation: its dashboard and first question, who started it, how many questions
+ * What a binned conversation is about: its dashboard, or its report and the run's period.
+ *
+ * @param conversation - The binned conversation.
+ * @returns Such as `Weekly sales · week 40, 29 Sep – 5 Oct`.
+ */
+function aboutWords(conversation: BinnedConversation): string {
+  const { run } = conversation;
+  return run ? `${conversation.dashboardTitle} · ${run.period}` : conversation.dashboardTitle;
+}
+
+/**
+ * One binned conversation: what it is about and its first question, who started it, how many questions
  * it holds, who binned it and when, and when it goes for good.
  *
  * @param props - The conversation and the retention.
@@ -29,7 +43,7 @@ export function ConversationBinRow({
     <li className={styles.row} data-busy={busy}>
       <div className={styles.what}>
         <span className={styles.title}>
-          Conversation on <em>{conversation.dashboardTitle}</em>: {conversation.question}
+          Conversation on <em>{aboutWords(conversation)}</em>: {conversation.question}
         </span>
         <span className={styles.meta}>
           Started by {conversation.startedBy} · {count} · deleted {when} by {conversation.binnedBy}

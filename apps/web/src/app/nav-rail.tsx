@@ -3,12 +3,14 @@ import type { ReactNode } from 'react';
 import { Link, useMatch } from 'react-router';
 import { AccountMenu } from '../features/account/index.ts';
 import { useFiringAlerts } from '../features/alerts/index.ts';
+import { useUnseenReports } from '../features/reports/index.ts';
 import { BrandIcon } from '../ui/brand.tsx';
 import {
   BellIcon,
   BinIcon,
   ConnectorsIcon,
   LibraryIcon,
+  ReportIcon,
   SettingsIcon,
   ThreadsIcon,
   UserIcon,
@@ -29,6 +31,8 @@ interface RailItem {
   readonly icon: ReactNode;
   /** A count shown on the icon, such as the alerts firing. */
   readonly badge?: number | undefined;
+  /** Whether something new waits there, such as a report's run not opened yet: a dot. */
+  readonly dot?: boolean | undefined;
 }
 
 /** The items at the top of the rail. */
@@ -55,6 +59,13 @@ const topItems: readonly RailItem[] = [
     icon: <BellIcon />,
   },
   {
+    label: 'Reports',
+    to: '/reports',
+    section: '/reports',
+    minimum: 'viewer',
+    icon: <ReportIcon />,
+  },
+  {
     label: 'Connectors',
     to: '/connectors',
     section: '/connectors',
@@ -76,6 +87,17 @@ const bottomItems: readonly RailItem[] = [
 ];
 
 /**
+ * What a rail link is named, with its count or its dot.
+ *
+ * @param item - The item.
+ * @returns Such as `Alerts, 2 firing` or `Reports, new runs`.
+ */
+function railLabel(item: RailItem): string {
+  if (item.badge) return `${item.label}, ${item.badge} firing`;
+  return item.dot ? `${item.label}, new runs` : item.label;
+}
+
+/**
  * One icon link, marked as the current page while the location is inside its section.
  *
  * @param props - The item to render.
@@ -83,8 +105,8 @@ const bottomItems: readonly RailItem[] = [
  */
 function RailLink({ item }: { readonly item: RailItem }) {
   const isCurrent = useMatch(`${item.section}/*`) !== null;
-  const { badge } = item;
-  const label = badge ? `${item.label}, ${badge} firing` : item.label;
+  const { badge, dot } = item;
+  const label = railLabel(item);
   return (
     <Link
       to={item.to}
@@ -99,6 +121,7 @@ function RailLink({ item }: { readonly item: RailItem }) {
           {badge > 99 ? '99+' : badge}
         </span>
       ) : null}
+      {dot && !badge ? <span className={styles.dot} aria-hidden="true" /> : null}
     </Link>
   );
 }
@@ -114,8 +137,11 @@ function RailLink({ item }: { readonly item: RailItem }) {
 export function NavRail({ principal }: { readonly principal: Principal }) {
   const visible = (item: RailItem): boolean => hasRole(principal.role, item.minimum);
   const firing = useFiringAlerts();
-  const withCount = (item: RailItem): RailItem =>
-    item.to === '/alerts' ? { ...item, badge: firing } : item;
+  const unseen = useUnseenReports();
+  const withCount = (item: RailItem): RailItem => {
+    if (item.to === '/alerts') return { ...item, badge: firing };
+    return item.to === '/reports' ? { ...item, dot: (unseen ?? 0) > 0 } : item;
+  };
   return (
     <nav aria-label="Primary" className={styles.rail}>
       <Link to="/" aria-label="quanthea home" className={styles.logo}>

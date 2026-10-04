@@ -30,7 +30,7 @@ export function ContextNote({ note }: { readonly note: string | undefined }) {
  * @param props.meta - Who asked and when, if known.
  * @returns The bubble.
  */
-function Asked({ question, meta }: { readonly question: string; readonly meta?: string }) {
+export function Asked({ question, meta }: { readonly question: string; readonly meta?: string }) {
   return (
     <div className={turnStyles.askedTurn}>
       <p className={turnStyles.asked}>{question}</p>

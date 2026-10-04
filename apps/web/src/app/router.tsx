@@ -15,6 +15,7 @@ import { dashboardRoutes } from '../routes/dashboard.tsx';
 import { libraryRoute } from '../routes/library.tsx';
 import { loginRoute, setPasswordRoute, setupRoute } from '../routes/login.tsx';
 import { NotFoundRoute } from '../routes/not-found.tsx';
+import { reportRoutes } from '../routes/reports.tsx';
 import { authSettingsRoute } from '../routes/settings-auth.tsx';
 import { chartSettingsRoute } from '../routes/settings-charts.tsx';
 import { SettingsLayout } from '../routes/settings-layout.tsx';
@@ -86,6 +87,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
     ...threadRoutes(loadSession, api),
     libraryRoute(loadSession, api),
     ...alertRoutes(loadSession, api),
+    ...reportRoutes(loadSession, api),
     accountRoute(loadSession, api),
     ...dashboardRoutes(loadSession, api),
     snapshotRoute(loadSession, api),

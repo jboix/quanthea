@@ -45,18 +45,18 @@ export function browserTimeZone(): string {
 }
 
 /**
- * A dashboard's conversations, the latest activity first, or those whose questions and answers
- * hold the words searched, looked up once typing pauses.
+ * The conversations of a dashboard or of a report's run, the latest activity first, or those whose
+ * questions and answers hold the words searched, looked up once typing pauses.
  *
- * @param dashboardId - The dashboard.
+ * @param base - The page their resource routes are under: `/d/<id>`, or a run's path.
  * @param search - The words searched, empty for every conversation.
  * @returns The conversations, whether they failed to load or are loading, and the reload function.
  */
-export function useConversations(dashboardId: string, search: string) {
+export function useConversations(base: string, search: string) {
   const fetcher = useFetcher<Loaded<Conversation[]>>();
   const { load, data, state } = fetcher;
   const query = search.trim();
-  const url = `/d/${dashboardId}/conversations${query === '' ? '' : `?q=${encodeURIComponent(query)}`}`;
+  const url = `${base}/conversations${query === '' ? '' : `?q=${encodeURIComponent(query)}`}`;
   useEffect(() => {
     const timer = setTimeout(() => void load(url), query === '' ? 0 : typingPauseMs);
     return () => clearTimeout(timer);

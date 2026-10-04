@@ -132,7 +132,8 @@ export function SidePanel({ tab, onTab, onClose, onOpenAnswer, ...data }: SidePa
         )}
         {tab === 'history' && (
           <HistoryTab
-            dashboardId={data.dashboard.id}
+            base={`/d/${data.dashboard.id}`}
+            emptyText="No one has asked about this dashboard yet."
             timeZone={conversation.shown.timeZone}
             openId={conversation.conversationId}
             onOpen={open}

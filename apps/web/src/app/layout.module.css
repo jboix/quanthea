@@ -71,6 +71,17 @@
   text-align: center;
 }
 
+/* Something new waits there, such as a report's run not opened yet. */
+.dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
 .railLink:hover {
   color: #ffffff;
 }

@@ -1,0 +1,269 @@
+.side {
+  display: flex;
+  flex: 0 0 400px;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 420px;
+  height: 100%;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.sideTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 16px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sideTop > [role="tablist"] {
+  border-bottom: 0;
+}
+
+.sideBody {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-height: 0;
+}
+
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.aboutText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-height: 0;
+}
+
+.bar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.barText {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--color-ink-secondary);
+}
+
+.barActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.scroll {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 14px;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.foot {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.empty,
+.recent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recentItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  font: inherit;
+  text-align: left;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.recentItem:hover {
+  border-color: var(--color-border-control);
+}
+
+.recentQuestion {
+  overflow: hidden;
+  font-size: 13.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkButton {
+  align-self: flex-start;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.linkButton:hover {
+  text-decoration: underline;
+}
+
+.meta {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--color-ink-secondary);
+  overflow-wrap: anywhere;
+}
+
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 -8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-card);
+  transition: background-color 0.4s;
+}
+
+.turn[data-flash="true"] {
+  background: var(--color-accent-soft);
+}
+
+.answer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 0 0 10px;
+}
+
+.note {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: var(--color-draft-soft);
+  font-size: 12.5px;
+  color: var(--color-ink-label);
+}
+
+.failure {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--color-danger);
+}
+
+.watching {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.watchingTitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-secondary);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.cardKind {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--color-ink-secondary);
+}
+
+.cardTitle {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.cardPrompt {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 960px) {
+  .side {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    max-width: none;
+    border-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn {
+    transition: none;
+  }
+}
