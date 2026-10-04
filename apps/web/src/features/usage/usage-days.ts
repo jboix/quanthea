@@ -172,7 +172,9 @@ export function chartedModels(
   models: readonly ModelUsage[],
   limit = 5,
 ): { readonly shown: readonly string[]; readonly other: boolean } {
-  return { shown: models.slice(0, limit).map((each) => each.model), other: models.length > limit };
+  // A model reached through several providers or vendors has several rows, but one series.
+  const ids = [...new Set(models.map((each) => each.model))];
+  return { shown: ids.slice(0, limit), other: ids.length > limit };
 }
 
 /**

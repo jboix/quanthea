@@ -185,4 +185,15 @@ describe('chartedModels', () => {
       other: false,
     });
   });
+
+  test('draws a model reached through two vendors as one series', () => {
+    const models = usageByModel(report);
+    const [first] = models;
+    if (!first) throw new Error('The report has a model.');
+    const twice = [first, { ...first, vendor: '' }, ...models.slice(1)];
+    expect(chartedModels(twice, 2)).toEqual({
+      shown: ['mistral-large-latest', 'mistral-small-latest'],
+      other: false,
+    });
+  });
 });
