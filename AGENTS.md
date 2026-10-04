@@ -88,8 +88,10 @@ for the plugin side, in `scripts/arch-plugin-rules.cjs`.
   mounts it with `mountEndpoint` and the web calls it with the client in `apps/web/src/lib/`.
 - Errors use one shape: `{ error: { code, message, details? } }`. Throw `AppError` on the server.
 - Only `db/` touches `bun:sqlite`. Migrations are numbered `.sql` files in
-  `apps/server/src/db/migrations/`. quanthea is released, so never edit an applied migration:
-  each schema change is a new file with the next number, and it keeps existing data working.
+  `apps/server/src/db/migrations/`. Never edit a migration that shipped in a release (a `vX.Y.Z`
+  tag). Every schema change since the last release goes into the one migration file that follows
+  it, edited in place until the next release. That file upgrades a database of the last release
+  and keeps its data working.
 - `apps/web/src/ui/` holds presentational primitives in quanthea's visual language. Colours,
   radii and fonts come from the tokens in `ui/theme.css`.
 - The logo, icon and mark come from `ui/brand.tsx`. The source files and the rule for each variant
