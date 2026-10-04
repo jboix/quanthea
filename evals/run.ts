@@ -24,18 +24,24 @@ import {
   summary,
   writeReport,
 } from './report.ts';
+import { type AnyReportCase, reportCases, selectReportCases } from './report-cases.ts';
+import { driveReport, type ReportBench } from './report-drive.ts';
+import { driveRunAnswer } from './run-answer-drive.ts';
 import { type EvalModels, type EvalWorld, openWorld } from './setup.ts';
 
 /** What `--help` prints. */
 const usage = `Asks the agent each question against the dev data, and scores what it builds. Then
 asks the dashboard answering service the answer cases (a1 to a4) on the pinned checkout incident
 dashboard, and scores its answers and explanations. Then drives the alert cases (al1 to al4)
-through alert threads, and scores the alerts saved and their replay over the incident.
+through alert threads, and scores the alerts saved and their replay over the incident. Last, drives
+the report cases (r1, r2) through a report thread, runs the report and checks its numbers against
+the database, and asks about that run (r3, r4).
 
   bun run evals                         every question and case, on gemini-3.5-flash-lite
   bun run evals --only q3,q7            only these questions
   bun run evals --only a1,a2,a3,a4      only the answer cases
   bun run evals --only al1,al2,al3,al4  only the alert cases
+  bun run evals --only r1,r2,r3,r4      only the report cases
   bun run evals --model gemini-3.8-flash
   bun run evals --build-model gemini-3.8-flash   another model for building and repairs
   bun run evals --no-cache              ask the provider again, and keep its answers
@@ -172,6 +178,32 @@ async function alertAll(
 }
 
 /**
+ * Runs the report cases, one after the other: report threads, then questions about their runs.
+ *
+ * @param world - The world.
+ * @param bench - Opens the pinned dashboard, once.
+ * @param cases - The cases.
+ * @param outcomes - The outcomes so far, which theirs join.
+ * @returns Once every case has run.
+ */
+async function reportAll(
+  world: EvalWorld,
+  bench: () => Promise<AnswerBench>,
+  cases: readonly AnyReportCase[],
+  outcomes: EvalOutcome[],
+): Promise<void> {
+  if (cases.length === 0) return;
+  const reportBench: ReportBench = { bench: await bench(), threads: new Map(), runs: new Map() };
+  for (const reportCase of cases) {
+    const outcome =
+      reportCase.mode === 'write'
+        ? await driveReport(world, reportBench, reportCase)
+        : await driveRunAnswer(world, reportBench, reportCase);
+    keep(outcomes, outcome);
+  }
+}
+
+/**
  * Opens the pinned checkout incident dashboard the first time it is asked for.
  *
  * @param world - The world.
@@ -186,15 +218,15 @@ function benchOnce(world: EvalWorld): () => Promise<AnswerBench> {
 }
 
 /**
- * Asks every selected question, then runs every selected answer case and alert case, one after
- * the other, and prints each verdict as it comes.
+ * Asks every selected question, then runs every selected answer case, alert case and report case,
+ * one after the other, and prints each verdict as it comes.
  *
  * @param flags - The flags.
  * @returns The report.
  */
 async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<Report> {
   const only = flags.only?.split(',').map((id) => id.trim()) ?? [];
-  const others = [...answerCases, ...alertCases].map((each) => each.id);
+  const others = [...answerCases, ...alertCases, ...reportCases].map((each) => each.id);
   const selected = selectQuestions(only, others);
   const models: EvalModels = { model: flags.model, build: flags['build-model'] };
   await checkSources();
@@ -207,6 +239,7 @@ async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<
     for (const question of selected) keep(outcomes, await drive(world, question));
     await answerAll(world, bench, selectAnswerCases(only), outcomes);
     await alertAll(world, bench, selectAlertCases(only), outcomes);
+    await reportAll(world, bench, selectReportCases(only), outcomes);
   } finally {
     await world.close();
   }

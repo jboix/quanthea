@@ -33,7 +33,7 @@ export interface AnswerBench {
 }
 
 /** What the model did while it answered, from the stream it wrote. */
-interface Tally {
+export interface Tally {
   /** The tool calls, by tool name. */
   readonly toolCalls: Record<string, number>;
   /** The model steps. */
@@ -65,7 +65,7 @@ export async function openBench(world: EvalWorld): Promise<AnswerBench> {
  */
 export async function setLevel(
   world: EvalWorld,
-  bench: AnswerBench,
+  bench: Pick<AnswerBench, 'connectorIds'>,
   accessLevel: AccessLevel,
 ): Promise<void> {
   for (const id of bench.connectorIds)
@@ -78,7 +78,7 @@ export async function setLevel(
  * @param tally - Where the counts go.
  * @returns The writer.
  */
-function countingWriter(tally: Tally): UIMessageStreamWriter<AnswerMessage> {
+export function countingWriter(tally: Tally): UIMessageStreamWriter<AnswerMessage> {
   return {
     write(part) {
       if (part.type === 'start-step') tally.steps += 1;
@@ -96,7 +96,7 @@ function countingWriter(tally: Tally): UIMessageStreamWriter<AnswerMessage> {
  * @param read - The read.
  * @returns The summary.
  */
-function summaryOf(read: AnswerEvidence): ReadSummary {
+export function summaryOf(read: AnswerEvidence): ReadSummary {
   const result = JSON.stringify(read.result) ?? '';
   const cut = result.length > resultChars ? `${result.slice(0, resultChars)}…` : result;
   const panel = read.panelId === undefined ? {} : { panelId: read.panelId };

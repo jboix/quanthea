@@ -195,26 +195,28 @@ function toolCallsOf(messages: readonly StoredMessage[]): Record<string, number>
  * the report shows why a version was not saved.
  *
  * @param part - The part.
+ * @param writeTool - The tool that writes the thread's alert or report, such as `edit_alert`.
  * @returns The lines.
  */
-function saidIn(part: StoredMessage['parts'][number]): string[] {
+function saidIn(part: StoredMessage['parts'][number], writeTool: string): string[] {
   if (part.text) return [part.text];
   const output = (part as { output?: { ok?: boolean } }).output;
-  if (part.type !== 'tool-edit_alert' || output?.ok !== false) return [];
-  return [`[edit_alert refused] ${JSON.stringify(output).slice(0, 600)}`];
+  if (part.type !== `tool-${writeTool}` || output?.ok !== false) return [];
+  return [`[${writeTool} refused] ${JSON.stringify(output).slice(0, 600)}`];
 }
 
 /**
  * What the agent did and said in the messages of a case.
  *
  * @param messages - The case's messages.
+ * @param writeTool - The tool that writes the thread's alert or report, such as `edit_alert`.
  * @returns The fields of the outcome they fill.
  */
-function conductOf(messages: readonly StoredMessage[]) {
+export function conductOf(messages: readonly StoredMessage[], writeTool: string) {
   const { repairs, asked, usage } = tally(messages);
   const said = messages
     .filter((message) => message.role === 'assistant')
-    .flatMap((message) => message.parts.flatMap(saidIn))
+    .flatMap((message) => message.parts.flatMap((part) => saidIn(part, writeTool)))
     .join('\n')
     .slice(0, saidChars);
   return { repairs, asked, usage, said, toolCalls: toolCallsOf(messages) };
@@ -325,7 +327,7 @@ export async function driveAlert(
     channelIds: [world.channelId],
     incidentAt,
     ...(await alertOf(world, alertCase, written, mark.before)),
-    ...conductOf(messages),
+    ...conductOf(messages, 'edit_alert'),
     turns,
     durationMs,
     ...(error === undefined ? {} : { error }),

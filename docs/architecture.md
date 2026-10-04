@@ -3144,7 +3144,19 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
   new version), and an alert started from the pinned dashboard's error rate panel (the panel's
   query fingerprint and a `from_panel` link). Each saved version is replayed over yesterday through
   the alerts service, and checkout must fire once, soon after the deploy; the scoring is in
-  `evals/alert-score.ts`, unit-tested. A middleware keeps every model response in `evals/.cache`,
+  `evals/alert-score.ts`, unit-tested. Last, four report cases (`evals/report-cases.ts`): a
+  report thread asks for a daily report of yesterday's orders, revenue and failed orders at 07:00
+  in Zurich, compared with the day before (the schedule, the period, the comparison, headline
+  panels for the orders and the revenue, every query on the dev Postgres, a preview with no
+  failure, channels from the list), and a follow-up makes it weekly on Mondays over the week before
+  (a new version). The evals then run the daily version now through the reports service and check
+  its headline numbers against the period's orders counted on the dev Postgres directly: the
+  orders between the paid ones and every attempt, the revenue between their totals in cents or
+  francs. Two cases ask about that run as the run question endpoint does: at aggregates, an
+  answer that cites a frozen read and names the failures and the incident, then 1 to 3 follow-up
+  cards; at schema and metadata only, no measurement and a word that it cannot read the numbers.
+  The scoring is in `evals/report-score.ts` and `evals/run-answer-score.ts`, unit-tested. A
+  middleware keeps every model response in `evals/.cache`,
   under a hash of the model and the request, with the clock fixed at 10:00 UTC for the day and the
   ids a run makes written as stable aliases, so reruns call the provider only for what changed;
   `--only`, `--rescore` (scoring with no model call) and `--compare` keep runs cheap. Reports go to `evals/reports/` as an HTML page

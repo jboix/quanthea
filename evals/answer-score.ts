@@ -106,7 +106,7 @@ function placesInTime(text: string): boolean {
 }
 
 /** Words that say the answer cannot do something, such as read the numbers. */
-const cannotRead = /\b(?:cannot|can't|can’t|can not|unable to|not able to|no access)\b/i;
+export const cannotRead = /\b(?:cannot|can't|can’t|can not|unable to|not able to|no access)\b/i;
 
 /**
  * A topic pattern, for a reason: its alternatives joined with "or".

@@ -2,7 +2,8 @@
  * A report to read: Markdown for the job's summary page in GitHub Actions, and a self-contained
  * HTML page. Both show each question's verdict and why, its cost, what the agent asked, and each
  * panel with its query; for an answer case, the answer's text and each read; for an alert case,
- * the condition, the replay and the tools used.
+ * the condition, the replay and the tools used; for a report case, the schedule, the period and the
+ * run's numbers; for a run case, each answer and its follow-up cards.
  */
 
 import { alertCases, alertCaseText } from './alert-cases.ts';
@@ -13,8 +14,17 @@ import { escapeHtml } from './html.ts';
 import { questions } from './questions.ts';
 import { htmlAlertBody, markdownAlertBody } from './render-alert.ts';
 import { htmlAnswerBody, markdownAnswerBody } from './render-answer.ts';
+import {
+  htmlReportBody,
+  htmlRunAnswerBody,
+  markdownReportBody,
+  markdownRunAnswerBody,
+} from './render-report.ts';
 import type { EvalOutcome, Report, Result } from './report.ts';
 import { cacheSentence, counted, dollars, madeOf, tokensOf, totalUsage } from './report.ts';
+import { reportCases, reportCaseText } from './report-cases.ts';
+import { isReport } from './report-score.ts';
+import { isRunAnswer } from './run-answer-score.ts';
 import { type BuiltPanel, type Outcome, panelQueries, shownOf } from './score.ts';
 
 /** One panel's query, written out, with its language for highlighting. */
@@ -63,7 +73,9 @@ function questionText(id: string): string {
   const answerCase = answerCases.find((each) => each.id === id);
   if (answerCase) return caseText(answerCase);
   const alertCase = alertCases.find((each) => each.id === id);
-  return alertCase ? alertCaseText(alertCase) : id;
+  if (alertCase) return alertCaseText(alertCase);
+  const reportCase = reportCases.find((each) => each.id === id);
+  return reportCase ? reportCaseText(reportCase) : id;
 }
 
 /**
@@ -138,6 +150,8 @@ function markdownDetails({ outcome }: Result): string {
  * @returns The lines.
  */
 function markdownBody(outcome: EvalOutcome): string[] {
+  if (isReport(outcome)) return markdownReportBody(outcome);
+  if (isRunAnswer(outcome)) return markdownRunAnswerBody(outcome);
   if (isAlert(outcome)) return markdownAlertBody(outcome);
   return isAnswer(outcome) ? markdownAnswerBody(outcome) : markdownBuild(outcome);
 }
@@ -149,6 +163,8 @@ function markdownBody(outcome: EvalOutcome): string[] {
  * @returns The HTML.
  */
 function htmlBody(outcome: EvalOutcome): string {
+  if (isReport(outcome)) return htmlReportBody(outcome);
+  if (isRunAnswer(outcome)) return htmlRunAnswerBody(outcome);
   if (isAlert(outcome)) return htmlAlertBody(outcome);
   return isAnswer(outcome) ? htmlAnswerBody(outcome) : htmlBuild(outcome);
 }

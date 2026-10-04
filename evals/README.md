@@ -60,7 +60,7 @@ tests, which call none.
 
 ## Alert cases
 
-Last, the alert cases (`al1` to `al4`, in `alert-cases.ts`) drive alert threads through the agent,
+Then the alert cases (`al1` to `al4`, in `alert-cases.ts`) drive alert threads through the agent,
 wired as the chat endpoint wires them. A case sets the access level of both dev connectors, asks,
 answers the agent's question with its scripted answer, approves the alert plan, and lets the agent
 write. The world holds one notification channel, a webhook to a closed local port; nothing sends
@@ -96,6 +96,55 @@ panels. Run only them with
 `--only al1,al2,al3,al4`. The report shows each alert's condition in words, its query, the replay
 over yesterday by series, the tools the agent called and what it said.
 
+## Report cases
+
+Last, the report cases (`r1` to `r4`, in `report-cases.ts`). `r1` and `r2` drive a report thread
+through the agent, wired as the chat endpoint wires it, with the same channel and the checkout
+incident dashboard pinned. `r3` and `r4` ask about the run `r1` made, through the answering
+service, prepared and stored as the endpoint of questions about a run does. The dev Postgres holds
+an order attempt per second from yesterday 04:02 UTC to the time it was seeded, so yesterday is
+the one day with data, and the cases report on it.
+
+| Case | What the person says                                                                                                      | A good outcome                                                                                      |
+| ---- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `r1` | "Every morning at 7:00, yesterday's orders: how many, revenue, and failed orders, compared with the day before.", level 3 | a daily report at 07:00 in Europe/Zurich over the day before, and a run whose numbers match the SQL |
+| `r2` | "Make it weekly on Mondays, covering the previous week.", following up on `r1`                                            | a new version, every Monday at 07:00 in Europe/Zurich, over the week before                         |
+| `r3` | "What stood out yesterday?", then "What should we keep an eye on?", on `r1`'s run, at aggregates (3)                      | cites a frozen read and names the failures and the incident; then 1 to 3 follow-up cards            |
+| `r4` | "What stood out yesterday?", on `r1`'s run, at schema and metadata (2) only                                               | says it cannot read the numbers, and quotes no data                                                 |
+
+`r1` and `r2` also need:
+
+- the comparison with the period before;
+- headline panels whose titles or queries show the orders and the revenue;
+- every panel's query on `postgres-orders`;
+- the latest version's preview over its latest period, with every query run;
+- channels from the list only.
+
+After `r1`, the evals run the saved version through the reports service (Run now, at the evals'
+clock, so over yesterday on Zurich's clock). Then they count that period's orders on the
+dev Postgres directly, as the read-only role, both ends kept, as a report's query does. Each
+headline is matched by its title:
+
+- the orders: between the paid orders and every attempt, so the agent may count either;
+- the revenue: between the paid orders' total and every attempt's, in cents or in francs, with 2%
+  slack for refunds taken off;
+- the failed orders, when there is such a headline: their count, or their share of every attempt
+  as a ratio or in percent, within 2%.
+
+The run must succeed and hold a headline for the orders and one for the revenue. `r3` and `r4` run
+`r1` first when `--only` leaves it out, and `r2` talks `r1` through first; those are not reported.
+`r3`'s second question follows up in the same conversation. A frozen read is a `read_run` call;
+"the incident" is any of incident, outage, deploy or spike, or a clock time within an hour of the
+incident's hour in Zurich. "Cannot read the numbers" also takes "not their numbers" and "the
+shape", as the instructions of a run without readable sources word it.
+
+`r1` costs about a dashboard question: a plan, then a build of a few panels, each test-run. `r2`
+changes the draft in one run. `r3` is two answering calls of a few steps each, and `r4` one, so the
+four cost about two dashboard questions. Run only them with `--only r1,r2,r3,r4`. The report shows
+the schedule in words, the period, the headline panels, the preview, the run's headline numbers
+beside the database's, the tools and what the agent said; for `r3` and `r4`, each answer with its
+reads, frozen or not, and its follow-up cards.
+
 ## Run them
 
 ```sh
@@ -103,6 +152,7 @@ bun run env:up                      # the dev Postgres and Prometheus
 GEMINI_API_KEY=… bun run evals      # every question and case, on gemini-3.5-flash-lite
 GEMINI_API_KEY=… bun run evals --only a1,a2,a3,a4   # the answer cases only
 GEMINI_API_KEY=… bun run evals --only al1,al2,al3,al4   # the alert cases only
+GEMINI_API_KEY=… bun run evals --only r1,r2,r3,r4   # the report cases only
 ```
 
 The dev data tells of an incident yesterday. `bun run env:up` seeds the data again when it was
@@ -122,7 +172,8 @@ yesterday's.
 Reports go to `evals/reports/`, which git ignores: an HTML page to read, with each question's
 verdict and why, what the agent asked or said last, and each panel with its query (for an answer
 case, the answer's text and each read with what it returned; for an alert case, the condition,
-the replay and the tools); and the JSON
+the replay and the tools; for a report case, the schedule, the period, the run's numbers and the
+follow-up cards); and the JSON
 that `--rescore` and `--compare` read. The command exits with an error when more questions fail
 than `--allow-failures` allows, none by default.
 

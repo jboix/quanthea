@@ -12,11 +12,19 @@ import { answerCases } from './answer-cases.ts';
 import { type AnswerCaseOutcome, isAnswer, scoreAnswer } from './answer-score.ts';
 import type { CacheCounts } from './cache.ts';
 import { questions } from './questions.ts';
+import { reportCases } from './report-cases.ts';
+import { isReport, type ReportCaseOutcome, scoreReport } from './report-score.ts';
+import { isRunAnswer, type RunAnswerCaseOutcome, scoreRunAnswer } from './run-answer-score.ts';
 import { type Outcome, type Score, score } from './score.ts';
 import type { EvalModels } from './setup.ts';
 
-/** What happened for a dashboard question, an answer case or an alert case. */
-export type EvalOutcome = Outcome | AnswerCaseOutcome | AlertCaseOutcome;
+/** What happened for a dashboard question, an answer case, an alert case or a report case. */
+export type EvalOutcome =
+  | Outcome
+  | AnswerCaseOutcome
+  | AlertCaseOutcome
+  | ReportCaseOutcome
+  | RunAnswerCaseOutcome;
 
 /** One question's or answer case's result. */
 export interface Result {
@@ -42,12 +50,41 @@ export interface Report {
 const gone: Score = { pass: false, reasons: ['the question is gone'] };
 
 /**
- * Scores one outcome against its question or answer case as it is now.
+ * Scores a report case's or a run case's outcome against its case as it is now.
+ *
+ * @param outcome - The outcome.
+ * @returns The score.
+ */
+function scoreReportCase(outcome: ReportCaseOutcome | RunAnswerCaseOutcome): Score {
+  const reportCase = reportCases.find((each) => each.id === outcome.id);
+  if (isReport(outcome))
+    return reportCase?.mode === 'write' ? scoreReport(outcome, reportCase.expect) : gone;
+  if (reportCase?.mode !== 'ask') return gone;
+  return scoreRunAnswer(
+    outcome,
+    reportCase.asks.map((ask) => ask.expect),
+  );
+}
+
+/**
+ * Scores one outcome against its question or case as it is now.
  *
  * @param outcome - The outcome.
  * @returns The score.
  */
 function scoreOne(outcome: EvalOutcome): Score {
+  if (isReport(outcome) || isRunAnswer(outcome)) return scoreReportCase(outcome);
+  return scoreDashboardCase(outcome);
+}
+
+/**
+ * Scores a dashboard question's, an answer case's or an alert case's outcome against its question
+ * or case as it is now.
+ *
+ * @param outcome - The outcome.
+ * @returns The score.
+ */
+function scoreDashboardCase(outcome: Outcome | AnswerCaseOutcome | AlertCaseOutcome): Score {
   if (isAlert(outcome)) {
     const alertCase = alertCases.find((each) => each.id === outcome.id);
     return alertCase ? scoreAlert(outcome, alertCase.expect) : gone;
@@ -171,14 +208,26 @@ export function readsOf(outcome: AnswerCaseOutcome): number {
 }
 
 /**
- * What an outcome made, in two counts: panels and repairs, reads and model steps, or alert
- * versions and repairs.
+ * What a run case made, in two counts: answers and model steps.
+ *
+ * @param outcome - The run case's outcome.
+ * @returns The two phrases.
+ */
+function answeredOf(outcome: RunAnswerCaseOutcome): readonly [string, string] {
+  const steps = outcome.answers.reduce((sum, answer) => sum + answer.steps, 0);
+  return [counted(outcome.answers.length, 'answer', 'answers'), counted(steps, 'step', 'steps')];
+}
+
+/**
+ * What an outcome made, in two counts: panels and repairs, reads and model steps, alert or report
+ * versions and repairs, or answers and model steps.
  *
  * @param outcome - The outcome.
  * @returns The two phrases.
  */
 export function madeOf(outcome: EvalOutcome): readonly [string, string] {
-  if (isAlert(outcome))
+  if (isRunAnswer(outcome)) return answeredOf(outcome);
+  if (isAlert(outcome) || isReport(outcome))
     return [
       counted(outcome.versions, 'version', 'versions'),
       counted(outcome.repairs, 'repair', 'repairs'),
