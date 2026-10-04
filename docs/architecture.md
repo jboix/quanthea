@@ -340,7 +340,7 @@ shown.
 library, and viewers get "not found" for it and all its versions. Editors still open every
 version.
 
-The dashboard's History lists the versions: the one pinned, the ones pinned before, and drafts
+The dashboard's Versions menu lists the versions: the one pinned, the ones pinned before, and drafts
 with their summary. Editors pin any other version or unpin from there. The thread's draft pane
 says which version the library shows, and pins the version it shows.
 
@@ -1703,16 +1703,16 @@ one, and enables them again. Without any admin, it creates the default one.
   toggle redraws the charts without running them again.
 - The dashboard header holds the title with an About bubble behind an info icon (description,
   tags, the connectors and how many panels use each). Its actions are Ask about this, Change,
-  Share and History (`dashboard-actions.tsx`).
+  Share and Versions (`dashboard-actions.tsx`).
   - Change (editors and admins) holds Edit with the agent and New dashboard from this, each with
     a line saying what it does (`change-items.ts`). Edit with the agent opens the conversation
     that built the dashboard (`GET /api/dashboards/:id` returns its `threadId`), starts one when
     it has none, or says that conversation is in the bin and links there. When the thread is
     someone else's, only New dashboard from this shows.
   - Share holds Copy link and, for editors, the snapshots.
-  - History is an icon button, named by a tip under it. It lists the versions, newest first, each
+  - Versions is an icon button, named by a tip under it. It lists the versions, newest first, each
     its number, when it was made and whether it is pinned; what changed shows on hover.
-  - Below 720 px the actions fold into one menu, with sections Change, Share and History under
+  - Below 720 px the actions fold into one menu, with sections Change, Share and Versions under
     Ask about this, and the same names and hints.
 - **Snapshots.** Editors take one from the header's Share menu (Take a snapshot…), which sends
   the version, the time range, the variables and the hidden sets of markers in the address, and a

@@ -29,8 +29,8 @@ function sourcesOf(spec: DashboardSpec): [string, string][] {
   });
 }
 
-/** One version in the history, and what it can do. */
-interface HistoryRowProps {
+/** One version in the list, and what it can do. */
+interface VersionRowProps {
   /** The dashboard. */
   readonly dashboard: DashboardData['dashboard'];
   /** The version. */
@@ -62,7 +62,7 @@ function whenMade(at: number): string {
  * @param props - The dashboard, the version, whether it is on screen, and the pin callback.
  * @returns The row.
  */
-function HistoryRow({ dashboard, entry, current, onPin }: HistoryRowProps) {
+function VersionRow({ dashboard, entry, current, onPin }: VersionRowProps) {
   const pinned = entry.version === dashboard.pinnedVersion;
   const label = `v${entry.version}`;
   return (
@@ -87,9 +87,9 @@ function HistoryRow({ dashboard, entry, current, onPin }: HistoryRowProps) {
  * The versions, newest first, with Pin, and Unpin below for editors.
  *
  * @param props - The dashboard and the version shown.
- * @returns The history.
+ * @returns The versions.
  */
-export function History({ dashboard, version }: DashboardData) {
+export function Versions({ dashboard, version }: DashboardData) {
   // The server says who may change it: the owner of its thread, or an admin.
   const canEdit = dashboard.canChange;
   const fetcher = useFetcher<Loaded<unknown>>();
@@ -102,7 +102,7 @@ export function History({ dashboard, version }: DashboardData) {
     <div className={styles.popoverBody} data-busy={fetcher.state !== 'idle'}>
       <ul className={styles.history}>
         {[...dashboard.versions].reverse().map((entry) => (
-          <HistoryRow
+          <VersionRow
             key={entry.version}
             dashboard={dashboard}
             entry={entry}
@@ -168,16 +168,22 @@ export function AboutBody({ dashboard, version }: DashboardData) {
 }
 
 /**
- * The dashboard's versions, behind an icon button in the header named History, which says so
+ * The dashboard's versions, behind an icon button in the header named Versions, which says so
  * under it on hover and focus.
  *
  * @param props - The dashboard and the version shown.
  * @returns The popover.
  */
-export function HistoryPopover(props: DashboardData) {
+export function VersionsPopover(props: DashboardData) {
   return (
-    <Popover label="History" tip="History" shape="iconButton" align="end" trigger={<HistoryIcon />}>
-      <History {...props} />
+    <Popover
+      label="Versions"
+      tip="Versions"
+      shape="iconButton"
+      align="end"
+      trigger={<HistoryIcon />}
+    >
+      <Versions {...props} />
     </Popover>
   );
 }

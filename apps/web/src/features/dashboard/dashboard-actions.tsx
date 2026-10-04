@@ -5,7 +5,7 @@ import { Popover } from '../../ui/popover.tsx';
 import { useMediaQuery } from '../../ui/use-media-query.ts';
 import { ChangeMenu, ChangePopover } from './change-menu.tsx';
 import styles from './dashboard.module.css';
-import { History, HistoryPopover } from './dashboard-about.tsx';
+import { Versions, VersionsPopover } from './dashboard-about.tsx';
 import type { DashboardData } from './data.ts';
 import { ShareMenu, SharePopover } from './share-menu.tsx';
 import { useCanEdit } from './use-can-edit.ts';
@@ -50,7 +50,7 @@ function closeThen(close: () => void, action: () => void): void {
 
 /**
  * The actions folded into one menu on a narrow screen: Ask about this, then the Change, Share and
- * History sections, with the same names and hints as the header's menus.
+ * Versions sections, with the same names and hints as the header's menus.
  *
  * @param props - The dashboard, the version shown, the way into the Ask tab, and the closer.
  * @param props.close - Closes the menu.
@@ -69,14 +69,14 @@ function FoldedActions({
       <ChangeMenu {...props} />
       <h2 className={styles.sideHeading}>Share</h2>
       <ShareMenu {...props} />
-      <h2 className={styles.sideHeading}>History</h2>
-      <History {...props} />
+      <h2 className={styles.sideHeading}>Versions</h2>
+      <Versions {...props} />
     </div>
   );
 }
 
 /**
- * The header's actions: Ask about this, Change for editors, Share and History. On a narrow screen
+ * The header's actions: Ask about this, Change for editors, Share and Versions. On a narrow screen
  * they fold into one menu.
  *
  * @param props - The dashboard, the version shown, and the way into the Ask tab.
@@ -96,7 +96,7 @@ export function HeaderActions({ onAsk, asking, ...props }: DashboardData & AskAc
       <AskButton onAsk={onAsk} asking={asking} />
       <ChangePopover {...props} />
       <SharePopover {...props} />
-      <HistoryPopover {...props} />
+      <VersionsPopover {...props} />
     </div>
   );
 }
