@@ -50,19 +50,21 @@ function harness(overrides: Record<string, unknown> = {}) {
     sent.push(notification);
     return Promise.resolve();
   };
+  const setting = { notifyOnError: true };
   const dependencies = {
     ...engine,
     states,
     notify,
     logger: logs.logger,
     alertUrl: () => '/alerts/a1',
+    notifyOnError: () => setting.notifyOnError,
   };
   const evaluate = async (now: number, next: FakeAnswer) => {
     answer = next;
     const alert = alerts.get('a1');
     if (alert) await evaluateAlert(dependencies, { alert, spec: alertSpec }, now);
   };
-  return { evaluate, sent, states, alerts, logs, dependencies };
+  return { evaluate, sent, states, alerts, logs, dependencies, setting };
 }
 
 /**
@@ -122,17 +124,58 @@ describe('evaluating an alert', () => {
     expect(sent).toHaveLength(3);
   });
 
-  test('records a failing query once, logs it once, and notifies no one', async () => {
+  test('records a failing query once, logs it once, and one failure notifies no one', async () => {
     const { evaluate, sent, states, logs } = harness();
     await evaluate(minute, new Error('Prometheus is down.'));
-    await evaluate(2 * minute, new Error('Prometheus is down.'));
     expect(states.series('a1')).toMatchObject([{ key: '', state: 'error' }]);
     expect(states.events('a1', 10)).toMatchObject([{ to: 'error', message: expect.any(String) }]);
     expect(logs.lines.filter((line) => line.message === 'an alert query failed')).toHaveLength(1);
+    await evaluate(2 * minute, at(1));
     expect(sent).toEqual([]);
-    await evaluate(3 * minute, at(1));
     expect(states.series('a1').map((row) => row.key)).toEqual(['{service="checkout"}']);
     expect(states.events('a1', 1)[0]).toMatchObject({ from: 'error', to: 'ok' });
+    expect(states.checkEvents('a1', 10)).toEqual([]);
+  });
+
+  test('says once it cannot be checked after two failures, and once it can again', async () => {
+    const { evaluate, sent, states, logs } = harness();
+    for (let minutes = 1; minutes <= 4; minutes += 1)
+      await evaluate(minutes * minute, new Error('Prometheus is down.'));
+    expect(sent.map((each) => each.event)).toEqual(['alert.error']);
+    expect(sent[0]?.values).toMatchObject({ alert: 'Checkout 5xx', reason: expect.any(String) });
+    expect(sent[0]?.template.title).toBe('{alert} cannot be checked');
+    expect(logs.lines.filter((line) => line.message === 'an alert query failed')).toHaveLength(1);
+    await evaluate(5 * minute, at(1));
+    await evaluate(6 * minute, at(1));
+    expect(sent.map((each) => each.event)).toEqual(['alert.error', 'alert.recovered']);
+    expect(states.checkEvents('a1', 10)).toMatchObject([
+      { kind: 'recovered', at: 5 * minute, notified: true },
+      { kind: 'error', at: 2 * minute, notified: true, reason: expect.any(String) },
+    ]);
+    expect(states.checkState('a1')).toEqual({ failures: 0, errorSince: null, notified: false });
+  });
+
+  test('holds the messages while muted, and says it once the mute ends', async () => {
+    const { evaluate, sent, states, alerts } = harness();
+    alerts.setMute('a1', { at: 0, by: 'ada', until: 3 * minute + 1 }, 0);
+    for (let minutes = 1; minutes <= 4; minutes += 1)
+      await evaluate(minutes * minute, new Error('down'));
+    expect(sent.map((each) => each.event)).toEqual(['alert.error']);
+    expect(sent[0]?.at).toBe(new Date(4 * minute).toISOString());
+    expect(states.checkEvents('a1', 10).map((each) => each.notified)).toEqual([true, false]);
+  });
+
+  test('records but sends nothing when the setting is off', async () => {
+    const { evaluate, sent, states, setting } = harness();
+    setting.notifyOnError = false;
+    for (let minutes = 1; minutes <= 3; minutes += 1)
+      await evaluate(minutes * minute, new Error('down'));
+    await evaluate(4 * minute, at(1));
+    expect(sent).toEqual([]);
+    expect(states.checkEvents('a1', 10)).toMatchObject([
+      { kind: 'recovered', notified: false },
+      { kind: 'error', notified: false },
+    ]);
   });
 
   test('resolves a firing series that leaves the result, after the grace period', async () => {

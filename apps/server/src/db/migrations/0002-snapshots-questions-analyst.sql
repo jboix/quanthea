@@ -262,7 +262,9 @@ CREATE TABLE notification_channels (
 CREATE TABLE notification_sends (
   id TEXT PRIMARY KEY,
   channel_id TEXT NOT NULL REFERENCES notification_channels (id) ON DELETE CASCADE,
-  event TEXT NOT NULL CHECK (event IN ('alert.firing', 'alert.resolved', 'alert.test')),
+  event TEXT NOT NULL CHECK (
+    event IN ('alert.firing', 'alert.resolved', 'alert.test', 'alert.error', 'alert.recovered')
+  ),
   alert_id TEXT NOT NULL,
   series_key TEXT NOT NULL,
   at INTEGER NOT NULL,
@@ -291,6 +293,11 @@ CREATE TABLE alerts (
   muted_until INTEGER,
   -- When it was last evaluated, so the evaluator knows when it is due.
   evaluated_at INTEGER,
+  -- Whether it can be checked: the evaluations in a row whose query failed, when it went into
+  -- error after a few of them (NULL while it can be checked), and whether that was announced.
+  failed_checks INTEGER NOT NULL DEFAULT 0,
+  check_error_since INTEGER,
+  check_error_notified INTEGER NOT NULL DEFAULT 0 CHECK (check_error_notified IN (0, 1)),
   created_by TEXT NOT NULL,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
@@ -372,6 +379,23 @@ CREATE TABLE alert_events (
 CREATE INDEX alert_events_by_alert ON alert_events (alert_id, at);
 
 CREATE INDEX alert_events_by_time ON alert_events (at);
+
+-- What happened to whether an alert can be checked: it went into error, or can be checked again.
+-- Kept 90 days by the purge job, like the changes of state.
+CREATE TABLE alert_check_events (
+  id TEXT PRIMARY KEY,
+  alert_id TEXT NOT NULL REFERENCES alerts (id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('error', 'recovered')),
+  at INTEGER NOT NULL,
+  -- Why the query failed, for `error`.
+  reason TEXT,
+  -- 1 when it sent a notification.
+  notified INTEGER NOT NULL DEFAULT 0 CHECK (notified IN (0, 1))
+);
+
+CREATE INDEX alert_check_events_by_alert ON alert_check_events (alert_id, at);
+
+CREATE INDEX alert_check_events_by_time ON alert_check_events (at);
 
 -- --------------------------------------------------------------------------- alert conversations
 -- A thread makes a dashboard or an alert, chosen when it starts and fixed. An alert thread may

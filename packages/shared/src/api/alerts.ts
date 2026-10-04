@@ -134,6 +134,17 @@ const alertEventSchema = z.object({
   notified: z.boolean(),
 });
 
+/** Validates a time an alert went into error, or could be checked again, for the timeline. */
+const alertCheckEventSchema = z.object({
+  /** `error`: its query failed several evaluations in a row; `recovered`: it ran again. */
+  kind: z.enum(['error', 'recovered']),
+  at: z.number(),
+  /** Why the query failed, for `error`. */
+  reason: z.string().nullable(),
+  /** Whether it sent a notification. */
+  notified: z.boolean(),
+});
+
 /** Validates a channel an alert sends to, by name and kind only. */
 const alertChannelSchema = z.object({ id: z.string(), name: z.string(), kind: z.string() });
 
@@ -167,6 +178,8 @@ export const alertDetailSchema = alertListItemSchema.extend({
   versions: z.array(alertVersionSchema),
   series: z.array(alertSeriesSchema),
   events: z.array(alertEventSchema),
+  /** The latest times it went into error or could be checked again, the latest first. */
+  checks: z.array(alertCheckEventSchema),
   /** The channels the version shown sends to; a channel deleted since is left out. */
   channels: z.array(alertChannelSchema),
   /** The latest messages sent about it, the latest first. */
@@ -290,9 +303,14 @@ export const replayAlertVersionEndpoint = defineEndpoint({
   output: alertReplaySchema,
 });
 
-/** Validates the alert settings: how many alerts may be active per connector. */
+/**
+ * Validates the alert settings: how many alerts may be active per connector, and whether an alert
+ * that cannot be checked notifies its channels.
+ */
 export const alertSettingsSchema = z.strictObject({
   maxActivePerConnector: z.int().min(1).max(10_000).default(50),
+  /** Notify an alert's channels when it cannot be checked, and when it can be again. */
+  notifyOnError: z.boolean().default(true),
 });
 
 /** The alert settings. */

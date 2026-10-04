@@ -95,7 +95,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'GET /alert-link-targets': { dashboards: [] },
   'GET /dashboards/:dashboardId/alerts': { alerts: [], links: [], suggestions: [] },
   'POST /alerts/:alertId/versions/:version/replay': { replayable: false, reason: 'No time.' },
-  'GET /settings/alerts': { maxActivePerConnector: 50 },
+  'GET /settings/alerts': { maxActivePerConnector: 50, notifyOnError: true },
   'POST /notification-channels/preview': { previews: [] },
   'GET /settings/queries': { disabled: [], saved: [] },
   'GET /settings/queries/guide': { builders: [], connectors: [] },

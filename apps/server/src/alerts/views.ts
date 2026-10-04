@@ -13,7 +13,7 @@ import {
   type Role,
 } from '@quanthea/shared';
 import type { AlertRow, AlertVersionRow } from '../db/alert-repository.ts';
-import type { EventRow, SeriesRow } from '../db/alert-state-repository.ts';
+import type { CheckEventRow, EventRow, SeriesRow } from '../db/alert-state-repository.ts';
 
 /** How many series an alert has in each state, as stored. */
 export type StateCounts = Partial<Record<AlertState, number>>;
@@ -91,7 +91,7 @@ export function toSummary(
  * Builds an alert's detail, but for its channels, sends and activity.
  *
  * @param summary - Its list item.
- * @param parts - Its versions, series and recent changes of state.
+ * @param parts - Its versions, series, recent changes of state and check events.
  * @param role - The role of the reader, for the versions shown.
  * @returns The detail.
  */
@@ -101,6 +101,7 @@ export function toDetail(
     readonly versions: readonly AlertVersionRow[];
     readonly series: readonly SeriesRow[];
     readonly events: readonly EventRow[];
+    readonly checks: readonly CheckEventRow[];
   },
   role: Role,
 ): Omit<AlertDetail, 'channels' | 'sends' | 'activity'> {
@@ -122,5 +123,5 @@ export function toDetail(
     ...event,
     labels: { ...event.labels },
   }));
-  return { ...summary, versions, series, events };
+  return { ...summary, versions, series, events, checks: [...parts.checks] };
 }

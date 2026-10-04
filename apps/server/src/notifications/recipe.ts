@@ -1,7 +1,8 @@
 /**
  * What every channel kind's recipe does: turn a notification into the request its service takes.
  * A recipe fills the template with values escaped for its service, so text from the data never
- * becomes markup, a link or a mention. Mentions come only from the channel, on `alert.firing`.
+ * becomes markup, a link or a mention. Mentions come only from the channel, on `alert.firing` and
+ * `alert.error`.
  */
 import type { ChannelKind, MessageTemplate, Notification } from '@quanthea/shared';
 
@@ -123,28 +124,44 @@ export function truncate(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
+/** The colour of each event but firing, which takes its severity's. */
+const eventColours = {
+  'alert.resolved': '#2e7d32',
+  'alert.recovered': '#2e7d32',
+  'alert.test': '#6b7280',
+  'alert.error': '#e8a317',
+} as const;
+
 /**
- * The colour of a notification: by severity while firing, green once resolved, grey for a test.
+ * The colour of a notification: by severity while firing, green once resolved or checked again,
+ * amber when it cannot be checked, grey for a test.
  *
  * @param notification - The notification.
  * @returns The colour, as `#rrggbb`.
  */
 export function stateColour(notification: Notification): string {
-  if (notification.event === 'alert.resolved') return '#2e7d32';
-  if (notification.event === 'alert.test') return '#6b7280';
+  if (notification.event !== 'alert.firing') return eventColours[notification.event];
   const bySeverity = { critical: '#c62828', warning: '#e8a317', info: '#2a55c9' } as const;
   return bySeverity[notification.alert.severity];
 }
+
+/** Each event in words. */
+const eventWords = {
+  'alert.firing': 'Firing',
+  'alert.resolved': 'Resolved',
+  'alert.test': 'Test',
+  'alert.error': 'Cannot be checked',
+  'alert.recovered': 'Checked again',
+} as const;
 
 /**
  * The state of a notification in words.
  *
  * @param notification - The notification.
- * @returns `Firing`, `Resolved` or `Test`.
+ * @returns Such as `Firing`, `Resolved` or `Cannot be checked`.
  */
 export function stateWord(notification: Notification): string {
-  const words = { 'alert.firing': 'Firing', 'alert.resolved': 'Resolved', 'alert.test': 'Test' };
-  return words[notification.event];
+  return eventWords[notification.event];
 }
 
 /**
@@ -175,12 +192,13 @@ export function isAbsoluteLink(url: string): boolean {
 }
 
 /**
- * The channel's mentions, on `alert.firing` only.
+ * The channel's mentions, on `alert.firing` and `alert.error` only.
  *
  * @param notification - The notification.
  * @param channel - The channel.
  * @returns The mentions to add.
  */
 export function mentionsFor(notification: Notification, channel: RecipeChannel): string[] {
-  return notification.event === 'alert.firing' ? [...channel.mentions] : [];
+  const { event } = notification;
+  return event === 'alert.firing' || event === 'alert.error' ? [...channel.mentions] : [];
 }

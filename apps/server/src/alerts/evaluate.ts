@@ -1,7 +1,8 @@
 /**
  * Evaluates one alert: runs its query over the window ending now, moves each series through the
- * state machine, saves the new states and the changes, then sends the notifications that are due.
- * No model is involved, and a mute stops the notifications only.
+ * state machine, saves the new states and the changes, and whether the alert can be checked, then
+ * sends the notifications that are due. No model is involved, and a mute stops the notifications
+ * only.
  */
 import {
   type AlertSpec,
@@ -14,6 +15,7 @@ import type { AlertRow } from '../db/alert-repository.ts';
 import type { AlertStateRepository, EventRow, SeriesRow } from '../db/alert-state-repository.ts';
 import { newId } from '../lib/ids.ts';
 import type { Logger } from '../lib/logger.ts';
+import { type CheckDecision, checkNotification, decideCheck } from './check-notice.ts';
 import { buildNotification, decideNotification, type NotifyDecision } from './notify.ts';
 import { observe, type SeriesObservation, wholeAlertKey } from './observe.ts';
 import { ruleOf } from './replay-core.ts';
@@ -29,9 +31,11 @@ export type Notify = (
 /** What evaluating an alert needs. */
 export interface EvaluationDependencies extends AlertQueryDependencies {
   /** The state of alerts. */
-  readonly states: Pick<AlertStateRepository, 'series' | 'saveEvaluation'>;
+  readonly states: Pick<AlertStateRepository, 'series' | 'checkState' | 'saveEvaluation'>;
   /** Sends notifications. */
   readonly notify: Notify;
+  /** Whether an alert that cannot be checked notifies its channels: the alert settings say. */
+  readonly notifyOnError: () => boolean;
   /** Reports failures. */
   readonly logger: Logger;
   /** The link to an alert. */
@@ -247,25 +251,66 @@ function reportErrors(logger: Logger, alertId: string, events: readonly EventRow
 }
 
 /**
- * Saves what an evaluation did to the series.
+ * Saves what an evaluation did to the series and to whether the alert can be checked.
  *
  * @param dependencies - The state store.
  * @param alertId - The alert.
  * @param outcomes - Each series' outcome.
+ * @param check - What it did to whether the alert can be checked.
  * @param now - When the evaluation ran.
  */
 function save(
   dependencies: Pick<EvaluationDependencies, 'states'>,
   alertId: string,
   outcomes: readonly SeriesOutcome[],
+  check: CheckDecision,
   now: number,
 ): void {
+  const notified = check.event !== null;
+  const event = check.record && { ...check.record, id: newId(), notified };
   dependencies.states.saveEvaluation(alertId, {
     evaluatedAt: now,
     series: outcomes.flatMap((each) => (each.row ? [each.row] : [])),
     removed: outcomes.flatMap((each) => (each.row ? [] : [each.key])),
     events: outcomes.flatMap((each) => (each.event ? [each.event] : [])),
+    check: { state: check.state, event },
   });
+}
+
+/**
+ * Decides what an evaluation does to whether the alert can be checked, and the message it sends.
+ *
+ * @param dependencies - The state store and the setting.
+ * @param subject - The alert and its spec.
+ * @param failure - Why the query failed, or `null` when it ran.
+ * @param context - The evaluation's time, mute and link.
+ * @returns The decision and its notification, if any.
+ */
+function checkOf(
+  dependencies: Pick<EvaluationDependencies, 'states' | 'notifyOnError'>,
+  subject: EvaluatedAlert,
+  failure: string | null,
+  context: EvaluationContext,
+) {
+  const { alert, spec } = subject;
+  const quiet = context.muted || !dependencies.notifyOnError();
+  const facts = { failure, quiet, now: context.now };
+  const decision = decideCheck(dependencies.states.checkState(alert.id), facts);
+  if (decision.event === null) return { decision, notification: null };
+  const about = { alertId: alert.id, version: alert.activeVersion ?? 0, spec, url: context.url };
+  const notification = checkNotification(about, decision.event, failure, context.now);
+  return { decision, notification };
+}
+
+/**
+ * Why an evaluation could not check the alert: the error the alert as a whole observed.
+ *
+ * @param observations - What the evaluation observed.
+ * @returns The reason, or `null` when the query ran and its result could be read.
+ */
+function failureOf(observations: ReturnType<typeof observe>): string | null {
+  const whole = observations.series.get(wholeAlertKey)?.observation;
+  return whole?.kind === 'error' ? whole.message : null;
 }
 
 /**
@@ -285,18 +330,18 @@ export async function evaluateAlert(
   const previous = new Map(dependencies.states.series(alert.id).map((row) => [row.key, row]));
   const known = new Map([...previous].map(([key, row]) => [key, row.labels]));
   const context = { now, muted: isMuted(alert, now), url: dependencies.alertUrl(alert.id) };
-  const outcomes = [...observe(spec, outcome, known).series].map(([key, observed]) =>
+  const observations = observe(spec, outcome, known);
+  const outcomes = [...observations.series].map(([key, observed]) =>
     advance(subject, { key, observed, previous: previous.get(key) }, context),
   );
-  save(dependencies, alert.id, outcomes, now);
-  reportErrors(
-    dependencies.logger,
-    alert.id,
-    outcomes.flatMap((each) => (each.event ? [each.event] : [])),
-  );
+  const check = checkOf(dependencies, subject, failureOf(observations), context);
+  save(dependencies, alert.id, outcomes, check.decision, now);
+  const events = outcomes.flatMap((each) => (each.event ? [each.event] : []));
+  reportErrors(dependencies.logger, alert.id, events);
+  const notifications = outcomes.flatMap((each) => each.notification ?? []);
   await send(
     dependencies,
     subject,
-    outcomes.flatMap((each) => each.notification ?? []),
+    check.notification ? [...notifications, check.notification] : notifications,
   );
 }

@@ -28,14 +28,17 @@ export function escapeTeams(text: string): string {
 const teams: Escapers = { text: escapeTeams, value: escapeTeams };
 
 /**
- * The container style of a notification's header: by severity while firing.
+ * The container style of a notification's header: by severity while firing, warning when it
+ * cannot be checked, good once resolved or checked again.
  *
  * @param notification - The notification.
  * @returns An Adaptive Card container style.
  */
 function styleOf(notification: Notification): string {
-  if (notification.event === 'alert.resolved') return 'good';
-  if (notification.event === 'alert.test') return 'emphasis';
+  const { event } = notification;
+  if (event === 'alert.resolved' || event === 'alert.recovered') return 'good';
+  if (event === 'alert.test') return 'emphasis';
+  if (event === 'alert.error') return 'warning';
   const bySeverity = { critical: 'attention', warning: 'warning', info: 'accent' } as const;
   return bySeverity[notification.alert.severity];
 }

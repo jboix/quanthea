@@ -21,31 +21,60 @@ export const messagePlaceholders = [
 /** A placeholder's name. */
 export type MessagePlaceholder = (typeof messagePlaceholders)[number];
 
-/** Validates a template text: plain words and known `{placeholders}`, nothing else in braces. */
-const templateText = (max: number) =>
+/**
+ * The placeholders of a notification: the template's, and `{reason}`, why an alert cannot be
+ * checked. Only the fixed messages quanthea writes about checking use `{reason}`.
+ */
+export const notificationPlaceholders = [...messagePlaceholders, 'reason'] as const;
+
+/**
+ * Validates a template text: plain words and known `{placeholders}`, nothing else in braces.
+ *
+ * @param max - The most characters.
+ * @param known - The placeholders allowed.
+ * @returns The schema.
+ */
+const templateText = (max: number, known: readonly string[]) =>
   z
     .string()
     .min(1)
     .max(max)
-    .refine((text) => unknownPlaceholders(text).length === 0, {
-      message: `Use only these placeholders: ${messagePlaceholders.map((name) => `{${name}}`).join(', ')}.`,
+    .refine((text) => unknownNames(text, known).length === 0, {
+      message: `Use only these placeholders: ${known.map((name) => `{${name}}`).join(', ')}.`,
     });
 
+/**
+ * Validates a template: a title, a short body, and labelled fields.
+ *
+ * @param known - The placeholders allowed.
+ * @returns The schema.
+ */
+const templateSchema = (known: readonly string[]) =>
+  z.strictObject({
+    title: templateText(150, known),
+    body: templateText(1000, known),
+    fields: z
+      .array(z.strictObject({ label: z.string().min(1).max(60), value: templateText(200, known) }))
+      .max(8)
+      .default([]),
+  });
+
 /** Validates a message template: a title, a short body, and labelled fields. */
-export const messageTemplateSchema = z.strictObject({
-  title: templateText(150),
-  body: templateText(1000),
-  fields: z
-    .array(z.strictObject({ label: z.string().min(1).max(60), value: templateText(200) }))
-    .max(8)
-    .default([]),
-});
+export const messageTemplateSchema = templateSchema(messagePlaceholders);
 
 /** A message template, as parsed. */
 export type MessageTemplate = z.output<typeof messageTemplateSchema>;
 
 /** What a notification reports. */
-export const notificationEvents = ['alert.firing', 'alert.resolved', 'alert.test'] as const;
+export const notificationEvents = [
+  'alert.firing',
+  'alert.resolved',
+  'alert.test',
+  // The alert cannot be checked: its query failed several times in a row.
+  'alert.error',
+  // The alert can be checked again.
+  'alert.recovered',
+] as const;
 
 /** A notification event. */
 export type NotificationEvent = (typeof notificationEvents)[number];
@@ -61,8 +90,8 @@ export const notificationSchema = z.strictObject({
     url: z.string().min(1),
   }),
   series: z.strictObject({ key: z.string(), labels: z.record(z.string(), z.string()) }),
-  template: messageTemplateSchema,
-  values: z.partialRecord(z.enum(messagePlaceholders), z.string()),
+  template: templateSchema(notificationPlaceholders),
+  values: z.partialRecord(z.enum(notificationPlaceholders), z.string()),
   at: z.iso.datetime({ offset: true }),
 });
 
@@ -76,8 +105,19 @@ export type Notification = z.output<typeof notificationSchema>;
  * @returns The unknown names, in order of appearance.
  */
 export function unknownPlaceholders(text: string): string[] {
-  const known = new Set<string>(messagePlaceholders);
+  return unknownNames(text, messagePlaceholders);
+}
+
+/**
+ * The placeholders a text names that are not among those allowed.
+ *
+ * @param text - The template text.
+ * @param known - The placeholders allowed.
+ * @returns The unknown names, in order of appearance.
+ */
+function unknownNames(text: string, known: readonly string[]): string[] {
+  const allowed = new Set<string>(known);
   return [...text.matchAll(/\{([^{}]*)\}/g)]
     .map((match) => match[1] ?? '')
-    .filter((name) => !known.has(name));
+    .filter((name) => !allowed.has(name));
 }

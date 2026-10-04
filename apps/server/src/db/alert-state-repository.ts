@@ -4,6 +4,16 @@
  */
 import type { Database } from 'bun:sqlite';
 import type { AlertState } from '@quanthea/shared';
+import {
+  type CheckEventRow,
+  type CheckState,
+  checkStatements,
+  readCheck,
+  readCheckEvents,
+  writeCheck,
+} from './alert-checks.ts';
+
+export type { CheckEventRow, CheckState } from './alert-checks.ts';
 
 /** The state of a series, as stored. */
 export interface SeriesRow {
@@ -59,6 +69,11 @@ export interface EvaluationRecord {
   readonly removed: readonly string[];
   /** The changes of state, with their ids. */
   readonly events: readonly (EventRow & { readonly id: string })[];
+  /** Whether the alert can be checked after it, and what happened to that, if anything. */
+  readonly check?: {
+    readonly state: CheckState;
+    readonly event: (CheckEventRow & { readonly id: string }) | null;
+  };
 }
 
 /** Stores the state of alerts. */
@@ -85,6 +100,21 @@ export interface AlertStateRepository {
    */
   events(alertId: string, limit: number): EventRow[];
   /**
+   * Whether an alert can be checked.
+   *
+   * @param alertId - The alert.
+   * @returns The failed evaluations in a row, since when it is in error, and whether it said so.
+   */
+  checkState(alertId: string): CheckState;
+  /**
+   * The latest times an alert went into error or could be checked again.
+   *
+   * @param alertId - The alert.
+   * @param limit - The most to return.
+   * @returns The events, the latest first.
+   */
+  checkEvents(alertId: string, limit: number): CheckEventRow[];
+  /**
    * Saves an evaluation: the series' new states, the series gone, the changes and the time.
    *
    * @param alertId - The alert.
@@ -92,7 +122,7 @@ export interface AlertStateRepository {
    */
   saveEvaluation(alertId: string, record: EvaluationRecord): void;
   /**
-   * Deletes the changes of state older than a time.
+   * Deletes the changes of state, and the check events, older than a time.
    *
    * @param before - The time.
    * @returns How many it deleted.
@@ -231,6 +261,7 @@ function eventOf(stored: StoredEvent): EventRow {
 function evaluationSaver(
   database: Database,
   statements: ReturnType<typeof stateStatements>,
+  checks: ReturnType<typeof checkStatements>,
 ): AlertStateRepository['saveEvaluation'] {
   const upsert = (alertId: string, row: SeriesRow) => {
     const timing = [row.since, row.value, row.lastSeenAt, row.evaluatedAt, row.notifiedAt];
@@ -246,6 +277,7 @@ function evaluationSaver(
     for (const row of record.series) upsert(alertId, row);
     for (const key of record.removed) statements.remove.run(alertId, key);
     for (const event of record.events) insert(alertId, event);
+    if (record.check) writeCheck(checks, alertId, record.check.state, record.check.event);
     statements.evaluated.run(record.evaluatedAt, alertId);
   });
 }
@@ -273,11 +305,15 @@ function counter(statements: ReturnType<typeof stateStatements>) {
  */
 export function createAlertStateRepository(database: Database): AlertStateRepository {
   const statements = stateStatements(database);
+  const checks = checkStatements(database);
   return {
     series: (alertId) => statements.series.all(alertId).map(seriesOf),
     stateCounts: counter(statements),
     events: (alertId, limit) => statements.events.all(alertId, limit).map(eventOf),
-    saveEvaluation: evaluationSaver(database, statements),
-    purgeEvents: (before) => statements.purge.run(before).changes,
+    checkState: (alertId) => readCheck(checks, alertId),
+    checkEvents: (alertId, limit) => readCheckEvents(checks, alertId, limit),
+    saveEvaluation: evaluationSaver(database, statements, checks),
+    purgeEvents: (before) =>
+      statements.purge.run(before).changes + checks.purge.run(before).changes,
   };
 }

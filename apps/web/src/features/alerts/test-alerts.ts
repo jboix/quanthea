@@ -45,6 +45,7 @@ export function detailedAlert(changes: Partial<AlertDetail> = {}): AlertDetail {
     versions: [],
     series: [],
     events: [],
+    checks: [],
     channels: [],
     sends: [],
     activity: [],

@@ -196,7 +196,7 @@ describe('activating', () => {
 
   test('holds to the cap of active alerts per connector, which admins set', async () => {
     const saved = await client(admin)('PUT', '/api/settings/alerts', { maxActivePerConnector: 1 });
-    expect(saved.body).toEqual({ maxActivePerConnector: 1 });
+    expect(saved.body).toEqual({ maxActivePerConnector: 1, notifyOnError: true });
     expect((await client(editor)('GET', '/api/settings/alerts')).status).toBe(403);
     const [first, second] = [saveAlert(), saveAlert()];
     const send = client(editor);

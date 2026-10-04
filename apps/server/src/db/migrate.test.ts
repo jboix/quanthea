@@ -64,6 +64,7 @@ describe('runMigrations', () => {
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
+      'alert_check_events',
       'alert_events',
       'alert_link_dismissals',
       'alert_links',

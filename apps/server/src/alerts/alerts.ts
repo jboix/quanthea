@@ -239,6 +239,7 @@ function detailOf(context: AlertsContext, id: string, role: Role): AlertDetail {
     versions: context.repository.versions(id),
     series,
     events: context.states.events(id, recentEvents),
+    checks: context.states.checkEvents(id, recentEvents),
   };
   return { ...toDetail(item, parts, role), ...detailExtras(activity, id, spec) };
 }

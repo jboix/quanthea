@@ -43,3 +43,19 @@ test('lists the changes of state and what people did, the latest first', () => {
     [5, 'all query failing: timeout', 'danger'],
   ]);
 });
+
+test('lists the times it could not be checked and could be again', () => {
+  const alert = detailedAlert({
+    channels: [{ id: 'c1', name: '#oncall', kind: 'slack' }],
+    checks: [
+      { kind: 'recovered', at: 30, reason: null, notified: true },
+      { kind: 'error', at: 20, reason: 'Prometheus did not answer', notified: true },
+      { kind: 'error', at: 10, reason: 'Prometheus did not answer', notified: false },
+    ],
+  });
+  expect(timeline(alert, 100).map((entry) => [entry.at, entry.text, entry.tone])).toEqual([
+    [30, 'Can be checked again · notified #oncall', 'ok'],
+    [20, 'Cannot be checked: Prometheus did not answer · notified #oncall', 'danger'],
+    [10, 'Cannot be checked: Prometheus did not answer', 'danger'],
+  ]);
+});

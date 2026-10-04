@@ -274,8 +274,8 @@ the kit's HTTP client for every kind that speaks HTTP.
     changes to `POST /api/alerts/:id/versions`, which saves and activates it; once another
     version is active, changes held from the old one lapse.
   - Each series now (state, value, since), What happened (the changes of state, whether each
-    notified, and the activations, deactivations, mutes and unmutes from the audit log, the latest
-    first), and Notifies (the channels by name and kind, the latest messages with their outcome).
+    notified, the times it could not be checked and could be again, and the activations,
+    deactivations, mutes and unmutes from the audit log, the latest first), and Notifies (the channels by name and kind, the latest messages with their outcome).
   - **Shown on** (`shown-on.tsx`) lists the panels the alert is linked to: the dashboard and the
     panel, each a link, or "not on the shown version" when the version shown has no such panel.
     Editors get × to unlink, Link to a panel… (pick a pinned dashboard, then one of its panels,
@@ -570,7 +570,7 @@ only admins add, change and delete channels.
   is all the API ever returns.
 - **Mentions.** An admin sets them per channel: Slack `<!here>`, `<!channel>`,
   `<!subteam^ID>` or `<@U…>`; Discord `<@&role id>` or `<@user id>`. Other kinds take none.
-  They are added on `alert.firing` only, never from the template or the values.
+  They are added on `alert.firing` and `alert.error` only, never from the template or the values.
 - **Recipes.** One module per kind (`webhook.ts`, `slack.ts`, `discord.ts`, `teams.ts`,
   `pagerduty.ts`) implements `ChannelRecipe.build(notification, { target, mentions })`, which
   returns the URL and the JSON body and sends nothing; `registry.ts` holds them by kind. A recipe
@@ -597,10 +597,18 @@ only admins add, change and delete channels.
   and an "Open in quanthea" action. PagerDuty: `trigger` on firing and `resolve` on resolved, with
   the dedup key `<alert id>/<series key>` (the series key's SHA-256 when that passes 255
   characters), the severity as given, the body, fields and labels as custom details, and the link;
-  a test is a change event, which pages no one. The webhook: the notification (`event`, `alert`,
-  `series`, `values`, `at`) and its `message` filled. A button or link appears only when the
-  alert's URL is absolute. Colours: red, amber or blue by severity while firing, green once
-  resolved, grey for a test.
+  `trigger` on `alert.error` and `resolve` on `alert.recovered`, with the dedup key
+  `<alert id>/error`, an incident of its own; a test is a change event, which pages no one. The
+  webhook: the notification (`event`, `alert`, `series`, `values`, `at`) and its `message`
+  filled. A button or link appears only when the alert's URL is absolute. Colours: red, amber or
+  blue by severity while firing, amber (Teams: `warning`) when it cannot be checked, green once
+  resolved or checked again, grey for a test.
+- **Checking messages.** `alert.error` and `alert.recovered` are about the alert as a whole (the
+  series with the empty key), and their message is quanthea's own, not the alert's template:
+  "{alert} cannot be checked: {reason}" and "{alert} can be checked again". `{reason}` is a
+  placeholder of these messages only (`notificationPlaceholders`); a template refuses it. The
+  reason is the query engine's safe message, which quotes no secret and no target, cut to 300
+  characters, and each recipe escapes it as a value.
 - **Signing.** A generic webhook with a secret carries `X-Quanthea-Timestamp` (Unix seconds) and
   `X-Quanthea-Signature: sha256=<hex>`, the HMAC-SHA-256 of `<timestamp>.<body>` with the secret.
   The signature covers the timestamp, so a receiver that refuses an old timestamp refuses a
@@ -686,7 +694,8 @@ ok ──holds──▶ pending ──held for `for`──▶ firing
 - `for` of `0m` goes from `ok` to `firing` at once.
 - An empty result moves every known series to `no_data`.
 - A failed query moves the alert as a whole (the series with the empty key) to `error`, once; the
-  other series keep their state. It is logged once, recorded once, and notifies no one.
+  other series keep their state. It is logged once and recorded once. One failure notifies no
+  one: see "Cannot be checked" below.
 - A series the result leaves out while others come back keeps its state for a grace period of
   three intervals, then resolves and goes.
 - The `no_data` condition is observed on the alert as a whole: it holds while the query returns no
@@ -706,7 +715,24 @@ transaction (`alert_series`, `alert_events`). Then it sends what is due:
 
 - `alert.firing` when a series fires, and again every `repeatEvery` while it keeps firing;
 - `alert.resolved` when a series that announced firing is ok again or gone, if `onResolved`;
+- `alert.error` and `alert.recovered`, below;
 - nothing while muted.
+
+**Cannot be checked** (`alerts/check-notice.ts`). An alert whose query failed (the data source is
+down, the credentials are wrong, the query timed out, or its result cannot be read) in 2
+evaluations in a row (`failuresBeforeError`) is in error. One failure is a blip and says nothing.
+
+- It sends `alert.error` once, with the reason, and not again while it stays in error.
+- Once an evaluation runs its query again, it is out of error, and sends `alert.recovered` once,
+  if it had sent `alert.error`.
+- A mute holds both back; an alert still in error when the mute ends sends `alert.error` then. A
+  recovery during a mute sends nothing.
+- The alert settings' `notifyOnError` (on by default) turns both off: the evaluator then records
+  and logs only.
+- Each going into error, each `alert.error` sent later, and each recovery is a row of
+  `alert_check_events` (the reason, whether it notified), shown in What happened. The count of
+  failures, since when it is in error and whether that was announced stay on the alert's row, and
+  survive a deactivation: an alert activated again recovers at its first good evaluation.
 
 A notification is the shared contract (`Notification`): the version's message template and the
 values filled from the series. The evaluator hands it to an injected
@@ -730,7 +756,7 @@ replays the values a replay returned at another threshold, with the same rules, 
 dragging the threshold sees the new counts at once. A step with no value counts as a series the
 result left out. A test checks it gives what the server gives.
 
-**The purge job** deletes the changes of state older than 90 days.
+**The purge job** deletes the changes of state and the check events older than 90 days.
 
 **Reading alerts** (`alerts/listing.ts`, over `db/alert-activity.ts`). Every role reads what the
 alert pages show:
@@ -1944,7 +1970,8 @@ CREATE TABLE notification_channels (
 CREATE TABLE notification_sends (
   id TEXT PRIMARY KEY,
   channel_id TEXT NOT NULL REFERENCES notification_channels(id) ON DELETE CASCADE,
-  event TEXT NOT NULL CHECK (event IN ('alert.firing','alert.resolved','alert.test')),
+  event TEXT NOT NULL,               -- 'alert.firing' | 'alert.resolved' | 'alert.test'
+                                     -- | 'alert.error' | 'alert.recovered'
   alert_id TEXT NOT NULL, series_key TEXT NOT NULL, at INTEGER NOT NULL,
   ok INTEGER NOT NULL, http_status INTEGER, attempts INTEGER NOT NULL, error TEXT);
 
@@ -1965,6 +1992,9 @@ CREATE TABLE alerts (
   muted_at INTEGER, muted_by TEXT, muted_until INTEGER,  -- muted_until NULL: until unmuted
   evaluated_at INTEGER, created_by TEXT NOT NULL, created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
+  failed_checks INTEGER NOT NULL DEFAULT 0,      -- evaluations in a row whose query failed
+  check_error_since INTEGER,                     -- in error since; NULL while it can be checked
+  check_error_notified INTEGER NOT NULL DEFAULT 0,  -- 1: announced alert.error, not recovery
   FOREIGN KEY (id, active_version) REFERENCES alert_versions(alert_id, version));
 
 -- every version is immutable (trigger); activated_at is set once, at the first activation
@@ -1988,6 +2018,13 @@ CREATE TABLE alert_events (
   version INTEGER NOT NULL, series_key TEXT NOT NULL, labels TEXT NOT NULL,
   from_state TEXT NOT NULL, to_state TEXT NOT NULL, at INTEGER NOT NULL, value REAL,
   message TEXT,                      -- why the query failed, for a change to 'error'
+  notified INTEGER NOT NULL DEFAULT 0);
+
+-- "What happened" too: the alert went into error, or can be checked again; kept 90 days
+CREATE TABLE alert_check_events (
+  id TEXT PRIMARY KEY, alert_id TEXT NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('error','recovered')), at INTEGER NOT NULL,
+  reason TEXT,                       -- why the query failed, for 'error'
   notified INTEGER NOT NULL DEFAULT 0);
 
 -- an alert shown on a dashboard panel, by panel id: it follows the panel across versions

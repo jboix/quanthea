@@ -35,7 +35,7 @@ export function AlertSettingsScreen() {
   const maximum = maximumOf(text);
   const changed = maximum !== undefined && maximum !== saved.maxActivePerConnector;
   const save = () => {
-    const body: AlertSettings = { maxActivePerConnector: maximum ?? 1 };
+    const body: AlertSettings = { ...saved, maxActivePerConnector: maximum ?? 1 };
     void fetcher.submit(body as SubmitTarget, { method: 'post', encType: 'application/json' });
   };
   return (

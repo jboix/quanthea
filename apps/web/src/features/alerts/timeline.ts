@@ -1,6 +1,7 @@
 /**
- * "What happened" on an alert's page: its series' changes of state, whether each notified, and
- * what people did to it (activations, deactivations, mutes and unmutes), the latest first.
+ * "What happened" on an alert's page: its series' changes of state, whether each notified, the
+ * times it could not be checked and could be again, and what people did to it (activations,
+ * deactivations, mutes and unmutes), the latest first.
  */
 import type { AlertDetail } from '@quanthea/shared';
 import { muteEnd, type StateTone } from './state-text.ts';
@@ -20,6 +21,9 @@ export interface TimelineEntry {
 
 /** A change of state. */
 type AlertEvent = AlertDetail['events'][number];
+
+/** A time it went into error, or could be checked again. */
+type AlertCheck = AlertDetail['checks'][number];
 
 /** Something someone did. */
 type AlertActivity = AlertDetail['activity'][number];
@@ -56,10 +60,38 @@ function changeWords(event: AlertEvent): string {
  */
 function eventEntry(event: AlertEvent, detail: AlertDetail, index: number): TimelineEntry {
   const value = event.value === null ? '' : ` (${valueText(event.value, detail.format)})`;
-  const channels = detail.channels.map((channel) => channel.name).join(', ');
-  const notified = event.notified ? ` · notified ${channels}`.trimEnd() : '';
+  const notified = notifiedWords(event.notified, detail);
   const text = `${seriesName(event.labels)} ${changeWords(event)}${value}${notified}`;
   return { key: `event-${index}`, at: event.at, text, tone: toneOf[event.to] };
+}
+
+/**
+ * The channels a line says were notified, when it notified.
+ *
+ * @param notified - Whether it notified.
+ * @param detail - The alert, for its channels.
+ * @returns Such as ` · notified Ops Slack`, or nothing.
+ */
+function notifiedWords(notified: boolean, detail: AlertDetail): string {
+  const channels = detail.channels.map((channel) => channel.name).join(', ');
+  return notified ? ` · notified ${channels}`.trimEnd() : '';
+}
+
+/**
+ * A time it went into error, or could be checked again, as a line.
+ *
+ * @param check - What happened.
+ * @param detail - The alert, for its channels.
+ * @param index - Its place, for the key.
+ * @returns The line.
+ */
+function checkEntry(check: AlertCheck, detail: AlertDetail, index: number): TimelineEntry {
+  const error = check.kind === 'error';
+  const words = error
+    ? `Cannot be checked${check.reason ? `: ${check.reason}` : ''}`
+    : 'Can be checked again';
+  const text = `${words}${notifiedWords(check.notified, detail)}`;
+  return { key: `check-${index}`, at: check.at, text, tone: error ? 'danger' : 'ok' };
 }
 
 /**
@@ -102,6 +134,7 @@ function activityEntry(
  */
 export function timeline(detail: AlertDetail, now: number): TimelineEntry[] {
   const events = detail.events.map((event, index) => eventEntry(event, detail, index));
+  const checks = detail.checks.map((check, index) => checkEntry(check, detail, index));
   const activity = detail.activity.map((each, index) => activityEntry(each, detail, now, index));
-  return [...events, ...activity].sort((a, b) => b.at - a.at);
+  return [...events, ...checks, ...activity].sort((a, b) => b.at - a.at);
 }

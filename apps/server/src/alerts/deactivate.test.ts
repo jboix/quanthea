@@ -43,13 +43,19 @@ function setup() {
     sent.push(notification);
     return Promise.resolve();
   };
-  const dependencies = { ...engine, states, notify, alertUrl: () => '/alerts/a' };
+  const dependencies = {
+    ...engine,
+    states,
+    notify,
+    alertUrl: () => '/alerts/a',
+    notifyOnError: () => true,
+  };
   const alerts = createAlerts({
     ...dependencies,
     repository: createAlertRepository(database),
     audit: createAuditRepository(database),
     lookup: () => ({ language: 'promql', guardrails }),
-    settings: { get: () => ({ maxActivePerConnector: 50 }) },
+    settings: { get: () => ({ maxActivePerConnector: 50, notifyOnError: true }) },
     channelExists: (id) => channels.has(id),
   });
   const evaluate = async () => {

@@ -48,9 +48,14 @@ function evaluatorOver(
   const logs = captureLogs();
   const evaluation = {
     ...fakeEngine(() => []),
-    states: { series: () => [], saveEvaluation: () => undefined },
+    states: {
+      series: () => [],
+      checkState: () => ({ failures: 0, errorSince: null, notified: false }),
+      saveEvaluation: () => undefined,
+    },
     notify: () => Promise.resolve(),
     alertUrl: () => '',
+    notifyOnError: () => true,
   };
   const evaluator = createAlertEvaluator({
     alerts: { evaluated: alerts },

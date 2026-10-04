@@ -1,4 +1,7 @@
-/** The alert settings: how many alerts may be active per connector, 50 by default. */
+/**
+ * The alert settings: how many alerts may be active per connector, 50 by default, and whether an
+ * alert that cannot be checked notifies its channels, on by default.
+ */
 import type { AlertSettings } from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { SettingsStore } from './settings-store.ts';

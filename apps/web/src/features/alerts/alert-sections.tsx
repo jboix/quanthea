@@ -18,6 +18,15 @@ const toneOf: Readonly<Record<AlertState, StateTone>> = {
   no_data: 'neutral',
 };
 
+/** What each message sent says, in the latest messages. */
+const sendWords: Readonly<Record<AlertDetail['sends'][number]['event'], string>> = {
+  'alert.firing': 'Firing',
+  'alert.resolved': 'Resolved',
+  'alert.test': 'Test',
+  'alert.error': 'Cannot be checked',
+  'alert.recovered': 'Checked again',
+};
+
 /** How bad each state is, the worst first. */
 const rank: Readonly<Record<AlertState, number>> = {
   firing: 0,
@@ -136,7 +145,7 @@ export function Notifies({ alert, now }: { readonly alert: AlertDetail; readonly
             </time>
             <span className={styles.dot} data-tone={send.ok ? 'ok' : 'danger'} />
             <span>
-              {send.event === 'alert.resolved' ? 'Resolved' : 'Firing'} to {send.channel}
+              {sendWords[send.event]} to {send.channel}
               {send.ok ? '' : ', failed'}
             </span>
           </li>

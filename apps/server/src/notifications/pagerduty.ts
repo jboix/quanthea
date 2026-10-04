@@ -1,7 +1,9 @@
 /**
  * PagerDuty: the Events API v2. Firing triggers an incident and resolving resolves it, matched by
- * a dedup key made of the alert id and the series key. A test sends a change event, which shows on
- * the service without paging anyone. PagerDuty shows text as it is, so nothing is escaped.
+ * a dedup key made of the alert id and the series key. An alert that cannot be checked triggers an
+ * incident of its own, keyed `<alert id>/error`, which its recovery resolves. A test sends a change
+ * event, which shows on the service without paging anyone. PagerDuty shows text as it is, so
+ * nothing is escaped.
  */
 import type { Notification } from '@quanthea/shared';
 import {
@@ -27,12 +29,16 @@ const asIs: Escapers = { text: (words) => words, value: (value) => value };
 
 /**
  * The dedup key of an alert's series: the alert id and the series key, or, when that is too long,
- * the alert id and the series key's SHA-256.
+ * the alert id and the series key's SHA-256. Whether the alert can be checked has its own key, the
+ * alert id and `error`.
  *
  * @param notification - The notification.
  * @returns The key, the same for every event of one series of one alert.
  */
 export function dedupKeyOf(notification: Notification): string {
+  const { event } = notification;
+  if (event === 'alert.error' || event === 'alert.recovered')
+    return `${notification.alert.id}/error`.slice(0, maxDedupKey);
   const key = `${notification.alert.id}/${notification.series.key}`;
   if (key.length <= maxDedupKey) return key;
   const digest = new Bun.CryptoHasher('sha256').update(notification.series.key).digest('hex');
@@ -66,7 +72,8 @@ function linksOf(notification: Notification) {
 }
 
 /**
- * Builds the event: a change event for a test, a resolve, or a trigger.
+ * Builds the event: a change event for a test, a resolve when resolved or checked again, or a
+ * trigger when firing or when the alert cannot be checked.
  *
  * @param notification - The notification.
  * @param channel - The channel, whose target is the routing key.
@@ -82,7 +89,7 @@ function build(notification: Notification, channel: RecipeChannel) {
     return { url: pagerDutyChangesUrl, body: { routing_key, payload, links } };
   }
   const dedup_key = dedupKeyOf(notification);
-  if (notification.event === 'alert.resolved')
+  if (notification.event === 'alert.resolved' || notification.event === 'alert.recovered')
     return { url: pagerDutyEventsUrl, body: { routing_key, event_action: 'resolve', dedup_key } };
   const { severity } = notification.alert;
   const payload = { summary, source: 'quanthea', severity, timestamp, custom_details };
