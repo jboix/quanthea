@@ -76,7 +76,8 @@ export function reportRoutes(loadSession: SessionLoader, api: ApiClient): RouteO
     await editor(args);
     return change(args);
   };
-  const runScreen = { Component: async () => (await screens()).RunScreen };
+  // Each route gets its own lazy object: React Router fills one in once it resolves.
+  const runScreen = () => ({ Component: async () => (await screens()).RunScreen });
   return [
     {
       id: reportsRouteId,
@@ -97,12 +98,12 @@ export function reportRoutes(loadSession: SessionLoader, api: ApiClient): RouteO
       path: '/reports/:reportId',
       loader: guarded(loadSession, '/reports/:reportId', loadLatestRun(api)),
       action,
-      lazy: runScreen,
+      lazy: runScreen(),
     },
     {
       path: '/reports/:reportId/runs/:runId',
       loader: guarded(loadSession, '/reports/:reportId/runs/:runId', loadRun(api)),
-      lazy: runScreen,
+      lazy: runScreen(),
     },
     ...askRoutes(loadSession, api),
   ];
