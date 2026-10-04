@@ -10,7 +10,6 @@ import { Button } from '../../ui/button.tsx';
 import { TextArea } from '../../ui/text-area.tsx';
 import { accessLevelName } from '../connectors/index.ts';
 import styles from './ask.module.css';
-import { ContextNote } from './ask-message.tsx';
 import { dayLabel } from './ask-words.ts';
 
 /**
@@ -85,7 +84,10 @@ interface AskFormProps {
   readonly label: string;
   /** Whether an answer is on its way. */
   readonly busy: boolean;
-  /** The line saying the view changed since the conversation's latest question, if it did. */
+  /**
+   * Such as `Now asking about 27 Sep 09:00–10:00`, when the view changed since the conversation's
+   * latest question: it replaces the label, emphasised.
+   */
   readonly note: string | undefined;
   /** Asks. */
   readonly onAsk: (question: string) => void;
@@ -94,9 +96,10 @@ interface AskFormProps {
 }
 
 /**
- * The question box, for those who may ask. Enter asks; Shift and Enter starts a new line.
+ * The question box, for those who may ask. Enter asks; Shift and Enter starts a new line. Its
+ * label says what the question is about, emphasised when the view changed.
  *
- * @param props - The label, the state, the context line and the callbacks.
+ * @param props - The label, the state, the line of a changed view and the callbacks.
  * @returns The form.
  */
 export function AskForm({ label, busy, note, onAsk, onType }: AskFormProps) {
@@ -113,9 +116,8 @@ export function AskForm({ label, busy, note, onAsk, onType }: AskFormProps) {
   };
   return (
     <form className={styles.form} onSubmit={submit}>
-      <ContextNote note={note} />
       <TextArea
-        label={label}
+        label={note ? <span className={styles.changedLabel}>{note}, as shown</span> : label}
         rows={2}
         className={styles.box}
         value={text}

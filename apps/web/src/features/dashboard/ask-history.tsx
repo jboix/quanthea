@@ -7,20 +7,15 @@ import { useMemo, useState } from 'react';
 import { groupByDay } from '../../lib/day-groups.ts';
 import { SearchIcon } from '../../ui/icons.tsx';
 import { useConversations } from './ask-state.ts';
+import { instantLabel } from './ask-words.ts';
 import styles from './history.module.css';
-
-/** Formats when a conversation started and when its latest question was asked. */
-const shortDate = new Intl.DateTimeFormat(undefined, {
-  day: 'numeric',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-});
 
 /** Props of {@link HistoryTab}. */
 interface HistoryTabProps {
   /** The dashboard. */
   readonly dashboardId: string;
+  /** The time zone of the dates and of the days they are grouped by: the Ask tab's. */
+  readonly timeZone: string;
   /** The conversation the Ask tab shows, if any. */
   readonly openId: string | undefined;
   /** Opens a conversation in the Ask tab, at a question when a search found one. */
@@ -31,33 +26,33 @@ interface HistoryTabProps {
  * How many questions a conversation holds, and when the latest was asked.
  *
  * @param conversation - The conversation.
- * @param date - Formats the latest activity.
- * @returns Such as `3 questions · last 26 Sep, 14:10`.
+ * @param timeZone - The time zone of the date.
+ * @returns Such as `3 questions · last 26 Sep 14:10`.
  */
-function rowMeta(conversation: Conversation, date: Intl.DateTimeFormat): string {
+function rowMeta(conversation: Conversation, timeZone: string): string {
   const count = `${conversation.count} ${conversation.count === 1 ? 'question' : 'questions'}`;
-  return `${count} · last ${date.format(conversation.lastAt)}`;
+  return `${count} · last ${instantLabel(conversation.lastAt, timeZone)}`;
 }
 
 /**
  * One past conversation: its first question, who started it, when, how many questions and the
  * latest activity. In a search, the question that matched, when it is not the first.
  *
- * @param props - The conversation, the date format, whether it is open, and the open callback.
+ * @param props - The conversation, the time zone, whether it is open, and the open callback.
  * @param props.conversation - The conversation.
- * @param props.date - Formats the dates.
+ * @param props.timeZone - The time zone of the dates.
  * @param props.current - Whether the Ask tab shows it.
  * @param props.onOpen - Opens it.
  * @returns The row.
  */
 function ConversationRow({
   conversation,
-  date,
+  timeZone,
   current,
   onOpen,
 }: {
   readonly conversation: Conversation;
-  readonly date: Intl.DateTimeFormat;
+  readonly timeZone: string;
   readonly current: boolean;
   readonly onOpen: HistoryTabProps['onOpen'];
 }) {
@@ -75,7 +70,8 @@ function ConversationRow({
         {other && <span className={styles.matched}>Matches: {other.question}</span>}
         <span className={styles.itemMeta}>
           <span className={styles.owner}>{conversation.startedBy}</span>
-          started {date.format(conversation.startedAt)} · {rowMeta(conversation, date)}
+          started {instantLabel(conversation.startedAt, timeZone)} ·{' '}
+          {rowMeta(conversation, timeZone)}
         </span>
       </button>
     </li>
@@ -93,6 +89,7 @@ function ConversationGroups({
   conversations,
   searching,
   loading,
+  timeZone,
   openId,
   onOpen,
 }: Omit<HistoryTabProps, 'dashboardId'> & {
@@ -101,8 +98,8 @@ function ConversationGroups({
   readonly loading: boolean;
 }) {
   const groups = useMemo(
-    () => groupByDay(conversations, (each) => each.lastAt, new Date()),
-    [conversations],
+    () => groupByDay(conversations, (each) => each.lastAt, new Date(), timeZone),
+    [conversations, timeZone],
   );
   if (groups.length === 0 && loading) return null;
   if (groups.length === 0)
@@ -121,7 +118,7 @@ function ConversationGroups({
               <ConversationRow
                 key={each.id}
                 conversation={each}
-                date={shortDate}
+                timeZone={timeZone}
                 current={each.id === openId}
                 onOpen={onOpen}
               />
@@ -139,7 +136,7 @@ function ConversationGroups({
  * @param props - The dashboard, the open conversation, and the open callback.
  * @returns The tab's content.
  */
-export function HistoryTab({ dashboardId, openId, onOpen }: HistoryTabProps) {
+export function HistoryTab({ dashboardId, timeZone, openId, onOpen }: HistoryTabProps) {
   const [search, setSearch] = useState('');
   const { conversations, failed, loading } = useConversations(dashboardId, search);
   return (
@@ -153,6 +150,12 @@ export function HistoryTab({ dashboardId, openId, onOpen }: HistoryTabProps) {
           className={styles.searchInput}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
+          onKeyDown={(event) => {
+            // Escape clears the words first; the panel closes on Escape once it is empty.
+            if (event.key !== 'Escape' || search === '') return;
+            event.preventDefault();
+            setSearch('');
+          }}
         />
       </search>
       {failed && <p className={styles.failure}>{failed}</p>}
@@ -161,6 +164,7 @@ export function HistoryTab({ dashboardId, openId, onOpen }: HistoryTabProps) {
           conversations={conversations}
           searching={search.trim() !== ''}
           loading={loading}
+          timeZone={timeZone}
           openId={openId}
           onOpen={onOpen}
         />

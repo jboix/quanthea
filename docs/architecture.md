@@ -1744,7 +1744,9 @@ one, and enables them again. Without any admin, it creates the default one.
   right, from the top of the screen to the bottom, beside the header and the panels, with its own
   scroll (`side-panel.tsx`). Its tabs are About (the description, tags and sources), Ask (one
   conversation) and History (the past conversations). Arrow keys move between the tabs, and
-  Escape or Close closes the panel. Below 960 px the panel covers the whole screen.
+  Escape or Close closes the panel. Escape in the question box or the search box while it holds
+  text does not close it; in the search box it clears the words. Below 960 px the panel covers
+  the whole screen.
   - Ask shows one conversation, like a chat (`ask-tab.tsx`, `ask-message.tsx`,
     `use-conversation.ts`): each question as a bubble on the right with who asked it and when,
     then its answer, the newest at the bottom. A bar above it says who started the conversation,
@@ -1759,7 +1761,9 @@ one, and enables them again. Without any admin, it creates the default one.
     before it, a line before the question says so
     (`Now asking about 27 Sep 09:00–10:00, $env prod`, with the version when it changed). The
     range is compared as chosen, so "last hour" stays the same range as time moves on; absolute
-    ends compare as instants (`ask-conversation.ts`).
+    ends compare as instants (`ask-conversation.ts`). When the view changed since the
+    conversation's latest question, the box's label says so instead, in the accent colour
+    (`Now asking about 27 Sep 09:00–10:00, $env prod, as shown`).
   - Viewers read every conversation and get a line saying who can ask, instead of the box.
   - Asking posts the version, the question, the range and variables as shown, the hidden sets
     of markers and the conversation it continues, never a query, and reads the UI message stream
@@ -1776,7 +1780,8 @@ one, and enables them again. Without any admin, it creates the default one.
     its conversation, scrolls to its answer and highlights it for a moment.
   - History (`ask-history.tsx`) lists the dashboard's conversations as the new-thread screen
     lists past threads: grouped by the day of their latest question, each with its first
-    question, who started it, when, how many questions and the latest activity. The search goes
+    question, who started it, when, how many questions and the latest activity. Its dates and
+    days are in the dashboard's time zone, written as the Ask tab writes them (`4 Oct 09:12`). The search goes
     to the server and finds the conversations whose questions and answers hold every word, each
     with the question that matched. Opening one shows it in the Ask tab, where analysts and above
     continue it and viewers read it.

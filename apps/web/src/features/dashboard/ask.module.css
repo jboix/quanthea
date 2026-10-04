@@ -71,6 +71,11 @@
   align-self: flex-end;
 }
 
+.changedLabel {
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
 .box {
   min-height: 64px;
 }

@@ -18,16 +18,21 @@ const groupLimits: readonly [number, string][] = [
 ];
 
 /**
- * The calendar days between two instants, in the browser's time zone.
+ * The calendar day of an instant in a time zone, counted in days since the epoch.
  *
- * @param earlier - The earlier instant, in milliseconds.
- * @param now - The later instant.
- * @returns Whole days; 0 on the same day.
+ * @param instant - Epoch milliseconds.
+ * @param timeZone - An IANA time zone, or `undefined` for the browser's.
+ * @returns The day's number.
  */
-function daysBetween(earlier: number, now: Date): number {
-  const start = (instant: Date) =>
-    new Date(instant.getFullYear(), instant.getMonth(), instant.getDate()).getTime();
-  return Math.round((start(now) - start(new Date(earlier))) / 86_400_000);
+function dayNumber(instant: number, timeZone: string | undefined): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(new Date(instant));
+  const part = (type: string) => Number(parts.find((each) => each.type === type)?.value);
+  return Date.UTC(part('year'), part('month') - 1, part('day')) / 86_400_000;
 }
 
 /**
@@ -36,16 +41,19 @@ function daysBetween(earlier: number, now: Date): number {
  * @param items - The items, the latest first.
  * @param changedAt - When an item last changed, in epoch milliseconds.
  * @param now - The current time.
+ * @param timeZone - The time zone whose calendar days count; the browser's when left out.
  * @returns The groups that have items, the latest first.
  */
 export function groupByDay<Item>(
   items: readonly Item[],
   changedAt: (item: Item) => number,
   now: Date,
+  timeZone?: string,
 ): DayGroup<Item>[] {
   const groups = new Map<string, Item[]>();
+  const today = dayNumber(now.getTime(), timeZone);
   for (const item of items) {
-    const days = daysBetween(changedAt(item), now);
+    const days = today - dayNumber(changedAt(item), timeZone);
     const label = groupLimits.find(([limit]) => days <= limit)?.[1] ?? 'Older';
     groups.set(label, [...(groups.get(label) ?? []), item]);
   }

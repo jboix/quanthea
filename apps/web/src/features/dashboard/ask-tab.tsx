@@ -69,6 +69,7 @@ function ConversationBar({
  *
  * @param props - The dashboard, whether the person may ask, and the callbacks.
  * @param props.dashboardId - The dashboard.
+ * @param props.timeZone - The time zone of the dates.
  * @param props.canAsk - Whether the person may ask.
  * @param props.onOpen - Opens a conversation.
  * @param props.onHistory - Shows the History tab.
@@ -76,17 +77,18 @@ function ConversationBar({
  */
 function NewConversation({
   dashboardId,
+  timeZone,
   canAsk,
   onOpen,
   onHistory,
 }: {
   readonly dashboardId: string;
+  readonly timeZone: string;
   readonly canAsk: boolean;
   readonly onOpen: (conversation: Conversation) => void;
   readonly onHistory: () => void;
 }) {
   const { conversations } = useConversations(dashboardId, '');
-  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return (
     <div className={styles.empty}>
       <p className={styles.meta}>
@@ -104,7 +106,7 @@ function NewConversation({
               className={styles.similarItem}
               onClick={() => onOpen(each)}
             >
-              {each.question} · {each.startedBy}, {dayLabel(each.lastAt, zone)}
+              {each.question} · {each.startedBy}, {dayLabel(each.lastAt, timeZone)}
             </button>
           ))}
           <button type="button" className={styles.linkButton} onClick={onHistory}>
@@ -240,6 +242,7 @@ export function AskTab({ conversation, onHistory, ...data }: AskTabProps) {
         {blank && conversation.conversationId === undefined && (
           <NewConversation
             dashboardId={data.dashboard.id}
+            timeZone={conversation.shown.timeZone}
             canAsk={canAsk}
             onOpen={(each) => conversation.show(each.id)}
             onHistory={onHistory}

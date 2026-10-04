@@ -54,34 +54,73 @@ function useMarkedConversation(data: DashboardData, onOpenAnswer: SidePanelProps
 }
 
 /**
- * The side panel: About, Ask and History, with a close button. Escape closes it too.
+ * Whether a key went to a text field that holds text, where Escape must not close the panel.
+ *
+ * @param target - Where the key went.
+ * @returns Whether it is an input or a text area with a value.
+ */
+function holdsText(target: EventTarget): boolean {
+  const field = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+  return field && target.value !== '';
+}
+
+/**
+ * The key handler that closes the panel on Escape, unless the key went to a text field that holds
+ * text or a field already handled it.
+ *
+ * @param onClose - Closes the panel.
+ * @returns The handler.
+ */
+function closeOnEscape(onClose: () => void) {
+  return (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || event.defaultPrevented || holdsText(event.target)) return;
+    onClose();
+  };
+}
+
+/**
+ * The top of the panel: the tabs and Close.
+ *
+ * @param props - The tab shown and the callbacks.
+ * @returns The bar.
+ */
+function SideTop({ tab, onTab, onClose }: Pick<SidePanelProps, 'tab' | 'onTab' | 'onClose'>) {
+  return (
+    <div className={styles.sideTop}>
+      <Tabs
+        label="Dashboard side panel"
+        tabs={tabs}
+        selected={tab}
+        onSelect={(id) => onTab(id as SideTab)}
+        panels={panels}
+      />
+      <Button size="small" onClick={onClose} aria-label="Close the side panel">
+        Close
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * The side panel: About, Ask and History, with a close button. Escape closes it too, unless it
+ * goes to a text field that holds text.
  *
  * @param props - The dashboard, the version shown, the tab and the callbacks.
  * @returns The panel.
  */
 export function SidePanel({ tab, onTab, onClose, onOpenAnswer, ...data }: SidePanelProps) {
   const conversation = useMarkedConversation(data, onOpenAnswer);
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && !event.defaultPrevented) onClose();
-  };
   const open = (conversationId: string, questionId: string | undefined) => {
     conversation.show(conversationId, questionId);
     onTab('ask');
   };
   return (
-    <aside className={styles.side} aria-label="About, Ask and History" onKeyDown={onKeyDown}>
-      <div className={styles.sideTop}>
-        <Tabs
-          label="Dashboard side panel"
-          tabs={tabs}
-          selected={tab}
-          onSelect={(id) => onTab(id as SideTab)}
-          panels={panels}
-        />
-        <Button size="small" onClick={onClose} aria-label="Close the side panel">
-          Close
-        </Button>
-      </div>
+    <aside
+      className={styles.side}
+      aria-label="About, Ask and History"
+      onKeyDown={closeOnEscape(onClose)}
+    >
+      <SideTop tab={tab} onTab={onTab} onClose={onClose} />
       <div className={styles.sideBody} {...tabPanelProps(panels, tab)}>
         {tab === 'about' && (
           <div className={styles.aboutTab}>
@@ -94,6 +133,7 @@ export function SidePanel({ tab, onTab, onClose, onOpenAnswer, ...data }: SidePa
         {tab === 'history' && (
           <HistoryTab
             dashboardId={data.dashboard.id}
+            timeZone={conversation.shown.timeZone}
             openId={conversation.conversationId}
             onOpen={open}
           />

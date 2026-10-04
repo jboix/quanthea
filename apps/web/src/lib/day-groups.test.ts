@@ -30,3 +30,13 @@ test('groups items by the day they changed, keeping their order', () => {
   ]);
   expect(groupByDay([], (each: { lastAt: number }) => each.lastAt, now)).toEqual([]);
 });
+
+test('counts the calendar days of a time zone', () => {
+  const late = new Date(Date.UTC(2026, 9, 4, 23, 30));
+  const evening = { lastAt: Date.UTC(2026, 9, 4, 20, 0) };
+  const label = (timeZone: string) =>
+    groupByDay([evening], (each) => each.lastAt, late, timeZone)[0]?.label;
+  expect(label('UTC')).toBe('Today');
+  // In Zurich it is already 5 Oct, 01:30; the evening was 4 Oct, 22:00.
+  expect(label('Europe/Zurich')).toBe('Yesterday');
+});
