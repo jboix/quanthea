@@ -17,6 +17,7 @@ import type { ModelView } from '../gate/model-view.ts';
 import { answerIssues } from './answer-check.ts';
 import type { ResponseWatch } from './answer-watch.ts';
 import { testQuerySchema } from './data-tools.ts';
+import { withLocalTimes } from './local-times.ts';
 
 /** The variables of a run, bound as panels bind them. */
 type Bindings = Awaited<ReturnType<Dashboards['bindVariables']>>;
@@ -46,6 +47,8 @@ export interface AnswerToolContext {
   readonly schemaOnly: boolean;
   /** Those whose access level shows numbers; empty for an explanation. */
   readonly readable: readonly string[];
+  /** The time zone of the question: what the model reads is written on its clock. */
+  readonly timeZone: string;
   /** The range asked about, epoch milliseconds; `undefined` for an explanation. */
   readonly range: { readonly from: number; readonly to: number } | undefined;
   /** The viewer's variables, bound. */
@@ -229,7 +232,7 @@ async function recordRead(
   };
   context.state.evidence.push(evidence);
   context.onEvidence(evidence);
-  return { evidenceId: evidence.id, ...result };
+  return { evidenceId: evidence.id, ...withLocalTimes(result, context.timeZone) };
 }
 
 /**

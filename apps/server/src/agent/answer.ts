@@ -177,6 +177,7 @@ function toolScope(request: AnswerRequest, connectors: readonly AnswerConnector[
     connectors: connectors.map(({ name }) => name),
     readable: asking ? readableNames(connectors) : [],
     range: asking ? request.time : undefined,
+    timeZone: asking ? request.timeZone : 'UTC',
     schemaOnly: !asking,
     signal: request.signal,
   };

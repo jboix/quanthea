@@ -73,6 +73,7 @@ function seedLines(context: RunContext): string[] {
     const queries = panel.queries.map((query) => `${query.connector}: ${queryText(query)}`);
     return [
       `The person started this alert from the panel "${panel.title}" of the dashboard "${version.spec.title}". Its queries:\n${queries.join('\n')}`,
+      'Keep its query exactly as written, $variables included, and give each variable its value in the alert\'s "variables" (the one the person asked for, else the dashboard\'s default). Never write a value into the query: the alert then stays the same query as the panel it watches.',
     ];
   } catch {
     return [];
