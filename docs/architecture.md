@@ -197,8 +197,11 @@ the kit's HTTP client for every kind that speaks HTTP.
   first firing), Activate (the refusal lists the issues), and once a version is active a link to
   `/alerts/:alertId`. Under it:
 
-  - the condition as a sentence ("Fires when errors of each service is above 2% for 5 minutes,
-    checked every minute"), each value a button that opens an inline editor;
+  - the condition as a sentence ("Fires when the error share of each service is above 2% for 5
+    minutes, checked every minute"), each value a button that opens an inline editor. What it
+    watches reads as the subject of the alert's title (the words before `above`, `per` and the
+    like), else the compared column in words (`error_share` reads `error share`); its editor
+    changes the column;
   - the replay of the latest version over 7 days or 24 hours, from the alert pages' replay route,
     drawn by the alert chart of `charts/`, with the threshold as a dashed line and a handle at its
     right to drag (or move with the arrow keys). The chart draws the line where the threshold is

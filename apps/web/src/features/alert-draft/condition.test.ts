@@ -6,8 +6,10 @@ import {
   everyWords,
   roundThreshold,
   thresholdWords,
+  watchWords,
   withBy,
   withEvery,
+  withField,
   withFor,
   withThreshold,
 } from './condition.ts';
@@ -45,6 +47,22 @@ describe('the condition as a sentence', () => {
     expect(withEvery(spec, '5m')).toMatchObject({ every: '5m', notify: { repeatEvery: '5m' } });
     for (const changed of [withFor(spec, '10m'), withEvery(spec, '5m')])
       expect(alertSpecSchema.safeParse(changed).success).toBe(true);
+  });
+
+  test('names what it watches by its title’s subject, else its column in words', () => {
+    const watched = (title: string, field?: string) =>
+      watchWords({ title, value: { ...spec.value, ...(field ? { field } : {}) } });
+    expect(watched('Checkout 5xx')).toBe('the checkout 5xx');
+    expect(watched('Error share per service', 'error_share')).toBe('the error share');
+    expect(watched('CPU usage above 90%')).toBe('the CPU usage');
+    expect(watched('The p99 latency is over 2s')).toBe('the p99 latency');
+    expect(watched(' ', 'errorShare')).toBe('the error share');
+    expect(watched(' ')).toBe('the value');
+  });
+
+  test('compares another column, or the first one', () => {
+    expect(withField(spec, ' errors ').value.field).toBe('errors');
+    expect(withField(withField(spec, 'errors'), '').value.field).toBeUndefined();
   });
 
   test('rounds a dragged threshold to three significant digits', () => {

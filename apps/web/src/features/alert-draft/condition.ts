@@ -63,14 +63,58 @@ export function thresholdWords(spec: AlertSpec, value?: number): string {
   return `${condition.op} ${alertValueText(spec, value ?? condition.value)}`;
 }
 
+/** Where the subject of an alert's title ends, such as before `above` in `Error share above 2%`. */
+const subjectEnd =
+  /\s+(?:above|below|over|under|exceeds|per|by|for|on|across|in|of each|is|[<>≥≤])(?:\s.*)?$/i;
+
 /**
- * What the draft watches, in words.
+ * What an alert's title is about: the words before a condition or a breakdown, lower case unless
+ * they start with an acronym.
+ *
+ * @param title - The title.
+ * @returns Such as `checkout error share` for `Checkout error share per service`.
+ */
+function titleSubject(title: string): string {
+  const subject = title.trim().replace(subjectEnd, '').trim();
+  return /^[A-Z][a-z]/.test(subject) ? subject[0]?.toLowerCase() + subject.slice(1) : subject;
+}
+
+/**
+ * A column's name as words.
+ *
+ * @param field - Such as `error_share` or `errorShare`.
+ * @returns Such as `error share`.
+ */
+function fieldWords(field: string): string {
+  return field
+    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+    .replace(/[_\-.]+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * What the alert watches, in words: the subject of its title, else its value's column as words.
  *
  * @param spec - The spec.
- * @returns Such as `errors`, from the value's field, or `the value`.
+ * @returns Such as `the checkout error share`, `the error share`, or `the value`.
  */
-export function watchWords(spec: AlertSpec): string {
-  return spec.value.field ?? 'the value';
+export function watchWords(spec: Pick<AlertSpec, 'title' | 'value'>): string {
+  const words = titleSubject(spec.title) || fieldWords(spec.value.field ?? '') || 'value';
+  return /^the\s/i.test(words) ? words : `the ${words}`;
+}
+
+/**
+ * The spec with another column compared.
+ *
+ * @param spec - The spec.
+ * @param text - The column; none for the first number column.
+ * @returns The new spec.
+ */
+export function withField(spec: AlertSpec, text: string): AlertSpec {
+  const field = text.trim();
+  const { field: _field, ...value } = spec.value;
+  return { ...spec, value: field === '' ? value : { ...value, field } };
 }
 
 /**
