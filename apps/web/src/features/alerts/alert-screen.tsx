@@ -3,17 +3,20 @@
  * the chart of its query, each series now, what happened, and where it notifies.
  */
 import type { AlertDetail } from '@quanthea/shared';
+import { useState } from 'react';
 import { Link, useLoaderData } from 'react-router';
 import { WarningIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import styles from './alert.module.css';
-import { AlertChartCard } from './alert-chart-card.tsx';
+import { AlertChartCard, useAlertReplay, windows } from './alert-chart-card.tsx';
 import { ChangePopover, MutePopover } from './alert-menus.tsx';
 import { Notifies, SeriesNow, WhatHappened } from './alert-sections.tsx';
 import { VersionsPopover } from './alert-versions.tsx';
-import type { AlertData } from './data.ts';
+import type { AlertData, ReplayWindow } from './data.ts';
 import { muteEnd, type StateTone, statePill } from './state-text.ts';
+import { UnsavedBar } from './unsaved-bar.tsx';
 import { useAlertChange } from './use-alert-change.ts';
+import { useTuning } from './use-tuning.ts';
 
 /** The pill tone of each state colour. */
 const pillTone: Readonly<Record<StateTone, 'danger' | 'draft' | 'ok' | 'neutral'>> = {
@@ -99,12 +102,23 @@ function Refusal() {
 export function AlertScreen() {
   const { alert } = useLoaderData() as AlertData;
   const now = Date.now();
+  const [window, setWindow] = useState<ReplayWindow>('24h');
+  const outcome = useAlertReplay(alert, window);
+  const tuning = useTuning(alert);
+  const name = windows.find((each) => each.id === window)?.name ?? window;
   return (
     <div className={styles.screen}>
       <AlertHeader alert={alert} now={now} />
+      <UnsavedBar alert={alert} tuning={tuning} outcome={outcome} window={name} />
       <div className={styles.main}>
         <Refusal />
-        <AlertChartCard alert={alert} />
+        <AlertChartCard
+          alert={alert}
+          tuning={tuning}
+          window={window}
+          onWindow={setWindow}
+          outcome={outcome}
+        />
         <div className={styles.columns}>
           <SeriesNow alert={alert} now={now} />
           <WhatHappened alert={alert} now={now} />

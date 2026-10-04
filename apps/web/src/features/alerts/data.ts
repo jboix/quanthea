@@ -7,6 +7,8 @@ import {
   type AlertListItem,
   type AlertReplay,
   type AlertSettings,
+  type AlertSpec,
+  activateAlertChangesEndpoint,
   activateAlertEndpoint,
   deactivateAlertEndpoint,
   getAlertEndpoint,
@@ -37,6 +39,7 @@ export type AlertIntent =
   | { readonly intent: 'mute'; readonly until: number | null }
   | { readonly intent: 'unmute' }
   | { readonly intent: 'activate'; readonly version: number }
+  | { readonly intent: 'activateChanges'; readonly basedOn: number; readonly spec: AlertSpec }
   | { readonly intent: 'deactivate' };
 
 /** What an intent answers. */
@@ -97,11 +100,15 @@ async function run(api: ApiClient, alertId: string, intent: AlertIntent): Promis
   else if (intent.intent === 'unmute') await api.call(unmuteAlertEndpoint, { params });
   else if (intent.intent === 'activate')
     await api.call(activateAlertEndpoint, { params, body: { version: intent.version } });
-  else await api.call(deactivateAlertEndpoint, { params });
+  else if (intent.intent === 'activateChanges') {
+    const body = { basedOn: intent.basedOn, spec: intent.spec };
+    await api.call(activateAlertChangesEndpoint, { params, body });
+  } else await api.call(deactivateAlertEndpoint, { params });
 }
 
 /**
- * The action of the alert page: mute, unmute, activate a version, deactivate.
+ * The action of the alert page: mute, unmute, activate a version or the changes made by hand,
+ * deactivate.
  *
  * @param api - The API client.
  * @returns The action. A refusal comes back as a message.

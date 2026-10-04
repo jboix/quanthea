@@ -6,6 +6,7 @@ import {
   type AlertReplay,
   type AlertSpec,
   type NotifiedSeries,
+  type ReplayThreshold,
   type ReplayTrack,
   replayAtThreshold,
 } from '@quanthea/shared';
@@ -40,19 +41,41 @@ export const maxChartSeries = 5;
  */
 export function seriesAt(replay: Replayed, spec: AlertSpec, threshold: number): TrackedSeries[] {
   const { condition } = spec;
-  const moved = condition.kind === 'threshold' && condition.value !== threshold;
-  return replay.series.map((series) => ({
-    key: series.key,
-    labels: series.labels,
+  if (condition.kind !== 'threshold' || condition.value === threshold) return asReplayed(replay);
+  return seriesUnder(replay, { ...condition, value: threshold }, spec.every);
+}
+
+/**
+ * Every series as the server replayed it.
+ *
+ * @param replay - The replay.
+ * @returns The series and how each behaved.
+ */
+export function asReplayed(replay: Replayed): TrackedSeries[] {
+  return replay.series.map(({ key, labels, ...track }) => ({ key, labels, track }));
+}
+
+/**
+ * Every series replayed again from its values under another condition: another threshold,
+ * operator or wait. A series that came without its values keeps the server's result.
+ *
+ * @param replay - The replay.
+ * @param condition - The condition to replay under.
+ * @param every - How often the alert is evaluated.
+ * @returns The series and how each would behave.
+ */
+export function seriesUnder(
+  replay: Replayed,
+  condition: ReplayThreshold,
+  every: string,
+): TrackedSeries[] {
+  return replay.series.map(({ key, labels, ...track }) => ({
+    key,
+    labels,
     track:
-      moved && condition.kind === 'threshold' && series.points.length > 0
-        ? replayAtThreshold(
-            series.points,
-            { ...condition, value: threshold },
-            spec.every,
-            replay.to,
-          )
-        : series,
+      track.points.length > 0
+        ? replayAtThreshold(track.points, condition, every, replay.to)
+        : track,
   }));
 }
 

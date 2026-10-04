@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { chartInputOf, firingSummary, maxChartSeries } from './replay-chart.ts';
+import { changedSummary, chartInputOf, firingSummary, maxChartSeries } from './replay-chart.ts';
 import { listedAlert } from './test-alerts.ts';
 
 /**
@@ -44,4 +44,13 @@ test('says how often and how long the alert fired over the window', () => {
   );
   const once = { ...replay, series: [series('a', 190 * 60_000, 1)] };
   expect(firingSummary(once, '7 d')).toBe('Fired once over the last 7 d, 3 h 10 min in all.');
+});
+
+test('says how often it would have fired with the changes not saved', () => {
+  expect(changedSummary([{ firings: 1, firingMs: 12 * 60_000 }], '24 h')).toBe(
+    'With the changes, it would have fired once over the last 24 h, 12 min in all.',
+  );
+  expect(changedSummary([], '6 h')).toBe(
+    'With the changes, it would not have fired over the last 6 h.',
+  );
 });

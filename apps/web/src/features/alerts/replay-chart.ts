@@ -59,3 +59,21 @@ export function firingSummary(replay: Replayed, window: string): string {
   const times = firings === 1 ? 'once' : `${firings} times`;
   return `Fired ${times} over the last ${window}, ${spanWords(total)} in all.`;
 }
+
+/**
+ * How often and how long the alert would have fired over the window with changes not saved.
+ *
+ * @param tracks - How each series would have behaved with the changes.
+ * @param window - The window's name, such as `24 h`.
+ * @returns Such as `With the changes, it would have fired once over the last 24 h, 12 min in all.`
+ */
+export function changedSummary(
+  tracks: readonly { readonly firings: number; readonly firingMs: number }[],
+  window: string,
+): string {
+  const firings = tracks.reduce((sum, each) => sum + each.firings, 0);
+  if (firings === 0) return `With the changes, it would not have fired over the last ${window}.`;
+  const total = tracks.reduce((sum, each) => sum + each.firingMs, 0);
+  const times = firings === 1 ? 'once' : `${firings} times`;
+  return `With the changes, it would have fired ${times} over the last ${window}, ${spanWords(total)} in all.`;
+}

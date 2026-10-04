@@ -251,8 +251,19 @@ the kit's HTTP client for every kind that speaks HTTP.
     (`charts/alert-option.ts`), and says how often it fired. The line sits at the threshold's
     exact value: an ECharts mark line rounds its value to two decimals unless told otherwise,
     which drew a threshold of 2.31% (0.0231) at 2%. It draws the 12 series that fired
-    longest. The line under it states the condition, the interval and the window; hand tuning
-    goes there.
+    longest. For analysts and viewers, and on an alert that is not active, the line under it
+    states the condition, the interval and the window.
+  - **Hand tuning**, for editors on an active alert. The chart is the draft pane's: the threshold
+    has a handle to drag, and the condition under it is the draft pane's sentence, with the
+    threshold, the wait and the interval to change (what it watches and its series stay as
+    words). A change is never applied: the page holds it unsaved (`use-tuning.ts`), the chart
+    replays the values again under it in the browser (`seriesUnder`), with the saved threshold
+    faint, and an amber bar under the header says what it would do: "Not saved: threshold 2% →
+    2.5%. Last 7 days: would have fired 1 time instead of 2. Right now: checkout-svc would stop
+    firing." The window is the chart's; right now comes from each series' current value and
+    state (`unsaved.ts`). Discard drops it. Activate as v4 sends the active spec with the
+    changes to `POST /api/alerts/:id/versions`, which saves and activates it; once another
+    version is active, changes held from the old one lapse.
   - Each series now (state, value, since), What happened (the changes of state, whether each
     notified, and the activations, deactivations, mutes and unmutes from the audit log, the latest
     first), and Notifies (the channels by name and kind, the latest messages with their outcome).
