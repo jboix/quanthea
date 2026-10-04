@@ -11,14 +11,17 @@ import {
   type NotifiedSeries,
   type Principal,
   type Role,
+  type SpecChange,
 } from '@quanthea/shared';
 import { refuseSpec } from '../dashboards/context.ts';
 import type { AlertRow, AlertVersionRow } from '../db/alert-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import {
+  type ActiveChange,
   type AlertsContext,
   type AlertsDependencies,
   activate,
+  activateChange,
   alertOrThrow,
   mute,
   type NewVersion,
@@ -90,6 +93,19 @@ export interface Alerts {
    * @returns The alert.
    */
   activate(id: string, version: number, actor: string): Promise<AlertSummary>;
+  /**
+   * Saves changes made by hand to the active version as a new version, and activates it.
+   *
+   * @param id - The alert.
+   * @param change - The active version it starts from, the changed spec and a note.
+   * @param actor - Who changes it.
+   * @returns The new version and the fields that changed.
+   */
+  activateChange(
+    id: string,
+    change: ActiveChange,
+    actor: string,
+  ): Promise<{ version: number; changes: SpecChange[] }>;
   /**
    * Stops evaluating an alert.
    *
@@ -290,6 +306,7 @@ export function createAlerts(dependencies: AlertsDependencies): Alerts {
     get: (id, role) => detailOf(context, id, role),
     check: (spec) => checkAlert(context, spec, context.now()),
     ...changeMethods(context),
+    activateChange: (id, change, actor) => activateChange(context, id, change, actor),
     replaySpec: async (spec, request) => replayAlert(context, replayable(context, spec), request),
     replayVersion: async (id, version, request, role) => {
       const row = replayedVersion(context, id, version, role);

@@ -1,9 +1,11 @@
 /**
- * The endpoints of an alert thread's draft pane, for editors: a hand edit saves the person's own
- * change as a new draft version and adds a card to the conversation, which the agent reads next
- * turn; a test sends a version's message to its channels.
+ * The endpoints of hand edits, for editors. A hand edit in an alert thread's draft pane saves the
+ * person's own change as a new draft version; changes made on a live alert's page are saved as a
+ * new version and activated. Either adds a card to the conversation that wrote the alert, which
+ * the agent reads next turn. A test sends a version's message to its channels.
  */
 import {
+  activateAlertChangesEndpoint,
   alertSpecChanges,
   alertSpecSchema,
   handEditAlertEndpoint,
@@ -13,6 +15,7 @@ import {
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Alerts } from '../../alerts/alerts.ts';
+import { type ActiveChange, handEditNote } from '../../alerts/changes.ts';
 import { AppError } from '../../lib/errors.ts';
 import { newId } from '../../lib/ids.ts';
 import type { Threads } from '../../threads/threads.ts';
@@ -21,12 +24,24 @@ import { mountEndpoint } from '../endpoint.ts';
 import { checkThread } from '../ownership.ts';
 import { actorOf, signedIn } from '../principal.ts';
 
-/** What the draft pane's endpoints need. */
+/** What the hand edits' endpoints need. */
 export interface AlertDraftRouteServices {
   /** The threads, for the conversation. */
   readonly threads: Threads;
   /** The alerts. */
   readonly alerts: Alerts;
+}
+
+/** A hand edit, as its card in the conversation shows it. */
+interface HandEdit {
+  /** The alert. */
+  readonly alertId: string;
+  /** The version it started from. */
+  readonly from: number;
+  /** The version it saved. */
+  readonly to: number;
+  /** The fields that changed. */
+  readonly changes: readonly SpecChange[];
 }
 
 /**
@@ -47,13 +62,17 @@ function latestDraft(services: AlertDraftRouteServices, threadId: string) {
 }
 
 /**
- * The note of a hand edit: the fields it changed.
+ * Adds the hand-edit card to a conversation, as a message of the person who made it.
  *
- * @param changes - The changes.
- * @returns Such as `By hand: condition.value, for`.
+ * @param threads - The threads.
+ * @param threadId - The conversation.
+ * @param data - The versions and the changes.
+ * @param actor - Who made it.
  */
-function noteOf(changes: readonly SpecChange[]): string {
-  return `By hand: ${changes.map((change) => change.path).join(', ')}`.slice(0, 200);
+function addCard(threads: Threads, threadId: string, data: HandEdit, actor: string): void {
+  const message = { id: `hand-${newId()}`, role: 'user', parts: [{ type: 'data-handEdit', data }] };
+  const { messages } = threads.get(threadId);
+  threads.saveMessages(threadId, [...(messages as never[]), message], actor);
 }
 
 /**
@@ -77,18 +96,57 @@ function handEdit(
   const parsed = alertSpecSchema.safeParse(body.spec);
   const changes = alertSpecChanges(draft.spec, parsed.success ? parsed.data : body.spec);
   if (changes.length === 0) throw new AppError('bad_request', 'Nothing changed.');
-  const note = body.note ?? noteOf(changes);
+  const note = body.note ?? handEditNote(changes);
   const input = { alertId: draft.alertId, spec: body.spec, note, threadId };
   const { version } = services.alerts.saveVersion(input, actorOf(principal));
   const data = { alertId: draft.alertId, from: draft.version, to: version, changes };
-  const message = { id: `hand-${newId()}`, role: 'user', parts: [{ type: 'data-handEdit', data }] };
-  const { messages } = services.threads.get(threadId);
-  services.threads.saveMessages(threadId, [...(messages as never[]), message], actorOf(principal));
+  addCard(services.threads, threadId, data, actorOf(principal));
   return { alertId: draft.alertId, version, changes };
 }
 
 /**
- * Mounts the draft pane's endpoints.
+ * Saves changes made on a live alert's page as a new version and activates it. When a
+ * conversation wrote the alert and is not in the bin, it gets the hand-edit card.
+ *
+ * @param services - The threads and alerts.
+ * @param alertId - The alert.
+ * @param change - The active version it starts from, the changed spec and a note.
+ * @param actor - Who changes it.
+ * @returns The alert, the new version and the changes.
+ */
+async function activateChanges(
+  services: AlertDraftRouteServices,
+  alertId: string,
+  change: ActiveChange,
+  actor: string,
+) {
+  const { threadId } = services.alerts.get(alertId, 'editor');
+  const { version, changes } = await services.alerts.activateChange(alertId, change, actor);
+  const data = { alertId, from: change.basedOn, to: version, changes };
+  if (threadId !== null && isOpen(services.threads, threadId))
+    addCard(services.threads, threadId, data, actor);
+  return { alertId, version, changes };
+}
+
+/**
+ * Whether a thread is open: neither in the bin nor deleted for good.
+ *
+ * @param threads - The threads.
+ * @param threadId - The thread.
+ * @returns Whether it is open.
+ */
+function isOpen(threads: Threads, threadId: string): boolean {
+  try {
+    threads.row(threadId);
+    return true;
+  } catch (error) {
+    if (error instanceof AppError && error.code === 'not_found') return false;
+    throw error;
+  }
+}
+
+/**
+ * Mounts the hand edits' endpoints.
  *
  * @param app - The app.
  * @param services - The threads and alerts.
@@ -98,6 +156,11 @@ export function mountAlertDraftEndpoints(app: Hono<AppEnv>, services: AlertDraft
     access: 'editor',
     handle: ({ params, body, principal }) =>
       handEdit(services, params.threadId, body, signedIn(principal)),
+  });
+  mountEndpoint(app, activateAlertChangesEndpoint, {
+    access: 'editor',
+    handle: ({ params, body, principal }) =>
+      activateChanges(services, params.alertId, body, actorOf(principal)),
   });
   mountEndpoint(app, testAlertEndpoint, {
     access: 'editor',

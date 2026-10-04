@@ -3,7 +3,15 @@
  * Versions are never rewritten. Activating checks the spec again and runs its query once, and
  * holds to the cap of active alerts per connector.
  */
-import { type AlertSettings, type AlertSpec, hasRole, type Principal } from '@quanthea/shared';
+import {
+  type AlertSettings,
+  type AlertSpec,
+  alertSpecChanges,
+  alertSpecSchema,
+  hasRole,
+  type Principal,
+  type SpecChange,
+} from '@quanthea/shared';
 import type { ConnectorLookup } from '../dashboards/check-queries.ts';
 import { refuseSpec } from '../dashboards/context.ts';
 import type { AlertActivityRepository } from '../db/alert-activity.ts';
@@ -54,6 +62,16 @@ export interface NewVersion {
   readonly note?: string | null | undefined;
   /** The conversation that made it, for a new alert. */
   readonly threadId?: string | null | undefined;
+}
+
+/** A change made by hand to an active alert. */
+export interface ActiveChange {
+  /** The active version it starts from. */
+  readonly basedOn: number;
+  /** The whole spec with the change, as JSON. */
+  readonly spec: unknown;
+  /** What changed, in words; the changed fields when left out. */
+  readonly note?: string | undefined;
 }
 
 /** The longest an analyst may mute an alert: seven days. */
@@ -145,6 +163,66 @@ export async function activate(
   checkCap(context, id, check.spec);
   context.repository.activate(id, version, context.now());
   context.audit.append({ actor, action: 'alert.activate', target: id, detail: { version } });
+}
+
+/**
+ * Saves changes to an alert's active version as a new version and activates it. The changed spec
+ * is checked and its query run once before anything is saved, so a refusal leaves no version.
+ *
+ * @param context - The service context.
+ * @param id - The alert.
+ * @param change - The active version it starts from, the changed spec and a note.
+ * @param actor - Who changes it.
+ * @returns The new version and the fields that changed.
+ * @throws {AppError} `conflict` when another version is active now, `bad_request` when nothing
+ *   changed or the spec is invalid, `not_found`.
+ */
+export async function activateChange(
+  context: AlertsContext,
+  id: string,
+  change: ActiveChange,
+  actor: string,
+): Promise<{ version: number; changes: SpecChange[] }> {
+  const active = activeVersionOf(context, id, change.basedOn);
+  const parsed = alertSpecSchema.safeParse(change.spec);
+  const changes = alertSpecChanges(active, parsed.success ? parsed.data : change.spec);
+  if (changes.length === 0) throw new AppError('bad_request', 'Nothing changed.');
+  const check = await checkAlert(context, change.spec, context.now());
+  if (!check.ok) refuseSpec('The changed alert is invalid.', check.issues);
+  const note = change.note ?? handEditNote(changes);
+  const { version } = saveVersion(context, { alertId: id, spec: change.spec, note }, actor);
+  await activate(context, id, version, actor);
+  return { version, changes };
+}
+
+/**
+ * The spec of an alert's active version, which must be the one a change starts from.
+ *
+ * @param context - The service context.
+ * @param id - The alert.
+ * @param basedOn - The version the change starts from.
+ * @returns The active version's spec.
+ * @throws {AppError} `conflict` when it is not the active version, `not_found`.
+ */
+function activeVersionOf(context: AlertsContext, id: string, basedOn: number): unknown {
+  const alert = alertOrThrow(context, id);
+  const row = context.repository.version(id, basedOn);
+  if (alert.activeVersion !== basedOn || !row)
+    throw new AppError(
+      'conflict',
+      `v${basedOn} is no longer the active version. Reload the alert.`,
+    );
+  return row.spec;
+}
+
+/**
+ * The note of a change made by hand: the fields it changed.
+ *
+ * @param changes - The changes.
+ * @returns Such as `By hand: condition.value, condition.for`.
+ */
+export function handEditNote(changes: readonly SpecChange[]): string {
+  return `By hand: ${changes.map((change) => change.path).join(', ')}`.slice(0, 200);
 }
 
 /**

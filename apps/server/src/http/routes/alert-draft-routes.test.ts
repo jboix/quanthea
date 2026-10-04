@@ -121,6 +121,85 @@ describe('a hand edit of an alert draft', () => {
   });
 });
 
+describe('changes made on a live alert’s page', () => {
+  /**
+   * Saves an alert in the thread and activates its first version.
+   *
+   * @param thread - The thread that writes it, or `null` for none.
+   * @returns The alert.
+   */
+  async function liveAlert(thread: string | null = threadId) {
+    const input = { spec: spec(), ...(thread ? { threadId: thread } : {}) };
+    const { alertId } = fixture.alerts.saveVersion(input, 'editor-1');
+    await fixture.alerts.activate(alertId, 1, 'editor-1');
+    return alertId;
+  }
+
+  test('are saved as a version, activated, and told to the conversation', async () => {
+    const alertId = await liveAlert();
+    // Another editor tunes it: the alert is no one's, the card goes to its conversation.
+    const response = await client(otherEditor)(`/api/alerts/${alertId}/versions`, {
+      basedOn: 1,
+      spec: { ...spec(3), condition: { kind: 'threshold', op: 'above', value: 3, for: '5m' } },
+    });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ alertId, version: 2 });
+    expect((response.body.changes as { path: string }[]).map((each) => each.path)).toEqual([
+      'condition.value',
+      'condition.for',
+    ]);
+    const alert = fixture.alerts.get(alertId, 'editor');
+    expect(alert.activeVersion).toBe(2);
+    expect(alert.versions[0]).toMatchObject({
+      version: 2,
+      note: expect.stringContaining('By hand'),
+    });
+    const last = fixture.threads.get(threadId).messages.at(-1);
+    expect(last).toMatchObject({
+      role: 'user',
+      parts: [{ type: 'data-handEdit', data: { alertId, from: 1, to: 2 } }],
+    });
+  });
+
+  test('are for editors only', async () => {
+    const alertId = await liveAlert();
+    const path = `/api/alerts/${alertId}/versions`;
+    const viewer: Principal = { id: 'viewer-1', name: 'Vic', role: 'viewer' };
+    expect((await client(analyst)(path, { basedOn: 1, spec: spec(3) })).status).toBe(403);
+    expect((await client(viewer)(path, { basedOn: 1, spec: spec(3) })).status).toBe(403);
+    expect(fixture.alerts.get(alertId, 'editor').versions).toHaveLength(1);
+  });
+
+  test('refuse no change, an invalid spec, a failing query, or a stale version', async () => {
+    const alertId = await liveAlert();
+    const call = client(editor);
+    const path = `/api/alerts/${alertId}/versions`;
+    expect((await call(path, { basedOn: 1, spec: spec() })).status).toBe(400);
+    const broken = { ...spec(3), message: { title: '{nope}', body: 'x' } };
+    expect((await call(path, { basedOn: 1, spec: broken })).status).toBe(400);
+    const failing = { ...spec(3), query: { ...(spec().query as object), sql: 'SELECT * FROM x' } };
+    expect((await call(path, { basedOn: 1, spec: failing })).status).toBe(400);
+    expect(fixture.alerts.get(alertId, 'editor').versions).toHaveLength(1);
+    expect((await call(path, { basedOn: 1, spec: spec(3) })).status).toBe(200);
+    expect((await call(path, { basedOn: 1, spec: spec(2) })).status).toBe(409);
+    expect((await call('/api/alerts/nope/versions', { basedOn: 1, spec: spec(2) })).status).toBe(
+      404,
+    );
+  });
+
+  test('add no card for an alert without a conversation', async () => {
+    const alertId = await liveAlert(null);
+    const before = fixture.threads.get(threadId).messages.length;
+    const response = await client(editor)(`/api/alerts/${alertId}/versions`, {
+      basedOn: 1,
+      spec: spec(3),
+    });
+    expect(response.status).toBe(200);
+    expect(fixture.alerts.get(alertId, 'editor').activeVersion).toBe(2);
+    expect(fixture.threads.get(threadId).messages).toHaveLength(before);
+  });
+});
+
 describe('a test notification', () => {
   test('is for editors, and refused for a version that notifies no one', async () => {
     const quiet = { ...spec(), channels: [] };

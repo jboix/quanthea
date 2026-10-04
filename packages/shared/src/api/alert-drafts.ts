@@ -1,6 +1,7 @@
 /**
- * The endpoints of an alert thread's draft pane: a hand edit saves a new draft version and tells
- * the conversation, and a test sends a version's message to its channels as `alert.test`.
+ * The endpoints of hand edits: a hand edit in an alert thread's draft pane saves a new draft
+ * version and tells the conversation, changes made on a live alert's page are saved and activated,
+ * and a test sends a version's message to its channels as `alert.test`.
  */
 import { z } from 'zod';
 import { specChangeSchema } from '../threads.ts';
@@ -14,6 +15,29 @@ export const handEditAlertEndpoint = defineEndpoint({
   params: z.object({ threadId: z.string().min(1) }),
   body: z.object({
     /** The whole spec as the person left it; checked like any version. */
+    spec: z.unknown(),
+    /** What changed, in words; the changed fields when left out. */
+    note: z.string().min(1).max(200).optional(),
+  }),
+  output: z.object({
+    alertId: z.string(),
+    version: z.int(),
+    changes: z.array(specChangeSchema),
+  }),
+});
+
+/**
+ * Saves the person's own changes to a live alert, made on its page, as a new version, and
+ * activates it. The conversation that wrote the alert, if any, gets the hand-edit card.
+ */
+export const activateAlertChangesEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/alerts/:alertId/versions',
+  params: z.object({ alertId: z.string().min(1).max(64) }),
+  body: z.object({
+    /** The active version the changes start from; a conflict once another is active. */
+    basedOn: z.int().min(1),
+    /** The whole spec with the changes; checked and run once like any version. */
     spec: z.unknown(),
     /** What changed, in words; the changed fields when left out. */
     note: z.string().min(1).max(200).optional(),

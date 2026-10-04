@@ -624,6 +624,12 @@ number (`latestVersion` is `null`). `alerts/changes.ts` and `alerts/deactivate.t
   refuses it), and
   holds to the cap of active alerts per connector (`maxActivePerConnector`, Settings, 50 by
   default; `conflict` past it). It resumes evaluation.
+- `activateChange` takes changes an editor made by hand on a live alert's page: the whole spec
+  and the active version it starts from (`conflict` once another version is active). It refuses
+  a spec that changes nothing, checks it and runs its query once (`checkAlert`), then saves it as
+  a new version noted `By hand: condition.value` and activates it, so a refusal leaves no version.
+  The route (`POST /api/alerts/:id/versions`) then adds the hand-edit card to the conversation
+  that wrote the alert, unless it has none or it is in the bin.
 - Deactivating stops evaluation, keeps the active version and ends the series: each that was not ok
   records its change to ok, and each that announced firing sends `alert.resolved` (when the version
   asks for it and the alert is not muted), so a channel such as PagerDuty closes its incident.
@@ -1091,7 +1097,9 @@ and nothing fills it with a model later.
 
 The person's own changes to the draft feed the conversation: a hand edit stores a user message
 with a `data-handEdit` part (the versions and the fields that changed), and the next turn reads it
-as text, "I changed the alert by hand, v1 → v2: condition.value: 0.03 → 0.02". Each step goes to
+as text, "I changed the alert by hand, v1 → v2: condition.value: 0.03 → 0.02". Changes an editor
+activates from the alert's page add the same card, so the agent knows the version it continues
+from. Each step goes to
 the usage ledger with the `alert` feature.
 
 ### Answers about a dashboard
@@ -1976,6 +1984,7 @@ indicative; the contract files are the source of truth.
 | `POST /alerts/:id/versions/:v/replay` (below editor: a version ever active)                       | how a version fired over a past window       | viewer   |
 | `POST /alerts/:id/versions/:v/test` (a series to fill the values with)                            | send the version's message as `alert.test`   | editor   |
 | `POST /threads/:id/alert-draft` (the whole spec)                                                  | a hand edit: a new draft version and a card  | editor   |
+| `POST /alerts/:id/versions` (the active version it starts from, the whole spec)                   | changes from the alert page, activated       | editor   |
 | `GET/PUT /settings/alerts`                                                                        | the most alerts active per connector         | admin    |
 
 Errors use one JSON shape: `{ error: { code, message, details? } }`. `code` is a stable string,
