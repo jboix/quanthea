@@ -22,6 +22,7 @@ export {
   answerCitationSchema,
   answerDataSchemas,
 } from './answers.ts';
+export * from './api/alerts.ts';
 export {
   changePasswordEndpoint,
   completeSetupEndpoint,
@@ -331,6 +332,7 @@ export {
   roleSchema,
   roles,
 } from './roles.ts';
+export * from './spec/alert.ts';
 export {
   type Annotation,
   type DashboardSpec,
