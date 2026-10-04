@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { type Observation, type SeriesState, stepSeries } from './state.ts';
+import { type Observation, type SeriesState, stepSeries } from './state-machine.ts';
 
 const minute = 60_000;
 const rule = { forMs: 5 * minute, graceMs: 3 * minute };

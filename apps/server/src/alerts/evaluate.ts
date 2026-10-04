@@ -3,7 +3,13 @@
  * state machine, saves the new states and the changes, then sends the notifications that are due.
  * No model is involved, and a mute stops the notifications only.
  */
-import type { AlertSpec, Notification } from '@quanthea/shared';
+import {
+  type AlertSpec,
+  type Notification,
+  type SeriesState,
+  stepSeries,
+  type Transition,
+} from '@quanthea/shared';
 import type { AlertRow } from '../db/alert-repository.ts';
 import type { AlertStateRepository, EventRow, SeriesRow } from '../db/alert-state-repository.ts';
 import { newId } from '../lib/ids.ts';
@@ -12,7 +18,6 @@ import { buildNotification, decideNotification, type NotifyDecision } from './no
 import { observe, type SeriesObservation, wholeAlertKey } from './observe.ts';
 import { ruleOf } from './replay-core.ts';
 import { type AlertQueryDependencies, runAlertQuery } from './run-query.ts';
-import { type SeriesState, stepSeries, type Transition } from './state.ts';
 import { windowAt } from './validate.ts';
 
 /** Sends a notification to channels. The notification channels provide it. */

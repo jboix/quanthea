@@ -589,7 +589,8 @@ number (`latestVersion` is `null`). `alerts/changes.ts` and `alerts/deactivate.t
   most seven days ahead; an editor may also mute until someone unmutes. A series still firing when
   the mute ends notifies then.
 
-**The state machine** (`alerts/state.ts`, pure). Each evaluation observes each series and moves it:
+**The state machine** (`alerts/state-machine.ts` in `@quanthea/shared`, pure, so the browser runs
+the same rules). Each evaluation observes each series and moves it:
 
 ```
 ok ──holds──▶ pending ──held for `for`──▶ firing
@@ -637,6 +638,12 @@ and the spikes too short to fire (the condition held, but not for `for`), with t
 without a time column, such as a SQL query that is not grouped by time, cannot be replayed, and the
 replay says why. A replay covers at most 31 days and 20,000 steps; past 50,000 points, the series
 that fired least come without their points.
+
+The part of the replay that feeds the state machine and collects the firings and the spikes
+(`alerts/replay-steps.ts` in `@quanthea/shared`) runs in the browser too: `replayAtThreshold`
+replays the values a replay returned at another threshold, with the same rules, so a person
+dragging the threshold sees the new counts at once. A step with no value counts as a series the
+result left out. A test checks it gives what the server gives.
 
 **The purge job** deletes the changes of state older than 90 days.
 

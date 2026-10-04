@@ -3,9 +3,8 @@
  * over the window ending now and reads it as the evaluator would. The caller decides what to do
  * with the issues; the series found show what the alert would watch.
  */
-import type { AlertSpec } from '@quanthea/shared';
+import { type AlertSpec, thresholdHolds } from '@quanthea/shared';
 import type { SpecIssue } from '../dashboards/issues.ts';
-import { thresholdHolds } from './observe.ts';
 import { type AlertQueryDependencies, runAlertQuery } from './run-query.ts';
 import { reducePoints, seriesOf } from './series.ts';
 import { type AlertValidationContext, validateAlertSpec, windowAt } from './validate.ts';

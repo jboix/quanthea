@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { replayAtThreshold } from '@quanthea/shared';
 import { replaySeries } from './replay-core.ts';
 import { type ObservedSeries, seriesKeyOf } from './series.ts';
 import { minute, spec } from './test/fixtures.ts';
@@ -82,5 +83,30 @@ describe('replaying a no-data condition', () => {
     const [series] = replaySeries(noData, [stops], window);
     expect(series?.key).toBe('');
     expect(series?.firing).toEqual([{ from: 11 * minute, to: 20 * minute, ongoing: true }]);
+  });
+});
+
+describe('replaying again at another threshold, as the browser does', () => {
+  // A wavy series with a gap, so the window, the grace and the spikes all matter.
+  const values = Array.from({ length: 41 }, (_unused, at) =>
+    at >= 22 && at <= 24 ? null : 3 + 4 * Math.sin(at / 3) + (at % 5),
+  );
+  const series = perMinute({ service: 'checkout' }, values);
+  const long = { from: 0, to: 40 * minute, stepMs: minute };
+
+  test.each([2, 4.5, 6, 8])('matches the server at %p', (threshold) => {
+    const condition = { kind: 'threshold', op: 'above', value: 5, for: '2m' } as const;
+    const base = spec({ condition, lookback: '2m' });
+    const [first] = replaySeries(base, [series], long);
+    const moved = spec({ condition: { ...condition, value: threshold }, lookback: '2m' });
+    const [server] = replaySeries(moved, [series], long);
+    const browser = replayAtThreshold(
+      first?.points ?? [],
+      { op: 'above', value: threshold, for: '2m' },
+      moved.every,
+      long.to,
+    );
+    const { key: _key, labels: _labels, ...expected } = server ?? { key: '', labels: {} };
+    expect(browser).toEqual(expected as typeof browser);
   });
 });

@@ -3,9 +3,8 @@
  * condition. The alert as a whole is the series with the empty key: a failed query and the
  * `no_data` condition are observed there.
  */
-import type { AlertSpec, Frame } from '@quanthea/shared';
+import { type AlertSpec, type Frame, type Observation, thresholdHolds } from '@quanthea/shared';
 import { type ObservedSeries, reducePoints, seriesOf } from './series.ts';
-import type { Observation } from './state.ts';
 
 /** The key of the series that stands for the alert as a whole. */
 export const wholeAlertKey = '';
@@ -27,21 +26,6 @@ export interface EvaluationObservations {
   readonly series: ReadonlyMap<string, SeriesObservation>;
   /** Whether series were dropped over the cap. */
   readonly truncated: boolean;
-}
-
-/**
- * Whether a threshold condition holds for a value.
- *
- * @param condition - The condition.
- * @param value - The value, if any.
- * @returns `true` when the value is past the threshold.
- */
-export function thresholdHolds(
-  condition: Extract<AlertSpec['condition'], { kind: 'threshold' }>,
-  value: number | null,
-): boolean {
-  if (value === null) return false;
-  return condition.op === 'above' ? value > condition.value : value < condition.value;
 }
 
 /**
