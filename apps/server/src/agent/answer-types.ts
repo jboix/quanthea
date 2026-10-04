@@ -82,6 +82,8 @@ export type AnswerOutcome =
   | {
       readonly ok: false;
       readonly message: string;
+      /** What the last refused answer was told to fix, when its checks refused it. */
+      readonly issues?: readonly string[];
       readonly evidence: readonly AnswerEvidence[];
       readonly usage: TurnUsage;
     };

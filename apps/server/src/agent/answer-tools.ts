@@ -35,6 +35,8 @@ export interface AnswerState {
   given: { readonly text: string; readonly citations: readonly AnswerCitation[] } | undefined;
   /** How many answers failed their checks. */
   failedAnswers: number;
+  /** What the last failed answer was told to fix, for the record of a failure. */
+  lastIssues?: readonly string[];
   /** What the answer proposes to watch next, about a report's run. */
   followUps: readonly FollowUp[];
 }
@@ -317,6 +319,7 @@ async function checkAnswer(
     return { ok: true };
   }
   context.state.failedAnswers += 1;
+  context.state.lastIssues = issues;
   return { ok: false, issues };
 }
 

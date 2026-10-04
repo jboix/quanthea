@@ -58,7 +58,7 @@ function keptOf(question: string, outcome: AnswerOutcome, tally: Tally): RunAnsw
     return {
       question,
       ok: false,
-      message: outcome.message,
+      message: [outcome.message, ...(outcome.issues ?? [])].join(' '),
       citations: [],
       evidence,
       followUps: [],

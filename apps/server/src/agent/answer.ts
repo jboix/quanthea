@@ -275,7 +275,8 @@ function outcomeOf(prepared: PreparedAnswer, failure?: string): AnswerOutcome {
     (state.failedAnswers > 0
       ? 'The answer did not hold up against its evidence, even after a repair. Try asking more narrowly.'
       : 'No answer came within the limits of one answer. Try asking more narrowly.');
-  return { ok: false, message, evidence, usage };
+  const issues = failure === undefined && state.lastIssues ? { issues: state.lastIssues } : {};
+  return { ok: false, message, ...issues, evidence, usage };
 }
 
 /**
