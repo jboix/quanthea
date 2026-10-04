@@ -132,11 +132,30 @@ const resultTtlMs = 15_000;
 const maxCachedResults = 500;
 
 /**
+ * How the dashboards reach the data sources: the connector lookup, an opener and the executor.
+ *
+ * @param connections - The connections.
+ * @param executor - The shared query executor.
+ * @returns The lookup, the opener and the executor.
+ */
+function sourcesOf(
+  connections: ReturnType<typeof createConnections>,
+  executor: ReturnType<typeof createQueryExecutor>,
+) {
+  return {
+    lookup: connections.lookup,
+    openSource: async (name: string) => (await connections.open(name)).source,
+    executor,
+  };
+}
+
+/**
  * The services over the data sources: connectors, the query executor, dashboards, their snapshots,
  * questions and explanations, and the model's view of the connectors, which share one executor
- * and its cache.
+ * and its cache. They run on the same clock as the accounts, so a test or the evals can fix
+ * the time.
  *
- * @param dependencies - The database, the connector kinds and the secret box.
+ * @param dependencies - The database, the connector kinds, the secret box and the clock.
  * @param audit - The audit log.
  * @returns The data services, and the notification channels the alerts send to.
  */
@@ -144,18 +163,17 @@ function dataServices(
   dependencies: ServiceDependencies,
   audit: ReturnType<typeof createAuditRepository>,
 ) {
-  const { database, kinds, secretBox } = dependencies;
+  const { database, kinds, secretBox, now } = dependencies;
   const repository = createConnectorRepository(database);
   const connections = createConnections({ kinds, repository, audit, secretBox });
   const executor = createQueryExecutor(
     createResultCache({ ttlMs: resultTtlMs, maxEntries: maxCachedResults }),
   );
   const dashboardDependencies = {
+    ...sourcesOf(connections, executor),
     repository: createDashboardRepository(database),
     audit,
-    lookup: connections.lookup,
-    openSource: async (name: string) => (await connections.open(name)).source,
-    executor,
+    ...(now ? { now } : {}),
   };
   const dashboards = createDashboards(dashboardDependencies);
   const snapshots = createSnapshots({
