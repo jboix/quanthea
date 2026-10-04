@@ -168,7 +168,8 @@ function countStep(context: RunContext) {
     context.counters.usage = withStep(context.counters.usage, model, usage);
     const { threadId, providerName: provider } = context;
     const tokens = tokensOf(usage);
-    context.usage.recordStep({ threadId, provider, model, job, feature: 'building', tokens });
+    const feature = context.threads.row(threadId).kind === 'alert' ? 'alert' : 'building';
+    context.usage.recordStep({ threadId, provider, model, job, feature, tokens });
   };
 }
 

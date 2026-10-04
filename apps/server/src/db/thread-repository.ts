@@ -1,6 +1,12 @@
 /** Reads and writes threads, their messages and their plans. */
 import type { Database } from 'bun:sqlite';
-import { type ThreadQueries, threadQueriesSchema } from '@quanthea/shared';
+import {
+  type AlertSeed,
+  alertSeedSchema,
+  type ThreadKind,
+  type ThreadQueries,
+  threadQueriesSchema,
+} from '@quanthea/shared';
 
 /** A thread state, as stored. */
 type StoredState = 'idle' | 'plan_pending' | 'building' | 'ready';
@@ -23,6 +29,12 @@ export interface ThreadRow {
   readonly providerId: string | null;
   /** The query builders and saved queries it uses. */
   readonly queries: ThreadQueries;
+  /** What it makes: a dashboard or an alert. */
+  readonly kind: ThreadKind;
+  /** For an alert thread, the panel it starts from. */
+  readonly seed: AlertSeed | null;
+  /** The alert it makes, once it saved a first version; read, never written here. */
+  readonly alertId: string | null;
   /** Creation time, in epoch milliseconds. */
   readonly createdAt: number;
   /** Last change, in epoch milliseconds. */
@@ -173,6 +185,12 @@ interface StoredThread {
   provider_id: string | null;
   /** The queries, as JSON. */
   recipes: string | null;
+  /** What it makes. */
+  kind: ThreadKind;
+  /** The panel an alert thread starts from, as JSON. */
+  seed: string | null;
+  /** The alert it made, from the alerts that name it. */
+  alert_id: string | null;
   /** Creation time. */
   created_at: number;
   /** Last change. */
@@ -229,6 +247,9 @@ function toThread(stored: StoredThread): ThreadRow {
     createdBy: stored.created_by,
     providerId: stored.provider_id,
     queries: queriesOf(stored.recipes),
+    kind: stored.kind,
+    seed: seedOf(stored.seed),
+    alertId: stored.alert_id,
     createdAt: stored.created_at,
     updatedAt: stored.updated_at,
   };
@@ -252,6 +273,21 @@ function toPlan(stored: StoredPlan): PlanRow {
   };
 }
 
+/** A thread's columns, with the alert it made: the first one that names it. */
+const threadColumns = `t.*, (SELECT a.id FROM alerts a WHERE a.thread_id = t.id
+  ORDER BY a.created_at, a.id LIMIT 1) AS alert_id`;
+
+/**
+ * Reads a stored seed.
+ *
+ * @param stored - The JSON, or `NULL`.
+ * @returns The seed, or `null` when there is none or it no longer parses.
+ */
+function seedOf(stored: string | null): AlertSeed | null {
+  if (stored === null) return null;
+  return alertSeedSchema.safeParse(JSON.parse(stored)).data ?? null;
+}
+
 /**
  * Prepares the statements on threads.
  *
@@ -262,14 +298,15 @@ function threadStatements(database: Database) {
   return {
     insert: database.query(
       `INSERT INTO threads (id, title, state, dashboard_id, tokens_used, created_by, provider_id,
-         recipes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         recipes, kind, seed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     // A thread in the bin is out of reach until it is restored (db/thread-bin.ts).
     selectOne: database.query<StoredThread, [string]>(
-      'SELECT * FROM threads WHERE id = ? AND deleted_at IS NULL',
+      `SELECT ${threadColumns} FROM threads t WHERE t.id = ? AND t.deleted_at IS NULL`,
     ),
     selectAll: database.query<StoredThread, []>(
-      'SELECT * FROM threads WHERE deleted_at IS NULL ORDER BY updated_at DESC, id DESC',
+      `SELECT ${threadColumns} FROM threads t WHERE t.deleted_at IS NULL
+       ORDER BY t.updated_at DESC, t.id DESC`,
     ),
     update: database.query(
       `UPDATE threads SET title = coalesce(?, title), state = coalesce(?, state),
@@ -308,6 +345,8 @@ function threadValues(row: ThreadRow) {
     createdBy,
     providerId,
     JSON.stringify(row.queries),
+    row.kind,
+    row.seed === null ? null : JSON.stringify(row.seed),
     row.createdAt,
     row.updatedAt,
   ] as const;

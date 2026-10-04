@@ -1,5 +1,6 @@
 /** The thread endpoints: list, create, read and delete threads, decide plans, and undo. Editors. */
 import {
+  type AlertSeed,
   approvePlanEndpoint,
   createThreadEndpoint,
   deleteThreadEndpoint,
@@ -87,6 +88,31 @@ function listThreads(
 }
 
 /**
+ * Checks the panel an alert thread starts from: only an alert thread takes one, and the person
+ * must see the version and the version must have the panel.
+ *
+ * @param services - The thread route services.
+ * @param kind - What the thread makes.
+ * @param seed - The panel.
+ * @param principal - Who starts the thread.
+ * @throws {AppError} `bad_request` for a dashboard thread or a panel the version has not;
+ *   `not_found` for a version the person may not see.
+ */
+function checkSeed(
+  services: ThreadRouteServices,
+  kind: 'dashboard' | 'alert',
+  seed: AlertSeed,
+  principal: Principal,
+): void {
+  if (kind !== 'alert')
+    throw new AppError('bad_request', 'Only an alert thread starts from a panel.');
+  const role = roleForDashboard(principal, services.bin.ownerOf(seed.dashboardId));
+  const { spec } = services.dashboards.getVersion(seed.dashboardId, seed.version, role);
+  if (!spec.panels.some((panel) => panel.id === seed.panelId))
+    throw new AppError('bad_request', `Version ${seed.version} has no panel ${seed.panelId}.`);
+}
+
+/**
  * Mounts the endpoints that list, create, read and delete threads.
  *
  * @param app - The app.
@@ -104,7 +130,9 @@ function mountThreadRoutes(app: Hono<AppEnv>, services: ThreadRouteServices): vo
       const known = services.modelSettings.gateway().providers.map((config) => config.id);
       if (body.providerId !== undefined && !known.includes(body.providerId))
         throw new AppError('bad_request', `No model provider "${body.providerId}".`);
-      return threads.create(actorOf(principal), body.providerId, body.queries);
+      if (body.seed !== undefined) checkSeed(services, body.kind, body.seed, signedIn(principal));
+      const start = { kind: body.kind, seed: body.seed };
+      return threads.create(actorOf(principal), body.providerId, body.queries, start);
     },
   });
   mountEndpoint(app, deleteThreadEndpoint, {

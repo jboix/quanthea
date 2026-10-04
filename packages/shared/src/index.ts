@@ -375,16 +375,4 @@ export {
   type View,
   viewSchema,
 } from './spec/views.ts';
-export {
-  type Plan,
-  type PlanView,
-  planPanelKinds,
-  planSchema,
-  planStatuses,
-  planViewSchema,
-  type Repair,
-  type ThreadData,
-  type ThreadState,
-  threadDataSchemas,
-  threadStates,
-} from './threads.ts';
+export * from './threads.ts';

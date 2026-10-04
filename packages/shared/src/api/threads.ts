@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { accessLevelSchema } from '../connectors.ts';
 import { threadQueriesSchema } from '../queries.ts';
-import { planViewSchema, threadStates } from '../threads.ts';
+import { alertSeedSchema, planViewSchema, threadKinds, threadStates } from '../threads.ts';
 import { defineEndpoint } from './contract.ts';
 
 /** Validates a thread in a list. */
@@ -10,7 +10,11 @@ export const threadSummarySchema = z.object({
   id: z.string(),
   title: z.string().nullable(),
   state: z.enum(threadStates),
+  /** What it makes: a dashboard or an alert, fixed when it starts. */
+  kind: z.enum(threadKinds),
   dashboardId: z.string().nullable(),
+  /** The alert it makes, once it saved a first version. */
+  alertId: z.string().nullable(),
   tokensUsed: z.number(),
   /** The model provider it uses; `null` for the default. */
   providerId: z.string().nullable(),
@@ -77,6 +81,10 @@ export const createThreadEndpoint = defineEndpoint({
   body: z.object({
     providerId: z.string().max(40).optional(),
     queries: threadQueriesSchema.optional(),
+    /** What it makes; a dashboard by default. */
+    kind: z.enum(threadKinds).default('dashboard'),
+    /** For an alert thread, the panel it starts from: the agent reads its query and title. */
+    seed: alertSeedSchema.optional(),
   }),
   output: threadSummarySchema,
 });

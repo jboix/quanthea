@@ -1,15 +1,24 @@
-/** What each feature spent: building dashboards, questions about them, and panel explanations. */
+/**
+ * What each feature spent: building dashboards, building alerts, questions about dashboards, and
+ * panel explanations.
+ */
 import type { UsageBucket, UsageReport } from '@quanthea/shared';
 
 /** A feature that runs model steps. */
 export type UsageFeature = NonNullable<UsageBucket['feature']>;
 
 /** The features, in the order the screen draws them, so each keeps its colour. */
-export const usageFeatures: readonly UsageFeature[] = ['building', 'question', 'explanation'];
+export const usageFeatures: readonly UsageFeature[] = [
+  'building',
+  'alert',
+  'question',
+  'explanation',
+];
 
 /** The plain name of each feature. */
 export const featureNames: Readonly<Record<UsageFeature, string>> = {
   building: 'Building dashboards',
+  alert: 'Building alerts',
   question: 'Questions about dashboards',
   explanation: 'Panel explanations',
 };

@@ -137,4 +137,27 @@ describe('thread routes', () => {
     await fixture.dashboards.pin(fixture.threads.get(id).dashboardId ?? '', 1, 'editor-1');
     expect((await call('GET', '/api/threads')).body).toMatchObject([{ id, pinned: true }]);
   });
+
+  test('start an alert thread, fixed as one, from a panel the person may see', async () => {
+    const events = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
+    await fixture.connections.create(connectorInputSchema.parse(events), 'admin-1');
+    const source = fixture.dashboards.create(eventsSpec(), 'first', 'editor-1');
+    const call = client(editor);
+    const plain = threadSummarySchema.parse((await call('POST', '/api/threads', {})).body);
+    expect(plain).toMatchObject({ kind: 'dashboard', alertId: null });
+    const seed = { dashboardId: source.id, version: 1, panelId: 'errors-peak' };
+    const created = await call('POST', '/api/threads', { kind: 'alert', seed });
+    const alert = threadSummarySchema.parse(created.body);
+    expect(alert.kind).toBe('alert');
+    expect(fixture.threads.row(alert.id).seed).toEqual(seed);
+    const listed = (await call('GET', '/api/threads')).body as { id: string; kind: string }[];
+    expect(listed.map((each) => [each.id, each.kind])).toContainEqual([alert.id, 'alert']);
+    const missing = { ...seed, panelId: 'nope' };
+    expect((await call('POST', '/api/threads', { kind: 'alert', seed: missing })).status).toBe(400);
+    expect((await call('POST', '/api/threads', { kind: 'dashboard', seed })).status).toBe(400);
+    const elsewhere = { ...seed, dashboardId: 'none' };
+    expect((await call('POST', '/api/threads', { kind: 'alert', seed: elsewhere })).status).toBe(
+      404,
+    );
+  });
 });

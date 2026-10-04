@@ -14,6 +14,22 @@ export const threadStates = ['idle', 'plan_pending', 'building', 'ready'] as con
 /** A thread state. */
 export type ThreadState = (typeof threadStates)[number];
 
+/** What a thread makes: a dashboard or an alert, chosen when it starts and fixed. */
+export const threadKinds = ['dashboard', 'alert'] as const;
+
+/** What a thread makes. */
+export type ThreadKind = (typeof threadKinds)[number];
+
+/** Validates the panel an alert thread starts from: its dashboard, version and id. */
+export const alertSeedSchema = z.strictObject({
+  dashboardId: z.string().min(1).max(100),
+  version: z.int().min(1),
+  panelId: slugSchema,
+});
+
+/** The panel an alert thread starts from. */
+export type AlertSeed = z.infer<typeof alertSeedSchema>;
+
 /** What became of a plan. */
 export const planStatuses = ['pending', 'approved', 'rejected', 'superseded'] as const;
 

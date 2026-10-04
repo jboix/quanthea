@@ -2,7 +2,15 @@
  * The threads service: threads, their messages and their plans, with the state machine checked on
  * every change. The agent and the HTTP layer both go through it.
  */
-import type { Plan, PlanView, ThreadDetail, ThreadQueries, ThreadSummary } from '@quanthea/shared';
+import type {
+  AlertSeed,
+  Plan,
+  PlanView,
+  ThreadDetail,
+  ThreadKind,
+  ThreadQueries,
+  ThreadSummary,
+} from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { MessageRow, PlanRow, ThreadRepository, ThreadRow } from '../db/thread-repository.ts';
 import { AppError } from '../lib/errors.ts';
@@ -27,6 +35,14 @@ export interface StoredMessage {
   readonly metadata?: unknown;
 }
 
+/** What a new thread makes, and the panel an alert thread starts from. */
+export interface ThreadStart {
+  /** A dashboard or an alert. */
+  readonly kind: ThreadKind;
+  /** The panel an alert thread starts from, if any. */
+  readonly seed?: AlertSeed | undefined;
+}
+
 /** What the service needs. */
 export interface ThreadsDependencies {
   /** Stores threads. */
@@ -49,9 +65,17 @@ export interface Threads {
    * Starts a thread.
    *
    * @param actor - Who starts it.
+   * @param providerId - The model provider; the default one when left out.
+   * @param queries - The queries it may use; the default set when left out.
+   * @param start - What it makes, a dashboard by default, and the panel an alert starts from.
    * @returns The thread.
    */
-  create(actor: string, providerId?: string | null, queries?: ThreadQueries): ThreadSummary;
+  create(
+    actor: string,
+    providerId?: string | null,
+    queries?: ThreadQueries,
+    start?: ThreadStart,
+  ): ThreadSummary;
   /**
    * Reads a thread with its messages and plans.
    *
@@ -162,8 +186,8 @@ function timesOf(row: ThreadRow) {
  * @returns The summary.
  */
 function toSummary(row: ThreadRow): ThreadSummary {
-  const { id, title, state, dashboardId, tokensUsed, providerId, queries } = row;
-  const summary = { id, title, state, dashboardId, tokensUsed, providerId, queries };
+  const { id, title, state, kind, dashboardId, alertId, tokensUsed, providerId, queries } = row;
+  const summary = { id, title, state, kind, dashboardId, alertId, tokensUsed, providerId, queries };
   return { ...summary, ownerId: row.createdBy, ...timesOf(row) };
 }
 
@@ -312,6 +336,9 @@ function saveMessages(
  *
  * @param context - The service context.
  * @param actor - Who starts it.
+ * @param providerId - The model provider, or `null` for the default.
+ * @param queries - The queries it may use.
+ * @param start - What it makes, and the panel an alert starts from.
  * @returns The thread.
  */
 function create(
@@ -319,6 +346,7 @@ function create(
   actor: string,
   providerId: string | null,
   queries: ThreadQueries,
+  start: ThreadStart,
 ): ThreadSummary {
   const at = context.now();
   const row: ThreadRow = {
@@ -330,6 +358,9 @@ function create(
     createdBy: actor,
     providerId,
     queries,
+    kind: start.kind,
+    seed: start.kind === 'alert' ? (start.seed ?? null) : null,
+    alertId: null,
     createdAt: at,
     updatedAt: at,
   };
@@ -387,8 +418,11 @@ export function createThreads(dependencies: ThreadsDependencies): Threads {
   const { repository } = context;
   return {
     list: () => repository.list().map(toSummary),
-    create: (actor, providerId, queries) =>
-      create(context, actor, providerId ?? null, queries ?? { mode: 'default' }),
+    create: (actor, providerId, queries, start) =>
+      create(context, actor, providerId ?? null, queries ?? { mode: 'default' }, {
+        kind: 'dashboard',
+        ...start,
+      }),
     get: (id) => get(context, id),
     row: (id) => find(context, id),
     remove(id, actor) {

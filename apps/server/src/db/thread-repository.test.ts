@@ -28,6 +28,9 @@ const thread: ThreadRow = {
   createdBy: 'editor-1',
   providerId: null,
   queries: { mode: 'default' },
+  kind: 'dashboard',
+  seed: null,
+  alertId: null,
   createdAt: 1000,
   updatedAt: 1000,
 };

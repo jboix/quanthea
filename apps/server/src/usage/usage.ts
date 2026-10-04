@@ -23,8 +23,9 @@ export interface ModelStep {
   /** The job, such as `plan` or `build`. */
   readonly job: string;
   /**
-   * The feature the step served: `building` for a thread's steps and tags at pin time,
-   * `question` for a question about a dashboard, `explanation` for a panel's explanation.
+   * The feature the step served: `building` for a dashboard thread's steps and tags at pin time,
+   * `alert` for an alert thread's steps, `question` for a question about a dashboard,
+   * `explanation` for a panel's explanation.
    */
   readonly feature: NonNullable<UsageFeature>;
   /** The step's tokens. */

@@ -5,6 +5,7 @@
 -- - explanations of the panels of a version;
 -- - the feature each model step served, in the usage ledger.
 -- - alerts, their versions, the state of their series and what happened to them.
+-- - what a thread makes, a dashboard or an alert, and the panel an alert thread starts from.
 
 -- Snapshot links: a dashboard version frozen with the results its panels showed. The id is the
 -- unguessable part of the link (128 random bits). A snapshot goes when its time is up, when someone
@@ -56,7 +57,7 @@ CREATE TABLE usage_events_next (
   output INTEGER NOT NULL DEFAULT 0,
   -- The list price at the time, in millionths of a dollar; NULL when the model had no price.
   cost_micros INTEGER,
-  feature TEXT CHECK (feature IN ('building', 'question', 'explanation'))
+  feature TEXT CHECK (feature IN ('building', 'question', 'explanation', 'alert'))
 );
 
 -- Before this migration, every model step built dashboards.
@@ -355,3 +356,12 @@ CREATE TABLE alert_events (
 CREATE INDEX alert_events_by_alert ON alert_events (alert_id, at);
 
 CREATE INDEX alert_events_by_time ON alert_events (at);
+
+-- --------------------------------------------------------------------------- alert conversations
+-- A thread makes a dashboard or an alert, chosen when it starts and fixed. An alert thread may
+-- start from a panel of a dashboard version; `seed` names it, as JSON
+-- `{"dashboardId", "version", "panelId"}`, and the agent reads that panel's query and title.
+ALTER TABLE threads ADD COLUMN kind TEXT NOT NULL DEFAULT 'dashboard'
+  CHECK (kind IN ('dashboard', 'alert'));
+
+ALTER TABLE threads ADD COLUMN seed TEXT;

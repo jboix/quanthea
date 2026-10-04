@@ -1621,6 +1621,8 @@ CREATE TABLE schema_cache (connector_id TEXT PRIMARY KEY REFERENCES connectors(i
 
 CREATE TABLE threads (
   id TEXT PRIMARY KEY, title TEXT, state TEXT NOT NULL DEFAULT 'idle',
+  kind TEXT NOT NULL DEFAULT 'dashboard' CHECK (kind IN ('dashboard','alert')),  -- fixed at start
+  seed TEXT,                        -- JSON: the panel an alert thread starts from
   dashboard_id TEXT,                -- the dashboard this thread authors
   provider_id TEXT,                 -- the model provider; NULL or a removed one means the default
   deleted_at INTEGER, deleted_by TEXT,   -- in the bin since, and who put it there
@@ -1729,7 +1731,7 @@ CREATE TABLE notification_sends (
 CREATE TABLE usage_events (
   id TEXT PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL,   -- 'model' | 'pinned_view' | 'snapshot_view'
   thread_id TEXT, dashboard_id TEXT, user_id TEXT, provider TEXT, model TEXT, job TEXT,
-  feature TEXT,                          -- 'building' | 'question' | 'explanation'; NULL for views
+  feature TEXT,                  -- 'building' | 'alert' | 'question' | 'explanation'; NULL for views
   input INTEGER, cached_input INTEGER, cache_write INTEGER, output INTEGER,
   cost_micros INTEGER);                        -- list price when recorded; NULL when unknown
 
@@ -1776,6 +1778,7 @@ ran it, so the two are separate axes:
 
 - `building`: building dashboards, every step of a thread's run (plan, build, repair) and the tags
   at pin time.
+- `alert`: building alerts, every step of an alert thread's run.
 - `question`: a question about a pinned dashboard (the answering service's `ask` mode).
 - `explanation`: a panel's explanation (its `explain` mode).
 
@@ -1784,8 +1787,8 @@ Deleting a thread keeps its history. `GET /api/settings/usage?days=` returns it 
 feature and user (`feature` is `null` for views), with each user's name and role, and the browser adds the hours up into its own days.
 Settings → Usage draws tokens and cost per day stacked by model (the five costliest, then
 `Other`) or, with `?by=feature`, by feature (every feature, always in the same order, so each
-keeps its colour). It lists the features by their plain names (Building dashboards, Questions
-about dashboards, Panel explanations), the models and, ten a page, the people who spent the most.
+keeps its colour). It lists the features by their plain names (Building dashboards, Building
+alerts, Questions about dashboards, Panel explanations), the models and, ten a page, the people who spent the most.
 
 Migrations are plain numbered `.sql` files in `db/migrations/`. A migration that shipped in a
 release (a `vX.Y.Z` tag) is never edited. Every schema change since the last release goes into the
@@ -1797,7 +1800,8 @@ ledger's `snapshot_view` kind and `feature` (every earlier model step built dash
 the notification channels with their log.
 ledger's `snapshot_view` kind and `feature` (every earlier model step built dashboards).
 The same file adds the alerts, their versions, the state of their series and their changes of
-state, in a section of their own at its end.
+state, in a section of their own at its end. A last section adds what a thread makes (`kind`) and the panel an alert
+thread starts from (`seed`), and the ledger's `alert` feature.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -1827,6 +1831,7 @@ indicative; the contract files are the source of truth.
 | `POST /settings/identity-providers/:id/enabled`, `PUT /settings/password-sign-in`                 | turn a provider or passwords on or off       | admin    |
 | `GET/POST /users`, `PATCH /users/:id`, `POST /users/:id/reset-link`, `DELETE /users/:id/sessions` | users                                        | admin    |
 | `GET /threads` (each marked `pinned`), `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id` | threads; delete moves to the bin             | editor   |
+| `POST /threads` with `kind: 'alert'` and a `seed` (a dashboard, version and panel)                | an alert thread, from a panel                | editor   |
 | `POST /threads/:id/chat`                                                                          | streamed agent run                           | editor   |
 | `POST /threads/:id/plans/:planId/approve` · `/reject`                                             | plan decisions                               | editor   |
 | `POST /threads/:id/start-from` (a pinned dashboard)                                               | draft from a copy, no model                  | editor   |
