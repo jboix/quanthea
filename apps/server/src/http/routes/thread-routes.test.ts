@@ -16,6 +16,8 @@ import { mountThreadEndpoints } from './thread-routes.ts';
 
 const editor: Principal = { id: 'editor-1', name: 'Eddie', role: 'editor' };
 const viewer: Principal = { id: 'viewer-1', name: 'Vera', role: 'viewer' };
+const analyst: Principal = { id: 'analyst-1', name: 'Ana', role: 'analyst' };
+const otherEditor: Principal = { id: 'editor-2', name: 'Otto', role: 'editor' };
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let fixture: Awaited<ReturnType<typeof testServices>>;
@@ -161,5 +163,46 @@ describe('thread routes', () => {
     expect((await call('POST', '/api/threads', { kind: 'alert', seed: elsewhere })).status).toBe(
       404,
     );
+  });
+
+  test('bin all of the caller’s drafts at once, never live threads or others’ threads', async () => {
+    const events = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
+    await fixture.connections.create(connectorInputSchema.parse(events), 'admin-1');
+    const call = client(editor);
+    const draft = () => fixture.threads.create('editor-1').id;
+    const [first, second] = [draft(), draft()];
+    const live = draft();
+    const pinned = fixture.dashboards.create(eventsSpec(), 'first', 'editor-1');
+    fixture.threads.attachDashboard(live, pinned.id, 'Events');
+    await fixture.dashboards.pin(pinned.id, 1, 'editor-1');
+    const others = fixture.threads.create('editor-2').id;
+    expect((await client(viewer)('POST', '/api/threads/drafts/bin')).status).toBe(403);
+    expect((await client(analyst)('POST', '/api/threads/drafts/bin')).status).toBe(403);
+    expect((await call('POST', '/api/threads/drafts/bin')).body).toEqual({ binned: 2 });
+    expect(
+      fixture.bin
+        .list()
+        .map((thread) => thread.id)
+        .sort(),
+    ).toEqual([first, second].sort());
+    expect((await call('POST', '/api/threads/drafts/bin')).body).toEqual({ binned: 0 });
+    expect(
+      fixture.threads
+        .list()
+        .map((thread) => thread.id)
+        .sort(),
+    ).toEqual([live, others].sort());
+    expect((await client(otherEditor)('POST', '/api/threads/drafts/bin')).body).toEqual({
+      binned: 1,
+    });
+    const audit = fixture.database
+      .query<{ actor: string; detail: string }, []>(
+        "SELECT actor, detail FROM audit_log WHERE action = 'thread.bin_drafts' ORDER BY at, id",
+      )
+      .all();
+    expect(audit.map((row) => [row.actor, JSON.parse(row.detail).threadIds.length])).toEqual([
+      ['editor-1', 2],
+      ['editor-2', 1],
+    ]);
   });
 });

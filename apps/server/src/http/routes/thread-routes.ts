@@ -2,6 +2,7 @@
 import {
   type AlertSeed,
   approvePlanEndpoint,
+  binDraftsEndpoint,
   createThreadEndpoint,
   deleteThreadEndpoint,
   getThreadEndpoint,
@@ -133,6 +134,13 @@ function mountThreadRoutes(app: Hono<AppEnv>, services: ThreadRouteServices): vo
       if (body.seed !== undefined) checkSeed(services, body.kind, body.seed, signedIn(principal));
       const start = { kind: body.kind, seed: body.seed };
       return threads.create(actorOf(principal), body.providerId, body.queries, start);
+    },
+  });
+  mountEndpoint(app, binDraftsEndpoint, {
+    access: 'editor',
+    handle: ({ principal }) => {
+      const { id } = signedIn(principal);
+      return { binned: services.bin.binDrafts(id, actorOf(principal)) };
     },
   });
   mountEndpoint(app, deleteThreadEndpoint, {

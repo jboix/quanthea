@@ -109,6 +109,16 @@ export const deleteThreadEndpoint = defineEndpoint({
   output: z.object({ binned: z.literal(true) }),
 });
 
+/**
+ * Moves every draft thread of the caller to the bin: their own threads whose dashboard is not
+ * pinned and whose alert is not active. Others' threads are never touched.
+ */
+export const binDraftsEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/threads/drafts/bin',
+  output: z.object({ binned: z.int() }),
+});
+
 /** Approves the pending plan; the thread moves to building. */
 export const approvePlanEndpoint = defineEndpoint({
   method: 'POST',

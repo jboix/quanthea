@@ -32,6 +32,15 @@ export interface ThreadBin {
    */
   bin(id: string, actor: string): void;
   /**
+   * Moves every draft of an owner to the bin at once: their threads whose dashboard is not pinned
+   * and whose alert is not active. Others' threads are never touched.
+   *
+   * @param ownerId - Whose drafts.
+   * @param actor - Who deletes them.
+   * @returns How many went to the bin.
+   */
+  binDrafts(ownerId: string, actor: string): number;
+  /**
    * Takes a thread out of the bin.
    *
    * @param id - The thread.
@@ -71,6 +80,43 @@ export interface ThreadBin {
 }
 
 /**
+ * Moves one thread to the bin, or says why it can't go.
+ *
+ * @param dependencies - The repository, the audit log and the clock.
+ * @returns The method.
+ */
+function threadBinner(dependencies: ThreadBinDependencies): ThreadBin['bin'] {
+  const { repository, audit } = dependencies;
+  const now = dependencies.now ?? Date.now;
+  return (id, actor) => {
+    const outcome = repository.bin(id, now(), actor);
+    if (outcome === 'missing') throw new AppError('not_found', `No thread ${id}.`);
+    if (outcome === 'pinned')
+      throw new AppError('bad_request', 'Its dashboard is pinned. Unpin it before deleting.');
+    if (outcome === 'alert_active')
+      throw new AppError('bad_request', 'Its alert is active. Deactivate it before deleting.');
+    audit.append({ actor, action: 'thread.bin', target: id });
+  };
+}
+
+/**
+ * Moves an owner's drafts to the bin, and records it once with the threads' ids.
+ *
+ * @param dependencies - The repository, the audit log and the clock.
+ * @returns The method.
+ */
+function draftBinner(dependencies: ThreadBinDependencies): ThreadBin['binDrafts'] {
+  const { repository, audit } = dependencies;
+  const now = dependencies.now ?? Date.now;
+  return (ownerId, actor) => {
+    const ids = repository.binDrafts(ownerId, now(), actor);
+    if (ids.length > 0)
+      audit.append({ actor, action: 'thread.bin_drafts', detail: { threadIds: ids } });
+    return ids.length;
+  };
+}
+
+/**
  * Creates the bin.
  *
  * @param dependencies - The repository, the audit log and the clock.
@@ -84,15 +130,8 @@ export function createThreadBin(dependencies: ThreadBinDependencies): ThreadBin 
     audit.append({ actor, action: 'thread.purge', target: id });
   };
   return {
-    bin: (id, actor) => {
-      const outcome = repository.bin(id, now(), actor);
-      if (outcome === 'missing') throw new AppError('not_found', `No thread ${id}.`);
-      if (outcome === 'pinned')
-        throw new AppError('bad_request', 'Its dashboard is pinned. Unpin it before deleting.');
-      if (outcome === 'alert_active')
-        throw new AppError('bad_request', 'Its alert is active. Deactivate it before deleting.');
-      audit.append({ actor, action: 'thread.bin', target: id });
-    },
+    bin: threadBinner(dependencies),
+    binDrafts: draftBinner(dependencies),
     restore: (id, actor) => {
       if (!repository.restore(id, now()))
         throw new AppError('not_found', `No thread ${id} in the bin.`);

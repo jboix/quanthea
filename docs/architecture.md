@@ -505,6 +505,10 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
   refused: unpin first. A thread whose alert is active (it has an active version and is not
   deactivated) is refused too: deactivate it first. Once deactivated, the thread goes to the bin,
   and its alert keeps `thread_id` until the thread is purged.
+- `POST /api/threads/drafts/bin` (editor+) moves every draft of the caller to the bin in one
+  transaction: their own threads whose dashboard is not pinned and whose alert is not active.
+  Others' threads are never touched, admins' included. It answers how many went, and writes one
+  `thread.bin_drafts` audit event with their ids.
 - A binned thread is out of reach: the thread reads skip it, its dashboard can't be pinned, and
   an `edit` thread on its dashboard is refused. Its dashboard still opens for editors, and its
   Change menu's Edit with the agent says the conversation is in the bin and links there.
@@ -2136,6 +2140,7 @@ indicative; the contract files are the source of truth.
 | `POST /settings/identity-providers/:id/enabled`, `PUT /settings/password-sign-in`                 | turn a provider or passwords on or off       | admin    |
 | `GET/POST /users`, `PATCH /users/:id`, `POST /users/:id/reset-link`, `DELETE /users/:id/sessions` | users                                        | admin    |
 | `GET /threads` (each marked `pinned`), `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id` | threads; delete moves to the bin             | editor   |
+| `POST /threads/drafts/bin`                                                                        | the caller's drafts to the bin, a count      | editor   |
 | `POST /threads` with `kind: 'alert'` and a `seed` (a dashboard, version and panel)                | an alert thread, from a panel                | editor   |
 | `POST /threads/:id/chat`                                                                          | streamed agent run                           | editor   |
 | `POST /threads/:id/plans/:planId/approve` · `/reject`                                             | plan decisions                               | editor   |

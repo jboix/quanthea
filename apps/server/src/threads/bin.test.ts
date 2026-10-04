@@ -122,6 +122,15 @@ describe('the bin of threads', () => {
     expect(services.bin.list().map((thread) => thread.id)).toEqual([threadId]);
   });
 
+  test('binning drafts leaves a thread whose alert is active, and takes it once deactivated', async () => {
+    const { threadId, alertId } = threadWithAlert();
+    await services.alerts.activate(alertId, 1, 'editor-1');
+    expect(services.bin.binDrafts('editor-1', 'editor-1')).toBe(0);
+    await services.alerts.deactivate(alertId, 'editor-1');
+    expect(services.bin.binDrafts('editor-1', 'editor-1')).toBe(1);
+    expect(services.bin.list().map((thread) => thread.id)).toEqual([threadId]);
+  });
+
   test('purging a thread keeps its alert and every version of it', async () => {
     const { threadId, alertId } = threadWithAlert();
     services.alerts.saveVersion(

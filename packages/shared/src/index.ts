@@ -183,6 +183,7 @@ export {
 } from './api/snapshots.ts';
 export {
   approvePlanEndpoint,
+  binDraftsEndpoint,
   createThreadEndpoint,
   deleteThreadEndpoint,
   getThreadEndpoint,

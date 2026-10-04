@@ -50,6 +50,16 @@ export interface ThreadBinRepository {
    */
   bin(id: string, at: number, actor: string): BinOutcome;
   /**
+   * Moves every draft of an owner to the bin, in one transaction: their threads outside the bin
+   * whose dashboard is not pinned and whose alert is not active.
+   *
+   * @param ownerId - Whose drafts.
+   * @param at - When.
+   * @param actor - Who.
+   * @returns The ids of the threads binned.
+   */
+  binDrafts(ownerId: string, at: number, actor: string): string[];
+  /**
    * Takes a thread out of the bin.
    *
    * @param id - The thread.
@@ -123,6 +133,7 @@ function binStatements(database: Database) {
        WHERE t.id = ? AND t.deleted_at IS NULL`,
     ),
     bin: database.query('UPDATE threads SET deleted_at = ?, deleted_by = ? WHERE id = ?'),
+
     restore: database.query(
       `UPDATE threads SET deleted_at = NULL, deleted_by = NULL, updated_at = ?
        WHERE id = ? AND deleted_at IS NOT NULL`,
@@ -173,6 +184,29 @@ function binner(
 }
 
 /**
+ * Builds the transaction that moves an owner's drafts to the bin.
+ *
+ * @param database - A database the migrations have run on.
+ * @param statements - The prepared statements.
+ * @returns The method.
+ */
+function draftBinner(
+  database: Database,
+  statements: ReturnType<typeof binStatements>,
+): ThreadBinRepository['binDrafts'] {
+  const drafts = database.query<{ id: string }, [string]>(
+    `SELECT t.id FROM threads t LEFT JOIN dashboards d ON d.id = t.dashboard_id
+     WHERE t.created_by = ? AND t.deleted_at IS NULL AND d.pinned_version_id IS NULL
+     AND NOT ${alertActive}`,
+  );
+  return database.transaction((ownerId: string, at: number, actor: string): string[] => {
+    const ids = drafts.all(ownerId).map((row) => row.id);
+    for (const id of ids) statements.bin.run(at, actor, id);
+    return ids;
+  });
+}
+
+/**
  * Builds the transaction that purges a binned thread and its dashboard.
  *
  * @param database - A database the migrations have run on.
@@ -203,6 +237,7 @@ export function createThreadBinRepository(database: Database): ThreadBinReposito
   const statements = binStatements(database);
   return {
     bin: binner(database, statements),
+    binDrafts: draftBinner(database, statements),
     restore: (id, at) => statements.restore.run(at, id).changes > 0,
     list: () =>
       statements.list.all().map((row) => ({
