@@ -1,6 +1,6 @@
 /**
  * Reads and writes the explanations of panels. An explanation is stored once and never changed
- * (the trigger in `migrations/0005-panel-explanations.sql`); asking again adds a row, and the
+ * (the trigger in `migrations/0002-snapshots-questions-analyst.sql`); asking again adds a row, and the
  * latest is the one shown.
  */
 import type { Database } from 'bun:sqlite';

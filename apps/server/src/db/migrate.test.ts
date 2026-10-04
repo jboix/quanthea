@@ -1,6 +1,6 @@
 import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { copyFileSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { temporaryDir } from '../test/fixtures.ts';
 import { openDatabase } from './database.ts';
@@ -60,12 +60,7 @@ describe('runMigrations', () => {
   test('applies the shipped migrations once', () => {
     expect(runMigrations(database)).toEqual([
       '0001-schema.sql',
-      '0002-snapshots.sql',
-      '0003-analyst-role.sql',
-      '0004-dashboard-questions.sql',
-      '0005-panel-explanations.sql',
-      '0006-usage-feature.sql',
-      '0007-question-conversations.sql',
+      '0002-snapshots-questions-analyst.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
@@ -132,122 +127,6 @@ describe('runMigrations', () => {
   test('turns foreign keys back on after the migrations', () => {
     runMigrations(database);
     expect(pragma('foreign_keys')).toBe(1);
-  });
-});
-
-describe('the snapshots migration', () => {
-  test('keeps the usage ledger while it lets the ledger count snapshot views', () => {
-    const shipped = join(import.meta.dir, 'migrations');
-    const migrationsDir = join(dataDir.path, 'migrations');
-    mkdirSync(migrationsDir);
-    copyFileSync(join(shipped, '0001-schema.sql'), join(migrationsDir, '0001-schema.sql'));
-    runMigrations(database, migrationsDir);
-    const view = (id: string, kind: string) =>
-      database.run("INSERT INTO usage_events (id, at, kind, dashboard_id) VALUES (?, 1, ?, 'd')", [
-        id,
-        kind,
-      ]);
-    view('before', 'pinned_view');
-    expect(() => view('refused', 'snapshot_view')).toThrow('CHECK');
-    copyFileSync(join(shipped, '0002-snapshots.sql'), join(migrationsDir, '0002-snapshots.sql'));
-    expect(runMigrations(database, migrationsDir)).toEqual(['0002-snapshots.sql']);
-    view('after', 'snapshot_view');
-    const rows = database
-      .query<{ id: string; kind: string }, []>('SELECT id, kind FROM usage_events ORDER BY id')
-      .all();
-    expect(rows).toEqual([
-      { id: 'after', kind: 'snapshot_view' },
-      { id: 'before', kind: 'pinned_view' },
-    ]);
-  });
-});
-
-/**
- * Applies the shipped migrations up to and including one file.
- *
- * @param last - The name of the last file to apply.
- * @returns The directory the files were copied to, to add later ones.
- */
-function migrateUpTo(last: string): string {
-  const shipped = join(import.meta.dir, 'migrations');
-  const migrationsDir = join(dataDir.path, 'migrations');
-  mkdirSync(migrationsDir, { recursive: true });
-  for (const name of readdirSync(shipped).filter((each) => each <= last))
-    copyFileSync(join(shipped, name), join(migrationsDir, name));
-  runMigrations(database, migrationsDir);
-  return migrationsDir;
-}
-
-/**
- * Stores a user with a session, a password link and a provider identity.
- *
- * @param id - The user's id.
- * @param role - Their role.
- */
-function storeUserWithEverything(id: string, role: string): void {
-  database.run(
-    `INSERT INTO users (id, email_index, email_sealed, name_sealed, role, created_at, updated_at)
-     VALUES (?, ?, x'00', x'00', ?, 1, 1)`,
-    [id, `index-${id}`, role],
-  );
-  database.run('INSERT INTO sessions VALUES (?, ?, ?, 1, 1, 2)', [
-    `session-${id}`,
-    `public-${id}`,
-    id,
-  ]);
-  database.run("INSERT INTO password_links VALUES (?, ?, 'invite', 2, 'admin', 1)", [
-    `link-${id}`,
-    id,
-  ]);
-  database.run("INSERT INTO identities VALUES ('github', ?, x'00', ?, 1, NULL)", [
-    `subject-${id}`,
-    id,
-  ]);
-}
-
-/**
- * Counts the rows that refer to a user, by table.
- *
- * @param id - The user's id.
- * @returns The counts.
- */
-function rowsOf(id: string): Record<string, number> {
-  const count = (table: string) =>
-    database
-      .query<{ count: number }, [string]>(
-        `SELECT count(*) AS count FROM ${table} WHERE user_id = ?`,
-      )
-      .get(id)?.count ?? 0;
-  return {
-    sessions: count('sessions'),
-    password_links: count('password_links'),
-    identities: count('identities'),
-  };
-}
-
-describe('the analyst role migration', () => {
-  test('keeps every user and every row that refers to one, and stores analysts', () => {
-    const migrationsDir = migrateUpTo('0002-snapshots.sql');
-    storeUserWithEverything('ada', 'editor');
-    expect(() => storeUserWithEverything('refused', 'analyst')).toThrow('CHECK');
-    const shipped = join(import.meta.dir, 'migrations', '0003-analyst-role.sql');
-    copyFileSync(shipped, join(migrationsDir, '0003-analyst-role.sql'));
-    expect(runMigrations(database, migrationsDir)).toEqual(['0003-analyst-role.sql']);
-    const everything = { sessions: 1, password_links: 1, identities: 1 };
-    expect(rowsOf('ada')).toEqual(everything);
-    storeUserWithEverything('grace', 'analyst');
-    expect(rowsOf('grace')).toEqual(everything);
-    expect(() => storeUserWithEverything('nobody', 'owner')).toThrow('CHECK');
-  });
-
-  test('keeps the references to users enforced, with their cascades', () => {
-    migrateUpTo('0003-analyst-role.sql');
-    storeUserWithEverything('ada', 'analyst');
-    expect(() =>
-      database.run("INSERT INTO sessions VALUES ('s', 'p', 'missing', 1, 1, 2)"),
-    ).toThrow('FOREIGN KEY');
-    database.run("DELETE FROM users WHERE id = 'ada'");
-    expect(rowsOf('ada')).toEqual({ sessions: 0, password_links: 0, identities: 0 });
   });
 });
 

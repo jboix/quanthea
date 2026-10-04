@@ -54,8 +54,7 @@ export interface ShownView {
  */
 export function askedContextOf(question: DashboardQuestion): AskedContext {
   const { version, time, timeZone, chosenTime } = question;
-  // A question stored before the chosen range was kept is compared by its absolute range.
-  const chosen = chosenTime ? rangeKey(chosenTime) : `${time.from}|${time.to}`;
+  const chosen = rangeKey(chosenTime);
   return { version, time, chosen, timeZone, variables: storedVariableWords(question.variables) };
 }
 

@@ -34,11 +34,8 @@ export const dashboardQuestionSchema = z.object({
   conversationId: z.string(),
   /** The range shown, resolved to epoch milliseconds when it was asked. */
   time: z.object({ from: z.number(), to: z.number() }),
-  /**
-   * The range as chosen: relative, such as `now-1h`, or absolute. `null` for a question stored
-   * before it was kept; its resolved range stands in.
-   */
-  chosenTime: timeRangeSchema.nullable(),
+  /** The range as chosen: relative, such as `now-1h`, or absolute. */
+  chosenTime: timeRangeSchema,
   /** The time zone the answer names times in. */
   timeZone: z.string(),
   /** The variable values shown: the chosen ones, else the defaults. */

@@ -33,7 +33,7 @@ function question(id: string, changes: Partial<DashboardQuestion> = {}): Dashboa
     parentId: null,
     conversationId: 'c1',
     time: { from: start, to: start + hour },
-    chosenTime: null,
+    chosenTime: { from: '2026-09-26T11:30:00Z', to: '2026-09-26T12:30:00Z' },
     timeZone: 'UTC',
     variables: { env: 'prod' },
     hiddenMarkers: [],
@@ -56,7 +56,10 @@ describe('the context line', () => {
 
   test('names the new range and values when they changed', () => {
     const first = askedContextOf(question('a'));
-    const moved = { time: { from: start + 22 * hour, to: start + 23 * hour } };
+    const moved = {
+      time: { from: start + 22 * hour, to: start + 23 * hour },
+      chosenTime: { from: '2026-09-27T09:30:00Z', to: '2026-09-27T10:30:00Z' },
+    };
     expect(contextChange(first, askedContextOf(question('b', moved)))).toBe(
       'Now asking about 27 Sep 09:30–10:30, $env prod',
     );

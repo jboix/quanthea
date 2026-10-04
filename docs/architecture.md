@@ -847,8 +847,7 @@ earlier question of the chain, which older data may hold, still reads in place.
    questions. The server resolves the range to absolute times and the variables to the values
    shown (the chosen ones, else the defaults) as snapshots do, and the answering service binds them
    as a panel run does. The time zone is the spec's, else the browser's. The question also keeps
-   the range as chosen (`chosenTime`): relative, such as `now-1h`, or absolute. Questions stored
-   before it was kept have `null`, and their resolved range stands in.
+   the range as chosen (`chosenTime`): relative, such as `now-1h`, or absolute.
 3. A follow-up carries its chain's earlier questions and answered texts, oldest first, at most ten,
    as the request's `history`. The parent must be a question of the same dashboard.
 4. The route streams `Answers.stream` and names the stored question in the `X-Question-Id` header.
@@ -1459,7 +1458,7 @@ CREATE TABLE dashboard_questions (
   parent_id TEXT REFERENCES dashboard_questions(id) ON DELETE CASCADE,  -- a follow-up's question
   root_id TEXT NOT NULL,             -- the conversation's first question; its own id for a first one
   time_from INTEGER NOT NULL, time_to INTEGER NOT NULL, time_zone TEXT NOT NULL,  -- as shown
-  time_chosen TEXT,                  -- JSON: the range as chosen; NULL before it was kept
+  time_chosen TEXT NOT NULL,         -- JSON: the range as chosen
   variables TEXT NOT NULL, hidden_markers TEXT NOT NULL,  -- JSON
   explain_only INTEGER NOT NULL,     -- 1: no source showed numbers
   asked_by TEXT NOT NULL, asked_at INTEGER NOT NULL, question TEXT NOT NULL,
@@ -1508,16 +1507,13 @@ Settings → Usage draws tokens and cost per day stacked by model (the five cost
 keeps its colour). It lists the features by their plain names (Building dashboards, Questions
 about dashboards, Panel explanations), the models and, ten a page, the people who spent the most.
 
-Migrations are plain numbered `.sql` files in `db/migrations/`. `0001-schema.sql` is the schema
-of the first release; each change since is a new file, never an edit of an applied one
-(`0002-snapshots.sql` adds the snapshots and the `snapshot_view` kind, `0003-analyst-role.sql`
-rebuilds `users` to allow the analyst role, `0004-dashboard-questions.sql` adds the questions about
-dashboards and their full-text index, `0005-panel-explanations.sql` adds the explanations of
-panels, `0006-usage-feature.sql` adds the ledger's `feature` and fills it for past steps).
-That backfill is a best effort: a step in a thread or of any job but `answer` built dashboards;
-an `answer` step explained a panel when the same person started an explanation of the same
-dashboard in the ten minutes before it, later than any question they asked there; every other
-`answer` step answered a question.
+Migrations are plain numbered `.sql` files in `db/migrations/`. A migration that shipped in a
+release (a `vX.Y.Z` tag) is never edited. Every schema change since the last release goes into the
+one file that follows it, edited in place until the next release, so a database of the last release
+upgrades in one step and keeps its data working. `0001-schema.sql` is the schema of v0.2.0;
+`0002-snapshots-questions-analyst.sql` adds the snapshots, the analyst role, the questions about
+dashboards with their conversations and full-text index, the explanations of panels, and the
+ledger's `snapshot_view` kind and `feature` (every earlier model step built dashboards).
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite

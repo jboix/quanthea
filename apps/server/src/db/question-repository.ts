@@ -1,7 +1,7 @@
 /**
  * Reads and writes the questions asked about dashboards. A question is stored once, with its
  * outcome, and never changed. The full-text index `question_fts` follows the table through the
- * triggers in `migrations/0004-dashboard-questions.sql`. A conversation is the chain of questions
+ * triggers in `migrations/0002-snapshots-questions-analyst.sql`. A conversation is the chain of questions
  * from a first one; each question names that first one (`root_id`).
  */
 import type { Database } from 'bun:sqlite';
@@ -24,7 +24,7 @@ export interface QuestionRow {
   readonly timeTo: number;
   /** The time zone of the answer. */
   readonly timeZone: string;
-  /** The range as chosen, relative or absolute; `null` for questions stored before it was kept. */
+  /** The range as chosen, relative or absolute. */
   readonly timeChosen: unknown;
   /** The variable values. */
   readonly variables: unknown;
@@ -165,8 +165,8 @@ interface StoredQuestion {
   root_id: string;
   /** The start of the range. */
   time_from: number;
-  /** The range as chosen, JSON, or `NULL`. */
-  time_chosen: string | null;
+  /** The range as chosen, JSON. */
+  time_chosen: string;
   /** The end of the range. */
   time_to: number;
   /** The time zone. */
@@ -216,7 +216,7 @@ function rowOf(stored: StoredQuestion): QuestionRow {
     parentId: stored.parent_id,
     rootId: stored.root_id,
     timeFrom: stored.time_from,
-    timeChosen: stored.time_chosen === null ? null : JSON.parse(stored.time_chosen),
+    timeChosen: JSON.parse(stored.time_chosen),
     timeTo: stored.time_to,
     timeZone: stored.time_zone,
     variables: JSON.parse(stored.variables),
@@ -242,8 +242,7 @@ function rowOf(stored: StoredQuestion): QuestionRow {
  */
 function valuesOf(row: QuestionRow) {
   const place = [row.id, row.dashboardId, row.version, row.parentId, row.rootId];
-  const chosen = row.timeChosen === null ? null : JSON.stringify(row.timeChosen);
-  const shown = [row.timeFrom, row.timeTo, row.timeZone, chosen];
+  const shown = [row.timeFrom, row.timeTo, row.timeZone, JSON.stringify(row.timeChosen)];
   const choices = [JSON.stringify(row.variables), JSON.stringify(row.hiddenMarkers)];
   const asked = [row.explainOnly ? 1 : 0, row.askedBy, row.askedAt, row.question];
   const outcome = [row.answer, row.failure, JSON.stringify(row.citations)];
