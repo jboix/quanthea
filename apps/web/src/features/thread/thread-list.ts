@@ -1,6 +1,7 @@
 /**
  * The past threads as the drawer lists them: filtered by words and by status, grouped by day. A
- * thread is live when its dashboard is pinned or its alert is active, and a draft otherwise.
+ * thread is live when its dashboard is pinned or its alert or report is active, and a draft
+ * otherwise.
  */
 import type { ThreadListItem } from '@quanthea/shared';
 import { groupByDay as groupByDays } from '../../lib/day-groups.ts';
@@ -33,13 +34,13 @@ export interface ThreadGroup {
 export const untitled = 'Untitled thread';
 
 /**
- * Whether a thread is live: its dashboard is pinned, or its alert is active.
+ * Whether a thread is live: its dashboard is pinned, or its alert or report is active.
  *
  * @param thread - The thread.
  * @returns `true` when live, `false` for a draft.
  */
 export function isLive(thread: ThreadListItem): boolean {
-  return thread.pinned || thread.alertActive;
+  return thread.pinned || thread.alertActive || thread.reportActive;
 }
 
 /**
@@ -97,7 +98,7 @@ export function binDraftsQuestion(count: number): string {
 
 /**
  * Why a thread cannot go to the bin, as the server refuses it: its dashboard is pinned, or its
- * alert is active.
+ * alert or report is active.
  *
  * @param thread - The thread.
  * @returns What to do first, or `null` when it can go.
@@ -105,6 +106,7 @@ export function binDraftsQuestion(count: number): string {
 export function binBlocker(thread: ThreadListItem): string | null {
   if (thread.pinned) return 'Unpin its dashboard to delete this thread';
   if (thread.alertActive) return 'Deactivate its alert to delete this thread';
+  if (thread.reportActive) return 'Deactivate its report first';
   return null;
 }
 

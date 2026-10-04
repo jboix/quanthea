@@ -186,12 +186,12 @@ the kit's HTTP client for every kind that speaks HTTP.
 - **Thread screen.** The conversation streams through `useChat`, which posts only the new message
   to `/api/threads/:threadId/chat`; the server holds the conversation. Approving a plan, undoing
   and pinning go through the route action, and approving then continues the assistant message.
-  The version the draft pane shows lives in `?v=`, so a reload or a shared link keeps it. The new-thread screen is one question box in the middle of the screen, with a Past threads button at the top right. It opens a drawer from the right (from the top on a phone) that searches the titles, filters them by status (All; Live, a thread whose dashboard is pinned or whose alert is active, marked Pinned or Active; Drafts, every other one; `filterThreads` in `thread-list.ts`, in the browser), groups the threads by day, and moves one to the bin after asking. With Drafts on, Delete all my drafts asks in a dialog how many ("Move 12 drafts to the bin? You can restore them from the bin until they are purged.") and then moves every draft of the person to the bin at once (`POST /api/threads/drafts/bin`); others' threads are never counted or touched. A thread whose dashboard is pinned, or whose alert is active, can't be deleted: its bin button is disabled and says what to do first (`binBlocker`). A link can fill the question box with `?question=`. It creates the thread and hands the first question over in `?ask=`, which the thread screen sends
+  The version the draft pane shows lives in `?v=`, so a reload or a shared link keeps it. The new-thread screen is one question box in the middle of the screen, with a Past threads button at the top right. It opens a drawer from the right (from the top on a phone) that searches the titles, filters them by status (All; Live, a thread whose dashboard is pinned or whose alert or report is active, marked Pinned or Active; Drafts, every other one; `filterThreads` in `thread-list.ts`, in the browser), groups the threads by day, and moves one to the bin after asking. With Drafts on, Delete all my drafts asks in a dialog how many ("Move 12 drafts to the bin? You can restore them from the bin until they are purged.") and then moves every draft of the person to the bin at once (`POST /api/threads/drafts/bin`); others' threads are never counted or touched. A thread whose dashboard is pinned, or whose alert or report is active, can't be deleted: its bin button is disabled and says what to do first (`binBlocker`, such as "Deactivate its report first"). A link can fill the question box with `?prompt=` (or `?question=`), for any kind: control characters are dropped and the text is cut to 2,000 characters, and nothing is sent until the person sends it. It creates the thread and hands the first question over in `?ask=`, which the thread screen sends
   once and removes. Each question carries the browser's time zone.
-- **What a conversation makes.** Above the question box, a switch picks A dashboard or An alert
-  (dashboard by default; `?make=alert` picks the alert), with example requests for each that fill
-  the box. The kind goes with the new thread and stays. The past threads drawer marks each thread
-  with tiles or a bell. In an alert thread, the conversation shows alert plan cards (Watch, Fires
+- **What a conversation makes.** Above the question box, a switch picks A dashboard, An alert or
+  A report (dashboard by default; `?make=alert` picks the alert, `?make=report` the report), with
+  example requests for each that fill the box. The kind goes with the new thread and stays. The
+  past threads drawer marks each thread with tiles, a bell or a page. In an alert thread, the conversation shows alert plan cards (Watch, Fires
   when, Checks, Notifies; approved like a dashboard plan) and, for each change the person made by
   hand, a "You changed it by hand" card with the versions and each field before and after. The
   agent's offer to show the alert on a panel is a card ("This watches the same thing as _Error rate
@@ -507,9 +507,11 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
   and `deleted_by` and writes a `thread.bin` audit event. A thread whose dashboard is pinned is
   refused: unpin first. A thread whose alert is active (it has an active version and is not
   deactivated) is refused too: deactivate it first. Once deactivated, the thread goes to the bin,
-  and its alert keeps `thread_id` until the thread is purged.
+  and its alert keeps `thread_id` until the thread is purged. A thread whose report is active is
+  refused the same way, and its report keeps `thread_id` the same way.
 - `POST /api/threads/drafts/bin` (editor+) moves every draft of the caller to the bin in one
-  transaction: their own threads whose dashboard is not pinned and whose alert is not active.
+  transaction: their own threads whose dashboard is not pinned and whose alert or report is not
+  active.
   Others' threads are never touched, admins' included. It answers how many went, and writes one
   `thread.bin_drafts` audit event with their ids.
 - A binned thread is out of reach: the thread reads skip it, its dashboard can't be pinned, and
@@ -2002,7 +2004,7 @@ CREATE TABLE schema_cache (connector_id TEXT PRIMARY KEY REFERENCES connectors(i
 
 CREATE TABLE threads (
   id TEXT PRIMARY KEY, title TEXT, state TEXT NOT NULL DEFAULT 'idle',
-  kind TEXT NOT NULL DEFAULT 'dashboard' CHECK (kind IN ('dashboard','alert')),  -- fixed at start
+  kind TEXT NOT NULL DEFAULT 'dashboard' CHECK (kind IN ('dashboard','alert','report')),  -- fixed at start
   seed TEXT,                        -- JSON: the panel an alert thread starts from
   dashboard_id TEXT,                -- the dashboard this thread authors
   provider_id TEXT,                 -- the model provider; NULL or a removed one means the default
@@ -2122,7 +2124,7 @@ CREATE TABLE usage_events (
   id TEXT PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL,   -- 'model' | 'pinned_view' | 'snapshot_view'
   thread_id TEXT, dashboard_id TEXT, user_id TEXT, provider TEXT, model TEXT, job TEXT,
   vendor TEXT,                   -- who the step reached, such as 'gemini'; NULL for views and older steps
-  feature TEXT,                  -- 'building' | 'alert' | 'question' | 'explanation'; NULL for views
+  feature TEXT,                  -- 'building' | 'alert' | 'report' | 'question' | 'explanation'; NULL for views
   input INTEGER, cached_input INTEGER, cache_write INTEGER, output INTEGER,
   cost_micros INTEGER);                        -- list price when recorded; NULL when unknown
 
@@ -2255,7 +2257,7 @@ vendor, model, feature and user (`feature` is `null` for views), with each user'
 Settings → Usage draws tokens and cost per day stacked by model (the five costliest, then
 `Other`) or, with `?by=feature`, by feature (every feature, always in the same order, so each
 keeps its colour). It lists the features by their plain names (Building dashboards, Building
-alerts, Questions about dashboards, Panel explanations), the models with the vendor they reached
+alerts, Building reports, Questions about dashboards, Panel explanations), the models with the vendor they reached
 (and the provider's name under it when the two differ) and, ten a page, the people who spent the most.
 
 Migrations are plain numbered `.sql` files in `db/migrations/`. A migration that shipped in a

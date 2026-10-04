@@ -10,13 +10,17 @@ export const threadSummarySchema = z.object({
   id: z.string(),
   title: z.string().nullable(),
   state: z.enum(threadStates),
-  /** What it makes: a dashboard or an alert, fixed when it starts. */
+  /** What it makes: a dashboard, an alert or a report, fixed when it starts. */
   kind: z.enum(threadKinds),
   dashboardId: z.string().nullable(),
   /** The alert it makes, once it saved a first version. */
   alertId: z.string().nullable(),
   /** Whether its alert is active (activated, not deactivated): the thread can't go to the bin. */
   alertActive: z.boolean(),
+  /** The report it makes, once it saved a first version. */
+  reportId: z.string().nullable(),
+  /** Whether its report is active (activated, not deactivated): the thread can't go to the bin. */
+  reportActive: z.boolean(),
   tokensUsed: z.number(),
   /** The model provider it uses; `null` for the default. */
   providerId: z.string().nullable(),
@@ -111,7 +115,7 @@ export const deleteThreadEndpoint = defineEndpoint({
 
 /**
  * Moves every draft thread of the caller to the bin: their own threads whose dashboard is not
- * pinned and whose alert is not active. Others' threads are never touched.
+ * pinned and whose alert or report is not active. Others' threads are never touched.
  */
 export const binDraftsEndpoint = defineEndpoint({
   method: 'POST',

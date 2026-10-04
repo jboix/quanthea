@@ -1,6 +1,6 @@
 /**
- * What each feature spent: building dashboards, building alerts, questions about dashboards, and
- * panel explanations.
+ * What each feature spent: building dashboards, alerts and reports, questions about dashboards,
+ * and panel explanations.
  */
 import type { UsageBucket, UsageReport } from '@quanthea/shared';
 
@@ -11,6 +11,7 @@ export type UsageFeature = NonNullable<UsageBucket['feature']>;
 export const usageFeatures: readonly UsageFeature[] = [
   'building',
   'alert',
+  'report',
   'question',
   'explanation',
 ];
@@ -19,6 +20,7 @@ export const usageFeatures: readonly UsageFeature[] = [
 export const featureNames: Readonly<Record<UsageFeature, string>> = {
   building: 'Building dashboards',
   alert: 'Building alerts',
+  report: 'Building reports',
   question: 'Questions about dashboards',
   explanation: 'Panel explanations',
 };

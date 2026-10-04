@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { connectorInputSchema } from '@quanthea/shared';
 import { eventsSpec } from '../dashboards/test/events-spec.ts';
 import type { AppError } from '../lib/errors.ts';
+import { eventsReport } from '../reports/test/events-report.ts';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
@@ -62,6 +63,18 @@ function threadWithAlert() {
   };
   const { alertId } = services.alerts.saveVersion({ spec, threadId: thread.id }, 'editor-1');
   return { threadId: thread.id, alertId };
+}
+
+/**
+ * A report thread whose report has a first version, over the in-memory events.
+ *
+ * @returns The thread and its report.
+ */
+function threadWithReport() {
+  const thread = services.threads.create('editor-1', undefined, undefined, { kind: 'report' });
+  const input = { spec: eventsReport(), threadId: thread.id };
+  const { reportId } = services.reports.saveVersion(input, 'editor-1');
+  return { threadId: thread.id, reportId };
 }
 
 /**
@@ -127,6 +140,21 @@ describe('the bin of threads', () => {
     await services.alerts.activate(alertId, 1, 'editor-1');
     expect(services.bin.binDrafts('editor-1', 'editor-1')).toBe(0);
     await services.alerts.deactivate(alertId, 'editor-1');
+    expect(services.bin.binDrafts('editor-1', 'editor-1')).toBe(1);
+    expect(services.bin.list().map((thread) => thread.id)).toEqual([threadId]);
+  });
+
+  test('refuses a thread whose report is active, and takes it once the report is deactivated', async () => {
+    const { threadId, reportId } = threadWithReport();
+    expect(services.threads.get(threadId)).toMatchObject({ reportId, reportActive: false });
+    await services.reports.activate(reportId, 1, 'editor-1');
+    expect(services.threads.get(threadId).reportActive).toBe(true);
+    expect(failureOf(() => services.bin.bin(threadId, 'editor-1')).message).toBe(
+      'Its report is active. Deactivate it before deleting.',
+    );
+    expect(services.bin.binDrafts('editor-1', 'editor-1')).toBe(0);
+    services.reports.deactivate(reportId, 'editor-1');
+    expect(services.threads.get(threadId).reportActive).toBe(false);
     expect(services.bin.binDrafts('editor-1', 'editor-1')).toBe(1);
     expect(services.bin.list().map((thread) => thread.id)).toEqual([threadId]);
   });

@@ -8,18 +8,19 @@ import {
   useState,
 } from 'react';
 import { type SubmitTarget, useLoaderData, useSearchParams, useSubmit } from 'react-router';
-import { BellIcon, DashboardIcon } from '../../ui/icons.tsx';
+import { BellIcon, DashboardIcon, ReportIcon } from '../../ui/icons.tsx';
 import { Segmented } from '../../ui/segmented.tsx';
 import { Select } from '../../ui/select.tsx';
 import type { NewThreadData, NewThreadIntent } from './data.ts';
 import styles from './new-thread.module.css';
 import { QueryModeMenu, QueryPicker, useQueryChoice } from './query-choice.tsx';
-import { kindFrom, kindWords } from './thread-kinds.ts';
+import { kindFrom, kindWords, promptFrom } from './thread-kinds.ts';
 import { ThreadsDrawer } from './threads-drawer.tsx';
 
 /**
- * The question box's behaviour: it starts with `?question=` when a link fills it in, Enter sends,
- * Shift+Enter breaks the line, and a sent question stays on screen while the thread starts.
+ * The question box's behaviour: it starts with `?prompt=` (or `?question=`) when a link fills it
+ * in, and never sends it on its own. Enter sends, Shift+Enter breaks the line, and a sent question
+ * stays on screen while the thread starts.
  *
  * @param providerId - The provider the thread starts on.
  * @param queries - The queries the thread uses.
@@ -28,7 +29,7 @@ import { ThreadsDrawer } from './threads-drawer.tsx';
  */
 function useAsk(providerId: string, queries: ThreadQueries, kind: ThreadKind) {
   const [params] = useSearchParams();
-  const [question, setQuestion] = useState(() => params.get('question') ?? '');
+  const [question, setQuestion] = useState(() => promptFrom(params));
   const [sent, setSent] = useState<string | undefined>(undefined);
   const submit = useSubmit();
   const start = (event?: FormEvent) => {
@@ -40,7 +41,7 @@ function useAsk(providerId: string, queries: ThreadQueries, kind: ThreadKind) {
       intent: 'start',
       question: text,
       providerId,
-      ...(kind === 'alert' ? { kind } : { queries }),
+      ...(kind === 'dashboard' ? { queries } : { kind }),
     };
     void submit(intent as SubmitTarget, {
       method: 'post',
@@ -160,6 +161,7 @@ function Sent({ question }: { readonly question: string }) {
 const kindOptions = [
   { value: 'dashboard' as const, label: kindWords.dashboard.label, icon: <DashboardIcon /> },
   { value: 'alert' as const, label: kindWords.alert.label, icon: <BellIcon /> },
+  { value: 'report' as const, label: kindWords.report.label, icon: <ReportIcon /> },
 ];
 
 /**
@@ -195,9 +197,9 @@ function Examples({
 }
 
 /**
- * The new-thread screen: what to make (a dashboard or an alert), one question box in the middle,
- * and past threads at the top right. Sending keeps the question on screen until the thread opens
- * and the agent starts on it.
+ * The new-thread screen: what to make (a dashboard, an alert or a report), one question box in the
+ * middle, and past threads at the top right. Sending keeps the question on screen until the thread
+ * opens and the agent starts on it.
  *
  * @returns The screen.
  */

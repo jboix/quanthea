@@ -24,7 +24,7 @@ export interface ThreadRow {
   readonly providerId: string | null;
   /** The query builders and saved queries it uses. */
   readonly queries: ThreadQueries;
-  /** What it makes: a dashboard or an alert. */
+  /** What it makes: a dashboard, an alert or a report. */
   readonly kind: ThreadKind;
   /** For an alert thread, the panel it starts from. */
   readonly seed: AlertSeed | null;
@@ -32,6 +32,10 @@ export interface ThreadRow {
   readonly alertId: string | null;
   /** Whether an alert it made has an active version and is not deactivated; read only. */
   readonly alertActive: boolean;
+  /** The report it makes, once it saved a first version; read, never written here. */
+  readonly reportId: string | null;
+  /** Whether a report it made has an active version and is not deactivated; read only. */
+  readonly reportActive: boolean;
   /** Creation time, in epoch milliseconds. */
   readonly createdAt: number;
   /** Last change, in epoch milliseconds. */
@@ -190,6 +194,10 @@ interface StoredThread {
   alert_id: string | null;
   /** 1 when an alert it made is active. */
   alert_active: number;
+  /** The report it made, from the reports that name it. */
+  report_id: string | null;
+  /** 1 when a report it made is active. */
+  report_active: number;
   /** Creation time. */
   created_at: number;
   /** Last change. */
@@ -250,6 +258,8 @@ function toThread(stored: StoredThread): ThreadRow {
     seed: seedOf(stored.seed),
     alertId: stored.alert_id,
     alertActive: stored.alert_active === 1,
+    reportId: stored.report_id,
+    reportActive: stored.report_active === 1,
     createdAt: stored.created_at,
     updatedAt: stored.updated_at,
   };
@@ -273,10 +283,16 @@ function toPlan(stored: StoredPlan): PlanRow {
   };
 }
 
-/** A thread's columns, with its first alert, and whether an alert it made is active. */
+/**
+ * A thread's columns, with its first alert and its first report, and whether an alert or a report
+ * it made is active.
+ */
 const threadColumns = `t.*, (SELECT a.id FROM alerts a WHERE a.thread_id = t.id
   ORDER BY a.created_at, a.id LIMIT 1) AS alert_id, EXISTS (SELECT 1 FROM alerts a WHERE
-  a.thread_id = t.id AND a.active_version IS NOT NULL AND a.deactivated_at IS NULL) AS alert_active`;
+  a.thread_id = t.id AND a.active_version IS NOT NULL AND a.deactivated_at IS NULL) AS alert_active,
+  (SELECT r.id FROM reports r WHERE r.thread_id = t.id ORDER BY r.created_at, r.id LIMIT 1)
+  AS report_id, EXISTS (SELECT 1 FROM reports r WHERE r.thread_id = t.id
+  AND r.active_version IS NOT NULL AND r.deactivated_at IS NULL) AS report_active`;
 
 /**
  * Prepares the statements on threads.

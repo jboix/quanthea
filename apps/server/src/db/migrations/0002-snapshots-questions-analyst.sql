@@ -62,7 +62,7 @@ CREATE TABLE usage_events_next (
   output INTEGER NOT NULL DEFAULT 0,
   -- The list price at the time, in millionths of a dollar; NULL when the model had no price.
   cost_micros INTEGER,
-  feature TEXT CHECK (feature IN ('building', 'question', 'explanation', 'alert'))
+  feature TEXT CHECK (feature IN ('building', 'question', 'explanation', 'alert', 'report'))
 );
 
 -- Before this migration, every model step built dashboards.
@@ -404,11 +404,11 @@ CREATE INDEX alert_check_events_by_alert ON alert_check_events (alert_id, at);
 CREATE INDEX alert_check_events_by_time ON alert_check_events (at);
 
 -- --------------------------------------------------------------------------- alert conversations
--- A thread makes a dashboard or an alert, chosen when it starts and fixed. An alert thread may
--- start from a panel of a dashboard version; `seed` names it, as JSON
+-- A thread makes a dashboard, an alert or a report, chosen when it starts and fixed. An alert
+-- thread may start from a panel of a dashboard version; `seed` names it, as JSON
 -- `{"dashboardId", "version", "panelId"}`, and the agent reads that panel's query and title.
 ALTER TABLE threads ADD COLUMN kind TEXT NOT NULL DEFAULT 'dashboard'
-  CHECK (kind IN ('dashboard', 'alert'));
+  CHECK (kind IN ('dashboard', 'alert', 'report'));
 
 ALTER TABLE threads ADD COLUMN seed TEXT;
 

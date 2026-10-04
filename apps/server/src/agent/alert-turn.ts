@@ -105,7 +105,7 @@ function phaseLine(context: RunContext, plan: { body: AlertPlan; status: string 
  */
 function latestAlertPlan(plans: readonly PlanView[]) {
   const latest = plans.at(-1);
-  if (!latest || isDashboardPlan(latest.body)) return undefined;
+  if (!latest || isDashboardPlan(latest.body) || latest.body.kind !== 'alert') return undefined;
   return { body: latest.body, status: latest.status };
 }
 

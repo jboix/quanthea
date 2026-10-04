@@ -32,6 +32,8 @@ const thread: ThreadRow = {
   seed: null,
   alertId: null,
   alertActive: false,
+  reportId: null,
+  reportActive: false,
   createdAt: 1000,
   updatedAt: 1000,
 };

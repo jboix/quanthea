@@ -1,5 +1,5 @@
 import { dayMonthTime, type ThreadListItem } from '@quanthea/shared';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Drawer } from '../../ui/drawer.tsx';
@@ -9,6 +9,7 @@ import {
   DashboardIcon,
   HistoryIcon,
   PinIcon,
+  ReportIcon,
   SearchIcon,
 } from '../../ui/icons.tsx';
 import { BinDrafts } from './bin-drafts.tsx';
@@ -63,8 +64,8 @@ function ConfirmDelete({
 }
 
 /**
- * The button that moves a thread to the bin. A thread whose dashboard is pinned, or whose alert is
- * active, can't go, so its button says why instead.
+ * The button that moves a thread to the bin. A thread whose dashboard is pinned, or whose alert or
+ * report is active, can't go, so its button says why instead.
  *
  * @param props - The thread, its title and the click callback.
  * @param props.thread - The thread.
@@ -96,18 +97,26 @@ function DeleteButton({
   );
 }
 
+/** Each kind of thread, in words and as an icon. */
+const kindMarks: Readonly<Record<ThreadListItem['kind'], { words: string; icon: ReactNode }>> = {
+  dashboard: { words: 'A dashboard', icon: <DashboardIcon /> },
+  alert: { words: 'An alert', icon: <BellIcon /> },
+  report: { words: 'A report', icon: <ReportIcon /> },
+};
+
 /**
- * What a thread makes, as an icon: a bell for an alert, tiles for a dashboard.
+ * What a thread makes, as an icon: tiles for a dashboard, a bell for an alert, a page for a
+ * report.
  *
  * @param props - The kind.
  * @param props.kind - What the thread makes.
  * @returns The icon, named for screen readers.
  */
 function KindIcon({ kind }: { readonly kind: ThreadListItem['kind'] }) {
-  const words = kind === 'alert' ? 'An alert' : 'A dashboard';
+  const { words, icon } = kindMarks[kind];
   return (
     <span className={styles.kind} title={words} role="img" aria-label={words}>
-      {kind === 'alert' ? <BellIcon /> : <DashboardIcon />}
+      {icon}
     </span>
   );
 }
@@ -153,6 +162,11 @@ function ThreadRow({ thread, now }: { readonly thread: ThreadListItem; readonly 
                   <BellIcon /> Active
                 </span>
               )}
+              {thread.reportActive && (
+                <span className={styles.pinned}>
+                  <ReportIcon /> Active
+                </span>
+              )}
               {dayMonthTime(thread.updatedAt, now)}
               {note && ` · ${note}`}
             </span>
@@ -175,8 +189,8 @@ const statusLabels: Readonly<Record<ThreadStatus, string>> = {
 /** What each status means, on hover. */
 const statusTitles: Readonly<Record<ThreadStatus, string>> = {
   all: 'Every thread',
-  live: 'Its dashboard is pinned, or its alert is active',
-  drafts: 'No pinned dashboard and no active alert',
+  live: 'Its dashboard is pinned, or its alert or report is active',
+  drafts: 'No pinned dashboard, no active alert and no active report',
 };
 
 /**

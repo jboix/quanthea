@@ -30,6 +30,8 @@ function thread(id: string, title: string | null, daysAgo: number, pinned = fals
     dashboardId: null,
     alertId: null,
     alertActive: false,
+    reportId: null,
+    reportActive: false,
     tokensUsed: 0,
     providerId: null,
     queries: { mode: 'default' },
@@ -89,6 +91,25 @@ describe('the past threads', () => {
       'Deactivate its alert to delete this thread',
     );
     expect(binBlocker(alert)).toBeNull();
+  });
+
+  test('treat a thread whose report is active like one whose alert is active', () => {
+    const report = { ...thread('r', 'Weekly sales', 0), kind: 'report' as const, reportId: 'r1' };
+    const live = { ...report, reportActive: true };
+    expect(isLive(live)).toBe(true);
+    expect(isLive(report)).toBe(false);
+    expect(binBlocker(live)).toBe('Deactivate its report first');
+    expect(binBlocker(report)).toBeNull();
+    expect(ownDrafts([...threads, live, report]).map((each) => each.id)).toEqual([
+      'b',
+      'c',
+      'e',
+      'r',
+    ]);
+    const ids = (status: 'live' | 'drafts') =>
+      filterThreads([live], { text: '', status, everyone: false }).map((each) => each.id);
+    expect(ids('live')).toEqual(['r']);
+    expect(ids('drafts')).toEqual([]);
   });
 
   test('count only one’s own drafts for Delete all my drafts, and ask before moving them', () => {

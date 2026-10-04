@@ -165,6 +165,18 @@ describe('thread routes', () => {
     );
   });
 
+  test('start a report thread, fixed as one, which takes no panel to start from', async () => {
+    const call = client(editor);
+    const created = threadSummarySchema.parse(
+      (await call('POST', '/api/threads', { kind: 'report' })).body,
+    );
+    expect(created).toMatchObject({ kind: 'report', reportId: null, reportActive: false });
+    const listed = (await call('GET', '/api/threads')).body as { id: string; kind: string }[];
+    expect(listed.map((each) => [each.id, each.kind])).toContainEqual([created.id, 'report']);
+    const seed = { dashboardId: 'any', version: 1, panelId: 'errors-peak' };
+    expect((await call('POST', '/api/threads', { kind: 'report', seed })).status).toBe(400);
+  });
+
   test('bin all of the caller’s drafts at once, never live threads or others’ threads', async () => {
     const events = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
     await fixture.connections.create(connectorInputSchema.parse(events), 'admin-1');

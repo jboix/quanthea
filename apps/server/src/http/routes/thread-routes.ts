@@ -11,6 +11,7 @@ import {
   rejectPlanEndpoint,
   restoreVersionEndpoint,
   startFromPinnedEndpoint,
+  type ThreadKind,
   threadFromDashboardEndpoint,
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
@@ -101,7 +102,7 @@ function listThreads(
  */
 function checkSeed(
   services: ThreadRouteServices,
-  kind: 'dashboard' | 'alert',
+  kind: ThreadKind,
   seed: AlertSeed,
   principal: Principal,
 ): void {

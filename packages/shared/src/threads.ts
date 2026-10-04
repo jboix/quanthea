@@ -1,6 +1,6 @@
 /**
- * Threads: the conversation that authors a dashboard, its plans, and the custom parts its messages
- * carry (plan cards, new dashboard versions, diffs).
+ * Threads: the conversation that authors a dashboard, an alert or a report, its plans, and the
+ * custom parts its messages carry (plan cards, new versions, diffs, hand edits).
  */
 
 import { queryLanguageSchema } from '@quanthea/plugin-kit/contract';
@@ -14,8 +14,8 @@ export const threadStates = ['idle', 'plan_pending', 'building', 'ready'] as con
 /** A thread state. */
 export type ThreadState = (typeof threadStates)[number];
 
-/** What a thread makes: a dashboard or an alert, chosen when it starts and fixed. */
-export const threadKinds = ['dashboard', 'alert'] as const;
+/** What a thread makes: a dashboard, an alert or a report, chosen when it starts and fixed. */
+export const threadKinds = ['dashboard', 'alert', 'report'] as const;
 
 /** What a thread makes. */
 export type ThreadKind = (typeof threadKinds)[number];
@@ -104,21 +104,51 @@ export const alertPlanSchema = z.strictObject({
 /** An alert plan. */
 export type AlertPlan = z.infer<typeof alertPlanSchema>;
 
+/** Validates a pinned dashboard or a channel a report plan names: its id and its name. */
+const namedSchema = z.object({ id: z.string().max(64), name: z.string().max(200) });
+
 /**
- * Whether a plan is a dashboard plan, not an alert thread's.
+ * Validates a report plan: when a report thread's report runs, the period it covers, what it
+ * compares with, what it shows, the pinned dashboards it links to and where it is sent, in words,
+ * for a person to approve before the agent writes it.
+ */
+export const reportPlanSchema = z.strictObject({
+  kind: z.literal('report'),
+  title: z.string().min(1).max(200),
+  /** When it runs, such as `Mondays at 08:00, Europe/Zurich`. */
+  runs: z.string().min(1).max(200),
+  /** The period each run covers, such as `the previous week, Monday to Sunday`. */
+  covers: z.string().min(1).max(200),
+  /** What it compares with, such as `the week before`, or `nothing`. */
+  compares: z.string().min(1).max(200),
+  /** What it shows, such as `4 numbers, revenue per day, top 5 products`. */
+  shows: z.string().min(1).max(300),
+  /** The connectors it reads. */
+  connectors: z.array(connectorNameSchema).max(10),
+  /** The pinned dashboards it links to, by id and title. */
+  seeAlso: z.array(namedSchema).max(5),
+  /** The channels it is sent to, by id and name. */
+  channels: z.array(namedSchema).max(20),
+});
+
+/** A report plan. */
+export type ReportPlan = z.infer<typeof reportPlanSchema>;
+
+/**
+ * Whether a plan is a dashboard plan, not an alert or a report thread's.
  *
  * @param body - The plan.
  * @returns `true` for a dashboard plan.
  */
-export function isDashboardPlan(body: Plan | AlertPlan): body is Plan {
+export function isDashboardPlan(body: Plan | AlertPlan | ReportPlan): body is Plan {
   return !('kind' in body);
 }
 
-/** Validates a plan as the API returns it: a dashboard plan, or an alert thread's plan. */
+/** Validates a plan as the API returns it: a dashboard plan, or an alert or a report plan. */
 export const planViewSchema = z.object({
   id: z.string(),
   status: z.enum(planStatuses),
-  body: z.union([planSchema, alertPlanSchema]),
+  body: z.union([planSchema, alertPlanSchema, reportPlanSchema]),
   decidedBy: z.string().nullable(),
   createdAt: z.number(),
   decidedAt: z.number().nullable(),
@@ -163,7 +193,7 @@ const repairSchema = z.object({
 /** A failed write, or the repaired one. */
 export type Repair = z.infer<typeof repairSchema>;
 
-/** Validates the change of one field of an alert spec, as the hand-edit card shows it. */
+/** Validates the change of one field of a spec, as the hand-edit card shows it. */
 export const specChangeSchema = z.object({
   /** The field, such as `condition.value`. */
   path: z.string().max(200),
@@ -171,7 +201,7 @@ export const specChangeSchema = z.object({
   after: z.string().max(2000).optional(),
 });
 
-/** The change of one field of an alert spec. */
+/** The change of one field of a spec. */
 export type SpecChange = z.infer<typeof specChangeSchema>;
 
 /** The custom parts of an alert thread. */
@@ -194,6 +224,21 @@ const alertDataSchemas = {
     dashboardTitle: z.string(),
     panelId: z.string(),
     panelTitle: z.string(),
+  }),
+};
+
+/** The custom parts of a report thread. */
+const reportDataSchemas = {
+  /** A proposed report plan, for the plan card. */
+  reportPlan: z.object({ planId: z.string(), body: reportPlanSchema }),
+  /** A new report version; the draft pane moves to it. */
+  reportVersion: z.object({ reportId: z.string(), version: z.int(), note: z.string() }),
+  /** The person changed the report draft by hand: the versions and the fields that changed. */
+  reportHandEdit: z.object({
+    reportId: z.string(),
+    from: z.int(),
+    to: z.int(),
+    changes: z.array(specChangeSchema).max(40),
   }),
 };
 
@@ -222,6 +267,7 @@ export const threadDataSchemas = {
     panels: z.array(panelDiffSchema),
   }),
   ...alertDataSchemas,
+  ...reportDataSchemas,
 };
 
 /** The data of each custom part. */

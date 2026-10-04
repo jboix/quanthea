@@ -7,6 +7,7 @@ import type {
   AlertSeed,
   Plan,
   PlanView,
+  ReportPlan,
   ThreadDetail,
   ThreadKind,
   ThreadQueries,
@@ -36,12 +37,12 @@ export interface StoredMessage {
   readonly metadata?: unknown;
 }
 
-/** A plan of either kind of thread. */
-type AnyPlan = Plan | AlertPlan;
+/** A plan of any kind of thread. */
+type AnyPlan = Plan | AlertPlan | ReportPlan;
 
 /** What a new thread makes, and the panel an alert thread starts from. */
 export interface ThreadStart {
-  /** A dashboard or an alert. */
+  /** A dashboard, an alert or a report. */
   readonly kind: ThreadKind;
   /** The panel an alert thread starts from, if any. */
   readonly seed?: AlertSeed | undefined;
@@ -192,7 +193,12 @@ function timesOf(row: ThreadRow) {
 function toSummary(row: ThreadRow): ThreadSummary {
   const { id, title, state, kind, dashboardId, alertId, tokensUsed, providerId, queries } = row;
   const summary = { id, title, state, kind, dashboardId, alertId, tokensUsed, providerId, queries };
-  return { ...summary, alertActive: row.alertActive, ownerId: row.createdBy, ...timesOf(row) };
+  const made = {
+    alertActive: row.alertActive,
+    reportId: row.reportId,
+    reportActive: row.reportActive,
+  };
+  return { ...summary, ...made, ownerId: row.createdBy, ...timesOf(row) };
 }
 
 /**
@@ -366,6 +372,8 @@ function create(
     seed: start.kind === 'alert' ? (start.seed ?? null) : null,
     alertId: null,
     alertActive: false,
+    reportId: null,
+    reportActive: false,
     createdAt: at,
     updatedAt: at,
   };

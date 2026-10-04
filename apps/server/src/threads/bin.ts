@@ -1,6 +1,6 @@
 /**
  * The bin of threads. Deleting a thread moves it here, unless its dashboard is pinned or its alert
- * is active; restoring brings it back. Purging deletes the thread and its dashboard with every version, which frees the
+ * or report is active; restoring brings it back. Purging deletes the thread and its dashboard with every version, which frees the
  * space; the usage ledger has no link to either, so usage is kept.
  */
 import type { AuditRepository } from '../db/audit-repository.ts';
@@ -27,13 +27,13 @@ export interface ThreadBin {
    *
    * @param id - The thread.
    * @param actor - Who deletes it.
-   * @throws {AppError} `not_found`; `bad_request` when its dashboard is pinned or its alert is
-   *   active.
+   * @throws {AppError} `not_found`; `bad_request` when its dashboard is pinned or its alert or
+   *   report is active.
    */
   bin(id: string, actor: string): void;
   /**
    * Moves every draft of an owner to the bin at once: their threads whose dashboard is not pinned
-   * and whose alert is not active. Others' threads are never touched.
+   * and whose alert or report is not active. Others' threads are never touched.
    *
    * @param ownerId - Whose drafts.
    * @param actor - Who deletes them.
@@ -95,6 +95,8 @@ function threadBinner(dependencies: ThreadBinDependencies): ThreadBin['bin'] {
       throw new AppError('bad_request', 'Its dashboard is pinned. Unpin it before deleting.');
     if (outcome === 'alert_active')
       throw new AppError('bad_request', 'Its alert is active. Deactivate it before deleting.');
+    if (outcome === 'report_active')
+      throw new AppError('bad_request', 'Its report is active. Deactivate it before deleting.');
     audit.append({ actor, action: 'thread.bin', target: id });
   };
 }

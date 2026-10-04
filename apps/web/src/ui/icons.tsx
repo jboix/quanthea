@@ -62,6 +62,21 @@ export function BellIcon() {
 }
 
 /**
+ * A page with a folded corner and two lines, for a report.
+ *
+ * @returns The icon.
+ */
+export function ReportIcon() {
+  return (
+    <Icon>
+      <path d="M7 3h7l5 5v13H7z" />
+      <path d="M14 3v5h5" />
+      <path d="M10 13h6M10 17h6" />
+    </Icon>
+  );
+}
+
+/**
  * Two tiles over a wide one, for a dashboard.
  *
  * @returns The icon.

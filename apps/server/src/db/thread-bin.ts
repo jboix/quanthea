@@ -1,7 +1,7 @@
 /**
  * The bin of threads: moving a thread in and out, listing it, and purging it with its dashboard.
  * The other thread reads (`thread-repository.ts`) skip binned threads. Purging a thread never
- * deletes an alert it made: the alert keeps its versions, and its `thread_id` becomes `NULL`.
+ * deletes an alert or a report it made: it keeps its versions, and its `thread_id` becomes `NULL`.
  */
 import type { Database } from 'bun:sqlite';
 
@@ -34,24 +34,24 @@ export interface ThreadOwner {
 }
 
 /** What moving a thread to the bin did. */
-export type BinOutcome = 'binned' | 'missing' | 'pinned' | 'alert_active';
+export type BinOutcome = 'binned' | 'missing' | 'pinned' | 'alert_active' | 'report_active';
 
 /** Stores the bin. */
 export interface ThreadBinRepository {
   /**
-   * Moves a thread to the bin, unless its dashboard is pinned or its alert is active.
+   * Moves a thread to the bin, unless its dashboard is pinned or its alert or report is active.
    *
    * @param id - The thread.
    * @param at - When.
    * @param actor - Who.
    * @returns `binned`; `missing` when there is no such thread outside the bin; `pinned` when its
    *   dashboard is pinned; `alert_active` when an alert it made has an active version and is not
-   *   deactivated.
+   *   deactivated; `report_active` when a report it made is.
    */
   bin(id: string, at: number, actor: string): BinOutcome;
   /**
    * Moves every draft of an owner to the bin, in one transaction: their threads outside the bin
-   * whose dashboard is not pinned and whose alert is not active.
+   * whose dashboard is not pinned and whose alert or report is not active.
    *
    * @param ownerId - Whose drafts.
    * @param at - When.
@@ -119,6 +119,10 @@ interface StoredBinned {
 const alertActive = `EXISTS (SELECT 1 FROM alerts a WHERE a.thread_id = t.id
   AND a.active_version IS NOT NULL AND a.deactivated_at IS NULL)`;
 
+/** Whether a report the thread `t` made has an active version and is not deactivated. */
+const reportActive = `EXISTS (SELECT 1 FROM reports r WHERE r.thread_id = t.id
+  AND r.active_version IS NOT NULL AND r.deactivated_at IS NULL)`;
+
 /**
  * Prepares the statements of the bin.
  *
@@ -127,8 +131,9 @@ const alertActive = `EXISTS (SELECT 1 FROM alerts a WHERE a.thread_id = t.id
  */
 function binStatements(database: Database) {
   return {
-    live: database.query<{ pinned: number; alert_active: number }, [string]>(
-      `SELECT d.pinned_version_id IS NOT NULL AS pinned, ${alertActive} AS alert_active
+    live: database.query<{ pinned: number; alert_active: number; report_active: number }, [string]>(
+      `SELECT d.pinned_version_id IS NOT NULL AS pinned, ${alertActive} AS alert_active,
+       ${reportActive} AS report_active
        FROM threads t LEFT JOIN dashboards d ON d.id = t.dashboard_id
        WHERE t.id = ? AND t.deleted_at IS NULL`,
     ),
@@ -178,6 +183,7 @@ function binner(
     if (!live) return 'missing';
     if (live.pinned) return 'pinned';
     if (live.alert_active) return 'alert_active';
+    if (live.report_active) return 'report_active';
     statements.bin.run(at, actor, id);
     return 'binned';
   });
@@ -197,7 +203,7 @@ function draftBinner(
   const drafts = database.query<{ id: string }, [string]>(
     `SELECT t.id FROM threads t LEFT JOIN dashboards d ON d.id = t.dashboard_id
      WHERE t.created_by = ? AND t.deleted_at IS NULL AND d.pinned_version_id IS NULL
-     AND NOT ${alertActive}`,
+     AND NOT ${alertActive} AND NOT ${reportActive}`,
   );
   return database.transaction((ownerId: string, at: number, actor: string): string[] => {
     const ids = drafts.all(ownerId).map((row) => row.id);
