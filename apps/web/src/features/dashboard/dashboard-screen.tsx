@@ -57,8 +57,8 @@ function useScrollToPanel(): void {
 
 /**
  * A dashboard: its variables, and its panels running saved queries with no model involved. On a
- * pinned version, Ask about this opens the side panel's Ask tab; the answer open there marks the
- * panels it cites, in the page only.
+ * pinned version, Ask about this opens the side panel's Ask tab, beside the header and the panels;
+ * the answer that marks the charts there badges the panels it cites, in the page only.
  *
  * @returns The screen.
  */
@@ -76,21 +76,21 @@ export function DashboardScreen() {
   const shown = { dashboardId: dashboard.id, version: version.version, spec: version.spec };
   return (
     <div className={styles.screen}>
-      <DashboardHeader {...loaded} onAsk={onAsk} asking={shownSide === 'ask'} />
-      <div className={styles.body} data-side={shownSide !== null}>
+      <div className={styles.content}>
+        <DashboardHeader {...loaded} onAsk={onAsk} asking={shownSide !== null} />
         <div className={styles.main}>
           <DashboardCanvas refreshable {...shown} answerMarks={marks} explainable={askable} />
         </div>
-        {shownSide && (
-          <SidePanel
-            {...loaded}
-            tab={shownSide}
-            onTab={setSide}
-            onClose={() => setSide(null)}
-            onOpenAnswer={setOpen}
-          />
-        )}
       </div>
+      {shownSide && (
+        <SidePanel
+          {...loaded}
+          tab={shownSide}
+          onTab={setSide}
+          onClose={() => setSide(null)}
+          onOpenAnswer={setOpen}
+        />
+      )}
     </div>
   );
 }

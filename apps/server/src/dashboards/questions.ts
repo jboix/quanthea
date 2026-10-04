@@ -7,10 +7,8 @@
 import {
   type Answer,
   type AnswerEvidence,
-  type DashboardQuestion,
   type DashboardSource,
   type DashboardSpec,
-  dashboardQuestionSchema,
   type ResolvedTimeRange,
   type Role,
   resolveTimeRange,
@@ -23,10 +21,9 @@ import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
 import { meaningfulWords } from '../lib/words.ts';
 import { type DashboardsDependencies, get, type ServiceContext, specOf } from './context.ts';
+import { listConversations, questionsOf, readConversation } from './conversations.ts';
+import { type ConversationInfo, infoOf, type QuestionInfo } from './question-info.ts';
 import { shownVariables } from './snapshots.ts';
-
-/** The most questions a dashboard lists. */
-const maxListed = 200;
 
 /** The most earlier questions a search offers. */
 const maxSimilar = 3;
@@ -50,7 +47,9 @@ export interface QuestionRequest {
   readonly hiddenMarkers: readonly string[];
   /** The browser's time zone, for a dashboard that names none. */
   readonly timeZone: string;
-  /** The question it follows up on. */
+  /** The conversation it continues, following up on its latest question. */
+  readonly conversationId?: string | undefined;
+  /** The question it follows up on, instead of a conversation. */
   readonly parentId?: string | undefined;
 }
 
@@ -78,6 +77,8 @@ export interface PreparedQuestion {
   readonly question: string;
   /** The question it follows up on. */
   readonly parentId: string | null;
+  /** The conversation's first question: its own id when it starts one. */
+  readonly rootId: string;
   /** The earlier questions and answers of its chain, oldest first. */
   readonly history: readonly { readonly question: string; readonly answer: string }[];
   /** Who asks, by user id. */
@@ -96,23 +97,17 @@ export type AnsweredOutcome =
       readonly usage: TurnUsage;
     };
 
-/** A stored question, naming its asker by user id. */
-export type QuestionInfo = Omit<DashboardQuestion, 'askedBy'> & {
-  /** The user id of whoever asked. */
-  readonly askerId: string;
-};
-
 /** The questions service. */
 export interface Questions {
   /**
    * Prepares a question about a pinned version: resolves the range and the variables shown, and
-   * gathers the chain it follows up on.
+   * gathers the chain it follows up on: the conversation's latest question, or the parent named.
    *
    * @param request - The question and what the dashboard shows.
    * @param actor - Who asks.
    * @returns The prepared question.
-   * @throws {AppError} `not_found` for a version viewers may not see or an unknown parent,
-   *   `bad_request` for an unknown time zone.
+   * @throws {AppError} `not_found` for a version viewers may not see or an unknown parent or
+   *   conversation, `bad_request` for an unknown time zone or both a parent and a conversation.
    */
   prepare(request: QuestionRequest, actor: string): PreparedQuestion;
   /**
@@ -123,14 +118,25 @@ export interface Questions {
    */
   record(prepared: PreparedQuestion, outcome: AnsweredOutcome): void;
   /**
-   * Lists a dashboard's questions, the newest first.
+   * Lists a dashboard's conversations, the latest activity first, or those a search finds.
    *
    * @param dashboardId - The dashboard.
+   * @param text - The search, empty for all.
    * @param role - The role the dashboard is read with.
-   * @returns The questions.
+   * @returns The conversations.
    * @throws {AppError} `not_found` for a dashboard the role may not see.
    */
-  list(dashboardId: string, role: Role): QuestionInfo[];
+  conversations(dashboardId: string, text: string, role: Role): ConversationInfo[];
+  /**
+   * Reads one conversation's questions, in the order they were asked.
+   *
+   * @param dashboardId - The dashboard.
+   * @param conversationId - The conversation's first question.
+   * @param role - The role the dashboard is read with.
+   * @returns The questions.
+   * @throws {AppError} `not_found`.
+   */
+  conversation(dashboardId: string, conversationId: string, role: Role): QuestionInfo[];
   /**
    * Reads one question.
    *
@@ -222,19 +228,35 @@ function knownTimeZone(timeZone: string): string {
 }
 
 /**
+ * The question a new one follows up on: the latest of the conversation it continues, else the
+ * parent it names, else none.
+ *
+ * @param context - The service context.
+ * @param request - The question.
+ * @returns The parent, or `undefined` for a first question.
+ * @throws {AppError} `bad_request` for both, `not_found` for one not on this dashboard.
+ */
+function parentOf(context: QuestionContext, request: QuestionRequest): QuestionRow | undefined {
+  const { dashboardId, conversationId, parentId } = request;
+  if (conversationId !== undefined && parentId !== undefined)
+    throw new AppError('bad_request', 'Name a conversation or a parent question, not both.');
+  if (conversationId !== undefined) return questionsOf(context, dashboardId, conversationId).at(-1);
+  if (parentId === undefined) return undefined;
+  const parent = context.questions.get(parentId);
+  if (parent?.dashboardId !== dashboardId)
+    throw new AppError('not_found', `No question ${parentId} on this dashboard.`);
+  return parent;
+}
+
+/**
  * The earlier questions and answers of a chain, oldest first: the answered ones, at most
  * {@link maxHistory}.
  *
  * @param context - The service context.
- * @param dashboardId - The dashboard the chain must be on.
- * @param parentId - The question followed up on.
+ * @param parent - The question followed up on.
  * @returns The history.
- * @throws {AppError} `not_found` for a parent of another dashboard or none.
  */
-function historyOf(context: QuestionContext, dashboardId: string, parentId: string) {
-  const parent = context.questions.get(parentId);
-  if (parent?.dashboardId !== dashboardId)
-    throw new AppError('not_found', `No question ${parentId} on this dashboard.`);
+function historyOf(context: QuestionContext, parent: QuestionRow) {
   const chain: { question: string; answer: string }[] = [];
   for (let row: QuestionRow | undefined = parent; row && chain.length < maxHistory; ) {
     if (row.answer !== null) chain.unshift({ question: row.question, answer: row.answer });
@@ -255,9 +277,10 @@ function prepare(context: QuestionContext, request: QuestionRequest, actor: stri
   // Questions are about what everyone may see: a pinned version of a pinned dashboard.
   const spec = specOf(context, request, 'viewer');
   const known = new Set(spec.annotations.map((annotation) => annotation.id));
-  const { parentId } = request;
+  const parent = parentOf(context, request);
+  const questionId = newId();
   return {
-    id: newId(),
+    id: questionId,
     dashboardId: request.dashboardId,
     version: request.version,
     spec,
@@ -267,8 +290,9 @@ function prepare(context: QuestionContext, request: QuestionRequest, actor: stri
     hiddenMarkers: [...new Set(request.hiddenMarkers)].filter((id) => known.has(id)),
     explainOnly: !sourcesOf(context, spec).some(({ accessLevel }) => (accessLevel ?? 0) >= 3),
     question: request.question,
-    parentId: parentId ?? null,
-    history: parentId === undefined ? [] : historyOf(context, request.dashboardId, parentId),
+    parentId: parent?.id ?? null,
+    rootId: parent?.rootId ?? questionId,
+    history: parent ? historyOf(context, parent) : [],
     askedBy: actor,
     askedAt: context.now(),
   } satisfies PreparedQuestion;
@@ -308,34 +332,6 @@ function rowOf(prepared: PreparedQuestion, outcome: AnsweredOutcome): QuestionRo
     usage: outcome.usage,
     tokens,
   };
-}
-
-/**
- * A stored question as the service gives it.
- *
- * @param row - The stored question.
- * @returns The question, naming its asker by id.
- */
-function infoOf(row: QuestionRow): QuestionInfo {
-  const outcome =
-    row.answer === null
-      ? { ok: false, message: row.failure ?? '', evidence: row.evidence }
-      : {
-          ok: true,
-          answer: {
-            mode: 'ask',
-            text: row.answer,
-            citations: row.citations,
-            evidence: row.evidence,
-          },
-        };
-  const parsed = dashboardQuestionSchema.parse({
-    ...row,
-    time: { from: row.timeFrom, to: row.timeTo },
-    outcome,
-  });
-  const { askedBy, ...rest } = parsed;
-  return { ...rest, askerId: askedBy };
 }
 
 /**
@@ -386,10 +382,9 @@ export function createQuestions(
   return {
     prepare: (request, actor) => prepare(context, request, actor),
     record: (prepared, outcome) => context.questions.insert(rowOf(prepared, outcome)),
-    list: (dashboardId, role) => {
-      get(context, dashboardId, role);
-      return context.questions.list(dashboardId, maxListed).map(infoOf);
-    },
+    conversations: (dashboardId, text, role) => listConversations(context, dashboardId, text, role),
+    conversation: (dashboardId, conversationId, role) =>
+      readConversation(context, dashboardId, conversationId, role),
     get: (dashboardId, questionId, role) => questionOf(context, dashboardId, questionId, role),
     similar: (dashboardId, text, role) => similar(context, dashboardId, text, role),
     sources: (target, role) =>

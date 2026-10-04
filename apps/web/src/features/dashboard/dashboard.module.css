@@ -1,7 +1,16 @@
 .screen {
   display: flex;
+  height: 100%;
+}
+
+/* The header and the panels scroll together, apart from the side panel. */
+.content {
+  position: relative;
+  display: flex;
   flex-direction: column;
-  min-height: 100%;
+  flex-grow: 1;
+  min-width: 0;
+  overflow-y: auto;
 }
 
 .header {
@@ -37,18 +46,6 @@
   margin: 0;
   font-size: 22px;
   font-weight: 600;
-}
-
-.body {
-  display: flex;
-  flex-grow: 1;
-  align-items: stretch;
-}
-
-@media (max-width: 960px) {
-  .body[data-side="true"] {
-    flex-direction: column;
-  }
 }
 
 .main {

@@ -1,199 +1,219 @@
 /**
- * The Ask tab of a pinned dashboard: the questions asked about it and their answers, the newest
- * first with their follow-ups under them, and, for analysts and above, the question box. A
- * question is asked about the dashboard as it is shown: its range, its variables and its version.
+ * The Ask tab of a pinned dashboard: one conversation, newest at the bottom, and, for analysts and
+ * above, the question box pinned under it. Each question continues the conversation, about the
+ * dashboard as it is shown then: its range, its variables and its version. New conversation starts
+ * over; History holds the others.
  */
-import type { DashboardQuestion } from '@quanthea/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import type { Conversation } from '@quanthea/shared';
+import { useEffect, useRef } from 'react';
+import { Button } from '../../ui/button.tsx';
 import styles from './ask.module.css';
-import { AskForm, ExplainOnlyCard, QuestionSearch, SimilarQuestions } from './ask-form.tsx';
-import { type OpenAnswer, questionThreads } from './ask-marks.ts';
-import { LiveAnswerCard, QuestionCard } from './ask-question.tsx';
-import {
-  browserTimeZone,
-  useAnyQuestion,
-  useCanAsk,
-  useOpenAnswer,
-  useOpenQuestion,
-  useQuestions,
-  useSimilar,
-  useSources,
-} from './ask-state.ts';
-import { contextLabel } from './ask-words.ts';
+import { askedContextOf, contextChange } from './ask-conversation.ts';
+import { AskForm, ExplainOnlyCard, SimilarQuestions, WhoCanAsk } from './ask-form.tsx';
+import { LiveTurn, StoredTurn } from './ask-message.tsx';
+import { useCanAsk, useConversations, useSimilar, useSources } from './ask-state.ts';
+import { dayLabel, instantLabel } from './ask-words.ts';
 import type { DashboardData } from './data.ts';
-import { hiddenMarkersOf } from './marker-sets.ts';
-import { type AskBody, useAsk } from './use-ask.ts';
-import { choicesFromSearch } from './view-state.ts';
+import type { useConversation } from './use-conversation.ts';
+
+/** The conversation's state, as {@link useConversation} gives it. */
+type ConversationState = ReturnType<typeof useConversation>;
 
 /** Props of {@link AskTab}. */
 interface AskTabProps extends DashboardData {
-  /** Receives the answer the dashboard should mark, or `undefined` for none. */
-  readonly onOpenAnswer: (open: OpenAnswer | undefined) => void;
+  /** The open conversation. */
+  readonly conversation: ConversationState;
+  /** Shows the History tab. */
+  readonly onHistory: () => void;
 }
 
-/**
- * What a question is asked about: the version, the range, the variables and the hidden sets of
- * markers in the address, as the request and as the question box's label.
- *
- * @param version - The version shown.
- * @returns The request body of a question, and the label.
- */
-function useShown(version: DashboardData['version']) {
-  const [search] = useSearchParams();
-  const { spec } = version;
-  const choices = choicesFromSearch(search, spec);
-  const timeZone = spec.timezone ?? browserTimeZone();
-  const body = (question: string, parentId: string | undefined): AskBody => ({
-    version: version.version,
-    question,
-    variables: choices.variables,
-    ...(choices.time ? { time: choices.time } : {}),
-    hiddenMarkers: [...hiddenMarkersOf(search, spec)],
-    timeZone: browserTimeZone(),
-    ...(parentId ? { parentId } : {}),
-  });
-  const label = contextLabel({ spec, ...choices, timeZone, now: Date.now() });
-  return { body, label, timeZone };
-}
+/** How many recent conversations a new one offers to open. */
+const recentShown = 3;
 
 /**
- * The tab's state: the questions, the open one, and the answer on its way. Once an answer ends,
- * the questions load again and the new one opens.
+ * The bar above the conversation: who started it and when, or that it is new, and New
+ * conversation for those who may ask.
  *
- * @param props - The dashboard and the version shown.
- * @returns The state, and the function that asks.
+ * @param props - The conversation and whether the person may ask.
+ * @param props.conversation - The open conversation.
+ * @param props.canAsk - Whether the person may ask.
+ * @returns The bar.
  */
-function useAskAsShown({ dashboard, version }: DashboardData) {
-  const { body, label, timeZone } = useShown(version);
-  const listed = useQuestions(dashboard.id);
-  const opened = useOpenQuestion();
-  const any = useAnyQuestion(dashboard.id, listed.questions, opened.open);
-  const questions = { ...listed, questions: any.questions };
-  const { reload } = listed;
-  const { setExpanded } = opened;
-  const onEnd = useCallback(
-    (questionId: string | null) => {
-      reload();
-      if (questionId) setExpanded(questionId);
-    },
-    [reload, setExpanded],
-  );
-  const { live, ask, clear } = useAsk(dashboard.id, onEnd);
-  const send = (question: string, parentId: string | undefined) =>
-    void ask(body(question, parentId));
-  const shown = { questions, live, clear, send, label, timeZone, openFailed: any.failed };
-  return { dashboardId: dashboard.id, ...shown, ...opened, open: any.open };
-}
-
-/**
- * Drops the live answer once the stored list holds it, and tells the dashboard which answer to
- * mark.
- *
- * @param state - The tab's state.
- * @param version - The version shown.
- * @param onOpenAnswer - Receives the answer to mark.
- */
-function useSyncedAnswer(
-  state: ReturnType<typeof useAskAsShown>,
-  version: number,
-  onOpenAnswer: AskTabProps['onOpenAnswer'],
-): void {
-  const { live, clear, expanded } = state;
-  const { questions } = state.questions;
-  const stored = live?.questionId && questions.some((each) => each.id === live.questionId);
-  useEffect(() => {
-    if (live && !live.answering && stored) clear();
-  }, [live, stored, clear]);
-  const openAnswer = useOpenAnswer(live, questions, expanded, version);
-  useEffect(() => onOpenAnswer(openAnswer), [openAnswer, onOpenAnswer]);
-}
-
-/**
- * The questions, as threads: each first question and its follow-ups.
- *
- * @param props - The tab's state, the spec and version shown, and the follow-up callback.
- * @returns The list.
- */
-function QuestionList({
-  state,
-  data,
-  onFollowUp,
+function ConversationBar({
+  conversation,
+  canAsk,
 }: {
-  readonly state: ReturnType<typeof useAskAsShown>;
-  readonly data: DashboardData;
-  readonly onFollowUp: ((question: DashboardQuestion) => void) | undefined;
+  readonly conversation: ConversationState;
+  readonly canAsk: boolean;
 }) {
-  const { questions, failed } = state.questions;
-  const threads = useMemo(() => questionThreads(questions), [questions]);
-  if (failed) return <p className={styles.failure}>{failed}</p>;
-  if (threads.length === 0 && !state.live)
-    return <p className={styles.meta}>No one has asked about this dashboard yet.</p>;
-  const card = (question: DashboardQuestion) => (
-    <QuestionCard
-      key={question.id}
-      question={question}
-      spec={data.version.spec}
-      shownVersion={data.version.version}
-      expanded={state.expanded === question.id}
-      flashing={state.flash === question.id}
-      onToggle={state.toggle}
-      onFollowUp={onFollowUp}
-    />
-  );
+  const [first] = conversation.questions;
+  const count = conversation.questions.length;
+  const started = first
+    ? `Started by ${first.askedBy}, ${instantLabel(first.askedAt, first.timeZone)} · ${count} ${count === 1 ? 'question' : 'questions'}`
+    : 'New conversation';
+  const empty = conversation.conversationId === undefined && !conversation.live;
   return (
-    <div className={styles.threads}>
-      {state.openFailed && <p className={styles.failure}>{state.openFailed}</p>}
-      {threads.map(({ root, followUps }) => (
-        <div key={root.id} className={styles.thread}>
-          {card(root)}
-          {followUps.length > 0 && <div className={styles.followUps}>{followUps.map(card)}</div>}
-        </div>
-      ))}
+    <div className={styles.bar}>
+      <p className={styles.barText}>{started}</p>
+      {canAsk && (
+        <Button size="small" disabled={empty} onClick={conversation.startNew}>
+          New conversation
+        </Button>
+      )}
     </div>
   );
 }
 
-/** Props of {@link AskFoot}. */
-interface AskFootProps {
-  /** The tab's state. */
-  readonly state: ReturnType<typeof useAskAsShown>;
-  /** Whether the person may ask. */
+/**
+ * What a new conversation shows: what asking does, and the latest conversations to open.
+ *
+ * @param props - The dashboard, whether the person may ask, and the callbacks.
+ * @param props.dashboardId - The dashboard.
+ * @param props.canAsk - Whether the person may ask.
+ * @param props.onOpen - Opens a conversation.
+ * @param props.onHistory - Shows the History tab.
+ * @returns The empty state.
+ */
+function NewConversation({
+  dashboardId,
+  canAsk,
+  onOpen,
+  onHistory,
+}: {
+  readonly dashboardId: string;
   readonly canAsk: boolean;
-  /** The question a new one follows up on. */
-  readonly followUp: DashboardQuestion | undefined;
-  /** Sets or drops the follow-up. */
-  readonly onFollowUp: (question: DashboardQuestion | undefined) => void;
+  readonly onOpen: (conversation: Conversation) => void;
+  readonly onHistory: () => void;
+}) {
+  const { conversations } = useConversations(dashboardId, '');
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return (
+    <div className={styles.empty}>
+      <p className={styles.meta}>
+        {canAsk
+          ? 'Ask about what the dashboard shows. Each question continues this conversation.'
+          : 'No conversation is open.'}
+      </p>
+      {conversations.length > 0 && (
+        <section className={styles.recent} aria-label="Recent conversations">
+          <h3 className={styles.similarTitle}>Recent conversations</h3>
+          {conversations.slice(0, recentShown).map((each) => (
+            <button
+              key={each.id}
+              type="button"
+              className={styles.similarItem}
+              onClick={() => onOpen(each)}
+            >
+              {each.question} · {each.startedBy}, {dayLabel(each.lastAt, zone)}
+            </button>
+          ))}
+          <button type="button" className={styles.linkButton} onClick={onHistory}>
+            All {conversations.length} in History
+          </button>
+        </section>
+      )}
+    </div>
+  );
 }
 
 /**
- * The foot of the tab: the earlier answers that look like the text typed, and the question box,
- * or the search for those who may not ask.
+ * Keeps the newest turn in view as the conversation grows, unless a question opened from a search
+ * is being shown.
  *
- * @param props - The tab's state, the right to ask, and the follow-up.
+ * @param conversation - The open conversation.
+ * @returns The ref of the scrolling element.
+ */
+function useNewestInView(conversation: ConversationState) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const { conversationId, questions, live, flash } = conversation;
+  const growth = `${conversationId}:${questions.length}:${live?.text.length}:${live?.outcome?.ok}`;
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element || flash !== undefined || growth === '') return;
+    element.scrollTop = element.scrollHeight;
+  }, [growth, flash]);
+  return scroller;
+}
+
+/**
+ * The turns of the conversation, each with the line saying the view changed since the one before.
+ *
+ * @param props - The conversation and what the page shows.
+ * @param props.conversation - The open conversation.
+ * @param props.data - The dashboard and the version shown.
+ * @returns The turns.
+ */
+function Turns({
+  conversation,
+  data,
+}: {
+  readonly conversation: ConversationState;
+  readonly data: DashboardData;
+}) {
+  const { questions, marks, flash, live, shown } = conversation;
+  const { spec, version } = data.version;
+  return (
+    <>
+      {questions.map((question, index) => {
+        const before = questions[index - 1];
+        const note = contextChange(before && askedContextOf(before), askedContextOf(question));
+        return (
+          <StoredTurn
+            key={question.id}
+            question={question}
+            note={note}
+            spec={spec}
+            shownVersion={version}
+            shown={marks?.questionId === question.id && marks.version === version}
+            flashing={flash === question.id}
+            onPick={conversation.setPicked}
+          />
+        );
+      })}
+      {live && <LiveTurn live={live} spec={spec} timeZone={shown.timeZone} />}
+    </>
+  );
+}
+
+/**
+ * The foot of the tab: the earlier answers that look like the text typed and the question box, or
+ * who can ask.
+ *
+ * @param props - The conversation and whether the person may ask.
+ * @param props.conversation - The open conversation.
+ * @param props.dashboardId - The dashboard.
+ * @param props.canAsk - Whether the person may ask.
  * @returns The foot.
  */
-function AskFoot({ state, canAsk, followUp, onFollowUp }: AskFootProps) {
-  const similar = useSimilar(state.dashboardId);
-  const ask = (question: string) => {
-    state.send(question, followUp?.id);
-    onFollowUp(undefined);
-  };
+function AskFoot({
+  conversation,
+  dashboardId,
+  canAsk,
+}: {
+  readonly conversation: ConversationState;
+  readonly dashboardId: string;
+  readonly canAsk: boolean;
+}) {
+  const similar = useSimilar(dashboardId);
+  const { shown } = conversation;
+  if (!canAsk)
+    return (
+      <div className={styles.foot}>
+        <WhoCanAsk />
+      </div>
+    );
+  const open = ({ conversationId, id }: { conversationId: string; id: string }) =>
+    conversation.show(conversationId, id);
   return (
     <div className={styles.foot}>
-      <SimilarQuestions matches={similar.matches} timeZone={state.timeZone} onOpen={state.open} />
-      {canAsk ? (
-        <AskForm
-          label={state.label}
-          busy={state.live?.answering ?? false}
-          followUp={followUp}
-          onCancelFollowUp={() => onFollowUp(undefined)}
-          onAsk={ask}
-          onType={similar.onType}
-        />
-      ) : (
-        <QuestionSearch onType={similar.onType} />
-      )}
+      <SimilarQuestions matches={similar.matches} timeZone={shown.timeZone} onOpen={open} />
+      <AskForm
+        label={shown.label}
+        busy={conversation.answering}
+        note={conversation.questions.length > 0 ? conversation.note : undefined}
+        onAsk={conversation.send}
+        onType={similar.onType}
+      />
     </div>
   );
 }
@@ -201,26 +221,33 @@ function AskFoot({ state, canAsk, followUp, onFollowUp }: AskFootProps) {
 /**
  * The Ask tab.
  *
- * @param props - The dashboard, the version shown, and the callback of the answer to mark.
+ * @param props - The dashboard, the version shown, the conversation and the History callback.
  * @returns The tab's content.
  */
-export function AskTab({ onOpenAnswer, ...data }: AskTabProps) {
+export function AskTab({ conversation, onHistory, ...data }: AskTabProps) {
   const canAsk = useCanAsk();
-  const state = useAskAsShown(data);
-  useSyncedAnswer(state, data.version.version, onOpenAnswer);
   const sources = useSources(data.dashboard.id, data.version.version);
-  const [followUp, setFollowUp] = useState<DashboardQuestion | undefined>();
+  const scroller = useNewestInView(conversation);
   const explainOnly = sources?.every((source) => (source.accessLevel ?? 0) < 3) ?? false;
+  const blank = conversation.questions.length === 0 && !conversation.live;
+  const failed = conversation.loaded.failed;
   return (
     <div className={styles.tab}>
-      <div className={styles.scroll}>
+      <ConversationBar conversation={conversation} canAsk={canAsk} />
+      <div className={styles.scroll} ref={scroller}>
         {explainOnly && sources && <ExplainOnlyCard sources={sources} />}
-        {state.live && (
-          <LiveAnswerCard live={state.live} spec={data.version.spec} timeZone={state.timeZone} />
+        {failed && <p className={styles.failure}>{failed}</p>}
+        {blank && conversation.conversationId === undefined && (
+          <NewConversation
+            dashboardId={data.dashboard.id}
+            canAsk={canAsk}
+            onOpen={(each) => conversation.show(each.id)}
+            onHistory={onHistory}
+          />
         )}
-        <QuestionList state={state} data={data} onFollowUp={canAsk ? setFollowUp : undefined} />
+        <Turns conversation={conversation} data={data} />
       </div>
-      <AskFoot state={state} canAsk={canAsk} followUp={followUp} onFollowUp={setFollowUp} />
+      <AskFoot conversation={conversation} dashboardId={data.dashboard.id} canAsk={canAsk} />
     </div>
   );
 }

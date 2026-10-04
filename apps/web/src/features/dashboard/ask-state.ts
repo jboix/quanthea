@@ -1,29 +1,28 @@
 /**
- * The state of the Ask tab: the dashboard's questions, its sources, the earlier answers that look
- * like the text being typed, and which question is open. Each loads through a fetcher from a
- * resource route.
+ * The state of the side panel's loads: a dashboard's conversations, found by words or not, one
+ * conversation's questions, a version's sources, and the earlier answers that look like the text
+ * being typed. Each loads through a fetcher from a resource route.
  */
 import {
+  type Conversation,
   type DashboardQuestion,
   type DashboardSource,
   hasRole,
   type Role,
   type SimilarQuestion,
 } from '@quanthea/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useFetcher, useRouteLoaderData } from 'react-router';
-import type { OpenAnswer } from './ask-marks.ts';
 import type { Loaded } from './loaded.ts';
-import type { LiveAnswer } from './use-ask.ts';
 
 /** How long typing pauses before the earlier answers are looked up, in milliseconds. */
 const typingPauseMs = 350;
 
-/** How long a question opened from a search stays highlighted, in milliseconds. */
-const flashMs = 1600;
-
 /** No questions, kept as one value so it never changes identity. */
 const noQuestions: readonly DashboardQuestion[] = [];
+
+/** No conversations, kept as one value so it never changes identity. */
+const noConversations: readonly Conversation[] = [];
 
 /**
  * Whether the person may ask: analysts and above, from the session the root route loads.
@@ -45,21 +44,54 @@ export function browserTimeZone(): string {
 }
 
 /**
- * A dashboard's questions, loaded when the tab opens, and a way to load them again.
+ * A dashboard's conversations, the latest activity first, or those whose questions and answers
+ * hold the words searched, looked up once typing pauses.
  *
  * @param dashboardId - The dashboard.
+ * @param search - The words searched, empty for every conversation.
+ * @returns The conversations, whether they failed to load or are loading, and the reload function.
+ */
+export function useConversations(dashboardId: string, search: string) {
+  const fetcher = useFetcher<Loaded<Conversation[]>>();
+  const { load, data, state } = fetcher;
+  const query = search.trim();
+  const url = `/d/${dashboardId}/conversations${query === '' ? '' : `?q=${encodeURIComponent(query)}`}`;
+  useEffect(() => {
+    const timer = setTimeout(() => void load(url), query === '' ? 0 : typingPauseMs);
+    return () => clearTimeout(timer);
+  }, [load, url, query]);
+  const reload = useCallback(() => void load(url), [load, url]);
+  const conversations = data?.ok ? data.value : noConversations;
+  const failed = data?.ok === false ? data.message : undefined;
+  return { conversations, failed, loading: state !== 'idle' || data === undefined, reload };
+}
+
+/**
+ * One conversation's questions, in the order they were asked, and a way to load them again.
+ *
+ * @param dashboardId - The dashboard.
+ * @param conversationId - The conversation, or `undefined` for a new one, which has none.
  * @returns The questions, whether they failed to load, and the reload function.
  */
-export function useQuestions(dashboardId: string) {
-  const fetcher = useFetcher<Loaded<DashboardQuestion[]>>({ key: `questions-${dashboardId}` });
+export function useConversationQuestions(dashboardId: string, conversationId: string | undefined) {
+  const fetcher = useFetcher<Loaded<DashboardQuestion[]>>();
   const { load, data } = fetcher;
-  const url = `/d/${dashboardId}/questions`;
+  const url =
+    conversationId && `/d/${dashboardId}/conversations/${encodeURIComponent(conversationId)}`;
   useEffect(() => {
-    void load(url);
+    if (url) void load(url);
   }, [load, url]);
-  const reload = useCallback(() => void load(url), [load, url]);
-  const questions = data?.ok ? data.value : noQuestions;
-  return { questions, failed: data?.ok === false ? data.message : undefined, reload };
+  const reload = useCallback(() => {
+    if (url) void load(url);
+  }, [load, url]);
+  const current = url !== undefined && data !== undefined;
+  const loadedFor = current && data.ok ? data.value : noQuestions;
+  // A conversation's questions all name it, so stale ones of another conversation never show.
+  const questions = loadedFor.every((each) => each.conversationId === conversationId)
+    ? loadedFor
+    : noQuestions;
+  const failed = current && data.ok === false ? data.message : undefined;
+  return { questions, failed, reload };
 }
 
 /**
@@ -99,89 +131,4 @@ export function useSimilar(dashboardId: string) {
   }, [dashboardId, load, query]);
   const matches = query.length >= 3 && data?.ok ? data.value : [];
   return { matches, onType: setText };
-}
-
-/**
- * Which question is open, and which one was just opened from a search: it scrolls into view and
- * stays highlighted for a moment.
- *
- * @returns The open question, the highlighted one, and the toggle and open callbacks.
- */
-export function useOpenQuestion() {
-  const [expanded, setExpanded] = useState<string | undefined>();
-  const [flash, setFlash] = useState<string | undefined>();
-  useEffect(() => {
-    if (flash === undefined) return;
-    document.getElementById(`question-${flash}`)?.scrollIntoView({ block: 'nearest' });
-    const timer = setTimeout(() => setFlash(undefined), flashMs);
-    return () => clearTimeout(timer);
-  }, [flash]);
-  const toggle = useCallback(
-    (questionId: string) => setExpanded((open) => (open === questionId ? undefined : questionId)),
-    [],
-  );
-  const open = useCallback((questionId: string) => {
-    setExpanded(questionId);
-    setFlash(questionId);
-  }, []);
-  return { expanded, flash, toggle, open, setExpanded };
-}
-
-/**
- * Opens a question in the list, or, when it is older than the questions listed, loads it by id,
- * adds it to the list and opens it once it arrives.
- *
- * @param dashboardId - The dashboard.
- * @param listed - The questions listed.
- * @param open - Opens a question in the list.
- * @returns The questions with the one loaded, the open callback, and why a load failed.
- */
-export function useAnyQuestion(
-  dashboardId: string,
-  listed: readonly DashboardQuestion[],
-  open: (questionId: string) => void,
-) {
-  const fetcher = useFetcher<Loaded<DashboardQuestion>>();
-  const { load, data, state } = fetcher;
-  const [wanted, setWanted] = useState<string | undefined>();
-  const older = data?.ok && !listed.some((each) => each.id === data.value.id) ? data.value : null;
-  const questions = useMemo(() => (older ? [...listed, older] : listed), [listed, older]);
-  useEffect(() => {
-    if (wanted === undefined || state !== 'idle' || data === undefined) return;
-    setWanted(undefined);
-    if (data.ok && data.value.id === wanted) open(wanted);
-  }, [wanted, state, data, open]);
-  const openAny = useCallback(
-    (questionId: string) => {
-      if (questions.some((each) => each.id === questionId)) return open(questionId);
-      setWanted(questionId);
-      void load(`/d/${dashboardId}/questions/${encodeURIComponent(questionId)}`);
-    },
-    [questions, open, load, dashboardId],
-  );
-  return { questions, open: openAny, failed: data?.ok === false ? data.message : undefined };
-}
-
-/**
- * The answer the dashboard marks: the one just answered, else the open question's.
- *
- * @param live - The answer on its way or just ended.
- * @param questions - The stored questions.
- * @param expanded - The open question.
- * @param version - The version shown, which a live answer is about.
- * @returns The answer and its version, or `undefined`.
- */
-export function useOpenAnswer(
-  live: LiveAnswer | undefined,
-  questions: readonly DashboardQuestion[],
-  expanded: string | undefined,
-  version: number,
-): OpenAnswer | undefined {
-  const liveOutcome = live?.outcome;
-  return useMemo(() => {
-    if (liveOutcome?.ok) return { version, answer: liveOutcome.answer };
-    const question = questions.find((each) => each.id === expanded);
-    if (!question?.outcome.ok) return undefined;
-    return { version: question.version, answer: question.outcome.answer };
-  }, [liveOutcome, questions, expanded, version]);
 }

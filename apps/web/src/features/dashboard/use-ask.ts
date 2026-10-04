@@ -20,8 +20,10 @@ export type AskBody = EndpointInput<typeof askQuestionEndpoint>['body'];
 export interface LiveAnswer extends StreamedAnswer {
   /** The question. */
   readonly question: string;
-  /** The question it follows up on. */
-  readonly parentId: string | null;
+  /** The conversation it continues, or `undefined` when it starts one. */
+  readonly conversationId: string | undefined;
+  /** The line before it when the view changed since the conversation's latest question. */
+  readonly contextNote: string | undefined;
   /** Whether it is still coming. */
   readonly answering: boolean;
   /** Why it stopped before an outcome, such as a refusal or a lost connection. */
@@ -62,19 +64,23 @@ export async function refusalOf(response: Response): Promise<string> {
  * Asks questions and follows the latest answer.
  *
  * @param dashboardId - The dashboard.
- * @param onEnd - Called with the stored question's id when an answer ends.
+ * @param onEnd - Called with the stored question's id when an answer ends, and the conversation it
+ *   continued.
  * @returns The latest answer, the ask function, and a function that forgets the answer.
  */
-export function useAsk(dashboardId: string, onEnd: (questionId: string | null) => void) {
+export function useAsk(
+  dashboardId: string,
+  onEnd: (questionId: string | null, conversationId: string | undefined) => void,
+) {
   const [live, setLive] = useState<LiveAnswer | undefined>();
   const pending = useRef<AbortController | null>(null);
   useEffect(() => () => pending.current?.abort(), []);
   const ask = useCallback(
-    async (body: AskBody) => {
+    async (body: AskBody, contextNote: string | undefined) => {
       pending.current?.abort();
       const controller = new AbortController();
       pending.current = controller;
-      const start = { question: body.question, parentId: body.parentId ?? null };
+      const start = { question: body.question, conversationId: body.conversationId, contextNote };
       const base = { ...start, text: '', reads: 0, outcome: undefined, answering: true };
       setLive(base);
       const ended = await follow(dashboardId, body, controller.signal, (next) =>
@@ -82,7 +88,7 @@ export function useAsk(dashboardId: string, onEnd: (questionId: string | null) =
       );
       if (controller.signal.aborted) return;
       setLive((current) => current && { ...current, ...ended, answering: false });
-      if (!ended.error) onEnd(ended.questionId ?? null);
+      if (!ended.error) onEnd(ended.questionId ?? null, body.conversationId);
     },
     [dashboardId, onEnd],
   );

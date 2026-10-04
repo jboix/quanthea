@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import {
   type AccessLevel,
   connectorInputSchema,
+  conversationSchema,
   dashboardDetailSchema,
   dashboardQuestionSchema,
   type Principal,
@@ -32,8 +33,14 @@ const viewer: Principal = { id: 'viewer-1', name: 'Vera', role: 'viewer' };
 /** The names the fake users service knows. */
 const names: Readonly<Record<string, string>> = { 'analyst-1': 'Ana', 'editor-1': 'Eddie' };
 
-/** Validates a list of questions. */
-const listSchema = z.object({ questions: z.array(dashboardQuestionSchema) });
+/** Validates a conversation's questions. */
+const conversationQuestionsSchema = z.object({
+  id: z.string(),
+  questions: z.array(dashboardQuestionSchema),
+});
+
+/** Validates a list of conversations. */
+const conversationsSchema = z.object({ conversations: z.array(conversationSchema) });
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let fixture: Awaited<ReturnType<typeof testServices>>;
@@ -122,13 +129,12 @@ async function eventsDashboard(pinned: boolean): Promise<string> {
  * A question about the first version over a fixed hour.
  *
  * @param question - The question.
- * @param parentId - The question it follows up on.
+ * @param chain - The question it follows up on, or the conversation it continues.
  * @returns The body.
  */
-function asking(question: string, parentId?: string) {
+function asking(question: string, chain: { parentId?: string; conversationId?: string } = {}) {
   const time = { from: '2026-10-03T12:00:00Z', to: '2026-10-03T13:00:00Z' };
-  const followUp = parentId === undefined ? {} : { parentId };
-  return { version: 1, question, time, timeZone: 'Europe/Zurich', ...followUp };
+  return { version: 1, question, time, timeZone: 'Europe/Zurich', ...chain };
 }
 
 /** A checked answer that cites a panel. */
@@ -138,15 +144,49 @@ const panelAnswer = (text: string) => ({
 });
 
 /**
- * The questions of a dashboard as a principal lists them.
+ * The conversations of a dashboard as a principal lists them.
  *
  * @param principal - Who lists them.
+ * @param dashboardId - The dashboard.
+ * @param search - The words to look for.
+ * @returns The conversations.
+ */
+async function conversations(principal: Principal, dashboardId: string, search = '') {
+  const query = search === '' ? '' : `?q=${encodeURIComponent(search)}`;
+  const path = `/api/dashboards/${dashboardId}/conversations${query}`;
+  const response = await client(principal)('GET', path);
+  return conversationsSchema.parse(response.body).conversations;
+}
+
+/**
+ * The questions of a conversation as a principal reads them.
+ *
+ * @param principal - Who reads them.
+ * @param dashboardId - The dashboard.
+ * @param conversationId - The conversation.
+ * @returns The questions, in the order they were asked.
+ */
+async function conversationQuestions(
+  principal: Principal,
+  dashboardId: string,
+  conversationId: string,
+) {
+  const path = `/api/dashboards/${dashboardId}/conversations/${conversationId}`;
+  const response = await client(principal)('GET', path);
+  return conversationQuestionsSchema.parse(response.body).questions;
+}
+
+/**
+ * The questions of a dashboard as a principal reads them, the newest first.
+ *
+ * @param principal - Who reads them.
  * @param dashboardId - The dashboard.
  * @returns The questions.
  */
 async function listed(principal: Principal, dashboardId: string) {
-  const response = await client(principal)('GET', `/api/dashboards/${dashboardId}/questions`);
-  return listSchema.parse(response.body).questions;
+  const all = await conversations(principal, dashboardId);
+  const read = all.map(({ id }) => conversationQuestions(principal, dashboardId, id));
+  return (await Promise.all(read)).flat().sort((one, other) => other.askedAt - one.askedAt);
 }
 
 describe('question routes', () => {
@@ -198,13 +238,13 @@ describe('question routes', () => {
     const first = await client(analyst)('POST', path, asking('What happened?'));
     const parentId = first.headers.get(questionIdHeader) ?? '';
     script(panelAnswer('A deploy went out [1].'));
-    await client(analyst)('POST', path, asking('Why?', parentId));
+    await client(analyst)('POST', path, asking('Why?', { parentId }));
     const prompt = JSON.stringify(model?.doStreamCalls[0]?.prompt);
     expect(prompt).toContain('What happened?');
     expect(prompt).toContain('Errors rose at 12:30 [1].');
     const [followUp] = await listed(viewer, id);
     expect(followUp).toMatchObject({ question: 'Why?', parentId });
-    const elsewhere = await client(analyst)('POST', path, asking('Why?', 'nope'));
+    const elsewhere = await client(analyst)('POST', path, asking('Why?', { parentId: 'nope' }));
     expect(elsewhere.status).toBe(404);
   });
 
@@ -213,7 +253,7 @@ describe('question routes', () => {
     const id = await eventsDashboard(false);
     const asked = await client(editor)('POST', `/api/dashboards/${id}/questions`, asking('Hi?'));
     expect(asked.status).toBe(404);
-    expect((await client(viewer)('GET', `/api/dashboards/${id}/questions`)).status).toBe(404);
+    expect((await client(viewer)('GET', `/api/dashboards/${id}/conversations`)).status).toBe(404);
   });
 
   test('without a model, asking fails before the stream and stores nothing', async () => {
@@ -230,5 +270,84 @@ describe('question routes', () => {
     const id = await eventsDashboard(true);
     const response = await client(viewer)('GET', `/api/dashboards/${id}/versions/1/sources`);
     expect(response.body).toEqual({ sources: [{ name: 'events', accessLevel: 2 }] });
+  });
+});
+
+describe('conversations', () => {
+  test('a question in a conversation follows its latest one, with the chain as history', async () => {
+    await addEvents(3);
+    const id = await eventsDashboard(true);
+    const path = `/api/dashboards/${id}/questions`;
+    script(panelAnswer('Errors rose at 12:30 [1].'));
+    const first = await client(analyst)('POST', path, asking('What happened?'));
+    const conversationId = first.headers.get(questionIdHeader) ?? '';
+    script(panelAnswer('A deploy went out [1].'));
+    const second = await client(analyst)('POST', path, asking('Why?', { conversationId }));
+    script(panelAnswer('Deploy 481 [1].'));
+    await client(editor)('POST', path, asking('Which deploy?', { conversationId }));
+    const prompt = JSON.stringify(model?.doStreamCalls[0]?.prompt);
+    expect(prompt).toContain('Errors rose at 12:30 [1].');
+    expect(prompt).toContain('A deploy went out [1].');
+    const asked = await conversationQuestions(viewer, id, conversationId);
+    expect(asked.map(({ question }) => question)).toEqual([
+      'What happened?',
+      'Why?',
+      'Which deploy?',
+    ]);
+    expect(asked.map(({ parentId }) => parentId)).toEqual([
+      null,
+      conversationId,
+      second.headers.get(questionIdHeader),
+    ]);
+    expect(asked.every((question) => question.conversationId === conversationId)).toBe(true);
+    expect(asked.map(({ askedBy }) => askedBy)).toEqual(['Ana', 'Ana', 'Eddie']);
+  });
+
+  test('lists conversations with their first question, counts and latest activity', async () => {
+    await addEvents(3);
+    const id = await eventsDashboard(true);
+    const path = `/api/dashboards/${id}/questions`;
+    script(panelAnswer('Errors rose [1].'));
+    const first = await client(analyst)('POST', path, asking('What happened to checkout?'));
+    const conversationId = first.headers.get(questionIdHeader) ?? '';
+    script(panelAnswer('Latency is fine [1].'));
+    await client(editor)('POST', path, asking('Is latency fine?'));
+    script(panelAnswer('A deploy of payments [1].'));
+    await client(editor)('POST', path, asking('Why?', { conversationId }));
+    const all = await conversations(viewer, id);
+    expect(all).toHaveLength(2);
+    expect(all[0]).toMatchObject({
+      id: conversationId,
+      question: 'What happened to checkout?',
+      startedBy: 'Ana',
+      count: 2,
+      match: null,
+    });
+    expect(all[0]?.lastAt).toBeGreaterThanOrEqual(all[1]?.lastAt ?? 0);
+    expect(all[1]).toMatchObject({ question: 'Is latency fine?', startedBy: 'Eddie', count: 1 });
+    const found = await conversations(viewer, id, 'payments checkout');
+    expect(found).toEqual([
+      expect.objectContaining({ id: conversationId, match: expect.any(Object) }),
+    ]);
+    expect(await conversations(viewer, id, 'deploy')).toEqual([
+      expect.objectContaining({
+        id: conversationId,
+        match: expect.objectContaining({ question: 'Why?' }),
+      }),
+    ]);
+  });
+
+  test('refuses an unknown conversation, or a conversation and a parent at once', async () => {
+    await addEvents(3);
+    const id = await eventsDashboard(true);
+    const path = `/api/dashboards/${id}/questions`;
+    const unknown = await client(analyst)('POST', path, asking('Why?', { conversationId: 'nope' }));
+    expect(unknown.status).toBe(404);
+    const read = await client(viewer)('GET', `/api/dashboards/${id}/conversations/nope`);
+    expect(read.status).toBe(404);
+    const both = asking('Why?', { conversationId: 'a', parentId: 'b' });
+    expect((await client(analyst)('POST', path, both)).status).toBe(400);
+    const asViewer = await client(viewer)('POST', path, asking('Why?', { conversationId: 'a' }));
+    expect(asViewer.status).toBe(403);
   });
 });

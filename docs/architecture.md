@@ -96,7 +96,7 @@ The two paths that matter:
 │           ├── routes/              thin route modules; compose features
 │           ├── features/
 │           │   ├── thread/          chat stream, plan card, diff and repair cards, composer, @mentions
-│           │   ├── dashboard/       dashboard pane, variables bar, panels, inspector, snapshot menu, Ask tab
+│           │   ├── dashboard/       dashboard pane, variables bar, panels, inspector, snapshot menu, Ask and History
 │           │   ├── snapshot/        a snapshot's page, Settings → Snapshots
 │           │   ├── library/         search, connector and tag filters, cards with a live panel
 │           │   ├── bin/
@@ -198,8 +198,8 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/d/:dashboardId/v/:version/panels/:panelId/explanation` | resource route: a panel's latest explanation               | viewer   |
 | `/d/:dashboardId/v/:version/options/:name`               | resource route: a variable's options, for fetchers         | viewer   |
 | `/d/:dashboardId/snapshots`                              | resource route: a dashboard's live snapshots, for fetchers | editor   |
-| `/d/:dashboardId/questions`                              | resource route: a dashboard's questions and answers        | viewer   |
-| `/d/:dashboardId/questions/:questionId`                  | resource route: one question, older than those listed      | viewer   |
+| `/d/:dashboardId/conversations`                          | resource route: a dashboard's conversations, or a search   | viewer   |
+| `/d/:dashboardId/conversations/:conversationId`          | resource route: one conversation's questions and answers   | viewer   |
 | `/d/:dashboardId/similar-questions`                      | resource route: earlier answered questions like a text     | viewer   |
 | `/d/:dashboardId/v/:version/sources`                     | resource route: a version's sources and access levels      | viewer   |
 | `/s/:snapshotId`                                         | a snapshot: a version frozen with its data, read-only      | viewer   |
@@ -225,7 +225,7 @@ The roles rank viewer, analyst, editor, admin (`roles` in `@quanthea/shared`), a
 the one check of a minimum role, on the server and in the browser. An analyst reads everything a
 viewer reads and also asks questions about pinned dashboards (`POST
 /api/dashboards/:id/questions`) and asks for a panel's explanation; every role reads the questions
-asked, their answers and the explanations.
+asked, their answers, the conversations they form and the explanations.
 
 Route loaders fetch through the typed API client. The root loader loads the session
 (`GET /api/me`, once per page load). Without a session, every screen redirects to
@@ -832,9 +832,17 @@ A question is a shared record of the dashboard, not a thread (`dashboards/questi
 `db/question-repository.ts`). Every role reads a dashboard's questions and their answers; asking
 needs the analyst role. The asker is recorded for accountability only: no one owns a question.
 
+Questions form conversations (`dashboards/conversations.ts`). A conversation is the chain of
+questions from a first one, whose parent is `NULL`. Each question names its conversation's first
+question (`root_id`, its own id for a first one), and the conversation's id is that first
+question's. A conversation's questions read in the order they were asked, so a follow-up of an
+earlier question of the chain, which older data may hold, still reads in place.
+
 1. `POST /api/dashboards/:id/questions` (analyst+) names the version shown, the question, the time
    range and variables as shown, the hidden sets of markers, the browser's time zone, and the
-   question it follows up on, if any. The browser never sends a query.
+   conversation it continues (`conversationId`), if any. A question in a conversation follows up
+   on its latest question. The body may name a parent question instead (`parentId`), never both.
+   The browser never sends a query.
 2. The version is read as a viewer reads it, so only a pinned version of a pinned dashboard takes
    questions. The server resolves the range to absolute times and the variables to the values
    shown (the chosen ones, else the defaults) as snapshots do, and the answering service binds them
@@ -847,13 +855,19 @@ needs the analyst role. The asker is recorded for accountability only: no one ow
    the dashboard was at aggregates or full access (`explainOnly`). A failed answer is stored too.
    A question whose asker left before the end, or that fails before the stream starts (no model
    set up, a bad range or variable), is not stored.
-5. `GET /api/dashboards/:id/questions` lists a dashboard's questions, the newest 200, and
-   `GET /api/dashboards/:id/questions/:questionId` reads one (viewer+). The dashboard is read with
-   the person's role, so viewers see the questions of pinned dashboards only.
+5. `GET /api/dashboards/:id/conversations` (viewer+) lists a dashboard's conversations, the latest
+   activity first, at most 200: the first question, who asked it and when, how many questions,
+   and when the latest was asked. With `?q=`, it lists at most 50 conversations whose questions
+   and answers hold every word, as prefixes, in any of them, the best first, each with its
+   question that matches best. `GET /api/dashboards/:id/conversations/:conversationId` reads one
+   conversation's questions, in the order they were asked, and
+   `GET /api/dashboards/:id/questions/:questionId` reads one question (viewer+). The dashboard is
+   read with the person's role, so viewers see the questions of pinned dashboards only.
 6. `GET /api/dashboards/:id/similar-questions?q=` (viewer+) finds at most three earlier answered
    questions whose question or answer shares a meaningful word with the text, as prefixes, the
-   question weighing three times the answer. The FTS5 table `question_fts` holds each question and
-   its answer; triggers keep it in step with inserts and deletes.
+   question weighing three times the answer, each with its conversation. The FTS5 table
+   `question_fts` holds each question and its answer; triggers keep it in step with inserts and
+   deletes.
 7. `GET /api/dashboards/:id/versions/:v/sources` (viewer+) gives the connectors a version names,
    by name and access level only, so the Ask tab can say when the answer can only explain.
 8. Questions go with their dashboard (`ON DELETE CASCADE`), as snapshots do, and their index rows
@@ -1441,6 +1455,7 @@ CREATE TABLE dashboard_questions (
   dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
   version INTEGER NOT NULL,
   parent_id TEXT REFERENCES dashboard_questions(id) ON DELETE CASCADE,  -- a follow-up's question
+  root_id TEXT NOT NULL,             -- the conversation's first question; its own id for a first one
   time_from INTEGER NOT NULL, time_to INTEGER NOT NULL, time_zone TEXT NOT NULL,  -- as shown
   variables TEXT NOT NULL, hidden_markers TEXT NOT NULL,  -- JSON
   explain_only INTEGER NOT NULL,     -- 1: no source showed numbers
@@ -1722,37 +1737,56 @@ one, and enables them again. Without any admin, it creates the default one.
   show or hide sets, in the page only. A banner names the dashboard and version, with a link, who
   took it and when, and until when it lives. Settings → Snapshots lists every live snapshot for
   admins.
-- **Ask about this.** On a pinned version, the header's Ask about this opens a side panel beside
-  the panels, with two tabs: About (the description, tags and sources) and Ask
-  (`features/dashboard/ask-*.ts(x)`). Below 960 px the panel comes first, over the full width.
-  - Every role reads the questions asked, newest first, each expandable, with its follow-ups under
-    it. Analysts and above get the question box, whose label says what the question is about:
-    the range shown in absolute times in the dashboard's time zone, and the variable values
-    (`Ask about this dashboard, as shown: 26 Sep 13:30–15:00, $env prod`). Viewers get a line
-    saying who can ask, and a search of the questions asked so far.
+- **Ask about this.** On a pinned version, the header's Ask about this opens a side panel on the
+  right, from the top of the screen to the bottom, beside the header and the panels, with its own
+  scroll (`side-panel.tsx`). Its tabs are About (the description, tags and sources), Ask (one
+  conversation) and History (the past conversations). Arrow keys move between the tabs, and
+  Escape or Close closes the panel. Below 960 px the panel covers the whole screen.
+  - Ask shows one conversation, like a chat (`ask-tab.tsx`, `ask-message.tsx`,
+    `use-conversation.ts`): each question as a bubble on the right with who asked it and when,
+    then its answer, the newest at the bottom. A bar above it says who started the conversation,
+    when, and how many questions it holds. The question box is pinned at the bottom, and its
+    label says what the question is about: the range shown in absolute times in the dashboard's
+    time zone, and the variable values
+    (`Ask about this dashboard, as shown: 26 Sep 13:30–15:00, $env prod`).
+  - The tab opens on a new conversation, with the three latest ones to open and a link to
+    History. Each question continues the open conversation: the request names it, and the server
+    makes the question follow up on its latest question. New conversation starts over.
+  - Each question keeps its own version, range and values. When they differ from the question
+    before it, at the minute, a line before the question says so
+    (`Now asking about 27 Sep 09:00–10:00, $env prod`, with the version when it changed). The
+    same line shows above the box when the view changed since the conversation's latest question
+    (`ask-conversation.ts`).
+  - Viewers read every conversation and get a line saying who can ask, instead of the box.
   - Asking posts the version, the question, the range and variables as shown, the hidden sets
-    of markers and the question it follows up on, never a query, and reads the UI message stream
+    of markers and the conversation it continues, never a query, and reads the UI message stream
     (`ask-stream.ts`, with the AI SDK's `readUIMessageStream`): the answer's text as it is
-    written, the reads as they come, then the checked answer from `data-outcome`. The list loads
-    again when the answer ends, and the new question opens.
-  - An answer is plain text: its `[n]` markers become small numbered badges, never markup. Its
-    header line says when it was asked, by whom, on which version, over which range and values.
+    written, the reads as they come, then the checked answer from `data-outcome`. The
+    conversation loads again when the answer ends; a first question's answer opens its new
+    conversation. An answer on its way keeps going when another conversation opens.
+  - An answer is plain text: its `[n]` markers become small numbered badges, never markup.
     "What I looked at" lists each read: the panel or a query of its own, the connector, and a
     few lines summing up what the gate let out (rows, each field's extremes and when, spikes, top
     values) in the mono font, never the raw JSON.
   - While the typed text pauses, the tab looks up earlier answered questions that share its
-    words and shows at most three above the box (`Asked on 26 Sep by Ana: …`); opening one
-    scrolls to it, expands it and highlights it for a moment. One older than the questions
-    listed is loaded by id first, and joins the list.
+    words and shows at most three above the box (`Asked on 26 Sep by Ana: …`); opening one opens
+    its conversation, scrolls to its answer and highlights it for a moment.
+  - History (`ask-history.tsx`) lists the dashboard's conversations as the new-thread screen
+    lists past threads: grouped by the day of their latest question, each with its first
+    question, who started it, when, how many questions and the latest activity. The search goes
+    to the server and finds the conversations whose questions and answers hold every word, each
+    with the question that matched. Opening one shows it in the Ask tab, where analysts and above
+    continue it and viewers read it.
   - On a narrow screen, choosing Ask about this in the actions menu closes the menu.
-  - When no source of the dashboard is at Aggregates or Full access, a note above the questions
+  - When no source of the dashboard is at Aggregates or Full access, a note above the conversation
     says answers can only explain, lists the sources with their levels, and says an admin can
     raise one in Connectors. An answer given so carries the same note.
-  - The open answer, expanded or just given, marks the dashboard while the Ask tab shows: each
-    panel it cites gets its citation numbers as badges in its header, and a citation's window is
-    shaded on that panel's time chart (an ECharts `markArea`, `withHighlights` in
-    `charts/series.ts`). This is view state only. An answer about another version marks nothing
-    and says on which version it was asked.
+  - One answer of the conversation marks the dashboard while the Ask tab shows: the latest
+    answer by default, or the one picked by clicking its text (a toggle button, so the keyboard
+    reaches it too). Each panel it cites gets its citation numbers as badges in its header, and a
+    citation's window is shaded on that panel's time chart (an ECharts `markArea`,
+    `withHighlights` in `charts/series.ts`). This is view state only. An answer about another
+    version than the one shown marks nothing and says on which version it was asked.
 - Each panel has an info bubble: its connector, language and query text, and the chart recipe
   that draws it. It shows what the saved panel runs, so a viewer can trace a number to its source.
 - **Explain.** On a pinned version the info bubble opens on the panel's explanation

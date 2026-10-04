@@ -1,7 +1,8 @@
 /**
  * Reads and writes the questions asked about dashboards. A question is stored once, with its
  * outcome, and never changed. The full-text index `question_fts` follows the table through the
- * triggers in `migrations/0004-dashboard-questions.sql`.
+ * triggers in `migrations/0004-dashboard-questions.sql`. A conversation is the chain of questions
+ * from a first one; each question names that first one (`root_id`).
  */
 import type { Database } from 'bun:sqlite';
 
@@ -15,6 +16,8 @@ export interface QuestionRow {
   readonly version: number;
   /** The question it follows up on. */
   readonly parentId: string | null;
+  /** The first question of its conversation: its own id for a first question. */
+  readonly rootId: string;
   /** The start of the range shown, in epoch milliseconds. */
   readonly timeFrom: number;
   /** The end of the range shown, in epoch milliseconds. */
@@ -55,6 +58,32 @@ export interface QuestionHit {
   readonly rank: number;
 }
 
+/** A conversation: the chain of questions from a first one. */
+export interface ConversationRow {
+  /** The first question's id, which names the conversation. */
+  readonly id: string;
+  /** The first question. */
+  readonly question: string;
+  /** Who asked the first question, by user id. */
+  readonly startedBy: string;
+  /** When, in epoch milliseconds. */
+  readonly startedAt: number;
+  /** How many questions it holds. */
+  readonly count: number;
+  /** When its latest question was asked, in epoch milliseconds. */
+  readonly lastAt: number;
+}
+
+/** A conversation one of whose questions or answers shares words with a search. */
+export interface ConversationHit {
+  /** The conversation. */
+  readonly id: string;
+  /** Its question that matches best. */
+  readonly questionId: string;
+  /** That question's BM25 rank: lower is better. */
+  readonly rank: number;
+}
+
 /** Stores questions. */
 export interface QuestionRepository {
   /**
@@ -71,13 +100,43 @@ export interface QuestionRepository {
    */
   get(id: string): QuestionRow | undefined;
   /**
-   * Lists a dashboard's questions, the newest first.
+   * Lists a dashboard's conversations, the latest activity first.
    *
    * @param dashboardId - The dashboard.
    * @param limit - The most to list.
-   * @returns The questions.
+   * @returns The conversations.
    */
-  list(dashboardId: string, limit: number): QuestionRow[];
+  conversations(dashboardId: string, limit: number): ConversationRow[];
+  /**
+   * Reads one conversation's summary.
+   *
+   * @param dashboardId - The dashboard.
+   * @param conversationId - The conversation's first question.
+   * @returns The summary, or `undefined` when the dashboard has no such conversation.
+   */
+  conversation(dashboardId: string, conversationId: string): ConversationRow | undefined;
+  /**
+   * Reads a conversation's questions, in the order they were asked.
+   *
+   * @param dashboardId - The dashboard.
+   * @param conversationId - The conversation's first question.
+   * @returns The questions, none when the dashboard has no such conversation.
+   */
+  inConversation(dashboardId: string, conversationId: string): QuestionRow[];
+  /**
+   * Finds a dashboard's conversations whose questions and answers hold every word, as prefixes,
+   * in any of them. The question weighs more than the answer.
+   *
+   * @param dashboardId - The dashboard.
+   * @param words - The words, letters and digits only.
+   * @param limit - The most to return.
+   * @returns The hits, the best first.
+   */
+  searchConversations(
+    dashboardId: string,
+    words: readonly string[],
+    limit: number,
+  ): ConversationHit[];
   /**
    * Finds a dashboard's answered questions whose question or answer matches any of the words, as
    * prefixes. The question weighs more than the answer.
@@ -100,6 +159,8 @@ interface StoredQuestion {
   version: number;
   /** The parent question. */
   parent_id: string | null;
+  /** The first question of the conversation. */
+  root_id: string;
   /** The start of the range. */
   time_from: number;
   /** The end of the range. */
@@ -133,7 +194,7 @@ interface StoredQuestion {
 }
 
 /** The columns of a question, in the order of the insert. */
-const columns = `id, dashboard_id, version, parent_id, time_from, time_to, time_zone, variables,
+const columns = `id, dashboard_id, version, parent_id, root_id, time_from, time_to, time_zone, variables,
   hidden_markers, explain_only, asked_by, asked_at, question, answer, failure, citations, evidence,
   usage, tokens`;
 
@@ -149,6 +210,7 @@ function rowOf(stored: StoredQuestion): QuestionRow {
     dashboardId: stored.dashboard_id,
     version: stored.version,
     parentId: stored.parent_id,
+    rootId: stored.root_id,
     timeFrom: stored.time_from,
     timeTo: stored.time_to,
     timeZone: stored.time_zone,
@@ -174,7 +236,7 @@ function rowOf(stored: StoredQuestion): QuestionRow {
  * @returns The values.
  */
 function valuesOf(row: QuestionRow) {
-  const place = [row.id, row.dashboardId, row.version, row.parentId];
+  const place = [row.id, row.dashboardId, row.version, row.parentId, row.rootId];
   const shown = [row.timeFrom, row.timeTo, row.timeZone];
   const choices = [JSON.stringify(row.variables), JSON.stringify(row.hiddenMarkers)];
   const asked = [row.explainOnly ? 1 : 0, row.askedBy, row.askedAt, row.question];
@@ -203,14 +265,14 @@ function questionStatements(database: Database) {
   return {
     insert: database.query(
       `INSERT INTO dashboard_questions (${columns})
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     get: database.query<StoredQuestion, [string]>(
       `SELECT ${columns} FROM dashboard_questions WHERE id = ?`,
     ),
-    list: database.query<StoredQuestion, [string, number]>(
-      `SELECT ${columns} FROM dashboard_questions WHERE dashboard_id = ?
-       ORDER BY asked_at DESC, id DESC LIMIT ?`,
+    inConversation: database.query<StoredQuestion, [string, string]>(
+      `SELECT ${columns} FROM dashboard_questions WHERE dashboard_id = ? AND root_id = ?
+       ORDER BY asked_at, id`,
     ),
     search: database.query<QuestionHit, [string, string, number]>(
       `SELECT question_id AS id, bm25(question_fts, 0, 0, 3, 1) AS rank
@@ -219,6 +281,86 @@ function questionStatements(database: Database) {
          AND dashboard_questions.answer IS NOT NULL
        ORDER BY rank LIMIT ?`,
     ),
+  };
+}
+
+/** The summary of each conversation, with its first question; filtered by the caller. */
+const summaries = `SELECT root.id, root.question, root.asked_by AS startedBy,
+    root.asked_at AS startedAt, count(*) AS count, max(asked.asked_at) AS lastAt
+  FROM dashboard_questions AS asked JOIN dashboard_questions AS root ON root.id = asked.root_id`;
+
+/**
+ * The FTS5 query of words, matched as prefixes in the question or the answer.
+ *
+ * @param words - The words.
+ * @returns The query.
+ */
+function matchOf(words: readonly string[]): string {
+  return `{question answer} : (${words.map(prefixOf).join(' OR ')})`;
+}
+
+/**
+ * The conversations every word found, each with its best question, the best first: the lowest sum
+ * of the words' ranks.
+ *
+ * @param perWord - The hits of each word.
+ * @returns The conversations, none without words.
+ */
+function everyWord(perWord: readonly ConversationHit[][]): ConversationHit[] {
+  const [first, ...rest] = perWord;
+  if (!first) return [];
+  const found = rest.reduce(narrowed, first);
+  return found.sort((one, other) => one.rank - other.rank);
+}
+
+/**
+ * The conversations found so far that another word found too, their ranks added up.
+ *
+ * @param found - The conversations found so far.
+ * @param hits - Another word's hits.
+ * @returns The conversations both found, each keeping its best question.
+ */
+function narrowed(found: ConversationHit[], hits: readonly ConversationHit[]): ConversationHit[] {
+  const byId = new Map(hits.map((hit) => [hit.id, hit]));
+  return found.flatMap((hit) => {
+    const also = byId.get(hit.id);
+    return also ? [{ ...hit, rank: hit.rank + also.rank }] : [];
+  });
+}
+
+/**
+ * The repository's reads of conversations.
+ *
+ * @param database - A database the migrations have run on.
+ * @returns The conversation reads.
+ */
+function conversationQueries(
+  database: Database,
+): Pick<QuestionRepository, 'conversations' | 'conversation' | 'searchConversations'> {
+  const list = database.query<ConversationRow, [string, number]>(
+    `${summaries} WHERE asked.dashboard_id = ? GROUP BY asked.root_id
+     ORDER BY lastAt DESC, root.id DESC LIMIT ?`,
+  );
+  const one = database.query<ConversationRow, [string, string]>(
+    `${summaries} WHERE asked.dashboard_id = ? AND asked.root_id = ? GROUP BY asked.root_id`,
+  );
+  // BM25 can't run inside an aggregate, so the hits are ranked first, then grouped.
+  const search = database.query<ConversationHit, [string, string]>(
+    `WITH hits AS MATERIALIZED (
+       SELECT asked.root_id, question_id, bm25(question_fts, 0, 0, 3, 1) AS rank
+       FROM question_fts JOIN dashboard_questions AS asked ON asked.id = question_id
+       WHERE question_fts MATCH ? AND question_fts.dashboard_id = ?)
+     SELECT root_id AS id, question_id AS questionId, min(rank) AS rank
+     FROM hits GROUP BY root_id`,
+  );
+  return {
+    conversations: (dashboardId, limit) => list.all(dashboardId, limit),
+    conversation: (dashboardId, conversationId) =>
+      one.get(dashboardId, conversationId) ?? undefined,
+    searchConversations: (dashboardId, words, limit) => {
+      const perWord = words.map((word) => search.all(matchOf([word]), dashboardId));
+      return everyWord(perWord).slice(0, limit);
+    },
   };
 }
 
@@ -238,11 +380,12 @@ export function createQuestionRepository(database: Database): QuestionRepository
       const stored = statements.get.get(id);
       return stored ? rowOf(stored) : undefined;
     },
-    list: (dashboardId, limit) => statements.list.all(dashboardId, limit).map(rowOf),
+    inConversation: (dashboardId, conversationId) =>
+      statements.inConversation.all(dashboardId, conversationId).map(rowOf),
+    ...conversationQueries(database),
     search: (dashboardId, words, limit) => {
       if (words.length === 0) return [];
-      const match = `{question answer} : (${words.map(prefixOf).join(' OR ')})`;
-      return statements.search.all(match, dashboardId, limit);
+      return statements.search.all(matchOf(words), dashboardId, limit);
     },
   };
 }

@@ -65,6 +65,7 @@ describe('runMigrations', () => {
       '0004-dashboard-questions.sql',
       '0005-panel-explanations.sql',
       '0006-usage-feature.sql',
+      '0007-question-conversations.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([

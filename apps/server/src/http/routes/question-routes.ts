@@ -1,22 +1,25 @@
 /**
- * The endpoints of questions about a pinned dashboard. Every role reads a dashboard's questions,
- * searches them and sees its sources' access levels; analysts and above ask. Asking streams the
+ * The endpoints of questions about a pinned dashboard. Every role reads and searches a dashboard's
+ * conversations and questions and sees its sources' access levels; analysts and above ask. Asking streams the
  * answer and stores the question with its outcome, a failure too. The asker is named for
  * accountability only: no one owns a question.
  */
 import {
   askQuestionEndpoint,
   dashboardSourcesEndpoint,
+  getConversationEndpoint,
   getQuestionEndpoint,
-  listQuestionsEndpoint,
+  listConversationsEndpoint,
   type Principal,
   questionIdHeader,
+  type Role,
   similarQuestionsEndpoint,
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Answers, AskRequest } from '../../agent/answer-types.ts';
 import type { Users } from '../../auth/users.ts';
-import type { PreparedQuestion, QuestionInfo, Questions } from '../../dashboards/questions.ts';
+import type { ConversationInfo, QuestionInfo } from '../../dashboards/question-info.ts';
+import type { PreparedQuestion, Questions } from '../../dashboards/questions.ts';
 import type { ThreadOwner } from '../../threads/bin.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint, mountStreamEndpoint } from '../endpoint.ts';
@@ -46,6 +49,51 @@ function namer(users: Pick<Users, 'nameOf'>) {
   return async ({ askerId, ...info }: QuestionInfo) => ({
     ...info,
     askedBy: await nameOf(askerId),
+  });
+}
+
+/**
+ * Names the people who started conversations, looking each up once per request.
+ *
+ * @param users - The users.
+ * @returns A function that replaces a conversation's starter id with their name.
+ */
+function starterNamer(users: Pick<Users, 'nameOf'>) {
+  const nameOf = ownerNames(users);
+  return async ({ starterId, ...info }: ConversationInfo) => ({
+    ...info,
+    startedBy: await nameOf(starterId),
+  });
+}
+
+/**
+ * Mounts the endpoints that list, search and read conversations.
+ *
+ * @param app - The app.
+ * @param services - The questions and the users.
+ * @param roleFor - The role a principal reads a dashboard with.
+ */
+function mountConversationEndpoints(
+  app: Hono<AppEnv>,
+  services: QuestionRouteServices,
+  roleFor: (principal: Principal | null, dashboardId: string) => Role,
+): void {
+  const { questions, users } = services;
+  mountEndpoint(app, listConversationsEndpoint, {
+    access: 'viewer',
+    handle: async ({ params: { dashboardId }, query, principal }) => {
+      const role = roleFor(principal, dashboardId);
+      const listed = questions.conversations(dashboardId, query.q, role);
+      return { conversations: await Promise.all(listed.map(starterNamer(users))) };
+    },
+  });
+  mountEndpoint(app, getConversationEndpoint, {
+    access: 'viewer',
+    handle: async ({ params: { dashboardId, conversationId }, principal }) => {
+      const role = roleFor(principal, dashboardId);
+      const asked = questions.conversation(dashboardId, conversationId, role);
+      return { id: conversationId, questions: await Promise.all(asked.map(namer(users))) };
+    },
   });
 }
 
@@ -96,13 +144,7 @@ export function mountQuestionEndpoints(app: Hono<AppEnv>, services: QuestionRout
   const roleFor = (principal: Principal | null, dashboardId: string) =>
     roleForDashboard(signedIn(principal), services.ownerOf(dashboardId));
   mountAskEndpoint(app, services);
-  mountEndpoint(app, listQuestionsEndpoint, {
-    access: 'viewer',
-    handle: async ({ params: { dashboardId }, principal }) => {
-      const listed = questions.list(dashboardId, roleFor(principal, dashboardId));
-      return { questions: await Promise.all(listed.map(namer(users))) };
-    },
-  });
+  mountConversationEndpoints(app, services, roleFor);
   mountEndpoint(app, getQuestionEndpoint, {
     access: 'viewer',
     handle: ({ params: { dashboardId, questionId }, principal }) =>

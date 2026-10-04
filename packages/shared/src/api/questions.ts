@@ -1,8 +1,10 @@
 /**
  * Questions about a pinned dashboard: a shared record of the dashboard, not a thread. Each one keeps
  * the version, the range and the variables as shown when it was asked, who asked, and the outcome:
- * the checked answer with its citations and evidence, or why there is none. Every role reads them;
- * analysts and above ask. The browser sends the range and the variables as shown, never a query.
+ * the checked answer with its citations and evidence, or why there is none. Questions form
+ * conversations: a first question and the questions that follow it, each about what was shown when
+ * it was asked. Every role reads and searches them; analysts and above ask. The browser sends the
+ * range and the variables as shown, never a query.
  */
 import { z } from 'zod';
 import { answerEvidenceSchema, answerSchema } from '../answers.ts';
@@ -28,6 +30,8 @@ export const dashboardQuestionSchema = z.object({
   version: z.int(),
   /** The question it follows up on, or `null`. */
   parentId: z.string().nullable(),
+  /** Its conversation: the id of the conversation's first question, its own for a first one. */
+  conversationId: z.string(),
   /** The range shown, resolved to epoch milliseconds when it was asked. */
   time: z.object({ from: z.number(), to: z.number() }),
   /** The time zone the answer names times in. */
@@ -53,6 +57,7 @@ export type DashboardQuestion = z.infer<typeof dashboardQuestionSchema>;
 /** Validates an earlier question that may already answer a new one. */
 export const similarQuestionSchema = dashboardQuestionSchema.pick({
   id: true,
+  conversationId: true,
   version: true,
   askedBy: true,
   askedAt: true,
@@ -61,6 +66,26 @@ export const similarQuestionSchema = dashboardQuestionSchema.pick({
 
 /** An earlier question that may already answer a new one. */
 export type SimilarQuestion = z.infer<typeof similarQuestionSchema>;
+
+/** Validates a conversation about a dashboard, as History lists it. */
+export const conversationSchema = z.object({
+  /** The id of its first question. */
+  id: z.string(),
+  /** Its first question. */
+  question: z.string(),
+  /** The name of the person who asked the first question. */
+  startedBy: z.string(),
+  startedAt: z.number(),
+  /** How many questions it holds. */
+  count: z.int(),
+  /** When its latest question was asked. */
+  lastAt: z.number(),
+  /** In a search, its question that matches best; `null` outside a search. */
+  match: z.object({ questionId: z.string(), question: z.string() }).nullable(),
+});
+
+/** A conversation about a dashboard. */
+export type Conversation = z.infer<typeof conversationSchema>;
 
 /** Validates a source of a dashboard as everyone may see it: its name and its access level. */
 export const dashboardSourceSchema = z.object({
@@ -95,7 +120,9 @@ export const askQuestionEndpoint = defineEndpoint({
     hiddenMarkers: z.array(z.string().max(64)).max(20).default([]),
     /** The browser's time zone, for a dashboard that names none. */
     timeZone: z.string().min(1).max(64),
-    /** The question this one follows up on. */
+    /** The conversation this question continues: it follows up on its latest question. */
+    conversationId: z.string().min(1).max(64).optional(),
+    /** The question this one follows up on; leave it out with `conversationId`. */
     parentId: z.string().min(1).max(64).optional(),
   }),
   output: z.unknown(),
@@ -104,12 +131,24 @@ export const askQuestionEndpoint = defineEndpoint({
 /** The header that names the question an answer stream stores. */
 export const questionIdHeader = 'X-Question-Id';
 
-/** Lists a dashboard's questions, the newest first. */
-export const listQuestionsEndpoint = defineEndpoint({
+/**
+ * Lists a dashboard's conversations, the latest activity first. With `q`, only those one of whose
+ * questions or answers shares a word with it, the best match first.
+ */
+export const listConversationsEndpoint = defineEndpoint({
   method: 'GET',
-  path: '/dashboards/:dashboardId/questions',
+  path: '/dashboards/:dashboardId/conversations',
   params: dashboardParams,
-  output: z.object({ questions: z.array(dashboardQuestionSchema) }),
+  query: z.object({ q: z.string().max(2000).default('') }),
+  output: z.object({ conversations: z.array(conversationSchema) }),
+});
+
+/** Reads one conversation: its questions, in the order they were asked. */
+export const getConversationEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/dashboards/:dashboardId/conversations/:conversationId',
+  params: dashboardParams.extend({ conversationId: z.string().min(1).max(64) }),
+  output: z.object({ id: z.string(), questions: z.array(dashboardQuestionSchema) }),
 });
 
 /** Reads one question of a dashboard. */

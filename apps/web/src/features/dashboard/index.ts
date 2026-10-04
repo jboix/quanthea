@@ -1,7 +1,7 @@
 /** The dashboard screen: its route component and loaders. */
 export {
-  loadQuestion,
-  loadQuestions,
+  loadConversation,
+  loadConversations,
   loadSimilarQuestions,
   loadSources,
 } from './ask-data.ts';

@@ -1,9 +1,8 @@
 /**
- * What an open answer marks on the dashboard, and how the Ask tab groups questions. Marks are view
- * state only: the cited panels get numbered badges and a citation's window is shaded on its
+ * What an open answer marks on the dashboard. Marks are view state only: the cited panels get numbered badges and a citation's window is shaded on its
  * panel's time chart. Nothing goes into the spec.
  */
-import type { Answer, DashboardQuestion } from '@quanthea/shared';
+import type { Answer } from '@quanthea/shared';
 
 /** A cited time window, shaded on a time chart. */
 export interface CitedWindow {
@@ -29,14 +28,6 @@ export interface OpenAnswer {
   readonly version: number;
   /** The citations and the evidence. */
   readonly answer: Pick<Answer, 'citations' | 'evidence'>;
-}
-
-/** A question with the follow-ups asked under it, oldest first. */
-export interface QuestionThread {
-  /** The first question. */
-  readonly root: DashboardQuestion;
-  /** The questions that follow up on it, directly or not. */
-  readonly followUps: readonly DashboardQuestion[];
 }
 
 /**
@@ -102,41 +93,4 @@ export function marksOnVersion(
 ): Record<string, PanelMark> | undefined {
   if (!open || open.version !== shownVersion) return undefined;
   return panelMarks(open.answer);
-}
-
-/**
- * The first question of a question's chain among those listed.
- *
- * @param question - The question.
- * @param byId - The questions listed, by id.
- * @returns The root's id.
- */
-function rootOf(question: DashboardQuestion, byId: ReadonlyMap<string, DashboardQuestion>) {
-  let current = question;
-  for (let parent = byId.get(current.parentId ?? ''); parent; ) {
-    current = parent;
-    parent = byId.get(current.parentId ?? '');
-  }
-  return current.id;
-}
-
-/**
- * Groups questions into threads: each first question, the newest first, with its follow-ups
- * under it, the oldest first.
- *
- * @param questions - The questions, in any order.
- * @returns The threads.
- */
-export function questionThreads(questions: readonly DashboardQuestion[]): QuestionThread[] {
-  const byId = new Map(questions.map((question) => [question.id, question]));
-  const oldestFirst = [...questions].sort((first, second) => first.askedAt - second.askedAt);
-  const followUps = new Map<string, DashboardQuestion[]>();
-  for (const question of oldestFirst) {
-    const root = rootOf(question, byId);
-    if (root !== question.id) followUps.set(root, [...(followUps.get(root) ?? []), question]);
-  }
-  return oldestFirst
-    .filter((question) => rootOf(question, byId) === question.id)
-    .reverse()
-    .map((root) => ({ root, followUps: followUps.get(root.id) ?? [] }));
 }

@@ -150,13 +150,14 @@ describe('route access', () => {
     expect(reachable('viewer').every((route) => reachable('analyst').includes(route))).toBe(true);
   });
 
-  test('every role reads and searches questions; analysts and above ask', () => {
+  test('every role reads and searches conversations; analysts and above ask', () => {
     const questionRoutes = listApiRouteAccess(buildApp())
-      .filter((route) => /questions|sources/.test(route.path))
+      .filter((route) => /questions|conversations|sources/.test(route.path))
       .map((route) => `${route.access} ${route.method} ${route.path}`);
     expect(questionRoutes.sort()).toEqual([
       'analyst POST /api/dashboards/:dashboardId/questions',
-      'viewer GET /api/dashboards/:dashboardId/questions',
+      'viewer GET /api/dashboards/:dashboardId/conversations',
+      'viewer GET /api/dashboards/:dashboardId/conversations/:conversationId',
       'viewer GET /api/dashboards/:dashboardId/questions/:questionId',
       'viewer GET /api/dashboards/:dashboardId/similar-questions',
       'viewer GET /api/dashboards/:dashboardId/versions/:version/sources',

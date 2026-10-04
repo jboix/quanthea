@@ -1,32 +1,17 @@
 /**
  * The foot of the Ask tab: the questions already answered that look like the one being typed, and
- * the question box, labelled with what the question will be asked about. Viewers get a search box
- * instead, and a line saying who can ask. Above them, when no source shows numbers, the honest
- * note that answers can only explain.
+ * the question box, labelled with what the question will be asked about. Viewers get a line saying
+ * who can ask instead. Above the conversation, when no source shows numbers, the honest note that
+ * answers can only explain.
  */
-import type { DashboardQuestion, DashboardSource, SimilarQuestion } from '@quanthea/shared';
+import type { DashboardSource, SimilarQuestion } from '@quanthea/shared';
 import { type FormEvent, type KeyboardEvent, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
-import { Input } from '../../ui/input.tsx';
-import { Pill } from '../../ui/pill.tsx';
 import { TextArea } from '../../ui/text-area.tsx';
 import { accessLevelName } from '../connectors/index.ts';
 import styles from './ask.module.css';
+import { ContextNote } from './ask-message.tsx';
 import { dayLabel } from './ask-words.ts';
-
-/** How much of a question a follow-up chip shows. */
-const chipLength = 60;
-
-/**
- * Shortens a text to a length, with an ellipsis.
- *
- * @param text - The text.
- * @param length - The most characters.
- * @returns The text, or its start and an ellipsis.
- */
-function shortened(text: string, length: number): string {
-  return text.length <= length ? text : `${text.slice(0, length - 1)}…`;
-}
 
 /**
  * The honest note when no source of the dashboard shows numbers: answers can only explain.
@@ -58,12 +43,13 @@ export function ExplainOnlyCard({ sources }: { readonly sources: readonly Dashbo
 }
 
 /**
- * The questions already answered that share words with the text typed.
+ * The questions already answered that share words with the text typed. Each opens its
+ * conversation at its answer.
  *
  * @param props - The matches, the time zone and the open callback.
  * @param props.matches - The earlier questions, the best first.
  * @param props.timeZone - The time zone of the dates.
- * @param props.onOpen - Opens one in the list.
+ * @param props.onOpen - Opens a question's conversation at it.
  * @returns The list, or nothing without matches.
  */
 export function SimilarQuestions({
@@ -73,7 +59,7 @@ export function SimilarQuestions({
 }: {
   readonly matches: readonly SimilarQuestion[];
   readonly timeZone: string;
-  readonly onOpen: (questionId: string) => void;
+  readonly onOpen: (match: SimilarQuestion) => void;
 }) {
   if (matches.length === 0) return null;
   return (
@@ -84,7 +70,7 @@ export function SimilarQuestions({
           key={match.id}
           type="button"
           className={styles.similarItem}
-          onClick={() => onOpen(match.id)}
+          onClick={() => onOpen(match)}
         >
           Asked on {dayLabel(match.askedAt, timeZone)} by {match.askedBy}: {match.question}
         </button>
@@ -99,10 +85,8 @@ interface AskFormProps {
   readonly label: string;
   /** Whether an answer is on its way. */
   readonly busy: boolean;
-  /** The question a new one follows up on. */
-  readonly followUp: DashboardQuestion | undefined;
-  /** Drops the follow-up. */
-  readonly onCancelFollowUp: () => void;
+  /** The line saying the view changed since the conversation's latest question, if it did. */
+  readonly note: string | undefined;
   /** Asks. */
   readonly onAsk: (question: string) => void;
   /** Receives the text as it is typed, to look for earlier answers. */
@@ -112,10 +96,10 @@ interface AskFormProps {
 /**
  * The question box, for those who may ask. Enter asks; Shift and Enter starts a new line.
  *
- * @param props - The label, the state, the follow-up and the callbacks.
+ * @param props - The label, the state, the context line and the callbacks.
  * @returns The form.
  */
-export function AskForm({ label, busy, followUp, onCancelFollowUp, onAsk, onType }: AskFormProps) {
+export function AskForm({ label, busy, note, onAsk, onType }: AskFormProps) {
   const [text, setText] = useState('');
   const submit = (event?: FormEvent) => {
     event?.preventDefault();
@@ -129,11 +113,7 @@ export function AskForm({ label, busy, followUp, onCancelFollowUp, onAsk, onType
   };
   return (
     <form className={styles.form} onSubmit={submit}>
-      {followUp && (
-        <Pill tone="accent" onRemove={onCancelFollowUp} removeLabel="Ask a new question instead">
-          Following up: {shortened(followUp.question, chipLength)}
-        </Pill>
-      )}
+      <ContextNote note={note} />
       <TextArea
         label={label}
         rows={2}
@@ -154,21 +134,14 @@ export function AskForm({ label, busy, followUp, onCancelFollowUp, onAsk, onType
 }
 
 /**
- * The search box viewers get, with who may ask.
+ * The line viewers get instead of the question box.
  *
- * @param props - The callback.
- * @param props.onType - Receives the text as it is typed.
- * @returns The search.
+ * @returns The line.
  */
-export function QuestionSearch({ onType }: { readonly onType: (text: string) => void }) {
+export function WhoCanAsk() {
   return (
-    <div className={styles.form}>
-      <p className={styles.meta}>Analysts, editors and admins can ask about this dashboard.</p>
-      <Input
-        label="Search the questions asked so far"
-        type="search"
-        onChange={(event) => onType(event.target.value)}
-      />
-    </div>
+    <p className={styles.meta}>
+      Analysts, editors and admins can ask about this dashboard. You can read every conversation.
+    </p>
   );
 }

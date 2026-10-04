@@ -23,24 +23,51 @@ export function CitationBadge({ n }: { readonly n: number }) {
 }
 
 /**
- * An answer's text, its markers drawn as badges.
+ * The pieces of an answer's text: words, and its markers as badges.
  *
  * @param props - The text.
  * @param props.text - The answer's text, with markers such as `[1]`.
- * @returns The paragraph.
+ * @returns The pieces.
  */
-export function AnswerText({ text }: { readonly text: string }) {
-  const segments = answerSegments(text);
+function AnswerPieces({ text }: { readonly text: string }) {
+  return answerSegments(text).map((segment) =>
+    segment.kind === 'text' ? (
+      <span key={segment.at}>{segment.text}</span>
+    ) : (
+      <CitationBadge key={segment.at} n={segment.n} />
+    ),
+  );
+}
+
+/**
+ * An answer's text, its markers drawn as badges. With `onPick`, it is a toggle button that makes
+ * it the answer the charts show, pressed while they do.
+ *
+ * @param props - The text, and the pick callback with whether the charts show it.
+ * @param props.text - The answer's text, with markers such as `[1]`.
+ * @param props.onPick - Makes it the answer the charts show; left out when it can't be.
+ * @param props.shown - Whether the charts show it.
+ * @returns The paragraph or the button.
+ */
+export function AnswerText({
+  text,
+  onPick,
+  shown = false,
+}: {
+  readonly text: string;
+  readonly onPick?: (() => void) | undefined;
+  readonly shown?: boolean;
+}) {
+  if (!onPick)
+    return (
+      <p className={styles.answerText}>
+        <AnswerPieces text={text} />
+      </p>
+    );
   return (
-    <p className={styles.answerText}>
-      {segments.map((segment) =>
-        segment.kind === 'text' ? (
-          <span key={segment.at}>{segment.text}</span>
-        ) : (
-          <CitationBadge key={segment.at} n={segment.n} />
-        ),
-      )}
-    </p>
+    <button type="button" className={styles.answerPick} aria-pressed={shown} onClick={onPick}>
+      <AnswerPieces text={text} />
+    </button>
   );
 }
 

@@ -53,8 +53,8 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'POST /panels/run': { time: { from: 0, to: 1 }, queries: [], markers: [], durationMs: 1 },
   'POST /variables/options': { options: [] },
   'GET /dashboards/:dashboardId/snapshots': { snapshots: [] },
-  'GET /dashboards/:dashboardId/questions': { questions: [] },
-  'GET /dashboards/:dashboardId/questions/:questionId': {},
+  'GET /dashboards/:dashboardId/conversations': { conversations: [] },
+  'GET /dashboards/:dashboardId/conversations/:conversationId': { id: 'c', questions: [] },
   'GET /dashboards/:dashboardId/similar-questions': { questions: [] },
   'GET /dashboards/:dashboardId/versions/:version/sources': { sources: [] },
   'GET /dashboards/:dashboardId/versions/:version/panels/:panelId/explanation': {

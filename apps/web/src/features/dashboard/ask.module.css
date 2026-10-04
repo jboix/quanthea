@@ -1,17 +1,19 @@
 .side {
-  position: sticky;
-  top: 0;
   display: flex;
   flex: 0 0 400px;
   flex-direction: column;
-  align-self: flex-start;
   min-width: 0;
   max-width: 420px;
-  min-height: 70dvh;
-  max-height: 100dvh;
+  height: 100%;
   border-left: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
+}
+
+.sideBody {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-height: 0;
 }
 
 .sideTop {
@@ -29,6 +31,7 @@
 
 .aboutTab {
   padding: 18px;
+  overflow-y: auto;
 }
 
 .tab {
@@ -48,9 +51,8 @@
 }
 
 .foot {
-  position: sticky;
-  bottom: 0;
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
   gap: 10px;
   padding: 12px 16px 16px;
@@ -73,88 +75,48 @@
   min-height: 64px;
 }
 
-.threads {
+.bar {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.thread {
-  display: flex;
-  flex-direction: column;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  min-height: 44px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--color-divider);
 }
 
-.followUps {
+.barText {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--color-ink-secondary);
+}
+
+.empty {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-left: 14px;
-  padding-left: 12px;
-  border-left: 2px solid var(--color-divider);
+  gap: 14px;
 }
 
-.question {
+.recent {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  transition:
-    background-color 0.4s,
-    border-color 0.4s;
 }
 
-.question[data-expanded="true"] {
-  border-color: var(--color-accent-border);
-}
-
-.question[data-flash="true"] {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
-}
-
-.questionToggle {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0;
+.linkButton {
+  align-self: flex-start;
+  padding: 2px 0;
   border: 0;
   background: none;
-  color: var(--color-ink);
   font: inherit;
-  text-align: left;
+  font-size: 13px;
+  color: var(--color-accent);
   cursor: pointer;
 }
 
-.questionToggle svg {
-  flex-shrink: 0;
-  margin-top: 3px;
-  transition: transform 0.15s;
-}
-
-.questionToggle[aria-expanded="true"] svg {
-  transform: rotate(180deg);
-}
-
-.questionText {
-  font-size: 14px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.asked {
-  align-self: flex-end;
-  max-width: 85%;
-  margin: 0;
-  padding: 8px 12px;
-  border-radius: var(--radius-card);
-  background: var(--color-accent-soft);
-  font-size: 14px;
-  overflow-wrap: anywhere;
+.linkButton:hover {
+  text-decoration: underline;
 }
 
 .meta {
@@ -168,15 +130,41 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-top: 4px;
+  padding: 2px 0 0 10px;
+  border-left: 2px solid transparent;
 }
 
-.answerText {
+.answer[data-shown="true"] {
+  border-left-color: var(--color-accent);
+}
+
+.answerText,
+.answerPick {
   margin: 0;
   font-size: 14.5px;
   line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.answerPick {
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--color-ink);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.answerPick[aria-pressed="true"] {
+  cursor: default;
+}
+
+.answerPick:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .badge {
@@ -215,14 +203,8 @@
   color: var(--color-ink-label);
 }
 
-.answerFooter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .tokens {
+  margin: 0;
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--color-ink-secondary);
@@ -352,24 +334,10 @@
 
 @media (max-width: 960px) {
   .side {
-    position: static;
-    flex-basis: auto;
-    align-self: stretch;
-    order: -1;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
     max-width: none;
-    min-height: 0;
-    max-height: none;
     border-left: 0;
-  }
-
-  .scroll {
-    max-height: 60vh;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .question,
-  .questionToggle svg {
-    transition: none;
   }
 }

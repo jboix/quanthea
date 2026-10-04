@@ -125,6 +125,16 @@ export function variableWords(spec: DashboardSpec, variables: VariableValues): s
   });
 }
 
+/**
+ * Describes the variable values a question was asked with.
+ *
+ * @param variables - The values stored with the question.
+ * @returns Such as `['$env prod', '$service All']`.
+ */
+export function storedVariableWords(variables: VariableValues): string[] {
+  return Object.entries(variables).map(([name, value]) => `$${name} ${valueWords(value)}`);
+}
+
 /** What the dashboard shows, as the Ask tab describes it. */
 export interface ShownContext {
   /** The spec. */
