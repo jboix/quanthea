@@ -63,7 +63,7 @@ export async function openBench(world: EvalWorld): Promise<AnswerBench> {
  * @param accessLevel - The level.
  * @returns Once every connector has it.
  */
-async function setLevel(
+export async function setLevel(
   world: EvalWorld,
   bench: AnswerBench,
   accessLevel: AccessLevel,

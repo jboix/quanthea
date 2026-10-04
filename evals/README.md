@@ -58,12 +58,51 @@ good answer holds.
 Running the evals calls a model, so they are never part of `bun run verify`. The scoring has unit
 tests, which call none.
 
+## Alert cases
+
+Last, the alert cases (`al1` to `al4`, in `alert-cases.ts`) drive alert threads through the agent,
+wired as the chat endpoint wires them. A case sets the access level of both dev connectors, asks,
+answers the agent's question with its scripted answer, approves the alert plan, and lets the agent
+write. The world holds one notification channel, a webhook to a closed local port; nothing sends
+to it, since the evaluator does not run and no test is asked for. Then the run reads the alert's
+latest version and replays it over the day before the run's clock, which holds the incident,
+through the alerts service rather than the model.
+
+| Case  | What the person says                                                                 | A good alert                                                                                  |
+| ----- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `al1` | "Tell me when checkout's 5xx share stays above 2% for 5 minutes.", at aggregates (3) | on `prometheus-dev`, above 2% for 5m, and its replay fires once for checkout after the deploy |
+| `al2` | the same, at schema and metadata (2) only                                            | the same alert, no `replay_alert` call, and the agent says it cannot replay the numbers       |
+| `al3` | "Make it wait 10 minutes instead.", following up on `al1`                            | a new version, above 2% for 10m, and its replay still fires once for checkout                 |
+| `al4` | "Alert me when this goes above 3%.", from the panel `error-rate-by-service`          | above 3%, the panel's query (same fingerprint), and a `from_panel` link to the panel          |
+
+Every case also needs:
+
+- the threshold as a ratio (`0.02`), or in percent (`2`) when the query multiplies by 100;
+- one series per service, or a query that keeps to checkout;
+- a message that uses only the known placeholders and names `{alert}` or `{value}`;
+- channels from the list only.
+
+Checkout fires "once after the deploy" when its series has exactly one firing period over the
+replay, starting at most 20 minutes after 12:02 UTC. Its error share passes 2% about 3 minutes into
+the incident and stays above for about 29, so a wait of 5 or 10 minutes fires once. Payments
+passes 2% too, for about 16 minutes, and may fire; only checkout is scored. `al3` runs `al1` first
+when `--only` leaves `al1` out; that run is not reported. `al4` starts from the pinned checkout
+incident dashboard of the answer cases.
+
+Each case is one or two runs of the agent: the plan, then the write after the approval. A run is a
+handful of model steps: a `describe` or two, the plan, `edit_alert`, the replay. `al3` changes the
+draft in one run. A case costs less than a dashboard question, which plans and builds several
+panels. Run only them with
+`--only al1,al2,al3,al4`. The report shows each alert's condition in words, its query, the replay
+over yesterday by series, the tools the agent called and what it said.
+
 ## Run them
 
 ```sh
 bun run env:up                      # the dev Postgres and Prometheus
-GEMINI_API_KEY=… bun run evals      # every question and answer case, on gemini-3.5-flash-lite
+GEMINI_API_KEY=… bun run evals      # every question and case, on gemini-3.5-flash-lite
 GEMINI_API_KEY=… bun run evals --only a1,a2,a3,a4   # the answer cases only
+GEMINI_API_KEY=… bun run evals --only al1,al2,al3,al4   # the alert cases only
 ```
 
 The dev data tells of an incident yesterday. `bun run env:up` seeds the data again when it was
@@ -72,7 +111,7 @@ yesterday's.
 
 | Flag                          | What it does                                                                  |
 | ----------------------------- | ----------------------------------------------------------------------------- |
-| `--only q3,q7`                | Asks only these questions or answer cases, to work on one failure.            |
+| `--only q3,q7`                | Asks only these questions or cases, to work on one failure.                   |
 | `--model <id>`                | The model for every job. `gemini-3.5-flash-lite` by default.                  |
 | `--build-model <id>`          | Another model for building and repairs, such as `gemini-3.8-flash`.           |
 | `--no-cache`                  | Asks the provider again, and keeps its answers.                               |
@@ -82,7 +121,8 @@ yesterday's.
 
 Reports go to `evals/reports/`, which git ignores: an HTML page to read, with each question's
 verdict and why, what the agent asked or said last, and each panel with its query (for an answer
-case, the answer's text and each read with what it returned); and the JSON
+case, the answer's text and each read with what it returned; for an alert case, the condition,
+the replay and the tools); and the JSON
 that `--rescore` and `--compare` read. The command exits with an error when more questions fail
 than `--allow-failures` allows, none by default.
 
@@ -90,7 +130,8 @@ than `--allow-failures` allows, none by default.
 
 - **The cache.** Each model response is kept in `evals/.cache`, under a hash of the model and the
   whole request, and replayed when the same request comes again. The clock is fixed at 10:00 UTC
-  for the day, so a day's reruns repeat the same requests. Requests that follow a query's
+  for the day, so a day's reruns repeat the same requests. Ids a run makes anew, the channel's and
+  the pinned dashboard's, are kept as stable aliases, so a prompt that names them still matches. Requests that follow a query's
   results can change when live data changes, and call the provider again.
 - **Scoring needs no model.** Change the expectations, then `--rescore` the last report.
 - **One failure at a time.** `--only q3` asks one question.

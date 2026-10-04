@@ -129,7 +129,7 @@ The two paths that matter:
 ├── examples/
 │   └── quanthea-plugin-sqlite/       an example connector plugin: read-only SQLite files
 ├── dev/                             docker-compose + seed data for local sources
-├── evals/                           prompt → expected-dashboard checks against dev sources
+├── evals/                           prompt → expected dashboard, answer and alert checks
 ├── docs/                            architecture, dashboard spec, brand, contributing, security
 ├── scripts/                         remark-check-formatted.mjs (the docs:check plugin)
 ├── AGENTS.md · CLAUDE.md            conventions for anyone writing code here
@@ -2664,10 +2664,17 @@ provider's name, so two setups of the same vendor stay apart.
   quote no measurement), a panel's explanation (no read, no citation, no measurement), and a
   follow-up (a duration). Each case sets both dev connectors' access level and makes one service
   call, prepared and stored as the question and explanation endpoints do; the scoring is in
-  `evals/answer-score.ts`, unit-tested. A middleware keeps every model response in
-  `evals/.cache`, under a hash of the model and the request, with the clock fixed at 10:00 UTC for
-  the day, so reruns call the provider only for what changed; `--only`, `--rescore` (scoring with
-  no model call) and `--compare` keep runs cheap. Reports go to `evals/reports/` as an HTML page
+  `evals/answer-score.ts`, unit-tested. Then four alert cases (`evals/alert-cases.ts`) drive
+  alert threads, with one webhook channel to a closed local port that nothing sends to: a 5xx
+  share above 2% for 5 minutes at aggregates, the same at schema and metadata only (no
+  `replay_alert` call, and the agent says it cannot replay), a follow-up that waits 10 minutes (a
+  new version), and an alert started from the pinned dashboard's error rate panel (the panel's
+  query fingerprint and a `from_panel` link). Each saved version is replayed over yesterday through
+  the alerts service, and checkout must fire once, soon after the deploy; the scoring is in
+  `evals/alert-score.ts`, unit-tested. A middleware keeps every model response in `evals/.cache`,
+  under a hash of the model and the request, with the clock fixed at 10:00 UTC for the day and the
+  ids a run makes written as stable aliases, so reruns call the provider only for what changed;
+  `--only`, `--rescore` (scoring with no model call) and `--compare` keep runs cheap. Reports go to `evals/reports/` as an HTML page
   and as JSON (`evals/render.ts`); the command fails when more questions fail than
   `--allow-failures` allows. The Evals workflow runs them by hand on `main`, for the repository's
   owner only, with the `GEMINI_API_KEY` secret: the summary shows on the run's page, the report

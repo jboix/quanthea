@@ -8,8 +8,10 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { staleDataReason } from '@quanthea/dev/freshness.ts';
 import { waitForFirstScrape } from '@quanthea/server/src/connectors/_shared/test/dev-sources.ts';
+import { type AlertCase, alertCases, selectAlertCases } from './alert-cases.ts';
+import { type AlertBench, driveAlert } from './alert-drive.ts';
 import { type AnswerCase, answerCases, selectAnswerCases } from './answer-cases.ts';
-import { driveAnswer, openBench } from './answer-drive.ts';
+import { type AnswerBench, driveAnswer, openBench } from './answer-drive.ts';
 import { drive } from './drive.ts';
 import { selectQuestions } from './questions.ts';
 import { htmlReport, markdownReport } from './render.ts';
@@ -27,11 +29,13 @@ import { type EvalModels, type EvalWorld, openWorld } from './setup.ts';
 /** What `--help` prints. */
 const usage = `Asks the agent each question against the dev data, and scores what it builds. Then
 asks the dashboard answering service the answer cases (a1 to a4) on the pinned checkout incident
-dashboard, and scores its answers and explanations.
+dashboard, and scores its answers and explanations. Then drives the alert cases (al1 to al4)
+through alert threads, and scores the alerts saved and their replay over the incident.
 
-  bun run evals                         every question and answer case, on gemini-3.5-flash-lite
+  bun run evals                         every question and case, on gemini-3.5-flash-lite
   bun run evals --only q3,q7            only these questions
   bun run evals --only a1,a2,a3,a4      only the answer cases
+  bun run evals --only al1,al2,al3,al4  only the alert cases
   bun run evals --model gemini-3.8-flash
   bun run evals --build-model gemini-3.8-flash   another model for building and repairs
   bun run evals --no-cache              ask the provider again, and keep its answers
@@ -130,42 +134,79 @@ function keep(outcomes: EvalOutcome[], outcome: EvalOutcome): void {
  * Runs the answer cases on the pinned checkout incident dashboard, one after the other.
  *
  * @param world - The world.
+ * @param bench - Opens the pinned dashboard, once.
  * @param cases - The cases.
  * @param outcomes - The outcomes so far, which theirs join.
  * @returns Once every case has run.
  */
 async function answerAll(
   world: EvalWorld,
+  bench: () => Promise<AnswerBench>,
   cases: readonly AnswerCase[],
   outcomes: EvalOutcome[],
 ): Promise<void> {
   if (cases.length === 0) return;
-  const bench = await openBench(world);
-  for (const answerCase of cases) keep(outcomes, await driveAnswer(world, bench, answerCase));
+  const opened = await bench();
+  for (const answerCase of cases) keep(outcomes, await driveAnswer(world, opened, answerCase));
 }
 
 /**
- * Asks every selected question, then runs every selected answer case, one after the other, and
- * prints each verdict as it comes.
+ * Runs the alert cases in alert threads, one after the other, with the checkout incident
+ * dashboard pinned for the case that starts from its panel.
+ *
+ * @param world - The world.
+ * @param bench - Opens the pinned dashboard, once.
+ * @param cases - The cases.
+ * @param outcomes - The outcomes so far, which theirs join.
+ * @returns Once every case has run.
+ */
+async function alertAll(
+  world: EvalWorld,
+  bench: () => Promise<AnswerBench>,
+  cases: readonly AlertCase[],
+  outcomes: EvalOutcome[],
+): Promise<void> {
+  if (cases.length === 0) return;
+  const alertBench: AlertBench = { bench: await bench(), threads: new Map() };
+  for (const alertCase of cases) keep(outcomes, await driveAlert(world, alertBench, alertCase));
+}
+
+/**
+ * Opens the pinned checkout incident dashboard the first time it is asked for.
+ *
+ * @param world - The world.
+ * @returns The opener.
+ */
+function benchOnce(world: EvalWorld): () => Promise<AnswerBench> {
+  let opened: Promise<AnswerBench> | undefined;
+  return () => {
+    opened ??= openBench(world);
+    return opened;
+  };
+}
+
+/**
+ * Asks every selected question, then runs every selected answer case and alert case, one after
+ * the other, and prints each verdict as it comes.
  *
  * @param flags - The flags.
  * @returns The report.
  */
 async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<Report> {
   const only = flags.only?.split(',').map((id) => id.trim()) ?? [];
-  const selected = selectQuestions(
-    only,
-    answerCases.map((each) => each.id),
-  );
+  const others = [...answerCases, ...alertCases].map((each) => each.id);
+  const selected = selectQuestions(only, others);
   const models: EvalModels = { model: flags.model, build: flags['build-model'] };
   await checkSources();
   const cache = { dir: join(here, '.cache'), read: !flags['no-cache'], minIntervalMs: 4000 };
   const world = await openWorld(models, process.env.GEMINI_API_KEY || undefined, cache);
   const startedAt = new Date().toISOString();
   const outcomes: EvalOutcome[] = [];
+  const bench = benchOnce(world);
   try {
     for (const question of selected) keep(outcomes, await drive(world, question));
-    await answerAll(world, selectAnswerCases(only), outcomes);
+    await answerAll(world, bench, selectAnswerCases(only), outcomes);
+    await alertAll(world, bench, selectAlertCases(only), outcomes);
   } finally {
     await world.close();
   }

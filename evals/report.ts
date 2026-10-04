@@ -6,6 +6,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { addUsage, costOf, type TokenUsage, type TurnUsage } from '@quanthea/shared';
+import { alertCases } from './alert-cases.ts';
+import { type AlertCaseOutcome, isAlert, scoreAlert } from './alert-score.ts';
 import { answerCases } from './answer-cases.ts';
 import { type AnswerCaseOutcome, isAnswer, scoreAnswer } from './answer-score.ts';
 import type { CacheCounts } from './cache.ts';
@@ -13,8 +15,8 @@ import { questions } from './questions.ts';
 import { type Outcome, type Score, score } from './score.ts';
 import type { EvalModels } from './setup.ts';
 
-/** What happened for a dashboard question, or for an answer case. */
-export type EvalOutcome = Outcome | AnswerCaseOutcome;
+/** What happened for a dashboard question, an answer case or an alert case. */
+export type EvalOutcome = Outcome | AnswerCaseOutcome | AlertCaseOutcome;
 
 /** One question's or answer case's result. */
 export interface Result {
@@ -46,6 +48,10 @@ const gone: Score = { pass: false, reasons: ['the question is gone'] };
  * @returns The score.
  */
 function scoreOne(outcome: EvalOutcome): Score {
+  if (isAlert(outcome)) {
+    const alertCase = alertCases.find((each) => each.id === outcome.id);
+    return alertCase ? scoreAlert(outcome, alertCase.expect) : gone;
+  }
   if (isAnswer(outcome)) {
     const answerCase = answerCases.find((each) => each.id === outcome.id);
     return answerCase ? scoreAnswer(outcome, answerCase.expect) : gone;
@@ -165,12 +171,18 @@ export function readsOf(outcome: AnswerCaseOutcome): number {
 }
 
 /**
- * What an outcome made, in two counts: panels and repairs, or reads and model steps.
+ * What an outcome made, in two counts: panels and repairs, reads and model steps, or alert
+ * versions and repairs.
  *
  * @param outcome - The outcome.
  * @returns The two phrases.
  */
 export function madeOf(outcome: EvalOutcome): readonly [string, string] {
+  if (isAlert(outcome))
+    return [
+      counted(outcome.versions, 'version', 'versions'),
+      counted(outcome.repairs, 'repair', 'repairs'),
+    ];
   if (isAnswer(outcome))
     return [counted(readsOf(outcome), 'read', 'reads'), counted(outcome.steps, 'step', 'steps')];
   return [

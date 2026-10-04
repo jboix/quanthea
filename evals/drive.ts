@@ -24,7 +24,7 @@ interface StoredPart {
 }
 
 /** A stored message, as the evals read it. */
-interface StoredMessage {
+export interface StoredMessage {
   /** Its id. */
   readonly id: string;
   /** Who wrote it. */
@@ -34,6 +34,9 @@ interface StoredMessage {
   /** Its metadata: an answer's usage. */
   readonly metadata?: { readonly usage?: TurnUsage };
 }
+
+/** What a person says in a thread: the first message, how they answer, their time zone. */
+export type Script = Pick<Question, 'question' | 'timeZone' | 'answer'>;
 
 /**
  * A person's message.
@@ -54,7 +57,7 @@ function userMessage(text: string, timeZone: string) {
  * @param threadId - The thread.
  * @returns The messages.
  */
-function messagesOf(world: EvalWorld, threadId: string): StoredMessage[] {
+export function messagesOf(world: EvalWorld, threadId: string): StoredMessage[] {
   return world.services.threads.get(threadId).messages as StoredMessage[];
 }
 
@@ -67,7 +70,7 @@ function messagesOf(world: EvalWorld, threadId: string): StoredMessage[] {
  * @param question - The question, for its scripted answer and time zone.
  * @returns The next message, if any.
  */
-function nextMessage(world: EvalWorld, threadId: string, question: Question): unknown {
+function nextMessage(world: EvalWorld, threadId: string, question: Script): unknown {
   const thread = world.services.threads.get(threadId);
   const last = (thread.messages as StoredMessage[]).at(-1);
   if (last?.role !== 'assistant') return undefined;
@@ -162,7 +165,7 @@ async function failingOf(world: EvalWorld, spec: DashboardSpec | undefined) {
  * @param messages - The thread's messages.
  * @returns The counts.
  */
-function tally(messages: readonly StoredMessage[]) {
+export function tally(messages: readonly StoredMessage[]) {
   const answers = messages.filter((message) => message.role === 'assistant');
   const parts = answers.flatMap((message) => message.parts);
   const repairs = parts.filter(
@@ -203,10 +206,15 @@ function streamError(stream: string): string | undefined {
  *
  * @param world - The world.
  * @param threadId - The thread.
- * @param question - The question.
+ * @param question - What the person says first, and how they answer.
  * @returns How many runs it took.
+ * @throws {Error} With the error a run streamed.
  */
-async function converse(world: EvalWorld, threadId: string, question: Question): Promise<number> {
+export async function converse(
+  world: EvalWorld,
+  threadId: string,
+  question: Script,
+): Promise<number> {
   let message: unknown = userMessage(question.question, question.timeZone);
   let turns = 0;
   while (message !== undefined && turns < maxTurns) {

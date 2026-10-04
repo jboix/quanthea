@@ -1,15 +1,19 @@
 /**
  * A report to read: Markdown for the job's summary page in GitHub Actions, and a self-contained
  * HTML page. Both show each question's verdict and why, its cost, what the agent asked, and each
- * panel with its query; for an answer case, the answer's text and each read.
+ * panel with its query; for an answer case, the answer's text and each read; for an alert case,
+ * the condition, the replay and the tools used.
  */
 
+import { alertCases, alertCaseText } from './alert-cases.ts';
+import { isAlert } from './alert-score.ts';
 import { answerCases, caseText } from './answer-cases.ts';
 import { isAnswer } from './answer-score.ts';
 import { escapeHtml } from './html.ts';
 import { questions } from './questions.ts';
+import { htmlAlertBody, markdownAlertBody } from './render-alert.ts';
 import { htmlAnswerBody, markdownAnswerBody } from './render-answer.ts';
-import type { Report, Result } from './report.ts';
+import type { EvalOutcome, Report, Result } from './report.ts';
 import { cacheSentence, counted, dollars, madeOf, tokensOf, totalUsage } from './report.ts';
 import { type BuiltPanel, type Outcome, panelQueries, shownOf } from './score.ts';
 
@@ -57,7 +61,9 @@ function questionText(id: string): string {
   const question = questions.find((each) => each.id === id);
   if (question) return question.question;
   const answerCase = answerCases.find((each) => each.id === id);
-  return answerCase ? caseText(answerCase) : id;
+  if (answerCase) return caseText(answerCase);
+  const alertCase = alertCases.find((each) => each.id === id);
+  return alertCase ? alertCaseText(alertCase) : id;
 }
 
 /**
@@ -120,9 +126,31 @@ function markdownRow({ outcome, score }: Result): string {
  * @returns The block.
  */
 function markdownDetails({ outcome }: Result): string {
-  const body = isAnswer(outcome) ? markdownAnswerBody(outcome) : markdownBuild(outcome);
+  const body = markdownBody(outcome);
   if (outcome.error) body.unshift(`The run failed: ${outcome.error}`);
   return `<details><summary>${outcome.id} · ${questionText(outcome.id)}</summary>\n\n${body.join('\n')}\n\n</details>`;
+}
+
+/**
+ * An outcome's body in Markdown, by its kind.
+ *
+ * @param outcome - The outcome.
+ * @returns The lines.
+ */
+function markdownBody(outcome: EvalOutcome): string[] {
+  if (isAlert(outcome)) return markdownAlertBody(outcome);
+  return isAnswer(outcome) ? markdownAnswerBody(outcome) : markdownBuild(outcome);
+}
+
+/**
+ * An outcome's body in HTML, by its kind.
+ *
+ * @param outcome - The outcome.
+ * @returns The HTML.
+ */
+function htmlBody(outcome: EvalOutcome): string {
+  if (isAlert(outcome)) return htmlAlertBody(outcome);
+  return isAnswer(outcome) ? htmlAnswerBody(outcome) : htmlBuild(outcome);
 }
 
 /**
@@ -161,7 +189,7 @@ export function markdownReport(report: Report): string {
     '',
     cache,
     '',
-    '| | Question | Built or read | Repairs or steps | Tokens | Cost | Time | Why it fails |',
+    '| | Question | Built, read or saved | Repairs or steps | Tokens | Cost | Time | Why it fails |',
     '| --- | --- | --: | --: | --: | --: | --: | --- |',
     ...report.results.map(markdownRow),
     '',
@@ -211,7 +239,7 @@ function htmlQuestion({ outcome, score }: Result): string {
     dollars(outcome.usage),
     `${Math.round(outcome.durationMs / 1000)} s`,
   ].join(' · ');
-  const body = isAnswer(outcome) ? htmlAnswerBody(outcome) : htmlBuild(outcome);
+  const body = htmlBody(outcome);
   return `<section class="question" data-pass="${score.pass}">
 <h2><span class="verdict">${score.pass ? 'pass' : 'fail'}</span> ${escapeHtml(outcome.id)} · ${escapeHtml(questionText(outcome.id))}</h2>
 <p class="muted">${stats}</p>
