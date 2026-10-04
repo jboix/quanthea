@@ -686,6 +686,7 @@ number (`latestVersion` is `null`). `alerts/changes.ts` and `alerts/deactivate.t
 - Deactivating stops evaluation, keeps the active version and ends the series: each that was not ok
   records its change to ok, and each that announced firing sends `alert.resolved` (when the version
   asks for it and the alert is not muted), so a channel such as PagerDuty closes its incident.
+  An alert in error that sent `alert.error` sends `alert.recovered` the same way.
 - Muting stops notifications only: evaluation and state go on. An analyst mutes until a time at
   most seven days ahead; an editor may also mute until someone unmutes. A series still firing when
   the mute ends notifies then.
@@ -743,8 +744,10 @@ evaluations in a row (`failuresBeforeError`) is in error. One failure is a blip 
   off: the evaluator then records and logs only.
 - Each going into error, each `alert.error` sent later, and each recovery is a row of
   `alert_check_events` (the reason, whether it notified), shown in What happened. The count of
-  failures, since when it is in error and whether that was announced stay on the alert's row, and
-  survive a deactivation: an alert activated again recovers at its first good evaluation.
+  failures, since when it is in error and whether that was announced stay on the alert's row.
+- Deactivating an alert in error takes it out of error and records the recovery. When it had sent
+  `alert.error`, it sends `alert.recovered` (unless muted or the setting is off), so PagerDuty
+  closes its error incident.
 
 A notification is the shared contract (`Notification`): the version's message template and the
 values filled from the series. The evaluator hands it to an injected

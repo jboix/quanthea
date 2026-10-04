@@ -70,10 +70,12 @@ export interface EvaluationRecord {
   /** The changes of state, with their ids. */
   readonly events: readonly (EventRow & { readonly id: string })[];
   /** Whether the alert can be checked after it, and what happened to that, if anything. */
-  readonly check?: {
-    readonly state: CheckState;
-    readonly event: (CheckEventRow & { readonly id: string }) | null;
-  };
+  readonly check?:
+    | {
+        readonly state: CheckState;
+        readonly event: (CheckEventRow & { readonly id: string }) | null;
+      }
+    | undefined;
 }
 
 /** Stores the state of alerts. */

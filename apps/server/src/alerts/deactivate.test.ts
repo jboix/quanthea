@@ -115,6 +115,46 @@ describe('deactivating an alert', () => {
   });
 });
 
+describe('deactivating an alert in error', () => {
+  test('announces it can be checked again when it had said it could not, once', async () => {
+    const { alerts, sent, states } = setup();
+    const { alertId } = alerts.saveVersion({ spec: specInput(firesAtOnce) }, 'ada');
+    await alerts.activate(alertId, 1, 'ada');
+    const at = Date.now();
+    const state = { failures: 2, errorSince: at, notified: true };
+    states.saveEvaluation(alertId, {
+      evaluatedAt: at,
+      series: [],
+      removed: [],
+      events: [],
+      check: { state, event: null },
+    });
+    await alerts.deactivate(alertId, 'ada');
+    expect(sent.map((each) => each.event)).toEqual(['alert.recovered']);
+    expect(states.checkState(alertId)).toEqual({ failures: 0, errorSince: null, notified: false });
+    expect(states.checkEvents(alertId, 5)).toMatchObject([{ kind: 'recovered', notified: true }]);
+  });
+
+  test('records the end of the error but sends nothing while muted, or when it never said so', async () => {
+    const { alerts, sent, states } = setup();
+    const { alertId } = alerts.saveVersion({ spec: specInput(firesAtOnce) }, 'ada');
+    await alerts.activate(alertId, 1, 'ada');
+    const at = Date.now();
+    const state = { failures: 2, errorSince: at, notified: true };
+    states.saveEvaluation(alertId, {
+      evaluatedAt: at,
+      series: [],
+      removed: [],
+      events: [],
+      check: { state, event: null },
+    });
+    alerts.mute(alertId, null, { id: 'ada', name: 'Ada', role: 'editor' });
+    await alerts.deactivate(alertId, 'ada');
+    expect(sent).toEqual([]);
+    expect(states.checkEvents(alertId, 5)).toMatchObject([{ kind: 'recovered', notified: false }]);
+  });
+});
+
 describe('a test notification', () => {
   test("sends the version's message as alert.test, filled from the series given", async () => {
     const { alerts, sent } = setup();
