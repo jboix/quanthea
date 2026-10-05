@@ -244,3 +244,19 @@ describe('redirects', () => {
     expect(state.matches.at(-1)?.route.path).toBe('*');
   });
 });
+
+describe('the library’s snapshots', () => {
+  test.each([...roles])('a %s opens the Snapshots tab', async (role) => {
+    const state = await navigate('/library?view=snapshots', sessionFor(role));
+    expect(state.errors).toBeNull();
+    expect(state.loaderData[state.matches.at(-1)?.route.id ?? '']).toMatchObject({
+      view: 'snapshots',
+      snapshots: [],
+    });
+  });
+
+  test('Settings has no Snapshots section', async () => {
+    const state = await navigate('/settings/snapshots', sessionFor('admin'));
+    expect(state.matches.at(-1)?.route.path).toBe('*');
+  });
+});

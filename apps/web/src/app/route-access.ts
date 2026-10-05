@@ -52,7 +52,6 @@ export const routeAccess = {
   '/settings/queries': 'admin',
   '/settings/usage': 'admin',
   '/settings/server': 'admin',
-  '/settings/snapshots': 'admin',
   '/settings/notifications': 'admin',
 } as const satisfies Record<string, Role>;
 

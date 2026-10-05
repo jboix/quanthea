@@ -1,2 +1,2 @@
-/** Snapshots: a dashboard frozen with its data, and the admins' list of live snapshots. */
-export { loadSnapshot, loadSnapshots, revokeSnapshot } from './data.ts';
+/** Snapshots: a dashboard frozen with its data, opened with no query. */
+export { loadSnapshot } from './data.ts';

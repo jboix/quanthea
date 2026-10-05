@@ -50,7 +50,6 @@ test('screen roles match the route table in docs/architecture.md', () => {
     '/settings/queries': 'admin',
     '/settings/usage': 'admin',
     '/settings/server': 'admin',
-    '/settings/snapshots': 'admin',
     '/settings/notifications': 'admin',
   });
 });

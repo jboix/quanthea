@@ -103,8 +103,8 @@ The two paths that matter:
 │           ├── features/
 │           │   ├── thread/          chat stream, plan card, diff and repair cards, composer, @mentions
 │           │   ├── dashboard/       dashboard pane, variables bar, panels, inspector, snapshot menu, Ask and History
-│           │   ├── snapshot/        a snapshot's page, Settings → Snapshots
-│           │   ├── library/         search, connector and tag filters, cards with a live panel
+│           │   ├── snapshot/        a snapshot's page
+│           │   ├── library/         search, connector and tag filters, cards with a live panel; the Snapshots tab
 │           │   ├── bin/
 │           │   ├── connectors/
 │           │   ├── notifications/   Settings → Notifications: channels, tests, the webhook example
@@ -364,7 +364,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/threads/new`, `/threads/:threadId`                           | Plan, Build and refine, Variant                             | editor   |
 | `/threads/:threadId/alert-previews`                            | resource route: what an alert draft's channels would send   | editor   |
 | `/threads/:threadId/report-preview`                            | resource route: a report draft run over its latest period   | editor   |
-| `/library`                                                     | Library: search pinned dashboards and their panels          | viewer   |
+| `/library`                                                     | Library: pinned dashboards; `?view=snapshots`, snapshots    | viewer   |
 | `/alerts`                                                      | Alerts: search, filter by state, sections by state          | viewer   |
 | `/alerts/firing`                                               | resource route: how many alerts fire, for the rail          | viewer   |
 | `/alerts/settings`                                             | resource route: the alert settings, for the Settings dialog | admin    |
@@ -403,7 +403,6 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/settings/users`                                              | Users: invite, roles, disable, reset links, sign out        | admin    |
 | `/settings/usage`                                              | Usage: tokens, cost and views; by feature, model, person    | admin    |
 | `/settings/notifications`                                      | Notifications: channels, tests, what a webhook receives     | admin    |
-| `/settings/snapshots`                                          | Snapshots: every live snapshot, revoke one                  | admin    |
 | `/settings/queries`                                            | Queries: builders on or off, your own with placeholders     | admin    |
 | `/settings/charts`                                             | Charts: every chart recipe drawn from its sample            | admin    |
 | `/settings/server`                                             | Server: system settings and keys, read-only, with sources   | admin    |
@@ -629,19 +628,9 @@ showed, at a link that opens with no query and no model (`dashboards/snapshots.t
    expired id gets the same "not found". An expired snapshot is refused from the moment it
    expires; the hourly purge job (`jobs/purge.ts`) then deletes it.
 5. `GET /api/dashboards/:id/snapshots` (editor+) lists a dashboard's live snapshots, for its Share
-   menu. `GET /api/snapshots?q=&filter=&timeZone=&offset=&limit=` (viewer+) searches the live
-   snapshots the caller may see, the newest first, with how many match
-   (`dashboards/snapshot-search.ts`). `DELETE /api/snapshots/:id` (editor+) revokes one at once:
-   the row is deleted.
-   - A snapshot of a version everyone sees (the dashboard is pinned and the version was pinned at
-     some time) is listed for every role: anyone may already open it by its link.
-   - A snapshot of a draft is listed only for those who may see the draft, the same rule as taking
-     one: the thread's owner and admins, or any editor when the dashboard has no thread.
-   - Expired and revoked snapshots are never listed.
-   - The search is a plain match, not the full-text index: live snapshots are few, since most
-     expire. Every word must appear in the title, the version (`v3`), the taker's name or the
-     period as the browser writes it (`26 Sep 13:30`), in the time zone the browser sends.
-   - `filter` is `all`, `expiring` (goes within seven days) or `kept` (kept until revoked).
+   menu. `GET /api/snapshots` (viewer+) searches the live snapshots the caller may see, for the
+   library's Snapshots tab (see "The library"). `DELETE /api/snapshots/:id` (editor+) revokes one
+   at once: the row is deleted.
 6. The taker is recorded on the snapshot and in the audit log (`snapshot.take`,
    `snapshot.revoke`), for accountability only: any editor revokes any snapshot.
 7. A snapshot keeps working while its dashboard's thread is in the bin. Purging the thread deletes
@@ -1114,6 +1103,24 @@ The library screen searches as the person types. Each card draws its preview pan
 card scrolls into view, from the same resource route as the dashboard, so no model is involved.
 A matching panel links to `/d/:id#panel-<id>`, which scrolls to it. Editors get a link to ask in a
 new thread, with the search filled in (`/threads/new?question=`).
+
+The library screen has two tabs, Dashboards and Snapshots. The tab is kept in the URL
+(`/library?view=snapshots`), so a link opens it. Snapshots live here rather than in Settings, so
+every signed-in role finds and searches them.
+
+- `GET /api/snapshots?q=&filter=&timeZone=&offset=&limit=` (viewer+) lists the live snapshots the
+  caller may see, the newest first, with how many match (`dashboards/snapshot-search.ts`).
+- A snapshot of a version everyone sees (the dashboard is pinned and the version was pinned at
+  some time) is listed for every role: anyone may already open it by its link.
+- A snapshot of a draft is listed only for those who may see the draft, the same rule as taking
+  one: the thread's owner and admins, or any editor when the dashboard has no thread.
+- Expired and revoked snapshots are never listed.
+- The search is a plain match, not the full-text index: live snapshots are few, since most
+  expire. Every word must appear in the title, the version (`v3`), the taker's name or the period
+  as the browser writes it (`26 Sep 13:30`), in the time zone the browser sends.
+- `filter` is `all`, `expiring` (goes within seven days) or `kept` (kept until revoked).
+- Each row shows the dashboard's title and version, the frozen period, who took it and when, and
+  until when it lives, and opens `/s/:id`. Editors and admins get Revoke, which asks first.
 
 ### The catalog
 
@@ -2730,8 +2737,8 @@ one, and enables them again. Without any admin, it creates the default one.
   `features/snapshot`) draws the frozen runs with the dashboard's panel components
   (`FrozenCanvas`): the time range and the variables are fixed chips, and the marker toggles still
   show or hide sets, in the page only. A banner names the dashboard and version, with a link, who
-  took it and when, and until when it lives. Settings → Snapshots lists every live snapshot for
-  admins.
+  took it and when, and until when it lives. The library's Snapshots tab lists the live snapshots
+  each person may see, with a search; admins see every one there.
 - **Ask about this.** On a pinned version, the header's Ask about this opens a side panel on the
   right, from the top of the screen to the bottom, beside the header and the panels, with its own
   scroll (`side-panel.tsx`). Its tabs are About (the description, tags and sources), Ask (one
