@@ -26,6 +26,7 @@ const admin: Principal = { id: 'admin-1', name: 'Ada', role: 'admin' };
 const editor: Principal = { id: 'editor-1', name: 'Eddie', role: 'editor' };
 const otherEditor: Principal = { id: 'editor-2', name: 'Olga', role: 'editor' };
 const viewer: Principal = { id: 'viewer-1', name: 'Vera', role: 'viewer' };
+const analyst: Principal = { id: 'analyst-1', name: 'Anna', role: 'analyst' };
 
 /** The names the fake users service knows. */
 const names: Readonly<Record<string, string>> = { 'editor-1': 'Eddie', 'admin-1': 'Ada' };
@@ -33,10 +34,12 @@ const names: Readonly<Record<string, string>> = { 'editor-1': 'Eddie', 'admin-1'
 let dataDir: ReturnType<typeof temporaryDir>;
 let fixture: Awaited<ReturnType<typeof testServices>>;
 let views: string[];
+let now: number;
 
 beforeEach(async () => {
   dataDir = temporaryDir();
-  fixture = await testServices(dataDir.path);
+  now = Date.parse('2026-09-26T15:00:00Z');
+  fixture = await testServices(dataDir.path, undefined, () => now);
   const input = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
   await fixture.connections.create(connectorInputSchema.parse(input), 'admin-1');
   views = [];
@@ -123,24 +126,90 @@ describe('snapshot routes', () => {
     expect((await client(editor)('POST', '/api/snapshots', take(id))).status).toBe(200);
   });
 
-  test('editors list a dashboard’s snapshots and revoke any; admins list them all', async () => {
+  test('editors list a dashboard’s snapshots and revoke any', async () => {
     const id = await eventsDashboard(true);
     const taken = await client(admin)('POST', '/api/snapshots', take(id));
     const { id: snapshotId } = snapshotSummarySchema.parse(taken.body);
     expect((await client(viewer)('GET', `/api/dashboards/${id}/snapshots`)).status).toBe(403);
     const listed = await client(otherEditor)('GET', `/api/dashboards/${id}/snapshots`);
     expect(listed.body).toMatchObject({ snapshots: [{ id: snapshotId, takenBy: 'Ada' }] });
-    expect((await client(editor)('GET', '/api/snapshots')).status).toBe(403);
-    expect((await client(admin)('GET', '/api/snapshots')).body).toMatchObject({
-      snapshots: [{ id: snapshotId }],
-    });
     expect((await client(viewer)('DELETE', `/api/snapshots/${snapshotId}`)).status).toBe(403);
+    expect((await client(analyst)('DELETE', `/api/snapshots/${snapshotId}`)).status).toBe(403);
     expect((await client(otherEditor)('DELETE', `/api/snapshots/${snapshotId}`)).status).toBe(200);
+    expect(await libraryIds(viewer)).toEqual([]);
     const gone = await client(viewer)('GET', `/api/snapshots/${snapshotId}`);
     const unknown = await client(viewer)('GET', '/api/snapshots/AAAAAAAAAAAAAAAAAAAAAA');
     expect([gone.status, unknown.status]).toEqual([404, 404]);
     expect(apiErrorBodySchema.parse(gone.body).error.message).toBe(
       apiErrorBodySchema.parse(unknown.body).error.message,
     );
+  });
+});
+
+/**
+ * The ids the Library's snapshot list gives someone.
+ *
+ * @param principal - Who asks.
+ * @param query - The query string, if any.
+ * @returns The ids, the newest first.
+ */
+async function libraryIds(principal: Principal, query = ''): Promise<string[]> {
+  const listed = await client(principal)('GET', `/api/snapshots${query}`);
+  expect(listed.status).toBe(200);
+  const { snapshots } = listed.body as { snapshots: { id: string }[] };
+  return snapshots.map((snapshot) => snapshot.id);
+}
+
+/**
+ * Takes a snapshot as someone and returns its id.
+ *
+ * @param principal - Who takes it.
+ * @param body - The request.
+ * @returns The id.
+ */
+async function taken(principal: Principal, body: object): Promise<string> {
+  const response = await client(principal)('POST', '/api/snapshots', body);
+  now += 60_000;
+  return snapshotSummarySchema.parse(response.body).id;
+}
+
+describe('the Library’s snapshots', () => {
+  test('a pinned version’s snapshot is listed for every role; a draft’s for its owner and admins', async () => {
+    const pinned = await eventsDashboard(true);
+    const draft = await eventsDashboard(false);
+    const thread = fixture.threads.create('editor-1');
+    fixture.threads.attachDashboard(thread.id, draft, 'Events');
+    const shown = await taken(admin, take(pinned));
+    const drafted = await taken(editor, take(draft));
+    for (const principal of [viewer, analyst, otherEditor])
+      expect(await libraryIds(principal)).toEqual([shown]);
+    expect(await libraryIds(editor)).toEqual([drafted, shown]);
+    expect(await libraryIds(admin)).toEqual([drafted, shown]);
+  });
+
+  test('it searches the title, the taker and the period, filters and pages', async () => {
+    const id = await eventsDashboard(true);
+    const day = await taken(editor, take(id));
+    const kept = await taken(admin, { ...take(id), lifetime: 'forever' });
+    expect(await libraryIds(viewer, '?q=eddie')).toEqual([day]);
+    expect(await libraryIds(viewer, '?q=events%20v1')).toEqual([kept, day]);
+    expect(await libraryIds(viewer, '?q=nothing')).toEqual([]);
+    // The first ran over 14:00 to 15:00 UTC, the second a minute later.
+    expect(await libraryIds(viewer, '?q=26%20sep%2014:00&timeZone=UTC')).toEqual([day]);
+    expect(await libraryIds(viewer, '?q=16:01&timeZone=Europe/Zurich')).toEqual([kept]);
+    expect(await libraryIds(viewer, '?filter=kept')).toEqual([kept]);
+    expect(await libraryIds(viewer, '?filter=expiring')).toEqual([day]);
+    const page = await client(viewer)('GET', '/api/snapshots?limit=1&offset=1');
+    expect(page.body).toMatchObject({ snapshots: [{ id: day, takenBy: 'Eddie' }], total: 2 });
+    expect((await client(viewer)('GET', '/api/snapshots?timeZone=Mars/Base')).status).toBe(400);
+  });
+
+  test('an expired snapshot is not listed', async () => {
+    const id = await eventsDashboard(true);
+    const day = await taken(editor, take(id));
+    const kept = await taken(editor, { ...take(id), lifetime: 'forever' });
+    expect(await libraryIds(viewer)).toEqual([kept, day]);
+    now += 2 * 86_400_000;
+    expect(await libraryIds(viewer)).toEqual([kept]);
   });
 });

@@ -4,10 +4,10 @@
  */
 import {
   getSnapshotEndpoint,
-  listSnapshotsEndpoint,
   revokeSnapshotEndpoint,
   type Snapshot,
   type SnapshotSummary,
+  searchSnapshotsEndpoint,
 } from '@quanthea/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
@@ -50,7 +50,8 @@ export function loadSnapshot(api: ApiClient) {
  */
 export function loadSnapshots(api: ApiClient) {
   return async ({ request }: LoaderFunctionArgs): Promise<readonly SnapshotSummary[]> =>
-    (await api.call(listSnapshotsEndpoint, undefined, { signal: request.signal })).snapshots;
+    (await api.call(searchSnapshotsEndpoint, { query: { limit: 200 } }, { signal: request.signal }))
+      .snapshots;
 }
 
 /**

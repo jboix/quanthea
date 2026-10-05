@@ -628,9 +628,20 @@ showed, at a link that opens with no query and no model (`dashboards/snapshots.t
    be guessed. `GET /api/snapshots/:id` (viewer+) returns it with no query; an unknown, revoked or
    expired id gets the same "not found". An expired snapshot is refused from the moment it
    expires; the hourly purge job (`jobs/purge.ts`) then deletes it.
-5. `GET /api/dashboards/:id/snapshots` (editor+) lists a dashboard's live snapshots and
-   `GET /api/snapshots` (admin) every live one. `DELETE /api/snapshots/:id` (editor+) revokes one
-   at once: the row is deleted.
+5. `GET /api/dashboards/:id/snapshots` (editor+) lists a dashboard's live snapshots, for its Share
+   menu. `GET /api/snapshots?q=&filter=&timeZone=&offset=&limit=` (viewer+) searches the live
+   snapshots the caller may see, the newest first, with how many match
+   (`dashboards/snapshot-search.ts`). `DELETE /api/snapshots/:id` (editor+) revokes one at once:
+   the row is deleted.
+   - A snapshot of a version everyone sees (the dashboard is pinned and the version was pinned at
+     some time) is listed for every role: anyone may already open it by its link.
+   - A snapshot of a draft is listed only for those who may see the draft, the same rule as taking
+     one: the thread's owner and admins, or any editor when the dashboard has no thread.
+   - Expired and revoked snapshots are never listed.
+   - The search is a plain match, not the full-text index: live snapshots are few, since most
+     expire. Every word must appear in the title, the version (`v3`), the taker's name or the
+     period as the browser writes it (`26 Sep 13:30`), in the time zone the browser sends.
+   - `filter` is `all`, `expiring` (goes within seven days) or `kept` (kept until revoked).
 6. The taker is recorded on the snapshot and in the audit log (`snapshot.take`,
    `snapshot.revoke`), for accountability only: any editor revokes any snapshot.
 7. A snapshot keeps working while its dashboard's thread is in the bin. Purging the thread deletes
@@ -2517,7 +2528,7 @@ indicative; the contract files are the source of truth.
 | `POST /snapshots` (a version as shown, and a lifetime)                                            | take a snapshot: the server runs the panels  | editor   |
 | `GET /snapshots/:snapshotId`                                                                      | open a live snapshot, no query               | viewer   |
 | `GET /dashboards/:id/snapshots`, `DELETE /snapshots/:snapshotId`                                  | a dashboard's live snapshots, revoke one     | editor   |
-| `GET /snapshots`                                                                                  | every live snapshot                          | admin    |
+| `GET /snapshots` (search: `q`, `filter`, `timeZone`, `offset`, `limit`)                           | the live snapshots the caller may see        | viewer   |
 | `GET /connector-kinds` (with the JSON Schemas of their forms)                                     | connector kinds                              | admin    |
 | `GET/POST /connectors`, `GET/PATCH/DELETE /connectors/:connectorId`                               | connectors                                   | admin    |
 | `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`                  | connection test, schema                      | admin    |

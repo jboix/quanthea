@@ -10,6 +10,7 @@ import {
   resolveTimeRange,
   type Snapshot,
   type SnapshotLifetime,
+  type SnapshotQuery,
   type SnapshotSummary,
   snapshotSchema,
   type VariableValues,
@@ -28,6 +29,12 @@ import {
   specOf,
 } from './context.ts';
 import { runPanel } from './run-panel.ts';
+import {
+  findSnapshots,
+  type ListedSnapshot,
+  type SnapshotAccess,
+  type SnapshotPage,
+} from './snapshot-search.ts';
 
 /**
  * The most bytes of spec and results one snapshot stores by default, and one report run its
@@ -96,9 +103,17 @@ export interface Snapshots {
    * Lists the live snapshots, the newest first.
    *
    * @param dashboardId - Only this dashboard's, when given.
-   * @returns The snapshots.
+   * @returns The snapshots, each with whether everyone sees its version.
    */
-  list(dashboardId?: string): SnapshotInfo[];
+  list(dashboardId?: string): ListedSnapshot[];
+  /**
+   * Searches the live snapshots the caller may see, for the Library, the newest first.
+   *
+   * @param query - The words, the filter, the time zone and the page.
+   * @param access - What the caller may see, and the takers' names.
+   * @returns The page and how many match.
+   */
+  find(query: SnapshotQuery, access: SnapshotAccess): Promise<SnapshotPage>;
   /**
    * Revokes a live snapshot: its link stops working at once.
    *
@@ -224,6 +239,19 @@ function infoOf(row: SnapshotSummaryRow): SnapshotInfo {
 }
 
 /**
+ * Lists the live snapshots, the newest first.
+ *
+ * @param context - The service context.
+ * @param dashboardId - Only this dashboard's, when given.
+ * @returns The snapshots, each with whether everyone sees its version.
+ */
+function listed(context: SnapshotContext, dashboardId?: string): ListedSnapshot[] {
+  return context.snapshots
+    .list(context.now(), dashboardId)
+    .map((row) => ({ ...infoOf(row), shown: row.shown }));
+}
+
+/**
  * Takes a snapshot.
  *
  * @param context - The service context.
@@ -298,7 +326,8 @@ export function createSnapshots(dependencies: SnapshotsDependencies): Snapshots 
       if (!row) throw notFound();
       return frozenOf(row);
     },
-    list: (dashboardId) => snapshots.list(context.now(), dashboardId).map(infoOf),
+    list: (dashboardId) => listed(context, dashboardId),
+    find: (query, access) => findSnapshots(listed(context), query, access, context.now()),
     revoke: (id, actor) => {
       const dashboardId = snapshots.remove(id, context.now());
       if (dashboardId === undefined) throw notFound();

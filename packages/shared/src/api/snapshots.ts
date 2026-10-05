@@ -4,6 +4,7 @@
  * runs no query and calls no model.
  */
 import { z } from 'zod';
+import { isTimeZone } from '../reports/zoned.ts';
 import { dashboardSpecSchema } from '../spec/dashboard.ts';
 import { timeRangeSchema } from '../spec/time.ts';
 import { variableValuesSchema } from '../spec/variables.ts';
@@ -93,11 +94,42 @@ export const listDashboardSnapshotsEndpoint = defineEndpoint({
   output: snapshotListSchema,
 });
 
-/** Lists every live snapshot. */
-export const listSnapshotsEndpoint = defineEndpoint({
+/**
+ * The Library's snapshot filters: every listed snapshot, those that go within seven days, and
+ * those kept until someone revokes them.
+ */
+export const snapshotFilters = ['all', 'expiring', 'kept'] as const;
+
+/** One of the Library's snapshot filters. */
+export type SnapshotFilter = (typeof snapshotFilters)[number];
+
+/** Validates the Library's search of snapshots. */
+export const snapshotQuerySchema = z.object({
+  /** Words that must each match the title, the version, the taker or the period. */
+  q: z.string().max(200).optional(),
+  filter: z.enum(snapshotFilters).default('all'),
+  /** The time zone the period is written in for the search; the server's when left out. */
+  timeZone: z.string().max(64).refine(isTimeZone, 'Unknown time zone.').optional(),
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+/** The Library's search of snapshots. */
+export type SnapshotQuery = z.infer<typeof snapshotQuerySchema>;
+
+/**
+ * Lists the live snapshots the caller may see, the newest first, for the Library: those of a
+ * version everyone sees, and those of a draft the caller may see. Expired and revoked ones are
+ * never listed.
+ */
+export const searchSnapshotsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/snapshots',
-  output: snapshotListSchema,
+  query: snapshotQuerySchema,
+  output: snapshotListSchema.extend({
+    /** How many match, over every page. */
+    total: z.int(),
+  }),
 });
 
 /** Revokes a snapshot before its time: its link stops working at once. */

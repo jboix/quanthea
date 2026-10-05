@@ -124,15 +124,15 @@ describe('route access', () => {
     expect(threadRoutes.every((route) => route.access === 'editor')).toBe(true);
   });
 
-  test('a snapshot opens for any role; editors take and revoke; admins list them all', () => {
+  test('a snapshot opens and is listed for any role; editors take and revoke', () => {
     const snapshotRoutes = listApiRouteAccess(buildApp())
       .filter((route) => /snapshots/.test(route.path))
       .map((route) => `${route.access} ${route.method} ${route.path}`);
     expect(snapshotRoutes.sort()).toEqual([
-      'admin GET /api/snapshots',
       'editor DELETE /api/snapshots/:snapshotId',
       'editor GET /api/dashboards/:dashboardId/snapshots',
       'editor POST /api/snapshots',
+      'viewer GET /api/snapshots',
       'viewer GET /api/snapshots/:snapshotId',
     ]);
   });

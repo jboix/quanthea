@@ -1,17 +1,20 @@
 /**
  * The snapshot endpoints. Editors take and revoke snapshots; anyone signed in opens one, which runs
- * no query. A snapshot of a draft is taken only by those who may see the draft. Taking one gives
- * no rights over it: any editor revokes any snapshot.
+ * no query. A snapshot of a draft is taken, and listed in the Library, only for those who may see
+ * the draft. Taking one gives no rights over it: any editor revokes any snapshot.
  */
 import {
   getSnapshotEndpoint,
+  hasRole,
   listDashboardSnapshotsEndpoint,
-  listSnapshotsEndpoint,
+  type Principal,
   revokeSnapshotEndpoint,
+  searchSnapshotsEndpoint,
   takeSnapshotEndpoint,
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Users } from '../../auth/users.ts';
+import type { SnapshotAccess } from '../../dashboards/snapshot-search.ts';
 import type { SnapshotInfo, Snapshots } from '../../dashboards/snapshots.ts';
 import type { ThreadOwner } from '../../threads/bin.ts';
 import type { AppEnv } from '../app-env.ts';
@@ -46,10 +49,35 @@ function namer(users: Pick<Users, 'nameOf'>) {
 }
 
 /**
- * Mounts the endpoints that list snapshots: a dashboard's for editors, every one for admins.
+ * What one caller may see in the Library's list: a snapshot of a version everyone sees, or of a
+ * draft they may see, by the same rule as taking one.
+ *
+ * @param services - The owner of a dashboard and the users.
+ * @param principal - Who asks.
+ * @returns The access, looking each dashboard's owner up once.
+ */
+function accessFor(services: SnapshotRouteServices, principal: Principal): SnapshotAccess {
+  const drafts = new Map<string, boolean>();
+  const maySeeDrafts = (dashboardId: string): boolean => {
+    const known = drafts.get(dashboardId);
+    if (known !== undefined) return known;
+    const role = roleForDashboard(principal, services.ownerOf(dashboardId));
+    const allowed = hasRole(role, 'editor');
+    drafts.set(dashboardId, allowed);
+    return allowed;
+  };
+  return {
+    maySee: (snapshot) => snapshot.shown || maySeeDrafts(snapshot.dashboardId),
+    nameOf: ownerNames(services.users),
+  };
+}
+
+/**
+ * Mounts the endpoints that list snapshots: a dashboard's for editors, and the Library's search
+ * for anyone signed in.
  *
  * @param app - The app.
- * @param services - The snapshots and the users.
+ * @param services - The snapshots, the users and the owner of a dashboard.
  */
 function mountListEndpoints(app: Hono<AppEnv>, services: SnapshotRouteServices): void {
   const { snapshots, users } = services;
@@ -59,9 +87,10 @@ function mountListEndpoints(app: Hono<AppEnv>, services: SnapshotRouteServices):
       snapshots: await Promise.all(snapshots.list(params.dashboardId).map(namer(users))),
     }),
   });
-  mountEndpoint(app, listSnapshotsEndpoint, {
-    access: 'admin',
-    handle: async () => ({ snapshots: await Promise.all(snapshots.list().map(namer(users))) }),
+  mountEndpoint(app, searchSnapshotsEndpoint, {
+    access: 'viewer',
+    handle: ({ query, principal }) =>
+      snapshots.find(query, accessFor(services, signedIn(principal))),
   });
 }
 

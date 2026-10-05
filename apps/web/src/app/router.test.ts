@@ -61,7 +61,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
     explanation: null,
     generating: false,
   },
-  'GET /snapshots': { snapshots: [] },
+  'GET /snapshots': { snapshots: [], total: 0 },
   'GET /snapshots/:snapshotId': { id: 'sample-snapshotId', spec: { panels: [] }, panels: {} },
   'GET /threads': [],
   'GET /model-providers': {

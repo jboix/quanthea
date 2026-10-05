@@ -32,6 +32,12 @@ export interface SnapshotSummaryRow {
   readonly expiresAt: number | null;
 }
 
+/** A snapshot in a list, with whether everyone sees the version it froze. */
+export interface ListedSnapshotRow extends SnapshotSummaryRow {
+  /** Whether its dashboard is pinned and its version was pinned at some time. */
+  readonly shown: boolean;
+}
+
 /** A snapshot with its data, as stored. */
 export interface SnapshotRow extends SnapshotSummaryRow {
   /** The spec, parsed from JSON but not validated. */
@@ -73,9 +79,9 @@ export interface SnapshotRepository {
    *
    * @param now - The current time.
    * @param dashboardId - Only this dashboard's, when given.
-   * @returns The snapshots, without their data.
+   * @returns The snapshots, without their data, each with whether everyone sees its version.
    */
-  list(now: number, dashboardId?: string): SnapshotSummaryRow[];
+  list(now: number, dashboardId?: string): ListedSnapshotRow[];
   /**
    * Deletes a live snapshot.
    *
@@ -121,6 +127,12 @@ interface StoredSummary {
   expires_at: number | null;
 }
 
+/** A listed snapshot as SQLite returns it. */
+interface StoredListed extends StoredSummary {
+  /** 1 when everyone sees its version. */
+  shown: number;
+}
+
 /** A snapshot with its data as SQLite returns it. */
 interface StoredSnapshot extends StoredSummary {
   /** The spec, JSON. */
@@ -132,6 +144,13 @@ interface StoredSnapshot extends StoredSummary {
 /** The columns of a summary. */
 const summaryColumns = `id, dashboard_id, version, title, time_from, time_to, variables,
   hidden_markers, bytes, taken_by, taken_at, expires_at`;
+
+/** The columns of a listed snapshot: a summary and whether everyone sees its version. */
+const listedColumns = `${summaryColumns}, EXISTS (
+    SELECT 1 FROM dashboards AS d
+    JOIN dashboard_versions AS v ON v.dashboard_id = d.id
+    WHERE d.id = snapshots.dashboard_id AND d.pinned_version_id IS NOT NULL
+      AND v.version = snapshots.version AND v.pinned_at IS NOT NULL) AS shown`;
 
 /** Keeps the snapshots whose time is not up; the current time is the last parameter. */
 const live = '(expires_at IS NULL OR expires_at > ?)';
@@ -175,11 +194,11 @@ function snapshotStatements(database: Database) {
     get: database.query<StoredSnapshot, [string, number]>(
       `SELECT ${summaryColumns}, spec, panels FROM snapshots WHERE id = ? AND ${live}`,
     ),
-    list: database.query<StoredSummary, [number]>(
-      `SELECT ${summaryColumns} FROM snapshots WHERE ${live} ORDER BY taken_at DESC, id`,
+    list: database.query<StoredListed, [number]>(
+      `SELECT ${listedColumns} FROM snapshots WHERE ${live} ORDER BY taken_at DESC, id`,
     ),
-    listOf: database.query<StoredSummary, [string, number]>(
-      `SELECT ${summaryColumns} FROM snapshots WHERE dashboard_id = ? AND ${live}
+    listOf: database.query<StoredListed, [string, number]>(
+      `SELECT ${listedColumns} FROM snapshots WHERE dashboard_id = ? AND ${live}
        ORDER BY taken_at DESC, id`,
     ),
     remove: database.query<{ dashboard_id: string }, [string, number]>(
@@ -234,7 +253,7 @@ export function createSnapshotRepository(database: Database): SnapshotRepository
       (dashboardId === undefined
         ? statements.list.all(now)
         : statements.listOf.all(dashboardId, now)
-      ).map(summaryOf),
+      ).map((stored) => ({ ...summaryOf(stored), shown: stored.shown === 1 })),
     remove: (id, now) => statements.remove.get(id, now)?.dashboard_id,
     removeExpired: (now) => statements.removeExpired.run(now).changes,
   };
