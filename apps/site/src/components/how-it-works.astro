@@ -1,0 +1,145 @@
+---
+/**
+ * How it works, in four steps, with the real screenshots and the README's captions.
+ */
+import libraryDark from '../../../../docs/screenshots/library-dark.webp';
+import libraryLight from '../../../../docs/screenshots/library-light.webp';
+import planDark from '../../../../docs/screenshots/plan-dark.webp';
+import planLight from '../../../../docs/screenshots/plan-light.webp';
+import threadDark from '../../../../docs/screenshots/thread-dark.webp';
+import threadLight from '../../../../docs/screenshots/thread-light.webp';
+import ShotFrame from './shot-frame.astro';
+
+const steps = [
+  {
+    title: 'Ask',
+    text: 'Start a thread and say what you want to see, in your own words. "Yesterday around 14:00" means 14:00 where you are.',
+  },
+  {
+    title: 'Approve the plan',
+    text: 'The agent proposes the panels and their queries before it builds anything. You approve, or ask for changes.',
+    shot: { light: planLight, dark: planDark },
+    alt: 'The agent proposes a plan: three panels with their queries, to approve before it builds',
+  },
+  {
+    title: 'Watch it build and refine',
+    text: 'Each query is test-run against your source as the dashboard appears beside the thread. Ask for changes in the same thread, and mention a panel with @ to change just that one.',
+    shot: { light: threadLight, dark: threadDark },
+    alt: 'The thread beside the dashboard the agent built, with each query test-run',
+  },
+  {
+    title: 'Pin to the library',
+    text: 'Pinned dashboards go to the library: versioned, searchable by panel and query, and shown without any model.',
+    shot: { light: libraryLight, dark: libraryDark },
+    alt: 'The library of pinned dashboards, searchable by panel and query',
+  },
+];
+---
+
+<section class="container section" aria-labelledby="how-title">
+  <h2 id="how-title">How it works</h2>
+  <ol class="steps">
+    {
+      steps.map((step, index) => (
+        <li class="step">
+          <div class="text">
+            <span class="number num" aria-hidden="true">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <h3>{step.title}</h3>
+            <p>{step.text}</p>
+          </div>
+          {step.shot ? (
+            <ShotFrame light={step.shot.light} dark={step.shot.dark} alt={step.alt} />
+          ) : (
+            <div class="composer card" aria-hidden="true">
+              <span class="prompt">
+                What happened to checkout yesterday around 14:00?
+              </span>
+              <span class="send">Send</span>
+            </div>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</section>
+
+<style>
+  .section {
+    padding-block: 72px;
+  }
+
+  h2 {
+    font-size: clamp(1.7rem, 3vw, 2.2rem);
+    margin-bottom: 40px;
+  }
+
+  .steps {
+    display: grid;
+    gap: 56px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* The screenshot on the left, the words on the right, level with its top. The markup keeps the
+     words first, so a screen reader and a phone read them before the picture. */
+  .step {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 48px;
+    align-items: start;
+  }
+
+  .text {
+    order: 1;
+  }
+
+  .number {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--color-accent);
+    font-size: 14px;
+  }
+
+  h3 {
+    font-size: 1.3rem;
+  }
+
+  .text p {
+    color: var(--color-ink-secondary);
+  }
+
+  .composer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 14px 14px 18px;
+  }
+
+  .prompt {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .send {
+    padding: 6px 14px;
+    border-radius: var(--radius-control);
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  @media (max-width: 860px) {
+    .step {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .text {
+      order: 0;
+    }
+  }
+</style>

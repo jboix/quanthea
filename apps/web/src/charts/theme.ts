@@ -1,4 +1,4 @@
-/** The chart theme, read from the design tokens in `ui/theme.css`. */
+/** The chart theme, read from the design tokens of `@quanthea/tokens`. */
 import { type ResolvedScheme, useResolvedScheme } from '../ui/color-scheme.ts';
 
 /** The colours and fonts a chart uses. */
@@ -23,7 +23,7 @@ export interface ChartTheme {
   readonly monoFamily: string;
 }
 
-/** The theme when no stylesheet is available, matching `ui/theme.css`. */
+/** The theme when no stylesheet is available, matching `@quanthea/tokens`. */
 export const defaultTheme: ChartTheme = {
   palette: ['#2a55c9', '#d0691c', '#2f8f83', '#8a55c4', '#b8870b', '#c2436b'],
   ink: '#17181c',

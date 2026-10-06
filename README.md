@@ -17,22 +17,24 @@ the good ones. Pinned dashboards are versioned, searchable, and render without a
 
 <table>
   <tr>
-    <td><a href="docs/screenshots/plan.webp"><img src="docs/screenshots/plan.webp" alt="The agent proposes a plan: three panels with their queries, to approve before it builds" width="400"></a></td>
-    <td><a href="docs/screenshots/thread.webp"><img src="docs/screenshots/thread.webp" alt="The thread beside the dashboard the agent built, with each query test-run" width="400"></a></td>
+    <td><a href="docs/screenshots/plan-light.webp"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/plan-dark.webp"><img src="docs/screenshots/plan-light.webp" alt="The agent proposes a plan: the panels and what each shows, to approve before it builds" width="400"></picture></a></td>
+    <td><a href="docs/screenshots/thread-light.webp"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/thread-dark.webp"><img src="docs/screenshots/thread-light.webp" alt="The thread beside the dashboard the agent built, with each query test-run" width="400"></picture></a></td>
   </tr>
   <tr>
     <td align="center"><sub>Ask, and approve a plan</sub></td>
     <td align="center"><sub>Watch it build, then refine it</sub></td>
   </tr>
   <tr>
-    <td><a href="docs/screenshots/library.webp"><img src="docs/screenshots/library.webp" alt="The library of pinned dashboards, searchable by panel and query" width="400"></a></td>
-    <td><a href="docs/screenshots/dashboard-dark.webp"><img src="docs/screenshots/dashboard-dark.webp" alt="A pinned dashboard in the dark scheme: errors rise after a deploy marker and fall after the rollback" width="400"></a></td>
+    <td><a href="docs/screenshots/library-light.webp"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/library-dark.webp"><img src="docs/screenshots/library-light.webp" alt="The library of pinned dashboards, searchable by panel and query" width="400"></picture></a></td>
+    <td><a href="docs/screenshots/dashboard-incident-light.webp"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-incident-dark.webp"><img src="docs/screenshots/dashboard-incident-light.webp" alt="A pinned dashboard: errors rise after a deploy marker and fall after the rollback" width="400"></picture></a></td>
   </tr>
   <tr>
     <td align="center"><sub>Pin the good ones</sub></td>
-    <td align="center"><sub>Light or dark</sub></td>
+    <td align="center"><sub>Open them with no model involved</sub></td>
   </tr>
 </table>
+
+The [user guide](docs/guide/getting-started.md) walks through every screen.
 
 ## Try it
 
@@ -55,7 +57,10 @@ it to start over. `bun run env:down` removes the sample data sources.
 With Docker, from the image each release publishes (`linux/amd64` and `linux/arm64`):
 
 ```sh
-docker run -p 3000:3000 -v quanthea-data:/data ghcr.io/jboix/quanthea:latest
+docker run -d --name quanthea -p 3000:3000 \
+  -v quanthea-data:/data \
+  -v quanthea-keys:/keys \
+  ghcr.io/jboix/quanthea
 ```
 
 Pin a release tag such as `ghcr.io/jboix/quanthea:v1.0.0` to control upgrades. To build the image
@@ -90,8 +95,8 @@ bun run verify
 ```
 
 This runs, in order: Biome, the Markdown check, the dependency-cruiser boundary rules, knip, tsc
-in every workspace, the tests, and the SPA build. CI runs the same steps, and also builds the
-Docker image and checks that it serves the app. A git hook runs `bun run verify` before every push.
+in every workspace, the tests, the SPA build, the website build and the plugin package checks. CI
+runs the same steps, and also builds the Docker image and checks that it serves the app. A git hook runs `bun run verify` before every push.
 
 ## Configuration
 
@@ -133,15 +138,35 @@ key. Back the keys up apart from the data: a copy of the data directory must nev
 Without the secret key, stored credentials cannot be read. To rotate it, set the new key and the
 old one as `QUANTHEA_SECRET_KEY_PREVIOUS`, restart once, then remove the old one.
 
+## Website
+
+`apps/site` is the website at <https://quanthea.ch/>: the landing page, pricing, and these docs,
+read from `docs/` in place. It is static, built by Astro.
+
+```sh
+bun run site:dev      # http://localhost:4321, reloading as the docs change
+bun run site:build    # apps/site/dist, with the search index and the link and head checks
+```
+
+The Website workflow (`.github/workflows/site.yml`) builds it and deploys it to GitHub Pages on a
+push to `main` that touches the site, the docs, the tokens or `packages/shared`, on each release,
+and on demand; pull requests deploy nothing. The repository's Pages source is "GitHub Actions"
+(Settings → Pages). The site's address and base path are the ones Pages gives: the custom domain
+set there at `/`, else `https://jboix.github.io/quanthea/`. The repository variables `SITE_URL`
+and `SITE_BASE` override them. Under a path such as `/quanthea`, crawlers ignore the site's
+`robots.txt`, so submit the sitemap (`sitemap-index.xml`) in Search Console instead.
+
 ## Layout
 
 | Path                     | What it is                                                   |
 | ------------------------ | ------------------------------------------------------------ |
 | `apps/server`            | Bun + Hono API, SQLite, serves the built SPA.                |
 | `apps/web`               | React SPA, React Router in data mode, Vite.                  |
+| `apps/site`              | The website: landing page, pricing and these docs, by Astro. |
 | `packages/shared`        | API contracts and roles, shared by both apps.                |
 | `packages/plugin-kit`    | The connector kit, on npm as `@quanthea/plugin-kit`.         |
 | `packages/create-plugin` | The plugin generator: `npm create @quanthea/plugin`.         |
+| `packages/tokens`        | The design tokens, shared by the web app and the website.    |
 | `examples/`              | An example connector plugin: read-only SQLite files.         |
 | `docs`                   | Architecture, dashboard spec, brand, contributing, security. |
 

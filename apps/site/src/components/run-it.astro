@@ -1,0 +1,90 @@
+---
+/**
+ * Run it: the deployment guide's quick start, as it stands there. Start the image, read the first
+ * admin's password from the log, sign in. Everything else is in the deployment guide.
+ */
+import { commands } from '../lib/commands.ts';
+import { link } from '../lib/url.ts';
+---
+
+<section class="container section" id="run" aria-labelledby="run-title">
+  <h2 id="run-title">Run it</h2>
+  <p class="lead">One Docker image, for linux/amd64 and linux/arm64.</p>
+  <div class="code" id="run-start">
+    <pre><code>{commands.quickStart}</code></pre>
+    <button type="button" class="copy" data-copy-target="run-start">Copy</button>
+  </div>
+  <p class="step">The first start creates the user <code>admin</code> and writes its password to the log, once:</p>
+  <div class="code" id="run-password">
+    <pre><code>{commands.firstPassword}</code></pre>
+    <button type="button" class="copy" data-copy-target="run-password">Copy</button>
+  </div>
+  <p class="step">
+    Sign in at http://localhost:3000 as <code>admin</code> with that password. quanthea then asks
+    for your own email and password. To declare users, sources and the model in a file, see
+    <a href={link('docs/deployment/')}>the deployment guide</a>.
+  </p>
+</section>
+
+<style>
+  .section {
+    padding-block: 72px;
+  }
+
+  h2 {
+    font-size: clamp(1.7rem, 3vw, 2.2rem);
+  }
+
+  .lead,
+  .step {
+    color: var(--color-ink-secondary);
+  }
+
+  .lead {
+    margin-bottom: 24px;
+  }
+
+  .step {
+    margin: 20px 0 10px;
+  }
+
+  .code {
+    position: relative;
+  }
+
+  /* Commands wrap, so the whole command shows on a laptop or a phone without scrolling. */
+  pre {
+    margin: 0;
+    padding: 16px 80px 16px 18px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .copy {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 12px;
+    border: 1px solid var(--color-border-control);
+    border-radius: var(--radius-control);
+    background: var(--color-surface-muted);
+    font-size: 13px;
+    cursor: pointer;
+  }
+</style>
+
+<script>
+  import { copyWithConfirmation } from '../scripts/copy-code.ts';
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy-target]')) {
+    button.addEventListener('click', () => {
+      const block = document.getElementById(button.dataset.copyTarget ?? '');
+      copyWithConfirmation(button, block?.querySelector('code')?.textContent ?? '');
+    });
+  }
+</script>

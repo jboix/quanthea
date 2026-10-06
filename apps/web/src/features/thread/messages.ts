@@ -2,8 +2,10 @@
  * Thread messages as the web app reads them: the AI SDK UI message with quanthea's custom parts,
  * and the words each tool call shows in the conversation.
  */
+
 import type { ThreadData, TurnUsage } from '@quanthea/shared';
 import type { UIMessage } from 'ai';
+import { toolErrorText } from './tool-error.ts';
 
 /** Metadata of a user message: the panels it mentions and the person's time zone. */
 export interface UserMetadata {
@@ -138,7 +140,7 @@ const resultWords: Readonly<Record<string, (output: Output) => string>> = {
  * @returns The words and the failure flag.
  */
 function outcomeOf(part: ToolPart): { result: string; failed: boolean } {
-  if (part.state === 'output-error') return { result: part.errorText ?? 'failed', failed: true };
+  if (part.state === 'output-error') return { result: toolErrorText(part.errorText), failed: true };
   if (part.state !== 'output-available') return { result: '…', failed: false };
   const output = (part.output ?? {}) as Output;
   if (output.ok === false) return { result: output.error ?? 'failed', failed: true };

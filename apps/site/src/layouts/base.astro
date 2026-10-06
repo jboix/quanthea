@@ -1,0 +1,83 @@
+---
+/**
+ * The page shell: head tags, the scheme script that runs before the first paint, the header and
+ * the footer. Every page renders inside it.
+ */
+import '@fontsource-variable/ibm-plex-sans';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import monoLatin from '@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2?url';
+import sansLatin from '@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2?url';
+import '../styles/site.css';
+import Seo from '../components/seo.astro';
+import SiteFooter from '../components/site-footer.astro';
+import SiteHeader from '../components/site-header.astro';
+import { link } from '../lib/url.ts';
+
+/** Props of the shell. */
+interface Props {
+  /** The page's title, without the site name. Omitted on the home page. */
+  title?: string;
+  /** What the home page's title says after the site name. */
+  tagline?: string;
+  /** The page's description. */
+  description: string;
+  /** `article` for a doc. */
+  type?: 'website' | 'article';
+  /** The navigation section the page belongs to. */
+  current?: 'docs' | 'pricing';
+  /** The page's path when it is served at another address than its URL, such as `404.html`. */
+  servedAt?: string;
+  /** The page's structured data, as a schema.org JSON-LD object. */
+  jsonLd?: Record<string, unknown>;
+}
+
+const { title, tagline, description, type, current, servedAt, jsonLd } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script is:inline>
+      // Applies the stored colour scheme before the first paint. Storage can be blocked.
+      (() => {
+        let scheme = 'system';
+        try {
+          scheme = localStorage.getItem('quanthea.color-scheme') || 'system';
+        } catch {}
+        const dark =
+          scheme === 'dark' ||
+          (scheme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.scheme = scheme;
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        // Motion plays only when the person has not asked for less.
+        const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        document.documentElement.dataset.motion = still ? 'off' : 'on';
+      })();
+    </script>
+    <Seo
+      description={description}
+      {...title === undefined ? {} : { title }}
+      {...tagline === undefined ? {} : { tagline }}
+      {...type === undefined ? {} : { type }}
+      {...servedAt === undefined ? {} : { servedAt }}
+      {...jsonLd === undefined ? {} : { jsonLd }}
+    />
+    <link rel="preload" href={sansLatin} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={monoLatin} as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href={link('favicon.svg')} type="image/svg+xml" />
+    <link rel="icon" href={link('favicon-32.png')} type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href={link('apple-touch-icon.png')} />
+    <slot name="head" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <SiteHeader {...current === undefined ? {} : { current }} />
+    <main id="main">
+      <slot />
+    </main>
+    <SiteFooter />
+  </body>
+</html>

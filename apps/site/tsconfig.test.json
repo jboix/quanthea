@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["bun"]
+  },
+  "include": [".astro/types.d.ts", "src/**/*.ts"],
+  "exclude": []
+}

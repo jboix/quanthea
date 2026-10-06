@@ -3,6 +3,7 @@
  * the other panels drawn from the frozen results with the dashboard's panel components, and the
  * links to dashboards opened on the run's period. Nothing runs to draw it.
  */
+
 import {
   type DashboardSpec,
   dashboardOfReport,
@@ -10,6 +11,7 @@ import {
   type ReportRunDetail,
 } from '@quanthea/shared';
 import { Link } from 'react-router';
+import { fittedNumber } from '../../ui/fitted-number.ts';
 import { FrozenCanvas } from '../dashboard/index.ts';
 import styles from './run.module.css';
 
@@ -50,7 +52,9 @@ function HeadlineCard({
   return (
     <section className={styles.headline} aria-label={headline.title}>
       <h2 className={styles.headlineTitle}>{headline.title}</h2>
-      <p className={styles.headlineValue}>{headline.text}</p>
+      <p className={styles.headlineValue} style={fittedNumber(headline.text, 26)}>
+        {headline.text}
+      </p>
       {headline.change && (
         <p className={styles.headlineChange} data-direction={headline.change.direction}>
           {headline.change.text}

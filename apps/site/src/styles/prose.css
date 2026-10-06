@@ -1,0 +1,151 @@
+/* The docs' rendered Markdown. Code takes Shiki's light or dark colours by data-theme. */
+.prose {
+  max-width: 760px;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.prose h2 {
+  font-size: 1.5rem;
+  margin-top: 2.2em;
+}
+
+.prose h3 {
+  font-size: 1.15rem;
+  margin-top: 1.8em;
+}
+
+.prose h4 {
+  font-size: 1rem;
+  margin-top: 1.5em;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.4em;
+  margin: 0 0 1em;
+}
+
+.prose li + li {
+  margin-top: 0.25em;
+}
+
+.prose blockquote {
+  margin: 0 0 1em;
+  padding: 2px 16px;
+  border-left: 3px solid var(--color-accent-border);
+  color: var(--color-ink-secondary);
+}
+
+.prose hr {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: 2em 0;
+}
+
+.prose img {
+  height: auto;
+  border-radius: var(--radius-card);
+}
+
+.prose :not(pre) > code {
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+}
+
+/* Wide tables scroll inside their own box, never the page. */
+.prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0 0 1.4em;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.prose th,
+.prose td {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose th {
+  background: var(--color-surface-muted);
+  font-weight: 600;
+}
+
+.prose td code {
+  white-space: nowrap;
+}
+
+.code-block {
+  position: relative;
+  margin: 0 0 1.2em;
+}
+
+.prose pre {
+  margin: 0 0 1.2em;
+  padding: 14px 16px;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.code-block pre {
+  margin: 0;
+}
+
+.prose pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.astro-code,
+.astro-code span {
+  color: var(--shiki-light);
+}
+
+:root[data-theme="dark"] .astro-code,
+:root[data-theme="dark"] .astro-code span {
+  color: var(--shiki-dark);
+}
+
+.prose pre.astro-code {
+  background: var(--color-surface-muted);
+}
+
+.copy-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 10px;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-ink-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.code-block:hover .copy-button,
+.copy-button:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .copy-button {
+    opacity: 1;
+  }
+}

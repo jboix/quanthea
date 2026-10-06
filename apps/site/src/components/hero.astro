@@ -1,0 +1,280 @@
+---
+/**
+ * The hero: what quanthea does and how to start it, beside the product flow, set inside a chart's
+ * plot area: horizontal gridlines with their values, a time axis, and a faint series that passes a
+ * deploy marker.
+ */
+import logoOnLight from '../../../../docs/brand/quanthea-logo.svg';
+import logoOnDark from '../../../../docs/brand/quanthea-logo-dark.svg';
+import { smoothAreaPath, smoothPath, sparkValues } from '../lib/chart-geometry.ts';
+import { link } from '../lib/url.ts';
+import FlowMock from './flow-mock.astro';
+
+/** What the agent makes, as the title says it in turn, each with its article. */
+const madeThings = ['a dashboard.', 'an alert.', 'a report.'];
+
+/** The tick labels along the bottom axis. */
+const ticks = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'];
+
+/** The gridlines' values, top to bottom. */
+const levels = ['100', '75', '50', '25', '0'];
+
+/** The backdrop's plot area, in SVG units. */
+const plot = { left: 0, right: 1000, top: 430, bottom: 560 };
+
+const values = sparkValues(0.8, 28).map((value, index) => value * 0.55 + index * 0.012);
+const line = smoothPath(values, plot, [0, 1.4]);
+const area = smoothAreaPath(values, plot, [0, 1.4]);
+---
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="plot" aria-hidden="true">
+    <ol class="levels">
+      {levels.map((level) => <li><span class="mono">{level}</span></li>)}
+    </ol>
+    <svg viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
+      <path class="area" d={area}></path>
+      <path class="series" d={line} vector-effect="non-scaling-stroke"></path>
+      <line class="marker" x1="482" x2="482" y1="0" y2="600" vector-effect="non-scaling-stroke"></line>
+    </svg>
+    <span class="marker-label mono">deploy</span>
+    <div class="axis">
+      {ticks.map((tick) => <span class="mono">{tick}</span>)}
+    </div>
+  </div>
+  <div class="container layout">
+    <div class="copy">
+      <p class="brand">
+        <img class="logo on-light" src={logoOnLight.src} alt="quanthea" width="226" height="56" />
+        <img class="logo on-dark" src={logoOnDark.src} alt="quanthea" width="226" height="56" />
+      </p>
+      <h1 id="hero-title">
+        <span class="visually-hidden">
+          Describe a dashboard, an alert or a report. Let the agent build it.
+        </span>
+        <span aria-hidden="true">
+          Describe
+          <span class="cycle">{madeThings.map((thing) => <span class="thing">{thing}</span>)}</span>
+          <span class="then">Let the agent build it.</span>
+        </span>
+      </h1>
+      <p class="subline">Self-hosted. Your data sources, your model, your server.</p>
+      <div class="actions">
+        <a class="button button-primary" href="#run">Self-host in one command</a>
+        <a class="button button-secondary" href={link('docs/')}>Read the docs</a>
+      </div>
+      <p class="facts">
+        Every query is test-run before you see it. Pinned dashboards open with no model involved.
+      </p>
+    </div>
+    <div class="demo">
+      <FlowMock />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    padding: 64px 0 96px;
+    overflow: hidden;
+  }
+
+  /* The plot area behind the hero, from the header down: gridlines with values, a series and a
+     time axis. It fades out at the bottom only, so it stays attached to the header. */
+  .plot {
+    position: absolute;
+    inset: 0;
+    color: var(--color-ink-secondary);
+    mask-image: linear-gradient(to bottom, black 88%, transparent);
+  }
+
+  .levels {
+    position: absolute;
+    inset: 0 0 7% 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .levels li {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .levels span {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 11px;
+    opacity: 0.75;
+  }
+
+  svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .area {
+    fill: var(--color-accent);
+    opacity: 0.05;
+  }
+
+  .series {
+    fill: none;
+    stroke: var(--color-accent);
+    stroke-width: 1.5;
+    opacity: 0.35;
+  }
+
+  .marker {
+    stroke: var(--color-ink-secondary);
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+    opacity: 0.45;
+  }
+
+  .marker-label {
+    position: absolute;
+    top: 30px;
+    right: calc(51.8% + 6px);
+    font-size: 11px;
+    opacity: 0.75;
+  }
+
+  .axis {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 3%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 24px;
+    font-size: 11px;
+    opacity: 0.75;
+  }
+
+  .layout {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 56px;
+    /* The copy starts at the top, by the header, whatever the height of the demo beside it. */
+    align-items: start;
+  }
+
+  .brand {
+    margin: 0 0 28px;
+  }
+
+  .logo {
+    display: block;
+    height: 56px;
+    width: auto;
+  }
+
+  h1 {
+    font-size: clamp(2.3rem, 4.6vw, 3.5rem);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    margin-bottom: 20px;
+  }
+
+  /* What the agent makes, one after the other in the same place, in the accent colour. */
+  .cycle {
+    display: inline-grid;
+    color: var(--color-accent);
+  }
+
+  .thing {
+    grid-area: 1 / 1;
+    animation: made-thing 7.5s infinite both;
+  }
+
+  .thing:nth-child(2) {
+    animation-delay: 2.5s;
+  }
+
+  .thing:nth-child(3) {
+    animation-delay: 5s;
+  }
+
+  @keyframes made-thing {
+    0% {
+      opacity: 0;
+      transform: translateY(0.3em);
+    }
+
+    5%,
+    30% {
+      opacity: 1;
+      transform: none;
+    }
+
+    35%,
+    100% {
+      opacity: 0;
+      transform: translateY(-0.3em);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .thing {
+      animation: none;
+      opacity: 0;
+    }
+
+    .thing:first-child {
+      opacity: 1;
+    }
+  }
+
+  .then {
+    display: block;
+  }
+
+  .subline {
+    max-width: 34em;
+    color: var(--color-ink-secondary);
+    font-size: 1.2rem;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 28px 0 24px;
+  }
+
+  .facts {
+    max-width: 36em;
+    color: var(--color-ink-secondary);
+    font-size: 14px;
+  }
+
+  @media (max-width: 960px) {
+    .hero {
+      padding: 40px 0 72px;
+    }
+
+    .layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 40px;
+    }
+
+    .logo {
+      height: 44px;
+    }
+
+    /* On one column the copy covers the plot: keep the gridlines, drop what would cross it. */
+    .axis span:nth-child(even),
+    .levels span,
+    .marker,
+    .marker-label {
+      display: none;
+    }
+  }
+</style>

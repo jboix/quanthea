@@ -32,6 +32,7 @@ import { publicError } from './public-error.ts';
 import { withoutRawInput } from './raw-input.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
 import { streamTurn, turnInstructions } from './turn.ts';
+import { withAnsweredCalls } from './unanswered-calls.ts';
 import { startingUsage } from './usage.ts';
 
 /** What the agent needs. */
@@ -253,7 +254,7 @@ async function prepare(
   const { modelOf, settings, providerName } = await modelsFor(dependencies, request.threadId);
   const { history, hints, plans } = accept(dependencies, request, settings.limits.threadTokens);
   const validated = await validateUIMessages<ThreadMessage>({
-    messages: withoutRawInput(history),
+    messages: withAnsweredCalls(withoutRawInput(history)),
     dataSchemas: threadDataSchemas,
   });
   const messages = withPlanDecisions(validated, plans);
@@ -346,7 +347,8 @@ function respond(
     },
     onEnd: ({ messages }) => {
       done();
-      dependencies.threads.saveMessages(request.threadId, withoutRawInput(messages), request.actor);
+      const stored = withAnsweredCalls(withoutRawInput(messages));
+      dependencies.threads.saveMessages(request.threadId, stored, request.actor);
     },
     onError: publicError,
   });

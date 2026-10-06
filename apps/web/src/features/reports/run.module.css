@@ -109,6 +109,7 @@
 }
 
 .headline {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -130,7 +131,6 @@
   font-size: 26px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
 }
 
 .headlineChange {

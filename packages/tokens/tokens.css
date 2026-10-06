@@ -1,0 +1,103 @@
+/* quanthea's design tokens: fonts, colours, radii and sizes, for the light and the dark scheme. */
+:root {
+  --font-sans: "IBM Plex Sans Variable", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-ground: #f4f3ef;
+  --color-surface: #ffffff;
+  --color-surface-muted: #faf9f6;
+  --color-border: #e2e0d9;
+  --color-border-control: #d6d4cc;
+  --color-divider: #f2f0ea;
+
+  --color-ink: #17181c;
+  --color-ink-secondary: #55575e;
+  --color-ink-label: #3d3f46;
+  /* Text on an ink fill, and that fill when hovered. */
+  --color-ink-inverse: #ffffff;
+  --color-ink-hover: #2c2e35;
+
+  --color-accent: #2a55c9;
+  --color-accent-hover: #1d3f99;
+  --color-accent-soft: #f3f6fd;
+  --color-accent-border: #d6e0f7;
+  --color-on-accent: #ffffff;
+  --color-series-2: #d0691c;
+  --color-series-3: #2f8f83;
+  --color-series-4: #8a55c4;
+  --color-series-5: #b8870b;
+  --color-series-6: #c2436b;
+  /* The signal dot of the quanthea mark (docs/brand). Reserved for the brand, not for data. */
+  --color-brand-signal: #f29a4a;
+  /* The icon tiles. They keep their colours in the dark scheme. */
+  --color-brand-accent: #2a55c9;
+  --color-brand-ink: #17181c;
+
+  --color-ok: #2f7d4f;
+  --color-ok-ink: #1f5e38;
+  --color-ok-soft: #e8f4ec;
+  --color-ok-border: #cbe5d4;
+  --color-danger: #8f2a1c;
+  --color-danger-soft: #fbedea;
+  --color-draft: #8a4b0f;
+  --color-draft-soft: #fcefd9;
+  --color-draft-border: #f0dcb8;
+
+  --color-rail: #17181c;
+  --color-rail-icon: #a9abb2;
+  --color-rail-active: #2c2e35;
+  --color-switch-off: #c9c7bf;
+
+  --radius-panel: 12px;
+  --radius-card: 10px;
+  --radius-control: 8px;
+  --radius-pill: 999px;
+
+  --rail-width: 56px;
+
+  color-scheme: light;
+}
+
+/* The dark scheme, chosen in the account menu. The brand tokens stay as they are. */
+:root[data-theme="dark"] {
+  --color-ground: #131417;
+  --color-surface: #1b1c20;
+  --color-surface-muted: #1f2025;
+  --color-border: #2d2f35;
+  --color-border-control: #3a3c43;
+  --color-divider: #24262b;
+
+  --color-ink: #ecebe6;
+  --color-ink-secondary: #a2a4ab;
+  --color-ink-label: #c8c9ce;
+  --color-ink-inverse: #131417;
+  --color-ink-hover: #ffffff;
+
+  --color-accent: #7f9ff2;
+  --color-accent-hover: #a3bbf6;
+  --color-accent-soft: #1c2338;
+  --color-accent-border: #2f3d63;
+  --color-on-accent: #0f1320;
+  --color-series-2: #e8873e;
+  --color-series-3: #4db3a5;
+  --color-series-4: #ab82e3;
+  --color-series-5: #d9ab2e;
+  --color-series-6: #e46a90;
+
+  --color-ok: #56b37b;
+  --color-ok-ink: #95d6ad;
+  --color-ok-soft: #15261b;
+  --color-ok-border: #26452f;
+  --color-danger: #f08b7b;
+  --color-danger-soft: #301a17;
+  --color-draft: #f0b46a;
+  --color-draft-soft: #2d2214;
+  --color-draft-border: #4b3920;
+
+  --color-rail: #0d0e10;
+  --color-rail-icon: #8e9199;
+  --color-rail-active: #25272d;
+  --color-switch-off: #4a4c53;
+
+  color-scheme: dark;
+}

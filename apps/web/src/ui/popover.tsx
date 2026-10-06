@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import styles from './popover.module.css';
 import { useDismiss } from './use-dismiss.ts';
+import { useFittedAlign } from './use-fitted-align.ts';
 
 /** Props of {@link Popover}. */
 interface PopoverProps {
@@ -15,7 +16,7 @@ interface PopoverProps {
   readonly shape?: 'icon' | 'button' | 'iconButton';
   /** A short visible note under the button while it is hovered or focused and the card is shut. */
   readonly tip?: string;
-  /** Which edge of the button the popover lines up with. */
+  /** Which edge of the button the popover lines up with; the other when that runs off screen. */
   readonly align?: 'start' | 'end';
   /** Where the card opens: below the button, or beside it, rising from its bottom edge. */
   readonly placement?: 'below' | 'side';
@@ -38,12 +39,13 @@ export function Popover({
   trigger,
   shape = 'icon',
   tip,
-  align = 'start',
+  align: askedAlign = 'start',
   placement = 'below',
   triggerClassName,
   children,
 }: PopoverProps) {
   const popover = useDismiss<HTMLSpanElement>();
+  const [card, align] = useFittedAlign(popover.open, askedAlign);
   return (
     <span ref={popover.container} className={styles.popover}>
       <button
@@ -60,6 +62,7 @@ export function Popover({
       {tip && !popover.open && <PopoverTip text={tip} />}
       {popover.open && (
         <div
+          ref={card}
           role="dialog"
           aria-label={label}
           className={styles.card}

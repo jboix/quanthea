@@ -60,6 +60,9 @@ jobs:
       - name: Build the SPA
         run: bun run build
 
+      - name: Build the website
+        run: bun run site:build
+
       - name: The publishable plugin kit (publint, attw)
         run: bun run check:package
 

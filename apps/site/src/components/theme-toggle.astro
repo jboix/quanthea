@@ -1,0 +1,64 @@
+---
+/**
+ * The colour scheme toggle: system, light, dark, in turn. Its icon shows the current choice.
+ */
+---
+
+<button type="button" class="scheme-toggle" data-scheme-toggle aria-label="Colour scheme">
+  <svg class="icon icon-system" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
+    <path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor"></path>
+  </svg>
+  <svg class="icon icon-light" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
+    <path
+      d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"></path>
+  </svg>
+  <svg class="icon icon-dark" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <path
+      d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linejoin="round"></path>
+  </svg>
+</button>
+
+<style>
+  .scheme-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+    background: var(--color-surface);
+    color: var(--color-ink-secondary);
+    cursor: pointer;
+  }
+
+  .scheme-toggle:hover {
+    color: var(--color-ink);
+    border-color: var(--color-border-control);
+  }
+
+  .icon {
+    display: none;
+  }
+
+  :global(:root:not([data-scheme])) .icon-system,
+  :global(:root[data-scheme="system"]) .icon-system,
+  :global(:root[data-scheme="light"]) .icon-light,
+  :global(:root[data-scheme="dark"]) .icon-dark {
+    display: block;
+  }
+</style>
+
+<script>
+  import { wireSchemeToggles } from '../scripts/color-scheme.ts';
+
+  wireSchemeToggles(document.querySelectorAll<HTMLButtonElement>('[data-scheme-toggle]'));
+</script>

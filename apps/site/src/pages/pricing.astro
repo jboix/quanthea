@@ -1,0 +1,314 @@
+---
+/** The pricing page: one free plan, what you pay for, what you never pay for, and a short FAQ. */
+import { modelProviderFacts } from '../data/facts.ts';
+import Base from '../layouts/base.astro';
+import { repositoryUrl } from '../lib/project.ts';
+import { softwareApplication } from '../lib/structured-data.ts';
+import { link } from '../lib/url.ts';
+
+const paidModels = modelProviderFacts
+  .filter((provider) => provider.id !== 'openai-compatible')
+  .map((provider) => provider.name);
+
+const youPay = [
+  'Your server: one container with an SQLite file, on a small machine.',
+  'Your model provider’s tokens, while you build dashboards, alerts and reports, and when someone asks a question or has a panel explained.',
+];
+
+const neverPay = [
+  'Seats',
+  'Viewers',
+  'Dashboards',
+  'Connectors',
+  'Alerts',
+  'Reports',
+  'Notification channels',
+  'Snapshots',
+  'Plugins',
+];
+
+/** The chart behind the plan: its levels in dollars, top first, and the months along its axis. */
+const levels = ['$30', '$20', '$10', '$0'];
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Where the plot sits in the chart, in percent: the top level, the zero line, the months. */
+const plot = { top: 14, zero: 86, left: 6, right: 94 };
+
+/**
+ * The height of a level, in percent of the chart, from the top one down to the zero line.
+ *
+ * @param index - The level's place, top first.
+ * @returns Its height.
+ */
+function levelAt(index: number): number {
+  return plot.top + ((plot.zero - plot.top) * index) / (levels.length - 1);
+}
+
+/**
+ * Where a month sits along the axis, in percent of the chart's width.
+ *
+ * @param index - The month's place, January first.
+ * @returns Its position.
+ */
+function monthAt(index: number): number {
+  return plot.left + ((plot.right - plot.left) * index) / (months.length - 1);
+}
+
+const faq = [
+  {
+    question: 'Does my data leave my infrastructure?',
+    answer:
+      'Only to the model provider you choose, and only what the access gate allows. Viewing dashboards involves no model.',
+  },
+  {
+    question: 'Which models work?',
+    answer: `${paidModels.join(', ')}, and any OpenAI-compatible endpoint, such as Gemini, LiteLLM or Ollama.`,
+  },
+  {
+    question: 'Can I use a local model?',
+    answer: 'Yes, through an OpenAI-compatible endpoint such as Ollama.',
+  },
+  {
+    question: 'What does it run on?',
+    answer: 'One Docker image, for linux/amd64 and linux/arm64.',
+  },
+  { question: 'Is there a hosted version?', answer: 'No. quanthea runs on your server.' },
+];
+---
+
+<Base
+  title="Pricing"
+  description="quanthea is free and MIT licensed. You host it, every feature is included, and viewing dashboards uses no model."
+  current="pricing"
+  jsonLd={softwareApplication(Astro.site)}
+>
+  <div class="page">
+    <div class="chart" aria-hidden="true">
+      {
+        levels.map((level, index) => (
+          <div class="level" style={`top: ${levelAt(index)}%`}>
+            <span class="mono">{level}</span>
+          </div>
+        ))
+      }
+      <div class="price" style={`top: ${plot.zero}%`}></div>
+      {
+        months.map((month, index) => (
+          <>
+            <span class="point" style={`left: ${monthAt(index)}%; top: ${plot.zero}%`}></span>
+            <span class="month mono" style={`left: ${monthAt(index)}%; top: ${plot.zero}%`}>
+              {month}
+            </span>
+          </>
+        ))
+      }
+      <span class="price-label mono" style={`right: ${100 - plot.right}%; top: ${plot.zero}%`}>
+        $0 every month
+      </span>
+    </div>
+    <div class="container">
+      <section class="plan card" aria-labelledby="plan-title">
+        <h1 id="plan-title">Free <span class="dot">·</span> <span class="num">$0</span>, forever</h1>
+        <p class="plan-text">MIT licensed. Self-hosted. Every feature included.</p>
+        <a class="button button-primary" href={link('#run')}>Run it</a>
+      </section>
+
+      <div class="columns">
+        <section aria-labelledby="pay-title">
+          <h2 id="pay-title">What you pay for</h2>
+          <ul class="list">{youPay.map((item) => <li>{item}</li>)}</ul>
+        </section>
+        <section aria-labelledby="never-title">
+          <h2 id="never-title">What you never pay for</h2>
+          <ul class="tags">{neverPay.map((item) => <li class="tag mono">{item}</li>)}</ul>
+        </section>
+      </div>
+
+      <section class="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title">Questions</h2>
+        {
+          faq.map((item) => (
+            <details>
+              <summary>{item.question}</summary>
+              <p class="answer">{item.answer}</p>
+            </details>
+          ))
+        }
+        <details>
+          <summary>How do I get help?</summary>
+          <p class="answer">
+            Open an issue on <a href={`${repositoryUrl}/issues`}>GitHub</a>. The
+            <a href={link('docs/')}>docs</a> cover getting started, every screen and the
+            configuration.
+          </p>
+        </details>
+      </section>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .page {
+    position: relative;
+    padding-top: 64px;
+    overflow: hidden;
+  }
+
+  /* A chart of the price: dollar levels, the months, and one flat line on $0. */
+  .chart {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 320px;
+    color: var(--color-ink-secondary);
+    mask-image: linear-gradient(to bottom, transparent, black 30%);
+  }
+
+  .level {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .level span {
+    position: absolute;
+    bottom: 2px;
+    left: 24px;
+    font-size: 11px;
+  }
+
+  .price {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 2px solid var(--color-accent);
+    transform: translateY(-1px);
+  }
+
+  .point {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border: 2px solid var(--color-accent);
+    border-radius: 50%;
+    background: var(--color-ground);
+    transform: translate(-50%, -50%);
+  }
+
+  .month {
+    position: absolute;
+    margin-top: 12px;
+    font-size: 11px;
+    transform: translateX(-50%);
+  }
+
+  .price-label {
+    position: absolute;
+    margin-top: -26px;
+    color: var(--color-accent);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .plan {
+    position: relative;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 40px 32px;
+    text-align: center;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 2.8rem);
+    margin-bottom: 12px;
+  }
+
+  .dot {
+    color: var(--color-ink-secondary);
+  }
+
+  .plan-text {
+    color: var(--color-ink-secondary);
+    font-size: 1.1rem;
+    margin-bottom: 24px;
+  }
+
+  .columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 48px;
+    max-width: 880px;
+    margin: 96px auto 0;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+  }
+
+  .list {
+    margin: 0;
+    padding-left: 1.2em;
+    color: var(--color-ink-secondary);
+  }
+
+  .list li + li {
+    margin-top: 8px;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tag {
+    padding: 4px 12px;
+    border: 1px solid var(--color-ok-border);
+    border-radius: var(--radius-pill);
+    background: var(--color-ok-soft);
+    color: var(--color-ok-ink);
+    font-size: 13px;
+  }
+
+  .faq {
+    max-width: 880px;
+    margin: 80px auto 0;
+  }
+
+  details {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  summary {
+    padding: 16px 0;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .answer {
+    margin: 0 0 16px;
+    color: var(--color-ink-secondary);
+  }
+
+  @media (max-width: 720px) {
+    /* The plan covers the middle of the chart: the levels and the line stay. */
+    .point,
+    .month,
+    .price-label {
+      display: none;
+    }
+
+    .columns {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 32px;
+      margin-top: 64px;
+    }
+
+    .plan {
+      padding: 32px 20px;
+    }
+  }
+</style>

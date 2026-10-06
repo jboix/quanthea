@@ -1,0 +1,28 @@
+{
+  "name": "@quanthea/site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The quanthea website: the landing page, pricing and the docs, built statically by Astro.",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && pagefind --site dist && bun scripts/check-links.ts && bun scripts/check-meta.ts",
+    "preview": "astro preview",
+    "typecheck": "astro check && tsc --noEmit -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "~3.6.1",
+    "@fontsource-variable/ibm-plex-sans": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@quanthea/shared": "workspace:*",
+    "@quanthea/tokens": "workspace:*",
+    "astro": "^5.18.2",
+    "simple-icons": "^16.34.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@types/bun": "1.4.2",
+    "pagefind": "^1.5.2",
+    "typescript": "~6.0.3"
+  }
+}

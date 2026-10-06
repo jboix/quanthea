@@ -1,0 +1,12 @@
+---
+/** The page GitHub Pages serves for any path the site does not have. */
+import Base from '../layouts/base.astro';
+import { link } from '../lib/url.ts';
+---
+
+<Base title="Page not found" description="No page lives at this address." servedAt="404.html">
+  <div class="container">
+    <h1>No data for this path</h1>
+    <p><a href={link()}>Home</a></p>
+  </div>
+</Base>

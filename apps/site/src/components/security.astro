@@ -1,0 +1,85 @@
+---
+/**
+ * How quanthea keeps data and credentials safe, in four points.
+ */
+
+const points = [
+  {
+    title: 'Encrypted at rest',
+    text: 'Credentials, names and emails are sealed with a key kept apart from the data.',
+  },
+  {
+    title: 'The model sees what the gate allows',
+    text: 'The agent reaches your data only through the access gate, at the level you set per connector.',
+  },
+  {
+    title: 'Roles decide who opens what',
+    text: 'Viewers, analysts, editors and admins. Every API route declares the role it needs.',
+  },
+  {
+    title: 'Keys you can rotate',
+    text: 'Set the new secret key and the old one, restart once, then remove the old one.',
+  },
+];
+---
+
+<section class="container section" aria-labelledby="security-title">
+  <h2 id="security-title">Security</h2>
+  <ul class="points">
+    {
+      points.map((point) => (
+        <li>
+          <h3>{point.title}</h3>
+          <p>{point.text}</p>
+        </li>
+      ))
+    }
+  </ul>
+</section>
+
+<style>
+  .section {
+    padding-block: 72px;
+  }
+
+  h2 {
+    margin: 0 0 28px;
+    font-size: clamp(1.7rem, 3vw, 2.2rem);
+  }
+
+  .points {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    padding-top: 14px;
+    border-top: 2px solid var(--color-accent);
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
+
+  li p {
+    margin: 0;
+    color: var(--color-ink-secondary);
+    font-size: 15px;
+  }
+
+  @media (max-width: 960px) {
+    .points {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 560px) {
+    .points {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>

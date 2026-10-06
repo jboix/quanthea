@@ -1,0 +1,37 @@
+---
+/**
+ * The quanthea mark, drawn inline from the geometry of `docs/brand/quanthea-mark.svg`. The lens
+ * and the line take the current text colour. The signal dot is orange only as the brand mark; as
+ * a section icon it takes the accent.
+ */
+import { markShapes, markViewBox } from '../lib/mark-geometry.ts';
+
+/** Props of the mark. */
+interface Props {
+  /** Width and height in pixels. */
+  size?: number;
+  /** The accessible name. Without one, the mark is decorative. */
+  label?: string;
+  /** `brand` keeps the orange signal dot; `icon` draws the dot in the accent. */
+  tone?: 'brand' | 'icon';
+}
+
+const { size = 24, label, tone = 'brand' } = Astro.props;
+const dotFill = tone === 'brand' ? 'var(--color-brand-signal)' : 'var(--color-accent)';
+const shapes = markShapes.map((shape) => ({
+  Tag: shape.tag,
+  attributes: shape.signal ? { ...shape.attributes, fill: dotFill } : shape.attributes,
+}));
+---
+
+<svg
+  width={size}
+  height={size}
+  viewBox={markViewBox}
+  role={label ? 'img' : undefined}
+  aria-label={label}
+  aria-hidden={label ? undefined : 'true'}
+  class="mark"
+>
+  {shapes.map(({ Tag, attributes }) => <Tag {...attributes} />)}
+</svg>

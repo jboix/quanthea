@@ -1,0 +1,74 @@
+---
+/**
+ * The groups and links of the docs navigation, from `lib/docs-nav.ts`.
+ */
+import { docNav } from '../lib/docs-nav.ts';
+import { link } from '../lib/url.ts';
+
+/** Props of the list. */
+interface Props {
+  /** The slug of the page shown. */
+  current?: string | undefined;
+}
+
+const { current } = Astro.props;
+---
+
+{
+  docNav.map((group) => (
+    <div class="group">
+      <p class="group-label">{group.label}</p>
+      <ul>
+        {group.items.map((item) => (
+          <li>
+            <a
+              href={link(`docs/${item.slug}/`)}
+              aria-current={item.slug === current ? 'page' : undefined}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ))
+}
+
+<style>
+  .group + .group {
+    margin-top: 20px;
+  }
+
+  .group-label {
+    margin: 0 0 6px;
+    color: var(--color-ink-secondary);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  a {
+    display: block;
+    padding: 4px 10px;
+    margin-left: -10px;
+    border-radius: var(--radius-control);
+    color: var(--color-ink-label);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--color-ink);
+    background: var(--color-surface);
+  }
+
+  a[aria-current="page"] {
+    color: var(--color-accent);
+    background: var(--color-accent-soft);
+    font-weight: 500;
+  }
+</style>

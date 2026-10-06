@@ -1,6 +1,6 @@
 /**
  * The colour scheme: light, dark, or the system's. The choice is kept per browser and applied as
- * `data-theme` on the document element, which switches the tokens in `theme.css`.
+ * `data-theme` on the document element, which switches the tokens of `@quanthea/tokens`.
  */
 import { useSyncExternalStore } from 'react';
 

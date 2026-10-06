@@ -1,0 +1,15 @@
+---
+/**
+ * A tinted band across the page, a hairline above and below, around one section. The home page
+ * alternates banded sections with sections on the page's own ground, so each starts visibly.
+ */
+---
+
+<div class="band"><slot /></div>
+
+<style>
+  .band {
+    background: var(--color-surface-muted);
+    border-block: 1px solid var(--color-border);
+  }
+</style>

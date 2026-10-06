@@ -1,0 +1,81 @@
+name: Website
+
+# Builds apps/site and deploys it to GitHub Pages when main changes the site, the docs or what they
+# read, on each release, and on demand; pull requests deploy nothing. The repository's Pages source
+# must be "GitHub Actions" (Settings → Pages). The custom domain is the one set there: a deployment
+# from Actions ignores a CNAME file, so the site has none.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/site/**'
+      - 'docs/**'
+      - 'packages/tokens/**'
+      - 'packages/shared/**'
+      - 'README.md'
+      - 'package.json'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: '.tool-versions'
+
+      - name: Install dependencies
+        env:
+          CI: true
+          HUSKY: "0"
+        run: bun install --frozen-lockfile
+
+      # Pages says where the site lives: the custom domain set in Settings → Pages, else
+      # https://<owner>.github.io/<repository>/. The SITE_URL and SITE_BASE variables override it.
+      - name: Read the Pages address
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Build the website
+        env:
+          SITE_URL: ${{ vars.SITE_URL || steps.pages.outputs.origin }}
+          SITE_BASE: ${{ vars.SITE_BASE || steps.pages.outputs.base_path || '/' }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bun run site:build
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: apps/site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

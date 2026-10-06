@@ -110,7 +110,7 @@ for (const target of targets) {
       return buildData(dataSchema.parse({ connector: 'shop', ...data }), context).queries[0];
     }
 
-    test('buckets the failed orders of the incident, peaking between 12:12 and 12:22', async () => {
+    test('buckets the failed orders of the incident, peaking during the outage', async () => {
       const query = built({
         kind: 'sql-series',
         table: 'orders',
@@ -130,8 +130,10 @@ for (const target of targets) {
       ]);
       const [times, , counts] = frame.values as [number[], string[], number[]];
       const peak = times[counts.indexOf(Math.max(...counts))] ?? 0;
-      expect(peak - incident.getTime()).toBeGreaterThanOrEqual(10 * 60_000);
-      expect(peak - incident.getTime()).toBeLessThanOrEqual(20 * 60_000);
+      // The gateway fails fully from 12 to 20 minutes after the deploy; a 5-minute bucket holding
+      // that stretch peaks somewhere in the first 25 minutes, depending on where buckets start.
+      expect(peak - incident.getTime()).toBeGreaterThanOrEqual(5 * 60_000);
+      expect(peak - incident.getTime()).toBeLessThanOrEqual(25 * 60_000);
       // PostgreSQL buckets from the start of the range (date_bin); the others from the epoch.
       const origin = target.dialect === 'postgres' ? timeRange.from.getTime() : 0;
       expect(times.every((time) => (time - origin) % (5 * 60_000) === 0)).toBe(true);

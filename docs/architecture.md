@@ -93,29 +93,33 @@ The two paths that matter:
 │   │       ├── jobs/                in-process jobs: the hourly purge, the alert evaluator, the
 │   │       │                        report scheduler
 │   │       └── db/                  bun:sqlite client, migrations, repositories
-│   └── web/                         @quanthea/web
-│       ├── index.html
-│       ├── vite.config.ts           dev proxy /api → :3000
-│       └── src/
-│           ├── main.tsx
-│           ├── app/                 router, session, route guards, layout with nav rail, error page
-│           ├── routes/              thin route modules; compose features
-│           ├── features/
-│           │   ├── thread/          chat stream, plan card, diff and repair cards, composer, @mentions
-│           │   ├── dashboard/       dashboard pane, variables bar, panels, inspector, snapshot menu, Ask and History
-│           │   ├── snapshot/        a snapshot's page
-│           │   ├── library/         search, connector and tag filters, cards with a live panel; the Snapshots tab
-│           │   ├── bin/
-│           │   ├── connectors/
-│           │   ├── notifications/   Settings → Notifications: channels, tests, the webhook example
-│           │   ├── alerts/          the alerts list, an alert's page, the rail's count, the settings
-│           │   ├── alert-draft/     an alert thread's draft pane: condition sentence, replay, previews
-│           │   ├── report-draft/    a report thread's draft pane: schedule sentence, preview, links
-│           │   └── settings/        gateway, auth, retention
-│           ├── charts/              view + datasets → ECharts option: preparations, tokens, maps
-│           ├── ui/                  presentational primitives (Button, Card, Pill, Tabs, Switch…), brand
-│           └── lib/                 typed API client (from shared contract), utils
+│   ├── web/                         @quanthea/web
+│   │   ├── index.html
+│   │   ├── vite.config.ts           dev proxy /api → :3000
+│   │   └── src/
+│   │       ├── main.tsx
+│   │       ├── app/                 router, session, route guards, layout with nav rail, error page
+│   │       ├── routes/              thin route modules; compose features
+│   │       ├── features/
+│   │       │   ├── thread/          chat stream, plan card, diff and repair cards, composer, @mentions
+│   │       │   ├── dashboard/       dashboard pane, variables bar, panels, inspector, snapshot menu, Ask and History
+│   │       │   ├── snapshot/        a snapshot's page
+│   │       │   ├── library/         search, connector and tag filters, cards with a live panel; the Snapshots tab
+│   │       │   ├── bin/
+│   │       │   ├── connectors/
+│   │       │   ├── notifications/   Settings → Notifications: channels, tests, the webhook example
+│   │       │   ├── alerts/          the alerts list, an alert's page, the rail's count, the settings
+│   │       │   ├── alert-draft/     an alert thread's draft pane: condition sentence, replay, previews
+│   │       │   ├── report-draft/    a report thread's draft pane: schedule sentence, preview, links
+│   │       │   └── settings/        gateway, auth, retention
+│   │       ├── charts/              view + datasets → ECharts option: preparations, tokens, maps
+│   │       ├── ui/                  presentational primitives (Button, Card, Pill, Tabs, Switch…), brand
+│   │       └── lib/                 typed API client (from shared contract), utils
+│   └── site/                        @quanthea/site: the static website (Astro): the landing page,
+│                                    pricing, and the docs read from docs/ in place
 ├── packages/
+│   ├── tokens/                      @quanthea/tokens: the design tokens (tokens.css), CSS only,
+│   │                                for the light and the dark scheme
 │   ├── plugin-kit/                  @quanthea/plugin-kit: the connector kit, public types,
 │   │                                a test kit and the conformance suite, and the frames and
 │   │                                query languages every connector shares (frames.ts)
@@ -131,9 +135,11 @@ The two paths that matter:
 │           └── index.ts
 ├── examples/
 │   └── quanthea-plugin-sqlite/       an example connector plugin: read-only SQLite files
-├── dev/                             docker-compose + seed data for local sources
+├── dev/                             docker-compose + seed data for local sources, the demo,
+│                                    and screenshots/ (bun run screenshots)
 ├── evals/                           prompt → expected dashboard, answer and alert checks
-├── docs/                            architecture, dashboard spec, brand, contributing, security
+├── docs/                            architecture, the specs, configuration, guide/ (the user
+│                                    guide), screenshots/, brand, contributing, security
 ├── scripts/                         remark-check-formatted.mjs (the docs:check plugin)
 ├── AGENTS.md · CLAUDE.md            conventions for anyone writing code here
 ├── Dockerfile · .tool-versions      the image, and the Bun version CI and the image use
@@ -352,7 +358,7 @@ the kit's HTTP client for every kind that speaks HTTP.
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
 - **Colour scheme.** Light, dark or the system's, picked under Appearance in the account menu and
   kept in the browser's `localStorage` (`ui/color-scheme.ts`). Light is the default. The choice
-  sets `data-theme` on the document element before the first render, and `ui/theme.css`
+  sets `data-theme` on the document element before the first render, and `@quanthea/tokens`
   redefines the colour tokens for `dark`. Charts read their colours from the tokens again when the
   scheme changes. The icon tiles keep their brand colours in both schemes.
 
@@ -1384,6 +1390,11 @@ the test; turning the switch off sends the provider's default.
   is named instead.
 - Each run adds its tokens to the thread, step by step, so a failed run still counts. A thread over its token budget (setting, default 1,000,000)
   refuses new runs with a message that says so.
+- A provider's stream can end in the middle of a step, after the model called a tool and before
+  the tool returned. The AI SDK refuses a conversation with such a call, so the thread could never
+  run again. `agent/unanswered-calls.ts` closes each call with no result as a failed call ("The
+  run stopped before this call returned"), when the run's messages are stored and when they are
+  read, so a reply or Try again continues the thread.
 - Plan approval is a separate request (`POST /api/threads/:id/plans/:planId/approve`) that moves the
   thread to `building`. The client then continues the assistant message, and the turn's
   instructions tell the model to build the approved plan.
@@ -2797,7 +2808,9 @@ one, and enables them again. Without any admin, it creates the default one.
     reaches it too). Each panel it cites gets its citation numbers as badges in its header, and a
     citation's window is shaded on that panel's time chart (an ECharts `markArea`,
     `withHighlights` in `charts/series.ts`). This is view state only. An answer about another
-    version than the one shown marks nothing and says on which version it was asked.
+    version than the one shown marks nothing and says on which version it was asked. The answer
+    that marks the dashboard has an accent bar and accent citation numbers; the others' numbers
+    are grey, and turn to the accent's soft tint on hover, to say they can be picked.
 - Each panel has an info bubble: its connector, language and query text, and the chart recipe
   that draws it. It shows what the saved panel runs, so a viewer can trace a number to its source.
 - **Alerts on panels.** The dashboard screen loads the alerts on its panels over the range shown
@@ -2848,7 +2861,7 @@ one, and enables them again. Without any admin, it creates the default one.
   scaled to shares, ranked, split into groups, binned, summed up for a box plot, built into a
   tree or a graph, laid on a calendar, a dial or a map, or split into small multiples. Series
   templates expand to one series per value column or group. `@role` tokens become columns, and
-  theme tokens (`@ink`, `@palette.1`, `@scale.low`…) become colours from `ui/theme.css`.
+  theme tokens (`@ink`, `@palette.1`, `@scale.low`…) become colours from `@quanthea/tokens`.
 - Axes and legends are styled only where a chart has them. Times on an axis read as hours, dates
   or both, from how far apart the points are, in the dashboard's time zone. An empty result says
   so on the chart.
@@ -2860,7 +2873,7 @@ one, and enables them again. Without any admin, it creates the default one.
   and in notifications. The month's name comes from a fixed list (`calendarParts` in
   `@quanthea/shared`), since newer locale data writes `Sept` for British English.
 - The adapter owns the dataset, the grid, the palette, fonts and axis colours (from the tokens in
-  `ui/theme.css`), and the tooltip's render mode, whatever the spec says.
+  `@quanthea/tokens`), and the tooltip's render mode, whatever the spec says.
 - **Tooltip safety:** tooltips are forced to `renderMode: 'richText'`, drawn on the canvas, so a
   series named `<img src=x onerror=alert(1)>` is shown as text and never parsed as HTML. Legends
   and marker labels are canvas text too. A test holds this.
@@ -3226,3 +3239,22 @@ The kit's version lives in its `plugin-kit-v*` tags and on npm, never in a `pack
 repository, so a kit release changes neither `bun.lock` nor `main`. Its major version equals
 `kitVersion`. During 0.x, no kit commit carries `!` or `BREAKING CHANGE`: going to 1.0 is a
 deliberate breaking release, with `kitVersion` set to 1.
+
+### The website
+
+The Website workflow (`.github/workflows/site.yml`) builds `apps/site` and deploys it to GitHub
+Pages, on a push to `main` that touches the site, `docs/`, the tokens or `packages/shared`, on
+each release, and on demand. The site is static: its pages, the user docs read from `docs/` in
+place (getting started, deployment, the configuration file and the environment variables, the
+user guide and the administration pages of `docs/guide/`, connectors, and the plugin packages'
+READMEs; the specs, the internals and the project's policies stay on GitHub), the Pagefind search index, the sitemap, `robots.txt` and the `llms.txt` files are all built from
+the repository. A doc's screenshots come in pairs, `<name>-light.webp` and `<name>-dark.webp`,
+marked with GitHub's `#gh-light-mode-only` and `#gh-dark-mode-only`; the site's
+`remark-scheme-images.ts` turns the marks into the classes that show each in its scheme.
+`bun run screenshots` (`dev/screenshots/`) takes them: it starts an instance on the dev data, fills
+it through the real agent once, and shoots every screen in both schemes. The site's address and
+base path are the ones GitHub Pages gives (`actions/configure-pages`): the custom domain set in
+Settings → Pages, else the repository's path; the `SITE_URL` and `SITE_BASE` repository variables
+override them. Pull requests deploy nothing. The build fails on a broken internal link, a page without a unique title, description,
+canonical address or OpenGraph tags, or a product fact (`apps/site/src/data/facts.ts`) that no
+longer matches the connector and channel registries and the allowed series types.

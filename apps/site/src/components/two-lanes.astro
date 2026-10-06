@@ -1,0 +1,227 @@
+---
+/**
+ * When the model runs: only to build, to answer questions and to explain panels. What is pinned or
+ * active runs with no model, shown as two rows of steps.
+ */
+import incidentDark from '../../../../docs/screenshots/dashboard-incident-dark.webp';
+import incidentLight from '../../../../docs/screenshots/dashboard-incident-light.webp';
+import { type FeatureIcon, featureIcons } from '../lib/feature-icons.ts';
+import ShotFrame from './shot-frame.astro';
+
+/** One stop of a lane: its short name and glyph; the model's stands out. */
+interface Stop {
+  readonly name: string;
+  readonly icon: FeatureIcon;
+  readonly model?: boolean;
+}
+
+/** The two kinds of work: what uses the model, and what runs with none. */
+const lanes: readonly {
+  name: string;
+  cost: string;
+  tone: 'model' | 'free';
+  stops: readonly Stop[];
+  text: string;
+}[] = [
+  {
+    name: 'Building and asking',
+    cost: 'model tokens',
+    tone: 'model',
+    stops: [
+      { name: 'You', icon: 'person' },
+      { name: 'Agent', icon: 'spark' },
+      { name: 'Model', icon: 'model', model: true },
+      { name: 'Gate', icon: 'shield' },
+      { name: 'Query', icon: 'code' },
+      { name: 'Sources', icon: 'database' },
+    ],
+    text: 'Building a dashboard, an alert or a report in a thread, asking about a dashboard, and explaining a panel use your model. It sees only what the access gate returns.',
+  },
+  {
+    name: 'Dashboards, alerts and reports',
+    cost: 'no model · 0 tokens',
+    tone: 'free',
+    stops: [
+      { name: 'Pinned or active', icon: 'library' },
+      { name: 'Query', icon: 'code' },
+      { name: 'Sources', icon: 'database' },
+    ],
+    text: 'Opening a pinned dashboard, checking an alert and running a report use no model. They cost no tokens, and keep working when the model is down.',
+  },
+];
+---
+
+<section class="band" aria-labelledby="lanes-title">
+  <div class="container">
+    <h2 id="lanes-title">When the model runs</h2>
+    <p class="lead">
+      Only when you build, ask a question or have a panel explained. Nothing runs in the
+      background.
+    </p>
+    <div class="layout">
+      <ol class="lanes">
+        {
+          lanes.map((lane) => (
+            <li class={`lane lane-${lane.tone}`}>
+              <div class="lane-head">
+                <h3>{lane.name}</h3>
+                <span class={lane.tone === 'free' ? 'pill pill-ok' : 'pill'}>{lane.cost}</span>
+              </div>
+              <ol class="stops" aria-label={`${lane.name}, step by step`}>
+                {lane.stops.map((stop, index) => (
+                  <li>
+                    {index > 0 && (
+                      <svg class="arrow" viewBox="0 0 16 16" stroke-width="1.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M2 8h11 M9.5 4.5 13 8l-3.5 3.5" />
+                      </svg>
+                    )}
+                    <span class:list={['stop', { 'stop-model': stop.model }]}>
+                      <svg viewBox="0 0 24 24" stroke-width="1.8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d={featureIcons[stop.icon]} />
+                      </svg>
+                      {stop.name}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <p>{lane.text}</p>
+            </li>
+          ))
+        }
+      </ol>
+      <ShotFrame
+        light={incidentLight}
+        dark={incidentDark}
+        alt="A pinned dashboard: errors rise after a deploy marker and fall after the rollback"
+      />
+    </div>
+  </div>
+</section>
+
+<style>
+  .band {
+    padding-block: 72px;
+    background: var(--color-surface-muted);
+    border-block: 1px solid var(--color-border);
+  }
+
+  /* The two lanes and the screenshot side by side, centred on each other. */
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 36px;
+    align-items: center;
+  }
+
+  h2 {
+    font-size: clamp(1.7rem, 3vw, 2.2rem);
+  }
+
+  .lead {
+    color: var(--color-ink-secondary);
+    margin-bottom: 28px;
+  }
+
+  .lanes {
+    display: grid;
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lane {
+    padding: 16px 18px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface);
+  }
+
+  .lane-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  .lane p {
+    margin: 12px 0 0;
+    color: var(--color-ink-secondary);
+    font-size: 15px;
+  }
+
+  .stops {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .stop {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 7px;
+    border: 1px solid var(--color-border-control);
+    border-radius: var(--radius-control);
+    background: var(--color-surface);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .stop svg,
+  .arrow {
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .stop svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.8;
+    color: var(--color-ink-secondary);
+  }
+
+  .stops li {
+    display: flex;
+    align-items: center;
+  }
+
+  /* The arrow sits in the gap between two stops, centred on their middle line. */
+  .arrow {
+    width: 14px;
+    height: 14px;
+    margin: 0 3px;
+    stroke-width: 1.5;
+    color: var(--color-ink-secondary);
+  }
+
+  .stop-model {
+    border-color: var(--color-accent-border);
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+
+  .stop-model svg {
+    color: var(--color-accent);
+  }
+
+  @media (max-width: 960px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>

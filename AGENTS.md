@@ -46,7 +46,10 @@ bun run build        # build the SPA into apps/web/dist
 bun run check:package  # build the publishable plugin kit, check it, and build and test the
                        # SQLite example against the packed tarball
 bun run start        # run the server, serving the built SPA
+bun run site:dev     # the website (apps/site) on :4321, reading the docs in place
+bun run site:build   # build the website into apps/site/dist
 GEMINI_API_KEY=… bun run demo  # the demo: the built app on the dev data, with Gemini, state in .demo/
+GEMINI_API_KEY=… bun run screenshots  # the docs' screenshots, light and dark, on the dev data
 ```
 
 Run one test file with `bun test apps/server/src/app.test.ts`.
@@ -57,9 +60,11 @@ Run one test file with `bun test apps/server/src/app.test.ts`.
 | ------------------------ | ------------------------- | --------------------------------------------------------------------- |
 | `apps/server`            | `@quanthea/server`        | Bun + Hono API, SQLite, serves the built SPA.                         |
 | `apps/web`               | `@quanthea/web`           | React SPA, React Router in data mode, Vite. No SSR.                   |
+| `apps/site`              | `@quanthea/site`          | The static website: landing page, pricing, the docs. Astro.           |
 | `packages/shared`        | `@quanthea/shared`        | API contracts, roles, and later the spec and formatters. Zod only.    |
 | `packages/plugin-kit`    | `@quanthea/plugin-kit`    | The connector kit: public types, the live kit, the conformance suite. |
 | `packages/create-plugin` | `@quanthea/create-plugin` | The plugin generator: `npm create @quanthea/plugin`.                  |
+| `packages/tokens`        | `@quanthea/tokens`        | The design tokens (`tokens.css`): fonts, colours, radii. CSS only.    |
 | `examples/*`             | `quanthea-plugin-sqlite`  | Example connector plugins, built against the public kit only.         |
 
 Module boundaries are in the architecture doc, section 3 and 4, in `.dependency-cruiser.cjs` and,
@@ -93,7 +98,7 @@ for the plugin side, in `scripts/arch-plugin-rules.cjs`.
   it, edited in place until the next release. That file upgrades a database of the last release
   and keeps its data working.
 - `apps/web/src/ui/` holds presentational primitives in quanthea's visual language. Colours,
-  radii and fonts come from the tokens in `ui/theme.css`.
+  radii and fonts come from the tokens in `@quanthea/tokens` (`packages/tokens/tokens.css`).
 - The logo, icon and mark come from `ui/brand.tsx`. The source files and the rule for each variant
   are in `docs/brand/`. The signal orange (`--color-brand-signal`) is for the brand only.
 - The browser runs Zod without its JIT (`lib/zod-without-eval.ts`) because the CSP forbids

@@ -192,7 +192,9 @@ describe.skipIf(!live)('trino connector against the dev Trino', () => {
   test('describes the tables with their comments', async () => {
     const snapshot = await reader.describe(AbortSignal.timeout(20_000));
     const orders = snapshot.entities.find((entity) => entity.name === 'orders');
-    expect(orders?.description).toBe('One row per order attempt, including failed ones.');
+    expect(orders?.description).toBe(
+      'One row per order attempt, including failed ones. total_cents is in centimes: divide by 100 for CHF.',
+    );
     expect(orders?.fields.find((field) => field.name === 'created_at')).toMatchObject({
       type: 'time',
       nativeType: 'timestamp(6) with time zone',

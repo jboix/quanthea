@@ -1,5 +1,5 @@
 -- TimescaleDB on top of the orders database: the order attempts again as a hypertable, partitioned
--- by hour, and a continuous aggregate of them per minute. dash_ro reads both and writes neither.
+-- by day, and a continuous aggregate of them per minute. dash_ro reads both and writes neither.
 
 CREATE TABLE order_events (
   created_at timestamptz NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE order_events (
 );
 COMMENT ON TABLE order_events IS 'The order attempts, as a hypertable partitioned by time.';
 
-SELECT create_hypertable('order_events', by_range('created_at', INTERVAL '1 hour'));
+SELECT create_hypertable('order_events', by_range('created_at', INTERVAL '1 day'));
 
 INSERT INTO order_events (created_at, status, failure_reason, total_cents, service)
 SELECT created_at, status, failure_reason, total_cents, service FROM orders;

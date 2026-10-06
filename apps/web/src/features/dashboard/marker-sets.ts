@@ -89,7 +89,7 @@ export function runSearchOf(search: URLSearchParams): string {
  * The stylesheet colour of a set of markers, from the same tokens the charts read.
  *
  * @param color - The set's colour token.
- * @returns A `var(…)` of `ui/theme.css`.
+ * @returns A `var(…)` of a token in `@quanthea/tokens`.
  */
 export function markerColorVar(color: MarkerColor | undefined): string {
   if (color === undefined || color === '@ink') return 'var(--color-ink)';

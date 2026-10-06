@@ -9,6 +9,7 @@ import {
 } from '@quanthea/shared';
 import { lazy, Suspense, useMemo } from 'react';
 import { type AlertMarks, type ChartHighlight, chartInputOf } from '../../charts/input.ts';
+import { fittedNumber } from '../../ui/fitted-number.ts';
 import { shownMarkers } from './marker-sets.ts';
 import styles from './panels.module.css';
 import { tableRows } from './table-rows.ts';
@@ -62,7 +63,9 @@ function StatView({ view, queries, timeZone }: ViewProps & { readonly view: Stat
   const subtitle = statSubtitle(view, queries, format);
   return (
     <div className={styles.stat}>
-      <span className={styles.statValue}>{value || '–'}</span>
+      <span className={styles.statValue} style={fittedNumber(value || '–', 32)}>
+        {value || '–'}
+      </span>
       {subtitle !== '' && <span className={styles.statSubtitle}>{subtitle}</span>}
     </div>
   );

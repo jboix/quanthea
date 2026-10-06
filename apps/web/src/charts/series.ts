@@ -175,8 +175,29 @@ function markerLine(
 }
 
 /**
+ * The marker lines with their labels set apart: in time order, every other label reads to the left
+ * of its line and the rest to the right, so two markers close in time, such as a deploy and its
+ * rollback, never draw their labels over each other. A lone marker keeps its label centred.
+ *
+ * @param data - The `markLine` data items, each with its time in `xAxis`.
+ * @returns The items, in the same order, with their labels aligned.
+ */
+function staggered(data: readonly Loose[]): Loose[] {
+  if (data.length < 2) return [...data];
+  const order = data
+    .map((item, index) => ({ index, time: Number(item.xAxis) }))
+    .sort((left, right) => left.time - right.time)
+    .map((entry) => entry.index);
+  return data.map((item, index) => {
+    const align = order.indexOf(index) % 2 === 0 ? 'right' : 'left';
+    return { ...item, label: { ...(item.label as Loose), align } };
+  });
+}
+
+/**
  * Adds the annotation markers to the first series, as dashed vertical lines in the colour of their
- * set, labelled with their time and text, the set's label in their tooltip. Labels and tooltips are
+ * set, labelled with their time and text, the set's label in their tooltip. Labels are set apart so
+ * markers close in time stay readable. Labels and tooltips are
  * drawn on the canvas, never as HTML.
  *
  * @param series - The series.
@@ -193,8 +214,10 @@ export function withMarkers(
 ): Loose[] {
   const [first, ...rest] = series;
   const time = createFormatter({ $fmt: 'datetime', pattern: 'time' }, { timeZone });
-  const data = markers.flatMap((marker) =>
-    marker.points.map((point) => markerLine(marker, point, time, theme)),
+  const data = staggered(
+    markers.flatMap((marker) =>
+      marker.points.map((point) => markerLine(marker, point, time, theme)),
+    ),
   );
   if (!first || data.length === 0) return [...series];
   const markLine = {

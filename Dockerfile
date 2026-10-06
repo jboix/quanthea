@@ -16,9 +16,11 @@ WORKDIR /repo
 COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
+COPY apps/site/package.json apps/site/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
 COPY packages/create-plugin/package.json packages/create-plugin/package.json
+COPY packages/tokens/package.json packages/tokens/package.json
 COPY examples/quanthea-plugin-sqlite/package.json examples/quanthea-plugin-sqlite/package.json
 COPY dev/package.json dev/package.json
 COPY evals/package.json evals/package.json
@@ -27,6 +29,7 @@ RUN bun install --frozen-lockfile --ignore-scripts
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY packages/plugin-kit packages/plugin-kit
+COPY packages/tokens packages/tokens
 COPY apps/web apps/web
 RUN bun run --filter @quanthea/web build
 
@@ -36,9 +39,11 @@ WORKDIR /repo
 COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
 COPY apps/web/package.json apps/web/package.json
+COPY apps/site/package.json apps/site/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/plugin-kit/package.json packages/plugin-kit/package.json
 COPY packages/create-plugin/package.json packages/create-plugin/package.json
+COPY packages/tokens/package.json packages/tokens/package.json
 COPY examples/quanthea-plugin-sqlite/package.json examples/quanthea-plugin-sqlite/package.json
 COPY dev/package.json dev/package.json
 COPY evals/package.json evals/package.json

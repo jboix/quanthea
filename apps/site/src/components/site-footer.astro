@@ -1,0 +1,74 @@
+---
+/**
+ * The site footer: the mark, the licence, the project's links and the released version.
+ */
+import { githubUrl, repositoryUrl, version } from '../lib/project.ts';
+import { link } from '../lib/url.ts';
+import Mark from './mark.astro';
+---
+
+<footer class="site-footer">
+  <div class="container row">
+    <div class="identity">
+      <Mark size={28} label="quanthea" />
+      <p>
+        quanthea <span class="num">v{version}</span> · <a href={githubUrl('LICENSE')}>MIT licence</a>
+      </p>
+    </div>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href={repositoryUrl}>GitHub</a></li>
+        <li><a href={`${repositoryUrl}/releases`}>Releases</a></li>
+        <li><a href={link('docs/')}>Docs</a></li>
+        <li><a href={link('pricing/')}>Pricing</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: 96px;
+    border-top: 1px solid var(--color-border);
+    padding-block: 32px 48px;
+    color: var(--color-ink-secondary);
+    font-size: 14px;
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px 32px;
+  }
+
+  .identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--color-ink);
+  }
+
+  .identity p {
+    margin: 0;
+    color: var(--color-ink-secondary);
+  }
+
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 20px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  a {
+    color: var(--color-ink-secondary);
+  }
+
+  a:hover {
+    color: var(--color-ink);
+  }
+</style>

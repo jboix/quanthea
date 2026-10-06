@@ -1,0 +1,39 @@
+---
+/** A doc of `docs/`, rendered in place from the repository. */
+import { getCollection, render } from 'astro:content';
+import Docs from '../../layouts/docs.astro';
+import { docPages } from '../../lib/docs-content.ts';
+import { githubEditUrl } from '../../lib/project.ts';
+
+/**
+ * One page per doc.
+ *
+ * @returns The paths and their entries.
+ */
+export async function getStaticPaths() {
+  const pages = await docPages();
+  const entries = await getCollection('docs');
+  return entries.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry, page: pages.find((page) => page.slug === entry.id) },
+  }));
+}
+
+const { entry, page } = Astro.props;
+if (page === undefined) throw new Error(`No page for the doc ${entry.id}.`);
+const { Content, headings } = await render(entry);
+const editLinks = page.sources.map((source) => ({
+  label: 'Edit this page on GitHub',
+  href: githubEditUrl(source.repoPath),
+}));
+---
+
+<Docs
+  slug={page.slug}
+  title={page.title}
+  description={page.description}
+  headings={headings}
+  editLinks={editLinks}
+>
+  <Content />
+</Docs>

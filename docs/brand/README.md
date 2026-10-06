@@ -20,6 +20,9 @@ The wordmark is IBM Plex Sans SemiBold at 40 px, on a baseline at y=45, with tra
 
 ## Colours
 
+The tokens live in `@quanthea/tokens` (`packages/tokens/tokens.css`), for the light and the dark
+scheme. The web app and the website both import them.
+
 | Token                  | Value     | Use                                         |
 | ---------------------- | --------- | ------------------------------------------- |
 | `--color-accent`       | `#2A55C9` | The icon tile. Also the UI accent.          |

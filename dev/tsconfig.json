@@ -13,6 +13,7 @@
     "http-api",
     "influxdb",
     "valkey",
-    "mongodb"
+    "mongodb",
+    "screenshots"
   ]
 }

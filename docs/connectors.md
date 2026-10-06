@@ -170,7 +170,7 @@ kinds in that order.
   `integrationFor` (`_shared/test/dev-sources.ts`), and a row in the `integration` job's matrix. A
   kind ships only when its server runs from a free image, with no account.
 - Unit test the pure parts (type mapping, error mapping, catalog parsing) in `*.test.ts`.
-- Add the kind to the connector section of [`architecture.md`](architecture.md).
+- Add the kind to the connector section of `docs/architecture.md`.
 
 ## Rules the checks enforce
 

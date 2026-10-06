@@ -4,6 +4,9 @@ node_modules
 # output
 out
 dist
+# the website's build and Astro's generated types (apps/site)
+apps/site/dist
+.astro
 *.tgz
 
 # code coverage
@@ -22,6 +25,7 @@ logs
 # runtime state (QUANTHEA_DATA_DIR, QUANTHEA_KEYS_DIR), and the demo's
 .demo/
 data/
+!apps/site/src/data/
 keys/
 *.sqlite
 *.sqlite-*
@@ -51,3 +55,6 @@ dependency-graph.svg
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# The screenshot instance's state (dev/screenshots).
+dev/screenshots/.state/

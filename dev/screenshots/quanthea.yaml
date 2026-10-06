@@ -1,0 +1,67 @@
+# yaml-language-server: $schema=../../docs/configuration.schema.json
+#
+# The instance the documentation's screenshots are taken on: four people, the dev data sources of
+# `bun run env:up`, and Gemini as the model. `bun run screenshots` starts it with its state in
+# dev/screenshots/.state, which git ignores.
+
+server:
+  publicUrl: http://localhost:3990
+
+users:
+  ana.keller@example.com:
+    name: Ana Keller
+    role: admin
+    password: ${QUANTHEA_SHOTS_PASSWORD}
+  marco.rossi@example.com:
+    name: Marco Rossi
+    role: editor
+    password: ${QUANTHEA_SHOTS_PASSWORD}
+  lea.fischer@example.com:
+    name: Lea Fischer
+    role: analyst
+    password: ${QUANTHEA_SHOTS_PASSWORD}
+  tom.weber@example.com:
+    name: Tom Weber
+    role: viewer
+    password: ${QUANTHEA_SHOTS_PASSWORD}
+
+model:
+  defaultProviderId: gemini
+  # A report thread's prompts are long: three repaired builds can pass the default 1,000,000.
+  limits:
+    threadTokens: 3000000
+    toolCallsPerTurn: 25
+    repairAttempts: 3
+  providers:
+    - id: gemini
+      name: Gemini
+      provider: openai-compatible
+      baseUrl: https://generativelanguage.googleapis.com/v1beta/openai
+      models:
+        plan: gemini-3.5-flash-lite
+        # Building needs a strong model: flash-lite gets there, but after failed writes the
+        # thread shots show. On a free key, 3.8 Flash allows 20 requests a day, too few.
+        build: gemini-3.8-flash
+        repair: ''
+        metadata: gemini-3.5-flash-lite
+        answer: gemini-3.5-flash-lite
+      apiKey: ${GEMINI_API_KEY}
+
+connectors:
+  postgres-orders:
+    kind: postgres
+    accessLevel: 3
+    config:
+      host: localhost
+      port: 5433
+      database: orders
+      username: dash_ro
+      tls: disable
+    secret:
+      password: ${QUANTHEA_SHOTS_DB_PASSWORD}
+    hiddenFields: [customers.email, customers.phone]
+  prometheus-dev:
+    kind: prometheus
+    accessLevel: 3
+    config:
+      url: http://localhost:9091

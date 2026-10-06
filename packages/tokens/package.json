@@ -1,0 +1,13 @@
+{
+  "name": "@quanthea/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "description": "quanthea's design tokens as CSS custom properties, shared by the web app and the website.",
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    "./tokens.css": "./tokens.css"
+  }
+}

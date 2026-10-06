@@ -15,6 +15,8 @@ export const chartUnits = [
   'per-second',
   'EUR',
   'USD',
+  'CHF',
+  'GBP',
 ] as const;
 
 /** A unit. */
@@ -30,6 +32,8 @@ const unitFormatters: Readonly<Record<ChartUnit, NamedFormatter>> = {
   'per-second': { $fmt: 'si', unit: '/s' },
   EUR: { $fmt: 'currency', code: 'EUR' },
   USD: { $fmt: 'currency', code: 'USD' },
+  CHF: { $fmt: 'currency', code: 'CHF' },
+  GBP: { $fmt: 'currency', code: 'GBP' },
 };
 
 /**

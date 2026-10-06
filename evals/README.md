@@ -102,8 +102,8 @@ Last, the report cases (`r1` to `r4`, in `report-cases.ts`). `r1` and `r2` drive
 through the agent, wired as the chat endpoint wires it, with the same channel and the checkout
 incident dashboard pinned. `r3` and `r4` ask about the run `r1` made, through the answering
 service, prepared and stored as the endpoint of questions about a run does. The dev Postgres holds
-an order attempt per second from yesterday 04:02 UTC to the time it was seeded, so yesterday is
-the one day with data, and the cases report on it.
+60 days of a shop's orders, following the day and the week, up to the time it was seeded; the
+cases report on yesterday, the day of the incident, compared with the day before.
 
 | Case | What the person says                                                                                                      | A good outcome                                                                                      |
 | ---- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |

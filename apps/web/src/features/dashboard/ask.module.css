@@ -187,6 +187,17 @@
   vertical-align: 1px;
 }
 
+/* An answer that does not mark the dashboard: its citations are grey until it is picked. */
+.answer[data-shown="false"] .badge {
+  background: var(--color-divider);
+  color: var(--color-ink-secondary);
+}
+
+.answer[data-shown="false"] .answerPick:hover .badge {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
 .failure {
   margin: 0;
   font-size: 13.5px;

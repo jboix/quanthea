@@ -23,8 +23,8 @@ const allowedKeys: ReadonlySet<string> = new Set([
   'calendar',
 ]);
 
-/** The series types a chart may draw. */
-const allowedSeriesTypes: ReadonlySet<string> = new Set([
+/** The series types a chart may draw. The website lists them too, and its tests compare. */
+export const allowedSeriesTypes: ReadonlySet<string> = new Set([
   'line',
   'bar',
   'scatter',

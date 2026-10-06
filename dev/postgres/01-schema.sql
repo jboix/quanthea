@@ -1,4 +1,5 @@
--- The orders database of the dev environment: a small shop whose checkout had an incident.
+-- The orders database of the dev environment: an outdoor shop with 60 days of orders, whose checkout
+-- had an incident yesterday.
 
 CREATE TABLE customers (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -10,6 +11,14 @@ CREATE TABLE customers (
 );
 COMMENT ON TABLE customers IS 'Shop customers. email and phone are personal data.';
 
+CREATE TABLE products (
+  sku text PRIMARY KEY,
+  name text NOT NULL,
+  category text NOT NULL,
+  price_cents integer NOT NULL
+);
+COMMENT ON TABLE products IS 'The catalogue: one row per product, with its category and price.';
+
 CREATE TABLE orders (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   customer_id bigint NOT NULL REFERENCES customers (id),
@@ -17,19 +26,23 @@ CREATE TABLE orders (
   failure_reason text,
   total_cents integer NOT NULL,
   currency text NOT NULL,
+  channel text NOT NULL CHECK (channel IN ('web', 'app', 'marketplace')),
   service text NOT NULL,
   created_at timestamptz NOT NULL
 );
-COMMENT ON TABLE orders IS 'One row per order attempt, including failed ones.';
+COMMENT ON TABLE orders IS 'One row per order attempt, including failed ones. total_cents is in centimes: divide by 100 for CHF.';
+CREATE INDEX orders_status ON orders (status);
 CREATE INDEX orders_created_at ON orders (created_at);
 
 CREATE TABLE order_items (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   order_id bigint NOT NULL REFERENCES orders (id),
-  sku text NOT NULL,
+  sku text NOT NULL REFERENCES products (sku),
   quantity integer NOT NULL,
   unit_price_cents integer NOT NULL
 );
+
+CREATE INDEX order_items_order_id ON order_items (order_id);
 
 CREATE TABLE payments (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

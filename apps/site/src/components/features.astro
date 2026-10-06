@@ -1,0 +1,272 @@
+---
+/**
+ * The features, as short cards. Each links to the doc that says more; the lists come from
+ * `facts.ts`.
+ */
+import {
+  modelProviderFacts,
+  notificationChannels,
+  otherPanels,
+  roleFacts,
+  seriesTypes,
+  signInProviders,
+} from '../data/facts.ts';
+import { commands } from '../lib/commands.ts';
+import { type FeatureIcon, featureIcons } from '../lib/feature-icons.ts';
+import { link } from '../lib/url.ts';
+import SeriesGlyphs from './series-glyphs.astro';
+
+/** A feature card. */
+interface Feature {
+  /** The card's title. */
+  title: string;
+  /** The glyph before the title. */
+  icon: FeatureIcon;
+  /** One or two sentences. */
+  text: string;
+  /** The doc that says more, as a site path; a card without one has no link. */
+  doc?: string;
+  /** Names to list under the text. */
+  list?: readonly string[];
+  /** A command to show. */
+  command?: string;
+  /** Show the series glyphs. */
+  glyphs?: boolean;
+  /** Take two columns. */
+  wide?: boolean;
+}
+
+const features: Feature[] = [
+  {
+    title: 'Chat-built dashboards',
+    icon: 'chat',
+    text: 'The agent plans, builds and test-runs every query before you see a panel. Refine the dashboard in the same thread.',
+    doc: 'docs/dashboards/',
+  },
+  {
+    title: 'Real charts',
+    icon: 'chart',
+    text: `ECharts with the spec’s ${seriesTypes.length} series types, plus ${otherPanels.join(' and ').toLowerCase()} panels, variables and annotations.`,
+    doc: 'docs/queries-and-charts/',
+    glyphs: true,
+    wide: true,
+  },
+  {
+    title: 'Dashboard library',
+    icon: 'library',
+    text: 'Pinned dashboards are versioned and searchable by panel and query. History keeps every version, and any version can be pinned.',
+    doc: 'docs/library/',
+  },
+  {
+    title: 'Alerts',
+    icon: 'alert',
+    text: 'Written in a chat, checked on a schedule with no model. Start one from any dashboard panel.',
+    doc: 'docs/alerts/',
+  },
+  {
+    title: 'Reports',
+    icon: 'report',
+    text: 'A set of panels on a schedule, compared with the period before and sent to your channels. Each run uses no model.',
+    doc: 'docs/reports/',
+  },
+  {
+    title: 'Notifications',
+    icon: 'send',
+    text: 'Alerts and reports go to the channels you set up.',
+    doc: 'docs/notifications/',
+    list: notificationChannels.map((channel) => channel.name),
+  },
+  {
+    title: 'Ask and Explain',
+    icon: 'ask',
+    text: 'Ask questions about a pinned dashboard, or have a panel explained.',
+    doc: 'docs/ask-and-explain/',
+  },
+  {
+    title: 'Snapshots',
+    icon: 'snapshot',
+    text: 'A version frozen with its data, behind a link you can share and revoke.',
+    doc: 'docs/snapshots/',
+  },
+  {
+    title: 'Bring your own model',
+    icon: 'model',
+    text: 'Gemini and local models work through an OpenAI-compatible endpoint.',
+    doc: 'docs/models-and-usage/',
+    list: modelProviderFacts.map((provider) => provider.name),
+  },
+  {
+    title: 'Users and sign-in',
+    icon: 'people',
+    text: `Four roles: ${roleFacts.map((role) => role.name.toLowerCase()).join(', ')}. No dashboard belongs to anyone.`,
+    doc: 'docs/users-and-sign-in/',
+    list: signInProviders,
+  },
+  {
+    title: 'Plugins',
+    icon: 'plug',
+    text: 'Write a connector against @quanthea/plugin-kit and test it with its conformance suite.',
+    doc: 'docs/plugins/',
+    command: commands.createPlugin,
+  },
+];
+---
+
+<section class="container section" id="features" aria-labelledby="features-title">
+  <h2 id="features-title">Features</h2>
+  <ul class="grid">
+    {
+      features.map((feature) => (
+        <li class:list={['feature', 'card', { wide: feature.wide }]}>
+          <h3>
+            <span class="icon">
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                stroke-width="1.8"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d={featureIcons[feature.icon]} />
+              </svg>
+            </span>
+            {feature.title}
+          </h3>
+          <p>{feature.text}</p>
+          {feature.list && (
+            <ul class="names">
+              {feature.list.map((name) => (
+                <li class="mono">{name}</li>
+              ))}
+            </ul>
+          )}
+          {feature.glyphs && <SeriesGlyphs />}
+          {feature.command && <code class="command">{feature.command}</code>}
+          {feature.doc && (
+            <a class="more" href={link(feature.doc)}>
+              Read more<span class="visually-hidden"> about {feature.title.toLowerCase()}</span>
+            </a>
+          )}
+        </li>
+      ))
+    }
+  </ul>
+</section>
+
+<style>
+  .section {
+    padding-block: 72px;
+  }
+
+  h2 {
+    margin: 0 0 32px;
+    font-size: clamp(1.7rem, 3vw, 2.2rem);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .feature {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .wide {
+    grid-column: span 2;
+  }
+
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.05rem;
+    margin-bottom: 10px;
+  }
+
+  .icon {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+
+  .icon svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .feature p {
+    margin: 0;
+    color: var(--color-ink-secondary);
+    font-size: 15px;
+  }
+
+  .names {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .names li {
+    padding: 2px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface-muted);
+    font-size: 12px;
+  }
+
+  .command {
+    display: block;
+    margin-top: 14px;
+    padding: 8px 12px;
+    border-radius: var(--radius-control);
+    background: var(--color-surface-muted);
+    border: 1px solid var(--color-border);
+    font-size: 13px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .more {
+    margin-top: auto;
+    padding-top: 14px;
+    font-size: 14px;
+  }
+
+  @media (max-width: 960px) {
+    .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .wide {
+      grid-column: auto;
+    }
+  }
+</style>

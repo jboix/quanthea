@@ -4,6 +4,7 @@
  * preview's results. Nothing runs in the browser; the preview route ran the draft once and
  * stored nothing.
  */
+
 import {
   dashboardOfReport,
   type Headline,
@@ -13,6 +14,7 @@ import {
 } from '@quanthea/shared';
 import { useEffect } from 'react';
 import { useFetcher } from 'react-router';
+import { fittedNumber } from '../../ui/fitted-number.ts';
 import { FrozenCanvas } from '../dashboard/index.ts';
 import type { PreviewOutcome } from './data.ts';
 import styles from './report-draft.module.css';
@@ -53,7 +55,9 @@ function HeadlineTile({ headline }: { readonly headline: Headline }) {
   return (
     <div className={styles.headline}>
       <span className={styles.headlineTitle}>{headline.title}</span>
-      <span className={styles.headlineValue}>{headline.text}</span>
+      <span className={styles.headlineValue} style={fittedNumber(headline.text, 24)}>
+        {headline.text}
+      </span>
       {change && (
         <span className={styles.change} data-direction={change.direction}>
           {change.text}

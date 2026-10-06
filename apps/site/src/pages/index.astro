@@ -1,0 +1,38 @@
+---
+/** The landing page. */
+import Band from '../components/band.astro';
+import ConnectorWall from '../components/connector-wall.astro';
+import Features from '../components/features.astro';
+import Hero from '../components/hero.astro';
+import HowItWorks from '../components/how-it-works.astro';
+import PricingTeaser from '../components/pricing-teaser.astro';
+import RunIt from '../components/run-it.astro';
+import Security from '../components/security.astro';
+import SparkDivider from '../components/spark-divider.astro';
+import TwoLanes from '../components/two-lanes.astro';
+import Base from '../layouts/base.astro';
+import { description } from '../lib/project.ts';
+import { softwareApplication } from '../lib/structured-data.ts';
+---
+
+<Base
+  tagline="dashboards from a chat, on your own server"
+  description={description}
+  jsonLd={softwareApplication(Astro.site)}
+>
+  <Hero />
+  <Band><RunIt /></Band>
+  <HowItWorks />
+  <TwoLanes />
+  <Features />
+  <Band><ConnectorWall /></Band>
+  <Security />
+  <SparkDivider seed={4.1} />
+  <PricingTeaser />
+</Base>
+
+<script>
+  import { drawOnView } from '../scripts/motion.ts';
+
+  drawOnView(document.querySelectorAll('[data-draw]'));
+</script>

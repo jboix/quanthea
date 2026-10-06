@@ -1,0 +1,183 @@
+---
+/**
+ * A docs page: the sidebar, the search, the doc itself with its title, the table of contents
+ * from its `##` and `###` headings, and the link that edits it on GitHub.
+ */
+import type { MarkdownHeading } from 'astro';
+import '../styles/prose.css';
+import DocsSearch from '../components/docs-search.astro';
+import DocsSidebar from '../components/docs-sidebar.astro';
+import { docBreadcrumbs } from '../lib/structured-data.ts';
+import { link } from '../lib/url.ts';
+import Base from './base.astro';
+
+/** Props of a docs page. */
+interface Props {
+  /** The page's slug under `docs/`, or `undefined` for the docs index. */
+  slug?: string;
+  /** The title. */
+  title: string;
+  /** The description. */
+  description: string;
+  /** The headings of the page, for the table of contents. */
+  headings?: readonly MarkdownHeading[];
+  /** The GitHub addresses that edit the page's files. */
+  editLinks?: readonly { label: string; href: string }[];
+}
+
+const { slug, title, description, headings = [], editLinks = [] } = Astro.props;
+const breadcrumbs =
+  slug === undefined ? undefined : docBreadcrumbs(Astro.site, title, `docs/${slug}/`);
+const contents = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+---
+
+<Base
+  title={title}
+  description={description}
+  type="article"
+  current="docs"
+  {...breadcrumbs === undefined ? {} : { jsonLd: breadcrumbs }}
+>
+  <slot name="head" slot="head" />
+  <div class="container docs-shell">
+    <DocsSidebar {...slug === undefined ? {} : { current: slug }} />
+    <div class="docs-main">
+      <DocsSearch />
+      <article class="doc" data-pagefind-body>
+        <p class="crumbs" data-pagefind-ignore>
+          <a href={link('docs/')}>Docs</a>
+        </p>
+        <h1>{title}</h1>
+        <div class="prose">
+          <slot />
+        </div>
+        {
+          editLinks.length > 0 && (
+            <footer class="doc-footer" data-pagefind-ignore>
+              {editLinks.map((edit) => (
+                <a href={edit.href}>{edit.label}</a>
+              ))}
+            </footer>
+          )
+        }
+      </article>
+    </div>
+    {
+      contents.length > 0 && (
+        <nav class="toc" aria-labelledby="toc-title">
+          <h2 id="toc-title">On this page</h2>
+          <ul>
+            {contents.map((heading) => (
+              <li class={`depth-${heading.depth}`}>
+                <a href={`#${heading.slug}`}>{heading.text}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )
+    }
+  </div>
+</Base>
+
+<style>
+  .docs-shell {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 220px;
+    gap: 48px;
+    align-items: start;
+    padding-top: 32px;
+  }
+
+  .docs-main {
+    min-width: 0;
+  }
+
+  .doc h1 {
+    font-size: clamp(1.9rem, 4vw, 2.5rem);
+    margin-bottom: 24px;
+  }
+
+  .crumbs {
+    margin: 0 0 8px;
+    font-size: 14px;
+  }
+
+  .crumbs a {
+    color: var(--color-ink-secondary);
+  }
+
+  .doc-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+    font-size: 14px;
+  }
+
+  .toc {
+    position: sticky;
+    top: 88px;
+    max-height: calc(100vh - 112px);
+    overflow-y: auto;
+    font-size: 13px;
+  }
+
+  .toc h2 {
+    font-size: 13px;
+    color: var(--color-ink-secondary);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .toc ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-left: 1px solid var(--color-border);
+  }
+
+  .toc li {
+    margin: 0;
+  }
+
+  .toc a {
+    display: block;
+    padding: 3px 0 3px 12px;
+    color: var(--color-ink-secondary);
+    text-decoration: none;
+  }
+
+  .toc a:hover {
+    color: var(--color-ink);
+  }
+
+  .toc .depth-3 a {
+    padding-left: 24px;
+  }
+
+  @media (max-width: 1180px) {
+    .docs-shell {
+      grid-template-columns: 200px minmax(0, 1fr);
+    }
+
+    .toc {
+      display: none;
+    }
+  }
+
+  @media (max-width: 860px) {
+    .docs-shell {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+      padding-top: 16px;
+    }
+  }
+</style>
+
+<script>
+  import { addCopyButtons } from '../scripts/copy-code.ts';
+
+  addCopyButtons(document.querySelectorAll<HTMLPreElement>('.prose pre'));
+</script>

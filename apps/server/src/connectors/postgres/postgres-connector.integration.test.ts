@@ -157,7 +157,9 @@ describe.skipIf(!integrationEnabled)('postgres connector against the dev databas
   test('describes the tables with their comments and estimates', async () => {
     const snapshot = await reader.describe(AbortSignal.timeout(10_000));
     const orders = snapshot.entities.find((entity) => entity.name === 'orders');
-    expect(orders?.description).toBe('One row per order attempt, including failed ones.');
+    expect(orders?.description).toBe(
+      'One row per order attempt, including failed ones. total_cents is in centimes: divide by 100 for CHF.',
+    );
     expect(orders?.rowEstimate).toBeGreaterThan(50_000);
     expect(
       orders?.fields.find((field) => field.name === 'status')?.distinctEstimate,

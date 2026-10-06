@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { defaultTheme } from './theme.ts';
 import { replaceTokens, textOn, themeColors } from './tokens.ts';
 
-/** The dark scheme's colours, as `ui/theme.css` sets them. */
+/** The dark scheme's colours, as `@quanthea/tokens` sets them. */
 const darkTheme = {
   ...defaultTheme,
   palette: ['#7f9ff2', '#e8873e', '#4db3a5', '#ab82e3', '#d9ab2e', '#e46a90'],

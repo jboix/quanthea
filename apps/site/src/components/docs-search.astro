@@ -1,0 +1,43 @@
+---
+/**
+ * The docs search: Pagefind's interface over the static index the build writes to `pagefind/`.
+ */
+import { link } from '../lib/url.ts';
+---
+
+<search class="docs-search" data-bundle={link('pagefind/')}>
+  <noscript>Search needs JavaScript.</noscript>
+</search>
+
+<style>
+  .docs-search {
+    margin-bottom: 32px;
+    min-height: 48px;
+    --pagefind-ui-scale: 0.8;
+    --pagefind-ui-primary: var(--color-accent);
+    --pagefind-ui-text: var(--color-ink);
+    --pagefind-ui-background: var(--color-surface);
+    --pagefind-ui-border: var(--color-border-control);
+    --pagefind-ui-tag: var(--color-surface-muted);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: 8px;
+    --pagefind-ui-font: var(--font-sans);
+  }
+
+  .docs-search :global(.pagefind-ui__search-input::placeholder) {
+    color: var(--color-ink-secondary);
+    opacity: 1;
+  }
+
+  .docs-search :global(mark) {
+    background: var(--color-accent-soft);
+    color: var(--color-ink);
+  }
+</style>
+
+<script>
+  import { mountSearch } from '../scripts/search.ts';
+
+  const element = document.querySelector<HTMLElement>('.docs-search');
+  if (element) mountSearch(element);
+</script>

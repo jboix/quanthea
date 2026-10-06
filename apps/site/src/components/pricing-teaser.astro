@@ -1,0 +1,43 @@
+---
+/**
+ * The pricing teaser: one line and a link to the pricing page.
+ */
+import { link } from '../lib/url.ts';
+---
+
+<section class="container teaser" aria-labelledby="teaser-title">
+  <div class="card inner">
+    <div>
+      <h2 id="teaser-title">Free. You host it.</h2>
+      <p>MIT licensed, every feature included. You pay for your server and your model's tokens.</p>
+    </div>
+    <a class="button button-secondary" href={link('pricing/')}>See pricing</a>
+  </div>
+</section>
+
+<style>
+  .teaser {
+    padding-block: 32px 0;
+  }
+
+  .inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px 32px;
+    padding: 28px 32px;
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent-border);
+  }
+
+  h2 {
+    margin-bottom: 4px;
+    font-size: 1.6rem;
+  }
+
+  p {
+    margin: 0;
+    color: var(--color-ink-secondary);
+  }
+</style>

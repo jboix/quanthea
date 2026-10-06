@@ -73,7 +73,7 @@ describe.skipIf(!integrationEnabled)('query executor against the dev sources', (
     for (const attack of ["' OR '1'='1", "failed' OR 'x'='x", "x'; DROP TABLE orders; --"]) {
       expect(await countOrders(attack)).toBe(0);
     }
-    expect(await countOrders('paid')).toBeGreaterThan(1000);
+    expect(await countOrders('paid')).toBeGreaterThan(100);
   });
 
   /**

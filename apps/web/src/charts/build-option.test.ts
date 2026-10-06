@@ -170,13 +170,17 @@ describe('buildChartOption', () => {
         xAxis: t0 + 120_000,
         name: '12:02 deploy #481',
         lineStyle: { color: defaultTheme.ink },
-        label: { backgroundColor: defaultTheme.ink, color: defaultTheme.surface },
+        label: { backgroundColor: defaultTheme.ink, color: defaultTheme.surface, align: 'right' },
       },
       {
         xAxis: t0 + 180_000,
         name: '12:03 INC-12 {b} opened',
         lineStyle: { color: defaultTheme.palette[5] },
-        label: { backgroundColor: defaultTheme.palette[5], color: defaultTheme.surface },
+        label: {
+          backgroundColor: defaultTheme.palette[5],
+          color: defaultTheme.surface,
+          align: 'left',
+        },
       },
     ]);
     expect(formatWith(option, 'series.0.markLine.data.0.tooltip.formatter', {})).toBe(

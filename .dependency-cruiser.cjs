@@ -35,6 +35,9 @@ module.exports = {
           '[.]test[.]tsx?$',
           '^apps/server/src/main[.]ts$',
           '^apps/web/src/main[.]tsx$',
+          // The website's modules are imported from .astro files, which dependency-cruiser does
+          // not parse. knip, which reads .astro files, finds the unused ones.
+          '^apps/site/src/',
         ],
       },
       to: {},
@@ -43,9 +46,10 @@ module.exports = {
       name: 'not-to-unresolvable',
       severity: 'error',
       comment:
-        'Bun built-ins (bun, bun:sqlite, bun:test) are provided by the runtime, not node_modules.',
+        'Bun built-ins (bun, bun:sqlite, bun:test) are provided by the runtime, not node_modules. ' +
+        "The website's astro: modules are Astro's, and a ?raw import is a file Vite reads as text.",
       from: {},
-      to: { couldNotResolve: true, pathNot: ['^bun$', '^bun:'] },
+      to: { couldNotResolve: true, pathNot: ['^bun$', '^bun:', '^astro:', '[?]raw$'] },
     },
     {
       name: 'no-non-package-json',
@@ -130,6 +134,19 @@ module.exports = {
         dependencyTypesNot: ['type-only'],
       },
     },
+
+    {
+      name: 'tokens-is-a-leaf',
+      severity: 'error',
+      comment:
+        'packages/tokens holds the design tokens as CSS custom properties. The web app and the ' +
+        'website import it; it imports nothing.',
+      from: { path: '^packages/tokens/' },
+      to: {},
+    },
+
+    // What the website may import.
+    ...require('./scripts/arch-site-rules.cjs'),
 
     // Where the plugin kit, its contract entry, the examples and the generator may reach.
     ...require('./scripts/arch-plugin-rules.cjs'),
@@ -374,7 +391,7 @@ module.exports = {
     doNotFollow: { path: ['node_modules'] },
     // Anchored on purpose: an unanchored 'dist/' would also swallow node_modules/<pkg>/dist/*,
     // and excluded modules silently vanish from every rule.
-    exclude: { path: '^(apps|packages)/[^/]+/(dist|coverage)/' },
+    exclude: { path: '^(apps|packages)/[^/]+/(dist|coverage|[.]astro)/' },
     tsPreCompilationDeps: true,
     combinedDependencies: false,
     enhancedResolveOptions: {

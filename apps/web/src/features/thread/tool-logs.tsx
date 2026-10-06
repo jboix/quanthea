@@ -1,5 +1,6 @@
 import styles from './conversation.module.css';
 import { describeCall, shapeOf, type ToolPart, toolName } from './messages.ts';
+import { toolErrorText } from './tool-error.ts';
 
 /**
  * The explore calls of a turn, grouped: "Explored · 3 steps", one line per call.
@@ -138,7 +139,9 @@ export function BuildLog({ part }: { readonly part: ToolPart }) {
           );
         })}
         {output.ok === false && output.error && <li data-failed="true">{output.error}</li>}
-        {part.state === 'output-error' && <li data-failed="true">{part.errorText}</li>}
+        {part.state === 'output-error' && (
+          <li data-failed="true">{toolErrorText(part.errorText)}</li>
+        )}
       </ul>
     </section>
   );

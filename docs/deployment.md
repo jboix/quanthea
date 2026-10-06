@@ -6,7 +6,9 @@ keeps its state in two volumes and reads an optional configuration file.
 ## Quick start
 
 ```sh
-docker run -d --name quanthea -p 3000:3000 -v quanthea-data:/data -v quanthea-keys:/keys \
+docker run -d --name quanthea -p 3000:3000 \
+  -v quanthea-data:/data \
+  -v quanthea-keys:/keys \
   ghcr.io/jboix/quanthea
 ```
 
@@ -19,23 +21,37 @@ docker logs quanthea 2>&1 | grep password
 Sign in at <http://localhost:3000> as `admin` with that password. quanthea then asks for your own
 email and password; nothing else opens until you set them.
 
-## With Docker Compose
+## With a configuration file
 
-[`deploy/`](../deploy/) holds a starting point:
+Declare the first admin, and later the model, sources and sign-in, in a `quanthea.yaml`:
 
-- `compose.yaml`: the service, its `data` and `keys` volumes, and `quanthea.yaml` mounted
-  read-only.
-- `quanthea.yaml`: the configuration, with the first admin; a model provider, connectors and
-  sign-in providers are there to uncomment.
-- `.env.example`: the secrets the configuration refers to.
-
-```sh
-cd deploy
-cp .env.example .env    # fill in the secrets
-docker compose up -d
+```yaml
+server:
+  publicUrl: http://localhost:3000
+users:
+  admin:
+    password: ${ADMIN_PASSWORD}
 ```
 
-Then sign in at <http://localhost:3000> as `admin`, with the `ADMIN_PASSWORD` of `.env`.
+Put the secrets it refers to in a `.env` file next to it:
+
+```sh
+ADMIN_PASSWORD=choose-a-long-password
+```
+
+Then start quanthea with the file mounted:
+
+```sh
+docker run -d --name quanthea -p 3000:3000 \
+  -v quanthea-data:/data \
+  -v quanthea-keys:/keys \
+  -v ./quanthea.yaml:/etc/quanthea/quanthea.yaml:ro \
+  --env-file .env \
+  ghcr.io/jboix/quanthea
+```
+
+Sign in at <http://localhost:3000> as `admin`, with the `ADMIN_PASSWORD` of `.env`. [The
+configuration file](configuration.md) lists everything it can declare.
 
 ## The volumes
 
@@ -54,50 +70,15 @@ Give your own keys instead with `QUANTHEA_SECRET_KEY`, `QUANTHEA_SESSION_KEY` an
 `QUANTHEA_PASSWORD_PEPPER`, or their `_FILE` variants for Docker and Kubernetes secrets. A key you
 give always wins; quanthea generates only the ones you leave out.
 
-## The configuration file
+## Configure it
 
-quanthea reads `*.yaml`, `*.yml` and `*.json` files in `/etc/quanthea` (`QUANTHEA_CONFIG` names
-another file or directory). Each top-level key is a section:
+quanthea reads a configuration file from `/etc/quanthea`, and environment variables. Both are
+optional: without them, an admin sets everything up in the interface.
 
-| Section        | What it declares                                                      |
-| -------------- | --------------------------------------------------------------------- |
-| `server`       | the public URL, trusted proxies, logging                              |
-| `users`        | users by email (or `admin`): name, role, disabled, a first password   |
-| `signIn`       | sign-in providers by id, and whether passwords sign in                |
-| `connectors`   | connectors by name: kind, settings, secrets, access level, guardrails |
-| `model`        | the model gateway: providers, their keys, limits                      |
-| `retention`    | how long deleted threads stay in the bin                              |
-| `charts`       | chart recipes switched off                                            |
-| `queries`      | query builders switched off, and saved queries                        |
-| `provisioning` | `prune: true` deletes what the file no longer declares                |
-| `plugins`      | the plugins directory, the pin of each plugin, unpinned plugins       |
-
-[`configuration.schema.json`](configuration.schema.json) describes every field. Editors that
-read `# yaml-language-server: $schema=…` complete and check the file as you type.
-
-### Secrets
-
-A secret is never written in the file. Each one is a whole reference:
-
-- `"${NAME}"`: the environment variable `NAME`. Quote it inside `{ }`, where YAML would read it
-  otherwise.
-- `file:/run/secrets/name`: a file, such as a Docker or Kubernetes secret.
-
-quanthea refuses a secret written in clear, and no message ever quotes one.
-
-### What the file manages
-
-What the file declares is read-only in the interface, with a badge naming the file; what it
-leaves out stays editable there. A connector's descriptions stay editable unless the file
-declares them.
-
-Remove an item from the file and it stays, editable again in the interface. With
-`provisioning: { prune: true }`, quanthea deletes it instead (a user is disabled).
-
-### Changes
-
-quanthea reads the file at startup. Restart it to apply a change, to the file or to a secret it
-refers to. A file with a mistake stops quanthea with every issue listed, and nothing is applied.
+- [The configuration file](configuration.md) declares the server settings, users, sign-in, data
+  sources, the model, retention, queries, charts and plugins, with secrets as references.
+- [Environment variables](environment.md) lists every variable: the public URL, the ports and
+  directories, logging, and the three keys.
 
 ## Accounts and sign-in
 
@@ -125,12 +106,6 @@ docker exec quanthea quanthea reset-admin
   HSTS.
 - Set `server.trustedProxyHops` to the number of proxies that add to `X-Forwarded-For`, so the
   sign-in throttle sees the real address.
-
-## Settings → Server
-
-Every system setting shows there with its value and where it comes from: a variable, the file or
-the default. A variable wins over the file, and the file over the default. Keys show only where
-they come from.
 
 ## Connector plugins
 

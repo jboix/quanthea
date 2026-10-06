@@ -36,11 +36,30 @@ Markdown.
 | --------------------- | ------------------------------------------------------------------------- |
 | `apps/server`         | `@quanthea/server`: Bun + Hono API, SQLite, serves the built SPA          |
 | `apps/web`            | `@quanthea/web`: React SPA, React Router in data mode, Vite               |
+| `apps/site`           | `@quanthea/site`: the website, with these docs, built by Astro            |
 | `packages/shared`     | `@quanthea/shared`: API contracts and roles, imported by both apps        |
 | `packages/plugin-kit` | `@quanthea/plugin-kit`: the connector kit, for built-in kinds and plugins |
+| `packages/tokens`     | `@quanthea/tokens`: the design tokens, for the web app and the website    |
 | `examples/`           | example connector plugins, such as `quanthea-plugin-sqlite`               |
 | `dev`                 | `@quanthea/dev`: the local data sources and the synthetic metrics         |
-| `docs`                | Architecture, dashboard spec, brand, contributing, security               |
+| `docs`                | Architecture, specs, configuration, the user guide, brand, security       |
+
+## Website
+
+`apps/site` is the website: the landing page, pricing, and the user docs of `docs/`, read in
+place. The list of published docs is `publishedDocs` in `apps/site/src/lib/doc-paths.ts`; any
+other file in `docs/` is never read, and links to it go to GitHub.
+`bun run site:dev` serves it on port 4321 and reloads as you edit a doc; `bun run site:build`
+builds it, indexes the docs for search, and checks every internal link and every page's head.
+`GEMINI_API_KEY=… bun run screenshots` takes the docs' screenshots, each in the light and the
+dark scheme, on the dev data (`bun run env:up`). Its first run fills a scratch instance through the
+agent; later runs reuse it, so retaking the shots after a change to the interface costs no model
+call.
+Product facts the site states (sources, channels, models, chart types) live in
+`apps/site/src/data/facts.ts`, and a test compares them with the code.
+
+The Website workflow deploys it to GitHub Pages. The repository's Pages source must be set to
+"GitHub Actions" once, in Settings → Pages.
 
 ## Local data sources
 

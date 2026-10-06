@@ -1,0 +1,48 @@
+---
+/** The plugins page: the READMEs of the plugin generator and the plugin kit, rendered in place. */
+import { getCollection, render } from 'astro:content';
+import Docs from '../../layouts/docs.astro';
+import { pluginsSlug } from '../../lib/doc-paths.ts';
+import { docTitle } from '../../lib/doc-text.ts';
+import { docPages } from '../../lib/docs-content.ts';
+import { githubEditUrl } from '../../lib/project.ts';
+
+const page = (await docPages()).find((candidate) => candidate.slug === pluginsSlug);
+if (page === undefined) throw new Error('The plugins page has no content.');
+const entries = await getCollection('pluginReadmes');
+const sections = await Promise.all(
+  page.sources.map(async (source) => {
+    const entry = entries.find((candidate) => source.repoPath.includes(`/${candidate.id}/`));
+    if (entry === undefined) throw new Error(`${source.repoPath} is missing.`);
+    const rendered = await render(entry);
+    const title = docTitle(source.markdown) ?? entry.id;
+    return { ...rendered, title, id: entry.id };
+  }),
+);
+const headings = sections.flatMap((section) => [
+  { depth: 2, slug: section.id, text: section.title },
+  ...section.headings.map((heading) => ({ ...heading, depth: heading.depth + 1 })),
+]);
+const editLinks = page.sources.map((source) => ({
+  label: `Edit ${source.repoPath} on GitHub`,
+  href: githubEditUrl(source.repoPath),
+}));
+---
+
+<Docs
+  slug={page.slug}
+  title={page.title}
+  description={page.description}
+  headings={headings}
+  editLinks={editLinks}
+>
+  <p>{page.description}</p>
+  {
+    sections.map(({ Content, title, id }) => (
+      <section class="readme">
+        <h2 id={id}>{title}</h2>
+        <Content />
+      </section>
+    ))
+  }
+</Docs>

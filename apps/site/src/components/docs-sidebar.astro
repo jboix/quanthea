@@ -1,0 +1,67 @@
+---
+/**
+ * The docs sidebar. On narrow screens it folds into a menu above the doc.
+ */
+import { docLabel } from '../lib/docs-nav.ts';
+import DocsNavList from './docs-nav-list.astro';
+
+/** Props of the sidebar. */
+interface Props {
+  /** The slug of the page shown. */
+  current?: string;
+}
+
+const { current } = Astro.props;
+const currentLabel = current === undefined ? undefined : docLabel(current);
+---
+
+<details class="docs-menu">
+  <summary>{currentLabel ?? 'Docs'} <span class="hint">· all docs</span></summary>
+  <nav aria-label="Docs, compact">
+    <DocsNavList current={current} />
+  </nav>
+</details>
+
+<nav class="docs-sidebar" aria-label="Docs">
+  <DocsNavList current={current} />
+</nav>
+
+<style>
+  .docs-sidebar {
+    position: sticky;
+    top: 88px;
+    font-size: 14px;
+  }
+
+  .docs-menu {
+    display: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+  }
+
+  .docs-menu summary {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  .docs-menu .hint {
+    color: var(--color-ink-secondary);
+    font-weight: 400;
+  }
+
+  .docs-menu nav {
+    padding: 4px 14px 14px 24px;
+  }
+
+  @media (max-width: 860px) {
+    .docs-sidebar {
+      display: none;
+    }
+
+    .docs-menu {
+      display: block;
+    }
+  }
+</style>

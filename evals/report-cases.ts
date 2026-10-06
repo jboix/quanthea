@@ -1,9 +1,8 @@
 /**
  * The report cases: a report conversation about the dev data's orders, and questions about the run
- * it made. The dev Postgres holds an order attempt per second from yesterday 04:02 UTC on, with the
- * checkout incident (deploy #481 of checkout-svc, yesterday at 12:02 UTC) failing many of them for
- * 36 minutes. So the cases report on yesterday, the one full day of data. Each says what a good
- * report or answer holds.
+ * it made. The dev Postgres holds 60 days of a shop's orders, with the checkout incident (deploy
+ * #481 of checkout-svc, yesterday at 12:02 UTC) failing many of them for 36 minutes. The cases
+ * report on yesterday, compared with the day before. Each says what a good report or answer holds.
  */
 import type { AccessLevel, ReportPeriod, Weekday } from '@quanthea/shared';
 import { incidentHour, zurich } from './questions.ts';

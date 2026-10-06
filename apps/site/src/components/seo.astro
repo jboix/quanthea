@@ -1,0 +1,64 @@
+---
+/**
+ * The head tags every page shares: title, description, canonical address, OpenGraph and Twitter
+ * cards, the theme colours of both schemes and the sitemap. Every layout renders it once.
+ */
+import ogImage from '../../../../docs/brand/quanthea-logo-preview.png';
+import { jsonLdText } from '../lib/structured-data.ts';
+import { tokenValue } from '../lib/token-values.ts';
+import { absoluteLink } from '../lib/url.ts';
+
+/** Props of the head tags. */
+interface Props {
+  /** The page's title, without the site name. Omitted on the home page. */
+  title?: string;
+  /** What the home page's title says after the site name. */
+  tagline?: string;
+  /** One or two sentences, about 155 characters. */
+  description: string;
+  /** `website` for the home page, `article` for a doc. */
+  type?: 'website' | 'article';
+  /** The page's path when it is served at another address than its URL, such as `404.html`. */
+  servedAt?: string;
+  /** The page's structured data, as a schema.org JSON-LD object. */
+  jsonLd?: Record<string, unknown>;
+}
+
+const { title, tagline, description, type = 'website', servedAt, jsonLd } = Astro.props;
+const fullTitle = title === undefined ? `quanthea · ${tagline ?? ''}` : `${title} · quanthea`;
+const canonical =
+  servedAt === undefined
+    ? new URL(Astro.url.pathname, Astro.site).href
+    : absoluteLink(servedAt, Astro.site);
+const image = new URL(ogImage.src, Astro.site).href;
+---
+
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+{servedAt !== undefined && <meta name="robots" content="noindex" />}
+<link rel="sitemap" href={absoluteLink('sitemap-index.xml', Astro.site)} />
+<meta
+  name="theme-color"
+  media="(prefers-color-scheme: light)"
+  content={tokenValue('--color-ground', 'light')}
+/>
+<meta
+  name="theme-color"
+  media="(prefers-color-scheme: dark)"
+  content={tokenValue('--color-ground', 'dark')}
+/>
+<meta property="og:site_name" content="quanthea" />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+<meta property="og:type" content={type} />
+<meta property="og:image" content={image} />
+<meta property="og:image:width" content={String(ogImage.width)} />
+<meta property="og:image:height" content={String(ogImage.height)} />
+<meta property="og:image:alt" content="The quanthea logo on light and dark grounds" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={fullTitle} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={image} />
+{jsonLd && <script type="application/ld+json" set:html={jsonLdText(jsonLd)} />}
