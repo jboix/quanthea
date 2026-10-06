@@ -3,6 +3,7 @@
  * On a custom domain the site sits at the root (`/`); as a project page it sits under `/quanthea`.
  */
 import { fileURLToPath } from 'node:url';
+import { unified } from '@astrojs/markdown-remark';
 import sitemap from '@astrojs/sitemap';
 import { defineConfig, passthroughImageService } from 'astro/config';
 import { brandIcons } from './src/lib/brand-icons.ts';
@@ -30,6 +31,9 @@ export default defineConfig({
   // Images are copied as they are: no image service runs at build time or on demand.
   image: { service: passthroughImageService() },
   devToolbar: { enabled: false },
+  // Astro 7 strips whitespace between inline elements by JSX rules; the pages are written for
+  // HTML's, where a line break between two inline elements is a space.
+  compressHTML: true,
   // Mermaid's chunks are large; they load only on a doc page that has a diagram.
   vite: { build: { chunkSizeWarningLimit: 700 } },
   integrations: [
@@ -40,10 +44,14 @@ export default defineConfig({
     // Mermaid blocks stay as code; the docs layout draws them in the browser.
     syntaxHighlight: { type: 'shiki', excludeLangs: ['mermaid'] },
     shikiConfig: { themes: { light: 'github-light', dark: 'github-dark' }, defaultColor: false },
-    remarkPlugins: [
-      [remarkDocTitle, { demote: ['/packages/'] }],
-      [remarkDocLinks, { base, repoRoot }],
-      remarkSchemeImages,
-    ],
+    // The docs' links, titles and scheme images are remark plugins, so the docs keep the
+    // remark pipeline rather than Astro 7's own Markdown processor.
+    processor: unified({
+      remarkPlugins: [
+        [remarkDocTitle, { demote: ['/packages/'] }],
+        [remarkDocLinks, { base, repoRoot }],
+        remarkSchemeImages,
+      ],
+    }),
   },
 });

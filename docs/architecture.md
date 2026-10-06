@@ -3246,18 +3246,21 @@ deliberate breaking release, with `kitVersion` set to 1.
 ### The website
 
 The Website workflow (`.github/workflows/site.yml`) builds `apps/site` and deploys it to GitHub
-Pages, on a push to `main` that touches the site, `docs/`, the tokens or `packages/shared`, on
-each release, and on demand. The site is static: its pages, the user docs read from `docs/` in
-place (getting started, deployment, the configuration file and the environment variables, the
-user guide and the administration pages of `docs/guide/`, connectors, and the plugin packages'
-READMEs; the specs, the internals and the project's policies stay on GitHub), the Pagefind search index, the sitemap, `robots.txt` and the `llms.txt` files are all built from
-the repository. A doc's screenshots come in pairs, `<name>-light.webp` and `<name>-dark.webp`,
+Pages, on a push to `main` that touches the site, `docs/`, the tokens or `packages/shared`, on each
+release, and on demand. The site is static: its pages, the user docs read from `docs/` in place
+(getting started, deployment, the configuration file and the environment variables, the user guide
+and the administration pages of `docs/guide/`, connectors, and the plugin packages' READMEs; the
+specs, the internals and the project's policies stay on GitHub), the Pagefind search index, the sitemap, `robots.txt` and the `llms.txt` files are all built
+from the repository. The site runs on Astro 7 with the remark pipeline (`@astrojs/markdown-remark`)
+rather than Astro's own Markdown processor, since the docs' links, titles and scheme images are
+remark plugins. A doc's screenshots come in pairs, `<name>-light.webp` and `<name>-dark.webp`,
 marked with GitHub's `#gh-light-mode-only` and `#gh-dark-mode-only`; the site's
-`remark-scheme-images.ts` turns the marks into the classes that show each in its scheme.
-`bun run screenshots` (`dev/screenshots/`) takes them: it starts an instance on the dev data, fills
-it through the real agent once, and shoots every screen in both schemes. The site's address and
-base path are the ones GitHub Pages gives (`actions/configure-pages`): the custom domain set in
-Settings → Pages, else the repository's path; the `SITE_URL` and `SITE_BASE` repository variables
-override them. Pull requests deploy nothing. The build fails on a broken internal link, a page without a unique title, description,
-canonical address or OpenGraph tags, or a product fact (`apps/site/src/data/facts.ts`) that no
-longer matches the connector and channel registries and the allowed series types.
+`remark-scheme-images.ts` turns the marks into the classes that show each in its scheme. `bun run
+screenshots` (`dev/screenshots/`) takes them: it starts an instance on the dev data, fills it
+through the real agent once, and shoots every screen in both schemes. The site's address and base
+path are the ones GitHub Pages gives (`actions/configure-pages`): the custom domain set in Settings
+→ Pages, else the repository's path; the `SITE_URL` and `SITE_BASE` repository variables override
+them. Pull requests deploy nothing. The build fails on a broken internal link, a page without a
+unique title, description, canonical address or OpenGraph tags, or a product fact
+(`apps/site/src/data/facts.ts`) that no longer matches the connector and channel registries and the
+allowed series types.
