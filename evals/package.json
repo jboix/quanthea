@@ -8,10 +8,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^4.0.18",
+    "@ai-sdk/provider": "^4.0.22",
     "@quanthea/dev": "workspace:*",
     "@quanthea/server": "workspace:*",
     "@quanthea/shared": "workspace:*",
-    "ai": "^7.0.118"
+    "ai": "^7.0.127"
   }
 }
