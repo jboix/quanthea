@@ -52,6 +52,8 @@ place. The list of published docs is `publishedDocs` in `apps/site/src/lib/doc-p
 other file in `docs/` is never read, and links to it go to GitHub.
 `bun run site:dev` serves it on port 4321 and reloads as you edit a doc; `bun run site:build`
 builds it, indexes the docs for search, and checks every internal link and every page's head.
+`bun run site:preview` then serves the build on port 4321 as GitHub Pages does: the search works,
+a folder without its final slash redirects to it, and a missing page gets the site's 404.
 `GEMINI_API_KEY=… bun run screenshots` takes the docs' screenshots, each in the light and the
 dark scheme, on the dev data (`bun run env:up`). Its first run fills a scratch instance through the
 agent; later runs reuse it, so retaking the shots after a change to the interface costs no model

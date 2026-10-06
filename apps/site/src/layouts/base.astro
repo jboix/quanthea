@@ -74,7 +74,16 @@ const { title, tagline, description, type, current, servedAt, jsonLd } = Astro.p
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
-    <SiteHeader {...current === undefined ? {} : { current }} />
+    {
+      Astro.slots.has('header-search') ? (
+        <SiteHeader {...(current === undefined ? {} : { current })}>
+          <slot name="header-search" slot="search" />
+          <slot name="header-menu" slot="menu" />
+        </SiteHeader>
+      ) : (
+        <SiteHeader {...(current === undefined ? {} : { current })} />
+      )
+    }
     <main id="main">
       <slot />
     </main>

@@ -48,6 +48,7 @@ bun run check:package  # build the publishable plugin kit, check it, and build a
 bun run start        # run the server, serving the built SPA
 bun run site:dev     # the website (apps/site) on :4321, reading the docs in place
 bun run site:build   # build the website into apps/site/dist
+bun run site:preview # serve the built website on :4321 as GitHub Pages does, search included
 GEMINI_API_KEY=… bun run demo  # the demo: the built app on the dev data, with Gemini, state in .demo/
 GEMINI_API_KEY=… bun run screenshots  # the docs' screenshots, light and dark, on the dev data
 ```

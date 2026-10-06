@@ -4,8 +4,6 @@
  * plot area: horizontal gridlines with their values, a time axis, and a faint series that passes a
  * deploy marker.
  */
-import logoOnLight from '../../../../docs/brand/quanthea-logo.svg';
-import logoOnDark from '../../../../docs/brand/quanthea-logo-dark.svg';
 import { smoothAreaPath, smoothPath, sparkValues } from '../lib/chart-geometry.ts';
 import { link } from '../lib/url.ts';
 import FlowMock from './flow-mock.astro';
@@ -44,10 +42,6 @@ const area = smoothAreaPath(values, plot, [0, 1.4]);
   </div>
   <div class="container layout">
     <div class="copy">
-      <p class="brand">
-        <img class="logo on-light" src={logoOnLight.src} alt="quanthea" width="226" height="56" />
-        <img class="logo on-dark" src={logoOnDark.src} alt="quanthea" width="226" height="56" />
-      </p>
       <h1 id="hero-title">
         <span class="visually-hidden">
           Describe a dashboard, an alert or a report. Let the agent build it.
@@ -166,16 +160,6 @@ const area = smoothAreaPath(values, plot, [0, 1.4]);
     align-items: start;
   }
 
-  .brand {
-    margin: 0 0 28px;
-  }
-
-  .logo {
-    display: block;
-    height: 56px;
-    width: auto;
-  }
-
   h1 {
     font-size: clamp(2.3rem, 4.6vw, 3.5rem);
     line-height: 1.08;
@@ -263,10 +247,6 @@ const area = smoothAreaPath(values, plot, [0, 1.4]);
     .layout {
       grid-template-columns: minmax(0, 1fr);
       gap: 40px;
-    }
-
-    .logo {
-      height: 44px;
     }
 
     /* On one column the copy covers the plot: keep the gridlines, drop what would cross it. */

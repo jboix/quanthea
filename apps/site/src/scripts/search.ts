@@ -48,3 +48,35 @@ export async function mountSearch(element: HTMLElement): Promise<void> {
     element.textContent = 'Search works on the built site (bun run site:build).';
   }
 }
+
+/**
+ * Opens or closes the search over the page, on a narrow screen: it marks the host, locks the
+ * page's scroll, and moves focus to the input, or back to the magnifier.
+ *
+ * @param host - The element around the toggle and the search.
+ * @param open - Whether to open it.
+ */
+function setOpen(host: HTMLElement, open: boolean): void {
+  const toggle = host.querySelector<HTMLButtonElement>('[data-search-open]');
+  const panel = host.querySelector<HTMLElement>('.search-panel');
+  host.dataset.open = String(open);
+  toggle?.setAttribute('aria-expanded', String(open));
+  panel?.setAttribute('role', open ? 'dialog' : 'none');
+  panel?.setAttribute('aria-label', 'Search the docs');
+  document.documentElement.style.overflow = open ? 'hidden' : '';
+  if (open) host.querySelector<HTMLInputElement>('.pagefind-ui__search-input')?.focus();
+  else toggle?.focus();
+}
+
+/**
+ * Wires the magnifier and Cancel of the search, and Escape to close it.
+ *
+ * @param host - The element around the toggle and the search.
+ */
+export function wireSearchToggle(host: HTMLElement): void {
+  host.querySelector('[data-search-open]')?.addEventListener('click', () => setOpen(host, true));
+  host.querySelector('[data-search-close]')?.addEventListener('click', () => setOpen(host, false));
+  host.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && host.dataset.open === 'true') setOpen(host, false);
+  });
+}

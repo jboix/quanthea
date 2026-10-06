@@ -1,12 +1,335 @@
 ---
-/** The page GitHub Pages serves for any path the site does not have. */
+/**
+ * The page GitHub Pages serves for any path the site does not have: "Oops", "Nothing here" and a
+ * small link home, over a dashboard with nothing in it that fills the page. Every chart is empty
+ * and neutral: a live line flat on zero, its time axis drifting as time passes, bars drawn as
+ * dashed outlines, and a donut that counts 0 pages. Under reduced motion the axis stands still.
+ */
 import Base from '../layouts/base.astro';
 import { link } from '../lib/url.ts';
+
+/** The chart's levels, top first. */
+const levels = ['100', '75', '50', '25', ''];
+
+/** Where the zero line lies, in percent from the top: the levels share the height above it. */
+const floor = 85;
+
+/** The time axis: two hours in quarters, written twice so the drifting axis loops seamlessly. */
+const quarters = Array.from({ length: 12 }, (_, index) => {
+  const minutes = 13 * 60 + index * 15;
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
+});
+const ticks = [...quarters, ...quarters];
+
+/** The empty bars' heights, in percent of the plot's height above zero. */
+const bars = [38, 54, 46, 62, 30, 50, 42, 58];
 ---
 
 <Base title="Page not found" description="No page lives at this address." servedAt="404.html">
-  <div class="container">
-    <h1>No data for this path</h1>
-    <p><a href={link()}>Home</a></p>
-  </div>
+  <section class="nothing" aria-labelledby="nothing-title">
+    <div class="plot" aria-hidden="true">
+      <ol class="levels">
+        {
+          levels.map((level, index) => (
+            <li style={`top: ${(index * floor) / (levels.length - 1)}%`}>
+              <span class="mono">{level}</span>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="bars">
+        {bars.map((height) => <span style={`height: ${(height * floor) / 100}%`}></span>)}
+      </div>
+      <div class="donut">
+        <svg viewBox="0 0 120 120" width="148" height="148" aria-hidden="true">
+          <circle cx="60" cy="60" r="46"></circle>
+        </svg>
+        <span class="donut-value mono">0</span>
+        <span class="donut-label">pages</span>
+      </div>
+      <div class="baseline"></div>
+      <span class="live mono"><span class="pulse"></span>live · 0 req/min</span>
+      <div class="axis">
+        <div class="axis-track">{ticks.map((tick) => <span class="mono">{tick}</span>)}</div>
+      </div>
+    </div>
+    <div class="container copy">
+      <p class="oops">Oops. <span class="code mono">404</span></p>
+      <h1 id="nothing-title">Nothing here</h1>
+      <a class="home-link" href={link()}>
+        <svg
+          viewBox="0 0 16 16"
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M13 8H3 M6.5 4.5 3 8l3.5 3.5"></path>
+        </svg>
+        Back to home
+      </a>
+    </div>
+  </section>
 </Base>
+
+<style>
+  /* The page is an empty dashboard: its charts fill the page, the words sit over them. */
+  .nothing {
+    --ghost: color-mix(in srgb, var(--color-ink-secondary) 45%, transparent);
+    --floor: 85%;
+
+    position: relative;
+    min-height: calc(100dvh - 64px - 120px);
+    overflow: hidden;
+  }
+
+  .plot {
+    position: absolute;
+    inset: 0;
+    color: var(--color-ink-secondary);
+    mask-image: linear-gradient(to bottom, black 88%, transparent);
+  }
+
+  .levels {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Each level at its height, set inline, so the last one is the zero line itself. */
+  .levels li {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .levels span {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 11px;
+    opacity: 0.75;
+  }
+
+  /* Bars with nothing in them: dashed outlines standing on zero, on the right of the page. */
+  .bars {
+    position: absolute;
+    right: 6%;
+    bottom: calc(100% - var(--floor));
+    left: 52%;
+    display: flex;
+    align-items: flex-end;
+    gap: 3%;
+    height: var(--floor);
+  }
+
+  .bars span {
+    flex: 1;
+    border: 1.5px dashed var(--ghost);
+    border-bottom: 0;
+    border-radius: 4px 4px 0 0;
+  }
+
+  /* A donut with no slices: a plain, faint ring that counts 0 pages. */
+  .donut {
+    position: absolute;
+    top: 8%;
+    right: 9%;
+    display: grid;
+    place-items: center;
+    width: 148px;
+    height: 148px;
+  }
+
+  .donut svg {
+    position: absolute;
+    inset: 0;
+  }
+
+  .donut circle {
+    fill: none;
+    stroke: color-mix(in srgb, var(--color-ink-secondary) 22%, transparent);
+    stroke-width: 12;
+  }
+
+  .donut-value {
+    margin-top: -14px;
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .donut-label {
+    position: absolute;
+    top: 60%;
+    font-size: 12px;
+  }
+
+  /* The only series: nothing, along zero. */
+  .baseline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: var(--floor);
+    border-top: 2px dashed var(--ghost);
+  }
+
+  .live {
+    position: absolute;
+    top: calc(var(--floor) - 28px);
+    right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-ink-secondary);
+  }
+
+  /* The time axis drifts left as time passes: the chart is live, and nothing arrives. */
+  .axis {
+    position: absolute;
+    top: calc(var(--floor) + 10px);
+    left: 0;
+    right: 0;
+    overflow: hidden;
+    font-size: 11px;
+    opacity: 0.75;
+  }
+
+  .axis-track {
+    display: flex;
+    width: 200%;
+  }
+
+  .axis-track span {
+    flex: 1;
+    padding-left: 8px;
+  }
+
+  :global(:root[data-motion="on"]) .axis-track {
+    animation: drift 90s linear infinite;
+  }
+
+  :global(:root[data-motion="on"]) .pulse {
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes drift {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes pulse {
+    50% {
+      opacity: 0.25;
+    }
+  }
+
+  .copy {
+    position: relative;
+    padding-top: 88px;
+  }
+
+  .oops {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 6px;
+    color: var(--color-ink-secondary);
+    font-size: clamp(1.4rem, 2.6vw, 1.9rem);
+    font-weight: 600;
+  }
+
+  /* The status as the app shows a failure: a filled pill in the danger colours. */
+  .code {
+    padding: 2px 12px;
+    border-radius: var(--radius-pill);
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
+    font-size: 0.6em;
+    font-weight: 600;
+  }
+
+  h1 {
+    margin-bottom: 24px;
+    font-size: clamp(2.8rem, 6.4vw, 4.4rem);
+    letter-spacing: -0.025em;
+  }
+
+  /* A quiet way back, small and rounded rather than a large button. */
+  .home-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--color-border-control);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .home-link:hover {
+    border-color: var(--color-ink-secondary);
+  }
+
+  /* On a narrow screen the words take the width: the bars stand on the left, rising behind the
+     words, a smaller donut sits on the right under the title, and the values keep to the right
+     edge. */
+  @media (max-width: 860px) {
+    /* The values move to the right edge, clear of the words on the left. */
+    .levels li {
+      text-align: right;
+    }
+
+    .donut {
+      top: 36%;
+      right: 16%;
+      width: 104px;
+      height: 104px;
+    }
+
+    .donut svg {
+      width: 104px;
+      height: 104px;
+    }
+
+    .donut-value {
+      margin-top: -10px;
+      font-size: 24px;
+    }
+
+    .donut-label {
+      font-size: 11px;
+    }
+
+    .bars {
+      left: 4%;
+      right: 46%;
+      height: calc(var(--floor) * 0.6);
+    }
+
+    .axis-track span:nth-child(even) {
+      visibility: hidden;
+    }
+
+    .copy {
+      padding-top: 56px;
+    }
+  }
+</style>

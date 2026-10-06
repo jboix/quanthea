@@ -5,7 +5,6 @@ import Docs from '../../layouts/docs.astro';
 import { pluginsSlug } from '../../lib/doc-paths.ts';
 import { docTitle } from '../../lib/doc-text.ts';
 import { docPages } from '../../lib/docs-content.ts';
-import { githubEditUrl } from '../../lib/project.ts';
 
 const page = (await docPages()).find((candidate) => candidate.slug === pluginsSlug);
 if (page === undefined) throw new Error('The plugins page has no content.');
@@ -23,10 +22,6 @@ const headings = sections.flatMap((section) => [
   { depth: 2, slug: section.id, text: section.title },
   ...section.headings.map((heading) => ({ ...heading, depth: heading.depth + 1 })),
 ]);
-const editLinks = page.sources.map((source) => ({
-  label: `Edit ${source.repoPath} on GitHub`,
-  href: githubEditUrl(source.repoPath),
-}));
 ---
 
 <Docs
@@ -34,7 +29,6 @@ const editLinks = page.sources.map((source) => ({
   title={page.title}
   description={page.description}
   headings={headings}
-  editLinks={editLinks}
 >
   <p>{page.description}</p>
   {

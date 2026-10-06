@@ -15,6 +15,7 @@
     "dev": "bun run --filter @quanthea/server --filter @quanthea/web dev",
     "site:dev": "bun run --filter @quanthea/site dev",
     "site:build": "bun run --filter @quanthea/site build",
+    "site:preview": "bun run --filter @quanthea/site preview",
     "build": "bun run --filter @quanthea/web build",
     "check:package": "bun packages/plugin-kit/scripts/dist.ts && publint packages/plugin-kit/dist && attw --pack packages/plugin-kit/dist --profile esm-only --format table-flipped --no-emoji --no-summary && bun packages/plugin-kit/scripts/consumer.ts && bun packages/create-plugin/scripts/dist.ts && publint packages/create-plugin/dist && bun packages/create-plugin/scripts/generated.ts",
     "start": "bun apps/server/src/main.ts",

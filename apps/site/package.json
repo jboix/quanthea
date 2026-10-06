@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build && pagefind --site dist && bun scripts/check-links.ts && bun scripts/check-meta.ts",
-    "preview": "astro preview",
+    "preview": "bun scripts/preview.ts",
     "typecheck": "astro check && tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {

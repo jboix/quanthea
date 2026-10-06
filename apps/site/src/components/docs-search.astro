@@ -1,19 +1,49 @@
 ---
 /**
- * The docs search: Pagefind's interface over the static index the build writes to `pagefind/`.
+ * The docs search, in the header of every doc page: Pagefind's interface over the static index
+ * the build writes to `pagefind/`. On a wide screen the box sits in the header. On a narrow one
+ * the header shows a magnifier, which opens the search over the whole page, with Cancel.
  */
 import { link } from '../lib/url.ts';
 ---
 
-<search class="docs-search" data-bundle={link('pagefind/')}>
-  <noscript>Search needs JavaScript.</noscript>
-</search>
+<div class="search-host" data-search-host>
+  <button
+    type="button"
+    class="search-toggle"
+    aria-label="Search the docs"
+    aria-expanded="false"
+    aria-controls="docs-search-panel"
+    data-search-open
+  >
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      aria-hidden="true"
+    >
+      <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M16.2 16.2 21 21"></path>
+    </svg>
+  </button>
+  <div class="search-panel" id="docs-search-panel">
+    <search class="docs-search" data-bundle={link('pagefind/')}>
+      <noscript>Search needs JavaScript.</noscript>
+    </search>
+    <button type="button" class="search-cancel" data-search-close>Cancel</button>
+  </div>
+</div>
 
 <style>
+  /* A compact search in the header; its results open in a panel under it, over the page. */
   .docs-search {
-    margin-bottom: 32px;
-    min-height: 48px;
-    --pagefind-ui-scale: 0.8;
+    position: relative;
+    display: block;
+    min-height: 40px;
+    --pagefind-ui-scale: 0.7;
     --pagefind-ui-primary: var(--color-accent);
     --pagefind-ui-text: var(--color-ink);
     --pagefind-ui-background: var(--color-surface);
@@ -24,20 +54,181 @@ import { link } from '../lib/url.ts';
     --pagefind-ui-font: var(--font-sans);
   }
 
+  .docs-search :global(.pagefind-ui__search-input) {
+    padding-right: 40px;
+    font-size: 15px;
+    font-weight: 400;
+  }
+
   .docs-search :global(.pagefind-ui__search-input::placeholder) {
     color: var(--color-ink-secondary);
     opacity: 1;
   }
 
-  .docs-search :global(mark) {
-    background: var(--color-accent-soft);
+  /* Clear is a cross: the word stays for screen readers, the eye sees the glyph. */
+  /* Pinned to the input's middle (about 40 px high), not the form's: the form holds the results. */
+  .docs-search :global(.pagefind-ui__search-clear) {
+    top: 6px;
+    right: 6px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-ink-secondary);
+    font-size: 0;
+  }
+
+  .docs-search :global(.pagefind-ui__search-clear::before) {
+    content: '';
+    display: block;
+    width: 14px;
+    height: 14px;
+    margin: auto;
+    background: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 3.5l9 9M12.5 3.5l-9 9' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+
+  .docs-search :global(.pagefind-ui__search-clear:hover),
+  .docs-search :global(.pagefind-ui__search-clear:focus-visible) {
+    background: var(--color-surface-muted);
     color: var(--color-ink);
+  }
+
+  .docs-search :global(.pagefind-ui__drawer:not(.pagefind-ui__hidden)) {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 20;
+    width: min(600px, calc(100vw - 32px));
+    max-height: min(70vh, 640px);
+    overflow: auto;
+    padding: 12px 20px 20px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    box-shadow: 0 18px 48px -18px color-mix(in srgb, var(--color-ink) 45%, transparent);
+  }
+
+  /* The scale keeps the box compact; the results keep reading sizes. Pagefind's own rules load
+     later with the same weight, so these name the results list too. */
+  .docs-search :global(.pagefind-ui__message) {
+    font-size: 13px;
+    color: var(--color-ink-secondary);
+  }
+
+  .docs-search :global(.pagefind-ui__results .pagefind-ui__result-title) {
+    font-size: 16px;
+  }
+
+  .docs-search :global(.pagefind-ui__results .pagefind-ui__result-excerpt) {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--color-ink-secondary);
+  }
+
+  /* A hit reads at a glance in both schemes: a tint of the accent, underlined with it. */
+  .docs-search :global(mark) {
+    padding: 0 2px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+    box-shadow: inset 0 -2px 0 var(--color-accent);
+    color: var(--color-ink);
+    font-weight: 600;
+  }
+  .search-toggle,
+  .search-cancel {
+    display: none;
+  }
+
+  .search-toggle {
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+    background: var(--color-surface);
+    color: var(--color-ink-secondary);
+    cursor: pointer;
+  }
+
+  .search-toggle:hover {
+    color: var(--color-ink);
+    border-color: var(--color-border-control);
+  }
+
+  .search-cancel {
+    padding: 8px 4px 8px 12px;
+    border: 0;
+    background: none;
+    color: var(--color-accent);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  /* Narrow: a magnifier in the header; open, the search covers the page under its own bar. */
+  @media (max-width: 860px) {
+    .search-toggle {
+      display: inline-grid;
+    }
+
+    .search-panel {
+      display: none;
+    }
+
+    /* The header's backdrop filter makes it the frame of fixed children, so the panel takes the
+       viewport's size outright rather than inset: 0, which would be the header's box. */
+    .search-host[data-open="true"] .search-panel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100dvh;
+      z-index: 50;
+      display: block;
+      padding: 12px 16px;
+      overflow: auto;
+      background: var(--color-ground);
+    }
+
+    /* Cancel sits beside the box, so the results below take the whole width. The results live
+       in Pagefind's form, so only the input makes room for it. */
+    .search-host[data-open="true"] .docs-search :global(.pagefind-ui__search-input) {
+      width: calc(100% - 72px);
+    }
+
+    .search-host[data-open="true"] .docs-search :global(.pagefind-ui__search-clear) {
+      right: 78px;
+    }
+
+    .search-host[data-open="true"] .search-cancel {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      display: block;
+    }
+
+    .search-host[data-open="true"] .docs-search :global(.pagefind-ui__drawer:not(.pagefind-ui__hidden)) {
+      position: static;
+      width: auto;
+      max-height: none;
+      overflow: visible;
+      padding: 8px 0 0;
+      border: 0;
+      box-shadow: none;
+      background: transparent;
+    }
   }
 </style>
 
 <script>
-  import { mountSearch } from '../scripts/search.ts';
+  import { mountSearch, wireSearchToggle } from '../scripts/search.ts';
 
   const element = document.querySelector<HTMLElement>('.docs-search');
   if (element) mountSearch(element);
+  const host = document.querySelector<HTMLElement>('[data-search-host]');
+  if (host) wireSearchToggle(host);
 </script>

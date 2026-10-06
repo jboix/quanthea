@@ -33,16 +33,6 @@ export function githubUrl(repoPath: string): string {
 }
 
 /**
- * The GitHub address that opens a repository file in the editor.
- *
- * @param repoPath - The file's path from the repository root.
- * @returns The edit address.
- */
-export function githubEditUrl(repoPath: string): string {
-  return `${repositoryUrl}/edit/${branch}/${repoPath}`;
-}
-
-/**
  * The raw address of a repository file, for images in text read off the site.
  *
  * @param repoPath - The file's path from the repository root.

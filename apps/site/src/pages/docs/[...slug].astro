@@ -3,7 +3,6 @@
 import { getCollection, render } from 'astro:content';
 import Docs from '../../layouts/docs.astro';
 import { docPages } from '../../lib/docs-content.ts';
-import { githubEditUrl } from '../../lib/project.ts';
 
 /**
  * One page per doc.
@@ -22,10 +21,6 @@ export async function getStaticPaths() {
 const { entry, page } = Astro.props;
 if (page === undefined) throw new Error(`No page for the doc ${entry.id}.`);
 const { Content, headings } = await render(entry);
-const editLinks = page.sources.map((source) => ({
-  label: 'Edit this page on GitHub',
-  href: githubEditUrl(source.repoPath),
-}));
 ---
 
 <Docs
@@ -33,7 +28,6 @@ const editLinks = page.sources.map((source) => ({
   title={page.title}
   description={page.description}
   headings={headings}
-  editLinks={editLinks}
 >
   <Content />
 </Docs>

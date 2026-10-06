@@ -49,12 +49,13 @@ function pause(milliseconds: number): Promise<void> {
 }
 
 /**
- * Streams the words of an element's text in, one after another, behind a caret. Every word keeps
- * its place while hidden, so the text never moves the layout.
+ * Splits an element's text into words, all hidden, ready to stream in. Every word keeps its place
+ * while hidden, so the text never moves the layout.
  *
  * @param element - The element.
+ * @returns The words, in order.
  */
-async function streamText(element: HTMLElement): Promise<void> {
+function hideWords(element: HTMLElement): HTMLElement[] {
   const tokens = (element.textContent ?? '').split(/(\s+)/).map((word) => {
     const token = document.createElement('span');
     token.className = 'token';
@@ -63,6 +64,16 @@ async function streamText(element: HTMLElement): Promise<void> {
   });
   element.replaceChildren(...tokens);
   element.classList.add('is-streaming');
+  return tokens;
+}
+
+/**
+ * Streams hidden words in, one after another, behind a caret.
+ *
+ * @param element - The element holding the words.
+ * @param tokens - The words, from `hideWords`.
+ */
+async function streamWords(element: HTMLElement, tokens: readonly HTMLElement[]): Promise<void> {
   for (const [index, token] of tokens.entries()) {
     token.classList.add('is-on', 'caret');
     tokens[index - 1]?.classList.remove('caret');
@@ -80,9 +91,11 @@ async function streamText(element: HTMLElement): Promise<void> {
 export async function playFlow(root: HTMLElement): Promise<void> {
   if (!motionAllowed()) return;
   const question = root.querySelector<HTMLElement>('[data-stream]');
+  // The words are hidden before the flow shows the question, so its full text never flashes.
+  const words = question ? hideWords(question) : [];
   root.classList.add('is-playing');
   await pause(400);
-  if (question) await streamText(question);
+  if (question) await streamWords(question, words);
   for (const step of root.querySelectorAll<HTMLElement>('[data-step]')) {
     await pause(Number(step.dataset.step) || 450);
     step.classList.add('is-shown');
