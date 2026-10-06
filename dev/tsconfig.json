@@ -15,6 +15,7 @@
     "valkey",
     "mongodb",
     "screenshots",
-    "social-preview"
+    "social-preview",
+    "coverage-areas"
   ]
 }

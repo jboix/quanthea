@@ -57,6 +57,11 @@ jobs:
       - name: Unit tests with coverage
         run: bun run test:coverage
 
+      # The total alone does not say where it comes from: these sets add the line coverage by
+      # workspace, by server module and by part of the web app.
+      - name: Coverage by area
+        run: bun run coverage:areas
+
       - name: Build the SPA
         run: bun run build
 
@@ -68,6 +73,8 @@ jobs:
 
       - name: Test coverage
         uses: k1LoW/octocov-action@a167dc0dee441b7ffc45e1b862ab55ec0d87f278 # v1.5.2
+        env:
+          OCTOCOV_CUSTOM_METRICS_AREAS: ${{ github.workspace }}/coverage/areas.json
         with:
           config: .github/octocov.yml
 

@@ -31,6 +31,7 @@
     "typecheck": "bun run --filter '*' typecheck",
     "test": "bun test",
     "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage",
+    "coverage:areas": "bun dev/coverage-areas/report.ts",
     "verify": "bun run lint && bun run docs:check && bun run arch && bun run knip && bun run typecheck && bun run test && bun run build && bun run site:build && bun run check:package",
     "prepare": "husky",
     "env:up": "bun dev/refresh.ts core && docker compose -f dev/docker-compose.yml up -d --wait postgres prometheus",

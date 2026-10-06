@@ -3202,7 +3202,10 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
 `bun run verify` runs Biome, remark (`docs:check`: Markdown formatting and links),
 dependency-cruiser, knip, `tsc` in each workspace, `bun test`, then the web build. The pre-push
 hook runs it. CI (`.github/workflows/quality.yml`) runs the same steps, reports coverage, builds
-the Docker image and checks that it serves the app, and lints commit messages on pull requests.
+the Docker image and checks that it serves the app, and lints commit messages on pull requests,
+Dependabot's aside. octocov reports the line coverage of the files the tests load, then
+`dev/coverage-areas/` (`bun run coverage:areas`) splits it by workspace, by server module and by
+part of the web app, as octocov's custom metrics.
 A PR is mergeable only when the `quality` job is green. Warnings from `no-orphans` are reviewed,
 not ignored. Biome's complexity and length limits are errors.
 

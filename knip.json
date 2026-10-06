@@ -55,7 +55,8 @@
         "valkey/seed.ts",
         "mongodb/seed.ts",
         "screenshots/run.ts",
-        "social-preview/render.ts"
+        "social-preview/render.ts",
+        "coverage-areas/report.ts"
       ],
       "project": [
         "metrics/**/*.ts",
@@ -68,7 +69,8 @@
         "valkey/**/*.ts",
         "mongodb/**/*.ts",
         "screenshots/**/*.ts",
-        "social-preview/**/*.ts"
+        "social-preview/**/*.ts",
+        "coverage-areas/**/*.ts"
       ]
     }
   }

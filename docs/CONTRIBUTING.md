@@ -23,7 +23,8 @@ bun run verify    # everything CI checks
 | `bun run build`      | Vite               | The SPA builds                                               |
 
 CI runs the same steps, reports coverage, and also builds the Docker image and checks that it
-serves the app.
+serves the app. `bun run test:coverage` then `bun run coverage:areas` print the same coverage by
+workspace, by server module and by part of the web app.
 
 Requirements: Bun at the version in `.tool-versions`. Bun runs the TypeScript source directly, so
 the server needs no build step. `bun run dev` starts the server and the Vite dev server, both

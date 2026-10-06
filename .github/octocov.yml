@@ -1,5 +1,7 @@
 # Coverage reporting. octocov reads the lcov file `bun run test:coverage`
-# writes and comments the result on the pull request.
+# writes and comments the result on the pull request. Under the total, it shows
+# the custom metrics `bun run coverage:areas` writes: the line coverage by
+# workspace, by server module and by part of the web app.
 #
 # octocov resolves paths from the directory holding this file, so the coverage
 # path climbs out of .github first.
