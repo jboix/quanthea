@@ -1,7 +1,9 @@
 name: Website
 
 # Builds apps/site and deploys it to GitHub Pages when main changes the site, the docs or what they
-# read, on each release, and on demand; pull requests deploy nothing. The repository's Pages source
+# read, and on demand; pull requests deploy nothing. The Release workflow starts it on main after an
+# app release, since the footer shows the version. A release event would run it on the tag, which
+# the github-pages environment refuses. The repository's Pages source
 # must be "GitHub Actions" (Settings → Pages). The custom domain is the one set there: a deployment
 # from Actions ignores a CNAME file, so the site has none.
 on:
@@ -15,8 +17,6 @@ on:
       - 'packages/shared/**'
       - 'README.md'
       - 'package.json'
-  release:
-    types: [published]
   workflow_dispatch:
 
 permissions:

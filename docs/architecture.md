@@ -3247,8 +3247,10 @@ deliberate breaking release, with `kitVersion` set to 1.
 ### The website
 
 The Website workflow (`.github/workflows/site.yml`) builds `apps/site` and deploys it to GitHub
-Pages, on a push to `main` that touches the site, `docs/`, the tokens or `packages/shared`, on each
-release, and on demand. The site is static: its pages, the user docs read from `docs/` in place
+Pages, on a push to `main` that touches the site, `docs/`, the tokens or `packages/shared`, after
+an app release, and on demand. The Release workflow starts it on `main` after an app release, so
+the footer shows the new version: a release event would run it on the tag, which the
+`github-pages` environment refuses. The site is static: its pages, the user docs read from `docs/` in place
 (getting started, deployment, the configuration file and the environment variables, the user guide
 and the administration pages of `docs/guide/`, connectors, and the plugin packages' READMEs; the
 specs, the internals and the project's policies stay on GitHub), the Pagefind search index (searched

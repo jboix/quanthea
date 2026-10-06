@@ -17,6 +17,10 @@ name: Release
 # @quanthea/create-plugin follows the same way (packages/create-plugin, its
 # create-plugin-vX.Y.Z tags), after the kit and before the app.
 #
+#   site    -> after an app release, starts the Website workflow on main, so
+#              the site shows the new version. The version commit carries
+#              [skip ci], so its push starts nothing.
+#
 # When main has no release-worthy commits, no tag is cut and no image is built.
 
 on:
@@ -118,6 +122,19 @@ jobs:
             echo "nothing to release"
             echo "released=false" >> "$GITHUB_OUTPUT"
           fi
+
+  site:
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Deploy the website from main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run site.yml --repo "$GITHUB_REPOSITORY" --ref main
 
   image:
     needs: release
