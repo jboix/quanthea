@@ -4,8 +4,7 @@
   "ignoreBinaries": ["dot"],
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.mjs"],
-      "ignoreDependencies": ["conventional-changelog-conventionalcommits"]
+      "entry": ["scripts/*.mjs"]
     },
     "apps/server": {
       "entry": ["src/main.ts", "src/cli.ts", "src/provisioning/write-schema.ts"],

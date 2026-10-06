@@ -112,7 +112,8 @@ platform (Bun APIs, `fetch`, WebCrypto) was not enough.
 semantic-release cuts releases from the commit history when the Release workflow is run, and
 publishes the Docker image to GHCR. The type you choose is the version bump you cause:
 
-- `fix:` patch, `feat:` minor, `feat!:` or `BREAKING CHANGE:` major.
+- `fix:` patch, `feat:` minor, a `BREAKING CHANGE:` footer major. A `!` after the type is not
+  read: write the footer.
 - `docs:`, `chore:`, `test:`, `refactor:`, `ci:`, `build:` produce no release.
 
 The plugin kit (`@quanthea/plugin-kit`) has its own version. The Release workflow runs
@@ -120,7 +121,7 @@ semantic-release for it on the commits that changed `packages/plugin-kit`, with 
 and publishes it to npm. Scope those commits `plugin-kit`. The kit's major version equals
 `kitVersion`, so while the kit is in 0.x:
 
-- Never mark a kit commit `!` or `BREAKING CHANGE`. Going to 1.0 is a deliberate breaking
+- Never give a kit commit a `BREAKING CHANGE` footer. Going to 1.0 is a deliberate breaking
   release, with `kitVersion` set to 1 in the same commit.
 - A `feat` makes a minor version, such as 0.1.0 to 0.2.0; a `fix` a patch, such as 0.1.1.
 

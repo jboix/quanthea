@@ -3214,8 +3214,9 @@ not ignored. Biome's complexity and length limits are errors.
 The Release workflow (`.github/workflows/release.yml`) runs on demand:
 
 1. It runs `bun run verify`, then semantic-release reads the Conventional Commits on `main`. `fix`
-   is a patch, `feat` a minor version, `feat!` or `BREAKING CHANGE` a major version. Other types
-   release nothing.
+   is a patch, `feat` a minor version, a `BREAKING CHANGE:` footer a major version. Other types
+   release nothing. semantic-release uses its default preset, which does not read a `!` after the
+   type.
 2. semantic-release writes the version into the root `package.json`, commits it as
    `chore(release): X.Y.Z [skip ci]`, tags `vX.Y.Z` and creates the GitHub Release with the notes.
    A GitHub App (the release bot, `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY`) pushes the
@@ -3240,7 +3241,7 @@ their versions and a bump there would break `bun install --frozen-lockfile`.
 
 The kit's version lives in its `plugin-kit-v*` tags and on npm, never in a `package.json` in the
 repository, so a kit release changes neither `bun.lock` nor `main`. Its major version equals
-`kitVersion`. During 0.x, no kit commit carries `!` or `BREAKING CHANGE`: going to 1.0 is a
+`kitVersion`. During 0.x, no kit commit carries a `BREAKING CHANGE` footer: going to 1.0 is a
 deliberate breaking release, with `kitVersion` set to 1.
 
 ### The website

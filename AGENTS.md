@@ -131,8 +131,8 @@ Documentation, comments, commit messages and user-facing strings use direct lang
 ## Commits
 
 - Conventional Commits (`type(scope): description`), enforced by commitlint. The type sets the
-  release bump: `fix` patch, `feat` minor, `feat!` major (semantic-release, run from the Release
-  workflow).
+  release bump: `fix` patch, `feat` minor, a `BREAKING CHANGE:` footer major (semantic-release,
+  run from the Release workflow). A `!` after the type is not read: write the footer.
 - Small commits, each passing `bun run verify`.
 - Husky runs Biome on staged files before a commit, commitlint on the message, and
   `bun run verify` before a push. Do not skip hooks.
