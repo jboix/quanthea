@@ -3,7 +3,7 @@
  * The head tags every page shares: title, description, canonical address, OpenGraph and Twitter
  * cards, the theme colours of both schemes and the sitemap. Every layout renders it once.
  */
-import ogImage from '../../../../docs/brand/quanthea-logo-preview.png';
+import ogImage from '../../../../docs/brand/quanthea-social-preview.png';
 import { jsonLdText } from '../lib/structured-data.ts';
 import { tokenValue } from '../lib/token-values.ts';
 import { absoluteLink } from '../lib/url.ts';
@@ -56,7 +56,10 @@ const image = new URL(ogImage.src, Astro.site).href;
 <meta property="og:image" content={image} />
 <meta property="og:image:width" content={String(ogImage.width)} />
 <meta property="og:image:height" content={String(ogImage.height)} />
-<meta property="og:image:alt" content="The quanthea logo on light and dark grounds" />
+<meta
+  property="og:image:alt"
+  content="quanthea: describe a dashboard, let the agent build it. Dashboards, alerts and reports, self-hosted."
+/>
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content={fullTitle} />
 <meta name="twitter:description" content={description} />

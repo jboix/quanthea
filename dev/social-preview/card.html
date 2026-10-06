@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>quanthea social preview</title>
+    <style>
+      @font-face {
+        font-family: 'Plex Sans';
+        src: url('{{sans}}') format('woff2');
+        font-weight: 100 700;
+      }
+
+      @font-face {
+        font-family: 'Plex Mono';
+        src: url('{{mono}}') format('woff2');
+      }
+
+      html,
+      body {
+        margin: 0;
+      }
+
+      /* 1280 by 640, GitHub's social preview; the edges stay calm, since some cards crop them. */
+      .card {
+        position: relative;
+        width: 1280px;
+        height: 640px;
+        overflow: hidden;
+        background: #f4f3ef;
+        color: #17181c;
+        font-family: 'Plex Sans', sans-serif;
+      }
+
+      /* The hero's chart: gridlines, a calm series and a deploy marker, faint behind everything. */
+      .plot {
+        position: absolute;
+        inset: 0;
+      }
+
+      .grid line {
+        stroke: #17181c;
+        stroke-opacity: 0.07;
+      }
+
+      .series {
+        fill: none;
+        stroke: #2a55c9;
+        stroke-width: 2.5;
+        stroke-opacity: 0.5;
+      }
+
+      .area {
+        fill: #2a55c9;
+        fill-opacity: 0.05;
+      }
+
+      .marker {
+        stroke: #17181c;
+        stroke-opacity: 0.25;
+        stroke-dasharray: 6 6;
+      }
+
+      .marker-label {
+        fill: #17181c;
+        fill-opacity: 0.45;
+        font: 15px 'Plex Mono', monospace;
+      }
+
+      .icon {
+        position: absolute;
+        left: 128px;
+        top: 160px;
+        width: 320px;
+        height: 320px;
+        border-radius: 72px;
+        box-shadow: 0 36px 90px -28px rgb(42 85 201 / 55%);
+      }
+
+      .icon svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .copy {
+        position: absolute;
+        left: 548px;
+        top: 150px;
+        width: 640px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 112px;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: -0.02em;
+      }
+
+      .line {
+        margin: 26px 0 0;
+        font-size: 40px;
+        font-weight: 500;
+        line-height: 1.2;
+        color: #3b3c42;
+      }
+
+      .line em {
+        font-style: normal;
+        color: #2a55c9;
+      }
+
+      .keywords {
+        margin: 30px 0 0;
+        font: 22px 'Plex Mono', monospace;
+        color: #6b6a64;
+      }
+
+      .foot {
+        display: flex;
+        gap: 28px;
+        margin-top: 34px;
+        padding-top: 26px;
+        border-top: 1px solid rgb(23 24 28 / 14%);
+        font: 21px 'Plex Mono', monospace;
+        color: #6b6a64;
+      }
+
+      .foot .repo {
+        color: #2a55c9;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <svg class="plot" viewBox="0 0 1280 640" aria-hidden="true">
+        <g class="grid">
+          <line x1="0" x2="1280" y1="96" y2="96" />
+          <line x1="0" x2="1280" y1="208" y2="208" />
+          <line x1="0" x2="1280" y1="320" y2="320" />
+          <line x1="0" x2="1280" y1="432" y2="432" />
+          <line x1="0" x2="1280" y1="544" y2="544" />
+        </g>
+        <path class="area" d="{{area}}" />
+        <path class="series" d="{{series}}" />
+        <line class="marker" x1="488" x2="488" y1="40" y2="640" />
+        <text class="marker-label" x="476" y="62" text-anchor="end">deploy</text>
+      </svg>
+      <div class="icon">{{icon}}</div>
+      <div class="copy">
+        <h1>quanthea</h1>
+        <p class="line">Describe <em>a dashboard.</em><br />Let the agent build it.</p>
+        <p class="keywords">dashboards · alerts · reports</p>
+        <div class="foot">
+          <span class="repo">github.com/jboix/quanthea</span>
+          <span>self-hosted · MIT</span>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -47,6 +47,7 @@
     "dev:seed": "bun dev/seed/seed.ts",
     "demo": "bun run build && bun dev/demo/start.ts",
     "screenshots": "bun run build && bun dev/screenshots/run.ts",
+    "brand:social": "bun dev/social-preview/render.ts",
     "evals": "bun evals/run.ts",
     "env:stop": "docker compose -f dev/docker-compose.yml --profile '*' stop",
     "env:down": "docker compose -f dev/docker-compose.yml --profile '*' down -v",

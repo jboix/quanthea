@@ -7,13 +7,14 @@ dark grounds.
 
 ## Files
 
-| File                     | What it is                                                      |
-| ------------------------ | --------------------------------------------------------------- |
-| `quanthea-logo.svg`      | Icon and "quanthea" wordmark, ink lettering. For light grounds. |
-| `quanthea-logo-dark.svg` | Icon and wordmark, white lettering. For dark grounds.           |
-| `quanthea-icon.svg`      | The blue tile. The app icon at every size.                      |
-| `quanthea-icon-dark.svg` | The ink tile. Large sizes on dark grounds only.                 |
-| `quanthea-mark.svg`      | The mark alone. Lens and handle in the current text colour.     |
+| File                          | What it is                                                                                      |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| `quanthea-logo.svg`           | Icon and "quanthea" wordmark, ink lettering. For light grounds.                                 |
+| `quanthea-logo-dark.svg`      | Icon and wordmark, white lettering. For dark grounds.                                           |
+| `quanthea-icon.svg`           | The blue tile. The app icon at every size.                                                      |
+| `quanthea-icon-dark.svg`      | The ink tile. Large sizes on dark grounds only.                                                 |
+| `quanthea-mark.svg`           | The mark alone. Lens and handle in the current text colour.                                     |
+| `quanthea-social-preview.png` | The social preview, 1280 by 640: the repository's card on GitHub and the website's share image. |
 
 The wordmark is IBM Plex Sans SemiBold at 40 px, on a baseline at y=45, with tracking of
 -0.01 em, converted to paths. The logo's viewBox is 258 by 64; the icon takes its first 64 units.
@@ -55,6 +56,14 @@ geometry, so their colours come from the theme tokens. The two wordmark files ar
 - Keep the icon tile blue at small sizes, also on dark grounds. The ink tile is for large sizes.
 - Do not recolour the signal dot, and do not stretch or re-letter the wordmark.
 - Give the mark clear space of at least a quarter of its height.
+
+## The social preview
+
+`quanthea-social-preview.png` is the card a link to quanthea shows: GitHub's social preview, set
+in the repository's Settings → General → Social preview, and the website's OpenGraph and Twitter
+image. `bun run brand:social` renders it from `dev/social-preview/card.html` with headless
+Chromium: the blue icon, the wordmark's lettering, the hero's line and the hero's chart behind,
+on the light ground. Render it again when the brand or the line changes, and upload it to GitHub.
 
 ## Generated icons
 

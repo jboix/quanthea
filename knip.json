@@ -54,7 +54,8 @@
         "influxdb/seed.ts",
         "valkey/seed.ts",
         "mongodb/seed.ts",
-        "screenshots/run.ts"
+        "screenshots/run.ts",
+        "social-preview/render.ts"
       ],
       "project": [
         "metrics/**/*.ts",
@@ -66,7 +67,8 @@
         "influxdb/**/*.ts",
         "valkey/**/*.ts",
         "mongodb/**/*.ts",
-        "screenshots/**/*.ts"
+        "screenshots/**/*.ts",
+        "social-preview/**/*.ts"
       ]
     }
   }
