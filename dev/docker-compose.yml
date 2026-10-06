@@ -132,7 +132,7 @@ services:
 
   mysql:
     profiles: [mysql]
-    image: mysql:8.4.11
+    image: mysql:26.7.0
     environment:
       MYSQL_DATABASE: orders
       MYSQL_USER: quanthea_admin
@@ -152,7 +152,7 @@ services:
 
   mariadb:
     profiles: [mysql]
-    image: mariadb:11.8.9
+    image: mariadb:13.0.2
     environment:
       MARIADB_DATABASE: orders
       MARIADB_USER: quanthea_admin
@@ -171,7 +171,7 @@ services:
 
   clickhouse:
     profiles: [clickhouse]
-    image: clickhouse/clickhouse-server:26.8.15.10-alpine
+    image: clickhouse/clickhouse-server:26.9.8.3-alpine
     environment:
       CLICKHOUSE_DB: orders
       CLICKHOUSE_USER: quanthea_admin
@@ -253,7 +253,7 @@ services:
 
   influxdb:
     profiles: [influxdb]
-    image: influxdb:3.11.5-core
+    image: influxdb:3.12.0-core
     command:
       - influxdb3
       - serve
@@ -283,7 +283,7 @@ services:
 
   valkey:
     profiles: [valkey]
-    image: valkey/valkey:9.0.6-alpine
+    image: valkey/valkey:9.1.2-alpine
     command:
       - valkey-server
       - --requirepass
