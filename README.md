@@ -15,32 +15,14 @@ sources: Prometheus, Loki, InfluxDB, Postgres and TimescaleDB, MySQL, MariaDB, C
 Elasticsearch, OpenSearch, Valkey, MongoDB and HTTP APIs. You refine it in the same thread and pin
 the good ones. Pinned dashboards are versioned, searchable, and render without any model involved.
 
-<table>
-  <tr>
-    <td><a href="docs/screenshots/plan-light.webp"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/plan-dark.webp"><img src="docs/screenshots/plan-light.webp" alt="The agent proposes a plan: the panels and what each shows, to approve before it builds" width="400"></picture></a></td>
-    <td><a href="docs/screenshots/thread-light.webp"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/thread-dark.webp"><img src="docs/screenshots/thread-light.webp" alt="The thread beside the dashboard the agent built, with each query test-run" width="400"></picture></a></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Ask, and approve a plan</sub></td>
-    <td align="center"><sub>Watch it build, then refine it</sub></td>
-  </tr>
-  <tr>
-    <td><a href="docs/screenshots/library-light.webp"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/library-dark.webp"><img src="docs/screenshots/library-light.webp" alt="The library of pinned dashboards, searchable by panel and query" width="400"></picture></a></td>
-    <td><a href="docs/screenshots/dashboard-incident-light.webp"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-incident-dark.webp"><img src="docs/screenshots/dashboard-incident-light.webp" alt="A pinned dashboard: errors rise after a deploy marker and fall after the rollback" width="400"></picture></a></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Pin the good ones</sub></td>
-    <td align="center"><sub>Open them with no model involved</sub></td>
-  </tr>
-</table>
-
-The [user guide](docs/guide/getting-started.md) walks through every screen.
+See it at [quanthea.ch](https://quanthea.ch): what it does, screenshots, and the
+[user guide](https://quanthea.ch/docs/getting-started/).
 
 ## Try it
 
-The demo runs on a Postgres and a Prometheus with a day of sample data, an incident included, and
-uses Gemini as the model. It needs [Bun](https://bun.sh), Docker and a
-[Gemini API key](https://aistudio.google.com/apikey).
+The demo runs on a Postgres and a Prometheus with an outdoor shop's last 60 days of sample data, an
+incident yesterday included, and uses Gemini as the model. It needs [Bun](https://bun.sh), Docker
+and a [Gemini API key](https://aistudio.google.com/apikey).
 
 ```sh
 bun install
