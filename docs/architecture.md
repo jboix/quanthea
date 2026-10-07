@@ -2683,9 +2683,13 @@ one, and enables them again. Without any admin, it creates the default one.
   disabled user or a user without a password too (a dummy hash is checked). Failures count
   against the account and the IP address (`auth/throttle.ts`): past 5 failures for an account, or
   20 for an address, each attempt waits, from one minute and doubling, up to an hour for an
-  account and 15 minutes for an address. Nothing ever locks an account for good. The throttle is
-  kept in memory. The address comes from the socket, or from `X-Forwarded-For` as far as
-  `QUANTHEA_TRUSTED_PROXY_HOPS` proxies go.
+  account and 15 minutes for an address. Nothing ever locks an account for good. A failure is
+  counted before the argon2id check and taken back after a success, so guesses sent at once get
+  no more checks than guesses sent one by one. At most 8 argon2id checks run at once
+  (`auth/slots.ts`); an attempt beyond them answers 429 at once. The throttle is kept in memory,
+  for at most 50,000 keys: when full, it forgets the oldest key that no longer waits. The address
+  comes from the socket, or from `X-Forwarded-For` as far as `QUANTHEA_TRUSTED_PROXY_HOPS`
+  proxies go.
 - **Links** (table `password_links`): an admin invites a user (`POST /api/users`) or makes a
   reset link (`POST /api/users/:id/reset-link`). The token is 32 random bytes, stored as a keyed
   hash, and sits after the `#` of `/set-password#…`, so it never reaches a server log or a
@@ -2693,7 +2697,7 @@ one, and enables them again. Without any admin, it creates the default one.
   `POST /api/auth/set-password` (public) checks the new password before using the link up, then
   sets it, ends the user's sessions and signs them in.
 - `POST /api/auth/change-password` (signed in) checks the current password (throttled by
-  account), ends all the person's sessions and starts a new one.
+  account, the same way), ends all the person's sessions and starts a new one.
 - **Users admin** (`/api/users`, admin): list, invite, change the role or disable
   (`auth/user-admin.ts`), make a reset link, end a user's sessions. quanthea always keeps one
   enabled admin; a disabled user's sessions end at once.

@@ -1,8 +1,10 @@
 /**
  * Signing in with a password, setting one through a link, and changing it. Every failure answers
  * the same "Wrong email or password." after the same argon2id work, whether the account exists or
- * not, and counts against the IP address and the account (`throttle.ts`). A link is checked before
- * it is used, and used once.
+ * not, and counts against the IP address and the account (`throttle.ts`). The failure is counted
+ * before the check and taken back after a success, so guesses sent at once cannot pass the
+ * throttle together; a few argon2id checks run at once at most (`slots.ts`). A link is checked
+ * before it is used, and used once.
  */
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { LinkPurpose, PasswordLinkRepository } from '../db/password-link-repository.ts';
@@ -21,6 +23,7 @@ import {
   verifyPassword,
 } from './passwords.ts';
 import type { Sessions } from './sessions.ts';
+import { createSlots, maximumVerifications, type Slots } from './slots.ts';
 import type { Throttle } from './throttle.ts';
 import { normalizeEmail, sealedOwner } from './users.ts';
 
@@ -76,7 +79,8 @@ export interface PasswordAccounts {
    *
    * @param input - The email, the password and the IP address.
    * @returns The session.
-   * @throws {AppError} `unauthorized` for any wrong detail; `rate_limited` while throttled.
+   * @throws {AppError} `unauthorized` for any wrong detail; `rate_limited` while throttled or
+   * while too many checks run at once.
    */
   signIn(input: { email: string; password: string; address: string }): Promise<SignedIn>;
   /**
@@ -105,7 +109,8 @@ export interface PasswordAccounts {
    *
    * @param input - The user, their current password and the new one.
    * @returns The new session.
-   * @throws {AppError} `bad_request` for a wrong current password or a refused new one.
+   * @throws {AppError} `bad_request` for a wrong current password or a refused new one;
+   * `rate_limited` while throttled.
    */
   change(input: { userId: string; current: string; password: string }): Promise<SignedIn>;
 }
@@ -116,7 +121,12 @@ type Context = PasswordAccountsDependencies & {
   readonly costs: HashCosts;
   /** A hash no password matches, verified when there is no account, so every failure costs the same. */
   readonly dummy: Promise<{ hash: string; pepperId: string }>;
+  /** The argon2id checks running at once. */
+  readonly verifications: Slots;
 };
+
+/** A throttle and the key an attempt counts against. */
+type Reservation = readonly [Throttle, string];
 
 /**
  * Refuses a throttled attempt.
@@ -124,7 +134,7 @@ type Context = PasswordAccountsDependencies & {
  * @param keys - The throttles and their keys.
  * @throws {AppError} `rate_limited` when any of them must still wait.
  */
-function refuseWhileThrottled(keys: readonly [Throttle, string][]): void {
+function refuseWhileThrottled(keys: readonly Reservation[]): void {
   const waitMs = Math.max(...keys.map(([throttle, key]) => throttle.waitFor(key)));
   if (waitMs <= 0) return;
   const minutes = Math.ceil(waitMs / 60_000);
@@ -160,6 +170,35 @@ async function passwordMatches(
 }
 
 /**
+ * Checks a password the throttled way: refuses while any key waits or every check slot is taken,
+ * counts a failure against each key before the check, and gives the slot back after it. The
+ * caller takes the failures back after a success.
+ *
+ * @param context - The context.
+ * @param keys - The throttles and keys the attempt counts against.
+ * @param row - The user, if any.
+ * @param password - The password.
+ * @returns Whether it is right.
+ * @throws {AppError} `rate_limited` while throttled or while every check slot is taken.
+ */
+async function throttledPasswordMatches(
+  context: Context,
+  keys: readonly Reservation[],
+  row: UserRow | undefined,
+  password: string,
+): Promise<boolean> {
+  refuseWhileThrottled(keys);
+  const release = context.verifications.take();
+  if (!release) throw new AppError('rate_limited', 'Too many attempts at once. Try again shortly.');
+  for (const [throttle, key] of keys) throttle.fail(key);
+  try {
+    return await passwordMatches(context, row, password);
+  } finally {
+    release();
+  }
+}
+
+/**
  * Stores a new password hash for a user.
  *
  * @param context - The context.
@@ -188,18 +227,17 @@ async function signIn(
 ): Promise<SignedIn> {
   const index = await context.emailIndex.hash(normalizeEmail(input.email));
   const account = Buffer.from(index).toString('hex');
-  refuseWhileThrottled([
+  const keys: Reservation[] = [
     [context.addresses, input.address],
     [context.accounts, account],
-  ]);
+  ];
   const row = context.users.findByEmailIndex(index);
-  if (!(await passwordMatches(context, row, input.password)) || !row) {
-    context.addresses.fail(input.address);
-    context.accounts.fail(account);
+  if (!(await throttledPasswordMatches(context, keys, row, input.password)) || !row) {
     const detail = { account: account.slice(0, 12) };
     context.audit.append({ actor: row?.id ?? 'unknown', action: 'auth.sign-in-failed', detail });
     throw new AppError('unauthorized', wrongCredentials);
   }
+  context.addresses.undo(input.address);
   context.accounts.forget(account);
   return completeSignIn(context, row, input.password);
 }
@@ -285,14 +323,14 @@ async function change(
   context: Context,
   input: { userId: string; current: string; password: string },
 ): Promise<SignedIn> {
-  refuseWhileThrottled([[context.accounts, input.userId]]);
   const row = context.users.get(input.userId);
-  if (!row || !(await passwordMatches(context, row, input.current))) {
-    context.accounts.fail(input.userId);
+  const keys: Reservation[] = [[context.accounts, input.userId]];
+  if (!(await throttledPasswordMatches(context, keys, row, input.current)) || !row) {
     throw new AppError('bad_request', 'The current password is wrong.', [
       { part: 'body', path: 'current', message: 'The current password is wrong.' },
     ]);
   }
+  context.accounts.undo(input.userId);
   await refuseWeakPassword(context, row, input.password);
   await storePassword(context, row.id, input.password);
   context.sessions.endAllOf(row.id);
@@ -312,7 +350,9 @@ export function createPasswordAccounts(
 ): PasswordAccounts {
   const costs = dependencies.costs ?? defaultCosts;
   const dummy = hashPassword(dependencies.peppers, randomToken(), costs);
-  const context: Context = { ...dependencies, now: dependencies.now ?? Date.now, costs, dummy };
+  const verifications = createSlots(maximumVerifications);
+  const now = dependencies.now ?? Date.now;
+  const context: Context = { ...dependencies, now, costs, dummy, verifications };
   return {
     signIn: (input) => signIn(context, input),
     issueLink: async (userId, purpose, actor) => {

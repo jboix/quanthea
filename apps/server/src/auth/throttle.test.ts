@@ -30,4 +30,23 @@ describe('the throttle', () => {
     throttle.fail('b');
     expect(throttle.waitFor('b')).toBe(0);
   });
+
+  test('undoes one failure, and its wait, after a success', () => {
+    const throttle = createThrottle(rule, () => 0);
+    for (let failure = 0; failure < 4; failure += 1) throttle.fail('a');
+    expect(throttle.waitFor('a')).toBe(1000);
+    throttle.undo('a');
+    expect(throttle.waitFor('a')).toBe(0);
+    throttle.fail('a');
+    expect(throttle.waitFor('a')).toBe(1000);
+    throttle.undo('b');
+    expect(throttle.waitFor('b')).toBe(0);
+  });
+
+  test('keeps a waiting key when a flood of other keys fills it', () => {
+    const throttle = createThrottle(rule, () => 0);
+    for (let failure = 0; failure < 4; failure += 1) throttle.fail('victim');
+    for (let other = 0; other < 50_001; other += 1) throttle.fail(`other-${other}`);
+    expect(throttle.waitFor('victim')).toBe(1000);
+  });
 });

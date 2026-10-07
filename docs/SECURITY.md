@@ -100,7 +100,8 @@ memory for any of them in clear.
 
 - The sign-in throttle lives in memory. A restart clears it, and several instances each count
   on their own.
-- quanthea does not defend against denial of service beyond the throttle and the query guardrails.
+- quanthea does not defend against denial of service beyond the throttle, the cap on argon2id
+  checks running at once, and the query guardrails.
 
 ## Running quanthea safely
 
