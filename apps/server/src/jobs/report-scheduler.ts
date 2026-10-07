@@ -4,7 +4,7 @@
  * backlog), then attempts them and the runs whose retry is due, within a cap per connector and a
  * cap in all. One failing run never stops the others.
  */
-import { createLimiter, type LimiterCaps } from '../alerts/limiter.ts';
+import { createLimiter, type LimiterCaps } from '../lib/limiter.ts';
 import type { Logger } from '../lib/logger.ts';
 import type { Reports, ScheduledRun } from '../reports/reports.ts';
 

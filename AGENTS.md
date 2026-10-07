@@ -68,8 +68,9 @@ Run one test file with `bun test apps/server/src/app.test.ts`.
 | `packages/tokens`        | `@quanthea/tokens`        | The design tokens (`tokens.css`): fonts, colours, radii. CSS only.    |
 | `examples/*`             | `quanthea-plugin-sqlite`  | Example connector plugins, built against the public kit only.         |
 
-Module boundaries are in the architecture doc, section 3 and 4, in `.dependency-cruiser.cjs` and,
-for the plugin side, in `scripts/arch-plugin-rules.cjs`.
+Module boundaries are in the architecture doc, section 3 and 4, in `.dependency-cruiser.cjs`, for
+the server's modules in `scripts/arch-server-rules.cjs` and, for the plugin side, in
+`scripts/arch-plugin-rules.cjs`.
 
 ## Non-negotiables
 

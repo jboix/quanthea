@@ -6,12 +6,8 @@
  */
 import { durationMs } from '@quanthea/shared';
 import type { Alerts } from '../alerts/alerts.ts';
-import {
-  type EvaluatedAlert,
-  type EvaluationDependencies,
-  evaluateAlert,
-} from '../alerts/evaluate.ts';
-import { createLimiter, type LimiterCaps } from '../alerts/limiter.ts';
+import type { EvaluatedAlert, EvaluationDependencies, evaluateAlert } from '../alerts/evaluate.ts';
+import { createLimiter, type LimiterCaps } from '../lib/limiter.ts';
 import type { Logger } from '../lib/logger.ts';
 
 /** What the evaluator needs. */
@@ -22,8 +18,8 @@ export interface AlertEvaluatorDependencies {
   readonly evaluation: Omit<EvaluationDependencies, 'logger'>;
   /** Reports failures. */
   readonly logger: Logger;
-  /** Evaluates one alert; {@link evaluateAlert} by default. */
-  readonly evaluate?: typeof evaluateAlert;
+  /** Evaluates one alert: the bootstrap hands it {@link evaluateAlert}. */
+  readonly evaluate: typeof evaluateAlert;
   /** The caps on evaluations running at once. */
   readonly caps?: LimiterCaps;
   /** The clock; `Date.now` by default. */
@@ -85,7 +81,7 @@ function listAlerts(dependencies: AlertEvaluatorDependencies): EvaluatedAlert[] 
 export function createAlertEvaluator(dependencies: AlertEvaluatorDependencies): AlertEvaluator {
   const { logger } = dependencies;
   const clock = dependencies.now ?? Date.now;
-  const evaluate = dependencies.evaluate ?? evaluateAlert;
+  const { evaluate } = dependencies;
   const limiter = createLimiter(dependencies.caps ?? defaultCaps);
   const evaluation = { ...dependencies.evaluation, logger };
   const running = new Set<string>();

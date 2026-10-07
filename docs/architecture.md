@@ -150,30 +150,41 @@ The two paths that matter:
 
 ## 3. Server modules and who may import whom
 
-The allowed dependencies are enforced by `.dependency-cruiser.cjs`. The table summarizes
-them.
+The allowed dependencies are enforced by `.dependency-cruiser.cjs`, which reads the server's rules
+from `scripts/arch-server-rules.cjs`. The table summarizes them.
 
-| Module               | Responsibility                                              | May import                                                          | Must not import                                 |
-| -------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------- |
-| `lib/`               | errors, logger, ids                                         | nothing internal                                                    | everything else                                 |
-| `connectors/<kind>/` | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@quanthea/shared`, its own driver     | other connector kinds, anything else in the app |
-| `query/`             | bind variables, enforce guardrails, run, cache              | `connectors`, `lib`, shared                                         | `agent`, `http`                                 |
-| `gate/`              | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                    | `agent`, `http`                                 |
-| `agent/`             | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `settings`, `lib`                  | **`connectors`, `query`, `db`**                 |
-| `dashboards/`        | validate, store, pin and run specs                          | `db`, `query`, `lib`, shared; connectors through injected functions | `http`, `agent`, `connections`, `connectors`    |
-| `alerts/`            | validate, store, evaluate and replay alert specs            | `db`, `query`, `dashboards`, `lib`, shared; the rest injected       | everything else                                 |
-| `reports/`           | validate, store and run report specs on a schedule          | `db`, `query`, `dashboards`, `lib`, shared; the rest injected       | everything else                                 |
-| `threads/`           | domain logic                                                | `db`, `lib`, shared                                                 | `http`, `agent`                                 |
-| `settings/`          | typed settings sections; the model key, sealed              | `db`, `secrets`, `lib`, shared                                      | `http`, `agent`                                 |
-| `connections/`       | configured connectors: CRUD, sealed secrets, open instances | `db`, `secrets`, `connectors`, `gate`, `query` types, `lib`         | `http`, `auth`, `agent`                         |
-| `db/`                | the only user of `bun:sqlite`                               | `lib`                                                               | —                                               |
-| `http/`              | validate, authorize, call services, stream                  | services, `agent`, `auth`                                           | `connectors`, `db`                              |
-| `auth/`              | modes, sessions, Principal                                  | `settings`, `db` via repositories, `lib`                            | `agent`                                         |
-| `provisioning/`      | apply the configuration file; what it manages               | `config`, `connections`, `db`, `secrets` types, `lib`               | `http`, `agent`                                 |
-| `notifications/`     | notification channels, their recipes, sending, the log      | `db`, `secrets`, `lib`, `connectors/_shared` (addresses), shared    | everything else                                 |
+| Module               | Responsibility                                              | May import                                                                                                                  | Must not import                                                                                |
+| -------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `lib/`               | errors, logger, ids, the task limiter                       | nothing internal                                                                                                            | everything else                                                                                |
+| `connectors/<kind>/` | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@quanthea/shared`, its own driver                                                             | other connector kinds, anything else in the app                                                |
+| `query/`             | bind variables, enforce guardrails, run, cache              | `connectors`, `lib`, shared                                                                                                 | everything else                                                                                |
+| `gate/`              | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                                                                            | everything else                                                                                |
+| `agent/`             | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `settings`, `lib`; types only from `alerts`, `reports`, `usage` and the Dashboards service | everything else, **`connectors`, `query`, `db`** above all                                     |
+| `dashboards/`        | validate, store, pin and run specs                          | `db`, `query`, `lib`, shared; connectors through injected functions                                                         | everything else                                                                                |
+| `alerts/`            | validate, store, evaluate and replay alert specs            | `db`, `query`, `dashboards`, `lib`, shared; the rest injected                                                               | everything else                                                                                |
+| `reports/`           | validate, store and run report specs on a schedule          | `db`, `query`, `dashboards`, `lib`, shared; the rest injected                                                               | everything else                                                                                |
+| `threads/`           | threads, messages, plans                                    | `db`, `lib`, shared                                                                                                         | everything else                                                                                |
+| `settings/`          | typed settings sections; the model key, sealed              | `db`, `secrets`, `lib`, `connectors/_shared` (addresses), `dashboards/queries` types, shared                                | everything else                                                                                |
+| `usage/`             | the token ledger                                            | `db`, `lib`, shared                                                                                                         | everything else                                                                                |
+| `connections/`       | configured connectors: CRUD, sealed secrets, open instances | `db`, `secrets`, `connectors`, `gate`, `query` types, `lib`                                                                 | `http`, `auth`, `agent`                                                                        |
+| `db/`                | the only user of `bun:sqlite`                               | `lib`                                                                                                                       | —                                                                                              |
+| `http/`              | validate, authorize, call services, stream                  | services, `agent`, `auth`                                                                                                   | `connectors`, `db`, `query`, `secrets`                                                         |
+| `auth/`              | sessions, passwords, sign-in providers, Principal           | `settings`, `secrets`, `db` via repositories, `lib`                                                                         | `agent`, `http`                                                                                |
+| `provisioning/`      | apply the configuration file; what it manages               | `config`, `connections`, `db`, `secrets` types, `lib`                                                                       | `http`, `agent`                                                                                |
+| `notifications/`     | notification channels, their recipes, sending, the log      | `db`, `secrets`, `lib`, `connectors/_shared` (addresses), shared                                                            | everything else                                                                                |
+| `jobs/`              | the purge, the alert evaluator, the report scheduler        | `lib`; types only from the services it is handed                                                                            | everything else                                                                                |
+| `plugins/`           | install, check and load connector plugins                   | `config`, `connectors/_shared`, `connectors/registry`, `lib`                                                                | everything else: no `db`, `secrets` or `gate`, so the plugin commands need no database or keys |
 
 Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, and only `db/` imports
-`bun:sqlite`. Each connector kind owns its driver: `postgres` and `mysql2` in their folders, and
+`bun:sqlite`. Only
+the sign-in routes (`http/routes/auth-routes.ts` and `provider-routes.ts`) import `hono/cookie`,
+so no other route can set a session cookie.
+
+The import rules keep `agent/` away from connectors, queries and the database, but they do not
+make it safe alone. The run context hands the agent the Dashboards, Alerts and Reports services,
+whose test runs and replays return raw frames. Each tool passes those results through `gate/`
+(`modelTestResult`, `modelAlertCheck`, `modelAlertReplay`) before the model sees them, and the
+gate's leak tests check that every one of those paths drops hidden fields. Each connector kind owns its driver: `postgres` and `mysql2` in their folders, and
 the kit's HTTP client for every kind that speaks HTTP.
 
 ## 4. Web modules

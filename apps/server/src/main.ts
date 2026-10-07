@@ -2,6 +2,7 @@
 // The release version lives in the root package.json, which semantic-release bumps.
 import rootPackage from '../../../package.json' with { type: 'json' };
 import { routeModelWarnings } from './agent/warnings.ts';
+import { evaluateAlert } from './alerts/evaluate.ts';
 import { createApp } from './app.ts';
 import { createAuthenticator } from './auth/authenticator.ts';
 import { ensureAdmin } from './auth/default-admin.ts';
@@ -86,6 +87,7 @@ const stopPurgeJob = startPurgeJob({ ...services, logger });
 const stopAlertEvaluator = startAlertEvaluator({
   alerts: services.alerts,
   evaluation: services.alertEvaluation,
+  evaluate: evaluateAlert,
   logger,
 });
 const stopReportScheduler = startReportScheduler({ reports: services.reports, logger });
