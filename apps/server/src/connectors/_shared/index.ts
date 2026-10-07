@@ -11,6 +11,7 @@ export {
   ConnectorError,
   type ConnectorIcon,
   type ConnectorInstance,
+  checkDestination,
   createFrameBuilder,
   createHttpClient,
   defineConnector,

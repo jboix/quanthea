@@ -94,6 +94,26 @@ async function save(
 }
 
 /**
+ * Lists a provider's models. A base URL the server refuses, such as one half typed, lists none
+ * and says why.
+ *
+ * @param api - The API client.
+ * @param body - The provider, its base URL, and a key or the saved provider's id.
+ * @returns The outcome.
+ */
+async function listModels(
+  api: ApiClient,
+  body: Omit<Extract<ModelSettingsIntent, { intent: 'models' }>, 'intent'>,
+): Promise<ModelSettingsOutcome> {
+  try {
+    return { intent: 'models', ...(await api.call(listModelsEndpoint, { body })) };
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.code !== 'bad_request') throw error;
+    return { intent: 'models', models: [], message: 'Enter an http or https base URL.' };
+  }
+}
+
+/**
  * The action of the model settings screen: save, or test the saved settings.
  *
  * @param api - The API client.
@@ -108,7 +128,7 @@ export function modelSettingsAction(api: ApiClient) {
     }
     if (intent.intent === 'models') {
       const { intent: _intent, ...body } = intent;
-      return { intent: 'models', ...(await api.call(listModelsEndpoint, { body })) };
+      return listModels(api, body);
     }
     return save(api, { gateway: intent.gateway, apiKeys: { ...intent.apiKeys } });
   };

@@ -81,7 +81,7 @@ function isIpLiteral(host: string): boolean {
 export async function checkDestination(url: URL, sourceName: string): Promise<void> {
   const refused = new ConnectorError(
     'rejected',
-    `The ${sourceName} URL points to a cloud metadata address, which connectors never call.`,
+    `The ${sourceName} URL points to a cloud metadata address, which quanthea never calls.`,
   );
   if (isMetadataAddress(url.hostname)) throw refused;
   if (isIpLiteral(url.hostname)) return;

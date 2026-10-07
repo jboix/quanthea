@@ -5,6 +5,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { ModelSettings } from '@quanthea/shared';
 import { type LanguageModel, wrapLanguageModel } from 'ai';
+import { gatewayFetch } from '../settings/gateway-fetch.ts';
 import type { ResolvedModelSettings } from '../settings/model-settings.ts';
 import { quotaMiddleware } from './quota.ts';
 
@@ -47,7 +48,7 @@ interface Connection {
 }
 
 /**
- * The key and base URL options of a provider that needs a key.
+ * The key, base URL and fetch options of a provider that needs a key.
  *
  * @param connection - The key and the base URL.
  * @returns The options.
@@ -58,6 +59,7 @@ function keyed(connection: Connection) {
     throw new ModelUnavailableError('Save an API key in Settings → Model first.');
   return {
     apiKey: connection.apiKey,
+    fetch: gatewayFetch,
     ...(connection.baseURL ? { baseURL: connection.baseURL } : {}),
   };
 }
@@ -73,7 +75,12 @@ const builders: Readonly<
   openai: (connection, id) => createOpenAI(keyed(connection))(id),
   mistral: (connection, id) => createMistral(keyed(connection))(id),
   'openai-compatible': ({ apiKey, baseURL }, id) => {
-    const options = { name: 'gateway', baseURL: baseURL ?? '', includeUsage: true };
+    const options = {
+      name: 'gateway',
+      baseURL: baseURL ?? '',
+      includeUsage: true,
+      fetch: gatewayFetch,
+    };
     return createOpenAICompatible(apiKey ? { ...options, apiKey } : options)(id);
   },
 };
@@ -107,7 +114,8 @@ export function reasoningOption(settings: ModelSettings) {
 
 /**
  * Builds the model of a job. The key is passed explicitly: the providers' environment fallbacks
- * are never used, so what runs is what the settings say. A spent daily quota is not retried.
+ * are never used, so what runs is what the settings say. Every request goes through the gateway
+ * fetch, with its outbound checks. A spent daily quota is not retried.
  *
  * @param resolved - The settings and the opened key.
  * @param job - The job.

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { listModels } from './model-catalog.ts';
+import { listModels, storedKeyApplies } from './model-catalog.ts';
 
 /**
  * A fetch that answers with a body and records the request.
@@ -66,5 +66,38 @@ describe('listModels', () => {
       ok: false,
       message: expect.stringContaining('401'),
     });
+  });
+});
+
+describe('storedKeyApplies', () => {
+  const saved = {
+    providerId: 'p1',
+    provider: 'openai-compatible',
+    baseUrl: 'https://gw.test/v1',
+  } as const;
+
+  test('applies to the saved provider, vendor and base URL, however the URL is written', () => {
+    const request = {
+      providerId: 'p1',
+      provider: 'openai-compatible',
+      baseUrl: 'https://GW.test/v1/',
+    } as const;
+    expect(storedKeyApplies(request, saved)).toBe(true);
+    const openai = { providerId: 'p2', provider: 'openai', baseUrl: null } as const;
+    expect(storedKeyApplies({ ...openai, baseUrl: 'https://api.openai.com/v1' }, openai)).toBe(
+      true,
+    );
+  });
+
+  test('never applies to another base URL, vendor or provider', () => {
+    const request = {
+      providerId: 'p1',
+      provider: 'openai-compatible',
+      baseUrl: 'https://attacker.example',
+    } as const;
+    expect(storedKeyApplies(request, saved)).toBe(false);
+    expect(storedKeyApplies({ ...saved, provider: 'openai' }, saved)).toBe(false);
+    expect(storedKeyApplies({ ...saved, providerId: 'p2' }, saved)).toBe(false);
+    expect(storedKeyApplies({ ...saved, providerId: undefined }, saved)).toBe(false);
   });
 });

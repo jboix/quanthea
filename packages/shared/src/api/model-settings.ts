@@ -59,14 +59,17 @@ export const testModelSettingsEndpoint = defineEndpoint({
 
 /**
  * Lists the chat models a provider offers. Without a key in the request, the stored key is used
- * when the provider is the saved one.
+ * only when the provider, its vendor and its base URL are the saved ones.
  */
 export const listModelsEndpoint = defineEndpoint({
   method: 'POST',
   path: '/settings/model/models',
   body: z.object({
     provider: z.enum(modelProviders),
-    baseUrl: z.string().max(500).nullable(),
+    baseUrl: z
+      .url({ protocol: /^https?$/, error: 'Use an http or https URL.' })
+      .max(500)
+      .nullable(),
     apiKey: z.string().min(1).max(2000).optional(),
     /** The saved provider being edited, whose stored key may be used. */
     providerId: z.string().max(40).optional(),

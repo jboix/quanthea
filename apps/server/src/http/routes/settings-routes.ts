@@ -11,7 +11,7 @@ import {
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import { testModelConnection } from '../../agent/connection-test.ts';
-import { listModels } from '../../agent/model-catalog.ts';
+import { listModels, storedKeyApplies } from '../../agent/model-catalog.ts';
 import type { Managed } from '../../provisioning/managed.ts';
 import type { ModelSettingsService } from '../../settings/model-settings.ts';
 import type { AppEnv } from '../app-env.ts';
@@ -59,9 +59,8 @@ function mountModelListRoute(app: Hono<AppEnv>, modelSettings: ModelSettingsServ
     access: 'admin',
     handle: async ({ body }) => {
       const saved = await modelSettings.resolve(body.providerId);
-      // A stored key only goes to the provider it was saved for, and only to that vendor.
-      const same =
-        saved.providerId === body.providerId && saved.settings.provider === body.provider;
+      // A stored key only goes to the provider, vendor and base URL it was saved for.
+      const same = storedKeyApplies(body, { ...saved.settings, providerId: saved.providerId });
       const catalog = await listModels({
         provider: body.provider,
         baseUrl: body.baseUrl,

@@ -3,6 +3,7 @@
  * a dropdown. Only models that can chat are kept.
  */
 import { type ModelProvider, providerProfiles } from '@quanthea/shared';
+import { gatewayFetch } from '../settings/gateway-fetch.ts';
 
 /** Where to ask, and with which key. */
 export interface CatalogRequest {
@@ -53,16 +54,54 @@ function idsOf(body: unknown): string[] {
   return [...new Set(ids.filter((id) => !notChat.test(id)))].sort();
 }
 
+/** A provider, as a listing names it or as it is saved. */
+export interface ProviderTarget {
+  /** The saved provider's id, if any. */
+  readonly providerId?: string | undefined;
+  /** The vendor kind. */
+  readonly provider: ModelProvider;
+  /** The base URL, or `null` for the provider's own API. */
+  readonly baseUrl: string | null;
+}
+
+/**
+ * The base URL a provider's requests go to, in one spelling: parsed, without a trailing slash.
+ *
+ * @param target - The provider and its base URL.
+ * @returns The URL, or `null` when there is none or it does not parse.
+ */
+function destinationOf(target: ProviderTarget): string | null {
+  const base = target.baseUrl ?? providerProfiles[target.provider].baseUrl;
+  if (base === null || !URL.canParse(base)) return null;
+  return new URL(base).href.replace(/\/+$/, '');
+}
+
+/**
+ * Whether a saved provider's key may go with a listing: only to the same provider, the same
+ * vendor and the same base URL.
+ *
+ * @param request - The provider the listing names.
+ * @param saved - The saved provider.
+ * @returns `true` when the stored key may be sent.
+ */
+export function storedKeyApplies(request: ProviderTarget, saved: ProviderTarget): boolean {
+  if (request.providerId === undefined || request.providerId !== saved.providerId) return false;
+  if (request.provider !== saved.provider) return false;
+  const destination = destinationOf(request);
+  return destination !== null && destination === destinationOf(saved);
+}
+
 /**
  * Lists the models of a provider.
  *
  * @param request - The provider, its base URL and the key.
- * @param fetchFunction - Sends the request; the global `fetch` by default.
+ * @param fetchFunction - Sends the request; the gateway fetch, with its outbound checks, by
+ *   default.
  * @returns The chat models, or why they could not be listed.
  */
 export async function listModels(
   request: CatalogRequest,
-  fetchFunction: typeof fetch = fetch,
+  fetchFunction: typeof fetch = gatewayFetch,
 ): Promise<Catalog> {
   const base = request.baseUrl ?? providerProfiles[request.provider].baseUrl;
   if (base === null) return { ok: false, message: 'Enter the gateway’s base URL first.' };

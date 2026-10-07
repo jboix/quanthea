@@ -2965,7 +2965,8 @@ one, and enables them again. Without any admin, it creates the default one.
 - Guardrails are enforced by the executor. Connectors use read-only credentials, verified on
   test where possible.
 - Connectors that speak HTTP stay on their source's origin and never call a cloud metadata
-  address (`createHttpClient`). Notification channels never call one either, follow no redirect,
+  address (`createHttpClient`). Nor does the model gateway, which follows no redirect either
+  (`settings/gateway-fetch.ts`). Notification channels never call one either, follow no redirect,
   and escape every value for their service (section 5.7).
 - Secrets are encrypted at rest and never returned by the API (connector GETs show
   `secret: "••••1234"`). See "Keys" below.
@@ -3123,8 +3124,15 @@ the provider's own `/models` API returns (`POST /api/settings/model/models`).
 
 Each provider's API key is sealed with the secret key, bound to `settings.model.<provider id>`,
 stored apart from the section (`model-keys`), and returned masked only. A key typed in the form is
-used for the model listing, and a stored key only for the provider it was saved for. Removing a
-provider drops its key.
+used for the model listing. A stored key goes with a listing only for the provider it was saved
+for, with the same vendor and the same base URL (parsed, trailing slash ignored); another base URL
+needs the key typed again. The listing's base URL is an `http` or `https` URL. Removing a provider
+drops its key.
+
+Every request to the model gateway (the listing, the connection test and each model call) goes
+through `settings/gateway-fetch.ts`. It follows the connectors' outbound policy: `http` and `https`
+only, never a cloud metadata address (by the host or by what a name resolves to), and no redirect
+followed.
 
 A thread runs on the provider it was started with (`POST /api/threads` with `providerId`), or on
 the default when it named none or its provider was removed. Editors see the providers' names and
