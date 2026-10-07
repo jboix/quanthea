@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { chmodSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { captureLogs, temporaryDir } from '../test/fixtures.ts';
 import { type KeyInput, type KeyInputs, loadKeys } from './keys.ts';
@@ -147,6 +155,36 @@ describe('loading the keys', () => {
       };
       await expect(load(keys)).rejects.toThrow(`${variable} points into the data directory`);
     }
+  });
+
+  test('refuses a key file inside the data directory whose name starts with two dots', async () => {
+    const inside = join(dataDir.path, '..secret.key');
+    writeFileSync(inside, randomKey(), { mode: 0o600 });
+    const keys = {
+      ...allGiven(),
+      secret: { ...allGiven().secret, value: undefined, file: inside },
+    };
+    await expect(load(keys)).rejects.toThrow('QUANTHEA_SECRET_KEY_FILE points into the data');
+  });
+
+  test('sees through symbolic links to the data directory', async () => {
+    const inside = join(dataDir.path, 'session.key');
+    writeFileSync(inside, randomKey(), { mode: 0o600 });
+    const linkedData = join(outside.path, 'data-link');
+    symlinkSync(dataDir.path, linkedData);
+    const keys = {
+      ...allGiven(),
+      session: { ...allGiven().session, value: undefined, file: inside },
+    };
+    const { logger } = captureLogs();
+    const throughLinkedData = loadKeys({ keys, dataDir: linkedData, keysDir, logger });
+    await expect(throughLinkedData).rejects.toThrow(
+      'QUANTHEA_SESSION_KEY_FILE points into the data',
+    );
+    const linkedFile = { ...keys.session, file: join(linkedData, 'session.key') };
+    await expect(load({ ...keys, session: linkedFile })).rejects.toThrow('points into the data');
+    keysDir = join(linkedData, 'keys');
+    await expect(load(inputs())).rejects.toThrow('QUANTHEA_KEYS_DIR');
   });
 
   test('warns about a key file others can read', async () => {

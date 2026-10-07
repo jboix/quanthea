@@ -3063,6 +3063,8 @@ message ever contains a key.
 
 The server refuses to start with any key file inside the data directory (the secret key, the
 session key, the pepper, or a previous key): a copy of the data directory must never carry a key.
+The check, like the one on `QUANTHEA_KEYS_DIR`, compares real paths, so a symbolic link to or
+from the data directory does not hide a key file in it.
 A secret key that cannot open what the database holds stops the server at startup, naming the
 id of the key that sealed it, to set as `QUANTHEA_SECRET_KEY` or `QUANTHEA_SECRET_KEY_PREVIOUS`.
 

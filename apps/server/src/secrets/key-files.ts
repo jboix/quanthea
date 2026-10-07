@@ -3,8 +3,15 @@
  * role, in the keys directory. That directory lies outside the data directory, so a copy of the
  * data never carries a key.
  */
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { Logger } from '../lib/logger.ts';
 
 /** A 32-byte key. */
@@ -72,15 +79,31 @@ export function readKeyText(path: string, logger: Logger): string {
 }
 
 /**
- * Whether a path is a directory or lies inside it.
+ * A path with its symbolic links resolved. The part that does not exist yet is kept as given,
+ * under its nearest existing parent's real path.
+ *
+ * @param path - The path.
+ * @returns The absolute real path.
+ */
+function realPathOf(path: string): string {
+  const absolute = resolve(path);
+  if (existsSync(absolute)) return realpathSync(absolute);
+  const parent = dirname(absolute);
+  if (parent === absolute) return absolute;
+  return join(realPathOf(parent), basename(absolute));
+}
+
+/**
+ * Whether a path is a directory or lies inside it, after resolving symbolic links.
  *
  * @param path - The path.
  * @param directory - The directory.
  * @returns Whether it does.
  */
 export function isWithin(path: string, directory: string): boolean {
-  const between = relative(directory, path);
-  return !between.startsWith('..') && !between.startsWith('/');
+  const between = relative(realPathOf(directory), realPathOf(path));
+  if (between === '') return true;
+  return between !== '..' && !between.startsWith(`..${sep}`) && !isAbsolute(between);
 }
 
 /**
