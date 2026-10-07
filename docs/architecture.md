@@ -376,7 +376,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
 - **Colour scheme.** Light, dark or the system's, picked under Appearance in the account menu and
-  kept in the browser's `localStorage` (`ui/color-scheme.ts`). Light is the default. The choice
+  kept in the browser's `localStorage` (`ui/color-scheme.ts`). The system's is the default, until the person picks one. The choice
   sets `data-theme` on the document element before the first render, and `@quanthea/tokens`
   redefines the colour tokens for `dark`. Charts read their colours from the tokens again when the
   scheme changes. The icon tiles keep their brand colours in both schemes.

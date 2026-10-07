@@ -20,16 +20,16 @@ const changeEvent = 'quanthea:color-scheme';
 const darkQuery = '(prefers-color-scheme: dark)';
 
 /**
- * The kept choice; light when none is kept or storage is unavailable.
+ * The kept choice; the system's when none is kept or storage is unavailable.
  *
  * @returns The choice.
  */
 export function storedScheme(): ColorScheme {
   try {
     const stored = localStorage.getItem(storageKey);
-    return stored === 'dark' || stored === 'system' ? stored : 'light';
+    return stored === 'light' || stored === 'dark' ? stored : 'system';
   } catch {
-    return 'light';
+    return 'system';
   }
 }
 
@@ -120,6 +120,6 @@ export function useResolvedScheme(): ResolvedScheme {
  * @returns The choice and the setter.
  */
 export function useColorScheme(): readonly [ColorScheme, (scheme: ColorScheme) => void] {
-  const scheme = useSyncExternalStore(subscribe, storedScheme, () => 'light' as const);
+  const scheme = useSyncExternalStore(subscribe, storedScheme, () => 'system' as const);
   return [scheme, chooseScheme] as const;
 }
