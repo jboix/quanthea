@@ -3,12 +3,13 @@
  * `package.json`, the README and the licence. The workspace's own `package.json` points at the
  * sources and stays private; `npm publish packages/plugin-kit/dist` publishes this folder.
  *
- * Usage: `bun scripts/dist.ts [version]`. The release passes the version semantic-release cut,
- * from the `plugin-kit-v*` tags; without one, the build is `<kitVersion>.0.0-local`.
+ * Usage: `bun scripts/dist.ts [version]`. Without a version, the build is
+ * `<kitVersion>.0.0-local`. The release builds it that way, before it mints its credentials, and
+ * `scripts/stamp.ts` then writes the version semantic-release cut from the `plugin-kit-v*` tags.
  */
 import { copyFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { kitVersion } from '../src/kit.ts';
+import { versionToBuild } from './stamp.ts';
 
 const root = join(import.meta.dir, '..');
 const dist = join(root, 'dist');
@@ -62,20 +63,6 @@ function declare(): void {
     const path = join(dist, file);
     writeFileSync(path, readFileSync(path, 'utf8').replace(relativeTs, '$1.js$2'));
   }
-}
-
-/**
- * The version to build: the one given, whose major version must be the kit version.
- *
- * @param given - The version semantic-release cut, if any.
- * @returns The version.
- * @throws {Error} When the major version is not {@link kitVersion}.
- */
-function versionToBuild(given: string | undefined): string {
-  const version = given ?? `${kitVersion}.0.0-local`;
-  if (Number(version.split('.')[0]) !== kitVersion)
-    throw new Error(`Version ${version} does not match kit version ${kitVersion}.`);
-  return version;
 }
 
 /**

@@ -20,7 +20,7 @@
       "project": ["src/**/*.ts"]
     },
     "packages/plugin-kit": {
-      "entry": ["scripts/consumer.ts"],
+      "entry": ["scripts/consumer.ts", "scripts/stamp.ts"],
       "ignoreDependencies": ["@semantic-release/exec", "semantic-release-monorepo"],
       "project": ["src/**/*.ts", "scripts/**/*.ts"]
     },

@@ -3392,10 +3392,11 @@ a time (a second dispatch waits for the first):
 4. Before the app's job, the packages job runs semantic-release for the plugin kit alone, from
    `packages/plugin-kit/.releaserc.json` with `semantic-release-monorepo`. It reads only the
    commits that changed `packages/plugin-kit` since the last `plugin-kit-vX.Y.Z` tag, with the
-   same rules: `fix` a patch, `feat` a minor version. Its prepare step builds `dist/` with that
-   version (`scripts/dist.ts`, which refuses a major version other than `kitVersion`), then
-   `@semantic-release/npm` publishes `dist` through trusted publishing (OIDC), which signs the
-   provenance. It tags the kit and creates its GitHub Release, and makes no commit.
+   same rules: `fix` a patch, `feat` a minor version. The job builds `dist/` before it mints the
+   bot token (`scripts/dist.ts`), and the prepare step writes the cut version into
+   `dist/package.json` (`scripts/stamp.ts`, which refuses a major version other than `kitVersion`).
+   Then `@semantic-release/npm` publishes `dist` through trusted publishing (OIDC), which signs
+   the provenance. It tags the kit and creates its GitHub Release, and makes no commit.
 5. The plugin generator follows the same way, after the kit: `packages/create-plugin`, its
    `create-plugin-vX.Y.Z` tags, its `dist/` built with the cut version. Coming after the kit, a
    generator release writes the kit version the kit's run may just have tagged. The app's job
@@ -3409,6 +3410,11 @@ The release credentials reach as little code as possible:
 - The quality workflow gates every commit on `main`, so the release runs no project checks.
   Dependencies install without their lifecycle scripts, and the packages' `dist/` is built before
   the bot token is minted.
+- With the bot token, the packages job runs npm, semantic-release and its plugins (dev
+  dependencies, at the versions in `bun.lock`), and two project scripts that use Bun alone: the
+  kit's `scripts/stamp.ts` and the generator's `scripts/dist.ts`. The generator's `dist/` is built
+  again there so it records the kit version just tagged. The TypeScript compiler, which the kit's
+  declarations need, runs only before the token exists.
 - The bot token carries only `contents`, `issues` and `pull-requests` write. Checkout keeps no
   credentials: semantic-release pushes with the token in its environment.
 - Of the jobs that run project code, only the packages job can request an OIDC token, which npm

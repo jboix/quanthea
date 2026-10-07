@@ -27,8 +27,12 @@ name: Release
 # When main has no release-worthy commits, no tag is cut and no image is built.
 #
 # The quality workflow gates every commit on main, so the release runs no
-# project checks: nothing but semantic-release and the packages' dist scripts
-# runs while the release bot token exists. The packages and release jobs run in
+# project checks. While the release bot token exists, what runs is npm,
+# semantic-release and its plugins (dev dependencies, at the versions in
+# bun.lock), and two project scripts that use Bun alone: the kit's stamp, which
+# writes the cut version into the dist built before the token, and the
+# generator's dist, which bundles with Bun. No other dev dependency, the
+# TypeScript compiler included, runs with the token. The packages and release jobs run in
 # the release environment, which holds the release bot's secrets and deploys
 # from main only. Dependencies install without their lifecycle scripts, and
 # checkout keeps no credentials: semantic-release pushes with the token in its
@@ -85,8 +89,11 @@ jobs:
           HUSKY: "0"
         run: bun install --frozen-lockfile --ignore-scripts
 
-      # @semantic-release/npm reads dist/package.json before the prepare step
-      # builds it again with the cut version. This runs before the token exists.
+      # Both dist folders are built here, before the token exists: the kit's
+      # declarations need the TypeScript compiler, a dev dependency. The kit's
+      # prepare step only writes the cut version into dist/package.json. The
+      # generator's prepare step builds its dist again, with Bun alone, so it
+      # records the kit version the kit's run may just have tagged.
       - name: Build the packages
         run: |
           bun packages/plugin-kit/scripts/dist.ts
@@ -102,8 +109,8 @@ jobs:
           permission-issues: write
           permission-pull-requests: write
 
-      # The kit's prepare step builds packages/plugin-kit/dist with the version
-      # semantic-release cuts, then publishes it.
+      # The kit's prepare step writes the version semantic-release cuts into
+      # packages/plugin-kit/dist/package.json, then publishes the folder.
       - name: Semantic Release for the plugin kit (tag + GitHub Release + npm via OIDC)
         working-directory: packages/plugin-kit
         env:
