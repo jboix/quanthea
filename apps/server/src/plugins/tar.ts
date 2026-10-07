@@ -1,8 +1,10 @@
 /**
  * Reads the two files a plugin needs out of an npm tarball, which is untrusted input: gunzipped up
- * to a size limit, then read entry by entry. An entry with an absolute path, a `..` segment or a
- * backslash, a link of any kind, a header whose checksum is wrong, or a wanted file that appears
- * twice makes the whole archive refused. Nothing is written to disk here; the installer writes
+ * to a size limit, then read entry by entry. Pax and GNU extended headers give the next entry its
+ * path and size as node-tar reads them, so the files are the ones npm shows. An entry with an
+ * absolute path, a `..` segment or a backslash, a link of any kind, a header whose checksum is
+ * wrong, an extended header that is malformed or over 64 KiB, a global header that sets a path or
+ * a size, or a wanted file that appears twice makes the whole archive refused. Nothing is written to disk here; the installer writes
  * only the files this returns.
  */
 import { gunzipSync } from 'node:zlib';
@@ -123,69 +125,171 @@ function checkEntry(header: Header): void {
     throw new ArchiveError(`the archive holds a link or a special file: ${header.path}`);
 }
 
+/** What extended headers give the entry that follows them. */
+interface Extension {
+  /** The entry's path, in place of its own header's. */
+  readonly path?: string;
+  /** The entry's data size, in place of its own header's. */
+  readonly size?: number;
+}
+
 /**
- * The path an extended header (pax `x` or GNU `L`) gives the next entry, if any. A GNU long name
- * ends at its first NUL.
+ * Checks an extended header's size before it is read.
+ *
+ * @param data - Its data.
+ * @throws {ArchiveError} When it is larger than {@link maxExtended}.
+ */
+function checkExtendedSize(data: Uint8Array): void {
+  if (data.length > maxExtended)
+    throw new ArchiveError(`an extended header is larger than ${maxExtended} bytes`);
+}
+
+/** One pax record, `<length> <key>=<value>\n`, and where the next one starts. */
+interface PaxRecord {
+  /** The key. */
+  readonly key: string;
+  /** The value. */
+  readonly value: string;
+  /** The offset after the record. */
+  readonly end: number;
+}
+
+/**
+ * Reads the pax record at an offset, its length prefix counting every byte of the record.
+ *
+ * @param data - The extended header's data.
+ * @param start - The record's offset.
+ * @returns The record.
+ * @throws {ArchiveError} When the record is malformed.
+ */
+function paxRecord(data: Uint8Array, start: number): PaxRecord {
+  const space = data.indexOf(0x20, start);
+  const digits = space === -1 ? '' : text(data, start, space - start);
+  const end = start + Number(digits);
+  if (!/^\d+$/.test(digits) || end <= space || end > data.length || data[end - 1] !== 0x0a)
+    throw new ArchiveError('a pax header is malformed');
+  const record = new TextDecoder().decode(data.subarray(space + 1, end - 1));
+  const equals = record.indexOf('=');
+  if (equals < 1) throw new ArchiveError('a pax header is malformed');
+  return { key: record.slice(0, equals), value: record.slice(equals + 1), end };
+}
+
+/**
+ * The records of a pax header, a key given twice keeping its last value, as node-tar does.
+ *
+ * @param data - The extended header's data.
+ * @returns The values, by key.
+ * @throws {ArchiveError} When the header is larger than {@link maxExtended} or malformed.
+ */
+function paxRecords(data: Uint8Array): Map<string, string> {
+  checkExtendedSize(data);
+  const records = new Map<string, string>();
+  for (let offset = 0; offset < data.length; ) {
+    const record = paxRecord(data, offset);
+    records.set(record.key, record.value);
+    offset = record.end;
+  }
+  return records;
+}
+
+/**
+ * What an extended header (pax `x` or GNU `L`) adds to the ones before it. A GNU long name ends at
+ * its first NUL; a pax header gives its last `path` and its `size`.
  *
  * @param header - The extended header.
  * @param data - Its data.
- * @returns The path, or `undefined`.
- * @throws {ArchiveError} When the extended header is larger than {@link maxExtended}.
+ * @param before - What the extended headers before it gave.
+ * @returns What they give together.
+ * @throws {ArchiveError} When the header is larger than {@link maxExtended}, malformed, or gives a
+ *   size that is not a decimal number.
  */
-function extendedPath(header: Header, data: Uint8Array): string | undefined {
-  if (data.length > maxExtended)
-    throw new ArchiveError(`an extended header is larger than ${maxExtended} bytes`);
-  if (header.type === 'L') return text(data, 0, data.length);
-  const content = new TextDecoder().decode(data);
-  return /(?:^|\n)\d+ path=([^\n]*)\n/.exec(content)?.[1];
+function readExtension(header: Header, data: Uint8Array, before: Extension): Extension {
+  checkExtendedSize(data);
+  if (header.type === 'L') return { ...before, path: text(data, 0, data.length) };
+  const records = paxRecords(data);
+  const path = records.get('path');
+  const size = records.get('size');
+  if (size !== undefined && !/^\d+$/.test(size))
+    throw new ArchiveError('a pax header is malformed');
+  return {
+    ...before,
+    ...(path === undefined ? {} : { path }),
+    ...(size === undefined ? {} : { size: Number(size) }),
+  };
+}
+
+/**
+ * Checks a pax global header, which would set the path or the size of every entry after it.
+ *
+ * @param data - Its data.
+ * @throws {ArchiveError} When it sets a path or a size, or is malformed.
+ */
+function checkGlobal(data: Uint8Array): void {
+  const records = paxRecords(data);
+  if (records.has('path') || records.has('size'))
+    throw new ArchiveError('a global pax header sets a path or a size');
 }
 
 /** An entry of an archive: its header and its data. */
 interface Entry {
-  /** The header, its path from an extended header when one came before. */
+  /** The header, its path and size from extended headers when some came before. */
   readonly header: Header;
   /** The data. */
   readonly data: Uint8Array;
 }
 
 /**
- * The raw entries of a tar archive, in order, extended headers included.
+ * A header with what extended headers before it gave. Extended headers keep their own fields.
  *
- * @param tar - The uncompressed archive.
- * @yields Each entry, its path as its own header gives it.
- * @throws {ArchiveError} For a corrupt header or an archive that ends inside a file.
+ * @param header - The header, as read.
+ * @param extension - What the extended headers before it gave.
+ * @returns The header to use.
  */
-function* rawEntries(tar: Uint8Array): Generator<Entry> {
-  let offset = 0;
-  while (offset + block <= tar.length) {
-    const raw = tar.subarray(offset, offset + block);
-    if (raw.every((byte) => byte === 0)) return;
-    const header = readHeader(raw);
-    const data = tar.subarray(offset + block, offset + block + header.size);
-    if (data.length !== header.size) throw new ArchiveError('the archive ends inside a file');
-    offset += block + Math.ceil(header.size / block) * block;
-    yield { header, data };
-  }
+function extend(header: Header, extension: Extension): Header {
+  if ('xL'.includes(header.type)) return header;
+  return { ...header, path: extension.path ?? header.path, size: extension.size ?? header.size };
 }
 
 /**
- * The entries of a tar archive, each with the path an extended header before it gave, checked.
+ * An entry's data.
  *
  * @param tar - The uncompressed archive.
- * @yields Each file or directory entry.
- * @throws {ArchiveError} For an unsafe path, a link or a special file.
+ * @param start - Where the data starts.
+ * @param size - Its size.
+ * @returns The data.
+ * @throws {ArchiveError} When the archive ends inside it.
+ */
+function dataOf(tar: Uint8Array, start: number, size: number): Uint8Array {
+  const data = tar.subarray(start, start + size);
+  if (data.length !== size) throw new ArchiveError('the archive ends inside a file');
+  return data;
+}
+
+/**
+ * The entries of a tar archive, each with the path and size the extended headers before it gave,
+ * checked. Extended headers are read, not yielded.
+ *
+ * @param tar - The uncompressed archive.
+ * @yields Each file, directory or global header entry.
+ * @throws {ArchiveError} For a corrupt header, an archive that ends inside a file, an unsafe path,
+ *   a link, a special file, or a malformed or ambiguous extended header.
  */
 function* entries(tar: Uint8Array): Generator<Entry> {
-  let longPath: string | undefined;
-  for (const entry of rawEntries(tar)) {
-    if ('xL'.includes(entry.header.type)) {
-      longPath = extendedPath(entry.header, entry.data);
+  let extension: Extension = {};
+  for (let offset = 0; offset + block <= tar.length; ) {
+    const raw = tar.subarray(offset, offset + block);
+    if (raw.every((byte) => byte === 0)) return;
+    const header = extend(readHeader(raw), extension);
+    const data = dataOf(tar, offset + block, header.size);
+    offset += block + Math.ceil(header.size / block) * block;
+    if ('xL'.includes(header.type)) {
+      extension = readExtension(header, data, extension);
       continue;
     }
-    const header = longPath === undefined ? entry.header : { ...entry.header, path: longPath };
-    longPath = undefined;
+    extension = {};
     checkEntry(header);
-    yield { header, data: entry.data };
+    if (header.type === 'g') checkGlobal(data);
+    yield { header, data };
   }
 }
 

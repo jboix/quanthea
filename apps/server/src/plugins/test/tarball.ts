@@ -1,6 +1,7 @@
 /**
  * Writes tarballs for tests, including ones no packer would write: links, absolute paths, `..`,
- * duplicates and a corrupt checksum, to check the reader refuses them.
+ * duplicates, a corrupt checksum and a size that differs from the data, to check the reader
+ * refuses them or reads them as npm does.
  */
 import { gzipSync } from 'node:zlib';
 
@@ -14,6 +15,8 @@ export interface TarEntry {
   readonly type?: string;
   /** Spoil the header's checksum. */
   readonly corrupt?: boolean;
+  /** The size the header gives, when it differs from the data's. */
+  readonly size?: number;
 }
 
 /**
@@ -33,7 +36,7 @@ function put(header: Uint8Array, value: string, start: number): void {
  * @param entry - The entry.
  * @returns The bytes.
  */
-function entryBytes(entry: TarEntry): Uint8Array {
+export function entryBytes(entry: TarEntry): Uint8Array {
   const data =
     typeof entry.data === 'string'
       ? new TextEncoder().encode(entry.data)
@@ -41,7 +44,8 @@ function entryBytes(entry: TarEntry): Uint8Array {
   const header = new Uint8Array(512);
   put(header, entry.path, 0);
   put(header, '0000644\0', 100);
-  put(header, `${data.length.toString(8).padStart(11, '0')}\0`, 124);
+  const size = entry.size ?? data.length;
+  put(header, `${size.toString(8).padStart(11, '0')}\0`, 124);
   put(header, '00000000000\0', 136);
   put(header, '        ', 148);
   put(header, entry.type ?? '0', 156);
@@ -63,4 +67,23 @@ export function tarball(entries: readonly TarEntry[]): Uint8Array {
   const parts = entries.map(entryBytes);
   const tar = new Uint8Array([...parts.flatMap((part) => [...part]), ...new Uint8Array(1024)]);
   return new Uint8Array(gzipSync(tar));
+}
+
+/**
+ * The data of a pax extended header: each record prefixed with its own length in bytes.
+ *
+ * @param records - The keys and values, in order, a key repeated when given twice.
+ * @returns The records, as text.
+ */
+export function paxData(records: readonly (readonly [string, string])[]): string {
+  return records
+    .map(([key, value]) => {
+      const body = ` ${key}=${value}\n`;
+      const bodyLength = new TextEncoder().encode(body).length;
+      let length = bodyLength + 1;
+      while (String(length).length + bodyLength !== length)
+        length = String(length).length + bodyLength;
+      return `${length}${body}`;
+    })
+    .join('');
 }

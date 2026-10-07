@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { ArchiveError, gunzip, readTar } from './tar.ts';
-import { tarball } from './test/tarball.ts';
+import { entryBytes, paxData, tarball } from './test/tarball.ts';
 
 const wanted = new Set(['package/package.json', 'package/dist/plugin.js']);
 
@@ -75,5 +75,49 @@ describe('readTar', () => {
     for (const archive of archives)
       expect(() => readTar(archive, wanted)).toThrow('extended header is larger than 65536 bytes');
     expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  test('applies a pax size to the next entry, as npm does, and reads what it hides as data', () => {
+    const hidden = entryBytes({ path: 'package/package.json', data: '{"hidden":true}' });
+    const size = paxData([['size', String(hidden.length)]]);
+    expect(
+      read([
+        { path: 'PaxHeader/README.md', type: 'x', data: size },
+        { path: 'package/README.md', data: hidden, size: 0 },
+      ]),
+    ).toEqual({});
+  });
+
+  test('takes the last pax path, as npm does', () => {
+    const paths = paxData([
+      ['path', 'package/decoy.json'],
+      ['path', 'package/package.json'],
+    ]);
+    expect(
+      read([
+        { path: 'PaxHeader/x', type: 'x', data: paths },
+        { path: 'package/x', data: '{}' },
+      ]),
+    ).toEqual({ 'package/package.json': '{}' });
+  });
+
+  test('refuses a malformed pax header, and a global one that sets a path or a size', () => {
+    const entry = { path: 'package/package.json', data: '{}' };
+    for (const data of ['99 path=x\n', '5 path=package/x\n', '8 nokey\n', 'path=x\n'])
+      expect(() => read([{ path: 'PaxHeader/x', type: 'x', data }, entry])).toThrow(
+        'pax header is malformed',
+      );
+    const badSize = paxData([['size', '-1']]);
+    expect(() => read([{ path: 'PaxHeader/x', type: 'x', data: badSize }, entry])).toThrow(
+      'pax header is malformed',
+    );
+    for (const key of ['path', 'size'])
+      expect(() =>
+        read([{ path: 'pax_global_header', type: 'g', data: paxData([[key, '1']]) }, entry]),
+      ).toThrow('global pax header sets');
+    const comment = paxData([['comment', 'abc']]);
+    expect(read([{ path: 'pax_global_header', type: 'g', data: comment }, entry])).toEqual({
+      'package/package.json': '{}',
+    });
   });
 });
