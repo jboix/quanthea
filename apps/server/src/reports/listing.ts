@@ -3,13 +3,9 @@
  * exists that the person has not opened, and the history of its first headline number over the
  * latest successful runs, read from the stored runs. No query runs.
  */
-import {
-  type ReportListItem,
-  type ReportSpec,
-  type Role,
-  reportHistoryRuns,
-} from '@quanthea/shared';
+import { type ReportListItem, type ReportSpec, reportHistoryRuns } from '@quanthea/shared';
 import type { RunSummaryRow } from '../db/report-run-repository.ts';
+import { type ReaderRole, roleOn } from '../lib/reader-role.ts';
 import type { ReportsContext } from './context.ts';
 import { toReportSummary, toRunSummary, versionSpecs, visibleVersions } from './views.ts';
 
@@ -58,17 +54,18 @@ export function headlineHistory(runs: readonly RunSummaryRow[], specOf: SpecOf) 
  * Lists the reports a role may see, as one person reads them.
  *
  * @param context - The service context.
- * @param role - The role.
+ * @param reader - The role, or how to find it from each report's thread.
  * @param readerId - Who reads, by user id.
  * @returns The reports, the newest first.
  */
 export function listForReader(
   context: ReportsContext,
-  role: Role,
+  reader: ReaderRole,
   readerId: string,
 ): ReportListItem[] {
   const seen = context.seen?.seenBy(readerId) ?? new Map<string, string>();
   return context.repository.list().flatMap((report) => {
+    const role = roleOn(reader, report.threadId);
     const versions = versionSpecs(context, report.id);
     const allowed = visibleVersions(versions, role);
     // Below editor, a report shows once a version is active.

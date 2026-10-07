@@ -6,6 +6,10 @@ checks it on a schedule with no model.
 
 Editors write and activate alerts. Analysts also mute them. Every role reads them.
 
+An alert's drafts belong to the thread that wrote it. Its owner and admins see every version,
+and activate, deactivate, tune and test it. Other editors read it as every role does: once it is
+active, with the versions ever active.
+
 ## Write one
 
 Open **Threads**, pick **An alert**, and say what to watch, when it should fire and who hears:
@@ -80,7 +84,8 @@ number of alerts firing.
 
 ### Tune a live alert
 
-Editors drag the threshold, or change the wait or the interval, right on the page. Nothing is saved
+The owner of its thread and admins drag the threshold, or change the wait or the interval, right
+on the page. Nothing is saved
 yet: an amber bar says what the change would do ("Not saved: threshold 2% → 2.5%. Last 7 days: would
 have fired 1 time instead of 2. Right now: checkout-svc would stop firing."). **Discard** drops it;
 **Activate as v4** saves and activates it as a new version.
@@ -90,9 +95,10 @@ have fired 1 time instead of 2. Right now: checkout-svc would stop firing."). **
 - **Mute** (analysts and above): for 1 hour, 4 hours, until tomorrow 09:00, or until a time
   within 7 days. Editors may also mute until someone unmutes. A muted alert is still checked; it
   only stays quiet. A series still firing when the mute ends notifies then.
-- **Change** (editors): **Edit with the agent** opens its thread; **Deactivate** stops checking it
+- **Change** (the owner of its thread and admins): **Edit with the agent** opens its thread; **Deactivate** stops checking it
   and resolves what was firing, so PagerDuty closes its incident; **Activate** starts it again.
-- **Versions**: who saved each and when. Editors activate another one.
+- **Versions**: who saved each and when. The owner of its thread and admins activate another
+  one.
 
 ## Alerts on dashboards
 

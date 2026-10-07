@@ -9,8 +9,8 @@ Dashboards, alerts and reports have versions, and no version is ever rewritten.
 
 - A dashboard shows its pinned version. **Versions** in its header lists them all, with what
   changed; editors pin any of them, an earlier one included.
-- An alert or a report runs its active version. **Versions** lists who saved each and when;
-  editors activate another.
+- An alert or a report runs its active version. **Versions** lists who saved each and when; the
+  owner of its thread and admins activate another.
 - Each change in a thread, by the agent or by hand, is a new version.
 
 ## The bin
@@ -23,6 +23,8 @@ questions about a dashboard or a report's run.
 
 - A thread whose dashboard is pinned can't be deleted: unpin it first. A thread whose alert or
   report is active can't either: deactivate it first.
+- While a thread is in the bin, its dashboard can't be pinned and its alert or report can't be
+  activated. Restore the thread first.
 - Editors restore their own threads. Analysts restore the conversations they started or deleted.
 - Admins see everything in the bin, restore any of it, and **Delete for good**, one by one or
   with **Empty bin**.

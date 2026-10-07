@@ -6,6 +6,10 @@ conversation. Each run is computed by quanthea with no model, and frozen.
 
 Editors write and activate reports. Every role reads them and their runs.
 
+A report's drafts belong to the thread that wrote it. Its owner and admins see every version,
+and activate, deactivate, run and test it. Other editors read it as every role does: once it is
+active, with the versions ever active and their runs.
+
 ## Write one
 
 Open **Threads**, pick **A report**, and say when it runs, what it covers and who hears:
@@ -70,9 +74,9 @@ frozen when it ran.
 - **See also** opens each linked dashboard on the run's period.
 - **Ask about this** asks questions about the run; see
   [Ask about a report's run](ask-and-explain.md#ask-about-a-reports-run).
-- **Change** (editors): **Edit with the agent**, **Run now** (runs it over its latest period, and
+- **Change** (the owner of its thread and admins): **Edit with the agent**, **Run now** (runs it over its latest period, and
   sends it only when you ask), **Deactivate** or **Activate**.
-- **Share → Copy link**, and **Versions** for editors.
+- **Share → Copy link**, and **Versions** for the owner of its thread and admins.
 
 ## When a run fails
 

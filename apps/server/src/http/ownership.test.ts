@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { connectorInputSchema, type Principal } from '@quanthea/shared';
 import { createApp } from '../app.ts';
 import { eventsSpec } from '../dashboards/test/events-spec.ts';
+import { eventsReport } from '../reports/test/events-report.ts';
 import { captureLogs, fixedAuthenticator, temporaryDir, testServices } from '../test/fixtures.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
@@ -173,5 +174,125 @@ describe('the bin keeps to owners', () => {
     expect(((await as(bob, 'GET', '/bin')).body as { threads: unknown }).threads).toEqual([]);
     expect((await as(bob, 'POST', `/bin/${threadId}/restore`)).status).toBe(404);
     expect((await as(ada, 'POST', `/bin/${threadId}/restore`)).status).toBe(200);
+  });
+});
+
+/** An alert spec over the in-memory events. */
+const alertSpec = {
+  specVersion: 1,
+  title: 'Errors by service',
+  query: { refId: 'A', connector: 'events', language: 'sql', sql: 'SELECT * FROM events' },
+  value: { field: 'errors', by: ['service'], reduce: 'max' },
+  condition: { kind: 'threshold', op: 'above', value: 4, for: '5m' },
+  every: '1m',
+  lookback: '10m',
+  severity: 'warning',
+  message: { title: '{alert}', body: '{series} at {value}.' },
+};
+
+/**
+ * An alert of one of Ada's threads with an active first version and a draft second one, and an
+ * alert of another of her threads with a draft only.
+ *
+ * @returns The two alerts.
+ */
+async function adasAlerts() {
+  const save = (alertId?: string) => {
+    const threadId = services.threads.create(ada.id, undefined, undefined, { kind: 'alert' }).id;
+    return services.alerts.saveVersion({ alertId, spec: alertSpec, threadId }, ada.id).alertId;
+  };
+  const live = save();
+  await services.alerts.activate(live, 1, ada.id);
+  services.alerts.saveVersion({ alertId: live, spec: { ...alertSpec, title: 'v2' } }, ada.id);
+  return { live, draft: save() };
+}
+
+/**
+ * The version numbers of an alert or report someone reads, and whether they may change it.
+ *
+ * @param principal - Who reads it.
+ * @param path - Its path under `/api`.
+ * @returns The versions, the latest version and `canChange`.
+ */
+async function readAs(principal: Principal, path: string) {
+  const { body } = await as(principal, 'GET', path);
+  const { versions, latestVersion, canChange } = body as {
+    versions: { version: number }[];
+    latestVersion: number | null;
+    canChange: boolean;
+  };
+  return { versions: versions.map((each) => each.version), latestVersion, canChange };
+}
+
+describe('an alert’s drafts follow its thread', () => {
+  test('its owner and admins see every version; other editors only those ever active', async () => {
+    const { live, draft } = await adasAlerts();
+    const all = { versions: [2, 1], latestVersion: 2, canChange: true };
+    expect(await readAs(ada, `/alerts/${live}`)).toEqual(all);
+    expect(await readAs(root, `/alerts/${live}`)).toEqual(all);
+    const active = { versions: [1], latestVersion: null, canChange: false };
+    expect(await readAs(bob, `/alerts/${live}`)).toEqual(active);
+    expect((await as(bob, 'GET', `/alerts/${draft}`)).status).toBe(404);
+    const listed = async (principal: Principal) =>
+      ((await as(principal, 'GET', '/alerts')).body as { alerts: { id: string }[] }).alerts.map(
+        (each) => each.id,
+      );
+    expect(await listed(ada)).toContain(draft);
+    expect(await listed(bob)).not.toContain(draft);
+    const replay = { from: Date.now() - 3_600_000, to: Date.now() };
+    expect((await as(bob, 'POST', `/alerts/${live}/versions/2/replay`, replay)).status).toBe(404);
+  });
+
+  test('only its owner and admins activate, deactivate, change or test it', async () => {
+    const { live, draft } = await adasAlerts();
+    const change = { basedOn: 1, spec: { ...alertSpec, severity: 'critical' } };
+    for (const [method, path, body] of [
+      ['POST', `/alerts/${draft}/activate`, { version: 1 }],
+      ['POST', `/alerts/${live}/deactivate`, undefined],
+      ['POST', `/alerts/${live}/versions`, change],
+      ['POST', `/alerts/${live}/versions/2/test`, {}],
+    ] as const) {
+      expect((await as(bob, method, path, body)).status).toBe(403);
+    }
+    expect((await as(root, 'POST', `/alerts/${live}/deactivate`)).status).toBe(200);
+    expect((await as(ada, 'POST', `/alerts/${draft}/activate`, { version: 1 })).status).toBe(200);
+  });
+});
+
+/**
+ * A report of one of Ada's threads with an active first version and a draft second one.
+ *
+ * @returns The report.
+ */
+async function adasReport(): Promise<string> {
+  const threadId = services.threads.create(ada.id, undefined, undefined, { kind: 'report' }).id;
+  const input = { spec: eventsReport(), threadId };
+  const { reportId } = services.reports.saveVersion(input, ada.id);
+  await services.reports.activate(reportId, 1, ada.id);
+  services.reports.saveVersion({ reportId, spec: eventsReport({ title: 'v2' }) }, ada.id);
+  return reportId;
+}
+
+describe('a report’s drafts follow its thread', () => {
+  test('its owner and admins see every version; other editors only those ever active', async () => {
+    const reportId = await adasReport();
+    const all = { versions: [2, 1], latestVersion: 2, canChange: true };
+    expect(await readAs(ada, `/reports/${reportId}`)).toEqual(all);
+    expect(await readAs(root, `/reports/${reportId}`)).toEqual(all);
+    const active = { versions: [1], latestVersion: null, canChange: false };
+    expect(await readAs(bob, `/reports/${reportId}`)).toEqual(active);
+  });
+
+  test('only its owner and admins activate, deactivate, run or test it', async () => {
+    const reportId = await adasReport();
+    for (const [path, body] of [
+      [`/reports/${reportId}/activate`, { version: 2 }],
+      [`/reports/${reportId}/deactivate`, undefined],
+      [`/reports/${reportId}/run`, { send: false }],
+      [`/reports/${reportId}/versions/2/test`, undefined],
+    ] as const) {
+      expect((await as(bob, 'POST', path, body)).status).toBe(403);
+    }
+    expect((await as(root, 'POST', `/reports/${reportId}/deactivate`)).status).toBe(200);
   });
 });

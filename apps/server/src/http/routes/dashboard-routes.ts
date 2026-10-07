@@ -22,7 +22,7 @@ import { AppError } from '../../lib/errors.ts';
 import type { ThreadOwner } from '../../threads/bin.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
-import { canChangeDashboard, canRead, roleForDashboard } from '../ownership.ts';
+import { canChangeDashboard, canRead, checkOwnerChange, roleForDashboard } from '../ownership.ts';
 import { actorOf, signedIn } from '../principal.ts';
 
 /** The thread a dashboard belongs to, in the bin or not. */
@@ -101,8 +101,7 @@ function mountDashboardRoutes(app: Hono<AppEnv>, dashboards: Dashboards, options
  * @throws {AppError} `forbidden`, or `bad_request` while its thread is in the bin.
  */
 function checkChange(principal: Principal, owner: ThreadOwner | null): void {
-  if (!canChangeDashboard(principal, owner))
-    throw new AppError('forbidden', 'Only the owner of its thread, or an admin, can change this.');
+  checkOwnerChange(principal, owner);
   if (owner?.binned)
     throw new AppError('bad_request', 'Its thread is in the bin. Restore it before pinning.');
 }

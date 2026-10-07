@@ -55,9 +55,17 @@ const reportVersionSchema = z.object({
   activatedAt: z.number().nullable(),
 });
 
-/** Validates a report with its versions: every one for editors, those ever active for others. */
+/**
+ * Validates a report with its versions: every one for the owner of its thread and admins (any
+ * editor when it has no thread), those ever active for others.
+ */
 export const reportDetailSchema = reportSummarySchema.extend({
   versions: z.array(reportVersionSchema),
+  /**
+   * Whether the reader may activate, deactivate, run or test it: an editor who owns its thread or
+   * an admin, or any editor when it has no thread.
+   */
+  canChange: z.boolean(),
 });
 
 /** A report with its versions. */

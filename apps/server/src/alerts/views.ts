@@ -104,7 +104,7 @@ export function toDetail(
     readonly checks: readonly CheckEventRow[];
   },
   role: Role,
-): Omit<AlertDetail, 'channels' | 'sends' | 'activity'> {
+): Omit<AlertDetail, 'channels' | 'sends' | 'activity' | 'canChange'> {
   const versions = parts.versions
     .filter((version) => canSeeVersion(version, role))
     .map((version) => ({

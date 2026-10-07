@@ -787,7 +787,8 @@ limit and timeout, and never through the gate.
 it). One version at a time is active (`alerts.active_version`), and activating chooses it, as pinning
 does for a dashboard. A version keeps the time it was first activated. Below editor, an alert shows
 once a version is active, with the versions ever active only: no draft, and no latest version
-number (`latestVersion` is `null`). `alerts/changes.ts` and `alerts/deactivate.ts`:
+number (`latestVersion` is `null`). An editor who neither owns the alert's thread nor is an admin
+reads it the same way (see Ownership). `alerts/changes.ts` and `alerts/deactivate.ts`:
 
 - `saveVersion` validates a spec (`validateAlertSpec`) and adds a version, creating the alert with
   its first one, and the thread that made it when there is one. The conversation that writes
@@ -1050,7 +1051,8 @@ that; reports and their versions stay. Runs use no model, so the usage ledger is
 
 **Reading** (`reports/views.ts`, `reports/reading.ts`). Every role reads reports and their runs,
 as they read dashboards. Below editor a report shows once a version is active, with the versions
-ever active and their runs only: no draft, and no latest version number.
+ever active and their runs only: no draft, and no latest version number. An editor who neither
+owns the report's thread nor is an admin reads it the same way (see Ownership).
 
 - The list gives each report its schedule and period (of the active version, else the latest),
   its next run, and its latest run with its headline numbers and their change
@@ -2654,25 +2656,25 @@ indicative; the contract files are the source of truth.
 | `POST /settings/notification-channels/:id/test`, `GET …/:id/sends`                                | send a test, a channel's recent sends        | admin    |
 | `GET /notification-channels`                                                                      | channels by id, name and kind, to pick from  | editor   |
 | `POST /notification-channels/preview`                                                             | what each kind would send for a template     | editor   |
-| `GET /alerts`, `GET /alerts/:id` (versions ever active, series, changes; drafts: editor only)     | alerts and their state                       | viewer   |
+| `GET /alerts`, `GET /alerts/:id` (versions ever active, series, changes; drafts: see Ownership)   | alerts and their state                       | viewer   |
 | `POST /alerts/:id/mute` (an end at most 7 days ahead; no end: editor), `POST /alerts/:id/unmute`  | stop or resume notifications                 | analyst  |
-| `POST /alerts/:id/activate` (a version), `POST /alerts/:id/deactivate`                            | choose the version evaluated, or stop        | editor   |
+| `POST /alerts/:id/activate` (a version), `POST /alerts/:id/deactivate` (owner, admin)             | choose the version evaluated, or stop        | editor   |
 | `POST /alerts/replay` (a spec)                                                                    | how a draft would have fired over a window   | editor   |
-| `POST /alerts/:id/versions/:v/replay` (below editor: a version ever active)                       | how a version fired over a past window       | viewer   |
-| `POST /alerts/:id/versions/:v/test` (a series to fill the values with)                            | send the version's message as `alert.test`   | editor   |
+| `POST /alerts/:id/versions/:v/replay` (others than the owner and admins: a version ever active)   | how a version fired over a past window       | viewer   |
+| `POST /alerts/:id/versions/:v/test` (a series to fill the values with; owner, admin)              | send the version's message as `alert.test`   | editor   |
 | `POST /threads/:id/alert-draft` (the whole spec)                                                  | a hand edit: a new draft version and a card  | editor   |
-| `POST /alerts/:id/versions` (the active version it starts from, the whole spec)                   | changes from the alert page, activated       | editor   |
+| `POST /alerts/:id/versions` (the active version it starts from, the whole spec; owner, admin)     | changes from the alert page, activated       | editor   |
 | `GET /alerts/:id/links` (suggestions and dismissals: editors only)                                | the panels an alert is shown on              | viewer   |
 | `POST /alerts/:id/links`, `DELETE /alerts/:id/links/:dashboardId/:panelId`                        | link an alert to a panel, or unlink it       | editor   |
 | `POST /alerts/:id/link-dismissals`                                                                | dismiss a suggested panel                    | editor   |
 | `GET /alert-link-targets`                                                                         | pinned dashboards and panels, to link one    | editor   |
 | `GET /dashboards/:id/alerts?from=&to=` (suggestions: editors only)                                | the alerts on its panels, firing periods     | viewer   |
 | `GET/PUT /settings/alerts`                                                                        | the alert cap, and errors notify or not      | admin    |
-| `GET /reports`, `GET /reports/:id` (versions ever active; drafts: editor only)                    | reports, their latest run and next run       | viewer   |
+| `GET /reports`, `GET /reports/:id` (versions ever active; drafts: see Ownership)                  | reports, their latest run and next run       | viewer   |
 | `GET /reports/:id/runs?before=&limit=`, `GET /reports/:id/runs/:runId` (frozen, with neighbours)  | a report's runs, one run's results           | viewer   |
-| `POST /reports/:id/activate` (a version), `POST /reports/:id/deactivate`                          | put a version on the schedule, or stop       | editor   |
-| `POST /reports/:id/run` (`send`), `POST /reports/preview` (a spec)                                | run now, preview over the latest period      | editor   |
-| `POST /reports/:id/versions/:v/test`                                                              | send a version's message as a test           | editor   |
+| `POST /reports/:id/activate` (a version), `POST /reports/:id/deactivate` (owner, admin)           | put a version on the schedule, or stop       | editor   |
+| `POST /reports/:id/run` (`send`; owner, admin), `POST /reports/preview` (a spec)                  | run now, preview over the latest period      | editor   |
+| `POST /reports/:id/versions/:v/test` (owner, admin)                                               | send a version's message as a test           | editor   |
 | `POST /threads/:id/report-draft` (the whole spec)                                                 | a hand edit: a new draft version and a card  | editor   |
 | `GET/PUT /settings/reports`                                                                       | retries, their delay, how long runs are kept | admin    |
 | `POST /reports/:id/runs/:runId/questions` (streams the answer)                                    | ask about a run, from its frozen results     | analyst  |
@@ -2770,6 +2772,16 @@ one, and enables them again. Without any admin, it creates the default one.
   (`canChange` in `GET /api/dashboards/:id`). Copying a version checks it is visible first, so
   no one copies another's draft by its number. A dashboard with no thread is open to editors, as
   before.
+- An alert's or a report's drafts follow its thread the same way. Its owner and admins read every
+  version; any other editor reads it as a viewer does: in the lists and their detail only once a
+  version is active, with the versions ever active (and, for a report, their runs). The owner and
+  admins activate and deactivate it, send a test of a version, change an active alert from its
+  page (`POST /api/alerts/:id/versions`) and run a report now; others get 403
+  (`checkOwnerChange`). `canChange` in `GET /api/alerts/:id` and `GET /api/reports/:id` says so,
+  and the pages show Change, Versions' Activate and the alert's tuning only then. An alert or a
+  report whose thread was purged is open to editors. Muting stays open to analysts and above.
+  The services take the reader's role as a function of the thread (`lib/reader-role.ts`), so the
+  lists judge each alert and report by its own thread.
 - The bin keeps to owners: editors list and restore their own binned threads; admins list,
   restore and delete everyone's. Analysts and above list and restore the conversations they
   started or binned; admins list, restore and delete everyone's.

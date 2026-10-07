@@ -80,6 +80,13 @@ export interface ThreadBin {
    * @returns The thread and whether it is binned, or `null`.
    */
   ownerOf(dashboardId: string): ThreadOwner | null;
+  /**
+   * A thread's owner, in the bin or not: whose alert or report drafts the thread made.
+   *
+   * @param threadId - The thread.
+   * @returns The thread and whether it is binned, or `null`.
+   */
+  threadOwner(threadId: string): ThreadOwner | null;
 }
 
 /**
@@ -162,5 +169,6 @@ export function createThreadBin(dependencies: ThreadBinDependencies): ThreadBin 
       return ids.length;
     },
     ownerOf: (dashboardId) => repository.ownerOf(dashboardId) ?? null,
+    threadOwner: (threadId) => repository.threadOwner(threadId) ?? null,
   };
 }

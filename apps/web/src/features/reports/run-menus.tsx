@@ -3,7 +3,7 @@
  * now, and stops or resumes its schedule. Share copies the page's link. Versions lists the
  * versions, the active one marked; editors activate another.
  */
-import { dayMonth, hasRole, type ReportDetail } from '@quanthea/shared';
+import { dayMonth, type ReportDetail } from '@quanthea/shared';
 import { type ReactNode, useState } from 'react';
 import { Link } from 'react-router';
 import { Button } from '../../ui/button.tsx';
@@ -12,7 +12,6 @@ import { MenuItem, MenuItemText, menuItemClassName } from '../../ui/menu-item.ts
 import { Popover } from '../../ui/popover.tsx';
 import styles from './run.module.css';
 import { useReportChange } from './use-report-change.ts';
-import { useRole } from './use-role.ts';
 
 /** Props of the menus' contents. */
 export interface MenuProps {
@@ -173,14 +172,15 @@ function MenuButton({
 }
 
 /**
- * The header's Change, Share and Versions buttons: Change and Versions for editors.
+ * The header's Change, Share and Versions buttons: Change and Versions for whoever may change the
+ * report, the owner of its thread or an admin.
  *
  * @param props - The report.
  * @param props.report - The report.
  * @returns The buttons.
  */
 export function MenuButtons({ report }: { readonly report: ReportDetail }) {
-  const editor = hasRole(useRole(), 'editor');
+  const editor = report.canChange;
   return (
     <>
       {editor && (

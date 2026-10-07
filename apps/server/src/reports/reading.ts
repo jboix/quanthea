@@ -7,13 +7,13 @@ import {
   panelRunSchema,
   type ReportRunDetail,
   type ReportRunSummary,
-  type Role,
   sendResultSchema,
   variableValuesSchema,
 } from '@quanthea/shared';
 import { z } from 'zod';
 import type { RunSummaryRow } from '../db/report-run-repository.ts';
 import { AppError } from '../lib/errors.ts';
+import type { ReaderRole } from '../lib/reader-role.ts';
 import type { ReportsContext } from './context.ts';
 import { seeAlsoLinks } from './messages.ts';
 import {
@@ -53,17 +53,17 @@ function neighbourOf(versions: VersionSpecs, run: RunSummaryRow | undefined) {
  *
  * @param context - The service context.
  * @param id - The report.
- * @param role - The role.
+ * @param reader - The role, or how to find it from the report's thread.
  * @param page - Where the page starts, and its size.
  * @returns The runs, naming who ran each by user id.
  */
 export function listRuns(
   context: ReportsContext,
   id: string,
-  role: Role,
+  reader: ReaderRole,
   page: RunPage,
 ): ReportRunSummary[] {
-  visibleReport(context, id, role);
+  const role = visibleReport(context, id, reader);
   const versions = versionSpecs(context, id);
   const options = { versions: visibleVersions(versions, role), ...page };
   return context.runs.list(id, options).flatMap((run) => {
@@ -78,7 +78,7 @@ export function listRuns(
  * @param context - The service context.
  * @param id - The report.
  * @param runId - The run.
- * @param role - The role.
+ * @param reader - The role, or how to find it from the report's thread.
  * @returns The run, naming who ran it by user id.
  * @throws {AppError} `not_found` for a run the role may not see.
  */
@@ -86,9 +86,9 @@ export function readRun(
   context: ReportsContext,
   id: string,
   runId: string,
-  role: Role,
+  reader: ReaderRole,
 ): ReportRunDetail {
-  visibleReport(context, id, role);
+  const role = visibleReport(context, id, reader);
   const versions = versionSpecs(context, id);
   const allowed = visibleVersions(versions, role);
   const run = context.runs.get(runId);

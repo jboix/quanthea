@@ -1,7 +1,7 @@
 /**
  * The endpoints of hand edits, for editors. A hand edit in an alert thread's draft pane saves the
  * person's own change as a new draft version; changes made on a live alert's page are saved as a
- * new version and activated. Either adds a card to the conversation that wrote the alert, which
+ * new version and activated, by the owner of its thread or an admin. Either adds a card to the conversation that wrote the alert, which
  * the agent reads next turn. A test sends a version's message to its channels.
  */
 import {
@@ -17,11 +17,13 @@ import type { Alerts } from '../../alerts/alerts.ts';
 import { type ActiveChange, handEditNote } from '../../alerts/changes.ts';
 import { AppError } from '../../lib/errors.ts';
 import { newId } from '../../lib/ids.ts';
+import type { ThreadBin } from '../../threads/bin.ts';
 import type { Threads } from '../../threads/threads.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { checkThread } from '../ownership.ts';
 import { actorOf, signedIn } from '../principal.ts';
+import { checkAlertChange } from './alert-routes.ts';
 
 /** What the hand edits' endpoints need. */
 export interface AlertDraftRouteServices {
@@ -29,6 +31,8 @@ export interface AlertDraftRouteServices {
   readonly threads: Threads;
   /** The alerts. */
   readonly alerts: Alerts;
+  /** The bin, for the owner of an alert's thread. */
+  readonly bin: Pick<ThreadBin, 'threadOwner'>;
 }
 
 /**
@@ -151,12 +155,15 @@ export function mountAlertDraftEndpoints(app: Hono<AppEnv>, services: AlertDraft
   });
   mountEndpoint(app, activateAlertChangesEndpoint, {
     access: 'editor',
-    handle: ({ params, body, principal }) =>
-      activateChanges(services, params.alertId, body, actorOf(principal)),
+    handle: ({ params, body, principal }) => {
+      checkAlertChange(services, principal, params.alertId);
+      return activateChanges(services, params.alertId, body, actorOf(principal));
+    },
   });
   mountEndpoint(app, testAlertEndpoint, {
     access: 'editor',
     handle: async ({ params, body, principal }) => {
+      checkAlertChange(services, principal, params.alertId);
       const version = Number(params.version);
       const actor = actorOf(principal);
       const results = await services.alerts.sendTest(params.alertId, version, body.series, actor);

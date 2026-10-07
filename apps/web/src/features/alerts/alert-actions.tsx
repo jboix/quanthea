@@ -38,7 +38,7 @@ const sectionItems: Readonly<Record<HeaderSection, (props: MenuProps) => ReactNo
 function FoldedActions(props: MenuProps) {
   return (
     <div className={styles.folded}>
-      {headerSections(useRole()).map((section) => {
+      {headerSections(useRole(), props.alert.canChange).map((section) => {
         const Items = sectionItems[section];
         return (
           <section key={section} aria-label={section} className={styles.section}>

@@ -3,7 +3,7 @@
  * before and after, the line saying when it ran and where it went (or why it failed), and the
  * actions: Ask about this, Change, Share and Versions. Below 720 px the actions fold into one menu.
  */
-import { hasRole, type ReportDetail, type ReportRunDetail } from '@quanthea/shared';
+import type { ReportDetail, ReportRunDetail } from '@quanthea/shared';
 import { Link } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { MoreIcon, QuestionIcon } from '../../ui/icons.tsx';
@@ -12,7 +12,6 @@ import { Popover } from '../../ui/popover.tsx';
 import { useMediaQuery } from '../../ui/use-media-query.ts';
 import styles from './run.module.css';
 import { ChangeItems, CopyLinkItem, MenuButtons, VersionItems } from './run-menus.tsx';
-import { useRole } from './use-role.ts';
 import { ranLine, runTitle } from './words.ts';
 
 /** Below this width the header actions fold into one menu. */
@@ -78,7 +77,7 @@ function Step({
  * @returns The menu's content.
  */
 function FoldedActions({ report, onAsk, close }: RunHeaderProps & { readonly close: () => void }) {
-  const editor = hasRole(useRole(), 'editor');
+  const editor = report.canChange;
   return (
     <div className={styles.folded}>
       {onAsk && (

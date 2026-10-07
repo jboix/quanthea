@@ -137,11 +137,14 @@ describe('changes made on a live alert’s page', () => {
 
   test('are saved as a version, activated, and told to the conversation', async () => {
     const alertId = await liveAlert();
-    // Another editor tunes it: the alert is no one's, the card goes to its conversation.
-    const response = await client(otherEditor)(`/api/alerts/${alertId}/versions`, {
+    const change = {
       basedOn: 1,
       spec: { ...spec(3), condition: { kind: 'threshold', op: 'above', value: 3, for: '5m' } },
-    });
+    };
+    // Only the owner of its thread, or an admin, tunes it.
+    const path = `/api/alerts/${alertId}/versions`;
+    expect((await client(otherEditor)(path, change)).status).toBe(403);
+    const response = await client(editor)(path, change);
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ alertId, version: 2 });
     expect((response.body.changes as { path: string }[]).map((each) => each.path)).toEqual([

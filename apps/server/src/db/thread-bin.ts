@@ -101,6 +101,13 @@ export interface ThreadBinRepository {
    * @returns The thread and whether it is binned, or `undefined`.
    */
   ownerOf(dashboardId: string): ThreadOwner | undefined;
+  /**
+   * A thread's owner, in the bin or not.
+   *
+   * @param threadId - The thread.
+   * @returns The thread and whether it is binned, or `undefined`.
+   */
+  threadOwner(threadId: string): ThreadOwner | undefined;
 }
 
 /** A binned thread as SQLite returns it. */
@@ -119,6 +126,26 @@ interface StoredBinned {
   deleted_by: string | null;
   /** Who owns it. */
   created_by: string | null;
+}
+
+/** A thread's owner as SQLite returns it. */
+interface StoredOwner {
+  /** The thread. */
+  id: string;
+  /** Whether it is in the bin, 1 or 0. */
+  binned: number;
+  /** Who owns it. */
+  created_by: string | null;
+}
+
+/**
+ * A thread's owner as the repository returns it.
+ *
+ * @param row - The stored row, if any.
+ * @returns The owner, or `undefined`.
+ */
+function ownerOf(row: StoredOwner | null): ThreadOwner | undefined {
+  return row ? { threadId: row.id, binned: row.binned === 1, ownerId: row.created_by } : undefined;
 }
 
 /** Whether an alert the thread `t` made has an active version and is not deactivated. */
@@ -159,9 +186,12 @@ function binStatements(database: Database) {
       `SELECT t.id FROM threads t WHERE t.deleted_at IS NOT NULL AND t.deleted_at < ?
        AND NOT ${alertActive} AND NOT ${reportActive}`,
     ),
-    owner: database.query<{ id: string; binned: number; created_by: string | null }, [string]>(
+    owner: database.query<StoredOwner, [string]>(
       `SELECT id, deleted_at IS NOT NULL AS binned, created_by FROM threads WHERE dashboard_id = ?
        ORDER BY deleted_at IS NOT NULL, created_at LIMIT 1`,
+    ),
+    threadOwner: database.query<StoredOwner, [string]>(
+      'SELECT id, deleted_at IS NOT NULL AS binned, created_by FROM threads WHERE id = ?',
     ),
   };
 }
@@ -278,11 +308,7 @@ export function createThreadBinRepository(database: Database): ThreadBinReposito
       })),
     binnedBefore: (before) => statements.before.all(before).map((row) => row.id),
     purge: purger(database),
-    ownerOf: (dashboardId) => {
-      const row = statements.owner.get(dashboardId);
-      return row
-        ? { threadId: row.id, binned: row.binned === 1, ownerId: row.created_by }
-        : undefined;
-    },
+    ownerOf: (dashboardId) => ownerOf(statements.owner.get(dashboardId)),
+    threadOwner: (threadId) => ownerOf(statements.threadOwner.get(threadId)),
   };
 }

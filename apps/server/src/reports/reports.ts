@@ -15,12 +15,12 @@ import {
   type ReportRunSummary,
   type ReportSpec,
   type ReportSummary,
-  type Role,
   reportSpecSchema,
   type SendResult,
 } from '@quanthea/shared';
 import { maxSnapshotBytes } from '../dashboards/snapshots.ts';
 import { AppError } from '../lib/errors.ts';
+import type { ReaderRole } from '../lib/reader-role.ts';
 import {
   activate,
   checkReport,
@@ -33,14 +33,7 @@ import { listForReader } from './listing.ts';
 import { reportMessage } from './messages.ts';
 import { listRuns, type RunPage, readRun } from './reading.ts';
 import { attemptRun, createRun } from './runs.ts';
-import {
-  toReportDetail,
-  toReportSummary,
-  toRunSummary,
-  versionSpecs,
-  visibleReport,
-  visibleVersions,
-} from './views.ts';
+import { readReport, summaryOf, toRunSummary } from './views.ts';
 
 /** A run the scheduler starts, and what it counts against. */
 export interface ScheduledRun {
@@ -56,38 +49,47 @@ export interface Reports {
    * Lists the reports the role may see, with their latest run, whether the reader has a finished
    * run to open, and the history of the first headline number.
    *
-   * @param role - The role of the reader.
+   * @param reader - The role of the reader, or how to find it from each report's thread.
    * @param readerId - The reader, by user id.
    * @returns The reports, the newest first.
    */
-  list(role: Role, readerId: string): ReportListItem[];
+  list(reader: ReaderRole, readerId: string): ReportListItem[];
   /**
    * Reads a report with its versions.
    *
    * @param id - The report.
-   * @param role - The role of the reader: viewers and analysts see the versions ever active.
+   * @param reader - The role of the reader, or how to find it from the report's thread: below
+   *   editor, the versions ever active.
    * @returns The report.
    * @throws {AppError} `not_found`, also for a report never activated below editor.
    */
-  get(id: string, role: Role): ReportDetail;
+  get(id: string, reader: ReaderRole): Omit<ReportDetail, 'canChange'>;
+  /**
+   * The thread that made a report.
+   *
+   * @param id - The report.
+   * @returns The thread, or `null` when it has none.
+   * @throws {AppError} `not_found`.
+   */
+  threadOf(id: string): string | null;
   /**
    * Lists a report's runs, the latest period first.
    *
    * @param id - The report.
-   * @param role - The role of the reader.
+   * @param reader - The role of the reader, or how to find it from the report's thread.
    * @param page - Where the page starts, and its size.
    * @returns The runs.
    */
-  runs(id: string, role: Role, page: RunPage): ReportRunSummary[];
+  runs(id: string, reader: ReaderRole, page: RunPage): ReportRunSummary[];
   /**
    * Reads one run with its frozen results and the runs either side.
    *
    * @param id - The report.
    * @param runId - The run.
-   * @param role - The role of the reader.
+   * @param reader - The role of the reader, or how to find it from the report's thread.
    * @returns The run.
    */
-  run(id: string, runId: string, role: Role): ReportRunDetail;
+  run(id: string, runId: string, reader: ReaderRole): ReportRunDetail;
   /**
    * Records that a person opened a run, so the list stops showing it as new to them.
    *
@@ -203,20 +205,6 @@ function versionToRun(context: ReportsContext, id: string) {
   const row = context.repository.version(id, version);
   if (!row) throw new AppError('not_found', `No report ${id}.`);
   return { version, spec: reportSpecSchema.parse(row.spec) };
-}
-
-/**
- * Summarizes a report as a role sees it.
- *
- * @param context - The service context.
- * @param id - The report.
- * @param role - The role.
- * @returns The summary.
- */
-function summaryOf(context: ReportsContext, id: string, role: Role): ReportSummary {
-  const versions = versionSpecs(context, id);
-  const [last] = context.runs.list(id, { versions: visibleVersions(versions, role), limit: 1 });
-  return toReportSummary(reportOrThrow(context, id), versions, role, last);
 }
 
 /**
@@ -367,13 +355,11 @@ export function createReports(dependencies: ReportsDependencies): Reports {
     busy: new Set(),
   };
   return {
-    list: (role, readerId) => listForReader(context, role, readerId),
-    get: (id, role) => {
-      visibleReport(context, id, role);
-      return toReportDetail(summaryOf(context, id, role), versionSpecs(context, id), role);
-    },
-    runs: (id, role, page) => listRuns(context, id, role, page),
-    run: (id, runId, role) => readRun(context, id, runId, role),
+    list: (reader, readerId) => listForReader(context, reader, readerId),
+    get: (id, reader) => readReport(context, id, reader),
+    threadOf: (id) => reportOrThrow(context, id).threadId,
+    runs: (id, reader, page) => listRuns(context, id, reader, page),
+    run: (id, runId, reader) => readRun(context, id, runId, reader),
     see: (id, runId, readerId) => context.seen?.see(readerId, id, runId, context.now()),
     saveVersion: (input, actor) => saveVersion(context, input, actor),
     activate: async (id, version, actor) => {

@@ -186,6 +186,11 @@ export const alertDetailSchema = alertListItemSchema.extend({
   sends: z.array(alertSendSchema),
   /** Activations, deactivations and mutes, the latest first. */
   activity: z.array(alertActivitySchema),
+  /**
+   * Whether the reader may activate, deactivate, change or test it: an editor who owns its thread
+   * or an admin, or any editor when it has no thread.
+   */
+  canChange: z.boolean(),
 });
 
 /** An alert with its versions, series and recent changes of state. */

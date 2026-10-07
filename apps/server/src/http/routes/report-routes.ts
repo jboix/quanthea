@@ -1,8 +1,9 @@
 /**
  * The report endpoints. Everyone signed in reads reports and their runs (below editor, once a
  * version is active, and the runs of versions ever active); opening a run marks it seen for the
- * reader. Editors activate, deactivate, run one now, preview a spec and send a test; admins set the
- * retries and how long runs are kept.
+ * reader. Editors preview a spec; admins set the retries and how long runs are kept. A report's
+ * drafts follow its thread: only its owner and admins see them, activate, deactivate, run it now
+ * and send a test, and others read it as a viewer does (`../ownership.ts`).
  */
 import {
   activateReportEndpoint,
@@ -12,6 +13,7 @@ import {
   getReportSettingsEndpoint,
   listReportRunsEndpoint,
   listReportsEndpoint,
+  type Principal,
   previewReportEndpoint,
   type ReportRunDetail,
   type ReportRunSummary,
@@ -25,9 +27,10 @@ import type { Users } from '../../auth/users.ts';
 import type { Notifications } from '../../notifications/notifications.ts';
 import type { Reports } from '../../reports/reports.ts';
 import type { ReportSettingsService } from '../../settings/report-settings.ts';
+import type { ThreadBin } from '../../threads/bin.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
-import { ownerNames } from '../ownership.ts';
+import { canChangeAs, checkOwnerChange, madeBy, ownerNames, readerRole } from '../ownership.ts';
 import { actorOf, signedIn } from '../principal.ts';
 
 /** What the report endpoints need. */
@@ -40,6 +43,26 @@ export interface ReportRouteServices {
   readonly users: Pick<Users, 'nameOf'>;
   /** The notification channels, for the names of those a run went to. */
   readonly notifications: Pick<Notifications, 'picker'>;
+  /** The bin, for the owner of a report's thread. */
+  readonly bin: Pick<ThreadBin, 'threadOwner'>;
+}
+
+/**
+ * Refuses a change to a report unless the person owns its thread or is an admin, or it has no
+ * thread.
+ *
+ * @param services - The reports and the bin.
+ * @param principal - Who asks.
+ * @param reportId - The report.
+ * @throws {AppError} `forbidden`, or `not_found` for an unknown report.
+ */
+function checkReportChange(
+  services: ReportRouteServices,
+  principal: Principal | null,
+  reportId: string,
+): void {
+  const owner = madeBy(services.bin.threadOwner, services.reports.threadOf(reportId));
+  checkOwnerChange(signedIn(principal), owner);
 }
 
 /** Looks a name up by user id. */
@@ -99,13 +122,13 @@ function withChannelNames(
  * @param services - The reports and the users.
  */
 function mountReadEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): void {
-  const { reports, users } = services;
+  const { reports, users, bin } = services;
   mountEndpoint(app, listReportsEndpoint, {
     access: 'viewer',
     handle: async ({ principal }) => {
       const nameOf = ownerNames(users);
       const reader = signedIn(principal);
-      const listed = reports.list(reader.role, reader.id);
+      const listed = reports.list(readerRole(reader, bin.threadOwner), reader.id);
       return { reports: await Promise.all(listed.map((each) => nameSummary(nameOf, each))) };
     },
   });
@@ -113,11 +136,13 @@ function mountReadEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): v
     access: 'viewer',
     handle: async ({ params, principal }) => {
       const nameOf = ownerNames(users);
-      const detail = reports.get(params.reportId, signedIn(principal).role);
+      const reader = signedIn(principal);
+      const detail = reports.get(params.reportId, readerRole(reader, bin.threadOwner));
       const versions = await Promise.all(
         detail.versions.map(async (each) => ({ ...each, createdBy: await nameOf(each.createdBy) })),
       );
-      return nameSummary(nameOf, { ...detail, versions });
+      const canChange = canChangeAs(reader, madeBy(bin.threadOwner, detail.threadId));
+      return nameSummary(nameOf, { ...detail, versions, canChange });
     },
   });
 }
@@ -129,12 +154,13 @@ function mountReadEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): v
  * @param services - The reports and the users.
  */
 function mountRunEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): void {
-  const { reports, users } = services;
+  const { reports, users, bin } = services;
   mountEndpoint(app, listReportRunsEndpoint, {
     access: 'viewer',
     handle: async ({ params, query, principal }) => {
       const nameOf = ownerNames(users);
-      const runs = reports.runs(params.reportId, signedIn(principal).role, query);
+      const reader = readerRole(signedIn(principal), bin.threadOwner);
+      const runs = reports.runs(params.reportId, reader, query);
       return { runs: await Promise.all(runs.map((run) => nameRun(nameOf, run))) };
     },
   });
@@ -142,7 +168,7 @@ function mountRunEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): vo
     access: 'viewer',
     handle: ({ params, principal }) => {
       const reader = signedIn(principal);
-      const run = reports.run(params.reportId, params.runId, reader.role);
+      const run = reports.run(params.reportId, params.runId, readerRole(reader, bin.threadOwner));
       reports.see(params.reportId, params.runId, reader.id);
       return nameRun(ownerNames(users), withChannelNames(services.notifications, run));
     },
@@ -159,16 +185,21 @@ function mountChangeEndpoints(app: Hono<AppEnv>, services: ReportRouteServices):
   const { reports, users } = services;
   mountEndpoint(app, activateReportEndpoint, {
     access: 'editor',
-    handle: async ({ params, body, principal }) =>
-      nameSummary(
-        ownerNames(users),
-        await reports.activate(params.reportId, body.version, actorOf(principal)),
-      ),
+    handle: async ({ params, body, principal }) => {
+      checkReportChange(services, principal, params.reportId);
+      const summary = await reports.activate(params.reportId, body.version, actorOf(principal));
+      return nameSummary(ownerNames(users), summary);
+    },
   });
   mountEndpoint(app, deactivateReportEndpoint, {
     access: 'editor',
-    handle: ({ params, principal }) =>
-      nameSummary(ownerNames(users), reports.deactivate(params.reportId, actorOf(principal))),
+    handle: ({ params, principal }) => {
+      checkReportChange(services, principal, params.reportId);
+      return nameSummary(
+        ownerNames(users),
+        reports.deactivate(params.reportId, actorOf(principal)),
+      );
+    },
   });
 }
 
@@ -182,11 +213,11 @@ function mountTryEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): vo
   const { reports, users } = services;
   mountEndpoint(app, runReportNowEndpoint, {
     access: 'editor',
-    handle: async ({ params, body, principal }) =>
-      nameRun(
-        ownerNames(users),
-        await reports.runNow(params.reportId, body.send, actorOf(principal)),
-      ),
+    handle: async ({ params, body, principal }) => {
+      checkReportChange(services, principal, params.reportId);
+      const run = await reports.runNow(params.reportId, body.send, actorOf(principal));
+      return nameRun(ownerNames(users), run);
+    },
   });
   mountEndpoint(app, previewReportEndpoint, {
     access: 'editor',
@@ -194,9 +225,11 @@ function mountTryEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): vo
   });
   mountEndpoint(app, testReportEndpoint, {
     access: 'editor',
-    handle: async ({ params, principal }) => ({
-      results: await reports.sendTest(params.reportId, Number(params.version), actorOf(principal)),
-    }),
+    handle: async ({ params, principal }) => {
+      checkReportChange(services, principal, params.reportId);
+      const version = Number(params.version);
+      return { results: await reports.sendTest(params.reportId, version, actorOf(principal)) };
+    },
   });
 }
 

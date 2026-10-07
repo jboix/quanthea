@@ -3,10 +3,14 @@ import { evaluationAction, headerSections } from './header-sections.ts';
 import { detailedAlert } from './test-alerts.ts';
 
 test('each role sees its sections of the header, folded or not', () => {
-  expect(headerSections('viewer')).toEqual(['Versions']);
-  expect(headerSections('analyst')).toEqual(['Mute', 'Versions']);
-  expect(headerSections('editor')).toEqual(['Change', 'Mute', 'Versions']);
-  expect(headerSections('admin')).toEqual(['Change', 'Mute', 'Versions']);
+  expect(headerSections('viewer', false)).toEqual(['Versions']);
+  expect(headerSections('analyst', false)).toEqual(['Mute', 'Versions']);
+  expect(headerSections('editor', true)).toEqual(['Change', 'Mute', 'Versions']);
+  expect(headerSections('admin', true)).toEqual(['Change', 'Mute', 'Versions']);
+});
+
+test('an editor who may not change the alert gets no Change', () => {
+  expect(headerSections('editor', false)).toEqual(['Mute', 'Versions']);
 });
 
 test('Change stops an active alert, and starts a deactivated one or a draft', () => {

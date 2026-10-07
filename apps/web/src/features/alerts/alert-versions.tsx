@@ -1,8 +1,8 @@
 /**
  * The alert's versions behind an icon button: each with who saved it and when, the active one
- * marked. Editors activate another version, after confirming.
+ * marked. The owner of its thread and admins activate another version, after confirming.
  */
-import { type AlertDetail, hasRole } from '@quanthea/shared';
+import type { AlertDetail } from '@quanthea/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { HistoryIcon } from '../../ui/icons.tsx';
@@ -10,7 +10,6 @@ import { Pill } from '../../ui/pill.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import styles from './alert.module.css';
 import { useAlertChange } from './use-alert-change.ts';
-import { useRole } from './use-role.ts';
 import { clockWhen } from './words.ts';
 
 /** A version of the alert. */
@@ -112,7 +111,6 @@ export function VersionsBody({
   readonly alert: AlertDetail;
   readonly close: () => void;
 }) {
-  const editor = hasRole(useRole(), 'editor');
   const { submit } = useAlertChange();
   const [confirming, setConfirming] = useState<number | null>(null);
   if (confirming !== null) {
@@ -134,7 +132,7 @@ export function VersionsBody({
           key={entry.version}
           entry={entry}
           alert={alert}
-          onActivate={editor ? setConfirming : undefined}
+          onActivate={alert.canChange ? setConfirming : undefined}
         />
       ))}
     </ul>

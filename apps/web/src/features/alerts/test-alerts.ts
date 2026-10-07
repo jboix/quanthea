@@ -48,6 +48,7 @@ export function detailedAlert(changes: Partial<AlertDetail> = {}): AlertDetail {
     checks: [],
     channels: [],
     sends: [],
+    canChange: true,
     activity: [],
     ...changes,
   };

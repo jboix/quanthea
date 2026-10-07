@@ -16,6 +16,7 @@ import {
 import { refuseSpec } from '../dashboards/context.ts';
 import type { AlertRow, AlertVersionRow } from '../db/alert-repository.ts';
 import { AppError } from '../lib/errors.ts';
+import { type ReaderRole, roleOn } from '../lib/reader-role.ts';
 import {
   type ActiveChange,
   type AlertsContext,
@@ -56,19 +57,28 @@ export interface Alerts {
    * Lists the alerts the role may see, with how many series are in each state, the series that
    * stands for each, and the latest message sent about it.
    *
-   * @param role - The role of the reader.
+   * @param reader - The role of the reader, or how to find it from each alert's thread.
    * @returns The alerts, the newest first.
    */
-  list(role: Role): AlertListItem[];
+  list(reader: ReaderRole): AlertListItem[];
   /**
    * Reads an alert with its versions, series and recent changes of state.
    *
    * @param id - The alert.
-   * @param role - The role of the reader: viewers and analysts see the versions ever active.
+   * @param reader - The role of the reader, or how to find it from the alert's thread: below
+   *   editor, the versions ever active.
    * @returns The alert.
    * @throws {AppError} `not_found`, also for an alert never activated below editor.
    */
-  get(id: string, role: Role): AlertDetail;
+  get(id: string, reader: ReaderRole): Omit<AlertDetail, 'canChange'>;
+  /**
+   * The thread that made an alert.
+   *
+   * @param id - The alert.
+   * @returns The thread, or `null` when it has none.
+   * @throws {AppError} `not_found`.
+   */
+  threadOf(id: string): string | null;
   /**
    * Checks a spec and runs its query once, for the caller that writes it.
    *
@@ -145,7 +155,8 @@ export interface Alerts {
    * @param id - The alert.
    * @param version - The version.
    * @param request - The window and the step.
-   * @param role - The role of the reader: below editor, only a version ever active replays.
+   * @param reader - The role of the reader, or how to find it from the alert's thread: below
+   *   editor, only a version ever active replays.
    * @returns The replay.
    * @throws {AppError} `not_found` for a version the role may not see.
    */
@@ -153,7 +164,7 @@ export interface Alerts {
     id: string,
     version: number,
     request: ReplayRequest,
-    role: Role,
+    reader: ReaderRole,
   ): Promise<AlertReplay>;
   /**
    * Sends a version's message to its channels as a test, `alert.test`.
@@ -222,12 +233,17 @@ function shownVersion(context: AlertsContext, alert: AlertRow): AlertVersionRow 
  *
  * @param context - The service context.
  * @param id - The alert.
- * @param role - The role.
+ * @param reader - The role, or how to find it from the alert's thread.
  * @returns The detail.
  * @throws {AppError} `not_found`.
  */
-function detailOf(context: AlertsContext, id: string, role: Role): AlertDetail {
+function detailOf(
+  context: AlertsContext,
+  id: string,
+  reader: ReaderRole,
+): Omit<AlertDetail, 'canChange'> {
   const alert = alertOrThrow(context, id);
+  const role = roleOn(reader, alert.threadId);
   if (!canSeeAlert(alert, role)) throw new AppError('not_found', `No alert ${id}.`);
   const shown = shownVersion(context, alert);
   const spec = alertSpecSchema.parse(shown.spec);
@@ -250,7 +266,8 @@ function detailOf(context: AlertsContext, id: string, role: Role): AlertDetail {
  * @param context - The service context.
  * @param id - The alert.
  * @param version - The version.
- * @param role - The role: below editor, only a version ever active of an alert shown.
+ * @param reader - The role, or how to find it from the alert's thread: below editor, only a
+ *   version ever active of an alert shown.
  * @returns The version.
  * @throws {AppError} `not_found` for a version the role may not see.
  */
@@ -258,9 +275,10 @@ function replayedVersion(
   context: AlertsContext,
   id: string,
   version: number,
-  role: Role,
+  reader: ReaderRole,
 ): AlertVersionRow {
   const alert = alertOrThrow(context, id);
+  const role = roleOn(reader, alert.threadId);
   const row = context.repository.version(alert.id, version);
   if (!row || !canSeeAlert(alert, role) || !canSeeVersion(row, role))
     throw new AppError('not_found', `Alert ${id} has no version ${version}.`);
@@ -303,14 +321,15 @@ function evaluatedAlerts(context: AlertsContext): EvaluatedAlert[] {
 export function createAlerts(dependencies: AlertsDependencies): Alerts {
   const context: AlertsContext = { ...dependencies, now: dependencies.now ?? Date.now };
   return {
-    list: (role) => listAlerts(context, role),
-    get: (id, role) => detailOf(context, id, role),
+    list: (reader) => listAlerts(context, reader),
+    get: (id, reader) => detailOf(context, id, reader),
+    threadOf: (id) => alertOrThrow(context, id).threadId,
     check: (spec) => checkAlert(context, spec, context.now()),
     ...changeMethods(context),
     activateChange: (id, change, actor) => activateChange(context, id, change, actor),
     replaySpec: async (spec, request) => replayAlert(context, replayable(context, spec), request),
-    replayVersion: async (id, version, request, role) => {
-      const row = replayedVersion(context, id, version, role);
+    replayVersion: async (id, version, request, reader) => {
+      const row = replayedVersion(context, id, version, reader);
       return replayAlert(context, replayable(context, row.spec), request);
     },
     sendTest: (id, version, series, actor) => sendTest(context, id, version, series, actor),
@@ -323,15 +342,16 @@ export function createAlerts(dependencies: AlertsDependencies): Alerts {
  * Lists the alerts a role may see.
  *
  * @param context - The service context.
- * @param role - The role.
+ * @param reader - The role, or how to find it from each alert's thread.
  * @returns The summaries.
  */
-function listAlerts(context: AlertsContext, role: Role): AlertListItem[] {
+function listAlerts(context: AlertsContext, reader: ReaderRole): AlertListItem[] {
   const lastSends = (context.activity ?? noActivity).lastSends();
   return context.repository
     .list()
-    .filter((alert) => canSeeAlert(alert, role))
-    .map((alert) => {
+    .map((alert) => ({ alert, role: roleOn(reader, alert.threadId) }))
+    .filter(({ alert, role }) => canSeeAlert(alert, role))
+    .map(({ alert, role }) => {
       const shown = shownVersion(context, alert);
       const series = context.states.series(alert.id);
       const summary = toSummary(alert, shown, role, countStates(series));

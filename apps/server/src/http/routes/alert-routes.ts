@@ -1,7 +1,9 @@
 /**
  * The alert endpoints. Everyone signed in reads alerts and replays the versions ever active;
- * analysts mute and unmute, for at most seven days; editors activate, deactivate, mute without an
- * end and replay any spec; admins set how many alerts may be active per connector.
+ * analysts mute and unmute, for at most seven days; editors mute without an end and replay any
+ * spec; admins set how many alerts may be active per connector. An alert's drafts follow its
+ * thread: only its owner and admins see them, activate and deactivate it, and others read it as a
+ * viewer does (`../ownership.ts`).
  */
 import {
   type AlertDetail,
@@ -12,6 +14,7 @@ import {
   getAlertSettingsEndpoint,
   listAlertsEndpoint,
   muteAlertEndpoint,
+  type Principal,
   replayAlertSpecEndpoint,
   replayAlertVersionEndpoint,
   saveAlertSettingsEndpoint,
@@ -21,9 +24,10 @@ import type { Hono } from 'hono';
 import type { Alerts } from '../../alerts/alerts.ts';
 import type { Users } from '../../auth/users.ts';
 import type { AlertSettingsService } from '../../settings/alert-settings.ts';
+import type { ThreadBin } from '../../threads/bin.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
-import { ownerNames } from '../ownership.ts';
+import { canChangeAs, checkOwnerChange, madeBy, ownerNames, readerRole } from '../ownership.ts';
 import { actorOf, signedIn } from '../principal.ts';
 
 /** What the alert endpoints need. */
@@ -34,6 +38,41 @@ export interface AlertRouteServices {
   readonly alertSettings: AlertSettingsService;
   /** The users, for names. */
   readonly users: Pick<Users, 'nameOf'>;
+  /** The bin, for the owner of an alert's thread. */
+  readonly bin: Pick<ThreadBin, 'threadOwner'>;
+}
+
+/**
+ * Refuses a change to an alert unless the person owns its thread or is an admin, or it has no
+ * thread.
+ *
+ * @param services - The alerts and the bin.
+ * @param principal - Who asks.
+ * @param alertId - The alert.
+ * @throws {AppError} `forbidden`, or `not_found` for an unknown alert.
+ */
+export function checkAlertChange(
+  services: Pick<AlertRouteServices, 'alerts' | 'bin'>,
+  principal: Principal | null,
+  alertId: string,
+): void {
+  const owner = madeBy(services.bin.threadOwner, services.alerts.threadOf(alertId));
+  checkOwnerChange(signedIn(principal), owner);
+}
+
+/**
+ * Reads an alert's detail for someone, with whether they may change it.
+ *
+ * @param services - The alerts, the users and the bin.
+ * @param principal - Who reads.
+ * @param alertId - The alert.
+ * @returns The detail, its people named.
+ */
+function detailFor(services: AlertRouteServices, principal: Principal, alertId: string) {
+  const { alerts, users, bin } = services;
+  const detail = alerts.get(alertId, readerRole(principal, bin.threadOwner));
+  const canChange = canChangeAs(principal, madeBy(bin.threadOwner, detail.threadId));
+  return nameDetail(ownerNames(users), { ...detail, canChange });
 }
 
 /**
@@ -81,19 +120,18 @@ async function nameDetail(
  * @param services - The alerts and the users.
  */
 function mountReadEndpoints(app: Hono<AppEnv>, services: AlertRouteServices): void {
-  const { alerts, users } = services;
+  const { alerts, users, bin } = services;
   mountEndpoint(app, listAlertsEndpoint, {
     access: 'viewer',
     handle: async ({ principal }) => {
       const nameOf = ownerNames(users);
-      const listed = alerts.list(signedIn(principal).role);
+      const listed = alerts.list(readerRole(signedIn(principal), bin.threadOwner));
       return { alerts: await Promise.all(listed.map((each) => nameMuter(nameOf, each))) };
     },
   });
   mountEndpoint(app, getAlertEndpoint, {
     access: 'viewer',
-    handle: ({ params, principal }) =>
-      nameDetail(ownerNames(users), alerts.get(params.alertId, signedIn(principal).role)),
+    handle: ({ params, principal }) => detailFor(services, signedIn(principal), params.alertId),
   });
   mountEndpoint(app, replayAlertSpecEndpoint, {
     access: 'editor',
@@ -101,8 +139,10 @@ function mountReadEndpoints(app: Hono<AppEnv>, services: AlertRouteServices): vo
   });
   mountEndpoint(app, replayAlertVersionEndpoint, {
     access: 'viewer',
-    handle: ({ params, body, principal }) =>
-      alerts.replayVersion(params.alertId, Number(params.version), body, signedIn(principal).role),
+    handle: ({ params, body, principal }) => {
+      const reader = readerRole(signedIn(principal), bin.threadOwner);
+      return alerts.replayVersion(params.alertId, Number(params.version), body, reader);
+    },
   });
 }
 
@@ -117,13 +157,17 @@ function mountChangeEndpoints(app: Hono<AppEnv>, services: AlertRouteServices): 
   const named = (summary: AlertSummary) => nameMuter(ownerNames(users), summary);
   mountEndpoint(app, activateAlertEndpoint, {
     access: 'editor',
-    handle: async ({ params, body, principal }) =>
-      named(await alerts.activate(params.alertId, body.version, actorOf(principal))),
+    handle: async ({ params, body, principal }) => {
+      checkAlertChange(services, principal, params.alertId);
+      return named(await alerts.activate(params.alertId, body.version, actorOf(principal)));
+    },
   });
   mountEndpoint(app, deactivateAlertEndpoint, {
     access: 'editor',
-    handle: async ({ params, principal }) =>
-      named(await alerts.deactivate(params.alertId, actorOf(principal))),
+    handle: async ({ params, principal }) => {
+      checkAlertChange(services, principal, params.alertId);
+      return named(await alerts.deactivate(params.alertId, actorOf(principal)));
+    },
   });
   mountEndpoint(app, muteAlertEndpoint, {
     access: 'analyst',

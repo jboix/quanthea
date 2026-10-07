@@ -9,11 +9,9 @@ import {
   type AlertSpec,
   alertSpecChanges,
   alertSpecSchema,
-  hasRole,
 } from '@quanthea/shared';
 import { useMemo, useState } from 'react';
 import { withThreshold } from '../alert-draft/index.ts';
-import { useRole } from './use-role.ts';
 
 /** The page's hand tuning. */
 export interface Tuning {
@@ -73,14 +71,14 @@ interface Held {
 }
 
 /**
- * The page's hand tuning, for editors on a live alert.
+ * The page's hand tuning, for whoever may change a live alert: the owner of its thread or an
+ * admin.
  *
  * @param alert - The alert.
  * @returns The saved, shown and unsaved specs, and the changes' setters.
  */
 export function useTuning(alert: AlertDetail): Tuning {
-  const editor = hasRole(useRole(), 'editor');
-  const saved = useMemo(() => tunableSpec(alert, editor), [alert, editor]);
+  const saved = useMemo(() => tunableSpec(alert, alert.canChange), [alert]);
   const [held, hold] = useState<Held>();
   const [dragged, drag] = useState<number | null>(null);
   // Changes start from the active version: once another is active, they lapse.

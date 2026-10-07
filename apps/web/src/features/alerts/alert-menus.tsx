@@ -1,9 +1,9 @@
 /**
- * The alert page's Change and Mute menus. Change, for editors, opens the conversation that wrote
+ * The alert page's Change and Mute menus. Change, for the owner of its thread and admins, opens the conversation that wrote
  * the alert, and deactivates or activates it. Mute, for analysts and above, mutes its
  * notifications until a time, or until someone unmutes for editors.
  */
-import { type AlertDetail, hasRole } from '@quanthea/shared';
+import type { AlertDetail } from '@quanthea/shared';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Button } from '../../ui/button.tsx';
@@ -59,14 +59,15 @@ export function ChangeItems({ alert, close }: MenuProps) {
 }
 
 /**
- * The Change button and menu, for editors.
+ * The Change button and menu, for whoever may change the alert: the owner of its thread or an
+ * admin.
  *
  * @param props - The alert.
  * @param props.alert - The alert.
- * @returns The popover, or nothing below editor.
+ * @returns The popover, or nothing for others.
  */
 export function ChangePopover({ alert }: { readonly alert: AlertDetail }) {
-  if (!hasRole(useRole(), 'editor')) return null;
+  if (!alert.canChange) return null;
   const trigger = (
     <>
       Change <ChevronDownIcon />

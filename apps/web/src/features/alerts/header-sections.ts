@@ -1,8 +1,8 @@
 /**
- * What the alert page's header offers each role: the sections of its actions, which fold into one
+ * What the alert page's header offers each person: the sections of its actions, which fold into one
  * menu on a phone, and the item that starts or stops evaluation.
  */
-import { type AlertDetail, hasRole, type Role } from '@quanthea/shared';
+import type { AlertDetail, Role } from '@quanthea/shared';
 import type { AlertIntent } from './data.ts';
 import { canMute } from './mute-options.ts';
 
@@ -10,15 +10,16 @@ import { canMute } from './mute-options.ts';
 export type HeaderSection = 'Change' | 'Mute' | 'Versions';
 
 /**
- * The sections of the header's actions a role sees: Change for editors, Mute for analysts and
- * above, Versions for everyone.
+ * The sections of the header's actions a person sees: Change for whoever may change the alert
+ * (the owner of its thread or an admin), Mute for analysts and above, Versions for everyone.
  *
  * @param role - The role.
+ * @param canChange - Whether they may change the alert.
  * @returns The sections, in order.
  */
-export function headerSections(role: Role): HeaderSection[] {
+export function headerSections(role: Role, canChange: boolean): HeaderSection[] {
   return [
-    ...(hasRole(role, 'editor') ? (['Change'] as const) : []),
+    ...(canChange ? (['Change'] as const) : []),
     ...(canMute(role) ? (['Mute'] as const) : []),
     'Versions',
   ];

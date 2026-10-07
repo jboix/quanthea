@@ -3,7 +3,7 @@
  * panels drawn from the stored results, and the side panel to ask about it. Opening it runs no
  * query. Before a report's first run, the page shows the report with nothing to read yet.
  */
-import { hasRole, type ReportRunDetail } from '@quanthea/shared';
+import type { ReportRunDetail } from '@quanthea/shared';
 import { useState } from 'react';
 import { useLoaderData } from 'react-router';
 import { Banner } from '../../ui/banner.tsx';
@@ -15,23 +15,28 @@ import { RunHeader } from './run-header.tsx';
 import { RunSidePanel, type RunSideTab } from './run-side-panel.tsx';
 import { useRecountUnseen } from './unseen.ts';
 import { useReportChange } from './use-report-change.ts';
-import { useRole } from './use-role.ts';
 
 /**
  * What the page shows in place of results: why the run failed or is still running, or that there
  * is no run yet.
  *
- * @param props - The run, if any.
+ * @param props - The run, if any, and whether the reader may change the report.
  * @param props.run - The run.
+ * @param props.canChange - Whether they may run or activate it.
  * @returns The note, or nothing for a run that succeeded.
  */
-function NoResults({ run }: { readonly run: ReportRunDetail | null }) {
-  const editor = hasRole(useRole(), 'editor');
+function NoResults({
+  run,
+  canChange,
+}: {
+  readonly run: ReportRunDetail | null;
+  readonly canChange: boolean;
+}) {
   if (run?.status === 'ok') return null;
   if (!run)
     return (
       <p className={styles.empty}>
-        {editor
+        {canChange
           ? 'This report has not run yet. Run it now from Change, or activate it to put it on its schedule.'
           : 'This report has not run yet.'}
       </p>
@@ -70,7 +75,7 @@ export function RunScreen() {
         />
         <div className={styles.main}>
           {refusal && <p className={styles.failure}>{refusal}</p>}
-          <NoResults run={run} />
+          <NoResults run={run} canChange={report.canChange} />
           {run?.status === 'ok' && <RunBody run={run} />}
         </div>
       </div>

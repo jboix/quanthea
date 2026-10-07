@@ -19,6 +19,7 @@ import { z } from 'zod';
 import type { ReportRow, ReportVersionRow } from '../db/report-repository.ts';
 import type { RunSummaryRow } from '../db/report-run-repository.ts';
 import { AppError } from '../lib/errors.ts';
+import { type ReaderRole, roleOn } from '../lib/reader-role.ts';
 import { type ReportsContext, reportOrThrow } from './context.ts';
 
 /** Reads stored headline numbers. */
@@ -39,18 +40,19 @@ function canSeeReport(report: ReportRow, role: Role): boolean {
 }
 
 /**
- * Reads a report the role may see.
+ * Checks a reader may see a report, and finds the role they read it with.
  *
  * @param context - The service context.
  * @param id - The report.
- * @param role - The role.
- * @returns The report.
+ * @param reader - The role, or how to find it from the report's thread.
+ * @returns The role.
  * @throws {AppError} `not_found`, also for a report never activated below editor.
  */
-export function visibleReport(context: ReportsContext, id: string, role: Role): ReportRow {
+export function visibleReport(context: ReportsContext, id: string, reader: ReaderRole): Role {
   const report = reportOrThrow(context, id);
+  const role = roleOn(reader, report.threadId);
   if (!canSeeReport(report, role)) throw new AppError('not_found', `No report ${id}.`);
-  return report;
+  return role;
 }
 
 /**
@@ -168,7 +170,7 @@ export function toReportDetail(
   summary: ReportSummary,
   versions: VersionSpecs,
   role: Role,
-): ReportDetail {
+): Omit<ReportDetail, 'canChange'> {
   const shown = [...versions.values()]
     .filter(({ row }) => hasRole(role, 'editor') || row.activatedAt !== null)
     .map(({ row, spec }) => ({
@@ -180,4 +182,36 @@ export function toReportDetail(
       activatedAt: row.activatedAt,
     }));
   return { ...summary, versions: shown };
+}
+
+/**
+ * Summarizes a report as a role sees it.
+ *
+ * @param context - The service context.
+ * @param id - The report.
+ * @param role - The role.
+ * @returns The summary.
+ */
+export function summaryOf(context: ReportsContext, id: string, role: Role): ReportSummary {
+  const versions = versionSpecs(context, id);
+  const [last] = context.runs.list(id, { versions: visibleVersions(versions, role), limit: 1 });
+  return toReportSummary(reportOrThrow(context, id), versions, role, last);
+}
+
+/**
+ * Reads a report with the versions the reader may see.
+ *
+ * @param context - The service context.
+ * @param id - The report.
+ * @param reader - The role, or how to find it from the report's thread.
+ * @returns The detail.
+ * @throws {AppError} `not_found`, also for a report never activated below editor.
+ */
+export function readReport(
+  context: ReportsContext,
+  id: string,
+  reader: ReaderRole,
+): Omit<ReportDetail, 'canChange'> {
+  const role = visibleReport(context, id, reader);
+  return toReportDetail(summaryOf(context, id, role), versionSpecs(context, id), role);
 }
