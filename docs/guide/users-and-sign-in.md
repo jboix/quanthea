@@ -70,6 +70,10 @@ To add the claims, in the Entra admin center open the app registration, then **T
 configuration** → **Add optional claim** → **ID**, and tick `email` and `xms_edov`. Accept the
 `email` permission it offers to add.
 
+An install that lets the tenant join needs these claims after upgrading from 0.3.0 or earlier.
+Until they are added, new tenant members are refused. People who signed in with Entra ID before
+keep signing in, as quanthea finds them by their Entra ID identity, not by email.
+
 ### Who may join
 
 Invited people always join, with the role they were invited with, while the invite link works
