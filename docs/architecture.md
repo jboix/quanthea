@@ -2152,8 +2152,8 @@ that changes with its settings).
      UPDATE, DELETE, MERGE, TRUNCATE, DROP, ALTER, CREATE, GRANT, REVOKE, COPY or INTO outside
      literals.
    - **PromQL:** `$name` and `${name}` are replaced only inside the string value of a label matcher,
-     escaped for the string, and for `=~` and `!~` escaped as a regular expression unless the
-     variable is declared as one. In code only `$__interval`, `$__range`, `$__rate_interval` and
+     escaped for the string, and for `=~` and `!~` always escaped as a regular expression too, so a
+     value only ever matches itself (a multi-value variable joins its values with `|`). In code only `$__interval`, `$__range`, `$__rate_interval` and
      interval variables are allowed: an interval variable's value must be one of its options and is
      checked again against the duration pattern (`15s`, `5m`, `1h`) when bound. The step is a
      duration or an interval variable, raised so the range fits in the row limit (at most 11000

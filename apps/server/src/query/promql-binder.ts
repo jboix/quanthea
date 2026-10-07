@@ -119,10 +119,7 @@ function matcherValue(name: string, operator: string, variables: Variables): str
   if (!binding) throw new QueryError('invalid', `Unknown variable $${name}.`);
   const values = valuesOf(binding);
   if (operator.endsWith('~')) {
-    const escaped = binding.regex
-      ? values
-      : values.map((value) => value.replace(regexMetacharacters, '\\$&'));
-    return escaped.join('|');
+    return values.map((value) => value.replace(regexMetacharacters, '\\$&')).join('|');
   }
   if (values.length !== 1) {
     throw new QueryError(

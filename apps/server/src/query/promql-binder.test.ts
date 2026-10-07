@@ -39,10 +39,10 @@ describe('bindPromql matcher values', () => {
     expect(bind('up{service!~"$s"}', { s: { value: 'a+' } })).toBe('up{service!~"a\\\\+"}');
   });
 
-  test('keeps a variable declared as a regular expression unescaped for the regex', () => {
-    expect(
-      bind('up{service=~"$pattern"}', { pattern: { value: 'checkout-.*', regex: true } }),
-    ).toBe('up{service=~"checkout-.*"}');
+  test('escapes every value for the regex: a viewer value is never a pattern', () => {
+    expect(bind('up{service=~"$pattern"}', { pattern: { value: 'checkout-.*' } })).toBe(
+      'up{service=~"checkout-\\\\.\\\\*"}',
+    );
   });
 
   test('refuses several values in an exact matcher', () => {

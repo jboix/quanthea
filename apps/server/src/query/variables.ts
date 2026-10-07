@@ -4,8 +4,6 @@
 export interface VariableBinding {
   /** One value, or several for a multi-value variable. */
   readonly value: string | readonly string[];
-  /** For PromQL: the value is a regular expression, so it is not escaped in `=~` matchers. */
-  readonly regex?: boolean;
   /** For PromQL: an interval variable's duration, allowed where a duration goes (`[$interval]`). */
   readonly duration?: boolean;
 }
