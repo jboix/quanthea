@@ -54,4 +54,26 @@ describe('readTar', () => {
     const big = tarball([{ path: 'package/big', data: new Uint8Array(200_000) }]);
     expect(() => gunzip(big, 100_000)).toThrow('more than 100000 bytes');
   });
+
+  test('reads a GNU long name up to its first NUL', () => {
+    const name = new TextEncoder().encode('package/package.json\0\0\0junk');
+    expect(
+      read([
+        { path: '././@LongLink', type: 'L', data: name },
+        { path: 'package/short', data: '{}' },
+      ]),
+    ).toEqual({ 'package/package.json': '{}' });
+  });
+
+  test('refuses an extended header over 64 KiB, in bounded time', () => {
+    const name = new Uint8Array(1_000_000);
+    name[name.length - 1] = 0x61;
+    const archives = ['L', 'x'].map((type) =>
+      gunzip(tarball([{ path: '././@LongLink', type, data: name }]), 2_000_000),
+    );
+    const started = performance.now();
+    for (const archive of archives)
+      expect(() => readTar(archive, wanted)).toThrow('extended header is larger than 65536 bytes');
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
 });

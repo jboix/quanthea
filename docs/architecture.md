@@ -1916,7 +1916,8 @@ a contribution it does not know, so a newer plugin never half-loads on an older 
   point is where provenance would be checked. The tarball is read by a small reader of untrusted
   input (`plugins/tar.ts`): gunzipped up to 128 MiB (32 MiB compressed), only
   `package/package.json` and the file its `quanthea.main` names extracted, an absolute path, `..`,
-  a backslash, a link or a corrupt header refusing the whole archive. Nothing runs from the
+  a backslash, a link, a corrupt header or an extended header (pax or GNU long name) over 64 KiB
+  refusing the whole archive. Nothing runs from the
   package but its bundle: no install scripts, no dependencies. The bundle must be under 20 MiB
   (`--max-bundle-mb`). The manifest needs the `quanthea-plugin` keyword and, from the registry,
   the name asked for. The two files go into a temporary folder in the plugins directory, are

@@ -16,6 +16,9 @@ const block = 512;
 /** Entry types that hold no file of their own and are skipped: directories and global headers. */
 const skipped = new Set(['5', 'g']);
 
+/** The largest extended header (pax `x` or GNU `L`) accepted, in bytes. */
+const maxExtended = 64 * 1024;
+
 /** Entry types that are regular files. */
 const regular = new Set(['0', '\0']);
 
@@ -121,15 +124,19 @@ function checkEntry(header: Header): void {
 }
 
 /**
- * The path an extended header (pax `x` or GNU `L`) gives the next entry, if any.
+ * The path an extended header (pax `x` or GNU `L`) gives the next entry, if any. A GNU long name
+ * ends at its first NUL.
  *
  * @param header - The extended header.
  * @param data - Its data.
  * @returns The path, or `undefined`.
+ * @throws {ArchiveError} When the extended header is larger than {@link maxExtended}.
  */
 function extendedPath(header: Header, data: Uint8Array): string | undefined {
+  if (data.length > maxExtended)
+    throw new ArchiveError(`an extended header is larger than ${maxExtended} bytes`);
+  if (header.type === 'L') return text(data, 0, data.length);
   const content = new TextDecoder().decode(data);
-  if (header.type === 'L') return content.replace(/\0+$/, '');
   return /(?:^|\n)\d+ path=([^\n]*)\n/.exec(content)?.[1];
 }
 
