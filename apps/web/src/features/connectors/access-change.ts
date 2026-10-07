@@ -54,3 +54,15 @@ export function affectedThreadsWarning(threads: number): string {
   const holds = threads === 1 ? '1 thread holds' : `${threads} threads hold`;
   return `${holds} data from this connector that this change restricts. The change applies to new tool calls only: continuing such a thread resends that data to the model provider.`;
 }
+
+/**
+ * The warning shown before saving a change that restricts what the model sees, when the threads
+ * it affects could not be counted.
+ *
+ * @param failure - Why they could not be counted.
+ * @returns The warning.
+ */
+export function uncountedWarning(failure: string): string {
+  const reason = failure.trim().replace(/\.$/, '');
+  return `The threads this change affects could not be counted: ${reason}. Threads may hold data from this connector that this change restricts, and continuing such a thread resends that data to the model provider.`;
+}

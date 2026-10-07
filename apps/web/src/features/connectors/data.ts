@@ -1,5 +1,6 @@
 /** Loads and changes connectors through the API, for the routes of the connectors screen. */
 import {
+  type AccessChange,
   type ApiErrorCode,
   type ConnectorDetail,
   type ConnectorKindInfo,
@@ -174,12 +175,60 @@ export function loadHealth(api: ApiClient) {
     api.call(testConnectorEndpoint, { params: connectorParams(params) });
 }
 
-/** How many threads an access change restricts, and the query it was counted for. */
-export interface AffectedThreads {
-  /** The number of threads. */
-  readonly threads: number;
-  /** The query of the request, to match the count with the change it was asked for. */
-  readonly query: string;
+/**
+ * How many threads an access change restricts, or why they could not be counted, with the query
+ * the count was asked for.
+ */
+export type AffectedThreads =
+  | {
+      /** The number of threads. */
+      readonly threads: number;
+      /** The query of the request, to match the count with the change it was asked for. */
+      readonly query: string;
+    }
+  | {
+      /** Why the threads could not be counted. */
+      readonly failure: string;
+      /** The query of the request, to match the failure with the change it was asked for. */
+      readonly query: string;
+    };
+
+/**
+ * The count of a change waiting for it, once the fetcher has it, or why it could not be read.
+ *
+ * @param query - The query the waiting change's count was asked with, if a change waits.
+ * @param data - The fetcher's latest result.
+ * @returns The number of threads or the failure, when the result is the waiting change's.
+ */
+export function countFor(
+  query: string | undefined,
+  data: AffectedThreads | undefined,
+): { readonly threads: number } | { readonly failure: string } | undefined {
+  if (query === undefined || data === undefined || data.query !== query) return undefined;
+  return 'failure' in data ? { failure: data.failure } : { threads: data.threads };
+}
+
+/**
+ * Asks the server for the count, returning a failure instead of throwing so the screen can offer
+ * to save or cancel.
+ *
+ * @param api - The API client.
+ * @param input - The connector and the change.
+ * @param input.params - The connector.
+ * @param input.body - The change.
+ * @returns The number of threads, or why it could not be read.
+ */
+async function countAffected(
+  api: ApiClient,
+  input: { readonly params: { connectorId: string }; readonly body: AccessChange },
+): Promise<{ threads: number } | { failure: string }> {
+  try {
+    const { threads } = await api.call(countAffectedThreadsEndpoint, input);
+    return { threads };
+  } catch (error) {
+    if (error instanceof ApiError) return { failure: error.message };
+    return { failure: 'The server could not be reached.' };
+  }
 }
 
 /**
@@ -195,9 +244,8 @@ export function loadAffectedThreads(api: ApiClient) {
     const body = accessChangeOf(url.searchParams);
     // Without a change in the query there is nothing to restrict.
     if (body === undefined) return { threads: 0, query: url.search };
-    const input = { params: connectorParams(params), body };
-    const { threads } = await api.call(countAffectedThreadsEndpoint, input);
-    return { threads, query: url.search };
+    const counted = await countAffected(api, { params: connectorParams(params), body });
+    return { ...counted, query: url.search };
   };
 }
 

@@ -4,6 +4,7 @@ import {
   affectedThreadsPath,
   affectedThreadsWarning,
   narrowsAccess,
+  uncountedWarning,
 } from './access-change.ts';
 
 const current = { accessLevel: 3 as const, hiddenFields: ['customers.email'] };
@@ -36,4 +37,11 @@ test('the warning counts the threads', () => {
   expect(affectedThreadsWarning(1)).toContain('1 thread holds');
   expect(affectedThreadsWarning(3)).toContain('3 threads hold');
   expect(affectedThreadsWarning(3)).toContain('model provider');
+});
+
+test('the warning without a count says why and what continuing a thread does', () => {
+  const warning = uncountedWarning('The server could not be reached.');
+  expect(warning).toContain('could not be counted');
+  expect(warning).toContain('The server could not be reached.');
+  expect(warning).toContain('model provider');
 });

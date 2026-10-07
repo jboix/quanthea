@@ -63,8 +63,9 @@ read stays in its threads, and continuing a thread sends its conversation, that 
 the model provider again.
 
 Before such a change is saved, the page counts the threads that hold data it restricts and asks
-you to confirm. Those threads are then marked **Restricted data** in the past threads list, and
-each shows a notice above the question box. Start a new thread to leave that data out.
+you to confirm. If the count fails, the page says why and still lets you save or cancel. Those
+threads are then marked **Restricted data** in the past threads list, and each shows a notice
+above the question box. Start a new thread to leave that data out.
 
 ### Guardrails
 

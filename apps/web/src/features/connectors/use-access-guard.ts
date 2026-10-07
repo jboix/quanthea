@@ -6,7 +6,7 @@ import type { AccessChange, ConnectorDetail } from '@quanthea/shared';
 import { useEffect, useState } from 'react';
 import { useFetcher } from 'react-router';
 import { affectedThreadsPath, narrowsAccess } from './access-change.ts';
-import type { AffectedThreads } from './data.ts';
+import { type AffectedThreads, countFor } from './data.ts';
 import { type ConnectorChange, useConnectorChange } from './use-connector-change.ts';
 
 /** A change to the level or the hidden fields. */
@@ -22,6 +22,8 @@ export interface AccessGuard {
   readonly proposed: AccessPatch | undefined;
   /** How many threads the waiting change restricts, once counted. */
   readonly threads: number | undefined;
+  /** Why the threads the waiting change restricts could not be counted, if they could not. */
+  readonly failure: string | undefined;
   /** Saves the waiting change. */
   readonly confirm: () => void;
   /** Drops the waiting change. */
@@ -37,17 +39,6 @@ interface Waiting {
 }
 
 /**
- * The count of a waiting change, once the fetcher has it.
- *
- * @param waiting - The change waiting, if any.
- * @param data - The fetcher's latest count.
- * @returns The number of threads, when the count is the waiting change's.
- */
-function countOf(waiting: Waiting | undefined, data: AffectedThreads | undefined) {
-  return waiting !== undefined && data?.query === waiting.query ? data.threads : undefined;
-}
-
-/**
  * A channel for changing a connector's level or hidden fields that warns before restricting data
  * that threads already hold.
  *
@@ -58,7 +49,9 @@ export function useAccessGuard(connector: ConnectorDetail): AccessGuard {
   const change = useConnectorChange(connector.id);
   const counter = useFetcher<AffectedThreads>();
   const [waiting, setWaiting] = useState<Waiting>();
-  const threads = countOf(waiting, counter.data);
+  const counted = countFor(waiting?.query, counter.data);
+  const threads = counted && 'threads' in counted ? counted.threads : undefined;
+  const failure = counted && 'failure' in counted ? counted.failure : undefined;
   const save = (patch: AccessPatch) => change.submit({ intent: 'update', patch });
   useEffect(() => {
     if (threads !== 0 || waiting === undefined) return;
@@ -77,5 +70,5 @@ export function useAccessGuard(connector: ConnectorDetail): AccessGuard {
     setWaiting(undefined);
   };
   const cancel = () => setWaiting(undefined);
-  return { change, propose, proposed: waiting?.patch, threads, confirm, cancel };
+  return { change, propose, proposed: waiting?.patch, threads, failure, confirm, cancel };
 }

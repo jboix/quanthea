@@ -2268,8 +2268,10 @@ model's own earlier answers quoting what it no longer sees.
   their access.
 - `POST /api/connectors/:connectorId/affected-threads` (admin) counts the threads holding a record
   that a proposed level and hidden fields would restrict, and saves nothing. The connector screen
-  asks it before saving a lower level or a new hidden field; with threads to count, it shows the
-  number and waits for Save anyway or Cancel.
+  asks it before saving a lower level or a new hidden field. While it counts, Cancel drops the
+  change. With threads to count, it shows the number and waits for Save anyway or Cancel. When
+  the count fails, the resource route returns the reason instead of throwing, and the screen shows
+  it with the same two buttons.
 - `GET /api/threads` and `GET /api/threads/:id` mark a thread holding a restricted record
   (`restrictedData`). Each reads the records of the threads it returns only. The past threads
   drawer shows the mark as Restricted data, and the thread shows a notice above the composer:
