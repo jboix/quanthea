@@ -80,8 +80,9 @@ jobs:
         with:
           node-version: 24
 
+      # The version is pinned: zizmor's ad-hoc package audit has nothing left to check.
       - name: Update npm (trusted publishing needs npm 11.5.1 or later)
-        run: npm install -g npm@11.21.0
+        run: npm install -g npm@11.21.0 # zizmor: ignore[adhoc-packages]
 
       # semantic-release and its plugins are dev dependencies, so the release
       # runs the exact versions in bun.lock rather than whatever the registry
