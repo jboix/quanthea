@@ -66,7 +66,7 @@ export function toConnectorError(error: unknown): ConnectorError {
       "The connector's user may not run this command or read this key.",
       message,
     );
-  if (/^WRONGPASS|AUTH|NOAUTH/i.test(message))
+  if (/^(WRONGPASS|NOAUTH|ERR AUTH)\b/.test(message))
     return new ConnectorError('authentication', 'The username or password was refused.', message);
   if (/^WRONGTYPE/.test(message))
     return new ConnectorError(

@@ -114,6 +114,8 @@ describe('valkey errors', () => {
     const cases: [string, string][] = [
       ["NOPERM User dash_ro has no permissions to access the 'secret' key", 'permission'],
       ['WRONGPASS invalid username-password pair or user is disabled.', 'authentication'],
+      ['NOAUTH Authentication required.', 'authentication'],
+      ['ERR AUTH <password> called without any password configured.', 'authentication'],
       ['WRONGTYPE Operation against a key holding the wrong kind of value', 'syntax'],
       ["ERR wrong number of arguments for 'get' command", 'syntax'],
       ['Connection closed', 'unreachable'],
@@ -123,6 +125,17 @@ describe('valkey errors', () => {
       const error = toConnectorError(new Error(message));
       expect(error).toMatchObject({ code });
       expect(error.safeMessage).not.toContain('secret');
+    }
+  });
+
+  test('do not read a key, a host or a word that contains auth as an authentication error', () => {
+    const messages = [
+      "ERR Error running script: key 'auth:tokens'",
+      'ERR unknown command for the author index',
+      'getaddrinfo ENOTFOUND oauth-cache',
+    ];
+    for (const message of messages) {
+      expect(toConnectorError(new Error(message)).code).not.toBe('authentication');
     }
   });
 });
