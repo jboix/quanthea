@@ -121,10 +121,12 @@ type ChartView = {
   roles: Record<string, string | string[]>  // the column of each role the option's @role tokens name
   limit?: number                            // categories kept, for pies, funnels and ranked bars
   // A JSON subset of an ECharts option, filled from a chart recipe. The adapter owns: dataset,
-  // grid, theme, animation, tooltip.renderMode and anything security-relevant. Allowed series
-  // types: line, bar, scatter, pie, heatmap, gauge, boxplot, candlestick, treemap, sunburst,
-  // sankey, graph, funnel, radar, parallel, map. Anything else fails validation. Series never
-  // hold data: the adapter builds it from the queries, trees and graphs included.
+  // grid, theme, animation, tooltip.renderMode and anything security-relevant, such as links: link
+  // (but the top-level axisPointer's list), sublink, target, subtarget, triggerEvent and
+  // nodeClick: 'link' are refused anywhere.
+  // Allowed series types: line, bar, scatter, pie, heatmap, gauge, boxplot, candlestick, treemap,
+  // sunburst, sankey, graph, funnel, radar, parallel, map. Anything else fails validation. Series
+  // never hold data: the adapter builds it from the queries, trees and graphs included.
   option: EChartsOptionJson
   datasets: { ref: string; transform?: DatasetTransform }[]   // becomes option.dataset[i]
   markers?: { annotation: string }[]        // show dashboard annotations on this chart
@@ -207,10 +209,12 @@ The Zod schema catches shape errors. `dashboards/validate` (`validateSpec`) also
 - a variable's default is among its options, and a text variable's pattern compiles and matches
   its default;
 - `option` passes the ECharts allowlist: top-level keys `xAxis`, `yAxis`, `series`, `legend`,
-  `tooltip`, `visualMap` and `dataZoom`; series types `line`, `bar`, `scatter`, `pie`, `heatmap`
-  and `gauge`; no `data` in a series; no `renderMode`, `appendToBody` or `className`, which the
-  renderer sets; every `$fmt` object is a valid named formatter; no string longer than 500
-  characters (a cheap guard against smuggled payloads);
+  `tooltip`, `visualMap`, `dataZoom`, `axisPointer`, `title`, `radar`, `parallel`, `geo` and
+  `calendar`; the series types listed under `ChartView`; no `data` in a series; no `renderMode`,
+  `appendToBody` or `className`, which the renderer sets; no `link` (other than the list of the
+  top-level `axisPointer.link`), `sublink`, `target`, `subtarget`, `triggerEvent` or
+  `nodeClick: 'link'` anywhere, so a chart never opens a URL or emits a click event; every `$fmt` object is a valid named formatter; no string
+  longer than 500 characters (a cheap guard against smuggled payloads);
 - the time zone is known, and the default time range runs forwards and fits the `maxRangeDays` of
   every connector the spec uses;
 - the grid has no overlaps: the validator moves an overlapping panel down rather than failing.

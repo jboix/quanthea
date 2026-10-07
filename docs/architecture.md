@@ -2908,6 +2908,11 @@ one, and enables them again. Without any admin, it creates the default one.
 - **Tooltip safety:** tooltips are forced to `renderMode: 'richText'`, drawn on the canvas, so a
   series named `<img src=x onerror=alert(1)>` is shown as text and never parsed as HTML. Legends
   and marker labels are canvas text too. A test holds this.
+- **No links:** a chart never navigates its viewer. Validation refuses `link` (other than the axis
+  list of the top-level `axisPointer.link`), `sublink`, `target`, `subtarget`, `triggerEvent` and
+  `nodeClick: 'link'` (a treemap or sunburst node opening its series' link) anywhere in an option.
+  The adapter drops them from the spec's option at any depth, so a spec stored before the rule
+  cannot open a URL on a click either. A test holds this.
 - Annotation markers are dashed vertical lines on the first series, labelled `14:02 deploy #481`,
   in the colour of their set. A set's colour is a theme token (`@ink`, `@palette.0` to
   `@palette.5`), so it follows the scheme. A label's text takes the ink or the surface colour,

@@ -224,6 +224,30 @@ describe('buildChartOption', () => {
     expect(JSON.stringify(option)).not.toContain('"html"');
   });
 
+  test('drops title links and click events, so a stored spec cannot navigate a viewer', () => {
+    const link = { link: 'https://evil.example/', target: 'self', triggerEvent: true };
+    const sub = { sublink: 'https://evil.example/', subtarget: 'blank' };
+    const option = build({ ...lineOption, title: { text: 'Errors', ...link, ...sub } }, [
+      series('a', [1]),
+    ]);
+    expect(at(option, 'title')).toEqual({ text: 'Errors' });
+    const titles = build({ ...lineOption, title: [{ text: 'A', ...link }] }, [series('a', [1])]);
+    expect(at(titles, 'title')).toEqual([{ text: 'A' }]);
+  });
+
+  test('drops series links and nodes that open one, keeping the axis links', () => {
+    const evil = ['https://evil.example/'];
+    const sunburst = { type: 'sunburst', nodeClick: 'link', link: evil, levels: [{ link: evil }] };
+    const axisPointer = { link: [{ xAxisIndex: 'all' }] };
+    const option = build({ ...lineOption, title: { link: evil }, axisPointer, series: sunburst }, [
+      series('a', [1]),
+    ]);
+    const text = JSON.stringify(option);
+    expect(text).not.toContain('evil.example');
+    expect(text).not.toContain('"nodeClick"');
+    expect(at(option, 'axisPointer')).toEqual(axisPointer);
+  });
+
   test('keeps the parts the adapter owns, whatever the option says', () => {
     const option = build({ ...lineOption, grid: { left: 500 }, color: ['#000'] }, [
       series('a', [1]),

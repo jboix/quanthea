@@ -1,7 +1,8 @@
 /**
  * Checks a chart's ECharts option against an allowlist. The adapter owns the dataset, the grid,
  * the theme, animation and how tooltips render, so the spec may not set them, and data is never
- * inlined in a series: the adapter builds it from the queries, trees and graphs included.
+ * inlined in a series: the adapter builds it from the queries, trees and graphs included. No part
+ * of an option opens a link or emits a click event.
  */
 import { namedFormatterSchema } from '@quanthea/shared';
 import type { SpecIssue } from './issues.ts';
@@ -46,6 +47,33 @@ export const allowedSeriesTypes: ReadonlySet<string> = new Set([
 /** Keys the adapter owns wherever they appear. */
 const adapterKeys: ReadonlySet<string> = new Set(['renderMode', 'appendToBody', 'className']);
 
+/**
+ * Keys that open a URL or emit a click event, refused wherever they appear: a chart never
+ * navigates its viewer. Only `axisPointer.link`, the list of axes moved together, is allowed.
+ */
+const linkKeys: ReadonlySet<string> = new Set([
+  'link',
+  'sublink',
+  'target',
+  'subtarget',
+  'triggerEvent',
+]);
+
+/**
+ * Why a key is refused in an option, if it is. `nodeClick: 'link'` is refused too, since a treemap
+ * or sunburst node would open its series' link.
+ *
+ * @param key - The key.
+ * @param value - Its value.
+ * @returns The message, or `undefined` when the key is allowed.
+ */
+function refusal(key: string, value: Json): string | undefined {
+  if (adapterKeys.has(key)) return 'The renderer sets this.';
+  const opensLink = linkKeys.has(key) || (key === 'nodeClick' && value === 'link');
+  if (opensLink) return 'Charts never open links or emit click events.';
+  return undefined;
+}
+
 /** The longest string an option may hold: a cheap guard against smuggled payloads. */
 const maxStringLength = 500;
 
@@ -71,7 +99,7 @@ function checkValue(value: Json, path: string, issues: SpecIssue[]): void {
 }
 
 /**
- * Checks an object: named formatters must be valid, and adapter-owned keys are refused.
+ * Checks an object: named formatters must be valid, and adapter-owned and link keys are refused.
  *
  * @param value - The object.
  * @param path - Its path.
@@ -83,10 +111,29 @@ function checkObject(value: { [key: string]: Json }, path: string, issues: SpecI
     return;
   }
   for (const [key, child] of Object.entries(value)) {
-    if (adapterKeys.has(key))
-      issues.push({ path: `${path}.${key}`, message: 'The renderer sets this.' });
+    const message = refusal(key, child);
+    if (message) issues.push({ path: `${path}.${key}`, message });
     else checkValue(child, `${path}.${key}`, issues);
   }
+}
+
+/**
+ * Checks the top-level `axisPointer`, whose `link` is a list of axes to move together rather than
+ * a URL: it is allowed there, and only there.
+ *
+ * @param value - The `axisPointer` value.
+ * @param path - Its path.
+ * @param issues - Receives the problems.
+ */
+function checkAxisPointer(value: Json, path: string, issues: SpecIssue[]): void {
+  const pointer = typeof value === 'object' && value !== null && !Array.isArray(value);
+  if (!pointer || !Array.isArray(value.link)) {
+    checkValue(value, path, issues);
+    return;
+  }
+  const { link, ...rest } = value;
+  checkValue(link, `${path}.link`, issues);
+  checkObject(rest, path, issues);
 }
 
 /**
@@ -121,6 +168,24 @@ function checkSeries(series: Json, path: string, issues: SpecIssue[]): void {
 }
 
 /**
+ * Checks one top-level key of an option and its value.
+ *
+ * @param key - The key.
+ * @param value - Its value.
+ * @param path - The option's path.
+ * @param issues - Receives the problems.
+ */
+function checkTopLevel(key: string, value: Json, path: string, issues: SpecIssue[]): void {
+  if (!allowedKeys.has(key)) {
+    issues.push({ path: `${path}.${key}`, message: `"${key}" is not allowed in a chart option.` });
+    return;
+  }
+  if (key === 'series') checkSeries(value, `${path}.series`, issues);
+  if (key === 'axisPointer') checkAxisPointer(value, `${path}.${key}`, issues);
+  else checkValue(value, `${path}.${key}`, issues);
+}
+
+/**
  * Checks a chart option.
  *
  * @param option - The option, as the schema parsed it.
@@ -129,17 +194,7 @@ function checkSeries(series: Json, path: string, issues: SpecIssue[]): void {
  */
 export function checkOption(option: Readonly<Record<string, Json>>, path: string): SpecIssue[] {
   const issues: SpecIssue[] = [];
-  for (const [key, value] of Object.entries(option)) {
-    if (!allowedKeys.has(key)) {
-      issues.push({
-        path: `${path}.${key}`,
-        message: `"${key}" is not allowed in a chart option.`,
-      });
-      continue;
-    }
-    if (key === 'series') checkSeries(value, `${path}.series`, issues);
-    checkValue(value, `${path}.${key}`, issues);
-  }
+  for (const [key, value] of Object.entries(option)) checkTopLevel(key, value, path, issues);
   if (!('series' in option))
     issues.push({ path: `${path}.series`, message: 'A chart needs a series.' });
   return issues;

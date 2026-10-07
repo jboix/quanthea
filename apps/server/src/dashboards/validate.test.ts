@@ -205,6 +205,48 @@ describe('validateSpec', () => {
     ]);
   });
 
+  test('refuses links and click events anywhere in a chart option', () => {
+    expect(
+      issuesAfter((spec) => {
+        set(spec, 'panels.1.view.option.title', {
+          text: 'Session expired, click to sign in again',
+          link: 'https://evil.example/',
+          target: 'self',
+          sublink: 'https://evil.example/',
+          subtarget: 'self',
+          triggerEvent: true,
+        });
+        set(spec, 'panels.1.view.option.legend', { data: [{ name: 'a', link: 'x' }] });
+        set(spec, 'panels.1.view.option.axisPointer', { link: [{ xAxisIndex: 'all' }] });
+      }),
+    ).toEqual([
+      'panels[1].view.option.title.link: Charts never open links or emit click events.',
+      'panels[1].view.option.title.target: Charts never open links or emit click events.',
+      'panels[1].view.option.title.sublink: Charts never open links or emit click events.',
+      'panels[1].view.option.title.subtarget: Charts never open links or emit click events.',
+      'panels[1].view.option.title.triggerEvent: Charts never open links or emit click events.',
+      'panels[1].view.option.legend.data[0].link: Charts never open links or emit click events.',
+    ]);
+  });
+
+  test('refuses a list of links outside axisPointer, and nodes that open a link', () => {
+    const levels = [{}, { link: ['https://evil.example/'] }];
+    expect(
+      issuesAfter((spec) => {
+        set(spec, 'panels.1.view.option.title', { text: 'A', link: ['https://evil.example/'] });
+        set(spec, 'panels.1.view.option.series', [
+          { type: 'sunburst', nodeClick: 'link', link: ['https://evil.example/'], levels },
+          { type: 'treemap', nodeClick: 'zoomToNode' },
+        ]);
+      }),
+    ).toEqual([
+      'panels[1].view.option.series[0].nodeClick: Charts never open links or emit click events.',
+      'panels[1].view.option.series[0].link: Charts never open links or emit click events.',
+      'panels[1].view.option.series[0].levels[1].link: Charts never open links or emit click events.',
+      'panels[1].view.option.title.link: Charts never open links or emit click events.',
+    ]);
+  });
+
   test('says a connector whose plugin is gone is not installed', () => {
     expect(
       issuesAfter((spec) => {
