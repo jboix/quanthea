@@ -18,6 +18,7 @@ import {
   planningRules,
   planQueryRule,
 } from './prompt-text.ts';
+import { type ShownLayoutFacts, shownLayoutLines } from './shown-layout.ts';
 import { catalogSection } from './source-text.ts';
 
 /** What the instructions of a turn depend on. */
@@ -50,6 +51,8 @@ export interface TurnFacts {
   readonly guides: readonly { readonly kind: string }[];
   /** The chart recipes the agent is offered, by id; every one when not given. */
   readonly charts?: readonly string[];
+  /** The pinned version as people see it, when someone arranged it by hand. */
+  readonly shown?: ShownLayoutFacts | undefined;
 }
 
 /**
@@ -126,6 +129,8 @@ function situation(facts: TurnFacts): string {
     lines.push(
       `Current draft, version ${facts.draft.version}:\n${JSON.stringify(facts.draft.spec)}`,
     );
+  if (facts.shown)
+    lines.push(...shownLayoutLines(facts.shown, phaseOf(facts.state) !== 'building'));
   if (facts.mentions.length > 0) {
     const named = facts.mentions
       .map((mention) => `${mention.panelId} ("${mention.title}")`)

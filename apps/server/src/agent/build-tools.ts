@@ -7,6 +7,7 @@ import { tool } from 'ai';
 import { type EditRequest, editRequestSchemaFor } from '../dashboards/panels/index.ts';
 import { buildPanels } from './panel-build.ts';
 import type { RunContext } from './run-context.ts';
+import { arrangedAsShown } from './shown-layout.ts';
 import { providerSchema } from './tool-schema.ts';
 import { type WriteResult, writeVersion } from './write-version.ts';
 
@@ -60,20 +61,16 @@ function proposePlanTool(context: RunContext) {
 }
 
 /**
- * Makes the edit: builds the spec, test-runs it, completes the charts from the data, and writes the
- * panels that work.
+ * Makes the edit over the draft as people see it arranged: builds the spec, test-runs it, completes
+ * the charts from the data, and writes the panels that work.
  *
  * @param context - The run.
  * @param request - The edit.
  * @returns What the model learns.
  */
 async function editDashboard(context: RunContext, request: EditRequest): Promise<WriteResult> {
-  const built = await buildPanels(
-    context,
-    currentSpec(context),
-    request,
-    'The dashboard is invalid.',
-  );
+  const start = arrangedAsShown(context, currentSpec(context));
+  const built = await buildPanels(context, start, request, 'The dashboard is invalid.');
   if ('error' in built) return built;
   const { spec, samePanels, added, run } = built;
   return writeVersion(context, spec, request.summary, samePanels, added, run);

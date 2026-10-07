@@ -27,6 +27,7 @@ import { instructionParts } from './prompt.ts';
 import { publicError } from './public-error.ts';
 import { reportActiveTools, reportInstructions, reportTurnTools } from './report-turn.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
+import { shownLayoutOf } from './shown-layout.ts';
 import { tokensOf, withStep } from './usage.ts';
 
 /** What the person's latest message tells the agent besides its text. */
@@ -130,6 +131,7 @@ export async function turnInstructions(
     plan: latestDashboardPlan(plans),
     draft: spec ? { version: draftVersion(context, dashboardId), spec } : undefined,
     copyOf: dashboardId === null ? undefined : copyOrigin(context, dashboardId),
+    shown: dashboardId === null ? undefined : shownLayoutOf(context, dashboardId),
     planQueries: context.settings.behaviour.planQueries,
     mentions: hints.mentions,
     timeZone: hints.timeZone,

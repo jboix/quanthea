@@ -595,6 +595,13 @@ another was saved since. Hidden panels stay in the spec, so the thread and the m
 them, but snapshots, questions and explanations read the version through its layout and leave
 them out (`shownSpecOf` in `dashboards/context.ts`).
 
+The agent reads the layout and never writes one (`agent/shown-layout.ts`). Its instructions name
+the pinned version's arrangement and the panels hidden there. Every version it writes starts from
+that arrangement: a panel takes its hand place and size while the draft still has it where the
+pinned version's spec put it, so a panel a draft moved or resized since keeps the draft's place.
+For the hidden panels, it asks the person once whether to remove them from the next version;
+while it builds an approved plan, which offers no question, it keeps them.
+
 ### 5.4 A new thread on a dashboard
 
 `POST /api/dashboards/:id/threads {mode, version?}` (editor+) opens a thread that is ready for

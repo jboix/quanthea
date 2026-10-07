@@ -538,6 +538,58 @@ describe('an agent run', () => {
     expect(services.threads.get(threadId).state).toBe('building');
   });
 
+  test('follows the layout people see, and asks about the panels hidden there', async () => {
+    await builtThread();
+    const { dashboardId } = services.threads.get(threadId);
+    const id = dashboardId ?? '';
+    await services.dashboards.pin(id, 1, 'editor-1');
+    const layout = {
+      panels: [
+        { id: 'errors-peak', grid: { x: 0, y: 0, w: 12, h: 3 }, hidden: false },
+        { id: 'errors-over-time', grid: { x: 0, y: 3, w: 12, h: 6 }, hidden: true },
+      ],
+    };
+    services.layouts.save({ dashboardId: id, version: 1 }, layout, null, 'editor-1');
+    const model = scriptedStreamModel({ text: 'Should I remove it?' });
+    await chat(
+      createAgent({ ...services, buildModel: () => model }),
+      userMessage('u2', 'Add a panel of orders'),
+    );
+    const prompt = JSON.stringify(model.doStreamCalls[0]?.prompt);
+    expect(prompt).toContain('People see pinned version 1 as someone arranged it by hand');
+    expect(prompt).toContain('errors-peak x0 y0 w12 h3');
+    expect(prompt).toContain('Hidden there by hand: errors-over-time (\\"Errors over time\\")');
+    expect(prompt).toContain('ask the person once, with ask_person');
+  });
+
+  test('writes the next version from the arrangement people see', async () => {
+    await builtThread();
+    const id = services.threads.get(threadId).dashboardId ?? '';
+    await services.dashboards.pin(id, 1, 'editor-1');
+    const pinned = services.dashboards.getVersion(id, 1, 'editor').spec;
+    const chart = pinned.panels.find((panel) => panel.id === 'errors-over-time');
+    const peak = { x: 0, y: 0, w: 12, h: 2 };
+    const layout = {
+      panels: [
+        { id: 'errors-peak', grid: peak, hidden: false },
+        { id: 'errors-over-time', grid: chart?.grid ?? peak, hidden: true },
+      ],
+    };
+    services.layouts.save({ dashboardId: id, version: 1 }, layout, null, 'editor-1');
+    services.threads.proposePlan(threadId, plan, true);
+    const more = { panels: [eventsPanel('Errors · total', 'stat')], summary: 'one more' };
+    await chat(
+      agentWith({ tool: 'edit_dashboard', input: more }, { text: 'Added.' }),
+      userMessage('u2', 'Add the total'),
+    );
+    const next = services.dashboards.getVersion(id, 2, 'editor').spec;
+    expect(next.panels.find((panel) => panel.id === 'errors-peak')?.grid).toEqual(peak);
+    // A panel hidden by hand stays in the version, where its spec put it, until the person says.
+    expect(next.panels.find((panel) => panel.id === 'errors-over-time')?.grid.w).toBe(
+      chart?.grid.w,
+    );
+  });
+
   test('keeps building the approved plan after its first save, in the same run', async () => {
     services.threads.proposePlan(threadId, plan, true);
     const more = { panels: [eventsPanel('Errors · total', 'stat')], summary: 'one more' };
