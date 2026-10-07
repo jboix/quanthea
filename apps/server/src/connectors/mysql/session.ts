@@ -1,10 +1,11 @@
 /**
- * Connections to MySQL and MariaDB: a small pool whose sessions are read-only and in UTC, statements
- * run as prepared statements, rows streamed up to a limit, and a `KILL QUERY` when the caller gives
- * up.
+ * Connections to MySQL and MariaDB: a small pool whose sessions are read-only, in UTC and with a
+ * pinned `sql_mode`, statements run as prepared statements, rows streamed up to a limit, and a
+ * `KILL QUERY` when the caller gives up.
  */
 import mysql, { type FieldPacket, type Pool, type PoolConnection } from 'mysql2';
 import { ConnectorError, type SqlParameter } from '../_shared/index.ts';
+import { pinnedSqlMode } from './sql-mode.ts';
 
 /** How a pool connects. */
 export interface PoolOptions {
@@ -38,7 +39,7 @@ interface Session {
   readonly spend: () => void;
 }
 
-/** Connections whose session is already read-only. */
+/** Connections whose session is already read-only, with its `sql_mode` pinned. */
 const readOnlySessions = new WeakSet<PoolConnection>();
 
 /**
@@ -104,8 +105,23 @@ function run(
 }
 
 /**
- * Makes a session read-only once, then sets the time zone and the row cap for this use. Read-only
- * sessions refuse writes and schema changes on every statement, in or out of a transaction.
+ * Pins the session's `sql_mode` to the server's without the modes that change how quotes and
+ * backslashes are read, so the server reads a statement as the SQL binder does.
+ *
+ * @param connection - The connection.
+ */
+async function pinSqlMode(connection: PoolConnection): Promise<void> {
+  const [row] = (await run(connection, 'SELECT @@SESSION.sql_mode AS mode')) as {
+    mode?: unknown;
+  }[];
+  const mode = pinnedSqlMode(String(row?.mode ?? ''));
+  await run(connection, `SET SESSION sql_mode = '${mode}'`);
+}
+
+/**
+ * Makes a session read-only and pins its `sql_mode` once, then sets the time zone and the row cap
+ * for this use. Read-only sessions refuse writes and schema changes on every statement, in or out
+ * of a transaction. A statement cannot change the mode, since only one SELECT runs.
  *
  * @param connection - The connection.
  * @param rowLimit - The most rows a SELECT returns without its own LIMIT.
@@ -113,6 +129,7 @@ function run(
 async function prepareSession(connection: PoolConnection, rowLimit: number): Promise<void> {
   if (!readOnlySessions.has(connection)) {
     await run(connection, 'SET SESSION TRANSACTION READ ONLY');
+    await pinSqlMode(connection);
     readOnlySessions.add(connection);
   }
   const limit = Math.max(1, Math.trunc(rowLimit));

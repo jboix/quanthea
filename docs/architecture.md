@@ -1942,7 +1942,10 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   code generation, local files and multiple statements off. `Bun.sql` 1.3 returns DECIMAL as bytes, reads dates in the
   local time zone, gives no column types and ignores a read-only transaction. Each session is
   `SET SESSION TRANSACTION READ ONLY` (which, unlike a read-only transaction, also refuses schema
-  changes, since they commit implicitly) and in UTC; `sql_select_limit` caps rows at
+  changes, since they commit implicitly) and in UTC. Its `sql_mode` is the server's without
+  `ANSI_QUOTES`, `NO_BACKSLASH_ESCAPES` and the combined modes that set them (`ANSI`, `ORACLE` and
+  the like), so the server reads quotes and backslashes as the SQL binder lexes them, and an
+  `INTO OUTFILE` cannot hide in what the binder takes for a literal. `sql_select_limit` caps rows at
   `maxRows + 1`, and the reader stops there too when a query asks for more with its own LIMIT. A
   statement is prepared, never formatted by the driver. At the timeout or when the caller gives up,
   `KILL QUERY` stops it on the server and the connection is closed rather than reused. `describe`
