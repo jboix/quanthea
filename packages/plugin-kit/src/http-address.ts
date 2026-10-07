@@ -3,46 +3,59 @@
  * machine quanthea runs on.
  */
 import { ConnectorError } from './errors.ts';
+import { embeddedIpv4, ipv4Bytes, ipv6Bytes, startsWith } from './ip-bytes.ts';
 
 /**
- * IPv4 metadata addresses: the link-local range (AWS, Google Cloud, Azure, OpenStack, ECS tasks)
- * and Alibaba Cloud's address.
+ * IPv4 metadata addresses: Alibaba Cloud's, Azure's wire server and Oracle Cloud's. The
+ * link-local range (AWS, Google Cloud, Azure, OpenStack, ECS tasks) is matched apart.
  */
-const metadataIpv4 = [/^169\.254\./, /^100\.100\.100\.200$/];
+const metadataIpv4 = [
+  [100, 100, 100, 200],
+  [168, 63, 129, 16],
+  [192, 0, 0, 192],
+];
 
-/** IPv6 metadata addresses: the link-local range and AWS's address. */
-const metadataIpv6 = [/^fe[89ab][0-9a-f]:/, /^fd00:ec2::254$/];
-
-/** A dotted IPv4 address. */
-const dottedIpv4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
+/** IPv6 metadata addresses: AWS's and Google Cloud's. The link-local range is matched apart. */
+const metadataIpv6 = [ipv6Bytes('fd00:ec2::254'), ipv6Bytes('fd20:ce::254')];
 
 /**
- * The IPv4 address inside an IPv4-mapped IPv6 address, in either notation.
+ * Whether an IPv4 address is a metadata address.
  *
- * @param address - An IPv6 address, lowercase and without brackets.
- * @returns The dotted IPv4 address, or `undefined` when the address is not IPv4-mapped.
+ * @param bytes - Its 4 bytes.
+ * @returns `true` for 169.254.0.0/16 or a provider's address.
  */
-function mappedIpv4(address: string): string | undefined {
-  const dotted = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(address);
-  if (dotted) return dotted[1];
-  const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(address);
-  if (!hex) return undefined;
-  const high = Number.parseInt(hex[1] ?? '0', 16);
-  const low = Number.parseInt(hex[2] ?? '0', 16);
-  return [high >> 8, high & 255, low >> 8, low & 255].join('.');
+function isMetadataIpv4(bytes: readonly number[]): boolean {
+  if (bytes[0] === 169 && bytes[1] === 254) return true;
+  return metadataIpv4.some((address) => startsWith(bytes, address));
 }
 
 /**
- * Whether an address is a cloud metadata address.
+ * Whether an IPv6 address is a metadata address, or carries an IPv4 one.
+ *
+ * @param bytes - Its 16 bytes.
+ * @returns `true` for fe80::/10, a provider's address, or an embedded IPv4 metadata address.
+ */
+function isMetadataIpv6(bytes: readonly number[]): boolean {
+  if (bytes[0] === 0xfe && ((bytes[1] ?? 0) & 0xc0) === 0x80) return true;
+  if (metadataIpv6.some((address) => address !== undefined && startsWith(bytes, address)))
+    return true;
+  return embeddedIpv4(bytes).some(isMetadataIpv4);
+}
+
+/**
+ * Whether an address is a cloud metadata address. An IPv6 address is read as bytes, so every
+ * spelling matches, and an IPv4 address inside it (compatible, mapped, translated, NAT64, 6to4)
+ * is checked as IPv4.
  *
  * @param address - An IP address, or a URL host with IPv6 in brackets.
  * @returns `true` for a metadata address, `false` for any other address or a name.
  */
 export function isMetadataAddress(address: string): boolean {
-  const bare = address.replace(/^\[|\]$/g, '').toLowerCase();
-  const ipv4 = dottedIpv4.test(bare) ? bare : mappedIpv4(bare);
-  if (ipv4 !== undefined) return metadataIpv4.some((pattern) => pattern.test(ipv4));
-  return metadataIpv6.some((pattern) => pattern.test(bare));
+  const bare = address.replace(/^\[|\]$/g, '');
+  const ipv4 = ipv4Bytes(bare);
+  if (ipv4) return isMetadataIpv4(ipv4);
+  const ipv6 = ipv6Bytes(bare);
+  return ipv6 !== undefined && isMetadataIpv6(ipv6);
 }
 
 /**
@@ -52,7 +65,7 @@ export function isMetadataAddress(address: string): boolean {
  * @returns `true` for an IP address.
  */
 function isIpLiteral(host: string): boolean {
-  return host.startsWith('[') || dottedIpv4.test(host);
+  return host.startsWith('[') || ipv4Bytes(host) !== undefined;
 }
 
 /**

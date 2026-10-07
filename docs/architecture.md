@@ -1825,14 +1825,18 @@ export const exampleConnector = defineConnector({
   scalar) into frames: one per series over time (at most 1000), or one table of samples. Prometheus
   and Loki's metric queries answer in it.
 - `createHttpClient` is the HTTP client of every kind that speaks HTTP. It takes an `http:` or
-  `https:` base URL only (another scheme, such as `file:`, is `rejected`), and calls its
-  origin only and follows a redirect only within it. It never calls a cloud metadata address
-  (169.254.0.0/16, 100.100.100.200, fd00:ec2::254, fe80::/10), by the host or by what a name
-  resolves to when the request starts. It stops at a timeout (120 seconds by default, on top of the
-  caller's signal) and reads at most 64 MiB of a body. A request names a path under the base URL,
-  or an absolute URL on the same origin, such as a next-page link. A path is parsed first, dot
-  segments resolved, and must stay under the base URL's path; an absolute URL is held to the
-  origin only.
+  `https:` base URL only (another scheme, such as `file:`, is `rejected`). It calls that origin
+  only and follows a redirect only within it. It stops at a timeout (120 seconds by default, on
+  top of the caller's signal) and reads at most 64 MiB of a body.
+- A request names a path under the base URL, or an absolute URL on the same origin, such as a
+  next-page link. A path is parsed first, dot segments resolved, and must stay under the base
+  URL's path; an absolute URL is held to the origin only.
+- The client never calls a cloud metadata address (169.254.0.0/16, 100.100.100.200,
+  168.63.129.16, 192.0.0.192, fd00:ec2::254, fd20:ce::254, fe80::/10), by the host or by what a
+  name resolves to when the request starts. An IPv6 address is read as bytes, so every spelling
+  matches. An IPv4 address inside it is checked as IPv4: the compatible (`::/96`), mapped
+  (`::ffff:0:0/96`) and translated (`::ffff:0:0:0/96`) forms, NAT64 (`64:ff9b::/96`, and each
+  RFC 6052 place under `64:ff9b:1::/48`) and 6to4 (`2002::/16`).
 - `@quanthea/plugin-kit/testing` holds the suite every kind runs in its test file: static
   checks of the declaration, and live checks against a source (health, schema, valid frames, row
   limit, abort, error messages, sample limit). `test/memory-connector.ts` is an in-memory kind for

@@ -194,8 +194,37 @@ describe('isMetadataAddress', () => {
     for (const address of [...metadata, ...mapped]) expect(isMetadataAddress(address)).toBe(true);
   });
 
+  test('matches the other providers, in any IPv6 spelling', () => {
+    const providers = [
+      'fd20:ce::254',
+      'FD20:CE::254',
+      'fd20:00ce:0:0:0:0:0:0254',
+      '[fd20:ce::254]',
+    ];
+    const others = ['168.63.129.16', '192.0.0.192', 'fe80::1%eth0', 'febf::1'];
+    for (const address of [...providers, ...others]) expect(isMetadataAddress(address)).toBe(true);
+  });
+
+  test('matches IPv4 metadata addresses embedded in IPv6', () => {
+    const embedded = [
+      '::169.254.169.254',
+      '[::a9fe:a9fe]',
+      '64:ff9b::169.254.169.254',
+      '64:ff9b::a9fe:a9fe',
+      '64:ff9b:1:a9fe:a9:fe00::',
+      '64:ff9b:1::a9fe:a9fe',
+      '2002:a9fe:a9fe::',
+      '2002:6464:64c8::1',
+      '::ffff:0:a9fe:a9fe',
+    ];
+    for (const address of embedded) expect(isMetadataAddress(address)).toBe(true);
+  });
+
   test('leaves other addresses and names alone', () => {
-    for (const address of ['127.0.0.1', '10.0.0.5', '::1', '::ffff:10.0.0.1', 'clickhouse'])
+    for (const address of ['127.0.0.1', '10.0.0.5', '::1', '::', '::ffff:10.0.0.1', 'clickhouse'])
+      expect(isMetadataAddress(address)).toBe(false);
+    const ipv6 = ['2002:a00:1::', '64:ff9b::808:808', '2001:db8::1', 'fd20:ce::253', 'fec0::1'];
+    for (const address of [...ipv6, '1::2::3', '1:2:3', '169.254.1', '300.254.169.254'])
       expect(isMetadataAddress(address)).toBe(false);
   });
 });
