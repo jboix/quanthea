@@ -17,6 +17,7 @@ import {
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 import { type AlertIntent, runAlertIntent } from './alerts-data.ts';
+import { type LayoutIntent, runLayoutIntent } from './layout-data.ts';
 import { type Loaded, loaded } from './loaded.ts';
 import { runSnapshotIntent, type SnapshotIntent } from './snapshot-data.ts';
 
@@ -107,14 +108,15 @@ function choicesOf(url: URL) {
 
 /**
  * What the dashboard screen submits, as JSON: show a version in the library or none, open a new
- * thread on a copy of a version or on the dashboard itself, take or revoke a snapshot, or act on a
- * panel's alerts.
+ * thread on a copy of a version or on the dashboard itself, save or restore a layout, take or
+ * revoke a snapshot, or act on a panel's alerts.
  */
 export type DashboardIntent =
   | { readonly intent: 'pin'; readonly version: number }
   | { readonly intent: 'unpin' }
   | { readonly intent: 'copy'; readonly version: number }
   | { readonly intent: 'edit' }
+  | LayoutIntent
   | SnapshotIntent
   | AlertIntent;
 
@@ -185,6 +187,9 @@ export function changeDashboard(api: ApiClient) {
       case 'linkAlert':
       case 'dismissAlert':
         return runAlertIntent(api, dashboardId, intent);
+      case 'layout':
+      case 'restoreLayout':
+        return runLayoutIntent(api, dashboardId, intent);
       default:
         return changePin(api, dashboardId, intent);
     }

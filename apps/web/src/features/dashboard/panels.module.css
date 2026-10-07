@@ -350,3 +350,12 @@
 .panel[data-plan="removed"] .planNote {
   color: var(--color-danger);
 }
+
+/* While the layout is edited, the frames lie over the live panels, which take no pointer. */
+.editing {
+  position: relative;
+}
+
+.editing > .grid {
+  pointer-events: none;
+}

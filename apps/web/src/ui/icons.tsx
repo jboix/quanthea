@@ -108,6 +108,22 @@ export function LibraryIcon() {
 }
 
 /**
+ * A wide tile over two of different widths, with a corner to drag: arranging panels.
+ *
+ * @returns The icon.
+ */
+export function LayoutIcon() {
+  return (
+    <Icon>
+      <rect x="3" y="3" width="18" height="7" rx="1.5" />
+      <rect x="3" y="14" width="10" height="7" rx="1.5" />
+      <path d="M17 14h4v4" />
+      <path d="M21 21l-4-4" />
+    </Icon>
+  );
+}
+
+/**
  * A database cylinder, for connectors.
  *
  * @returns The icon.

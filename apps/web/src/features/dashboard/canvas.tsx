@@ -3,7 +3,7 @@
  * view and the thread's draft pane both show it.
  */
 import type { DashboardAlerts, DashboardSpec, PanelRun } from '@quanthea/shared';
-import { useCallback, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { dashboardAlertsPath, useDashboardAlerts } from './alerts-data.ts';
 import type { PanelMark } from './ask-marks.ts';
@@ -68,6 +68,8 @@ export interface DashboardCanvasProps {
   readonly explainable?: boolean;
   /** Whether the panels show their alerts: on the dashboard screen only. */
   readonly withAlerts?: boolean;
+  /** A layer over the panels, such as the layout editor's frames. */
+  readonly overlay?: ReactNode;
 }
 
 /** The alerts on the panels, and the values chosen, once loaded. */
@@ -123,7 +125,7 @@ function PanelGrid(
   const timeZone = spec.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const explain = props.explainable ? { dashboardId, version, timeZone } : undefined;
   const views = usePanelAlertViews(spec, props.alerts, props.explainable ? version : undefined);
-  return (
+  const grid = (
     <div className={panelStyles.grid}>
       {spec.panels.map((panel) => (
         <PanelCard
@@ -142,6 +144,31 @@ function PanelGrid(
           alerts={views.get(panel.id)}
         />
       ))}
+    </div>
+  );
+  return <WithOverlay overlay={props.overlay}>{grid}</WithOverlay>;
+}
+
+/**
+ * The panel grid with a layer over it, when there is one.
+ *
+ * @param props - The grid and the layer.
+ * @param props.overlay - The layer, if any.
+ * @param props.children - The grid.
+ * @returns The grid, under the layer.
+ */
+function WithOverlay({
+  overlay,
+  children,
+}: {
+  readonly overlay: ReactNode;
+  readonly children: ReactNode;
+}) {
+  if (!overlay) return children;
+  return (
+    <div className={panelStyles.editing}>
+      {children}
+      {overlay}
     </div>
   );
 }

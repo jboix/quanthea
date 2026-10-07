@@ -1,5 +1,5 @@
 import { Button } from '../../ui/button.tsx';
-import { MoreIcon, QuestionIcon } from '../../ui/icons.tsx';
+import { LayoutIcon, MoreIcon, QuestionIcon } from '../../ui/icons.tsx';
 import { MenuItem } from '../../ui/menu-item.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import { useMediaQuery } from '../../ui/use-media-query.ts';
@@ -19,6 +19,8 @@ export interface AskAction {
   readonly onAsk?: (() => void) | undefined;
   /** Whether the Ask tab is open. */
   readonly asking?: boolean | undefined;
+  /** Starts arranging the panels; left out for those who may not, and on narrow screens. */
+  readonly onArrange?: (() => void) | undefined;
 }
 
 /**
@@ -76,13 +78,14 @@ function FoldedActions({
 }
 
 /**
- * The header's actions: Ask about this, Change for editors, Share and Versions. On a narrow screen
- * they fold into one menu.
+ * The header's actions: Ask about this, Edit layout for those who may arrange the version shown,
+ * Change for editors, Share and Versions. On a narrow screen they fold into one menu, without Edit
+ * layout.
  *
  * @param props - The dashboard, the version shown, and the way into the Ask tab.
  * @returns The actions.
  */
-export function HeaderActions({ onAsk, asking, ...props }: DashboardData & AskAction) {
+export function HeaderActions({ onAsk, asking, onArrange, ...props }: DashboardData & AskAction) {
   const narrow = useMediaQuery(narrowScreen);
   if (narrow) {
     return (
@@ -94,6 +97,11 @@ export function HeaderActions({ onAsk, asking, ...props }: DashboardData & AskAc
   return (
     <div className={styles.headerActions}>
       <AskButton onAsk={onAsk} asking={asking} />
+      {onArrange && (
+        <Button onClick={onArrange}>
+          <LayoutIcon /> Edit layout
+        </Button>
+      )}
       <ChangePopover {...props} />
       <SharePopover {...props} />
       <VersionsPopover {...props} />

@@ -602,6 +602,16 @@ pinned version's spec put it, so a panel a draft moved or resized since keeps th
 For the hidden panels, it asks the person once whether to remove them from the next version;
 while it builds an approved plan, which offers no question, it keeps them.
 
+On the pinned view, those who may arrange it get **Edit layout** on a screen wider than 900
+pixels, where the grid has its twelve columns (`features/dashboard/layout-editor.tsx`). A layer
+of frames lies over the live panels on the same grid (`layout-overlay.tsx`): dragging a frame
+moves its panel, dragging its corner resizes it, and with the keyboard the arrow keys move the
+focused panel and Shift with an arrow resizes it, each change announced. The other panels move
+out of the way and rise into the gaps, never jumping over one another (`layout-edit.ts`). Save
+layout sends the layout with the revision it started from; Cancel drops it. Leaving the page
+with changes unsaved asks first, in the app and when the tab closes; changing the variables
+does not.
+
 ### 5.4 A new thread on a dashboard
 
 `POST /api/dashboards/:id/threads {mode, version?}` (editor+) opens a thread that is ready for
