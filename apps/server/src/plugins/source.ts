@@ -2,7 +2,8 @@
  * Where a plugin comes from, as `quanthea plugin install` is given it: an npm package name with an
  * optional version or range, an `https://` tarball URL such as a GitHub release asset, a local
  * `.tgz`, or a local `.js` bundle inside its package folder. Each gives the plugin's two files, the
- * manifest and the bundle, read from the tarball and nothing else.
+ * manifest and the bundle, read from the tarball and nothing else. Every fetch is over HTTPS,
+ * redirects included.
  */
 import { dirname, join, resolve } from 'node:path';
 import { pluginNameSchema } from '../config/config.ts';
@@ -21,6 +22,12 @@ const maxUncompressed = 128 * 1024 * 1024;
 /** How large a manifest may be. */
 const maxManifest = 1024 * 1024;
 
+/** How many redirects a fetch follows. */
+const maxRedirects = 5;
+
+/** The statuses that redirect. */
+const redirectStatuses = new Set([301, 302, 303, 307, 308]);
+
 /** What fetching needs. */
 export interface SourceOptions {
   /** The npm registry. */
@@ -31,6 +38,8 @@ export interface SourceOptions {
   readonly workingDir: string;
   /** The fetch function, replaced in tests. */
   readonly fetch: typeof fetch;
+  /** The integrity an `https://` tarball URL must match, such as `sha512-…`, when given. */
+  readonly integrity?: string;
 }
 
 /** A plugin's two files, as found. */
@@ -69,19 +78,44 @@ async function limitedBody(response: Response, maxBytes: number, what: string) {
 }
 
 /**
- * Fetches over HTTPS.
+ * Where a response redirects to, if it does.
+ *
+ * @param response - The response.
+ * @param url - The URL it answered, which a relative location resolves against.
+ * @returns The absolute URL, or `undefined` when it does not redirect.
+ */
+function redirectOf(response: Response, url: string): string | undefined {
+  const location = response.headers.get('Location');
+  if (!redirectStatuses.has(response.status) || location === null) return undefined;
+  return new URL(location, url).href;
+}
+
+/**
+ * Fetches over HTTPS, following a few redirects, each to an `https://` URL.
  *
  * @param url - The URL.
  * @param options - The fetch function.
  * @param accept - The Accept header.
  * @returns The response.
- * @throws {SourceError} For a URL that is not HTTPS, or a failed request.
+ * @throws {SourceError} For a URL or a redirect that is not HTTPS, too many redirects, or a
+ *   failed request.
  */
 async function getHttps(url: string, options: SourceOptions, accept: string): Promise<Response> {
-  if (!url.startsWith('https://')) throw new SourceError(`only https:// is fetched: ${url}`);
-  const response = await options.fetch(url, { headers: { Accept: accept }, redirect: 'follow' });
-  if (!response.ok) throw new SourceError(`${url} answered ${response.status}`);
-  return response;
+  let current = url;
+  for (let hop = 0; hop <= maxRedirects; hop += 1) {
+    if (!current.startsWith('https://'))
+      throw new SourceError(`only https:// is fetched: ${current}`);
+    const init = { headers: { Accept: accept }, redirect: 'manual' } as const;
+    const response = await options.fetch(current, init);
+    const next = redirectOf(response, current);
+    if (next === undefined) {
+      if (!response.ok) throw new SourceError(`${current} answered ${response.status}`);
+      return response;
+    }
+    await response.body?.cancel();
+    current = next;
+  }
+  throw new SourceError(`${url} redirects more than ${maxRedirects} times`);
 }
 
 /**
@@ -184,20 +218,21 @@ export function resolveVersion(metadata: RegistryPackage, range: string | undefi
 }
 
 /**
- * Checks a tarball against the registry's integrity hash (SHA-512).
+ * Checks a tarball against an integrity hash (SHA-512).
  *
  * @param tgz - The tarball.
- * @param integrity - The `integrity` field, such as `sha512-…`.
+ * @param integrity - The integrity, such as `sha512-…`.
+ * @param giver - Who gives it, for the message: `the registry` or `--integrity`.
  * @throws {SourceError} Without a SHA-512 hash, or when it does not match.
  */
-function checkIntegrity(tgz: Uint8Array, integrity: string | undefined): void {
+function checkIntegrity(tgz: Uint8Array, integrity: string | undefined, giver: string): void {
   const expected = integrity
     ?.split(/\s+/)
     .find((hash) => hash.startsWith('sha512-'))
     ?.slice('sha512-'.length);
-  if (!expected) throw new SourceError('the registry gives no sha512 integrity for the tarball');
+  if (!expected) throw new SourceError(`${giver} gives no sha512 integrity for the tarball`);
   if (new Bun.CryptoHasher('sha512').update(tgz).digest('base64') !== expected)
-    throw new SourceError('the tarball does not match the integrity the registry gives');
+    throw new SourceError(`the tarball does not match the integrity ${giver} gives`);
 }
 
 /**
@@ -231,9 +266,24 @@ async function fromRegistry(spec: string, options: SourceOptions): Promise<Plugi
   if (!dist?.tarball) throw new SourceError(`${name}@${version} has no tarball`);
   const tarball = await getHttps(dist.tarball, options, 'application/octet-stream');
   const tgz = await limitedBody(tarball, maxCompressed, 'the tarball');
-  checkIntegrity(tgz, dist.integrity);
+  checkIntegrity(tgz, dist.integrity, 'the registry');
   await checkProvenance(name, version);
   return { ...filesOfTarball(tgz, `${name}@${version}`), requested: name };
+}
+
+/**
+ * A plugin's two files from an `https://` tarball URL, checked against `--integrity` when given.
+ *
+ * @param url - The URL.
+ * @param options - The fetch function and the integrity, if any.
+ * @returns The two files.
+ * @throws {SourceError} When the tarball cannot be fetched, does not match, or cannot be read.
+ */
+async function fromUrl(url: string, options: SourceOptions): Promise<PluginFiles> {
+  const response = await getHttps(url, options, 'application/octet-stream');
+  const tgz = await limitedBody(response, maxCompressed, 'the tarball');
+  if (options.integrity !== undefined) checkIntegrity(tgz, options.integrity, '--integrity');
+  return filesOfTarball(tgz, url);
 }
 
 /**
@@ -241,16 +291,16 @@ async function fromRegistry(spec: string, options: SourceOptions): Promise<Plugi
  *
  * @param spec - An npm name with an optional version or range, an `https://` URL, or a local
  *   `.tgz` or `.js` path.
- * @param options - The registry, the fetch function and the working directory.
+ * @param options - The registry, the fetch function, the working directory, and the integrity an
+ *   `https://` URL must match, if any.
  * @returns The two files.
  * @throws {SourceError} When they cannot be found or read safely.
  */
 export async function fetchPlugin(spec: string, options: SourceOptions): Promise<PluginFiles> {
   if (spec.startsWith('http://')) throw new SourceError(`only https:// is fetched: ${spec}`);
-  if (spec.startsWith('https://')) {
-    const response = await getHttps(spec, options, 'application/octet-stream');
-    return filesOfTarball(await limitedBody(response, maxCompressed, 'the tarball'), spec);
-  }
+  if (spec.startsWith('https://')) return fromUrl(spec, options);
+  if (options.integrity !== undefined)
+    throw new SourceError('--integrity applies only to an https:// tarball URL');
   if (!/\.(tgz|js)$/.test(spec)) return fromRegistry(spec, options);
   const path = resolve(options.workingDir, spec);
   if (!(await Bun.file(path).exists())) throw new SourceError(`no file at ${path}`);

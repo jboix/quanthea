@@ -1913,7 +1913,9 @@ a contribution it does not know, so a newer plugin never half-loads on an older 
   npm name with an optional version or range (resolved with `Bun.semver` against the registry's
   metadata), an `https://` tarball URL such as a GitHub release asset, or a local `.tgz` or `.js`
   file. From the registry, the tarball must match npm's SHA-512 integrity; a marked extension
-  point is where provenance would be checked. The tarball is read by a small reader of untrusted
+  point is where provenance would be checked. A tarball URL matches `--integrity sha512-…` when
+  given. Every fetch is over HTTPS: redirects are followed by hand, at most 5, and a hop to
+  anything but `https://` is refused, so no plain-HTTP hop can swap the tarball. The tarball is read by a small reader of untrusted
   input (`plugins/tar.ts`): gunzipped up to 128 MiB (32 MiB compressed), only
   `package/package.json` and the file its `quanthea.main` names extracted, an absolute path, `..`,
   a backslash, a link, a corrupt header, an extended header (pax or GNU long name) that is

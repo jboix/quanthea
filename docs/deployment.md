@@ -142,6 +142,9 @@ plugins:
     "quanthea-plugin-sqlite": "sha256:f7eb…"
 ```
 
+It fetches over HTTPS only, redirects included. A tarball URL has no registry hash to check, so
+give it the one its publisher gives with `--integrity sha512-…`.
+
 ### Installed at runtime
 
 `docker exec quanthea quanthea plugin install quanthea-plugin-sqlite@1.0.0` installs into the

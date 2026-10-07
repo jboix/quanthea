@@ -65,7 +65,14 @@ beforeEach(() => {
 
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-/** A registry and tarball host, answering as npm does. */
+/** The redirects the tarball host answers with, by URL. */
+const redirects: Record<string, string> = {
+  'https://files.test/latest.tgz': '/1.0.0.tgz',
+  'https://files.test/downgrade.tgz': 'http://files.test/1.0.0.tgz',
+  'https://files.test/loop.tgz': 'https://files.test/loop.tgz',
+};
+
+/** A registry and tarball host, answering as npm does, and never following a redirect itself. */
 const fakeFetch = (async (input: string | URL | Request) => {
   const url = String(input);
   if (url === 'https://registry.test/quanthea-plugin-events') {
@@ -77,6 +84,8 @@ const fakeFetch = (async (input: string | URL | Request) => {
     );
     return Response.json({ 'dist-tags': { latest: '1.2.0' }, versions });
   }
+  const redirect = redirects[url];
+  if (redirect) return new Response(null, { status: 302, headers: { Location: redirect } });
   const version = /files\.test\/(.*)\.tgz$/.exec(url)?.[1];
   const tgz = version ? tarballs[version] : undefined;
   return tgz ? new Response(tgz) : new Response('not found', { status: 404 });
@@ -192,5 +201,29 @@ describe('quanthea plugin install', () => {
     expect(await run(['remove', 'quanthea-plugin-events'])).toBe(0);
     expect(readdirSync(pluginsDir())).toEqual([]);
     expect(await run(['remove', 'quanthea-plugin-events'])).toBe(1);
+  });
+
+  test('follows a redirect only to https, and only a few times', async () => {
+    expect(await run(['install', 'https://files.test/latest.tgz'])).toBe(0);
+    expect(await run(['install', 'https://files.test/downgrade.tgz'])).toBe(1);
+    expect(await run(['install', 'https://files.test/loop.tgz'])).toBe(1);
+    expect(lines.slice(-2)).toEqual([
+      'Cannot install https://files.test/downgrade.tgz: only https:// is fetched: http://files.test/1.0.0.tgz.',
+      'Cannot install https://files.test/loop.tgz: https://files.test/loop.tgz redirects more than 5 times.',
+    ]);
+  });
+
+  test('checks a tarball URL against --integrity when given', async () => {
+    const url = 'https://files.test/1.0.0.tgz';
+    expect(await run(['install', url, '--integrity', integrities['1.0.0'] ?? ''])).toBe(0);
+    lines = [];
+    expect(await run(['install', url, '--integrity', integrities['2.0.0'] ?? ''])).toBe(1);
+    expect(await run(['install', url, '--integrity', 'sha1-abc'])).toBe(1);
+    expect(await run(['install', 'quanthea-plugin-events', '--integrity', 'sha512-x'])).toBe(1);
+    expect(lines).toEqual([
+      `Cannot install ${url}: the tarball does not match the integrity --integrity gives.`,
+      `Cannot install ${url}: --integrity gives no sha512 integrity for the tarball.`,
+      'Cannot install quanthea-plugin-events: --integrity applies only to an https:// tarball URL.',
+    ]);
   });
 });

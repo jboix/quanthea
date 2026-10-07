@@ -9,6 +9,7 @@ import { createLogger } from '../lib/logger.ts';
 import {
   InstallError,
   type Installed,
+  type InstallOptions,
   installPlugin,
   listPlugins,
   removePlugin,
@@ -29,9 +30,11 @@ export interface CommandIo {
 
 /** How to use the plugin commands. */
 export const pluginUsage = [
-  'quanthea plugin install <spec> [--registry <url>] [--max-bundle-mb <n>]',
+  'quanthea plugin install <spec> [--registry <url>] [--integrity <sha512-…>]',
+  '                        [--max-bundle-mb <n>]',
   '  <spec>: an npm name with an optional version or range, an https:// tarball URL,',
   '          or a local .tgz or .js file',
+  '  --integrity: the hash an https:// tarball URL must match, as npm writes it',
   'quanthea plugin list',
   'quanthea plugin remove <name>',
 ].join('\n');
@@ -76,6 +79,33 @@ function report(installed: Installed, io: CommandIo): void {
 }
 
 /**
+ * What an install needs, from the options and the configuration.
+ *
+ * @param args - The arguments after `install`.
+ * @param io - The environment, the working directory and fetch.
+ * @param maxBundleMb - The largest bundle accepted, in megabytes.
+ * @returns The install options.
+ */
+function installOptions(
+  args: readonly string[],
+  io: CommandIo,
+  maxBundleMb: number,
+): InstallOptions {
+  const config = loadConfig(io.environment, io.workingDir);
+  const integrity = option(args, '--integrity');
+  return {
+    dir: config.pluginsDir,
+    registry: option(args, '--registry') ?? defaultRegistry,
+    maxBundleBytes: Math.floor(maxBundleMb * 1024 * 1024),
+    workingDir: io.workingDir,
+    fetch: io.fetch,
+    ...(integrity === undefined ? {} : { integrity }),
+    offered: connectorKinds,
+    logger: createLogger('error'),
+  };
+}
+
+/**
  * Installs a plugin and prints its pin.
  *
  * @param args - The arguments after `install`.
@@ -89,20 +119,8 @@ async function install(args: readonly string[], io: CommandIo): Promise<number> 
     io.say(pluginUsage);
     return 2;
   }
-  const config = loadConfig(io.environment, io.workingDir);
   try {
-    report(
-      await installPlugin(spec, {
-        dir: config.pluginsDir,
-        registry: option(args, '--registry') ?? defaultRegistry,
-        maxBundleBytes: Math.floor(maxBundleMb * 1024 * 1024),
-        workingDir: io.workingDir,
-        fetch: io.fetch,
-        offered: connectorKinds,
-        logger: createLogger('error'),
-      }),
-      io,
-    );
+    report(await installPlugin(spec, installOptions(args, io, maxBundleMb)), io);
     return 0;
   } catch (error) {
     if (!(error instanceof SourceError || error instanceof InstallError)) throw error;

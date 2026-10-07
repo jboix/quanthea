@@ -236,4 +236,5 @@ compare with: a real source, the live checks and read-only safety.
   picks a built-in dialect or `ansi`, with its placeholder and row-limit styles.
 - **Publishing.** From GitHub Actions, build and run `npm publish --provenance`, which attaches a
   signed build attestation; quanthea does not check it yet. A tarball attached to a GitHub release
-  works too: `quanthea plugin install https://…/quanthea-plugin-x-1.0.0.tgz`.
+  works too: `quanthea plugin install https://…/quanthea-plugin-x-1.0.0.tgz`. Publish its
+  `sha512-…` hash beside it, so installs can check it with `--integrity`.
