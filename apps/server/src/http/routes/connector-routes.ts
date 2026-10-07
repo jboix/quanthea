@@ -1,5 +1,6 @@
 /** The connector endpoints: kinds, configured connectors, connection tests and schemas. Admin only. */
 import {
+  countAffectedThreadsEndpoint,
   createConnectorEndpoint,
   deleteConnectorEndpoint,
   getConnectorEndpoint,
@@ -12,7 +13,9 @@ import {
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Connections } from '../../connections/connections.ts';
+import { countNarrowedThreads } from '../../gate/source-access.ts';
 import type { Managed } from '../../provisioning/managed.ts';
+import type { Threads } from '../../threads/threads.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { actorOf } from '../principal.ts';
@@ -107,17 +110,42 @@ function mountSourceRoutes(app: Hono<AppEnv>, connections: Connections): void {
 }
 
 /**
+ * Mounts the endpoint that counts the threads an access change would restrict, before it is
+ * saved: they hold data the change no longer lets through, which continuing them resends.
+ *
+ * @param app - The app.
+ * @param connections - The connectors service.
+ * @param threads - The threads, for the access their runs recorded.
+ */
+function mountAccessChangeRoute(
+  app: Hono<AppEnv>,
+  connections: Connections,
+  threads: Pick<Threads, 'sourceAccess'>,
+): void {
+  mountEndpoint(app, countAffectedThreadsEndpoint, {
+    access: 'admin',
+    handle: async ({ params, body }) => {
+      const { id } = await connections.get(params.connectorId);
+      return { threads: countNarrowedThreads(threads.sourceAccess(), id, body) };
+    },
+  });
+}
+
+/**
  * Mounts every connector endpoint. All of them need the admin role.
  *
  * @param app - The app.
  * @param connections - The connectors service.
  * @param managed - What the configuration file manages.
+ * @param threads - The threads, for the access their runs recorded.
  */
 export function mountConnectorRoutes(
   app: Hono<AppEnv>,
   connections: Connections,
   managed: Managed,
+  threads: Pick<Threads, 'sourceAccess'>,
 ): void {
   mountSettingsRoutes(app, connections, managed);
   mountSourceRoutes(app, connections);
+  mountAccessChangeRoute(app, connections, threads);
 }

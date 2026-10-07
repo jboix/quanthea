@@ -52,6 +52,11 @@ export const threadDetailSchema = threadSummarySchema.extend({
   readOnly: z.boolean(),
   /** For an alert thread started from a panel, the panel. */
   seed: alertSeedSchema.nullable(),
+  /**
+   * Whether the thread holds data that a connector's access now restricts: continuing it resends
+   * that data to the model provider.
+   */
+  restrictedData: z.boolean(),
 });
 
 /** A thread with its conversation. */
@@ -69,6 +74,8 @@ export const threadListItemSchema = threadSummarySchema.extend({
   pinned: z.boolean(),
   /** The owner's name, when it is someone else's thread; `null` for one's own. */
   ownerName: z.string().nullable(),
+  /** Whether the thread holds data that a connector's access now restricts. */
+  restrictedData: z.boolean(),
 });
 
 /** A thread in the list of past threads. */

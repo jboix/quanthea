@@ -102,7 +102,7 @@ describe('route access', () => {
     const connectorRoutes = listApiRouteAccess(buildApp()).filter((route) =>
       /^\/api\/connector/.test(route.path),
     );
-    expect(connectorRoutes.length).toBe(9);
+    expect(connectorRoutes.length).toBe(10);
     expect(connectorRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 

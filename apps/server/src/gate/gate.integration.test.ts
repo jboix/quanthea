@@ -40,6 +40,7 @@ describe.skipIf(!integrationEnabled)('the gate over the dev database', () => {
    */
   const asModel = async (accessLevel: AccessLevel, sql: string): Promise<string> => {
     const subject = {
+      id: 'c-orders',
       name: 'orders',
       kind: 'postgres',
       accessLevel,

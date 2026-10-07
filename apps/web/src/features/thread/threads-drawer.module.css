@@ -289,3 +289,11 @@
   display: flex;
   justify-content: flex-end;
 }
+
+.restricted {
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-draft-soft);
+  font-weight: 500;
+  color: var(--color-draft);
+}

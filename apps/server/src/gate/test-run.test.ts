@@ -29,6 +29,7 @@ const frame: Frame = {
  */
 function subjectAt(accessLevel: AccessLevel): GateSubject {
   return {
+    id: 'c-db',
     name: 'db',
     kind: 'postgres',
     accessLevel,

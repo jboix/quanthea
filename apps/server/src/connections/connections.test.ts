@@ -221,6 +221,7 @@ describe('connections', () => {
       guardrails: { timeoutMs: 10_000, maxRows: 50_000, maxRangeDays: 90 },
     });
     expect(subject).toEqual({
+      id: expect.any(String),
       name: 'events',
       kind: 'memory',
       accessLevel: 2,

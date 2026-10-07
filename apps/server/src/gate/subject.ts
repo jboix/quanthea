@@ -3,6 +3,8 @@ import type { AccessLevel } from '@quanthea/shared';
 
 /** A connector as the gate sees it. */
 export interface GateSubject {
+  /** The connector id, which stays when the connector is renamed. */
+  readonly id: string;
   /** The connector name. */
   readonly name: string;
   /** The connector kind, such as `postgres`. */

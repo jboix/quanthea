@@ -187,7 +187,13 @@ describe('an agent run', () => {
     expect(thread.tokensUsed).toBe(45);
     expect(storedPartTypes()).toEqual([
       ['text'],
-      ['tool-describe', 'tool-sample_values', 'tool-propose_plan', 'data-plan'],
+      [
+        'tool-describe',
+        'data-sourceAccess',
+        'tool-sample_values',
+        'tool-propose_plan',
+        'data-plan',
+      ],
     ]);
   });
 
@@ -243,6 +249,7 @@ describe('an agent run', () => {
       'tool-propose_plan',
       'data-plan',
       'tool-edit_dashboard',
+      'data-sourceAccess',
       'data-version',
       'text',
     ]);

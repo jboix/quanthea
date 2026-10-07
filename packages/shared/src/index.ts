@@ -43,28 +43,7 @@ export {
 } from './api/auth.ts';
 export * from './api/bin.ts';
 export * from './api/charts.ts';
-export {
-  type ConnectorDetail,
-  type ConnectorKindInfo,
-  type ConnectorSummary,
-  connectorDetailSchema,
-  connectorInputSchema,
-  connectorKindSchema,
-  connectorPatchSchema,
-  connectorSummarySchema,
-  createConnectorEndpoint,
-  deleteConnectorEndpoint,
-  getConnectorEndpoint,
-  getConnectorSchemaEndpoint,
-  healthReportSchema,
-  listConnectorKindsEndpoint,
-  listConnectorsEndpoint,
-  refreshConnectorSchemaEndpoint,
-  type SchemaView,
-  schemaViewSchema,
-  testConnectorEndpoint,
-  updateConnectorEndpoint,
-} from './api/connectors.ts';
+export * from './api/connectors.ts';
 export {
   apiPrefix,
   buildPath,

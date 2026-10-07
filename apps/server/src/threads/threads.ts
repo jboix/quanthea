@@ -14,6 +14,7 @@ import type {
   ThreadSummary,
 } from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
+import type { SourceAccessRow } from '../db/source-access-reads.ts';
 import type { MessageRow, PlanRow, ThreadRepository, ThreadRow } from '../db/thread-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
@@ -22,7 +23,7 @@ import { nextState, type ThreadEvent, type ThreadState } from './state.ts';
 /** A thread with its conversation, as the service knows it; the HTTP layer adds the rest. */
 export type ThreadConversation = Omit<
   ThreadDetail,
-  'model' | 'providerName' | 'connectors' | 'ownerName' | 'readOnly' | 'seed'
+  'model' | 'providerName' | 'connectors' | 'ownerName' | 'readOnly' | 'seed' | 'restrictedData'
 >;
 
 /** A message as the AI SDK hands it over: id, role, parts and metadata. */
@@ -121,6 +122,13 @@ export interface Threads {
    * @param actor - Who wrote the user messages that are new.
    */
   saveMessages(id: string, messages: readonly StoredMessage[], actor: string): void;
+  /**
+   * Reads the access records the agent stored: which connector's data a run read, at what access.
+   *
+   * @param id - The thread, or none for every thread outside the bin.
+   * @returns The records with their threads.
+   */
+  sourceAccess(id?: string): SourceAccessRow[];
   /**
    * Records a proposed plan and moves the thread to waiting for approval, or straight to
    * building when approval is off. A pending plan it replaces is superseded.
@@ -444,6 +452,7 @@ export function createThreads(dependencies: ThreadsDependencies): Threads {
     },
     apply: (id, event) => apply(context, id, event),
     saveMessages: (id, messages, actor) => saveMessages(context, id, messages, actor),
+    sourceAccess: (id) => repository.sourceAccess(id),
     proposePlan: (id, body, autoApprove) => proposePlan(context, id, body, autoApprove),
     decidePlan: (id, planId, decision, actor) => decidePlan(context, id, planId, decision, actor),
     attachDashboard: (id, dashboardId, title) =>

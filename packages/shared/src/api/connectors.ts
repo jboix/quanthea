@@ -205,3 +205,24 @@ export const refreshConnectorSchemaEndpoint = defineEndpoint({
   params: connectorParams,
   output: schemaViewSchema,
 });
+
+/** Validates an access change an admin is about to save: the level and the hidden fields. */
+export const accessChangeSchema = z.object({
+  accessLevel: accessLevelSchema,
+  hiddenFields: hiddenFieldsSchema,
+});
+
+/** An access change an admin is about to save. */
+export type AccessChange = z.infer<typeof accessChangeSchema>;
+
+/**
+ * Counts the threads that hold data from the connector that an access change would restrict: a
+ * result read at a higher level, or with a field visible that the change hides. Nothing is saved.
+ */
+export const countAffectedThreadsEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/connectors/:connectorId/affected-threads',
+  params: connectorParams,
+  body: accessChangeSchema,
+  output: z.object({ threads: z.int().min(0) }),
+});

@@ -9,6 +9,7 @@ import {
   changeConnector,
   connectorsRouteId,
   editConnector,
+  loadAffectedThreads,
   loadConnector,
   loadConnectors,
   loadHealth,
@@ -63,9 +64,10 @@ function childRoute(
 }
 
 /**
- * The children of the connectors layout: the add form, one connector, its edit form, and its
- * health. Health is a resource route without a screen: fetchers load it, and it never revalidates
- * on its own, so a slow source is tested only when asked.
+ * The children of the connectors layout: the add form, one connector, its edit form, its health,
+ * and the count of the threads an access change restricts. Health and the count are resource
+ * routes without a screen: fetchers load them, and they never revalidate on their own, so a slow
+ * source is tested only when asked.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -73,6 +75,7 @@ function childRoute(
  */
 function connectorChildren(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
   const health = '/connectors/:connectorId/health';
+  const affected = '/connectors/:connectorId/affected-threads';
   const detail = { loader: loadConnector(api), action: changeConnector(api) };
   const edit = { loader: loadConnector(api), action: editConnector(api) };
   const add = { loader: () => Promise.resolve(null), action: addConnector(api) };
@@ -84,6 +87,11 @@ function connectorChildren(loadSession: SessionLoader, api: ApiClient): RouteObj
     {
       path: health,
       loader: guarded(loadSession, health, loadHealth(api)),
+      shouldRevalidate: () => false,
+    },
+    {
+      path: affected,
+      loader: guarded(loadSession, affected, loadAffectedThreads(api)),
       shouldRevalidate: () => false,
     },
   ];

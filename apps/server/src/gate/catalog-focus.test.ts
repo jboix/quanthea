@@ -47,6 +47,7 @@ describe('focusedEntities', () => {
   test('says how many more there are', () => {
     const source = {
       subject: {
+        id: 'c-prom',
         name: 'prom',
         kind: 'prometheus',
         accessLevel: 2,

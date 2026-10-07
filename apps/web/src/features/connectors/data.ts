@@ -6,6 +6,7 @@ import {
   type ConnectorSummary,
   type connectorInputSchema,
   type connectorPatchSchema,
+  countAffectedThreadsEndpoint,
   createConnectorEndpoint,
   deleteConnectorEndpoint,
   getConnectorEndpoint,
@@ -25,6 +26,7 @@ import {
 } from 'react-router';
 import { z } from 'zod';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
+import { accessChangeOf } from './access-change.ts';
 
 /** What the connectors layout shows: the list, and the kinds for names and forms. */
 export interface ConnectorsData {
@@ -170,6 +172,33 @@ export function loadConnector(
 export function loadHealth(api: ApiClient) {
   return ({ params }: LoaderFunctionArgs) =>
     api.call(testConnectorEndpoint, { params: connectorParams(params) });
+}
+
+/** How many threads an access change restricts, and the query it was counted for. */
+export interface AffectedThreads {
+  /** The number of threads. */
+  readonly threads: number;
+  /** The query of the request, to match the count with the change it was asked for. */
+  readonly query: string;
+}
+
+/**
+ * The loader of the resource route that counts the threads an access change restricts, before
+ * the change is saved. Fetchers call it with the change in the query; without one, it counts none.
+ *
+ * @param api - The API client.
+ * @returns The loader.
+ */
+export function loadAffectedThreads(api: ApiClient) {
+  return async ({ params, request }: LoaderFunctionArgs): Promise<AffectedThreads> => {
+    const url = new URL(request.url);
+    const body = accessChangeOf(url.searchParams);
+    // Without a change in the query there is nothing to restrict.
+    if (body === undefined) return { threads: 0, query: url.search };
+    const input = { params: connectorParams(params), body };
+    const { threads } = await api.call(countAffectedThreadsEndpoint, input);
+    return { threads, query: url.search };
+  };
 }
 
 /**

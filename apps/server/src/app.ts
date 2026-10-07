@@ -191,7 +191,8 @@ function mountSettingsRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): 
 function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
   mountAccountRoutes(app, dependencies);
   mountSystemRoutes(app, { version: dependencies.version });
-  mountConnectorRoutes(app, dependencies.connections, dependencies.managed);
+  const { connections, managed, threads } = dependencies;
+  mountConnectorRoutes(app, connections, managed, threads);
   mountDashboardEndpoints(app, dependencies.dashboards, {
     onPinnedView: dependencies.usage.recordPinnedView,
     ownerOf: dependencies.bin.ownerOf,

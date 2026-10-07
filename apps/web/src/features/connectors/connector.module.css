@@ -183,3 +183,25 @@
 .formActions {
   display: flex;
 }
+
+.accessWarning {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-draft-border);
+  border-radius: var(--radius-control);
+  background: var(--color-draft-soft);
+}
+
+.accessWarningText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+
+.accessWarningActions {
+  display: flex;
+  gap: 8px;
+}

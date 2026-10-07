@@ -3,6 +3,7 @@
  * calls and custom parts, and stores the conversation when the run ends. The thread's state
  * machine, its token budget and the run limits are checked here, whatever the model does.
  */
+
 import { threadDataSchemas } from '@quanthea/shared';
 import {
   consumeStream,
@@ -19,6 +20,7 @@ import { AppError } from '../lib/errors.ts';
 import type { ChartSettingsService } from '../settings/chart-settings.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
 import type { QuerySettingsService } from '../settings/query-settings.ts';
+import { recordingView } from './access-record.ts';
 import { withPlanDecisions } from './compact.ts';
 import { firstQuestionMatches, matchesResponse } from './matches.ts';
 import {
@@ -317,7 +319,7 @@ function runContext(
     signal,
     counters,
   };
-  return { ...dependencies, ...run };
+  return { ...dependencies, ...run, modelView: recordingView(dependencies.modelView, writer) };
 }
 
 /**

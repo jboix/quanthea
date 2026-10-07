@@ -17,6 +17,7 @@ import { LineageBanner, SeedBanner } from './lineage-banner.tsx';
 import type { ThreadMessage } from './messages.ts';
 import { draftPanelsOf } from './plan-changes.ts';
 import { buildStopped } from './repairs.ts';
+import { RestrictedNotice } from './restricted-notice.tsx';
 import styles from './thread.module.css';
 import { costText } from './usage-line.tsx';
 import { useThread } from './use-thread.ts';
@@ -267,6 +268,7 @@ function ThreadPane({ state }: { readonly state: ScreenState }) {
         <ThreadConversation state={state} />
         <StatusLine state={state} />
       </div>
+      {thread.restrictedData && <RestrictedNotice />}
       {thread.readOnly ? (
         <p className={styles.readOnly} role="note">
           {thread.ownerName}’s thread. Admins can read it; only {thread.ownerName} can write in it.

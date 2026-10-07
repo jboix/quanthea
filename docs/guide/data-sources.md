@@ -56,6 +56,16 @@ A query that renames a column gets past the name: its top values show at the agg
 rows at full access. For data that must never leave, use a database role or a view that cannot
 read it.
 
+### Restricting access later
+
+Lowering the access level or hiding a column applies to new tool calls. Data the model already
+read stays in its threads, and continuing a thread sends its conversation, that data included, to
+the model provider again.
+
+Before such a change is saved, the page counts the threads that hold data it restricts and asks
+you to confirm. Those threads are then marked **Restricted data** in the past threads list, and
+each shows a notice above the question box. Start a new thread to leave that data out.
+
 ### Guardrails
 
 | Guardrail               | Default | What it does                          |

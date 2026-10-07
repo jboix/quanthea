@@ -40,6 +40,7 @@ function thread(id: string, title: string | null, daysAgo: number, pinned = fals
     pinned,
     ownerId: 'me',
     ownerName: null,
+    restrictedData: false,
   };
 }
 

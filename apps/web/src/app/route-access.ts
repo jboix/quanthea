@@ -45,6 +45,7 @@ export const routeAccess = {
   '/connectors/:connectorId': 'admin',
   '/connectors/:connectorId/edit': 'admin',
   '/connectors/:connectorId/health': 'admin',
+  '/connectors/:connectorId/affected-threads': 'admin',
   '/settings/model': 'admin',
   '/settings/auth': 'admin',
   '/settings/users': 'admin',

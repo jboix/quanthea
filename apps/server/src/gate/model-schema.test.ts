@@ -29,6 +29,7 @@ const snapshot: SchemaSnapshot = {
  */
 function subjectAt(accessLevel: AccessLevel): GateSubject {
   return {
+    id: 'c-orders',
     name: 'orders',
     kind: 'postgres',
     accessLevel,

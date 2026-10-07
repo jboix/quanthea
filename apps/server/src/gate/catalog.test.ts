@@ -66,6 +66,7 @@ describe('the catalog through the model view', () => {
 describe('connectorCatalog', () => {
   const source = {
     subject: {
+      id: 'c-prom',
       name: 'prom',
       kind: 'prometheus',
       accessLevel: 2,

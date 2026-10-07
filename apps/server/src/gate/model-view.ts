@@ -3,7 +3,7 @@
  * here, shaped by each connector's access level and hidden fields. The gate declares what it needs
  * from the connectors service; the bootstrap hands it over, so the gate never imports it.
  */
-import type { AccessLevel, Frame } from '@quanthea/shared';
+import type { AccessLevel, Frame, SourceAccess } from '@quanthea/shared';
 import type { SchemaSnapshot } from '../connectors/_shared/index.ts';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../query/executor.ts';
 import {
@@ -16,6 +16,7 @@ import {
 import { buildCatalog, createValueCache, type ValueCache } from './catalog.ts';
 import { type ModelEntity, modelSchema } from './model-schema.ts';
 import { type ModelSample, sampleForModel } from './sample.ts';
+import { type AccessSettings, sourceAccessOf } from './source-access.ts';
 import type { GateSubject } from './subject.ts';
 import {
   type ModelTestResult,
@@ -185,6 +186,20 @@ export interface ModelView {
    * @returns The summary, or why not.
    */
   alertReplay(name: string, replay: ReplayView): ReturnType<typeof modelAlertReplay>;
+  /**
+   * The access a result of a connector is read at now, for the thread to record.
+   *
+   * @param name - The connector.
+   * @returns Its id, level and hidden fields' fingerprints; none when the connector is unknown.
+   */
+  accessOf(name: string): SourceAccess | undefined;
+  /**
+   * A connector's current access settings, by id, to compare with what a thread recorded.
+   *
+   * @param connectorId - The connector id.
+   * @returns Its level and hidden fields; none when the connector is gone.
+   */
+  accessSettings(connectorId: string): AccessSettings | undefined;
 }
 
 /** The most entities one description returns. */
@@ -293,6 +308,23 @@ function alertMethods(
 }
 
 /**
+ * The model view's reading of each connector's access, for the threads that record it.
+ *
+ * @param access - The connectors service.
+ * @returns The methods.
+ */
+function accessMethods(access: ConnectorAccess): Pick<ModelView, 'accessOf' | 'accessSettings'> {
+  const subjects = () => access.list().map(({ subject }) => subject);
+  return {
+    accessOf(name) {
+      const subject = subjects().find((each) => each.name === name);
+      return subject && sourceAccessOf(subject);
+    },
+    accessSettings: (connectorId) => subjects().find((each) => each.id === connectorId),
+  };
+}
+
+/**
  * Creates the model's view of the connectors.
  *
  * @param access - What the connectors service provides.
@@ -322,6 +354,7 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
     },
     ...alertMethods(subjects),
     ...resultMethods(subjects),
+    ...accessMethods(access),
   };
 }
 

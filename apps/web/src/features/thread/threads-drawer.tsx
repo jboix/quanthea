@@ -122,9 +122,48 @@ function KindIcon({ kind }: { readonly kind: ThreadListItem['kind'] }) {
   );
 }
 
+/** What the marker of a thread holding restricted data means. */
+const restrictedDataNote =
+  'This thread holds data that a connector now restricts. Continuing it resends that data to the model provider.';
+
 /**
- * One past thread: a link to it with a pin when its dashboard is pinned, and a delete button that
- * asks before deleting.
+ * The markers of a past thread: its dashboard pinned, its alert or report active, and the data it
+ * holds that a connector now restricts.
+ *
+ * @param props - The thread.
+ * @param props.thread - The thread.
+ * @returns The markers.
+ */
+function ThreadMarkers({ thread }: { readonly thread: ThreadListItem }) {
+  return (
+    <>
+      {thread.pinned && (
+        <span className={styles.pinned}>
+          <PinIcon /> Pinned
+        </span>
+      )}
+      {thread.alertActive && (
+        <span className={styles.pinned}>
+          <BellIcon /> Active
+        </span>
+      )}
+      {thread.reportActive && (
+        <span className={styles.pinned}>
+          <ReportIcon /> Active
+        </span>
+      )}
+      {thread.restrictedData && (
+        <span className={styles.restricted} title={restrictedDataNote}>
+          Restricted data
+        </span>
+      )}
+    </>
+  );
+}
+
+/**
+ * One past thread: a link to it with a pin when its dashboard is pinned, a marker when it holds
+ * data a connector now restricts, and a delete button that asks before deleting.
  *
  * @param props - The thread and the current time.
  * @param props.thread - The thread.
@@ -153,21 +192,7 @@ function ThreadRow({ thread, now }: { readonly thread: ThreadListItem; readonly 
             </span>
             <span className={styles.itemMeta}>
               {thread.ownerName && <span className={styles.owner}>{thread.ownerName}</span>}
-              {thread.pinned && (
-                <span className={styles.pinned}>
-                  <PinIcon /> Pinned
-                </span>
-              )}
-              {thread.alertActive && (
-                <span className={styles.pinned}>
-                  <BellIcon /> Active
-                </span>
-              )}
-              {thread.reportActive && (
-                <span className={styles.pinned}>
-                  <ReportIcon /> Active
-                </span>
-              )}
+              <ThreadMarkers thread={thread} />
               {dayMonthTime(thread.updatedAt, now)}
               {note && ` · ${note}`}
             </span>

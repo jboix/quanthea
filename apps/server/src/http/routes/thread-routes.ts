@@ -18,6 +18,7 @@ import type { Hono } from 'hono';
 import type { Users } from '../../auth/users.ts';
 import type { Dashboards } from '../../dashboards/dashboards.ts';
 import type { ModelView } from '../../gate/model-view.ts';
+import { restrictedThreads } from '../../gate/source-access.ts';
 import { AppError } from '../../lib/errors.ts';
 import type { ModelSettingsService } from '../../settings/model-settings.ts';
 import type { ThreadBin } from '../../threads/bin.ts';
@@ -62,8 +63,23 @@ function isPinned(dashboards: Dashboards, dashboardId: string | null): boolean {
 }
 
 /**
+ * The threads holding data that a connector's current access restricts.
+ *
+ * @param services - The thread route services.
+ * @param threadId - One thread, or none for every thread.
+ * @returns The threads' ids.
+ */
+function restrictedIn(services: ThreadRouteServices, threadId?: string): Set<string> {
+  const records = services.threads.sourceAccess(threadId);
+  return restrictedThreads(records, (connectorId) =>
+    services.modelView.accessSettings(connectorId),
+  );
+}
+
+/**
  * The threads someone sees: their own, or everyone's for an admin who asks. Each is marked with
- * whether its dashboard has a pinned version, and named by its owner when it is someone else's.
+ * whether its dashboard has a pinned version and whether it holds data that is now restricted,
+ * and named by its owner when it is someone else's.
  *
  * @param services - The thread route services.
  * @param principal - Who asks.
@@ -80,11 +96,13 @@ function listThreads(
   const shown = services.threads
     .list()
     .filter((thread) => (everyone ? true : thread.ownerId === principal.id));
+  const restricted = restrictedIn(services);
   return Promise.all(
     shown.map(async (thread) => ({
       ...thread,
       pinned: isPinned(services.dashboards, thread.dashboardId),
       ownerName: thread.ownerId === principal.id ? null : await nameOf(thread.ownerId),
+      restrictedData: restricted.has(thread.id),
     })),
   );
 }
@@ -176,7 +194,9 @@ function mountThreadReadRoute(app: Hono<AppEnv>, services: ThreadRouteServices):
       const readOnly = !canWrite(reader, thread.ownerId);
       const model = settings.models.build;
       const { seed } = threads.row(params.threadId);
-      return { ...thread, model, providerName, connectors, ownerName, readOnly, seed };
+      const restrictedData = restrictedIn(services, params.threadId).size > 0;
+      const extra = { model, providerName, connectors, ownerName, readOnly, seed, restrictedData };
+      return { ...thread, ...extra };
     },
   });
 }

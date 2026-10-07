@@ -404,6 +404,7 @@ the kit's HTTP client for every kind that speaks HTTP.
 | `/connectors`, `/connectors/:connectorId`                      | Connectors: list, access level, guardrails, schema          | admin    |
 | `/connectors/new`, `/connectors/:connectorId/edit`             | add and edit a connection                                   | admin    |
 | `/connectors/:connectorId/health`                              | resource route: the connection test, for fetchers           | admin    |
+| `/connectors/:connectorId/affected-threads`                    | resource route: the threads an access change restricts      | admin    |
 | `/settings/model`                                              | Model: the providers, their keys and limits                 | admin    |
 | `/settings/auth`                                               | Authentication: sign-in providers, passwords                | admin    |
 | `/settings/users`                                              | Users: invite, roles, disable, reset links, sign out        | admin    |
@@ -1446,7 +1447,8 @@ The chat endpoint answers with the AI SDK UI message stream (`createUIMessageStr
 `streamText`). Custom parts carry `data-plan` (the plan card), `data-version` (the right pane moves
 to that version) and `data-diff` (the change card); their schemas are in `@quanthea/shared`. The
 whole conversation, tool parts included, is stored when the run ends, even if the person leaves, so
-a reload shows the same thread.
+a reload shows the same thread. A `data-sourceAccess` part records the access a run read a
+connector's data at (see "Access changes"); the thread never shows it and the model never reads it.
 
 ### Alert threads
 
@@ -2248,6 +2250,30 @@ model-ready results and never throw.
   case: flat, cased and qualified SQL columns, nested search and MongoDB fields, the arrays that
   hold them, and alert labels.
 
+#### Access changes
+
+An access change applies to new tool calls. Lowering a connector's level or hiding a field does
+not rewrite threads: data already in a thread is re-sent with it, since every request carries the
+conversation (compacted, see "Keeping requests small"). Rewriting the history would leave the
+model's own earlier answers quoting what it no longer sees.
+
+- Each run records the access it read each connector's data at: a `data-sourceAccess` part with
+  the connector's id, its level and short SHA-256 fingerprints of its hidden fields, so the thread
+  never holds their names. The run's model view (`agent/access-record.ts`) writes one per
+  connector and access, whenever `describe`, `sample`, `testQuery`, a panel's test result or an
+  alert's check or replay reads it. The part is stored with the answer and never sent.
+- A record is restricted when the connector's level is now lower, or a field is now hidden whose
+  fingerprint the record lacks (`narrowsAccess` in `gate/source-access.ts`). A removed connector
+  restricts nothing. Threads in the bin are not counted, nor answers stored before runs recorded
+  their access.
+- `POST /api/connectors/:connectorId/affected-threads` (admin) counts the threads holding a record
+  that a proposed level and hidden fields would restrict, and saves nothing. The connector screen
+  asks it before saving a lower level or a new hidden field; with threads to count, it shows the
+  number and waits for Save anyway or Cancel.
+- `GET /api/threads` and `GET /api/threads/:id` mark a thread holding a restricted record
+  (`restrictedData`). The past threads drawer shows it as Restricted data, and the thread shows a
+  notice above the composer: continuing the conversation resends that data to the model provider.
+
 Credentials are stored encrypted. A connector config holds everything else: URL, database,
 TLS options, the access level, hidden columns, guardrails, and table and field descriptions.
 
@@ -2663,6 +2689,7 @@ indicative; the contract files are the source of truth.
 | `GET /connector-kinds` (with the JSON Schemas of their forms)                                     | connector kinds                              | admin    |
 | `GET/POST /connectors`, `GET/PATCH/DELETE /connectors/:connectorId`                               | connectors                                   | admin    |
 | `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`                  | connection test, schema                      | admin    |
+| `POST /connectors/:connectorId/affected-threads` (a level and hidden fields, saves nothing)       | threads an access change restricts, a count  | admin    |
 | `GET/PUT /settings/:section`                                                                      | model, auth, retention, limits               | admin    |
 | `POST /settings/model/test`                                                                       | gateway capability test                      | admin    |
 | `GET /settings/usage?days=`                                                                       | usage by hour, model, feature and user       | admin    |

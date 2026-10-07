@@ -19,6 +19,7 @@ function sampleAt(
   options: { hiddenFields?: string[]; limit?: number; from?: ConnectorInstance } = {},
 ) {
   const subject = {
+    id: 'c-memory',
     name: 'memory',
     kind: 'memory',
     accessLevel,

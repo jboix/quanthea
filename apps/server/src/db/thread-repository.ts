@@ -1,6 +1,7 @@
 /** Reads and writes threads, their messages and their plans. */
 import type { Database } from 'bun:sqlite';
 import type { AlertSeed, ThreadKind, ThreadQueries } from '@quanthea/shared';
+import { type SourceAccessRow, sourceAccessReads } from './source-access-reads.ts';
 import { queriesOf, seedOf } from './thread-json.ts';
 
 /** A thread state, as stored. */
@@ -136,6 +137,13 @@ export interface ThreadRepository {
    * @param messages - The whole conversation, in order.
    */
   saveMessages(threadId: string, messages: readonly MessageRow[]): void;
+  /**
+   * Reads the access records a thread's runs stored, or every thread's outside the bin.
+   *
+   * @param threadId - The thread, or none for every thread.
+   * @returns The records with their threads.
+   */
+  sourceAccess(threadId?: string): SourceAccessRow[];
   /**
    * Inserts a plan.
    *
@@ -521,5 +529,6 @@ export function createThreadRepository(database: Database): ThreadRepository {
     ...threadMethods(database),
     ...messageMethods(database),
     ...planMethods(database),
+    sourceAccess: sourceAccessReads(database),
   };
 }

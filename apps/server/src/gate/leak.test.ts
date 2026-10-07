@@ -82,6 +82,7 @@ const request = {
 
 describe.each([1, 2] as const)('level %i never leaks a value', (accessLevel) => {
   const subject: GateSubject = {
+    id: 'c-db',
     name: 'db',
     kind: 'postgres',
     accessLevel,

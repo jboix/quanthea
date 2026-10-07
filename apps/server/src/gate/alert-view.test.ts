@@ -11,6 +11,7 @@ import type { GateSubject } from './subject.ts';
  */
 function subject(accessLevel: AccessLevel): GateSubject {
   return {
+    id: 'c-prom',
     name: 'prom',
     kind: 'prometheus',
     accessLevel,

@@ -5,7 +5,7 @@
 
 import { queryLanguageSchema } from '@quanthea/plugin-kit/contract';
 import { z } from 'zod';
-import { connectorNameSchema } from './connectors.ts';
+import { accessLevelSchema, connectorNameSchema } from './connectors.ts';
 import { slugSchema } from './spec/names.ts';
 
 /** Where a thread is: asking, waiting for plan approval, building, or ready for small edits. */
@@ -250,7 +250,22 @@ const pinnedMatchSchema = z.object({
   panels: z.array(z.string()).max(12),
 });
 
+/**
+ * Validates the access a gated result was read at: the connector by id, its access level, and
+ * fingerprints of its hidden fields, so the thread never shows their names.
+ */
+export const sourceAccessSchema = z.object({
+  connectorId: z.string(),
+  level: accessLevelSchema,
+  hidden: z.array(z.string().max(64)).max(500),
+});
+
+/** The access a gated result was read at. */
+export type SourceAccess = z.infer<typeof sourceAccessSchema>;
+
 export const threadDataSchemas = {
+  /** The access a run read a connector's data at; stored, never shown and never sent. */
+  sourceAccess: sourceAccessSchema,
   /** Pinned dashboards that may already answer the first question, found with no model. */
   matches: z.object({ dashboards: z.array(pinnedMatchSchema).max(5) }),
   /** A proposed plan, for the plan card. */

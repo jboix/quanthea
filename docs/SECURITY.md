@@ -48,6 +48,10 @@ Some behaviour is by design and not a vulnerability:
   passes the filter: at the aggregates level its five most frequent values reach the model, at the
   full access level its rows. Give the connector a database role or view that cannot read those
   columns when you need a hard guarantee.
+- An access change applies to new tool calls. Data a thread read before a connector's level was
+  lowered or a column hidden stays in the thread, and continuing the thread re-sends it to the
+  model provider. The connector page counts those threads before saving such a change, and the
+  threads are marked.
 - The lower access levels and hidden columns limit what the model is shown, not what it can infer.
   A query can still filter on any column the database role reads: a row count, or whether the
   query fails, answers a yes-or-no question about a hidden value, one query at a time. A database

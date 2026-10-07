@@ -68,6 +68,7 @@ export function toDetail(
  */
 export function toSubject(row: ConnectorRow): GateSubject {
   return {
+    id: row.id,
     name: row.name,
     kind: row.kind,
     accessLevel: row.accessLevel,

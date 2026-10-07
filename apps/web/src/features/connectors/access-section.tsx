@@ -5,8 +5,10 @@ import { Input } from '../../ui/input.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import { RadioCards } from '../../ui/radio-cards.tsx';
 import { accessLevels } from './access-levels.ts';
+import { AccessWarning } from './access-warning.tsx';
 import styles from './connector.module.css';
-import { failureOf, useConnectorChange } from './use-connector-change.ts';
+import { useAccessGuard } from './use-access-guard.ts';
+import { failureOf } from './use-connector-change.ts';
 
 /** Props of the sections that edit a connector. */
 interface SectionProps {
@@ -15,16 +17,20 @@ interface SectionProps {
 }
 
 /**
- * The access level cards. A pick is saved at once.
+ * The access level cards. A pick is saved at once, unless it lowers the level of data threads
+ * already hold: then it waits for the admin to confirm.
  *
  * @param props - The connector.
- * @returns The cards, with any error.
+ * @returns The cards, with any warning or error.
  */
 function AccessLevelCards({ connector }: SectionProps) {
-  const change = useConnectorChange(connector.id);
+  const guard = useAccessGuard(connector);
+  const { change } = guard;
   const pending = change.pendingIntent;
   const level =
-    (pending?.intent === 'update' ? pending.patch.accessLevel : undefined) ?? connector.accessLevel;
+    (pending?.intent === 'update' ? pending.patch.accessLevel : undefined) ??
+    guard.proposed?.accessLevel ??
+    connector.accessLevel;
   const options = accessLevels.map((copy) => ({
     ...copy,
     ...(copy.value === 2 ? { tag: 'default' } : {}),
@@ -36,8 +42,9 @@ function AccessLevelCards({ connector }: SectionProps) {
         label="Access level"
         options={options}
         value={level}
-        onChange={(accessLevel) => change.submit({ intent: 'update', patch: { accessLevel } })}
+        onChange={(accessLevel) => guard.propose({ accessLevel })}
       />
+      <AccessWarning guard={guard} />
       {error !== undefined && <p className={styles.failure}>{error}</p>}
     </>
   );
@@ -161,25 +168,27 @@ function HiddenChips({ hidden, schema, save }: HiddenChipsProps) {
 }
 
 /**
- * The hidden fields card. Changes are saved at once.
+ * The hidden fields card. Changes are saved at once, unless they hide a field from data threads
+ * already hold: then they wait for the admin to confirm.
  *
  * @param props - The connector and its schema.
  * @param props.schema - The cached schema, for suggestions.
  * @returns The card.
  */
 function HiddenFields({ connector, schema }: SectionProps & { readonly schema: SchemaView }) {
-  const change = useConnectorChange(connector.id);
-  const pending = change.pendingIntent;
+  const guard = useAccessGuard(connector);
+  const pending = guard.change.pendingIntent;
   const hidden =
     (pending?.intent === 'update' ? pending.patch.hiddenFields : undefined) ??
+    guard.proposed?.hiddenFields ??
     connector.hiddenFields;
-  const save = (hiddenFields: string[]) =>
-    change.submit({ intent: 'update', patch: { hiddenFields } });
-  const error = failureOf(change.outcome);
+  const save = (hiddenFields: string[]) => guard.propose({ hiddenFields });
+  const error = failureOf(guard.change.outcome);
   return (
     <div className={styles.card}>
       <h4 className={styles.cardTitle}>Hide these columns from the model, by name</h4>
       <HiddenChips hidden={hidden} schema={schema} save={save} />
+      <AccessWarning guard={guard} />
       {error !== undefined && <p className={styles.failure}>{error}</p>}
       <p className={styles.cardNote}>
         A hidden column is removed from every result by its name, in any case, so{' '}

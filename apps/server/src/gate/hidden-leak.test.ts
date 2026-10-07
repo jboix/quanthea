@@ -145,6 +145,7 @@ function frameWith(column: string, sibling: string): Frame {
  */
 function subjectFor(each: HiddenCase, accessLevel: 2 | 3 | 4): GateSubject {
   return {
+    id: 'c-source',
     name: 'source',
     kind: each.kind,
     accessLevel,
@@ -174,6 +175,7 @@ describe.each([2, 3, 4] as const)('at level %i', (accessLevel) => {
 
   test('an alert check never shows a hidden label, whatever its case or nesting', () => {
     const subject: GateSubject = {
+      id: 'c-source',
       name: 'source',
       kind: 'elasticsearch',
       accessLevel,
@@ -191,6 +193,7 @@ describe.each([2, 3, 4] as const)('at level %i', (accessLevel) => {
 
 test('a replay never shows a hidden label, whatever its case or nesting', () => {
   const subject: GateSubject = {
+    id: 'c-source',
     name: 'source',
     kind: 'elasticsearch',
     accessLevel: 4,

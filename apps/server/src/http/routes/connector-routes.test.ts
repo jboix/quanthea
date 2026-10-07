@@ -39,7 +39,7 @@ function client(principal: Principal) {
   const app = new Hono<AppEnv>();
   app.use(requestId());
   app.use(authenticate(fixedAuthenticator(principal)));
-  mountConnectorRoutes(app, fixture.connections, fixture.managed);
+  mountConnectorRoutes(app, fixture.connections, fixture.managed, fixture.threads);
   app.onError(handleErrors(captureLogs().logger));
   app.notFound(handleNotFound);
   return async (method: string, path: string, body?: unknown) => {

@@ -4,6 +4,7 @@ export {
   addConnector,
   changeConnector,
   editConnector,
+  loadAffectedThreads,
   loadConnector,
   loadConnectors,
   loadHealth,
