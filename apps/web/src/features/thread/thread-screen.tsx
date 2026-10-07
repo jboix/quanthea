@@ -10,6 +10,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { AlertDraftPane } from '../alert-draft/index.ts';
 import { ReportDraftPane } from '../report-draft/index.ts';
+import { chatErrorText } from './chat-error.ts';
 import { Composer } from './composer.tsx';
 import { Conversation } from './conversation.tsx';
 import { DraftPane } from './draft-pane.tsx';
@@ -111,7 +112,8 @@ function activityOf(state: ScreenState): string {
 function StatusLine({ state }: { readonly state: ScreenState }) {
   const seconds = useElapsedSeconds(state.running);
   const outcome = state.intents.outcome;
-  const error = state.chat.error?.message ?? (outcome?.ok === false ? outcome.message : undefined);
+  const error =
+    chatErrorText(state.chat.error) ?? (outcome?.ok === false ? outcome.message : undefined);
   if (error !== undefined) {
     return (
       <p className={styles.error} role="alert">
