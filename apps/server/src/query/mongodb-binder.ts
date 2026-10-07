@@ -1,9 +1,10 @@
 /**
  * Binds variables into a MongoDB aggregation template. A variable is a JSON node,
  * `{"$var": "service"}`, replaced by the value as a JSON value, as in a search body. Operator keys
- * pass, since a pipeline is made of them, but no stage may write (`$out`, `$merge`), watch or list
- * the server's sessions and operations, and no operator may run JavaScript (`$where`, `$function`,
- * `$accumulator`).
+ * pass, since a pipeline is made of them, but no stage may write (`$out`, `$merge`), watch, list
+ * the server's sessions, operations or catalog, and no operator may run JavaScript (`$where`,
+ * `$function`, `$accumulator`). Every collection read, by `$lookup`, `$graphLookup` and
+ * `$unionWith` too, is one of the connector's database and never a `system.` one.
  */
 import {
   type MongodbQuery,
@@ -25,6 +26,69 @@ export interface MongodbTemplate {
 
 /** A collection name: no system collection, no namespace tricks. */
 const collectionName = /^(?!system\.)[A-Za-z0-9_][A-Za-z0-9_.-]{0,119}$/;
+
+/** The stages that read another collection, with the key of their object that names it. */
+const foreignKeys: ReadonlyMap<string, string> = new Map([
+  ['$lookup', 'from'],
+  ['$graphLookup', 'from'],
+  ['$unionWith', 'coll'],
+]);
+
+/**
+ * The error for a collection a query may not read.
+ *
+ * @returns The error.
+ */
+function collectionError(): QueryError {
+  return new QueryError(
+    'invalid',
+    "A collection is letters, digits, _, - and ., in the connector's database, and not a system collection.",
+  );
+}
+
+/**
+ * Checks a collection name.
+ *
+ * @param name - The name, as the query gives it.
+ * @throws {QueryError} `invalid` for anything but a name that is not a system collection.
+ */
+function checkCollection(name: unknown): void {
+  if (typeof name !== 'string' || !collectionName.test(name)) throw collectionError();
+}
+
+/**
+ * Checks the collection a stage reads besides the pipeline's own: `$lookup.from` (optional, for a
+ * pipeline on `$documents`), `$graphLookup.from` and `$unionWith`, as a name or as `coll`.
+ *
+ * @param key - The key, such as `$lookup`.
+ * @param value - Its value.
+ * @throws {QueryError} `invalid` for a system collection, a malformed name or another database.
+ */
+function checkForeign(key: string, value: unknown): void {
+  if (key === '$unionWith' && typeof value === 'string') {
+    checkCollection(value);
+    return;
+  }
+  const field = foreignKeys.get(key);
+  if (field === undefined || value === null || typeof value !== 'object') return;
+  if ('db' in value) throw collectionError();
+  if (key === '$lookup' && !('from' in value)) return;
+  checkCollection((value as Readonly<Record<string, unknown>>)[field]);
+}
+
+/**
+ * Checks every collection a bound pipeline reads, in nested pipelines too.
+ *
+ * @param node - The pipeline or a part of it.
+ * @throws {QueryError} `invalid` for a system collection, a malformed name or another database.
+ */
+function checkCollections(node: unknown): void {
+  if (node === null || typeof node !== 'object') return;
+  for (const [key, value] of Object.entries(node)) {
+    checkForeign(key, value);
+    checkCollections(value);
+  }
+}
 
 /**
  * Checks one key of the pipeline.
@@ -76,23 +140,20 @@ function builtInsOf(timeRange: TimeRange): Readonly<Record<string, unknown>> {
  * @param variables - The variable values.
  * @param timeRange - The time range, for `__from`, `__to` and `__interval_ms`.
  * @returns The bound query.
- * @throws {QueryError} `invalid` for a malformed collection or stage, a refused key, or an unknown
- *   variable.
+ * @throws {QueryError} `invalid` for a malformed or system collection, read first or by a stage, a
+ *   malformed stage, a refused key, or an unknown variable.
  */
 export function bindMongodb(
   template: MongodbTemplate,
   variables: Variables,
   timeRange: TimeRange,
 ): MongodbQuery {
-  if (!collectionName.test(template.collection))
-    throw new QueryError(
-      'invalid',
-      'A collection is letters, digits, _, - and ., and not a system collection.',
-    );
+  checkCollection(template.collection);
   checkStages(template.pipeline);
   const { pipeline } = bindJsonVariables(
     { pipeline: template.pipeline },
     { variables, builtIns: builtInsOf(timeRange), checkKey: refuseKey, operatorKeys: true },
   ) as { pipeline: Record<string, unknown>[] };
+  checkCollections(pipeline);
   return { language: 'mongodb', collection: template.collection, pipeline };
 }

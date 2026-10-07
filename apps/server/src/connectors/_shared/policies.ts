@@ -54,7 +54,8 @@ export const redisReadCommands: ReadonlySet<string> = new Set([
 
 /**
  * The keys a MongoDB pipeline may not hold anywhere, with why: stages that write, wait for changes
- * or read the server's operations and sessions, and operators that run JavaScript.
+ * or read the server's operations, sessions, queries, plans and catalog, and operators that run
+ * JavaScript.
  */
 export const mongodbRefusedKeys: ReadonlyMap<string, string> = new Map([
   ['$out', 'writes a collection'],
@@ -68,4 +69,10 @@ export const mongodbRefusedKeys: ReadonlyMap<string, string> = new Map([
   ['$listSessions', "reads the server's sessions"],
   ['$listLocalSessions', "reads the server's sessions"],
   ['$listSampledQueries', "reads the server's queries"],
+  ['$queryStats', "reads the server's queries"],
+  ['$planCacheStats', "reads the server's query plans"],
+  ['$listCatalog', "reads the server's catalog"],
+  ['$indexStats', "reads the server's index statistics"],
+  ['$collStats', "reads the server's collection statistics"],
+  ['$listSearchIndexes', "reads the server's search indexes"],
 ]);

@@ -2141,9 +2141,13 @@ that changes with its settings).
      `"as": "ms"` gives a duration variable, such as an interval, in milliseconds.
      `__from` and `__to` are `{"$date": …}` dates; `__interval_ms` is the search bucket width in
      milliseconds. Each stage is an object with one `$` key. A stage that writes (`$out`,
-     `$merge`), waits for changes (`$changeStream`) or lists the server's operations and sessions
-     is refused anywhere in the pipeline, and so is an operator that runs JavaScript (`$where`,
-     `$function`, `$accumulator`). A collection is never a `system.` one.
+     `$merge`), waits for changes (`$changeStream`), or lists the server's operations, sessions,
+     queries, plans or catalog (`$currentOp`, `$queryStats`, `$planCacheStats`, `$listCatalog`,
+     `$indexStats`, `$collStats`, `$listSearchIndexes` and the rest) is refused anywhere in the
+     pipeline, and so is an operator that runs JavaScript (`$where`, `$function`, `$accumulator`).
+     A collection is never a `system.` one: the pipeline's own, and every collection a stage
+     reads, at any depth (`$lookup.from`, `$graphLookup.from`, `$unionWith`). A stage that names
+     another database (`db`) is refused.
 3. The connector runs the bound query with an abort signal that fires at `timeoutMs` or when the
    caller gives up. The executor also races the signal, so a connector that ignores it cannot hold
    the caller.

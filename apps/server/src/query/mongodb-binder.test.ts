@@ -101,8 +101,39 @@ describe('bindMongodb', () => {
       { $match: { $where: 'true' } },
       { $project: { x: { $function: { body: 'return 1', args: [], lang: 'js' } } } },
       { $lookup: { from: 'b', pipeline: [{ $out: 'copy' }], as: 'b' } },
+      { $planCacheStats: {} },
+      { $listCatalog: {} },
+      { $queryStats: {} },
+      { $indexStats: {} },
+      { $collStats: { count: {} } },
+      { $listSearchIndexes: {} },
     ])
       expect(() => bind([stage])).toThrow(/only reads/);
+  });
+
+  test('refuses a system collection that a stage reads, at any depth', () => {
+    const nested = (stage: Record<string, unknown>) => ({
+      $facet: { a: [{ $lookup: { from: 'items', pipeline: [stage], as: 'i' } }] },
+    });
+    for (const stage of [
+      { $unionWith: 'system.js' },
+      { $unionWith: { coll: 'system.profile', pipeline: [] } },
+      { $unionWith: { coll: 'orders', db: 'admin' } },
+      { $lookup: { from: 'system.profile', localField: 'a', foreignField: 'b', as: 'p' } },
+      { $lookup: { from: { db: 'admin', coll: 'users' }, pipeline: [], as: 'p' } },
+      { $graphLookup: { from: 'system.js', startWith: '$a', connectFromField: 'a', as: 'g' } },
+      nested({ $unionWith: 'system.js' }),
+      { $unionWith: { coll: 'items', pipeline: [{ $lookup: { from: 'system.js', as: 'j' } }] } },
+    ])
+      expect(() => bind([stage])).toThrow(/collection/);
+    const allowed = [
+      { $lookup: { from: 'items', localField: 'a', foreignField: 'b', as: 'i' } },
+      { $lookup: { pipeline: [{ $documents: [{ a: 1 }] }], as: 'd' } },
+      { $unionWith: { coll: 'archive', pipeline: [{ $match: {} }] } },
+      { $unionWith: 'archive' },
+      { $graphLookup: { from: 'items', startWith: '$a', connectFromField: 'a', as: 'g' } },
+    ];
+    for (const stage of allowed) expect(() => bind([stage])).not.toThrow();
   });
 
   test('refuses malformed stages and collections', () => {
