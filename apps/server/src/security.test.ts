@@ -3,8 +3,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { connectorInputSchema, defaultModelGateway } from '@quanthea/shared';
 import { type FakeProvider, startFakeProvider } from './auth/providers/test/fake-provider.ts';
+import { validateNewSettings } from './connections/validation.ts';
 import { memoryConnector } from './connectors/_shared/test/memory-connector.ts';
+import { mongodbConnector } from './connectors/mongodb/mongodb-connector.ts';
 import { prometheusConnector } from './connectors/prometheus/prometheus-connector.ts';
+import { valkeyConnector } from './connectors/valkey/valkey-connector.ts';
 import { temporaryDir, testServices } from './test/fixtures.ts';
 
 let fake: FakeProvider;
@@ -153,5 +156,34 @@ describe('credentials in a connector URL', () => {
     const changed = services.connections.update(created.id, { config: { url } }, 'x');
     await expect(changed).rejects.toMatchObject({ code: 'bad_request' });
     expect((await services.connections.get(created.id)).config).toMatchObject(config);
+  });
+
+  test('are refused in a host that a connector puts in its URL, without quoting them', () => {
+    const cases = [
+      {
+        kind: mongodbConnector,
+        config: { host: 'reader:S3cret-5e1b@mongo.internal', database: 'shop' },
+      },
+      { kind: valkeyConnector, config: { host: 'reader:S3cret-5e1b@valkey.internal' } },
+    ];
+    for (const { kind, config } of cases) {
+      const error = (() => {
+        try {
+          validateNewSettings(kind, config, {});
+        } catch (thrown) {
+          return thrown as { details: unknown; message: string };
+        }
+      })();
+      expect(error).toMatchObject({
+        code: 'bad_request',
+        details: [{ part: 'config', path: 'host' }],
+      });
+      expect(JSON.stringify(error?.details)).not.toContain('S3cret-5e1b');
+    }
+  });
+
+  test('keep a plain host', () => {
+    const config = { host: 'mongo.internal', database: 'shop' };
+    expect(validateNewSettings(mongodbConnector, config, {}).config).toMatchObject(config);
   });
 });

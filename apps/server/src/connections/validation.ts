@@ -74,37 +74,45 @@ export function validateSettings(
   return { config: parsedConfig, secret: parsedSecret };
 }
 
-/** Why a URL with credentials is refused. It never quotes the URL. */
+/** Why a URL or a host with credentials is refused. It never quotes the value. */
 export const urlCredentialsMessage =
-  "A URL must not hold a username or password, because the configuration is stored in clear. Use the connector's authentication fields.";
+  "A URL or a host must not hold a username or password, because the configuration is stored in clear. Use the connector's authentication fields.";
+
+/** A field whose name ends in `host`: connectors may put its value in a URL as it is. */
+const hostKeyPattern = /host$/i;
 
 /**
- * Whether a text is a URL with a username or a password.
+ * Whether a text holds a username or a password: a URL with them, or a host with `@`, which a
+ * connector that builds a URL from the host would read as the start of the host.
  *
  * @param text - The text.
- * @returns Whether it is.
+ * @param key - The name of the field that holds it.
+ * @returns Whether it does.
  */
-function holdsCredentials(text: string): boolean {
+function holdsCredentials(text: string, key: string): boolean {
+  if (hostKeyPattern.test(key) && text.includes('@')) return true;
   const url = URL.parse(text);
   return url !== null && (url.username !== '' || url.password !== '');
 }
 
 /**
- * The dotted paths of the URLs with a username or a password in a configuration, at any depth.
+ * The dotted paths of the URLs and hosts with a username or a password in a configuration, at
+ * any depth.
  *
  * @param value - The configuration, or a value inside it.
  * @param path - Where the value is.
- * @returns The paths, empty when no URL holds credentials.
+ * @returns The paths, empty when no URL or host holds credentials.
  */
 export function urlCredentialPaths(value: unknown, path: readonly string[] = []): string[] {
-  if (typeof value === 'string') return holdsCredentials(value) ? [path.join('.')] : [];
+  if (typeof value === 'string')
+    return holdsCredentials(value, path.at(-1) ?? '') ? [path.join('.')] : [];
   if (value === null || typeof value !== 'object') return [];
   return Object.entries(value).flatMap(([key, inner]) => urlCredentialPaths(inner, [...path, key]));
 }
 
 /**
  * Validates the settings of a connector being created or changed: as `validateSettings` does,
- * and refusing a URL with a username or a password.
+ * and refusing a URL or a host with a username or a password.
  *
  * @param kind - The connector kind.
  * @param config - The configuration.

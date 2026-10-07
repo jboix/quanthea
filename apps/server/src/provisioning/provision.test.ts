@@ -129,6 +129,16 @@ describe('provisioning connectors', () => {
     expect(events()).toBeUndefined();
   });
 
+  test('refuses a password in a host, and applies nothing', async () => {
+    const host = `reader:${reference('MONGO_PW')}@mongo.internal`;
+    const token = reference('EVENTS_TOKEN');
+    const yaml = `connectors:\n  events:\n    kind: memory\n    config: { host: "${host}" }\n    secret: { token: "${token}" }\n`;
+    const applied = apply(yaml, { MONGO_PW: 'mongo-password-77d2' });
+    await expect(applied).rejects.toThrow('connectors.events.config.host');
+    await expect(applied).rejects.not.toThrow('mongo-password-77d2');
+    expect(events()).toBeUndefined();
+  });
+
   test('takes over a connector made in the interface, and refuses to change its kind', async () => {
     await services.connections.create(
       {

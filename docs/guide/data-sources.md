@@ -13,7 +13,7 @@ its data the model may see, which columns it never sees, and how far a query may
    [Connectors and plugins](../connectors.md).
 2. Name it: lowercase letters, digits and dashes. Dashboards refer to the connector by this name.
 3. Fill in the connection. The credentials are sealed with quanthea's secret key and never shown
-   again. A URL must not hold a username or password: use the authentication fields.
+   again. A URL or a host must not hold a username or password: use the authentication fields.
 4. **Save connection**. quanthea tests it and reads the schema.
 
 Give quanthea a read-only account. Queries always run read-only, and each kind refuses what isn't
