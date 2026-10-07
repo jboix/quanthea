@@ -131,6 +131,24 @@ describe('loading the keys', () => {
     );
   });
 
+  test('refuses any key file inside the data directory, whatever its role', async () => {
+    const roles: [keyof KeyInputs, string][] = [
+      ['secretPrevious', 'QUANTHEA_SECRET_KEY_PREVIOUS_FILE'],
+      ['session', 'QUANTHEA_SESSION_KEY_FILE'],
+      ['pepper', 'QUANTHEA_PASSWORD_PEPPER_FILE'],
+      ['pepperPrevious', 'QUANTHEA_PASSWORD_PEPPER_PREVIOUS_FILE'],
+    ];
+    for (const [field, variable] of roles) {
+      const inside = join(dataDir.path, `${field}.key`);
+      writeFileSync(inside, randomKey(), { mode: 0o600 });
+      const keys = {
+        ...allGiven(),
+        [field]: { ...allGiven()[field], value: undefined, file: inside },
+      };
+      await expect(load(keys)).rejects.toThrow(`${variable} points into the data directory`);
+    }
+  });
+
   test('warns about a key file others can read', async () => {
     const file = join(outside.path, 'session.key');
     writeFileSync(file, randomKey());

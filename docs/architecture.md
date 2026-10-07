@@ -3053,8 +3053,8 @@ all printable text (a passphrase in disguise). A key set both ways, a file that 
 and two roles sharing one key are refused. A key file others can read is warned about. No
 message ever contains a key.
 
-The server refuses to start with a secret key file inside the data directory: a copy of the data
-directory must never carry a key.
+The server refuses to start with any key file inside the data directory (the secret key, the
+session key, the pepper, or a previous key): a copy of the data directory must never carry a key.
 A secret key that cannot open what the database holds stops the server at startup, naming the
 id of the key that sealed it, to set as `QUANTHEA_SECRET_KEY` or `QUANTHEA_SECRET_KEY_PREVIOUS`.
 

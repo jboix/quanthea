@@ -116,7 +116,8 @@ server:
 
 Each key can come from a file instead: `QUANTHEA_SECRET_KEY_FILE`, and so on. A key not given is
 generated on first start in the keys directory, with mode 0600; a key given always wins, key by
-key. Back the keys up apart from the data: a copy of the data directory must never carry them.
+key. Back the keys up apart from the data: a copy of the data directory must never carry them,
+and quanthea refuses to start when any key file is inside it.
 Without the secret key, stored credentials cannot be read. To rotate it, set the new key and the
 old one as `QUANTHEA_SECRET_KEY_PREVIOUS`, restart once, then remove the old one.
 

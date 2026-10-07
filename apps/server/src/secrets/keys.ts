@@ -236,6 +236,22 @@ function originsOf(sources: KeySources): Partial<Record<keyof KeyInputs, KeyOrig
 }
 
 /**
+ * Refuses a key file of any role inside the data directory: a copy of the data must never carry a
+ * key.
+ *
+ * @param sources - The key inputs and the data directory.
+ * @throws {Error} When a key file is inside the data directory.
+ */
+function refuseKeyFilesInData(sources: KeySources): void {
+  for (const input of Object.values(sources.keys) as KeyInput[]) {
+    if (input.file === undefined || !isWithin(input.file, sources.dataDir)) continue;
+    throw new Error(
+      `${input.name}_FILE points into the data directory, and a copy of the data would carry it. Move the file out.`,
+    );
+  }
+}
+
+/**
  * Reads and checks every key, generates the missing ones, and opens the secret box.
  *
  * @param sources - The key inputs, the directories and the logger.
@@ -244,12 +260,8 @@ function originsOf(sources: KeySources): Partial<Record<keyof KeyInputs, KeyOrig
  *   directory.
  */
 export async function loadKeys(sources: KeySources): Promise<KeyRing> {
+  refuseKeyFilesInData(sources);
   const read = readAll(sources);
-  const secretFile = sources.keys.secret.file;
-  if (secretFile !== undefined && isWithin(secretFile, sources.dataDir))
-    throw new Error(
-      'QUANTHEA_SECRET_KEY_FILE points into the data directory, and a copy of the data would carry it. Move the file out.',
-    );
   return {
     origins: originsOf(sources),
     secretBox: await openSecretBox(read.secret, read.secretPrevious),

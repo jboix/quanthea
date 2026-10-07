@@ -51,6 +51,7 @@ openssl rand -base64 32
 
 - Each has a `_FILE` variant, such as `QUANTHEA_SECRET_KEY_FILE=/run/secrets/quanthea-secret`,
   for Docker and Kubernetes secrets. Set one or the other, not both.
+- quanthea refuses to start when any key file is inside the data directory.
 - A key you don't give is generated on first start in the keys directory. A key you give always
   wins, key by key.
 - quanthea refuses a key that isn't 32 bytes, looks like a passphrase, or is used for two roles.
