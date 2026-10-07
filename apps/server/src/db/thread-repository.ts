@@ -138,12 +138,12 @@ export interface ThreadRepository {
    */
   saveMessages(threadId: string, messages: readonly MessageRow[]): void;
   /**
-   * Reads the access records a thread's runs stored, or every thread's outside the bin.
+   * Reads the access records some threads' runs stored, or every thread's outside the bin.
    *
-   * @param threadId - The thread, or none for every thread.
+   * @param threadIds - The threads, or none for every thread.
    * @returns The records with their threads.
    */
-  sourceAccess(threadId?: string): SourceAccessRow[];
+  sourceAccess(threadIds?: readonly string[]): SourceAccessRow[];
   /**
    * Inserts a plan.
    *

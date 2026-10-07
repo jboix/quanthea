@@ -2271,8 +2271,9 @@ model's own earlier answers quoting what it no longer sees.
   asks it before saving a lower level or a new hidden field; with threads to count, it shows the
   number and waits for Save anyway or Cancel.
 - `GET /api/threads` and `GET /api/threads/:id` mark a thread holding a restricted record
-  (`restrictedData`). The past threads drawer shows it as Restricted data, and the thread shows a
-  notice above the composer: continuing the conversation resends that data to the model provider.
+  (`restrictedData`). Each reads the records of the threads it returns only. The past threads
+  drawer shows the mark as Restricted data, and the thread shows a notice above the composer:
+  continuing the conversation resends that data to the model provider.
 
 Credentials are stored encrypted. A connector config holds everything else: URL, database,
 TLS options, the access level, hidden columns, guardrails, and table and field descriptions.

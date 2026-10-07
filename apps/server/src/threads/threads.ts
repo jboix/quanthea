@@ -125,10 +125,10 @@ export interface Threads {
   /**
    * Reads the access records the agent stored: which connector's data a run read, at what access.
    *
-   * @param id - The thread, or none for every thread outside the bin.
+   * @param ids - The threads, or none for every thread outside the bin.
    * @returns The records with their threads.
    */
-  sourceAccess(id?: string): SourceAccessRow[];
+  sourceAccess(ids?: readonly string[]): SourceAccessRow[];
   /**
    * Records a proposed plan and moves the thread to waiting for approval, or straight to
    * building when approval is off. A pending plan it replaces is superseded.
@@ -452,7 +452,7 @@ export function createThreads(dependencies: ThreadsDependencies): Threads {
     },
     apply: (id, event) => apply(context, id, event),
     saveMessages: (id, messages, actor) => saveMessages(context, id, messages, actor),
-    sourceAccess: (id) => repository.sourceAccess(id),
+    sourceAccess: (ids) => repository.sourceAccess(ids),
     proposePlan: (id, body, autoApprove) => proposePlan(context, id, body, autoApprove),
     decidePlan: (id, planId, decision, actor) => decidePlan(context, id, planId, decision, actor),
     attachDashboard: (id, dashboardId, title) =>

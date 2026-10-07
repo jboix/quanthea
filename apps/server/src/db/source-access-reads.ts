@@ -20,11 +20,14 @@ interface StoredRecord {
   access: string;
 }
 
-/** The records of the threads outside the bin; `?1` is a thread id, or null for every thread. */
+/**
+ * The records of the threads outside the bin; `?1` is a JSON array of thread ids, or null for
+ * every thread.
+ */
 const recordsQuery = `SELECT m.thread_id, json_extract(part.value, '$.data') AS access
   FROM messages m JOIN threads t ON t.id = m.thread_id AND t.deleted_at IS NULL,
     json_each(m.parts) part
-  WHERE (?1 IS NULL OR m.thread_id = ?1)
+  WHERE (?1 IS NULL OR m.thread_id IN (SELECT value FROM json_each(?1)))
     AND m.parts LIKE '%"data-sourceAccess"%'
     AND json_extract(part.value, '$.type') = 'data-sourceAccess'`;
 
@@ -46,9 +49,14 @@ function toRecord(stored: StoredRecord): SourceAccessRow[] {
  * Prepares the read of the access records.
  *
  * @param database - A database the migrations have run on.
- * @returns Reads the records of one thread, or of every thread outside the bin.
+ * @returns Reads the records of some threads, or of every thread outside the bin.
  */
-export function sourceAccessReads(database: Database): (threadId?: string) => SourceAccessRow[] {
+export function sourceAccessReads(
+  database: Database,
+): (threadIds?: readonly string[]) => SourceAccessRow[] {
   const select = database.query<StoredRecord, [string | null]>(recordsQuery);
-  return (threadId) => select.all(threadId ?? null).flatMap(toRecord);
+  return (threadIds) => {
+    const filter = threadIds === undefined ? null : JSON.stringify(threadIds);
+    return select.all(filter).flatMap(toRecord);
+  };
 }

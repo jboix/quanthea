@@ -114,3 +114,18 @@ describe('an access change', () => {
     expect((await client(editor)('GET', `/api/threads/${thread}`)).body.restrictedData).toBe(false);
   });
 });
+
+describe('the thread list', () => {
+  test("reads the access records of the listed threads only, not everyone's", async () => {
+    const own = threadReadAt(3);
+    fixture.threads.create(admin.id);
+    const asked: (readonly string[] | undefined)[] = [];
+    const read = fixture.threads.sourceAccess;
+    fixture.threads.sourceAccess = (threadIds) => {
+      asked.push(threadIds);
+      return read(threadIds);
+    };
+    await client(editor)('GET', '/api/threads');
+    expect(asked).toEqual([[own]]);
+  });
+});

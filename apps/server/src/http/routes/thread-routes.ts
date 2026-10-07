@@ -63,14 +63,14 @@ function isPinned(dashboards: Dashboards, dashboardId: string | null): boolean {
 }
 
 /**
- * The threads holding data that a connector's current access restricts.
+ * The threads, among some, holding data that a connector's current access restricts.
  *
  * @param services - The thread route services.
- * @param threadId - One thread, or none for every thread.
- * @returns The threads' ids.
+ * @param threadIds - The threads to look at.
+ * @returns The restricted threads' ids.
  */
-function restrictedIn(services: ThreadRouteServices, threadId?: string): Set<string> {
-  const records = services.threads.sourceAccess(threadId);
+function restrictedIn(services: ThreadRouteServices, threadIds: readonly string[]): Set<string> {
+  const records = services.threads.sourceAccess(threadIds);
   return restrictedThreads(records, (connectorId) =>
     services.modelView.accessSettings(connectorId),
   );
@@ -96,7 +96,10 @@ function listThreads(
   const shown = services.threads
     .list()
     .filter((thread) => (everyone ? true : thread.ownerId === principal.id));
-  const restricted = restrictedIn(services);
+  const restricted = restrictedIn(
+    services,
+    shown.map((thread) => thread.id),
+  );
   return Promise.all(
     shown.map(async (thread) => ({
       ...thread,
@@ -194,7 +197,7 @@ function mountThreadReadRoute(app: Hono<AppEnv>, services: ThreadRouteServices):
       const readOnly = !canWrite(reader, thread.ownerId);
       const model = settings.models.build;
       const { seed } = threads.row(params.threadId);
-      const restrictedData = restrictedIn(services, params.threadId).size > 0;
+      const restrictedData = restrictedIn(services, [params.threadId]).size > 0;
       const extra = { model, providerName, connectors, ownerName, readOnly, seed, restrictedData };
       return { ...thread, ...extra };
     },
