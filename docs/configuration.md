@@ -173,15 +173,15 @@ connectors:
       url: http://prometheus:9090
 ```
 
-| Key            | Default | What it sets                                                        |
-| -------------- | ------- | ------------------------------------------------------------------- |
-| `kind`         | none    | The connector kind, such as `postgres`, `prometheus` or a plugin's. |
-| `config`       | none    | The connection, as the kind's form has it.                          |
-| `secret`       | none    | The credentials, each a secret reference.                           |
-| `accessLevel`  | `2`     | 1 schema only, 2 schema and metadata, 3 aggregates, 4 full access.  |
-| `hiddenFields` | `[]`    | Columns the model never sees: `table.column`, or a bare `column`.   |
-| `guardrails`   | below   | `timeoutMs` 10000, `maxRows` 50000, `maxRangeDays` 90.              |
-| `descriptions` | `{}`    | Descriptions of tables and columns, read by the model.              |
+| Key            | Default | What it sets                                                                                                                                                                                     |
+| -------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `kind`         | none    | The connector kind, such as `postgres`, `prometheus` or a plugin's.                                                                                                                              |
+| `config`       | none    | The connection, as the kind's form has it.                                                                                                                                                       |
+| `secret`       | none    | The credentials, each a secret reference.                                                                                                                                                        |
+| `accessLevel`  | `2`     | 1 schema only, 2 schema and metadata, 3 aggregates, 4 full access.                                                                                                                               |
+| `hiddenFields` | `[]`    | Fields the model never sees: `table.column`, a bare `column`, or a dotted path into a nested field (`logs.user.email`). Names match in any case, and a hidden object hides every field under it. |
+| `guardrails`   | below   | `timeoutMs` 10000, `maxRows` 50000, `maxRangeDays` 90.                                                                                                                                           |
+| `descriptions` | `{}`    | Descriptions of tables and columns, read by the model.                                                                                                                                           |
 
 `config` is stored in clear. A URL in it must not hold a username or a password, even from a
 variable, and a host field must not hold `@`: put the username in the kind's `username` field and the password in `secret`.

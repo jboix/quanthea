@@ -34,14 +34,12 @@ export default defineConfig({
   // Astro 7 strips whitespace between inline elements by JSX rules; the pages are written for
   // HTML's, where a line break between two inline elements is a space.
   compressHTML: true,
-  // Mermaid's chunks are large; they load only on a doc page that has a diagram.
-  vite: { build: { chunkSizeWarningLimit: 700 } },
   integrations: [
     sitemap({ filter: (page) => !/\/404\/?$/.test(page) }),
     brandIcons({ iconDirectory: new URL('../web/public/', import.meta.url), base }),
   ],
   markdown: {
-    // Mermaid blocks stay as code; the docs layout draws them in the browser.
+    // Mermaid blocks stay as plain, unhighlighted code: the site draws no diagrams.
     syntaxHighlight: { type: 'shiki', excludeLangs: ['mermaid'] },
     shikiConfig: { themes: { light: 'github-light', dark: 'github-dark' }, defaultColor: false },
     // The docs' links, titles and scheme images are remark plugins, so the docs keep the
