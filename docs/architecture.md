@@ -3453,11 +3453,13 @@ editing:
 
 - `bun:sqlite` is refused outside `apps/server/src/db/`, and `ai` and `@ai-sdk/*` outside
   `apps/server/src/agent/` (`noRestrictedImports`).
-- The global `fetch` is refused in the server, so every outbound call goes through a checked
-  client. The exceptions are the connector kit's HTTP client, the gateway fetch, the channels'
-  send, the sign-in provider drivers, the plugin fetches and the CLI that hands them their fetch.
-- `window.open` and the global `open` are refused in the web app, so navigation stays in React
-  Router.
+- The global `fetch`, `globalThis.fetch` and `Bun.fetch` are refused in the server, so an
+  outbound call goes through a checked client. The exceptions are the connector kit's HTTP client,
+  the gateway fetch, the channels' send, the sign-in provider drivers, the plugin fetches and the
+  CLI that hands them their fetch. The rule reads names, so a call through an alias of the
+  global object (`const root = globalThis; root.fetch(...)`) still passes it: review catches that.
+- `window.open`, `globalThis.open`, `self.open` and the global `open` are refused in the web app,
+  so navigation stays in React Router. An alias of `window` passes the rule, as above.
 
 ## 17. Releases
 
