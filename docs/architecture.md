@@ -734,7 +734,9 @@ only admins add, change and delete channels.
   sends a sample message titled "Test from quanthea", as `alert.test`.
 - **Outbound policy.** Channels follow the connectors' policy: they never call a cloud metadata
   address, by IP or by a name resolving to one, checked when the channel is saved and before each
-  send. Private addresses are allowed, since only admins set channels, as they set connectors.
+  attempt of a send, retries included; a refused retry ends the send. As for connectors, the check
+  cannot stop a name that resolves differently when `fetch` connects. Private addresses are
+  allowed, since only admins set channels, as they set connectors.
 - **The log.** Each send is one row in `notification_sends`: the channel, the event, the alert id
   and the series key (for a report, its id in `report_id` and its run as the series key), the time, whether it got through, the last HTTP status, the attempts and the
   error. An error never quotes the target. The channel keeps its last success and last failure.
@@ -1833,10 +1835,14 @@ export const exampleConnector = defineConnector({
   URL's path; an absolute URL is held to the origin only.
 - The client never calls a cloud metadata address (169.254.0.0/16, 100.100.100.200,
   168.63.129.16, 192.0.0.192, fd00:ec2::254, fd20:ce::254, fe80::/10), by the host or by what a
-  name resolves to when the request starts. An IPv6 address is read as bytes, so every spelling
+  name resolves to. The check runs before the request and again before each redirect hop. An IPv6 address is read as bytes, so every spelling
   matches. An IPv4 address inside it is checked as IPv4: the compatible (`::/96`), mapped
   (`::ffff:0:0/96`) and translated (`::ffff:0:0:0/96`) forms, NAT64 (`64:ff9b::/96`, and each
   RFC 6052 place under `64:ff9b:1::/48`) and 6to4 (`2002::/16`).
+- What the check does not cover: `fetch` resolves the name again when it connects, and Bun has no
+  hook to connect to the checked address. A name whose DNS answer changes between the check and
+  the connection (DNS rebinding) can still reach a metadata address. Only an admin sets a base
+  URL, so this needs an admin to choose a name whose DNS an attacker controls.
 - `@quanthea/plugin-kit/testing` holds the suite every kind runs in its test file: static
   checks of the declaration, and live checks against a source (health, schema, valid frames, row
   limit, abort, error messages, sample limit). `test/memory-connector.ts` is an in-memory kind for

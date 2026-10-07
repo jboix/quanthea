@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, spyOn, test } from 'bun:test';
 import type { ConnectorError } from './errors.ts';
 import { createHttpClient, type HttpClientOptions } from './http.ts';
 import { isMetadataAddress } from './http-address.ts';
@@ -159,6 +159,26 @@ describe('createHttpClient', () => {
       closed.request({ path: '/', signal: AbortSignal.timeout(5000) }),
     );
     expect(failure).toMatchObject({ code: 'unreachable', safeMessage: 'Test cannot be reached.' });
+  });
+
+  test('checks the destination again before each redirect hop', async () => {
+    const answers: Bun.DNSLookup[][] = [[{ address: '127.0.0.1', family: 4, ttl: 0 }]];
+    const metadata: Bun.DNSLookup[] = [{ address: '169.254.169.254', family: 4, ttl: 0 }];
+    const lookup = spyOn(Bun.dns, 'lookup').mockImplementation(() =>
+      Promise.resolve(answers.shift() ?? metadata),
+    );
+    try {
+      const failure = await failureOf(() =>
+        client({ baseUrl: `http://localhost:${server.port}/base/` }).request({
+          path: '/here',
+          signal: AbortSignal.timeout(5000),
+        }),
+      );
+      expect(failure).toMatchObject({ code: 'rejected' });
+      expect(lookup).toHaveBeenCalledTimes(2);
+    } finally {
+      lookup.mockRestore();
+    }
   });
 
   test('refuses a base URL that is not HTTP or HTTPS', () => {

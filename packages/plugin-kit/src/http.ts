@@ -325,7 +325,8 @@ function fetchOnce(
 
 /**
  * Sends a request, following redirects within the origin. A 307 or 308 keeps the method and
- * body; any other redirect continues with a GET.
+ * body; any other redirect continues with a GET. The destination is checked before every hop,
+ * since a name may resolve differently each time.
  *
  * @param settings - The client settings.
  * @param request - The request.
@@ -338,9 +339,9 @@ async function send(
   signal: AbortSignal,
 ): Promise<Response> {
   let url = requestUrl(settings, request);
-  await checkDestination(url, settings.sourceName);
   let method: HttpMethod = request.method ?? 'GET';
   for (let redirects = 0; ; redirects += 1) {
+    await checkDestination(url, settings.sourceName);
     const response = await fetchOnce(url, method, settings, request, signal);
     const target = redirectTarget(response, url, settings);
     if (target === undefined || redirects === maxRedirects) return response;

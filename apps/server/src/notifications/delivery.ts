@@ -161,19 +161,21 @@ export async function refusedDestination(
 }
 
 /**
- * Posts a message, retrying as the service allows.
+ * Posts a message, retrying as the service allows. The destination is checked before every
+ * attempt, since a name may resolve differently each time; a refusal ends the retries.
  *
  * @param outgoing - The request.
  * @param options - How to post.
  * @returns How it went. It never throws.
  */
 export async function deliver(outgoing: Outgoing, options: DeliveryOptions): Promise<Delivery> {
-  const refused = await refusedDestination(outgoing.url, options.resolve);
-  if (refused) return { ok: false, httpStatus: null, attempts: 0, error: refused };
+  let last: Delivery = { ok: false, httpStatus: null, attempts: 0, error: null };
   for (let attempt = 1; ; attempt += 1) {
+    const refused = await refusedDestination(outgoing.url, options.resolve);
+    if (refused) return { ...last, ok: false, error: refused };
     const { retryAfterMs, ...outcome } = await attemptOnce(outgoing, options, attempt);
-    if (outcome.ok || retryAfterMs === null || attempt >= maxAttempts)
-      return { ...outcome, attempts: attempt };
+    last = { ...outcome, attempts: attempt };
+    if (outcome.ok || retryAfterMs === null || attempt >= maxAttempts) return last;
     await options.sleep(retryAfterMs);
   }
 }

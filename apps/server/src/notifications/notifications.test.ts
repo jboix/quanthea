@@ -310,6 +310,20 @@ describe('sending', () => {
     expect(received).toEqual([]);
   });
 
+  test('each retry checks the destination again', async () => {
+    const id = await add({ name: 'Ops', kind: 'webhook', target: 'https://ops.test/hook' });
+    answers = [
+      () => {
+        resolved['ops.test'] = ['169.254.169.254'];
+        return new Response('busy', { status: 503 });
+      },
+    ];
+    const [result] = await notifications.send([id], firing());
+    expect(result).toMatchObject({ ok: false, attempts: 1, httpStatus: 503 });
+    expect(result?.error).toContain('metadata address');
+    expect(received).toHaveLength(1);
+  });
+
   test('an unknown channel fails on its own, and sending never throws', async () => {
     const id = await add({ name: 'Ops', kind: 'webhook', target: 'https://ops.test/hook' });
     const results = await notifications.send(['missing', id], firing());
