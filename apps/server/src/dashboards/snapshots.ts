@@ -26,7 +26,7 @@ import {
   type DashboardsDependencies,
   type RunTarget,
   type ServiceContext,
-  specOf,
+  shownSpecOf,
 } from './context.ts';
 import { runPanel } from './run-panel.ts';
 import {
@@ -268,7 +268,7 @@ async function take(
   actor: string,
   signal?: AbortSignal,
 ): Promise<SnapshotInfo> {
-  const spec = specOf(context, request, role);
+  const spec = shownSpecOf(context, request, role);
   const { range, panels } = await runAll(context, spec, request, signal);
   const json = { spec: JSON.stringify(spec), panels: JSON.stringify(panels) };
   const takenAt = context.now();

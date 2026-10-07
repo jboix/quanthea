@@ -13,7 +13,7 @@ import type {
 } from '../db/explanation-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
-import { type DashboardsDependencies, type ServiceContext, specOf } from './context.ts';
+import { type DashboardsDependencies, type ServiceContext, shownSpecOf } from './context.ts';
 import { type AnsweredOutcome, usageTokens } from './questions.ts';
 
 /** How long a claim to write an explanation holds, in case its writing never reports back. */
@@ -115,7 +115,7 @@ function claimKey({ dashboardId, version, panelId }: PanelKey): string {
  * @throws {AppError} `not_found`.
  */
 function specWithPanel(context: ExplanationContext, key: PanelKey, role: Role): DashboardSpec {
-  const spec = specOf(context, { ...key, variables: {} }, role);
+  const spec = shownSpecOf(context, { ...key, variables: {} }, role);
   if (!spec.panels.some((panel) => panel.id === key.panelId))
     throw new AppError('not_found', `No panel "${key.panelId}" in this version.`);
   return spec;

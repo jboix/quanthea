@@ -19,6 +19,7 @@ import type { Connections } from './connections/connections.ts';
 import type { ConversationBins } from './conversation-bins.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
 import type { Explanations } from './dashboards/explanations.ts';
+import type { DashboardLayouts } from './dashboards/layouts.ts';
 import type { Questions } from './dashboards/questions.ts';
 import type { Snapshots } from './dashboards/snapshots.ts';
 import type { ModelView } from './gate/model-view.ts';
@@ -41,6 +42,7 @@ import {
   mountDashboardEndpoints,
 } from './http/routes/dashboard-routes.ts';
 import { mountExplanationEndpoints } from './http/routes/explanation-routes.ts';
+import { mountLayoutEndpoints } from './http/routes/layout-routes.ts';
 import { mountNotificationEndpoints } from './http/routes/notification-routes.ts';
 import { mountProviderFlowRoutes } from './http/routes/provider-routes.ts';
 import { mountQueryEndpoints } from './http/routes/query-routes.ts';
@@ -109,6 +111,8 @@ export interface AppDependencies extends ReportServices {
   readonly dashboards: Dashboards;
   /** Snapshots of dashboards, frozen with their results. */
   readonly snapshots: Snapshots;
+  /** The layouts dashboards are shown with. */
+  readonly layouts: DashboardLayouts;
   /** Questions asked about dashboards, stored with their answers. */
   readonly questions: Questions;
   /** Explanations of panels, kept per version and panel. */
@@ -183,6 +187,30 @@ function mountSettingsRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): 
 }
 
 /**
+ * Mounts the routes of dashboards: the dashboards themselves, their layouts, snapshots,
+ * questions and explanations.
+ *
+ * @param app - The app.
+ * @param dependencies - The services the routes use.
+ */
+function mountDashboardRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
+  const ownerOf = dependencies.bin.ownerOf;
+  mountDashboardEndpoints(app, dependencies.dashboards, {
+    onPinnedView: dependencies.usage.recordPinnedView,
+    ownerOf,
+    describe: dependencies.describeForPin,
+  });
+  mountLayoutEndpoints(app, { ...dependencies, ownerOf });
+  mountSnapshotEndpoints(app, {
+    ...dependencies,
+    ownerOf,
+    onSnapshotView: dependencies.usage.recordSnapshotView,
+  });
+  mountQuestionEndpoints(app, { ...dependencies, ownerOf });
+  mountExplanationEndpoints(app, { ...dependencies, ownerOf });
+}
+
+/**
  * Mounts every `/api` route.
  *
  * @param app - The app.
@@ -193,18 +221,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountSystemRoutes(app, { version: dependencies.version });
   const { connections, managed, threads } = dependencies;
   mountConnectorRoutes(app, connections, managed, threads);
-  mountDashboardEndpoints(app, dependencies.dashboards, {
-    onPinnedView: dependencies.usage.recordPinnedView,
-    ownerOf: dependencies.bin.ownerOf,
-    describe: dependencies.describeForPin,
-  });
-  mountSnapshotEndpoints(app, {
-    ...dependencies,
-    ownerOf: dependencies.bin.ownerOf,
-    onSnapshotView: dependencies.usage.recordSnapshotView,
-  });
-  mountQuestionEndpoints(app, { ...dependencies, ownerOf: dependencies.bin.ownerOf });
-  mountExplanationEndpoints(app, { ...dependencies, ownerOf: dependencies.bin.ownerOf });
+  mountDashboardRoutes(app, dependencies);
   mountSettingsRoutes(app, dependencies);
   mountThreadEndpoints(app, dependencies);
   mountBinEndpoints(app, dependencies);

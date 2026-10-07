@@ -20,6 +20,7 @@ import {
   type RunTarget,
   refuseSpec,
   type ServiceContext,
+  shownLayoutOf,
   specOf,
   validOrRefuse,
   visibleVersion,
@@ -296,6 +297,27 @@ function unpin(context: ServiceContext, id: string, actor: string): DashboardDet
 }
 
 /**
+ * Reads one version, with the layout it is shown with.
+ *
+ * @param context - The service context.
+ * @param id - The dashboard id.
+ * @param version - The version number.
+ * @param role - The role of the request.
+ * @returns The version with its spec and its layout.
+ * @throws {AppError} `not_found`, also for a draft the role may not see.
+ */
+function readVersion(
+  context: ServiceContext,
+  id: string,
+  version: number,
+  role: Role,
+): DashboardVersion {
+  const row = visibleVersion(context, id, version, role);
+  const layout = shownLayoutOf(context, id, version);
+  return { ...row, spec: dashboardSpecSchema.parse(row.spec), layout };
+}
+
+/**
  * Creates the service.
  *
  * @param dependencies - The repository, audit log, connectors and executor.
@@ -308,10 +330,7 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
   return {
     create: (spec, changeSummary, actor) => create(context, spec, changeSummary, actor),
     get: (id, role) => get(context, id, role),
-    getVersion: (id, version, role) => {
-      const row = visibleVersion(context, id, version, role);
-      return { ...row, spec: dashboardSpecSchema.parse(row.spec) };
-    },
+    getVersion: (id, version, role) => readVersion(context, id, version, role),
     pin: (id, version, actor, describe) => pin(context, id, version, actor, describe),
     unpin: (id, actor) => unpin(context, id, actor),
     runPanel: (target, panelId, role, signal) =>

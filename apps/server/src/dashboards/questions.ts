@@ -20,7 +20,7 @@ import type { QuestionRepository, QuestionRow } from '../db/question-repository.
 import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
 import { meaningfulWords } from '../lib/words.ts';
-import { type DashboardsDependencies, get, type ServiceContext, specOf } from './context.ts';
+import { type DashboardsDependencies, get, type ServiceContext, shownSpecOf } from './context.ts';
 import {
   type ConversationContext,
   listConversations,
@@ -251,7 +251,7 @@ function historyOf(context: QuestionContext, parent: QuestionRow) {
  */
 function prepare(context: QuestionContext, request: QuestionRequest, actor: string) {
   // Questions are about what everyone may see: a pinned version of a pinned dashboard.
-  const spec = specOf(context, request, 'viewer');
+  const spec = shownSpecOf(context, request, 'viewer');
   const known = new Set(spec.annotations.map((annotation) => annotation.id));
   const parent = parentOf(context, request);
   const questionId = newId();
@@ -367,6 +367,6 @@ export function createQuestions(
     get: (dashboardId, questionId, role) => questionOf(context, dashboardId, questionId, role),
     similar: (dashboardId, text, role) => similar(context, dashboardId, text, role),
     sources: (target, role) =>
-      sourcesOf(context.connectorLevels, specOf(context, { ...target, variables: {} }, role)),
+      sourcesOf(context.connectorLevels, shownSpecOf(context, { ...target, variables: {} }, role)),
   };
 }

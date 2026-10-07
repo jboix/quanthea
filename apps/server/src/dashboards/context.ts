@@ -1,13 +1,17 @@
 /** The dashboards service's dependencies and the helpers its operations share. */
 import {
+  applyLayout,
   type DashboardDetail,
   type DashboardSpec,
+  dashboardLayoutSchema,
   dashboardSpecSchema,
   hasRole,
   type Role,
+  type ShownLayout,
 } from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { DashboardRepository, VersionRow } from '../db/dashboard-repository.ts';
+import type { LayoutRepository } from '../db/layout-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import type { ConnectorLookup } from './check-queries.ts';
 import type { SpecIssue } from './issues.ts';
@@ -23,6 +27,8 @@ export interface DashboardsDependencies extends Omit<RunnerDependencies, 'now'> 
   readonly audit: AuditRepository;
   /** Finds a connector by name, for validation. */
   readonly lookup: ConnectorLookup;
+  /** Stores the layouts versions are shown with; without it, every version shows its spec. */
+  readonly layouts?: LayoutRepository;
   /** The clock; `Date.now` by default. */
   readonly now?: () => number;
 }
@@ -103,6 +109,39 @@ export function specOf(context: ServiceContext, target: RunTarget, role: Role): 
   return dashboardSpecSchema.parse(
     visibleVersion(context, target.dashboardId, target.version, role).spec,
   );
+}
+
+/**
+ * The layout a version is shown with: its latest revision, if one was saved.
+ *
+ * @param context - The service context.
+ * @param id - The dashboard id.
+ * @param version - The version number.
+ * @returns The layout and its revision, or `null` when the version shows its spec.
+ */
+export function shownLayoutOf(
+  context: Pick<ServiceContext, 'layouts'>,
+  id: string,
+  version: number,
+): ShownLayout | null {
+  const row = context.layouts?.latest(id, version);
+  if (!row) return null;
+  const parsed = dashboardLayoutSchema.safeParse(row.layout);
+  return parsed.success ? { revision: row.revision, layout: parsed.data } : null;
+}
+
+/**
+ * The spec of a version the role may see, as people see it: through its layout, with the hidden
+ * panels left out. Snapshots, questions and explanations read a dashboard this way.
+ *
+ * @param context - The service context.
+ * @param target - The dashboard and version.
+ * @param role - The role of the request.
+ * @returns The spec as shown.
+ */
+export function shownSpecOf(context: ServiceContext, target: RunTarget, role: Role): DashboardSpec {
+  const spec = specOf(context, target, role);
+  return applyLayout(spec, shownLayoutOf(context, target.dashboardId, target.version)?.layout).spec;
 }
 
 /**

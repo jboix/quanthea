@@ -21,6 +21,7 @@ import type { DashboardsDependencies } from './dashboards/context.ts';
 import { type ConversationBin, createConversationBin } from './dashboards/conversation-bin.ts';
 import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
 import { createExplanations, type Explanations } from './dashboards/explanations.ts';
+import { createDashboardLayouts, type DashboardLayouts } from './dashboards/layouts.ts';
 import { createQuestions, type Questions } from './dashboards/questions.ts';
 import { createSnapshots, type Snapshots } from './dashboards/snapshots.ts';
 import { createAlertActivityRepository } from './db/alert-activity.ts';
@@ -35,6 +36,7 @@ import { createConversationBinRepository } from './db/conversation-bin.ts';
 import { createDashboardRepository } from './db/dashboard-repository.ts';
 import { createExplanationRepository } from './db/explanation-repository.ts';
 import { createIdentityRepository } from './db/identity-repository.ts';
+import { createLayoutRepository } from './db/layout-repository.ts';
 import { createProvisionedRepository } from './db/provisioned-repository.ts';
 import { createQuestionRepository } from './db/question-repository.ts';
 import { createReportChannelUsage } from './db/report-channel-usage.ts';
@@ -86,6 +88,8 @@ export interface Services extends Accounts, ReportServices {
   readonly dashboards: Dashboards;
   /** Snapshots of dashboards, frozen with their results. */
   readonly snapshots: Snapshots;
+  /** The layouts dashboards are shown with. */
+  readonly layouts: DashboardLayouts;
   /** Questions asked about dashboards, stored with their answers. */
   readonly questions: Questions;
   /** Explanations of panels, kept per version and panel. */
@@ -157,6 +161,30 @@ function sourcesOf(
 }
 
 /**
+ * The dashboards, the layouts they are shown with, and their snapshots.
+ *
+ * @param database - The database.
+ * @param dependencies - What the dashboards service needs.
+ * @returns The services.
+ */
+function dashboardServices(
+  database: ServiceDependencies['database'],
+  dependencies: DashboardsDependencies,
+) {
+  return {
+    dashboards: createDashboards(dependencies),
+    layouts: createDashboardLayouts({
+      ...dependencies,
+      layouts: dependencies.layouts ?? createLayoutRepository(database),
+    }),
+    snapshots: createSnapshots({
+      ...dependencies,
+      snapshots: createSnapshotRepository(database),
+    }),
+  };
+}
+
+/**
  * The services over the data sources: connectors, the query executor, dashboards, their snapshots,
  * questions and explanations, and the model's view of the connectors, which share one executor
  * and its cache. They run on the same clock as the accounts, so a test or the evals can fix
@@ -179,14 +207,11 @@ function dataServices(
   const dashboardDependencies = {
     ...sourcesOf(connections, executor),
     repository: createDashboardRepository(database),
+    layouts: createLayoutRepository(database),
     audit,
     ...(now ? { now } : {}),
   };
-  const dashboards = createDashboards(dashboardDependencies);
-  const snapshots = createSnapshots({
-    ...dashboardDependencies,
-    snapshots: createSnapshotRepository(database),
-  });
+  const { dashboards, ...shown } = dashboardServices(database, dashboardDependencies);
   const { subjects: list, open, snapshot } = connections;
   const modelView = createModelView({ list, open, snapshot }, executor);
   const answered = answerServices(database, dashboardDependencies, modelView);
@@ -196,7 +221,7 @@ function dataServices(
     connectorLevels: () => modelView.connectors(),
   });
   const conversationBin = combineConversationBins(answered.conversationBin, runConversationBin);
-  const data = { connections, dashboards, snapshots, modelView, ...messaging };
+  const data = { connections, dashboards, ...shown, modelView, ...messaging };
   return { ...data, ...answered, conversationBin };
 }
 

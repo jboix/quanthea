@@ -61,7 +61,7 @@ describe('runMigrations', () => {
     expect(runMigrations(database)).toEqual([
       '0001-schema.sql',
       '0002-snapshots-questions-analyst.sql',
-      '0003-dashboard-version-trigger.sql',
+      '0003-version-trigger-and-layouts.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
@@ -75,6 +75,7 @@ describe('runMigrations', () => {
       'audit_log',
       'connectors',
       'conversation_bin',
+      'dashboard_layouts',
       'dashboard_questions',
       'dashboard_versions',
       'dashboards',

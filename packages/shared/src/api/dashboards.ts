@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { dashboardSpecSchema } from '../spec/dashboard.ts';
 import { defineEndpoint } from './contract.ts';
+import { shownLayoutSchema } from './dashboard-layouts.ts';
 
 /** Validates a version in a dashboard's history. */
 const versionSummarySchema = z.object({
@@ -48,10 +49,11 @@ export const dashboardPageSchema = dashboardDetailSchema.extend({
 /** A dashboard as its screen reads it. */
 export type DashboardPage = z.infer<typeof dashboardPageSchema>;
 
-/** Validates one version with its spec. */
+/** Validates one version with its spec, and the layout it is shown with, if one was saved. */
 export const dashboardVersionSchema = versionSummarySchema.extend({
   dashboardId: z.string(),
   spec: dashboardSpecSchema,
+  layout: shownLayoutSchema.nullable(),
 });
 
 /** One version of a dashboard, with its spec. */

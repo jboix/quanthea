@@ -578,6 +578,23 @@ The dashboard's Versions menu lists the versions: the one pinned, the ones pinne
 with their summary. Editors pin any other version or unpin from there. The thread's draft pane
 says which version the library shows, and pins the version it shows.
 
+**Layouts.** How a version is shown is apart from the version: each panel's place, its size and
+whether it is hidden (`DashboardLayout` in `@quanthea/shared`). A layout belongs to one version
+(`dashboard_layouts`) and never changes it, so arranging a dashboard makes no version and leaves
+the thread's drafts alone. Saving adds a revision; a trigger keeps revisions from being rewritten,
+and restoring an earlier one adds a revision that copies it. A version is shown with its latest
+revision, or with its spec's grid when it has none; `GET /dashboards/:id/versions/:v` returns that
+layout beside the spec. Pinning another version shows that version's own layout, and a version
+pinned for the first time starts from its spec.
+
+Only the version shown takes a new layout, and only from its thread's owner or an admin, as for
+pinning (`http/routes/layout-routes.ts`). The layout must name every panel of the version once
+and show one at least; the server packs the shown panels so none overlaps another, and a hidden
+panel takes no space. A save names the revision it started from, and is refused (409) when
+another was saved since. Hidden panels stay in the spec, so the thread and the model still know
+them, but snapshots, questions and explanations read the version through its layout and leave
+them out (`shownSpecOf` in `dashboards/context.ts`).
+
 ### 5.4 A new thread on a dashboard
 
 `POST /api/dashboards/:id/threads {mode, version?}` (editor+) opens a thread that is ready for
@@ -2658,8 +2675,9 @@ between alerts and panels and the dismissed suggestions. Another adds the report
 versions and their runs; the report events and `report_id` of the notification log are in its
 `notification_sends`. The last one adds the questions about runs, their index and their bin, and
 the runs each person has opened (`report_seen`). `0002` shipped in v0.3.0.
-`0003-dashboard-version-trigger.sql` recreates the dashboard versions' trigger so that it covers
-every column but `pinned_at`, as the alert and report versions' triggers do.
+`0003-version-trigger-and-layouts.sql` recreates the dashboard versions' trigger so that it covers
+every column but `pinned_at`, as the alert and report versions' triggers do, and adds the layouts
+of dashboard versions (`dashboard_layouts`), whose revisions a trigger keeps from being rewritten.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -2704,6 +2722,7 @@ indicative; the contract files are the source of truth.
 | `POST /dashboards` (a spec, becomes draft v1)                                                     | create from a spec                           | editor   |
 | `GET /dashboards/:id` (with its thread's id), `GET /dashboards/:id/versions/:v` (drafts: editor)  | spec                                         | viewer   |
 | `POST /dashboards/:id/pin`, `POST /dashboards/:id/unpin`                                          | choose the version shown, or none            | editor   |
+| `GET`, `POST /dashboards/:id/versions/:v/layouts`, `POST …/layouts/:r/restore` (owner, admin)     | arrange the version shown                    | editor   |
 | `POST /dashboards/:id/threads` (`copy` a version, or `edit` one without a thread)                 | new thread on a dashboard                    | editor   |
 | `GET /bin`, `POST /bin/:threadId/restore`                                                         | the thread bin                               | editor   |
 | `DELETE /bin/:threadId`, `DELETE /bin`                                                            | delete threads and their dashboards for good | admin    |

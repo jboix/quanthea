@@ -25,7 +25,7 @@ afterEach(() => {
 
 const shipped = join(import.meta.dir, 'migrations');
 const released = ['0001-schema.sql', '0002-snapshots-questions-analyst.sql'];
-const upgrade = '0003-dashboard-version-trigger.sql';
+const upgrade = '0003-version-trigger-and-layouts.sql';
 
 /**
  * Builds a database at the schema of the last release.
