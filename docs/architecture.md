@@ -3360,6 +3360,9 @@ the Docker image and checks that it serves the app, and lints commit messages on
 Dependabot's aside. octocov reports the line coverage of the files the tests load, then
 `dev/coverage-areas/` (`bun run coverage:areas`) splits it by workspace, by server module and by
 part of the web app, as octocov's custom metrics.
+Dependabot proposes updates weekly for the actions, the Bun packages, the dev images and the base
+image, each only once it is seven days old (`cooldown`), so a version pulled in its first days
+never reaches a pull request.
 A PR is mergeable only when the `quality` job is green. Warnings from `no-orphans` are reviewed,
 not ignored. Biome's complexity and length limits are errors.
 

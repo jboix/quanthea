@@ -1,10 +1,15 @@
 version: 2
+
+# Every entry waits seven days after a release before proposing it, so a version that is
+# pulled or found compromised in its first days never reaches a pull request.
 updates:
   # --- GitHub Actions ---
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       action-updates:
         patterns:
@@ -18,6 +23,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       # Groups match in order: a dependency lands in the first group it matches.
       # `ai` and `@ai-sdk/*` must resolve to one copy of the provider packages,
@@ -45,6 +52,8 @@ updates:
     directory: "/dev"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       dev-images:
         patterns: [ "*" ]
@@ -58,6 +67,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     ignore:
       # The image runs the Bun version in .tool-versions. Move both together.
       - dependency-name: "oven/bun"
