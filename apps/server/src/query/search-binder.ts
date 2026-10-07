@@ -3,6 +3,9 @@
  * is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value: never text inside a
  * string. The body may hold no key naming a script, since a script is code the search server runs,
  * except the fixed ratio scripts a `bucket_script` may name: quanthea's own code, not the model's.
+ * Nor may it hide a query in base64 (`wrapper`) or read documents of another index (a terms lookup,
+ * an indexed shape, a percolator, or a `_index` in a document list), which the index check never
+ * sees.
  */
 import {
   type SearchQuery,
@@ -37,6 +40,12 @@ const scriptWord = /(?:^|[^a-z])script/i;
 
 /** The key of runtime fields, which run a script for each document. */
 const runtimeKey = 'runtime_mappings';
+
+/** Keys that hide a query from this check or read another index, in lowercase: refused in any case. */
+const hiddenReadKeys: ReadonlySet<string> = new Set(['wrapper', 'percolate', 'indexed_shape']);
+
+/** The keys whose items name a document, which a `_index` may place in another index. */
+const documentListKeys: ReadonlySet<string> = new Set(['like', 'unlike', 'docs']);
 
 /** The aggregation that holds a ratio script: allowed, since its `script` is checked. */
 const ratioAggregation = 'bucket_script';
@@ -123,11 +132,13 @@ function scriptKey(key: string): boolean {
 }
 
 /**
- * Checks every key of a template for scripts, walking the body.
+ * Checks every key of a template for scripts, hidden queries and reads of another index, walking
+ * the body.
  *
  * @param node - The node.
  * @param parent - The key of the enclosing object.
- * @throws {QueryError} `invalid` for a script other than a ratio script in a `bucket_script`.
+ * @throws {QueryError} `invalid` for a script other than a ratio script in a `bucket_script`, a
+ *   wrapper, or a read of another index.
  */
 function refuseScripts(node: unknown, parent?: string): void {
   if (node === null || typeof node !== 'object') return;
@@ -135,9 +146,22 @@ function refuseScripts(node: unknown, parent?: string): void {
     ? node.map((item): [string | undefined, unknown] => [parent, item])
     : Object.entries(node);
   for (const [key, value] of entries) {
-    if (!Array.isArray(node) && key !== undefined) refuseScriptKey(key, value, parent);
+    if (!Array.isArray(node) && key !== undefined) checkKey(key, value, parent);
     refuseScripts(value, key);
   }
+}
+
+/**
+ * Checks one key for a script, a hidden query or a read of another index.
+ *
+ * @param key - The key.
+ * @param value - Its value.
+ * @param parent - The key of the enclosing object.
+ * @throws {QueryError} `invalid` for a key the template may not hold.
+ */
+function checkKey(key: string, value: unknown, parent: string | undefined): void {
+  refuseScriptKey(key, value, parent);
+  refuseHiddenRead(key, value, parent);
 }
 
 /**
@@ -157,13 +181,66 @@ function refuseScriptKey(key: string, value: unknown, parent: string | undefined
 }
 
 /**
+ * Whether a value is a JSON object, not an array or null.
+ *
+ * @param value - The value.
+ * @returns `true` for an object.
+ */
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Whether a `terms` query looks up its terms in a document: a field whose value names an index.
+ *
+ * @param value - The value of the `terms` key.
+ * @returns `true` for a terms lookup.
+ */
+function termsLookup(value: unknown): boolean {
+  if (!isObject(value)) return false;
+  return Object.values(value).some((field) => isObject(field) && 'index' in field);
+}
+
+/**
+ * Whether a key hides a query or reads documents the index check does not see.
+ *
+ * @param key - The key.
+ * @param value - Its value.
+ * @param parent - The key of the enclosing object or list.
+ * @returns `true` for a wrapper, a lookup, a percolator or a document of another index.
+ */
+function readsHidden(key: string, value: unknown, parent: string | undefined): boolean {
+  const lower = key.toLowerCase();
+  if (hiddenReadKeys.has(lower)) return true;
+  if (lower === '_index') return documentListKeys.has(parent?.toLowerCase() ?? '');
+  return lower === 'terms' && termsLookup(value);
+}
+
+/**
+ * Checks one key for a hidden query or a read of another index.
+ *
+ * @param key - The key.
+ * @param value - Its value.
+ * @param parent - The key of the enclosing object or list.
+ * @throws {QueryError} `invalid` for a wrapper, a lookup, a percolator or another index's document.
+ */
+function refuseHiddenRead(key: string, value: unknown, parent: string | undefined): void {
+  if (!readsHidden(key, value, parent)) return;
+  throw new QueryError(
+    'invalid',
+    `A query reads only what it shows, from its own index; "${key}" is not allowed. Write the query in plain JSON, with its terms inline.`,
+  );
+}
+
+/**
  * Binds a search template.
  *
  * @param template - The index and the body.
  * @param variables - The variable values.
  * @param timeRange - The time range, for `__from`, `__to` and `__interval`.
  * @returns The bound query.
- * @throws {QueryError} `invalid` for a malformed index, a script, or an unknown variable.
+ * @throws {QueryError} `invalid` for a malformed index, a script, a hidden query, a read of
+ *   another index, or an unknown variable.
  */
 export function bindSearch(
   template: SearchTemplate,

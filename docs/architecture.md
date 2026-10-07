@@ -2179,6 +2179,9 @@ that changes with its settings).
      refused, because the search server would run it. One exception: a `bucket_script` whose
      `script` is one of the kit's ratio scripts, verbatim (`searchRatioScripts`: the share of `part`
      in `whole`, or one minus it). They are quanthea's code; a query names one, never writes one.
+     A `wrapper` query (a body in base64, which could hide a script) is refused, and so is every
+     read of another index's documents: a terms lookup (a `terms` field naming an `index`), an
+     `indexed_shape`, a `percolate` query, and a `_index` in a `like`, `unlike` or `docs` list.
      The index is lowercase names and patterns, never a hidden (`.`), system (`_`) or remote (`:`)
      index.
    - **HTTP** (`query/http-binder.ts`): `$name` in the path becomes its value URL-encoded, one

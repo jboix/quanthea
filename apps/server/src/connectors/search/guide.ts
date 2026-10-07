@@ -11,7 +11,7 @@ import { searchRatioScripts } from '../_shared/index.ts';
  * @returns The guide.
  */
 export function searchGuide(product: string): string {
-  return `${product} (search DSL). A query is an index or pattern ("logs-*") and a JSON body. A variable is a node of its own, {"$var": "service"}: a string, or a list for a multi-value variable; {"$var": "service", "as": "list"} is always a list, for terms. Filter the time with {"range": {"@timestamp": {"gte": {"$var": "__from"}, "lte": {"$var": "__to"}}}}. No scripts or runtime fields.
+  return `${product} (search DSL). A query is an index or pattern ("logs-*") and a JSON body. A variable is a node of its own, {"$var": "service"}: a string, or a list for a multi-value variable; {"$var": "service", "as": "list"} is always a list, for terms. Filter the time with {"range": {"@timestamp": {"gte": {"$var": "__from"}, "lte": {"$var": "__to"}}}}. No scripts, runtime fields, wrapper queries, or lookups of another index's documents.
 - With aggs, the result is one table: a column per bucket aggregation, nested level by level, and a column per metric of the deepest level, or "count" when it has none. Never put two bucket aggregations side by side; nest them.
 - long over time: {"size": 0, "query": …, "aggs": {"time": {"date_histogram": {"field": "@timestamp", "fixed_interval": {"$var": "__interval"}}, "aggs": {"series": {"terms": {"field": "level", "size": 10}}}}}} gives time, series, count. Add a metric under the deepest level, such as "value": {"avg": {"field": "duration_ms"}}.
 - long by category: {"aggs": {"service": {"terms": {"field": "service", "size": 20}, "aggs": {"value": {"sum": {"field": "bytes"}}}}}}.

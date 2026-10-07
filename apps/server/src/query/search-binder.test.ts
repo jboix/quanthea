@@ -126,9 +126,32 @@ describe('bindSearch', () => {
       'minimumShouldMatchScript',
     ];
     for (const key of scriptKeys) {
-      const body = { query: { bool: { filter: [{ wrapper: { [key]: { source: '1' } } }] } } };
+      const body = { query: { bool: { filter: [{ nested: { [key]: { source: '1' } } }] } } };
       expect(() => bind(body)).toThrow('A query runs no script');
     }
+  });
+
+  test('refuses a wrapper query, which hides a script in base64', () => {
+    const hidden = { script: { script: { source: "doc['secret'].value == 'x'" } } };
+    const query = Buffer.from(JSON.stringify(hidden)).toString('base64');
+    for (const key of ['wrapper', 'Wrapper'])
+      expect(() => bind({ query: { [key]: { query } } })).toThrow('reads only what it shows');
+  });
+
+  test('refuses the queries that read documents of another index', () => {
+    const bodies = [
+      { query: { terms: { user: { index: 'users', id: '1', path: 'followers' } } } },
+      { query: { geo_shape: { area: { indexed_shape: { index: 'shapes', id: '1' } } } } },
+      { query: { percolate: { field: 'q', index: 'queries', id: '1' } } },
+      { query: { more_like_this: { fields: ['a'], like: [{ _index: 'secrets', _id: '1' }] } } },
+      { query: { pinned: { docs: [{ _index: 'secrets', _id: '1' }], organic: {} } } },
+    ];
+    for (const body of bodies) expect(() => bind(body)).toThrow('reads only what it shows');
+    expect(() => bind({ query: { terms: { level: { $var: 'x' } } } }, { x: 'a' })).not.toThrow();
+    expect(() => bind({ query: { term: { _index: 'logs-1' } } })).not.toThrow();
+    expect(() =>
+      bind({ aggs: { a: { terms: { field: 'a', order: { _count: 'desc' } } } } }),
+    ).not.toThrow();
   });
 
   test('keeps a bucket_script that names a ratio script verbatim, and no other', () => {
