@@ -289,7 +289,7 @@ function bindSegments(
  * @returns Seconds, or `undefined` when it is not a simple duration.
  */
 export function parseDuration(text: string): number | undefined {
-  const match = /^(\d+)(s|m|h|d)$/.exec(text);
+  const match = /^(\d+)([smhd])$/.exec(text);
   if (!match) return undefined;
   const unit = { s: 1, m: 60, h: 3600, d: 86_400 }[match[2] as 's' | 'm' | 'h' | 'd'];
   return Number(match[1]) * unit;
