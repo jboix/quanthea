@@ -92,6 +92,21 @@ describe('bindMongodb', () => {
     );
   });
 
+  test('keeps a value that starts with $ literal where it would read a field', () => {
+    const condition = { $eq: ['$level', { $var: 'level' }] };
+    const pipeline = [
+      { $match: { level: { $var: 'level' }, $expr: condition } },
+      { $addFields: { tag: { $var: 'level' }, list: { $var: 'levels' } } },
+      { $project: { kept: { $literal: { $var: 'level' } }, plain: { $var: 'service' } } },
+    ];
+    const variables = { level: '$secret', levels: ['error', '$$ROOT'], service: 'checkout' };
+    expect(bind(pipeline, variables).pipeline).toEqual([
+      { $match: { level: '$secret', $expr: { $eq: ['$level', { $literal: '$secret' }] } } },
+      { $addFields: { tag: { $literal: '$secret' }, list: { $literal: ['error', '$$ROOT'] } } },
+      { $project: { kept: { $literal: '$secret' }, plain: 'checkout' } },
+    ]);
+  });
+
   test('refuses stages that write, wait or list, and operators that run JavaScript', () => {
     for (const stage of [
       { $out: 'copy' },

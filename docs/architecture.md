@@ -2152,7 +2152,9 @@ that changes with its settings).
      JSON. Variables are `{"$var": "name"}` nodes, as in a search body, and operator keys pass;
      `"as": "ms"` gives a duration variable, such as an interval, in milliseconds.
      `__from` and `__to` are `{"$date": …}` dates; `__interval_ms` is the search bucket width in
-     milliseconds. Each stage is an object with one `$` key. A stage that writes (`$out`,
+     milliseconds. A value that starts with `$`, such as a viewer's `$secret`, goes in
+     `{"$literal": …}` wherever MongoDB would read it as a field or a variable: everywhere but
+     directly under `$literal` and in a `$match` outside `$expr`. Each stage is an object with one `$` key. A stage that writes (`$out`,
      `$merge`), waits for changes (`$changeStream`), or lists the server's operations, sessions,
      queries, plans or catalog (`$currentOp`, `$queryStats`, `$planCacheStats`, `$listCatalog`,
      `$indexStats`, `$collStats`, `$listSearchIndexes` and the rest) is refused anywhere in the

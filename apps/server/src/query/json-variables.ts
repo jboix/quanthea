@@ -21,6 +21,15 @@ export interface JsonBindContext {
    * @throws {QueryError} When the language refuses it.
    */
   readonly checkKey?: (key: string) => void;
+  /**
+   * Adjusts a reference's value to where it sits, as MongoDB needs for a value that would read a
+   * field.
+   *
+   * @param value - The value.
+   * @param keys - The object keys from the document down to the reference, without list indexes.
+   * @returns The value to put in.
+   */
+  readonly placeValue?: (value: unknown, keys: readonly string[]) => unknown;
 }
 
 /** How deep a document may nest. */
@@ -84,29 +93,53 @@ function millisecondsOf(name: string, value: unknown): number {
   return seconds * 1000;
 }
 
+/** Where a node sits in the document. */
+interface NodePlace {
+  /** How deep it is. */
+  readonly depth: number;
+  /** The object keys from the document down to it, without list indexes. */
+  readonly keys: readonly string[];
+}
+
 /**
  * Binds one node and everything under it.
  *
  * @param node - The node.
  * @param context - The variables, built-ins and key check.
- * @param depth - How deep the node is.
+ * @param place - Where the node sits.
  * @returns The bound node.
  * @throws {QueryError} `invalid` for a refused key, an unknown variable or nesting too deep.
  */
-function bindNode(node: unknown, context: JsonBindContext, depth: number): unknown {
+function bindNode(node: unknown, context: JsonBindContext, place: NodePlace): unknown {
+  const { depth, keys } = place;
   if (depth > maxDepth) throw new QueryError('invalid', 'The query body nests too deep.');
-  if (Array.isArray(node)) return node.map((item) => bindNode(item, context, depth + 1));
+  if (Array.isArray(node)) return node.map((item) => bindNode(item, context, inside(place)));
   if (node === null || typeof node !== 'object') return node;
   const object = node as Readonly<Record<string, unknown>>;
-  if ('$var' in object) return variableValue(object, context);
+  if ('$var' in object) {
+    const value = variableValue(object, context);
+    return context.placeValue ? context.placeValue(value, keys) : value;
+  }
   return Object.fromEntries(
     Object.entries(object).map(([key, value]) => {
       context.checkKey?.(key);
       if (key.startsWith('$') && !context.operatorKeys)
         throw new QueryError('invalid', `"${key}" is not a variable; write {"$var": "name"}.`);
-      return [key, bindNode(value, context, depth + 1)];
+      return [key, bindNode(value, context, inside(place, key))];
     }),
   );
+}
+
+/**
+ * The place of a child node.
+ *
+ * @param place - The parent's place.
+ * @param key - The child's key, for an object's child.
+ * @returns The child's place.
+ */
+function inside(place: NodePlace, key?: string): NodePlace {
+  const keys = key === undefined ? place.keys : [...place.keys, key];
+  return { depth: place.depth + 1, keys };
 }
 
 /**
@@ -121,5 +154,5 @@ export function bindJsonVariables(
   document: Readonly<Record<string, unknown>>,
   context: JsonBindContext,
 ): Record<string, unknown> {
-  return bindNode(document, context, 0) as Record<string, unknown>;
+  return bindNode(document, context, { depth: 0, keys: [] }) as Record<string, unknown>;
 }

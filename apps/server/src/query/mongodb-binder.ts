@@ -4,7 +4,8 @@
  * pass, since a pipeline is made of them, but no stage may write (`$out`, `$merge`), watch, list
  * the server's sessions, operations or catalog, and no operator may run JavaScript (`$where`,
  * `$function`, `$accumulator`). Every collection read, by `$lookup`, `$graphLookup` and
- * `$unionWith` too, is one of the connector's database and never a `system.` one.
+ * `$unionWith` too, is one of the connector's database and never a `system.` one. A value that
+ * starts with `$` goes in `$literal` wherever MongoDB would read it as a field.
  */
 import {
   type MongodbQuery,
@@ -91,6 +92,42 @@ function checkCollections(node: unknown): void {
 }
 
 /**
+ * Whether a value holds a string that MongoDB reads as a field or a variable in an expression,
+ * such as `$secret` or `$$ROOT`.
+ *
+ * @param value - A variable's value.
+ * @returns `true` when it does.
+ */
+function readsField(value: unknown): boolean {
+  return [value].flat().some((item) => typeof item === 'string' && item.startsWith('$'));
+}
+
+/**
+ * Whether a node sits in a query, where a string is always a value: under `$match` and not under
+ * an `$expr` within it.
+ *
+ * @param keys - The keys down to the node.
+ * @returns `true` in a query.
+ */
+function inQuery(keys: readonly string[]): boolean {
+  const match = keys.lastIndexOf('$match');
+  return match >= 0 && !keys.slice(match).includes('$expr');
+}
+
+/**
+ * A variable's value as the pipeline takes it: in `$literal` when it would otherwise read a field,
+ * so a viewer's `$secret` stays the string it is.
+ *
+ * @param value - The value.
+ * @param keys - The keys down to the variable.
+ * @returns The value, or `{"$literal": value}`.
+ */
+function placeValue(value: unknown, keys: readonly string[]): unknown {
+  if (!readsField(value) || keys.at(-1) === '$literal' || inQuery(keys)) return value;
+  return { $literal: value };
+}
+
+/**
  * Checks one key of the pipeline.
  *
  * @param key - The key.
@@ -152,7 +189,13 @@ export function bindMongodb(
   checkStages(template.pipeline);
   const { pipeline } = bindJsonVariables(
     { pipeline: template.pipeline },
-    { variables, builtIns: builtInsOf(timeRange), checkKey: refuseKey, operatorKeys: true },
+    {
+      variables,
+      builtIns: builtInsOf(timeRange),
+      checkKey: refuseKey,
+      operatorKeys: true,
+      placeValue,
+    },
   ) as { pipeline: Record<string, unknown>[] };
   checkCollections(pipeline);
   return { language: 'mongodb', collection: template.collection, pipeline };
