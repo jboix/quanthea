@@ -1,7 +1,7 @@
 /**
- * The alert page's Change and Mute menus. Change, for the owner of its thread and admins, opens the conversation that wrote
- * the alert, and deactivates or activates it. Mute, for analysts and above, mutes its
- * notifications until a time, or until someone unmutes for editors.
+ * The alert page's Change and Mute menus. Change, for the owner of its thread and admins, opens
+ * the conversation that wrote the alert, and deactivates or activates it. Mute, for analysts and
+ * above, mutes its notifications until a time, or until someone unmutes for editors.
  */
 import type { AlertDetail } from '@quanthea/shared';
 import { useState } from 'react';

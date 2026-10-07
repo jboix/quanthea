@@ -1,8 +1,9 @@
 /**
  * The endpoints of hand edits, for editors. A hand edit in an alert thread's draft pane saves the
  * person's own change as a new draft version; changes made on a live alert's page are saved as a
- * new version and activated, by the owner of its thread or an admin. Either adds a card to the conversation that wrote the alert, which
- * the agent reads next turn. A test sends a version's message to its channels.
+ * new version and activated, by the owner of its thread or an admin. Either adds a card to the
+ * conversation that wrote the alert, which the agent reads next turn. A test sends a version's
+ * message to its channels.
  */
 import {
   activateAlertChangesEndpoint,

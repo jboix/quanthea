@@ -74,8 +74,8 @@ frozen when it ran.
 - **See also** opens each linked dashboard on the run's period.
 - **Ask about this** asks questions about the run; see
   [Ask about a report's run](ask-and-explain.md#ask-about-a-reports-run).
-- **Change** (the owner of its thread and admins): **Edit with the agent**, **Run now** (runs it over its latest period, and
-  sends it only when you ask), **Deactivate** or **Activate**.
+- **Change** (the owner of its thread and admins): **Edit with the agent**, **Run now** (runs it
+  over its latest period, and sends it only when you ask), **Deactivate** or **Activate**.
 - **Share → Copy link**, and **Versions** for the owner of its thread and admins.
 
 ## When a run fails

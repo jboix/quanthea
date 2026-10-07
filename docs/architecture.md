@@ -526,9 +526,9 @@ query never fails the rest of the panel, and one failing panel never blanks the 
 ### 5.3 Pin and unpin
 
 Versions are the immutable part: none is ever rewritten, and a trigger enforces it for every
-column of every version but the time it was first pinned, which is set once. Pinning chooses the version the library, the dashboard's link and viewers see
-(`dashboards.pinned_version_id`). The thread can keep adding versions to a pinned dashboard; they
-stay drafts until one is pinned.
+column of every version but the time it was first pinned, which is set once. Pinning chooses the
+version the library, the dashboard's link and viewers see (`dashboards.pinned_version_id`). The
+thread can keep adding versions to a pinned dashboard; they stay drafts until one is pinned.
 
 `POST /api/dashboards/:id/pin {version}` (editor+) accepts any version, including one pinned
 before, so pinning an earlier version rolls the library back. It refuses the version already
@@ -2776,8 +2776,8 @@ one, and enables them again. Without any admin, it creates the default one.
   version; any other editor reads it as a viewer does: in the lists and their detail only once a
   version is active, with the versions ever active (and, for a report, their runs, with each run's
   questions, conversations and sources; the run's ask and bin endpoints read it the same way).
-  The owner and admins activate and deactivate it, send a test of a version, change an active alert from its
-  page (`POST /api/alerts/:id/versions`) and run a report now; others get 403
+  The owner and admins activate and deactivate it, send a test of a version, change an active
+  alert from its page (`POST /api/alerts/:id/versions`) and run a report now; others get 403
   (`checkOwnerChange`). `canChange` in `GET /api/alerts/:id` and `GET /api/reports/:id` says so,
   and the pages show Change, Versions' Activate and the alert's tuning only then. An alert or a
   report whose thread was purged is open to editors. Muting stays open to analysts and above.

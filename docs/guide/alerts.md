@@ -95,8 +95,9 @@ have fired 1 time instead of 2. Right now: checkout-svc would stop firing."). **
 - **Mute** (analysts and above): for 1 hour, 4 hours, until tomorrow 09:00, or until a time
   within 7 days. Editors may also mute until someone unmutes. A muted alert is still checked; it
   only stays quiet. A series still firing when the mute ends notifies then.
-- **Change** (the owner of its thread and admins): **Edit with the agent** opens its thread; **Deactivate** stops checking it
-  and resolves what was firing, so PagerDuty closes its incident; **Activate** starts it again.
+- **Change** (the owner of its thread and admins): **Edit with the agent** opens its thread;
+  **Deactivate** stops checking it and resolves what was firing, so PagerDuty closes its incident;
+  **Activate** starts it again.
 - **Versions**: who saved each and when. The owner of its thread and admins activate another
   one.
 
