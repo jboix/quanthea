@@ -58,8 +58,9 @@ function checkCollection(name: unknown): void {
 }
 
 /**
- * Checks the collection a stage reads besides the pipeline's own: `$lookup.from` (optional, for a
- * pipeline on `$documents`), `$graphLookup.from` and `$unionWith`, as a name or as `coll`.
+ * Checks the collection a stage reads besides the pipeline's own: `$lookup.from`,
+ * `$graphLookup.from` and `$unionWith`, as a name or as `coll`. A stage that names none, such as
+ * a `$lookup` or `$unionWith` on `$documents`, reads no collection.
  *
  * @param key - The key, such as `$lookup`.
  * @param value - Its value.
@@ -73,7 +74,7 @@ function checkForeign(key: string, value: unknown): void {
   const field = foreignKeys.get(key);
   if (field === undefined || value === null || typeof value !== 'object') return;
   if ('db' in value) throw collectionError();
-  if (key === '$lookup' && !('from' in value)) return;
+  if (!(field in value)) return;
   checkCollection((value as Readonly<Record<string, unknown>>)[field]);
 }
 

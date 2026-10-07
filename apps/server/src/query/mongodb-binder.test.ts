@@ -122,6 +122,7 @@ describe('bindMongodb', () => {
       { $indexStats: {} },
       { $collStats: { count: {} } },
       { $listSearchIndexes: {} },
+      { $listClusterCatalog: {} },
     ])
       expect(() => bind([stage])).toThrow(/only reads/);
   });
@@ -146,6 +147,7 @@ describe('bindMongodb', () => {
       { $lookup: { pipeline: [{ $documents: [{ a: 1 }] }], as: 'd' } },
       { $unionWith: { coll: 'archive', pipeline: [{ $match: {} }] } },
       { $unionWith: 'archive' },
+      { $unionWith: { pipeline: [{ $documents: [{ a: 1 }] }] } },
       { $graphLookup: { from: 'items', startWith: '$a', connectFromField: 'a', as: 'g' } },
     ];
     for (const stage of allowed) expect(() => bind([stage])).not.toThrow();

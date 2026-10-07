@@ -72,6 +72,7 @@ export const mongodbRefusedKeys: ReadonlyMap<string, string> = new Map([
   ['$queryStats', "reads the server's queries"],
   ['$planCacheStats', "reads the server's query plans"],
   ['$listCatalog', "reads the server's catalog"],
+  ['$listClusterCatalog', "reads the server's catalog"],
   ['$indexStats', "reads the server's index statistics"],
   ['$collStats', "reads the server's collection statistics"],
   ['$listSearchIndexes', "reads the server's search indexes"],
