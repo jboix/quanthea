@@ -67,4 +67,22 @@ describe('modelSchema', () => {
       expect(names).toEqual(['id', 'country']);
     }
   });
+
+  test('hides nested fields under a hidden object, and names in another case', () => {
+    const logs: SchemaSnapshot = {
+      entities: [
+        {
+          name: 'app.logs',
+          kind: 'index',
+          fields: ['user.email', 'user.name', 'Host.IP', 'message'].map((name) => ({
+            name,
+            nativeType: 'keyword',
+          })),
+        },
+      ],
+    };
+    const subject = { ...subjectAt(3), hiddenFields: ['APP.LOGS.user', 'app.logs.host.ip'] };
+    const names = modelSchema(subject, logs)[0]?.fields.map((field) => field.name);
+    expect(names).toEqual(['message']);
+  });
 });

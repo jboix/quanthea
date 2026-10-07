@@ -178,13 +178,15 @@ function HiddenFields({ connector, schema }: SectionProps & { readonly schema: S
   const error = failureOf(change.outcome);
   return (
     <div className={styles.card}>
-      <h4 className={styles.cardTitle}>Never show these columns, at any level</h4>
+      <h4 className={styles.cardTitle}>Hide these columns from the model, by name</h4>
       <HiddenChips hidden={hidden} schema={schema} save={save} />
       {error !== undefined && <p className={styles.failure}>{error}</p>}
       <p className={styles.cardNote}>
-        A hidden column is removed from every result by its name, so <code>customers.email</code>{' '}
-        hides every column named <code>email</code>. A query that renames a column gets past the
-        name match. For a hard guarantee, leave the column out of the database role.
+        A hidden column is removed from every result by its name, in any case, so{' '}
+        <code>customers.email</code> hides every column named <code>email</code>, and a hidden
+        object hides the fields under it. A query that renames a column gets past the name match,
+        and from the aggregates level its values show. For a hard guarantee, leave the column out of
+        the database role.
       </p>
     </div>
   );

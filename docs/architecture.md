@@ -2130,9 +2130,13 @@ model-ready results and never throw.
   spike windows (`spikeWindows`): consecutive points above mean + 3σ, in time order, merged into
   `{ from, to, peak }`, the five highest peaks.
 - Hidden fields (`entity.field`, or a bare `field`) are removed at every level: from the schema, and
-  from results by column name and label name. Results do not say which table a column came from,
-  so a query that renames a hidden column gets past the name match. A database role or view that
-  cannot read the column is the hard guarantee; an integration test shows the limit.
+  from results by column name and label name. Names compare without case, and a hidden object
+  hides every field under it: a hidden `logs.user` hides `user.email`. Results do not say which
+  entity a column came from, and entity names can hold dots, so a hidden `logs.user.email` removes
+  the result columns `user.email` and `email` of every entity (`hiddenResultNames`).
+- A query that renames or aliases a hidden column gets past the name match: from level 3 its top
+  values show, at level 4 its rows. A database role or view that cannot read the column is the
+  hard guarantee; an integration test shows the limit.
 - Admin-written descriptions replace the source's.
 - `gate/model-view.ts` is what the agent's data tools call: the connector list with what each level
   means, `describe` (cut to a scope, at most 60 entities), `sample`, `testQuery` and the shaping of
@@ -2141,7 +2145,9 @@ model-ready results and never throw.
 - `sampleForModel` lists distinct values from level 2 only, never for a hidden field, and never
   when the field has more than the asked number of values (at most 50).
 - `gate/leak.test.ts` feeds random marker values through levels 1 and 2 (rows, unusual numbers,
-  labels, frame names, error texts) and checks none reaches the model.
+  labels, frame names, error texts) and checks none reaches the model. `gate/hidden-leak.test.ts`
+  checks, from level 2 to 4, that no hidden column, nested field or label reaches it, whatever its
+  case: flat and cased SQL columns, nested search and MongoDB fields, and alert labels.
 
 Credentials are stored encrypted. A connector config holds everything else: URL, database,
 TLS options, the access level, hidden columns, guardrails, and table and field descriptions.

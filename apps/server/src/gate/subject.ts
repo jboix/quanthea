@@ -16,28 +16,52 @@ export interface GateSubject {
 }
 
 /**
- * Whether a field of an entity is hidden.
+ * Whether a name is hidden: equal to a hidden name, or under one, as `user.email` is under a
+ * hidden `user`. Names compare without case.
  *
- * @param subject - The connector.
- * @param entity - The entity name.
- * @param field - The field name.
- * @returns `true` when `entity.field` or the bare `field` is hidden.
+ * @param name - The field, column or label name.
+ * @param hidden - The hidden names, in lower case.
+ * @returns `true` when the name or one of its parent paths is hidden.
  */
-export function isHiddenField(subject: GateSubject, entity: string, field: string): boolean {
-  return (
-    subject.hiddenFields.includes(`${entity}.${field}`) || subject.hiddenFields.includes(field)
-  );
+export function isHiddenName(name: string, hidden: ReadonlySet<string>): boolean {
+  const lower = name.toLowerCase();
+  if (hidden.has(lower)) return true;
+  for (let dot = lower.indexOf('.'); dot > 0; dot = lower.indexOf('.', dot + 1))
+    if (hidden.has(lower.slice(0, dot))) return true;
+  return false;
 }
 
 /**
- * The field names removed from query results. Results do not say which entity a column came from,
- * so a hidden `customers.email` removes every result column named `email`. A query that renames
- * the column gets past this; a database role or view that cannot read the column is the hard
- * guarantee.
+ * Whether a field of an entity is hidden, such as `logs.user.email`, or a field under a hidden
+ * object, such as `user.email` under `logs.user`. Names compare without case.
  *
  * @param subject - The connector.
- * @returns The names, compared exactly.
+ * @param entity - The entity name.
+ * @param field - The field name, a dotted path for a nested field.
+ * @returns `true` when `entity.field` or the bare `field` is hidden, or a parent of either.
+ */
+export function isHiddenField(subject: GateSubject, entity: string, field: string): boolean {
+  const hidden = new Set(subject.hiddenFields.map((entry) => entry.toLowerCase()));
+  return isHiddenName(`${entity}.${field}`, hidden) || isHiddenName(field, hidden);
+}
+
+/**
+ * The names removed from query results, columns and labels alike, in lower case. Results do not
+ * say which entity a column came from, and entity names can hold dots, so each hidden entry gives
+ * every path that follows one of its dots: a hidden `logs.user.email` removes the result columns
+ * `user.email` and `email` from every entity. A query that renames the column gets past this; a
+ * database role or view that cannot read the column is the hard guarantee.
+ *
+ * @param subject - The connector.
+ * @returns The names, to compare with {@link isHiddenName}.
  */
 export function hiddenResultNames(subject: GateSubject): ReadonlySet<string> {
-  return new Set(subject.hiddenFields.map((entry) => entry.slice(entry.lastIndexOf('.') + 1)));
+  const names = new Set<string>();
+  for (const entry of subject.hiddenFields) {
+    const lower = entry.toLowerCase();
+    names.add(lower);
+    for (let dot = lower.indexOf('.'); dot >= 0; dot = lower.indexOf('.', dot + 1))
+      names.add(lower.slice(dot + 1));
+  }
+  return names;
 }

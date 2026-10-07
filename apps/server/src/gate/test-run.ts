@@ -7,7 +7,7 @@
 import { datasetOfFrames, type Field, type Frame } from '@quanthea/shared';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../query/executor.ts';
 import { QueryError } from '../query/query-error.ts';
-import { type GateSubject, hiddenResultNames } from './subject.ts';
+import { type GateSubject, hiddenResultNames, isHiddenName } from './subject.ts';
 import { type FieldSummary, summarizeFrame } from './summaries.ts';
 
 /** The most rows a level 4 result gives the model, whatever the connector's row limit. */
@@ -50,12 +50,12 @@ export type ModelTestResult =
  */
 function withoutHidden(frame: Frame, hidden: ReadonlySet<string>): Frame {
   const kept = frame.fields.flatMap((field, index) =>
-    hidden.has(field.name) ? [] : [{ field, index }],
+    isHiddenName(field.name, hidden) ? [] : [{ field, index }],
   );
   const fields = kept.map(({ field }) => {
     if (!field.labels) return field;
     const labels = Object.fromEntries(
-      Object.entries(field.labels).filter(([name]) => !hidden.has(name)),
+      Object.entries(field.labels).filter(([name]) => !isHiddenName(name, hidden)),
     );
     return { ...field, labels };
   });

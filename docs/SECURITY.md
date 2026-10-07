@@ -41,9 +41,11 @@ Some behaviour is by design and not a vulnerability:
 - The first start writes the default admin's password to the log, once. Whoever reads the log
   before the admin sets up their account can sign in as them. Set the account up right after the
   first start, or declare the first admin in the configuration file.
-- At the full access level, the model sees result rows, capped by the row limit. Hidden columns are
-  matched by name, so a query that renames a hidden column can pass the filter. Give the connector a
-  database role or view that cannot read those columns when you need a hard guarantee.
+- At the full access level, the model sees result rows, capped by the row limit.
+- Hidden columns are matched by name, in any case. A query that renames or aliases a hidden column
+  passes the filter: at the aggregates level its five most frequent values reach the model, at the
+  full access level its rows. Give the connector a database role or view that cannot read those
+  columns when you need a hard guarantee.
 
 ## Threat model
 
