@@ -7,7 +7,9 @@ import {
   type ThreadDetail,
   type TurnUsage,
 } from '@quanthea/shared';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { NewBelow } from '../../ui/new-below.tsx';
+import { useFollowEnd } from '../../ui/use-follow-end.ts';
 import { AlertDraftPane } from '../alert-draft/index.ts';
 import { ReportDraftPane } from '../report-draft/index.ts';
 import { chatErrorText } from './chat-error.ts';
@@ -58,18 +60,23 @@ function lastMentions(messages: readonly ThreadMessage[]): string[] {
 }
 
 /**
- * Keeps the conversation scrolled to the end while it grows.
+ * Follows the end of the conversation while the person is there, and leaves the scroll alone once
+ * they scroll up to read, counting the messages that arrive below. Sending a message, or opening
+ * another thread, goes to the end.
  *
- * @param messages - The messages, whose changes trigger the scroll.
- * @returns The ref for the scrolling element.
+ * @param threadId - The thread.
+ * @param messages - The messages, whose growth the scroll follows.
+ * @returns The ref and scroll handler of the scrolling element, what is unseen, and the way down.
  */
-function useStickToEnd(messages: readonly ThreadMessage[]) {
-  const scroller = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const element = scroller.current;
-    if (element && messages.length > 0) element.scrollTop = element.scrollHeight;
-  }, [messages]);
-  return scroller;
+function useConversationEnd(threadId: string, messages: readonly ThreadMessage[]) {
+  const last = messages.at(-1);
+  const tail = JSON.stringify(last?.parts.at(-1) ?? null).length;
+  const sent = messages.filter((message) => message.role === 'user').length;
+  return useFollowEnd<HTMLDivElement>({
+    growth: messages.length === 0 ? '' : `${messages.length}:${last?.parts.length}:${tail}`,
+    count: messages.length,
+    restart: `${threadId}:${sent}`,
+  });
 }
 
 /**
@@ -260,15 +267,16 @@ function ThreadConversation({ state }: { readonly state: ScreenState }) {
  */
 function ThreadPane({ state }: { readonly state: ScreenState }) {
   const { thread } = state.data;
-  const scroller = useStickToEnd(state.chat.messages);
+  const follow = useConversationEnd(thread.id, state.chat.messages);
   return (
     <section className={styles.thread} aria-label="Thread">
       <ThreadHeader thread={thread} messages={state.chat.messages} />
-      <div ref={scroller} className={styles.scroller}>
+      <div ref={follow.ref} onScroll={follow.onScroll} className={styles.scroller}>
         {state.data.parent && <LineageBanner parent={state.data.parent} />}
         {state.data.origin && <SeedBanner origin={state.data.origin} />}
         <ThreadConversation state={state} />
         <StatusLine state={state} />
+        <NewBelow unseen={follow.unseen} noun="message" onJump={follow.jump} />
       </div>
       {thread.restrictedData && <RestrictedNotice />}
       {thread.readOnly ? (

@@ -4,8 +4,10 @@
  * report froze it. New conversation starts over; History holds the others.
  */
 import type { ReportRunDetail, ReportSpec } from '@quanthea/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
+import { NewBelow } from '../../ui/new-below.tsx';
+import { useFollowEnd } from '../../ui/use-follow-end.ts';
 import {
   AskForm,
   ConfirmBin,
@@ -159,22 +161,23 @@ function NewConversation({
 }
 
 /**
- * Keeps the newest turn in view as the conversation grows, unless a question opened from a search
- * is being shown.
+ * Follows the newest turn while the person is at the end of the conversation, and leaves the
+ * scroll alone once they scroll up to read. Asking, or opening another conversation, goes to the
+ * end; a question opened from a search is left in view.
  *
  * @param conversation - The open conversation.
- * @returns The ref of the scrolling element.
+ * @returns The ref and the scroll handler of the scrolling element.
  */
 function useNewestInView(conversation: RunConversationState) {
-  const scroller = useRef<HTMLDivElement>(null);
   const { conversationId, questions, live, flash } = conversation;
-  const growth = `${conversationId}:${questions.length}:${live?.text.length}:${live?.outcome?.ok}`;
-  useEffect(() => {
-    const element = scroller.current;
-    if (!element || flash !== undefined || growth === '') return;
-    element.scrollTop = element.scrollHeight;
-  }, [growth, flash]);
-  return scroller;
+  const growth = `${questions.length}:${live?.text.length}:${live?.outcome?.ok}`;
+  const asked = live?.question ?? questions.at(-1)?.question ?? '';
+  return useFollowEnd<HTMLDivElement>({
+    growth,
+    count: questions.length + (live ? 1 : 0),
+    restart: `${conversationId}:${asked}`,
+    paused: flash !== undefined,
+  });
 }
 
 /**
@@ -266,14 +269,14 @@ function AskFoot({
 export function RunAskTab({ run, conversation, onHistory }: RunAskTabProps) {
   const canAsk = useCanAsk();
   const sources = useRunSources(conversation.base);
-  const scroller = useNewestInView(conversation);
+  const follow = useNewestInView(conversation);
   const shapesOnly = sources?.every((source) => (source.accessLevel ?? 0) < 3) ?? false;
   const blank = conversation.questions.length === 0 && !conversation.live;
   const timeZone = run.spec.schedule.timezone;
   return (
     <div className={styles.tab}>
       <ConversationBar conversation={conversation} canAsk={canAsk} />
-      <div className={styles.scroll} ref={scroller}>
+      <div className={styles.scroll} ref={follow.ref} onScroll={follow.onScroll}>
         {shapesOnly && sources && <ExplainOnlyCard sources={sources} subject="report" />}
         {conversation.loaded.failed && (
           <p className={styles.failure}>{conversation.loaded.failed}</p>
@@ -287,6 +290,7 @@ export function RunAskTab({ run, conversation, onHistory }: RunAskTabProps) {
           />
         )}
         <Turns conversation={conversation} spec={run.spec} timeZone={timeZone} />
+        <NewBelow unseen={follow.unseen} noun="answer" onJump={follow.jump} />
       </div>
       <AskFoot run={run} conversation={conversation} canAsk={canAsk} />
     </div>

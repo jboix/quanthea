@@ -210,7 +210,11 @@ gate's leak tests check that every one of those paths drops hidden fields.
   `<Chart spec={panel} frames={frames} />` and nothing about ECharts leaks out.
 - `@ai-sdk/react` is used only in `features/thread` (`ai-react-only-in-thread`).
 - **Thread screen.** The conversation streams through `useChat`, which posts only the new message
-  to `/api/threads/:threadId/chat`; the server holds the conversation. Approving a plan, undoing
+  to `/api/threads/:threadId/chat`; the server holds the conversation. The conversation follows
+  its end while the person is there; once they scroll up to read, it stays where they are, and a
+  button at its foot says what arrived below ("2 new messages", or "More below" while the latest
+  grows) and goes to the end. Sending a message goes to the end again. Ask about this, on a
+  dashboard and on a report run, does the same (`ui/use-follow-end.ts`). Approving a plan, undoing
   and pinning go through the route action, and approving then continues the assistant message.
   The version the draft pane shows lives in `?v=`, so a reload or a shared link keeps it. The new-thread screen is one question box in the middle of the screen, with a Past threads button at the top right. It opens a drawer from the right (from the top on a phone) that searches the titles, filters them by status (All; Live, a thread whose dashboard is pinned or whose alert or report is active, marked Pinned or Active; Drafts, every other one; `filterThreads` in `thread-list.ts`, in the browser), groups the threads by day, and moves one to the bin after asking. With Drafts on, Delete all my drafts asks in a dialog how many ("Move 12 drafts to the bin? You can restore them from the bin until they are purged.") and then moves every draft of the person to the bin at once (`POST /api/threads/drafts/bin`); others' threads are never counted or touched. A thread whose dashboard is pinned, or whose alert or report is active, can't be deleted: its bin button is disabled and says what to do first (`binBlocker`, such as "Deactivate its report first"). A link can fill the question box with `?prompt=` (or `?question=`), for any kind: control characters are dropped and the text is cut to 2,000 characters, and nothing is sent until the person sends it. It creates the thread and hands the first question over in `?ask=`, which the thread screen sends
   once and removes. Each question carries the browser's time zone.

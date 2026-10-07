@@ -5,8 +5,10 @@
  * over; History holds the others.
  */
 import type { Conversation } from '@quanthea/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
+import { NewBelow } from '../../ui/new-below.tsx';
+import { useFollowEnd } from '../../ui/use-follow-end.ts';
 import styles from './ask.module.css';
 import { ConfirmBin, useBinConversation } from './ask-bin.tsx';
 import { askedContextOf, contextChange } from './ask-conversation.ts';
@@ -174,22 +176,23 @@ function NewConversation({
 }
 
 /**
- * Keeps the newest turn in view as the conversation grows, unless a question opened from a search
- * is being shown.
+ * Follows the newest turn while the person is at the end of the conversation, and leaves the
+ * scroll alone once they scroll up to read. Asking, or opening another conversation, goes to the
+ * end; a question opened from a search is left in view.
  *
  * @param conversation - The open conversation.
- * @returns The ref of the scrolling element.
+ * @returns The ref and the scroll handler of the scrolling element.
  */
 function useNewestInView(conversation: ConversationState) {
-  const scroller = useRef<HTMLDivElement>(null);
   const { conversationId, questions, live, flash } = conversation;
-  const growth = `${conversationId}:${questions.length}:${live?.text.length}:${live?.outcome?.ok}`;
-  useEffect(() => {
-    const element = scroller.current;
-    if (!element || flash !== undefined || growth === '') return;
-    element.scrollTop = element.scrollHeight;
-  }, [growth, flash]);
-  return scroller;
+  const growth = `${questions.length}:${live?.text.length}:${live?.outcome?.ok}`;
+  const asked = live?.question ?? questions.at(-1)?.question ?? '';
+  return useFollowEnd<HTMLDivElement>({
+    growth,
+    count: questions.length + (live ? 1 : 0),
+    restart: `${conversationId}:${asked}`,
+    paused: flash !== undefined,
+  });
 }
 
 /**
@@ -284,7 +287,7 @@ function AskFoot({
 export function AskTab({ conversation, onHistory, ...data }: AskTabProps) {
   const canAsk = useCanAsk();
   const sources = useSources(data.dashboard.id, data.version.version);
-  const scroller = useNewestInView(conversation);
+  const follow = useNewestInView(conversation);
   const explainOnly = sources?.every((source) => (source.accessLevel ?? 0) < 3) ?? false;
   const blank = conversation.questions.length === 0 && !conversation.live;
   const failed = conversation.loaded.failed;
@@ -295,7 +298,7 @@ export function AskTab({ conversation, onHistory, ...data }: AskTabProps) {
         dashboardId={data.dashboard.id}
         canAsk={canAsk}
       />
-      <div className={styles.scroll} ref={scroller}>
+      <div className={styles.scroll} ref={follow.ref} onScroll={follow.onScroll}>
         {explainOnly && sources && <ExplainOnlyCard sources={sources} />}
         {failed && <p className={styles.failure}>{failed}</p>}
         {blank && conversation.conversationId === undefined && (
@@ -308,6 +311,7 @@ export function AskTab({ conversation, onHistory, ...data }: AskTabProps) {
           />
         )}
         <Turns conversation={conversation} data={data} />
+        <NewBelow unseen={follow.unseen} noun="answer" onJump={follow.jump} />
       </div>
       <AskFoot conversation={conversation} dashboardId={data.dashboard.id} canAsk={canAsk} />
     </div>
