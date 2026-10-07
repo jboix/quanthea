@@ -2730,7 +2730,8 @@ one, and enables them again. Without any admin, it creates the default one.
   flow with PKCE (S256) and a random state, plus a nonce for OpenID Connect. The verifier, state,
   nonce, intent and destination live in the `__Host-quanthea_flow` cookie (sealed, 10 minutes,
   SameSite=Lax), deleted at the callback, so a callback completes only in the browser that started
-  it, once. Google, GitLab and Entra ID are discovered; the ID token's signature is checked
+  it, once. A sign-in or a link whose callback comes back after the provider was turned off fails
+  (`?error=off`); only an admin's test completes on a provider that is off. Google, GitLab and Entra ID are discovered; the ID token's signature is checked
   against the provider's published keys, with its issuer, audience, expiry and nonce. GitHub has no
   ID token: quanthea reads the person's numeric id and verified primary email from its API. Provider
   tokens are dropped after the callback. Every failure redirects to the page it came from with a

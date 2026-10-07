@@ -289,4 +289,25 @@ describe('signing in through a provider', () => {
     expect(await run(ada)).toMatchObject({ kind: 'signed-in' });
     expect(accounts.identityRows.listOf(declared.id)).toHaveLength(1);
   });
+
+  test('refuses a sign-in or a link that comes back after the provider was turned off', async () => {
+    await enable();
+    const invited = await invite();
+    const principal: Principal = { id: invited, name: 'Ada', role: 'editor' };
+    const started = await Promise.all(
+      (['sign-in', 'link'] as const).map((intent) =>
+        flows().start({ providerId: 'gitlab', intent, next: '/', principal }),
+      ),
+    );
+    const searches = started.map((each) => fake.approve(each.location, ada));
+    accounts.signInSettings.enable('gitlab', false, admin.id);
+    for (const [index, each] of started.entries()) {
+      const search = searches[index] ?? '';
+      const ended = await flows()
+        .finish({ providerId: 'gitlab', search, flowCookie: each.flowCookie, principal })
+        .catch((error: FlowError) => error);
+      expect(ended).toMatchObject({ failure: 'off' });
+    }
+    expect(accounts.identityRows.listOf(invited)).toHaveLength(0);
+  });
 });

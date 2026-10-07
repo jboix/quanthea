@@ -422,12 +422,15 @@ async function finish(
  * @param input.search - The callback's query string, with its `?`.
  * @param input.principal - Who is signed in, for a link or a test.
  * @returns How it ended.
+ * @throws {FlowError} `off` when a sign-in or a link comes back after the provider was turned off.
  */
 async function exchange(
   context: Context,
   flow: FlowState,
   input: { search: string; principal: Principal | null },
 ): Promise<FlowOutcome> {
+  const enabled = context.settings.provider(flow.providerId)?.enabled === true;
+  if (flow.intent !== 'test' && !enabled) throw new FlowError('off');
   const { provider, driver, config } = await clientOf(context, flow.providerId);
   const currentUrl = new URL(`${callbackUrlOf(context.publicUrl, provider.id)}${input.search}`);
   const checks = {
