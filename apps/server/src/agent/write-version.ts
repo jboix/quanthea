@@ -77,23 +77,17 @@ export function reportsOf(context: RunContext, spec: DashboardSpec, run: WriteRu
 }
 
 /**
- * Why the thread may not write now, if it may not.
+ * Why the thread may not write now, if it may not. The run that builds an approved plan may keep
+ * writing after its first save, which makes the thread ready: it has no plan tool to ask again.
  *
  * @param context - The run.
  * @param onlyExistingPanels - Whether the change keeps the set of panels.
- * @param added - How many panels the change adds.
  * @returns The reason, or `undefined` when the write may go ahead.
  */
-function refusal(
-  context: RunContext,
-  onlyExistingPanels: boolean,
-  added: number,
-): string | undefined {
+function refusal(context: RunContext, onlyExistingPanels: boolean): string | undefined {
   const { state } = context.threads.row(context.threadId);
   if (canWrite(state, onlyExistingPanels)) return undefined;
-  // Panels of the approved plan left out earlier in this run may come back without a new plan.
-  if (state === 'ready' && context.counters.leftOut > 0 && added <= context.counters.leftOut)
-    return undefined;
+  if (context.counters.buildingPlan && state === 'ready') return undefined;
   if (state === 'plan_pending') return 'A plan waits for approval. Stop and let the person decide.';
   return 'Propose a plan with propose_plan first. Only a change to existing panels skips the plan.';
 }
@@ -348,7 +342,7 @@ export function writeVersion(
   droppable: ReadonlySet<string>,
   run: WriteRun,
 ): WriteResult {
-  const refused = refusal(context, onlyExistingPanels, droppable.size);
+  const refused = refusal(context, onlyExistingPanels);
   if (refused !== undefined) return { ok: false, error: refused };
   const panels = reportsOf(context, spec, run);
   const markerIssues = run.markerIssues ?? [];
@@ -364,8 +358,6 @@ export function writeVersion(
     const { issues } = checked;
     return failIssues(context, { spec, panels, failing, issues, error: 'The spec is invalid.' });
   }
-  context.counters.leftOut =
-    Math.max(0, context.counters.leftOut - droppable.size) + failing.length;
   if (failing.length === 0)
     return { ok: true, version: saveWhole(context, checked.spec, changeSummary), panels };
   const version = saveBuilt(context, checked.spec, changeSummary);

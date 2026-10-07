@@ -1339,8 +1339,10 @@ schema. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/w
    not checked again.
 4. With the "test-run every query" switch on, a version is saved only with panels that work. New
    panels whose queries fail or whose chart does not fit their data are left out and reported, so
-   the model re-adds only those; it may, in the same run, without a new plan. The panels kept
-   move up into the gaps. Any other failure saves nothing. Either way the counter of failed writes
+   the model re-adds only those. The panels kept move up into the gaps. The run that builds an
+   approved plan may keep writing after its first save, which makes the thread ready: it re-adds
+   panels and adds more without a new plan, since its tools have none to propose. A later run
+   adds panels only through a new plan. Any other failure saves nothing. Either way the counter of failed writes
    goes up. The results go back to the model through the gate.
 5. The first version creates the thread's dashboard; later ones add versions. Each streams a
    `data-version` part, and a `data-diff` part with the changed panels.

@@ -299,7 +299,7 @@ function runContext(
     asked: false,
     failedWrites: 0,
     explaining: false,
-    leftOut: 0,
+    buildingPlan: dependencies.threads.row(request.threadId).state === 'building',
     modelId: modelIdFor(turn.settings, 'build'),
     job: 'build',
     usage: startingUsage(turn.messages, continuing),

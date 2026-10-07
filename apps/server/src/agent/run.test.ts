@@ -538,6 +538,23 @@ describe('an agent run', () => {
     expect(services.threads.get(threadId).state).toBe('building');
   });
 
+  test('keeps building the approved plan after its first save, in the same run', async () => {
+    services.threads.proposePlan(threadId, plan, true);
+    const more = { panels: [eventsPanel('Errors · total', 'stat')], summary: 'one more' };
+    const stream = await chat(
+      agentWith(
+        { tool: 'edit_dashboard', input: buildEdit },
+        { tool: 'edit_dashboard', input: more },
+        { text: 'All three are in.' },
+      ),
+      userMessage('u1', 'Build it'),
+    );
+    expect(stream).not.toContain('Propose a plan with propose_plan first');
+    const { dashboardId } = services.threads.get(threadId);
+    const second = services.dashboards.getVersion(dashboardId ?? '', 2, 'editor').spec;
+    expect(second.panels).toHaveLength(3);
+  });
+
   test('saves the new panels that work, and reports the ones left out', async () => {
     services.threads.proposePlan(threadId, plan, true);
     const mixed = {
