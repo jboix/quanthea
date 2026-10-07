@@ -2040,7 +2040,9 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   ones as dotted names, typed from their values. Nothing in it is code. `describe` lists the
   operations the description has and the settings allow, `GET /orders/{id}`, with their
   parameters, where their rows are and the fields of the rows, following local `$ref`s and
-  `allOf`. `sampleValues` returns the values the description lists (`enum`). A failed response
+  `allOf`. The description is read up to 5 MiB, and a path key longer than 2 KB is skipped, so a
+  hostile description cannot hold the server busy. `sampleValues` returns the values the
+  description lists (`enum`). A failed response
   maps by status; its body may quote data, so only the full message holds it.
 
 ### Query engine (`query/`)

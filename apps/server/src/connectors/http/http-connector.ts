@@ -104,6 +104,9 @@ interface Connection {
 /** How long a read description is reused, in milliseconds. */
 const descriptionTtlMs = 5 * 60_000;
 
+/** The most bytes of an OpenAPI description read. */
+const descriptionMaxBytes = 5 * 1024 * 1024;
+
 /** How long health checks and description reads may take, in milliseconds. */
 const metadataTimeoutMs = 30_000;
 
@@ -362,22 +365,25 @@ function withoutCredentials(url: string): string {
 }
 
 /**
- * Opens a connection: the client with the credentials, and the rules of the settings.
+ * Opens a connection: the client with the credentials, and the rules of the settings. The
+ * description is read through a client of its own, with a smaller byte cap.
  *
  * @param config - The configuration.
  * @param headers - The authentication headers.
  * @returns The connection.
  */
 function connect(config: Config, headers: Readonly<Record<string, string>>): Connection {
-  const client = createHttpClient({
+  const options = {
     baseUrl: config.url,
     sourceName: 'The API',
     headers: { Accept: 'application/json', ...headers },
     verifyTls: config.verifyTls,
-  });
+  };
+  const client = createHttpClient(options);
+  const describer = createHttpClient({ ...options, maxBytes: descriptionMaxBytes });
   const paths = pathRules(config.paths);
   const methods: HttpQuery['method'][] = config.methods === 'GET' ? ['GET'] : ['GET', 'POST'];
-  return { client, methods, paths, operations: operationsReader(client, config, paths), config };
+  return { client, methods, paths, operations: operationsReader(describer, config, paths), config };
 }
 
 /** The HTTP JSON connector kind. */

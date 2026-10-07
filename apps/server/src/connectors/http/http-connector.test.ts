@@ -169,4 +169,39 @@ describe('http OpenAPI descriptions', () => {
       { name: 'n', nativeType: 'integer', type: 'number' },
     ]);
   });
+
+  test('skips a path key past 2 KB, before any pattern runs over it', () => {
+    const long = `/items/${'{'.repeat(50_000)}`;
+    const started = performance.now();
+    const listed = describeApi({ paths: { [long]: { get: {} } } }, ['get'], pathRules('/items/**'));
+    expect(listed.size).toBe(0);
+    expect(performance.now() - started).toBeLessThan(100);
+    const braces = describeApi(
+      { paths: { '/items/{a{b}': { get: {} } } },
+      ['get'],
+      pathRules('/items/*'),
+    );
+    expect([...braces.keys()]).toEqual(['GET /items/{a{b}']);
+  });
+
+  test('reads at most 5 MiB of a description', async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch: () => new Response(`{"x":"${'a'.repeat(6 * 1024 * 1024)}"}`),
+    });
+    try {
+      const connection = httpConnector.open({
+        config: httpConnector.configSchema.parse({
+          url: `http://127.0.0.1:${server.port}`,
+          openapi: '/openapi.json',
+        }),
+        secret: {},
+      });
+      const failure = await connection.describe(AbortSignal.timeout(5000)).catch((error) => error);
+      expect(failure).toMatchObject({ code: 'rejected' });
+      expect(failure.safeMessage).toContain('more than 5 MiB');
+    } finally {
+      server.stop(true);
+    }
+  });
 });

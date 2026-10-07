@@ -300,8 +300,14 @@ function describeOperation(
   return { entity, values: listedValues(fields, parameters) };
 }
 
+/** The longest path key read, in characters: a longer one is skipped, never matched. */
+const maxPathKeyLength = 2048;
+
+/** A path parameter, `{name}`, matched in linear time: no brace inside it. */
+const pathParameter = /\{[^{}]*\}/g;
+
 /**
- * The operations a connector allows, described.
+ * The operations a connector allows, described. A path key longer than 2 KB is skipped.
  *
  * @param document - The parsed description.
  * @param methods - The methods the connector allows, lowercase.
@@ -314,8 +320,8 @@ export function describeApi(
   paths: PathRules,
 ): Map<string, DescribedOperation> {
   const operations = new Map<string, DescribedOperation>();
-  const allowed = Object.entries(document.paths ?? {}).filter(([path]) =>
-    paths.allows(path.replace(/\{[^}]*\}/g, 'x')),
+  const allowed = Object.entries(document.paths ?? {}).filter(
+    ([path]) => path.length <= maxPathKeyLength && paths.allows(path.replace(pathParameter, 'x')),
   );
   for (const [path, item] of allowed) {
     const shared = (item.parameters ?? []) as readonly Parameter[];
