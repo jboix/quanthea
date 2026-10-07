@@ -15,7 +15,8 @@ Add a provider and pick its vendor:
 
 - **Anthropic**, **OpenAI** or **Mistral**: their own APIs.
 - **OpenAI-compatible**: any gateway that speaks the OpenAI API, such as LiteLLM, Ollama,
-  OpenRouter, vLLM, or Gemini's OpenAI endpoint. Give its base URL.
+  OpenRouter, vLLM, or Gemini's OpenAI endpoint. Give its base URL, or pick one of the common
+  ones. The Gemini one also fills in Gemini's models for each job.
 
 Paste the API key. quanthea seals it with its secret key and only ever shows it masked. Give each
 provider a name people recognise ("Mistral free", "Claude for builds"): threads and usage show it.
@@ -35,7 +36,8 @@ Each job can run on its own model. An empty one uses the build model.
 | Titles, tags and descriptions      | Tagging a dashboard when it is pinned                       |
 | Answer questions about a dashboard | [Ask about this](ask-and-explain.md), and explaining panels |
 
-Building needs a strong tool-calling model. Talking, planning and tagging can use a cheaper one.
+Building needs a strong tool-calling model. Talking, planning, tagging and answering can use a
+cheaper one, and each vendor starts them on its cheaper model.
 The model fields list the vendor's current models, then whatever the provider's own API offers;
 you can also type a model id.
 

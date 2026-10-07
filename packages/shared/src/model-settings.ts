@@ -68,7 +68,7 @@ export const defaultModelSettings: ModelSettings = {
     build: 'claude-sonnet-5',
     repair: '',
     metadata: 'claude-haiku-4-5',
-    answer: '',
+    answer: 'claude-haiku-4-5',
   },
   limits: { threadTokens: 1_000_000, toolCallsPerTurn: 25, repairAttempts: 3 },
   behaviour: { planApproval: true, testRun: true, shortReasoning: true, planQueries: false },

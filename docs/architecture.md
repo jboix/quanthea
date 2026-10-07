@@ -3269,8 +3269,10 @@ The model gateway (**Settings → Model**) is a settings section: the saved prov
 one, the limits of a run and the behaviour switches. Each provider has a name (such as "Mistral
 free"), a vendor (Anthropic, OpenAI, Mistral, or an OpenAI-compatible base URL such as LiteLLM,
 Ollama or Gemini's OpenAI endpoint), its base URL, and the model for each job (plan, build, repair,
-metadata, answer). Choosing a vendor fills in its API's base URL and its starting models; the
-OpenAI-compatible choice offers the common gateways' base URLs. The job fields offer the vendor's
+metadata, answer). Choosing a vendor fills in its API's base URL and its starting models: build
+and repair on a strong model, plan, metadata and answer on a cheaper one. The OpenAI-compatible
+choice offers the common gateways' base URLs; the Gemini preset also fills in Gemini's starting
+models (`gatewayPresets`). The job fields offer the vendor's
 current models by name (`providerProfiles` in `@quanthea/shared`), then the rest of the chat models
 the provider's own `/models` API returns (`POST /api/settings/model/models`).
 

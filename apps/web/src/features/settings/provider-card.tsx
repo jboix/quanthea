@@ -137,7 +137,7 @@ function ApiKeyField({ form, stored, issues }: SectionProps & { readonly stored:
 
 /**
  * The base URL: the provider's own API, filled in, or a gateway's, with the common ones a click
- * away.
+ * away. A preset that serves one vendor's models, such as Gemini, also fills in each job's model.
  *
  * @param props - The form and the issues.
  * @returns The field, and the gateway presets for an OpenAI-compatible provider.
@@ -163,7 +163,10 @@ function BaseUrlField({ form, issues }: SectionProps) {
             <Button
               key={preset.name}
               size="small"
-              onClick={() => form.set('baseUrl', preset.baseUrl)}
+              onClick={() => {
+                form.set('baseUrl', preset.baseUrl);
+                if (preset.defaults) form.set('models', { ...preset.defaults });
+              }}
             >
               {preset.name}
             </Button>

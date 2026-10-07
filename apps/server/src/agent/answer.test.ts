@@ -258,7 +258,7 @@ describe('usage and streaming', () => {
     expect(steps.map((step) => step.feature)).toEqual(['question', 'question']);
     expect(services.usage.report(1).buckets.map((bucket) => bucket.userId)).toEqual(['viewer-1']);
     expect(outcome.usage).toEqual({
-      'claude-sonnet-5': { input: 20, cachedInput: 0, cacheWrite: 0, output: 10 },
+      'claude-haiku-4-5': { input: 20, cachedInput: 0, cacheWrite: 0, output: 10 },
     });
   });
 
@@ -314,7 +314,7 @@ describe('usage and streaming', () => {
     expect(types.slice(-2)).toEqual(['data-outcome', 'finish']);
     expect(types.filter((type) => type === 'finish')).toHaveLength(1);
     expect(types.indexOf('tool-output-available')).toBeLessThan(types.indexOf('data-outcome'));
-    expect(parts.at(-1)).toMatchObject({ messageMetadata: { usage: { 'claude-sonnet-5': {} } } });
+    expect(parts.at(-1)).toMatchObject({ messageMetadata: { usage: { 'claude-haiku-4-5': {} } } });
   });
 });
 

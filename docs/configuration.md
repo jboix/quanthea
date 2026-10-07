@@ -207,7 +207,7 @@ model:
         build: claude-sonnet-5
         repair: ''
         metadata: claude-haiku-4-5
-        answer: claude-sonnet-5
+        answer: claude-haiku-4-5
       apiKey: ${ANTHROPIC_API_KEY}
     - id: local
       name: Ollama

@@ -18,7 +18,10 @@ export interface ProviderProfile {
   readonly baseUrl: string | null;
   /** The models offered by name, strongest first. */
   readonly models: readonly KnownModel[];
-  /** The model each job starts with; empty means "same as build". */
+  /**
+   * The model each job starts with; empty means "same as build". Talk, titles and answers start on
+   * the cheaper model, build and repair on the stronger one.
+   */
   readonly defaults: {
     readonly plan: string;
     readonly build: string;
@@ -43,7 +46,7 @@ export const providerProfiles: Readonly<Record<ModelProvider, ProviderProfile>> 
       build: 'claude-sonnet-5',
       repair: '',
       metadata: 'claude-haiku-4-5',
-      answer: '',
+      answer: 'claude-haiku-4-5',
     },
   },
   openai: {
@@ -61,7 +64,7 @@ export const providerProfiles: Readonly<Record<ModelProvider, ProviderProfile>> 
       build: 'gpt-6-sol',
       repair: '',
       metadata: 'gpt-6-luna',
-      answer: '',
+      answer: 'gpt-6-luna',
     },
   },
   mistral: {
@@ -79,7 +82,7 @@ export const providerProfiles: Readonly<Record<ModelProvider, ProviderProfile>> 
       build: 'mistral-large-latest',
       repair: '',
       metadata: 'mistral-small-latest',
-      answer: '',
+      answer: 'mistral-small-latest',
     },
   },
   'openai-compatible': {
@@ -95,11 +98,23 @@ export interface GatewayPreset {
   readonly name: string;
   /** Its OpenAI-compatible base URL. */
   readonly baseUrl: string;
+  /** The model each job starts with, for a gateway that serves one vendor's models. */
+  readonly defaults?: ProviderProfile['defaults'];
 }
 
 /** Gateways people often point quanthea at. */
 export const gatewayPresets: readonly GatewayPreset[] = [
-  { name: 'Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai' },
+  {
+    name: 'Gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    defaults: {
+      plan: 'gemini-3.5-flash-lite',
+      build: 'gemini-3.8-flash',
+      repair: '',
+      metadata: 'gemini-3.5-flash-lite',
+      answer: 'gemini-3.5-flash-lite',
+    },
+  },
   { name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
   { name: 'LiteLLM', baseUrl: 'http://localhost:4000/v1' },
   { name: 'Ollama', baseUrl: 'http://localhost:11434/v1' },
