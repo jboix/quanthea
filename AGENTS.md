@@ -77,7 +77,8 @@ the server's modules in `scripts/arch-server-rules.cjs` and, for the plugin side
 - No model-written code runs anywhere. Biome bans `eval`, `new Function` and
   `dangerouslySetInnerHTML`.
 - The model sees data only through `apps/server/src/gate/`. `agent/` never imports
-  `connectors/`, `query/` or `db/`.
+  `connectors/`, `query/` or `db/`, and every tool passes a run's result through the gate before
+  the model reads it.
 - The browser never sends a query. Variables are bound, never concatenated.
 - Roles are viewer, analyst, editor and admin, weakest first. Every `/api` route declares its
   access (`'public'` or a minimum role) through `mountEndpoint` or, for the few raw routes
