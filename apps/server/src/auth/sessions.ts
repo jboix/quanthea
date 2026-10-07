@@ -87,12 +87,6 @@ export interface Sessions {
    */
   endAllOf(userId: string): number;
   /**
-   * Ends every session of everyone, such as when the authentication mode changes.
-   *
-   * @returns How many ended.
-   */
-  endEvery(): number;
-  /**
    * Lists a user's sessions.
    *
    * @param userId - The user.
@@ -200,7 +194,6 @@ export function createSessions(dependencies: SessionsDependencies): Sessions {
     },
     endOne: (userId, publicId) => repository.removePublic(userId, publicId),
     endAllOf: (userId) => repository.removeAllOf(userId),
-    endEvery: () => repository.removeEvery(),
     list: (userId) =>
       repository.listByUser(userId).map(({ publicId, createdAt, lastSeenAt, expiresAt }) => ({
         publicId,

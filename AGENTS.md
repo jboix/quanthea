@@ -79,11 +79,15 @@ the server's modules in `scripts/arch-server-rules.cjs` and, for the plugin side
 - The model sees data only through `apps/server/src/gate/`. `agent/` never imports
   `connectors/`, `query/` or `db/`.
 - The browser never sends a query. Variables are bound, never concatenated.
-- No dashboard ownership. Roles are admin, editor and viewer. Every `/api` route declares
-  its access (`'public'` or a minimum role) through `mountEndpoint`, and a test fails otherwise.
+- Roles are viewer, analyst, editor and admin, weakest first. Every `/api` route declares its
+  access (`'public'` or a minimum role) through `mountEndpoint` or, for the few raw routes
+  (sign-in, providers, chat), `accessMiddleware`, and a test fails otherwise.
+- A thread belongs to whoever started it, and so do the drafts of the dashboard, alert or report
+  it makes. A pinned dashboard, and an active alert or report, is for everyone. Pinning,
+  unpinning and activating are for the owner of the thread and admins.
 - Versions are never rewritten. Pinning chooses the version shown, and any version can be pinned.
 - The bin holds threads. Deleting a thread moves it there; a thread with a pinned dashboard or
-  an active alert can't be deleted. Usage outlives every purge.
+  an active alert or report can't be deleted. Usage outlives every purge.
 - TypeScript stays on 6.0.x. No path aliases: relative imports inside a workspace,
   package names across workspaces.
 - Library versions are newer than most training data. Read the installed type definitions or the
@@ -144,5 +148,6 @@ Documentation, comments, commit messages and user-facing strings use direct lang
   its own git worktree, and no agent runs `git stash`, `git checkout` or `git restore` on files it
   does not own.
 - Do not add SSR, React Router framework mode, or path aliases.
-- Do not embed an identity provider (no Keycloak). Authentication is open, Basic or generic OIDC.
+- Do not embed an identity provider (no Keycloak). People sign in with a password or through
+  GitHub, Google, GitLab or Entra ID. There is no open mode.
 - Do not weaken a lint, knip or dependency-cruiser rule to get a check green.

@@ -1,6 +1,6 @@
 /**
- * The account services: users, sessions, passwords, sign-in providers and the authentication
- * mode, wired over one database and the keys.
+ * The account services: users, sessions, passwords and sign-in providers, wired over one database
+ * and the keys.
  */
 import type { DefaultAdminDependencies } from './auth/default-admin.ts';
 import { createPasswordAccounts, type PasswordAccounts } from './auth/password-accounts.ts';

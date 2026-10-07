@@ -68,12 +68,6 @@ export interface SessionRepository {
    */
   removeAllOf(userId: string): number;
   /**
-   * Deletes every session.
-   *
-   * @returns How many were deleted.
-   */
-  removeEvery(): number;
-  /**
    * Deletes the sessions past their end or idle for too long.
    *
    * @param now - The current time.
@@ -125,10 +119,7 @@ function toSession(stored: StoredSession): SessionRow {
  */
 function changes(
   database: Database,
-): Pick<
-  SessionRepository,
-  'touch' | 'remove' | 'removePublic' | 'removeAllOf' | 'removeEvery' | 'removeExpired'
-> {
+): Pick<SessionRepository, 'touch' | 'remove' | 'removePublic' | 'removeAllOf' | 'removeExpired'> {
   return {
     touch: (idHash, at) =>
       void database.run('UPDATE sessions SET last_seen_at = ? WHERE id_hash = ?', [at, idHash]),
@@ -140,7 +131,6 @@ function changes(
         .changes > 0,
     removeAllOf: (userId) =>
       database.run('DELETE FROM sessions WHERE user_id = ?', [userId]).changes,
-    removeEvery: () => database.run('DELETE FROM sessions').changes,
     removeExpired: (now, idleSince) =>
       database.run('DELETE FROM sessions WHERE expires_at <= ? OR last_seen_at < ?', [
         now,

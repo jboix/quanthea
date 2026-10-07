@@ -7,7 +7,7 @@ import type { AppEnv } from './app-env.ts';
 /**
  * Creates the middleware that identifies the principal of every request.
  *
- * @param authenticator - Identifies principals for the active authentication mode.
+ * @param authenticator - Identifies principals from their session cookie.
  * @returns The middleware. It sets `principal`, `null` when the request has no valid session.
  */
 export function authenticate(authenticator: Authenticator): MiddlewareHandler<AppEnv> {

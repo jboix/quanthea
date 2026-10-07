@@ -66,14 +66,20 @@ The two paths that matter:
 │   │   └── src/
 │   │       ├── main.ts              bootstrap: config → migrate → jobs → Bun.serve
 │   │       ├── app.ts               Hono app: middleware, /api routes, static SPA + fallback
+│   │       ├── cli.ts               quanthea reset-admin and quanthea plugin, for whoever runs it
+│   │       ├── services.ts          wires the services over one database; the bootstrap and tests
+│   │       ├── accounts.ts          wires users, sessions, passwords and sign-in providers
+│   │       ├── report-services.ts   wires the reports, their run questions and their bin
+│   │       ├── conversation-bins.ts the bin's conversations of both kinds, as one
 │   │       ├── config/              system settings: environment, config file, defaults
 │   │       ├── provisioning/        apply the config file's connectors and settings
 │   │       ├── lib/                 leaf utilities: errors, logger, ids, clock
 │   │       ├── http/                route modules + middleware (auth, errors, request id)
-│   │       ├── auth/                modes none|basic|oidc, sessions, Principal, role checks
+│   │       ├── auth/                passwords, sign-in providers, sessions, users, Principal
 │   │       ├── agent/               AI SDK: provider factory, prompts, tools, run loop
-│   │       ├── gate/                what the model may see: access levels, hidden columns, error sanitizing
-│   │       ├── query/               executor: variable binding, guardrails, timeouts, result cache
+│   │       ├── gate/                what the model may see: access levels, hidden columns, summaries
+│   │       ├── query/               executor: variable binding, guardrails, timeouts, result cache,
+│   │       │                        errors made safe to show (QueryError.safeMessage)
 │   │       ├── connections/         configured connectors: CRUD, sealed secrets, open instances, schema cache
 │   │       ├── connectors/          registry + _shared/ + one folder per kind
 │   │       │   ├── _shared/         the server's kit: the public kit plus its policy lists
@@ -90,6 +96,8 @@ The two paths that matter:
 │   │       ├── settings/            typed settings store (auth, gateway, retention, alerts, reports)
 │   │       ├── secrets/             encrypt/decrypt credentials at rest
 │   │       ├── notifications/       notification channels: one recipe per service, sending, the log
+│   │       ├── plugins/             connector plugins: install, check, pin and load (quanthea plugin)
+│   │       ├── usage/               the token ledger: one row per model step, kept past every purge
 │   │       ├── jobs/                in-process jobs: the hourly purge, the alert evaluator, the
 │   │       │                        report scheduler
 │   │       └── db/                  bun:sqlite client, migrations, repositories
@@ -176,16 +184,16 @@ from `scripts/arch-server-rules.cjs`. The table summarizes them.
 | `plugins/`           | install, check and load connector plugins                   | `config`, `connectors/_shared`, `connectors/registry`, `lib`                                                                | everything else: no `db`, `secrets` or `gate`, so the plugin commands need no database or keys |
 
 Library ownership rules: only `agent/` imports `ai` or `@ai-sdk/*`, and only `db/` imports
-`bun:sqlite`. Only
-the sign-in routes (`http/routes/auth-routes.ts` and `provider-routes.ts`) import `hono/cookie`,
-so no other route can set a session cookie.
+`bun:sqlite`. Each connector kind owns its driver: `postgres` and `mysql2` in their folders, and
+the kit's HTTP client for every kind that speaks HTTP. Only the sign-in routes
+(`http/routes/auth-routes.ts` and `provider-routes.ts`) import `hono/cookie`, so no other route
+can set a session cookie.
 
 The import rules keep `agent/` away from connectors, queries and the database, but they do not
 make it safe alone. The run context hands the agent the Dashboards, Alerts and Reports services,
 whose test runs and replays return raw frames. Each tool passes those results through `gate/`
 (`modelTestResult`, `modelAlertCheck`, `modelAlertReplay`) before the model sees them, and the
-gate's leak tests check that every one of those paths drops hidden fields. Each connector kind owns its driver: `postgres` and `mysql2` in their folders, and
-the kit's HTTP client for every kind that speaks HTTP.
+gate's leak tests check that every one of those paths drops hidden fields.
 
 ## 4. Web modules
 
@@ -2759,10 +2767,18 @@ invalid params, query and body fields in `details`), `unauthorized` (401), `forb
 `source_failed` (502, a data source failed; the message quotes no data) and
 `internal` (500, with the request id and no internal message).
 
-Every endpoint is mounted through `http/endpoint.ts`: it checks the declared access, parses the
+Endpoints are mounted through `http/endpoint.ts`: it checks the declared access, parses the
 input with the contract's schemas, runs the handler, and parses the result with the output schema,
-so fields the contract does not declare never leave the server. Every response carries an
-`X-Request-Id` header. `GET /api/me` answers 401 when the request has no session.
+so fields the contract does not declare never leave the server. A few routes are raw Hono routes
+instead, because they set cookies, redirect or stream: sign-in, sign-out, sign out everywhere,
+set-password, change-password and setup (`http/routes/auth-routes.ts`), a provider's start and
+callback (`provider-routes.ts`), and the chat stream (`chat-route.ts`). Each declares its access
+with `accessMiddleware` and parses its own input; the chat route takes the message as `unknown`
+and hands it to the AI SDK's message validation. A test lists every `/api` route and fails when
+one declares no access, whichever way it was mounted.
+
+Every response carries an `X-Request-Id` header. `GET /api/me` answers 401 when the request has no
+session.
 
 ## 10. Authentication
 
@@ -3088,6 +3104,14 @@ one, and enables them again. Without any admin, it creates the default one.
   address (`createHttpClient`). Nor does the model gateway, which follows no redirect either
   (`settings/gateway-fetch.ts`). Notification channels never call one either, follow no redirect,
   and escape every value for their service (section 5.7).
+- Sign-in providers are called with the global `fetch` and no metadata check. GitHub, Google and
+  Entra ID are fixed public hosts; a self-managed GitLab's base URL is the one an admin typed, as
+  they type a connector's.
+- There is no endpoint that runs a query someone sends by itself. Editors author specs, so the
+  endpoints that run a spec they wrote are within their trust level: `POST /api/alerts/replay`,
+  `POST /api/reports/preview`, `POST /api/panels/run` on a draft version, and, for admins,
+  `POST /api/settings/queries/preview`. The result goes to that person, not to the model, so no
+  access level applies.
 - Secrets are encrypted at rest and never returned by the API (connector GETs show
   `secret: "••••1234"`). See "Keys" below.
 - Audit log entries for pin, bin, restore, purge, snapshots taken and revoked, connector changes
