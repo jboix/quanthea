@@ -64,7 +64,7 @@ function idsOf(body: unknown): string[] {
  */
 export async function listModels(
   request: CatalogRequest,
-  fetchFunction: typeof fetch = gatewayFetch,
+  fetchFunction: typeof gatewayFetch = gatewayFetch,
 ): Promise<Catalog> {
   const base = request.baseUrl ?? providerProfiles[request.provider].baseUrl;
   if (base === null) return { ok: false, message: 'Enter the gateway’s base URL first.' };

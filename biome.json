@@ -140,6 +140,137 @@
       }
     },
     {
+      "includes": ["apps/server/src/**", "!apps/server/src/db/**", "!apps/server/src/agent/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "bun:sqlite": "Only apps/server/src/db/ talks to bun:sqlite. Use a repository.",
+                  "ai": "The model SDK is an implementation detail of apps/server/src/agent/."
+                },
+                "patterns": [
+                  {
+                    "group": ["@ai-sdk/*"],
+                    "message": "The model SDK is an implementation detail of apps/server/src/agent/."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/server/src/agent/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "bun:sqlite": "Only apps/server/src/db/ talks to bun:sqlite. Use a repository."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/server/src/db/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "ai": "The model SDK is an implementation detail of apps/server/src/agent/."
+                },
+                "patterns": [
+                  {
+                    "group": ["@ai-sdk/*"],
+                    "message": "The model SDK is an implementation detail of apps/server/src/agent/."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/server/src/**",
+        "!apps/server/src/notifications/notifications.ts",
+        "!apps/server/src/settings/gateway-fetch.ts",
+        "!apps/server/src/auth/providers/drivers.ts",
+        "!apps/server/src/plugins/**",
+        "!apps/server/src/cli.ts",
+        "!apps/server/src/connectors/_shared/http.ts",
+        "!**/*.test.ts",
+        "!**/test/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "Function": "No model-written code runs. Use a named formatter instead.",
+                  "eval": "No model-written code runs. Use a named formatter instead.",
+                  "fetch": "Outbound calls go through a checked client: createHttpClient, the gateway fetch, or a channel's send."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "Function": "No model-written code runs. Use a named formatter instead.",
+                  "eval": "No model-written code runs. Use a named formatter instead.",
+                  "open": "Navigate with React Router; a link opens a new tab with target and rel."
+                }
+              }
+            }
+          },
+          "nursery": {
+            "noJsRestrictedProperties": {
+              "level": "error",
+              "options": {
+                "entries": [
+                  {
+                    "object": "window",
+                    "property": "open",
+                    "message": "Navigate with React Router; a link opens a new tab with target and rel."
+                  },
+                  {
+                    "object": "globalThis",
+                    "property": "open",
+                    "message": "Navigate with React Router; a link opens a new tab with target and rel."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "apps/server/src/connectors/**",
         "!apps/server/src/connectors/_shared/http.ts",

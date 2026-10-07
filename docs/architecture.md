@@ -3419,6 +3419,17 @@ never reaches a pull request.
 A PR is mergeable only when the `quality` job is green. Warnings from `no-orphans` are reviewed,
 not ignored. Biome's complexity and length limits are errors.
 
+Biome repeats a few boundaries so the pre-commit hook, which runs only Biome, catches them while
+editing:
+
+- `bun:sqlite` is refused outside `apps/server/src/db/`, and `ai` and `@ai-sdk/*` outside
+  `apps/server/src/agent/` (`noRestrictedImports`).
+- The global `fetch` is refused in the server, so every outbound call goes through a checked
+  client. The exceptions are the connector kit's HTTP client, the gateway fetch, the channels'
+  send, the sign-in provider drivers, the plugin fetches and the CLI that hands them their fetch.
+- `window.open` and the global `open` are refused in the web app, so navigation stays in React
+  Router.
+
 ## 17. Releases
 
 The Release workflow (`.github/workflows/release.yml`) runs on demand, from `main` only, one run at
