@@ -69,6 +69,7 @@ server:
 | ------------------ | ------------- | ---------------------------------------------------------------- |
 | `publicUrl`        | none          | The address people reach quanthea at. Sign-in providers need it. |
 | `trustedProxyHops` | `0`           | Reverse proxies in front that add to `X-Forwarded-For`, up to 5. |
+| `host`             | every one     | The address to listen on, such as `127.0.0.1`.                   |
 | `port`             | `3000`        | The HTTP port.                                                   |
 | `dataDir`          | `./data`      | The SQLite database. `/data` in the image.                       |
 | `keysDir`          | `./keys`      | The generated keys. `/keys` in the image.                        |

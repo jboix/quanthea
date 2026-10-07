@@ -70,6 +70,13 @@ describe('loadConfig', () => {
     });
   });
 
+  test('listens on every interface unless a host is given', () => {
+    expect(loadConfig({}).host).toBeUndefined();
+    expect(loadConfig({ QUANTHEA_HOST: '127.0.0.1' }).host).toBe('127.0.0.1');
+    expect(loadConfig({ QUANTHEA_HOST: '::1' }).host).toBe('::1');
+    expect(() => loadConfig({ QUANTHEA_HOST: 'http://127.0.0.1' })).toThrow(/QUANTHEA_HOST/);
+  });
+
   test('names every invalid variable', () => {
     const failure = () => loadConfig({ QUANTHEA_PORT: 'eighty', QUANTHEA_LOG_LEVEL: 'loud' });
     expect(failure).toThrow(/QUANTHEA_PORT/);

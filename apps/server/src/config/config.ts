@@ -74,6 +74,14 @@ export const settingSpecs = {
     schema: z.coerce.number().int().min(0).max(5),
     fallback: 0,
   },
+  host: {
+    variable: 'QUANTHEA_HOST',
+    label: 'Listen address',
+    schema: z
+      .string()
+      .regex(/^[0-9A-Za-z.:-]+$/, 'A host name or an IP address, such as 127.0.0.1.'),
+    fallback: undefined,
+  },
   port: {
     variable: 'QUANTHEA_PORT',
     label: 'HTTP port',
@@ -140,6 +148,8 @@ export type SettingKey = keyof typeof settingSpecs;
 
 /** The server configuration. Everything else lives in the settings store. */
 export interface Config {
+  /** The address the server listens on; `undefined` listens on every interface. */
+  readonly host: string | undefined;
   /** The HTTP port. */
   readonly port: number;
   /** Absolute path of the directory holding the SQLite database. */
@@ -349,6 +359,7 @@ export function loadConfig(environment: Environment, workingDir: string = proces
   const settings = values as SettingValues;
   const dataDir = resolve(workingDir, settings.dataDir);
   return {
+    host: settings.host,
     port: settings.port,
     dataDir,
     keysDir: resolve(workingDir, settings.keysDir),

@@ -3221,6 +3221,7 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
 
 | Variable                      | Default         | Purpose                                                             |
 | ----------------------------- | --------------- | ------------------------------------------------------------------- |
+| `QUANTHEA_HOST`               | _(unset)_       | the address to listen on; every interface when unset                |
 | `QUANTHEA_PORT`               | `3000`          | HTTP port                                                           |
 | `QUANTHEA_DATA_DIR`           | `./data`        | SQLite database                                                     |
 | `QUANTHEA_KEYS_DIR`           | `./keys`        | generated keys, outside the data directory                          |
@@ -3240,6 +3241,9 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
   `bun --hot apps/server/src/main.ts` (3000).
 - `bun run env:up` starts the local data sources in `dev/docker-compose.yml`, and `bun run env:down`
   deletes them with their data.
+- Every dev data source publishes its port on `127.0.0.1` only, since its passwords are in the
+  repository. `bun run demo` and `bun run screenshots` start quanthea with `QUANTHEA_HOST=127.0.0.1`
+  for the same reason.
 - `bun run dev:seed` signs in as the admin `QUANTHEA_ADMIN_EMAIL` and `QUANTHEA_ADMIN_PASSWORD` name,
   adds the dev connectors (`postgres-orders`, `prometheus-dev`) to a running server, then creates
   and pins the checkout incident dashboard

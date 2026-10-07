@@ -19,6 +19,11 @@
           "minimum": 0,
           "maximum": 5
         },
+        "host": {
+          "description": "Listen address. QUANTHEA_HOST overrides it.",
+          "type": "string",
+          "pattern": "^[0-9A-Za-z.:-]+$"
+        },
         "port": {
           "description": "HTTP port. QUANTHEA_PORT overrides it.",
           "type": "integer",

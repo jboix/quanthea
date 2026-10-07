@@ -31,6 +31,7 @@ function startServer() {
       QUANTHEA_CONFIG: join(import.meta.dir, 'quanthea.yaml'),
       QUANTHEA_DATA_DIR: join(state, 'data'),
       QUANTHEA_KEYS_DIR: join(state, 'keys'),
+      QUANTHEA_HOST: '127.0.0.1',
       QUANTHEA_PORT: new URL(baseUrl).port,
       QUANTHEA_SHOTS_PASSWORD: password,
       QUANTHEA_SHOTS_DB_PASSWORD: 'dash-ro-dev',
@@ -70,7 +71,11 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 // The channels' webhooks land here, so no message leaves the machine.
-const receiver = Bun.serve({ port: 3991, fetch: () => new Response(null, { status: 204 }) });
+const receiver = Bun.serve({
+  hostname: '127.0.0.1',
+  port: 3991,
+  fetch: () => new Response(null, { status: 204 }),
+});
 const server = startServer();
 // Ctrl-C skips the finally below, so the server would outlive the script.
 for (const signal of ['SIGINT', 'SIGTERM'] as const)

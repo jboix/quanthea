@@ -23,6 +23,8 @@ const server = Bun.spawn(['bun', join(root, 'apps/server/src/main.ts')], {
     QUANTHEA_CONFIG: join(import.meta.dir, 'quanthea.yaml'),
     QUANTHEA_DATA_DIR: join(root, '.demo/data'),
     QUANTHEA_KEYS_DIR: join(root, '.demo/keys'),
+    // The demo's admin password is in the repository: listen on this machine only.
+    QUANTHEA_HOST: '127.0.0.1',
     // The demo's own passwords: the first admin's, and the dev database's read-only role.
     QUANTHEA_DEMO_PASSWORD: password,
     QUANTHEA_DEMO_DB_PASSWORD: 'dash-ro-dev',

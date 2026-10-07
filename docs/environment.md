@@ -12,6 +12,7 @@ quanthea reads them at startup. Restart it to apply a change.
 | --------------------------------- | -------------------- | --------------- | ----------------------------------------------------------------------------- |
 | `QUANTHEA_PUBLIC_URL`             | none                 | none            | The address people reach quanthea at, such as `https://quanthea.example.com`. |
 | `QUANTHEA_TRUSTED_PROXY_HOPS`     | `0`                  | `0`             | Reverse proxies in front that add to `X-Forwarded-For`, up to 5.              |
+| `QUANTHEA_HOST`                   | every interface      | every interface | The address to listen on, such as `127.0.0.1` for this machine only.          |
 | `QUANTHEA_PORT`                   | `3000`               | `3000`          | The HTTP port.                                                                |
 | `QUANTHEA_DATA_DIR`               | `./data`             | `/data`         | The SQLite database.                                                          |
 | `QUANTHEA_KEYS_DIR`               | `./keys`             | `/keys`         | The keys quanthea generates. Never inside the data directory.                 |

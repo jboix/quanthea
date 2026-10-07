@@ -32,6 +32,8 @@
 #   its OpenAPI description at /openapi.json; /api routes need Authorization: Bearer dev-token.
 # - loki (profile "loki"): on localhost:3101 (dev/loki), with the same logs, seeded by loki-seed.
 #
+# Every port listens on 127.0.0.1 only: the passwords above are in the repository.
+#
 # Every source tells the same story: deploy #481 of checkout-svc, yesterday at 12:02 UTC,
 # and the errors that follow. Each `env:up` script runs dev/refresh.ts first, which removes the
 # volumes seeded before today, so the incident is always yesterday. `bun run env:down` deletes all
@@ -47,7 +49,7 @@ services:
       POSTGRES_USER: quanthea_admin
       POSTGRES_PASSWORD: quanthea-dev
     ports:
-      - '5433:5432'
+      - '127.0.0.1:5433:5432'
     volumes:
       - ./postgres:/docker-entrypoint-initdb.d:ro
       - postgres-data:/var/lib/postgresql
@@ -97,7 +99,7 @@ services:
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=15d
     ports:
-      - '9091:9090'
+      - '127.0.0.1:9091:9090'
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
@@ -116,7 +118,7 @@ services:
       POSTGRES_PASSWORD: quanthea-dev
       TIMESCALEDB_TELEMETRY: 'off'
     ports:
-      - '5434:5432'
+      - '127.0.0.1:5434:5432'
     volumes:
       # File by file: the image's own scripts in the same directory install the extension first.
       - ./postgres/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
@@ -139,7 +141,7 @@ services:
       MYSQL_PASSWORD: quanthea-dev
       MYSQL_ROOT_PASSWORD: quanthea-root-dev
     ports:
-      - '3307:3306'
+      - '127.0.0.1:3307:3306'
     volumes:
       - ./mysql:/docker-entrypoint-initdb.d:ro
       - mysql-data:/var/lib/mysql
@@ -159,7 +161,7 @@ services:
       MARIADB_PASSWORD: quanthea-dev
       MARIADB_ROOT_PASSWORD: quanthea-root-dev
     ports:
-      - '3308:3306'
+      - '127.0.0.1:3308:3306'
     volumes:
       - ./mysql:/docker-entrypoint-initdb.d:ro
       - mariadb-data:/var/lib/mysql
@@ -178,7 +180,7 @@ services:
       CLICKHOUSE_PASSWORD: quanthea-dev
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
     ports:
-      - '8124:8123'
+      - '127.0.0.1:8124:8123'
     volumes:
       - ./clickhouse:/docker-entrypoint-initdb.d:ro
       - clickhouse-data:/var/lib/clickhouse
@@ -198,7 +200,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - '8081:8080'
+      - '127.0.0.1:8081:8080'
     volumes:
       - ./trino/catalog:/etc/trino/catalog:ro
     healthcheck:
@@ -215,7 +217,7 @@ services:
       xpack.security.enabled: 'false'
       ES_JAVA_OPTS: -Xms512m -Xmx512m
     ports:
-      - '9201:9200'
+      - '127.0.0.1:9201:9200'
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     healthcheck:
@@ -233,7 +235,7 @@ services:
       DISABLE_INSTALL_DEMO_CONFIG: 'true'
       OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
     ports:
-      - '9202:9200'
+      - '127.0.0.1:9202:9200'
     volumes:
       - opensearch-data:/usr/share/opensearch/data
     healthcheck:
@@ -262,7 +264,7 @@ services:
       - --data-dir=/var/lib/influxdb3/data
       - --admin-token-file=/etc/influxdb3/admin-token.json
     ports:
-      - '8186:8181'
+      - '127.0.0.1:8186:8181'
     volumes:
       - ./influxdb/admin-token.json:/etc/influxdb3/admin-token.json:ro
       - influxdb-data:/var/lib/influxdb3
@@ -299,7 +301,7 @@ services:
       - '+acl|whoami'
       - '+acl|dryrun'
     ports:
-      - '6380:6379'
+      - '127.0.0.1:6380:6379'
     volumes:
       - valkey-data:/data
     healthcheck:
@@ -324,7 +326,7 @@ services:
       MONGO_INITDB_ROOT_USERNAME: quanthea_admin
       MONGO_INITDB_ROOT_PASSWORD: quanthea-dev
     ports:
-      - '27018:27017'
+      - '127.0.0.1:27018:27017'
     volumes:
       - mongodb-data:/data/db
     healthcheck:
@@ -350,7 +352,7 @@ services:
       - ./:/dev-sources:ro
     command: ['bun', 'http-api/serve.ts']
     ports:
-      - '8085:8080'
+      - '127.0.0.1:8085:8080'
     healthcheck:
       test: ['CMD', 'bun', '-e', "const r = await fetch('http://127.0.0.1:8080/health'); process.exit(r.ok ? 0 : 1)"]
       interval: 2s
@@ -362,7 +364,7 @@ services:
     image: grafana/loki:3.7.8
     command: ['-config.file=/etc/loki/config.yaml']
     ports:
-      - '3101:3100'
+      - '127.0.0.1:3101:3100'
     volumes:
       - ./loki/config.yaml:/etc/loki/config.yaml:ro
       - loki-data:/loki

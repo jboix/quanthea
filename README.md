@@ -91,6 +91,7 @@ it comes from. Everything else lives in Settings.
 
 | Variable                      | Default         | Purpose                                                                                                      |
 | ----------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------ |
+| `QUANTHEA_HOST`               | every interface | The address to listen on, such as `127.0.0.1` for this machine only.                                         |
 | `QUANTHEA_PORT`               | `3000`          | HTTP port.                                                                                                   |
 | `QUANTHEA_DATA_DIR`           | `./data`        | Holds the SQLite database. Created with mode 0700. `/data` in the image.                                     |
 | `QUANTHEA_KEYS_DIR`           | `./keys`        | Holds the keys quanthea generates. Created with mode 0700, outside the data directory. `/keys` in the image. |

@@ -87,7 +87,13 @@ const stopAlertEvaluator = startAlertEvaluator({
 const stopReportScheduler = startReportScheduler({ reports: services.reports, logger });
 
 // A model call or a chat stream can go quiet for longer than Bun's default of 10 seconds.
-const server = Bun.serve({ port: config.port, fetch: app.fetch, idleTimeout: 255 });
+// Without a host, Bun listens on every interface.
+const server = Bun.serve({
+  ...(config.host === undefined ? {} : { hostname: config.host }),
+  port: config.port,
+  fetch: app.fetch,
+  idleTimeout: 255,
+});
 logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir: config.webDir });
 
 /**
