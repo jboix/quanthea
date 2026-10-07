@@ -88,7 +88,8 @@ export interface Dashboards {
    * @param actor - Who pins it.
    * @param describe - Writes the description and tags, once the version passes its checks.
    * @returns The dashboard.
-   * @throws {AppError} `bad_request` when it is the one shown already, invalid, or a panel fails.
+   * @throws {AppError} `bad_request` when it is the one shown already, invalid, a panel fails, or
+   *   its thread is in the bin.
    */
   pin(
     id: string,
@@ -268,7 +269,10 @@ async function pin(
     description: spec.description ?? described?.description ?? null,
     tags: described?.tags ?? [],
   };
-  if (!context.repository.pin(id, change))
+  const outcome = context.repository.pin(id, change);
+  if (outcome === 'binned')
+    throw new AppError('bad_request', 'Its thread is in the bin. Restore it before pinning.');
+  if (outcome === 'missing')
     throw new AppError('not_found', `Dashboard ${id} has no version ${version}.`);
   context.audit.append({ actor, action: 'dashboard.pin', target: id, detail: { version } });
   return get(context, id, 'editor');

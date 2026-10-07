@@ -544,6 +544,9 @@ shown.
    The dashboards service gets it as a function, so `dashboards/` never imports the agent.
 3. Set `dashboards.pinned_version_id`, the title from the version, the description from the
    version or else the model's, and the tags.
+   The same `UPDATE` checks the dashboard's thread is not in the bin, since the test run and the
+   model take seconds and the thread can be binned meanwhile; the pin is then refused (400, "in
+   the bin").
    The version keeps `pinned_at`, the time it was first pinned. A trigger on `dashboards` rewrites
    the dashboard's rows in the library index.
 

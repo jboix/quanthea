@@ -21,7 +21,7 @@ import {
 import type { AppEnv } from '../app-env.ts';
 import { authenticate } from '../authenticate.ts';
 import { handleErrors, handleNotFound } from '../error-handling.ts';
-import { mountDashboardEndpoints } from './dashboard-routes.ts';
+import { type DashboardRouteOptions, mountDashboardEndpoints } from './dashboard-routes.ts';
 
 const editor: Principal = { id: 'editor-1', name: 'Eddie', role: 'editor' };
 const viewer: Principal = { id: 'viewer-1', name: 'Vera', role: 'viewer' };
@@ -46,13 +46,15 @@ afterEach(async () => {
  * An app with the dashboard routes, acting as a principal.
  *
  * @param principal - Who the requests act as.
+ * @param describe - Writes a pinned dashboard's description and tags; none when left out.
  * @returns A function that sends a JSON request and returns the status and body.
  */
-function client(principal: Principal) {
+function client(principal: Principal, describe?: DashboardRouteOptions['describe']) {
   const app = new Hono<AppEnv>();
   app.use(requestId());
   app.use(authenticate(fixedAuthenticator(principal)));
-  mountDashboardEndpoints(app, fixture.dashboards, { ownerOf: fixture.bin.ownerOf });
+  const options = { ownerOf: fixture.bin.ownerOf, ...(describe ? { describe } : {}) };
+  mountDashboardEndpoints(app, fixture.dashboards, options);
   app.onError(handleErrors(captureLogs().logger));
   app.notFound(handleNotFound);
   return async (method: string, path: string, body?: unknown) => {
@@ -104,6 +106,23 @@ describe('dashboard routes', () => {
     const page = await asAnalyst('GET', `/api/dashboards/${id}`);
     expect(dashboardPageSchema.parse(page.body).canChange).toBe(false);
     expect((await asAnalyst('POST', `/api/dashboards/${id}/unpin`)).status).toBe(403);
+  });
+
+  test('refuses a pin whose thread went to the bin while its panels ran', async () => {
+    const created = await client(editor)('POST', '/api/dashboards', { spec: eventsSpec() });
+    const { id } = dashboardDetailSchema.parse(created.body);
+    const thread = fixture.threads.create('editor-1');
+    fixture.threads.attachDashboard(thread.id, id, 'Events');
+    const binMeanwhile = async () => {
+      fixture.bin.bin(thread.id, 'editor-1');
+      return null;
+    };
+    const pinned = await client(editor, binMeanwhile)('POST', `/api/dashboards/${id}/pin`, {
+      version: 1,
+    });
+    expect(pinned.status).toBe(400);
+    expect(apiErrorBodySchema.parse(pinned.body).error.message).toContain('in the bin');
+    expect(fixture.dashboards.get(id, 'editor').pinnedVersion).toBeNull();
   });
 
   test('names the thread that edits a dashboard, while the thread exists', async () => {

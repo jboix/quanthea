@@ -68,7 +68,7 @@ describe('dashboard repository', () => {
       description: 'd',
       tags: ['checkout'],
     };
-    expect(repository.pin(dashboard.id, change)).toBe(true);
+    expect(repository.pin(dashboard.id, change)).toBe('pinned');
     expect(repository.get(dashboard.id)).toMatchObject({
       pinnedVersionId: firstVersion.id,
       title: 'Pinned',
@@ -76,7 +76,7 @@ describe('dashboard repository', () => {
       updatedAt: 2000,
     });
     expect(repository.getVersion(dashboard.id, 1)?.pinnedAt).toBe(2000);
-    expect(repository.pin('another', change)).toBe(false);
+    expect(repository.pin('another', change)).toBe('missing');
   });
 
   test('refuses to change any version, or its first pin time, whatever the code does', () => {
@@ -120,11 +120,11 @@ describe('dashboard repository', () => {
       description: null,
       tags: [],
     };
-    expect(repository.pin(dashboard.id, change)).toBe(true);
+    expect(repository.pin(dashboard.id, change)).toBe('pinned');
     expect(repository.unpin(dashboard.id, 3000)).toBe(true);
     expect(repository.unpin(dashboard.id, 3000)).toBe(false);
     expect(repository.get(dashboard.id)?.pinnedVersionId).toBeNull();
-    expect(repository.pin(dashboard.id, { ...change, at: 4000 })).toBe(true);
+    expect(repository.pin(dashboard.id, { ...change, at: 4000 })).toBe('pinned');
     expect(repository.get(dashboard.id)?.pinnedVersionId).toBe(firstVersion.id);
     expect(repository.getVersion(dashboard.id, 1)?.pinnedAt).toBe(2000);
   });
