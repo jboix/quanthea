@@ -2,204 +2,118 @@
  * Finds the text-variable patterns that could block the server: a pattern runs on every value a
  * viewer types, in a backtracking engine. Exponential time comes from a repeated group that holds a
  * quantifier or an alternation (`(a+)+`, `(a|aa)*`) and from back-references; polynomial time from
- * many quantifiers whose spans vary (`\d*\d*\d*\d*\d*`). The check is conservative: it refuses some
- * patterns that would run fast, never one that could not.
+ * quantifiers whose spans vary (`\d*\d*\d*\d*\d*`) and alternatives, whose choices multiply. The
+ * check is conservative: it refuses some patterns that would run fast, never one that could not.
  */
-
-/** A token of a pattern, as far as backtracking goes. */
-type Token =
-  | {
-      readonly kind: 'open' | 'close' | 'alternation' | 'atom' | 'backReference';
-      readonly end: number;
-    }
-  | {
-      readonly kind: 'quantifier';
-      readonly end: number;
-      /** Whether it may match more than once, such as `+` or `{2}`. */
-      readonly repeats: boolean;
-      /** Whether its span varies, such as `?`, `*` or `{1,3}`. */
-      readonly varies: boolean;
-    };
+import { maxTextValueLength } from '@quanthea/shared';
+import { delimitedGroup } from './delimited-group.ts';
+import { type Token, tokenAt } from './pattern-tokens.ts';
 
 /** What a group holds so far. */
 interface GroupState {
+  /** Where its body starts. */
+  readonly start: number;
   /** Whether it holds a quantifier, at any depth. */
   quantified: boolean;
   /** Whether it holds an alternation, at any depth. */
   alternation: boolean;
+  /** How many alternatives it has at its own level. */
+  branches: number;
 }
 
-/** The most quantifiers whose spans vary, so a match of at most 100 characters stays fast. */
-const maxVaryingQuantifiers = 4;
-
-/** How many times a quantifier matches, at least and at most. */
-interface Span {
-  /** The least. */
-  readonly least: number;
-  /** The most, `Infinity` when unbounded. */
-  readonly most: number;
+/** A group the scan has closed. */
+interface ClosedGroup extends GroupState {
+  /** Its body, between its opening and its `)`. */
+  readonly body: string;
 }
 
-/** The spans of `*`, `+` and `?`. */
-const symbolSpans: ReadonlyMap<string, Span> = new Map([
-  ['*', { least: 0, most: Number.POSITIVE_INFINITY }],
-  ['+', { least: 1, most: Number.POSITIVE_INFINITY }],
-  ['?', { least: 0, most: 1 }],
-]);
+/** Where the scan is. */
+interface Scan {
+  /** The open groups, the whole pattern first. */
+  readonly groups: GroupState[];
+  /** The group the previous token closed, if any. */
+  closed: ClosedGroup | undefined;
+  /** The product of every quantifier's and alternation's choices so far. */
+  choices: number;
+}
 
-/** A counted quantifier: `{n}`, `{n,}` or `{n,m}`. */
-const counted = /^\{(\d+)(,(\d*))?\}/;
-
-/** A named group's opening, `(?<name>`. */
-const namedGroup = /^\(\?<[A-Za-z_$][\w$]*>/;
+/**
+ * The most choices a pattern may multiply: those of four unbounded quantifiers on a value of the
+ * longest length, which a match still runs through in milliseconds.
+ */
+const maxChoices = (maxTextValueLength + 1) ** 4;
 
 /** Why a repeated group is refused. */
 const exponentialProblem =
   'The pattern repeats a group that holds a quantifier or an alternation, or refers back to a group, which can take exponential time. Write it without, such as [a-z0-9-]+.';
 
-/** Why many varying quantifiers are refused. */
-const polynomialProblem = `The pattern has more than ${maxVaryingQuantifiers} quantifiers such as ?, *, + or {1,3}, which can take a long time. Write a simpler one.`;
+/** Why many varying quantifiers and alternatives are refused. */
+const polynomialProblem =
+  'The pattern has too many quantifiers such as ?, *, + or {1,3}, and alternatives, which can take a long time. Write a simpler one.';
 
 /**
  * A new, empty group.
  *
+ * @param start - Where its body starts.
  * @returns The state.
  */
-function newGroup(): GroupState {
-  return { quantified: false, alternation: false };
-}
-
-/**
- * The token of an escape: a back-reference (`\1`, `\k<name>`) or one character.
- *
- * @param pattern - The pattern.
- * @param index - Where the backslash is.
- * @returns The token.
- */
-function escapeAt(pattern: string, index: number): Token {
-  const next = pattern[index + 1] ?? '';
-  const kind = /[1-9k]/.test(next) ? 'backReference' : 'atom';
-  return { kind, end: index + 2 };
-}
-
-/**
- * Where a character class ends.
- *
- * @param pattern - The pattern.
- * @param index - Where the `[` is.
- * @returns The index after its `]`.
- */
-function classEnd(pattern: string, index: number): number {
-  let at = index + 1;
-  while (at < pattern.length && pattern[at] !== ']') at += pattern[at] === '\\' ? 2 : 1;
-  return at + 1;
-}
-
-/**
- * Where a group's opening ends: after `(`, `(?:`, `(?=`, `(?!`, `(?<=`, `(?<!` or `(?<name>`.
- *
- * @param pattern - The pattern.
- * @param index - Where the `(` is.
- * @returns The index after the opening.
- */
-function openingEnd(pattern: string, index: number): number {
-  if (pattern[index + 1] !== '?') return index + 1;
-  const named = namedGroup.exec(pattern.slice(index));
-  if (named) return index + named[0].length;
-  return index + (pattern[index + 2] === '<' ? 4 : 3);
-}
-
-/**
- * The span of a counted quantifier.
- *
- * @param count - The match of {@link counted}.
- * @returns The least and most times it matches.
- */
-function countedSpan(count: RegExpExecArray): Span {
-  const least = Number(count[1]);
-  if (count[2] === undefined) return { least, most: least };
-  return { least, most: count[3] ? Number(count[3]) : Number.POSITIVE_INFINITY };
-}
-
-/**
- * The quantifier at an index, with its lazy `?` if any.
- *
- * @param pattern - The pattern.
- * @param index - The index.
- * @returns The token, or `undefined` when there is none.
- */
-function quantifierAt(pattern: string, index: number): Token | undefined {
-  const count = counted.exec(pattern.slice(index));
-  const span = count ? countedSpan(count) : symbolSpans.get(pattern[index] ?? '');
-  if (!span) return undefined;
-  const end = index + (count?.[0].length ?? 1);
-  return {
-    kind: 'quantifier',
-    end: pattern[end] === '?' ? end + 1 : end,
-    repeats: span.most > 1,
-    varies: span.most > span.least,
-  };
-}
-
-/**
- * The token at an index.
- *
- * @param pattern - The pattern.
- * @param index - The index.
- * @returns The token.
- */
-function tokenAt(pattern: string, index: number): Token {
-  const char = pattern[index];
-  if (char === '\\') return escapeAt(pattern, index);
-  if (char === '[') return { kind: 'atom', end: classEnd(pattern, index) };
-  if (char === '(') return { kind: 'open', end: openingEnd(pattern, index) };
-  if (char === ')') return { kind: 'close', end: index + 1 };
-  if (char === '|') return { kind: 'alternation', end: index + 1 };
-  return quantifierAt(pattern, index) ?? { kind: 'atom', end: index + 1 };
+function newGroup(start: number): GroupState {
+  return { start, quantified: false, alternation: false, branches: 1 };
 }
 
 /**
  * Closes the innermost group, passing what it holds to the group around it.
  *
- * @param groups - The open groups, the whole pattern first.
+ * @param scan - The scan.
+ * @param body - The group's body.
  * @returns The closed group, or `undefined` for a stray `)`.
  */
-function closeGroup(groups: GroupState[]): GroupState | undefined {
-  if (groups.length < 2) return undefined;
-  const group = groups.pop() ?? newGroup();
-  const parent = groups.at(-1) ?? newGroup();
+function closeGroup(scan: Scan, body: string): ClosedGroup | undefined {
+  if (scan.groups.length < 2) return undefined;
+  const group = scan.groups.pop() ?? newGroup(0);
+  const parent = scan.groups.at(-1) ?? newGroup(0);
   parent.quantified ||= group.quantified;
   parent.alternation ||= group.alternation;
-  return group;
+  scan.choices *= group.branches;
+  return { ...group, body };
 }
 
 /**
- * Applies a token to the open groups.
+ * Applies a token to the scan.
  *
- * @param groups - The open groups, the whole pattern first.
+ * @param scan - The scan.
  * @param token - The token.
- * @returns The group the token closed, if it closed one.
+ * @param pattern - The pattern.
+ * @param index - Where the token starts.
  */
-function step(groups: GroupState[], token: Token): GroupState | undefined {
-  const current = groups.at(-1) ?? newGroup();
-  if (token.kind === 'open') groups.push(newGroup());
-  if (token.kind === 'alternation') current.alternation = true;
-  if (token.kind === 'quantifier') current.quantified = true;
-  return token.kind === 'close' ? closeGroup(groups) : undefined;
+function step(scan: Scan, token: Token, pattern: string, index: number): void {
+  const current = scan.groups.at(-1) ?? newGroup(0);
+  if (token.kind === 'open') scan.groups.push(newGroup(token.end));
+  if (token.kind === 'alternation') {
+    current.alternation = true;
+    current.branches += 1;
+  }
+  if (token.kind === 'quantifier') {
+    current.quantified = true;
+    scan.choices *= token.choices;
+  }
+  scan.closed =
+    token.kind === 'close' ? closeGroup(scan, pattern.slice(current.start, index)) : undefined;
 }
 
 /**
  * Whether a token makes the pattern exponential: a back-reference, or a repeating quantifier on a
- * group that holds a quantifier or an alternation.
+ * group that holds an alternation, or a quantifier unless its iterations cannot overlap.
  *
  * @param token - The token.
  * @param closed - The group the previous token closed, if any.
  * @returns `true` when it does.
  */
-function exponential(token: Token, closed: GroupState | undefined): boolean {
+function exponential(token: Token, closed: ClosedGroup | undefined): boolean {
   if (token.kind === 'backReference') return true;
   if (token.kind !== 'quantifier' || !token.repeats || !closed) return false;
-  return closed.quantified || closed.alternation;
+  if (closed.alternation) return true;
+  return closed.quantified && !delimitedGroup(closed.body);
 }
 
 /**
@@ -209,15 +123,13 @@ function exponential(token: Token, closed: GroupState | undefined): boolean {
  * @returns The problem, in words for the author, or `undefined` for a safe pattern.
  */
 export function slowPattern(pattern: string): string | undefined {
-  const groups = [newGroup()];
-  let closed: GroupState | undefined;
-  let varying = 0;
+  const scan: Scan = { groups: [newGroup(0)], closed: undefined, choices: 1 };
   for (let index = 0; index < pattern.length; ) {
     const token = tokenAt(pattern, index);
-    if (exponential(token, closed)) return exponentialProblem;
-    if (token.kind === 'quantifier' && token.varies) varying += 1;
-    closed = step(groups, token);
+    if (exponential(token, scan.closed)) return exponentialProblem;
+    step(scan, token, pattern, index);
     index = token.end;
   }
-  return varying > maxVaryingQuantifiers ? polynomialProblem : undefined;
+  const choices = scan.choices * (scan.groups[0]?.branches ?? 1);
+  return choices > maxChoices ? polynomialProblem : undefined;
 }

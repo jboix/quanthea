@@ -104,4 +104,12 @@ describe('a text variable', () => {
     );
     expect(performance.now() - started).toBeLessThan(100);
   });
+
+  test("binds an older version's default without running its pattern", async () => {
+    const spec = textSpec('(a+)+b');
+    expect((await resolveVariables(spec, {}, loader())).order).toEqual({ value: 'ab' });
+    expect((await resolveVariables(spec, { order: 'ab' }, loader())).order).toEqual({
+      value: 'ab',
+    });
+  });
 });

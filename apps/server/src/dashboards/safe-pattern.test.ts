@@ -14,6 +14,11 @@ describe('slowPattern', () => {
       '\\(a+\\)+',
       '(?<year>\\d{4})-\\d{2}',
       '\\d+-\\d+-\\d+-\\d+',
+      '\\d{1,3}(?:\\.\\d{1,3}){3}',
+      '[a-z]+(?:-[a-z]+)*',
+      '\\w+(?:\\.\\w+)*@\\w+',
+      'a?a?a?a?a?aaaaa',
+      '(?:prod|staging|dev)-(?:eu|us)-\\d+',
     ])
       expect(slowPattern(pattern)).toBeUndefined();
   });
@@ -32,12 +37,22 @@ describe('slowPattern', () => {
       '(a)\\1',
       '(?<x>a)\\k<x>',
       '(.*a){12}',
+      '(?:-[a-z]+[a-z]+)*',
+      '(?:-\\x2d*)*',
+      '(?:-[a-z-]+)*',
+      '(?:-[a-z]*x?)+',
     ])
       expect(slowPattern(pattern)).toContain('exponential time');
   });
 
-  test('flags more than four quantifiers whose spans vary', () => {
-    for (const pattern of ['\\d*\\d*\\d*\\d*\\d*!', 'a?a?a?a?a?aaaaa', '.{1,9}.*.+x?y*'])
-      expect(slowPattern(pattern)).toContain('more than 4 quantifiers');
+  test('flags quantifiers and alternatives that multiply past four unbounded quantifiers', () => {
+    for (const pattern of [
+      '\\d*\\d*\\d*\\d*\\d*!',
+      '.{1,99}.*.+x?y*',
+      `${'(?:a|\\w)'.repeat(12)}.*.*.*.*b`,
+      `${'(?:a|a)'.repeat(10)}.*.*.*.*b`,
+      'a|b|.*.*.*.*',
+    ])
+      expect(slowPattern(pattern)).toContain('too many quantifiers');
   });
 });

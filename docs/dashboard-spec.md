@@ -210,10 +210,15 @@ The Zod schema catches shape errors. `dashboards/validate` (`validateSpec`) also
 - panel, annotation and variable names are unique, and chart `markers` name an annotation;
 - a variable's default is among its options, and a text variable's pattern compiles and matches
   its default;
-- a text variable's default is at most 100 characters, and its pattern cannot backtrack for long:
-  no repeated group that holds a quantifier or an alternation (`(a+)+`, `(a|b)*`), no
-  back-reference, and at most four quantifiers whose span varies (`?`, `*`, `+`, `{1,3}`). A value
-  a viewer types is at most 100 characters too;
+- a text variable's default is at most 100 characters, and its pattern cannot backtrack for long.
+  It has no back-reference, and no repeated group that holds an alternation (`(a|b)*`) or a
+  quantifier (`(a+)+`). A repeated group whose iterations cannot overlap is allowed: it starts
+  with a literal nothing else in it matches, and each quantifier in it is last or followed by a
+  literal it cannot match (`[a-z]+(?:-[a-z]+)*`, `\d{1,3}(?:\.\d{1,3}){3}`). The choices of its
+  quantifiers and alternations multiply to at most those of four `*` on 100 characters: `?` counts
+  2, `{1,3}` counts 3, `*` and `+` about 100, and an alternation one per alternative. A value a
+  viewer types is at most 100 characters too, and the default is bound without running the
+  pattern;
 - `option` passes the ECharts allowlist: top-level keys `xAxis`, `yAxis`, `series`, `legend`,
   `tooltip`, `visualMap`, `dataZoom`, `axisPointer`, `title`, `radar`, `parallel`, `geo` and
   `calendar`; the series types listed under `ChartView`; no `data` in a series; no `renderMode`,

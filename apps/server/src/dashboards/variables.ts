@@ -66,9 +66,10 @@ function bindingOf(variable: Variable, values: readonly string[]): VariableBindi
 }
 
 /**
- * Binds a text variable, checking a picked value's length and the value against the pattern. A
- * pattern that could backtrack for exponential time is never run: validation refuses it in a new
- * version, and an older version's refuses every value.
+ * Binds a text variable, checking a picked value's length and the value against the pattern. The
+ * default is bound as it is: validation matched it against the pattern when the version was saved.
+ * A pattern that could backtrack for long is never run: validation refuses it in a new version,
+ * and an older version's refuses every other value.
  *
  * @param variable - The variable.
  * @param picked - The viewer's choice, if any.
@@ -84,7 +85,7 @@ function textBinding(
   const value = String(binding.value);
   if (picked !== undefined && value.length > maxTextValueLength)
     refuse(variable, `is at most ${maxTextValueLength} characters.`);
-  if (variable.pattern === undefined) return binding;
+  if (variable.pattern === undefined || value === variable.default) return binding;
   if (slowPattern(variable.pattern))
     refuse(variable, 'has a pattern that cannot be checked safely.');
   if (!new RegExp(`^(?:${variable.pattern})$`).test(value))
