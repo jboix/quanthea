@@ -12,6 +12,7 @@ import {
   loadDashboardAlerts,
   loadDashboardSnapshots,
   loadExplanation,
+  loadLayoutHistory,
   loadPanelRun,
   loadSimilarQuestions,
   loadSources,
@@ -112,6 +113,7 @@ export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): Rou
   const explanation = '/d/:dashboardId/v/:version/panels/:panelId/explanation';
   const options = '/d/:dashboardId/v/:version/options/:name';
   const snapshots = '/d/:dashboardId/snapshots';
+  const layouts = '/d/:dashboardId/v/:version/layouts';
   const alerts = '/d/:dashboardId/alerts';
   return [
     screenRoute(loadSession, '/d/:dashboardId', api),
@@ -134,6 +136,8 @@ export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): Rou
     },
     // Loads again after a snapshot is taken or revoked, so the list stays current.
     { path: snapshots, loader: guarded(loadSession, snapshots, loadDashboardSnapshots(api)) },
+    // The layout's history, when the edit bar's History opens; again after a save or a restore.
+    { path: layouts, loader: guarded(loadSession, layouts, loadLayoutHistory(api)) },
     // The alerts on the panels: loads with the range, and again after every action.
     { path: alerts, loader: guarded(loadSession, alerts, loadDashboardAlerts(api)) },
     ...askRoutes(loadSession, api),

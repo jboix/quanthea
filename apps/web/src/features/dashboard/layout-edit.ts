@@ -166,3 +166,50 @@ export function startingLayout(spec: DashboardSpec, shown: DashboardLayout | und
 export function layoutChanged(first: DashboardLayout, second: DashboardLayout): boolean {
   return JSON.stringify(first) !== JSON.stringify(second);
 }
+
+/**
+ * Hides a panel: it stays in the version, takes no space, and keeps its place to come back to.
+ *
+ * @param layout - The layout.
+ * @param id - The panel.
+ * @returns The layout, the others risen into its space.
+ */
+export function hidePanel(layout: DashboardLayout, id: string): DashboardLayout {
+  const panels = layout.panels.map((panel) =>
+    panel.id === id ? { ...panel, hidden: true } : panel,
+  );
+  return settle({ panels });
+}
+
+/**
+ * Shows a hidden panel again, at the place it had; the others make room.
+ *
+ * @param layout - The layout.
+ * @param id - The panel.
+ * @returns The layout.
+ */
+export function showPanel(layout: DashboardLayout, id: string): DashboardLayout {
+  const panels = layout.panels.map((panel) =>
+    panel.id === id ? { ...panel, hidden: false } : panel,
+  );
+  return settle(settle({ panels }, id));
+}
+
+/**
+ * Makes a panel span the whole width, or half of it, on its row.
+ *
+ * @param layout - The layout.
+ * @param id - The panel.
+ * @param width - Full or half.
+ * @returns The layout, the panel held where it is and the others settled.
+ */
+export function setWidth(
+  layout: DashboardLayout,
+  id: string,
+  width: 'full' | 'half',
+): DashboardLayout {
+  const panel = layout.panels.find((each) => each.id === id);
+  if (!panel) return layout;
+  const w = width === 'full' ? gridColumns : gridColumns / 2;
+  return settle(reshape(layout, id, { x: Math.min(panel.grid.x, gridColumns - w), w }));
+}

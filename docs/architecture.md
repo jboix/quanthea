@@ -612,6 +612,13 @@ layout sends the layout with the revision it started from; Cancel drops it. Leav
 with changes unsaved asks first, in the app and when the tab closes; changing the variables
 does not.
 
+Each frame offers Full width, Half width and Hide, and H hides the focused one. A hidden panel
+takes no space; the edit bar's **Hidden** lists them, and Show puts one back at the place it had,
+the others making room. The bar's **History** lists the version's revisions
+(`/d/:dashboardId/v/:version/layouts`, editors), and Restore saves a copy of an earlier one as the
+latest, which ends the edit. In the thread, the draft pane marks the panels hidden on the pinned
+version's layout (`hidden on v3`), so the person sees what the library leaves out.
+
 ### 5.4 A new thread on a dashboard
 
 `POST /api/dashboards/:id/threads {mode, version?}` (editor+) opens a thread that is ready for

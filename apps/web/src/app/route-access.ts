@@ -33,6 +33,7 @@ export const routeAccess = {
   '/d/:dashboardId/v/:version/panels/:panelId/explanation': 'viewer',
   '/d/:dashboardId/v/:version/options/:name': 'viewer',
   '/d/:dashboardId/snapshots': 'editor',
+  '/d/:dashboardId/v/:version/layouts': 'editor',
   '/d/:dashboardId/conversations': 'viewer',
   '/d/:dashboardId/conversations/:conversationId': 'viewer',
   '/d/:dashboardId/similar-questions': 'viewer',

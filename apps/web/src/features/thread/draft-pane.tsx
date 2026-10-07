@@ -234,6 +234,20 @@ function NewPanels({ panels }: { readonly panels: PlanPreview['added'] }) {
 }
 
 /**
+ * A note on each panel hidden by hand on the pinned version, so the person sees what the library
+ * leaves out.
+ *
+ * @param data - The thread's data.
+ * @returns The notes, by panel id, or `undefined` when nothing is hidden.
+ */
+function hiddenNotesOf(data: DraftPaneProps['data']): Readonly<Record<string, string>> | undefined {
+  const hidden = data.hiddenOnPinned;
+  if (!hidden) return undefined;
+  const note = `hidden on v${hidden.version}`;
+  return Object.fromEntries(hidden.panelIds.map((id) => [id, note]));
+}
+
+/**
  * The body of the pane: the version's canvas, the plan's skeleton, or a hint.
  *
  * @param props - The pane's props.
@@ -255,6 +269,7 @@ function PaneBody(props: DraftPaneProps) {
           onSelectPanel={props.onSelectPanel}
           markedPanelIds={props.markedPanelIds}
           planMarks={preview?.marks}
+          layoutNotes={hiddenNotesOf(data)}
         />
         {preview && preview.added.length > 0 && <NewPanels panels={preview.added} />}
       </>

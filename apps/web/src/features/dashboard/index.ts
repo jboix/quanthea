@@ -23,6 +23,7 @@ export { DashboardCanvas } from './canvas.tsx';
 export { changeDashboard, loadDashboard, loadPanelRun, loadVariableOptions } from './data.ts';
 export { loadExplanation } from './explain-data.ts';
 export { FrozenCanvas } from './frozen-canvas.tsx';
+export { loadLayoutHistory } from './layout-data.ts';
 export { type Loaded, loaded } from './loaded.ts';
 export { type PanelPlanMark, usePanelRunData } from './panel-card.tsx';
 export { PanelPreview } from './panel-preview.tsx';

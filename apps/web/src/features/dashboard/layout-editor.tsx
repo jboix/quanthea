@@ -11,6 +11,7 @@ import type { DashboardData, Loaded } from './data.ts';
 import type { LayoutIntent } from './layout-data.ts';
 import { layoutChanged, startingLayout } from './layout-edit.ts';
 import styles from './layout-editor.module.css';
+import { HiddenMenu, HistoryMenu } from './layout-menus.tsx';
 
 /** An edit of the layout under way. */
 export interface LayoutEditor {
@@ -26,6 +27,8 @@ export interface LayoutEditor {
   readonly save: () => void;
   /** Drops the edit. */
   readonly cancel: () => void;
+  /** Drops the edit and restores an earlier revision, as a new one. */
+  readonly restore: (revision: number) => void;
   /** Whether a save is on its way. */
   readonly saving: boolean;
   /** Why the last save was refused, if it was. */
@@ -33,19 +36,22 @@ export interface LayoutEditor {
 }
 
 /**
- * Sends a layout to be saved as the version's next revision.
+ * Sends a layout to be saved as the version's next revision, or an earlier revision to restore.
  *
  * @param submit - The fetcher's submit.
  * @param version - The version shown, with the revision it is shown with.
- * @param layout - The layout.
+ * @param change - The layout, or the revision to restore.
  */
 function submitLayout(
   submit: ReturnType<typeof useFetcher>['submit'],
   version: DashboardData['version'],
-  layout: DashboardLayout,
+  change: { readonly layout: DashboardLayout } | { readonly revision: number },
 ): void {
   const basedOn = version.layout?.revision ?? null;
-  const intent: LayoutIntent = { intent: 'layout', version: version.version, layout, basedOn };
+  const intent: LayoutIntent =
+    'layout' in change
+      ? { intent: 'layout', version: version.version, layout: change.layout, basedOn }
+      : { intent: 'restoreLayout', version: version.version, revision: change.revision, basedOn };
   void submit(intent as unknown as SubmitTarget, { method: 'post', encType: 'application/json' });
 }
 
@@ -67,7 +73,7 @@ export function useLayoutEditor(data: DashboardData): LayoutEditor {
   }, [outcome]);
   const base = startingLayout(version.spec, shown);
   const save = () => {
-    if (draft) submitLayout(fetcher.submit, version, draft);
+    if (draft) submitLayout(fetcher.submit, version, { layout: draft });
   };
   return {
     draft,
@@ -76,29 +82,48 @@ export function useLayoutEditor(data: DashboardData): LayoutEditor {
     change: setDraft,
     save,
     cancel: () => setDraft(null),
+    restore: (revision) => submitLayout(fetcher.submit, version, { revision }),
     saving: fetcher.state !== 'idle',
     refusal: outcome && !outcome.ok && draft ? outcome.message : null,
   };
 }
 
+/** Props of {@link LayoutBar}. */
+interface LayoutBarProps {
+  /** The edit. */
+  readonly editor: LayoutEditor;
+  /** The dashboard and the version arranged. */
+  readonly data: DashboardData;
+}
+
 /**
- * The bar shown while arranging, in place of the header's actions.
+ * The bar shown while arranging, in place of the header's actions: the hidden panels, the
+ * history, Cancel and Save layout.
  *
- * @param props - The edit.
- * @param props.editor - The edit.
+ * @param props - The edit, and the dashboard and version arranged.
  * @returns The bar.
  */
-export function LayoutBar({ editor }: { readonly editor: LayoutEditor }) {
+export function LayoutBar({ editor, data }: LayoutBarProps) {
+  const { dashboard, version } = data;
+  const titles = new Map(version.spec.panels.map((panel) => [panel.id, panel.title]));
   return (
     <div className={styles.bar}>
       <p className={styles.hint}>
-        Drag a panel to move it, drag its corner to resize it. Only how it is shown changes.
+        Drag a panel to move it, its corner to resize it. Only how it is shown changes.
       </p>
       {editor.refusal && (
         <p className={styles.refusal} role="alert">
           {editor.refusal}
         </p>
       )}
+      {editor.draft && (
+        <HiddenMenu layout={editor.draft} titles={titles} onChange={editor.change} />
+      )}
+      <HistoryMenu
+        dashboardId={dashboard.id}
+        version={version.version}
+        onRestore={editor.restore}
+      />
       <Button onClick={editor.cancel} disabled={editor.saving}>
         Cancel
       </Button>

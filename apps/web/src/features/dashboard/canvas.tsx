@@ -70,6 +70,8 @@ export interface DashboardCanvasProps {
   readonly withAlerts?: boolean;
   /** A layer over the panels, such as the layout editor's frames. */
   readonly overlay?: ReactNode;
+  /** A short note on some panels, by id, such as `hidden on v3` in the thread's draft pane. */
+  readonly layoutNotes?: Readonly<Record<string, string>> | undefined;
 }
 
 /** The alerts on the panels, and the values chosen, once loaded. */
@@ -142,6 +144,7 @@ function PanelGrid(
           hiddenMarkers={props.hiddenMarkers}
           explain={explain}
           alerts={views.get(panel.id)}
+          layoutNote={props.layoutNotes?.[panel.id]}
         />
       ))}
     </div>

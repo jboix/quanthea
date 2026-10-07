@@ -12,7 +12,15 @@ import {
   useRef,
   useState,
 } from 'react';
-import { cellsOf, type GridMetrics, movePanel, resizePanel, settle } from './layout-edit.ts';
+import {
+  cellsOf,
+  type GridMetrics,
+  hidePanel,
+  movePanel,
+  resizePanel,
+  settle,
+  setWidth,
+} from './layout-edit.ts';
 import styles from './layout-overlay.module.css';
 
 /** The grid's row height and gap, in pixels, as `panels.module.css` sets them. */
@@ -125,7 +133,7 @@ const steps: Readonly<Record<string, { readonly x: number; readonly y: number }>
 };
 
 /**
- * Moves or resizes the focused panel by one cell with the arrow keys, Shift to resize.
+ * Moves or resizes the focused panel by one cell with the arrow keys, Shift to resize; H hides it.
  *
  * @param event - The key event.
  * @param layout - The layout.
@@ -137,6 +145,8 @@ function keyed(
   layout: DashboardLayout,
   panel: LayoutPanel,
 ): DashboardLayout | undefined {
+  const plain = !(event.ctrlKey || event.metaKey || event.altKey);
+  if (plain && event.key.toLowerCase() === 'h') return hidePanel(layout, panel.id);
   const step = steps[event.key];
   if (!step) return undefined;
   const { x, y, w, h } = panel.grid;
@@ -189,22 +199,30 @@ function ColumnGuides() {
 }
 
 /**
- * Moving and resizing the focused frame with the keyboard, each change said aloud.
+ * The frames' controls besides the pointer: the keyboard, each change said aloud, and the quick
+ * actions.
  *
  * @param props - The layout, the titles and the change callback.
- * @returns The key handler, and the last change in words.
+ * @returns The key handler, the quick action handler, and the last change in words.
  */
-function useKeyboardArrange(props: LayoutOverlayProps) {
+function useFrameControls(props: LayoutOverlayProps) {
   const [said, setSaid] = useState('');
   const onKey = (event: KeyboardEvent, panel: LayoutPanel) => {
     const next = keyed(event, props.layout, panel);
     if (!next) return;
     event.preventDefault();
     props.onChange(next);
-    const grid = next.panels.find((each) => each.id === panel.id)?.grid ?? panel.grid;
-    setSaid(placeWords(props.titles.get(panel.id) ?? panel.id, grid));
+    const title = props.titles.get(panel.id) ?? panel.id;
+    const after = next.panels.find((each) => each.id === panel.id);
+    setSaid(
+      after?.hidden
+        ? `${title} hidden. Show it from Hidden panels.`
+        : placeWords(title, after?.grid ?? panel.grid),
+    );
   };
-  return { onKey, said };
+  const onAction = (panel: LayoutPanel, action: QuickAction) =>
+    props.onChange(quickAction(props.layout, panel.id, action));
+  return { onKey, onAction, said };
 }
 
 /**
@@ -216,7 +234,7 @@ function useKeyboardArrange(props: LayoutOverlayProps) {
 export function LayoutOverlay(props: LayoutOverlayProps) {
   const overlay = useRef<HTMLDivElement>(null);
   const pointer = usePointerDrag(props, overlay);
-  const { onKey, said } = useKeyboardArrange(props);
+  const { onKey, onAction, said } = useFrameControls(props);
   return (
     <div
       ref={overlay}
@@ -238,6 +256,7 @@ export function LayoutOverlay(props: LayoutOverlayProps) {
             active={pointer.active === panel.id}
             onStart={pointer.start}
             onKey={onKey}
+            onAction={onAction}
           />
         ))}
       <p className={styles.said} aria-live="polite">
@@ -245,6 +264,21 @@ export function LayoutOverlay(props: LayoutOverlayProps) {
       </p>
     </div>
   );
+}
+
+/** What a frame's quick actions do. */
+type QuickAction = 'full' | 'half' | 'hide';
+
+/**
+ * A layout after a frame's quick action.
+ *
+ * @param layout - The layout.
+ * @param id - The panel.
+ * @param action - Full width, half width, or hide.
+ * @returns The layout.
+ */
+function quickAction(layout: DashboardLayout, id: string, action: QuickAction) {
+  return action === 'hide' ? hidePanel(layout, id) : setWidth(layout, id, action);
 }
 
 /** Props of {@link LayoutFrame}. */
@@ -259,35 +293,48 @@ interface LayoutFrameProps {
   readonly onStart: (event: PointerEvent, panel: LayoutPanel, mode: Drag['mode']) => void;
   /** Handles a key. */
   readonly onKey: (event: KeyboardEvent, panel: LayoutPanel) => void;
+  /** Runs a quick action. */
+  readonly onAction: (panel: LayoutPanel, action: QuickAction) => void;
 }
 
 /**
- * One panel's frame: dragged to move it, its corner dragged to resize it, focused to use the
- * keyboard.
+ * One panel's frame: its handle, dragged to move the panel and focused to use the keyboard; its
+ * corner, dragged to resize it; and its quick actions.
  *
  * @param props - The panel, its title, whether it is dragged, and the handlers.
  * @returns The frame.
  */
-function LayoutFrame({ panel, title, active, onStart, onKey }: LayoutFrameProps) {
+function LayoutFrame({ panel, title, active, onStart, onKey, onAction }: LayoutFrameProps) {
   const { w, h } = panel.grid;
   return (
-    <button
-      type="button"
-      aria-roledescription="movable panel"
-      aria-label={`${placeWords(title, panel.grid)}. Arrow keys move it; Shift and an arrow resize it.`}
-      className={styles.frame}
-      data-active={active}
-      style={placeStyle(panel.grid)}
-      onPointerDown={(event) => onStart(event, panel, 'move')}
-      onKeyDown={(event) => onKey(event, panel)}
-    >
-      <span className={styles.label}>{title}</span>
-      <span className={styles.size} aria-hidden="true">{`${w} × ${h}`}</span>
-      <span
-        className={styles.resize}
-        aria-hidden="true"
-        onPointerDown={(event) => onStart(event, panel, 'resize')}
-      />
-    </button>
+    <div className={styles.frame} data-active={active} style={placeStyle(panel.grid)}>
+      <button
+        type="button"
+        aria-roledescription="movable panel"
+        aria-label={`${placeWords(title, panel.grid)}. Arrow keys move it; Shift and an arrow resize it; H hides it.`}
+        className={styles.handle}
+        onPointerDown={(event) => onStart(event, panel, 'move')}
+        onKeyDown={(event) => onKey(event, panel)}
+      >
+        <span className={styles.label}>{title}</span>
+        <span className={styles.size} aria-hidden="true">{`${w} × ${h}`}</span>
+        <span
+          className={styles.resize}
+          aria-hidden="true"
+          onPointerDown={(event) => onStart(event, panel, 'resize')}
+        />
+      </button>
+      <fieldset className={styles.actions} aria-label={`${title}: quick actions`}>
+        <button type="button" onClick={() => onAction(panel, 'full')}>
+          Full width
+        </button>
+        <button type="button" onClick={() => onAction(panel, 'half')}>
+          Half width
+        </button>
+        <button type="button" onClick={() => onAction(panel, 'hide')}>
+          Hide
+        </button>
+      </fieldset>
+    </div>
   );
 }

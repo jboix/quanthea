@@ -54,6 +54,16 @@
   color: var(--color-on-accent);
 }
 
+/* How the library shows the panel, such as hidden on the pinned version's layout. */
+.layoutNote {
+  padding: 2px 8px;
+  border: 1px dashed var(--color-border-control);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-ink-secondary);
+}
+
 .title {
   flex-grow: 1;
   margin: 0;

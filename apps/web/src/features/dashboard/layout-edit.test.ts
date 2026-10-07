@@ -1,6 +1,15 @@
 import { describe, expect, test } from 'bun:test';
 import type { DashboardLayout } from '@quanthea/shared';
-import { cellsOf, layoutChanged, movePanel, resizePanel, settle } from './layout-edit.ts';
+import {
+  cellsOf,
+  hidePanel,
+  layoutChanged,
+  movePanel,
+  resizePanel,
+  settle,
+  setWidth,
+  showPanel,
+} from './layout-edit.ts';
 
 /** Two panels side by side, a wide one under them, and a hidden one. */
 const layout: DashboardLayout = {
@@ -60,5 +69,28 @@ describe('arranging a dashboard by hand', () => {
   test('tells whether anything changed', () => {
     expect(layoutChanged(layout, settle(layout))).toBe(false);
     expect(layoutChanged(layout, movePanel(layout, 'c', { x: 0, y: 0 }))).toBe(true);
+  });
+});
+
+describe('hiding, showing and widths', () => {
+  test('a hidden panel takes no space and comes back to its place', () => {
+    const hidden = hidePanel(layout, 'a');
+    expect(places(hidden).c).toEqual({ x: 0, y: 3, w: 12, h: 4 });
+    expect(hidden.panels.find((panel) => panel.id === 'a')?.hidden).toBe(true);
+    const shown = places(showPanel(hidePanel(layout, 'c'), 'c'));
+    expect(shown.c).toEqual({ x: 0, y: 3, w: 12, h: 4 });
+  });
+
+  test('a shown panel takes its place back, the others making room', () => {
+    const shown = places(showPanel(layout, 'gone'));
+    expect(shown.gone).toEqual({ x: 0, y: 0, w: 12, h: 2 });
+    expect(shown.a).toEqual({ x: 0, y: 2, w: 6, h: 3 });
+  });
+
+  test('full width and half width keep the panel on its row', () => {
+    const full = places(setWidth(layout, 'b', 'full'));
+    expect(full.b).toEqual({ x: 0, y: 0, w: 12, h: 3 });
+    expect(full.a).toEqual({ x: 0, y: 3, w: 6, h: 3 });
+    expect(places(setWidth(layout, 'c', 'half')).c).toEqual({ x: 0, y: 3, w: 6, h: 4 });
   });
 });

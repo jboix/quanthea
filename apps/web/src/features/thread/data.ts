@@ -50,6 +50,16 @@ export interface ThreadData {
   readonly reportDraft: ReportDraftData | null;
   /** The panel an alert thread started from, if any. */
   readonly origin: SeedPanel | null;
+  /** The panels hidden by hand on the pinned version's layout, if any are. */
+  readonly hiddenOnPinned: HiddenOnPinned | null;
+}
+
+/** The panels hidden by hand on the version the library shows. */
+export interface HiddenOnPinned {
+  /** The version pinned. */
+  readonly version: number;
+  /** The ids of the panels hidden on its layout. */
+  readonly panelIds: readonly string[];
 }
 
 /** The panel an alert thread started from, with its dashboard. */
@@ -170,6 +180,32 @@ async function originOf(
 }
 
 /**
+ * The panels hidden by hand on the pinned version's layout.
+ *
+ * @param api - The API client.
+ * @param dashboard - The thread's dashboard, if any.
+ * @param shown - The version the pane shows, which may be the pinned one.
+ * @param signal - Aborted when the navigation changes.
+ * @returns The pinned version and its hidden panels, or `null` when nothing is hidden.
+ */
+async function hiddenOnPinnedOf(
+  api: ApiClient,
+  dashboard: DashboardDetail | null,
+  shown: DashboardVersion | null,
+  signal: AbortSignal,
+): Promise<HiddenOnPinned | null> {
+  const pinned = dashboard?.pinnedVersion ?? null;
+  if (!dashboard || pinned === null) return null;
+  const params = { dashboardId: dashboard.id, version: String(pinned) };
+  const version =
+    shown?.version === pinned
+      ? shown
+      : await api.call(getDashboardVersionEndpoint, { params }, { signal });
+  const panelIds = (version.layout?.layout.panels ?? []).filter((panel) => panel.hidden);
+  return panelIds.length === 0 ? null : { version: pinned, panelIds: panelIds.map((p) => p.id) };
+}
+
+/**
  * Fetches a thread, its dashboard and the version to show.
  *
  * @param api - The API client.
@@ -186,7 +222,10 @@ async function fetchThread(
 ): Promise<ThreadData> {
   const options = { signal };
   const thread = await api.call(getThreadEndpoint, { params: { threadId } }, options);
-  const none = { dashboard: null, version: null, parent: null, alertDraft: null, origin: null };
+  const none = {
+    ...{ dashboard: null, version: null, parent: null, alertDraft: null, origin: null },
+    hiddenOnPinned: null,
+  };
   if (thread.kind === 'alert') {
     const alertDraft = await loadAlertDraft(api, thread.alertId, signal);
     const origin = await originOf(api, thread.seed, signal);
@@ -199,7 +238,8 @@ async function fetchThread(
     : null;
   const version = await versionToShow(api, dashboard, url.searchParams.get('v'), signal);
   const parent = await parentOf(api, dashboard, signal);
-  return { thread, dashboard, version, parent, alertDraft: null, reportDraft: null, origin: null };
+  const hiddenOnPinned = await hiddenOnPinnedOf(api, dashboard, version, signal);
+  return { ...none, thread, dashboard, version, parent, reportDraft: null, hiddenOnPinned };
 }
 
 /**

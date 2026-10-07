@@ -44,7 +44,7 @@ function DashboardHeader(props: DashboardData & AskAction & { readonly editor: L
         </div>
       </div>
       {editor.draft ? (
-        <LayoutBar editor={editor} />
+        <LayoutBar editor={editor} data={{ dashboard, version }} />
       ) : (
         <HeaderActions {...actions} version={version} dashboard={dashboard} />
       )}

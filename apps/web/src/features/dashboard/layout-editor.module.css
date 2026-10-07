@@ -24,3 +24,27 @@
   gap: 8px;
   margin-top: 16px;
 }
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 280px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}

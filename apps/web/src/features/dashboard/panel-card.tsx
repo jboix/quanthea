@@ -70,6 +70,8 @@ interface PanelCardProps {
   readonly explain?: ExplainPlace | undefined;
   /** The panel's alerts, on the dashboard screen; left out elsewhere. */
   readonly alerts?: PanelAlertView | undefined;
+  /** A short note about how the library shows it, such as `hidden on v3`. */
+  readonly layoutNote?: string | undefined;
 }
 
 /**
@@ -180,6 +182,7 @@ function PanelBody({
 function PanelHeading({
   panel,
   marked,
+  layoutNote,
   onSelect,
   planMark,
   answerMark,
@@ -187,7 +190,7 @@ function PanelHeading({
   alerts,
 }: Pick<
   PanelCardProps,
-  'panel' | 'marked' | 'onSelect' | 'planMark' | 'answerMark' | 'explain' | 'alerts'
+  'panel' | 'marked' | 'onSelect' | 'planMark' | 'answerMark' | 'explain' | 'alerts' | 'layoutNote'
 >) {
   const title = onSelect ? (
     <button type="button" className={styles.titleButton} onClick={() => onSelect(panel.id)}>
@@ -202,6 +205,7 @@ function PanelHeading({
         {title}
       </h3>
       {marked && <span className={styles.mark}>in chat</span>}
+      {layoutNote && <span className={styles.layoutNote}>{layoutNote}</span>}
       {planMark && <span className={styles.planTag}>{planMarkWords[planMark.tag]}</span>}
       {answerMark?.numbers.map((n) => (
         <span key={n} className={styles.answerMark} title="Cited in the open answer">

@@ -5,9 +5,11 @@
 import {
   type DashboardLayout,
   type LayoutRevision,
+  listDashboardLayoutsEndpoint,
   restoreDashboardLayoutEndpoint,
   saveDashboardLayoutEndpoint,
 } from '@quanthea/shared';
+import type { LoaderFunctionArgs } from 'react-router';
 import type { ApiClient } from '../../lib/api-client.ts';
 import { type Loaded, loaded } from './loaded.ts';
 
@@ -47,4 +49,20 @@ export function runLayoutIntent(
   }
   const body = { layout: intent.layout, basedOn: intent.basedOn };
   return loaded(api.call(saveDashboardLayoutEndpoint, { params: { dashboardId, version }, body }));
+}
+
+/**
+ * The loader of a version's layout history resource route, for the edit bar's History.
+ *
+ * @param api - The API client.
+ * @returns The loader.
+ */
+export function loadLayoutHistory(api: ApiClient) {
+  return ({ params, request }: LoaderFunctionArgs): Promise<Loaded<LayoutRevision[]>> => {
+    const input = {
+      params: { dashboardId: params.dashboardId ?? '', version: params.version ?? '' },
+    };
+    const call = api.call(listDashboardLayoutsEndpoint, input, { signal: request.signal });
+    return loaded(call.then((result) => result.revisions));
+  };
 }
