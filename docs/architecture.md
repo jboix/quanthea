@@ -526,7 +526,7 @@ query never fails the rest of the panel, and one failing panel never blanks the 
 ### 5.3 Pin and unpin
 
 Versions are the immutable part: none is ever rewritten, and a trigger enforces it for every
-version. Pinning chooses the version the library, the dashboard's link and viewers see
+column of every version but the time it was first pinned, which is set once. Pinning chooses the version the library, the dashboard's link and viewers see
 (`dashboards.pinned_version_id`). The thread can keep adding versions to a pinned dashboard; they
 stay drafts until one is pinned.
 
@@ -2308,9 +2308,10 @@ CREATE TABLE dashboard_versions (
   pinned_at INTEGER, actor TEXT, created_at INTEGER NOT NULL,
   UNIQUE (dashboard_id, version));
 
--- every version is immutable, whatever the application code does
+-- every version is immutable, whatever the application code does (as recreated by 0003)
 CREATE TRIGGER versions_are_immutable
-BEFORE UPDATE OF spec, version, dashboard_id ON dashboard_versions
+BEFORE UPDATE OF id, dashboard_id, version, spec, change_summary, actor, created_at
+ON dashboard_versions
 BEGIN SELECT RAISE(ABORT, 'dashboard versions are immutable'); END;
 
 -- pinned_at is the time a version was first pinned, set once
@@ -2567,7 +2568,9 @@ thread starts from (`seed`), and the ledger's `alert` feature. Another adds the 
 between alerts and panels and the dismissed suggestions. Another adds the reports, their
 versions and their runs; the report events and `report_id` of the notification log are in its
 `notification_sends`. The last one adds the questions about runs, their index and their bin, and
-the runs each person has opened (`report_seen`).
+the runs each person has opened (`report_seen`). `0002` shipped in v0.3.0.
+`0003-dashboard-version-trigger.sql` recreates the dashboard versions' trigger so that it covers
+every column but `pinned_at`, as the alert and report versions' triggers do.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite

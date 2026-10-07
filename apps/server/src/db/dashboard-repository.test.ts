@@ -85,6 +85,10 @@ describe('dashboard repository', () => {
     const attempts = [
       "UPDATE dashboard_versions SET spec = '{}'",
       'UPDATE dashboard_versions SET version = 9',
+      "UPDATE dashboard_versions SET id = 'other'",
+      "UPDATE dashboard_versions SET change_summary = 'noted'",
+      "UPDATE dashboard_versions SET actor = 'someone'",
+      'UPDATE dashboard_versions SET created_at = 1',
     ];
     for (const attempt of attempts) {
       expect(() => database.run(attempt)).toThrow('dashboard versions are immutable');
@@ -100,8 +104,10 @@ describe('dashboard repository', () => {
     expect(() => database.run('UPDATE dashboard_versions SET pinned_at = NULL')).toThrow(
       'a version keeps the time it was first pinned',
     );
-    database.run("UPDATE dashboard_versions SET change_summary = 'noted'");
-    expect(repository.getVersion(dashboard.id, 1)?.spec).toEqual(firstVersion.spec);
+    expect(repository.getVersion(dashboard.id, 1)).toMatchObject({
+      spec: firstVersion.spec,
+      pinnedAt: 2000,
+    });
   });
 
   test('pins a version again after unpinning, keeping its first pin time', () => {

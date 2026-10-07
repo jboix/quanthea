@@ -61,6 +61,7 @@ describe('runMigrations', () => {
     expect(runMigrations(database)).toEqual([
       '0001-schema.sql',
       '0002-snapshots-questions-analyst.sql',
+      '0003-dashboard-version-trigger.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
