@@ -2161,11 +2161,11 @@ that changes with its settings).
      literals.
    - **PromQL:** `$name` and `${name}` are replaced only inside the string value of a label matcher,
      escaped for the string, and for `=~` and `!~` always escaped as a regular expression too, so a
-     value only ever matches itself (a multi-value variable joins its values with `|`). In code only `$__interval`, `$__range`, `$__rate_interval` and
-     interval variables are allowed: an interval variable's value must be one of its options and is
-     checked again against the duration pattern (`15s`, `5m`, `1h`) when bound. The step is a
-     duration or an interval variable, raised so the range fits in the row limit (at most 11000
-     points).
+     value only ever matches itself (a multi-value variable joins its values with `|`). In code
+     only `$__interval`, `$__range`, `$__rate_interval` and interval variables are allowed: an
+     interval variable's value must be one of its options and is checked again against the
+     duration pattern (`15s`, `5m`, `1h`) when bound. The step is a duration or an interval
+     variable, raised so the range fits in the row limit (at most 11000 points).
    - **LogQL** (`query/logql-binder.ts`): as PromQL, and a variable also goes in the value of a
      line filter (`|= "$text"`, `|~`) or a label filter (`| level="$level"`). `line_format` and
      `label_format` are refused: their argument is a template Loki runs.
