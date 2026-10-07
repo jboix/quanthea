@@ -67,6 +67,10 @@ you to confirm. If the count fails, the page says why and still lets you save or
 threads are then marked **Restricted data** in the past threads list, and each shows a notice
 above the question box. Start a new thread to leave that data out.
 
+The count and the mark follow the model's tool calls. The model also gets a short list of field
+values with each question, read at the access in force then. An earlier answer that quoted one of
+those values, with no tool call, is not counted or marked.
+
 ### Guardrails
 
 | Guardrail               | Default | What it does                          |

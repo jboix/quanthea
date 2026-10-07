@@ -2262,6 +2262,10 @@ model's own earlier answers quoting what it no longer sees.
   never holds their names. The run's model view (`agent/access-record.ts`) writes one per
   connector and access, whenever `describe`, `sample`, `testQuery`, a panel's test result or an
   alert's check or replay reads it. The part is stored with the answer and never sent.
+- The catalog in each turn's instructions is not recorded. It is built at the connector's access
+  of that turn, so the instructions never resend a value a change restricts. An earlier answer
+  that quoted a value from the catalog, with no data tool call, is not tracked: its thread is
+  neither counted nor flagged.
 - A record is restricted when the connector's level is now lower, or a field is now hidden whose
   fingerprint the record lacks (`narrowsAccess` in `gate/source-access.ts`). A removed connector
   restricts nothing. Threads in the bin are not counted.
