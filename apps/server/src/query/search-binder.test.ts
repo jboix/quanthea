@@ -107,6 +107,30 @@ describe('bindSearch', () => {
     expect(() => bind({ query: { term: { transcripts: 'a' } } })).not.toThrow();
   });
 
+  test('refuses every parameter Elasticsearch and OpenSearch run a script for', () => {
+    // The search DSL's script-bearing keys, so a new one the pattern misses fails here.
+    const scriptKeys = [
+      'script',
+      'script_fields',
+      'script_score',
+      'scripted_metric',
+      'init_script',
+      'map_script',
+      'combine_script',
+      'reduce_script',
+      'script_heuristic',
+      'minimum_should_match_script',
+      '_script',
+      'runtime_mappings',
+      'scriptFields',
+      'minimumShouldMatchScript',
+    ];
+    for (const key of scriptKeys) {
+      const body = { query: { bool: { filter: [{ wrapper: { [key]: { source: '1' } } }] } } };
+      expect(() => bind(body)).toThrow('A query runs no script');
+    }
+  });
+
   test('keeps a bucket_script that names a ratio script verbatim, and no other', () => {
     const ratio = (script: unknown, at = 'bucket_script') => ({
       aggs: {
