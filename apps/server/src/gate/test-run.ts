@@ -63,6 +63,19 @@ function withoutHidden(frame: Frame, hidden: ReadonlySet<string>): Frame {
 }
 
 /**
+ * The frames of a result without the connector's hidden fields and labels, for what is derived
+ * from a result and then shown to the model, such as the roles a chart infers from its columns.
+ *
+ * @param subject - The connector.
+ * @param frames - The frames.
+ * @returns The frames without hidden fields.
+ */
+export function visibleFrames(subject: GateSubject, frames: readonly Frame[]): Frame[] {
+  const hidden = hiddenResultNames(subject);
+  return frames.map((frame) => withoutHidden(frame, hidden));
+}
+
+/**
  * The fields as the model sees them at a level.
  *
  * @param frame - The frame, without hidden fields.
@@ -135,8 +148,7 @@ export function modelTestResult(subject: GateSubject, frames: readonly Frame[]):
 export function modelPanelResult(subject: GateSubject, frames: readonly Frame[]): ModelTestResult {
   const result = modelTestResult(subject, frames);
   if (!result.ok || subject.accessLevel < 2 || frames.length === 0) return result;
-  const hidden = hiddenResultNames(subject);
-  const dataset = datasetOfFrames(frames.map((frame) => withoutHidden(frame, hidden)));
+  const dataset = datasetOfFrames(visibleFrames(subject, frames));
   const columns = dataset.dimensions.map((dimension) => `${dimension.name}: ${dimension.type}`);
   return { ...result, columns };
 }

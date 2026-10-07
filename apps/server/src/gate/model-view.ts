@@ -17,7 +17,12 @@ import { buildCatalog, createValueCache, type ValueCache } from './catalog.ts';
 import { type ModelEntity, modelSchema } from './model-schema.ts';
 import { type ModelSample, sampleForModel } from './sample.ts';
 import type { GateSubject } from './subject.ts';
-import { type ModelTestResult, modelPanelResult, testQueryForModel } from './test-run.ts';
+import {
+  type ModelTestResult,
+  modelPanelResult,
+  testQueryForModel,
+  visibleFrames,
+} from './test-run.ts';
 
 /** What the gate needs from the connectors service. */
 export interface ConnectorAccess {
@@ -153,6 +158,15 @@ export interface ModelView {
     outcome: { frames: readonly Frame[]; error: string | null },
   ): ModelTestResult;
   /**
+   * A result without the connector's hidden fields, for what is derived from it and shown to the
+   * model, such as the roles a chart infers from its columns.
+   *
+   * @param name - The connector the query ran on.
+   * @param frames - The frames.
+   * @returns The frames without hidden fields; none when the connector is unknown.
+   */
+  visibleFrames(name: string, frames: readonly Frame[]): Frame[];
+  /**
    * Shapes an alert's check for the model: the series it would watch now.
    *
    * @param name - The connector the alert's query ran on.
@@ -234,6 +248,30 @@ function schemaOnly(subject: GateSubject | undefined): GateSubject | undefined {
 }
 
 /**
+ * The model view's shaping of saved panels' results, by connector.
+ *
+ * @param subjects - The connectors by name, as the gate sees them.
+ * @returns The methods.
+ */
+function resultMethods(
+  subjects: () => ReadonlyMap<string, GateSubject>,
+): Pick<ModelView, 'panelResult' | 'visibleFrames'> {
+  return {
+    panelResult(name, outcome) {
+      const subject = subjects().get(name);
+      if (!subject) return { ok: false, error: unreachable(name) };
+      return outcome.error === null
+        ? modelPanelResult(subject, outcome.frames)
+        : { ok: false, error: outcome.error };
+    },
+    visibleFrames(name, frames) {
+      const subject = subjects().get(name);
+      return subject ? visibleFrames(subject, frames) : [];
+    },
+  };
+}
+
+/**
  * The model view's shaping of an alert's check and replay, by connector.
  *
  * @param subjects - The connectors by name, as the gate sees them.
@@ -283,13 +321,7 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
       return testQueryForModel(opened.subject, executor, opened.source, request);
     },
     ...alertMethods(subjects),
-    panelResult(name, outcome) {
-      const subject = subjects().get(name);
-      if (!subject) return { ok: false, error: unreachable(name) };
-      return outcome.error === null
-        ? modelPanelResult(subject, outcome.frames)
-        : { ok: false, error: outcome.error };
-    },
+    ...resultMethods(subjects),
   };
 }
 

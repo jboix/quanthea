@@ -37,6 +37,25 @@ export interface Completion {
   readonly problems: ReadonlyMap<string, readonly string[]>;
 }
 
+/**
+ * The part of a result a chart is completed from, such as the result without the columns the
+ * model may not see.
+ *
+ * @param connector - The connector the query ran on.
+ * @param frames - The result's frames.
+ * @returns The frames to complete the chart from.
+ */
+type ResultFilter = (connector: string, frames: readonly Frame[]) => readonly Frame[];
+
+/**
+ * The whole result.
+ *
+ * @param _connector - The connector, unused.
+ * @param frames - The result's frames.
+ * @returns The frames.
+ */
+const wholeResult: ResultFilter = (_connector, frames) => frames;
+
 /** Column names that hold numbers in the tables query builders return. */
 const numberColumns: ReadonlySet<string> = new Set(['value', 'Value']);
 
@@ -68,23 +87,35 @@ function tableFor(frames: readonly Frame[], columns: readonly string[]): Dataset
 }
 
 /**
+ * The connector of a panel's first query, the one its chart is completed from.
+ *
+ * @param panel - The panel.
+ * @returns The connector name, empty when the panel has no query.
+ */
+function connectorOf(panel: Panel): string {
+  return panel.queries[0]?.connector ?? '';
+}
+
+/**
  * One panel's chart, completed from its first query's result.
  *
  * @param panel - The panel.
  * @param charts - The chart choices.
  * @param tests - The test runs.
+ * @param filter - The part of each result the chart is completed from.
  * @returns The panel, or the problems of its chart.
  */
 function completed(
   panel: Panel,
   charts: ChartChoices,
   tests: readonly PanelTest[],
+  filter: ResultFilter,
 ): Panel | string[] {
   const chart = charts.get(panel.id);
   const recipe = chart ? chartRecipe(chart.choice.recipe) : undefined;
   const outcome = tests.find((test) => test.panelId === panel.id)?.run.queries[0];
   if (!chart || !recipe || !outcome || outcome.error) return panel;
-  const table = tableFor(outcome.frames, chart.columns);
+  const table = tableFor(filter(connectorOf(panel), outcome.frames), chart.columns);
   if (!table) return emptyTable(panel);
   const refs = panel.queries.map((query) => query.refId);
   const filled = fillView(recipe, chart.choice, refs, table);
@@ -100,16 +131,19 @@ function completed(
  * @param spec - The spec the edit made.
  * @param charts - The chart choice of each panel it built.
  * @param tests - The test run of the spec.
+ * @param filter - The part of each result a chart is completed from: the whole result by default.
+ *   The agent passes the gate's, so a role never names a column the model may not see.
  * @returns The completed spec and the problems.
  */
 export function completeCharts(
   spec: DashboardSpec,
   charts: ChartChoices,
   tests: readonly PanelTest[],
+  filter: ResultFilter = wholeResult,
 ): Completion {
   const problems = new Map<string, readonly string[]>();
   const panels = spec.panels.map((panel) => {
-    const result = completed(panel, charts, tests);
+    const result = completed(panel, charts, tests, filter);
     if (!Array.isArray(result)) return result;
     problems.set(panel.id, result);
     return panel;

@@ -115,7 +115,12 @@ export async function buildPanels(
   const issues = problemsBeforeRun(context, result.spec, request);
   if (issues.length > 0) return { ok: false, error: invalid, issues };
   const tests = await context.dashboards.testRun(result.spec);
-  const completion = completeCharts(result.spec, result.charts as ChartChoices, tests);
+  const completion = completeCharts(
+    result.spec,
+    result.charts as ChartChoices,
+    tests,
+    (name, frames) => context.modelView.visibleFrames(name, frames),
+  );
   const before = current ? idsOf(current) : new Set<string>();
   const added = new Set([...idsOf(completion.spec)].filter((id) => !before.has(id)));
   const samePanels = current !== undefined && sameIds(before, idsOf(completion.spec));

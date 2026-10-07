@@ -1266,7 +1266,9 @@ schema. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/w
 2. The spec is built and checked, views aside, then every panel is test-run with its defaults.
 3. Each built chart is completed from its first query's result (`dashboards/panels/complete.ts`):
    roles the model left out take the first fitting columns, and roles naming a column the result
-   has not, or of the wrong type, become the panel's problems. The result the model gets lists
+   has not, or of the wrong type, become the panel's problems. The agent completes them from the
+   result without the connector's hidden fields (`visibleFrames` in `gate/`), so a role never
+   names a hidden column in the draft the model reads next. The result the model gets lists
    each query's `columns`, the table the chart draws (such as `time`, `code`, `series`, `value`
    for Prometheus series), so it names roles by those and not by the frames' fields. An empty result is data, not a
    mistake: the chart is completed from the columns its data request declares.
