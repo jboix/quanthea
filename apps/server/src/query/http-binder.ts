@@ -29,8 +29,25 @@ const reference = /\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))/g
 /** A parameter value that is one reference and nothing else. */
 const onlyReference = /^\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))$/;
 
-/** A path the binder accepts: absolute, without a query, a fragment, a backslash or `..`. */
+/** A path the binder accepts: absolute, without a query, a fragment or a backslash. */
 const pathShape = /^\/(?!\/)[^?#\\]*$/;
+
+/** A dot segment as URL parsing reads it: `.` or `..`, each dot also written `%2e`. */
+const dotSegment = /^(?:\.|%2e){1,2}$/i;
+
+/** Why a path is refused. */
+const pathRule =
+  'A path starts with /, holds no ?, # or \\, and no . or .. segment: put parameters in "query".';
+
+/**
+ * Whether a path holds a dot segment, which URL parsing would resolve against its parent.
+ *
+ * @param path - The path, encoded.
+ * @returns `true` when a segment is `.` or `..`, in any encoding of the dots.
+ */
+function hasDotSegment(path: string): boolean {
+  return path.split('/').some((segment) => dotSegment.test(segment));
+}
 
 /**
  * The built-in values: the time range as ISO times, epoch milliseconds and epoch seconds.
@@ -103,16 +120,14 @@ function substitute(text: string, values: Values, encode: (value: string) => str
  * @param path - The path template.
  * @param values - The variables and built-ins.
  * @returns The encoded path.
- * @throws {QueryError} `invalid` for a path that is not absolute or holds `?`, `#`, `\` or `..`.
+ * @throws {QueryError} `invalid` for a path that is not absolute, holds `?`, `#` or `\`, or holds
+ *   a `.` or `..` segment (`%2e` counts as a dot) before or after the values go in.
  */
 function bindPath(path: string, values: Values): string {
-  if (!pathShape.test(path) || path.split('/').includes('..')) {
-    throw new QueryError(
-      'invalid',
-      'A path starts with /, and holds no ?, #, \\ or ..: put parameters in "query".',
-    );
-  }
-  return substitute(path, values, encodeURIComponent);
+  if (!pathShape.test(path) || hasDotSegment(path)) throw new QueryError('invalid', pathRule);
+  const bound = substitute(path, values, encodeURIComponent);
+  if (hasDotSegment(bound)) throw new QueryError('invalid', pathRule);
+  return bound;
 }
 
 /**

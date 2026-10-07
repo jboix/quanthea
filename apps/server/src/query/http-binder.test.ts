@@ -75,4 +75,22 @@ describe('bindHttp', () => {
     );
     expect(() => bind({ path: '/x/$nope' })).toThrow('Unknown variable $nope.');
   });
+
+  test('refuses dot segments, encoded or not, in the template and in a variable value', () => {
+    for (const path of [
+      '/v1/./x',
+      '/v1/%2e%2e/x',
+      '/v1/%2E/x',
+      '/v1/.%2e/x',
+      '/v1/%2e./x',
+      '/v1/..',
+    ])
+      expect(() => bind({ path })).toThrow('A path starts with /');
+    for (const value of ['..', '.'])
+      expect(() => bind({ path: '/v1/services/$s/errors' }, { s: value })).toThrow(
+        'A path starts with /',
+      );
+    expect(bind({ path: '/v1/$s' }, { s: '...' }).path).toBe('/v1/...');
+    expect(bind({ path: '/v1/a.b/%2e%2ex' }).path).toBe('/v1/a.b/%2e%2ex');
+  });
 });

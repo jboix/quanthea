@@ -3,7 +3,7 @@ import { testConnectorConformance } from '@quanthea/plugin-kit/testing';
 import { atPointer, cellValue, inferredFields, responseFrame } from './extract.ts';
 import { httpConnector } from './http-connector.ts';
 import { describeApi } from './openapi.ts';
-import { pathRules } from './paths.ts';
+import { pathRules, pathUnderBase } from './paths.ts';
 
 testConnectorConformance(httpConnector, {
   config: { url: 'https://api.example.com/v1', openapi: '/openapi.json' },
@@ -38,6 +38,16 @@ describe('http path rules', () => {
     expect(rules.allows('/admin')).toBe(false);
     expect(pathRules('').allows('/anything/at/all')).toBe(true);
     expect(pathRules('/a.b').allows('/aXb')).toBe(false);
+  });
+
+  test('check the path the request reaches, under the base path, dot segments resolved', () => {
+    const base = 'https://api.example.com/api/';
+    expect(pathUnderBase(base, '/v1/services/../errors')).toBe('/v1/errors');
+    expect(pathUnderBase(base, '/v1/%2e%2e/%2E%2E/internal')).toBeUndefined();
+    expect(pathUnderBase(base, '/../admin')).toBeUndefined();
+    expect(pathUnderBase(base, '/v1/items')).toBe('/v1/items');
+    expect(pathUnderBase('https://api.example.com', '/v1/./items')).toBe('/v1/items');
+    expect(pathUnderBase(base, '')).toBe('/');
   });
 });
 

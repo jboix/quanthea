@@ -143,6 +143,16 @@ describe('createHttpClient', () => {
     expect(timedOut.code).toBe('timeout');
   });
 
+  test('keeps a path under the base path, dot segments resolved first', async () => {
+    const signal = AbortSignal.timeout(5000);
+    for (const path of ['/../echo', '/%2e%2e/echo', '/x/../../echo', '/%2E%2E/base/../echo']) {
+      const failure = await failureOf(() => client().request({ path, signal }));
+      expect(failure).toMatchObject({ code: 'rejected' });
+    }
+    const inside = await client().request({ path: '/x/../echo', signal });
+    expect(inside.status).toBe(200);
+  });
+
   test('maps a server that does not answer to unreachable', async () => {
     const closed = createHttpClient({ baseUrl: 'http://127.0.0.1:1', sourceName: 'Test' });
     const failure = await failureOf(() =>

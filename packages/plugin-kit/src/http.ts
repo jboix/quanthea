@@ -101,6 +101,8 @@ const maxRedirects = 5;
 interface ClientSettings {
   /** The base URL, without a trailing slash. */
   readonly base: string;
+  /** The path of the base URL, without a trailing slash: every relative request stays under it. */
+  readonly basePath: string;
   /** The only origin called. */
   readonly origin: string;
   /** The source, for messages. */
@@ -138,18 +140,33 @@ function transportError(error: unknown, signal: AbortSignal, sourceName: string)
 }
 
 /**
- * Builds a request URL under the base URL.
+ * Whether a URL's path, dot segments resolved, is the base path or under it.
+ *
+ * @param url - The parsed URL.
+ * @param basePath - The base path, without a trailing slash.
+ * @returns `true` when the path stays under the base path.
+ */
+function isUnderBase(url: URL, basePath: string): boolean {
+  return url.pathname === basePath || url.pathname.startsWith(`${basePath}/`);
+}
+
+/**
+ * Builds a request URL under the base URL. A relative path is parsed first, so `.` and `..`
+ * segments (`%2e` included) are resolved before its place is checked.
  *
  * @param settings - The client settings.
  * @param request - The request.
  * @returns The URL.
- * @throws {ConnectorError} `rejected` when the path or absolute URL leaves the origin.
+ * @throws {ConnectorError} `rejected` when an absolute URL leaves the origin, or a relative path
+ *   leaves the base path.
  */
 function requestUrl(settings: ClientSettings, request: HttpRequest): URL {
   const absolute = /^https?:\/\//i.test(request.path);
   const url = new URL(absolute ? request.path : `${settings.base}${request.path}`);
   if (url.origin !== settings.origin)
     throw new ConnectorError('rejected', `A request left the ${settings.sourceName} origin.`);
+  if (!absolute && !isUnderBase(url, settings.basePath))
+    throw new ConnectorError('rejected', `A request left the ${settings.sourceName} base path.`);
   const parameters = Object.entries(request.query ?? {}).flatMap(([name, value]) =>
     (typeof value === 'string' ? [value] : value).map((item) => [name, item] as const),
   );
@@ -343,6 +360,7 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
   const base = new URL(options.baseUrl);
   const settings: ClientSettings = {
     base: base.href.replace(/\/+$/, ''),
+    basePath: base.pathname.replace(/\/+$/, ''),
     origin: base.origin,
     sourceName: options.sourceName,
     headers: options.headers ?? {},

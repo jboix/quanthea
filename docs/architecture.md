@@ -1829,7 +1829,9 @@ export const exampleConnector = defineConnector({
   (169.254.0.0/16, 100.100.100.200, fd00:ec2::254, fe80::/10), by the host or by what a name
   resolves to when the request starts. It stops at a timeout (120 seconds by default, on top of the
   caller's signal) and reads at most 64 MiB of a body. A request names a path under the base URL,
-  or an absolute URL on the same origin, such as a next-page link.
+  or an absolute URL on the same origin, such as a next-page link. A path is parsed first, dot
+  segments resolved, and must stay under the base URL's path; an absolute URL is held to the
+  origin only.
 - `@quanthea/plugin-kit/testing` holds the suite every kind runs in its test file: static
   checks of the declaration, and live checks against a source (health, schema, valid frames, row
   limit, abort, error messages, sample limit). `test/memory-connector.ts` is an in-memory kind for
@@ -2028,7 +2030,9 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   patterns a query may call (`*` within a segment, `**` across segments, `/**` by default); the
   authentication (none, bearer, basic, or a key in a named header), sealed like every secret; and
   the path of an OpenAPI (or Swagger 2) description, JSON or YAML. The connector refuses a method
-  or a path its settings do not allow before it sends anything. The response becomes a table
+  or a path its settings do not allow before it sends anything. The path it checks is the one the
+  request reaches: parsed under the base URL, `.` and `..` segments resolved (`%2e` included),
+  with the base path removed; a path that leaves the base path is refused. The response becomes a table
   through `extract`: a JSON pointer to the rows (an array, or one object as one row), and the
   columns as pointers into each row with an optional type (`time` reads ISO text, or epoch
   seconds or milliseconds); without columns, every value of the first rows becomes one, nested
@@ -2101,8 +2105,9 @@ that changes with its settings).
      code; a query names one, never writes one. The index is
      lowercase names and patterns, never a hidden (`.`), system (`_`) or remote (`:`) index.
    - **HTTP** (`query/http-binder.ts`): `$name` in the path becomes its value URL-encoded, one
-     value only, so it stays one segment; the path is absolute and holds no `?`, `#`, `\` or
-     `..`. In a query parameter `$name` becomes the raw value, which the request encodes, and a
+     value only, so it stays one segment; the path is absolute and holds no `?`, `#` or `\`. No
+     segment is `.` or `..`, with a dot also written `%2e` in any case, checked in the template
+     and again once the values are in. In a query parameter `$name` becomes the raw value, which the request encodes, and a
      parameter that is a multi-value variable alone repeats once per value. A POST body takes
      `{"$var": "name"}` nodes, as a search does (`query/json-variables.ts`). Headers take no
      variable. `$__from` and `$__to` are ISO times; `$__from_ms`, `$__from_s` and their `__to`

@@ -22,7 +22,7 @@ import { responseFrame } from './extract.ts';
 import { httpGuide } from './guide.ts';
 import { jsonIcon } from './icon.ts';
 import { type ApiDescription, type DescribedOperation, describeApi } from './openapi.ts';
-import { type PathRules, pathRules } from './paths.ts';
+import { type PathRules, pathRules, pathUnderBase } from './paths.ts';
 
 /** The configuration of an HTTP JSON connector. */
 const configSchema = z.object({
@@ -198,7 +198,8 @@ async function execute(
       'rejected',
       `This connector allows ${connection.config.methods} only.`,
     );
-  if (!connection.paths.allows(query.path))
+  const reached = pathUnderBase(connection.config.url, query.path);
+  if (reached === undefined || !connection.paths.allows(reached))
     throw new ConnectorError('rejected', 'The path is not one this connector allows.');
   const started = performance.now();
   const post = query.method === 'POST';
