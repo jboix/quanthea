@@ -1,7 +1,7 @@
 /** The schema the model receives: the snapshot minus hidden fields, with metadata by access level. */
 import { lowCardinalityLimit } from '@quanthea/shared';
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
-import { type GateSubject, isHiddenField } from './subject.ts';
+import { type GateSubject, isWithheldField } from './subject.ts';
 
 /** A field as the model sees it. */
 export interface ModelField {
@@ -82,7 +82,7 @@ function modelEntity(subject: GateSubject, entity: SchemaEntity): ModelEntity {
     ...(description === undefined ? {} : { description }),
     ...(showRows ? { rows: entity.rowEstimate } : {}),
     fields: entity.fields
-      .filter((field) => !isHiddenField(subject, entity.name, field.name))
+      .filter((field) => !isWithheldField(subject, entity.name, field.name))
       .map((field) => modelField(subject, entity.name, field)),
   };
 }

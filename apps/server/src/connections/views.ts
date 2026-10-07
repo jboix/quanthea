@@ -7,7 +7,7 @@ import {
 } from '@quanthea/shared';
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
 import type { ConnectorRow } from '../db/connector-repository.ts';
-import { type GateSubject, isHiddenField } from '../gate/subject.ts';
+import { type GateSubject, isHiddenField, isWithheldField } from '../gate/subject.ts';
 import { maskSecret } from '../secrets/mask.ts';
 
 /**
@@ -89,7 +89,7 @@ function modelSees(
   entity: string,
   field: SchemaField,
 ): 'values' | 'name' | 'nothing' {
-  if (isHiddenField(subject, entity, field.name)) return 'nothing';
+  if (isWithheldField(subject, entity, field.name)) return 'nothing';
   const few = field.distinctEstimate !== undefined && field.distinctEstimate <= lowCardinalityLimit;
   return subject.accessLevel >= 2 && few ? 'values' : 'name';
 }

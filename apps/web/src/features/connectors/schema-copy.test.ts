@@ -38,6 +38,10 @@ describe('schema copy', () => {
 
   test('marks hidden fields, shared values and high cardinality', () => {
     expect(fieldMarker(field({ hidden: true, modelSees: 'nothing' }))?.text).toBe('hidden');
+    expect(fieldMarker(field({ modelSees: 'nothing' }))).toEqual({
+      text: 'holds a hidden field',
+      tone: 'danger',
+    });
     expect(fieldMarker(field({ distinctValues: 12, modelSees: 'values' }))).toEqual({
       text: '12 values shared',
       tone: 'accent',

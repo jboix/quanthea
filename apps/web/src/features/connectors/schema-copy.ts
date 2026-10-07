@@ -80,13 +80,15 @@ export interface FieldMarker {
 }
 
 /**
- * What the panel says about what the model gets of a field.
+ * What the panel says about what the model gets of a field. A field the model gets nothing of
+ * without being hidden holds a hidden one, as an object holds its hidden subfield.
  *
  * @param field - The field.
  * @returns The marker, or `undefined` when the model gets the name only, as usual.
  */
 export function fieldMarker(field: SchemaField): FieldMarker | undefined {
   if (field.hidden) return { text: 'hidden', tone: 'danger' };
+  if (field.modelSees === 'nothing') return { text: 'holds a hidden field', tone: 'danger' };
   const distinct = field.distinctValues;
   if (distinct === undefined) return undefined;
   if (field.modelSees === 'values')

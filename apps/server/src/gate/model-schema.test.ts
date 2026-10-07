@@ -85,4 +85,24 @@ describe('modelSchema', () => {
     const names = modelSchema(subject, logs)[0]?.fields.map((field) => field.name);
     expect(names).toEqual(['message']);
   });
+
+  test('hides an object or nested field that holds a hidden field', () => {
+    const logs: SchemaSnapshot = {
+      entities: [
+        {
+          name: 'logs',
+          kind: 'index',
+          fields: [
+            { name: 'user', nativeType: 'nested' },
+            { name: 'user.email', nativeType: 'keyword' },
+            { name: 'user.name', nativeType: 'keyword' },
+            { name: 'username', nativeType: 'keyword' },
+          ],
+        },
+      ],
+    };
+    const subject = { ...subjectAt(3), hiddenFields: ['logs.user.email'] };
+    const names = modelSchema(subject, logs)[0]?.fields.map((field) => field.name);
+    expect(names).toEqual(['user.name', 'username']);
+  });
 });

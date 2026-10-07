@@ -5,7 +5,7 @@ import {
   type ConnectorInstance,
   type FieldReference,
 } from '../connectors/_shared/index.ts';
-import { type GateSubject, isHiddenField } from './subject.ts';
+import { type GateSubject, isWithheldField } from './subject.ts';
 
 /** Sample values for the model. */
 export type ModelSample =
@@ -38,7 +38,7 @@ export async function sampleForModel(
       error: `Sample values need access level 2 or higher; ${subject.name} is at level 1.`,
     };
   }
-  if (isHiddenField(subject, field.entity, field.field))
+  if (isWithheldField(subject, field.entity, field.field))
     return { ok: false, error: `${name} is hidden.` };
   const capped = Math.max(1, Math.min(Math.trunc(limit), lowCardinalityLimit));
   try {

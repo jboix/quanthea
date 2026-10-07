@@ -48,6 +48,9 @@ Each thread shows the access of its sources under the question box.
 **Hide these columns from the model, by name**: list columns such as `customers.email`, or a bare
 name such as `phone`. They are removed from the schema and from every result before the model sees
 it. Names match in any case. A hidden object, such as `logs.user`, hides every field under it.
+A field that holds a hidden one is removed whole: hiding `logs.user.email` also removes a `user`
+column that holds an array of user objects, and the schema marks `user` as holding a hidden field.
+A column that ends with a hidden name, such as `c.email`, is removed too.
 
 A query that renames a column gets past the name: its top values show at the aggregates level, its
 rows at full access. For data that must never leave, use a database role or a view that cannot

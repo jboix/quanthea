@@ -2147,6 +2147,12 @@ model-ready results and never throw.
   hides every field under it: a hidden `logs.user` hides `user.email`. Results do not say which
   entity a column came from, and entity names can hold dots, so a hidden `logs.user.email` removes
   the result columns `user.email` and `email` of every entity (`hiddenResultNames`).
+- A column or label that holds a hidden field is removed whole (`isHiddenResultName`): with
+  `logs.user.email` hidden, a `user` column goes, since a search document's array of objects or
+  a MongoDB array keeps its objects in one column. A column whose last dotted part is a hidden
+  name goes too, such as a joined `c.email`. In the schema, a field that holds a hidden one is
+  left out of what the model gets and out of sampling (`isWithheldField`); the admin view marks it
+  as holding a hidden field.
 - A query that renames or aliases a hidden column gets past the name match: from level 3 its top
   values show, at level 4 its rows. A database role or view that cannot read the column is the
   hard guarantee; an integration test shows the limit.
@@ -2165,7 +2171,8 @@ model-ready results and never throw.
 - `gate/leak.test.ts` feeds random marker values through levels 1 and 2 (rows, unusual numbers,
   labels, frame names, error texts) and checks none reaches the model. `gate/hidden-leak.test.ts`
   checks, from level 2 to 4, that no hidden column, nested field or label reaches it, whatever its
-  case: flat and cased SQL columns, nested search and MongoDB fields, and alert labels.
+  case: flat, cased and qualified SQL columns, nested search and MongoDB fields, the arrays that
+  hold them, and alert labels.
 
 Credentials are stored encrypted. A connector config holds everything else: URL, database,
 TLS options, the access level, hidden columns, guardrails, and table and field descriptions.

@@ -6,7 +6,7 @@
  * a summary only, never the points, and only from level 3. Hidden labels never show.
  */
 import type { AccessLevel } from '@quanthea/shared';
-import { type GateSubject, hiddenResultNames, isHiddenName } from './subject.ts';
+import { type GateSubject, hiddenResultNames, isHiddenResultName } from './subject.ts';
 
 /** A series of an alert as one evaluation now would see it. */
 export interface AlertSeriesNow {
@@ -75,7 +75,9 @@ function visibleLabels(
   labels: Readonly<Record<string, string>>,
   hidden: ReadonlySet<string>,
 ): Record<string, string> {
-  return Object.fromEntries(Object.entries(labels).filter(([name]) => !isHiddenName(name, hidden)));
+  return Object.fromEntries(
+    Object.entries(labels).filter(([name]) => !isHiddenResultName(name, hidden)),
+  );
 }
 
 /**

@@ -72,6 +72,41 @@ const cases: readonly HiddenCase[] = [
     column: 'Customer.Email',
     sibling: 'customer.city',
   },
+  {
+    title: 'a search object array that holds a hidden field',
+    kind: 'elasticsearch',
+    hiddenField: 'logs.user.email',
+    column: 'user',
+    sibling: 'host.name',
+  },
+  {
+    title: 'a nested search field under a dotted index, as an array',
+    kind: 'opensearch',
+    hiddenField: 'app.logs.user.email',
+    column: 'User',
+    sibling: 'message',
+  },
+  {
+    title: 'a MongoDB array that holds a hidden field',
+    kind: 'mongodb',
+    hiddenField: 'orders.customer.email',
+    column: 'customer',
+    sibling: 'total',
+  },
+  {
+    title: 'a column with a table qualifier',
+    kind: 'clickhouse',
+    hiddenField: 'customers.email',
+    column: 'c.email',
+    sibling: 'c.name',
+  },
+  {
+    title: 'a column with a table qualifier in another case',
+    kind: 'clickhouse',
+    hiddenField: 'customers.email',
+    column: 'c.EMAIL',
+    sibling: 'c.name',
+  },
 ];
 
 const secret = 'ana.secret@example.com';
