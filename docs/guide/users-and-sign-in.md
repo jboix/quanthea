@@ -72,8 +72,9 @@ configuration** → **Add optional claim** → **ID**, and tick `email` and `xms
 
 ### Who may join
 
-Invited people always join, with the role they were invited with. A provider may also let others
-in, as viewers:
+Invited people always join, with the role they were invited with, while the invite link works
+(72 hours) and until they first sign in. A user the configuration file declares counts as invited
+for as long as the file declares them. A provider may also let others in, as viewers:
 
 | Provider | Who may join                                                            |
 | -------- | ----------------------------------------------------------------------- |

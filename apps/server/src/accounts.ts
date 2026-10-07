@@ -20,8 +20,10 @@ import type { createAuditRepository } from './db/audit-repository.ts';
 import type { openDatabase } from './db/database.ts';
 import { createIdentityRepository, type IdentityRepository } from './db/identity-repository.ts';
 import { createPasswordLinkRepository } from './db/password-link-repository.ts';
+import { createProvisionedRepository } from './db/provisioned-repository.ts';
 import { createSessionRepository } from './db/session-repository.ts';
 import { createUserRepository, type UserRepository } from './db/user-repository.ts';
+import { createManaged } from './provisioning/managed.ts';
 import type { KeyedHash } from './secrets/keyed-hash.ts';
 import type { Peppers, SessionHashes } from './secrets/keys.ts';
 import type { SecretBox } from './secrets/secret-box.ts';
@@ -112,6 +114,20 @@ function passwordAccounts(
 }
 
 /**
+ * Whether the configuration file declares a user.
+ *
+ * @param dependencies - The account dependencies.
+ * @returns The check, by email.
+ */
+function declaredUsers(dependencies: AccountDependencies): (email: string) => Promise<boolean> {
+  const managed = createManaged(
+    createProvisionedRepository(dependencies.database),
+    dependencies.emailIndex,
+  );
+  return async (email) => (await managed.userPathOf(email)) !== undefined;
+}
+
+/**
  * Provider sign-ins, when quanthea has a public URL and sessions.
  *
  * @param dependencies - The account dependencies.
@@ -133,6 +149,8 @@ function providerFlows(
     identities: parts.identityRows,
     userRows: parts.userRows,
     users: parts.users,
+    links: createPasswordLinkRepository(dependencies.database),
+    declared: declaredUsers(dependencies),
     sessions: parts.sessions,
     audit: parts.audit,
     publicUrl,

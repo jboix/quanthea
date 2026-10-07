@@ -77,7 +77,11 @@ async function storeProviderSecrets(): Promise<string[]> {
   settings.markTested('gitlab', 'x');
   settings.enable('gitlab', true, 'x');
   const person = { email: secrets.providerEmail, name: secrets.providerName, role: 'editor' };
-  await services.users.create(person as Parameters<typeof services.users.create>[0], 'x');
+  const invited = await services.users.create(
+    person as Parameters<typeof services.users.create>[0],
+    'x',
+  );
+  await services.passwords?.issueLink(invited.id, 'invite', 'x');
   const flows = services.flows;
   if (!flows) throw new Error('The test services have no provider flows.');
   const intent = 'sign-in' as const;

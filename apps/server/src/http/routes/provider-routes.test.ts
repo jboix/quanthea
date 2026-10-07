@@ -77,9 +77,17 @@ function cookieOf(cookies: readonly string[], name: string): string | undefined 
   return cookies.find((each) => each.startsWith(`${name}=`))?.split(';')[0];
 }
 
+/**
+ * Invites Ada, as an admin does: a user and an invite link.
+ */
+async function invite(): Promise<void> {
+  const user = await services.users.create({ email: ada.email, name: 'Ada', role: 'editor' }, 'x');
+  await services.passwords?.issueLink(user.id, 'invite', 'admin');
+}
+
 describe('provider sign-in routes', () => {
   test('sign an invited person in, with hardened cookies, and go where they were headed', async () => {
-    await services.users.create({ email: ada.email, name: 'Ada', role: 'editor' }, 'admin');
+    await invite();
     const start = await get(providerStartPath('gitlab', 'sign-in', '/library'));
     expect(start.status).toBe(302);
     expect(start.location).toStartWith(`${fake.issuer}/authorize?`);
@@ -123,7 +131,7 @@ describe('provider sign-in routes', () => {
   });
 
   test('go home, not to another site, after signing in', async () => {
-    await services.users.create({ email: ada.email, name: 'Ada', role: 'editor' }, 'admin');
+    await invite();
     const start = await get(providerStartPath('gitlab', 'sign-in', '//evil.test/x'));
     const query = fake.approve(start.location, ada);
     const callback = await get(

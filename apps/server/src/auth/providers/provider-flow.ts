@@ -6,8 +6,9 @@
  *
  * A person comes in when their provider identity is linked to a user, when they were invited with
  * the verified email the provider gives, or when the provider's join policy lets them in, as a
- * viewer. An account in use is never linked by email alone: its owner links the provider from
- * the account menu, signed in.
+ * viewer. An invite counts while its link works, or while the configuration file declares the
+ * user, and only for a user who never signed in. An account in use is never linked by email
+ * alone: its owner links the provider from the account menu, signed in.
  */
 import {
   type Principal,
@@ -18,6 +19,7 @@ import {
 import * as client from 'openid-client';
 import type { AuditRepository } from '../../db/audit-repository.ts';
 import type { IdentityRepository } from '../../db/identity-repository.ts';
+import type { PasswordLinkRepository } from '../../db/password-link-repository.ts';
 import type { UserRepository, UserRow } from '../../db/user-repository.ts';
 import type { KeyedHash } from '../../secrets/keyed-hash.ts';
 import type { SecretBox } from '../../secrets/secret-box.ts';
@@ -99,6 +101,15 @@ export interface ProviderFlowDependencies {
   readonly userRows: UserRepository;
   /** Creates and finds users. */
   readonly users: Pick<Users, 'create' | 'findByEmail'>;
+  /** Finds a user's invite link. */
+  readonly links: Pick<PasswordLinkRepository, 'latestOf'>;
+  /**
+   * Whether the configuration file declares a user, which invites them for as long as it does.
+   *
+   * @param email - The user's email.
+   * @returns Whether it does.
+   */
+  readonly declared: (email: string) => Promise<boolean>;
   /** Starts sessions. */
   readonly sessions: Pick<Sessions, 'start'>;
   /** Records who did what. */
@@ -256,18 +267,33 @@ async function link(context: Context, providerId: string, subject: string, userI
 }
 
 /**
- * Whether a user is a pending invite: never signed in, no password, no provider, enabled.
+ * Whether an account is in use: it has a password or a provider, or signed in once.
  *
  * @param context - The flow context.
  * @param row - The user.
+ * @returns Whether it is.
+ */
+function inUse(context: Context, row: UserRow): boolean {
+  return (
+    row.passwordHash !== null ||
+    row.lastSignInAt !== null ||
+    context.identities.listOf(row.id).length > 0
+  );
+}
+
+/**
+ * Whether a user is still invited: their invite link works, or the configuration file declares
+ * them.
+ *
+ * @param context - The flow context.
+ * @param row - The user.
+ * @param email - Their email.
  * @returns Whether they are.
  */
-function isPendingInvite(context: Context, row: UserRow): boolean {
-  return (
-    row.disabledAt === null &&
-    row.passwordHash === null &&
-    context.identities.listOf(row.id).length === 0
-  );
+async function stillInvited(context: Context, row: UserRow, email: string): Promise<boolean> {
+  const link = context.links.latestOf(row.id);
+  if (link?.purpose === 'invite' && link.expiresAt > context.now()) return true;
+  return context.declared(email);
 }
 
 /**
@@ -289,16 +315,24 @@ async function linkedUser(context: Context, providerId: string, subject: string)
 }
 
 /**
- * Refuses to link a new identity to an account in use, by email alone: its owner links it signed
- * in.
+ * Refuses to link a new identity by email alone to anyone but a pending invite: an account in
+ * use is linked by its owner, signed in, and an invite that ran out needs a new one.
  *
  * @param context - The flow context.
  * @param existing - The user with the identity's email, if any.
- * @throws {FlowError} `link-first` for an account in use, `disabled` for a disabled one.
+ * @param email - The identity's verified email.
+ * @throws {FlowError} `disabled` for a disabled user, `link-first` for an account in use,
+ * `not-invited` for an invite that no longer works.
  */
-function refuseAccountInUse(context: Context, existing: UserRow | undefined): void {
-  if (!existing || isPendingInvite(context, existing)) return;
-  throw new FlowError(existing.disabledAt === null ? 'link-first' : 'disabled');
+async function refusePastInvite(
+  context: Context,
+  existing: UserRow | undefined,
+  email: string,
+): Promise<void> {
+  if (!existing) return;
+  if (existing.disabledAt !== null) throw new FlowError('disabled');
+  if (inUse(context, existing)) throw new FlowError('link-first');
+  if (!(await stillInvited(context, existing, email))) throw new FlowError('not-invited');
 }
 
 /**
@@ -314,7 +348,7 @@ async function newcomer(context: Context, providerId: string, identity: Provider
   if (!identity.emailVerified || !identity.email)
     throw new FlowError(identity.joinable ? 'unverified' : 'not-invited');
   const existing = await context.users.findByEmail(identity.email);
-  refuseAccountInUse(context, existing);
+  await refusePastInvite(context, existing, identity.email);
   const userId = existing?.id ?? (await join(context, identity));
   await link(context, providerId, identity.subject, userId);
   return userId;

@@ -42,6 +42,13 @@ export interface PasswordLinkRepository {
    * @returns The link, or `undefined`.
    */
   take(tokenHash: Uint8Array): PasswordLinkRow | undefined;
+  /**
+   * A user's link, the latest one, without using it up.
+   *
+   * @param userId - The user.
+   * @returns The link, or `undefined` when the user has none.
+   */
+  latestOf(userId: string): PasswordLinkRow | undefined;
 }
 
 /** A link as SQLite returns it. */
@@ -92,32 +99,39 @@ function mapDefined<Value, Result>(
 }
 
 /**
+ * The statement that stores a link in place of the user's other links.
+ *
+ * @param database - A database the migrations have run on.
+ * @returns A transaction that stores the link.
+ */
+function replacer(database: Database): (row: PasswordLinkRow) => void {
+  const insert = database.query(
+    `INSERT INTO password_links (token_hash, user_id, purpose, expires_at, created_by, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  );
+  const removeOfUser = database.query('DELETE FROM password_links WHERE user_id = ?');
+  return database.transaction((row: PasswordLinkRow) => {
+    removeOfUser.run(row.userId);
+    insert.run(row.tokenHash, row.userId, row.purpose, row.expiresAt, row.createdBy, row.createdAt);
+  });
+}
+
+/**
  * Creates the repository over an open database.
  *
  * @param database - A database the migrations have run on.
  * @returns The repository.
  */
 export function createPasswordLinkRepository(database: Database): PasswordLinkRepository {
-  const insert = database.query(
-    `INSERT INTO password_links (token_hash, user_id, purpose, expires_at, created_by, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  );
   const removeOfUser = database.query('DELETE FROM password_links WHERE user_id = ?');
   const selectOne = database.query<StoredLink, [Uint8Array]>(
     'SELECT * FROM password_links WHERE token_hash = ?',
   );
+  const selectOfUser = database.query<StoredLink, [string]>(
+    'SELECT * FROM password_links WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
+  );
   return {
-    replace: database.transaction((row: PasswordLinkRow) => {
-      removeOfUser.run(row.userId);
-      insert.run(
-        row.tokenHash,
-        row.userId,
-        row.purpose,
-        row.expiresAt,
-        row.createdBy,
-        row.createdAt,
-      );
-    }),
+    replace: replacer(database),
     find: (tokenHash) => mapDefined(selectOne.get(tokenHash), toLink),
     take: database.transaction((tokenHash: Uint8Array) => {
       const stored = selectOne.get(tokenHash);
@@ -125,5 +139,6 @@ export function createPasswordLinkRepository(database: Database): PasswordLinkRe
       removeOfUser.run(stored.user_id);
       return toLink(stored);
     }),
+    latestOf: (userId) => mapDefined(selectOfUser.get(userId), toLink),
   };
 }

@@ -2738,7 +2738,9 @@ one, and enables them again. Without any admin, it creates the default one.
   carried; the destination goes through the same check as after a password sign-in.
 - **Who comes in**: a person whose provider identity is linked to a user signs in as that user.
   Otherwise, a pending invite for the verified email the provider gives links them, with the
-  invited role. Otherwise the provider's join rule may let them in as a viewer: a Google Workspace
+  invited role. An invite is pending only for a user who never signed in and has no password or
+  provider, and only while its invite link works (72 hours) or the configuration file declares
+  the user; an invite that ran out needs a new one (`?error=not-invited`). Otherwise the provider's join rule may let them in as a viewer: a Google Workspace
   domain (the `hd` claim), a GitLab verified-email domain or group (subgroups included), a GitHub
   organisation (active membership), or anyone in the Entra tenant. Entra ID's email counts as
   verified only when the optional `xms_edov` claim is true; its sign-in name

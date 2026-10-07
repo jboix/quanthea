@@ -4,9 +4,11 @@ import { createAccounts } from '../../accounts.ts';
 import { createAuditRepository } from '../../db/audit-repository.ts';
 import { openDatabase } from '../../db/database.ts';
 import { runMigrations } from '../../db/migrate.ts';
+import { createProvisionedRepository } from '../../db/provisioned-repository.ts';
 import { createSettingsRepository } from '../../db/settings-repository.ts';
 import { createSettingsStore } from '../../settings/settings-store.ts';
 import { temporaryDir, testKeyedHashes, testSecretBox } from '../../test/fixtures.ts';
+import { inviteLifetimeMs } from '../password-accounts.ts';
 import { FlowError } from './provider-flow.ts';
 import { type FakePerson, type FakeProvider, startFakeProvider } from './test/fake-provider.ts';
 
@@ -14,6 +16,7 @@ let fake: FakeProvider;
 let dataDir: ReturnType<typeof temporaryDir>;
 let accounts: ReturnType<typeof createAccounts>;
 let database: ReturnType<typeof openDatabase>;
+let hashes: Awaited<ReturnType<typeof testKeyedHashes>>;
 let clock = Date.parse('2026-09-29T12:00:00Z');
 const admin: Principal = { id: 'admin-1', name: 'Root', role: 'admin' };
 
@@ -30,12 +33,13 @@ beforeEach(async () => {
   database = openDatabase(dataDir.path);
   runMigrations(database);
   const settings = createSettingsStore(createSettingsRepository(database));
+  hashes = await testKeyedHashes();
   accounts = createAccounts(
     {
       database,
       settings,
       secretBox: await testSecretBox(),
-      ...(await testKeyedHashes()),
+      ...hashes,
       publicUrl: 'https://quanthea.test',
       driverOptions: { allowHttp: true },
       now: () => clock,
@@ -61,6 +65,15 @@ afterEach(() => {
   database.close();
   dataDir.remove();
 });
+
+/**
+ * What the configuration file manages, as recorded.
+ *
+ * @returns The repository.
+ */
+function provisioned() {
+  return createProvisionedRepository(database);
+}
 
 /** Ada, as the fake provider knows her. */
 const ada: FakePerson = {
@@ -106,6 +119,18 @@ async function run(
 }
 
 /**
+ * Invites a person, as an admin does: a user and an invite link.
+ *
+ * @param email - Their email.
+ * @returns The user's id.
+ */
+async function invite(email = 'ada@example.com'): Promise<string> {
+  const user = await accounts.users.create({ email, name: 'Ada', role: 'editor' }, 'x');
+  await accounts.passwords?.issueLink(user.id, 'invite', admin.id);
+  return user.id;
+}
+
+/**
  * Tests the provider and turns it on, as an admin would.
  */
 async function enable() {
@@ -139,13 +164,10 @@ describe('signing in through a provider', () => {
 
   test('lets in an invited person by their verified email, and links them for next time', async () => {
     await enable();
-    const invited = await accounts.users.create(
-      { email: 'ada@example.com', name: 'Ada', role: 'editor' },
-      'x',
-    );
+    const invited = await invite();
     const first = await run(ada);
     expect(first).toMatchObject({ kind: 'signed-in', next: '/library' });
-    expect(accounts.identityRows.listOf(invited.id)).toHaveLength(1);
+    expect(accounts.identityRows.listOf(invited)).toHaveLength(1);
     const again = await run({ ...ada, email: 'changed@example.com' });
     expect(again).toMatchObject({ kind: 'signed-in' });
   });
@@ -153,7 +175,7 @@ describe('signing in through a provider', () => {
   test('refuses someone uninvited, an unverified email, and a disabled user', async () => {
     await enable();
     expect(await run(ada)).toMatchObject({ failure: 'not-invited' });
-    await accounts.users.create({ email: 'ada@example.com', name: 'Ada', role: 'editor' }, 'x');
+    await invite();
     expect(await run({ ...ada, email_verified: false })).toMatchObject({ failure: 'not-invited' });
     const user = await accounts.users.findByEmail('ada@example.com');
     accounts.userRows.update(user?.id ?? '', { disabledAt: 1, updatedAt: 1 });
@@ -195,7 +217,7 @@ describe('signing in through a provider', () => {
 
   test('refuses a forged or stale ID token: nonce, audience, issuer, key, alg none, expiry', async () => {
     await enable();
-    await accounts.users.create({ email: 'ada@example.com', name: 'Ada', role: 'editor' }, 'x');
+    await invite();
     const failureWith = async (misbehaviour: Parameters<FakeProvider['misbehave']>[0]) => {
       fake.misbehave(misbehaviour);
       return ((await run(ada)) as FlowError).failure;
@@ -212,7 +234,7 @@ describe('signing in through a provider', () => {
 
   test('completes a flow once, only in the browser that started it, and only for a while', async () => {
     await enable();
-    await accounts.users.create({ email: 'ada@example.com', name: 'Ada', role: 'editor' }, 'x');
+    await invite();
     const started = await flows().start({
       providerId: 'gitlab',
       intent: 'sign-in',
@@ -238,5 +260,33 @@ describe('signing in through a provider', () => {
     const code = fake.approve(other.location, ada);
     clock += 11 * 60_000;
     expect(await finish(other.flowCookie, code)).toMatchObject({ failure: 'expired' });
+  });
+
+  test('claims an invite only while its link works', async () => {
+    await enable();
+    await invite();
+    clock += inviteLifetimeMs + 1;
+    expect(await run(ada)).toMatchObject({ failure: 'not-invited' });
+  });
+
+  test('never claims by email a user who signed in before, though they lost every way in', async () => {
+    await enable();
+    const invited = await invite();
+    accounts.userRows.update(invited, { lastSignInAt: clock, updatedAt: clock });
+    expect(await run(ada)).toMatchObject({ failure: 'link-first' });
+  });
+
+  test('lets in a user the configuration file declares, with no invite link', async () => {
+    await enable();
+    const declared = await accounts.users.create(
+      { email: 'ada@example.com', name: 'Ada', role: 'editor' },
+      'quanthea-config',
+    );
+    expect(await run(ada)).toMatchObject({ failure: 'not-invited' });
+    const name = Buffer.from(await hashes.emailIndex.hash('ada@example.com')).toString('hex');
+    const record = { kind: 'user' as const, name, path: 'quanthea.yaml', editable: [] };
+    provisioned().put({ ...record, fingerprint: new Uint8Array(), appliedAt: clock });
+    expect(await run(ada)).toMatchObject({ kind: 'signed-in' });
+    expect(accounts.identityRows.listOf(declared.id)).toHaveLength(1);
   });
 });
