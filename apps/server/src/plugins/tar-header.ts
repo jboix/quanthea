@@ -31,6 +31,8 @@ export interface RawHeader {
   readonly size: number;
   /** The type flag, `0` for a NUL one. */
   readonly type: string;
+  /** The link name field. */
+  readonly linkpath: string;
 }
 
 /** A header with what extended headers before it gave. */
@@ -39,8 +41,10 @@ export interface Header {
   readonly path: string;
   /** Its data size, in bytes. */
   readonly size: number;
-  /** Its type flag. */
+  /** Its type flag, `5` for a file whose path ends with a slash, as node-tar reads it. */
   readonly type: string;
+  /** Its link name. */
+  readonly linkpath: string;
 }
 
 /** What extended headers give the entry that follows them. */
@@ -49,6 +53,8 @@ export interface Extension {
   readonly path?: string;
   /** The entry's data size, in place of its own header's. */
   readonly size?: number;
+  /** The entry's link name, in place of its own header's. */
+  readonly linkpath?: string;
 }
 
 /**
@@ -80,16 +86,18 @@ function octal(header: Uint8Array, start: number, length: number): number {
 }
 
 /**
- * Checks a header's checksum: the sum of its bytes, the checksum field counted as spaces.
+ * Checks a header's checksum: the sum of its bytes, the checksum field counted as spaces. The
+ * field must end with a NUL or a space, since node-tar reads the bytes after it as more digits.
  *
  * @param header - The header.
- * @throws {ArchiveError} When it does not match.
+ * @throws {ArchiveError} When it does not match or runs to the end of its field.
  */
 function checkSum(header: Uint8Array): void {
   let sum = 0;
   for (let index = 0; index < block; index += 1)
     sum += index >= 148 && index < 156 ? 32 : (header[index] ?? 0);
-  if (sum !== octal(header, 148, 8)) throw new ArchiveError('a tar header is corrupt');
+  const ended = header[155] === 0 || header[155] === 0x20;
+  if (!ended || sum !== octal(header, 148, 8)) throw new ArchiveError('a tar header is corrupt');
 }
 
 /**
@@ -122,12 +130,36 @@ export function readHeader(header: Uint8Array): RawHeader {
     ...(prefix === undefined ? {} : { prefix }),
     size: octal(header, 124, 12),
     type: text(header, 156, 1) || '0',
+    linkpath: text(header, 157, 100),
   };
 }
 
 /**
+ * A header's path from its own fields: the name, the prefix joined before it when there is one.
+ *
+ * @param raw - The header's own fields.
+ * @returns The path.
+ */
+function joinedPath(raw: RawHeader): string {
+  return raw.prefix === undefined ? raw.name : `${raw.prefix}/${raw.name}`;
+}
+
+/**
+ * Whether node-tar reads an entry as a directory: one of that type, or a file whose path, before
+ * the prefix is joined, ends with a slash.
+ *
+ * @param type - The entry's type.
+ * @param path - Its extended path, or its name.
+ * @returns Whether it is a directory.
+ */
+function isDirectory(type: string, path: string): boolean {
+  return type === '5' || (type === '0' && path.endsWith('/'));
+}
+
+/**
  * A header with what the extended headers before it gave, which apply to file system entries only:
- * an extended header keeps its own fields. An extended path replaces the prefix and the name.
+ * an extended header keeps its own fields. An extended path replaces the prefix and the name. A
+ * directory, or a file whose path ends with a slash, has no data, as node-tar reads it.
  *
  * @param raw - The header's own fields.
  * @param extension - What the extended headers before it gave.
@@ -135,21 +167,54 @@ export function readHeader(header: Uint8Array): RawHeader {
  */
 export function resolve(raw: RawHeader, extension: Extension): Header {
   const own = fileSystemTypes.has(raw.type) ? extension : {};
-  const joined = raw.prefix === undefined ? raw.name : `${raw.prefix}/${raw.name}`;
-  return { path: own.path ?? joined, size: own.size ?? raw.size, type: raw.type };
+  const directory = isDirectory(raw.type, own.path ?? raw.name);
+  return {
+    path: own.path ?? joinedPath(raw),
+    size: directory ? 0 : (own.size ?? raw.size),
+    type: directory ? '5' : raw.type,
+    linkpath: own.linkpath ?? raw.linkpath,
+  };
+}
+
+/**
+ * Checks an entry's type: node-tar skips a header with no path, or with a link name on anything but
+ * a link or a pax header, and reads its data as headers.
+ *
+ * @param header - The entry.
+ * @throws {ArchiveError} For a link, a special file, a link name, or no path.
+ */
+function checkType(header: Header): void {
+  const linked = header.linkpath !== '' && header.type !== 'x' && header.type !== 'g';
+  if (!acceptedTypes.has(header.type) || linked)
+    throw new ArchiveError(`the archive holds a link or a special file: ${header.path}`);
+  if (header.path === '') throw new ArchiveError('the archive has an entry with no path');
+}
+
+/**
+ * Checks a file's path: under `package/`, which npm strips, and without an empty or a `.` segment,
+ * which npm would resolve to another file.
+ *
+ * @param path - The file's path.
+ * @throws {ArchiveError} For a path outside `package/` or with such a segment.
+ */
+function checkFilePath(path: string): void {
+  const [root, ...rest] = path.split('/');
+  if (root !== 'package' || rest.length === 0 || rest.some((part) => part === '' || part === '.'))
+    throw new ArchiveError(`the archive has a file outside package/ or an ambiguous path: ${path}`);
 }
 
 /**
  * Checks an entry's type and, for a file or a directory, its path.
  *
  * @param header - The entry.
- * @throws {ArchiveError} For a link or a special file, or an absolute path, `..` or a backslash.
+ * @throws {ArchiveError} For a link, a special file, a link name, no path, an absolute path, `..`
+ *   or a backslash, or a file outside `package/` or with an empty or a `.` segment.
  */
 export function checkEntry(header: Header): void {
-  if (!acceptedTypes.has(header.type))
-    throw new ArchiveError(`the archive holds a link or a special file: ${header.path}`);
+  checkType(header);
   if (extendedTypes.has(header.type)) return;
   const segments = header.path.split('/');
   if (header.path.startsWith('/') || header.path.includes('\\') || segments.includes('..'))
     throw new ArchiveError(`the archive has an unsafe path: ${header.path}`);
+  if (header.type === '0') checkFilePath(header.path);
 }

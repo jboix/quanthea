@@ -9,14 +9,16 @@ import { ArchiveError, type Extension, text } from './tar-header.ts';
 const maxExtended = 64 * 1024;
 
 /**
- * Checks an extended header's size before it is read.
+ * Checks an extended header before it is read: its size, and that it is ASCII, since node-tar
+ * decodes it in pieces that may split a character.
  *
  * @param data - Its data.
- * @throws {ArchiveError} When it is larger than {@link maxExtended}.
+ * @throws {ArchiveError} When it is larger than {@link maxExtended} or not ASCII.
  */
-function checkExtendedSize(data: Uint8Array): void {
+function checkExtended(data: Uint8Array): void {
   if (data.length > maxExtended)
     throw new ArchiveError(`an extended header is larger than ${maxExtended} bytes`);
+  if (data.some((byte) => byte > 0x7f)) throw new ArchiveError('an extended header is not ASCII');
 }
 
 /**
@@ -43,10 +45,11 @@ function paxRecord(line: string): [string, string] {
  *
  * @param data - The extended header's data.
  * @returns The values, by key.
- * @throws {ArchiveError} When the header is larger than {@link maxExtended} or malformed.
+ * @throws {ArchiveError} When the header is larger than {@link maxExtended}, not ASCII or
+ *   malformed.
  */
 function paxRecords(data: Uint8Array): Map<string, string> {
-  checkExtendedSize(data);
+  checkExtended(data);
   if (data.length === 0) return new Map();
   const content = new TextDecoder().decode(data);
   if (!content.endsWith('\n')) throw new ArchiveError('a pax header is malformed');
@@ -67,26 +70,30 @@ function paxSize(size: string | undefined): number | undefined {
 }
 
 /**
- * What an extended header (pax `x` or GNU `L`) adds to the ones before it. A GNU long name is cut
- * at its first NUL as node-tar cuts it; a pax header gives its last `path` and its `size`.
+ * What an extended header (pax `x` or GNU `L`) adds to the ones before it. An empty one adds
+ * nothing, as node-tar skips it. A GNU long name is cut at its first NUL as node-tar cuts it; a pax
+ * header gives its last `path` and `linkpath`, and its `size`.
  *
  * @param type - The extended header's type.
  * @param data - Its data.
  * @param before - What the extended headers before it gave.
  * @returns What they give together.
- * @throws {ArchiveError} When the header is larger than {@link maxExtended}, malformed, or gives a
- *   size that is not a decimal number.
+ * @throws {ArchiveError} When the header is larger than {@link maxExtended}, not ASCII, malformed,
+ *   or gives a size that is not a decimal number.
  */
 export function readExtension(type: string, data: Uint8Array, before: Extension): Extension {
-  checkExtendedSize(data);
+  if (data.length === 0) return before;
+  checkExtended(data);
   if (type === 'L') return { ...before, path: text(data, 0, data.length) };
   const records = paxRecords(data);
   const path = records.get('path');
   const size = paxSize(records.get('size'));
+  const linkpath = records.get('linkpath');
   return {
     ...before,
     ...(path === undefined ? {} : { path }),
     ...(size === undefined ? {} : { size }),
+    ...(linkpath === undefined ? {} : { linkpath }),
   };
 }
 

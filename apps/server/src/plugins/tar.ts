@@ -4,8 +4,9 @@
  * reads them, so the files are the ones npm shows. An entry with an absolute path, a `..` segment
  * or a backslash, a link of any kind, a header whose checksum is wrong, an extended header that is
  * malformed, over 64 KiB or that node-tar would read differently, a global header that sets a path
- * or a size, or a wanted file that appears twice makes the whole archive refused. Nothing is
- * written to disk here; the installer writes only the files this returns.
+ * or a size, anything node-tar would skip or read elsewhere, or a wanted file that appears twice
+ * makes the whole archive refused. Nothing is written to disk here; the installer writes only the
+ * files this returns.
  */
 import { gunzipSync } from 'node:zlib';
 import { checkGlobal, readExtension } from './tar-extension.ts';
@@ -66,6 +67,30 @@ function dataOf(tar: Uint8Array, start: number, size: number): Uint8Array {
 }
 
 /**
+ * Whether a block is all zeros: an end-of-archive block.
+ *
+ * @param bytes - The block.
+ * @returns Whether every byte is zero.
+ */
+function isZero(bytes: Uint8Array): boolean {
+  return bytes.every((byte) => byte === 0);
+}
+
+/**
+ * Checks the block after an end-of-archive block. node-tar stops only after two, and reads a
+ * header that follows a single one.
+ *
+ * @param tar - The uncompressed archive.
+ * @param offset - Where the block after the first end-of-archive block starts.
+ * @throws {ArchiveError} When that block is a header.
+ */
+function checkEnd(tar: Uint8Array, offset: number): void {
+  const next = tar.subarray(offset, offset + block);
+  if (next.length === block && !isZero(next))
+    throw new ArchiveError('the archive has an entry after the end of the archive');
+}
+
+/**
  * What is pending for the next entry after an extended header: what the pax `x` or GNU `L` header
  * adds, or, after a pax global header, what was pending before it.
  *
@@ -101,7 +126,7 @@ function* entries(tar: Uint8Array): Generator<Entry> {
   let extension: Extension = {};
   for (let offset = 0; offset + block <= tar.length; ) {
     const raw = tar.subarray(offset, offset + block);
-    if (raw.every((byte) => byte === 0)) return;
+    if (isZero(raw)) return checkEnd(tar, offset + block);
     const header = resolve(readHeader(raw), extension);
     checkEntry(header);
     const data = dataOf(tar, offset + block, header.size);

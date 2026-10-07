@@ -168,4 +168,50 @@ describe('readTar', () => {
       'unsafe path',
     );
   });
+
+  test('reads what a directory holds as entries, as npm does, since it reads no data for one', () => {
+    const hidden = entryBytes({ path: 'package/package.json', data: '{"hidden":true}' });
+    for (const dir of [{ path: 'package/dir', type: '5' }, { path: 'package/dir/' }])
+      expect(read([{ ...dir, data: hidden }])).toEqual({
+        'package/package.json': '{"hidden":true}',
+      });
+  });
+
+  test('refuses an entry after a single end-of-archive block, which npm would still read', () => {
+    const archive = gunzip(tarball([{ path: 'package/a', data: 'a' }]), 1_000_000);
+    const entry = entryBytes({ path: 'package/package.json', data: '{}' });
+    const tar = new Uint8Array([...archive.subarray(0, 1536), ...entry, ...new Uint8Array(1024)]);
+    expect(() => readTar(tar, wanted)).toThrow('after the end of the archive');
+  });
+
+  test('refuses what npm skips or reads elsewhere: a link name, an empty path, a path outside', () => {
+    const json = { path: 'package/package.json', data: '{}' };
+    expect(() => read([{ ...json, linkpath: 'x' }])).toThrow('link or a special file');
+    const linkpath = paxData([['linkpath', 'x']]);
+    expect(() => read([{ path: 'PaxHeader/x', type: 'x', data: linkpath }, json])).toThrow(
+      'link or a special file',
+    );
+    for (const path of ['', 'other/package.json', 'package/./package.json', 'package//x'])
+      expect(() => read([{ path, data: '{}' }])).toThrow(ArchiveError);
+    const empty = paxData([['path', '']]);
+    expect(() => read([{ path: 'PaxHeader/x', type: 'x', data: empty }, json])).toThrow('no path');
+    expect(read([{ path: '././@LongLink', type: 'L', data: '' }, json])).toEqual({
+      'package/package.json': '{}',
+    });
+  });
+
+  test('refuses an extended header that is not ASCII, which npm may decode in pieces', () => {
+    const entry = { path: 'package/package.json', data: '{}' };
+    const data = paxData([['path', 'package/é']]);
+    for (const type of ['x', 'L'])
+      expect(() => read([{ path: 'PaxHeader/x', type, data }, entry])).toThrow('not ASCII');
+  });
+
+  test('refuses a checksum that runs into the type flag, which npm would read with it', () => {
+    const entry = entryBytes({ path: 'package/package.json', data: '{}' });
+    const sum = new TextDecoder().decode(entry.subarray(148, 154));
+    entry.set(new TextEncoder().encode(`00${sum}`), 148);
+    const tar = new Uint8Array([...entry, ...new Uint8Array(1024)]);
+    expect(() => readTar(tar, wanted)).toThrow('corrupt');
+  });
 });
