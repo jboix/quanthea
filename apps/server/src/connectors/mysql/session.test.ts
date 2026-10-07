@@ -31,7 +31,7 @@ function fakePool(serverMode: string): { pool: Pool; statements: string[] } {
 }
 
 describe('withSession', () => {
-  test('pins the sql_mode without ANSI_QUOTES and NO_BACKSLASH_ESCAPES before the work', async () => {
+  test('pins sql_mode without ANSI_QUOTES and NO_BACKSLASH_ESCAPES before the work', async () => {
     const { pool, statements } = fakePool('ANSI_QUOTES,NO_BACKSLASH_ESCAPES,STRICT_TRANS_TABLES');
     const seen = await withSession(pool, 100, new AbortController().signal, async () => [
       ...statements,

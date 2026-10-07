@@ -29,9 +29,9 @@ const indexItem = /^-?[a-z0-9*][a-z0-9_.*+-]{0,254}$/;
 
 /**
  * A key holding or running a script: one with a word starting with `script`, in snake_case or, once
- * `Script` is split off, camelCase. It matches `script` itself, `_script` sorts, `script_fields`, `script_score`, `scripted_metric`,
- * `minimum_should_match_script` and any other, but not a field such as `description`. Runtime
- * fields run scripts too, under {@link runtimeKey}.
+ * `Script` is split off, camelCase. It matches `script` itself, `_script` sorts, `script_fields`,
+ * `script_score`, `scripted_metric`, `minimum_should_match_script` and any other, but not a field
+ * such as `description`. Runtime fields run scripts too, under {@link runtimeKey}.
  */
 const scriptWord = /(?:^|[^a-z])script/i;
 

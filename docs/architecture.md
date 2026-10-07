@@ -498,19 +498,19 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
 2. For each panel: `POST /api/panels/run {dashboardId, version, panelId, variables, time}`.
 3. The server loads the spec. Viewers may run versions pinned at some time, while the dashboard is
    pinned; anything else is "not found" to them.
-4. `dashboards/` resolves the time range and the variables against the spec's declarations: a
-   custom value must be an option, a single-value variable takes one value, a text value the
-   viewer types is at most 100 characters and must match its pattern. A pattern that could
-   backtrack for long (`dashboards/safe-pattern.ts`: a back-reference, a repeated group that
-   holds an alternation, or a quantifier unless its iterations cannot overlap, or quantifiers and
-   alternations whose choices multiply past those of four `*`) is refused when the spec is
-   validated. For an older version it is never run: its default binds as it is, since it matched
-   when saved, and any other value is refused. A query-backed value the
-   viewer picks, other than "All", must be one of the variable's options or its default: binding stops injection, but a value such as a Valkey key or
-   an HTTP path segment names data, and the options bound what a pinned dashboard shows. The
-   options are cached for 60 s by variable, source, the variables before it and the time range as
-   written (`now-6h`), so the panels of one dashboard share one load. "All" (`$__all`) and a
-   missing default run the variable's source query for the options too.
+4. `dashboards/` resolves the time range and the variables against the spec's declarations: a custom
+   value must be an option, a single-value variable takes one value, a text value the viewer types
+   is at most 100 characters and must match its pattern. A pattern that could backtrack for long
+   (`dashboards/safe-pattern.ts`: a back-reference, a repeated group that holds an alternation, or a
+   quantifier unless its iterations cannot overlap, or quantifiers and alternations whose choices
+   multiply past those of four `*`) is refused when the spec is validated. For an older version it
+   is never run: its default binds as it is, since it matched when saved, and any other value is
+   refused. A query-backed value the viewer picks, other than "All", must be one of the variable's
+   options or its default: binding stops injection, but a value such as a Valkey key or an HTTP path
+   segment names data, and the options bound what a pinned dashboard shows. The options are cached
+   for 60 s by variable, source, the variables before it and the time range as written (`now-6h`),
+   so the panels of one dashboard share one load. "All" (`$__all`) and a missing default run the
+   variable's source query for the options too.
 5. Each query goes to `query/`, which binds it, applies the connector's guardrails, runs it with a
    timeout and caches the frames for 15 s by connector, bound query and time range. The chart's
    markers run their annotation queries the same way, with the same variables, and come back, per
@@ -2123,15 +2123,15 @@ that changes with its settings).
    - **Search** (`query/search-binder.ts`), the Elasticsearch and OpenSearch query DSL: a variable
      is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value (a string, or a
      list for a multi-value variable; `{"$var": "service", "as": "list"}` is a list in every case),
-     never text inside a string. `__from` and `__to` are ISO
-     times; `__interval` is a bucket width that keeps the range within 1000 buckets. A body with
-     any key with a word starting with `script`, in snake_case or camelCase (`script`, `_script`,
-     `script_fields`, `script_score`, `scripted_metric`, `minimum_should_match_script` and the
-     rest), or with `runtime_mappings` is refused, because the search server would run it. One exception: a
-     `bucket_script` whose `script` is one of the kit's ratio scripts, verbatim
-     (`searchRatioScripts`: the share of `part` in `whole`, or one minus it). They are quanthea's
-     code; a query names one, never writes one. The index is
-     lowercase names and patterns, never a hidden (`.`), system (`_`) or remote (`:`) index.
+     never text inside a string. `__from` and `__to` are ISO times; `__interval` is a bucket width
+     that keeps the range within 1000 buckets. A body with any key with a word starting with
+     `script`, in snake_case or camelCase (`script`, `_script`, `script_fields`, `script_score`,
+     `scripted_metric`, `minimum_should_match_script` and the rest), or with `runtime_mappings` is
+     refused, because the search server would run it. One exception: a `bucket_script` whose
+     `script` is one of the kit's ratio scripts, verbatim (`searchRatioScripts`: the share of `part`
+     in `whole`, or one minus it). They are quanthea's code; a query names one, never writes one.
+     The index is lowercase names and patterns, never a hidden (`.`), system (`_`) or remote (`:`)
+     index.
    - **HTTP** (`query/http-binder.ts`): `$name` in the path becomes its value URL-encoded, one
      value only, so it stays one segment; the path is absolute and holds no `?`, `#`, `\` or
      control character (URL parsing drops tab and newlines, which would join `.` and `.` into a
@@ -2150,19 +2150,19 @@ that changes with its settings).
      of HTTP, `$__from_ms` and `$__to_ms` for scores and stream ids.
    - **MongoDB** (`query/mongodb-binder.ts`): a collection and an aggregation pipeline in Extended
      JSON. Variables are `{"$var": "name"}` nodes, as in a search body, and operator keys pass;
-     `"as": "ms"` gives a duration variable, such as an interval, in milliseconds.
-     `__from` and `__to` are `{"$date": …}` dates; `__interval_ms` is the search bucket width in
-     milliseconds. A value that starts with `$`, such as a viewer's `$secret`, goes in
-     `{"$literal": …}` wherever MongoDB would read it as a field or a variable: everywhere but
-     directly under `$literal` and in a `$match` outside `$expr`. Each stage is an object with one `$` key. A stage that writes (`$out`,
-     `$merge`), waits for changes (`$changeStream`), or lists the server's operations, sessions,
-     queries, plans or catalog (`$currentOp`, `$queryStats`, `$planCacheStats`, `$listCatalog`,
-     `$listClusterCatalog`, `$indexStats`, `$collStats`, `$listSearchIndexes` and the rest) is
-     refused anywhere in the pipeline, and so is an operator that runs JavaScript (`$where`,
-     `$function`, `$accumulator`). A collection is never a `system.` one: the pipeline's own, and
-     every collection a stage reads, at any depth (`$lookup.from`, `$graphLookup.from`,
-     `$unionWith`). A `$lookup` or `$unionWith` that names no collection, on `$documents`, passes.
-     A stage that names another database (`db`) is refused.
+     `"as": "ms"` gives a duration variable, such as an interval, in milliseconds. `__from` and
+     `__to` are `{"$date": …}` dates; `__interval_ms` is the search bucket width in milliseconds. A
+     value that starts with `$`, such as a viewer's `$secret`, goes in `{"$literal": …}` wherever
+     MongoDB would read it as a field or a variable: everywhere but directly under `$literal` and in
+     a `$match` outside `$expr`. Each stage is an object with one `$` key. A stage that writes
+     (`$out`, `$merge`), waits for changes (`$changeStream`), or lists the server's operations,
+     sessions, queries, plans or catalog (`$currentOp`, `$queryStats`, `$planCacheStats`,
+     `$listCatalog`, `$listClusterCatalog`, `$indexStats`, `$collStats`, `$listSearchIndexes` and
+     the rest) is refused anywhere in the pipeline, and so is an operator that runs JavaScript
+     (`$where`, `$function`, `$accumulator`). A collection is never a `system.` one: the pipeline's
+     own, and every collection a stage reads, at any depth (`$lookup.from`, `$graphLookup.from`,
+     `$unionWith`). A `$lookup` or `$unionWith` that names no collection, on `$documents`, passes. A
+     stage that names another database (`db`) is refused.
 3. The connector runs the bound query with an abort signal that fires at `timeoutMs` or when the
    caller gives up. The executor also races the signal, so a connector that ignores it cannot hold
    the caller.
