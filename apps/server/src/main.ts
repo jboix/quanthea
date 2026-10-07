@@ -25,7 +25,7 @@ const config = loadConfig(process.env);
 const logger = createLogger(config.logLevel, undefined, config.logFormat);
 routeModelWarnings(logger);
 
-const database = openDatabase(config.dataDir);
+const database = openDatabase(config.dataDir, logger);
 const appliedMigrations = runMigrations(database);
 if (appliedMigrations.length > 0) logger.info('applied migrations', { appliedMigrations });
 

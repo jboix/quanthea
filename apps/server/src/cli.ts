@@ -45,7 +45,7 @@ function say(text: string): void {
 async function openServices() {
   const config = loadConfig(process.env);
   const logger = createLogger('warn', undefined, config.logFormat);
-  const database = openDatabase(config.dataDir);
+  const database = openDatabase(config.dataDir, logger);
   runMigrations(database);
   const settings = createSettingsStore(createSettingsRepository(database));
   const keys = await loadKeys({ ...config, logger });

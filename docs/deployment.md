@@ -60,6 +60,11 @@ configuration file](configuration.md) lists everything it can declare.
 | `/data` | The SQLite database: dashboards, threads, users, sealed secrets |
 | `/keys` | The keys quanthea generates on first start                      |
 
+The data directory must have mode 0700, readable by quanthea's user only. The image creates
+`/data` so. quanthea keeps the database files at mode 0600 and warns at startup when the data
+directory lets its group or others in. Outside the image, create it with `mkdir -m 700`, or run
+`chmod 700` on an existing one.
+
 `/plugins` holds connector plugins. It is not a volume, so a derived image can install into it;
 see [Connector plugins](#connector-plugins).
 

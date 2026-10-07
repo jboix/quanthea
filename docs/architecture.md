@@ -2591,6 +2591,9 @@ deleting their rows. Before each commit `PRAGMA foreign_key_check` must find no 
 or the file rolls back; foreign keys are turned back on after the last file.
 Timestamps (`at`, `*_at`) are Unix epoch milliseconds. SQLite runs with `journal_mode=WAL`,
 `foreign_keys=ON` and `busy_timeout=5000`. IDs are ULIDs, so they sort by time.
+The database file, its write-ahead log and its shared memory have mode 0600, whatever the umask
+(`db/database.ts`). A data directory created by the server has mode 0700, and the server warns at
+startup when an existing one lets its group or others in.
 
 ## 9. HTTP API
 
