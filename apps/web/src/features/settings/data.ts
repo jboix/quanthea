@@ -94,8 +94,9 @@ async function save(
 }
 
 /**
- * Lists a provider's models. A base URL the server refuses, such as one half typed, lists none
- * and says why.
+ * Lists a provider's models. A request the server refuses lists none and says why: a base URL
+ * it refuses, such as one half typed, asks for an http or https URL, anything else shows the
+ * server's message.
  *
  * @param api - The API client.
  * @param body - The provider, its base URL, and a key or the saved provider's id.
@@ -109,7 +110,9 @@ async function listModels(
     return { intent: 'models', ...(await api.call(listModelsEndpoint, { body })) };
   } catch (error) {
     if (!(error instanceof ApiError) || error.code !== 'bad_request') throw error;
-    return { intent: 'models', models: [], message: 'Enter an http or https base URL.' };
+    const badBaseUrl = issuesOf(error.details).baseUrl !== undefined;
+    const message = badBaseUrl ? 'Enter an http or https base URL.' : error.message;
+    return { intent: 'models', models: [], message };
   }
 }
 
