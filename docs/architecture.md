@@ -1216,7 +1216,8 @@ directly onto an ECharts `dataset`.
     strictly. Time is bucketed with `$dateTrunc` in milliseconds: a literal duration converted, an
     interval variable or `__interval_ms` as `{"$var": "name", "as": "ms"}`. Percentiles use
     `$percentile` (MongoDB 7 and later). `mongodb-ratio` counts the part and the whole with
-    `$cond` in one `$group` and divides them in the `$project`.
+    `$cond` in one `$group` and divides them in the `$project`. Its condition values, literal or
+    variable, go in `$literal`, so a value such as `$secret` is never read as a field path.
   - **Saved queries.** An admin saves a query in any language with typed placeholders
     (`{{name}}`: metric, label, table, column, value or duration) and the shape it returns. The
     model asks for it by id with a value per placeholder. Each value is checked and written for

@@ -2,7 +2,7 @@
  * The stages and expressions the MongoDB builders share: filters as a `$match` and as a condition,
  * the time range, the measure as an accumulator and its output columns. A variable becomes a
  * `{"$var": "name"}` node. A literal that reads as a number or a boolean also matches as one, since
- * MongoDB compares types strictly.
+ * MongoDB compares types strictly. In an aggregation expression, a value is wrapped in `$literal`.
  */
 import type { PathFilter } from './fields.ts';
 import type { MongodbMeasure } from './mongodb-request.ts';
@@ -68,19 +68,20 @@ export function matchStage(time: string | undefined, filters: readonly PathFilte
 }
 
 /**
- * One filter as an aggregation expression, for a ratio's conditions.
+ * One filter as an aggregation expression, for a ratio's conditions. Values go in `$literal`, so a
+ * value such as `$secret` or `$$ROOT` stays a string and is never read as a field path.
  *
  * @param filter - The filter.
- * @returns Such as `{"$in": ["$level", ["error"]]}`.
+ * @returns Such as `{"$in": ["$level", {"$literal": ["error"]}]}`.
  */
 function expressionOf(filter: PathFilter): Json {
   const field = `$${filter.field}`;
   if (filter.op === '=' || filter.op === '!=') {
-    const test = { $in: [field, valuesOf(filter.value)] };
+    const test = { $in: [field, { $literal: valuesOf(filter.value) }] };
     return filter.op === '=' ? test : { $not: [test] };
   }
   const text = { $convert: { input: field, to: 'string', onError: '', onNull: '' } };
-  const test = { $regexMatch: { input: text, regex: patternOf(filter.value) } };
+  const test = { $regexMatch: { input: text, regex: { $literal: patternOf(filter.value) } } };
   return filter.op === '=~' ? test : { $not: [test] };
 }
 

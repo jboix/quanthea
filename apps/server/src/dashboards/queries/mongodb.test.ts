@@ -77,14 +77,43 @@ describe('the MongoDB builders', () => {
     expect(pipelineOf(queries[0])[1]).toEqual({
       $group: {
         _id: null,
-        _matching: { $sum: { $cond: [{ $and: [{ $in: ['$event', ['ERROR']] }] }, 1, 0] } },
-        _total: { $sum: { $cond: [{ $and: [{ $in: ['$event', ['START']] }] }, 1, 0] } },
+        _matching: {
+          $sum: { $cond: [{ $and: [{ $in: ['$event', { $literal: ['ERROR'] }] }] }, 1, 0] },
+        },
+        _total: {
+          $sum: { $cond: [{ $and: [{ $in: ['$event', { $literal: ['START'] }] }] }, 1, 0] },
+        },
       },
     });
     expect(output).toMatchObject({ shape: 'single', columns: ['value'], unit: 'percent' });
     expect(() => built({ kind: 'mongodb-ratio', match: [{ field: 'a', value: 'b' }] })).toThrow(
       'needs a time field',
     );
+  });
+
+  test('keep a value in a ratio condition a value, never a field path', () => {
+    const [query] = built({
+      kind: 'mongodb-ratio',
+      over: 'range',
+      match: [
+        { field: 'level', value: '$level' },
+        { field: 'message', op: '!~', value: '$pattern' },
+      ],
+    }).queries;
+    if (!query) throw new Error('Nothing was built.');
+    const variables = { level: { value: '$level' }, pattern: { value: '$$ROOT' } };
+    const bound = bindTemplate(query, variables, timeRange);
+    if (bound.language !== 'mongodb') throw new Error('Not a MongoDB query.');
+    const text = { $convert: { input: '$message', to: 'string', onError: '', onNull: '' } };
+    const condition = {
+      $and: [
+        { $in: ['$level', { $literal: ['$level'] }] },
+        { $not: [{ $regexMatch: { input: text, regex: { $literal: '$$ROOT' } } }] },
+      ],
+    };
+    expect(bound.pipeline[1]).toMatchObject({
+      $group: { _matching: { $sum: { $cond: [condition, 1, 0] } } },
+    });
   });
 
   test('pass the MongoDB binder', () => {
