@@ -339,6 +339,7 @@ export {
   roleSchema,
   roles,
 } from './roles.ts';
+export { safeNext } from './safe-next.ts';
 export * from './spec/alert.ts';
 export {
   type Annotation,

@@ -224,6 +224,10 @@ describe('redirects', () => {
     expect((await navigate('/login?next=//evil.example', admin)).location.pathname).toBe(
       '/threads/new',
     );
+    for (const unsafe of ['/api/auth/providers/okta/start', '/bin\\evil.example']) {
+      const next = encodeURIComponent(unsafe);
+      expect((await navigate(`/login?next=${next}`, admin)).location.pathname).toBe('/threads/new');
+    }
   });
 
   test('the login page stays put without a session', async () => {

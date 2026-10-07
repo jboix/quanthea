@@ -425,11 +425,15 @@ viewer reads and also asks questions about pinned dashboards (`POST
 asked, their answers, the conversations they form and the explanations. An analyst also mutes an
 alert for up to seven days.
 
-Route loaders fetch through the typed API client. The root loader loads the session
-(`GET /api/me`, once per page load). Without a session, every screen redirects to
-`/login?next=<path>`. Each screen's loader checks its minimum role (`app/route-access.ts`) and
-throws a 403, which the error page shows as "Your role can't do this" inside the layout, so the
-rail stays. A test drives every screen with every role through the real route tree.
+Route loaders fetch through the typed API client. The root loader loads the session (`GET /api/me`,
+once per page load). Without a session, every screen redirects to `/login?next=<path>`. The server
+and the web app check that path with one rule, `safeNext` in `@quanthea/shared`: a local path that
+is not a sign-in page or an API path and holds no backslash or control character. Its path part
+holds no percent-encoding and no `.` or `..` segment, so the browser and the server read it as
+written. Anything else goes home. Each screen's loader checks its minimum role
+(`app/route-access.ts`) and throws a 403, which the error page shows as "Your role can't do this"
+inside the layout, so the rail stays. A test drives every screen with every role through the real
+route tree.
 
 Screens change data through route actions: forms and fetchers submit JSON, the action calls the
 API, and React Router reloads the route data afterwards. A refusal the user can act on

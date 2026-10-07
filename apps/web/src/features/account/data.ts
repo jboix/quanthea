@@ -7,6 +7,7 @@ import {
   completeSetupEndpoint,
   type EndpointOutput,
   myIdentitiesEndpoint,
+  safeNext,
   setPasswordEndpoint,
   signInEndpoint,
   signOutEndpoint,
@@ -24,23 +25,6 @@ export type AccountOutcome =
       readonly message: string;
       readonly fields: Readonly<Record<string, string>>;
     };
-
-/**
- * A local path to go to after signing in: it starts with one `/`, is not a path of the sign-in
- * pages, and holds no control characters. Anything else goes home, so no link can send a person
- * to another site.
- *
- * @param next - The path asked for.
- * @returns The path.
- */
-export function safeNext(next: unknown): string {
-  if (typeof next !== 'string' || next.length < 1 || next.length > 2048) return '/';
-  const local = next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\');
-  const plain = [...next].every((character) => character >= ' ' && character !== '\u007f');
-  return local && plain && !next.startsWith('/login') && !next.startsWith('/set-password')
-    ? next
-    : '/';
-}
 
 /**
  * The outcome of a refused call.

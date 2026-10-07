@@ -1,5 +1,5 @@
 /** The routes outside the app: signing in, setting up the default admin, and link passwords. */
-import { signInOptionsEndpoint } from '@quanthea/shared';
+import { safeNext, signInOptionsEndpoint } from '@quanthea/shared';
 import { type LoaderFunctionArgs, type RouteObject, redirect } from 'react-router';
 import { ErrorPage } from '../app/error-page.tsx';
 import { LoadingScreen } from '../app/layout.tsx';
@@ -26,8 +26,7 @@ export function loginRoute(loadSession: SessionLoader, api: ApiClient): RouteObj
   const loader = async ({ request }: LoaderFunctionArgs) => {
     if (!(await loadSession()))
       return api.call(signInOptionsEndpoint, undefined, { signal: request.signal });
-    const next = new URL(request.url).searchParams.get('next');
-    return redirect(next?.startsWith('/') && !next.startsWith('//') ? next : '/');
+    return redirect(safeNext(new URL(request.url).searchParams.get('next')));
   };
   return {
     path: '/login',

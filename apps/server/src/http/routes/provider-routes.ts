@@ -3,7 +3,7 @@
  * which comes back from it. Both are full-page GETs. Every failure redirects to a page with a
  * fixed code, never with anything the request carried.
  */
-import { apiPrefix, providerFlowIntents } from '@quanthea/shared';
+import { apiPrefix, providerFlowIntents, safeNext } from '@quanthea/shared';
 import type { Context, Hono } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { sessionCookieName } from '../../auth/authenticator.ts';
@@ -16,7 +16,6 @@ import {
 import { absoluteLimitMs } from '../../auth/sessions.ts';
 import { accessMiddleware } from '../access.ts';
 import type { AppEnv } from '../app-env.ts';
-import { safeNext } from '../safe-next.ts';
 
 /** The flow cookie's name without its `__Host-` prefix, which Hono adds. */
 const flowCookie = 'quanthea_flow';
