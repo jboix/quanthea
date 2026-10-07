@@ -20,16 +20,20 @@ interface Props {
   type?: 'website' | 'article';
   /** The page's path when it is served at another address than its URL, such as `404.html`. */
   servedAt?: string;
+  /** The site path of the page that stands for this one, such as the latest release's doc. */
+  canonicalPath?: string;
   /** The page's structured data, as a schema.org JSON-LD object. */
   jsonLd?: Record<string, unknown>;
 }
 
-const { title, tagline, description, type = 'website', servedAt, jsonLd } = Astro.props;
+const { title, tagline, description, type = 'website', servedAt, canonicalPath, jsonLd } =
+  Astro.props;
 const fullTitle = title === undefined ? `quanthea · ${tagline ?? ''}` : `${title} · quanthea`;
+const canonicalOf = servedAt ?? canonicalPath;
 const canonical =
-  servedAt === undefined
+  canonicalOf === undefined
     ? new URL(Astro.url.pathname, Astro.site).href
-    : absoluteLink(servedAt, Astro.site);
+    : absoluteLink(canonicalOf, Astro.site);
 const image = new URL(ogImage.src, Astro.site).href;
 ---
 

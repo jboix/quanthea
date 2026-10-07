@@ -1,6 +1,7 @@
 ---
 /**
- * The groups and links of the docs navigation, from `lib/docs-nav.ts`.
+ * The groups and links of the docs navigation, from `lib/docs-nav.ts`, for one version of the
+ * docs: its links stay in that version, and a page it does not have is left out.
  */
 import { docNav } from '../lib/docs-nav.ts';
 import { link } from '../lib/url.ts';
@@ -9,20 +10,31 @@ import { link } from '../lib/url.ts';
 interface Props {
   /** The slug of the page shown. */
   current?: string | undefined;
+  /** The site path of the version's docs, such as `docs/` or `docs/v0.3/`. */
+  path?: string | undefined;
+  /** The pages the version has; every page of the sidebar when not given. */
+  slugs?: readonly string[] | undefined;
 }
 
-const { current } = Astro.props;
+const { current, slugs } = Astro.props;
+const path = Astro.props.path ?? 'docs/';
+const groups = docNav
+  .map((group) => ({
+    ...group,
+    items: group.items.filter((item) => slugs === undefined || slugs.includes(item.slug)),
+  }))
+  .filter((group) => group.items.length > 0);
 ---
 
 {
-  docNav.map((group) => (
+  groups.map((group) => (
     <div class="group">
       <p class="group-label">{group.label}</p>
       <ul>
         {group.items.map((item) => (
           <li>
             <a
-              href={link(`docs/${item.slug}/`)}
+              href={link(`${path}${item.slug}/`)}
               aria-current={item.slug === current ? 'page' : undefined}
             >
               {item.label}

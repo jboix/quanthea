@@ -6,6 +6,7 @@ out
 dist
 # the website's build and Astro's generated types (apps/site)
 apps/site/dist
+apps/site/.versions
 .astro
 *.tgz
 

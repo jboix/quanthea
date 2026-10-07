@@ -1,10 +1,13 @@
 /**
  * A remark plugin that rewrites the links of the repository's Markdown files as the site renders
- * them: `foo.md#bar` becomes the page `<base>docs/foo/#bar`, and a link outside the published docs
- * becomes its GitHub address. Images stay as written, for Astro to process.
+ * them: `foo.md#bar` becomes the page `foo` of the same version of the docs, and a link outside the
+ * published docs becomes its GitHub address at that version's tag. A file under
+ * `apps/site/.versions/<id>/` belongs to that released version; any other to `next`. Images stay as
+ * written, for Astro to process.
  */
 import { relative, sep } from 'node:path';
-import { rewriteDocLink } from './doc-links.ts';
+import { type DocPlace, rewriteDocLink } from './doc-links.ts';
+import { type DocVersion, docVersions, releasedVersions } from './versions.ts';
 
 /** The part of a Markdown syntax tree node the plugins read. */
 export interface MarkdownNode {
@@ -58,6 +61,28 @@ function repoPathOf(path: string | undefined, repoRoot: string): string | undefi
   return fromRoot.startsWith('..') ? undefined : fromRoot.split(sep).join('/');
 }
 
+/** A released version's file, from the repository root: its version and its own path. */
+const versionedFile = /^apps\/site\/\.versions\/(v\d+\.\d+)\/(.+)$/;
+
+/**
+ * The version a file belongs to, and its path as that version's repository held it.
+ *
+ * @param fromRoot - The file's path from the repository root.
+ * @param versions - The versions of the docs.
+ * @returns The file's own path, and where its links lead.
+ */
+export function placeOf(
+  fromRoot: string,
+  versions: readonly DocVersion[],
+): { readonly from: string; readonly place: DocPlace } {
+  const match = versionedFile.exec(fromRoot);
+  const version = match
+    ? versions.find((each) => each.id === match[1])
+    : versions.find((each) => each.next);
+  const place = { docsPath: version?.path ?? 'docs/', ref: version?.ref ?? 'main' };
+  return { from: match?.[2] ?? fromRoot, place };
+}
+
 /**
  * The plugin.
  *
@@ -65,12 +90,14 @@ function repoPathOf(path: string | undefined, repoRoot: string): string | undefi
  * @returns The transformer, which rewrites links and definitions in place.
  */
 export function remarkDocLinks(options: DocLinkOptions) {
+  const versions = docVersions(releasedVersions());
   return (tree: MarkdownNode, file: MarkdownFile): void => {
-    const from = repoPathOf(file.path, options.repoRoot);
-    if (from === undefined) return;
+    const fromRoot = repoPathOf(file.path, options.repoRoot);
+    if (fromRoot === undefined) return;
+    const { from, place } = placeOf(fromRoot, versions);
     walk(tree, (node) => {
       if ((node.type === 'link' || node.type === 'definition') && node.url !== undefined) {
-        node.url = rewriteDocLink(node.url, from, options.base);
+        node.url = rewriteDocLink(node.url, from, options.base, place);
       }
     });
   };

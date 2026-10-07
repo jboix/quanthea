@@ -1,15 +1,19 @@
 ---
 /**
- * A docs page: the sidebar, the search, the doc itself with its title, the table of contents
- * from its `##` and `###` headings, and the link that edits it on GitHub.
+ * A docs page of one version: the sidebar and the search of that version, its picker, a banner on
+ * `next` and on older releases, the doc itself with its title, and the table of contents from its
+ * `##` and `###` headings. Pages of `next` and of older releases name the latest's as canonical.
  */
 import type { MarkdownHeading } from 'astro';
 import '../styles/prose.css';
 import DocsMenu from '../components/docs-menu.astro';
 import DocsSearch from '../components/docs-search.astro';
 import DocsSidebar from '../components/docs-sidebar.astro';
+import DocsVersions from '../components/docs-versions.astro';
+import { allVersions, docPages } from '../lib/docs-content.ts';
 import { docBreadcrumbs } from '../lib/structured-data.ts';
 import { link } from '../lib/url.ts';
+import type { DocVersion } from '../lib/versions.ts';
 import Base from './base.astro';
 
 /** Props of a docs page. */
@@ -22,31 +26,63 @@ interface Props {
   description: string;
   /** The headings of the page, for the table of contents. */
   headings?: readonly MarkdownHeading[];
+  /** The version of the docs the page belongs to. */
+  version: DocVersion;
 }
 
-const { slug, title, description, headings = [] } = Astro.props;
+const { slug, title, description, headings = [], version } = Astro.props;
+const versions = allVersions();
+const slugsOf = new Map(
+  await Promise.all(
+    versions.map(async (each) => [each.id, (await docPages(each)).map((page) => page.slug)] as const),
+  ),
+);
+/** Where a version leads from this page: the same page, or its docs home when it lacks it. */
+const hrefIn = (each: DocVersion) =>
+  link(slug !== undefined && slugsOf.get(each.id)?.includes(slug) ? `${each.path}${slug}/` : each.path);
+const links = versions.map((each) => ({ version: each, href: hrefIn(each) }));
+const latest = versions.find((each) => each.latest) ?? version;
+const shownTitle = version.latest ? title : `${title} (${version.id})`;
+// Another version's page stands for itself only when the latest release lacks it.
+const inLatest = slug === undefined || slugsOf.get(latest.id)?.includes(slug) === true;
+const canonicalPath = version.latest || !inLatest ? undefined : `${latest.path}${slug ?? ''}${slug ? '/' : ''}`;
 const breadcrumbs =
-  slug === undefined ? undefined : docBreadcrumbs(Astro.site, title, `docs/${slug}/`);
+  slug === undefined ? undefined : docBreadcrumbs(Astro.site, shownTitle, `${version.path}${slug}/`);
+const bundle = `${version.latest ? '' : version.path}pagefind/`;
 const contents = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
 ---
 
 <Base
-  title={title}
+  title={shownTitle}
   description={description}
   type="article"
   current="docs"
   {...breadcrumbs === undefined ? {} : { jsonLd: breadcrumbs }}
+  {...canonicalPath === undefined ? {} : { canonicalPath }}
 >
   <slot name="head" slot="head" />
-  <DocsSearch slot="header-search" />
-  <DocsMenu slot="header-menu" current={slug} />
+  <DocsSearch slot="header-search" bundle={bundle} />
+  <DocsMenu slot="header-menu" current={slug} path={version.path} slugs={slugsOf.get(version.id)} />
   <div class="container docs-shell">
-    <DocsSidebar {...slug === undefined ? {} : { current: slug }} />
+    <DocsSidebar current={slug} path={version.path} slugs={slugsOf.get(version.id)} />
     <div class="docs-main">
       <article class="doc" data-pagefind-body>
-        <p class="crumbs" data-pagefind-ignore>
-          <a href={link('docs/')}>Docs</a>
-        </p>
+        <div class="crumbs" data-pagefind-ignore>
+          <a href={link(version.path)}>Docs</a>
+          <DocsVersions current={version} links={links} />
+        </div>
+        {
+          !version.latest && (
+            <p class="version-banner" role="note" data-pagefind-ignore>
+              {version.next
+                ? 'These docs follow main: they describe changes no release has yet.'
+                : `These docs describe ${version.id}, an older release.`}{' '}
+              <a href={hrefIn(latest)}>
+                {inLatest ? 'Read this page in the latest release' : 'Read the latest release’s docs'}
+              </a>
+            </p>
+          )
+        }
         <h1>{title}</h1>
         <div class="prose">
           <slot />
@@ -89,7 +125,19 @@ const contents = headings.filter((heading) => heading.depth === 2 || heading.dep
   }
 
   .crumbs {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     margin: 0 0 8px;
+    font-size: 14px;
+  }
+
+  .version-banner {
+    margin: 0 0 16px;
+    padding: 10px 14px;
+    border: 1px solid var(--color-draft-border);
+    border-radius: var(--radius-card);
+    background: var(--color-draft-soft);
     font-size: 14px;
   }
 

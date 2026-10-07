@@ -1,0 +1,65 @@
+---
+/**
+ * One docs page of one version, rendered from that version's sources: a doc, or the plugins page
+ * made of the plugin packages' READMEs.
+ */
+import { render } from 'astro:content';
+import Docs from '../layouts/docs.astro';
+import { pluginsSlug } from '../lib/doc-paths.ts';
+import { docTitle } from '../lib/doc-text.ts';
+import { docPages, versionEntries } from '../lib/docs-content.ts';
+import type { DocVersion } from '../lib/versions.ts';
+
+/** Props of the page. */
+interface Props {
+  /** The version. */
+  version: DocVersion;
+  /** The page's slug. */
+  slug: string;
+}
+
+const { version, slug } = Astro.props;
+const page = (await docPages(version)).find((candidate) => candidate.slug === slug);
+if (page === undefined) throw new Error(`${version.id} has no page ${slug}.`);
+const entries = await versionEntries(version);
+const doc = entries.docs.find((entry) => entry.id === slug);
+const readmes =
+  slug === pluginsSlug
+    ? await Promise.all(
+        page.sources.map(async (source) => {
+          const entry = entries.readmes.find((candidate) =>
+            source.repoPath.includes(`/${candidate.id}/`),
+          );
+          if (entry === undefined) throw new Error(`${source.repoPath} is missing in ${version.id}.`);
+          return { ...(await render(entry)), title: docTitle(source.markdown) ?? entry.id, id: entry.id };
+        }),
+      )
+    : [];
+const rendered = doc === undefined ? undefined : await render(doc);
+const headings =
+  rendered?.headings ??
+  readmes.flatMap((section) => [
+    { depth: 2, slug: section.id, text: section.title },
+    ...section.headings.map((heading) => ({ ...heading, depth: heading.depth + 1 })),
+  ]);
+const Content = rendered?.Content;
+---
+
+<Docs
+  slug={page.slug}
+  title={page.title}
+  description={page.description}
+  headings={headings}
+  version={version}
+>
+  {Content && <Content />}
+  {readmes.length > 0 && <p>{page.description}</p>}
+  {
+    readmes.map(({ Content: Readme, title, id }) => (
+      <section class="readme">
+        <h2 id={id}>{title}</h2>
+        <Readme />
+      </section>
+    ))
+  }
+</Docs>

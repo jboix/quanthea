@@ -3,4 +3,5 @@ dist/
 coverage/
 data/
 apps/site/dist/
+apps/site/.versions/
 .astro/

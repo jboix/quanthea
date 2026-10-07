@@ -28,11 +28,14 @@ interface Props {
   current?: 'docs' | 'pricing';
   /** The page's path when it is served at another address than its URL, such as `404.html`. */
   servedAt?: string;
+  /** The site path of the page that stands for this one, such as the latest release's doc. */
+  canonicalPath?: string;
   /** The page's structured data, as a schema.org JSON-LD object. */
   jsonLd?: Record<string, unknown>;
 }
 
-const { title, tagline, description, type, current, servedAt, jsonLd } = Astro.props;
+const { title, tagline, description, type, current, servedAt, canonicalPath, jsonLd } =
+  Astro.props;
 ---
 
 <!doctype html>
@@ -63,6 +66,7 @@ const { title, tagline, description, type, current, servedAt, jsonLd } = Astro.p
       {...tagline === undefined ? {} : { tagline }}
       {...type === undefined ? {} : { type }}
       {...servedAt === undefined ? {} : { servedAt }}
+      {...canonicalPath === undefined ? {} : { canonicalPath }}
       {...jsonLd === undefined ? {} : { jsonLd }}
     />
     <link rel="preload" href={sansLatin} as="font" type="font/woff2" crossorigin />

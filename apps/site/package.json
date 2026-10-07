@@ -5,8 +5,8 @@
   "description": "The quanthea website: the landing page, pricing and the docs, built statically by Astro.",
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build && pagefind --site dist && bun scripts/check-links.ts && bun scripts/check-meta.ts",
+    "dev": "bun scripts/versions.ts && astro dev",
+    "build": "bun scripts/versions.ts && astro build && bun scripts/search-index.ts && bun scripts/check-links.ts && bun scripts/check-meta.ts",
     "preview": "bun scripts/preview.ts",
     "typecheck": "astro check && tsc --noEmit -p tsconfig.test.json"
   },

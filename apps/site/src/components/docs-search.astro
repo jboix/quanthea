@@ -5,6 +5,14 @@
  * the header shows a magnifier, which opens the search over the whole page, with Cancel.
  */
 import { link } from '../lib/url.ts';
+
+/** Props of the search. */
+interface Props {
+  /** The site path of the search index of the version shown, such as `docs/v0.3/pagefind/`. */
+  bundle?: string;
+}
+
+const { bundle = 'pagefind/' } = Astro.props;
 ---
 
 <div class="search-host" data-search-host>
@@ -30,7 +38,7 @@ import { link } from '../lib/url.ts';
     </svg>
   </button>
   <div class="search-panel" id="docs-search-panel">
-    <search class="docs-search" data-bundle={link('pagefind/')}>
+    <search class="docs-search" data-bundle={link(bundle)}>
       <noscript>Search needs JavaScript.</noscript>
     </search>
     <button type="button" class="search-cancel" data-search-close>Cancel</button>

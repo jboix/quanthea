@@ -1,33 +1,18 @@
 ---
-/** A doc of `docs/`, rendered in place from the repository. */
-import { getCollection, render } from 'astro:content';
-import Docs from '../../layouts/docs.astro';
-import { docPages } from '../../lib/docs-content.ts';
+/** A docs page of the latest release, at `docs/<slug>/`. */
+import VersionDoc from '../../components/version-doc.astro';
+import { docPages, latestVersion } from '../../lib/docs-content.ts';
 
 /**
- * One page per doc.
+ * One page per doc of the latest release.
  *
- * @returns The paths and their entries.
+ * @returns The paths.
  */
 export async function getStaticPaths() {
-  const pages = await docPages();
-  const entries = await getCollection('docs');
-  return entries.map((entry) => ({
-    params: { slug: entry.id },
-    props: { entry, page: pages.find((page) => page.slug === entry.id) },
-  }));
+  return (await docPages(latestVersion())).map((page) => ({ params: { slug: page.slug } }));
 }
 
-const { entry, page } = Astro.props;
-if (page === undefined) throw new Error(`No page for the doc ${entry.id}.`);
-const { Content, headings } = await render(entry);
+const slug = Astro.params.slug ?? '';
 ---
 
-<Docs
-  slug={page.slug}
-  title={page.title}
-  description={page.description}
-  headings={headings}
->
-  <Content />
-</Docs>
+<VersionDoc version={latestVersion()} slug={slug} />

@@ -2,9 +2,10 @@ import { describe, expect, test } from 'bun:test';
 import { rewriteDocImage, rewriteDocLink, rewriteMarkdownLinks } from './doc-links.ts';
 import { docSlug, publishedSlug } from './doc-paths.ts';
 import { codeBlocksUnder, docDescription, docTitle } from './doc-text.ts';
-import { type MarkdownNode, remarkDocLinks } from './remark-doc-links.ts';
+import { type MarkdownNode, placeOf, remarkDocLinks } from './remark-doc-links.ts';
 import { prefixedId, remarkDocTitle } from './remark-doc-title.ts';
 import { joinBase } from './url.ts';
+import { docVersions } from './versions.ts';
 
 /** The repository the GitHub addresses point at. */
 const github = 'https://github.com/jboix/quanthea';
@@ -192,5 +193,34 @@ describe('doc paths and text', () => {
     expect(joinBase('/', 'docs/')).toBe('/docs/');
     expect(joinBase('/quanthea', '/docs/')).toBe('/quanthea/docs/');
     expect(joinBase('/quanthea/', '')).toBe('/quanthea/');
+  });
+});
+
+describe('a version of the docs', () => {
+  const versions = docVersions([
+    { id: 'v0.4', tag: 'v0.4.0' },
+    { id: 'v0.3', tag: 'v0.3.2' },
+  ]);
+
+  test('keeps its links in that version, and reads other files at its tag', () => {
+    const { from, place } = placeOf('apps/site/.versions/v0.3/docs/guide/alerts.md', versions);
+    expect(from).toBe('docs/guide/alerts.md');
+    expect(rewriteDocLink('../deployment.md#quick-start', from, '/', place)).toBe(
+      '/docs/v0.3/deployment/#quick-start',
+    );
+    expect(rewriteDocLink('../../deploy/', from, '/', place)).toBe(
+      'https://github.com/jboix/quanthea/tree/v0.3.2/deploy',
+    );
+  });
+
+  test('sends the latest release to docs/, and the current files to next', () => {
+    expect(placeOf('apps/site/.versions/v0.4/docs/deployment.md', versions).place).toEqual({
+      docsPath: 'docs/',
+      ref: 'v0.4.0',
+    });
+    expect(placeOf('docs/deployment.md', versions)).toEqual({
+      from: 'docs/deployment.md',
+      place: { docsPath: 'docs/next/', ref: 'main' },
+    });
   });
 });

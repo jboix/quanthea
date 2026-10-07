@@ -1,0 +1,21 @@
+---
+/** The docs home of an older release, at `docs/vX.Y/`, or of `main`, at `docs/next/`. */
+import VersionIndex from '../../../components/version-index.astro';
+import { allVersions } from '../../../lib/docs-content.ts';
+import type { DocVersion } from '../../../lib/versions.ts';
+
+/**
+ * One home per version that `docs/` does not show.
+ *
+ * @returns The paths and their versions.
+ */
+export function getStaticPaths() {
+  return allVersions()
+    .filter((version) => !version.latest)
+    .map((version) => ({ params: { version: version.id }, props: { version } }));
+}
+
+const { version } = Astro.props as { version: DocVersion };
+---
+
+<VersionIndex version={version} />

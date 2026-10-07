@@ -35,7 +35,8 @@ export default defineConfig({
   // HTML's, where a line break between two inline elements is a space.
   compressHTML: true,
   integrations: [
-    sitemap({ filter: (page) => !/\/404\/?$/.test(page) }),
+    // The sitemap names the latest release's docs only: `next` and older releases point to them.
+    sitemap({ filter: (page) => !/\/404\/?$|\/docs\/(next|v\d+\.\d+)\//.test(page) }),
     brandIcons({ iconDirectory: new URL('../web/public/', import.meta.url), base }),
   ],
   markdown: {

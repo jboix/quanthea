@@ -1,0 +1,80 @@
+---
+/**
+ * The docs home of one version: every group of the sidebar, each page the version has with its
+ * first sentence.
+ */
+import Docs from '../layouts/docs.astro';
+import { docPages } from '../lib/docs-content.ts';
+import { docNav } from '../lib/docs-nav.ts';
+import { link } from '../lib/url.ts';
+import type { DocVersion } from '../lib/versions.ts';
+
+/** Props of the docs home. */
+interface Props {
+  /** The version. */
+  version: DocVersion;
+}
+
+const { version } = Astro.props;
+const pages = await docPages(version);
+const groups = docNav
+  .map((group) => ({
+    label: group.label,
+    items: group.items.flatMap((item) => {
+      const page = pages.find((candidate) => candidate.slug === item.slug);
+      return page === undefined ? [] : [{ ...item, description: page.description }];
+    }),
+  }))
+  .filter((group) => group.items.length > 0);
+---
+
+<Docs
+  version={version}
+  title="Docs"
+  description="How to deploy quanthea, write dashboard and alert specs, add connectors and plugins, and how it is built."
+>
+  <p>
+    The guides and references of the repository's <code>docs/</code> folder, published as they are.
+  </p>
+  {
+    groups.map((group) => (
+      <section class="doc-group">
+        <h2>{group.label}</h2>
+        <ul class="doc-list">
+          {group.items.map((item) => (
+            <li>
+              <a href={link(`${version.path}${item.slug}/`)}>{item.label}</a>
+              <p>{item.description}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))
+  }
+</Docs>
+
+<style>
+  .doc-list {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+  }
+
+  .doc-list li {
+    padding: 14px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+  }
+
+  .doc-list a {
+    font-weight: 600;
+  }
+
+  .doc-list p {
+    margin: 4px 0 0;
+    color: var(--color-ink-secondary);
+    font-size: 14px;
+  }
+</style>

@@ -12,9 +12,13 @@ import DocsNavList from './docs-nav-list.astro';
 interface Props {
   /** The slug of the page shown. */
   current?: string | undefined;
+  /** The site path of the version's docs, such as `docs/` or `docs/v0.3/`. */
+  path?: string | undefined;
+  /** The pages the version has. */
+  slugs?: readonly string[] | undefined;
 }
 
-const { current } = Astro.props;
+const { current, path, slugs } = Astro.props;
 ---
 
 <button
@@ -66,7 +70,7 @@ const { current } = Astro.props;
     </ul>
   </nav>
   <nav class="drawer-docs" aria-label="Docs">
-    <DocsNavList current={current} />
+    <DocsNavList current={current} path={path} slugs={slugs} />
   </nav>
   </div>
 </dialog>

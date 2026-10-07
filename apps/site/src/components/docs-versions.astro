@@ -1,0 +1,111 @@
+---
+/**
+ * The version of the docs shown, and the others: a menu of links, each to the same page in that
+ * version, or to its docs home when it lacks the page. Plain links in a disclosure, so it works
+ * without JavaScript.
+ */
+import type { DocVersion } from '../lib/versions.ts';
+
+/** A version in the menu, with where it leads from this page. */
+export interface VersionLink {
+  /** The version. */
+  readonly version: DocVersion;
+  /** The address of this page in it, or of its docs home. */
+  readonly href: string;
+}
+
+/** Props of the menu. */
+interface Props {
+  /** The version shown. */
+  current: DocVersion;
+  /** Every version, in order. */
+  links: readonly VersionLink[];
+}
+
+const { current, links } = Astro.props;
+---
+
+<details class="versions">
+  <summary aria-label={`Docs version: ${current.label}. Choose another.`}>{current.label}</summary>
+  <ul>
+    {
+      links.map(({ version, href }) => (
+        <li>
+          <a href={href} aria-current={version.id === current.id ? 'page' : undefined}>
+            {version.label}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</details>
+
+<style>
+  .versions {
+    position: relative;
+    display: inline-block;
+  }
+
+  summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    border: 1px solid var(--color-border-control);
+    border-radius: var(--radius-pill);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-ink);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+  }
+
+  summary:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  ul {
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 160px;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  }
+
+  a {
+    display: block;
+    padding: 4px 10px;
+    border-radius: var(--radius-control);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--color-ink-label);
+    text-decoration: none;
+  }
+
+  a:hover,
+  a[aria-current='page'] {
+    background: var(--color-surface-muted);
+    color: var(--color-ink);
+  }
+</style>

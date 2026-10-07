@@ -1,11 +1,12 @@
 name: Website
 
 # Builds apps/site and deploys it to GitHub Pages when main changes the site, the docs or what they
-# read, and on demand; pull requests deploy nothing. The Release workflow starts it on main after an
-# app release, since the footer shows the version. A release event would run it on the tag, which
-# the github-pages environment refuses. The repository's Pages source
-# must be "GitHub Actions" (Settings → Pages). The custom domain is the one set there: a deployment
-# from Actions ignores a CNAME file, so the site has none.
+# read, and on demand; pull requests deploy nothing. Every build includes the docs of each released
+# minor, read from its tag, and main's docs under docs/next/. The Release workflow starts it on
+# main after an app release, since the footer shows the version and a new minor adds its docs. A
+# release event would run it on the tag, which the github-pages environment refuses. The
+# repository's Pages source must be "GitHub Actions" (Settings → Pages). The custom domain is the
+# one set there: a deployment from Actions ignores a CNAME file, so the site has none.
 on:
   push:
     branches:
@@ -31,9 +32,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # The whole history with its tags: each released version's docs are read from its tag.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Bun

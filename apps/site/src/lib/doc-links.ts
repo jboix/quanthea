@@ -1,10 +1,22 @@
 /**
  * Rewrites the links of a repository Markdown file for the site: a link to a published doc goes to
- * its page, a link anywhere else in the repository goes to GitHub.
+ * its page in the same version of the docs, a link anywhere else in the repository goes to GitHub
+ * at that version's tag.
  */
 import { directoryOf, publishedSlug, resolveRepoPath } from './doc-paths.ts';
-import { githubRawUrl, githubUrl } from './project.ts';
+import { branch, githubRawUrl, githubUrl } from './project.ts';
 import { joinBase } from './url.ts';
+
+/** Where a file's links lead: the version of the docs it belongs to. */
+export interface DocPlace {
+  /** The site path of the version's docs, such as `docs/` or `docs/v0.3/`. */
+  readonly docsPath: string;
+  /** The git ref its other files are read at on GitHub: a tag, or `main`. */
+  readonly ref: string;
+}
+
+/** The place of the current docs, at `docs/` and on `main`. */
+const currentPlace: DocPlace = { docsPath: 'docs/', ref: branch };
 
 /**
  * Whether a link leaves the repository's files: a scheme, a protocol-relative or rooted path, or
@@ -35,20 +47,26 @@ function splitFragment(url: string): { path: string; fragment: string } {
  * @param url - The link as written, such as `deployment.md#quick-start` or `../deploy/`.
  * @param fromRepoPath - The path of the file it is written in, from the repository root.
  * @param siteBase - The site's base: a path such as `/quanthea/`, or an absolute address.
- * @returns The rewritten link: `<base>docs/<slug>/#fragment` for a published doc, a GitHub
+ * @param place - The version the file belongs to; the current docs by default.
+ * @returns The rewritten link: `<base><docs path><slug>/#fragment` for a published doc, a GitHub
  * address for any other file or directory, and the link unchanged when it is not relative.
  */
-export function rewriteDocLink(url: string, fromRepoPath: string, siteBase: string): string {
+export function rewriteDocLink(
+  url: string,
+  fromRepoPath: string,
+  siteBase: string,
+  place: DocPlace = currentPlace,
+): string {
   if (keepsAsWritten(url)) return url;
   const { path, fragment } = splitFragment(url);
   const repoPath = resolveRepoPath(directoryOf(fromRepoPath), path);
   if (repoPath === undefined) return url;
   const slug = publishedSlug(repoPath);
   if (slug !== undefined) {
-    const docAddress = joinBase(siteBase, `docs/${slug}/`);
+    const docAddress = joinBase(siteBase, `${place.docsPath}${slug}/`);
     return `${docAddress}${fragment}`;
   }
-  return `${githubUrl(repoPath)}${fragment}`;
+  return `${githubUrl(repoPath, place.ref)}${fragment}`;
 }
 
 /**
@@ -56,12 +74,13 @@ export function rewriteDocLink(url: string, fromRepoPath: string, siteBase: stri
  *
  * @param url - The image source as written, such as `brand/quanthea-logo-preview.png`.
  * @param fromRepoPath - The path of the file it is written in, from the repository root.
+ * @param ref - The git ref to read it at, `main` by default.
  * @returns The raw address, or the source unchanged when it is not relative.
  */
-export function rewriteDocImage(url: string, fromRepoPath: string): string {
+export function rewriteDocImage(url: string, fromRepoPath: string, ref: string = branch): string {
   if (keepsAsWritten(url)) return url;
   const repoPath = resolveRepoPath(directoryOf(fromRepoPath), url);
-  return repoPath === undefined ? url : githubRawUrl(repoPath);
+  return repoPath === undefined ? url : githubRawUrl(repoPath, ref);
 }
 
 /** An inline link or image: `[text](url "title")` or `![alt](url)`. */
@@ -76,20 +95,26 @@ const definition = /^(\s{0,3}\[[^\]]+\]:\s*)(\S+)/;
  * @param line - The line.
  * @param fromRepoPath - The path of the file, from the repository root.
  * @param siteBase - The site's base.
+ * @param place - The version the file belongs to.
  * @returns The line with its links rewritten.
  */
-function rewriteLine(line: string, fromRepoPath: string, siteBase: string): string {
+function rewriteLine(
+  line: string,
+  fromRepoPath: string,
+  siteBase: string,
+  place: DocPlace,
+): string {
   const inline = line.replace(inlineLink, (_match, bang: string, text, url: string, title) => {
     const target =
       bang === '!'
-        ? rewriteDocImage(url, fromRepoPath)
-        : rewriteDocLink(url, fromRepoPath, siteBase);
+        ? rewriteDocImage(url, fromRepoPath, place.ref)
+        : rewriteDocLink(url, fromRepoPath, siteBase, place);
     return `${bang}[${text}](${target}${title})`;
   });
   return inline.replace(
     definition,
     (_match, label: string, url: string) =>
-      `${label}${rewriteDocLink(url, fromRepoPath, siteBase)}`,
+      `${label}${rewriteDocLink(url, fromRepoPath, siteBase, place)}`,
   );
 }
 
@@ -99,19 +124,21 @@ function rewriteLine(line: string, fromRepoPath: string, siteBase: string): stri
  * @param markdown - The document.
  * @param fromRepoPath - Its path from the repository root.
  * @param siteBase - The site's base, absolute for text read off the site.
+ * @param place - The version the document belongs to; the current docs by default.
  * @returns The document with its links rewritten.
  */
 export function rewriteMarkdownLinks(
   markdown: string,
   fromRepoPath: string,
   siteBase: string,
+  place: DocPlace = currentPlace,
 ): string {
   let inFence = false;
   return markdown
     .split('\n')
     .map((line) => {
       if (/^\s*(```|~~~)/.test(line)) inFence = !inFence;
-      return inFence ? line : rewriteLine(line, fromRepoPath, siteBase);
+      return inFence ? line : rewriteLine(line, fromRepoPath, siteBase, place);
     })
     .join('\n');
 }
