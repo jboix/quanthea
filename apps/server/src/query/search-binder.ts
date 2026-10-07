@@ -1,8 +1,8 @@
 /**
  * Binds variables into a search template in the Elasticsearch and OpenSearch query DSL. A variable
  * is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value: never text inside a
- * string. The body may hold no script, since a script is code the search server runs, except the
- * fixed ratio scripts a `bucket_script` may name: quanthea's own code, not the model's.
+ * string. The body may hold no key naming a script, since a script is code the search server runs,
+ * except the fixed ratio scripts a `bucket_script` may name: quanthea's own code, not the model's.
  */
 import {
   type SearchQuery,
@@ -28,19 +28,18 @@ export interface SearchTemplate {
 const indexItem = /^-?[a-z0-9*][a-z0-9_.*+-]{0,254}$/;
 
 /**
- * Keys that hold or run a script, which a template may not use: `script` itself (inside
- * `script_score`, `bucket_script`, `bucket_selector`, `moving_fn` and the rest), sorting by script,
- * script fields, scripted metrics and runtime fields.
+ * A key holding or running a script: one with a word starting with `script`, in snake_case or, once
+ * `Script` is split off, camelCase. It matches `script` itself, `_script` sorts, `script_fields`, `script_score`, `scripted_metric`,
+ * `minimum_should_match_script` and any other, but not a field such as `description`. Runtime
+ * fields run scripts too, under {@link runtimeKey}.
  */
-const scriptKeys = new Set([
-  'script',
-  '_script',
-  'scripts',
-  'script_fields',
-  'script_score',
-  'scripted_metric',
-  'runtime_mappings',
-]);
+const scriptWord = /(?:^|[^a-z])script/i;
+
+/** The key of runtime fields, which run a script for each document. */
+const runtimeKey = 'runtime_mappings';
+
+/** The aggregation that holds a ratio script: allowed, since its `script` is checked. */
+const ratioAggregation = 'bucket_script';
 
 export { searchRatioScripts };
 
@@ -100,8 +99,8 @@ export function searchInterval(timeRange: TimeRange): string {
 }
 
 /**
- * Whether a key holds a script the template may keep: a ratio script, named verbatim, directly in
- * a `bucket_script`.
+ * Whether a key that names a script is one the template may keep: the `bucket_script` aggregation,
+ * and its ratio script, named verbatim.
  *
  * @param key - The key.
  * @param value - Its value.
@@ -109,7 +108,18 @@ export function searchInterval(timeRange: TimeRange): string {
  * @returns `true` for an allowed ratio script.
  */
 function allowedScript(key: string, value: unknown, parent: string | undefined): boolean {
-  return key === 'script' && parent === 'bucket_script' && allowedScripts.has(value);
+  if (key === ratioAggregation) return true;
+  return key === 'script' && parent === ratioAggregation && allowedScripts.has(value);
+}
+
+/**
+ * Whether a key names a script or runtime fields, in any case.
+ *
+ * @param key - The key.
+ * @returns `true` when the key holds or runs a script.
+ */
+function scriptKey(key: string): boolean {
+  return scriptWord.test(key.replace(/Script/g, '_script')) || key.toLowerCase() === runtimeKey;
 }
 
 /**
@@ -139,7 +149,7 @@ function refuseScripts(node: unknown, parent?: string): void {
  * @throws {QueryError} `invalid` for a script other than a ratio script in a `bucket_script`.
  */
 function refuseScriptKey(key: string, value: unknown, parent: string | undefined): void {
-  if (!scriptKeys.has(key.toLowerCase()) || allowedScript(key, value, parent)) return;
+  if (!scriptKey(key) || allowedScript(key, value, parent)) return;
   throw new QueryError(
     'invalid',
     `A query runs no script; "${key}" is not allowed. Use aggregations and filters, or a bucket_script with a ratio script.`,

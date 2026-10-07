@@ -2111,9 +2111,10 @@ that changes with its settings).
      is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value (a string, or a
      list for a multi-value variable; `{"$var": "service", "as": "list"}` is a list in every case),
      never text inside a string. `__from` and `__to` are ISO
-     times; `__interval` is a bucket width that keeps the range within 1000 buckets. A body with a
-     script (`script`, `_script`, `script_fields`, `script_score`, `scripted_metric`,
-     `runtime_mappings`) is refused, because the search server would run it. One exception: a
+     times; `__interval` is a bucket width that keeps the range within 1000 buckets. A body with
+     any key with a word starting with `script`, in snake_case or camelCase (`script`, `_script`,
+     `script_fields`, `script_score`, `scripted_metric`, `minimum_should_match_script` and the
+     rest), or with `runtime_mappings` is refused, because the search server would run it. One exception: a
      `bucket_script` whose `script` is one of the kit's ratio scripts, verbatim
      (`searchRatioScripts`: the share of `part` in `whole`, or one minus it). They are quanthea's
      code; a query names one, never writes one. The index is

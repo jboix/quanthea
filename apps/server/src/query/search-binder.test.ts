@@ -91,9 +91,20 @@ describe('bindSearch', () => {
       { runtime_mappings: { x: { type: 'long' } } },
       { sort: [{ _script: { type: 'number' } }] },
       { query: { bool: { filter: [{ script: { script: 'doc.x' } }] } } },
+      {
+        query: {
+          terms_set: {
+            tags: { terms: ['a'], minimum_should_match_script: { source: 'params.num_terms' } },
+          },
+        },
+      },
+      { aggs: { a: { bucket_selector: { buckets_path: {}, script: 'true' } } } },
+      { aggs: { a: { terms: { Script: { source: '1' } } } } },
+      { query: { terms_set: { tags: { minimumShouldMatchScript: { source: '1' } } } } },
     ];
     for (const body of bodies) expect(() => bind(body)).toThrow('A query runs no script');
     expect(() => bind({ query: { match: { description: 'script' } } })).not.toThrow();
+    expect(() => bind({ query: { term: { transcripts: 'a' } } })).not.toThrow();
   });
 
   test('keeps a bucket_script that names a ratio script verbatim, and no other', () => {
