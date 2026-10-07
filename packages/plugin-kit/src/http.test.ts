@@ -161,6 +161,13 @@ describe('createHttpClient', () => {
     expect(failure).toMatchObject({ code: 'unreachable', safeMessage: 'Test cannot be reached.' });
   });
 
+  test('refuses a base URL that is not HTTP or HTTPS', () => {
+    for (const baseUrl of ['file://127.0.0.1/etc/hostname', 'file:///etc', 'ftp://example.com/'])
+      expect(() => createHttpClient({ baseUrl, sourceName: 'Test' })).toThrow(
+        expect.objectContaining({ code: 'rejected' }),
+      );
+  });
+
   test('never calls a cloud metadata address, however it is written', async () => {
     for (const baseUrl of [
       'http://169.254.169.254/latest/meta-data',

@@ -56,6 +56,7 @@ describe('the generator', () => {
   test('writes no SQL fields for another language, and its fixture queries', async () => {
     const read = await generated({ name: 'quanthea-plugin-metrics', language: 'promql' });
     expect(read('src/plugin.ts')).not.toContain('dialect');
+    expect(read('src/plugin.ts')).toContain('url: kit.z.url({ protocol: /^https?$/ })');
     expect(read('test/plugin.test.ts')).toContain("query: { language: 'promql', expr: 'up'");
   });
 

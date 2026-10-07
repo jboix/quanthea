@@ -100,7 +100,7 @@ export default function plugin(kit: ConnectorKit): PluginContributions {
       // Shown as a form when an admin adds a connector. Credentials go in secretSchema: quanthea
       // seals them and never shows them again.
       configSchema: kit.z.object({
-        url: kit.z.url().meta({
+        url: kit.z.url({ protocol: /^https?$/ }).meta({
           title: 'URL',
           description: 'Where the source answers.',
           examples: ['https://example.com'],

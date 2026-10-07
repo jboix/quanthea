@@ -355,9 +355,12 @@ async function send(
  *
  * @param options - The base URL, headers, TLS setting and limits.
  * @returns The client.
+ * @throws {ConnectorError} `rejected` when the base URL is not `http:` or `https:`.
  */
 export function createHttpClient(options: HttpClientOptions): HttpClient {
   const base = new URL(options.baseUrl);
+  if (base.protocol !== 'http:' && base.protocol !== 'https:')
+    throw new ConnectorError('rejected', `The ${options.sourceName} URL is not HTTP or HTTPS.`);
   const settings: ClientSettings = {
     base: base.href.replace(/\/+$/, ''),
     basePath: base.pathname.replace(/\/+$/, ''),

@@ -181,7 +181,8 @@ kinds in that order.
   in one line of the commit message.
 - A kind that speaks HTTP sends its requests through the kit's `createHttpClient`, never `fetch`
   (a Biome rule). The client keeps them on the source's origin, away from cloud metadata
-  addresses, within a timeout and a byte cap.
+  addresses, within a timeout and a byte cap. It takes an `http:` or `https:` base URL only, so
+  a kind's URL setting is `z.url({ protocol: /^https?$/ })`.
 - No code written by the model runs, anywhere. A kind never evaluates query text as code.
 
 ## Publishing a plugin

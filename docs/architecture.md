@@ -1824,7 +1824,8 @@ export const exampleConnector = defineConnector({
 - `seriesFrames` turns labelled series in the Prometheus API's result format (matrix, vector,
   scalar) into frames: one per series over time (at most 1000), or one table of samples. Prometheus
   and Loki's metric queries answer in it.
-- `createHttpClient` is the HTTP client of every kind that speaks HTTP. It calls the base URL's
+- `createHttpClient` is the HTTP client of every kind that speaks HTTP. It takes an `http:` or
+  `https:` base URL only (another scheme, such as `file:`, is `rejected`), and calls its
   origin only and follows a redirect only within it. It never calls a cloud metadata address
   (169.254.0.0/16, 100.100.100.200, fd00:ec2::254, fe80::/10), by the host or by what a name
   resolves to when the request starts. It stops at a timeout (120 seconds by default, on top of the
