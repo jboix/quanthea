@@ -3126,8 +3126,10 @@ Each provider's API key is sealed with the secret key, bound to `settings.model.
 stored apart from the section (`model-keys`), and returned masked only. A key typed in the form is
 used for the model listing. A stored key goes with a listing only for the provider it was saved
 for, with the same vendor and the same base URL (parsed, trailing slash ignored); another base URL
-needs the key typed again. The listing's base URL is an `http` or `https` URL. Removing a provider
-drops its key.
+needs the key typed again. Saving a provider with another vendor or base URL drops its stored
+key unless a new one is typed, so the connection test and the model calls never send it elsewhere
+(`settings/provider-destination.ts`). The listing's base URL is an `http` or `https` URL. Removing
+a provider drops its key.
 
 Every request to the model gateway (the listing, the connection test and each model call) goes
 through `settings/gateway-fetch.ts`. It follows the connectors' outbound policy: `http` and `https`

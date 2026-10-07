@@ -46,6 +46,18 @@ const twoProviders: ModelGateway = {
   defaultProviderId: 'mistral-free',
 };
 
+/**
+ * The two-provider gateway with the Mistral provider changed.
+ *
+ * @param change - The fields to change.
+ * @returns The gateway.
+ */
+function withMistral(change: Partial<ModelGateway['providers'][number]>): ModelGateway {
+  const [anthropic, mistral] = twoProviders.providers;
+  if (anthropic === undefined || mistral === undefined) throw new Error('two providers expected');
+  return { ...twoProviders, providers: [anthropic, { ...mistral, ...change }] };
+}
+
 describe('model settings', () => {
   test('start from one Anthropic provider with no key', async () => {
     const { service } = await modelSettings();
@@ -88,5 +100,26 @@ describe('model settings', () => {
     const back = { ...defaultModelGateway };
     expect((await service.save(back, {}, 'admin-1')).keys).toEqual({ anthropic: null });
     expect((await service.save(twoProviders, {}, 'admin-1')).keys['mistral-free']).toBeNull();
+  });
+
+  test('drop a stored key when its provider’s vendor or base URL changes, unless one is typed', async () => {
+    const { service } = await modelSettings();
+    await service.save(twoProviders, { 'mistral-free': apiKey }, 'admin-1');
+    const same = withMistral({ baseUrl: 'https://API.mistral.ai/v1/' });
+    expect((await service.save(same, {}, 'admin-1')).keys['mistral-free']).not.toBeNull();
+    const moved = withMistral({
+      provider: 'openai-compatible',
+      baseUrl: 'https://attacker.example',
+    });
+    expect((await service.save(moved, {}, 'admin-1')).keys['mistral-free']).toBeNull();
+    expect(await service.resolve('mistral-free')).toMatchObject({ apiKey: null });
+    const typed = await service.save(moved, { 'mistral-free': apiKey }, 'admin-1');
+    expect(typed.keys['mistral-free']).not.toBeNull();
+    const vendor = withMistral({
+      provider: 'openai-compatible',
+      baseUrl: 'https://api.mistral.ai/v1',
+    });
+    await service.save(twoProviders, { 'mistral-free': apiKey }, 'admin-1');
+    expect((await service.save(vendor, {}, 'admin-1')).keys['mistral-free']).toBeNull();
   });
 });

@@ -12,6 +12,7 @@ import {
 import type { AuditRepository } from '../db/audit-repository.ts';
 import { maskSecret } from '../secrets/mask.ts';
 import type { SecretBox } from '../secrets/secret-box.ts';
+import { storedKeyApplies } from './provider-destination.ts';
 import type { SettingsStore } from './settings-store.ts';
 
 /**
@@ -57,7 +58,8 @@ export interface ModelSettingsService {
    */
   view(): Promise<ModelSettingsView>;
   /**
-   * Saves the gateway and any new keys. The keys of removed providers go with them.
+   * Saves the gateway and any new keys. The keys of removed providers go with them, and so does
+   * the key of a provider whose vendor or base URL changes without a new key.
    *
    * @param gateway - The gateway.
    * @param apiKeys - New keys by provider id.
@@ -131,7 +133,31 @@ async function keyOf(dependencies: ModelSettingsDependencies, providerId: string
 }
 
 /**
- * The keys after a save: new ones sealed, removed providers' dropped, the others kept.
+ * The stored key a saved provider keeps when no new key is typed: only while its vendor and base
+ * URL stay those the key was saved for.
+ *
+ * @param dependencies - The store.
+ * @param provider - The provider as it is saved now.
+ * @returns The sealed key, or `undefined` when there is none or it may not follow.
+ */
+function keptKey(
+  dependencies: ModelSettingsDependencies,
+  provider: ModelGateway['providers'][number],
+): string | undefined {
+  const previous = dependencies.store.read('model').providers.find(({ id }) => id === provider.id);
+  if (previous === undefined) return undefined;
+  const target = {
+    providerId: provider.id,
+    provider: provider.provider,
+    baseUrl: provider.baseUrl,
+  };
+  if (!storedKeyApplies(target, { ...previous, providerId: previous.id })) return undefined;
+  return dependencies.store.read('model-keys').sealed[provider.id];
+}
+
+/**
+ * The keys after a save: new ones sealed, removed providers' dropped, and a provider's stored
+ * key dropped when its vendor or base URL changed. The others are kept.
  *
  * @param dependencies - The store and the secret box.
  * @param gateway - The saved gateway.
@@ -143,14 +169,13 @@ async function savedKeys(
   gateway: ModelGateway,
   apiKeys: Readonly<Record<string, string>>,
 ): Promise<Record<string, string>> {
-  const before = dependencies.store.read('model-keys').sealed;
   const keys: Record<string, string> = {};
-  for (const { id } of gateway.providers) {
-    const typed = apiKeys[id];
+  for (const provider of gateway.providers) {
+    const typed = apiKeys[provider.id];
     const sealed = typed
-      ? toBase64(await dependencies.secretBox.seal(typed, ownerOf(id)))
-      : before[id];
-    if (sealed !== undefined) keys[id] = sealed;
+      ? toBase64(await dependencies.secretBox.seal(typed, ownerOf(provider.id)))
+      : keptKey(dependencies, provider);
+    if (sealed !== undefined) keys[provider.id] = sealed;
   }
   return keys;
 }

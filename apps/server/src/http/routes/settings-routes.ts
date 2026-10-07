@@ -11,9 +11,10 @@ import {
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import { testModelConnection } from '../../agent/connection-test.ts';
-import { listModels, storedKeyApplies } from '../../agent/model-catalog.ts';
+import { listModels } from '../../agent/model-catalog.ts';
 import type { Managed } from '../../provisioning/managed.ts';
 import type { ModelSettingsService } from '../../settings/model-settings.ts';
+import { storedKeyApplies } from '../../settings/provider-destination.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { actorOf } from '../principal.ts';
