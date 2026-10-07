@@ -129,3 +129,41 @@ describe('the thread list', () => {
     expect(asked).toEqual([[own]]);
   });
 });
+
+/**
+ * A thread of the editor whose answer described the connector before runs recorded their access.
+ *
+ * @param connector - The connector name the tool call named.
+ * @returns The thread id.
+ */
+function threadReadBeforeRecords(connector: string): string {
+  const { id } = fixture.threads.create(editor.id);
+  const call = {
+    type: 'tool-describe',
+    toolCallId: `call-${id}`,
+    state: 'output-available',
+    input: { connector },
+    output: { entities: [] },
+  };
+  const answer = { id: `a-${id}`, role: 'assistant', parts: [call, { type: 'text', text: 'Ok' }] };
+  const question = { id: `q-${id}`, role: 'user', parts: [{ type: 'text', text: 'Hi' }] };
+  fixture.threads.saveMessages(id, [question, answer] as never, editor.id);
+  return id;
+}
+
+describe('a thread saved before runs recorded their access', () => {
+  test('is recorded once at the access its connector has, then counted and flagged', async () => {
+    const thread = threadReadBeforeRecords('events');
+    const unknown = threadReadBeforeRecords('gone');
+    const accessOf = (name: string) => fixture.modelView.accessOf(name);
+    expect(fixture.threads.recordLegacyAccess(accessOf)).toBe(1);
+    expect(fixture.threads.recordLegacyAccess(accessOf)).toBe(0);
+    const path = `/api/connectors/${connectorId}/affected-threads`;
+    const counted = await client(admin)('POST', path, { accessLevel: 2, hiddenFields: [] });
+    expect(counted.body).toEqual({ threads: 1 });
+    await fixture.connections.update(connectorId, { accessLevel: 2 }, admin.id);
+    const call = client(editor);
+    expect((await call('GET', `/api/threads/${thread}`)).body.restrictedData).toBe(true);
+    expect((await call('GET', `/api/threads/${unknown}`)).body.restrictedData).toBe(false);
+  });
+});

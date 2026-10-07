@@ -61,6 +61,10 @@ await startProvisioning({
   services,
   logger,
 });
+// Answers stored before runs recorded their access get a record at their connectors' access now.
+const accessOf = (name: string) => services.modelView.accessOf(name);
+const recordedAnswers = services.threads.recordLegacyAccess(accessOf);
+if (recordedAnswers > 0) logger.info('recorded the access of earlier answers', { recordedAnswers });
 
 const { sessions, users, adminSetup } = services;
 if (!sessions || !adminSetup)

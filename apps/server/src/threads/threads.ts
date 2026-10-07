@@ -18,6 +18,7 @@ import type { SourceAccessRow } from '../db/source-access-reads.ts';
 import type { MessageRow, PlanRow, ThreadRepository, ThreadRow } from '../db/thread-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
+import { type AccessByName, recordLegacyAccess } from './legacy-access.ts';
 import { nextState, type ThreadEvent, type ThreadState } from './state.ts';
 
 /** A thread with its conversation, as the service knows it; the HTTP layer adds the rest. */
@@ -129,6 +130,14 @@ export interface Threads {
    * @returns The records with their threads.
    */
   sourceAccess(ids?: readonly string[]): SourceAccessRow[];
+  /**
+   * Records the access of the answers stored before runs recorded it, at the access their
+   * connectors have now. Answers already recorded are left alone.
+   *
+   * @param accessOf - The access of a connector now, by name.
+   * @returns How many answers were amended.
+   */
+  recordLegacyAccess(accessOf: AccessByName): number;
   /**
    * Records a proposed plan and moves the thread to waiting for approval, or straight to
    * building when approval is off. A pending plan it replaces is superseded.
@@ -453,6 +462,7 @@ export function createThreads(dependencies: ThreadsDependencies): Threads {
     apply: (id, event) => apply(context, id, event),
     saveMessages: (id, messages, actor) => saveMessages(context, id, messages, actor),
     sourceAccess: (ids) => repository.sourceAccess(ids),
+    recordLegacyAccess: (accessOf) => recordLegacyAccess(repository, accessOf),
     proposePlan: (id, body, autoApprove) => proposePlan(context, id, body, autoApprove),
     decidePlan: (id, planId, decision, actor) => decidePlan(context, id, planId, decision, actor),
     attachDashboard: (id, dashboardId, title) =>

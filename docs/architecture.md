@@ -2264,8 +2264,12 @@ model's own earlier answers quoting what it no longer sees.
   alert's check or replay reads it. The part is stored with the answer and never sent.
 - A record is restricted when the connector's level is now lower, or a field is now hidden whose
   fingerprint the record lacks (`narrowsAccess` in `gate/source-access.ts`). A removed connector
-  restricts nothing. Threads in the bin are not counted, nor answers stored before runs recorded
-  their access.
+  restricts nothing. Threads in the bin are not counted.
+- Answers stored before runs recorded their access get a record when the server starts
+  (`threads/legacy-access.ts`): one per connector that a data tool call's input names (`describe`,
+  `sample_values`, `test_query`, `edit_dashboard`, `edit_alert`, `replay_alert`), at the access
+  the connector has then. An answer that has a record is left alone, so a restart changes
+  nothing.
 - `POST /api/connectors/:connectorId/affected-threads` (admin) counts the threads holding a record
   that a proposed level and hidden fields would restrict, and saves nothing. The connector screen
   asks it before saving a lower level or a new hidden field. While it counts, Cancel drops the

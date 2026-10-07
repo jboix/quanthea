@@ -3,6 +3,7 @@ import type { Database } from 'bun:sqlite';
 import type { AlertSeed, ThreadKind, ThreadQueries } from '@quanthea/shared';
 import { type SourceAccessRow, sourceAccessReads } from './source-access-reads.ts';
 import { queriesOf, seedOf } from './thread-json.ts';
+import { type UnrecordedAnswers, unrecordedAnswers } from './unrecorded-answers.ts';
 
 /** A thread state, as stored. */
 type StoredState = 'idle' | 'plan_pending' | 'building' | 'ready';
@@ -89,7 +90,7 @@ export type ThreadChange = Partial<
 };
 
 /** Stores threads. */
-export interface ThreadRepository {
+export interface ThreadRepository extends UnrecordedAnswers {
   /**
    * Inserts a thread.
    *
@@ -530,5 +531,6 @@ export function createThreadRepository(database: Database): ThreadRepository {
     ...messageMethods(database),
     ...planMethods(database),
     sourceAccess: sourceAccessReads(database),
+    ...unrecordedAnswers(database),
   };
 }
