@@ -17,6 +17,12 @@ export interface TarEntry {
   readonly corrupt?: boolean;
   /** The size the header gives, when it differs from the data's. */
   readonly size?: number;
+  /** The header's prefix field, joined to the name by readers that honour it. */
+  readonly prefix?: string;
+  /** The magic, `ustar\0` and version `00` by default; GNU tar writes `ustar  \0`. */
+  readonly magic?: string;
+  /** The link name field. */
+  readonly linkpath?: string;
 }
 
 /**
@@ -49,7 +55,9 @@ export function entryBytes(entry: TarEntry): Uint8Array {
   put(header, '00000000000\0', 136);
   put(header, '        ', 148);
   put(header, entry.type ?? '0', 156);
-  put(header, 'ustar\u000000', 257);
+  put(header, entry.linkpath ?? '', 157);
+  put(header, entry.magic ?? 'ustar\u000000', 257);
+  put(header, entry.prefix ?? '', 345);
   const sum = header.reduce((total, byte) => total + byte, 0) + (entry.corrupt ? 1 : 0);
   put(header, `${sum.toString(8).padStart(6, '0')}\0 `, 148);
   const padded = new Uint8Array(Math.ceil(data.length / 512) * 512);

@@ -120,4 +120,52 @@ describe('readTar', () => {
       'package/package.json': '{}',
     });
   });
+
+  test('refuses a pax record whose value holds a newline, which npm would read as two', () => {
+    const data = `${paxData([['path', 'package/package.json']])}41 comment=a\n28 path=package/benign.json\n`;
+    expect(() =>
+      read([
+        { path: 'PaxHeader/x', type: 'x', data },
+        { path: 'package/x', data: '{}' },
+      ]),
+    ).toThrow('pax header is malformed');
+  });
+
+  test('keeps a pending pax path and size across a global header, as npm does', () => {
+    const path = paxData([['path', 'package/package.json']]);
+    const global = paxData([['comment', 'c']]);
+    expect(
+      read([
+        { path: 'PaxHeader/x', type: 'x', data: path },
+        { path: 'pax_global_header', type: 'g', data: global },
+        { path: 'package/benign', data: '{}' },
+      ]),
+    ).toEqual({ 'package/package.json': '{}' });
+    const hidden = entryBytes({ path: 'package/package.json', data: '{"hidden":true}' });
+    const size = paxData([['size', String(hidden.length)]]);
+    expect(
+      read([
+        { path: 'PaxHeader/x', type: 'x', data: size },
+        { path: 'pax_global_header', type: 'g', data: global },
+        { path: 'package/README.md', data: hidden, size: 0 },
+      ]),
+    ).toEqual({});
+  });
+
+  test('joins the ustar prefix as npm does: only under the POSIX magic, never to a pax path', () => {
+    expect(
+      read([{ path: 'package/package.json', data: '{}', prefix: 'decoy', magic: 'ustar  \0' }]),
+    ).toEqual({ 'package/package.json': '{}' });
+    const path = paxData([['path', 'package/package.json']]);
+    expect(
+      read([
+        { path: 'PaxHeader/x', type: 'x', data: path },
+        { path: 'package/x', data: '{}', prefix: 'decoy' },
+      ]),
+    ).toEqual({ 'package/package.json': '{}' });
+    const long = `${'\0'.repeat(130)}x`;
+    expect(() => read([{ path: 'package/package.json', data: '{}', prefix: long }])).toThrow(
+      'unsafe path',
+    );
+  });
 });

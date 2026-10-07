@@ -1915,13 +1915,16 @@ a contribution it does not know, so a newer plugin never half-loads on an older 
   file. From the registry, the tarball must match npm's SHA-512 integrity; a marked extension
   point is where provenance would be checked. A tarball URL matches `--integrity sha512-…` when
   given. Every fetch is over HTTPS: redirects are followed by hand, at most 5, and a hop to
-  anything but `https://` is refused, so no plain-HTTP hop can swap the tarball. The tarball is read by a small reader of untrusted
-  input (`plugins/tar.ts`): gunzipped up to 128 MiB (32 MiB compressed), only
-  `package/package.json` and the file its `quanthea.main` names extracted, an absolute path, `..`,
-  a backslash, a link, a corrupt header, an extended header (pax or GNU long name) that is
-  malformed or over 64 KiB, or a pax global header that sets a path or a size refusing the whole
-  archive. A pax header's last `path` and its `size` apply to the next entry, as node-tar reads
-  them, so the files read are the ones npm shows. Nothing runs from the
+  anything but `https://` is refused, so no plain-HTTP hop can swap the tarball. The tarball is
+  read by a small reader of untrusted input (`plugins/tar.ts`): gunzipped up to 128 MiB (32 MiB
+  compressed), only `package/package.json` and the file its `quanthea.main` names extracted, an
+  absolute path, `..`, a backslash, a link, a corrupt header, an extended header (pax or GNU long
+  name) that is malformed or over 64 KiB, or a pax global header that sets a path or a size
+  refusing the whole archive. Headers are read as node-tar, npm's reader, reads them, so the files
+  read are the ones npm shows: a pax header's last `path` and its `size` apply to the next file or
+  directory, across a global header; a pax record is one line, and a header with a line node-tar
+  would skip or read otherwise (a line break or a NUL in a value, a wrong length) is refused; the
+  ustar prefix is joined to the name only under the POSIX magic. Nothing runs from the
   package but its bundle: no install scripts, no dependencies. The bundle must be under 20 MiB
   (`--max-bundle-mb`). The manifest needs the `quanthea-plugin` keyword and, from the registry,
   the name asked for. The two files go into a temporary folder in the plugins directory, are
