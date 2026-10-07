@@ -18,6 +18,7 @@ import {
 import { AppError } from '../lib/errors.ts';
 import type { QueryExecutor, QuerySource } from '../query/executor.ts';
 import { QueryError } from '../query/query-error.ts';
+import type { ResultCache } from '../query/result-cache.ts';
 import type { Variables } from '../query/variables.ts';
 import { type QueryVariable, resolveVariables } from './variables.ts';
 
@@ -29,6 +30,11 @@ export interface RunnerDependencies {
   readonly executor: QueryExecutor;
   /** The current instant, in epoch milliseconds. */
   readonly now: () => number;
+  /**
+   * Keeps the options of query-backed variables a short while, so the panels of one dashboard
+   * check a viewer's values against one load. Without it, each run loads them.
+   */
+  readonly optionsCache?: ResultCache<string[]>;
 }
 
 /** The viewer's choices for a run. */
@@ -140,38 +146,47 @@ function optionsOf(frames: readonly Frame[]): string[] {
 /**
  * Resolves the time range of a run.
  *
- * @param spec - The spec, for its default.
- * @param choices - The viewer's choices.
+ * @param expression - The viewer's range, or the spec's default.
  * @param now - The current instant.
  * @returns The range as instants.
  * @throws {AppError} `bad_request` when it does not run forwards.
  */
-function timeOf(spec: DashboardSpec, choices: RunChoices, now: number) {
-  const range = resolveTimeRange(choices.time ?? spec.time, now);
+function timeOf(expression: TimeRangeExpression, now: number) {
+  const range = resolveTimeRange(expression, now);
   if (!(range.from < range.to))
     throw new AppError('bad_request', 'The time range ends before it starts.');
   return range;
 }
 
+/** The time range of a run: as the viewer gave it, for the options cache, and for the engine. */
+interface RunRange {
+  /** The range as expressions, such as `now-1h`, the same from one run to the next. */
+  readonly expression: TimeRangeExpression;
+  /** The range as instants. */
+  readonly timeRange: EngineRange;
+}
+
 /**
- * Builds the loader of query-backed variable options for one run.
+ * Builds the loader of query-backed variable options for one run. Options are cached by the
+ * variable, its source, the variables before it and the time range as expressions.
  *
- * @param dependencies - The connectors and the executor.
- * @param timeRange - The time range.
+ * @param dependencies - The connectors, the executor and the options cache.
+ * @param range - The time range.
  * @param signal - Aborted when the caller gives up.
  * @returns The loader. A failing source is a `source_failed` error.
  */
-function optionsLoader(
-  dependencies: RunnerDependencies,
-  timeRange: EngineRange,
-  signal?: AbortSignal,
-) {
+function optionsLoader(dependencies: RunnerDependencies, range: RunRange, signal?: AbortSignal) {
   return async (variable: QueryVariable, resolved: Variables): Promise<string[]> => {
+    const key = JSON.stringify([variable.name, variable.source, resolved, range.expression]);
+    const cached = dependencies.optionsCache?.get(key);
+    if (cached) return cached;
     const query = { ...variable.source, refId: 'options' } as PanelQuery;
-    const outcome = await runQuery(dependencies, query, resolved, timeRange, signal);
+    const outcome = await runQuery(dependencies, query, resolved, range.timeRange, signal);
     if (outcome.error)
       throw new AppError('source_failed', `$${variable.name}: ${outcome.error.message}`);
-    return optionsOf(outcome.frames);
+    const options = optionsOf(outcome.frames);
+    dependencies.optionsCache?.set(key, options);
+    return options;
   };
 }
 
@@ -190,9 +205,11 @@ function prepare(
   choices: RunChoices,
   signal?: AbortSignal,
 ) {
-  const time = timeOf(spec, choices, dependencies.now());
+  const expression = choices.time ?? spec.time;
+  const time = timeOf(expression, dependencies.now());
   const timeRange = { from: new Date(time.from), to: new Date(time.to) };
-  return { time, timeRange, loadOptions: optionsLoader(dependencies, timeRange, signal) };
+  const loadOptions = optionsLoader(dependencies, { expression, timeRange }, signal);
+  return { time, timeRange, loadOptions };
 }
 
 /**

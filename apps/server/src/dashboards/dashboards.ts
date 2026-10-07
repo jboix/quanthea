@@ -12,6 +12,7 @@ import {
   type Role,
 } from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
+import { createResultCache } from '../query/result-cache.ts';
 import type { Variables } from '../query/variables.ts';
 import {
   type DashboardsDependencies,
@@ -32,6 +33,12 @@ import { addVersion, failuresOf, type PanelTest, restoreVersion, testRunSpec } f
 
 export type { DashboardsDependencies, RunTarget } from './context.ts';
 export type { PanelTest } from './versions.ts';
+
+/**
+ * How long a query-backed variable's options stay cached, in milliseconds: a viewer's value is
+ * checked against them on every panel run.
+ */
+const optionsTtlMs = 60_000;
 
 /**
  * Writes a pinned dashboard's description and tags, best effort: `null` when it could not. The
@@ -291,7 +298,9 @@ function unpin(context: ServiceContext, id: string, actor: string): DashboardDet
  * @returns The service.
  */
 export function createDashboards(dependencies: DashboardsDependencies): Dashboards {
-  const context: ServiceContext = { ...dependencies, now: dependencies.now ?? Date.now };
+  const now = dependencies.now ?? Date.now;
+  const optionsCache = createResultCache<string[]>({ ttlMs: optionsTtlMs, maxEntries: 500, now });
+  const context: ServiceContext = { optionsCache, ...dependencies, now };
   return {
     create: (spec, changeSummary, actor) => create(context, spec, changeSummary, actor),
     get: (id, role) => get(context, id, role),

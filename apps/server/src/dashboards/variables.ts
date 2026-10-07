@@ -1,7 +1,9 @@
 /**
  * Turns a viewer's variable choices into bindings for the query engine, checked against the spec's
- * declarations. Values are bound, never pasted into a query, so a query-backed value is not
- * checked against its options; "All" expands to them.
+ * declarations. Values are bound, never pasted into a query. A value a viewer picks is still one of
+ * the variable's options, a query-backed one too, so a viewer reads only what the dashboard lists:
+ * a Valkey key or an HTTP path segment names data, and binding alone does not bound it. "All"
+ * expands to the options.
  */
 import {
   allValue,
@@ -40,7 +42,7 @@ function refuse(variable: Variable, message: string): never {
  */
 function chosenValues(
   variable: Variable,
-  picked: string | readonly string[] | undefined,
+  picked?: string | readonly string[] | undefined,
 ): string[] {
   const value = picked ?? variable.default;
   return value === undefined ? [] : [value].flat();
@@ -96,25 +98,68 @@ function listedBinding(
 }
 
 /**
- * Binds a query-backed variable. "All", or no choice and no default, loads the options.
+ * Binds the values a viewer picked for a query-backed variable, checking each is one of its
+ * options or its default.
  *
  * @param variable - The variable.
- * @param values - The chosen values.
+ * @param values - The picked values.
+ * @param resolved - The variables resolved before it.
+ * @param loadOptions - Lists its options.
+ * @returns The binding.
+ * @throws {AppError} `bad_request` for a value that is neither an option nor the default.
+ */
+async function pickedBinding(
+  variable: QueryVariable,
+  values: readonly string[],
+  resolved: Variables,
+  loadOptions: OptionsLoader,
+): Promise<VariableBinding> {
+  const allowed = new Set([...(await loadOptions(variable, resolved)), ...chosenValues(variable)]);
+  const unknown = values.find((value) => !allowed.has(value));
+  if (unknown !== undefined) refuse(variable, `has no option "${unknown}".`);
+  return bindingOf(variable, values);
+}
+
+/**
+ * Binds a query-backed variable. A picked value must be an option or the default. "All", or no
+ * choice and no default, loads the options.
+ *
+ * @param variable - The variable.
+ * @param picked - The viewer's choice, if any.
  * @param resolved - The variables resolved before it.
  * @param loadOptions - Lists its options.
  * @returns The binding.
  */
 async function queryBinding(
   variable: QueryVariable,
-  values: readonly string[],
+  picked: string | readonly string[] | undefined,
   resolved: Variables,
   loadOptions: OptionsLoader,
 ): Promise<VariableBinding> {
+  const values = chosenValues(variable, picked);
   const all = values.includes(allValue);
   if (all && !variable.includeAll) refuse(variable, 'has no "All" choice.');
-  if (!all && values.length > 0) return bindingOf(variable, values);
+  if (all) return { value: await loadOptions(variable, resolved) };
+  if (values.length === 0) return firstOption(variable, resolved, loadOptions);
+  if (picked === undefined) return bindingOf(variable, values);
+  return pickedBinding(variable, values, resolved, loadOptions);
+}
+
+/**
+ * Binds a query-backed variable with neither a choice nor a default to its first option.
+ *
+ * @param variable - The variable.
+ * @param resolved - The variables resolved before it.
+ * @param loadOptions - Lists its options.
+ * @returns The binding.
+ * @throws {AppError} `bad_request` when it has no options.
+ */
+async function firstOption(
+  variable: QueryVariable,
+  resolved: Variables,
+  loadOptions: OptionsLoader,
+): Promise<VariableBinding> {
   const options = await loadOptions(variable, resolved);
-  if (all) return { value: options };
   if (options.length === 0) refuse(variable, 'has no options.');
   return { value: variable.multi ? options.slice(0, 1) : (options[0] ?? '') };
 }
@@ -139,10 +184,11 @@ export async function resolveVariables(
   const resolved: Record<string, VariableBinding> = {};
   for (const variable of spec.variables) {
     if (variable.name === until) break;
-    const values = chosenValues(variable, picked[variable.name]);
+    const choice = picked[variable.name];
+    const values = chosenValues(variable, choice);
     if (variable.kind === 'text') resolved[variable.name] = textBinding(variable, values);
     else if (variable.kind === 'query')
-      resolved[variable.name] = await queryBinding(variable, values, resolved, loadOptions);
+      resolved[variable.name] = await queryBinding(variable, choice, resolved, loadOptions);
     else resolved[variable.name] = listedBinding(variable, values);
   }
   return resolved;

@@ -500,8 +500,12 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
    pinned; anything else is "not found" to them.
 4. `dashboards/` resolves the time range and the variables against the spec's declarations: a
    custom value must be an option, a single-value variable takes one value, a text value must
-   match its pattern. Query-backed values are bound as they come, since binding is safe; "All"
-   (`$__all`) and a missing default run the variable's source query for the options.
+   match its pattern. A query-backed value the viewer picks, other than "All", must be one of the
+   variable's options or its default: binding stops injection, but a value such as a Valkey key or
+   an HTTP path segment names data, and the options bound what a pinned dashboard shows. The
+   options are cached for 60 s by variable, source, the variables before it and the time range as
+   written (`now-6h`), so the panels of one dashboard share one load. "All" (`$__all`) and a
+   missing default run the variable's source query for the options too.
 5. Each query goes to `query/`, which binds it, applies the connector's guardrails, runs it with a
    timeout and caches the frames for 15 s by connector, bound query and time range. The chart's
    markers run their annotation queries the same way, with the same variables, and come back, per

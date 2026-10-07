@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { dashboardSpecSchema } from '@quanthea/shared';
+import { dashboardSpecSchema, type Frame } from '@quanthea/shared';
 import type { BoundQuery } from '../connectors/_shared/index.ts';
 import { bindTemplate } from '../query/bind.ts';
 import type { QueryExecutor, QuerySource } from '../query/executor.ts';
+import { createResultCache } from '../query/result-cache.ts';
 import { type RunnerDependencies, runPanel } from './run-panel.ts';
 
 const guardrails = { timeoutMs: 10_000, maxRows: 50_000, maxRangeDays: 90 };
@@ -63,6 +64,14 @@ const spec = dashboardSpecSchema.parse({
   ],
 });
 
+/** The options of `$service`, its source's one column. */
+const options: Frame = {
+  refId: 'options',
+  fields: [{ name: 'service', type: 'string' }],
+  values: [['checkout', 'cart', "x') OR 1=1 --"]],
+  meta: { rowCount: 3, truncated: false, durationMs: 1 },
+};
+
 /**
  * Runs the chart with the given variables through the real binders, and keeps what each connector
  * would receive.
@@ -77,6 +86,7 @@ async function boundWith(
   const executor: QueryExecutor = {
     run: async (_source, request) => {
       const query = bindTemplate(request.template, request.variables, request.timeRange);
+      if (request.refId === 'options') return { frames: [options], bound: query, cached: false };
       bound.push(query);
       return { frames: [], bound: query, cached: false };
     },
@@ -115,5 +125,36 @@ describe('markers that follow the variables', () => {
     const { sql, promql } = await boundWith({});
     expect(sql?.language === 'sql' ? sql.parameters[0] : undefined).toBe('checkout');
     expect(promql).toMatchObject({ expr: expect.stringContaining('service=~"checkout"') });
+  });
+});
+
+describe('the options of a query-backed variable', () => {
+  test('refuse a value the source does not list, and are loaded once per minute', async () => {
+    let loads = 0;
+    const executor: QueryExecutor = {
+      run: async (_source, request) => {
+        const query = bindTemplate(request.template, request.variables, request.timeRange);
+        if (request.refId === 'options') loads += 1;
+        const frames = request.refId === 'options' ? [options] : [];
+        return { frames, bound: query, cached: false };
+      },
+    };
+    let now = Date.parse('2026-10-01T12:00:00Z');
+    const dependencies: RunnerDependencies = {
+      openSource: async (name) => ({ connectorId: name, guardrails }) as unknown as QuerySource,
+      executor,
+      now: () => now,
+      optionsCache: createResultCache<string[]>({ ttlMs: 60_000, maxEntries: 10, now: () => now }),
+    };
+    const run = (service: string) =>
+      runPanel(dependencies, spec, 'errors', { variables: { service } });
+    await expect(run('payments')).rejects.toThrow('$service has no option "payments".');
+    now += 1000;
+    await run('cart');
+    await run('checkout');
+    expect(loads).toBe(1);
+    now += 60_000;
+    await run('cart');
+    expect(loads).toBe(2);
   });
 });
