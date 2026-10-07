@@ -13,6 +13,7 @@
 export const publishedDocs = [
   'guide/getting-started.md',
   'deployment.md',
+  'reverse-proxy.md',
   'configuration.md',
   'environment.md',
   'guide/dashboards.md',

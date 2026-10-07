@@ -27,6 +27,7 @@ export const docNav: readonly DocNavGroup[] = [
     label: 'Run and configure',
     items: [
       { slug: 'deployment', label: 'Deploy' },
+      { slug: 'reverse-proxy', label: 'Behind a reverse proxy' },
       { slug: 'configuration', label: 'Configuration file' },
       { slug: 'environment', label: 'Environment variables' },
     ],

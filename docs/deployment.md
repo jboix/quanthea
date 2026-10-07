@@ -138,10 +138,10 @@ docker exec quanthea quanthea reset-admin
 
 ## Behind a reverse proxy
 
-- Serve quanthea over HTTPS and set the public URL to its `https://` address; quanthea then sends
-  HSTS.
-- Set `server.trustedProxyHops` to the number of proxies that add to `X-Forwarded-For`, so the
-  sign-in throttle sees the real address.
+People on other machines reach quanthea through a reverse proxy that serves HTTPS. Set the public
+URL to its `https://` address and the trusted proxy hops to the number of proxies, and let the
+proxy stream answers. [Behind a reverse proxy](reverse-proxy.md) gives the details, setups for
+Caddy, nginx and Traefik, and the problems people meet most.
 
 ## Connector plugins
 

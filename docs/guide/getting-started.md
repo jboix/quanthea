@@ -23,6 +23,10 @@ docker logs quanthea 2>&1 | grep password
 To declare users, sources and the model in a file instead, see [Deploy](../deployment.md) and
 the [configuration file](../configuration.md).
 
+This runs quanthea for this machine. For other people to reach it, put it behind a reverse proxy
+that serves HTTPS: [Behind a reverse proxy](../reverse-proxy.md) shows how. Over plain HTTP from
+another machine, sign-in does not stick.
+
 ## 2. Sign in
 
 Open <http://localhost:3000> and sign in as `admin` with the password from the log. quanthea then

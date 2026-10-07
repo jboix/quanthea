@@ -34,7 +34,7 @@ Set `QUANTHEA_PUBLIC_URL` for any instance people reach from other machines.
 
 Behind a reverse proxy, set it to the proxy's `https://` address and set
 `QUANTHEA_TRUSTED_PROXY_HOPS` to the number of proxies, so the sign-in throttle sees the real
-address.
+address. [Behind a reverse proxy](reverse-proxy.md) has the whole setup.
 
 ## Keys
 
