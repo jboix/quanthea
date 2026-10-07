@@ -338,6 +338,18 @@ export {
   type SpecDiff,
 } from './spec/diff.ts';
 export { fixedTimeOf } from './spec/fixed-time.ts';
+export {
+  applyLayout,
+  type DashboardLayout,
+  dashboardLayoutSchema,
+  type LaidOutSpec,
+  type LayoutPanel,
+  layoutProblems,
+  type PanelGrid,
+  packGrid,
+  packLayout,
+  specLayout,
+} from './spec/layout.ts';
 export { refIdSchema, slugSchema, variableNameSchema } from './spec/names.ts';
 export {
   durationSchema,

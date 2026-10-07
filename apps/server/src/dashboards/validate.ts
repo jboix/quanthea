@@ -6,13 +6,13 @@
 import {
   type DashboardSpec,
   dashboardSpecSchema,
+  packGrid,
   type ResolvedTimeRange,
   resolveTimeRange,
 } from '@quanthea/shared';
 import { checkOption } from './check-option.ts';
 import { type ConnectorLookup, checkQueries } from './check-queries.ts';
 import { checkReferences } from './check-references.ts';
-import { packGrid } from './grid.ts';
 import { pathOf, type SpecIssue } from './issues.ts';
 
 /** What validation needs besides the spec. */

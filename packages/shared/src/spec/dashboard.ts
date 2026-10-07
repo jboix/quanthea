@@ -13,7 +13,7 @@ import { viewSchema } from './views.ts';
 export const gridColumns = 12;
 
 /** Validates where a panel sits: a 12-column grid, heights in rows of 40 pixels. */
-const gridSchema = z
+export const panelGridSchema = z
   .strictObject({
     x: z
       .int()
@@ -30,7 +30,7 @@ export const panelSchema = z.strictObject({
   id: slugSchema,
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
-  grid: gridSchema,
+  grid: panelGridSchema,
   queries: z.array(panelQuerySchema).min(1).max(4),
   view: viewSchema,
 });
