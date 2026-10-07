@@ -20,6 +20,20 @@ Give quanthea a read-only account. Queries always run read-only, and each kind r
 a read (writes in SQL, scripts in a search, JavaScript in MongoDB, write commands in Valkey), but a
 role with read grants only is the hard guarantee. quanthea warns when a connection can write.
 
+### TimescaleDB
+
+TimescaleDB is a PostgreSQL extension, so quanthea reads it with the **PostgreSQL** connector: its
+tile says "and TimescaleDB", and searching for "timescale" finds it.
+
+- The connection test names the extension's version, such as "PostgreSQL 18.1 with TimescaleDB
+  2.30".
+- The schema lists hypertables, each with its time column and estimated row count, and continuous
+  aggregates, each with the hypertable it summarises. Row counts come from TimescaleDB's chunk
+  statistics, not from reading the data.
+- The agent buckets time with `time_bucket` and fills empty buckets with `time_bucket_gapfill`. Over
+  a long range it reads a continuous aggregate rather than its hypertable, since it is already
+  bucketed.
+
 ## Access levels
 
 The access level decides what the model sees of the source while it builds, answers and explains.

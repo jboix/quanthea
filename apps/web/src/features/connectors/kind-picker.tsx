@@ -3,7 +3,7 @@ import { type KeyboardEvent, useId, useState } from 'react';
 import { SearchIcon } from '../../ui/icons.tsx';
 import { KindIcon } from './kind-icon.tsx';
 import styles from './kind-picker.module.css';
-import { matchingKinds, pluginLabel } from './kinds.ts';
+import { kindNote, matchingKinds } from './kinds.ts';
 
 /** Props of {@link KindPicker}. */
 interface KindPickerProps {
@@ -93,9 +93,9 @@ export function KindPicker({ kinds, value, onChange }: KindPickerProps) {
             <KindIcon kind={kind.kind} info={kind} size={28} />
             <span className={styles.label}>
               <span className={styles.name}>{kind.displayName}</span>
-              {kind.plugin && (
-                <span className={styles.origin} title={kind.plugin.name}>
-                  {pluginLabel(kind)}
+              {kindNote(kind) && (
+                <span className={styles.origin} title={kind.plugin?.name}>
+                  {kindNote(kind)}
                 </span>
               )}
             </span>

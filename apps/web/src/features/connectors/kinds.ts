@@ -59,3 +59,21 @@ export function pluginLabel(
 ): string | undefined {
   return kind?.plugin ? `plugin · v${kind.plugin.version}` : undefined;
 }
+
+/**
+ * Databases a built-in kind reads as well, under another name: an extension or a fork that
+ * speaks the same protocol, so the tile says so and nobody looks for a kind of its own.
+ */
+const readsAlso: Readonly<Record<string, string>> = { postgres: 'TimescaleDB' };
+
+/**
+ * The second line of a kind's tile: the plugin that adds it, or what else the kind reads.
+ *
+ * @param kind - The kind.
+ * @returns Such as `plugin · v1.2.0` or `and TimescaleDB`, or `undefined` for none.
+ */
+export function kindNote(kind: Pick<ConnectorKindInfo, 'kind' | 'plugin'>): string | undefined {
+  if (kind.plugin) return pluginLabel(kind);
+  const also = readsAlso[kind.kind];
+  return also ? `and ${also}` : undefined;
+}

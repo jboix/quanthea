@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { ConnectorKindInfo } from '@quanthea/shared';
-import { badgeTone, matchingKinds, needsDarkGlyph } from './kinds.ts';
+import { badgeTone, kindNote, matchingKinds, needsDarkGlyph } from './kinds.ts';
 
 /**
  * A kind with a name and nothing else of interest.
@@ -53,5 +53,17 @@ describe('kind badges', () => {
 
   test('keep the same tone for the same kind', () => {
     expect(badgeTone('postgres')).toBe(badgeTone('postgres'));
+  });
+});
+
+describe('a kind tile’s second line', () => {
+  test('names the plugin that adds the kind, or what else a built-in kind reads', () => {
+    expect(kindNote(kindOf('postgres', 'PostgreSQL'))).toBe('and TimescaleDB');
+    expect(kindNote(kindOf('prometheus', 'Prometheus'))).toBeUndefined();
+    const plugin = {
+      ...kindOf('sqlite', 'SQLite'),
+      plugin: { name: 'quanthea-plugin-sqlite', version: '1.2.0' },
+    };
+    expect(kindNote(plugin)).toBe('plugin · v1.2.0');
   });
 });
