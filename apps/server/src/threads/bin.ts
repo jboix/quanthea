@@ -1,7 +1,8 @@
 /**
  * The bin of threads. Deleting a thread moves it here, unless its dashboard is pinned or its alert
- * or report is active; restoring brings it back. Purging deletes the thread and its dashboard with every version, which frees the
- * space; the usage ledger has no link to either, so usage is kept.
+ * or report is active; restoring brings it back. Purging deletes the thread and its dashboard with
+ * every version, which frees the space; the usage ledger has no link to either, so usage is kept.
+ * Purging skips a thread whose alert or report is active.
  */
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { BinnedRow, ThreadBinRepository, ThreadOwner } from '../db/thread-bin.ts';
@@ -59,11 +60,13 @@ export interface ThreadBin {
    *
    * @param id - The thread.
    * @param actor - Who deletes it.
-   * @throws {AppError} `not_found` when it is not in the bin.
+   * @throws {AppError} `not_found` when it is not in the bin; `bad_request` when its alert or
+   *   report is active.
    */
   purge(id: string, actor: string): void;
   /**
-   * Deletes the threads binned before a time, or every binned thread.
+   * Deletes the threads binned before a time, or every binned thread, but those whose alert or
+   * report is active.
    *
    * @param actor - Who deletes them: a person, or the retention job.
    * @param before - Only those binned before this time; all of them without it.
@@ -80,6 +83,19 @@ export interface ThreadBin {
 }
 
 /**
+ * Refuses a thread whose alert or report is active.
+ *
+ * @param outcome - What the repository did.
+ * @throws {AppError} `bad_request` for `alert_active` or `report_active`.
+ */
+function checkNothingActive(outcome: string): void {
+  if (outcome === 'alert_active')
+    throw new AppError('bad_request', 'Its alert is active. Deactivate it before deleting.');
+  if (outcome === 'report_active')
+    throw new AppError('bad_request', 'Its report is active. Deactivate it before deleting.');
+}
+
+/**
  * Moves one thread to the bin, or says why it can't go.
  *
  * @param dependencies - The repository, the audit log and the clock.
@@ -93,10 +109,7 @@ function threadBinner(dependencies: ThreadBinDependencies): ThreadBin['bin'] {
     if (outcome === 'missing') throw new AppError('not_found', `No thread ${id}.`);
     if (outcome === 'pinned')
       throw new AppError('bad_request', 'Its dashboard is pinned. Unpin it before deleting.');
-    if (outcome === 'alert_active')
-      throw new AppError('bad_request', 'Its alert is active. Deactivate it before deleting.');
-    if (outcome === 'report_active')
-      throw new AppError('bad_request', 'Its report is active. Deactivate it before deleting.');
+    checkNothingActive(outcome);
     audit.append({ actor, action: 'thread.bin', target: id });
   };
 }
@@ -128,7 +141,9 @@ export function createThreadBin(dependencies: ThreadBinDependencies): ThreadBin 
   const { repository, audit } = dependencies;
   const now = dependencies.now ?? Date.now;
   const purge = (id: string, actor: string) => {
-    if (!repository.purge(id)) throw new AppError('not_found', `No thread ${id} in the bin.`);
+    const outcome = repository.purge(id);
+    if (outcome === 'missing') throw new AppError('not_found', `No thread ${id} in the bin.`);
+    checkNothingActive(outcome);
     audit.append({ actor, action: 'thread.purge', target: id });
   };
   return {

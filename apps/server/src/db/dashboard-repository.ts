@@ -2,6 +2,7 @@
 import type { Database } from 'bun:sqlite';
 import { type PinnedRow, pinnedLister } from './dashboard-pinned.ts';
 import { type LibrarySearcher, librarySearcher } from './library-search.ts';
+import { dashboardThreadsBinned, dashboardThreadsBinnedCheck } from './thread-guards.ts';
 
 /** A dashboard as stored. */
 export interface DashboardRow {
@@ -53,18 +54,6 @@ export type VersionSummaryRow = Omit<VersionRow, 'spec'>;
 /** What pinning did. */
 export type PinOutcome = 'pinned' | 'binned' | 'missing';
 
-/**
- * The condition that a dashboard has threads and all of them are in the bin.
- *
- * @param dashboardId - The SQL parameter that holds the dashboard id, such as `?1`.
- * @returns The SQL condition.
- */
-function threadsBinned(dashboardId: string): string {
-  return `EXISTS (SELECT 1 FROM threads WHERE dashboard_id = ${dashboardId})
-    AND NOT EXISTS (SELECT 1 FROM threads WHERE dashboard_id = ${dashboardId}
-      AND deleted_at IS NULL)`;
-}
-
 /** What pinning writes on the dashboard. */
 export interface PinChange {
   /** The version to pin. */
@@ -112,8 +101,7 @@ export interface DashboardRepository {
   getVersion(dashboardId: string, version: number): VersionRow | undefined;
   /**
    * Makes a version the one the dashboard shows, and records when it was first pinned, in one
-   * transaction. A dashboard whose threads are all in the bin is not pinned: purging would delete
-   * it.
+   * transaction. A dashboard whose threads are all in the bin is not pinned.
    *
    * @param dashboardId - The dashboard id.
    * @param change - The version, time, title, description and tags.
@@ -257,10 +245,7 @@ function writeStatements(database: Database) {
       `UPDATE dashboards SET pinned_version_id = ?1, title = ?2, description = ?3, tags = ?4,
          updated_at = ?5 WHERE id = ?6
          AND EXISTS (SELECT 1 FROM dashboard_versions WHERE id = ?1 AND dashboard_id = ?6)
-         AND NOT (${threadsBinned('?6')})`,
-    ),
-    threadsBinned: database.query<{ binned: number }, [string]>(
-      `SELECT ${threadsBinned('?1')} AS binned`,
+         AND NOT (${dashboardThreadsBinned('?6')})`,
     ),
     unpinDashboard: database.query(
       `UPDATE dashboards SET pinned_version_id = NULL, updated_at = ?
@@ -318,6 +303,7 @@ function pinner(
   database: Database,
   statements: ReturnType<typeof writeStatements>,
 ): DashboardRepository['pin'] {
+  const threadsBinned = dashboardThreadsBinnedCheck(database);
   return database.transaction((dashboardId: string, change: PinChange): PinOutcome => {
     const shown = statements.pinDashboard.run(
       change.versionId,
@@ -327,8 +313,7 @@ function pinner(
       change.at,
       dashboardId,
     );
-    if (shown.changes === 0)
-      return statements.threadsBinned.get(dashboardId)?.binned ? 'binned' : 'missing';
+    if (shown.changes === 0) return threadsBinned(dashboardId) ? 'binned' : 'missing';
     // A version pinned before keeps its first pin time.
     statements.pinVersion.run(change.at, change.versionId, dashboardId);
     return 'pinned';

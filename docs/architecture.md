@@ -598,6 +598,9 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
   deactivated) is refused too: deactivate it first. Once deactivated, the thread goes to the bin,
   and its alert keeps `thread_id` until the thread is purged. A thread whose report is active is
   refused the same way, and its report keeps `thread_id` the same way.
+- While a thread is in the bin, its alert or report can't be activated, from its page either
+  (400, "in the bin"). The activating `UPDATE` checks it, so a thread binned while the version's
+  queries run still refuses it. Restoring the thread allows it again.
 - `POST /api/threads/drafts/bin` (editor+) moves every draft of the caller to the bin in one
   transaction: their own threads whose dashboard is not pinned and whose alert or report is not
   active.
@@ -613,6 +616,8 @@ being unpinned. Deleting a thread frees the space of the thread and its dashboar
   or another thread uses it. The library index drops it through its trigger, and its snapshots go
   with it. Copies keep their `parent_dashboard_id`. An alert the thread made is never deleted: it
   keeps every version, and its `thread_id` becomes `NULL` (`ON DELETE SET NULL`).
+  A thread whose alert or report is active is never purged: purging it alone is refused, and
+  purging everything and the retention job skip it.
 - The usage ledger has no foreign keys, so purging never changes Settings → Usage.
 - **Retention** (the Retention dialog on the bin, `GET/PUT /api/settings/retention`, admin): binned threads
   are kept for `binDays` days, 30 by default, or until someone deletes them (`null`).
@@ -791,7 +796,8 @@ number (`latestVersion` is `null`). `alerts/changes.ts` and `alerts/deactivate.t
 - Activating validates the version again, channels included, runs its query once (a failing query
   refuses it), and
   holds to the cap of active alerts per connector (`maxActivePerConnector`, the Alerts page's
-  Settings, 50 by default; `conflict` past it). It resumes evaluation.
+  Settings, 50 by default; `conflict` past it). It resumes evaluation. It is refused while the
+  alert's thread is in the bin.
 - `activateChange` takes changes an editor made by hand on a live alert's page: the whole spec
   and the active version it starts from (`conflict` once another version is active). It refuses
   a spec that changes nothing, checks it and runs its query once (`checkAlert`), then saves it as
@@ -983,7 +989,8 @@ and a version keeps the time it was first activated.
   range). It also checks the time zone, that every channel exists (`delivery.channels[i]`) and that
   every linked dashboard is pinned (`seeAlso[i].dashboardId`).
 - Activating validates the version again and runs its queries once over its latest period (a
-  failing query refuses it, at `panels`), then sets `next_run_at` from its schedule. Deactivating
+  failing query refuses it, at `panels`), then sets `next_run_at` from its schedule. It is refused
+  while the report's thread is in the bin. Deactivating
   clears `next_run_at`; the active version and the runs stay.
 
 **Runs** (`reports/runs.ts`, over `db/report-run-repository.ts`). A run names the version, the

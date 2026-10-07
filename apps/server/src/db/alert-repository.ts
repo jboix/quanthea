@@ -3,6 +3,12 @@
  * Activating chooses a version; deactivating and muting change the alert row only.
  */
 import type { Database } from 'bun:sqlite';
+import {
+  type ActivateOutcome,
+  type MadeByThreadStore,
+  threadBinnedCheck,
+  threadOutsideBin,
+} from './thread-guards.ts';
 
 /** An alert, as stored. */
 export interface AlertRow {
@@ -79,7 +85,7 @@ export interface MuteChange {
 }
 
 /** Stores alerts. */
-export interface AlertRepository {
+export interface AlertRepository extends MadeByThreadStore {
   /**
    * Adds a version, creating the alert with its first one when it does not exist.
    *
@@ -122,9 +128,9 @@ export interface AlertRepository {
    * @param id - The alert.
    * @param version - The version.
    * @param at - When.
-   * @returns Whether the alert and version exist.
+   * @returns What it did: refused while the thread that made it is in the bin.
    */
-  activate(id: string, version: number, at: number): boolean;
+  activate(id: string, version: number, at: number): ActivateOutcome;
   /**
    * Stops evaluating an alert.
    *
@@ -300,7 +306,8 @@ function writeStatements(database: Database) {
       `UPDATE alerts SET active_version = ?1, deactivated_at = NULL, updated_at = ?2,
          title = (SELECT json_extract(spec, '$.title') FROM alert_versions
                   WHERE alert_id = ?3 AND version = ?1)
-       WHERE id = ?3 AND EXISTS (SELECT 1 FROM alert_versions WHERE alert_id = ?3 AND version = ?1)`,
+       WHERE id = ?3 AND EXISTS (SELECT 1 FROM alert_versions WHERE alert_id = ?3 AND version = ?1)
+         AND ${threadOutsideBin('alerts')}`,
     ),
     firstActivation: database.query(
       `UPDATE alert_versions SET activated_at = ? WHERE alert_id = ? AND version = ?
@@ -348,10 +355,12 @@ function activator(
   database: Database,
   statements: ReturnType<typeof writeStatements>,
 ): AlertRepository['activate'] {
-  return database.transaction((id: string, version: number, at: number): boolean => {
-    if (statements.activate.run(version, at, id).changes === 0) return false;
+  const threadBinned = threadBinnedCheck(database, 'alerts');
+  return database.transaction((id: string, version: number, at: number): ActivateOutcome => {
+    if (statements.activate.run(version, at, id).changes === 0)
+      return threadBinned(id) ? 'binned' : 'missing';
     statements.firstActivation.run(at, id, version);
-    return true;
+    return 'activated';
   });
 }
 
@@ -377,6 +386,7 @@ export function createAlertRepository(database: Database): AlertRepository {
       return stored ? versionOf(stored) : undefined;
     },
     activate: activator(database, write),
+    threadBinned: threadBinnedCheck(database, 'alerts'),
     deactivate: (id, at) => write.deactivate.run(at, id).changes > 0,
     setMute: (id, change, at) =>
       write.mute.run(change?.at ?? null, change?.by ?? null, change?.until ?? null, at, id)

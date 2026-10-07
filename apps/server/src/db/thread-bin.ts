@@ -36,6 +36,9 @@ export interface ThreadOwner {
 /** What moving a thread to the bin did. */
 export type BinOutcome = 'binned' | 'missing' | 'pinned' | 'alert_active' | 'report_active';
 
+/** What purging a binned thread did. */
+export type PurgeOutcome = 'purged' | 'missing' | 'alert_active' | 'report_active';
+
 /** Stores the bin. */
 export interface ThreadBinRepository {
   /**
@@ -74,7 +77,8 @@ export interface ThreadBinRepository {
    */
   list(): BinnedRow[];
   /**
-   * Lists the threads binned before a time.
+   * Lists the threads binned before a time that may be purged: those whose alert or report is not
+   * active.
    *
    * @param before - The time.
    * @returns Their ids.
@@ -82,12 +86,14 @@ export interface ThreadBinRepository {
   binnedBefore(before: number): string[];
   /**
    * Deletes a binned thread with its messages and plans, and its dashboard with every version,
-   * in one transaction. A pinned dashboard, or one another thread uses, stays.
+   * in one transaction. A pinned dashboard, or one another thread uses, stays. A thread whose
+   * alert or report is active stays too: a database of an earlier release may hold one.
    *
    * @param id - The thread.
-   * @returns `false` when it is not in the bin.
+   * @returns `purged`; `missing` when it is not in the bin; `alert_active` or `report_active`
+   *   when an alert or a report it made is active.
    */
-  purge(id: string): boolean;
+  purge(id: string): PurgeOutcome;
   /**
    * The thread a dashboard belongs to, in the bin or not.
    *
@@ -150,15 +156,8 @@ function binStatements(database: Database) {
        WHERE t.deleted_at IS NOT NULL ORDER BY t.deleted_at DESC, t.id DESC`,
     ),
     before: database.query<{ id: string }, [number]>(
-      'SELECT id FROM threads WHERE deleted_at IS NOT NULL AND deleted_at < ?',
-    ),
-    binnedDashboard: database.query<{ dashboard_id: string | null }, [string]>(
-      'SELECT dashboard_id FROM threads WHERE id = ? AND deleted_at IS NOT NULL',
-    ),
-    removeThread: database.query('DELETE FROM threads WHERE id = ?'),
-    removeDashboard: database.query(
-      `DELETE FROM dashboards WHERE id = ?1 AND pinned_version_id IS NULL
-       AND NOT EXISTS (SELECT 1 FROM threads WHERE dashboard_id = ?1)`,
+      `SELECT t.id FROM threads t WHERE t.deleted_at IS NOT NULL AND t.deleted_at < ?
+       AND NOT ${alertActive} AND NOT ${reportActive}`,
     ),
     owner: database.query<{ id: string; binned: number; created_by: string | null }, [string]>(
       `SELECT id, deleted_at IS NOT NULL AS binned, created_by FROM threads WHERE dashboard_id = ?
@@ -213,23 +212,45 @@ function draftBinner(
 }
 
 /**
+ * Prepares the statements of a purge.
+ *
+ * @param database - A database the migrations have run on.
+ * @returns The statements.
+ */
+function purgeStatements(database: Database) {
+  return {
+    binnedDashboard: database.query<
+      { dashboard_id: string | null; alert_active: number; report_active: number },
+      [string]
+    >(
+      `SELECT t.dashboard_id, ${alertActive} AS alert_active, ${reportActive} AS report_active
+       FROM threads t WHERE t.id = ? AND t.deleted_at IS NOT NULL`,
+    ),
+    removeThread: database.query('DELETE FROM threads WHERE id = ?'),
+    removeDashboard: database.query(
+      `DELETE FROM dashboards WHERE id = ?1 AND pinned_version_id IS NULL
+       AND NOT EXISTS (SELECT 1 FROM threads WHERE dashboard_id = ?1)`,
+    ),
+  };
+}
+
+/**
  * Builds the transaction that purges a binned thread and its dashboard.
  *
  * @param database - A database the migrations have run on.
- * @param statements - The prepared statements.
  * @returns The purge method.
  */
-function purger(
-  database: Database,
-  statements: ReturnType<typeof binStatements>,
-): ThreadBinRepository['purge'] {
-  return database.transaction((id: string): boolean => {
+function purger(database: Database): ThreadBinRepository['purge'] {
+  const statements = purgeStatements(database);
+  return database.transaction((id: string): PurgeOutcome => {
     const binned = statements.binnedDashboard.get(id);
-    if (!binned) return false;
+    if (!binned) return 'missing';
+    if (binned.alert_active) return 'alert_active';
+    if (binned.report_active) return 'report_active';
     // The thread goes first, so the dashboard is no longer in use when it is checked.
     statements.removeThread.run(id);
     if (binned.dashboard_id !== null) statements.removeDashboard.run(binned.dashboard_id);
-    return true;
+    return 'purged';
   });
 }
 
@@ -256,7 +277,7 @@ export function createThreadBinRepository(database: Database): ThreadBinReposito
         ownerId: row.created_by,
       })),
     binnedBefore: (before) => statements.before.all(before).map((row) => row.id),
-    purge: purger(database, statements),
+    purge: purger(database),
     ownerOf: (dashboardId) => {
       const row = statements.owner.get(dashboardId);
       return row

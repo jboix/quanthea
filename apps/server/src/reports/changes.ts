@@ -106,6 +106,18 @@ export function saveVersion(
 }
 
 /**
+ * Refuses an activation while the thread that made the report is in the bin: purging it would
+ * leave an active report without its thread.
+ *
+ * @param binned - Whether the thread is in the bin.
+ * @throws {AppError} `bad_request` when it is.
+ */
+function checkOutsideBin(binned: boolean): void {
+  if (binned)
+    throw new AppError('bad_request', 'Its thread is in the bin. Restore it before activating.');
+}
+
+/**
  * Activates a version: checks it again, runs its queries once over its latest period, and puts it
  * on the schedule.
  *
@@ -113,7 +125,8 @@ export function saveVersion(
  * @param id - The report.
  * @param version - The version.
  * @param actor - Who activates.
- * @throws {AppError} `not_found`, or `bad_request` with the issues or the failing query.
+ * @throws {AppError} `not_found`, or `bad_request` with the issues, the failing query, or while
+ *   its thread is in the bin.
  */
 export async function activate(
   context: ReportsContext,
@@ -122,6 +135,7 @@ export async function activate(
   actor: string,
 ): Promise<void> {
   reportOrThrow(context, id);
+  checkOutsideBin(context.repository.threadBinned(id));
   const row = context.repository.version(id, version);
   if (!row) throw new AppError('not_found', `Report ${id} has no version ${version}.`);
   const { spec, execution } = await checkReport(context, row.spec);
@@ -130,7 +144,9 @@ export async function activate(
       { path: 'panels', message: execution.failure },
     ]);
   const now = context.now();
-  context.repository.activate(id, version, now, nextRunAt(spec.schedule, now));
+  // The thread may have gone to the bin while the queries ran.
+  const outcome = context.repository.activate(id, version, now, nextRunAt(spec.schedule, now));
+  checkOutsideBin(outcome === 'binned');
   context.audit.append({ actor, action: 'report.activate', target: id, detail: { version } });
 }
 

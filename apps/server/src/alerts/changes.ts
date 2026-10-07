@@ -167,13 +167,26 @@ function checkCap(context: AlertsContext, alertId: string, spec: AlertSpec): voi
 }
 
 /**
+ * Refuses an activation while the thread that made the alert is in the bin: purging it would
+ * leave an active alert without its thread.
+ *
+ * @param binned - Whether the thread is in the bin.
+ * @throws {AppError} `bad_request` when it is.
+ */
+function checkOutsideBin(binned: boolean): void {
+  if (binned)
+    throw new AppError('bad_request', 'Its thread is in the bin. Restore it before activating.');
+}
+
+/**
  * Activates a version: checks it again, runs its query once, and holds to the cap.
  *
  * @param context - The service context.
  * @param id - The alert.
  * @param version - The version.
  * @param actor - Who activates.
- * @throws {AppError} `not_found`, `bad_request` with the issues, or `conflict` at the cap.
+ * @throws {AppError} `not_found`, `bad_request` with the issues or while its thread is in the bin,
+ *   or `conflict` at the cap.
  */
 export async function activate(
   context: AlertsContext,
@@ -182,12 +195,14 @@ export async function activate(
   actor: string,
 ): Promise<void> {
   alertOrThrow(context, id);
+  checkOutsideBin(context.repository.threadBinned(id));
   const row = context.repository.version(id, version);
   if (!row) throw new AppError('not_found', `Alert ${id} has no version ${version}.`);
   const check = await checkAlert(context, row.spec, context.now());
   if (!check.ok) refuseSpec('This version cannot be activated.', check.issues);
   checkCap(context, id, check.spec);
-  context.repository.activate(id, version, context.now());
+  // The thread may have gone to the bin while the query ran.
+  checkOutsideBin(context.repository.activate(id, version, context.now()) === 'binned');
   context.audit.append({ actor, action: 'alert.activate', target: id, detail: { version } });
 }
 
@@ -201,7 +216,7 @@ export async function activate(
  * @param actor - Who changes it.
  * @returns The new version and the fields that changed.
  * @throws {AppError} `conflict` when another version is active now, `bad_request` when nothing
- *   changed or the spec is invalid, `not_found`.
+ *   changed, the spec is invalid or its thread is in the bin, `not_found`.
  */
 export async function activateChange(
   context: AlertsContext,
@@ -210,6 +225,7 @@ export async function activateChange(
   actor: string,
 ): Promise<{ version: number; changes: SpecChange[] }> {
   const active = activeVersionOf(context, id, change.basedOn);
+  checkOutsideBin(context.repository.threadBinned(id));
   const parsed = alertSpecSchema.safeParse(change.spec);
   const changes = alertSpecChanges(active, parsed.success ? parsed.data : change.spec);
   if (changes.length === 0) throw new AppError('bad_request', 'Nothing changed.');

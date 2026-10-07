@@ -3,6 +3,12 @@
  * Activating chooses a version and sets when it runs next; deactivating stops the schedule.
  */
 import type { Database } from 'bun:sqlite';
+import {
+  type ActivateOutcome,
+  type MadeByThreadStore,
+  threadBinnedCheck,
+  threadOutsideBin,
+} from './thread-guards.ts';
 
 /** A report, as stored. */
 export interface ReportRow {
@@ -53,7 +59,7 @@ export type NewReportVersion = Omit<ReportVersionRow, 'version' | 'activatedAt'>
 };
 
 /** Stores reports. */
-export interface ReportRepository {
+export interface ReportRepository extends MadeByThreadStore {
   /**
    * Adds a version, creating the report with its first one when it does not exist.
    *
@@ -97,9 +103,9 @@ export interface ReportRepository {
    * @param version - The version.
    * @param at - When.
    * @param nextRunAt - When the version's schedule runs next.
-   * @returns Whether the report and version exist.
+   * @returns What it did: refused while the thread that made it is in the bin.
    */
-  activate(id: string, version: number, at: number, nextRunAt: number): boolean;
+  activate(id: string, version: number, at: number, nextRunAt: number): ActivateOutcome;
   /**
    * Stops a report's schedule.
    *
@@ -271,7 +277,8 @@ function writeStatements(database: Database) {
          title = (SELECT json_extract(spec, '$.title') FROM report_versions
                   WHERE report_id = ?3 AND version = ?1)
        WHERE id = ?3
-         AND EXISTS (SELECT 1 FROM report_versions WHERE report_id = ?3 AND version = ?1)`,
+         AND EXISTS (SELECT 1 FROM report_versions WHERE report_id = ?3 AND version = ?1)
+         AND ${threadOutsideBin('reports')}`,
     ),
     firstActivation: database.query(
       `UPDATE report_versions SET activated_at = ? WHERE report_id = ? AND version = ?
@@ -317,11 +324,13 @@ function activator(
   database: Database,
   statements: ReturnType<typeof writeStatements>,
 ): ReportRepository['activate'] {
+  const threadBinned = threadBinnedCheck(database, 'reports');
   return database.transaction(
-    (id: string, version: number, at: number, nextRunAt: number): boolean => {
-      if (statements.activate.run(version, at, id, nextRunAt).changes === 0) return false;
+    (id: string, version: number, at: number, nextRunAt: number): ActivateOutcome => {
+      if (statements.activate.run(version, at, id, nextRunAt).changes === 0)
+        return threadBinned(id) ? 'binned' : 'missing';
       statements.firstActivation.run(at, id, version);
-      return true;
+      return 'activated';
     },
   );
 }
@@ -348,6 +357,7 @@ export function createReportRepository(database: Database): ReportRepository {
       return stored ? versionOf(stored) : undefined;
     },
     activate: activator(database, write),
+    threadBinned: threadBinnedCheck(database, 'reports'),
     deactivate: (id, at) => write.deactivate.run(at, id).changes > 0,
     due: (now) =>
       read.due

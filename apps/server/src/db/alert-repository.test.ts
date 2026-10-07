@@ -47,8 +47,8 @@ describe('the alert repository', () => {
       activeVersion: null,
       latestVersion: 2,
     });
-    expect(alerts.activate('a', 1, 3)).toBe(true);
-    expect(alerts.activate('a', 7, 3)).toBe(false);
+    expect(alerts.activate('a', 1, 3)).toBe('activated');
+    expect(alerts.activate('a', 7, 3)).toBe('missing');
     alerts.addVersion(version('Third', 4));
     expect(alerts.get('a')).toMatchObject({ title: 'First', activeVersion: 1, latestVersion: 3 });
     expect(alerts.versions('a').map((each) => [each.version, each.activatedAt])).toEqual([

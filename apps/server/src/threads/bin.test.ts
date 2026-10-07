@@ -196,3 +196,75 @@ describe('the bin of threads', () => {
     expect(services.threads.list().map((thread) => thread.id)).toEqual([live.threadId]);
   });
 });
+
+/**
+ * The error a promise rejects with.
+ *
+ * @param pending - The promise.
+ * @returns The error.
+ */
+async function rejectionOf(pending: Promise<unknown>): Promise<AppError> {
+  try {
+    await pending;
+  } catch (error) {
+    return error as AppError;
+  }
+  throw new Error('It did not reject.');
+}
+
+/** What refusing an activation in the bin throws. */
+const inTheBin = expect.objectContaining({
+  code: 'bad_request',
+  message: expect.stringContaining('in the bin'),
+});
+
+describe('an alert or report whose thread is in the bin', () => {
+  test('an alert is not activated, even when its thread is binned while it is checked', async () => {
+    const { threadId, alertId } = threadWithAlert();
+    const pending = services.alerts.activate(alertId, 1, 'editor-1');
+    services.bin.bin(threadId, 'editor-1');
+    expect(await rejectionOf(pending)).toEqual(inTheBin);
+    expect(await rejectionOf(services.alerts.activate(alertId, 1, 'editor-1'))).toEqual(inTheBin);
+    expect(services.alerts.get(alertId, 'editor').activeVersion).toBeNull();
+  });
+
+  test('an alert is not changed from its page, and no version is saved', async () => {
+    const { threadId, alertId } = threadWithAlert();
+    await services.alerts.activate(alertId, 1, 'editor-1');
+    await services.alerts.deactivate(alertId, 'editor-1');
+    services.bin.bin(threadId, 'editor-1');
+    const [first] = services.alerts.get(alertId, 'editor').versions;
+    const spec = { ...first?.spec, severity: 'critical' };
+    const change = services.alerts.activateChange(alertId, { basedOn: 1, spec }, 'editor-1');
+    expect(await rejectionOf(change)).toEqual(inTheBin);
+    expect(services.alerts.get(alertId, 'editor').versions).toHaveLength(1);
+  });
+
+  test('a report is not activated, even when its thread is binned while it is checked', async () => {
+    const { threadId, reportId } = threadWithReport();
+    const pending = services.reports.activate(reportId, 1, 'editor-1');
+    services.bin.bin(threadId, 'editor-1');
+    expect(await rejectionOf(pending)).toEqual(inTheBin);
+    expect(await rejectionOf(services.reports.activate(reportId, 1, 'editor-1'))).toEqual(inTheBin);
+    expect(services.reports.get(reportId, 'editor').activeVersion).toBeNull();
+  });
+
+  test('the purge keeps a binned thread whose alert or report is active', () => {
+    const alertMade = threadWithAlert();
+    const reportMade = threadWithReport();
+    for (const { threadId } of [alertMade, reportMade]) services.bin.bin(threadId, 'editor-1');
+    // A database of an earlier release may hold such a thread.
+    services.database.run('UPDATE alerts SET active_version = 1 WHERE id = ?', [alertMade.alertId]);
+    services.database.run('UPDATE reports SET active_version = 1 WHERE id = ?', [
+      reportMade.reportId,
+    ]);
+    expect(failureOf(() => services.bin.purge(alertMade.threadId, 'admin-1')).message).toBe(
+      'Its alert is active. Deactivate it before deleting.',
+    );
+    expect(failureOf(() => services.bin.purge(reportMade.threadId, 'admin-1')).message).toBe(
+      'Its report is active. Deactivate it before deleting.',
+    );
+    expect(services.bin.purgeAll('retention')).toBe(0);
+    expect(services.bin.list()).toHaveLength(2);
+  });
+});
