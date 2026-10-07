@@ -3621,9 +3621,11 @@ from v0.3 on, and extracts each one's `docs/` and plugin READMEs with `git archi
 link to it, so Astro builds one file for both. Today's site renders every version
 (`src/lib/versions.ts`): the latest release at `docs/`, an older one at `docs/vX.Y/`, and `main` at
 `docs/next/`. A version's links stay in it, and its links to other repository files go to its tag on
-GitHub. Each docs page has a version menu, which leads to the same page in another version or to its
-docs home when it lacks the page, and pages of `next` and older releases carry a banner and name the
-latest's page as canonical; the sitemap lists the latest only. Search is per version:
+GitHub. A version menu tops the docs navigation, in the sidebar and in the phone's menu: `next`
+first, then the releases, newest first. It leads to the same page in another version, or to that
+version's docs home when it lacks the page, and closes on a press outside or Escape. Pages of `next`
+and older releases carry a banner and name the latest's page as canonical; the sitemap lists the
+latest only. Search is per version:
 `scripts/search-index.ts` writes one Pagefind index per version (`pagefind/` for the latest,
 `docs/vX.Y/pagefind/` and `docs/next/pagefind/` for the others), and each page searches its own. The
 Website workflow checks out the whole history so the tags are there, and runs after every app

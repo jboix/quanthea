@@ -2,7 +2,9 @@
 /**
  * The docs sidebar, on wide screens. On narrow ones the header's menu holds the docs instead.
  */
+import type { DocVersion } from '../lib/versions.ts';
 import DocsNavList from './docs-nav-list.astro';
+import DocsVersions, { type VersionLink } from './docs-versions.astro';
 
 /** Props of the sidebar. */
 interface Props {
@@ -12,16 +14,23 @@ interface Props {
   path?: string | undefined;
   /** The pages the version has. */
   slugs?: readonly string[] | undefined;
+  /** The version shown and the others, for the version menu at the top. */
+  versions: { current: DocVersion; links: readonly VersionLink[] };
 }
 
-const { current, path, slugs } = Astro.props;
+const { current, path, slugs, versions } = Astro.props;
 ---
 
 <nav class="docs-sidebar" aria-label="Docs">
+  <div class="version"><DocsVersions {...versions} /></div>
   <DocsNavList current={current} path={path} slugs={slugs} />
 </nav>
 
 <style>
+  .version {
+    margin-bottom: 20px;
+  }
+
   .docs-sidebar {
     position: sticky;
     top: 88px;

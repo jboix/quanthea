@@ -19,8 +19,8 @@ export interface ReleasedVersion {
 export interface DocVersion {
   /** Its id: `v0.4`, or `next` for `main`. */
   readonly id: string;
-  /** The name the picker shows, such as `v0.4 (latest)` or `next (main)`. */
-  readonly label: string;
+  /** What the menu says under its id, such as `Latest release`. */
+  readonly note: string;
   /** The site path of its docs, such as `docs/`, `docs/v0.3/` or `docs/next/`. */
   readonly path: string;
   /** The git ref its sources link to on GitHub: a tag, or `main`. */
@@ -109,8 +109,8 @@ export function releasedVersions(): ReleasedVersion[] {
 }
 
 /**
- * Every version of the docs the site serves, in the picker's order: the latest release, the
- * older ones, then `next`. Without a release, `next` takes `docs/` itself.
+ * Every version of the docs the site serves, in the menu's order: `next`, the latest release, then
+ * the older ones. Without a release, `next` takes `docs/` itself.
  *
  * @param released - The released versions, newest first.
  * @returns The versions.
@@ -118,7 +118,7 @@ export function releasedVersions(): ReleasedVersion[] {
 export function docVersions(released: readonly ReleasedVersion[]): DocVersion[] {
   const releases = released.map((version, index) => ({
     id: version.id,
-    label: index === 0 ? `${version.id} (latest)` : version.id,
+    note: index === 0 ? 'Latest release' : 'Older release',
     path: index === 0 ? 'docs/' : `docs/${version.id}/`,
     ref: version.tag,
     latest: index === 0,
@@ -126,11 +126,11 @@ export function docVersions(released: readonly ReleasedVersion[]): DocVersion[] 
   }));
   const next = {
     id: 'next',
-    label: 'next (main)',
+    note: 'Unreleased, on main',
     path: releases.length === 0 ? 'docs/' : 'docs/next/',
     ref: 'main',
     latest: releases.length === 0,
     next: true,
   };
-  return [...releases, next];
+  return [next, ...releases];
 }

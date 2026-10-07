@@ -9,7 +9,6 @@ import '../styles/prose.css';
 import DocsMenu from '../components/docs-menu.astro';
 import DocsSearch from '../components/docs-search.astro';
 import DocsSidebar from '../components/docs-sidebar.astro';
-import DocsVersions from '../components/docs-versions.astro';
 import { allVersions, docPages } from '../lib/docs-content.ts';
 import { docBreadcrumbs } from '../lib/structured-data.ts';
 import { link } from '../lib/url.ts';
@@ -40,7 +39,10 @@ const slugsOf = new Map(
 /** Where a version leads from this page: the same page, or its docs home when it lacks it. */
 const hrefIn = (each: DocVersion) =>
   link(slug !== undefined && slugsOf.get(each.id)?.includes(slug) ? `${each.path}${slug}/` : each.path);
-const links = versions.map((each) => ({ version: each, href: hrefIn(each) }));
+const versionMenu = {
+  current: version,
+  links: versions.map((each) => ({ version: each, href: hrefIn(each) })),
+};
 const latest = versions.find((each) => each.latest) ?? version;
 const shownTitle = version.latest ? title : `${title} (${version.id})`;
 // Another version's page stands for itself only when the latest release lacks it.
@@ -62,15 +64,22 @@ const contents = headings.filter((heading) => heading.depth === 2 || heading.dep
 >
   <slot name="head" slot="head" />
   <DocsSearch slot="header-search" bundle={bundle} />
-  <DocsMenu slot="header-menu" current={slug} path={version.path} slugs={slugsOf.get(version.id)} />
+  <DocsMenu
+    slot="header-menu"
+    current={slug}
+    path={version.path}
+    slugs={slugsOf.get(version.id)}
+    versions={versionMenu}
+  />
   <div class="container docs-shell">
-    <DocsSidebar current={slug} path={version.path} slugs={slugsOf.get(version.id)} />
+    <DocsSidebar
+      current={slug}
+      path={version.path}
+      slugs={slugsOf.get(version.id)}
+      versions={versionMenu}
+    />
     <div class="docs-main">
       <article class="doc" data-pagefind-body>
-        <div class="crumbs" data-pagefind-ignore>
-          <a href={link(version.path)}>Docs</a>
-          <DocsVersions current={version} links={links} />
-        </div>
         {
           !version.latest && (
             <p class="version-banner" role="note" data-pagefind-ignore>
@@ -124,14 +133,6 @@ const contents = headings.filter((heading) => heading.depth === 2 || heading.dep
     margin-bottom: 24px;
   }
 
-  .crumbs {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 0 0 8px;
-    font-size: 14px;
-  }
-
   .version-banner {
     margin: 0 0 16px;
     padding: 10px 14px;
@@ -139,10 +140,6 @@ const contents = headings.filter((heading) => heading.depth === 2 || heading.dep
     border-radius: var(--radius-card);
     background: var(--color-draft-soft);
     font-size: 14px;
-  }
-
-  .crumbs a {
-    color: var(--color-ink-secondary);
   }
 
   .toc {

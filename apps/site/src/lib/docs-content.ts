@@ -10,7 +10,7 @@ import { docLabel, docNavItems } from './docs-nav.ts';
 import { type DocVersion, docVersions, releasedVersions } from './versions.ts';
 
 /**
- * Every version of the docs the site serves, the latest release first and `next` last.
+ * Every version of the docs the site serves: `next` first, then the releases, newest first.
  *
  * @returns The versions.
  */
@@ -24,9 +24,9 @@ export function allVersions(): DocVersion[] {
  * @returns The version.
  */
 export function latestVersion(): DocVersion {
-  const [first] = allVersions();
-  if (first === undefined) throw new Error('The docs have no version.');
-  return first;
+  const latest = allVersions().find((version) => version.latest);
+  if (latest === undefined) throw new Error('The docs have no version.');
+  return latest;
 }
 
 /**

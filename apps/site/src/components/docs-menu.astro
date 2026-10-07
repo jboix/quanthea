@@ -6,7 +6,9 @@
  */
 import { repositoryUrl } from '../lib/project.ts';
 import { link } from '../lib/url.ts';
+import type { DocVersion } from '../lib/versions.ts';
 import DocsNavList from './docs-nav-list.astro';
+import DocsVersions, { type VersionLink } from './docs-versions.astro';
 
 /** Props of the menu. */
 interface Props {
@@ -16,9 +18,11 @@ interface Props {
   path?: string | undefined;
   /** The pages the version has. */
   slugs?: readonly string[] | undefined;
+  /** The version shown and the others, for the version menu at the top. */
+  versions: { current: DocVersion; links: readonly VersionLink[] };
 }
 
-const { current, path, slugs } = Astro.props;
+const { current, path, slugs, versions } = Astro.props;
 ---
 
 <button
@@ -70,12 +74,17 @@ const { current, path, slugs } = Astro.props;
     </ul>
   </nav>
   <nav class="drawer-docs" aria-label="Docs">
+    <div class="version"><DocsVersions {...versions} /></div>
     <DocsNavList current={current} path={path} slugs={slugs} />
   </nav>
   </div>
 </dialog>
 
 <style>
+  .version {
+    margin-bottom: 20px;
+  }
+
   .menu-toggle {
     display: none;
     place-items: center;

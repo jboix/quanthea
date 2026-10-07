@@ -1,8 +1,8 @@
 ---
 /**
- * The version of the docs shown, and the others: a menu of links, each to the same page in that
- * version, or to its docs home when it lacks the page. Plain links in a disclosure, so it works
- * without JavaScript.
+ * The version of the docs shown, and the others: a menu at the top of the docs navigation, each
+ * entry leading to the same page in that version, or to its docs home when it lacks the page. A
+ * `<details>` opens and closes it without script; a script closes it on a press outside or Escape.
  */
 import type { DocVersion } from '../lib/versions.ts';
 
@@ -25,14 +25,30 @@ interface Props {
 const { current, links } = Astro.props;
 ---
 
-<details class="versions">
-  <summary aria-label={`Docs version: ${current.label}. Choose another.`}>{current.label}</summary>
-  <ul>
+<details class="versions" data-versions>
+  <summary aria-label={`Docs version: ${current.id}, ${current.note}. Choose another.`}>
+    <span class="choice">
+      <span class="name">{current.id}</span>
+      <span class="note">{current.note}</span>
+    </span>
+    <svg class="chevron" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"></path>
+    </svg>
+  </summary>
+  <ul class="menu">
     {
       links.map(({ version, href }) => (
         <li>
           <a href={href} aria-current={version.id === current.id ? 'page' : undefined}>
-            {version.label}
+            <span class="choice">
+              <span class="name">{version.id}</span>
+              <span class="note">{version.note}</span>
+            </span>
+            {version.id === current.id && (
+              <svg class="check" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.8" />
+              </svg>
+            )}
           </a>
         </li>
       ))
@@ -40,22 +56,26 @@ const { current, links } = Astro.props;
   </ul>
 </details>
 
+<script>
+  import { wireVersionMenus } from '../scripts/version-menu.ts';
+
+  wireVersionMenus();
+</script>
+
 <style>
   .versions {
     position: relative;
-    display: inline-block;
   }
 
   summary {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 2px 10px;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
     border: 1px solid var(--color-border-control);
-    border-radius: var(--radius-pill);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--color-ink);
+    border-radius: var(--radius-control);
+    background: var(--color-surface);
     cursor: pointer;
     list-style: none;
   }
@@ -64,13 +84,8 @@ const { current, links } = Astro.props;
     display: none;
   }
 
-  summary::after {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-right: 1.5px solid currentColor;
-    border-bottom: 1.5px solid currentColor;
-    transform: translateY(-2px) rotate(45deg);
+  summary:hover {
+    border-color: var(--color-accent-border);
   }
 
   summary:focus-visible {
@@ -78,34 +93,74 @@ const { current, links } = Astro.props;
     outline-offset: 2px;
   }
 
-  ul {
+  .chevron {
+    flex-shrink: 0;
+    color: var(--color-ink-secondary);
+    transition: transform 0.15s;
+  }
+
+  .versions[open] .chevron {
+    transform: rotate(180deg);
+  }
+
+  .choice {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.3;
+  }
+
+  .name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+
+  .note {
+    font-size: 12px;
+    color: var(--color-ink-secondary);
+  }
+
+  .menu {
     position: absolute;
     z-index: 5;
     top: calc(100% + 6px);
+    right: 0;
     left: 0;
-    min-width: 160px;
     margin: 0;
-    padding: 6px;
+    padding: 4px;
     list-style: none;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-card);
     background: var(--color-surface);
-    box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+    box-shadow: 0 10px 28px rgb(0 0 0 / 14%);
   }
 
-  a {
-    display: block;
-    padding: 4px 10px;
+  .menu a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 10px;
     border-radius: var(--radius-control);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--color-ink-label);
     text-decoration: none;
   }
 
-  a:hover,
-  a[aria-current='page'] {
+  .menu a:hover,
+  .menu a:focus-visible {
     background: var(--color-surface-muted);
-    color: var(--color-ink);
+    outline: none;
+  }
+
+  .check {
+    flex-shrink: 0;
+    color: var(--color-accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chevron {
+      transition: none;
+    }
   }
 </style>

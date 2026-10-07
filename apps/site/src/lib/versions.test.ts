@@ -20,7 +20,7 @@ describe('the versions of the docs', () => {
     ]);
   });
 
-  test('put the latest release at docs/, older ones under their id, and main under next', () => {
+  test('list next first, put the latest release at docs/ and older ones under their id', () => {
     const versions = docVersions([
       { id: 'v0.4', tag: 'v0.4.0' },
       { id: 'v0.3', tag: 'v0.3.2' },
@@ -28,15 +28,22 @@ describe('the versions of the docs', () => {
     expect(
       versions.map((version) => [version.id, version.path, version.ref, version.latest]),
     ).toEqual([
+      ['next', 'docs/next/', 'main', false],
       ['v0.4', 'docs/', 'v0.4.0', true],
       ['v0.3', 'docs/v0.3/', 'v0.3.2', false],
-      ['next', 'docs/next/', 'main', false],
     ]);
   });
 
   test('show main at docs/ before the first release', () => {
     expect(docVersions([])).toEqual([
-      { id: 'next', label: 'next (main)', path: 'docs/', ref: 'main', latest: true, next: true },
+      {
+        id: 'next',
+        note: 'Unreleased, on main',
+        path: 'docs/',
+        ref: 'main',
+        latest: true,
+        next: true,
+      },
     ]);
   });
 });
