@@ -2740,7 +2740,9 @@ one, and enables them again. Without any admin, it creates the default one.
   Otherwise, a pending invite for the verified email the provider gives links them, with the
   invited role. Otherwise the provider's join rule may let them in as a viewer: a Google Workspace
   domain (the `hd` claim), a GitLab verified-email domain or group (subgroups included), a GitHub
-  organisation (active membership), or anyone in the Entra tenant. By default a provider lets in
+  organisation (active membership), or anyone in the Entra tenant. Entra ID's email counts as
+  verified only when the optional `xms_edov` claim is true; its sign-in name
+  (`preferred_username`) and an `email` claim alone never do. By default a provider lets in
   invited people only. An account already in use is never linked by email alone: its owner signs
   in and links the provider from the account menu (`?error=link-first` otherwise).
 - **Identities** (table `identities`): the provider's id of the person is stored as a keyed hash,

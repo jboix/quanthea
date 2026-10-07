@@ -206,8 +206,9 @@ const gitlab: Driver = {
 
 /**
  * Entra ID: one tenant only, so discovery's issuer names it and a token from another tenant fails
- * the issuer check. The person is their tenant and object ids; their email is the sign-in name
- * the tenant gave them.
+ * the issuer check. The person is their tenant and object ids. Their `email` claim counts as
+ * verified only when the optional `xms_edov` claim is true: the sign-in name (`preferred_username`)
+ * and an `email` claim alone are never vouched for, as a tenant admin or a guest can set them.
  */
 const entra: Driver = {
   oidc: true,
@@ -220,12 +221,12 @@ const entra: Driver = {
     const tenant = text(claims, 'tid');
     const object = text(claims, 'oid');
     if (!tenant || !object) throw new Error('The Entra token names no tenant or object.');
-    const email = text(claims, 'preferred_username') ?? text(claims, 'email');
-    const name = text(claims, 'name') ?? email ?? 'Someone';
+    const email = text(claims, 'email');
+    const name = text(claims, 'name') ?? text(claims, 'preferred_username') ?? email ?? 'Someone';
     return {
       subject: `${tenant}:${object}`,
       email,
-      emailVerified: email !== null,
+      emailVerified: email !== null && claims.xms_edov === true,
       name,
       joinable: provider.join.mode === 'tenant',
     };

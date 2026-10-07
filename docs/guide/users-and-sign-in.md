@@ -59,6 +59,17 @@ quanthea signs people in through **GitHub**, **Google**, **GitLab** (gitlab.com 
 3. Choose **Who may join**.
 4. **Test sign-in**. A provider stays off until a test sign-in with it succeeds.
 
+### Microsoft Entra ID
+
+Entra ID vouches for an email only through the optional `xms_edov` claim. quanthea counts the
+email as verified only when that claim is true, never from the sign-in name or the `email` claim
+alone. Without it, Entra users neither accept an invite by email nor join the tenant: an invited
+person sets a password through the invite link, then links Entra ID from the account menu.
+
+To add the claims, in the Entra admin center open the app registration, then **Token
+configuration** → **Add optional claim** → **ID**, and tick `email` and `xms_edov`. Accept the
+`email` permission it offers to add.
+
 ### Who may join
 
 Invited people always join, with the role they were invited with. A provider may also let others
