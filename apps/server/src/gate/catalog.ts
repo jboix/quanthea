@@ -24,6 +24,44 @@ const valuesTtlMs = 10 * 60_000;
 /** The longest value shown; longer ones are cut. */
 const maxValueLength = 40;
 
+/** The longest entity description shown; longer ones are cut. */
+const maxDescriptionLength = 200;
+
+/** Control characters, line and paragraph separators, and the runs of spaces around them. */
+const breaks = /[\s\p{Cc}\u2028\u2029]+/gu;
+
+/**
+ * Text from a source on one line: control characters and line breaks become one space.
+ *
+ * @param text - The text.
+ * @returns The text on one line.
+ */
+function oneLine(text: string): string {
+  return text.replace(breaks, ' ').trim();
+}
+
+/**
+ * Text from a source on one line, cut to a length.
+ *
+ * @param text - The text.
+ * @param length - The longest text kept.
+ * @returns The text, with `…` when cut.
+ */
+function cut(text: string, length: number): string {
+  const line = oneLine(text);
+  return line.length > length ? `${line.slice(0, length)}…` : line;
+}
+
+/**
+ * An entity's description for its line: one line, at most {@link maxDescriptionLength} long.
+ *
+ * @param entity - The entity.
+ * @returns Such as ` Orders.`, or nothing without a description.
+ */
+function aboutText(entity: ModelEntity): string {
+  return entity.description ? ` ${cut(entity.description, maxDescriptionLength)}.` : '';
+}
+
 /** One connector as the catalog reads it. */
 export interface CatalogSource {
   /** The connector as the gate sees it. */
@@ -89,10 +127,7 @@ function sampleTargets(entities: readonly ModelEntity[]): SampleTarget[] {
  * @returns Such as `[checkout-svc, cart-svc]`.
  */
 function valueList(values: readonly string[]): string {
-  const shown = values.map((value) =>
-    value.length > maxValueLength ? `${value.slice(0, maxValueLength)}…` : value,
-  );
-  return `[${shown.join(', ')}]`;
+  return `[${values.map((value) => cut(value, maxValueLength)).join(', ')}]`;
 }
 
 /**
@@ -104,12 +139,11 @@ function valueList(values: readonly string[]): string {
  */
 function tableLine(entity: ModelEntity, values: SampledValues): string {
   const size = entity.rows === undefined ? '' : `, ~${entity.rows} rows`;
-  const about = entity.description ? ` ${entity.description}.` : '';
   const columns = entity.fields.map((field) => {
     const listed = values.get(valueKey(entity, field.name));
-    return `${field.name} ${field.type}${listed ? ` ${valueList(listed)}` : ''}`;
+    return `${oneLine(field.name)} ${field.type}${listed ? ` ${valueList(listed)}` : ''}`;
   });
-  return `- ${entity.name} (${entity.kind}${size}):${about} ${columns.join(', ')}`;
+  return `- ${oneLine(entity.name)} (${entity.kind}${size}):${aboutText(entity)} ${columns.join(', ')}`;
 }
 
 /**
@@ -119,9 +153,8 @@ function tableLine(entity: ModelEntity, values: SampledValues): string {
  * @returns The line.
  */
 function metricLine(entity: ModelEntity): string {
-  const about = entity.description ? ` ${entity.description}.` : '';
-  const labels = entity.fields.map((field) => field.name).join(', ');
-  return `- ${entity.name}:${about} labels ${labels || 'none'}`;
+  const labels = entity.fields.map((field) => oneLine(field.name)).join(', ');
+  return `- ${oneLine(entity.name)}:${aboutText(entity)} labels ${labels || 'none'}`;
 }
 
 /**

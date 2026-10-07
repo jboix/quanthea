@@ -25,6 +25,7 @@ import {
 } from './report-prompt.ts';
 import { pinnedChoices, reportTools } from './report-tools.ts';
 import type { RunContext } from './run-context.ts';
+import { catalogSection } from './source-text.ts';
 
 /** How the panel guide's tool reads in a report thread. */
 const panelsInReports =
@@ -126,7 +127,7 @@ export async function reportInstructions(
     ...(draft ? [`Current draft, version ${draft.version}:\n${JSON.stringify(draft.spec)}`] : []),
     phaseLine(context, latestReportPlan(plans)),
   ];
-  const catalogPart = `Connectors and their data (the catalog):\n${catalog}`;
+  const catalogPart = catalogSection(catalog);
   const lasting = [reportPersona, reportRules, ...writingGuide(context), catalogPart];
   const parts = { lasting: lasting.join('\n\n'), turn: facts.join('\n\n') };
   return cachedInstructions(parts, context.settings.provider);

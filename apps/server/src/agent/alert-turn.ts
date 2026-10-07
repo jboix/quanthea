@@ -32,6 +32,7 @@ import { linkLines, proposeLinkTool } from './link-tool.ts';
 import { alertPhaseTools, phaseOf, type ToolName } from './phases.ts';
 import { nowLine } from './prompt.ts';
 import type { RunContext } from './run-context.ts';
+import { catalogSection } from './source-text.ts';
 
 /**
  * Whether the model may read a replay: some connector shows aggregates or more.
@@ -137,11 +138,7 @@ export async function alertInstructions(
     canReplay(context) ? replayRule : noReplayRule,
     phaseLine(context, latestAlertPlan(plans)),
   ];
-  const lasting = [
-    alertPersona,
-    alertRules,
-    `Connectors and their data (the catalog):\n${catalog}`,
-  ];
+  const lasting = [alertPersona, alertRules, catalogSection(catalog)];
   const parts = { lasting: lasting.join('\n\n'), turn: facts.join('\n\n') };
   return cachedInstructions(parts, context.settings.provider);
 }

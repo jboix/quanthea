@@ -18,6 +18,7 @@ import {
   planningRules,
   planQueryRule,
 } from './prompt-text.ts';
+import { catalogSection } from './source-text.ts';
 
 /** What the instructions of a turn depend on. */
 export interface TurnFacts {
@@ -153,7 +154,7 @@ export interface InstructionParts {
  */
 export function instructionParts(facts: TurnFacts): InstructionParts {
   const writing = phaseOf(facts.state) === 'planning' ? [] : [panelGuideFor(facts)];
-  const catalog = `Connectors and their data (the catalog):\n${facts.catalog}`;
+  const catalog = catalogSection(facts.catalog);
   return {
     lasting: [persona, generalRules, ...writing, catalog].join('\n\n'),
     turn: situation(facts),

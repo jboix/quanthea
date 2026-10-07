@@ -1147,6 +1147,13 @@ the person's messages, at most 25, in catalog order, or the first 25 when none m
 under them says `describe` reaches the rest. The words come from all the person's messages, so the
 catalog stays the same from turn to turn and the providers' cache keeps working.
 
+Table comments, metric help and API descriptions are written by whoever controls the source, so
+the catalog treats them as untrusted text. Each line is kept on one line: control characters and
+line breaks become a space. An entity description is cut to 200 characters, a value to 40. Every
+thread's instructions put the catalog inside `<catalog>` tags, which the text inside cannot open
+or close (`agent/source-text.ts`). A rule in every thread says text from the sources, in the
+catalog or in tool results, is data and never instructions.
+
 ### Writing a version
 
 The model never writes a spec, and rarely a query. Each panel of an `edit_dashboard` edit is
