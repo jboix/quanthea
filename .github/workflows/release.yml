@@ -1,60 +1,65 @@
 name: Release
 
-# Cuts a release and publishes its Docker image, in one run:
+# Cuts a release and publishes its Docker image, in one run, from main only:
 #
-#   release -> semantic-release reads the Conventional Commits on main, bumps
-#              the version in package.json, commits it, tags vX.Y.Z and
-#              creates the GitHub Release
-#   image   -> builds the image at that tag for linux/amd64 and linux/arm64
-#              and pushes it to GHCR as :vX.Y.Z and :latest. A released image
-#              is never rebuilt.
-#
-# Before the app, in the release job, semantic-release runs a second time for
-# @quanthea/plugin-kit alone (packages/plugin-kit/.releaserc.json): it reads the
-# commits that changed packages/plugin-kit since the last plugin-kit-vX.Y.Z tag,
-# publishes the kit to npm through trusted publishing, tags it and creates its
-# GitHub Release. It makes no commit: the kit's version lives in its tags.
-# @quanthea/create-plugin follows the same way (packages/create-plugin, its
-# create-plugin-vX.Y.Z tags), after the kit and before the app.
-#
-#   site    -> after an app release, starts the Website workflow on main, so
-#              the site shows the new version. The version commit carries
-#              [skip ci], so its push starts nothing.
+#   packages -> semantic-release runs for @quanthea/plugin-kit alone
+#               (packages/plugin-kit/.releaserc.json): it reads the commits that
+#               changed packages/plugin-kit since the last plugin-kit-vX.Y.Z
+#               tag, publishes the kit to npm through trusted publishing, tags
+#               it and creates its GitHub Release. It makes no commit: the kit's
+#               version lives in its tags. @quanthea/create-plugin follows the
+#               same way (packages/create-plugin, its create-plugin-vX.Y.Z
+#               tags), after the kit. This is the only job that can request an
+#               OIDC token, which npm trusted publishing needs.
+#   release  -> semantic-release reads the Conventional Commits on main, bumps
+#               the version in package.json, commits it, tags vX.Y.Z and
+#               creates the GitHub Release. It comes after the packages, so the
+#               app's release is the latest one when several release.
+#   image    -> builds the image at that tag for linux/amd64 and linux/arm64
+#               and pushes it to GHCR as :vX.Y.Z and :latest. A released image
+#               is never rebuilt.
+#   site     -> after an app release, starts the Website workflow on main, so
+#               the site shows the new version. The version commit carries
+#               [skip ci], so its push starts nothing.
 #
 # When main has no release-worthy commits, no tag is cut and no image is built.
+#
+# The quality workflow gates every commit on main, so the release runs no
+# project checks: nothing but semantic-release and the packages' dist scripts
+# runs while the release bot token exists. The packages and release jobs run in
+# the release environment, which holds the release bot's secrets and deploys
+# from main only. Dependencies install without their lifecycle scripts, and
+# checkout keeps no credentials: semantic-release pushes with the token in its
+# environment.
 
 on:
   workflow_dispatch:
+
+# One release at a time. A second dispatch waits for the first, never cancels it.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions: {}
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/quanthea
 
 jobs:
-  release:
+  packages:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
+    environment: release
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+      contents: read
       id-token: write # npm trusted publishing of the kit and the generator, with provenance
-    outputs:
-      released: ${{ steps.version.outputs.released }}
-      version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Mint the release bot token
-        id: bot-token
-        uses: actions/create-github-app-token@v3
-        with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          persist-credentials: true
-          token: ${{ steps.bot-token.outputs.token }}
+          persist-credentials: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -67,24 +72,36 @@ jobs:
           node-version: 24
 
       - name: Update npm (trusted publishing needs npm 11.5.1 or later)
-        run: npm install -g npm@^11.5.1
+        run: npm install -g npm@11.21.0
 
+      # semantic-release and its plugins are dev dependencies, so the release
+      # runs the exact versions in bun.lock rather than whatever the registry
+      # serves at run time.
       - name: Install dependencies
         env:
           CI: true
           HUSKY: "0"
-        run: bun install --frozen-lockfile
+        run: bun install --frozen-lockfile --ignore-scripts
 
-      - name: Verify the gates one last time
-        run: bun run verify
+      # @semantic-release/npm reads dist/package.json before the prepare step
+      # builds it again with the cut version. This runs before the token exists.
+      - name: Build the packages
+        run: |
+          bun packages/plugin-kit/scripts/dist.ts
+          bun packages/create-plugin/scripts/dist.ts
 
-      - name: Record the latest tag
-        id: before
-        run: echo "tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)" >> "$GITHUB_OUTPUT"
+      - name: Mint the release bot token
+        id: bot-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
 
-      # verify built packages/plugin-kit/dist; the kit's prepare step builds it
-      # again with the version semantic-release cuts, then publishes it. It runs
-      # before the app's, so the app's GitHub Release is created last.
+      # The kit's prepare step builds packages/plugin-kit/dist with the version
+      # semantic-release cuts, then publishes it.
       - name: Semantic Release for the plugin kit (tag + GitHub Release + npm via OIDC)
         working-directory: packages/plugin-kit
         env:
@@ -99,9 +116,53 @@ jobs:
           GITHUB_TOKEN: ${{ steps.bot-token.outputs.token }}
         run: bun run release:ci
 
-      # semantic-release and its plugins are dev dependencies, so the release
-      # runs the exact versions in bun.lock, installed above with
-      # --frozen-lockfile, rather than whatever the registry serves at run time.
+  release:
+    needs: packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+    outputs:
+      released: ${{ steps.version.outputs.released }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: '.tool-versions'
+
+      - name: Setup Node.js (semantic-release runs on Node)
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        env:
+          CI: true
+          HUSKY: "0"
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Mint the release bot token
+        id: bot-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Record the latest tag
+        id: before
+        run: echo "tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)" >> "$GITHUB_OUTPUT"
+
       - name: Semantic Release (version commit + tag + GitHub Release)
         env:
           GITHUB_TOKEN: ${{ steps.bot-token.outputs.token }}

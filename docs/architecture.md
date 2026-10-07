@@ -3372,19 +3372,19 @@ not ignored. Biome's complexity and length limits are errors.
 
 ## 17. Releases
 
-The Release workflow (`.github/workflows/release.yml`) runs on demand:
+The Release workflow (`.github/workflows/release.yml`) runs on demand, from `main` only, one run at
+a time (a second dispatch waits for the first):
 
-1. It runs `bun run verify`, then semantic-release reads the Conventional Commits on `main`. `fix`
-   is a patch, `feat` a minor version, a `BREAKING CHANGE:` footer a major version. Other types
-   release nothing. semantic-release uses its default preset, which does not read a `!` after the
-   type.
+1. semantic-release reads the Conventional Commits on `main`. `fix` is a patch, `feat` a minor
+   version, a `BREAKING CHANGE:` footer a major version. Other types release nothing.
+   semantic-release uses its default preset, which does not read a `!` after the type.
 2. semantic-release writes the version into the root `package.json`, commits it as
    `chore(release): X.Y.Z [skip ci]`, tags `vX.Y.Z` and creates the GitHub Release with the notes.
    A GitHub App (the release bot, `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY`) pushes the
    commit, so the ruleset on `main` can stay closed to everyone else.
 3. The image job builds the image at the tag for `linux/amd64` and `linux/arm64` and pushes it to
    `ghcr.io/<owner>/quanthea` as `:vX.Y.Z` and `:latest`. A released image is never rebuilt.
-4. Before the app's run, in the same job, semantic-release runs for the plugin kit alone, from
+4. Before the app's job, the packages job runs semantic-release for the plugin kit alone, from
    `packages/plugin-kit/.releaserc.json` with `semantic-release-monorepo`. It reads only the
    commits that changed `packages/plugin-kit` since the last `plugin-kit-vX.Y.Z` tag, with the
    same rules: `fix` a patch, `feat` a minor version. Its prepare step builds `dist/` with that
@@ -3393,8 +3393,21 @@ The Release workflow (`.github/workflows/release.yml`) runs on demand:
    provenance. It tags the kit and creates its GitHub Release, and makes no commit.
 5. The plugin generator follows the same way, after the kit: `packages/create-plugin`, its
    `create-plugin-vX.Y.Z` tags, its `dist/` built with the cut version. Coming after the kit, a
-   generator release writes the kit version the kit's run may just have tagged. The app's run
+   generator release writes the kit version the kit's run may just have tagged. The app's job
    comes last, so the app's release is the latest one when several release.
+
+The release credentials reach as little code as possible:
+
+- The packages and release jobs run in the `release` environment, which holds the release bot's
+  secrets and deploys from `main` only. npm's trusted publisher for both packages accepts only
+  that environment.
+- The quality workflow gates every commit on `main`, so the release runs no project checks.
+  Dependencies install without their lifecycle scripts, and the packages' `dist/` is built before
+  the bot token is minted.
+- The bot token carries only `contents`, `issues` and `pull-requests` write. Checkout keeps no
+  credentials: semantic-release pushes with the token in its environment.
+- Only the packages job can request an OIDC token, which npm trusted publishing needs. npm is
+  installed at an exact version.
 
 The root `package.json` holds the app's version. `/api/health` reports it. The app's semantic-release
 reads `v*` tags only. The workspace `package.json` files stay at `0.0.0`, because `bun.lock` records
