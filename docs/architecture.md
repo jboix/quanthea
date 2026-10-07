@@ -1149,7 +1149,9 @@ catalog stays the same from turn to turn and the providers' cache keeps working.
 
 Table comments, metric help and API descriptions are written by whoever controls the source, so
 the catalog treats them as untrusted text. Each line is kept on one line: control characters and
-line breaks become a space. An entity description is cut to 200 characters, a value to 40. Every
+line breaks become a space. An entity description from the source is cut to 200 characters, an
+entity, field or label name to 100, a value to 40. An admin-written description is trusted and
+shown whole. Every
 thread's instructions put the catalog inside `<catalog>` tags. The bracket of anything in the
 text that reads as a catalog tag, in any case or spacing, becomes `‹`, so the text cannot open or
 close the fence (`agent/source-text.ts`). Nothing is removed, so no tag forms from the text around

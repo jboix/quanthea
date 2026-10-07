@@ -131,6 +131,27 @@ describe('connectorCatalog', () => {
     });
   });
 
+  test('cuts entity and field names from the source to 100 characters', () => {
+    const long = `name ${'x'.repeat(300)}`;
+    const entities: ModelEntity[] = [
+      { name: long, kind: 'table', fields: [{ name: long, type: 'text' }] },
+      { name: long, kind: 'metric', fields: [{ name: long, type: 'label' }] },
+    ];
+    const lines = connectorCatalog(source, entities, new Map()).split('\n');
+    expect(lines[1]).toBe(`- ${long.slice(0, 100)}… (table): ${long.slice(0, 100)}… text`);
+    expect(lines[2]).toBe(`- ${long.slice(0, 100)}…: labels ${long.slice(0, 100)}…`);
+  });
+
+  test('keeps an admin-written description whole', () => {
+    const written = `Orders, one row per checkout.\n${'y'.repeat(400)}`;
+    const admin = { ...source, subject: { ...source.subject, descriptions: { orders: written } } };
+    const entities: ModelEntity[] = [
+      { name: 'orders', kind: 'table', description: written, fields: [] },
+    ];
+    const text = connectorCatalog(admin, entities, new Map());
+    expect(text).toContain(`Orders, one row per checkout. ${'y'.repeat(400)}.`);
+  });
+
   test('says when the schema cannot be read', () => {
     expect(connectorCatalog(source, undefined, new Map())).toContain(
       'The schema cannot be read right now.',

@@ -24,8 +24,11 @@ const valuesTtlMs = 10 * 60_000;
 /** The longest value shown; longer ones are cut. */
 const maxValueLength = 40;
 
-/** The longest entity description shown; longer ones are cut. */
+/** The longest entity description from a source shown; longer ones are cut. */
 const maxDescriptionLength = 200;
+
+/** The longest entity or field name shown; longer ones are cut. */
+const maxNameLength = 100;
 
 /** Control characters, line and paragraph separators, and the runs of spaces around them. */
 const breaks = /[\s\p{Cc}\u2028\u2029]+/gu;
@@ -53,13 +56,27 @@ function cut(text: string, length: number): string {
 }
 
 /**
- * An entity's description for its line: one line, at most {@link maxDescriptionLength} long.
+ * An entity or field name from a source for a line: one line, at most {@link maxNameLength} long.
+ *
+ * @param name - The name.
+ * @returns The name, with `…` when cut.
+ */
+function nameText(name: string): string {
+  return cut(name, maxNameLength);
+}
+
+/**
+ * An entity's description for its line, on one line. A description from the source is cut to
+ * {@link maxDescriptionLength}; an admin's is trusted, and already bounded where it is saved.
  *
  * @param entity - The entity.
+ * @param subject - The connector, with the admin's descriptions.
  * @returns Such as ` Orders.`, or nothing without a description.
  */
-function aboutText(entity: ModelEntity): string {
-  return entity.description ? ` ${cut(entity.description, maxDescriptionLength)}.` : '';
+function aboutText(entity: ModelEntity, subject: GateSubject): string {
+  if (!entity.description) return '';
+  const fromAdmin = subject.descriptions[entity.name] !== undefined;
+  return ` ${fromAdmin ? oneLine(entity.description) : cut(entity.description, maxDescriptionLength)}.`;
 }
 
 /** One connector as the catalog reads it. */
@@ -134,27 +151,30 @@ function valueList(values: readonly string[]): string {
  * One table-like entity: its name, kind, size and columns with their types and values.
  *
  * @param entity - The entity.
+ * @param subject - The connector.
  * @param values - The sampled values.
  * @returns The line.
  */
-function tableLine(entity: ModelEntity, values: SampledValues): string {
+function tableLine(entity: ModelEntity, subject: GateSubject, values: SampledValues): string {
   const size = entity.rows === undefined ? '' : `, ~${entity.rows} rows`;
   const columns = entity.fields.map((field) => {
     const listed = values.get(valueKey(entity, field.name));
-    return `${oneLine(field.name)} ${field.type}${listed ? ` ${valueList(listed)}` : ''}`;
+    return `${nameText(field.name)} ${field.type}${listed ? ` ${valueList(listed)}` : ''}`;
   });
-  return `- ${oneLine(entity.name)} (${entity.kind}${size}):${aboutText(entity)} ${columns.join(', ')}`;
+  const about = aboutText(entity, subject);
+  return `- ${nameText(entity.name)} (${entity.kind}${size}):${about} ${columns.join(', ')}`;
 }
 
 /**
  * One metric: its name, description and label names. Label values are listed once, apart.
  *
  * @param entity - The metric.
+ * @param subject - The connector.
  * @returns The line.
  */
-function metricLine(entity: ModelEntity): string {
-  const labels = entity.fields.map((field) => oneLine(field.name)).join(', ');
-  return `- ${oneLine(entity.name)}:${aboutText(entity)} labels ${labels || 'none'}`;
+function metricLine(entity: ModelEntity, subject: GateSubject): string {
+  const labels = entity.fields.map((field) => nameText(field.name)).join(', ');
+  return `- ${nameText(entity.name)}:${aboutText(entity, subject)} labels ${labels || 'none'}`;
 }
 
 /**
@@ -166,7 +186,7 @@ function metricLine(entity: ModelEntity): string {
 function labelValuesLine(values: SampledValues): string[] {
   const labels = [...values]
     .filter(([key]) => key.startsWith('label:'))
-    .map(([key, listed]) => `${key.slice('label:'.length)} ${valueList(listed)}`);
+    .map(([key, listed]) => `${nameText(key.slice('label:'.length))} ${valueList(listed)}`);
   return labels.length === 0 ? [] : [`Label values: ${labels.join('; ')}`];
 }
 
@@ -190,7 +210,7 @@ export function connectorCatalog(
   if (entities === undefined) return `${head}\nThe schema cannot be read right now.`;
   const shown = entities.slice(0, maxEntities);
   const lines = shown.map((entity) =>
-    entity.kind === 'metric' ? metricLine(entity) : tableLine(entity, values),
+    entity.kind === 'metric' ? metricLine(entity, subject) : tableLine(entity, subject, values),
   );
   const more = total - shown.length;
   const rest = more > 0 ? [`(${more} more: call describe with a scope to see them)`] : [];
