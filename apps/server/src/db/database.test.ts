@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { chmodSync, existsSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { captureLogs, temporaryDir } from '../test/fixtures.ts';
 import { openDatabase } from './database.ts';
+import { makePrivate } from './private-file.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let previousUmask: number;
@@ -60,4 +61,16 @@ describe('opening the database', () => {
     openDatabase(dataDir.path, logger).close();
     expect(lines).toEqual([]);
   });
+
+  // A file owned by root stands in for one an earlier runtime user created; root may chmod it.
+  test.skipIf(process.getuid?.() === 0)(
+    'warns instead of stopping when a database file cannot be narrowed',
+    () => {
+      const path = join(dataDir.path, 'quanthea.db');
+      symlinkSync('/etc/passwd', path);
+      const { logger, lines } = captureLogs();
+      expect(() => makePrivate(path, false, logger)).not.toThrow();
+      expect(lines).toContainEqual(expect.objectContaining({ level: 'warn', path }));
+    },
+  );
 });

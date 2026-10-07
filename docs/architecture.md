@@ -2597,8 +2597,10 @@ or the file rolls back; foreign keys are turned back on after the last file.
 Timestamps (`at`, `*_at`) are Unix epoch milliseconds. SQLite runs with `journal_mode=WAL`,
 `foreign_keys=ON` and `busy_timeout=5000`. IDs are ULIDs, so they sort by time.
 The database file, its write-ahead log and its shared memory have mode 0600, whatever the umask
-(`db/database.ts`). A data directory created by the server has mode 0700, and the server warns at
-startup when an existing one lets its group or others in.
+(`db/database.ts`, `db/private-file.ts`). A file whose mode the server cannot change, such as one
+another user owns after a change of runtime user, is left as it is with a warning, and the server
+starts. A data directory created by the server has mode 0700, and the server warns at startup when
+an existing one lets its group or others in.
 
 ## 9. HTTP API
 
