@@ -414,6 +414,19 @@ async function finish(
 }
 
 /**
+ * Refuses a sign-in or a link for a provider that is off. An admin's test still completes, as a
+ * provider stays off until tested.
+ *
+ * @param context - The flow context.
+ * @param flow - The flow.
+ * @throws {FlowError} `off` when the provider is off and the flow is not a test.
+ */
+function refuseWhenOff(context: Context, flow: FlowState): void {
+  if (flow.intent === 'test') return;
+  if (context.settings.provider(flow.providerId)?.enabled !== true) throw new FlowError('off');
+}
+
+/**
  * Trades the code for tokens, checking the state, the nonce and PKCE, and completes the flow.
  *
  * @param context - The flow context.
@@ -429,8 +442,7 @@ async function exchange(
   flow: FlowState,
   input: { search: string; principal: Principal | null },
 ): Promise<FlowOutcome> {
-  const enabled = context.settings.provider(flow.providerId)?.enabled === true;
-  if (flow.intent !== 'test' && !enabled) throw new FlowError('off');
+  refuseWhenOff(context, flow);
   const { provider, driver, config } = await clientOf(context, flow.providerId);
   const currentUrl = new URL(`${callbackUrlOf(context.publicUrl, provider.id)}${input.search}`);
   const checks = {
@@ -453,7 +465,8 @@ async function exchange(
  * @param identity - Who they are.
  * @param principal - Who is signed in, for a link or a test.
  * @returns How it ended.
- * @throws {FlowError} `expired` when a link or test comes back to someone else.
+ * @throws {FlowError} `expired` when a link or test comes back to someone else, `off` when a
+ * sign-in or a link comes back after the provider was turned off.
  */
 async function complete(
   context: Context,
@@ -463,6 +476,8 @@ async function complete(
 ): Promise<FlowOutcome> {
   if (flow.intent !== 'sign-in' && (!principal || principal.id !== flow.userId))
     throw new FlowError('expired');
+  // Checked again here: the provider may have been turned off during the network calls.
+  refuseWhenOff(context, flow);
   if (flow.intent === 'test') {
     context.settings.markTested(flow.providerId, principal?.id ?? 'unknown');
     return { kind: 'tested' };

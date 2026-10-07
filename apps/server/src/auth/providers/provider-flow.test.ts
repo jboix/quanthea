@@ -310,4 +310,29 @@ describe('signing in through a provider', () => {
     }
     expect(accounts.identityRows.listOf(invited)).toHaveLength(0);
   });
+  test('refuses a sign-in when the provider is turned off while the code is exchanged', async () => {
+    await enable();
+    await invite();
+    const started = await flows().start({
+      providerId: 'gitlab',
+      intent: 'sign-in',
+      next: '/',
+      principal: null,
+    });
+    const search = fake.approve(started.location, ada);
+    const realFetch = globalThis.fetch;
+    // The admin turns the provider off while quanthea waits on the provider's token endpoint.
+    globalThis.fetch = Object.assign((...input: Parameters<typeof fetch>) => {
+      if (String(input[0] instanceof Request ? input[0].url : input[0]).endsWith('/token'))
+        accounts.signInSettings.enable('gitlab', false, admin.id);
+      return realFetch(...input);
+    }, realFetch);
+    const ended = await flows()
+      .finish({ providerId: 'gitlab', search, flowCookie: started.flowCookie, principal: null })
+      .catch((error: FlowError) => error)
+      .finally(() => {
+        globalThis.fetch = realFetch;
+      });
+    expect(ended).toMatchObject({ failure: 'off' });
+  });
 });

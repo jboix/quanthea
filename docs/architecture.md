@@ -2731,11 +2731,13 @@ one, and enables them again. Without any admin, it creates the default one.
   nonce, intent and destination live in the `__Host-quanthea_flow` cookie (sealed, 10 minutes,
   SameSite=Lax), deleted at the callback, so a callback completes only in the browser that started
   it, once. A sign-in or a link whose callback comes back after the provider was turned off fails
-  (`?error=off`); only an admin's test completes on a provider that is off. Google, GitLab and Entra ID are discovered; the ID token's signature is checked
-  against the provider's published keys, with its issuer, audience, expiry and nonce. GitHub has no
-  ID token: quanthea reads the person's numeric id and verified primary email from its API. Provider
-  tokens are dropped after the callback. Every failure redirects to the page it came from with a
-  fixed code (`?error=expired`, `not-invited`, `link-first`…), never with what the request
+  (`?error=off`). The check runs again once the provider has confirmed who the person is, just
+  before the link or the session. Only an admin's test completes on a provider that is off.
+  Google, GitLab and Entra ID are discovered; the ID token's signature is checked against the
+  provider's published keys, with its issuer, audience, expiry and nonce. GitHub has no ID token:
+  quanthea reads the person's numeric id and verified primary email from its API. Provider tokens
+  are dropped after the callback. Every failure redirects to the page it came from with a fixed
+  code (`?error=expired`, `not-invited`, `link-first`…), never with what the request
   carried; the destination goes through the same check as after a password sign-in.
 - **Who comes in**: a person whose provider identity is linked to a user signs in as that user.
   Otherwise, a pending invite for the verified email the provider gives links them, with the
