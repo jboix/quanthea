@@ -275,11 +275,34 @@ describe('route access', () => {
     ]);
   });
 
+  test('only the documented raw routes skip the shared contracts', () => {
+    // A new raw route parses nothing against a contract: add it here and to the architecture doc.
+    const rawRoutes = listApiRouteAccess(buildApp())
+      .filter((route) => !route.contract)
+      .map((route) => `${route.method} ${route.path}`);
+    expect(rawRoutes.sort()).toEqual([
+      'GET /api/auth/providers/:providerId/callback',
+      'GET /api/auth/providers/:providerId/start',
+      'POST /api/auth/change-password',
+      'POST /api/auth/set-password',
+      'POST /api/auth/setup',
+      'POST /api/auth/sign-in',
+      'POST /api/auth/sign-out',
+      'POST /api/auth/sign-out-everywhere',
+      'POST /api/threads/:threadId/chat',
+    ]);
+  });
+
   test('the audit reports a route mounted without an access declaration', () => {
     const app = buildApp();
     app.get('/api/sneaky', (context) => context.json({}));
     const sneaky = listApiRouteAccess(app).find((route) => route.path === '/api/sneaky');
-    expect(sneaky).toEqual({ method: 'GET', path: '/api/sneaky', access: undefined });
+    expect(sneaky).toEqual({
+      method: 'GET',
+      path: '/api/sneaky',
+      access: undefined,
+      contract: false,
+    });
   });
 });
 

@@ -11,6 +11,21 @@ export type Access = 'public' | Role;
 /** The access each access-checking middleware enforces, so the route table can be audited. */
 const accessByMiddleware = new WeakMap<MiddlewareHandler<AppEnv>, Access>();
 
+/** The handlers `mountEndpoint` and `mountStreamEndpoint` mount, which parse a shared contract. */
+const contractHandlers = new WeakSet<object>();
+
+/**
+ * Marks a handler as one that parses its input against a shared endpoint contract, so the route
+ * table can tell those routes from the raw ones.
+ *
+ * @param handler - The route handler.
+ * @returns The same handler.
+ */
+export function markContractHandler<Handler extends object>(handler: Handler): Handler {
+  contractHandlers.add(handler);
+  return handler;
+}
+
 /**
  * Creates a middleware that lets through only principals with at least `minimum`.
  *
@@ -62,11 +77,13 @@ export interface RouteAccess {
   readonly path: string;
   /** The declared access, or `undefined` when the route declares none. */
   readonly access: Access | undefined;
+  /** Whether the route parses its input against a shared contract, rather than being raw. */
+  readonly contract: boolean;
 }
 
 /**
- * Lists every `/api` route of an app with the access it declares. Wildcard middleware
- * mounts (`/api/*`) are not routes and are left out.
+ * Lists every `/api` route of an app with the access it declares and whether it was mounted from
+ * a shared contract. Wildcard middleware mounts (`/api/*`) are not routes and are left out.
  *
  * @param app - The app to audit.
  * @returns One entry per method and path.
@@ -79,8 +96,10 @@ export function listApiRouteAccess(app: Hono<AppEnv>): RouteAccess[] {
   for (const route of apiRoutes) {
     const key = `${route.method} ${route.path}`;
     const declared = accessByMiddleware.get(route.handler as MiddlewareHandler<AppEnv>);
-    const access = routes.get(key)?.access ?? declared;
-    routes.set(key, { method: route.method, path: route.path, access });
+    const known = routes.get(key);
+    const access = known?.access ?? declared;
+    const contract = (known?.contract ?? false) || contractHandlers.has(route.handler);
+    routes.set(key, { method: route.method, path: route.path, access, contract });
   }
   return [...routes.values()];
 }

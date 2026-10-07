@@ -2778,7 +2778,8 @@ set-password, change-password and setup (`http/routes/auth-routes.ts`), a provid
 callback (`provider-routes.ts`), and the chat stream (`chat-route.ts`). Each declares its access
 with `accessMiddleware` and parses its own input; the chat route takes the message as `unknown`
 and hands it to the AI SDK's message validation. A test lists every `/api` route and fails when
-one declares no access, whichever way it was mounted.
+one declares no access, whichever way it was mounted. Another fails when a route other than these
+nine is raw: `mountEndpoint` marks the handlers it mounts, so the route table tells them apart.
 
 Every response carries an `X-Request-Id` header. `GET /api/me` answers 401 when the request has no
 session.

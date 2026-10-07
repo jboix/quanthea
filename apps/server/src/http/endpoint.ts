@@ -9,7 +9,7 @@ import {
 import type { Context, Hono } from 'hono';
 import type { z } from 'zod';
 import { AppError } from '../lib/errors.ts';
-import { type Access, accessMiddleware } from './access.ts';
+import { type Access, accessMiddleware, markContractHandler } from './access.ts';
 import type { AppEnv } from './app-env.ts';
 
 /** What a route handler receives: the parsed input plus who is asking. */
@@ -133,7 +133,7 @@ export function mountEndpoint<Target extends Endpoint>(
     endpoint.method,
     `${apiPrefix}${endpoint.path}`,
     accessMiddleware(route.access),
-    async (context) => {
+    markContractHandler(async (context: Context<AppEnv>) => {
       const input = await parseInput(context, endpoint);
       const output = await route.handle({
         ...input,
@@ -142,7 +142,7 @@ export function mountEndpoint<Target extends Endpoint>(
         signal: context.req.raw.signal,
       });
       return context.json(endpoint.output.parse(output));
-    },
+    }),
   );
 }
 
@@ -176,12 +176,13 @@ export function mountStreamEndpoint<Target extends Endpoint>(
     endpoint.method,
     `${apiPrefix}${endpoint.path}`,
     accessMiddleware(route.access),
-    async (context) =>
+    markContractHandler(async (context: Context<AppEnv>) =>
       route.handle({
         ...(await parseInput(context, endpoint)),
         principal: context.get('principal'),
         requestId: context.get('requestId'),
         signal: context.req.raw.signal,
       }),
+    ),
   );
 }
