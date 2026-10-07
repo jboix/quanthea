@@ -52,6 +52,7 @@ function shotsOf(made: Scenario): Shot[] {
     { name: 'library-snapshots', path: '/library?view=snapshots' },
     { name: 'dashboard', path: `/d/${made.shop}` },
     { name: 'dashboard-incident', path: `/d/${made.checkout}` },
+    { name: 'dashboard-layout', path: `/d/${made.checkout}`, before: click(/^Edit layout$/) },
     { name: 'ask', path: `/d/${made.checkout}`, before: askOpened },
     { name: 'explain', path: `/d/${made.shop}`, before: click(/^Explain /) },
     { name: 'snapshot', path: `/s/${made.snapshot}` },
@@ -159,7 +160,7 @@ async function shootScheme(
     colorScheme: scheme,
     reducedMotion: 'reduce',
   });
-  // The app keeps the scheme a person picked, light by default, whatever the system's is.
+  // The app keeps the scheme a person picked over the system's, so each shot sets its own.
   await context.addInitScript((picked) => {
     localStorage.setItem('quanthea.color-scheme', picked);
   }, scheme);

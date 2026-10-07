@@ -233,6 +233,15 @@ The Zod schema catches shape errors. `dashboards/validate` (`validateSpec`) also
 Validation errors go back to the model as structured tool results
 (`{ path: 'panels[3].view.ref', message: 'Unknown refId "C".' }`) so it can repair them.
 
+## Layouts
+
+A panel's `grid` is where the spec puts it. People can arrange a pinned version by hand without
+changing its spec: a layout gives each panel of that version a place, a size and whether it is
+hidden (`DashboardLayout`, `{ panels: [{ id, grid, hidden }] }`). The layout names every panel of
+the version once and shows one at least. It is kept apart from the spec, with its own revisions,
+so arranging a dashboard never makes a version. A hidden panel stays in the spec and the agent
+still sees it, but the pinned view, snapshots and questions leave it out.
+
 ## Example: "Checkout incident · 26 Sep", v3
 
 A dashboard about a checkout incident, abbreviated to three panels.

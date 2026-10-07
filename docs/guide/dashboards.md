@@ -123,6 +123,33 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   changed. Editors pin any of them from there, an earlier one included, which rolls the library
   back. Versions are never rewritten.
 
+## Arrange a pinned dashboard
+
+The thread's owner and admins can arrange the version the library shows, on a screen wide enough
+for its twelve columns. Arranging changes how the version is shown, never the version: no new
+version is made, and the thread's drafts stay as they are.
+
+![Edit layout on the checkout incident: each panel in a frame, with the grid's columns behind them](../screenshots/dashboard-layout-light.webp#gh-light-mode-only)
+![Edit layout on the checkout incident: each panel in a frame, with the grid's columns behind them](../screenshots/dashboard-layout-dark.webp#gh-dark-mode-only)
+
+- **Edit layout**, in the header, lays a frame over each panel. The panels stay live under them.
+- **Move** a panel by dragging its frame, and **resize** it by dragging the frame's corner. It
+  snaps to the grid; the other panels move out of the way and rise into the gaps.
+- **Full width**, **Half width** and **Hide** sit at the foot of each frame. A hidden panel stays
+  in the dashboard but is not shown, takes no space and is left out of snapshots and questions.
+  **Hidden** in the bar lists them, and **Show** puts one back where it was.
+- With the keyboard, Tab to a frame. The arrow keys move it, Shift and an arrow resize it, and H
+  hides it.
+- **Save layout** shows the arrangement to everyone. **Cancel** drops it. Leaving the page with
+  an arrangement unsaved asks first.
+- **History** lists the saved arrangements. **Restore** brings an earlier one back as the latest.
+
+Each version keeps its own arrangement. Pinning another version shows that version's own, and a
+version pinned for the first time shows the grid the agent wrote.
+
+The agent sees the arrangement when you go back to the thread. It builds the next version from
+it, and asks whether to remove the panels you hid. The draft pane marks them `hidden on v3`.
+
 ## Past threads
 
 **Past threads**, at the top right of the new thread screen, lists your threads by day, with a
