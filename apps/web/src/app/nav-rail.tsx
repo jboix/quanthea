@@ -15,11 +15,12 @@ import {
   ThreadsIcon,
   UserIcon,
 } from '../ui/icons.tsx';
+import { Tooltip } from '../ui/tooltip.tsx';
 import styles from './layout.module.css';
 
 /** One destination in the rail. */
 interface RailItem {
-  /** The accessible name, also shown as a tooltip. */
+  /** The accessible name, also shown beside the icon on hover. */
   readonly label: string;
   /** Where the link goes. */
   readonly to: string;
@@ -98,7 +99,8 @@ function railLabel(item: RailItem): string {
 }
 
 /**
- * One icon link, marked as the current page while the location is inside its section.
+ * One icon link, marked as the current page while the location is inside its section, with its
+ * name beside it on hover.
  *
  * @param props - The item to render.
  * @returns The link.
@@ -109,21 +111,24 @@ function RailLink({ item }: { readonly item: RailItem }) {
   const label = railLabel(item);
   const badgeText = badge && badge > 99 ? '99+' : badge;
   return (
-    <Link
-      to={item.to}
-      aria-label={label}
-      title={label}
-      aria-current={isCurrent ? 'page' : undefined}
-      className={styles.railLink}
-    >
-      {item.icon}
-      {badge ? (
-        <span className={styles.badge} aria-hidden="true">
-          {badgeText}
-        </span>
-      ) : null}
-      {dot && !badge ? <span className={styles.dot} aria-hidden="true" /> : null}
-    </Link>
+    <Tooltip text={label} side="right" namesControl>
+      {() => (
+        <Link
+          to={item.to}
+          aria-label={label}
+          aria-current={isCurrent ? 'page' : undefined}
+          className={styles.railLink}
+        >
+          {item.icon}
+          {badge ? (
+            <span className={styles.badge} aria-hidden="true">
+              {badgeText}
+            </span>
+          ) : null}
+          {dot && !badge ? <span className={styles.dot} aria-hidden="true" /> : null}
+        </Link>
+      )}
+    </Tooltip>
   );
 }
 

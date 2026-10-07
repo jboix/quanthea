@@ -145,6 +145,7 @@ export function AccountMenu({ principal, trigger, triggerClassName }: AccountMen
     <>
       <Popover
         label="Your account"
+        tip="Your account"
         trigger={trigger}
         triggerClassName={triggerClassName}
         placement="side"

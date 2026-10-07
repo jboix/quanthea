@@ -14,7 +14,10 @@ interface PopoverProps {
    * button. The icon shapes carry the label as their accessible name.
    */
   readonly shape?: 'icon' | 'button' | 'iconButton';
-  /** A short visible note under the button while it is hovered or focused and the card is shut. */
+  /**
+   * A short visible note while the button is hovered or focused and the card is shut: under the
+   * button, or beside it at once when the card opens beside it.
+   */
   readonly tip?: string;
   /** Which edge of the button the popover lines up with; the other when that runs off screen. */
   readonly align?: 'start' | 'end';
@@ -59,7 +62,7 @@ export function Popover({
       >
         {trigger}
       </button>
-      {tip && !popover.open && <PopoverTip text={tip} />}
+      {tip && !popover.open && <PopoverTip text={tip} beside={placement === 'side'} />}
       {popover.open && (
         <div
           ref={card}
@@ -77,16 +80,17 @@ export function Popover({
 }
 
 /**
- * The visible name of an icon button, under it while it is hovered or focused. The button carries
+ * The visible name of an icon button, by it while it is hovered or focused. The button carries
  * the same words as its accessible name, so screen readers skip this.
  *
- * @param props - The words.
+ * @param props - The words and where they show.
  * @param props.text - The words.
+ * @param props.beside - Whether they show beside the button at once, rather than under it.
  * @returns The note.
  */
-function PopoverTip({ text }: { readonly text: string }) {
+function PopoverTip({ text, beside }: { readonly text: string; readonly beside: boolean }) {
   return (
-    <span className={styles.tip} aria-hidden="true">
+    <span className={styles.tip} data-side={beside ? 'right' : 'below'} aria-hidden="true">
       {text}
     </span>
   );

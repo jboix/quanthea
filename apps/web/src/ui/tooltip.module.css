@@ -30,3 +30,25 @@
   visibility: visible;
   transition-delay: 0.2s;
 }
+
+/* Beside the control and at once, as in the navigation rail, where the icons have no words. */
+.tip[data-side="right"] {
+  top: 50%;
+  right: auto;
+  left: calc(100% + 8px);
+  z-index: 30;
+  padding: 4px 8px;
+  transform: translateY(-50%);
+  transition: none;
+}
+
+.anchor:hover > .tip[data-side="right"],
+.anchor:focus-within > .tip[data-side="right"] {
+  transition-delay: 0s;
+}
+
+/* A rail link keeps focus after a click: only keyboard focus keeps its note up once the pointer leaves. */
+.anchor:focus-within:not(:hover):not(:has(:focus-visible)) > .tip[data-side="right"] {
+  opacity: 0;
+  visibility: hidden;
+}

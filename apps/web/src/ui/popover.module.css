@@ -120,3 +120,23 @@
   bottom: 0;
   left: calc(100% + 10px);
 }
+
+/* Beside the button and at once, as in the navigation rail. */
+.tip[data-side="right"] {
+  top: 50%;
+  right: auto;
+  left: calc(100% + 8px);
+  z-index: 30;
+  transform: translateY(-50%);
+  transition: none;
+}
+
+.popover:hover > .tip[data-side="right"],
+.popover:focus-within > .tip[data-side="right"] {
+  transition-delay: 0s;
+}
+
+.popover:focus-within:not(:hover):not(:has(:focus-visible)) > .tip[data-side="right"] {
+  opacity: 0;
+  visibility: hidden;
+}
