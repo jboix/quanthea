@@ -29,15 +29,19 @@ const reference = /\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))/g
 /** A parameter value that is one reference and nothing else. */
 const onlyReference = /^\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))$/;
 
-/** A path the binder accepts: absolute, without a query, a fragment or a backslash. */
-const pathShape = /^\/(?!\/)[^?#\\]*$/;
+/**
+ * A path the binder accepts: absolute, without a query, a fragment, a backslash or a control
+ * character (URL parsing drops tab and newlines, which would join `.\t.` into `..`).
+ */
+const pathShape = /^\/(?!\/)[^?#\\\p{Cc}]*$/u;
 
 /** A dot segment as URL parsing reads it: `.` or `..`, each dot also written `%2e`. */
 const dotSegment = /^(?:\.|%2e){1,2}$/i;
 
 /** Why a path is refused. */
 const pathRule =
-  'A path starts with /, holds no ?, # or \\, and no . or .. segment: put parameters in "query".';
+  'A path starts with /, holds no ?, # or \\, no control character and no . or .. segment: ' +
+  'put parameters in "query".';
 
 /**
  * Whether a path holds a dot segment, which URL parsing would resolve against its parent.

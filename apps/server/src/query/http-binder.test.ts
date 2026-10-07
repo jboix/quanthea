@@ -76,7 +76,7 @@ describe('bindHttp', () => {
     expect(() => bind({ path: '/x/$nope' })).toThrow('Unknown variable $nope.');
   });
 
-  test('refuses dot segments, encoded or not, in the template and in a variable value', () => {
+  test('refuses dot segments, encoded or split by a control character, in the template and in a variable value', () => {
     for (const path of [
       '/v1/./x',
       '/v1/%2e%2e/x',
@@ -84,6 +84,10 @@ describe('bindHttp', () => {
       '/v1/.%2e/x',
       '/v1/%2e./x',
       '/v1/..',
+      '/v1/.\t./x',
+      '/v1/.\n./x',
+      '/v1/%2e\r%2e/x',
+      '/v1/a\u0000b',
     ])
       expect(() => bind({ path })).toThrow('A path starts with /');
     for (const value of ['..', '.'])

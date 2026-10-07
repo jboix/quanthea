@@ -2118,10 +2118,12 @@ that changes with its settings).
      code; a query names one, never writes one. The index is
      lowercase names and patterns, never a hidden (`.`), system (`_`) or remote (`:`) index.
    - **HTTP** (`query/http-binder.ts`): `$name` in the path becomes its value URL-encoded, one
-     value only, so it stays one segment; the path is absolute and holds no `?`, `#` or `\`. No
-     segment is `.` or `..`, with a dot also written `%2e` in any case, checked in the template
-     and again once the values are in. In a query parameter `$name` becomes the raw value, which the request encodes, and a
-     parameter that is a multi-value variable alone repeats once per value. A POST body takes
+     value only, so it stays one segment; the path is absolute and holds no `?`, `#`, `\` or
+     control character (URL parsing drops tab and newlines, which would join `.` and `.` into a
+     `..`). No segment is `.` or `..`, with a dot also written `%2e` in any case, checked in the
+     template and again once the values are in. In a query parameter `$name` becomes the raw
+     value, which the request encodes, and a parameter that is a multi-value variable alone
+     repeats once per value. A POST body takes
      `{"$var": "name"}` nodes, as a search does (`query/json-variables.ts`). Headers take no
      variable. `$__from` and `$__to` are ISO times; `$__from_ms`, `$__from_s` and their `__to`
      twins are epoch numbers.
