@@ -119,6 +119,16 @@ describe('provisioning connectors', () => {
     expect(events()).toBeUndefined();
   });
 
+  test('refuses a password in a URL, even from a variable, and applies nothing', async () => {
+    const url = `https://reader:${reference('PROM_PW')}@prom.internal`;
+    const token = reference('EVENTS_TOKEN');
+    const yaml = `connectors:\n  events:\n    kind: memory\n    config: { url: "${url}" }\n    secret: { token: "${token}" }\n`;
+    const applied = apply(yaml, { PROM_PW: 'prom-password-31c4' });
+    await expect(applied).rejects.toThrow('connectors.events.config.url');
+    await expect(applied).rejects.not.toThrow('prom-password-31c4');
+    expect(events()).toBeUndefined();
+  });
+
   test('takes over a connector made in the interface, and refuses to change its kind', async () => {
     await services.connections.create(
       {

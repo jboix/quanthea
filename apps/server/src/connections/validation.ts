@@ -1,4 +1,7 @@
-/** Validates a connector's configuration and credentials against its kind's schemas. */
+/**
+ * Validates a connector's configuration and credentials against its kind's schemas, and keeps
+ * credentials out of the configuration's URLs.
+ */
 import type { z } from 'zod';
 import type { AnyConnectorKind } from '../connectors/_shared/index.ts';
 import { AppError } from '../lib/errors.ts';
@@ -69,4 +72,58 @@ export function validateSettings(
   if (issues.length > 0)
     throw new AppError('bad_request', `The ${kind.displayName} settings are invalid.`, issues);
   return { config: parsedConfig, secret: parsedSecret };
+}
+
+/** Why a URL with credentials is refused. It never quotes the URL. */
+export const urlCredentialsMessage =
+  "A URL must not hold a username or password, because the configuration is stored in clear. Use the connector's authentication fields.";
+
+/**
+ * Whether a text is a URL with a username or a password.
+ *
+ * @param text - The text.
+ * @returns Whether it is.
+ */
+function holdsCredentials(text: string): boolean {
+  const url = URL.parse(text);
+  return url !== null && (url.username !== '' || url.password !== '');
+}
+
+/**
+ * The dotted paths of the URLs with a username or a password in a configuration, at any depth.
+ *
+ * @param value - The configuration, or a value inside it.
+ * @param path - Where the value is.
+ * @returns The paths, empty when no URL holds credentials.
+ */
+export function urlCredentialPaths(value: unknown, path: readonly string[] = []): string[] {
+  if (typeof value === 'string') return holdsCredentials(value) ? [path.join('.')] : [];
+  if (value === null || typeof value !== 'object') return [];
+  return Object.entries(value).flatMap(([key, inner]) => urlCredentialPaths(inner, [...path, key]));
+}
+
+/**
+ * Validates the settings of a connector being created or changed: as `validateSettings` does,
+ * and refusing a URL with a username or a password.
+ *
+ * @param kind - The connector kind.
+ * @param config - The configuration.
+ * @param secret - The credentials.
+ * @returns Both, parsed.
+ * @throws {AppError} `bad_request`, listing every problem without quoting values.
+ */
+export function validateNewSettings(
+  kind: AnyConnectorKind,
+  config: unknown,
+  secret: unknown,
+): { config: unknown; secret: unknown } {
+  const settings = validateSettings(kind, config, secret);
+  const issues: SettingIssue[] = urlCredentialPaths(settings.config).map((path) => ({
+    part: 'config',
+    path,
+    message: urlCredentialsMessage,
+  }));
+  if (issues.length > 0)
+    throw new AppError('bad_request', `The ${kind.displayName} settings are invalid.`, issues);
+  return settings;
 }

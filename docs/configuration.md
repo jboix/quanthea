@@ -182,6 +182,9 @@ connectors:
 | `guardrails`   | below   | `timeoutMs` 10000, `maxRows` 50000, `maxRangeDays` 90.              |
 | `descriptions` | `{}`    | Descriptions of tables and columns, read by the model.              |
 
+`config` is stored in clear. A URL in it must not hold a username or a password, even from a
+variable: put the username in the kind's `username` field and the password in `secret`.
+
 A connector the file declares that already exists is taken over; its kind never changes. Its
 descriptions stay editable in the interface unless the file declares them. The connection form of
 each kind lists its `config` fields; the schema file has them too.

@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { connectorInputSchema, defaultModelGateway } from '@quanthea/shared';
 import { type FakeProvider, startFakeProvider } from './auth/providers/test/fake-provider.ts';
+import { memoryConnector } from './connectors/_shared/test/memory-connector.ts';
+import { prometheusConnector } from './connectors/prometheus/prometheus-connector.ts';
 import { temporaryDir, testServices } from './test/fixtures.ts';
 
 let fake: FakeProvider;
@@ -17,7 +19,7 @@ afterAll(() => fake.stop());
 
 beforeEach(async () => {
   dataDir = temporaryDir();
-  services = await testServices(dataDir.path, undefined, undefined, {
+  services = await testServices(dataDir.path, [memoryConnector, prometheusConnector], undefined, {
     publicUrl: 'https://quanthea.test',
     driverOptions: { allowHttp: true },
   });
@@ -115,5 +117,41 @@ describe('a stolen database', () => {
       const found = values.filter((value) => bytes.includes(Buffer.from(value)));
       expect({ path, found }).toEqual({ path, found: [] });
     }
+  });
+});
+
+describe('credentials in a connector URL', () => {
+  const metrics = { name: 'metrics', kind: 'prometheus', secret: {} };
+
+  test('are refused, pointing to the authentication fields, without quoting them', async () => {
+    const config = { url: 'https://reader:S3cret-5e1b@prom.internal' };
+    const input = connectorInputSchema.parse({ ...metrics, config });
+    const error = await services.connections.create(input, 'x').catch((thrown) => thrown);
+    expect(error).toMatchObject({
+      code: 'bad_request',
+      details: [
+        {
+          part: 'config',
+          path: 'url',
+          message: expect.stringContaining("connector's authentication fields"),
+        },
+      ],
+    });
+    expect(JSON.stringify({ message: error.message, details: error.details })).not.toContain(
+      'S3cret-5e1b',
+    );
+    expect(services.connections.list()).toEqual([]);
+  });
+
+  test('are refused on a change too, and a URL without them is kept', async () => {
+    const config = { url: 'https://prom.internal' };
+    const created = await services.connections.create(
+      connectorInputSchema.parse({ ...metrics, config }),
+      'x',
+    );
+    const url = 'https://reader@prom.internal';
+    const changed = services.connections.update(created.id, { config: { url } }, 'x');
+    await expect(changed).rejects.toMatchObject({ code: 'bad_request' });
+    expect((await services.connections.get(created.id)).config).toMatchObject(config);
   });
 });

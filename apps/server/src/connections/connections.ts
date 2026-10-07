@@ -29,7 +29,7 @@ import type { QuerySource } from '../query/executor.ts';
 import { sqlFlavorOf } from '../query/sql-dialects.ts';
 import type { SecretBox } from '../secrets/secret-box.ts';
 import { installed, kindInfo, kindOf, notInstalled, storedKindOf, targetOf } from './kinds.ts';
-import { validateSettings } from './validation.ts';
+import { validateNewSettings, validateSettings } from './validation.ts';
 import { toDetail, toSchemaView, toSubject, toSummary } from './views.ts';
 
 /** A new connector, as the API received it. */
@@ -299,7 +299,7 @@ async function createConnector(
   actor: string,
 ): Promise<ConnectorDetail> {
   const kind = kindOf(context.kinds, input.kind);
-  const settings = validateSettings(kind, input.config, input.secret);
+  const settings = validateNewSettings(kind, input.config, input.secret);
   assertNameFree(context, input.name);
   const time = context.clock();
   const { config: _config, secret: _secret, ...fields } = input;
@@ -366,7 +366,7 @@ async function updateConnector(
   const row = find(context, id);
   const secret = { ...(await secretOf(context, row)), ...(patch.secret ?? {}) };
   const kind = storedKindOf(context.kinds, row);
-  const settings = validateSettings(kind, patch.config ?? row.config, secret);
+  const settings = validateNewSettings(kind, patch.config ?? row.config, secret);
   if (patch.name !== undefined) assertNameFree(context, patch.name, id);
   const updated = await save(
     context,

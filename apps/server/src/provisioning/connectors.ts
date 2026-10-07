@@ -16,6 +16,7 @@ import { connectorInputSchema, connectorNameSchema } from '@quanthea/shared';
 import type { z } from 'zod';
 import type { ConfigFile } from '../config/config-file.ts';
 import type { Connections } from '../connections/connections.ts';
+import { urlCredentialPaths, urlCredentialsMessage } from '../connections/validation.ts';
 import { AppError } from '../lib/errors.ts';
 import type { Logger } from '../lib/logger.ts';
 import { type Applier, type Planned, provisioningActor } from './reconcile.ts';
@@ -32,6 +33,19 @@ type DesiredConnector = Omit<z.output<typeof connectorInputSchema>, 'name' | 'de
 
 /** How long reading a provisioned connector's schema may take. */
 const schemaTimeoutMs = 30_000;
+
+/**
+ * Refuses a URL with a username or a password in a connector's configuration, even from a
+ * variable: the configuration is stored in clear, and credentials belong in the secret block.
+ *
+ * @param config - The configuration, variables replaced.
+ * @param where - Where the connector is declared, for messages.
+ * @param issues - Collects what is wrong, never quoting the URL.
+ */
+function refuseUrlCredentials(config: unknown, where: string, issues: string[]): void {
+  for (const path of urlCredentialPaths(config))
+    issues.push(`${where}.config.${path}: ${urlCredentialsMessage}`);
+}
 
 /**
  * One connector as declared, checked.
@@ -52,6 +66,7 @@ function planOne(
   const declared = { ...(file.sections.connectors?.[name] as object) } as Record<string, unknown>;
   const secret = secretValues(written.secret, declared.secret, `${where}.secret`, issues);
   delete declared.secret;
+  refuseUrlCredentials(declared.config, where, issues);
   const named = connectorNameSchema.safeParse(name);
   const parsed = declaredSchema.safeParse(declared);
   if (!named.success) issues.push(`${where}: ${named.error.issues[0]?.message}`);

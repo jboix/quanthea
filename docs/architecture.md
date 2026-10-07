@@ -1836,6 +1836,10 @@ export const exampleConnector = defineConnector({
   colour, and the app draws the path on that colour. The built-in logos come from Simple Icons
   (CC0). A kind without one gets the first letters of its name. The add form lists the kinds as
   logos and names with a search; the connector list gets a filter from seven connectors.
+- A configuration is stored in clear, so the core refuses a configuration value that is a URL with
+  a username or a password, for every kind, plugins included (`connections/validation.ts`). The
+  error points to the kind's authentication fields. A connector stored before keeps working until
+  it is next changed.
 - `describeTarget` returns one line such as `postgres://dash_ro@replica:5432/orders`. It never
   includes credentials.
 - A kind never sees a query template or raw variable values: `execute` receives a **bound query**
@@ -3130,6 +3134,8 @@ provisioning:
 
 - A secret is never written in clear: each one is a whole `${VARIABLE}` or `file:/path` (a Docker
   or Kubernetes secret). Anything else stops the server, and no message quotes a secret.
+- A connector's `config` is stored in clear, so a URL in it with a username or a password stops
+  the server, even when a variable supplies them.
 - The file is applied at startup only, after the migrations, with the actor `provisioning` in the
   audit log (`provisioning/start.ts`). A change to the file, or to a secret it refers to, applies
   at the next restart. Without a file, whatever an earlier file managed is released. An item is applied when it is new, changed, or deleted meanwhile: the table `provisioned`
