@@ -11,7 +11,7 @@ services:
   quanthea:
     # Each release writes its version here. Change it to upgrade; docs/deployment.md shows how to
     # check the image's signature first.
-    image: ghcr.io/jboix/quanthea:v0.3.0
+    image: ghcr.io/jboix/quanthea:v0.4.0
     restart: unless-stopped
     ports:
       - '3000:3000'
