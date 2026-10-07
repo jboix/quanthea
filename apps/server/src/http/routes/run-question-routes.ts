@@ -23,9 +23,10 @@ import { mayBin } from '../../dashboards/conversation-bin.ts';
 import type { ConversationInfo } from '../../dashboards/question-info.ts';
 import type { RunQuestionInfo } from '../../reports/question-info.ts';
 import type { PreparedRunQuestion, RunQuestions } from '../../reports/questions.ts';
+import type { ThreadBin } from '../../threads/bin.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint, mountStreamEndpoint } from '../endpoint.ts';
-import { ownerNames } from '../ownership.ts';
+import { ownerNames, readerRole } from '../ownership.ts';
 import { actorOf, signedIn } from '../principal.ts';
 
 /** What the run question endpoints need. */
@@ -38,6 +39,19 @@ export interface RunQuestionRouteServices {
   readonly conversationBin: Pick<ConversationBins, 'binRun'>;
   /** The users, for the askers' names. */
   readonly users: Pick<Users, 'nameOf'>;
+  /** The bin, for the owner of a report's thread: a draft's runs follow it. */
+  readonly bin: Pick<ThreadBin, 'threadOwner'>;
+}
+
+/**
+ * The role someone reads a report's runs with: the runs of a draft follow the report's thread.
+ *
+ * @param bin - The bin, for the owner of a thread.
+ * @param principal - Who reads.
+ * @returns The role for what each thread made.
+ */
+function readerOf(bin: RunQuestionRouteServices['bin'], principal: Principal | null) {
+  return readerRole(signedIn(principal), bin.threadOwner);
 }
 
 /**
@@ -110,9 +124,9 @@ function mountAskEndpoint(app: Hono<AppEnv>, services: RunQuestionRouteServices)
   mountStreamEndpoint(app, askRunQuestionEndpoint, {
     access: 'analyst',
     handle: async ({ params, body, principal, signal }) => {
-      const asker = signedIn(principal);
       const request = { ...params, ...body };
-      const prepared = runQuestions.prepare(request, actorOf(principal), asker.role);
+      const reader = readerOf(services.bin, principal);
+      const prepared = runQuestions.prepare(request, actorOf(principal), reader);
       const response = await answers.stream(askRequestOf(prepared, signal), (outcome) => {
         if (!signal.aborted) runQuestions.record(prepared, outcome);
       });
@@ -129,12 +143,12 @@ function mountAskEndpoint(app: Hono<AppEnv>, services: RunQuestionRouteServices)
  * @param services - The questions, the bin and the users.
  */
 function mountConversationEndpoints(app: Hono<AppEnv>, services: RunQuestionRouteServices): void {
-  const { runQuestions, users } = services;
+  const { runQuestions, users, bin } = services;
   mountEndpoint(app, listRunConversationsEndpoint, {
     access: 'viewer',
     handle: async ({ params, query, principal }) => {
       const reader = signedIn(principal);
-      const listed = runQuestions.conversations(params, query.q, reader.role);
+      const listed = runQuestions.conversations(params, query.q, readerOf(bin, reader));
       return { conversations: await Promise.all(listed.map(starterNamer(users, reader))) };
     },
   });
@@ -142,7 +156,8 @@ function mountConversationEndpoints(app: Hono<AppEnv>, services: RunQuestionRout
     access: 'viewer',
     handle: async ({ params, principal }) => {
       const reader = signedIn(principal);
-      const asked = runQuestions.conversation(params, params.conversationId, reader.role);
+      const role = readerOf(bin, reader);
+      const asked = runQuestions.conversation(params, params.conversationId, role);
       const starterId = asked.find((each) => each.id === params.conversationId)?.askerId ?? '';
       return {
         id: params.conversationId,
@@ -155,7 +170,7 @@ function mountConversationEndpoints(app: Hono<AppEnv>, services: RunQuestionRout
     access: 'analyst',
     handle: ({ params, principal }) => {
       const actor = signedIn(principal);
-      services.conversationBin.binRun(params, actor, actor.role);
+      services.conversationBin.binRun(params, actor, readerOf(bin, actor));
       return { binned: true as const };
     },
   });
@@ -171,20 +186,20 @@ export function mountRunQuestionEndpoints(
   app: Hono<AppEnv>,
   services: RunQuestionRouteServices,
 ): void {
-  const { runQuestions, users } = services;
+  const { runQuestions, users, bin } = services;
   mountAskEndpoint(app, services);
   mountConversationEndpoints(app, services);
   mountEndpoint(app, similarRunQuestionsEndpoint, {
     access: 'viewer',
     handle: async ({ params, query, principal }) => {
-      const found = runQuestions.similar(params, query.q, signedIn(principal).role);
+      const found = runQuestions.similar(params, query.q, readerOf(bin, principal));
       return { questions: await Promise.all(found.map(namer(users))) };
     },
   });
   mountEndpoint(app, runSourcesEndpoint, {
     access: 'viewer',
     handle: ({ params, principal }) => ({
-      sources: runQuestions.sources(params, signedIn(principal).role),
+      sources: runQuestions.sources(params, readerOf(bin, principal)),
     }),
   });
 }

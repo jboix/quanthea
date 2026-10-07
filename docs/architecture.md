@@ -2774,8 +2774,9 @@ one, and enables them again. Without any admin, it creates the default one.
   before.
 - An alert's or a report's drafts follow its thread the same way. Its owner and admins read every
   version; any other editor reads it as a viewer does: in the lists and their detail only once a
-  version is active, with the versions ever active (and, for a report, their runs). The owner and
-  admins activate and deactivate it, send a test of a version, change an active alert from its
+  version is active, with the versions ever active (and, for a report, their runs, with each run's
+  questions, conversations and sources; the run's ask and bin endpoints read it the same way).
+  The owner and admins activate and deactivate it, send a test of a version, change an active alert from its
   page (`POST /api/alerts/:id/versions`) and run a report now; others get 403
   (`checkOwnerChange`). `canChange` in `GET /api/alerts/:id` and `GET /api/reports/:id` says so,
   and the pages show Change, Versions' Activate and the alert's tuning only then. An alert or a

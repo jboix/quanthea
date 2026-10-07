@@ -5,7 +5,7 @@
  * for good, with its questions. A binned conversation leaves History, the search and "already
  * answered", and can't be continued.
  */
-import { hasRole, periodLabel, type Role, reportSpecSchema } from '@quanthea/shared';
+import { hasRole, periodLabel, reportSpecSchema } from '@quanthea/shared';
 import { type BinActor, mayBin } from '../dashboards/conversation-bin.ts';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type {
@@ -15,6 +15,7 @@ import type {
 import type { ReportQuestionRepository } from '../db/report-question-repository.ts';
 import type { ReportRepository } from '../db/report-repository.ts';
 import { AppError } from '../lib/errors.ts';
+import type { ReaderRole } from '../lib/reader-role.ts';
 import type { RunTarget } from './questions.ts';
 import type { Reports } from './reports.ts';
 
@@ -51,7 +52,11 @@ export interface RunConversationBin {
    * @throws {AppError} `not_found` for a run the role may not see or a conversation not on it,
    *   `forbidden` when the actor neither started it nor is an admin.
    */
-  bin(target: RunTarget & { readonly conversationId: string }, actor: BinActor, role: Role): void;
+  bin(
+    target: RunTarget & { readonly conversationId: string },
+    actor: BinActor,
+    role: ReaderRole,
+  ): void;
   /**
    * Takes a conversation out of the bin.
    *
@@ -128,7 +133,7 @@ function binOne(
   dependencies: RunConversationBinDependencies,
   target: RunTarget & { readonly conversationId: string },
   actor: BinActor,
-  role: Role,
+  role: ReaderRole,
 ): void {
   const { runId, conversationId } = target;
   dependencies.reports.run(target.reportId, runId, role);

@@ -5,12 +5,7 @@
  * the asker is recorded for accountability only. The answering happens elsewhere, so `reports/`
  * never runs a model.
  */
-import {
-  type DashboardSource,
-  dashboardOfReport,
-  type ReportRunDetail,
-  type Role,
-} from '@quanthea/shared';
+import { type DashboardSource, dashboardOfReport, type ReportRunDetail } from '@quanthea/shared';
 import type { ConversationInfo } from '../dashboards/question-info.ts';
 import { sourcesOf } from '../dashboards/question-sources.ts';
 import { type AnsweredOutcome, usageTokens } from '../dashboards/questions.ts';
@@ -21,6 +16,7 @@ import type {
 } from '../db/report-question-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
+import type { ReaderRole } from '../lib/reader-role.ts';
 import { meaningfulWords } from '../lib/words.ts';
 import { listRunConversations, runQuestionsOf } from './conversations.ts';
 import { type RunQuestionInfo, runQuestionInfo } from './question-info.ts';
@@ -102,7 +98,7 @@ export interface RunQuestions {
    * @throws {AppError} `not_found` for a run the role may not see or an unknown conversation,
    *   `bad_request` for a run without results, `conflict` for a conversation in the bin.
    */
-  prepare(request: RunQuestionRequest, actor: string, role: Role): PreparedRunQuestion;
+  prepare(request: RunQuestionRequest, actor: string, role: ReaderRole): PreparedRunQuestion;
   /**
    * Stores a question with its outcome.
    *
@@ -118,7 +114,7 @@ export interface RunQuestions {
    * @param role - The role the run is read with.
    * @returns The conversations.
    */
-  conversations(target: RunTarget, text: string, role: Role): ConversationInfo[];
+  conversations(target: RunTarget, text: string, role: ReaderRole): ConversationInfo[];
   /**
    * Reads one conversation's questions, in the order they were asked.
    *
@@ -127,7 +123,7 @@ export interface RunQuestions {
    * @param role - The role the run is read with.
    * @returns The questions.
    */
-  conversation(target: RunTarget, conversationId: string, role: Role): RunQuestionInfo[];
+  conversation(target: RunTarget, conversationId: string, role: ReaderRole): RunQuestionInfo[];
   /**
    * Finds earlier answered questions about the run sharing words with a text.
    *
@@ -136,7 +132,7 @@ export interface RunQuestions {
    * @param role - The role the run is read with.
    * @returns At most three, the best first.
    */
-  similar(target: RunTarget, text: string, role: Role): RunQuestionInfo[];
+  similar(target: RunTarget, text: string, role: ReaderRole): RunQuestionInfo[];
   /**
    * The sources a run's version reads, by name and access level.
    *
@@ -144,7 +140,7 @@ export interface RunQuestions {
    * @param role - The role the run is read with.
    * @returns One per connector the spec names.
    */
-  sources(target: RunTarget, role: Role): DashboardSource[];
+  sources(target: RunTarget, role: ReaderRole): DashboardSource[];
 }
 
 /**
@@ -188,7 +184,7 @@ function prepare(
   context: RunQuestionContext,
   request: RunQuestionRequest,
   actor: string,
-  role: Role,
+  role: ReaderRole,
 ): PreparedRunQuestion {
   const run = context.reports.run(request.reportId, request.runId, role);
   if (run.status !== 'ok' || run.panels === null)
@@ -248,7 +244,7 @@ function rowOf(prepared: PreparedRunQuestion, outcome: AnsweredOutcome): ReportQ
  * @param role - The role the run is read with.
  * @returns The questions, the best first.
  */
-function similar(context: RunQuestionContext, target: RunTarget, text: string, role: Role) {
+function similar(context: RunQuestionContext, target: RunTarget, text: string, role: ReaderRole) {
   context.reports.run(target.reportId, target.runId, role);
   const words = [...meaningfulWords(text)];
   return context.questions.search(target.runId, words, maxSimilar).flatMap(({ id }) => {

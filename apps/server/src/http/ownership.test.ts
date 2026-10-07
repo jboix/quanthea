@@ -295,4 +295,20 @@ describe('a report’s drafts follow its thread', () => {
     }
     expect((await as(root, 'POST', `/reports/${reportId}/deactivate`)).status).toBe(200);
   });
+
+  test('other editors reach nothing of a run of a version never active', async () => {
+    const threadId = services.threads.create(ada.id, undefined, undefined, { kind: 'report' }).id;
+    const { reportId } = services.reports.saveVersion({ spec: eventsReport(), threadId }, ada.id);
+    const run = await services.reports.runNow(reportId, false, ada.id);
+    const base = `/reports/${reportId}/runs/${run.id}`;
+    expect((await as(ada, 'GET', `${base}/sources`)).status).toBe(200);
+    for (const [method, path, body] of [
+      ['POST', `${base}/questions`, { question: 'Why?' }],
+      ['GET', `${base}/sources`, undefined],
+      ['GET', `${base}/conversations`, undefined],
+      ['GET', `${base}/similar-questions?q=why`, undefined],
+    ] as const) {
+      expect((await as(bob, method, path, body)).status).toBe(404);
+    }
+  });
 });
