@@ -1835,10 +1835,11 @@ export const exampleConnector = defineConnector({
   URL's path; an absolute URL is held to the origin only.
 - The client never calls a cloud metadata address (169.254.0.0/16, 100.100.100.200,
   168.63.129.16, 192.0.0.192, fd00:ec2::254, fd20:ce::254, fe80::/10), by the host or by what a
-  name resolves to. The check runs before the request and again before each redirect hop. An IPv6 address is read as bytes, so every spelling
-  matches. An IPv4 address inside it is checked as IPv4: the compatible (`::/96`), mapped
-  (`::ffff:0:0/96`) and translated (`::ffff:0:0:0/96`) forms, NAT64 (`64:ff9b::/96`, and each
-  RFC 6052 place under `64:ff9b:1::/48`) and 6to4 (`2002::/16`).
+  name resolves to. The check runs before the request and again before each redirect hop. An
+  IPv6 address is read as bytes, so every spelling matches. An IPv4 address inside it is checked
+  as IPv4: the compatible (`::/96`), mapped (`::ffff:0:0/96`) and translated (`::ffff:0:0:0/96`)
+  forms, NAT64 (`64:ff9b::/96`, and each RFC 6052 place under `64:ff9b:1::/48`) and 6to4
+  (`2002::/16`).
 - What the check does not cover: `fetch` resolves the name again when it connects, and Bun has no
   hook to connect to the checked address. A name whose DNS answer changes between the check and
   the connection (DNS rebinding) can still reach a metadata address. Only an admin sets a base
@@ -2043,9 +2044,9 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   the path of an OpenAPI (or Swagger 2) description, JSON or YAML. The connector refuses a method
   or a path its settings do not allow before it sends anything. The path it checks is the one the
   request reaches: parsed under the base URL, `.` and `..` segments resolved (`%2e` included),
-  with the base path removed; a path that leaves the base path is refused. The response becomes a table
-  through `extract`: a JSON pointer to the rows (an array, or one object as one row), and the
-  columns as pointers into each row with an optional type (`time` reads ISO text, or epoch
+  with the base path removed; a path that leaves the base path is refused. The response becomes
+  a table through `extract`: a JSON pointer to the rows (an array, or one object as one row), and
+  the columns as pointers into each row with an optional type (`time` reads ISO text, or epoch
   seconds or milliseconds); without columns, every value of the first rows becomes one, nested
   ones as dotted names, typed from their values. Nothing in it is code. `describe` lists the
   operations the description has and the settings allow, `GET /orders/{id}`, with their
