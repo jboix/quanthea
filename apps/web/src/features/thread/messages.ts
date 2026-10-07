@@ -121,7 +121,8 @@ interface Output {
 function entityWords(output: Output): string {
   const count = output.entities?.length ?? 0;
   const kind = output.entities?.[0]?.kind ?? 'entity';
-  return `${count} ${count === 1 ? kind : `${kind}s`}`;
+  const plural = `${kind}s`;
+  return `${count} ${count === 1 ? kind : plural}`;
 }
 
 /** Words for what each explore tool found. */

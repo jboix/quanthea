@@ -56,7 +56,8 @@ export function useConversations(base: string, search: string) {
   const fetcher = useFetcher<Loaded<Conversation[]>>();
   const { load, data, state } = fetcher;
   const query = search.trim();
-  const url = `${base}/conversations${query === '' ? '' : `?q=${encodeURIComponent(query)}`}`;
+  const searchPart = query === '' ? '' : `?q=${encodeURIComponent(query)}`;
+  const url = `${base}/conversations${searchPart}`;
   useEffect(() => {
     const timer = setTimeout(() => void load(url), query === '' ? 0 : typingPauseMs);
     return () => clearTimeout(timer);

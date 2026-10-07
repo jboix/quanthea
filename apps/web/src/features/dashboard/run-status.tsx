@@ -55,7 +55,8 @@ function statusOf(spec: DashboardSpec, runs: RunStatusProps['runs']) {
   const done = Object.keys(runs).length >= spec.panels.length;
   const summary = summaryOf(runs);
   const saved = summary.queries === 1 ? 'saved query' : 'saved queries';
-  const tone = !done ? 'running' : summary.failed > 0 ? 'failed' : 'ok';
+  const finished = summary.failed > 0 ? 'failed' : 'ok';
+  const tone = done ? finished : 'running';
   const text = {
     running: `Running saved queries against ${connectorList(spec)}…`,
     ok: `Ran ${summary.queries} ${saved} against ${connectorList(spec)} in ${summary.durationMs} ms. No model call.`,

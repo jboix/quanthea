@@ -3,6 +3,18 @@ import { describeCall, shapeOf, type ToolPart, toolName } from './messages.ts';
 import { toolErrorText } from './tool-error.ts';
 
 /**
+ * The mark of a step in the log.
+ *
+ * @param failed - Whether the step failed.
+ * @param result - Its result words: `…` while it runs.
+ * @returns `✗` when it failed, `·` while it runs, else `✓`.
+ */
+function markOf(failed: boolean, result: string): string {
+  if (failed) return '✗';
+  return result === '…' ? '·' : '✓';
+}
+
+/**
  * The explore calls of a turn, grouped: "Explored · 3 steps", one line per call.
  *
  * @param props - The calls.
@@ -20,7 +32,7 @@ export function ExploreLog({ parts }: { readonly parts: readonly ToolPart[] }) {
           const { call, result, failed } = describeCall(part);
           return (
             <li key={part.toolCallId} data-failed={failed} data-running={result === '…'}>
-              <span className={styles.logMark}>{failed ? '✗' : result === '…' ? '·' : '✓'}</span>
+              <span className={styles.logMark}>{markOf(failed, result)}</span>
               {call}: {result}
             </li>
           );

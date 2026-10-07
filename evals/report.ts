@@ -289,8 +289,10 @@ export function summary(report: Report): string {
  * @returns The line.
  */
 function change(before: Result | undefined, after: Result | undefined): string {
-  const verdict = (result: Result | undefined) =>
-    result === undefined ? '—' : result.score.pass ? 'pass' : 'FAIL';
+  const verdict = (result: Result | undefined) => {
+    if (result === undefined) return '—';
+    return result.score.pass ? 'pass' : 'FAIL';
+  };
   const tokens = (result: Result | undefined) => (result ? tokensOf(result.outcome.usage) : 0);
   const id = (before ?? after)?.outcome.id ?? '';
   const delta = tokens(after) - tokens(before);

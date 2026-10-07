@@ -68,9 +68,10 @@ export function streamsFrame(
       labels: stream.stream,
     })),
   );
-  entries.sort((a, b) =>
-    a.nanoseconds === b.nanoseconds ? 0 : a.nanoseconds > b.nanoseconds ? -1 : 1,
-  );
+  entries.sort((a, b) => {
+    if (a.nanoseconds === b.nanoseconds) return 0;
+    return a.nanoseconds > b.nanoseconds ? -1 : 1;
+  });
   const builder = createFrameBuilder({ refId: context.refId, fields, maxRows: context.maxRows });
   for (const entry of entries) {
     const row = [

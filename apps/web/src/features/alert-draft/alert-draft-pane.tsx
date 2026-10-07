@@ -179,7 +179,8 @@ function useDraftState(draft: AlertDraftData) {
   );
   const drawn = useMemo(() => series.slice(0, maxChartSeries), [series]);
   // Undefined while the replay loads; null once it is known there is no firing to show.
-  const sample = replay ? sampleFiring(replay) : outcome ? null : undefined;
+  const noSample = outcome ? null : undefined;
+  const sample = replay ? sampleFiring(replay) : noSample;
   return { window, setWindow, setDragged, outcome, replay, threshold, series, drawn, sample };
 }
 

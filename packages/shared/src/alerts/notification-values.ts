@@ -55,7 +55,8 @@ function timeText(spec: Pick<AlertSpec, 'timezone'>, at: number): string {
     .formatToParts(at)
     .find((part) => part.type === 'timeZoneName')?.value;
   const { day, month, time } = calendarParts(at, timeZone);
-  return `${day} ${month}, ${time}${zone ? ` ${zone}` : ''}`;
+  const zoneText = zone ? ` ${zone}` : '';
+  return `${day} ${month}, ${time}${zoneText}`;
 }
 
 /**

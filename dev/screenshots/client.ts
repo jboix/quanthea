@@ -146,7 +146,9 @@ async function nextMessage(
 function reportFailure(stream: unknown): void {
   if (typeof stream !== 'string') return;
   const failure = /"type":"error","errorText":"((?:[^"\\]|\\.)*)"/.exec(stream)?.[1];
-  if (failure) progress(`    the turn failed: ${shortened(JSON.parse(`"${failure}"`))}`);
+  if (!failure) return;
+  const text = JSON.parse(`"${failure}"`);
+  progress(`    the turn failed: ${shortened(text)}`);
 }
 
 /**

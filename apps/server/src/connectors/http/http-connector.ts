@@ -141,9 +141,8 @@ function authHeaders(
   if (config.auth === 'header') return keyHeader(config.headerName, secret.apiKey);
   if (!config.username || secret.password === undefined)
     return 'Basic authentication needs a username and a password.';
-  return {
-    Authorization: `Basic ${Buffer.from(`${config.username}:${secret.password}`).toString('base64')}`,
-  };
+  const credentials = `${config.username}:${secret.password}`;
+  return { Authorization: `Basic ${Buffer.from(credentials).toString('base64')}` };
 }
 
 /**

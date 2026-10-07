@@ -52,11 +52,9 @@ export function urlOf(options: ClientOptions): string {
  * @returns The driver options.
  */
 function driverOptions(options: ClientOptions): MongoClientOptions {
+  const authSource = options.authSource ? { authSource: options.authSource } : {};
   const credentials = options.username
-    ? {
-        auth: { username: options.username, password: options.password ?? '' },
-        ...(options.authSource ? { authSource: options.authSource } : {}),
-      }
+    ? { auth: { username: options.username, password: options.password ?? '' }, ...authSource }
     : {};
   return {
     ...credentials,

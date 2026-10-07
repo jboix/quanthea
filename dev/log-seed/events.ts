@@ -110,7 +110,8 @@ function requestEvent(service: Service, time: Date, index: number, start: Date):
   );
   const status = failed ? Number(errorCode(draw(seed + 2))) : 200;
   const route = service.routes[draw(seed + 3) < 0.7 ? 0 : 1];
-  const level = failed ? 'error' : duration > 1000 ? 'warn' : 'info';
+  const slowLevel = duration > 1000 ? 'warn' : 'info';
+  const level = failed ? 'error' : slowLevel;
   const message = failed
     ? (errorMessages[String(status)] ?? 'request failed')
     : `${route} ${status} in ${duration} ms`;

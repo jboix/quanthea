@@ -115,7 +115,8 @@ export function VersionItems({ report, close }: MenuProps) {
     <ul className={styles.versions}>
       {report.versions.map((version) => {
         const active = version.version === report.activeVersion;
-        const state = active ? 'active' : version.activatedAt === null ? 'draft' : 'was active';
+        const inactive = version.activatedAt === null ? 'draft' : 'was active';
+        const state = active ? 'active' : inactive;
         return (
           <li key={version.version} className={styles.version}>
             <span>

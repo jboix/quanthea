@@ -51,12 +51,8 @@ function queriesOf(panel: BuiltPanel): PanelQuery[] {
       connector: _connector,
       ...rest
     } = query as Record<string, unknown>;
-    const text =
-      typeof sql === 'string'
-        ? sql
-        : typeof expr === 'string'
-          ? expr
-          : JSON.stringify(rest, null, 2);
+    const written = typeof expr === 'string' ? expr : JSON.stringify(rest, null, 2);
+    const text = typeof sql === 'string' ? sql : written;
     return { language: String(language ?? ''), text };
   });
 }
@@ -256,10 +252,14 @@ function htmlQuestion({ outcome, score }: Result): string {
     `${Math.round(outcome.durationMs / 1000)} s`,
   ].join(' · ');
   const body = htmlBody(outcome);
+  const reasonList = reasons ? `<ul class="reasons">${reasons}</ul>` : '';
+  const failure = outcome.error
+    ? `<p class="reasons">The run failed: ${escapeHtml(outcome.error)}</p>`
+    : '';
   return `<section class="question" data-pass="${score.pass}">
 <h2><span class="verdict">${score.pass ? 'pass' : 'fail'}</span> ${escapeHtml(outcome.id)} · ${escapeHtml(questionText(outcome.id))}</h2>
 <p class="muted">${stats}</p>
-${reasons ? `<ul class="reasons">${reasons}</ul>` : ''}${outcome.error ? `<p class="reasons">The run failed: ${escapeHtml(outcome.error)}</p>` : ''}
+${reasonList}${failure}
 ${body}
 </section>`;
 }

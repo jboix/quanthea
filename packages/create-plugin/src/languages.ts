@@ -31,7 +31,8 @@ function httpQuery(path: string): string {
     'query: []',
     `extract: { rows: '${path}' }`,
   ];
-  return `{\n${fields.map((field) => `    ${field},\n`).join('')}  }`;
+  const lines = fields.map((field) => `    ${field},\n`).join('');
+  return `{\n${lines}  }`;
 }
 
 /** The text for each language. */

@@ -107,6 +107,7 @@ function RailLink({ item }: { readonly item: RailItem }) {
   const isCurrent = useMatch(`${item.section}/*`) !== null;
   const { badge, dot } = item;
   const label = railLabel(item);
+  const badgeText = badge && badge > 99 ? '99+' : badge;
   return (
     <Link
       to={item.to}
@@ -118,7 +119,7 @@ function RailLink({ item }: { readonly item: RailItem }) {
       {item.icon}
       {badge ? (
         <span className={styles.badge} aria-hidden="true">
-          {badge > 99 ? '99+' : badge}
+          {badgeText}
         </span>
       ) : null}
       {dot && !badge ? <span className={styles.dot} aria-hidden="true" /> : null}

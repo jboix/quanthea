@@ -141,10 +141,9 @@ export function spanText(ms: number): string {
  * @returns Such as `Would have fired 2 times · 23 minutes in total · 1 spike too short to fire`.
  */
 export function summaryText(summary: ReplaySummary): string {
+  const spikeWord = summary.tooShort === 1 ? 'spike' : 'spikes';
   const spikes =
-    summary.tooShort === 0
-      ? []
-      : [`${summary.tooShort} ${summary.tooShort === 1 ? 'spike' : 'spikes'} too short to fire`];
+    summary.tooShort === 0 ? [] : [`${summary.tooShort} ${spikeWord} too short to fire`];
   if (summary.firings === 0) return ['Would not have fired', ...spikes].join(' · ');
   const times = summary.firings === 1 ? 'once' : `${summary.firings} times`;
   return [`Would have fired ${times}`, `${spanText(summary.firingMs)} in total`, ...spikes].join(

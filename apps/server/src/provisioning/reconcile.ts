@@ -106,7 +106,8 @@ function canonical(value: unknown): string {
   if (value !== null && typeof value === 'object') {
     const entries = Object.entries(value).filter(([, each]) => each !== undefined);
     entries.sort(([first], [second]) => (first < second ? -1 : 1));
-    return `{${entries.map(([key, each]) => `${JSON.stringify(key)}:${canonical(each)}`).join(',')}}`;
+    const members = entries.map(([key, each]) => `${JSON.stringify(key)}:${canonical(each)}`);
+    return `{${members.join(',')}}`;
   }
   return JSON.stringify(value);
 }

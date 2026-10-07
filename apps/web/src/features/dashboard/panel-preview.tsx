@@ -69,10 +69,11 @@ export function PanelPreview({ dashboardId, version, panel, timeZone }: PanelPre
     if (seen) void load(url);
   }, [seen, load, url]);
   const note = noteOf(panel, data);
+  const noteClass = data ? styles.empty : styles.loading;
   return (
     <div ref={ref} className={styles.preview} data-kind={panel.view.kind}>
       {note !== undefined || !data?.ok ? (
-        <p className={data ? styles.empty : styles.loading}>{note}</p>
+        <p className={noteClass}>{note}</p>
       ) : (
         <PanelView
           panel={panel}

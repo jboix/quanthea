@@ -22,7 +22,8 @@ const vendorNames: Readonly<Record<ModelProvider, string>> = {
  * @returns Such as `Mistral · mistral-large-latest · no key`.
  */
 function metaOf(config: ProviderConfig, stored: string | null | undefined, typed: boolean): string {
-  const key = typed ? 'new key' : stored ? '' : 'no key';
+  const storedKey = stored ? '' : 'no key';
+  const key = typed ? 'new key' : storedKey;
   return [vendorNames[config.provider], config.models.build || 'no build model', key]
     .filter(Boolean)
     .join(' · ');

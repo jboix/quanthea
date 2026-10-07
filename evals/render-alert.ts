@@ -66,10 +66,9 @@ function factLines(outcome: AlertCaseOutcome): string[] {
   const used = `Tools: ${tools.length > 0 ? tools.join(', ') : 'none'}.`;
   const { spec, panel } = outcome;
   const asked = outcome.asked.map((text) => `The agent asked: “${text}”`);
+  const sameQuery = panel?.alert === panel?.panel ? 'yes' : 'no';
   const matched = panel
-    ? [
-        `Same query as the panel: ${panel.alert === panel.panel ? 'yes' : 'no'}. Links: ${panel.links.join(', ') || 'none'}.`,
-      ]
+    ? [`Same query as the panel: ${sameQuery}. Links: ${panel.links.join(', ') || 'none'}.`]
     : [];
   if (!spec) return ['No alert version was saved.', used, ...asked];
   const condition = `“${spec.title}”: ${conditionWords(spec)}, ${counted(outcome.versions, 'version', 'versions')} saved.`;

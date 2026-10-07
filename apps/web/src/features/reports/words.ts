@@ -103,7 +103,8 @@ function sentWords(run: Pick<ReportRunDetail, 'delivery' | 'sentAt'>): string[] 
   const failed = run.delivery.filter((each) => !each.ok).length;
   const list =
     names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
-  return [`sent to ${list}${failed > 0 ? ` (${failed} failed)` : ''}`];
+  const failures = failed > 0 ? ` (${failed} failed)` : '';
+  return [`sent to ${list}${failures}`];
 }
 
 /** What the line under a run's title reads of the run. */

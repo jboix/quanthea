@@ -87,9 +87,8 @@ function notifiedWords(notified: boolean, detail: AlertDetail): string {
  */
 function checkEntry(check: AlertCheck, detail: AlertDetail, index: number): TimelineEntry {
   const error = check.kind === 'error';
-  const words = error
-    ? `Cannot be checked${check.reason ? `: ${check.reason}` : ''}`
-    : 'Can be checked again';
+  const reason = check.reason ? `: ${check.reason}` : '';
+  const words = error ? `Cannot be checked${reason}` : 'Can be checked again';
   const text = `${words}${notifiedWords(check.notified, detail)}`;
   return { key: `check-${index}`, at: check.at, text, tone: error ? 'danger' : 'ok' };
 }
@@ -111,8 +110,9 @@ function activityEntry(
 ): TimelineEntry {
   const by = `by ${activity.by}`;
   const note = detail.versions.find((each) => each.version === activity.version)?.note;
+  const noteText = note ? `: ${note}` : '';
   const words: Record<AlertActivity['action'], string> = {
-    activate: `v${activity.version ?? '?'} activated ${by}${note ? `: ${note}` : ''}`,
+    activate: `v${activity.version ?? '?'} activated ${by}${noteText}`,
     deactivate: `Deactivated ${by}`,
     mute: `Muted ${by} ${muteEnd(activity.until, now)}`,
     unmute: `Unmuted ${by}`,

@@ -177,7 +177,8 @@ export function queryText(query: QueryTemplate): string {
  */
 function httpText(query: Extract<QueryTemplate, { language: 'http' }>): string {
   const parameters = Object.entries(query.query ?? {}).map(([name, value]) => `${name}=${value}`);
-  const line = `${query.method} ${query.path}${parameters.length > 0 ? `?${parameters.join('&')}` : ''}`;
+  const search = parameters.length > 0 ? `?${parameters.join('&')}` : '';
+  const line = `${query.method} ${query.path}${search}`;
   return query.body === undefined ? line : `${line}\n${JSON.stringify(query.body, null, 2)}`;
 }
 

@@ -44,7 +44,10 @@ export function rewriteDocLink(url: string, fromRepoPath: string, siteBase: stri
   const repoPath = resolveRepoPath(directoryOf(fromRepoPath), path);
   if (repoPath === undefined) return url;
   const slug = publishedSlug(repoPath);
-  if (slug !== undefined) return `${joinBase(siteBase, `docs/${slug}/`)}${fragment}`;
+  if (slug !== undefined) {
+    const docAddress = joinBase(siteBase, `docs/${slug}/`);
+    return `${docAddress}${fragment}`;
+  }
   return `${githubUrl(repoPath)}${fragment}`;
 }
 

@@ -27,7 +27,8 @@ export function isJsonObject(value: unknown): value is JsonObject {
  * @returns The series after.
  */
 function mergeSeries(base: Json | undefined, patch: Json): Json {
-  const list = Array.isArray(base) ? base : isJsonObject(base) ? [base] : [];
+  const single = isJsonObject(base) ? [base] : [];
+  const list = Array.isArray(base) ? base : single;
   if (isJsonObject(patch)) return list.map((series) => mergePatch(series, patch));
   if (!Array.isArray(patch)) return patch;
   const length = Math.max(list.length, patch.length);

@@ -51,7 +51,8 @@ function leavesNoAdmin(repository: UserRepository, row: UserRow, change: UserCha
  * @returns The fields to write.
  */
 function storedChange(change: UserChangeInput, at: number): UserChange {
-  const disabled = change.disabled === undefined ? {} : { disabledAt: change.disabled ? at : null };
+  const disabledAt = change.disabled ? at : null;
+  const disabled = change.disabled === undefined ? {} : { disabledAt };
   return { ...(change.role ? { role: change.role } : {}), ...disabled, updatedAt: at };
 }
 

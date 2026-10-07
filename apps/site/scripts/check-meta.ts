@@ -9,8 +9,14 @@ import { join, relative } from 'node:path';
 /** The built site. */
 const dist = new URL('../dist/', import.meta.url).pathname;
 
+/** The site's origin, without a trailing slash. */
+const siteOrigin = (process.env.SITE_URL || 'https://quanthea.ch').replace(/\/$/, '');
+
+/** The site's base path, between slashes: `/` at the root. */
+const sitePath = `/${(process.env.SITE_BASE || '/').replace(/^\/|\/$/g, '')}/`.replace('//', '/');
+
 /** The address every absolute link of the site starts with. */
-const siteBase = `${(process.env.SITE_URL || 'https://quanthea.ch').replace(/\/$/, '')}${`/${(process.env.SITE_BASE || '/').replace(/^\/|\/$/g, '')}/`.replace('//', '/')}`;
+const siteBase = `${siteOrigin}${sitePath}`;
 
 /** The OpenGraph properties every page has. */
 const openGraph = ['og:title', 'og:description', 'og:url', 'og:image', 'og:type'];

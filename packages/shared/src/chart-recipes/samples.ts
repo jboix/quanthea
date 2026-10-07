@@ -306,7 +306,7 @@ export const serverMeasures: Dataset = (() => {
   const rows = Array.from({ length: 24 }, (_server, index) => {
     const cpu = round(10 + random() * 80);
     return [
-      index % 3 === 0 ? 'eu' : index % 3 === 1 ? 'us' : 'asia',
+      ['eu', 'us', 'asia'][index % 3] ?? 'asia',
       cpu,
       round(cpu * 1.8 + random() * 40),
       round(1 + random() * 15),

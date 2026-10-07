@@ -178,10 +178,10 @@ ${panelFold}${saidFold}`;
  * @returns The lines.
  */
 function answerLines(answer: RunAnswer): string[] {
-  const reads = answer.evidence.map(
-    (read) =>
-      `${read.id} · ${read.frozen ? 'frozen read' : 'new read'} · ${read.connector}${read.panelId ? ` · panel ${read.panelId}` : ''}`,
-  );
+  const reads = answer.evidence.map((read) => {
+    const panel = read.panelId ? ` · panel ${read.panelId}` : '';
+    return `${read.id} · ${read.frozen ? 'frozen read' : 'new read'} · ${read.connector}${panel}`;
+  });
   const cards = answer.followUps.map(
     (card) => `Follow-up (${card.kind}): ${card.title}: “${card.prompt}”`,
   );

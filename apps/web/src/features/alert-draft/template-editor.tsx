@@ -2,7 +2,12 @@
  * The message template, edited by hand: the title, the body and the labelled fields, with only the
  * known placeholders. An unknown placeholder is refused before saving, as the schema refuses it.
  */
-import { type MessageTemplate, messagePlaceholders, unknownPlaceholders } from '@quanthea/shared';
+import {
+  type MessageTemplate,
+  messagePlaceholders,
+  placeholderList,
+  unknownPlaceholders,
+} from '@quanthea/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';
@@ -10,7 +15,7 @@ import { TextArea } from '../../ui/text-area.tsx';
 import styles from './alert-draft.module.css';
 
 /** The placeholders, as a person types them. */
-const known = messagePlaceholders.map((name) => `{${name}}`).join(', ');
+const known = placeholderList(messagePlaceholders);
 
 /**
  * What is wrong with a text of the template.
@@ -22,7 +27,7 @@ export function templateProblem(text: string): string | undefined {
   if (text.trim() === '') return 'Write something here.';
   const unknown = unknownPlaceholders(text);
   if (unknown.length === 0) return undefined;
-  return `Unknown placeholder ${unknown.map((name) => `{${name}}`).join(', ')}. Use ${known}.`;
+  return `Unknown placeholder ${placeholderList(unknown)}. Use ${known}.`;
 }
 
 /** A field while it is edited, with a key of its own. */

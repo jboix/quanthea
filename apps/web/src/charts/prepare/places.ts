@@ -97,12 +97,9 @@ export function kpi(input: PrepareInput): Prepared {
   const { format, ...title } = (input.option.title ?? {}) as Loose;
   const formatter = namedFormatterSchema.safeParse(format);
   const last = lastValue(input);
-  const text =
-    last === null
-      ? '–'
-      : formatter.success
-        ? createFormatter(formatter.data, input.format)(last)
-        : String(last);
+  let text = '–';
+  if (last !== null)
+    text = formatter.success ? createFormatter(formatter.data, input.format)(last) : String(last);
   return { ...prepared, option: { ...input.option, title: { ...title, text } } };
 }
 

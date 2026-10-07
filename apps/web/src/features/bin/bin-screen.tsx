@@ -94,7 +94,7 @@ function AdminActions({ data }: { readonly data: BinData }) {
       {count > 0 && (
         <ConfirmButton
           label="Empty bin"
-          question={`Delete ${count === 1 ? 'it' : `all ${count}`} for good?`}
+          question={count === 1 ? 'Delete it for good?' : `Delete all ${count} for good?`}
           disabled={empty.busy}
           onConfirm={() => empty.submit({ intent: 'empty' })}
         />

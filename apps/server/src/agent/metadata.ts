@@ -58,7 +58,8 @@ const answerSchema = z.object({
 function promptOf(spec: DashboardSpec): string {
   const panels = spec.panels.map((panel) => {
     const connectors = [...new Set(panel.queries.map((query) => query.connector))].join(', ');
-    return `- ${panel.title}${panel.description ? `: ${panel.description}` : ''} (${connectors})`;
+    const about = panel.description ? `: ${panel.description}` : '';
+    return `- ${panel.title}${about} (${connectors})`;
   });
   return [
     'Describe this dashboard for a library where people search for dashboards.',

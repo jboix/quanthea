@@ -71,7 +71,8 @@ export function basicAuth(
 ): Record<string, string> | string {
   if (!username || password === undefined)
     return 'Basic authentication needs a username and a password.';
-  return { Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}` };
+  const credentials = `${username}:${password}`;
+  return { Authorization: `Basic ${Buffer.from(credentials).toString('base64')}` };
 }
 
 /** An index or pattern, as the binder allows them. */

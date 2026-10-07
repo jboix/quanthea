@@ -105,9 +105,10 @@ export function toConnectorError(error: ServerError): ConnectorError {
     const safe = `${missing} "${quotedName(error.message)}" does not exist.`;
     return new ConnectorError('not_found', safe, error.message);
   }
+  const named = error.name ? ` (${error.name})` : '';
   const [code, safe] = messagesByCode[error.code] ?? [
     'internal',
-    `ClickHouse reported error ${error.code}${error.name ? ` (${error.name})` : ''}.`,
+    `ClickHouse reported error ${error.code}${named}.`,
   ];
   return new ConnectorError(code, safe, error.message);
 }

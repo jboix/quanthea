@@ -25,7 +25,8 @@ function sourcesOf(spec: DashboardSpec): [string, string][] {
   const names = [...new Set([...panels.keys(), ...markers])];
   return names.map((name) => {
     const count = panels.get(name) ?? 0;
-    const used = count === 0 ? [] : [`${count} ${count === 1 ? 'panel' : 'panels'}`];
+    const panelWord = count === 1 ? 'panel' : 'panels';
+    const used = count === 0 ? [] : [`${count} ${panelWord}`];
     return [name, [...used, ...(markers.has(name) ? ['markers'] : [])].join(' + ')];
   });
 }

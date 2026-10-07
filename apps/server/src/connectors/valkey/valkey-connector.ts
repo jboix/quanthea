@@ -222,8 +222,10 @@ export const valkeyConnector = defineConnector({
   queryGuide: valkeyGuide,
   configSchema,
   secretSchema,
-  describeTarget: (config) =>
-    `valkey://${config.username ? `${config.username}@` : ''}${config.host}:${config.port}/${config.database}`,
+  describeTarget: (config) => {
+    const user = config.username ? `${config.username}@` : '';
+    return `valkey://${user}${config.host}:${config.port}/${config.database}`;
+  },
   open({ config, secret }): ConnectorInstance {
     const session = openSession({ ...config, password: secret.password });
     return {

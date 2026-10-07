@@ -80,6 +80,9 @@ const writeGrants = [
   'SUPER',
 ];
 
+/** The write grants as quoted SQL strings, for an `IN` list. */
+const writeGrantList = writeGrants.map((grant) => `'${grant}'`).join(', ');
+
 /** Checks the server and counts the user's write grants, without touching table data. */
 const healthQuery = `
 SELECT VERSION() AS version, CURRENT_USER() AS user_name, (
@@ -89,7 +92,7 @@ SELECT VERSION() AS version, CURRENT_USER() AS user_name, (
     UNION ALL SELECT GRANTEE, PRIVILEGE_TYPE FROM information_schema.TABLE_PRIVILEGES
   ) AS grants
   WHERE grants.GRANTEE = CONCAT('''', REPLACE(CURRENT_USER(), '@', '''@'''), '''')
-    AND grants.PRIVILEGE_TYPE IN (${writeGrants.map((grant) => `'${grant}'`).join(', ')})
+    AND grants.PRIVILEGE_TYPE IN (${writeGrantList})
 ) AS write_grants`;
 
 /** How long health checks, schema reads and samples may take, in milliseconds. */

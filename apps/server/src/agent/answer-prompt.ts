@@ -107,6 +107,16 @@ export function dashboardText(spec: DashboardSpec): string {
 }
 
 /**
+ * What reading data returns at an access level of 3 or more.
+ *
+ * @param accessLevel - The connector's access level.
+ * @returns `summaries and rows` at full access, else `summaries, never rows`.
+ */
+export function dataReturned(accessLevel: number): string {
+  return accessLevel >= 4 ? 'summaries and rows' : 'summaries, never rows';
+}
+
+/**
  * One line per connector: what the model may read of it.
  *
  * @param connectors - The dashboard's connectors.
@@ -119,7 +129,7 @@ function connectorLines(
 ): string[] {
   return connectors.map(({ name, kind, language, accessLevel }) => {
     const access = readable(accessLevel)
-      ? `level ${accessLevel}: read_data returns ${accessLevel >= 4 ? 'summaries and rows' : 'summaries, never rows'}`
+      ? `level ${accessLevel}: read_data returns ${dataReturned(accessLevel)}`
       : `level ${accessLevel}: you cannot read its numbers`;
     return `- ${name} (${kind}, ${language}): ${access}.`;
   });

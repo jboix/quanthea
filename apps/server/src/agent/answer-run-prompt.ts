@@ -4,7 +4,13 @@
  * connector with what the model may read of it, frozen or by querying again.
  */
 import type { DashboardSpec, VariableValues } from '@quanthea/shared';
-import { type AnswerConnector, dashboardText, localTime, variablesLine } from './answer-prompt.ts';
+import {
+  type AnswerConnector,
+  dashboardText,
+  dataReturned,
+  localTime,
+  variablesLine,
+} from './answer-prompt.ts';
 import type { FrozenRun } from './frozen-run.ts';
 
 /** How a question about a run is answered. */
@@ -66,7 +72,7 @@ function runConnectorLines(connectors: readonly AnswerConnector[]): string[] {
     const shown = accessLevel === 2 ? 'the shape' : 'whether it ran';
     const reads =
       accessLevel >= 3
-        ? `read_run and read_data return ${accessLevel >= 4 ? 'summaries and rows' : 'summaries, never rows'}`
+        ? `read_run and read_data return ${dataReturned(accessLevel)}`
         : `read_run returns ${shown}, never numbers`;
     return `- ${name} (${kind}, ${language}): level ${accessLevel}: ${reads}.`;
   });

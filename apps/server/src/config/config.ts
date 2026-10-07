@@ -309,7 +309,10 @@ function unknownSettings(file: ConfigFile | undefined): string[] {
   const unknown = (section: 'server' | 'plugins', known: (key: string) => boolean) =>
     Object.keys(file?.sections[section] ?? {})
       .filter((key) => !known(key))
-      .map((key) => `${section}.${key} in ${file?.origins[`${section}.${key}`]} is not a setting.`);
+      .map((key) => {
+        const name = `${section}.${key}`;
+        return `${name} in ${file?.origins[name]} is not a setting.`;
+      });
   return [
     ...unknown('server', (key) => Object.hasOwn(settingSpecs, key) && !fileKeys[key as SettingKey]),
     ...unknown('plugins', (key) => pluginKeys.has(key)),

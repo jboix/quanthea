@@ -50,7 +50,8 @@ function logql(connector: string, expr: string, instant = false): PanelQuery {
  * @returns Such as `|= "timeout"`.
  */
 function lineFilter(text: string): string {
-  return `|= ${variableOf(text) ? `"${text}"` : JSON.stringify(text)}`;
+  const value = variableOf(text) ? `"${text}"` : JSON.stringify(text);
+  return `|= ${value}`;
 }
 
 /**
@@ -129,6 +130,24 @@ export function logqlSeriesData(request: DataOf<'logql-series'>): BuiltData {
 }
 
 /**
+ * The output of a ratio: over time, a long result; over the range, one value per value of the
+ * `by` labels, or one value.
+ *
+ * @param by - The labels the ratio is grouped by.
+ * @param range - Whether it is one value over the range.
+ * @returns The shape, the columns and the chart.
+ */
+function ratioOutput(by: readonly string[], range: boolean) {
+  if (!range) return { shape: 'long' as const, columns: longColumns(by), chart: 'trend.line' };
+  const grouped = by.length > 0;
+  return {
+    shape: grouped ? ('long' as const) : ('single' as const),
+    columns: [...[...by].sort(), 'Value'],
+    chart: grouped ? 'comparison.bar' : 'kpi.stat',
+  };
+}
+
+/**
  * The share of the lines that also match `match`: over time, a long result; over the range, one
  * value per value of the `by` labels, or one value.
  *
@@ -143,13 +162,7 @@ export function logqlRatioData(request: DataOf<'logql-ratio'>): BuiltData {
   const whole = measureExpr(logQuery(request), count, request.by, window);
   const share = `${part} / ${whole}`;
   const expr = request.complement ? `1 - (${share})` : share;
-  const output = range
-    ? {
-        shape: request.by.length > 0 ? ('long' as const) : ('single' as const),
-        columns: [...[...request.by].sort(), 'Value'],
-        chart: request.by.length > 0 ? 'comparison.bar' : 'kpi.stat',
-      }
-    : { shape: 'long' as const, columns: longColumns(request.by), chart: 'trend.line' };
+  const output = ratioOutput(request.by, range);
   return {
     queries: [logql(request.connector, expr, range)],
     output: { ...output, unit: 'percent' },

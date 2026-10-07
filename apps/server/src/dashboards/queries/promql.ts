@@ -90,7 +90,8 @@ function quantileLabel(quantile: number): string {
  */
 export function latencyData(request: DataOf<'latency'>): BuiltData {
   const base = metricName(request.metric).replace(/_bucket$/, '');
-  const buckets = `rate(${selector(`${base}_bucket`, request.filters)}[${request.window}])`;
+  const bucketSelector = selector(`${base}_bucket`, request.filters);
+  const buckets = `rate(${bucketSelector}[${request.window}])`;
   const by = byClause(['le', ...request.by]);
   const expr = request.quantiles
     .map(

@@ -73,7 +73,8 @@ export function dayMonth(instant: number, timeZone?: string): string {
 export function dayMonthTime(instant: number, now: number, timeZone?: string): string {
   const { day, month, year, time } = calendarParts(instant, timeZone);
   const sameYear = year === calendarParts(now, timeZone).year;
-  return `${day} ${month}${sameYear ? '' : ` ${year}`} ${time}`;
+  const yearText = sameYear ? '' : ` ${year}`;
+  return `${day} ${month}${yearText} ${time}`;
 }
 
 /**

@@ -142,7 +142,8 @@ export function comparisonPeriod(kind: ReportPeriod, at: number, timeZone: strin
  */
 function dayMonthOf(date: CalendarDate, withYear: boolean): string {
   const month = (monthNames[date.month - 1] ?? '').slice(0, 3);
-  return `${date.day} ${month}${withYear ? ` ${date.year}` : ''}`;
+  const yearText = withYear ? ` ${date.year}` : '';
+  return `${date.day} ${month}${yearText}`;
 }
 
 /**

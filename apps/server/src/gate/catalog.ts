@@ -159,7 +159,8 @@ function tableLine(entity: ModelEntity, subject: GateSubject, values: SampledVal
   const size = entity.rows === undefined ? '' : `, ~${entity.rows} rows`;
   const columns = entity.fields.map((field) => {
     const listed = values.get(valueKey(entity, field.name));
-    return `${nameText(field.name)} ${field.type}${listed ? ` ${valueList(listed)}` : ''}`;
+    const listedText = listed ? ` ${valueList(listed)}` : '';
+    return `${nameText(field.name)} ${field.type}${listedText}`;
   });
   const about = aboutText(entity, subject);
   return `- ${nameText(entity.name)} (${entity.kind}${size}):${about} ${columns.join(', ')}`;

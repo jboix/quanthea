@@ -22,11 +22,14 @@ import { loadKeys } from './secrets/keys.ts';
 import { createServices, type Services } from './services.ts';
 import { createSettingsStore } from './settings/settings-store.ts';
 
-/** How to use the commands. */
-const usage = `Usage: quanthea reset-admin [email]\n${pluginUsage
+/** The plugin commands' usage, indented under the first line's `Usage: `. */
+const indentedPluginUsage = pluginUsage
   .split('\n')
   .map((line) => `       ${line}`)
-  .join('\n')}\n`;
+  .join('\n');
+
+/** How to use the commands. */
+const usage = `Usage: quanthea reset-admin [email]\n${indentedPluginUsage}\n`;
 
 /**
  * Writes a line to the terminal.

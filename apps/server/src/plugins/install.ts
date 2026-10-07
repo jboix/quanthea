@@ -158,6 +158,18 @@ export interface Listed {
 }
 
 /**
+ * What a plugin's pin says of its files.
+ *
+ * @param pin - The pin of the configuration file, if any.
+ * @param actual - The pin of the files installed.
+ * @returns `not pinned`, `pinned` when they match, else `pin mismatch`.
+ */
+function pinState(pin: string | undefined, actual: string): Listed['state'] {
+  if (pin === undefined) return 'not pinned';
+  return pin === actual ? 'pinned' : 'pin mismatch';
+}
+
+/**
  * One installed plugin's state.
  *
  * @param dir - The plugins directory.
@@ -180,8 +192,7 @@ async function listOne(
   const { name, version } = read.manifest;
   const pin = pins[name];
   const actual = pinOf(manifest, new Uint8Array(await bundleFile.arrayBuffer()));
-  const state = pin === undefined ? 'not pinned' : pin === actual ? 'pinned' : 'pin mismatch';
-  return { folder, name, version, state };
+  return { folder, name, version, state: pinState(pin, actual) };
 }
 
 /**

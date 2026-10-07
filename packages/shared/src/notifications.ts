@@ -28,6 +28,16 @@ export type MessagePlaceholder = (typeof messagePlaceholders)[number];
 export const notificationPlaceholders = [...messagePlaceholders, 'reason'] as const;
 
 /**
+ * Placeholder names as a person types them, in a list.
+ *
+ * @param names - The names, such as `series`.
+ * @returns Such as `{series}, {value}`.
+ */
+export function placeholderList(names: readonly string[]): string {
+  return names.map((name) => `{${name}}`).join(', ');
+}
+
+/**
  * Validates a template text: plain words and known `{placeholders}`, nothing else in braces.
  *
  * @param max - The most characters.
@@ -40,7 +50,7 @@ const templateText = (max: number, known: readonly string[]) =>
     .min(1)
     .max(max)
     .refine((text) => unknownNames(text, known).length === 0, {
-      message: `Use only these placeholders: ${known.map((name) => `{${name}}`).join(', ')}.`,
+      message: `Use only these placeholders: ${placeholderList(known)}.`,
     });
 
 /**

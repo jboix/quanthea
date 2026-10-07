@@ -3,7 +3,7 @@
  * phase, and the alert guide that `read_guide("alert")` gives. An alert thread is its own mode:
  * the agent writes alerts there, never dashboards.
  */
-import { messagePlaceholders } from '@quanthea/shared';
+import { messagePlaceholders, placeholderList } from '@quanthea/shared';
 import { sourceTextRule } from './source-text.ts';
 
 /** Who the agent is in an alert thread, and how it talks. */
@@ -23,7 +23,7 @@ export const alertRules = `Rules:
 ${sourceTextRule}
 - This conversation makes an alert, not a dashboard. If the person asks for a dashboard, say in one sentence that a dashboard conversation does that (New conversation, A dashboard), and stay on the alert.
 - Notify only the channels listed below, by their id. Never invent a channel. With no channel listed, say that an admin adds one in Settings → Notifications, and leave the channels empty.
-- The message is a template you write once: plain words and the placeholders ${messagePlaceholders.map((name) => `{${name}}`).join(', ')}, nothing else in braces. The server fills them for each series. Never put a value from the data in the template.
+- The message is a template you write once: plain words and the placeholders ${placeholderList(messagePlaceholders)}, nothing else in braces. The server fills them for each series. Never put a value from the data in the template.
 - Write a sentence to the person before your tool calls, so they can follow what you do.`;
 
 /** What the agent does before an alert plan is approved. */

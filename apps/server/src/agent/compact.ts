@@ -50,6 +50,26 @@ function outcome(output: Loose, success: () => string): string {
   return success();
 }
 
+/**
+ * The outcome words of a tool that saves a version.
+ *
+ * @param output - The output.
+ * @returns Such as `saved version 3`, or why it failed.
+ */
+function savedVersion(output: Loose): string {
+  return outcome(output, () => `saved version ${String(output?.version)}`);
+}
+
+/**
+ * The outcome words of an alert replay.
+ *
+ * @param output - The output.
+ * @returns Such as `2 firings`, or why it failed.
+ */
+function firings(output: Loose): string {
+  return outcome(output, () => `${String(output?.firings ?? 0)} firings`);
+}
+
 /** How each tool's call reads in one line. */
 const summaries: Readonly<Record<string, (input: Loose, output: Loose) => string>> = {
   describe: (input, output) =>
@@ -68,21 +88,20 @@ const summaries: Readonly<Record<string, (input: Loose, output: Loose) => string
   ask_person: (input) =>
     `ask_person: "${String(input?.question ?? '')}" options ${JSON.stringify(input?.options ?? [])}`,
   edit_dashboard: (input, output) =>
-    `edit_dashboard(${String(input?.summary ?? '')}): ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
-  write_dashboard: (_input, output) =>
-    `write_dashboard: ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
+    `edit_dashboard(${String(input?.summary ?? '')}): ${savedVersion(output)}`,
+  write_dashboard: (_input, output) => `write_dashboard: ${savedVersion(output)}`,
   propose_alert: (input, output) =>
     `propose_alert: "${String(input?.title ?? '')}", ${String(output?.status ?? 'pending')}`,
   edit_alert: (input, output) =>
-    `edit_alert(${String(input?.note ?? '')}): ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
+    `edit_alert(${String(input?.note ?? '')}): ${savedVersion(output)}`,
   propose_report: (input, output) =>
     `propose_report: "${String(input?.title ?? '')}", ${String(output?.status ?? 'pending')}`,
   edit_report: (input, output) =>
-    `edit_report(${String(input?.summary ?? '')}): ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
+    `edit_report(${String(input?.summary ?? '')}): ${savedVersion(output)}`,
   replay_alert: (input, output) =>
-    `replay_alert(${String(input?.window ?? '7d')}): ${outcome(output, () => `${String(output?.firings ?? 0)} firings`)}`,
+    `replay_alert(${String(input?.window ?? '7d')}): ${firings(output)}`,
   patch_panel: (input, output) =>
-    `patch_panel(${String(input?.panelId ?? '')}): ${outcome(output, () => `saved version ${String(output?.version)}`)}`,
+    `patch_panel(${String(input?.panelId ?? '')}): ${savedVersion(output)}`,
 };
 
 /**
