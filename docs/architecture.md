@@ -3406,7 +3406,7 @@ The release credentials reach as little code as possible:
 
 - The packages and release jobs run in the `release` environment, which holds the release bot's
   secrets and deploys from `main` only. npm's trusted publisher for both packages accepts only
-  that environment.
+  that environment. Both hold once the settings below are made.
 - The quality workflow gates every commit on `main`, so the release runs no project checks.
   Dependencies install without their lifecycle scripts, and the packages' `dist/` is built before
   the bot token is minted.
@@ -3422,6 +3422,21 @@ The release credentials reach as little code as possible:
   installed at an exact version.
 - Every action is pinned to a commit SHA, with its version in a comment. The Dockerfile pins its
   base image and its syntax frontend by digest, with the tag beside it. Dependabot updates both.
+
+### Settings outside the repository
+
+The workflow names the `release` environment and checks the branch, but a dispatch from another
+branch runs that branch's copy of the workflow, which can drop both. Three settings, made once
+in GitHub and npm and never by a commit, enforce the protection:
+
+1. In the repository's environments, the `release` environment exists and its deployment branch
+   policy allows `main` only. GitHub creates a missing environment on first use, unprotected.
+2. `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY` are secrets of the `release` environment and
+   are deleted from the repository's secrets, which every branch can read.
+3. The trusted publisher of `@quanthea/plugin-kit` and of `@quanthea/create-plugin` on npm names
+   the Release workflow and the `release` environment.
+
+Without them the release still works, with none of this protection.
 
 The root `package.json` holds the app's version. `/api/health` reports it. The app's semantic-release
 reads `v*` tags only. The workspace `package.json` files stay at `0.0.0`, because `bun.lock` records

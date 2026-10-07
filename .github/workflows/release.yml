@@ -32,11 +32,14 @@ name: Release
 # bun.lock), and two project scripts that use Bun alone: the kit's stamp, which
 # writes the cut version into the dist built before the token, and the
 # generator's dist, which bundles with Bun. No other dev dependency, the
-# TypeScript compiler included, runs with the token. The packages and release jobs run in
-# the release environment, which holds the release bot's secrets and deploys
-# from main only. Dependencies install without their lifecycle scripts, and
-# checkout keeps no credentials: semantic-release pushes with the token in its
-# environment.
+# TypeScript compiler included, runs with the token.
+#
+# The packages and release jobs run in the release environment, which holds the
+# release bot's secrets and deploys from main only. That rests on settings no
+# commit makes: the environment's branch policy, its secrets and npm's trusted
+# publishers (see "Settings outside the repository" in docs/architecture.md).
+# Dependencies install without their lifecycle scripts, and checkout keeps no
+# credentials: semantic-release pushes with the token in its environment.
 
 on:
   workflow_dispatch:
