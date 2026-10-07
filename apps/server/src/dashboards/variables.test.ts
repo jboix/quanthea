@@ -72,3 +72,36 @@ describe('a query-backed variable', () => {
     });
   });
 });
+
+describe('a text variable', () => {
+  /**
+   * A spec with one text variable.
+   *
+   * @param pattern - Its pattern, if any.
+   * @returns The spec.
+   */
+  function textSpec(pattern?: string): DashboardSpec {
+    return dashboardSpecSchema.parse({
+      specVersion: 1,
+      title: 'Orders',
+      time: { from: 'now-1h', to: 'now' },
+      variables: [{ kind: 'text', name: 'order', default: 'ab', ...(pattern ? { pattern } : {}) }],
+      panels: [],
+    });
+  }
+
+  test('refuses a value longer than 100 characters', async () => {
+    const resolve = (order: string) => resolveVariables(textSpec(), { order }, loader());
+    expect((await resolve('x'.repeat(100))).order).toEqual({ value: 'x'.repeat(100) });
+    await expect(resolve('x'.repeat(101))).rejects.toThrow('$order is at most 100 characters.');
+  });
+
+  test('never runs a pattern that can backtrack for exponential time', async () => {
+    const started = performance.now();
+    const attack = `${'a'.repeat(60)}!`;
+    await expect(resolveVariables(textSpec('(a+)+b'), { order: attack }, loader())).rejects.toThrow(
+      '$order has a pattern that cannot be checked safely.',
+    );
+    expect(performance.now() - started).toBeLessThan(100);
+  });
+});

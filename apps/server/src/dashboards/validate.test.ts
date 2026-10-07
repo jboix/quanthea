@@ -184,6 +184,19 @@ describe('validateSpec', () => {
     ]);
   });
 
+  test('reports a pattern that can backtrack for exponential time, and a long text default', () => {
+    expect(
+      issuesAfter((spec) => {
+        const text = { kind: 'text', name: 'order', default: 'aab', pattern: '(a+)+b' };
+        spec.variables.push(text as never);
+        spec.variables.push({ kind: 'text', name: 'note', default: 'x'.repeat(101) } as never);
+      }),
+    ).toEqual([
+      'variables[2].pattern: The pattern repeats a group that holds a quantifier or an alternation, or refers back to a group, which can take exponential time. Write it without, such as [a-z0-9-]+.',
+      'variables[3].default: A text value is at most 100 characters.',
+    ]);
+  });
+
   test('keeps chart options to the allowlist, with no inlined data or long strings', () => {
     expect(
       issuesAfter((spec) => {

@@ -381,6 +381,7 @@ export {
 export {
   allValue,
   isMultiValue,
+  maxTextValueLength,
   type Variable,
   type VariableValues,
   variableSchema,

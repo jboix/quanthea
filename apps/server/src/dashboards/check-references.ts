@@ -6,11 +6,13 @@
 import {
   type DashboardSpec,
   isMultiValue,
+  maxTextValueLength,
   type Panel,
   type Variable,
   type View,
 } from '@quanthea/shared';
 import type { SpecIssue } from './issues.ts';
+import { slowPattern } from './safe-pattern.ts';
 
 /**
  * Reports the names that appear more than once.
@@ -77,7 +79,7 @@ function checkPanel(panel: Panel, path: string, annotations: ReadonlySet<string>
  * @returns The issues.
  */
 function checkVariable(variable: Variable, path: string): SpecIssue[] {
-  if (variable.kind === 'text') return checkPattern(variable.pattern, variable.default, path);
+  if (variable.kind === 'text') return checkText(variable, path);
   const defaults = variable.default === undefined ? [] : [variable.default].flat();
   if (!isMultiValue(variable) && defaults.length > 1)
     return [
@@ -91,7 +93,7 @@ function checkVariable(variable: Variable, path: string): SpecIssue[] {
 }
 
 /**
- * Checks a text variable's pattern compiles and its default matches it.
+ * Checks a text variable's pattern compiles, cannot backtrack for long, and matches its default.
  *
  * @param pattern - The pattern, if any.
  * @param value - The default.
@@ -101,12 +103,33 @@ function checkVariable(variable: Variable, path: string): SpecIssue[] {
 function checkPattern(pattern: string | undefined, value: string, path: string): SpecIssue[] {
   if (pattern === undefined) return [];
   try {
-    return new RegExp(`^(?:${pattern})$`).test(value)
-      ? []
-      : [{ path: `${path}.default`, message: 'The default does not match the pattern.' }];
+    new RegExp(pattern);
   } catch {
     return [{ path: `${path}.pattern`, message: 'The pattern is not a valid regular expression.' }];
   }
+  const slow = slowPattern(pattern);
+  if (slow) return [{ path: `${path}.pattern`, message: slow }];
+  return new RegExp(`^(?:${pattern})$`).test(value)
+    ? []
+    : [{ path: `${path}.default`, message: 'The default does not match the pattern.' }];
+}
+
+/**
+ * Checks a text variable: its default's length, then its pattern.
+ *
+ * @param variable - The variable.
+ * @param path - Its path, such as `variables[0]`.
+ * @returns The issues.
+ */
+function checkText(variable: Extract<Variable, { kind: 'text' }>, path: string): SpecIssue[] {
+  if (variable.default.length > maxTextValueLength)
+    return [
+      {
+        path: `${path}.default`,
+        message: `A text value is at most ${maxTextValueLength} characters.`,
+      },
+    ];
+  return checkPattern(variable.pattern, variable.default, path);
 }
 
 /**

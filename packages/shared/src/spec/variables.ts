@@ -9,6 +9,12 @@ import { durationSchema, queryTemplateSchema } from './queries.ts';
 /** Validates one variable value. */
 const valueSchema = z.string().max(200);
 
+/**
+ * The longest value a text variable takes. A viewer types it and the server matches it against the
+ * variable's pattern, so it is kept short.
+ */
+export const maxTextValueLength = 100;
+
 /** Validates a variable label. */
 const labelSchema = z.string().min(1).max(60).optional();
 

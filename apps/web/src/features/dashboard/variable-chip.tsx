@@ -1,4 +1,4 @@
-import { allValue, isMultiValue, type Variable } from '@quanthea/shared';
+import { allValue, isMultiValue, maxTextValueLength, type Variable } from '@quanthea/shared';
 import { useRef, useState } from 'react';
 import { useFetcher } from 'react-router';
 import type { Loaded } from './data.ts';
@@ -141,6 +141,7 @@ export function TextChip({ variable, value, onChange }: Omit<ChipProps, 'options
       <input
         className={styles.textInput}
         value={draft}
+        maxLength={maxTextValueLength}
         size={Math.max(4, draft.length)}
         onChange={(event) => setDraft(event.target.value)}
         onBlur={apply}

@@ -499,9 +499,12 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
 3. The server loads the spec. Viewers may run versions pinned at some time, while the dashboard is
    pinned; anything else is "not found" to them.
 4. `dashboards/` resolves the time range and the variables against the spec's declarations: a
-   custom value must be an option, a single-value variable takes one value, a text value must
-   match its pattern. A query-backed value the viewer picks, other than "All", must be one of the
-   variable's options or its default: binding stops injection, but a value such as a Valkey key or
+   custom value must be an option, a single-value variable takes one value, a text value the
+   viewer types is at most 100 characters and must match its pattern. A pattern that could
+   backtrack for long (`dashboards/safe-pattern.ts`: a repeated group that holds a quantifier or
+   an alternation, a back-reference, or more than four quantifiers whose span varies) is refused
+   when the spec is validated, and never run for an older version. A query-backed value the
+   viewer picks, other than "All", must be one of the variable's options or its default: binding stops injection, but a value such as a Valkey key or
    an HTTP path segment names data, and the options bound what a pinned dashboard shows. The
    options are cached for 60 s by variable, source, the variables before it and the time range as
    written (`now-6h`), so the panels of one dashboard share one load. "All" (`$__all`) and a
