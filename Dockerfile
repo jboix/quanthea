@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.27.1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 # The quanthea image: the Bun server, run from source, serving the built SPA.
 # Build from the repository root:
 #   docker build -t quanthea .
@@ -9,9 +9,12 @@
 # and the built SPA, the same on every CPU, so the runner stage needs no RUN and
 # `docker buildx build --platform linux/amd64,linux/arm64` needs no emulation.
 # A dependency with native code would break this; keep them pure JavaScript.
+#
+# Each image is pinned by digest, its tag kept beside it for people and Dependabot,
+# which updates both. A repointed tag changes nothing until a reviewed bump.
 
 # ---- build: install every workspace and build the SPA ----
-FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-slim AS build
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-slim@sha256:cb3bbbb08e13a4a2ff400f24c7a2a1d5efa83f6ef8544d52d95a519631e2fc61 AS build
 WORKDIR /repo
 COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
@@ -34,7 +37,7 @@ COPY apps/web apps/web
 RUN bun run --filter @quanthea/web build
 
 # ---- deps: the server's production dependencies, and the data, keys and config directories ----
-FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-slim AS deps
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.2-slim@sha256:cb3bbbb08e13a4a2ff400f24c7a2a1d5efa83f6ef8544d52d95a519631e2fc61 AS deps
 WORKDIR /repo
 COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
@@ -54,7 +57,7 @@ RUN mkdir -p /volume/data /volume/keys /volume/etc/quanthea /volume/plugins \
     && chmod 700 /volume/data /volume/keys
 
 # ---- runner: server and shared sources, their dependencies, and the SPA ----
-FROM oven/bun:1.4.2-slim AS runner
+FROM oven/bun:1.4.2-slim@sha256:cb3bbbb08e13a4a2ff400f24c7a2a1d5efa83f6ef8544d52d95a519631e2fc61 AS runner
 LABEL org.opencontainers.image.title="quanthea" \
       org.opencontainers.image.description="Describe a dashboard in a chat, an agent builds it against your data sources, pin the good ones." \
       org.opencontainers.image.licenses="MIT"

@@ -3382,8 +3382,13 @@ a time (a second dispatch waits for the first):
    `chore(release): X.Y.Z [skip ci]`, tags `vX.Y.Z` and creates the GitHub Release with the notes.
    A GitHub App (the release bot, `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY`) pushes the
    commit, so the ruleset on `main` can stay closed to everyone else.
-3. The image job builds the image at the tag for `linux/amd64` and `linux/arm64` and pushes it to
-   `ghcr.io/<owner>/quanthea` as `:vX.Y.Z` and `:latest`. A released image is never rebuilt.
+   The same commit writes the new tag into `deploy/compose.yaml`, so the Compose starting point
+   names a release, never `:latest`.
+3. The image job builds the image at the tag for `linux/amd64` and `linux/arm64`, with its SBOM and
+   a full provenance (`mode=max`) as attestations, and pushes it to `ghcr.io/<owner>/quanthea` as
+   `:vX.Y.Z` and `:latest`. A released image is never rebuilt. The sign job then signs it by digest
+   with cosign, keyless: the certificate names the Release workflow on `main`, and Sigstore's
+   transparency log records it.
 4. Before the app's job, the packages job runs semantic-release for the plugin kit alone, from
    `packages/plugin-kit/.releaserc.json` with `semantic-release-monorepo`. It reads only the
    commits that changed `packages/plugin-kit` since the last `plugin-kit-vX.Y.Z` tag, with the
@@ -3406,8 +3411,11 @@ The release credentials reach as little code as possible:
   the bot token is minted.
 - The bot token carries only `contents`, `issues` and `pull-requests` write. Checkout keeps no
   credentials: semantic-release pushes with the token in its environment.
-- Only the packages job can request an OIDC token, which npm trusted publishing needs. npm is
+- Of the jobs that run project code, only the packages job can request an OIDC token, which npm
+  trusted publishing needs. The sign job requests one for cosign and runs no project code. npm is
   installed at an exact version.
+- Every action is pinned to a commit SHA, with its version in a comment. The Dockerfile pins its
+  base image and its syntax frontend by digest, with the tag beside it. Dependabot updates both.
 
 The root `package.json` holds the app's version. `/api/health` reports it. The app's semantic-release
 reads `v*` tags only. The workspace `package.json` files stay at `0.0.0`, because `bun.lock` records

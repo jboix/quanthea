@@ -53,6 +53,24 @@ docker run -d --name quanthea -p 3000:3000 \
 Sign in at <http://localhost:3000> as `admin`, with the `ADMIN_PASSWORD` of `.env`. [The
 configuration file](configuration.md) lists everything it can declare.
 
+## Pin and verify the image
+
+`ghcr.io/jboix/quanthea` with no tag is `:latest`, which moves with every release. Pin a release
+tag such as `ghcr.io/jboix/quanthea:v0.3.0` to choose when you upgrade. The Compose file in
+[`deploy/`](../deploy/) names the latest release's tag, and each release updates it.
+
+Each release image is signed with [cosign](https://docs.sigstore.dev/cosign/) by the Release
+workflow on `main`, without a key, and carries its SBOM and build provenance. Check the signature
+before you run a new tag:
+
+```sh
+cosign verify ghcr.io/jboix/quanthea:v0.3.0 \
+  --certificate-identity https://github.com/jboix/quanthea/.github/workflows/release.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+To pin the exact image, use the digest the check prints: `ghcr.io/jboix/quanthea@sha256:…`.
+
 ## The volumes
 
 | Path    | What it holds                                                   |

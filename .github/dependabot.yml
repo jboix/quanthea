@@ -4,6 +4,8 @@ version: 2
 # pulled or found compromised in its first days never reaches a pull request.
 updates:
   # --- GitHub Actions ---
+  # The workflows pin each action to a commit SHA with its version in a comment.
+  # Dependabot bumps both together.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -63,6 +65,7 @@ updates:
         update-types: [ "version-update:semver-minor", "version-update:semver-major" ]
 
   # --- Docker ---
+  # The Dockerfile pins each image by digest with its tag; Dependabot bumps both.
   - package-ecosystem: "docker"
     directory: "/"
     schedule:

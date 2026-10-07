@@ -10,9 +10,15 @@
       }
     ],
     [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "sed -i -E 's#(ghcr\\.io/jboix/quanthea:)v[0-9][^[:space:]]*#\\1v${nextRelease.version}#' deploy/compose.yaml"
+      }
+    ],
+    [
       "@semantic-release/git",
       {
-        "assets": ["package.json"],
+        "assets": ["package.json", "deploy/compose.yaml"],
         "message": "chore(release): ${nextRelease.version} [skip ci]"
       }
     ],

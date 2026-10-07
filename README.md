@@ -45,7 +45,9 @@ docker run -d --name quanthea -p 3000:3000 \
   ghcr.io/jboix/quanthea
 ```
 
-Pin a release tag such as `ghcr.io/jboix/quanthea:v1.0.0` to control upgrades. To build the image
+Pin a release tag such as `ghcr.io/jboix/quanthea:v1.0.0` to control upgrades. Each release image
+is signed with cosign; [the deployment guide](docs/deployment.md#pin-and-verify-the-image) shows
+how to check it. To build the image
 yourself, run `docker build -t quanthea .` at the repository root.
 
 Open <http://localhost:3000> and sign in as `admin` with the password the first start writes to
