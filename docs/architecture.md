@@ -2146,6 +2146,11 @@ model-ready results and never throw.
 - A query that renames or aliases a hidden column gets past the name match: from level 3 its top
   values show, at level 4 its rows. A database role or view that cannot read the column is the
   hard guarantee; an integration test shows the limit.
+- Levels 1 and 2 and hidden fields limit what the model is shown, not what it can infer. The
+  filter reads result column names only, so a query may still filter on any column the database
+  role can read. At level 2 the row count of `WHERE email LIKE 'j%'` answers a question about a
+  hidden column, and at level 1 whether a query fails does too. Such probing takes one query per
+  character. A database role or view that cannot read the column is the guarantee.
 - Admin-written descriptions replace the source's.
 - `gate/model-view.ts` is what the agent's data tools call: the connector list with what each level
   means, `describe` (cut to a scope, at most 60 entities), `sample`, `testQuery` and the shaping of
