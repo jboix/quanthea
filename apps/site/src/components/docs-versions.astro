@@ -63,8 +63,10 @@ const { current, links } = Astro.props;
 </script>
 
 <style>
+  /* Like the navigation's links, the box steps out by 10px, so its text lines up with theirs. */
   .versions {
     position: relative;
+    margin-left: -10px;
   }
 
   summary {
@@ -72,7 +74,7 @@ const { current, links } = Astro.props;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 8px 12px 8px 9px;
     border: 1px solid var(--color-border-control);
     border-radius: var(--radius-control);
     background: var(--color-surface);
