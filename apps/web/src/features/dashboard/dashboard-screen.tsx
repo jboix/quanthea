@@ -35,7 +35,9 @@ function DashboardHeader(props: DashboardData & AskAction & { readonly editor: L
           {dashboard.pinnedVersion === null ? 'not pinned' : 'pinned'}
         </nav>
         <div className={styles.titleRow}>
-          <h1 className={styles.title}>{version.spec.title}</h1>
+          <h1 className={styles.title} title={version.spec.title}>
+            {version.spec.title}
+          </h1>
           <AboutPopover {...props} />
           <Pill mono tone={version.pinnedAt === null ? 'draft' : 'neutral'}>
             {shown && <LockIcon />}
