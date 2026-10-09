@@ -242,11 +242,16 @@ describe('completeCharts', () => {
       summary: 'x',
     });
     const { spec, charts } = applyEdit(undefined, request);
-    const columns = [
-      { name: 'time', type: 'time' },
-      { name: 'Value', type: 'number' },
+    const tests = [
+      testOf(
+        'orders',
+        [
+          { name: 'time', type: 'time' },
+          { name: 'Value', type: 'number' },
+        ],
+        [[1], [2]],
+      ),
     ];
-    const tests = [testOf('orders', columns, [[1], [2]])];
     expect(completeCharts(spec, charts, tests).problems.get('orders')).toEqual([
       'The y role names "value", which the data has not. Did you mean "Value"?',
     ]);
