@@ -33,6 +33,7 @@ import type {
   PreparedAnswer,
 } from './answer-types.ts';
 import { type ResponseWatch, watchedModel } from './answer-watch.ts';
+import { withCachedTail } from './cache.ts';
 import { languageModel, ModelUnavailableError, modelIdFor, reasoningOption } from './model.ts';
 import { publicError } from './public-error.ts';
 import { tokensOf, withStep } from './usage.ts';
@@ -213,17 +214,27 @@ function stopConditions(prepared: PreparedAnswer): StopCondition<ToolSet>[] {
 }
 
 /**
- * What the next step may do: anything while within the limits, then only give the answer.
+ * What the next step may do: anything while within the limits, then only give the answer. Every
+ * step marks the conversation so far as a cache point for Anthropic.
  *
  * @param prepared - The answer.
  * @returns The step callback.
  */
 function stepSettings(prepared: PreparedAnswer) {
-  const { limits } = prepared.resolved.settings;
-  return ({ steps }: { steps: readonly { toolCalls: readonly unknown[] }[] }) => {
+  const { limits, provider } = prepared.resolved.settings;
+  return ({
+    steps,
+    messages,
+  }: {
+    steps: readonly { toolCalls: readonly unknown[] }[];
+    messages: ModelMessage[];
+  }) => {
+    // Each step reads the conversation so far from Anthropic's cache, as the agent's steps do.
+    const cached = { messages: withCachedTail(messages, provider) };
     const calls = steps.reduce((sum, step) => sum + step.toolCalls.length, 0);
-    if (calls < limits.toolCallsPerTurn && prepared.tokens < limits.threadTokens) return {};
+    if (calls < limits.toolCallsPerTurn && prepared.tokens < limits.threadTokens) return cached;
     return {
+      ...cached,
       activeTools: ['give_answer'],
       toolChoice: { type: 'tool' as const, toolName: 'give_answer' },
     };

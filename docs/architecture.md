@@ -1448,7 +1448,9 @@ the time, the draft, the mentions and the phase's rules (`instructionParts`). Op
 cache a stable start on their own. Anthropic caches only up to marked points (`agent/cache.ts`):
 the lasting instructions are a separate system block marked as a cache point, and before each
 step the last message is marked too, so the next step reads the conversation so far from the
-cache. Earlier marks are removed, since Anthropic allows four.
+cache. Earlier marks are removed, since Anthropic allows four. The answering service, behind the
+Ask tab and a panel's explanation, marks each step's last message the same way, so an answer that
+reads several times pays the full price once.
 
 ### Reasoning effort
 

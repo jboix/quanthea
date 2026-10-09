@@ -123,9 +123,41 @@ function instructionsOf(model: ReturnType<typeof scriptedStreamModel>): string {
   return JSON.stringify(model.doStreamCalls[0]?.prompt[0]);
 }
 
+const plainAnswer = (text: string) => ({ tool: 'give_answer', input: { text, citations: [] } });
+
 const panelAnswer = (text: string) => ({
   tool: 'give_answer',
   input: { text, citations: [{ n: 1, panelId: 'errors-over-time' }] },
+});
+
+describe('explanations', () => {
+  test('an explanation with a citation is sent back, and the repaired one kept', async () => {
+    await addConnector('events', 3);
+    const { answers, model } = answersWith(
+      panelAnswer('It counts errors per minute [1].'),
+      plainAnswer('It counts errors per minute.'),
+    );
+    const outcome = await answers.answer(explain('errors-over-time'));
+    expect(JSON.stringify(model.doStreamCalls[1]?.prompt)).toContain(
+      'An explanation gives no citation markers and no citations',
+    );
+    expect(outcome.ok && outcome.answer.text).toBe('It counts errors per minute.');
+  });
+});
+
+describe('prompt caching', () => {
+  test('on Anthropic, each step marks the conversation so far as a cache point', async () => {
+    await addConnector('events', 3);
+    const { answers, model } = answersWith(
+      { tool: 'read_data', input: { panelId: 'errors-over-time' } },
+      panelAnswer('Errors rose at 13:00 [1].'),
+    );
+    await answers.answer(ask('What happened at 13:00?'));
+    const second = model.doStreamCalls[1]?.prompt ?? [];
+    const marked = second.filter((message) => message.providerOptions?.anthropic !== undefined);
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toBe(second.at(-1));
+  });
 });
 
 describe('the tools offered', () => {
@@ -163,7 +195,7 @@ describe('the tools offered', () => {
   test('explain mode never offers the read tool, even at full access, nor the range', async () => {
     await addConnector('events', 4);
     await addConnector('logs', 4);
-    const { answers, model } = answersWith(panelAnswer('It counts errors per minute [1].'));
+    const { answers, model } = answersWith(plainAnswer('It counts errors per minute.'));
     const outcome = await answers.answer(explain('errors-over-time'));
     expect(toolsOffered(model)).toEqual(['describe', 'give_answer']);
     expect(instructionsOf(model)).toContain('You have no data and must not quote any');
