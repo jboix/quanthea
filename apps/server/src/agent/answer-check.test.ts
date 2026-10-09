@@ -65,14 +65,15 @@ describe('answerIssues', () => {
     expect(window('2026-10-03T13:00:00Z')).toEqual(['[1]: give both from and to, or neither.']);
   });
 
-  test('gives an explanation no time window', () => {
-    const citations = [
-      { n: 1, panelId: 'errors', from: '2026-10-03T13:00:00Z', to: '2026-10-03T13:10:00Z' },
-    ];
+  test('gives an explanation no marker and no citation', () => {
+    const citations = [{ n: 1, panelId: 'errors' }];
     const explaining = { ...scope, evidenceIds: new Set<string>(), range: undefined };
-    expect(answerIssues({ text: 'It counts errors [1].', citations }, explaining)).toEqual([
-      '[1]: an explanation has no time window; drop from and to.',
-    ]);
+    const refusal = ['An explanation gives no citation markers and no citations: remove them.'];
+    expect(answerIssues({ text: 'It counts errors [1].', citations }, explaining)).toEqual(refusal);
+    expect(answerIssues({ text: 'It counts errors [1].', citations: [] }, explaining)).toEqual(
+      refusal,
+    );
+    expect(answerIssues({ text: 'It counts errors.', citations: [] }, explaining)).toEqual([]);
   });
 
   test('refuses an empty text', () => {

@@ -37,13 +37,15 @@ function markersOf(text: string): Set<number> {
  * The issues of a citation's time window.
  *
  * @param citation - The citation.
- * @param range - The range asked about, if any.
+ * @param range - The range asked about.
  * @returns The issues; none without a window.
  */
-function windowIssues(citation: AnswerCitation, range: AnswerScope['range']): string[] {
+function windowIssues(
+  citation: AnswerCitation,
+  range: NonNullable<AnswerScope['range']>,
+): string[] {
   const { n, from, to } = citation;
   if (from === undefined && to === undefined) return [];
-  if (range === undefined) return [`[${n}]: an explanation has no time window; drop from and to.`];
   if (from === undefined || to === undefined) return [`[${n}]: give both from and to, or neither.`];
   return boundsIssues(n, Date.parse(from), Date.parse(to), range);
 }
@@ -115,6 +117,18 @@ function pairingIssues(answer: GivenAnswer): string[] {
 }
 
 /**
+ * The issues of an explanation, which cites nothing: it has no range, so no marker or citation can
+ * point at a read or a window.
+ *
+ * @param answer - The explanation.
+ * @returns The issue, if it carries markers or citations.
+ */
+function explanationIssues(answer: GivenAnswer): string[] {
+  if (markersOf(answer.text).size === 0 && answer.citations.length === 0) return [];
+  return ['An explanation gives no citation markers and no citations: remove them.'];
+}
+
+/**
  * Checks an answer against what it may cite.
  *
  * @param answer - The text and the citations, as the model gave them.
@@ -123,11 +137,13 @@ function pairingIssues(answer: GivenAnswer): string[] {
  */
 export function answerIssues(answer: GivenAnswer, scope: AnswerScope): string[] {
   if (answer.text.trim() === '') return ['The text is empty.'];
+  const { range } = scope;
+  if (range === undefined) return explanationIssues(answer);
   return [
     ...pairingIssues(answer),
     ...answer.citations.flatMap((citation) => [
       ...targetIssues(citation, scope),
-      ...windowIssues(citation, scope.range),
+      ...windowIssues(citation, range),
     ]),
   ];
 }
