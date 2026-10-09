@@ -3484,7 +3484,9 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
   `evals` environment that holds the providers' keys; each job gets only its own. The summary shows
   on the run's page, the report is its artifact, and the job fails like the command. Each job also
   writes the run in evalmark's result format (`evals/evalmark.ts`) and records it with the
-  evalmark action on the `evalmark` branch, whose dashboard keeps every run since. They are never part of `verify`, because they
+  evalmark action on the `evalmark` branch, whose dashboard keeps every run since. The Website
+  workflow copies that dashboard to `/evals/` with the action's export mode, and the Evals workflow
+  starts it after its runs. They are never part of `verify`, because they
   cost tokens and are not deterministic.
 
 ## 16. Quality gates

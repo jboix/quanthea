@@ -4,7 +4,8 @@ name: Evals
 # run starts: Google (Gemini) or Anthropic, or both, one job each. Each job starts from the models
 # quanthea suggests for its provider. The summary shows on the run's page; the report, as an HTML
 # page and as JSON, is the job's artifact; and evalmark records the run on the `evalmark` branch,
-# where its dashboard keeps every run since. A job fails when more questions fail than allowed.
+# where its dashboard keeps every run since. Then the Website workflow deploys the site again, which
+# copies that dashboard to /evals/. A job fails when more questions fail than allowed.
 #
 # Run by hand from main, by the repository's owner only. The jobs run in the `evals` environment,
 # which holds the providers' API keys and deploys from main only, and each job gets only its own
@@ -111,3 +112,18 @@ jobs:
       - name: Data source logs
         if: failure()
         run: docker compose -f dev/docker-compose.yml --profile '*' logs --no-color
+
+  # The website shows the eval dashboard at /evals/ as of its last deploy: deploy it again, from
+  # main, once the runs are recorded, failing ones included.
+  site:
+    needs: evals
+    if: ${{ !cancelled() && needs.evals.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Deploy the website from main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run site.yml --repo "$GITHUB_REPOSITORY" --ref main

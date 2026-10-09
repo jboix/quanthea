@@ -6,7 +6,9 @@ name: Website
 # main after an app release, since the footer shows the version and a new minor adds its docs. A
 # release event would run it on the tag, which the github-pages environment refuses. The
 # repository's Pages source must be "GitHub Actions" (Settings → Pages). The custom domain is the
-# one set there: a deployment from Actions ignores a CNAME file, so the site has none.
+# one set there: a deployment from Actions ignores a CNAME file, so the site has none. The eval
+# dashboard, which evalmark keeps on the `evalmark` branch, is copied in at /evals/; the Evals
+# workflow starts this one after its runs, so /evals/ shows them.
 on:
   push:
     branches:
@@ -62,6 +64,14 @@ jobs:
           SITE_BASE: ${{ vars.SITE_BASE || steps.pages.outputs.base_path || '/' }}
           GITHUB_TOKEN: ${{ github.token }}
         run: bun run site:build
+
+      # The eval dashboard and its runs, from the evalmark branch. Before the first eval run the
+      # branch does not exist: the action warns and the site deploys without /evals/.
+      - name: Add the eval dashboard at /evals/
+        uses: jboix/evalmark@2485f026277f627591d4d0feb50a61b9f5f739b9 # v1.0.0
+        with:
+          mode: export
+          path: apps/site/dist/evals
 
       - name: Upload the site
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

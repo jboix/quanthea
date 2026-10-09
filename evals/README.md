@@ -211,7 +211,9 @@ fail than its `allowed-failures` input allows.
 
 Each job then records its run with evalmark on the `evalmark` branch, failing questions included,
 labelled with the provider and its models. The branch keeps every run since, and its dashboard
-shows each question over time, provider by provider. To look at it from a clone:
+shows each question over time, provider by provider. Once the jobs end, the workflow deploys the
+website again, which copies that dashboard to [quanthea.ch/evals](https://quanthea.ch/evals/). To
+look at it from a clone instead:
 
 ```sh
 git fetch origin evalmark
