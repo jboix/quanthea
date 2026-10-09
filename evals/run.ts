@@ -1,6 +1,6 @@
 /**
  * `bun run evals`: asks the agent each question against the dev data and scores what it builds.
- * It needs the data sources (`bun run env:up`) and GEMINI_API_KEY, except for what the response
+ * It needs the data sources (`bun run env:up`) and the provider's key, except for what the response
  * cache already holds. It is never part of `bun run verify`.
  */
 import { appendFileSync, writeFileSync } from 'node:fs';
@@ -13,6 +13,8 @@ import { type AlertBench, driveAlert } from './alert-drive.ts';
 import { type AnswerCase, answerCases, selectAnswerCases } from './answer-cases.ts';
 import { type AnswerBench, driveAnswer, openBench } from './answer-drive.ts';
 import { drive } from './drive.ts';
+import { writeEvalmark } from './evalmark.ts';
+import { apiKeyOf, keyVariableOf, providerOf, suggestedModels } from './providers.ts';
 import { selectQuestions } from './questions.ts';
 import { htmlReport, markdownReport } from './render.ts';
 import {
@@ -37,7 +39,9 @@ through alert threads, and scores the alerts saved and their replay over the inc
 the report cases (r1, r2) through a report thread, runs the report and checks its numbers against
 the database, and asks about that run (r3, r4).
 
-  bun run evals                         every question and case, on gemini-3.5-flash-lite
+  bun run evals                         every question and case, on Gemini: gemini-3.5-flash-lite
+                                        talks, gemini-3.8-flash builds
+  bun run evals --provider anthropic    on Anthropic: claude-haiku-4-5 talks, claude-sonnet-5 builds
   bun run evals --only q3,q7            only these questions
   bun run evals --only a1,a2,a3,a4      only the answer cases
   bun run evals --only al1,al2,al3,al4  only the alert cases
@@ -49,7 +53,8 @@ the database, and asks about that run (r3, r4).
   bun run evals --rescore <report.json> score a report again, with no model call
   bun run evals --compare <a.json> <b.json>
 
-It needs the data sources (bun run env:up) and GEMINI_API_KEY, except for the responses the
+It needs the data sources (bun run env:up) and the provider's key, GEMINI_API_KEY or
+ANTHROPIC_API_KEY, except for the responses the
 cache in evals/.cache already holds. Reports go to evals/reports, as JSON and as an HTML page;
 in GitHub Actions the summary also goes to the job's summary page. It exits with an error when
 more questions fail than --allow-failures allows, 0 by default.
@@ -67,7 +72,8 @@ function readFlags() {
   const text = { type: 'string' } as const;
   const options = {
     only: text,
-    model: { type: 'string', default: 'gemini-3.5-flash-lite' },
+    provider: text,
+    model: text,
     'build-model': text,
     'no-cache': { type: 'boolean' },
     'allow-failures': { type: 'string', default: '0' },
@@ -79,8 +85,8 @@ function readFlags() {
 }
 
 /**
- * Keeps a report: JSON to score again, an HTML page to read, and in GitHub Actions the job's
- * summary page.
+ * Keeps a report: JSON to score again, an HTML page to read, the evalmark result the Evals
+ * workflow records, and in GitHub Actions the job's summary page.
  *
  * @param report - The report.
  * @returns The HTML page's path.
@@ -89,6 +95,7 @@ function publish(report: Report): string {
   const json = writeReport(reportsDir, report);
   const html = json.replace(/\.json$/, '.html');
   writeFileSync(html, htmlReport(report));
+  writeEvalmark(reportsDir, report);
   const summaryFile = process.env.GITHUB_STEP_SUMMARY;
   if (summaryFile) appendFileSync(summaryFile, markdownReport(report));
   return html;
@@ -218,6 +225,21 @@ function benchOnce(world: EvalWorld): () => Promise<AnswerBench> {
 }
 
 /**
+ * The run's provider and models: the flags, or else the models quanthea suggests for the provider.
+ *
+ * @param flags - The flags.
+ * @returns The models.
+ */
+function modelsOf(flags: ReturnType<typeof readFlags>['values']): EvalModels {
+  const provider = providerOf(flags.provider);
+  const suggested = suggestedModels(provider);
+  const model = flags.model ?? suggested.model;
+  // A model given alone runs every job, as before; without one, the suggested pair runs.
+  const build = flags['build-model'] ?? (flags.model === undefined ? suggested.build : undefined);
+  return { provider, model, build };
+}
+
+/**
  * Asks every selected question, then runs every selected answer case, alert case and report case,
  * one after the other, and prints each verdict as it comes.
  *
@@ -228,10 +250,15 @@ async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<
   const only = flags.only?.split(',').map((id) => id.trim()) ?? [];
   const others = [...answerCases, ...alertCases, ...reportCases].map((each) => each.id);
   const selected = selectQuestions(only, others);
-  const models: EvalModels = { model: flags.model, build: flags['build-model'] };
+  const models = modelsOf(flags);
   await checkSources();
   const cache = { dir: join(here, '.cache'), read: !flags['no-cache'], minIntervalMs: 4000 };
-  const world = await openWorld(models, process.env.GEMINI_API_KEY || undefined, cache);
+  const provider = models.provider ?? 'google';
+  const apiKey = apiKeyOf(provider, process.env);
+  if (apiKey === undefined) {
+    process.stdout.write(`${keyVariableOf(provider)} is not set: only cached responses play.\n`);
+  }
+  const world = await openWorld(models, apiKey, cache);
   const startedAt = new Date().toISOString();
   const outcomes: EvalOutcome[] = [];
   const bench = benchOnce(world);

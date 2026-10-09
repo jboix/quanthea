@@ -1,39 +1,48 @@
 name: Evals
 
-# Asks the agent the eval questions against the dev data sources, on Gemini.
-# The summary shows on the run's page; the report, as an HTML page and as
-# JSON, is the evals-report artifact. The job fails when more questions fail
-# than allowed. Run by hand from main, by the repository's owner only: it
-# spends the GEMINI_API_KEY secret's quota. Never part of the Quality workflow.
+# Asks the agent the eval questions against the dev data sources, on the provider picked when the
+# run starts: Google (Gemini) or Anthropic, or both, one job each. Each job starts from the models
+# quanthea suggests for its provider. The summary shows on the run's page; the report, as an HTML
+# page and as JSON, is the job's artifact; and evalmark records the run on the `evalmark` branch,
+# where its dashboard keeps every run since. A job fails when more questions fail than allowed.
+#
+# Run by hand from main, by the repository's owner only. The jobs run in the `evals` environment,
+# which holds the providers' API keys and deploys from main only, and each job gets only its own
+# provider's key. Never part of the Quality workflow.
 
 on:
   workflow_dispatch:
     inputs:
-      model:
-        description: The model for every job, such as gemini-3.5-flash-lite
-        default: gemini-3.5-flash-lite
+      provider:
+        description: The provider whose models answer
+        type: choice
+        options: [google, anthropic, both]
+        default: google
         required: true
-      build-model:
-        description: Another model for building and repairs (empty for the same)
-        default: ''
-        required: false
       only:
         description: Only these questions, such as q3,q7 (empty for all)
         default: ''
         required: false
       allowed-failures:
-        description: How many questions may fail before the job fails
+        description: How many questions may fail before a job fails
         default: '0'
         required: true
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   evals:
+    name: Evals (${{ matrix.provider }})
     if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    environment: evals
+    permissions:
+      contents: write # evalmark pushes the run to the evalmark branch
+    strategy:
+      fail-fast: false # one provider failing still records the other
+      matrix:
+        provider: ${{ fromJSON(inputs.provider == 'both' && '["google","anthropic"]' || format('["{0}"]', inputs.provider)) }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -55,24 +64,24 @@ jobs:
         run: bun run env:up
 
       # Keeps the responses of earlier runs: a rerun on the same day with the
-      # same prompts calls Gemini only for what changed.
+      # same prompts calls the provider only for what changed.
       - name: Restore the response cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: evals/.cache
-          key: evals-cache-${{ github.run_id }}
-          restore-keys: evals-cache-
+          key: evals-cache-${{ matrix.provider }}-${{ github.run_id }}
+          restore-keys: evals-cache-${{ matrix.provider }}-
 
+      # Each job gets its own provider's key only.
       - name: Ask the questions
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          MODEL: ${{ inputs.model }}
-          BUILD_MODEL: ${{ inputs.build-model }}
+          GEMINI_API_KEY: ${{ matrix.provider == 'google' && secrets.GEMINI_API_KEY || '' }}
+          ANTHROPIC_API_KEY: ${{ matrix.provider == 'anthropic' && secrets.ANTHROPIC_API_KEY || '' }}
+          PROVIDER: ${{ matrix.provider }}
           ONLY: ${{ inputs.only }}
           ALLOWED_FAILURES: ${{ inputs.allowed-failures }}
         run: |
-          set -- --model "$MODEL" --allow-failures "$ALLOWED_FAILURES"
-          if [ -n "$BUILD_MODEL" ]; then set -- "$@" --build-model "$BUILD_MODEL"; fi
+          set -- --provider "$PROVIDER" --allow-failures "$ALLOWED_FAILURES"
           if [ -n "$ONLY" ]; then set -- "$@" --only "$ONLY"; fi
           bun run evals "$@"
 
@@ -80,9 +89,24 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: evals-report
+          name: evals-report-${{ matrix.provider }}
           path: evals/reports/
           if-no-files-found: ignore
+
+      # Records the run, failing questions included, on the evalmark branch. The keys are redacted
+      # from anything stored, should an answer echo one.
+      - name: Record the run with evalmark
+        if: ${{ !cancelled() }}
+        uses: jboix/evalmark@2485f026277f627591d4d0feb50a61b9f5f739b9 # v1.0.0
+        with:
+          result: evals/reports/evalmark.json
+          title: quanthea
+          subtitle: eval dashboard
+          logo: docs/brand/quanthea-icon.svg
+          comment: 'false'
+          redact: |
+            ${{ secrets.GEMINI_API_KEY }}
+            ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Data source logs
         if: failure()

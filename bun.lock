@@ -104,6 +104,9 @@
         "@quanthea/shared": "workspace:*",
         "ai": "^7.0.127",
       },
+      "devDependencies": {
+        "evalmark": "^1.0.0",
+      },
     },
     "examples/quanthea-plugin-sqlite": {
       "name": "quanthea-plugin-sqlite",
@@ -1070,6 +1073,8 @@
     "estree-util-visit": ["estree-util-visit@2.0.0", "", { "dependencies": { "@types/estree-jsx": "^1.0.0", "@types/unist": "^3.0.0" } }, "sha512-m5KgiH85xAhhW8Wta0vShLcUvOsh3LLPI2YVwcbio1l7E09NTLL1EyMZFM1OyWowoH0skScNbhOPl4kcBgzTww=="],
 
     "estree-walker": ["estree-walker@3.0.3", "", { "dependencies": { "@types/estree": "^1.0.0" } }, "sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g=="],
+
+    "evalmark": ["evalmark@1.0.0", "", { "bin": { "evalmark": "dist/cli.js" } }, "sha512-3dX3COyjhoYqXQUZcB80BjA8DiU8FqMJB0S6DGKKzdPiZwZSY1mMTnI9k1gu6ZqQPkN5ZNe6JvFN7D5RMAe6jw=="],
 
     "eventemitter3": ["eventemitter3@5.0.4", "", {}, "sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw=="],
 

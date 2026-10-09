@@ -17,23 +17,18 @@ import {
 } from '@quanthea/server/src/connectors/_shared/test/dev-sources.ts';
 import { connectorKinds } from '@quanthea/server/src/connectors/registry.ts';
 import { testServices } from '@quanthea/server/src/test/fixtures.ts';
-import {
-  channelInputSchema,
-  connectorInputSchema,
-  defaultModelGateway,
-  type ModelGateway,
-} from '@quanthea/shared';
+import { channelInputSchema, connectorInputSchema } from '@quanthea/shared';
 import { wrapLanguageModel } from 'ai';
 import { type CacheCounts, type CacheOptions, cachingMiddleware } from './cache.ts';
-
-/** Gemini's OpenAI-compatible endpoint. */
-const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/openai';
+import { type EvalProvider, gatewayOf } from './providers.ts';
 
 /** Who the evals act as. */
 export const evalsActor = 'evals';
 
 /** The models a run uses. */
 export interface EvalModels {
+  /** The provider; Google's Gemini in reports written before Anthropic could run. */
+  readonly provider?: EvalProvider;
   /** For every job but building and repairs, and for those too unless `build` is given. */
   readonly model: string;
   /** For building and repairs, when it differs. */
@@ -67,29 +62,6 @@ export interface EvalWorld {
 export function evalsNow(): number {
   const today = new Date();
   return Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 10);
-}
-
-/**
- * The gateway: one Gemini provider with the run's models, the default limits and behaviour.
- *
- * @param models - The models.
- * @returns The gateway.
- */
-function geminiGateway(models: EvalModels): ModelGateway {
-  const build = models.build ?? models.model;
-  return {
-    ...defaultModelGateway,
-    providers: [
-      {
-        id: 'gemini',
-        name: 'Gemini',
-        provider: 'openai-compatible',
-        baseUrl: geminiUrl,
-        models: { plan: models.model, build, repair: build, metadata: models.model, answer: build },
-      },
-    ],
-    defaultProviderId: 'gemini',
-  };
 }
 
 /**
@@ -144,7 +116,7 @@ function cachedModels(cache: CacheOptions, counts: CacheCounts): typeof language
  * answering service with their models behind the cache.
  *
  * @param models - The models.
- * @param apiKey - The Gemini key, if there is one; without it, only cached responses play.
+ * @param apiKey - The provider's key, if there is one; without it, only cached responses play.
  * @param cache - The cache's place and behaviour.
  * @returns The world.
  */
@@ -158,9 +130,10 @@ export async function openWorld(
   await addConnectors(services);
   const channelId = await addChannel(services);
   const aliases = new Map([[channelId, 'evals-channel']]);
+  const gateway = gatewayOf(models.provider ?? 'google', models);
   await services.modelSettings.save(
-    geminiGateway(models),
-    { gemini: apiKey ?? 'none' },
+    gateway,
+    { [gateway.defaultProviderId]: apiKey ?? 'none' },
     evalsActor,
   );
   const counts: CacheCounts = { hits: 0, misses: 0 };

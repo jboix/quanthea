@@ -3478,9 +3478,13 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
   ids a run makes written as stable aliases, so reruns call the provider only for what changed;
   `--only`, `--rescore` (scoring with no model call) and `--compare` keep runs cheap. Reports go to `evals/reports/` as an HTML page
   and as JSON (`evals/render.ts`); the command fails when more questions fail than
-  `--allow-failures` allows. The Evals workflow runs them by hand on `main`, for the repository's
-  owner only, with the `GEMINI_API_KEY` secret: the summary shows on the run's page, the report
-  is its artifact, and the job fails like the command. They are never part of `verify`, because they
+  `--allow-failures` allows. `--provider` picks Google (the default) or Anthropic, each with the
+  models quanthea suggests for it (`evals/providers.ts`). The Evals workflow runs them by hand on
+  `main`, for the repository's owner only, on the provider picked or both, one job each, in the
+  `evals` environment that holds the providers' keys; each job gets only its own. The summary shows
+  on the run's page, the report is its artifact, and the job fails like the command. Each job also
+  writes the run in evalmark's result format (`evals/evalmark.ts`) and records it with the
+  evalmark action on the `evalmark` branch, whose dashboard keeps every run since. They are never part of `verify`, because they
   cost tokens and are not deterministic.
 
 ## 16. Quality gates

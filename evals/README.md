@@ -149,7 +149,8 @@ reads, frozen or not, and its follow-up cards.
 
 ```sh
 bun run env:up                      # the dev Postgres and Prometheus
-GEMINI_API_KEY=… bun run evals      # every question and case, on gemini-3.5-flash-lite
+GEMINI_API_KEY=… bun run evals      # every question and case, on Gemini
+ANTHROPIC_API_KEY=… bun run evals --provider anthropic   # the same, on Anthropic
 GEMINI_API_KEY=… bun run evals --only a1,a2,a3,a4   # the answer cases only
 GEMINI_API_KEY=… bun run evals --only al1,al2,al3,al4   # the alert cases only
 GEMINI_API_KEY=… bun run evals --only r1,r2,r3,r4   # the report cases only
@@ -159,22 +160,28 @@ The dev data tells of an incident yesterday. `bun run env:up` seeds the data aga
 seeded on an earlier day, and the evals stop with that advice when the data's incident is not
 yesterday's.
 
-| Flag                          | What it does                                                                  |
-| ----------------------------- | ----------------------------------------------------------------------------- |
-| `--only q3,q7`                | Asks only these questions or cases, to work on one failure.                   |
-| `--model <id>`                | The model for every job. `gemini-3.5-flash-lite` by default.                  |
-| `--build-model <id>`          | Another model for building and repairs, such as `gemini-3.8-flash`.           |
-| `--no-cache`                  | Asks the provider again, and keeps its answers.                               |
-| `--allow-failures <n>`        | Exits with success when at most n questions fail. 0 by default.               |
-| `--rescore <report.json>`     | Scores a report again with the questions as they are now, with no model call. |
-| `--compare <a.json> <b.json>` | Each question's verdict and tokens from one report to the next.               |
+| Flag                          | What it does                                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| `--only q3,q7`                | Asks only these questions or cases, to work on one failure.                                     |
+| `--provider <name>`           | `google` (the default) or `anthropic`, with its key in `GEMINI_API_KEY` or `ANTHROPIC_API_KEY`. |
+| `--model <id>`                | The model for every job, instead of the provider's suggested pair.                              |
+| `--build-model <id>`          | Another model for building and repairs.                                                         |
+| `--no-cache`                  | Asks the provider again, and keeps its answers.                                                 |
+| `--allow-failures <n>`        | Exits with success when at most n questions fail. 0 by default.                                 |
+| `--rescore <report.json>`     | Scores a report again with the questions as they are now, with no model call.                   |
+| `--compare <a.json> <b.json>` | Each question's verdict and tokens from one report to the next.                                 |
+
+Without `--model`, a run uses the models quanthea suggests for the provider: on Google,
+`gemini-3.5-flash-lite` talks and `gemini-3.8-flash` builds; on Anthropic, `claude-haiku-4-5`
+talks and `claude-sonnet-5` builds.
 
 Reports go to `evals/reports/`, which git ignores: an HTML page to read, with each question's
 verdict and why, what the agent asked or said last, and each panel with its query (for an answer
 case, the answer's text and each read with what it returned; for an alert case, the condition,
 the replay and the tools; for a report case, the schedule, the period, the run's numbers and the
-follow-up cards); and the JSON
-that `--rescore` and `--compare` read. The command exits with an error when more questions fail
+follow-up cards); the JSON
+that `--rescore` and `--compare` read; and `evalmark.json`, the run in
+[evalmark](https://github.com/jboix/evalmark)'s result format. The command exits with an error when more questions fail
 than `--allow-failures` allows, none by default.
 
 ## Spend little
@@ -194,12 +201,22 @@ Live calls are spaced 4 seconds apart, to stay under the free tier's limit per m
 
 ## In GitHub Actions
 
-The Evals workflow runs by hand only: Actions, Evals, Run workflow, on `main`. Its job runs for
-the repository's owner alone, since it spends the quota of the `GEMINI_API_KEY` secret. It starts
-the dev data sources, asks the questions with the models given, and keeps the cache between
-runs. The summary table shows on the run's page; the HTML report and the JSON are the
-`evals-report` artifact. The job fails when more questions fail than its `allowed-failures`
-input allows.
+The Evals workflow runs by hand only: Actions, Evals, Run workflow, on `main`, picking the provider:
+`google`, `anthropic`, or `both`, one job each. Its jobs run for the repository's owner alone, in
+the `evals` environment, which holds `GEMINI_API_KEY` and `ANTHROPIC_API_KEY`; each job gets only
+its own provider's key. A job starts the dev data sources, asks the questions with the provider's
+suggested models, and keeps the cache between runs. The summary table shows on the run's page; the
+HTML report and the JSON are the `evals-report-<provider>` artifact. A job fails when more questions
+fail than its `allowed-failures` input allows.
+
+Each job then records its run with evalmark on the `evalmark` branch, failing questions included,
+labelled with the provider and its models. The branch keeps every run since, and its dashboard
+shows each question over time, provider by provider. To look at it from a clone:
+
+```sh
+git fetch origin evalmark
+npx evalmark preview   # the evalmark branch's dashboard, on http://127.0.0.1:4400
+```
 
 ## Add a question
 

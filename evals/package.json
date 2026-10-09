@@ -13,5 +13,8 @@
     "@quanthea/server": "workspace:*",
     "@quanthea/shared": "workspace:*",
     "ai": "^7.0.127"
+  },
+  "devDependencies": {
+    "evalmark": "^1.0.0"
   }
 }
