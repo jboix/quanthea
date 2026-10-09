@@ -225,7 +225,30 @@ describe('completeCharts', () => {
       ),
     ];
     expect(completeCharts(spec, charts, tests).problems.get('orders')).toEqual([
-      'The y role names "total", which the data has not.',
+      'The y role names "total", which the data has not. It has "time", "value".',
+    ]);
+  });
+
+  test('names the column a role meant when only its case differs', () => {
+    const request = edit({
+      title: 'x',
+      panels: [
+        {
+          title: 'Orders',
+          data: { kind: 'sql-series', connector: 'shop', table: 'orders', time: 'created_at' },
+          chart: { recipe: 'trend.line', roles: { y: 'value' } },
+        },
+      ],
+      summary: 'x',
+    });
+    const { spec, charts } = applyEdit(undefined, request);
+    const columns = [
+      { name: 'time', type: 'time' },
+      { name: 'Value', type: 'number' },
+    ];
+    const tests = [testOf('orders', columns, [[1], [2]])];
+    expect(completeCharts(spec, charts, tests).problems.get('orders')).toEqual([
+      'The y role names "value", which the data has not. Did you mean "Value"?',
     ]);
   });
 });

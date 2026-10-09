@@ -84,6 +84,24 @@ export function inferRoles(
 }
 
 /**
+ * Why a role's column is not in the data, with what it has, so a model can name the right one: the
+ * column of the same name in another case, or else every column.
+ *
+ * @param role - The role.
+ * @param column - The column it names.
+ * @param dataset - The data.
+ * @returns The sentence.
+ */
+function missingColumn(role: string, column: string, dataset: Dataset): string {
+  const names = dataset.dimensions.map((dimension) => dimension.name);
+  const near = names.find((name) => name.toLowerCase() === column.toLowerCase());
+  const hint = near
+    ? `Did you mean "${near}"?`
+    : `It has ${names.map((name) => `"${name}"`).join(', ')}.`;
+  return `The ${role} role names "${column}", which the data has not. ${hint}`;
+}
+
+/**
  * What is wrong with the columns of each role: missing required roles, unknown columns, and
  * columns of the wrong type.
  *
@@ -102,7 +120,7 @@ export function roleProblems(
     if (names.length === 0) return spec.required ? [`The ${name} role needs a column.`] : [];
     return names.flatMap((column) => {
       const found = dataset.dimensions.find((dimension) => dimension.name === column);
-      if (!found) return [`The ${name} role names "${column}", which the data has not.`];
+      if (!found) return [missingColumn(name, column, dataset)];
       if (!spec.types.includes(found.type))
         return [`The ${name} role needs ${spec.types.join(' or ')}; "${column}" is ${found.type}.`];
       return [];
