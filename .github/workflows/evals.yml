@@ -5,7 +5,8 @@ name: Evals
 # quanthea suggests for its provider. The summary shows on the run's page; the report, as an HTML
 # page and as JSON, is the job's artifact; and evalmark records the run on the `evalmark` branch,
 # where its dashboard keeps every run since. Then the Website workflow deploys the site again, which
-# copies that dashboard to /evals/. A job fails when more questions fail than allowed.
+# copies that dashboard to /evals/. Failing questions are what the report and the dashboard show,
+# not a failed job: a model's answers vary from run to run. A job fails only when the run breaks.
 #
 # Run by hand from main, by the repository's owner only. The jobs run in the `evals` environment,
 # which holds the providers' API keys and deploys from main only, and each job gets only its own
@@ -24,10 +25,6 @@ on:
         description: Only these questions, such as q3,q7 (empty for all)
         default: ''
         required: false
-      allowed-failures:
-        description: How many questions may fail before a job fails
-        default: '0'
-        required: true
 
 permissions: {}
 
@@ -80,9 +77,8 @@ jobs:
           ANTHROPIC_API_KEY: ${{ matrix.provider == 'anthropic' && secrets.ANTHROPIC_API_KEY || '' }}
           PROVIDER: ${{ matrix.provider }}
           ONLY: ${{ inputs.only }}
-          ALLOWED_FAILURES: ${{ inputs.allowed-failures }}
         run: |
-          set -- --provider "$PROVIDER" --allow-failures "$ALLOWED_FAILURES"
+          set -- --provider "$PROVIDER"
           if [ -n "$ONLY" ]; then set -- "$@" --only "$ONLY"; fi
           bun run evals "$@"
 

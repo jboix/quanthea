@@ -3479,12 +3479,12 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
   under a hash of the model and the request, with the clock fixed at 10:00 UTC for the day and the
   ids a run makes written as stable aliases, so reruns call the provider only for what changed;
   `--only`, `--rescore` (scoring with no model call) and `--compare` keep runs cheap. Reports go to `evals/reports/` as an HTML page
-  and as JSON (`evals/render.ts`); the command fails when more questions fail than
-  `--allow-failures` allows. `--provider` picks Google (the default) or Anthropic, each with the
+  and as JSON (`evals/render.ts`); failing questions are reported, not an error, unless
+  `--allow-failures` sets a limit. `--provider` picks Google (the default) or Anthropic, each with the
   models quanthea suggests for it (`evals/providers.ts`). The Evals workflow runs them by hand on
   `main`, for the repository's owner only, on the provider picked or both, one job each, in the
   `evals` environment that holds the providers' keys; each job gets only its own. The summary shows
-  on the run's page, the report is its artifact, and the job fails like the command. Each job also
+  on the run's page, the report is its artifact, and the job fails only when the run breaks. Each job also
   writes the run in evalmark's result format (`evals/evalmark.ts`) and records it with the
   evalmark action on the `evalmark` branch, whose dashboard keeps every run since. The Website
   workflow copies that dashboard to `/evals/` with the action's export mode, and the Evals workflow

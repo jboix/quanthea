@@ -167,13 +167,13 @@ yesterday's.
 | `--model <id>`                | The model for every job, instead of the provider's suggested pair.                              |
 | `--build-model <id>`          | Another model for building and repairs.                                                         |
 | `--no-cache`                  | Asks the provider again, and keeps its answers.                                                 |
-| `--allow-failures <n>`        | Exits with success when at most n questions fail. 0 by default.                                 |
+| `--allow-failures <n>`        | Exits with an error when more than n questions fail. Without it, never.                         |
 | `--rescore <report.json>`     | Scores a report again with the questions as they are now, with no model call.                   |
 | `--compare <a.json> <b.json>` | Each question's verdict and tokens from one report to the next.                                 |
 
-Without `--model`, a run uses the models quanthea suggests for the provider: on Google,
-`gemini-3.5-flash-lite` talks and `gemini-3.8-flash` builds; on Anthropic, `claude-haiku-4-5`
-talks and `claude-sonnet-5` builds.
+Without `--model`, a run uses the models quanthea suggests for the provider, split by job as its
+presets split them: on Google, `gemini-3.5-flash-lite` talks, writes titles and answers, and
+`gemini-3.8-flash` builds and repairs; on Anthropic, `claude-haiku-4-5` and `claude-sonnet-5`.
 
 Reports go to `evals/reports/`, which git ignores: an HTML page to read, with each question's
 verdict and why, what the agent asked or said last, and each panel with its query (for an answer
@@ -181,8 +181,9 @@ case, the answer's text and each read with what it returned; for an alert case, 
 the replay and the tools; for a report case, the schedule, the period, the run's numbers and the
 follow-up cards); the JSON
 that `--rescore` and `--compare` read; and `evalmark.json`, the run in
-[evalmark](https://github.com/jboix/evalmark)'s result format. The command exits with an error when more questions fail
-than `--allow-failures` allows, none by default.
+[evalmark](https://github.com/jboix/evalmark)'s result format. Failing questions are what the
+report shows, not an error: a model's answers vary from run to run. The command exits with an error
+when the run breaks, or when more questions fail than `--allow-failures` allows, if it is given.
 
 ## Spend little
 
@@ -206,8 +207,8 @@ The Evals workflow runs by hand only: Actions, Evals, Run workflow, on `main`, p
 the `evals` environment, which holds `GEMINI_API_KEY` and `ANTHROPIC_API_KEY`; each job gets only
 its own provider's key. A job starts the dev data sources, asks the questions with the provider's
 suggested models, and keeps the cache between runs. The summary table shows on the run's page; the
-HTML report and the JSON are the `evals-report-<provider>` artifact. A job fails when more questions
-fail than its `allowed-failures` input allows.
+HTML report and the JSON are the `evals-report-<provider>` artifact. A job fails only when the run
+breaks, never because questions fail.
 
 Each job then records its run with evalmark on the `evalmark` branch, failing questions included,
 labelled with the provider and its models. The branch keeps every run since, and its dashboard

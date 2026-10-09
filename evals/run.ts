@@ -49,7 +49,7 @@ the database, and asks about that run (r3, r4).
   bun run evals --model gemini-3.8-flash
   bun run evals --build-model gemini-3.8-flash   another model for building and repairs
   bun run evals --no-cache              ask the provider again, and keep its answers
-  bun run evals --allow-failures 2      exit with success when at most 2 questions fail
+  bun run evals --allow-failures 2      exit with an error when more than 2 questions fail
   bun run evals --rescore <report.json> score a report again, with no model call
   bun run evals --compare <a.json> <b.json>
 
@@ -57,7 +57,8 @@ It needs the data sources (bun run env:up) and the provider's key, GEMINI_API_KE
 ANTHROPIC_API_KEY, except for the responses the
 cache in evals/.cache already holds. Reports go to evals/reports, as JSON and as an HTML page;
 in GitHub Actions the summary also goes to the job's summary page. It exits with an error when
-more questions fail than --allow-failures allows, 0 by default.
+more questions fail than --allow-failures allows; without it, failing questions are reported,
+never an error.
 `;
 
 const here = import.meta.dir;
@@ -76,7 +77,7 @@ function readFlags() {
     model: text,
     'build-model': text,
     'no-cache': { type: 'boolean' },
-    'allow-failures': { type: 'string', default: '0' },
+    'allow-failures': text,
     rescore: text,
     compare: { type: 'boolean' },
     help: { type: 'boolean' },
@@ -102,13 +103,15 @@ function publish(report: Report): string {
 }
 
 /**
- * The exit code for a report: an error when more questions fail than allowed.
+ * The exit code for a report: an error when more questions fail than allowed. Without a limit,
+ * failing questions are what the report shows, never an error: a model's answers vary.
  *
  * @param report - The report.
- * @param allowed - How many questions may fail.
+ * @param allowed - How many questions may fail, or `undefined` for no limit.
  * @returns The exit code.
  */
-function exitCodeOf(report: Report, allowed: number): number {
+function exitCodeOf(report: Report, allowed: number | undefined): number {
+  if (allowed === undefined) return 0;
   const failed = report.results.filter((result) => !result.score.pass).length;
   if (failed <= allowed) return 0;
   process.stderr.write(
@@ -309,7 +312,8 @@ async function main(): Promise<number> {
   }
   const report = await evaluate(flags);
   process.stdout.write(`\nReport: ${publish(report)}\n`);
-  return exitCodeOf(report, Number(flags['allow-failures']));
+  const allowed = flags['allow-failures'];
+  return exitCodeOf(report, allowed === undefined ? undefined : Number(allowed));
 }
 
 try {

@@ -100,7 +100,8 @@ export const alertCases: readonly AlertCase[] = [
     id: 'al4',
     question: 'Alert me when this goes above 3%.',
     timeZone: zurich,
-    answer: scripted,
+    // The question names no duration, so the agent rightly asks for one.
+    answer: `${scripted} Fire when it stays above for 5 minutes.`,
     accessLevel: 3,
     panelId: 'error-rate-by-service',
     expect: { connector: prometheus, threshold: 0.03, matchesPanel: true },

@@ -135,6 +135,27 @@ describe('scoring an answer', () => {
     ]);
   });
 
+  test('lets a stat and a chart share a query: a headline and its trend', () => {
+    const query = JSON.stringify([
+      { refId: 'A', connector: 'prometheus-dev', language: 'promql', expr: 'p95' },
+    ]);
+    const panel = (id: string, kind: string) => ({
+      id,
+      title: id,
+      connectors: ['postgres-orders', 'prometheus-dev'],
+      text: `${id}\n${query}`,
+      kind,
+    });
+    const headline: Outcome = {
+      ...outcome,
+      panels: [panel('p95', 'stat'), panel('p95-over-time', 'chart'), panel('p95-again', 'stat')],
+    };
+    const reasons = score(headline, expectation).reasons;
+    expect(reasons.filter((reason) => reason.includes('same query'))).toEqual([
+      'p95-again runs the same query as p95',
+    ]);
+  });
+
   test('fails a run with no dashboard, or one that broke, before anything else', () => {
     expect(score({ ...outcome, built: false }, expectation).reasons).toEqual([
       'no dashboard was built',

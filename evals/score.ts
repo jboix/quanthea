@@ -15,6 +15,8 @@ export interface BuiltPanel {
   readonly connectors: readonly string[];
   /** Its title and queries, written out, for the topics. */
   readonly text: string;
+  /** Its view's kind, such as `stat` or `chart`; absent in reports written before it was kept. */
+  readonly kind?: string;
 }
 
 /** What happened when the agent answered a question. */
@@ -104,7 +106,8 @@ function fixedTimes(outcome: Outcome): string[] {
 }
 
 /**
- * Panels that run the same query as an earlier one.
+ * Panels that run the same query as an earlier one of the same kind. A stat and a chart of the
+ * same query are a headline and its trend, a common design, not a duplicate.
  *
  * @param outcome - What was built.
  * @returns The reasons.
@@ -115,7 +118,8 @@ function duplicates(outcome: Outcome): string[] {
   for (const panel of outcome.panels) {
     const queries = panelQueries(panel);
     if (queries.length === 0) continue;
-    const key = JSON.stringify(queries.map(({ refId: _refId, ...query }) => query));
+    const same = queries.map(({ refId: _refId, ...query }) => query);
+    const key = JSON.stringify([panel.kind ?? '', same]);
     const first = seen.get(key);
     if (first) reasons.push(`${panel.id} runs the same query as ${first}`);
     else seen.set(key, panel.id);

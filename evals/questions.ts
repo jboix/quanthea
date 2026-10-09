@@ -99,7 +99,7 @@ export const questions: readonly Question[] = [
   },
   {
     id: 'q5',
-    question: 'Which deploys happened yesterday, and did errors follow them?',
+    question: 'Which deploys happened yesterday, and did 5xx errors follow them?',
     timeZone: zurich,
     expect: {
       connectors: [postgres, prometheus],

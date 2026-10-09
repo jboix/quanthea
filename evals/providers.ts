@@ -109,7 +109,8 @@ export function keyVariableOf(provider: EvalProvider): string {
 }
 
 /**
- * The gateway: one provider with the run's models, the default limits and behaviour.
+ * The gateway: one provider with the run's models, the jobs split as quanthea's presets split them,
+ * and the default limits and behaviour.
  *
  * @param provider - The provider.
  * @param models - The model that talks, and the one that builds when it differs.
@@ -123,7 +124,14 @@ export function gatewayOf(
 ): ModelGateway {
   const { entry } = setups[provider];
   const build = models.build ?? models.model;
-  const jobs = { plan: models.model, build, repair: build, metadata: models.model, answer: build };
+  // As quanthea's presets: the cheaper model talks, titles and answers; the stronger one builds.
+  const jobs = {
+    plan: models.model,
+    build,
+    repair: build,
+    metadata: models.model,
+    answer: models.model,
+  };
   return {
     ...defaultModelGateway,
     providers: [{ ...entry, models: jobs }],

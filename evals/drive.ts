@@ -114,6 +114,7 @@ function panelsOf(spec: DashboardSpec | undefined): BuiltPanel[] {
     title: panel.title,
     connectors: [...new Set(panel.queries.map((query) => query.connector))],
     text: `${panel.title}\n${JSON.stringify(panel.queries)}`,
+    kind: panel.view.kind,
   }));
 }
 
