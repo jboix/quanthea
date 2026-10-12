@@ -99,6 +99,84 @@ describe('sqlReads', () => {
     ).toEqual(['a', 'b', 'c', 'd']);
   });
 
+  test('finds a TABLE that starts a query after a set operator or a WITH list', () => {
+    expect(tablesOf('SELECT 1 AS a UNION ALL TABLE salaries')).toEqual(['salaries']);
+    expect(tablesOf('SELECT 1 EXCEPT DISTINCT TABLE hr.salaries')).toEqual(['hr.salaries']);
+    expect(tablesOf('TABLE a INTERSECT TABLE b UNION TABLE c')).toEqual(['a', 'b', 'c']);
+    expect(tablesOf('WITH x AS (SELECT 1) TABLE salaries')).toEqual(['salaries']);
+    expect(tablesOf('WITH x AS (TABLE a), y (n) AS NOT MATERIALIZED (TABLE b) TABLE x')).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(tablesOf('SELECT (SELECT 1) table FROM orders')).toEqual(['orders']);
+  });
+
+  test('does not take a column named table for the keyword', () => {
+    expect(tablesOf('SELECT DISTINCT table FROM system.parts', 'clickhouse')).toEqual([
+      'system.parts',
+    ]);
+    expect(tablesOf('SELECT * EXCEPT table FROM system.parts', 'clickhouse')).toEqual([
+      'system.parts',
+    ]);
+    expect(tablesOf('SELECT t.table, count() FROM system.parts t', 'clickhouse')).toEqual([
+      'system.parts',
+    ]);
+  });
+
+  test('keeps reading tables after an alias that spells a clause', () => {
+    for (const alias of ['format', 'settings', 'qualify', 'prewhere', 'offset', 'window']) {
+      expect(tablesOf(`SELECT * FROM orders ${alias}, salaries s`)).toEqual(['orders', 'salaries']);
+      expect(tablesOf(`SELECT * FROM orders AS ${alias}, salaries`)).toEqual([
+        'orders',
+        'salaries',
+      ]);
+    }
+    expect(tablesOf('SELECT * FROM orders format (a, b), salaries')).toEqual([
+      'orders',
+      'salaries',
+    ]);
+    expect(tablesOf('SELECT * FROM orders limit, salaries', 'trino')).toEqual([
+      'orders',
+      'salaries',
+    ]);
+  });
+
+  test('ends the FROM clause where a clause with commas starts', () => {
+    const tails = [
+      'WHERE a IN (1, 2) GROUP BY a, b',
+      'ORDER BY a, b',
+      'PREWHERE x = 1 WHERE y = 2 ORDER BY a, b',
+      'QUALIFY row_number() OVER (PARTITION BY a ORDER BY b) = 1 ORDER BY a, b',
+      'WINDOW w AS (PARTITION BY a), v AS (ORDER BY b)',
+      'LIMIT 1 BY a, b',
+      'LIMIT 5 OFFSET 2',
+      'FORMAT JSON SETTINGS max_threads = 1, max_rows_to_read = 5',
+      'HAVING count(*) > 1 UNION SELECT a, b FROM orders',
+    ];
+    for (const tail of tails) {
+      const tables = tablesOf(`SELECT a, b FROM orders ${tail}`, 'clickhouse');
+      expect(new Set(tables)).toEqual(new Set(['orders']));
+    }
+    expect(tablesOf('SELECT * FROM orders LIMIT 1, 2', 'mysql')).toEqual(['orders']);
+  });
+
+  test('reads a name that starts with a digit or a dollar in MySQL and MariaDB', () => {
+    expect(tablesOf('SELECT * FROM 2fa_secrets', 'mysql')).toEqual(['2fa_secrets']);
+    expect(tablesOf('SELECT * FROM shop.2fa_secrets s, 3d', 'mysql')).toEqual([
+      'shop.2fa_secrets',
+      '3d',
+    ]);
+    expect(tablesOf('SELECT * FROM $secrets', 'mysql')).toEqual(['$secrets']);
+    expect(tablesOf('SELECT 1e5FROM salaries', 'mysql')).toEqual(['salaries']);
+    expect(tablesOf('SELECT 1.5 + 2e3 FROM orders WHERE x = 1e5', 'mysql')).toEqual(['orders']);
+  });
+
+  test('reads a keyword that follows a number without a space', () => {
+    expect(tablesOf('SELECT 1FROM salaries')).toEqual(['salaries']);
+    expect(tablesOf('SELECT 1.5e3FROM salaries, more')).toEqual(['salaries', 'more']);
+    expect(tablesOf('SELECT .5FROM salaries WHERE x = $1')).toEqual(['salaries']);
+  });
+
   test('keeps a function where a table goes apart from tables', () => {
     const reads = sqlReads(
       sqlTokens(
@@ -154,6 +232,25 @@ describe('checkSqlScope', () => {
     expect(refusal('SELECT * FROM audit.logins', hidden)).toBeDefined();
     expect(refusal('SELECT * FROM orders', hidden)).toBeUndefined();
     expect(refusal('WITH salaries AS (SELECT 1) SELECT * FROM salaries', hidden)).toBeUndefined();
+  });
+
+  test('a list holds for TABLE, an alias that spells a clause, and a digit-leading name', () => {
+    const hidden = { names: ['salaries', '2fa_secrets'] };
+    const only: Partial<ObjectVisibility> = { mode: 'only', names: ['orders'] };
+    const statements = [
+      'SELECT 1 AS a UNION ALL TABLE salaries',
+      'WITH x AS (SELECT 1) TABLE salaries',
+      'SELECT * FROM orders format, salaries',
+      'SELECT * FROM orders AS settings, salaries s',
+    ];
+    for (const statement of statements) {
+      expect(refusal(statement, hidden)).toContain('"salaries"');
+      expect(refusal(statement, only)).toContain('"salaries"');
+    }
+    expect(refusal('SELECT * FROM 2fa_secrets', hidden, 'mysql')).toContain('"2fa_secrets"');
+    expect(refusal('SELECT * FROM 2fa_secrets', only, 'mysql')).toContain('"2fa_secrets"');
+    expect(refusal('SELECT 1 UNION ALL TABLE pg_catalog.pg_shadow')).toContain('pg_shadow');
+    expect(refusal('SELECT * FROM orders format, pg_catalog.pg_shadow')).toContain('pg_shadow');
   });
 
   test('an only list shows a table written as the schema lists it', () => {

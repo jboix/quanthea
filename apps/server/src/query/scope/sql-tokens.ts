@@ -17,8 +17,18 @@ export interface SqlToken {
   readonly text: string;
 }
 
-/** A bare identifier, a number, or one mark. */
-const codeToken = /([\p{L}_][\p{L}\p{N}_$]*)|(\d[\p{L}\p{N}_.]*)|\S/gu;
+/**
+ * A bare identifier, a number, or one mark. A number ends where its digits do, so the keyword in
+ * `1FROM t`, which older servers read as `1 FROM t`, is still a keyword.
+ */
+const codeToken = /([\p{L}_][\p{L}\p{N}_$]*)|(\d+(?:\.\d*)?(?:e[+-]?\d+)?)|\S/giu;
+
+/**
+ * The same for MySQL and MariaDB, where an identifier may start with `$` or with digits that a
+ * letter follows (`2fa_secrets`), unless they read as a number with an exponent (`1e5`).
+ */
+const mysqlCodeToken =
+  /((?:[\p{L}_$]|\d+(?!e[+-]?\d)[\p{L}_$])[\p{L}\p{N}_$]*)|(\d+(?:\.\d*)?(?:e[+-]?\d+)?)|\S/giu;
 
 /** How a comment starts, in any dialect. */
 const commentStart = /^(?:--|\/\*|#)/;
@@ -27,10 +37,11 @@ const commentStart = /^(?:--|\/\*|#)/;
  * The tokens of a run of code.
  *
  * @param code - The code.
+ * @param pattern - The dialect's pattern for one token.
  * @returns Its words, numbers and marks.
  */
-function codeTokens(code: string): SqlToken[] {
-  return [...code.matchAll(codeToken)].map((match): SqlToken => {
+function codeTokens(code: string, pattern: RegExp): SqlToken[] {
+  return [...code.matchAll(pattern)].map((match): SqlToken => {
     if (match[1] !== undefined) return { kind: 'word', text: match[1].toLowerCase() };
     return { kind: match[2] === undefined ? 'mark' : 'value', text: match[0] };
   });
@@ -51,23 +62,16 @@ function literalTokens(literal: string): SqlToken[] {
 }
 
 /**
- * The tokens of a segment.
- *
- * @param segment - A run of code or a literal.
- * @returns Its tokens.
- */
-function segmentTokens(segment: SqlSegment): SqlToken[] {
-  return segment.kind === 'code' ? codeTokens(segment.text) : literalTokens(segment.text);
-}
-
-/**
  * The tokens of a statement.
  *
  * @param text - The SQL.
- * @param flavor - The dialect, which says where literals start and end.
+ * @param flavor - The dialect, which says where literals start and end and how a name is written.
  * @returns The tokens, in order.
  * @throws {QueryError} `invalid` when a string, identifier or comment is not closed.
  */
 export function sqlTokens(text: string, flavor: SqlFlavor): SqlToken[] {
-  return splitSql(text, rulesOf(flavor).lexicon).flatMap(segmentTokens);
+  const pattern = flavor === 'mysql' ? mysqlCodeToken : codeToken;
+  return splitSql(text, rulesOf(flavor).lexicon).flatMap((segment: SqlSegment) =>
+    segment.kind === 'code' ? codeTokens(segment.text, pattern) : literalTokens(segment.text),
+  );
 }

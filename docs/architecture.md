@@ -2440,9 +2440,14 @@ the bound query, so a variable's value is already in it.
   is every connector by default. A kind without `resolveObjects` gets names checked and patterns
   refused. An index created between the resolution and the search, a few milliseconds later, is
   not excluded.
-- **SQL** (`scope/sql-tokens.ts`, `sql-tables.ts`, `sql-scope.ts`). The statement is read as
-  tokens over the dialect's own lexer, so a name in a string or a comment is not a table and a
-  quoted identifier is. An `except` name hides a table however its schema is written: `salaries`
+- **SQL** (`scope/sql-tokens.ts`, `sql-scan.ts`, `sql-tables.ts`, `sql-scope.ts`). The statement
+  is read as tokens over the dialect's own lexer, so a name in a string or a comment is not a table
+  and a quoted identifier is. A MySQL or MariaDB name may start with a digit or `$`
+  (`2fa_secrets`); elsewhere a number ends where its digits do, so `1FROM t` still has its `FROM`.
+  `TABLE name` is read wherever it starts a query: first, in parentheses, after `UNION`,
+  `INTERSECT` or `EXCEPT`, and after a `WITH` list. A comma separates tables until a clause that
+  holds commas starts (`GROUP BY`, `ORDER BY`, `LIMIT`, `WINDOW name AS`, `SETTINGS name =`), so an
+  alias that spells a clause (`FROM orders format, salaries`, `AS settings`) ends nothing. An `except` name hides a table however its schema is written: `salaries`
   hides `public.salaries` and `hr.salaries`. An `only` name shows a table written as the schema
   lists it, and in PostgreSQL also with `public.` in front. A name a `WITH` clause defines is not
   a table inside that clause's scope. A function where a table goes is not a table; it is refused

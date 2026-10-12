@@ -4,60 +4,42 @@
  * function or a search path can reach a table the statement never names.
  */
 import { QueryError } from '../query-error.ts';
+import {
+  afterParentheses,
+  current,
+  dottedName,
+  isMark,
+  isName,
+  isWord,
+  newLevel,
+  type Scan,
+  type SqlReads,
+} from './sql-scan.ts';
 import type { SqlToken } from './sql-tokens.ts';
 
-/** What a statement reads, as far as its text says. */
-export interface SqlReads {
-  /** The tables named, each as its parts: `schema`, `table`. */
-  readonly tables: string[][];
-  /** The functions called where a table goes, each as its parts. */
-  readonly tableFunctions: string[][];
-  /** Every function called, in lower case. */
-  readonly calls: Set<string>;
-}
+/** Keywords that always end a FROM clause: no dialect takes one for an alias. */
+const clauseEnds: ReadonlySet<string> = new Set(['where', 'having', 'union']);
 
-/** One level of parentheses. */
-interface Level {
-  /** Whether a SELECT was seen at this level, so a FROM opens a clause here. */
-  select: boolean;
-  /** Whether a comma at this level separates tables. */
-  from: boolean;
-  /** Whether a WITH list is open at this level. */
-  withList: boolean;
-  /** The names the WITH clauses of this level define, in lower case. */
-  readonly defined: Set<string>;
-}
+/**
+ * Keywords that end a FROM clause only when their own clause follows, since some dialect takes each
+ * for an alias: `FROM orders settings, salaries`. Each says whether the tokens after it are its
+ * clause's. The other clauses hold no comma outside parentheses, so they need no end.
+ */
+const clauseOpeners: Readonly<
+  Record<string, (next: SqlToken | undefined, second: SqlToken | undefined) => boolean>
+> = {
+  group: (next) => isWord(next, 'by'),
+  order: (next) => isWord(next, 'by'),
+  limit: (next) => !(isMark(next, ',') || isMark(next, '(')),
+  window: (next, second) => isName(next) && isWord(second, 'as'),
+  settings: (next, second) => isName(next) && isMark(second, '='),
+};
 
-/** The scan of one statement. */
-interface Scan {
-  /** The tokens. */
-  readonly tokens: readonly SqlToken[];
-  /** The open levels, outermost first. */
-  readonly levels: Level[];
-  /** Whether the next token starts a table. */
-  expectTable: boolean;
-  /** What was found. */
-  readonly reads: SqlReads;
-}
+/** Keywords that can name no table, so one where a table goes is read as the keyword. */
+const neverTables: ReadonlySet<string> = new Set(['select', 'from']);
 
-/** Keywords that end a FROM clause. */
-const clauseEnds: ReadonlySet<string> = new Set([
-  'where',
-  'group',
-  'having',
-  'order',
-  'limit',
-  'offset',
-  'fetch',
-  'union',
-  'intersect',
-  'except',
-  'window',
-  'qualify',
-  'prewhere',
-  'settings',
-  'format',
-]);
+/** The operators that join two queries. */
+const setOperators: ReadonlySet<string> = new Set(['union', 'intersect', 'except']);
 
 /** Words that may stand between FROM or JOIN and the table. */
 const tablePrefixes: ReadonlySet<string> = new Set(['lateral', 'only']);
@@ -67,78 +49,6 @@ const queryStarts: ReadonlySet<string> = new Set(['select', 'with', 'values', 't
 
 /** Names that read no table. */
 const noTable: ReadonlySet<string> = new Set(['dual']);
-
-/**
- * A new level.
- *
- * @returns The level, with nothing seen.
- */
-function newLevel(): Level {
-  return { select: false, from: false, withList: false, defined: new Set() };
-}
-
-/**
- * The innermost open level.
- *
- * @param scan - The scan.
- * @returns The level.
- */
-function current(scan: Scan): Level {
-  const level = scan.levels.at(-1);
-  if (level) return level;
-  const root = newLevel();
-  scan.levels.push(root);
-  return root;
-}
-
-/**
- * Whether a token is the given mark.
- *
- * @param token - The token.
- * @param text - The mark.
- * @returns `true` when it is.
- */
-function isMark(token: SqlToken | undefined, text: string): boolean {
-  return token?.kind === 'mark' && token.text === text;
-}
-
-/**
- * Whether a token is the given keyword.
- *
- * @param token - The token.
- * @param text - The keyword, in lower case.
- * @returns `true` when it is.
- */
-function isWord(token: SqlToken | undefined, text: string): boolean {
-  return token?.kind === 'word' && token.text === text;
-}
-
-/**
- * Whether a token can name something.
- *
- * @param token - The token.
- * @returns `true` for a bare or quoted identifier.
- */
-function isName(token: SqlToken | undefined): token is SqlToken {
-  return token?.kind === 'word' || token?.kind === 'name';
-}
-
-/**
- * Reads a dotted name.
- *
- * @param tokens - The tokens.
- * @param start - The index of its first part.
- * @returns The parts and the index after them.
- */
-function dottedName(tokens: readonly SqlToken[], start: number): { parts: string[]; end: number } {
-  const parts = [tokens[start]?.text ?? ''];
-  let end = start + 1;
-  while (isMark(tokens[end], '.') && isName(tokens[end + 1])) {
-    parts.push(tokens[end + 1]?.text ?? '');
-    end += 2;
-  }
-  return { parts, end };
-}
 
 /**
  * Whether a name is one a WITH clause in scope defines.
@@ -187,7 +97,7 @@ function noteTableFunction(scan: Scan, parts: string[]): void {
 function readTable(scan: Scan, index: number): number {
   const token = scan.tokens[index];
   scan.expectTable = false;
-  if (!isName(token)) return index - 1;
+  if (!isName(token) || (token.kind === 'word' && neverTables.has(token.text))) return index - 1;
   if (token.kind === 'word' && tablePrefixes.has(token.text)) {
     scan.expectTable = true;
     return index;
@@ -198,23 +108,6 @@ function readTable(scan: Scan, index: number): number {
   else if (!definedHere(scan, parts) && !noTable.has(parts.join('.').toLowerCase()))
     scan.reads.tables.push(parts);
   return end - 1;
-}
-
-/**
- * The index after a parenthesised list that opens at an index.
- *
- * @param tokens - The tokens.
- * @param open - The index of the opening parenthesis.
- * @returns The index after its closing parenthesis.
- */
-function afterParentheses(tokens: readonly SqlToken[], open: number): number {
-  let depth = 0;
-  for (let index = open; index < tokens.length; index += 1) {
-    if (isMark(tokens[index], '(')) depth += 1;
-    if (isMark(tokens[index], ')')) depth -= 1;
-    if (depth === 0) return index + 1;
-  }
-  return tokens.length;
 }
 
 /**
@@ -268,6 +161,40 @@ function opensFromClause(scan: Scan, index: number): boolean {
   return isMark(before, '(') && !isWord(scan.tokens[index - 2], 'trim');
 }
 
+/**
+ * Whether a TABLE at an index starts a query, as `TABLE name` does: first in the statement or in
+ * parentheses, after a set operator, or after the last query of a WITH list.
+ *
+ * @param scan - The scan.
+ * @param index - The index of the TABLE.
+ * @returns `true` when a table follows.
+ */
+function startsQuery(scan: Scan, index: number): boolean {
+  const before = scan.tokens[index - 1];
+  if (before === undefined || isMark(before, '(')) return true;
+  if (isMark(before, ')')) return current(scan).withList;
+  if (before.kind !== 'word') return false;
+  const quantified = before.text === 'all' || before.text === 'distinct';
+  const operator = quantified ? scan.tokens[index - 2] : before;
+  return operator?.kind === 'word' && setOperators.has(operator.text);
+}
+
+/**
+ * Whether a keyword at an index ends the FROM clause of its level. A word after AS is an alias,
+ * and a word some dialect takes for an alias ends the clause only when its own clause follows.
+ *
+ * @param scan - The scan.
+ * @param index - The index of the keyword.
+ * @returns `true` when a comma after it separates no tables.
+ */
+function endsFromClause(scan: Scan, index: number): boolean {
+  const { tokens } = scan;
+  const text = tokens[index]?.text ?? '';
+  if (isWord(tokens[index - 1], 'as')) return false;
+  if (clauseEnds.has(text)) return true;
+  return clauseOpeners[text]?.(tokens[index + 1], tokens[index + 2]) ?? false;
+}
+
 /** What each keyword does to the scan. */
 const keywordActions: Readonly<Record<string, (scan: Scan, index: number) => void>> = {
   select: (scan) => {
@@ -292,8 +219,7 @@ const keywordActions: Readonly<Record<string, (scan: Scan, index: number) => voi
     scan.expectTable = true;
   },
   table: (scan, index) => {
-    const before = scan.tokens[index - 1];
-    if (before === undefined || isMark(before, '(')) scan.expectTable = true;
+    if (startsQuery(scan, index)) scan.expectTable = true;
   },
 };
 
@@ -307,7 +233,7 @@ function applyToken(scan: Scan, index: number): void {
   const token = scan.tokens[index];
   // After a dot a word is a column or a table, whatever it spells.
   if (token?.kind === 'word' && !isMark(scan.tokens[index - 1], '.')) {
-    if (clauseEnds.has(token.text)) current(scan).from = false;
+    if (endsFromClause(scan, index)) current(scan).from = false;
     keywordActions[token.text]?.(scan, index);
     return;
   }
