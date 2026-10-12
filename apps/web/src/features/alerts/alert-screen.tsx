@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { Link, useLoaderData } from 'react-router';
 import { WarningIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import { quietSummary } from '../alert-draft/index.ts';
 import styles from './alert.module.css';
 import { HeaderActions } from './alert-actions.tsx';
@@ -75,13 +76,19 @@ function AlertHeader({ alert, now }: { readonly alert: AlertDetail; readonly now
   const state = statePill(alert, now);
   const where = alert.deactivated ? 'deactivated' : 'active';
   return (
-    <header className={styles.header}>
-      <div className={styles.headerText}>
-        <nav aria-label="Breadcrumb" className={styles.crumbs}>
+    <TitleHeader
+      className={styles.header}
+      level={1}
+      size="screen"
+      align="end"
+      title={alert.title}
+      eyebrow={
+        <nav aria-label="Breadcrumb">
           <Link to="/alerts">Alerts</Link> / {alert.activeVersion === null ? 'draft' : where}
         </nav>
-        <div className={styles.titleRow}>
-          <h1 className={styles.title}>{alert.title}</h1>
+      }
+      badges={
+        <>
           <Pill tone={pillTone[state.tone]}>
             <span className={styles.pillDot} data-tone={state.tone} />
             {state.text}
@@ -89,10 +96,10 @@ function AlertHeader({ alert, now }: { readonly alert: AlertDetail; readonly now
           {alert.muted && <Pill>Muted {muteEnd(alert.muted.until, now)}</Pill>}
           <QuietPill alert={alert} now={now} />
           <VersionPill alert={alert} />
-        </div>
-      </div>
-      <HeaderActions alert={alert} />
-    </header>
+        </>
+      }
+      actions={<HeaderActions alert={alert} />}
+    />
   );
 }
 

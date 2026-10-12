@@ -5,34 +5,13 @@
 }
 
 .header {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   padding: 14px 28px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-muted);
 }
 
-.crumbs {
-  font-size: 13px;
-  color: var(--color-ink-secondary);
-}
-
 .crumbs a {
   color: inherit;
-}
-
-.titleRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-}
-
-.title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 600;
 }
 
 .main {

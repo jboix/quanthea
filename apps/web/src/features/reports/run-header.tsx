@@ -9,6 +9,7 @@ import { Button } from '../../ui/button.tsx';
 import { MoreIcon, QuestionIcon } from '../../ui/icons.tsx';
 import { MenuItem } from '../../ui/menu-item.tsx';
 import { Popover } from '../../ui/popover.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import { useMediaQuery } from '../../ui/use-media-query.ts';
 import styles from './run.module.css';
 import { ChangeItems, CopyLinkItem, MenuButtons, VersionItems } from './run-menus.tsx';
@@ -135,21 +136,25 @@ export function RunHeader(props: RunHeaderProps) {
   const { report, run } = props;
   const zone = report.schedule.timezone;
   return (
-    <header className={styles.header}>
-      <div className={styles.headerText}>
-        <nav aria-label="Breadcrumb" className={styles.crumbs}>
+    <TitleHeader
+      className={styles.header}
+      level={1}
+      size="screen"
+      align="end"
+      title={run ? runTitle(run.period.label) : report.title}
+      eyebrow={
+        <nav aria-label="Breadcrumb">
           <Link to="/reports">Reports</Link> / {report.title}
         </nav>
-        <div className={styles.titleRow}>
-          {run && <Step reportId={report.id} to={run.previous} arrow="‹" which="Previous" />}
-          <h1 className={styles.title}>{run ? runTitle(run.period.label) : report.title}</h1>
-          {run && <Step reportId={report.id} to={run.next} arrow="›" which="Next" />}
-        </div>
+      }
+      before={run && <Step reportId={report.id} to={run.previous} arrow="‹" which="Previous" />}
+      after={run && <Step reportId={report.id} to={run.next} arrow="›" which="Next" />}
+      below={
         <p className={styles.ran} data-tone={run?.status === 'failed' ? 'danger' : undefined}>
           {run ? ranLine(run, zone) : 'No run yet. Opening a run runs no query.'}
         </p>
-      </div>
-      <HeaderActions {...props} />
-    </header>
+      }
+      actions={<HeaderActions {...props} />}
+    />
   );
 }

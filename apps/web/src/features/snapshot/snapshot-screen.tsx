@@ -3,6 +3,7 @@ import { Link, useLoaderData } from 'react-router';
 import { Banner } from '../../ui/banner.tsx';
 import { CameraIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import { dateTimeWords, FrozenCanvas, untilWords } from '../dashboard/index.ts';
 import styles from './snapshot.module.css';
 
@@ -37,18 +38,23 @@ export function SnapshotScreen() {
   const snapshot = useLoaderData() as Snapshot;
   return (
     <div className={styles.screen}>
-      <header className={styles.header}>
-        <nav aria-label="Breadcrumb" className={styles.crumbs}>
-          <Link to={`/d/${snapshot.dashboardId}`}>Dashboard</Link> / snapshot
-        </nav>
-        <div className={styles.titleRow}>
-          <h1 className={styles.title}>{snapshot.spec.title}</h1>
+      <TitleHeader
+        className={styles.header}
+        level={1}
+        size="screen"
+        title={snapshot.spec.title}
+        eyebrow={
+          <nav aria-label="Breadcrumb" className={styles.crumbs}>
+            <Link to={`/d/${snapshot.dashboardId}`}>Dashboard</Link> / snapshot
+          </nav>
+        }
+        badges={
           <Pill mono tone="neutral">
             <CameraIcon />
             {`snapshot · v${snapshot.version}`}
           </Pill>
-        </div>
-      </header>
+        }
+      />
       <SnapshotNote snapshot={snapshot} />
       <div className={styles.main}>
         <FrozenCanvas

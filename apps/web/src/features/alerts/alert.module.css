@@ -5,40 +5,9 @@
 }
 
 .header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px 24px;
   padding: 14px 28px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-muted);
-}
-
-.headerText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.crumbs {
-  font-size: 13px;
-  color: var(--color-ink-secondary);
-}
-
-.titleRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-}
-
-.title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
 }
 
 .pillDot,
@@ -356,8 +325,6 @@
 
 @media (max-width: 720px) {
   .header {
-    flex-wrap: nowrap;
-    align-items: flex-start;
     padding: 14px 16px;
   }
 
