@@ -11,9 +11,10 @@ import type {
   MongodbQuery,
   RedisQuery,
 } from '../../connectors/_shared/index.ts';
+import { foreignReads } from '../mongodb-reads.ts';
 import { QueryError } from '../query-error.ts';
 import type { SqlFlavor } from '../sql-dialects.ts';
-import { notShown, type ObjectScope, requireShown, restricts } from './object-scope.ts';
+import { namingOf, notShown, type ObjectScope, requireShown, restricts } from './object-scope.ts';
 import { promqlReads } from './promql-metrics.ts';
 import { checkSqlScope } from './sql-scope.ts';
 
@@ -26,42 +27,6 @@ const keylessCommands: ReadonlySet<string> = new Set(['INFO', 'DBSIZE']);
 /** The Redis commands whose every argument is a key. */
 const manyKeyCommands: ReadonlySet<string> = new Set(['MGET', 'EXISTS']);
 
-/** The stages that read another collection, with the key of their object that names it. */
-const foreignKeys: ReadonlyMap<string, string> = new Map([
-  ['$lookup', 'from'],
-  ['$graphLookup', 'from'],
-  ['$unionWith', 'coll'],
-]);
-
-/**
- * The collection a stage reads besides the pipeline's own, if it names one.
- *
- * @param key - A key of the pipeline, such as `$lookup`.
- * @param value - Its value.
- * @returns The collection's name, or `undefined`.
- */
-function foreignCollection(key: string, value: unknown): string | undefined {
-  if (key === '$unionWith' && typeof value === 'string') return value;
-  const field = foreignKeys.get(key);
-  if (field === undefined || value === null || typeof value !== 'object') return undefined;
-  const name = (value as Readonly<Record<string, unknown>>)[field];
-  return typeof name === 'string' ? name : undefined;
-}
-
-/**
- * Every collection a part of a pipeline reads, in nested pipelines too.
- *
- * @param node - The pipeline or a part of it.
- * @returns The collections' names.
- */
-function foreignCollections(node: unknown): string[] {
-  if (node === null || typeof node !== 'object') return [];
-  return Object.entries(node).flatMap(([key, value]) => {
-    const name = foreignCollection(key, value);
-    return [...(name === undefined ? [] : [name]), ...foreignCollections(value)];
-  });
-}
-
 /**
  * The collections a MongoDB aggregation reads.
  *
@@ -69,7 +34,10 @@ function foreignCollections(node: unknown): string[] {
  * @returns The pipeline's collection and the ones its stages join or append.
  */
 function mongodbObjects(query: MongodbQuery): string[] {
-  return [query.collection, ...foreignCollections(query.pipeline)];
+  const foreign = foreignReads(query.pipeline).flatMap(({ collection }) =>
+    typeof collection === 'string' ? [collection] : [],
+  );
+  return [query.collection, ...foreign];
 }
 
 /**

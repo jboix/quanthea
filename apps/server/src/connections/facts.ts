@@ -13,7 +13,7 @@ import { sqlFlavorOf } from '../query/sql-dialects.ts';
 import { notInstalled } from './kinds.ts';
 
 /** What dashboard validation needs of a connector, or why its kind cannot run. */
-export type ConnectorFacts =
+export type StoredConnectorFacts =
   | (Pick<QuerySource, 'language' | 'dialect' | 'scope'> & { guardrails: Guardrails })
   | { readonly notInstalled: string };
 
@@ -22,7 +22,7 @@ export interface ProposedVisibility {
   /** The connector's name, as dashboards write it. */
   readonly connector: string;
   /** What dashboard validation would know of it. */
-  readonly proposed: ConnectorFacts;
+  readonly proposed: StoredConnectorFacts;
   /** The objects of its cached schema that it shows now and would hide. */
   readonly hides: readonly string[];
 }
@@ -53,7 +53,7 @@ export function scopeFor(kinds: readonly RegisteredKind[], row: ConnectorRow): O
  * @param row - The stored connector.
  * @returns The language, the guardrails and the scope, or why its kind cannot run.
  */
-export function factsOf(kinds: readonly RegisteredKind[], row: ConnectorRow): ConnectorFacts {
+export function factsOf(kinds: readonly RegisteredKind[], row: ConnectorRow): StoredConnectorFacts {
   const kind = kinds.find((candidate) => candidate.kind === row.kind);
   if (!kind) return { notInstalled: notInstalled(row.kind) };
   return {

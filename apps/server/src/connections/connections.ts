@@ -29,10 +29,10 @@ import type { QuerySource } from '../query/executor.ts';
 import { sqlFlavorOf } from '../query/sql-dialects.ts';
 import type { SecretBox } from '../secrets/secret-box.ts';
 import {
-  type ConnectorFacts,
   factsOf,
   type ProposedVisibility,
   proposedVisibility,
+  type StoredConnectorFacts,
   scopeFor,
   snapshotSchema,
 } from './facts.ts';
@@ -154,7 +154,7 @@ export interface Connections {
    * @returns Its query language, SQL dialect, guardrails and the objects it shows, or `undefined`
    *   when no usable connector has the name.
    */
-  lookup(name: string): ConnectorFacts | undefined;
+  lookup(name: string): StoredConnectorFacts | undefined;
   /**
    * Says what a connector would show with another visibility, without saving it.
    *
@@ -497,7 +497,7 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
  * @param name - The connector name.
  * @returns The language, the guardrails and the scope, or `undefined` for an unknown name.
  */
-function lookupConnector(context: ServiceContext, name: string): ConnectorFacts | undefined {
+function lookupConnector(context: ServiceContext, name: string): StoredConnectorFacts | undefined {
   const row = context.repository.getByName(name);
   return row ? factsOf(context.kinds, row) : undefined;
 }

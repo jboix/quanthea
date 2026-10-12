@@ -13,6 +13,7 @@ import {
   type TimeRange,
 } from '../connectors/_shared/index.ts';
 import { bindJsonVariables } from './json-variables.ts';
+import { foreignReads } from './mongodb-reads.ts';
 import { QueryError } from './query-error.ts';
 import { bucketSeconds } from './search-binder.ts';
 import type { Variables } from './variables.ts';
@@ -30,13 +31,6 @@ const collectionName = /^(?!system\.)[A-Za-z0-9_][A-Za-z0-9_.-]{0,119}$/;
 
 /** A collection name of a connector that shows its database's `system.` collections. */
 const anyCollectionName = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,119}$/;
-
-/** The stages that read another collection, with the key of their object that names it. */
-const foreignKeys: ReadonlyMap<string, string> = new Map([
-  ['$lookup', 'from'],
-  ['$graphLookup', 'from'],
-  ['$unionWith', 'coll'],
-]);
 
 /**
  * The error for a collection a query may not read.
@@ -62,39 +56,17 @@ function checkCollection(name: unknown, shape: RegExp): void {
 }
 
 /**
- * Checks the collection a stage reads besides the pipeline's own: `$lookup.from`,
- * `$graphLookup.from` and `$unionWith`, as a name or as `coll`. A stage that names none, such as
- * a `$lookup` or `$unionWith` on `$documents`, reads no collection.
- *
- * @param key - The key, such as `$lookup`.
- * @param value - Its value.
- * @param shape - What a collection name may be.
- * @throws {QueryError} `invalid` for a system collection, a malformed name or another database.
- */
-function checkForeign(key: string, value: unknown, shape: RegExp): void {
-  if (key === '$unionWith' && typeof value === 'string') {
-    checkCollection(value, shape);
-    return;
-  }
-  const field = foreignKeys.get(key);
-  if (field === undefined || value === null || typeof value !== 'object') return;
-  if ('db' in value) throw collectionError();
-  if (!(field in value)) return;
-  checkCollection((value as Readonly<Record<string, unknown>>)[field], shape);
-}
-
-/**
- * Checks every collection a bound pipeline reads, in nested pipelines too.
+ * Checks every collection a bound pipeline reads besides its own, in nested pipelines too. A
+ * stage that names none, such as a `$lookup` or `$unionWith` on `$documents`, reads no collection.
  *
  * @param node - The pipeline or a part of it.
  * @param shape - What a collection name may be.
  * @throws {QueryError} `invalid` for a system collection, a malformed name or another database.
  */
 function checkCollections(node: unknown, shape: RegExp): void {
-  if (node === null || typeof node !== 'object') return;
-  for (const [key, value] of Object.entries(node)) {
-    checkForeign(key, value, shape);
-    checkCollections(value, shape);
+  for (const read of foreignReads(node)) {
+    if (read.otherDatabase) throw collectionError();
+    if (read.named) checkCollection(read.collection, shape);
   }
 }
 
