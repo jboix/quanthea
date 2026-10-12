@@ -34,6 +34,7 @@ import type {
 } from './answer-types.ts';
 import { type ResponseWatch, watchedModel } from './answer-watch.ts';
 import { withCachedTail } from './cache.ts';
+import { withoutReasoning } from './compact.ts';
 import { languageModel, ModelUnavailableError, modelIdFor, reasoningOption } from './model.ts';
 import { publicError } from './public-error.ts';
 import { tokensOf, withStep } from './usage.ts';
@@ -229,8 +230,9 @@ function stepSettings(prepared: PreparedAnswer) {
     steps: readonly { toolCalls: readonly unknown[] }[];
     messages: ModelMessage[];
   }) => {
-    // Each step reads the conversation so far from Anthropic's cache, as the agent's steps do.
-    const cached = { messages: withCachedTail(messages, provider) };
+    // Each step reads the conversation so far from Anthropic's cache, as the agent's steps do,
+    // and sends back no thinking block: they are bound to instructions and tools that change.
+    const cached = { messages: withCachedTail(withoutReasoning(messages, provider), provider) };
     const calls = steps.reduce((sum, step) => sum + step.toolCalls.length, 0);
     if (calls < limits.toolCallsPerTurn && prepared.tokens < limits.threadTokens) return cached;
     return {

@@ -1452,6 +1452,11 @@ cache. Earlier marks are removed, since Anthropic allows four. The answering ser
 Ask tab and a panel's explanation, marks each step's last message the same way, so an answer that
 reads several times pays the full price once.
 
+Claude's thinking blocks are never sent back (`withoutReasoning` in `agent/compact.ts`). Anthropic
+binds a thinking block to the instructions, the tools and the messages that produced it, and
+refuses it in any other conversation. Here each step changes those: the turn's instructions, the
+phase's tools, the older steps made small. The text and the tool calls of every turn stay.
+
 ### Reasoning effort
 
 With the "keep the model's reasoning short" switch on (the default), each call asks for little

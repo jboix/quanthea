@@ -4,7 +4,7 @@
  * older drafts shrink the same way. The stored conversation keeps everything; only what is sent
  * to the model is compacted.
  */
-import type { PlanView } from '@quanthea/shared';
+import type { ModelSettings, PlanView } from '@quanthea/shared';
 import type { ModelMessage } from 'ai';
 import type { ThreadMessage } from './run-context.ts';
 
@@ -195,6 +195,30 @@ export function compactSteps(messages: readonly ModelMessage[]): ModelMessage[] 
 export function endingOnPersonTurn(messages: readonly ModelMessage[]): ModelMessage[] {
   if (messages.at(-1)?.role !== 'assistant') return [...messages];
   return [...messages, { role: 'user', content: 'Continue.' }];
+}
+
+/**
+ * A run's messages without Claude's thinking blocks. A thinking block is bound to the conversation
+ * that produced it: its instructions, its tools and every earlier message. Each step here changes
+ * those (the turn's instructions, the phase's tools, the older steps made small), so a block sent
+ * back is refused by Anthropic. Leaving every block out is one of the two recoveries it documents;
+ * the text and the tool calls of each turn stay.
+ *
+ * @param messages - The messages the next step would send.
+ * @param provider - The provider.
+ * @returns The messages, without reasoning parts for Anthropic and unchanged for the others.
+ */
+export function withoutReasoning(
+  messages: readonly ModelMessage[],
+  provider: ModelSettings['provider'],
+): ModelMessage[] {
+  if (provider !== 'anthropic') return [...messages];
+  return messages.flatMap((message) => {
+    if (message.role !== 'assistant' || typeof message.content === 'string') return [message];
+    const content = message.content.filter((part) => part.type !== 'reasoning');
+    // A turn that only thought says nothing the next step needs.
+    return content.length === 0 ? [] : [{ ...message, content }];
+  });
 }
 
 /** A plan's status. */

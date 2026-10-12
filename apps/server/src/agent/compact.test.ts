@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { ModelMessage } from 'ai';
-import { compactHistory, compactSteps, toolSummary } from './compact.ts';
+import { compactHistory, compactSteps, toolSummary, withoutReasoning } from './compact.ts';
 import type { ThreadMessage } from './run-context.ts';
 
 describe('toolSummary', () => {
@@ -123,5 +123,31 @@ describe('compactSteps', () => {
     const compacted = compactSteps(steps);
     expect(compacted.slice(3)).toEqual(steps.slice(3));
     expect(compacted[0]).toEqual(steps[0] as ModelMessage);
+  });
+});
+
+describe('withoutReasoning', () => {
+  const messages: ModelMessage[] = [
+    { role: 'user', content: 'Errors by service.' },
+    {
+      role: 'assistant',
+      content: [
+        { type: 'reasoning', text: 'I should look at the sources.' },
+        { type: 'text', text: 'Looking at the sources.' },
+        { type: 'tool-call', toolCallId: 'c1', toolName: 'describe', input: {} },
+      ],
+    },
+    { role: 'assistant', content: [{ type: 'reasoning', text: 'Only a thought.' }] },
+  ];
+
+  test('leaves Claude’s thinking out, and keeps the text and the tool calls', () => {
+    const kept = withoutReasoning(messages, 'anthropic');
+    expect(kept).toHaveLength(2);
+    const parts = kept[1]?.content as { type: string }[];
+    expect(parts.map((part) => part.type)).toEqual(['text', 'tool-call']);
+  });
+
+  test('changes nothing for the other providers', () => {
+    expect(withoutReasoning(messages, 'openai')).toEqual(messages);
   });
 });

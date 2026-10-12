@@ -18,7 +18,13 @@ import { askPersonTool } from './ask-tool.ts';
 import { buildTools, currentSpec } from './build-tools.ts';
 import { cachedInstructions, withCachedTail } from './cache.ts';
 import { chartTools } from './chart-tools.ts';
-import { compactHistory, compactSteps, endingOnPersonTurn, handEditText } from './compact.ts';
+import {
+  compactHistory,
+  compactSteps,
+  endingOnPersonTurn,
+  handEditText,
+  withoutReasoning,
+} from './compact.ts';
 import { dataTools } from './data-tools.ts';
 import { guideTools } from './guide-tools.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
@@ -272,11 +278,15 @@ function explainingStep(context: RunContext) {
  * @returns The step callback.
  */
 function stepSettings(context: RunContext, modelOf: ModelOf, job: ModelJob) {
+  const { provider } = context.settings;
   return ({ messages }: { messages: ModelMessage[] }) => ({
     ...stepModel(context, modelOf, job),
     ...buildingStep(context),
     ...explainingStep(context),
-    messages: withCachedTail(endingOnPersonTurn(compactSteps(messages)), context.settings.provider),
+    messages: withCachedTail(
+      endingOnPersonTurn(compactSteps(withoutReasoning(messages, provider))),
+      provider,
+    ),
   });
 }
 
