@@ -2210,7 +2210,9 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   flattened to dotted columns typed from the mapping. `describe` groups daily and rollover indices
   (`logs-2026.09.29`, `logs-000042`) into the pattern that queries them (`logs-*`), with their
   merged fields and document counts. A date field whose mapping names a format carries it in its
-  type, such as `date (epoch_millis)`, so the model knows how the field is written. `sampleValues` runs a terms aggregation on a field the
+  type, such as `date (epoch_millis)`, so the model knows how the field is written. A pattern
+  carries a format only when every index that has the field names the same one: where they
+  differ, or one names none, the type is plain `date`. `sampleValues` runs a terms aggregation on a field the
   mapping has, through `.keyword` for a text field. Error types map to connector errors; a
   reason that is not about the query can quote values, so the safe message leaves it out. Neither server says whether a user could
   write through a search, so the connection test reports `readOnly: null`: the credentials should
@@ -2335,7 +2337,10 @@ the connector shows and a version that changes with its settings).
      writes itself, such as `2026-10-05T14:47:01Z`) gets
      `"format": "strict_date_optional_time||epoch_millis"` unless it names a format: a date field
      accepts only its mapping's formats (`epoch_millis` alone, for one), and refuses ISO text with
-     a parse error otherwise. The second format keeps a number beside the text readable. A body with any key with a word starting with
+     a parse error otherwise. The second format keeps a number beside the text readable. A range
+     gets the format only when it fits every bound: each bound written as text is ISO 8601 or date
+     math (`now-1d/d`). A format replaces the mapping's for all the bounds, so a range that mixes
+     an ISO bound with one in the field's own format (`2026-10-06 23:59:59`) is left as written. A body with any key with a word starting with
      `script`, in snake_case or camelCase (`script`, `_script`, `script_fields`, `script_score`,
      `scripted_metric`, `minimum_should_match_script` and the rest), or with `runtime_mappings` is
      refused, because the search server would run it. One exception: a `bucket_script` whose

@@ -138,6 +138,34 @@ describe('bindSearch', () => {
     });
   });
 
+  test('a range with a text bound in another form beside an ISO one gets no format', () => {
+    const body = {
+      query: {
+        bool: {
+          filter: [
+            { range: { day: { gte: '2026-10-05', lte: '2026-10-06 23:59:59' } } },
+            { range: { at: { gt: '05/10/2026', lt: '2026-10-06T00:00:00Z' } } },
+          ],
+        },
+      },
+    };
+    expect(bind(body).body).toEqual(body);
+  });
+
+  test('a range with an ISO bound beside date math, a number or a time zone gets the format', () => {
+    const format = 'strict_date_optional_time||epoch_millis';
+    const ranges = [
+      { gte: '2026-10-05', lte: 'now-1d/d' },
+      { gte: '2026-10-05T00:00:00Z', lt: 1_791_000_000_000 },
+      { gte: '2026-10-05', time_zone: '+02:00', relation: 'within' },
+    ];
+    for (const range of ranges) {
+      expect(bind({ query: { range: { at: range } } }).body).toEqual({
+        query: { range: { at: { ...range, format } } },
+      });
+    }
+  });
+
   test('a range bounded by numbers, date math or other text gets no format', () => {
     const body = {
       query: {

@@ -262,6 +262,25 @@ function isoBound(value: unknown): boolean {
   return typeof value === 'string' && isoText.test(value);
 }
 
+/** Date math on the server's clock, such as `now`, `now-1h` or `now-7d/d`, which no format reads. */
+const dateMath = /^now(?:[+-]\d+[yMwdhHms]|\/[yMwdhHms])*$/;
+
+/** The keys of a range that hold a bound; the others, such as `time_zone`, hold none. */
+const boundKeys = ['gt', 'gte', 'lt', 'lte', 'from', 'to'];
+
+/**
+ * Whether a range's bounds read in {@link boundFormat}: one is ISO 8601 text, and every other
+ * written as text is ISO too, or date math. A format replaces the mapping's for all the bounds, so
+ * a bound in the field's own format beside an ISO one would no longer parse.
+ *
+ * @param bounds - The bounds of one field, with their values bound.
+ * @returns `true` when the format fits them all.
+ */
+function readsAsIso(bounds: Record<string, unknown>): boolean {
+  const written = boundKeys.map((key) => bounds[key]).filter((value) => typeof value === 'string');
+  return written.some(isoBound) && written.every((text) => isoBound(text) || dateMath.test(text));
+}
+
 /**
  * The bounds of a range clause's field, saying how they are written when one is ISO 8601 text.
  * A date field accepts only the formats of its mapping, such as `epoch_millis` alone, and refuses
@@ -269,11 +288,12 @@ function isoBound(value: unknown): boolean {
  * field's.
  *
  * @param bounds - The bounds of one field, such as `{ gte, lte }`, with their values bound.
- * @returns The bounds, with the format when one is ISO text and they name no format.
+ * @returns The bounds, with the format when they name none and it fits them all: one is ISO text,
+ *   and no other is text in another form.
  */
 function withBoundFormat(bounds: unknown): unknown {
   if (!isObject(bounds) || 'format' in bounds) return bounds;
-  return Object.values(bounds).some(isoBound) ? { ...bounds, format: boundFormat } : bounds;
+  return readsAsIso(bounds) ? { ...bounds, format: boundFormat } : bounds;
 }
 
 /**

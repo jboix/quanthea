@@ -57,8 +57,11 @@ interface Group {
   documents: number;
   /** The field types, by path. */
   readonly types: Map<string, string>;
-  /** The formats of the date fields that name one, by path. */
-  readonly formats: Map<string, string>;
+  /**
+   * The format of each date field, by path: the one every index that has the field names, or
+   * `null` when they differ or one of them names none.
+   */
+  readonly formats: Map<string, string | null>;
 }
 
 /**
@@ -71,15 +74,31 @@ function emptyGroup(): Group {
 }
 
 /**
+ * Adds the date formats of one index to its group. A format stays only while every index that has
+ * the field names the same one: a pattern over indices written differently has no one format.
+ *
+ * @param properties - The `properties` of the index's mapping.
+ * @param formats - The group's formats, by path.
+ */
+function addDateFormats(properties: unknown, formats: Map<string, string | null>): void {
+  const named = mappingDateFormats(properties);
+  for (const [path, type] of mappingFields(properties)) {
+    if (type !== 'date' && type !== 'date_nanos') continue;
+    const format = named.get(path) ?? null;
+    formats.set(path, formats.has(path) && formats.get(path) !== format ? null : format);
+  }
+}
+
+/**
  * A field's type as the catalogue names it: a date with the format its mapping names, such as
  * `date (epoch_millis)`, so a reader knows how its values are written.
  *
  * @param type - The mapping type.
- * @param format - The format the mapping names, if it names one.
+ * @param format - The one format its indices name, if they name one.
  * @returns The type name.
  */
-function nativeTypeOf(type: string, format: string | undefined): string {
-  return format === undefined ? type : `${type} (${format})`;
+function nativeTypeOf(type: string, format: string | null | undefined): string {
+  return format === undefined || format === null ? type : `${type} (${format})`;
 }
 
 /**
@@ -98,7 +117,7 @@ export function toEntities(mappings: MappingsAnswer, counts: readonly IndexRow[]
     group.indices.push(index);
     group.documents += documents.get(index) ?? 0;
     mappingFields(mapping.mappings?.properties, group.types);
-    mappingDateFormats(mapping.mappings?.properties, group.formats);
+    addDateFormats(mapping.mappings?.properties, group.formats);
     groups.set(name, group);
   }
   return [...groups]

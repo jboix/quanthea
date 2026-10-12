@@ -273,6 +273,29 @@ describe('search mappings and catalog', () => {
     ]);
   });
 
+  test('a pattern names a date format only when every index with the field names the same', () => {
+    const indexOf = (properties: Record<string, unknown>) => ({ mappings: { properties } });
+    const millis = { type: 'date', format: 'epoch_millis' };
+    const [entity] = toEntities(
+      {
+        'logs-2026.09.28': indexOf({ at: millis, seen: millis, old: millis, both: millis }),
+        'logs-2026.09.29': indexOf({ at: { type: 'date' }, seen: millis, both: millis }),
+        'logs-2026.09.30': indexOf({
+          at: millis,
+          seen: millis,
+          both: { type: 'date', format: 'strict_date_time' },
+        }),
+      },
+      [],
+    );
+    expect(entity?.fields).toEqual([
+      { name: 'at', nativeType: 'date', type: 'time' },
+      { name: 'seen', nativeType: 'date (epoch_millis)', type: 'time' },
+      { name: 'old', nativeType: 'date (epoch_millis)', type: 'time' },
+      { name: 'both', nativeType: 'date', type: 'time' },
+    ]);
+  });
+
   test('name a date field with the format its mapping stores it in', () => {
     const properties = {
       '@timestamp': { type: 'date', format: 'epoch_millis' },
