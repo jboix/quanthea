@@ -2485,7 +2485,9 @@ model-ready results and never throw.
   - `byHour`: each hour of the day, with the mean of that hour over the days and its lowest and
     highest day. An hour of one day is the mean of its points.
   - `peakHour`: which hour was the highest of its day, on how many days, the five most frequent.
-    A day counts when it is whole and at least 12 of its hours have points.
+    A day counts when it is whole and at least 12 of its hours have points. A flat day, where no
+    hour is above another, has no highest hour and is not counted, and a series whose days are all
+    flat has no `peakHour`.
   - `byWeekday`: each day of the week from Monday, with the mean of its days, the lowest and
     highest of them, and how many there were. A point belongs to the day the middle of its bucket
     falls on, so a daily bucket cut at midnight UTC keeps its day in another zone. A day counts
@@ -2500,7 +2502,8 @@ model-ready results and never throw.
     of a day or less over two weeks or more. The bucket is the median gap between the times of the
     series. A shorter or coarser series has no profile, since one day says nothing of the next.
   - It follows the level rules of the summary it sits in: from level 3 only, never for a hidden
-    field. A result of more than five frames has none, to keep what the model reads small.
+    field. A result with more than eight number columns beside a time, counted over all its
+    frames, has none, to keep what the model reads small.
   - A result with several series in one frame, such as a count per country and hour, has none: its
     points share their times. A series with no row in an hour may be zero there or missing, so
     neither the sum nor the mean over the series is the measure. The instructions of an answer say

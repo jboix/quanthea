@@ -47,7 +47,8 @@ the measure hour by hour over several days. From such a read it gets, beside the
 and mean values, a profile on the dashboard's clock:
 
 - each hour of the day, with its mean over the days and its lowest and highest day;
-- which hour was the highest of its day, and on how many of the days;
+- which hour was the highest of its day, and on how many of the days (a measure that never moves
+  has no highest hour);
 - each day of the week, when the read covers two weeks or more.
 
 So the answer says which hours are busy and how steady that is, from numbers it read, not from
