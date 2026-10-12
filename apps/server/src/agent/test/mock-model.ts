@@ -18,9 +18,19 @@ interface ScriptedCall {
   readonly id?: string;
 }
 
+/** A scripted answer with no tool call. */
+interface ScriptedText {
+  /** The text; empty for a response with nothing in it. */
+  readonly text: string;
+  /** How the response ends (streamed only); `stop` when left out. */
+  readonly finish?: 'stop' | 'length' | 'content-filter' | 'other';
+  /** The provider's own finish reason (streamed only). */
+  readonly raw?: string;
+}
+
 /** One scripted answer: some text, one tool call, or several calls in one step (streamed only). */
 export type ScriptedStep =
-  | { readonly text: string }
+  | ScriptedText
   | ScriptedCall
   | { readonly calls: readonly ScriptedCall[] };
 
@@ -93,16 +103,13 @@ type StreamPart =
 function chunksOf(step: ScriptedStep, index: number): StreamPart[] {
   if ('text' in step) {
     const id = `text-${index}`;
-    return [
+    const text = [
       { type: 'text-start' as const, id },
       { type: 'text-delta' as const, id, delta: step.text },
       { type: 'text-end' as const, id },
-      {
-        type: 'finish' as const,
-        finishReason: { unified: 'stop' as const, raw: undefined },
-        usage,
-      },
     ];
+    const finishReason = { unified: step.finish ?? ('stop' as const), raw: step.raw };
+    return [...(step.text === '' ? [] : text), { type: 'finish' as const, finishReason, usage }];
   }
   // Streamed as real providers do: each call's input in parts, then the call.
   const calls = callsOf(step, index).flatMap(({ toolCallId, tool, input }) => [

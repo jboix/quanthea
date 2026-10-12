@@ -3,26 +3,23 @@
  * over a time range, reading through the gate only on connectors whose access level shows numbers.
  * `explain` says what one panel measures from the spec and the schema alone, with no data, so its
  * text can be shown to every role. The answer is a `give_answer` call whose citations the server
- * checks; it gets one repair try. Every step is recorded in the usage ledger against who asked.
+ * checks; it gets one repair try. The model's steps are in `answer-steps.ts`; every one is recorded
+ * in the usage ledger against who asked.
  */
-import { type DashboardSpec, vendorOf } from '@quanthea/shared';
+import type { DashboardSpec } from '@quanthea/shared';
 import {
   consumeStream,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  type LanguageModelUsage,
   type ModelMessage,
-  type StopCondition,
-  streamText,
-  type ToolSet,
-  toUIMessageStream,
   type UIMessageStreamWriter,
 } from 'ai';
 import { AppError } from '../lib/errors.ts';
+import { stallMessage } from './answer-ending.ts';
 import { type AnswerConnector, askInstructions, explainInstructions } from './answer-prompt.ts';
 import { runInstructions } from './answer-run-prompt.ts';
-import { runTools } from './answer-run-tools.ts';
-import { type AnswerToolContext, answerTools } from './answer-tools.ts';
+import { answerTries, type PassEnd, runPass } from './answer-steps.ts';
+import type { AnswerToolContext } from './answer-tools.ts';
 import type {
   AnswerDependencies,
   AnswerMessage,
@@ -33,14 +30,8 @@ import type {
   PreparedAnswer,
 } from './answer-types.ts';
 import { type ResponseWatch, watchedModel } from './answer-watch.ts';
-import { withCachedTail } from './cache.ts';
-import { withoutReasoning } from './compact.ts';
-import { languageModel, ModelUnavailableError, modelIdFor, reasoningOption } from './model.ts';
+import { languageModel, ModelUnavailableError } from './model.ts';
 import { publicError } from './public-error.ts';
-import { tokensOf, withStep } from './usage.ts';
-
-/** How many answers the model may give: the first, and one repair. */
-const answerTries = 2;
 
 /**
  * The connectors a spec names: in its panels, its markers and its query-backed variables.
@@ -198,149 +189,84 @@ function readableNames(connectors: readonly AnswerConnector[]): string[] {
 }
 
 /**
- * When the answer stops: once it holds, once its tries are spent, or past the tool call limit,
- * which leaves room for the forced answer and its repair.
+ * Why a finished run has no answer, in the words the person reads.
  *
  * @param prepared - The answer.
- * @returns The stop conditions.
+ * @param end - How the last pass ended.
+ * @returns The ending, its message, and the provider's finish reason for a step with no call.
  */
-function stopConditions(prepared: PreparedAnswer): StopCondition<ToolSet>[] {
-  const { state } = prepared.tools;
-  const limit = prepared.resolved.settings.limits.toolCallsPerTurn + answerTries;
-  return [
-    () => state.given !== undefined,
-    () => state.failedAnswers >= answerTries,
-    ({ steps }) => steps.reduce((sum, step) => sum + step.toolCalls.length, 0) >= limit,
-  ];
+function failureOf(prepared: PreparedAnswer, end: PassEnd) {
+  const { failedAnswers } = prepared.tools.state;
+  if (end.failure !== undefined) return { ending: 'error' as const, message: end.failure };
+  const { stalled } = end;
+  if (stalled && failedAnswers < answerTries) {
+    const reason = stalled.finishReason ? { finishReason: stalled.finishReason } : {};
+    return { ending: stalled.stall, message: stallMessage(stalled), ...reason };
+  }
+  return failedAnswers > 0
+    ? { ending: 'refused' as const, message: refusedMessage }
+    : { ending: 'limit' as const, message: limitMessage };
 }
 
-/**
- * What the next step may do: anything while within the limits, then only give the answer. Every
- * step marks the conversation so far as a cache point for Anthropic.
- *
- * @param prepared - The answer.
- * @returns The step callback.
- */
-function stepSettings(prepared: PreparedAnswer) {
-  const { limits, provider } = prepared.resolved.settings;
-  return ({
-    steps,
-    messages,
-  }: {
-    steps: readonly { toolCalls: readonly unknown[] }[];
-    messages: ModelMessage[];
-  }) => {
-    // Each step reads the conversation so far from Anthropic's cache, as the agent's steps do,
-    // and sends back no thinking block: they are bound to instructions and tools that change.
-    const cached = { messages: withCachedTail(withoutReasoning(messages, provider), provider) };
-    const calls = steps.reduce((sum, step) => sum + step.toolCalls.length, 0);
-    if (calls < limits.toolCallsPerTurn && prepared.tokens < limits.threadTokens) return cached;
-    return {
-      ...cached,
-      activeTools: ['give_answer'],
-      toolChoice: { type: 'tool' as const, toolName: 'give_answer' },
-    };
-  };
-}
+/** What the person reads when no answer passed its checks. */
+const refusedMessage =
+  'The answer did not hold up against its evidence, even after a repair. Try asking more narrowly.';
 
-/**
- * Records a step's tokens: in the answer's usage, and in the ledger against who asked, as a
- * question or a panel explanation by the request's mode.
- *
- * @param dependencies - The service's dependencies.
- * @param prepared - The answer.
- * @returns The step callback.
- */
-function countStep(dependencies: AnswerDependencies, prepared: PreparedAnswer) {
-  const { settings, providerName } = prepared.resolved;
-  const model = modelIdFor(settings, 'answer');
-  const { actor: userId, dashboardId, mode } = prepared.request;
-  const feature = mode === 'ask' ? 'question' : 'explanation';
-  const vendor = vendorOf(settings);
-  return ({ usage }: { usage: LanguageModelUsage }) => {
-    prepared.tokens += usage.totalTokens ?? 0;
-    prepared.usage = withStep(prepared.usage, model, usage);
-    const tokens = tokensOf(usage);
-    const step = { threadId: null, userId, dashboardId, provider: providerName, model, tokens };
-    dependencies.usage.recordStep({ ...step, vendor, job: 'answer', feature });
-  };
-}
+/** What the person reads when the tool call limit or the token budget ended the run. */
+const limitMessage = 'No answer came within the limits of one answer. Try asking more narrowly.';
 
 /**
  * The outcome of a finished run.
  *
  * @param prepared - The answer.
- * @param failure - Why the model call failed, if it did.
+ * @param end - How the last pass ended.
  * @returns The outcome.
  */
-function outcomeOf(prepared: PreparedAnswer, failure?: string): AnswerOutcome {
+function outcomeOf(prepared: PreparedAnswer, end: PassEnd): AnswerOutcome {
   const { state } = prepared.tools;
   const { usage } = prepared;
   const { evidence } = state;
-  if (state.given && failure === undefined) {
+  if (state.given && end.failure === undefined) {
     const { text, citations } = state.given;
     const answer = { mode: prepared.request.mode, text, citations: [...citations], evidence };
     const followUps = state.followUps.length > 0 ? { followUps: [...state.followUps] } : {};
     return { ok: true, answer: { ...answer, ...followUps }, usage };
   }
-  const message =
-    failure ??
-    (state.failedAnswers > 0
-      ? 'The answer did not hold up against its evidence, even after a repair. Try asking more narrowly.'
-      : 'No answer came within the limits of one answer. Try asking more narrowly.');
-  const issues = failure === undefined && state.lastIssues ? { issues: state.lastIssues } : {};
-  return { ok: false, message, ...issues, evidence, usage };
+  const refused = end.failure === undefined && state.lastIssues;
+  const issues = refused ? { issues: refused } : {};
+  return { ok: false, ...failureOf(prepared, end), ...issues, evidence, usage };
 }
 
 /**
- * Starts the model on a prepared answer.
+ * Whether a pass ended on a step with no tool call while the answer may still be given.
  *
- * @param dependencies - The service's dependencies.
  * @param prepared - The answer.
- * @returns The streaming result.
+ * @param end - How the pass ended.
+ * @returns `true` when a forced pass follows.
  */
-function start(dependencies: AnswerDependencies, prepared: PreparedAnswer) {
-  const tools: ToolSet = { ...answerTools(prepared.tools), ...runTools(prepared.tools) };
-  return streamText({
-    model: prepared.model,
-    instructions: prepared.instructions,
-    messages: prepared.messages,
-    tools,
-    toolChoice: 'required',
-    prepareStep: stepSettings(prepared),
-    ...reasoningOption(prepared.resolved.settings),
-    stopWhen: stopConditions(prepared),
-    abortSignal: prepared.request.signal,
-    // Two retries ride out a per-minute limit; a spent daily quota is not retried (quota.ts).
-    maxRetries: 2,
-    onStepEnd: countStep(dependencies, prepared),
-  });
+function awaitsAnswer(prepared: PreparedAnswer, end: PassEnd): boolean {
+  const { state } = prepared.tools;
+  if (end.stalled === undefined || prepared.request.signal.aborted) return false;
+  return state.given === undefined && state.failedAnswers < answerTries;
 }
 
 /**
- * Copies the model's UI stream into the writer, chunk by chunk, and waits for its end, so what
- * the run writes after it comes after every part of the model's message. The message's finish is
- * left for the run to write last.
+ * The conversation a forced pass starts from: the question, then the calls and results of the
+ * pass before it, without what its last step wrote instead of a call.
  *
- * @param result - The streaming result.
- * @param writer - The writer.
+ * @param prepared - The answer.
+ * @param end - How the pass before ended.
+ * @returns The messages.
  */
-async function relay(
-  result: ReturnType<typeof start>,
-  writer: UIMessageStreamWriter<AnswerMessage>,
-): Promise<void> {
-  const chunks = toUIMessageStream<ToolSet, AnswerMessage>({
-    stream: result.stream,
-    onError: publicError,
-    sendFinish: false,
-  }).getReader();
-  for (let read = await chunks.read(); !read.done; read = await chunks.read()) {
-    writer.write(read.value);
-  }
+function messagesAfter(prepared: PreparedAnswer, end: PassEnd): ModelMessage[] {
+  const said = [...end.said];
+  while (said.at(-1)?.role === 'assistant') said.pop();
+  return [...prepared.messages, ...said];
 }
 
 /**
- * Runs a prepared answer to its end.
+ * Runs a prepared answer to its end. A pass that ends on a step with no tool call, with no answer
+ * given, is followed by one pass that may only give the answer, from the evidence already read.
  *
  * @param dependencies - The service's dependencies.
  * @param prepared - The answer.
@@ -353,13 +279,10 @@ async function run(
   writer?: UIMessageStreamWriter<AnswerMessage>,
 ): Promise<AnswerOutcome> {
   if (writer) prepared.sink.writer = writer;
-  const result = start(dependencies, prepared);
-  if (writer) await relay(result, writer);
-  else await result.consumeStream({ onError: () => undefined });
-  const outcome = await Promise.resolve(result.steps).then(
-    () => outcomeOf(prepared),
-    (error: unknown) => outcomeOf(prepared, publicError(error)),
-  );
+  const first = await runPass(dependencies, prepared, { ...prepared, forced: false, writer });
+  const forced = { messages: messagesAfter(prepared, first), forced: true, writer };
+  const end = awaitsAnswer(prepared, first) ? await runPass(dependencies, prepared, forced) : first;
+  const outcome = outcomeOf(prepared, end);
   const data = outcome.ok
     ? { ok: true as const, answer: outcome.answer }
     : { ok: false as const, message: outcome.message };

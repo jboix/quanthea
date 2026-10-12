@@ -12,6 +12,7 @@ import type { Dashboards } from '../dashboards/dashboards.ts';
 import type { ModelView } from '../gate/model-view.ts';
 import type { ModelSettingsService, ResolvedModelSettings } from '../settings/model-settings.ts';
 import type { Usage } from '../usage/usage.ts';
+import type { AnswerEnding } from './answer-ending.ts';
 import type { AnswerToolContext } from './answer-tools.ts';
 import type { FrozenRun } from './frozen-run.ts';
 import type { languageModel } from './model.ts';
@@ -82,6 +83,10 @@ export type AnswerOutcome =
   | {
       readonly ok: false;
       readonly message: string;
+      /** Why there is no answer: a failed call, refused answers, a limit, or a step with no call. */
+      readonly ending: AnswerEnding;
+      /** The provider's own finish reason of a step that called no tool, when it gave one. */
+      readonly finishReason?: string;
       /** What the last refused answer was told to fix, when its checks refused it. */
       readonly issues?: readonly string[];
       readonly evidence: readonly AnswerEvidence[];

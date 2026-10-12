@@ -1673,6 +1673,16 @@ The model's tools are decided per connector of the dashboard:
   a second failure ends with a clean failure, never an unchecked answer.
 - Every step must call a tool. Past the tool call limit (the thread's `toolCallsPerTurn`) or the
   token budget (the thread's `threadTokens`), the step may only call `give_answer`.
+- A step that calls no tool, with no answer given, does not end the run
+  (`agent/answer-steps.ts`). One more pass follows, from the question and the calls and results
+  already made, without what that step wrote: its steps may only call `give_answer`, and it has
+  the answer's two tries. The error the SDK raises for the missing call is kept out of the stream.
+- A run with no answer says why (`agent/answer-ending.ts`). The outcome's `ending` is `error` (the
+  model call failed), `refused` (two answers failed their checks), `limit` (the tool call limit
+  or the token budget), or how the last step ended without a call: `cut` (the output limit),
+  `malformed` (a tool call the provider could not read), `withheld` (the provider's content
+  filter) or `silent` (nothing, for no reason given). The message has its own words for each,
+  with the provider's finish reason when it gave one, also in the outcome's `finishReason`.
 - The instructions (`agent/answer-prompt.ts`) ask for an answer from evidence only, every number
   cited, times absolute in the dashboard's time zone, what could not be seen said, a few plain
   sentences and no tables. They carry the dashboard as written (panels, queries, variables,
@@ -1683,7 +1693,8 @@ The model's tools are decided per connector of the dashboard:
   The outcome carries the answer's usage by model.
 
 `Answers.answer` returns the outcome: the checked answer (`text`, `citations`, `evidence`) and its
-usage, or a failure with its message, evidence and usage; a failing model call is a failure too.
+usage, or a failure with its ending, message, evidence and usage; a failing model call is a
+failure too.
 Given a UI message stream writer, it streams as a thread does. `Answers.stream` wraps it in a UI
 message stream response: the model's tool parts (`give_answer`'s input arrives as it is written),
 a `data-evidence` part per read, then a `data-outcome` part, and the message's `finish` with the

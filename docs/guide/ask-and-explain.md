@@ -35,6 +35,11 @@ answer before you see it: each citation must point at a read that happened or a 
 dashboard, within the range you asked about. An answer that fails the check is repaired once, or
 the question fails cleanly; you never get an unchecked answer.
 
+When the model stops without answering, quanthea asks it once more to answer from what it has
+already read. If no answer comes, the message says why: the model's output was cut at its limit,
+it wrote a call that could not be read, its provider withheld the response, it stopped with
+nothing, or the limits of one answer were reached.
+
 ### What the model may read
 
 Answers read data only from sources at the **Aggregates** or **Full access** level. At a lower
