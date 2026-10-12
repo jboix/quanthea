@@ -408,6 +408,10 @@ gate's leak tests check that every one of those paths drops hidden fields.
   schema's objects: see "Hiding an object that dashboards read".
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
+- **Headers.** `ui/title-header.tsx` draws the header of every page, pane, card and dialog. The
+  title ends in an ellipsis when it does not fit and keeps its full text as a tooltip, or wraps
+  where the title is the content (cards). Badges and actions keep their size and move below the
+  title as a group, never over it. A feature gives it only its padding, border and background.
 - **Colour scheme.** Light, dark or the system's, picked under Appearance in the account menu and
   kept in the browser's `localStorage` (`ui/color-scheme.ts`). The system's is the default, until the person picks one. The choice
   sets `data-theme` on the document element before the first render, and `@quanthea/tokens`

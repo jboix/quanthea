@@ -18,6 +18,7 @@ import { SuggestInput } from '../ui/suggest-input.tsx';
 import { Switch } from '../ui/switch.tsx';
 import { Tabs } from '../ui/tabs.tsx';
 import { TextArea } from '../ui/text-area.tsx';
+import { TitleHeader } from '../ui/title-header.tsx';
 import styles from './ui-kit.module.css';
 
 /** The inspector tabs of the thread screen, used as the tabs sample. */
@@ -333,6 +334,36 @@ function Overlays() {
 }
 
 /**
+ * A header with a title too long for its card: the title is cut, the pill and the buttons are not.
+ *
+ * @returns The card.
+ */
+function HeaderSample() {
+  return (
+    <Card
+      title="Title header"
+      description="The title ends in an ellipsis; badges and actions keep their size, or move below it."
+    >
+      <TitleHeader
+        as="div"
+        title="Error rate above 5% (excl. DRM_NOT_SUPPORTED and business errors)"
+        badges={
+          <Pill tone="ok" mono>
+            v5 · active
+          </Pill>
+        }
+        actions={
+          <>
+            <Button>Send a test notification</Button>
+            <Button variant="dark">Activate</Button>
+          </>
+        }
+      />
+    </Card>
+  );
+}
+
+/**
  * Every `ui/` primitive in quanthea's visual language, for checking them in one place.
  *
  * @returns The screen.
@@ -343,6 +374,7 @@ export function UiKitRoute() {
       <div className={styles.grid}>
         <BrandSample />
         <ButtonsAndPills />
+        <HeaderSample />
         <TabsSample />
         <SegmentedSample />
         <FormControls />

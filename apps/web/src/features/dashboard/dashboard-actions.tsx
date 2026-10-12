@@ -95,7 +95,7 @@ export function HeaderActions({ onAsk, asking, onArrange, ...props }: DashboardD
     );
   }
   return (
-    <div className={styles.headerActions}>
+    <>
       <AskButton onAsk={onAsk} asking={asking} />
       {onArrange && (
         <Button onClick={onArrange}>
@@ -105,6 +105,6 @@ export function HeaderActions({ onAsk, asking, onArrange, ...props }: DashboardD
       <ChangePopover {...props} />
       <SharePopover {...props} />
       <VersionsPopover {...props} />
-    </div>
+    </>
   );
 }

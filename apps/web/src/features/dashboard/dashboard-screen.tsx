@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLoaderData, useLocation } from 'react-router';
 import { LockIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import { useMediaQuery } from '../../ui/use-media-query.ts';
 import { marksOnVersion, type OpenAnswer } from './ask-marks.ts';
 import { DashboardCanvas } from './canvas.tsx';
@@ -28,29 +29,35 @@ function DashboardHeader(props: DashboardData & AskAction & { readonly editor: L
   const shown = version.version === dashboard.pinnedVersion;
   const note = versionNote(version, dashboard.pinnedVersion);
   return (
-    <header className={styles.header}>
-      <div className={styles.headerText}>
-        <nav aria-label="Breadcrumb" className={styles.crumbs}>
+    <TitleHeader
+      className={styles.header}
+      level={1}
+      size="screen"
+      align="end"
+      title={version.spec.title}
+      eyebrow={
+        <nav aria-label="Breadcrumb">
           <Link to="/library">Library</Link> /{' '}
           {dashboard.pinnedVersion === null ? 'not pinned' : 'pinned'}
         </nav>
-        <div className={styles.titleRow}>
-          <h1 className={styles.title} title={version.spec.title}>
-            {version.spec.title}
-          </h1>
+      }
+      badges={
+        <>
           <AboutPopover {...props} />
           <Pill mono tone={version.pinnedAt === null ? 'draft' : 'neutral'}>
             {shown && <LockIcon />}
             {`v${version.version} · ${version.pinnedAt === null ? 'draft' : note}`}
           </Pill>
-        </div>
-      </div>
-      {editor.draft ? (
-        <LayoutBar editor={editor} data={{ dashboard, version }} />
-      ) : (
-        <HeaderActions {...actions} version={version} dashboard={dashboard} />
-      )}
-    </header>
+        </>
+      }
+      actions={
+        editor.draft ? (
+          <LayoutBar editor={editor} data={{ dashboard, version }} />
+        ) : (
+          <HeaderActions {...actions} version={version} dashboard={dashboard} />
+        )
+      }
+    />
   );
 }
 
