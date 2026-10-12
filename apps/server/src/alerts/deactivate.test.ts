@@ -49,13 +49,16 @@ function setup() {
     notify,
     alertUrl: () => '/alerts/a',
     notifyOnError: () => true,
+    quietHours: () => null,
   };
   const alerts = createAlerts({
     ...dependencies,
     repository: createAlertRepository(database),
     audit: createAuditRepository(database),
     lookup: () => ({ language: 'promql', guardrails }),
-    settings: { get: () => ({ maxActivePerConnector: 50, notifyOnError: true }) },
+    settings: {
+      get: () => ({ maxActivePerConnector: 50, notifyOnError: true, quietHours: null }),
+    },
     channelExists: (id) => channels.has(id),
   });
   const evaluate = async () => {
@@ -133,6 +136,19 @@ describe('deactivating an alert in error', () => {
     expect(sent.map((each) => each.event)).toEqual(['alert.recovered']);
     expect(states.checkState(alertId)).toEqual({ failures: 0, errorSince: null, notified: false });
     expect(states.checkEvents(alertId, 5)).toMatchObject([{ kind: 'recovered', notified: true }]);
+  });
+
+  test('announces a recovery that was waiting for quiet hours to end', async () => {
+    const { alerts, sent, states } = setup();
+    const { alertId } = alerts.saveVersion({ spec: specInput(firesAtOnce) }, 'ada');
+    await alerts.activate(alertId, 1, 'ada');
+    const state = { failures: 0, errorSince: null, notified: true };
+    const evaluatedAt = Date.now();
+    const record = { evaluatedAt, series: [], removed: [], events: [] };
+    states.saveEvaluation(alertId, { ...record, check: { state, event: null } });
+    await alerts.deactivate(alertId, 'ada');
+    expect(sent.map((each) => each.event)).toEqual(['alert.recovered']);
+    expect(states.checkState(alertId)).toEqual({ failures: 0, errorSince: null, notified: false });
   });
 
   test('records the end of the error but sends nothing while muted, or when it never said so', async () => {

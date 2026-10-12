@@ -341,7 +341,8 @@ gate's leak tests check that every one of those paths drops hidden fields.
   Notifications, and Settings, a dialog laid out like the bin's Retention dialog
   (`alert-settings-dialog.tsx`). It loads and saves the alert settings through the
   `/alerts/settings` resource route: the most alerts active per connector, and the switch Notify
-  when an alert cannot be checked or a report fails (`notifyOnError`), which reports read too. Editors and below see neither; editors see
+  when an alert cannot be checked or a report fails (`notifyOnError`), which reports read too. The
+  dialog keeps the default quiet hours (`quietHours`) as they are saved. Editors and below see neither; editors see
   New alert.
 - **Reports** (`features/reports/`). The rail's Reports carries a dot in the accent colour while a
   report has a finished run the person has not opened (`Reports, new runs`). It reads the list
@@ -873,10 +874,12 @@ reads it the same way (see Ownership). `alerts/changes.ts` and `alerts/deactivat
 - Deactivating stops evaluation, keeps the active version and ends the series: each that was not ok
   records its change to ok, and each that announced firing sends `alert.resolved` (when the version
   asks for it and the alert is not muted), so a channel such as PagerDuty closes its incident.
-  An alert in error that sent `alert.error` sends `alert.recovered` the same way.
+  An alert in error that sent `alert.error` sends `alert.recovered` the same way. Quiet hours do
+  not hold these back: nothing evaluates the alert after, so they could not wait.
 - Muting stops notifications only: evaluation and state go on. An analyst mutes until a time at
   most seven days ahead; an editor may also mute until someone unmutes. A series still firing when
   the mute ends notifies then.
+- Quiet hours stop notifications on a schedule: see "Quiet hours" below.
 - A test (`alerts/test-send.ts`) sends any version's message to its channels as `alert.test`, its
   values filled from a series the caller names (such as a firing from the replay) the way the
   evaluator fills them (`notificationValues` in `@quanthea/shared`), or from a stand-in. A version
@@ -916,7 +919,37 @@ transaction (`alert_series`, `alert_events`). Then it sends what is due:
 - `alert.firing` when a series fires, and again every `repeatEvery` while it keeps firing;
 - `alert.resolved` when a series that announced firing is ok again or gone, if `onResolved`;
 - `alert.error` and `alert.recovered`, below;
-- nothing while muted.
+- nothing while muted, or during quiet hours.
+
+**Quiet hours** (`alerts/quiet-hours.ts` in `@quanthea/shared`, pure). Quiet hours are windows on
+the wall clock of an IANA time zone: the weekdays a window starts on, and `from` and `to` as
+`HH:MM`. A window whose `to` is at or before its `from` ends the next day, and one whose `from`
+and `to` are the same lasts 24 hours. `isQuietAt` reads the instant's weekday and time of day in
+the zone (`reports/zoned.ts`, the platform's `Intl`), so a window keeps its times across daylight
+saving: it ends with the jump when the clock skips its end, and an hour shown twice is quiet both
+times.
+
+- An alert keeps its version's own (`quietHours` in the spec), none when the spec says `none`,
+  else the default of the alert settings (`quietHours`, `null` by default) unless its severity is
+  in the default's `exceptSeverities` (`critical` by default): `quietHoursOf`. An alert that must
+  wake someone is critical, or says `none`.
+- During quiet hours the alert is evaluated as ever, and the states and changes of state are
+  saved with `notified` 0. Nothing is sent: no firing, no repeat, no `alert.error`.
+- At the first evaluation after they end, a series still firing that has not announced it sends
+  `alert.firing`. A firing announced later than it began (after quiet hours, or a mute) says since
+  when: the message gets the field `Firing since` (`{since}`) unless it names `{since}` already or
+  holds 8 fields. A repeat that came due sends then too.
+- A series that fired and resolved inside them never announced firing, so it sends nothing.
+- A series that announced firing before them and resolves inside them stays announced, and sends
+  `alert.resolved` once they end, so PagerDuty closes its incident. If it is gone from the result
+  meanwhile, its row is kept as `ok` until then. If it fires again before they end, nothing more
+  is sent for it than a repeat that is due: the channel was told it fires and never that it
+  resolved.
+- `alert.recovered` waits the same way: the alert stays announced (`check_error_notified`) though
+  out of error, and says so once they end. An alert still in error then sends `alert.error`.
+- A mute comes first: while muted, a resolution or a recovery is dropped, not held.
+- Messages are due at an evaluation, so they go out up to one interval (`every`) after the window
+  ends.
 
 **Cannot be checked** (`alerts/check-notice.ts`). An alert whose query failed (the data source is
 down, the credentials are wrong, the query timed out, or its result cannot be read) in 2
@@ -927,6 +960,8 @@ evaluations in a row (`failuresBeforeError`) is in error. One failure is a blip 
   if it had sent `alert.error`.
 - A mute holds both back; an alert still in error when the mute ends sends `alert.error` then. A
   recovery during a mute sends nothing.
+- Quiet hours hold both back too, and a recovery that was owed waits for them to end: see "Quiet
+  hours" above.
 - The alert settings' `notifyOnError` (the Alerts page's Settings, on by default) turns both
   off: the evaluator then records and logs only. A report run that fails for good follows the
   same setting (section 5.10).

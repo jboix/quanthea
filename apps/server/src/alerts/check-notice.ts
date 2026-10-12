@@ -3,7 +3,8 @@
  * {@link failuresBeforeError} evaluations in a row is in error: it sends `alert.error` once, and
  * `alert.recovered` once an evaluation runs its query again. One failure alone is a blip and says
  * nothing. A mute, or the setting being off, holds the messages back, not the record; an alert
- * still in error when the mute ends says so then. The message is quanthea's own, not the alert's
+ * still in error when the mute ends says so then. Quiet hours hold the messages back too, and a
+ * recovery that was owed waits for them to end. The message is quanthea's own, not the alert's
  * template, which is about values.
  */
 import type { AlertSpec, MessageTemplate, Notification } from '@quanthea/shared';
@@ -21,6 +22,8 @@ export interface CheckFacts {
   readonly failure: string | null;
   /** Whether messages are held back: the alert is muted, or the setting is off. */
   readonly quiet: boolean;
+  /** Whether messages wait: quiet hours hold. */
+  readonly held: boolean;
   /** When the evaluation ran. */
   readonly now: number;
 }
@@ -50,7 +53,8 @@ function failedCheck(previous: CheckState, facts: CheckFacts, failure: string): 
   const failures = previous.failures + 1;
   const entered = previous.errorSince === null && failures >= failuresBeforeError;
   const errorSince = entered ? facts.now : previous.errorSince;
-  const announce = errorSince !== null && !previous.notified && !facts.quiet;
+  const speaks = !facts.quiet && !facts.held;
+  const announce = errorSince !== null && !previous.notified && speaks;
   const event = announce ? 'alert.error' : null;
   const record =
     entered || announce ? { kind: 'error' as const, at: facts.now, reason: failure } : null;
@@ -63,17 +67,23 @@ function failedCheck(previous: CheckState, facts: CheckFacts, failure: string): 
 
 /**
  * Decides after an evaluation that ran its query: an alert in error recovers, and says so when
- * it had said it was in error.
+ * it had said it was in error. During quiet hours that message waits: the alert stays announced
+ * and says so once they end.
  *
  * @param previous - The state before.
  * @param facts - The evaluation.
  * @returns The decision.
  */
 function passedCheck(previous: CheckState, facts: CheckFacts): CheckDecision {
-  const state = { failures: 0, errorSince: null, notified: false };
-  if (previous.errorSince === null) return { state, event: null, record: null };
-  const event = previous.notified && !facts.quiet ? 'alert.recovered' : null;
-  return { state, event, record: { kind: 'recovered', at: facts.now, reason: null } };
+  const owed = previous.notified && !facts.quiet;
+  const waits = owed && facts.held;
+  const event = owed && !waits ? 'alert.recovered' : null;
+  const recorded = previous.errorSince !== null || event !== null;
+  return {
+    state: { failures: 0, errorSince: null, notified: waits },
+    event,
+    record: recorded ? { kind: 'recovered', at: facts.now, reason: null } : null,
+  };
 }
 
 /**

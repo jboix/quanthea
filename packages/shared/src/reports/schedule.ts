@@ -29,7 +29,7 @@ export const weekdays = [
 export type Weekday = (typeof weekdays)[number];
 
 /** Validates a time of day, `HH:MM` on a 24-hour clock. */
-const timeOfDaySchema = z
+export const timeOfDaySchema = z
   .string()
   .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Use a time of day such as 08:00.');
 

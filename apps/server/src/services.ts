@@ -281,6 +281,7 @@ function alertServices(
       notifications.send(channelIds, notification),
     alertUrl: (alertId: string) => `${origin}/alerts/${encodeURIComponent(alertId)}`,
     notifyOnError: () => alertSettings.get().notifyOnError,
+    quietHours: () => alertSettings.get().quietHours,
   };
   const channelExists = (id: string) => notifications.picker().some((each) => each.id === id);
   const repository = createAlertRepository(database);

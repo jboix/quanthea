@@ -37,6 +37,16 @@ type AlertSpec = {
   notify: { onResolved: boolean; repeatEvery?: Duration }   // onResolved: true by default
   message: MessageTemplate                  // title, body and fields with {placeholders}
   timezone?: string                         // IANA, for times in notifications; UTC by default
+  quietHours?: QuietHours | 'none'          // when it sends nothing; the settings' default if left out
+}
+
+type QuietHours = {
+  timezone: string                          // IANA, the clock of the windows
+  windows: {                                // 1 to 8; quiet while any of them holds
+    days: Weekday[]                         // 'monday' … 'sunday': the days the window starts on
+    from: string                            // 'HH:MM'
+    to: string                              // 'HH:MM'; at or before `from`, it ends the next day
+  }[]
 }
 
 type Duration = string                      // digits and s, m, h or d: '30s', '5m', '1h', '2d'
@@ -67,6 +77,22 @@ duration goes, such as `[$window]` in PromQL, and the value must then be a durat
 - `no_data`: the query returns no value at all. It is evaluated on the alert as a whole and fires
   once that has lasted `for`.
 
+## Quiet hours
+
+During quiet hours the alert is evaluated and its changes of state are recorded, and no
+notification is sent.
+
+- `quietHours` left out: the default of the alert settings holds (`quietHours` there), unless the
+  alert's severity is one of its `exceptSeverities`, `critical` by default.
+- `quietHours: 'none'`: the alert always notifies.
+- `quietHours` with windows: the alert's own, whatever its severity. The default no longer holds.
+- A window with `from` and `to` the same lasts 24 hours from `from`.
+- The clock is the wall clock of `timezone`. When daylight saving skips an hour, a window that
+  ends inside it ends with the jump; an hour shown twice is quiet both times.
+- When they end, a series still firing announces it, with the field `Firing since` (`{since}`)
+  added when the message names `{since}` nowhere and has fewer than 8 fields. A resolution owed
+  from before waits for the end too.
+
 ## The message
 
 `message` is the shared message template: a title (up to 150 characters), a body (up to 1000) and
@@ -92,7 +118,7 @@ The server fills the values from the series:
 
 The schema catches shape errors and checks across fields: `every` is at least a minute, `lookback`
 covers the condition's `for`, `repeatEvery` is no shorter than `every`, a variable is named once and
-an interval variable holds a duration. `alerts/validate.ts` (`validateAlertSpec`) also checks:
+an interval variable holds a duration; the time zone of `quietHours` is known. `alerts/validate.ts` (`validateAlertSpec`) also checks:
 
 - every channel id names a notification channel (on save and activation);
 - the connector exists and runs the query's language;

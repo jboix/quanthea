@@ -37,7 +37,7 @@ function useSettingsForm(saved: AlertSettings) {
   const [text, setText] = useState(String(saved.maxActivePerConnector));
   const [notifyOnError, setNotifyOnError] = useState(saved.notifyOnError);
   const maximum = maximumOf(text);
-  const settings: AlertSettings = { maxActivePerConnector: maximum ?? 1, notifyOnError };
+  const settings: AlertSettings = { ...saved, maxActivePerConnector: maximum ?? 1, notifyOnError };
   const changed = maximum !== saved.maxActivePerConnector || notifyOnError !== saved.notifyOnError;
   return { text, setText, notifyOnError, setNotifyOnError, maximum, settings, changed };
 }

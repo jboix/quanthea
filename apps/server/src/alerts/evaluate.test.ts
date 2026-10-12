@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import type { Frame, Notification } from '@quanthea/shared';
+import type { DefaultQuietHours, Frame, Notification } from '@quanthea/shared';
 import { createAlertRepository } from '../db/alert-repository.ts';
 import { createAlertStateRepository } from '../db/alert-state-repository.ts';
 import { openDatabase } from '../db/database.ts';
@@ -50,7 +50,7 @@ function harness(overrides: Record<string, unknown> = {}) {
     sent.push(notification);
     return Promise.resolve();
   };
-  const setting = { notifyOnError: true };
+  const setting = { notifyOnError: true, quietHours: null as DefaultQuietHours | null };
   const dependencies = {
     ...engine,
     states,
@@ -58,6 +58,7 @@ function harness(overrides: Record<string, unknown> = {}) {
     logger: logs.logger,
     alertUrl: () => '/alerts/a1',
     notifyOnError: () => setting.notifyOnError,
+    quietHours: () => setting.quietHours,
   };
   const evaluate = async (now: number, next: FakeAnswer) => {
     answer = next;
@@ -215,5 +216,118 @@ describe('evaluating an alert', () => {
     const engine = { ...failing, ...fakeEngine(() => at(9)) };
     await evaluateAlert(engine, subject, minute);
     expect(states.series('a1')[0]).toMatchObject({ state: 'firing', announced: true });
+  });
+});
+
+/**
+ * Quiet hours on the first day of the epoch, a Thursday, in UTC.
+ *
+ * @param from - When they start, `HH:MM`.
+ * @param to - When they end, `HH:MM`.
+ * @returns The quiet hours.
+ */
+const thursday = (from: string, to: string) => ({
+  timezone: 'UTC',
+  windows: [{ days: ['thursday' as const], from, to }],
+});
+
+/** A condition that fires at once. */
+const atOnce = { kind: 'threshold', op: 'above', value: 5, for: '0m' };
+
+describe('quiet hours', () => {
+  test('keep the history and send nothing, then announce what still fires, since when', async () => {
+    const message = { title: '{alert} fires', body: '{value} is {threshold}.' };
+    const { evaluate, sent, states, setting } = harness({
+      condition: atOnce,
+      severity: 'warning',
+      message,
+    });
+    setting.quietHours = { ...thursday('00:00', '00:05'), exceptSeverities: ['critical'] };
+    for (let minutes = 1; minutes <= 4; minutes += 1) await evaluate(minutes * minute, at(9));
+    expect(sent).toEqual([]);
+    expect(states.series('a1')[0]).toMatchObject({ state: 'firing', announced: false });
+    expect(states.events('a1', 10)).toMatchObject([{ to: 'firing', at: minute, notified: false }]);
+    await evaluate(5 * minute, at(9));
+    await evaluate(6 * minute, at(9));
+    expect(sent.map((each) => [each.event, each.at])).toEqual([
+      ['alert.firing', new Date(5 * minute).toISOString()],
+    ]);
+    expect(sent[0]?.values.since).toBe('1 Jan, 00:01 UTC');
+    expect(sent[0]?.template.fields).toEqual([{ label: 'Firing since', value: '{since}' }]);
+  });
+
+  test('send nothing for a series that fired and resolved inside them', async () => {
+    const { evaluate, sent, states } = harness({
+      condition: atOnce,
+      quietHours: thursday('00:00', '00:05'),
+    });
+    await evaluate(minute, at(9));
+    await evaluate(2 * minute, at(1));
+    for (let minutes = 5; minutes <= 6; minutes += 1) await evaluate(minutes * minute, at(1));
+    expect(sent).toEqual([]);
+    expect(states.events('a1', 10).map((event) => [event.to, event.notified])).toEqual([
+      ['ok', false],
+      ['firing', false],
+    ]);
+  });
+
+  test('of the settings leave a severity alone', async () => {
+    const { evaluate, sent, setting } = harness({ condition: atOnce });
+    setting.quietHours = { ...thursday('00:00', '00:00'), exceptSeverities: ['critical'] };
+    await evaluate(minute, at(9));
+    expect(sent).toHaveLength(1);
+  });
+
+  test('of the settings do not hold for an alert that sets none', async () => {
+    const { evaluate, sent, setting } = harness({
+      condition: atOnce,
+      severity: 'info',
+      quietHours: 'none',
+    });
+    setting.quietHours = { ...thursday('00:00', '00:00'), exceptSeverities: [] };
+    await evaluate(minute, at(9));
+    expect(sent).toHaveLength(1);
+  });
+
+  test('of an alert hold whatever its severity', async () => {
+    const { evaluate, sent } = harness({
+      condition: atOnce,
+      quietHours: thursday('00:00', '00:05'),
+    });
+    await evaluate(minute, at(9));
+    expect(sent).toEqual([]);
+  });
+
+  test('hold a resolution back until they end, for a series that is gone too', async () => {
+    const { evaluate, sent, states } = harness({
+      condition: atOnce,
+      quietHours: thursday('00:02', '00:10'),
+    });
+    await evaluate(minute, [...at(9), ...at(9, { service: 'cart' })]);
+    for (let minutes = 2; minutes <= 9; minutes += 1)
+      await evaluate(minutes * minute, at(1, { service: 'cart' }));
+    expect(sent.map((each) => each.event)).toEqual(['alert.firing', 'alert.firing']);
+    expect(states.series('a1')).toMatchObject([
+      { labels: { service: 'cart' }, state: 'ok', announced: true },
+      { labels: { service: 'checkout' }, state: 'ok', announced: true },
+    ]);
+    expect(states.events('a1', 10).filter((event) => event.to === 'ok')).toHaveLength(2);
+    await evaluate(10 * minute, at(1, { service: 'cart' }));
+    expect(sent.slice(2).map((each) => [each.event, each.values.series])).toEqual([
+      ['alert.resolved', 'service=cart'],
+      ['alert.resolved', 'service=checkout'],
+    ]);
+    expect(states.series('a1').map((row) => [row.labels.service, row.announced])).toEqual([
+      ['cart', false],
+    ]);
+  });
+
+  test('hold back that an alert cannot be checked until they end', async () => {
+    const { evaluate, sent } = harness({ quietHours: thursday('00:00', '00:04') });
+    for (let minutes = 1; minutes <= 5; minutes += 1)
+      await evaluate(minutes * minute, new Error('down'));
+    expect(sent.map((each) => [each.event, each.at])).toEqual([
+      ['alert.error', new Date(4 * minute).toISOString()],
+    ]);
   });
 });

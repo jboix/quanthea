@@ -56,6 +56,7 @@ function evaluatorOver(
     notify: () => Promise.resolve(),
     alertUrl: () => '',
     notifyOnError: () => true,
+    quietHours: () => null,
   };
   const evaluator = createAlertEvaluator({
     alerts: { evaluated: alerts },

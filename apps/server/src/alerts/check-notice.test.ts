@@ -9,17 +9,20 @@ import { spec } from './test/fixtures.ts';
  *
  * @param failures - For each evaluation, why its query failed, or `null` when it ran.
  * @param quiet - Whether messages are held back at each evaluation; never by default.
+ * @param held - Whether quiet hours hold at each evaluation; never by default.
  * @returns The events sent, the records and the last state.
  */
 function run(
   failures: readonly (string | null)[],
   quiet: (index: number) => boolean = () => false,
+  held: (index: number) => boolean = () => false,
 ) {
   let state: CheckState = checkable;
   const events: (string | null)[] = [];
   const records: string[] = [];
   failures.forEach((failure, index) => {
-    const decision = decideCheck(state, { failure, quiet: quiet(index), now: index });
+    const facts = { failure, quiet: quiet(index), held: held(index), now: index };
+    const decision = decideCheck(state, facts);
     state = decision.state;
     events.push(decision.event);
     if (decision.record) records.push(`${decision.record.kind}@${index}`);
@@ -59,6 +62,28 @@ describe('whether an alert can be checked', () => {
     const { events, records } = run(['down', 'down', null], () => true);
     expect(events).toEqual([null, null, null]);
     expect(records).toEqual(['error@1', 'recovered@2']);
+  });
+
+  test('quiet hours hold the error back until they end', () => {
+    const night = (index: number) => index < 3;
+    const { events, records } = run(['down', 'down', 'down', 'down'], undefined, night);
+    expect(events).toEqual([null, null, null, 'alert.error']);
+    expect(records).toEqual(['error@1', 'error@3']);
+  });
+
+  test('an error and its recovery inside quiet hours say nothing', () => {
+    const night = (index: number) => index < 3;
+    const { events, state } = run(['down', 'down', null, null], undefined, night);
+    expect(events).toEqual([null, null, null, null]);
+    expect(state).toEqual(checkable);
+  });
+
+  test('a recovery it owes waits for quiet hours to end', () => {
+    const night = (index: number) => index >= 2 && index < 4;
+    const { events, records, state } = run(['down', 'down', null, null, null], undefined, night);
+    expect(events).toEqual([null, 'alert.error', null, null, 'alert.recovered']);
+    expect(records).toEqual(['error@1', 'recovered@2', 'recovered@4']);
+    expect(state).toEqual(checkable);
   });
 
   test('builds the fixed message, with the reason cut short', () => {

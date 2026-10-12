@@ -4,6 +4,7 @@
  * never rewritten, and one version at a time is active.
  */
 import { z } from 'zod';
+import { quietHoursSchema } from '../alerts/quiet-hours.ts';
 import { namedFormatterSchema } from '../formatters/schema.ts';
 import { notificationEvents } from '../notifications.ts';
 import { alertSeverities, alertSpecSchema } from '../spec/alert.ts';
@@ -309,8 +310,19 @@ export const replayAlertVersionEndpoint = defineEndpoint({
 });
 
 /**
- * Validates the alert settings: how many alerts may be active per connector, and whether an alert
- * that cannot be checked notifies its channels.
+ * Validates the quiet hours of every alert that sets none of its own, and the severities they
+ * leave alone: an alert that must wake someone has one of those.
+ */
+export const defaultQuietHoursSchema = quietHoursSchema.extend({
+  exceptSeverities: z
+    .array(z.enum(alertSeverities))
+    .max(alertSeverities.length)
+    .default(['critical']),
+});
+
+/**
+ * Validates the alert settings: how many alerts may be active per connector, whether an alert
+ * that cannot be checked notifies its channels, and the default quiet hours.
  */
 export const alertSettingsSchema = z.strictObject({
   maxActivePerConnector: z.int().min(1).max(10_000).default(50),
@@ -319,6 +331,8 @@ export const alertSettingsSchema = z.strictObject({
    * channels when a run fails after its retries.
    */
   notifyOnError: z.boolean().default(true),
+  /** When alerts send nothing unless they say otherwise; `null` for never. */
+  quietHours: defaultQuietHoursSchema.nullable().default(null),
 });
 
 /** The alert settings. */

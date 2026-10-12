@@ -4,6 +4,7 @@
  * server evaluates it with no model involved, and variables are fixed values bound at run time.
  */
 import { z } from 'zod';
+import { alertQuietHoursSchema } from '../alerts/quiet-hours.ts';
 import { namedFormatterSchema } from '../formatters/schema.ts';
 import { messageTemplateSchema } from '../notifications.ts';
 import { variableNameSchema } from './names.ts';
@@ -121,6 +122,11 @@ const alertSpecFields = z.strictObject({
   message: messageTemplateSchema,
   /** The IANA time zone notifications name times in; UTC when left out. */
   timezone: z.string().min(1).max(64).optional(),
+  /**
+   * When it sends nothing: its own quiet hours, or `none` to always notify. The default of the
+   * alert settings holds when left out.
+   */
+  quietHours: alertQuietHoursSchema.optional(),
 });
 
 /** An alert spec as its fields parse, before the checks across them. */

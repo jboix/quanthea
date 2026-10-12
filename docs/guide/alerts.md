@@ -112,6 +112,37 @@ the variables row hides them.
 - On the alert's page, **Link to a panel…** picks one by hand, and quanthea suggests the panels
   whose query matches, to **Link** or **Dismiss**.
 
+## Quiet hours
+
+Quiet hours are the days and times an alert sends nothing: nights, weekends. The alert is still
+checked, and everything that happens to it stays in **What happened**.
+
+- **During quiet hours** no message goes out: not a firing, not a repeat, not that the alert
+  cannot be checked.
+- **When they end**, each series still firing sends one message, and it says since when. An alert
+  still unable to be checked says so then.
+- **What fired and resolved inside them** sends nothing. It shows in the history.
+- **What fired before them and resolved inside them** says it resolved once they end, so a channel
+  such as PagerDuty closes its incident.
+- **Deactivating** an alert during quiet hours still resolves what was firing.
+
+Quiet hours are windows on the clock of a named time zone: the days a window starts on, and the
+times it starts and ends. A window may cross midnight: Friday 22:00 to 07:00 ends on Saturday
+morning. The clock is the wall clock, so 22:00 stays 22:00 when daylight saving starts or ends.
+Messages go out at the first check after the window ends, so an alert checked every hour may
+catch up to an hour later.
+
+Which quiet hours an alert keeps:
+
+- **Its own**, when its version sets some (`quietHours` in the [alert spec](../alert-spec.md)).
+  They hold whatever its severity.
+- **None**, when its version says `none`: it always notifies.
+- **The default** otherwise: the quiet hours of the alert settings. Critical alerts ignore the
+  default, so the ones that must wake someone do. `exceptSeverities` names other severities, or
+  none.
+
+A mute is separate: it silences one alert until a time, whatever the hour.
+
 ## Settings
 
 Admins open **Settings** on the Alerts page:

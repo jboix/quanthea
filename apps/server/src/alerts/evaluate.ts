@@ -1,12 +1,15 @@
 /**
  * Evaluates one alert: runs its query over the window ending now, moves each series through the
  * state machine, saves the new states and the changes, and whether the alert can be checked, then
- * sends the notifications that are due. No model is involved, and a mute stops the notifications
- * only.
+ * sends the notifications that are due. No model is involved, and a mute or quiet hours stop the
+ * notifications only.
  */
 import {
   type AlertSpec,
+  type DefaultQuietHours,
+  isQuietAt,
   type Notification,
+  quietHoursOf,
   type SeriesState,
   stepSeries,
   type Transition,
@@ -36,6 +39,8 @@ export interface EvaluationDependencies extends AlertQueryDependencies {
   readonly notify: Notify;
   /** Whether an alert that cannot be checked notifies its channels: the alert settings say. */
   readonly notifyOnError: () => boolean;
+  /** The quiet hours of the alerts that set none: the alert settings say. */
+  readonly quietHours: () => DefaultQuietHours | null;
   /** Reports failures. */
   readonly logger: Logger;
   /** The link to an alert. */
@@ -60,12 +65,14 @@ interface SeriesInput {
   readonly previous: SeriesRow | undefined;
 }
 
-/** The evaluation's time, whether the alert is muted, and the link to it. */
+/** The evaluation's time, whether the alert is muted or in quiet hours, and the link to it. */
 interface EvaluationContext {
   /** When the evaluation ran. */
   readonly now: number;
   /** Whether the alert is muted. */
   readonly muted: boolean;
+  /** Whether the alert's quiet hours hold. */
+  readonly quiet: boolean;
   /** The link to the alert. */
   readonly url: string;
 }
@@ -182,7 +189,25 @@ function notificationOf(
     since: state?.since ?? now,
   };
   const about = { alertId: alert.id, version: alert.activeVersion ?? 0, spec, series, url };
-  return buildNotification(about, decision.event, now);
+  return buildNotification(about, decision.event, now, decision.late);
+}
+
+/**
+ * The state a series that is gone keeps while its resolution waits for quiet hours to end: ok.
+ *
+ * @param previous - Its row before, if any.
+ * @param decision - Its notification decision.
+ * @param now - When.
+ * @returns The state, or `null` when nothing waits and the series goes.
+ */
+function waitingState(
+  previous: SeriesRow | undefined,
+  decision: NotifyDecision,
+  now: number,
+): SeriesState | null {
+  if (!previous || !decision.announced) return null;
+  const since = previous.state === 'ok' ? previous.since : now;
+  return { state: 'ok', since, lastSeenAt: previous.lastSeenAt, value: previous.value };
 }
 
 /**
@@ -203,12 +228,15 @@ function advance(
     announced: input.previous?.announced ?? false,
     notifiedAt: input.previous?.notifiedAt ?? null,
     muted: context.muted,
+    quiet: context.quiet,
+    since: next?.since ?? context.now,
     now: context.now,
     state: next?.state ?? null,
   });
+  const kept = next ?? waitingState(input.previous, decision, context.now);
   return {
     key: input.key,
-    row: next && rowOf(input, next, decision, context.now),
+    row: kept && rowOf(input, kept, decision, context.now),
     event: transition && eventOf(subject, input, transition, decision),
     notification: notificationOf(subject, input, next ?? input.previous, decision, context),
   };
@@ -294,7 +322,7 @@ function checkOf(
 ) {
   const { alert, spec } = subject;
   const quiet = context.muted || !dependencies.notifyOnError();
-  const facts = { failure, quiet, now: context.now };
+  const facts = { failure, quiet, held: context.quiet, now: context.now };
   const decision = decideCheck(dependencies.states.checkState(alert.id), facts);
   if (decision.event === null) return { decision, notification: null };
   const about = { alertId: alert.id, version: alert.activeVersion ?? 0, spec, url: context.url };
@@ -314,6 +342,25 @@ function failureOf(observations: ReturnType<typeof observe>): string | null {
 }
 
 /**
+ * The time of an evaluation, whether the alert is muted or in quiet hours then, and its link.
+ *
+ * @param dependencies - The default quiet hours and the link.
+ * @param subject - The alert and its active spec.
+ * @param now - The instant.
+ * @returns The context.
+ */
+function contextOf(
+  dependencies: Pick<EvaluationDependencies, 'quietHours' | 'alertUrl'>,
+  subject: EvaluatedAlert,
+  now: number,
+): EvaluationContext {
+  const { alert, spec } = subject;
+  const quietHours = quietHoursOf(spec, dependencies.quietHours());
+  const quiet = quietHours !== null && isQuietAt(quietHours, now);
+  return { now, muted: isMuted(alert, now), quiet, url: dependencies.alertUrl(alert.id) };
+}
+
+/**
  * Evaluates one alert at an instant.
  *
  * @param dependencies - The query engine, the state store, the sender, the logger and the link.
@@ -329,7 +376,7 @@ export async function evaluateAlert(
   const outcome = await runAlertQuery(dependencies, spec, windowAt(spec, now));
   const previous = new Map(dependencies.states.series(alert.id).map((row) => [row.key, row]));
   const known = new Map([...previous].map(([key, row]) => [key, row.labels]));
-  const context = { now, muted: isMuted(alert, now), url: dependencies.alertUrl(alert.id) };
+  const context = contextOf(dependencies, subject, now);
   const observations = observe(spec, outcome, known);
   const outcomes = [...observations.series].map(([key, observed]) =>
     advance(subject, { key, observed, previous: previous.get(key) }, context),

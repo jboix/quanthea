@@ -4,6 +4,7 @@
  * channel such as PagerDuty closes its incident. Each series that was not ok records its change
  * to ok in the timeline. An alert in error leaves it: when it announced `alert.error`, it
  * announces `alert.recovered`, unless muted or the setting is off, so that incident closes too.
+ * Quiet hours do not hold these back: nothing evaluates the alert after, so they could not wait.
  */
 import { type AlertSpec, alertSpecSchema } from '@quanthea/shared';
 import { checkable } from '../db/alert-checks.ts';
@@ -66,7 +67,9 @@ async function announceResolved(
  */
 function leaveError(context: AlertsContext, alert: AlertRow, quiet: boolean, now: number) {
   const previous = context.states.checkState(alert.id);
-  if (previous.errorSince === null) return { check: undefined, announce: false };
+  // Out of error but announced: its recovery was waiting for quiet hours to end.
+  if (previous.errorSince === null && !previous.notified)
+    return { check: undefined, announce: false };
   const announce = previous.notified && !quiet && context.settings.get().notifyOnError;
   const event = { id: newId(), kind: 'recovered' as const, at: now, reason: null };
   return { check: { state: checkable, event: { ...event, notified: announce } }, announce };

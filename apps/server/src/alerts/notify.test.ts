@@ -3,17 +3,25 @@ import { notificationSchema } from '@quanthea/shared';
 import { buildNotification, decideNotification } from './notify.ts';
 import { minute, spec } from './test/fixtures.ts';
 
-const quiet = { announced: false, notifiedAt: null, muted: false, now: 10 * minute };
+const calm = {
+  announced: false,
+  notifiedAt: null,
+  muted: false,
+  quiet: false,
+  since: 10 * minute,
+  now: 10 * minute,
+};
 const notify = { onResolved: true, repeatEvery: '30m' };
 
 describe('when a series notifies', () => {
   test('announces firing once', () => {
-    expect(decideNotification(notify, { ...quiet, state: 'firing' })).toEqual({
+    expect(decideNotification(notify, { ...calm, state: 'firing' })).toEqual({
       event: 'alert.firing',
       announced: true,
+      late: false,
     });
     const announced = {
-      ...quiet,
+      ...calm,
       announced: true,
       notifiedAt: 5 * minute,
       state: 'firing' as const,
@@ -22,7 +30,7 @@ describe('when a series notifies', () => {
   });
 
   test('repeats while firing, every repeatEvery', () => {
-    const announced = { ...quiet, announced: true, notifiedAt: 0, state: 'firing' as const };
+    const announced = { ...calm, announced: true, notifiedAt: 0, state: 'firing' as const };
     expect(decideNotification(notify, { ...announced, now: 29 * minute }).event).toBeNull();
     expect(decideNotification(notify, { ...announced, now: 30 * minute }).event).toBe(
       'alert.firing',
@@ -33,36 +41,77 @@ describe('when a series notifies', () => {
   });
 
   test('announces resolving once it had announced firing, if asked', () => {
-    const resolved = { ...quiet, announced: true, state: 'ok' as const };
+    const resolved = { ...calm, announced: true, state: 'ok' as const };
     expect(decideNotification(notify, resolved)).toEqual({
       event: 'alert.resolved',
       announced: false,
+      late: false,
     });
     expect(decideNotification({ onResolved: false }, resolved)).toEqual({
       event: null,
       announced: false,
+      late: false,
     });
     expect(decideNotification(notify, { ...resolved, state: null }).event).toBe('alert.resolved');
-    expect(decideNotification(notify, { ...quiet, state: 'ok' }).event).toBeNull();
+    expect(decideNotification(notify, { ...calm, state: 'ok' }).event).toBeNull();
   });
 
   test('sends nothing while muted, and announces a series still firing after', () => {
-    const muted = { ...quiet, muted: true };
+    const muted = { ...calm, muted: true };
     expect(decideNotification(notify, { ...muted, state: 'firing' })).toEqual({
       event: null,
       announced: false,
+      late: false,
     });
     expect(decideNotification(notify, { ...muted, announced: true, state: 'ok' })).toEqual({
       event: null,
       announced: false,
+      late: false,
     });
+  });
+
+  test('sends nothing during quiet hours, and announces a series still firing after', () => {
+    const night = { ...calm, quiet: true, since: 2 * minute };
+    expect(decideNotification(notify, { ...night, state: 'firing' })).toEqual({
+      event: null,
+      announced: false,
+      late: false,
+    });
+    expect(decideNotification(notify, { ...night, quiet: false, state: 'firing' })).toEqual({
+      event: 'alert.firing',
+      announced: true,
+      late: true,
+    });
+    expect(decideNotification(notify, { ...night, state: 'ok' }).event).toBeNull();
+  });
+
+  test('a repeat waits for quiet hours to end', () => {
+    const firing = { ...calm, announced: true, notifiedAt: 0, state: 'firing' as const };
+    const due = { ...firing, now: 40 * minute };
+    expect(decideNotification(notify, { ...due, quiet: true }).event).toBeNull();
+    expect(decideNotification(notify, due)).toEqual({
+      event: 'alert.firing',
+      announced: true,
+      late: false,
+    });
+  });
+
+  test('a resolution it owes waits for quiet hours to end', () => {
+    const resolved = { ...calm, announced: true, state: 'ok' as const };
+    const waiting = { event: null, announced: true, late: false };
+    expect(decideNotification(notify, { ...resolved, quiet: true })).toEqual(waiting);
+    expect(decideNotification(notify, { ...resolved, quiet: true, state: null })).toEqual(waiting);
+    expect(decideNotification(notify, resolved).event).toBe('alert.resolved');
+    const unasked = decideNotification({ onResolved: false }, { ...resolved, quiet: true });
+    expect(unasked.announced).toBe(false);
   });
 
   test('says nothing while pending, without data or failing', () => {
     for (const state of ['pending', 'no_data', 'error'] as const)
-      expect(decideNotification(notify, { ...quiet, announced: true, state })).toEqual({
+      expect(decideNotification(notify, { ...calm, announced: true, state })).toEqual({
         event: null,
         announced: true,
+        late: false,
       });
   });
 });
@@ -105,6 +154,23 @@ describe('a notification', () => {
       severity: 'critical',
       url: 'https://quanthea.test/alerts/a1',
     });
+  });
+
+  test('says since when it fires when it announces late, unless the template does', () => {
+    const series = { key: '{}', labels: {}, value: 9, since: 0 };
+    const message = { title: '{alert} fires', body: '{value} is {threshold}.' };
+    const about = (overrides: Record<string, unknown>) => ({
+      alertId: 'a1',
+      version: 1,
+      spec: spec(overrides),
+      series,
+      url: '/alerts/a1',
+    });
+    const late = buildNotification(about({ message }), 'alert.firing', minute, true);
+    expect(late.template.fields).toEqual([{ label: 'Firing since', value: '{since}' }]);
+    expect(notificationSchema.parse(late)).toEqual(late);
+    expect(buildNotification(about({ message }), 'alert.firing', 0).template.fields).toEqual([]);
+    expect(buildNotification(about({}), 'alert.firing', minute, true).template.fields).toEqual([]);
   });
 
   test('names every series of a series without labels, and writes plain numbers', () => {
