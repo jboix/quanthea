@@ -20,23 +20,37 @@ The report adds the tokens, the cost at list price and the time of each question
 
 ## Answer cases
 
-After the questions, the answer cases (`a1` to `a4`, in `answer-cases.ts`) ask the dashboard
+After the questions, the answer cases (`a1` to `a5`, in `answer-cases.ts`) ask the dashboard
 answering service, the one behind a pinned dashboard's Ask tab and a panel's explanation. The run
 creates the dev seed's checkout incident dashboard (`dev/seed/checkout-incident.json`) and pins
 it. Each case sets the access level of both dev connectors, then makes one call to the service,
 prepared and stored as the question and explanation endpoints do. The range asked about is
 yesterday from 06:00 to 18:00 UTC, relative to the run's clock, so no date is written down.
 
-| Case | What it asks                                                       | A good answer                                                                                                                 |
-| ---- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `a1` | "What happened around 14:00?" (13:00 in winter), at aggregates (3) | reads data, cites at least one read, mentions the errors and the deploy, and names two times (a range, or a start and a peak) |
-| `a2` | the same question, at schema and metadata (2) only                 | reads nothing, says it cannot read the numbers, and quotes no data                                                            |
-| `a3` | the explanation of "Error rate by service, 1m"                     | reads nothing (at level 3 still), mentions the rate, the 5xx errors and the requests, quotes no data, cites nothing           |
-| `a4` | "How long did it last?", following up on `a1`                      | gives a duration, such as "36 minutes"                                                                                        |
+| Case | What it asks                                                                                                      | A good answer                                                                                                                 |
+| ---- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `a1` | "What happened around 14:00?" (13:00 in winter), at aggregates (3)                                                | reads data, cites at least one read, mentions the errors and the deploy, and names two times (a range, or a start and a peak) |
+| `a2` | the same question, at schema and metadata (2) only                                                                | reads nothing, says it cannot read the numbers, and quotes no data                                                            |
+| `a3` | the explanation of "Error rate by service, 1m"                                                                    | reads nothing (at level 3 still), mentions the rate, the 5xx errors and the requests, quotes no data, cites nothing           |
+| `a4` | "How long did it last?", following up on `a1`                                                                     | gives a duration, such as "36 minutes"                                                                                        |
+| `a5` | "When do we have the most traffic during the day, and is it consistent?", at aggregates (3), on the player events | reads data, cites at least one read, names an hour of the day, and says whether it repeats                                    |
 
 Every case also needs the service's outcome to be ok: an answer whose citations the server
 checked. A read is a `read_data` call, counted from the stream the service writes. `a4` asks `a1`
 first when `--only` leaves `a1` out; that call is not reported.
+
+`a5` asks about another dashboard, which the run creates and pins when the case comes: the player
+events per hour of `core_events` on the dev OpenSearch (`events-dashboard.ts`), over the last 24
+hours. It runs only with `--search`, and a run without the flag says it skipped it.
+
+- A read of a series over three days or more, in buckets of an hour or less, carries a profile by
+  hour of day: each hour's mean with its lowest and highest day, and which hour was the highest of
+  its day. The case asks for what that profile answers.
+- The dev index holds about a day and a half of events, at an even rate. No read of it is long
+  enough for a profile, so a good answer there names the hours the series shows and says the data
+  is too short, or too even, to call a pattern.
+- "Says whether it repeats" is a pattern over the text: consistent, repeats, every day, steady,
+  even, the same, too short or not enough, among others.
 
 "Quotes no data" is a heuristic over the text. Clock times, dates, years and citation markers are
 removed first. Then a number reads as a measurement when it is:

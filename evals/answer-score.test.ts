@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { type AnswerExpectation, answerCases } from './answer-cases.ts';
+import { dashboardSpecSchema } from '@quanthea/shared';
+import { type AnswerExpectation, answerCases, needsSearch } from './answer-cases.ts';
 import { type AnswerCaseOutcome, dataNumbers, isAnswer, scoreAnswer } from './answer-score.ts';
+import { eventsDashboard } from './events-dashboard.ts';
 import { incidentHour, zurich } from './questions.ts';
 import { htmlReport, markdownReport } from './render.ts';
 import { scoreAll } from './report.ts';
@@ -161,6 +163,41 @@ describe('the numbers that read as data', () => {
     const text =
       'From 14:02 to 14:38:10 on 2026-10-02 (2026), the 5xx share of p95 [1] over [1m] after deploy #481.';
     expect(dataNumbers(text)).toEqual([]);
+  });
+});
+
+describe('the case about the busiest hours', () => {
+  const eventsRead = { ...read, connector: 'opensearch-events', panelId: 'events-per-hour' };
+  const busiest: AnswerCaseOutcome = {
+    ...asked,
+    id: 'a5',
+    evidence: [eventsRead],
+    text: 'Traffic peaks between 20:00 and 21:00 [1], and the same hour was the highest on each of the last seven days [1].',
+  };
+
+  test('passes an answer that names the hours and says they repeat', () => {
+    expect(scoreAnswer(busiest, expectationOf('a5'))).toEqual({ pass: true, reasons: [] });
+  });
+
+  test('passes an answer that says the data is too short to tell', () => {
+    const short = {
+      ...busiest,
+      text: 'The busiest hour was 9 pm [1]. The index holds a day and a half, not enough to say it comes back.',
+    };
+    expect(scoreAnswer(short, expectationOf('a5')).reasons).toEqual([]);
+  });
+
+  test('fails an answer with no hour, or with nothing about whether it comes back', () => {
+    const vague = { ...busiest, text: 'Traffic is highest in the evening, as it repeats [1].' };
+    expect(scoreAnswer(vague, expectationOf('a5')).reasons).toHaveLength(1);
+    const once = { ...busiest, text: 'Traffic peaked at 20:00 with 910 events [1].' };
+    expect(scoreAnswer(once, expectationOf('a5')).reasons).toHaveLength(1);
+  });
+
+  test('is the only case that needs the search connector, and its dashboard is a valid spec', () => {
+    expect(answerCases.filter(needsSearch).map((each) => each.id)).toEqual(['a5']);
+    const spec = dashboardSpecSchema.parse(eventsDashboard);
+    expect(spec.panels.map((panel) => panel.id)).toEqual(['events-per-hour']);
   });
 });
 

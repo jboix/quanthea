@@ -2,7 +2,8 @@
  * The answer cases: questions and explanations about the dev seed's checkout incident dashboard,
  * pinned, through the dashboard answering service rather than a thread. The incident is deploy
  * #481 of checkout-svc, yesterday at 12:02 UTC (14:02 in Zurich in summer, 13:02 in winter), rolled back 36
- * minutes later. Each case says what a good answer holds.
+ * minutes later. One case asks about the player events dashboard on the dev OpenSearch instead,
+ * and runs only with the search connector. Each case says what a good answer holds.
  */
 import type { AccessLevel, TimeRangeExpression } from '@quanthea/shared';
 import { incidentHour, zurich } from './questions.ts';
@@ -45,6 +46,11 @@ export interface AskCase extends CaseBase {
   readonly time: TimeRangeExpression;
   /** The case whose question this one follows up on, if any. */
   readonly follows?: string;
+  /**
+   * The dashboard asked about when it is not the checkout incident's: `events`, the player
+   * events per hour on the dev OpenSearch, which the world holds only with the search connector.
+   */
+  readonly dashboard?: 'events';
 }
 
 /** An explanation of one panel of the pinned dashboard. */
@@ -69,6 +75,19 @@ const whatHappened = /error|5xx|fail/i;
 
 /** The deploy that started it. */
 const theDeploy = /deploy|#481|release|rollout/i;
+
+/** The last 24 hours, as seen from the evals' clock. */
+const lastDay: TimeRangeExpression = { from: 'now-24h', to: 'now' };
+
+/** An hour of the day: a clock time, or an hour with am, pm or h. */
+const anHourOfTheDay = /\b\d{1,2}(?::\d{2}|\s*(?:am|pm|h)\b)/i;
+
+/**
+ * Whether it repeats: that the busiest hours come back day after day, that the traffic is even, or
+ * that the data covers too few days to tell.
+ */
+const whetherItRepeats =
+  /consisten|repeat|recur|every day|each day|day to day|daily|steady|stable|flat|even\b|same|one day|single day|not enough|too short|too few/i;
 
 /** The answer cases, in the order they run, after the questions. */
 export const answerCases: readonly AnswerCase[] = [
@@ -117,7 +136,28 @@ export const answerCases: readonly AnswerCase[] = [
       ],
     },
   },
+  {
+    id: 'a5',
+    mode: 'ask',
+    question: 'When do we have the most traffic during the day, and is it consistent?',
+    timeZone: zurich,
+    time: lastDay,
+    accessLevel: 3,
+    dashboard: 'events',
+    expect: { reads: 'some', topics: [anHourOfTheDay, whetherItRepeats] },
+  },
 ];
+
+/**
+ * Whether a case asks about a dashboard on the dev OpenSearch, which a run has only with
+ * `--search`.
+ *
+ * @param answerCase - The case.
+ * @returns Whether it needs the search connector.
+ */
+export function needsSearch(answerCase: AnswerCase): boolean {
+  return answerCase.mode === 'ask' && answerCase.dashboard === 'events';
+}
 
 /**
  * The answer cases `--only` keeps, in their order. A follow-up asks the case it follows first

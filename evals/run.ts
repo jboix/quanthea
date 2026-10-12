@@ -11,7 +11,7 @@ import { staleDataReason } from '@quanthea/dev/freshness.ts';
 import { waitForFirstScrape } from '@quanthea/server/src/connectors/_shared/test/dev-sources.ts';
 import { type AlertCase, alertCases, selectAlertCases } from './alert-cases.ts';
 import { type AlertBench, driveAlert } from './alert-drive.ts';
-import { type AnswerCase, answerCases, selectAnswerCases } from './answer-cases.ts';
+import { type AnswerCase, answerCases, needsSearch, selectAnswerCases } from './answer-cases.ts';
 import { type AnswerBench, driveAnswer, openBench } from './answer-drive.ts';
 import { drive } from './drive.ts';
 import { writeEvalmark } from './evalmark.ts';
@@ -37,7 +37,7 @@ import { type EvalModels, type EvalWorld, openWorld, waitForEvents } from './set
 /** What `--help` prints. */
 const usage = `Asks the agent each question against the dev data, and scores what it builds. Then
 asks the dashboard answering service the answer cases (a1 to a4) on the pinned checkout incident
-dashboard, and scores its answers and explanations. Then drives the alert cases (al1 to al4)
+dashboard, and with --search a5 on the player events, and scores its answers and explanations. Then drives the alert cases (al1 to al4)
 through alert threads, and scores the alerts saved and their replay over the incident. Last, drives
 the report cases (r1, r2) through a report thread, runs the report and checks its numbers against
 the database, and asks about that run (r3, r4).
@@ -159,6 +159,22 @@ function keep(outcomes: EvalOutcome[], outcome: EvalOutcome): void {
   outcomes.push(outcome);
   const [result] = scoreAll([outcome]);
   process.stdout.write(`${outcome.id}: ${result?.score.pass ? 'pass' : 'FAIL'}\n`);
+}
+
+/**
+ * The answer cases a run asks: those `--only` keeps, without the ones about the dev OpenSearch
+ * when the world has no search connector. It says which ones it leaves out.
+ *
+ * @param only - The ids to keep, or none for every case.
+ * @param search - Whether the run adds the search connector.
+ * @returns The cases.
+ */
+function answerPlan(only: readonly string[], search: boolean): readonly AnswerCase[] {
+  const wanted = selectAnswerCases(only);
+  if (search) return wanted;
+  for (const left of wanted.filter(needsSearch))
+    process.stdout.write(`${left.id}: skipped, it needs --search\n`);
+  return wanted.filter((each) => !needsSearch(each));
 }
 
 /**
@@ -322,7 +338,7 @@ async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<
   const bench = benchOnce(world);
   try {
     for (const question of selected) keep(outcomes, await drive(world, question));
-    await answerAll(world, bench, selectAnswerCases(only), outcomes);
+    await answerAll(world, bench, answerPlan(only, search), outcomes);
     await alertAll(world, bench, selectAlertCases(only), outcomes);
     await reportAll(world, bench, selectReportCases(only), outcomes);
     await parityAll(world, parity.ready, parity.skipped, outcomes);

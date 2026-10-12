@@ -1,7 +1,7 @@
 /**
  * Runs the answer cases as the question and explanation endpoints do: the dev seed's checkout
- * incident dashboard is created and pinned once, each case sets the access level of both dev
- * connectors, then asks a question (stored, so a follow-up carries it as history) or asks for a
+ * incident dashboard is created and pinned once (and the player events dashboard, when a case asks
+ * about it), each case sets the access level of the dev connectors, then asks a question (stored, so a follow-up carries it as history) or asks for a
  * panel's explanation, through the answering service. One service call per case.
  */
 import fixture from '@quanthea/dev/seed/checkout-incident.json' with { type: 'json' };
@@ -17,6 +17,7 @@ import type { AccessLevel, AnswerEvidence } from '@quanthea/shared';
 import type { UIMessageStreamWriter } from 'ai';
 import { type AnswerCase, type AskCase, answerCases, type ExplainCase } from './answer-cases.ts';
 import type { AnswerCaseOutcome, ReadSummary } from './answer-score.ts';
+import { eventsDashboard } from './events-dashboard.ts';
 import { type EvalWorld, evalsActor } from './setup.ts';
 
 /** How much of a read's result the report keeps. */
@@ -30,6 +31,8 @@ export interface AnswerBench {
   readonly connectorIds: readonly string[];
   /** The stored question of each ask case asked so far, for follow-ups. */
   readonly asked: Map<string, string>;
+  /** The other dashboards cases ask about, by name, once created and pinned. */
+  readonly opened: Map<string, string>;
 }
 
 /** What the model did while it answered, from the stream it wrote. */
@@ -52,7 +55,32 @@ export async function openBench(world: EvalWorld): Promise<AnswerBench> {
   world.aliases.set(id, 'evals-dashboard');
   await dashboards.pin(id, 1, evalsActor);
   const connectorIds = connections.list().map((connector) => connector.id);
-  return { dashboardId: id, connectorIds, asked: new Map() };
+  return { dashboardId: id, connectorIds, asked: new Map(), opened: new Map() };
+}
+
+/**
+ * The dashboard an ask case asks about: the checkout incident's, or the player events', created
+ * and pinned the first time a case names it.
+ *
+ * @param world - The world, with the search connector when the case names the player events.
+ * @param bench - The bench.
+ * @param askCase - The case.
+ * @returns The dashboard's id.
+ */
+async function dashboardOf(
+  world: EvalWorld,
+  bench: AnswerBench,
+  askCase: AskCase,
+): Promise<string> {
+  if (askCase.dashboard === undefined) return bench.dashboardId;
+  const known = bench.opened.get(askCase.dashboard);
+  if (known !== undefined) return known;
+  const { dashboards } = world.services;
+  const { id } = dashboards.create(eventsDashboard, 'the evals', evalsActor);
+  world.aliases.set(id, 'evals-events-dashboard');
+  await dashboards.pin(id, 1, evalsActor);
+  bench.opened.set(askCase.dashboard, id);
+  return id;
 }
 
 /**
@@ -131,7 +159,7 @@ async function ask(
   tally: Tally,
 ): Promise<AnswerOutcome> {
   const { questions } = world.services;
-  const { dashboardId } = bench;
+  const dashboardId = await dashboardOf(world, bench, askCase);
   const parentId = askCase.follows === undefined ? undefined : bench.asked.get(askCase.follows);
   const { question, time, timeZone } = askCase;
   const shown = { variables: {}, hiddenMarkers: [], parentId };
