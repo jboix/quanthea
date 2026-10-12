@@ -32,26 +32,61 @@ export function fieldTypeOf(type: string | undefined): FieldType {
 }
 
 /**
+ * Visits every field of a mapping with its dotted path: objects and nested fields walked,
+ * multi-fields such as `message.keyword` included.
+ *
+ * @param properties - The `properties` of a mapping.
+ * @param visit - Called with each field's path and mapping.
+ * @param prefix - The path of the enclosing object.
+ */
+function eachField(
+  properties: unknown,
+  visit: (path: string, field: Readonly<Record<string, unknown>>) => void,
+  prefix = '',
+): void {
+  for (const [name, field] of Object.entries((properties ?? {}) as Properties)) {
+    const path = `${prefix}${name}`;
+    visit(path, field);
+    if (field.properties) eachField(field.properties, visit, `${path}.`);
+    if (field.fields) eachField(field.fields, visit, `${path}.`);
+  }
+}
+
+/**
  * The fields of a mapping, by their dotted path: objects and nested fields walked, multi-fields
  * such as `message.keyword` included.
  *
  * @param properties - The `properties` of a mapping.
  * @param into - Where to add the fields, by path.
- * @param prefix - The path of the enclosing object.
  * @returns `into`.
  */
 export function mappingFields(
   properties: unknown,
   into: Map<string, string> = new Map(),
-  prefix = '',
 ): Map<string, string> {
-  const entries = Object.entries((properties ?? {}) as Properties);
-  for (const [name, field] of entries) {
-    const path = `${prefix}${name}`;
+  eachField(properties, (path, field) => {
     if (typeof field.type === 'string') into.set(path, field.type);
-    if (field.properties) mappingFields(field.properties, into, `${path}.`);
-    if (field.fields) mappingFields(field.fields, into, `${path}.`);
-  }
+  });
+  return into;
+}
+
+/**
+ * The formats the date fields of a mapping are written in, by their dotted path. A date field
+ * whose mapping names no format is left out: it takes the server's default, ISO 8601 text or epoch
+ * milliseconds.
+ *
+ * @param properties - The `properties` of a mapping.
+ * @param into - Where to add the formats, by path.
+ * @returns `into`.
+ */
+export function mappingDateFormats(
+  properties: unknown,
+  into: Map<string, string> = new Map(),
+): Map<string, string> {
+  eachField(properties, (path, field) => {
+    const date = field.type === 'date' || field.type === 'date_nanos';
+    if (date && typeof field.format === 'string') into.set(path, field.format);
+  });
   return into;
 }
 

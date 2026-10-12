@@ -4,9 +4,10 @@ import { z } from 'zod';
 import { ConnectorError } from '../_shared/index.ts';
 import { aggregationsFrame } from './aggregations.ts';
 import { patternOf, toEntities } from './catalog.ts';
-import { fieldTypeOf, mappingFields } from './columns.ts';
+import { fieldTypeOf, mappingDateFormats, mappingFields } from './columns.ts';
 import { elasticsearchConnector } from './elasticsearch-connector.ts';
 import { toConnectorError } from './errors.ts';
+import { searchGuide } from './guide.ts';
 import { flatten, hitsFrame } from './hits.ts';
 import { opensearchConnector } from './opensearch-connector.ts';
 
@@ -270,6 +271,32 @@ describe('search mappings and catalog', () => {
         fields: [{ name: 'level', nativeType: 'keyword', type: 'string' }],
       },
     ]);
+  });
+
+  test('name a date field with the format its mapping stores it in', () => {
+    const properties = {
+      '@timestamp': { type: 'date', format: 'epoch_millis' },
+      seen: { type: 'date' },
+      session: { properties: { started: { type: 'date_nanos', format: 'strict_date_time' } } },
+      level: { type: 'keyword', format: 'ignored' },
+    };
+    expect([...mappingDateFormats(properties)]).toEqual([
+      ['@timestamp', 'epoch_millis'],
+      ['session.started', 'strict_date_time'],
+    ]);
+    const [entity] = toEntities({ core_events: { mappings: { properties } } }, []);
+    expect(entity?.fields).toEqual([
+      { name: '@timestamp', nativeType: 'date (epoch_millis)', type: 'time' },
+      { name: 'seen', nativeType: 'date', type: 'time' },
+      { name: 'session.started', nativeType: 'date_nanos (strict_date_time)', type: 'time' },
+      { name: 'level', nativeType: 'keyword', type: 'string' },
+    ]);
+  });
+
+  test('the guide says a range bound is ISO text whatever the format of the field', () => {
+    const guide = searchGuide('Elasticsearch');
+    expect(guide).toContain('date (epoch_millis)');
+    expect(guide).toContain('a date in ISO 8601 text such as "2026-10-05T14:47:01Z"');
   });
 });
 

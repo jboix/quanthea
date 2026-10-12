@@ -5,7 +5,7 @@
  */
 import type { SchemaEntity } from '../_shared/index.ts';
 import type { SearchApi } from './api.ts';
-import { fieldTypeOf, mappingFields } from './columns.ts';
+import { fieldTypeOf, mappingDateFormats, mappingFields } from './columns.ts';
 
 /** The mappings answer: each index and its mapping. */
 type MappingsAnswer = Readonly<
@@ -57,6 +57,29 @@ interface Group {
   documents: number;
   /** The field types, by path. */
   readonly types: Map<string, string>;
+  /** The formats of the date fields that name one, by path. */
+  readonly formats: Map<string, string>;
+}
+
+/**
+ * A group with no index yet.
+ *
+ * @returns The group.
+ */
+function emptyGroup(): Group {
+  return { indices: [], documents: 0, types: new Map(), formats: new Map() };
+}
+
+/**
+ * A field's type as the catalogue names it: a date with the format its mapping names, such as
+ * `date (epoch_millis)`, so a reader knows how its values are written.
+ *
+ * @param type - The mapping type.
+ * @param format - The format the mapping names, if it names one.
+ * @returns The type name.
+ */
+function nativeTypeOf(type: string, format: string | undefined): string {
+  return format === undefined ? type : `${type} (${format})`;
 }
 
 /**
@@ -71,10 +94,11 @@ export function toEntities(mappings: MappingsAnswer, counts: readonly IndexRow[]
   const groups = new Map<string, Group>();
   for (const [index, mapping] of Object.entries(mappings)) {
     const name = patternOf(index);
-    const group: Group = groups.get(name) ?? { indices: [], documents: 0, types: new Map() };
+    const group: Group = groups.get(name) ?? emptyGroup();
     group.indices.push(index);
     group.documents += documents.get(index) ?? 0;
     mappingFields(mapping.mappings?.properties, group.types);
+    mappingDateFormats(mapping.mappings?.properties, group.formats);
     groups.set(name, group);
   }
   return [...groups]
@@ -101,7 +125,7 @@ function toEntity(name: string, group: Group): SchemaEntity {
     rowEstimate: group.documents,
     fields: [...group.types].map(([path, type]) => ({
       name: path,
-      nativeType: type,
+      nativeType: nativeTypeOf(type, group.formats.get(path)),
       type: fieldTypeOf(type),
     })),
   };

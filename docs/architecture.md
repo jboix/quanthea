@@ -1676,7 +1676,8 @@ The model's tools are decided per connector of the dashboard:
 - The instructions (`agent/answer-prompt.ts`) ask for an answer from evidence only, every number
   cited, times absolute in the dashboard's time zone, what could not be seen said, a few plain
   sentences and no tables. They carry the dashboard as written (panels, queries, variables,
-  markers), never data, and each connector with what the model may read of it.
+  markers), never data, and each connector with what the model may read of it. A query the model
+  writes bounds its time with `__from` and `__to`, or with a date in ISO 8601 text.
 - Each step goes to the usage ledger as the `answer` job, against the person who asked and the
   dashboard, with the feature of its mode: `question` for `ask`, `explanation` for `explain`.
   The outcome carries the answer's usage by model.
@@ -2110,7 +2111,8 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   refused. A search without aggregations gives its documents,
   flattened to dotted columns typed from the mapping. `describe` groups daily and rollover indices
   (`logs-2026.09.29`, `logs-000042`) into the pattern that queries them (`logs-*`), with their
-  merged fields and document counts. `sampleValues` runs a terms aggregation on a field the
+  merged fields and document counts. A date field whose mapping names a format carries it in its
+  type, such as `date (epoch_millis)`, so the model knows how the field is written. `sampleValues` runs a terms aggregation on a field the
   mapping has, through `.keyword` for a text field. Error types map to connector errors; a
   reason that is not about the query can quote values, so the safe message leaves it out. Neither server says whether a user could
   write through a search, so the connection test reports `readOnly: null`: the credentials should
