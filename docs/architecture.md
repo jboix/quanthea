@@ -969,9 +969,13 @@ times.
 - During quiet hours the alert is evaluated as ever, and the states and changes of state are
   saved with `notified` 0. Nothing is sent: no firing, no repeat, no `alert.error`.
 - A change whose message they held back is saved with `quiet` 1 (`alert_events`,
-  `alert_check_events`): a firing or a repeat that was due, a resolution or a recovery that waits,
-  an alert going into error. What happened shows it as "held back by quiet hours". A change that
-  would have sent nothing anyway, such as a series going pending, is not marked.
+  `alert_check_events`): a firing that was due, a resolution or a recovery that waits, an alert
+  going into error. What happened shows it as "held back by quiet hours". A change that would
+  have sent nothing anyway, such as a series going pending, is not marked. A repeat held back is
+  no change of state: it leaves no row.
+- A message sent late adds no row either: a series' `alert.firing` or `alert.resolved` after quiet
+  hours, and a waiting `alert.recovered`, show under the latest messages only. The change itself
+  is in the history once, at the time it happened.
 - At the first evaluation after they end, a series still firing that has not announced it sends
   `alert.firing`. A firing announced later than it began (after quiet hours, or a mute) says since
   when: the message gets the field `Firing since` (`{since}`) unless it names `{since}` already or

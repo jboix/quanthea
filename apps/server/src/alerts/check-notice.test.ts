@@ -83,7 +83,8 @@ describe('whether an alert can be checked', () => {
     const night = (index: number) => index >= 2 && index < 4;
     const { events, records, state } = run(['down', 'down', null, null, null], undefined, night);
     expect(events).toEqual([null, 'alert.error', null, null, 'alert.recovered']);
-    expect(records).toEqual(['error@1', 'recovered@2, held', 'recovered@4']);
+    // Recorded once, when it happened: the message sent later adds no row.
+    expect(records).toEqual(['error@1', 'recovered@2, held']);
     expect(state).toEqual(checkable);
   });
 

@@ -129,6 +129,10 @@ checked, and everything that happens to it stays in **What happened**.
 - **What fired before them and resolved inside them** says it resolved once they end, so a channel
   such as PagerDuty closes its incident.
 - **Deactivating** an alert during quiet hours still resolves what was firing.
+- **The history has each change once, at the time it happened.** A resolution, or an alert that
+  can be checked again, during quiet hours is listed then, marked "held back by quiet hours". The
+  message that goes out once they end is not a new line there: it shows under the latest messages
+  in **Notifies**. A repeat that was held back changes nothing, so it is not listed.
 
 Quiet hours are windows on the clock of a named time zone: the days a window starts on, and the
 times it starts and ends. A window may cross midnight: Friday 22:00 to 07:00 ends on Saturday

@@ -149,6 +149,8 @@ describe('deactivating an alert in error', () => {
     await alerts.deactivate(alertId, 'ada');
     expect(sent.map((each) => each.event)).toEqual(['alert.recovered']);
     expect(states.checkState(alertId)).toEqual({ failures: 0, errorSince: null, notified: false });
+    // The recovery was recorded when it happened: the late message adds no row.
+    expect(states.checkEvents(alertId, 5)).toEqual([]);
   });
 
   test('records the end of the error but sends nothing while muted, or when it never said so', async () => {

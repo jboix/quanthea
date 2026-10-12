@@ -57,7 +57,8 @@ async function announceResolved(
 
 /**
  * What deactivating does to an alert in error: it leaves error, records it, and announces it when
- * it had announced the error and messages are not held back.
+ * it had announced the error and messages are not held back. A recovery that was waiting for quiet
+ * hours to end is already recorded: its message goes out and no row is added.
  *
  * @param context - The service context, with the state store and the settings.
  * @param alert - The alert.
@@ -71,6 +72,7 @@ function leaveError(context: AlertsContext, alert: AlertRow, quiet: boolean, now
   if (previous.errorSince === null && !previous.notified)
     return { check: undefined, announce: false };
   const announce = previous.notified && !quiet && context.settings.get().notifyOnError;
+  if (previous.errorSince === null) return { check: { state: checkable, event: null }, announce };
   const event = { id: newId(), kind: 'recovered' as const, at: now, reason: null, quiet: false };
   return { check: { state: checkable, event: { ...event, notified: announce } }, announce };
 }

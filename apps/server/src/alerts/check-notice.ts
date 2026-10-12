@@ -78,7 +78,8 @@ function failedCheck(previous: CheckState, facts: CheckFacts, failure: string): 
 /**
  * Decides after an evaluation that ran its query: an alert in error recovers, and says so when
  * it had said it was in error. During quiet hours that message waits: the alert stays announced
- * and says so once they end.
+ * and says so once they end. The recovery is recorded once, when it happens: the message sent
+ * later adds no row, as a series' late message adds none.
  *
  * @param previous - The state before.
  * @param facts - The evaluation.
@@ -88,7 +89,7 @@ function passedCheck(previous: CheckState, facts: CheckFacts): CheckDecision {
   const owed = previous.notified && !facts.quiet;
   const waits = owed && facts.held;
   const event = owed && !waits ? 'alert.recovered' : null;
-  const recorded = previous.errorSince !== null || event !== null;
+  const recorded = previous.errorSince !== null;
   return {
     state: { failures: 0, errorSince: null, notified: waits },
     event,
