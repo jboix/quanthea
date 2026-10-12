@@ -51,6 +51,10 @@ hours. It runs only with `--search`, and a run without the flag says it skipped 
   is too short, or too even, to call a pattern.
 - "Says whether it repeats" is a pattern over the text: consistent, repeats, every day, steady,
   even, the same, too short or not enough, among others.
+- So `a5` does not exercise the profile yet. It passes with any hour of the day and any of those
+  words, with or without a profile in the read. It will check the profile once the fixture holds
+  several days of events with a daily rhythm: then the case can expect the known peak hour and a
+  statement that it repeats.
 
 "Quotes no data" is a heuristic over the text. Clock times, dates, years and citation markers are
 removed first. Then a number reads as a measurement when it is:

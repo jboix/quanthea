@@ -193,15 +193,18 @@ function readableNames(connectors: readonly AnswerConnector[]): string[] {
  *
  * @param prepared - The answer.
  * @param end - How the last pass ended.
- * @returns The ending, its message, and the provider's finish reason for a step with no call.
+ * @returns The ending and its message and, for a step with no call, the provider's finish reason
+ *   and the limit that had left it only the answer to give.
  */
 function failureOf(prepared: PreparedAnswer, end: PassEnd) {
   const { failedAnswers } = prepared.tools.state;
   if (end.failure !== undefined) return { ending: 'error' as const, message: end.failure };
   const { stalled } = end;
   if (stalled && failedAnswers < answerTries) {
+    const { limit } = prepared;
+    const message = stallMessage(stalled, { askedAgain: end.forced, limit });
     const reason = stalled.finishReason ? { finishReason: stalled.finishReason } : {};
-    return { ending: stalled.stall, message: stallMessage(stalled), ...reason };
+    return { ending: stalled.stall, message, ...reason, ...(limit ? { limit } : {}) };
   }
   return failedAnswers > 0
     ? { ending: 'refused' as const, message: refusedMessage }
@@ -238,6 +241,31 @@ function outcomeOf(prepared: PreparedAnswer, end: PassEnd): AnswerOutcome {
 }
 
 /**
+ * Logs an answer that never came: its ending, and the provider's finish reason and the limit
+ * reached when there are any. The message the person reads carries neither.
+ *
+ * @param dependencies - The service's dependencies.
+ * @param request - The request.
+ * @param outcome - The outcome.
+ */
+function logFailure(
+  dependencies: AnswerDependencies,
+  request: AnswerRequest,
+  outcome: AnswerOutcome,
+): void {
+  if (outcome.ok) return;
+  const { ending, finishReason, limit } = outcome;
+  const { mode, dashboardId } = request;
+  dependencies.logger?.warn('an answer ended with none', {
+    mode,
+    dashboardId,
+    ending,
+    ...(finishReason === undefined ? {} : { finishReason }),
+    ...(limit === undefined ? {} : { limit }),
+  });
+}
+
+/**
  * Whether a pass ended on a step with no tool call while the answer may still be given.
  *
  * @param prepared - The answer.
@@ -267,6 +295,7 @@ function messagesAfter(prepared: PreparedAnswer, end: PassEnd): ModelMessage[] {
 /**
  * Runs a prepared answer to its end. A pass that ends on a step with no tool call, with no answer
  * given, is followed by one pass that may only give the answer, from the evidence already read.
+ * An outcome with no answer is logged.
  *
  * @param dependencies - The service's dependencies.
  * @param prepared - The answer.
@@ -283,6 +312,7 @@ async function run(
   const forced = { messages: messagesAfter(prepared, first), forced: true, writer };
   const end = awaitsAnswer(prepared, first) ? await runPass(dependencies, prepared, forced) : first;
   const outcome = outcomeOf(prepared, end);
+  logFailure(dependencies, prepared.request, outcome);
   const data = outcome.ok
     ? { ok: true as const, answer: outcome.answer }
     : { ok: false as const, message: outcome.message };

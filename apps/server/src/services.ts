@@ -47,6 +47,7 @@ import { threadSpecLister } from './db/thread-specs.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
 import { createUserRepository } from './db/user-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
+import type { Logger } from './lib/logger.ts';
 import { createNotifications, type Notifications } from './notifications/notifications.ts';
 import { resealChannels } from './notifications/reseal.ts';
 import { createManaged, type Managed } from './provisioning/managed.ts';
@@ -77,6 +78,8 @@ import { createUsage, type Usage } from './usage/usage.ts';
 export interface ServiceDependencies extends AccountDependencies {
   /** The connector kinds on offer. */
   readonly kinds: readonly RegisteredKind[];
+  /** The server's logger; without one, in tests, the services log nothing. */
+  readonly logger?: Logger;
 }
 
 /** The services the HTTP layer calls. */
@@ -450,7 +453,7 @@ export function createServices(dependencies: ServiceDependencies): Services {
     bin,
     describeForPin,
     agent,
-    answers: createAnswers({ ...data, usage, modelSettings: settings.modelSettings }),
+    answers: createAnswers({ ...data, usage, ...settings, logger: dependencies.logger }),
     usage,
     ...settings,
     ...provisioningParts(dependencies),

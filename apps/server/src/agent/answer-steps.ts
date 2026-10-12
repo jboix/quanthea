@@ -15,7 +15,12 @@ import {
   toUIMessageStream,
   type UIMessageStreamWriter,
 } from 'ai';
-import { type StalledStep, stalledStep, withoutViolations } from './answer-ending.ts';
+import {
+  type StalledStep,
+  type StepLimit,
+  stalledStep,
+  withoutViolations,
+} from './answer-ending.ts';
 import { runTools } from './answer-run-tools.ts';
 import { answerTools } from './answer-tools.ts';
 import type { AnswerDependencies, AnswerMessage, PreparedAnswer } from './answer-types.ts';
@@ -44,6 +49,8 @@ export interface PassEnd {
   readonly failure?: string;
   /** The step that ended the pass with no tool call, if one did. */
   readonly stalled?: StalledStep | undefined;
+  /** Whether the pass was the forced one, which may only give the answer. */
+  readonly forced: boolean;
   /** What the pass added to the conversation: the model's calls and their results. */
   readonly said: readonly ModelMessage[];
 }
@@ -69,16 +76,33 @@ function stopConditions(prepared: PreparedAnswer, forced: boolean): StopConditio
 }
 
 /**
+ * The limit of one answer the next step is past, if any.
+ *
+ * @param prepared - The answer.
+ * @param steps - The steps of the pass so far.
+ * @returns The limit, the tool calls before the tokens; `undefined` within both.
+ */
+function limitReached(
+  prepared: PreparedAnswer,
+  steps: readonly { toolCalls: readonly unknown[] }[],
+): StepLimit | undefined {
+  const { limits } = prepared.resolved.settings;
+  const calls = steps.reduce((sum, step) => sum + step.toolCalls.length, 0);
+  if (calls >= limits.toolCallsPerTurn) return 'calls';
+  return prepared.tokens >= limits.threadTokens ? 'tokens' : undefined;
+}
+
+/**
  * What the next step may do: anything while within the limits, then only give the answer, as
- * every step of a forced pass. Every step marks the conversation so far as a cache point for
- * Anthropic.
+ * every step of a forced pass. A limit reached is noted on the answer. Every step marks the
+ * conversation so far as a cache point for Anthropic.
  *
  * @param prepared - The answer.
  * @param forced - Whether the pass may only give the answer.
  * @returns The step callback.
  */
 function stepSettings(prepared: PreparedAnswer, forced: boolean) {
-  const { limits, provider } = prepared.resolved.settings;
+  const { provider } = prepared.resolved.settings;
   return ({
     steps,
     messages,
@@ -89,9 +113,8 @@ function stepSettings(prepared: PreparedAnswer, forced: boolean) {
     // Each step reads the conversation so far from Anthropic's cache, as the agent's steps do,
     // and sends back no thinking block: they are bound to instructions and tools that change.
     const cached = { messages: withCachedTail(withoutReasoning(messages, provider), provider) };
-    const calls = steps.reduce((sum, step) => sum + step.toolCalls.length, 0);
-    const within = calls < limits.toolCallsPerTurn && prepared.tokens < limits.threadTokens;
-    if (within && !forced) return cached;
+    prepared.limit = limitReached(prepared, steps) ?? prepared.limit;
+    if (prepared.limit === undefined && !forced) return cached;
     return {
       ...cached,
       activeTools: ['give_answer'],
@@ -212,8 +235,8 @@ export async function runPass(
   try {
     const steps = await result.steps;
     const said = await result.responseMessages;
-    return { stalled: stalledStep(steps.at(-1), violation), said };
+    return { stalled: stalledStep(steps.at(-1), violation), forced: pass.forced, said };
   } catch (error) {
-    return { failure: publicError(error), said: [] };
+    return { failure: publicError(error), forced: pass.forced, said: [] };
   }
 }

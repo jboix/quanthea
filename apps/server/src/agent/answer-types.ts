@@ -10,9 +10,10 @@ import type {
 import type { ModelMessage, UIMessage, UIMessageStreamWriter } from 'ai';
 import type { Dashboards } from '../dashboards/dashboards.ts';
 import type { ModelView } from '../gate/model-view.ts';
+import type { Logger } from '../lib/logger.ts';
 import type { ModelSettingsService, ResolvedModelSettings } from '../settings/model-settings.ts';
 import type { Usage } from '../usage/usage.ts';
-import type { AnswerEnding } from './answer-ending.ts';
+import type { AnswerEnding, StepLimit } from './answer-ending.ts';
 import type { AnswerToolContext } from './answer-tools.ts';
 import type { FrozenRun } from './frozen-run.ts';
 import type { languageModel } from './model.ts';
@@ -30,6 +31,8 @@ export interface AnswerDependencies {
   readonly usage: Pick<Usage, 'recordStep'>;
   /** The model settings, for the provider, its key, the answer model and the limits. */
   readonly modelSettings: Pick<ModelSettingsService, 'resolve'>;
+  /** Where an answer that never came is logged, with its ending and the provider's reason. */
+  readonly logger?: Pick<Logger, 'warn'> | undefined;
   /** Builds the model; the real providers by default. Tests pass a fake. */
   readonly buildModel?: typeof languageModel;
 }
@@ -87,6 +90,8 @@ export type AnswerOutcome =
       readonly ending: AnswerEnding;
       /** The provider's own finish reason of a step that called no tool, when it gave one. */
       readonly finishReason?: string;
+      /** The limit that had left the last step only the answer to give, when it called no tool. */
+      readonly limit?: StepLimit;
       /** What the last refused answer was told to fix, when its checks refused it. */
       readonly issues?: readonly string[];
       readonly evidence: readonly AnswerEvidence[];
@@ -144,4 +149,6 @@ export interface PreparedAnswer {
   usage: TurnUsage;
   /** The tokens spent so far, in all. */
   tokens: number;
+  /** The limit a step was past, which left it and the steps after it only the answer to give. */
+  limit?: StepLimit | undefined;
 }

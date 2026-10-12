@@ -37,14 +37,31 @@ describe('how a run ended without a tool call', () => {
     expect(stalledStep(step('other', 'tool_use_failed'))?.stall).toBe('malformed');
   });
 
-  test('each ending has its own words, with the reason the provider gave', () => {
-    expect(stallMessage({ stall: 'cut', finishReason: 'MAX_TOKENS' })).toBe(
-      "The model's output was cut at its limit before it gave an answer, even when asked once more to answer from what it had read. The provider's reason: MAX_TOKENS. Try asking more narrowly.",
+  const asked = { askedAgain: true };
+
+  test('each ending has its own words, without the reason the provider gave', () => {
+    expect(stallMessage({ stall: 'cut', finishReason: 'MAX_TOKENS' }, asked)).toBe(
+      "The model's output was cut at its limit before it gave an answer, even when asked once more to answer from what it had read. Try asking more narrowly.",
     );
-    expect(stallMessage({ stall: 'silent' })).toBe(
+    expect(stallMessage({ stall: 'silent' }, asked)).toBe(
       'The model stopped without giving an answer, even when asked once more to answer from what it had read. Try again.',
     );
-    expect(stallMessage({ stall: 'malformed' })).toContain('a tool call that could not be read');
-    expect(stallMessage({ stall: 'withheld' })).toContain('withheld the response');
+    expect(stallMessage({ stall: 'malformed' }, asked)).toContain('could not be read');
+    expect(stallMessage({ stall: 'withheld' }, asked)).toContain('withheld the response');
+  });
+
+  test('says it asked once more only when it did', () => {
+    expect(stallMessage({ stall: 'silent' }, { askedAgain: false })).toBe(
+      'The model stopped without giving an answer. Try again.',
+    );
+  });
+
+  test('names the limit that left the step only the answer to give', () => {
+    expect(stallMessage({ stall: 'silent' }, { askedAgain: false, limit: 'tokens' })).toBe(
+      'The token budget of one answer was used up, so the model could only give its answer. The model stopped without giving an answer. Try asking more narrowly.',
+    );
+    expect(stallMessage({ stall: 'malformed' }, { ...asked, limit: 'calls' })).toStartWith(
+      'The tool calls of one answer were used up, so the model could only give its answer. The model wrote',
+    );
   });
 });

@@ -1759,8 +1759,12 @@ The model's tools are decided per connector of the dashboard:
   model call failed), `refused` (two answers failed their checks), `limit` (the tool call limit
   or the token budget), or how the last step ended without a call: `cut` (the output limit),
   `malformed` (a tool call the provider could not read), `withheld` (the provider's content
-  filter) or `silent` (nothing, for no reason given). The message has its own words for each,
-  with the provider's finish reason when it gave one, also in the outcome's `finishReason`.
+  filter) or `silent` (nothing, for no reason given). The message has its own words for each. It
+  says the model was asked once more only when the forced pass ran, and it names the limit (the
+  tool calls or the token budget) when one had left the step only `give_answer`.
+- The message never quotes the provider's own finish reason, which is not written for the person.
+  It is in the outcome's `finishReason`, with the limit in `limit`, and the server logs both with
+  the ending when an answer ends with none (`an answer ended with none`, at `warn`).
 - The instructions (`agent/answer-prompt.ts`) ask for an answer from evidence only, every number
   cited, times absolute in the dashboard's time zone, what could not be seen said, a few plain
   sentences and no tables. They carry the dashboard as written (panels, queries, variables,

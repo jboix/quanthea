@@ -1,18 +1,20 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { connectorInputSchema, dashboardSpecSchema, defaultModelGateway } from '@quanthea/shared';
 import { eventsSpec } from '../dashboards/test/events-spec.ts';
-import { temporaryDir, testServices } from '../test/fixtures.ts';
+import { captureLogs, temporaryDir, testServices } from '../test/fixtures.ts';
 import { createAnswers } from './answer.ts';
 import type { AskRequest } from './answer-types.ts';
 import { type ScriptedStep, scriptedStreamModel } from './test/mock-model.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let services: Awaited<ReturnType<typeof testServices>>;
+let log: ReturnType<typeof captureLogs>;
 
 const range = { from: Date.parse('2026-10-03T12:00:00Z'), to: Date.parse('2026-10-03T14:00:00Z') };
 
 beforeEach(async () => {
   dataDir = temporaryDir();
+  log = captureLogs();
   services = await testServices(dataDir.path);
   await services.modelSettings.save(defaultModelGateway, { anthropic: 'sk-test' }, 'admin-1');
   const input = { name: 'events', kind: 'memory', config: {}, secret: { token: 't' } };
@@ -32,7 +34,8 @@ afterEach(async () => {
  */
 function answersWith(...script: ScriptedStep[]) {
   const model = scriptedStreamModel(...script);
-  return { answers: createAnswers({ ...services, buildModel: () => model }), model };
+  const { logger } = log;
+  return { answers: createAnswers({ ...services, buildModel: () => model, logger }), model };
 }
 
 /**
@@ -105,7 +108,44 @@ describe('a step that calls no tool', () => {
       ending: 'cut',
       finishReason: 'MAX_TOKENS',
       message:
-        "The model's output was cut at its limit before it gave an answer, even when asked once more to answer from what it had read. The provider's reason: MAX_TOKENS. Try asking more narrowly.",
+        "The model's output was cut at its limit before it gave an answer, even when asked once more to answer from what it had read. Try asking more narrowly.",
+    });
+    expect(!outcome.ok && outcome.evidence).toHaveLength(1);
+    expect(model.doStreamCalls).toHaveLength(3);
+  });
+
+  test('logs the ending and the provider’s reason, which the message leaves out', async () => {
+    const { answers } = answersWith(read, cut, cut);
+    const outcome = await answers.answer(ask());
+    expect(!outcome.ok && outcome.message).not.toContain('MAX_TOKENS');
+    expect(log.lines).toMatchObject([
+      {
+        level: 'warn',
+        message: 'an answer ended with none',
+        mode: 'ask',
+        dashboardId: 'd1',
+        ending: 'cut',
+        finishReason: 'MAX_TOKENS',
+      },
+    ]);
+  });
+
+  test('logs nothing for an answer that came', async () => {
+    const { answers } = answersWith(read, cited);
+    expect(await answers.answer(ask())).toMatchObject({ ok: true });
+    expect(log.lines).toEqual([]);
+  });
+
+  test('says the provider withheld the response when its content filter ends both passes', async () => {
+    const withheld = { text: '', finish: 'content-filter', raw: 'SAFETY' } as const;
+    const { answers, model } = answersWith(read, withheld, withheld);
+    const outcome = await answers.answer(ask());
+    expect(outcome).toMatchObject({
+      ok: false,
+      ending: 'withheld',
+      finishReason: 'SAFETY',
+      message:
+        "The model's provider withheld the response, even when asked once more to answer from what it had read. Try asking more narrowly.",
     });
     expect(!outcome.ok && outcome.evidence).toHaveLength(1);
     expect(model.doStreamCalls).toHaveLength(3);
@@ -147,5 +187,52 @@ describe('a step that calls no tool', () => {
     expect(types.filter((type) => type === 'start')).toHaveLength(1);
     expect(types.slice(-2)).toEqual(['data-outcome', 'finish']);
     expect(parts.at(-2)?.data).toMatchObject({ ok: true });
+  });
+});
+
+describe('the limits of one answer', () => {
+  /**
+   * Lowers the tool call limit to one call.
+   */
+  async function oneCall(): Promise<void> {
+    const limits = { ...defaultModelGateway.limits, toolCallsPerTurn: 1 };
+    const gateway = { ...defaultModelGateway, limits };
+    await services.modelSettings.save(gateway, { anthropic: 'sk-test' }, 'admin-1');
+  }
+
+  test('a step past the limit that calls no tool names the limit', async () => {
+    await oneCall();
+    const { answers, model } = answersWith(read, { text: '' }, { text: '' });
+    const outcome = await answers.answer(ask());
+    expect(sent(model, 1).tools).toEqual(['give_answer']);
+    expect(outcome).toMatchObject({
+      ok: false,
+      ending: 'silent',
+      limit: 'calls',
+      message:
+        'The tool calls of one answer were used up, so the model could only give its answer. The model stopped without giving an answer, even when asked once more to answer from what it had read. Try asking more narrowly.',
+    });
+    expect(log.lines[0]).toMatchObject({ ending: 'silent', limit: 'calls' });
+  });
+
+  test('a step within the limits that calls no tool names none', async () => {
+    const { answers } = answersWith(read, { text: '' }, { text: '' });
+    const outcome = await answers.answer(ask());
+    expect(outcome).not.toHaveProperty('limit');
+    expect(!outcome.ok && outcome.message).not.toContain('used up');
+  });
+
+  test('one step of many calls ends the run on the limit', async () => {
+    await oneCall();
+    const { answers, model } = answersWith({ calls: [read, read, read] }, cited);
+    const outcome = await answers.answer(ask());
+    expect(outcome).toMatchObject({
+      ok: false,
+      ending: 'limit',
+      message: 'No answer came within the limits of one answer. Try asking more narrowly.',
+    });
+    expect(!outcome.ok && outcome.evidence).toHaveLength(3);
+    expect(model.doStreamCalls).toHaveLength(1);
+    expect(log.lines[0]).toMatchObject({ ending: 'limit' });
   });
 });

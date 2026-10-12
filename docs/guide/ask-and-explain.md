@@ -38,7 +38,9 @@ the question fails cleanly; you never get an unchecked answer.
 When the model stops without answering, quanthea asks it once more to answer from what it has
 already read. If no answer comes, the message says why: the model's output was cut at its limit,
 it wrote a call that could not be read, its provider withheld the response, it stopped with
-nothing, or the limits of one answer were reached.
+nothing, or the limits of one answer were reached. When the tool calls or the token budget of one
+answer were used up first, the message says so. The provider's own reason for the ending is not in
+the message: it is in the server's log, for an admin.
 
 ### Time of day and day of the week
 

@@ -2,7 +2,8 @@
  * Why a run of the answering model ended with no answer. A step that calls no tool ends the run
  * although no limit was reached: the model's output was cut, its call could not be read, its
  * provider withheld the response, or it stopped with nothing. Each has its own words, so the person
- * is not told of a limit that was never reached.
+ * is not told of a limit that was never reached, and is told of the one that was. The provider's
+ * own reason is for the log, never for the message.
  */
 import { type FinishReason, type TextStreamPart, ToolChoiceViolationError, type ToolSet } from 'ai';
 
@@ -15,6 +16,12 @@ export type Stall = 'cut' | 'malformed' | 'withheld' | 'silent';
 
 /** Why an answer has no text to show: the model call failed, or one of the endings without one. */
 export type AnswerEnding = 'error' | 'refused' | 'limit' | Stall;
+
+/**
+ * A limit of one answer that leaves a step only the answer to give: `calls` for the tool call
+ * limit, `tokens` for the token budget.
+ */
+export type StepLimit = 'calls' | 'tokens';
 
 /** A step that ended the run with no tool call. */
 export interface StalledStep {
@@ -76,17 +83,34 @@ const stallWords: Readonly<Record<Stall, string>> = {
   silent: 'The model stopped without giving an answer',
 };
 
+/** What the person is told of a limit that left the step only the answer to give. */
+const limitWords: Readonly<Record<StepLimit, string>> = {
+  calls: 'The tool calls of one answer were used up, so the model could only give its answer.',
+  tokens: 'The token budget of one answer was used up, so the model could only give its answer.',
+};
+
+/** What happened around a step that ended the run with no tool call. */
+export interface StallCircumstances {
+  /** Whether the model was asked once more, in a pass that may only give the answer. */
+  readonly askedAgain: boolean;
+  /** The limit that had left the step only the answer to give, if one had. */
+  readonly limit?: StepLimit | undefined;
+}
+
 /**
- * The message of an answer that never came, even from the step that may only give the answer.
+ * The message of an answer that never came. It never quotes the provider's own finish reason.
  *
  * @param step - The step the run ended on.
- * @returns What happened, the provider's reason when it gave one, and what to try.
+ * @param circumstances - Whether the model was asked once more, and the limit reached if any.
+ * @returns The limit when one was reached, what happened, and what to try.
  */
-export function stallMessage(step: StalledStep): string {
-  const reason = step.finishReason ? ` The provider's reason: ${step.finishReason}.` : '';
-  const advice =
-    step.stall === 'cut' || step.stall === 'withheld' ? 'asking more narrowly' : 'again';
-  return `${stallWords[step.stall]}, even when asked once more to answer from what it had read.${reason} Try ${advice}.`;
+export function stallMessage(step: StalledStep, circumstances: StallCircumstances): string {
+  const { askedAgain, limit } = circumstances;
+  const before = limit === undefined ? '' : `${limitWords[limit]} `;
+  const again = askedAgain ? ', even when asked once more to answer from what it had read' : '';
+  const narrowly = limit !== undefined || step.stall === 'cut' || step.stall === 'withheld';
+  const advice = narrowly ? 'asking more narrowly' : 'again';
+  return `${before}${stallWords[step.stall]}${again}. Try ${advice}.`;
 }
 
 /**
