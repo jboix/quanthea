@@ -15,6 +15,8 @@ import { type AnswerCase, answerCases, selectAnswerCases } from './answer-cases.
 import { type AnswerBench, driveAnswer, openBench } from './answer-drive.ts';
 import { drive } from './drive.ts';
 import { writeEvalmark } from './evalmark.ts';
+import { type Need, type ParityCase, parityCases, parityWord } from './parity-cases.ts';
+import { parityPlanOf, type Skipped, skippedLine } from './parity-score.ts';
 import { apiKeyOf, keyVariableOf, providerOf, suggestedModels } from './providers.ts';
 import { selectQuestions } from './questions.ts';
 import { htmlReport, markdownReport } from './render.ts';
@@ -50,6 +52,8 @@ the database, and asks about that run (r3, r4).
   bun run evals --model gemini-3.8-flash
   bun run evals --build-model gemini-3.8-flash   another model for building and repairs
   bun run evals --search                with the dev OpenSearch as a third connector
+  bun run evals --only parity --search  the parity questions (f01 to f33), one per family of
+                                        panels on the player events; or --only f05,f11
   bun run evals --no-cache              ask the provider again, and keep its answers
   bun run evals --allow-failures 2      exit with an error when more than 2 questions fail
   bun run evals --rescore <report.json> score a report again, with no model call
@@ -61,8 +65,12 @@ cache in evals/.cache already holds. A run with --search lists one connector mor
 prompt, so it shares no cached response with a run without it. Reports go to evals/reports, as JSON and as an HTML page;
 in GitHub Actions the summary also goes to the job's summary page. It exits with an error when
 more questions fail than --allow-failures allows; without it, failing questions are reported,
-never an error.
+never an error. The parity questions run only when --only names them, and need --search. One that
+needs what the world lacks, such as an HTTP connector, is skipped and reported as skipped.
 `;
+
+/** What the world has of what a parity question may need: nothing yet. */
+const worldHas: readonly Need[] = [];
 
 const here = import.meta.dir;
 const reportsDir = join(here, 'reports');
@@ -221,6 +229,25 @@ async function reportAll(
 }
 
 /**
+ * Asks the parity questions, one after the other, and says which ones were skipped.
+ *
+ * @param world - The world.
+ * @param cases - The questions to ask.
+ * @param skipped - The questions the world cannot answer yet.
+ * @param outcomes - The outcomes so far, which theirs join.
+ * @returns Once every question has run.
+ */
+async function parityAll(
+  world: EvalWorld,
+  cases: readonly ParityCase[],
+  skipped: readonly Skipped[],
+  outcomes: EvalOutcome[],
+): Promise<void> {
+  for (const parityCase of cases) keep(outcomes, await drive(world, parityCase));
+  for (const each of skipped) process.stdout.write(`${skippedLine(each)}\n`);
+}
+
+/**
  * Opens the pinned checkout incident dashboard the first time it is asked for.
  *
  * @param world - The world.
@@ -250,26 +277,46 @@ function modelsOf(flags: ReturnType<typeof readFlags>['values']): EvalModels {
 }
 
 /**
+ * The provider's key of a run, with a note when there is none.
+ *
+ * @param models - The run's provider and models.
+ * @returns The key, if the environment holds it.
+ */
+function apiKeyFor(models: EvalModels): string | undefined {
+  const provider = models.provider ?? 'google';
+  const apiKey = apiKeyOf(provider, process.env);
+  if (apiKey === undefined)
+    process.stdout.write(`${keyVariableOf(provider)} is not set: only cached responses play.\n`);
+  return apiKey;
+}
+
+/**
+ * The response cache of a run: read unless `--no-cache`, with live calls spaced apart.
+ *
+ * @param flags - The flags.
+ * @returns The cache's place and behaviour.
+ */
+function cacheOf(flags: ReturnType<typeof readFlags>['values']) {
+  return { dir: join(here, '.cache'), read: !flags['no-cache'], minIntervalMs: 4000 };
+}
+
+/**
  * Asks every selected question, then runs every selected answer case, alert case and report case,
- * one after the other, and prints each verdict as it comes.
+ * then the parity questions `--only` names, one after the other, and prints each verdict as it
+ * comes.
  *
  * @param flags - The flags.
  * @returns The report.
  */
 async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<Report> {
   const only = flags.only?.split(',').map((id) => id.trim()) ?? [];
-  const others = [...answerCases, ...alertCases, ...reportCases].map((each) => each.id);
-  const selected = selectQuestions(only, others);
+  const cases = [...answerCases, ...alertCases, ...reportCases, ...parityCases];
+  const selected = selectQuestions(only, [...cases.map((each) => each.id), parityWord]);
   const models = modelsOf(flags);
   const search = flags.search ?? false;
+  const parity = parityPlanOf(only, worldHas, search);
   await checkSources(search);
-  const cache = { dir: join(here, '.cache'), read: !flags['no-cache'], minIntervalMs: 4000 };
-  const provider = models.provider ?? 'google';
-  const apiKey = apiKeyOf(provider, process.env);
-  if (apiKey === undefined) {
-    process.stdout.write(`${keyVariableOf(provider)} is not set: only cached responses play.\n`);
-  }
-  const world = await openWorld(models, apiKey, cache, { search });
+  const world = await openWorld(models, apiKeyFor(models), cacheOf(flags), { search });
   const startedAt = new Date().toISOString();
   const outcomes: EvalOutcome[] = [];
   const bench = benchOnce(world);
@@ -278,10 +325,13 @@ async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<
     await answerAll(world, bench, selectAnswerCases(only), outcomes);
     await alertAll(world, bench, selectAlertCases(only), outcomes);
     await reportAll(world, bench, selectReportCases(only), outcomes);
+    await parityAll(world, parity.ready, parity.skipped, outcomes);
   } finally {
     await world.close();
   }
-  const report = { startedAt, models, cache: world.counts, results: scoreAll(outcomes) };
+  const skipped = parity.skipped.length > 0 ? { skipped: parity.skipped } : {};
+  const results = scoreAll(outcomes);
+  const report = { startedAt, models, cache: world.counts, results, ...skipped };
   process.stdout.write(`\n${summary(report)}\n`);
   return report;
 }

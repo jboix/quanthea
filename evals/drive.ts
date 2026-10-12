@@ -177,6 +177,19 @@ function markersField(spec: DashboardSpec | undefined): { markers?: BuiltPanel[]
 }
 
 /**
+ * The outcome's dashboard field: the last version around its panels and markers, such as its
+ * variables, for what an expectation asks of the dashboard as a whole.
+ *
+ * @param spec - The spec.
+ * @returns The field to spread; none when nothing was built.
+ */
+function dashboardField(spec: DashboardSpec | undefined): Pick<Outcome, 'dashboard'> {
+  if (!spec) return {};
+  const { panels: _panels, annotations: _annotations, ...dashboard } = spec;
+  return { dashboard };
+}
+
+/**
  * The queries of the last version that fail when run again.
  *
  * @param world - The world.
@@ -288,6 +301,7 @@ export async function drive(world: EvalWorld, question: Question): Promise<Outco
     built: state === 'ready' && spec !== undefined,
     panels: panelsOf(spec, askedOf(messages)),
     ...markersField(spec),
+    ...dashboardField(spec),
     failing: await failingOf(world, spec),
     turns,
     durationMs: Date.now() - started,

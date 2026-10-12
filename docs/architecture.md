@@ -3470,6 +3470,11 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
   them, the markers its charts carry (every annotation of the spec is a marker set). An
   expectation can also name the shape of one panel: the builder asked of the edit tool, the
   aggregations in its search body, its table operations in order, and its view (`evals/shape.ts`).
+  The parity questions (`evals/parity-cases.ts`, `f01` to `f33`) ask for one panel of each family
+  of panels on the player events, and expect the shape of the finished work, so most fail until
+  the builder, operation or view they name exists. They run only when `--only parity` or their ids
+  name them, with `--search`. One that needs what the world lacks, such as an HTTP connector, is
+  skipped and reported as skipped, never as a failure.
   A run builds the
   server's services on a database of its own, adds the dev Postgres and Prometheus, and, with
   `--search`, the dev OpenSearch as the connector `opensearch-events` (`evals/setup.ts`). It then

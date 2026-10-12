@@ -29,9 +29,13 @@ export interface ShapeExpectation {
   readonly aggregations?: readonly string[];
   /** The names of the table operations, in order; the panel may have others between them. */
   readonly operations?: readonly string[];
-  /** The view: its kind, its chart recipe, and the fields it must hold, such as `sort.field`. */
+  /**
+   * The view: its kind, its chart recipe, and the fields it must hold, such as `sort.field`,
+   * `columns.mappings` for a field of any column, or `layout=record` for a field with that value.
+   * `logs` is a kind a view may have later.
+   */
   readonly view?: {
-    readonly kind: View['kind'];
+    readonly kind: View['kind'] | 'logs';
     readonly recipe?: string;
     readonly has?: readonly string[];
   };

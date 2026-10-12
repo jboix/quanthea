@@ -176,19 +176,35 @@ function dataFaults(panel: BuiltShape, expect: ShapeExpectation): string[] {
 }
 
 /**
- * Whether a view holds a field, such as `compare` or `sort.field`.
+ * Whether a value holds what is left of a path. A list holds it when one of its items does.
  *
- * @param view - The view.
- * @param path - The field, with dots between the keys of nested objects.
- * @returns True when the value there is defined.
+ * @param value - The value reached so far.
+ * @param keys - The keys still to follow.
+ * @param wanted - The text the value there must read as, if the path names one.
+ * @returns True when the value there is defined, or reads as the text wanted.
  */
-function hasField(view: View, path: string): boolean {
-  let value: unknown = view;
-  for (const key of path.split('.')) {
-    if (!isRecord(value)) return false;
-    value = value[key];
-  }
+function holds(value: unknown, keys: readonly string[], wanted: string | undefined): boolean {
+  if (Array.isArray(value) && (keys.length > 0 || wanted !== undefined))
+    return value.some((item) => holds(item, keys, wanted));
+  const [key, ...rest] = keys;
+  if (key !== undefined) return isRecord(value) && holds(value[key], rest, wanted);
+  if (wanted !== undefined) return String(value) === wanted;
   return value !== undefined && value !== null;
+}
+
+/**
+ * Whether a view, or another part of a spec, holds a field. The path has dots between the keys of
+ * nested objects, such as `sort.field`. A key under a list is looked for in each of its items, so
+ * `columns.mappings` holds when one column has mappings. With `=`, the value must read as the text
+ * after it, such as `layout=record`.
+ *
+ * @param value - The view, or the part of the spec.
+ * @param path - The field, and after `=` the value it must have, if any.
+ * @returns True when the value there is defined, or reads as the text given.
+ */
+export function holdsField(value: unknown, path: string): boolean {
+  const [keys = '', wanted] = path.split('=');
+  return holds(value, keys.split('.'), wanted);
 }
 
 /**
@@ -228,7 +244,7 @@ function viewFaults(panel: BuiltShape, expect: ShapeExpectation['view']): string
   if (!view) return ['no view on record'];
   const kind = view.kind === expect.kind ? [] : [`a ${view.kind} view, not a ${expect.kind}`];
   const fields = (expect.has ?? [])
-    .filter((path) => !hasField(view, path))
+    .filter((path) => !holdsField(view, path))
     .map((path) => `the view has no ${path}`);
   return [...kind, ...recipeFaults(panel, expect.recipe), ...fields];
 }

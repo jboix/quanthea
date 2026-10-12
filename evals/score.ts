@@ -30,6 +30,8 @@ export interface Outcome {
   readonly panels: readonly BuiltPanel[];
   /** The marker sets of the last version, each shaped like a panel, if it has any. */
   readonly markers?: readonly BuiltPanel[];
+  /** The last version around its panels and markers, such as its variables; absent before it was kept. */
+  readonly dashboard?: Readonly<Record<string, unknown>>;
   /** The queries of the last version that fail when run again, by panel. */
   readonly failing: readonly { readonly panelId: string; readonly error: string }[];
   /** How many writes failed their checks or test runs. */

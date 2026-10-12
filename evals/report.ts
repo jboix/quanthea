@@ -11,6 +11,8 @@ import { type AlertCaseOutcome, isAlert, scoreAlert } from './alert-score.ts';
 import { answerCases } from './answer-cases.ts';
 import { type AnswerCaseOutcome, isAnswer, scoreAnswer } from './answer-score.ts';
 import type { CacheCounts } from './cache.ts';
+import { parityCases } from './parity-cases.ts';
+import { type Skipped, scoreParity, skippedLine } from './parity-score.ts';
 import { questions } from './questions.ts';
 import { reportCases } from './report-cases.ts';
 import { isReport, type ReportCaseOutcome, scoreReport } from './report-score.ts';
@@ -44,6 +46,8 @@ export interface Report {
   readonly cache: CacheCounts;
   /** Each question's result, in order. */
   readonly results: readonly Result[];
+  /** The parity questions that were not asked, with what the world lacks; absent when none. */
+  readonly skipped?: readonly Skipped[];
 }
 
 /** The score of an outcome whose question or case is gone. */
@@ -78,8 +82,8 @@ function scoreOne(outcome: EvalOutcome): Score {
 }
 
 /**
- * Scores a dashboard question's, an answer case's or an alert case's outcome against its question
- * or case as it is now.
+ * Scores a dashboard question's, a parity question's, an answer case's or an alert case's outcome
+ * against its question or case as it is now.
  *
  * @param outcome - The outcome.
  * @returns The score.
@@ -93,6 +97,8 @@ function scoreDashboardCase(outcome: Outcome | AnswerCaseOutcome | AlertCaseOutc
     const answerCase = answerCases.find((each) => each.id === outcome.id);
     return answerCase ? scoreAnswer(outcome, answerCase.expect) : gone;
   }
+  const parityCase = parityCases.find((each) => each.id === outcome.id);
+  if (parityCase) return scoreParity(outcome, parityCase.expect);
   const question = questions.find((each) => each.id === outcome.id);
   return question ? score(outcome, question.expect) : gone;
 }
@@ -277,6 +283,7 @@ export function summary(report: Report): string {
     ...report.results.map(line),
     '',
     `${passed} of ${report.results.length} pass · ${tokensOf(usage)} tokens · ${dollars(usage)} at list price`,
+    ...(report.skipped ?? []).map(skippedLine),
     cacheSentence(report.cache),
   ].join('\n');
 }
