@@ -353,9 +353,15 @@ gate's leak tests check that every one of those paths drops hidden fields.
   Notifications, and Settings, a dialog laid out like the bin's Retention dialog
   (`alert-settings-dialog.tsx`). It loads and saves the alert settings through the
   `/alerts/settings` resource route: the most alerts active per connector, and the switch Notify
-  when an alert cannot be checked or a report fails (`notifyOnError`), which reports read too. The
-  dialog keeps the default quiet hours (`quietHours`) as they are saved. Editors and below see neither; editors see
-  New alert.
+  when an alert cannot be checked or a report fails (`notifyOnError`), which reports read too.
+  The switch Quiet hours by default opens their fields (`quiet-hours-fields.tsx`,
+  `quiet-hours-form.ts`): each window's days as chips with its start and end, Add a window (up
+  to 8), the time zone (the browser's at first) and the severities that still notify at any hour.
+  A line reads them back ("Quiet every day 22:00 to 07:00 (Europe/Zurich)."), or says what keeps
+  them from being saved. Turned on, they start as every night from 22:00 to 07:00 with critical
+  alerts left alone; turned off, `quietHours` is saved as `null`. When the configuration file
+  manages the settings, the save is refused and the dialog says so. Editors and below see
+  neither; editors see New alert.
 - **Reports** (`features/reports/`). The rail's Reports carries a dot in the accent colour while a
   report has a finished run the person has not opened (`Reports, new runs`). It reads the list
   while the list is on screen, and otherwise the `/reports/unseen` resource route, which loads

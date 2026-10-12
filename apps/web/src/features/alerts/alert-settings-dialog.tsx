@@ -1,7 +1,7 @@
 /**
  * The alert settings, in a dialog on the Alerts page, for admins: how many alerts may be active
- * per connector, and whether an alert that cannot be checked, or a report run that fails, notifies
- * its channels.
+ * per connector, whether an alert that cannot be checked, or a report run that fails, notifies
+ * its channels, and the quiet hours of the alerts that set none of their own.
  */
 import type { AlertSettings } from '@quanthea/shared';
 import { useEffect, useState } from 'react';
@@ -12,6 +12,8 @@ import { Input } from '../../ui/input.tsx';
 import { Switch } from '../../ui/switch.tsx';
 import styles from './alerts.module.css';
 import { type AlertOutcome, alertSettingsPath } from './data.ts';
+import { QuietHoursFields } from './quiet-hours-fields.tsx';
+import { type DefaultQuiet, quietHoursProblem, startingQuietHours } from './quiet-hours-form.ts';
 
 /** The most a connector may have. */
 const highest = 10_000;
@@ -28,7 +30,23 @@ function maximumOf(text: string): number | undefined {
 }
 
 /**
- * The form's state: the typed maximum, the switch, and whether they are valid and changed.
+ * The default quiet hours being edited: whether there are any, and the ones shown, which stay as
+ * edited while the switch is off.
+ *
+ * @param saved - The saved quiet hours, or `null`.
+ * @returns The state, the value to save and whether it can be.
+ */
+function useQuietHours(saved: DefaultQuiet | null) {
+  const [on, setOn] = useState(saved !== null);
+  const [edited, setEdited] = useState<DefaultQuiet>(() => saved ?? startingQuietHours());
+  const value = on ? edited : null;
+  const valid = value === null || quietHoursProblem(value) === undefined;
+  return { on, setOn, edited, setEdited, value, valid };
+}
+
+/**
+ * The form's state: the typed maximum, the switch, the default quiet hours, and whether they are
+ * valid and changed.
  *
  * @param saved - The saved settings.
  * @returns The state.
@@ -36,14 +54,51 @@ function maximumOf(text: string): number | undefined {
 function useSettingsForm(saved: AlertSettings) {
   const [text, setText] = useState(String(saved.maxActivePerConnector));
   const [notifyOnError, setNotifyOnError] = useState(saved.notifyOnError);
+  const quiet = useQuietHours(saved.quietHours);
   const maximum = maximumOf(text);
-  const settings: AlertSettings = { ...saved, maxActivePerConnector: maximum ?? 1, notifyOnError };
-  const changed = maximum !== saved.maxActivePerConnector || notifyOnError !== saved.notifyOnError;
-  return { text, setText, notifyOnError, setNotifyOnError, maximum, settings, changed };
+  const settings: AlertSettings = {
+    maxActivePerConnector: maximum ?? 1,
+    notifyOnError,
+    quietHours: quiet.value,
+  };
+  const changed = JSON.stringify(settings) !== JSON.stringify(saved);
+  const valid = maximum !== undefined && quiet.valid;
+  return {
+    text,
+    setText,
+    notifyOnError,
+    setNotifyOnError,
+    quiet,
+    maximum,
+    settings,
+    changed,
+    valid,
+  };
 }
 
 /**
- * The maximum and the switch.
+ * The switch of the default quiet hours, and their fields while it is on.
+ *
+ * @param props - The quiet hours' state.
+ * @param props.quiet - The quiet hours' state.
+ * @returns The switch and the fields.
+ */
+function QuietHoursSetting({ quiet }: { readonly quiet: ReturnType<typeof useQuietHours> }) {
+  return (
+    <>
+      <Switch
+        label="Quiet hours by default"
+        description="Alerts that set none of their own send nothing during them. They are still checked, and what still fires when they end notifies then, saying since when."
+        checked={quiet.on}
+        onChange={quiet.setOn}
+      />
+      {quiet.on && <QuietHoursFields value={quiet.edited} onChange={quiet.setEdited} />}
+    </>
+  );
+}
+
+/**
+ * The maximum, the switch and the default quiet hours.
  *
  * @param props - The form.
  * @param props.form - The form's state.
@@ -69,6 +124,7 @@ function SettingsFields({ form }: { readonly form: ReturnType<typeof useSettings
         checked={form.notifyOnError}
         onChange={form.setNotifyOnError}
       />
+      <QuietHoursSetting quiet={form.quiet} />
     </>
   );
 }
@@ -105,7 +161,7 @@ function SettingsForm({
       {fetcher.data?.ok === false && <p className={styles.failure}>{fetcher.data.message}</p>}
       <Button
         variant="primary"
-        disabled={form.maximum === undefined || !form.changed || fetcher.state !== 'idle'}
+        disabled={!form.valid || !form.changed || fetcher.state !== 'idle'}
         onClick={save}
       >
         Save

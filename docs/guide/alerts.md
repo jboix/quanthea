@@ -143,9 +143,9 @@ Which quiet hours an alert keeps:
   weekends", "quiet from 22:00 to 07:00, Zurich time", "always notify" or "back to the default".
   It offers them itself for an alert nobody needs waking for.
 - **None**, when its version says `none`: it always notifies.
-- **The default** otherwise: `alerts.quietHours` in the
+- **The default** otherwise, which an admin sets in [Settings](#settings) or in the
   [configuration file](../configuration.md#alerts). Critical alerts ignore the default, so the
-  ones that must wake someone do. `exceptSeverities` names other severities, or none.
+  ones that must wake someone do. An admin may spare other severities, or none.
 
 A mute is separate: it silences one alert until a time, whatever the hour.
 
@@ -155,6 +155,11 @@ Admins open **Settings** on the Alerts page:
 
 - **The most alerts active per connector**, 50 by default, so a source isn't checked to death.
 - **Notify when an alert cannot be checked or a report fails**, on by default.
+- **Quiet hours by default**, off by default. Turn it on and set the windows: the days each one
+  starts on, and when it starts and ends. **Add a window** adds another, such as the whole
+  weekend (Sat and Sun, 00:00 to 00:00). An end at or before the start is the next day. Then the
+  time zone of the clock, and the severities that **still notify at any hour**. The dialog reads
+  the windows back in a sentence before you save.
 
 The same settings, and the default quiet hours, can come from the
 [configuration file](../configuration.md#alerts). The file then manages them, and saving the
