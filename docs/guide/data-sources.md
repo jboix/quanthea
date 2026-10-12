@@ -98,6 +98,23 @@ those values, with no tool call, is not counted or marked.
 | Max time range (days)   | 90      | A panel can't ask for a longer range. |
 
 They apply to everything that runs a query: panels, alerts, report runs, snapshots and the model.
+The page lists them under **Limits you set**. The access level is the other setting that bounds
+what a query gives.
+
+### Always enforced
+
+Under the limits, the page lists the rules of the connector's query language. They are rules, not
+settings: turning one off would run text a model wrote on the data source.
+
+| Query language                     | What is always refused                                                                                                                                                                                                                                  |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SQL                                | A second statement. A statement that does not start with `SELECT`, `WITH`, `VALUES` or `TABLE`, or that holds a keyword that writes or changes the schema. A value as SQL text: variables are parameters.                                               |
+| PromQL                             | Anything but an expression sent to the query endpoints. A variable outside a quoted label matcher value, except an interval where a duration goes.                                                                                                      |
+| LogQL                              | Anything but an expression sent to the query endpoints. A variable outside a quoted value, except an interval where a duration goes. The formatting templates `line_format` and `label_format`, which the source runs.                                  |
+| Search (Elasticsearch, OpenSearch) | Scripts, except the two fixed ratio scripts of a `bucket_script`. Runtime fields. Lookups of another index: a terms lookup, an indexed shape, a percolator, a document list that names an `_index`. Wrapper queries. Hidden, system and remote indices. |
+| HTTP                               | Another origin, a redirect to one, and cloud metadata addresses. A method or a path the connection does not allow. A path with a `.` or `..` segment, `?`, `#` or a backslash. A variable in a header.                                                  |
+| Redis (Valkey)                     | Any command outside the fixed list of reads: nothing writes, scans every key or runs a script.                                                                                                                                                          |
+| MongoDB                            | `$out` and `$merge`. JavaScript: `$where`, `$function`, `$accumulator`. Stages that wait for changes or read the server's operations, sessions, queries, plans, catalog or statistics. Another database, and `system.` collections.                     |
 
 ### The schema and descriptions
 
