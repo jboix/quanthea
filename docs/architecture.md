@@ -2111,8 +2111,8 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   flattened to dotted columns typed from the mapping. `describe` groups daily and rollover indices
   (`logs-2026.09.29`, `logs-000042`) into the pattern that queries them (`logs-*`), with their
   merged fields and document counts. `sampleValues` runs a terms aggregation on a field the
-  mapping has, through `.keyword` for a text field. Error types map to connector errors; the
-  reason quotes values, so the safe message never does. Neither server says whether a user could
+  mapping has, through `.keyword` for a text field. Error types map to connector errors; a
+  reason that is not about the query can quote values, so the safe message leaves it out. Neither server says whether a user could
   write through a search, so the connection test reports `readOnly: null`: the credentials should
   hold a read-only role.
 - **Loki:** the HTTP API over the kit's HTTP client, read endpoints only, with no auth, a bearer

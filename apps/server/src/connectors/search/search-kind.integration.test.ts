@@ -225,7 +225,7 @@ for (const server of servers) {
       expect(Math.max(...shares)).toBeLessThan(1);
     });
 
-    test('names a missing index, and nothing of a value in an error', async () => {
+    test('names a missing index, and carries the reason of an error about the query', async () => {
       const missing = await connection
         .execute(search({ query: { match_all: {} } }, 'nope'), context())
         .catch((error: unknown) => error as ConnectorError);
@@ -234,10 +234,13 @@ for (const server of servers) {
         safeMessage: 'Index "nope" does not exist.',
       });
       const wrong = await connection
-        .execute(search({ query: { term: { status: 'secret-value' } } }), context())
+        .execute(search({ query: { term: { status: 'not-a-number' } } }), context())
         .catch((error: unknown) => error as ConnectorError);
       expect(wrong).toBeInstanceOf(ConnectorError);
-      expect((wrong as ConnectorError).safeMessage).not.toContain('secret-value');
+      expect(wrong).toMatchObject({ code: 'syntax' });
+      expect((wrong as ConnectorError).safeMessage).toContain(
+        'The server says: failed to create query: For input string: "not-a-number"',
+      );
     });
 
     test('describes daily indices as one pattern with their fields and documents', async () => {
