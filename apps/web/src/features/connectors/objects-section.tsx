@@ -1,6 +1,7 @@
 import {
   type ConnectorDetail,
   maxObjectNames,
+  type ObjectNaming,
   type ObjectVisibility,
   type SchemaView,
 } from '@quanthea/shared';
@@ -16,6 +17,7 @@ import { ObjectChecklist } from './object-checklist.tsx';
 import local from './objects.module.css';
 import {
   hasSystemObjects,
+  type ListReading,
   looseEntries,
   matchCount,
   objectsNoun,
@@ -81,6 +83,8 @@ interface EditorProps {
   readonly objects: readonly SchemaObject[];
   /** The visibility being edited. */
   readonly visibility: ObjectVisibility;
+  /** How the source names its objects, as the server says. */
+  readonly naming: ObjectNaming;
   /** Replaces the visibility. */
   readonly onChange: (visibility: ObjectVisibility) => void;
 }
@@ -90,11 +94,16 @@ interface EditorProps {
  *
  * @param text - The text typed.
  * @param objects - The objects the schema found.
+ * @param reading - How the list reads a name.
  * @returns Such as `Covers 4 of 40 indices.`, or `undefined` while there is nothing to count.
  */
-function coverNote(text: string, objects: readonly SchemaObject[]): string | undefined {
+function coverNote(
+  text: string,
+  objects: readonly SchemaObject[],
+  reading: ListReading,
+): string | undefined {
   const typed = text.trim();
-  const count = matchCount(typed, objects);
+  const count = matchCount(typed, objects, reading);
   if (typed === '' || count === 0) return undefined;
   return `Covers ${count.toLocaleString('en')} of ${objects.length.toLocaleString('en')} ${objectsNoun(objects)}.`;
 }
@@ -106,13 +115,14 @@ function coverNote(text: string, objects: readonly SchemaObject[]): string | und
  * @param props - The objects, the visibility and the change callback.
  * @returns The field with its Add button.
  */
-function AddEntry({ objects, visibility, onChange }: EditorProps) {
+function AddEntry({ objects, visibility, naming, onChange }: EditorProps) {
   const [text, setText] = useState('');
+  const reading = { mode: visibility.mode, naming };
   const add = (name: string) => {
-    onChange({ ...visibility, names: [...withName(visibility.names, name)] });
+    onChange({ ...visibility, names: [...withName(visibility.names, name, naming)] });
     setText('');
   };
-  const note = coverNote(text, objects);
+  const note = coverNote(text, objects, reading);
   return (
     <div className={local.addEntry}>
       <div className={styles.addField}>
@@ -122,7 +132,7 @@ function AddEntry({ objects, visibility, onChange }: EditorProps) {
           mono
           placeholder="logs-*"
           suggestions={objects.map((object) => object.name)}
-          isKnown={(name) => objects.length === 0 || matchCount(name, objects) > 0}
+          isKnown={(name) => objects.length === 0 || matchCount(name, objects, reading) > 0}
           unknownNote="Covers nothing in the schema. It is kept all the same, for what comes later."
           value={text}
           onChange={setText}
@@ -143,6 +153,8 @@ interface EntryChipProps {
   readonly entry: string;
   /** The objects the schema found. */
   readonly objects: readonly SchemaObject[];
+  /** How the list reads a name. */
+  readonly reading: ListReading;
   /** Called to take it off the list. */
   readonly onRemove: () => void;
 }
@@ -154,8 +166,8 @@ interface EntryChipProps {
  * @param props - The entry, the objects and the remove callback.
  * @returns The chip.
  */
-function EntryChip({ entry, objects, onRemove }: EntryChipProps) {
-  const count = matchCount(entry, objects);
+function EntryChip({ entry, objects, reading, onRemove }: EntryChipProps) {
+  const count = matchCount(entry, objects, reading);
   const missing = count === 0 && objects.length > 0;
   return (
     <Pill
@@ -180,10 +192,11 @@ function EntryChip({ entry, objects, onRemove }: EntryChipProps) {
  * @param props - The objects, the visibility and the change callback.
  * @returns The chips and the field that adds one.
  */
-function Entries({ objects, visibility, onChange }: EditorProps) {
-  const entries = looseEntries(visibility.names, objects);
+function Entries({ objects, visibility, naming, onChange }: EditorProps) {
+  const entries = looseEntries(visibility.names, objects, naming);
+  const reading = { mode: visibility.mode, naming };
   const remove = (entry: string) =>
-    onChange({ ...visibility, names: [...withoutName(visibility.names, entry)] });
+    onChange({ ...visibility, names: [...withoutName(visibility.names, entry, naming)] });
   return (
     <div className={local.entries}>
       <h5 className={local.entriesTitle}>
@@ -194,11 +207,17 @@ function Entries({ objects, visibility, onChange }: EditorProps) {
       {entries.length > 0 && (
         <div className={styles.chips}>
           {entries.map((entry) => (
-            <EntryChip key={entry} entry={entry} objects={objects} onRemove={() => remove(entry)} />
+            <EntryChip
+              key={entry}
+              entry={entry}
+              objects={objects}
+              reading={reading}
+              onRemove={() => remove(entry)}
+            />
           ))}
         </div>
       )}
-      <AddEntry objects={objects} visibility={visibility} onChange={onChange} />
+      <AddEntry objects={objects} visibility={visibility} naming={naming} onChange={onChange} />
     </div>
   );
 }
@@ -275,6 +294,7 @@ function ObjectsCard({ connector, schema, language }: ObjectsSectionProps) {
   const [draft, setDraft] = useState<Draft>({ visibility: stored, otherNames: [] });
   const { visibility } = draft;
   const objects = schema.entities;
+  const editor = { objects, visibility, naming: schema.naming };
   const onChange = (next: ObjectVisibility) => setDraft({ ...draft, visibility: next });
   return (
     <div className={styles.card}>
@@ -293,8 +313,8 @@ function ObjectsCard({ connector, schema, language }: ObjectsSectionProps) {
         onChange={(mode) => setDraft(inMode(draft, mode))}
       />
       <p className={styles.cardNote}>{modeNote(visibility, objectsNoun(objects))}</p>
-      <ObjectChecklist objects={objects} visibility={visibility} onChange={onChange} />
-      <Entries objects={objects} visibility={visibility} onChange={onChange} />
+      <ObjectChecklist {...editor} onChange={onChange} />
+      <Entries {...editor} onChange={onChange} />
       <SaveBar
         connector={connector}
         visibility={visibility}

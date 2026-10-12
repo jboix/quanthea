@@ -136,6 +136,15 @@ describe('modelSchema and the objects a connector shows', () => {
     expect(shownWith({ showSystem: true })).toHaveLength(4);
   });
 
+  test('leaves out a table a hidden name covers in any schema, as a query on it is refused', () => {
+    const table = (name: string) => ({ name, kind: 'table' as const, fields: [] });
+    const tables = { entities: [table('orders'), table('hr.salaries'), table('hr.people')] };
+    const visibility = { showSystem: false, mode: 'except' as const, names: ['salaries'] };
+    const scope = scopeOf(visibility, 'sql', 'postgres');
+    const listed = modelSchema({ ...subjectAt(2), scope }, tables).map((entity) => entity.name);
+    expect(listed).toEqual(['orders', 'hr.people']);
+  });
+
   test("leaves out the names an except list hides, and all but an only list's", () => {
     expect(shownWith({ names: ['logs-*'] })).toEqual(['core_events']);
     expect(shownWith({ mode: 'only', names: ['logs-*', '.plugins-*'] })).toEqual(['logs-*']);

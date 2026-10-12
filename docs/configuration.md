@@ -188,7 +188,10 @@ connectors:
 `visibility` has three fields. `showSystem` (`false`) shows the source's own objects, such as dot
 indices or `pg_catalog`. `names` (`[]`) lists names as the schema has them, or patterns such as
 `logs-*`. `mode` says how the list reads: `except` (the default) hides the names, `only` shows
-nothing else. With `mode: only` and no names, the connector shows nothing.
+nothing else. With `mode: only` and no names, the connector shows nothing. A key other than these
+three is refused when the file is read, so a misspelt `names` does not leave the list empty. How
+names match, with or without case, depends on the source: see
+[what a connector shows](guide/data-sources.md#what-a-connector-shows).
 
 A connector the file declared before `visibility` existed hides system objects from the next
 start, as the file's default says. Write `showSystem: true` when a dashboard, alert or report

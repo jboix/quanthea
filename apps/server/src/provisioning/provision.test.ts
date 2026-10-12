@@ -119,6 +119,16 @@ describe('provisioning connectors', () => {
     expect(events()).toBeUndefined();
   });
 
+  test('refuses a misspelt key of what a connector shows, and applies nothing', async () => {
+    const misspelt = connector('    visibility: { mode: only, name: [events] }\n');
+    await expect(apply(`connectors:\n${misspelt}`)).rejects.toThrow('name');
+    await expect(apply(`connectors:\n${misspelt}`)).rejects.toThrow('connectors.events.visibility');
+    expect(events()).toBeUndefined();
+    await apply(`connectors:\n${connector('    visibility: { mode: only, names: [events] }\n')}`);
+    const detail = await services.connections.get(events()?.id ?? '');
+    expect(detail.visibility).toEqual({ showSystem: false, mode: 'only', names: ['events'] });
+  });
+
   test('refuses a password in a URL, even from a variable, and applies nothing', async () => {
     const url = `https://reader:${reference('PROM_PW')}@prom.internal`;
     const token = reference('EVENTS_TOKEN');

@@ -1,14 +1,19 @@
 /**
  * Which objects of a source a connector shows: its indices, tables, collections, metrics or
  * endpoints. The source's own objects are hidden unless the connector shows them, and the admin's
- * list hides names or shows nothing else. The catalog and every query read this one answer.
+ * list hides names or shows nothing else. The catalog and every query read this one answer, and
+ * the list is read as the source names its objects: with case where it tells names apart by it,
+ * and by the endings of a table's dotted name for SQL.
  */
-import { listShowsObject, type ObjectVisibility } from '@quanthea/shared';
+import { listShowsObject, type ObjectNaming, type ObjectVisibility } from '@quanthea/shared';
 import type { QueryLanguage } from '../../connectors/_shared/index.ts';
 import { QueryError } from '../query-error.ts';
 import type { SqlFlavor } from '../sql-dialects.ts';
 
-/** How a source names its own objects: by query language, and by dialect for SQL. */
+/**
+ * How a source names its objects: by query language, and by dialect for SQL. `cased` is a source
+ * of plain names that differ by case (metrics, keys, endpoints); `plain` one that folds it.
+ */
 export type ObjectFamily =
   | 'search'
   | 'mongodb'
@@ -18,6 +23,7 @@ export type ObjectFamily =
   | 'trino'
   | 'influxdb'
   | 'sql'
+  | 'cased'
   | 'plain';
 
 /** What a connector shows, and how its source names its own objects. */
@@ -44,6 +50,9 @@ const systemSchemas: Readonly<Partial<Record<ObjectFamily, readonly string[]>>> 
 /** The start of the other schemas PostgreSQL and TimescaleDB keep for themselves. */
 const postgresSchemaPrefixes = ['pg_', '_timescaledb', 'timescaledb_'];
 
+/** The languages of plain names that differ by case: a metric, a key, an endpoint's path. */
+const casedLanguages: ReadonlySet<QueryLanguage> = new Set(['promql', 'redis', 'http']);
+
 /**
  * The family of a connector kind.
  *
@@ -53,8 +62,33 @@ const postgresSchemaPrefixes = ['pg_', '_timescaledb', 'timescaledb_'];
  */
 function familyOf(language: QueryLanguage, dialect?: SqlFlavor): ObjectFamily {
   if (language === 'search' || language === 'mongodb') return language;
+  if (casedLanguages.has(language)) return 'cased';
   if (language !== 'sql') return 'plain';
   return typeof dialect === 'string' ? dialect : 'sql';
+}
+
+/** The families whose sources tell two names apart by their case. */
+const casedFamilies: ReadonlySet<ObjectFamily> = new Set(['mongodb', 'cased']);
+
+/** The families with plain names: no schema before the name. */
+const unqualifiedFamilies: ReadonlySet<ObjectFamily> = new Set([
+  'search',
+  'mongodb',
+  'cased',
+  'plain',
+]);
+
+/**
+ * How the sources of a family name their objects, which is how a connector's list reads them.
+ * SQL names are dotted and fold case, and PostgreSQL leaves `public` out of its catalogue.
+ *
+ * @param family - The source's family.
+ * @returns The naming.
+ */
+export function namingOf(family: ObjectFamily): ObjectNaming {
+  const exactCase = casedFamilies.has(family);
+  const qualified = !unqualifiedFamilies.has(family);
+  return { exactCase, qualified, ...(family === 'postgres' ? { defaultSchema: 'public' } : {}) };
 }
 
 /**
@@ -97,7 +131,7 @@ export function isSystemObject(family: ObjectFamily, name: string): boolean {
   const lower = name.toLowerCase();
   if (family === 'search') return searchSystemPrefixes.some((prefix) => lower.startsWith(prefix));
   if (family === 'mongodb') return lower.startsWith('system.');
-  if (family === 'plain') return false;
+  if (family === 'plain' || family === 'cased') return false;
   return isSystemTable(family, lower.split('.'));
 }
 
@@ -109,20 +143,21 @@ export function isSystemObject(family: ObjectFamily, name: string): boolean {
  */
 export function restricts(scope: ObjectScope): boolean {
   const { showSystem, mode, names } = scope.visibility;
-  const hidesSystem = !showSystem && scope.family !== 'plain';
+  const hidesSystem = !showSystem && scope.family !== 'plain' && scope.family !== 'cased';
   return hidesSystem || mode === 'only' || names.length > 0;
 }
 
 /**
- * Whether a connector shows an object.
+ * Whether a connector shows an object: the answer the catalogue, a sample, the schema view and a
+ * query's check all give, so nothing is listed that a query on it would be refused.
  *
  * @param scope - The connector's scope.
- * @param name - The object's name, as the schema lists it.
+ * @param name - The object's name, as the schema lists it or a query writes it.
  * @returns `true` when the model may list it and queries may read it.
  */
 export function showsObject(scope: ObjectScope, name: string): boolean {
   if (!scope.visibility.showSystem && isSystemObject(scope.family, name)) return false;
-  return listShowsObject(scope.visibility, name);
+  return listShowsObject(scope.visibility, name, namingOf(scope.family));
 }
 
 /** A scope that shows everything, for a source nothing was chosen for. */

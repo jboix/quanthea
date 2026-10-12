@@ -174,3 +174,39 @@ describe('the count before hiding an object', () => {
     );
   });
 });
+
+describe('a list read as the source names its objects', () => {
+  const sql = { exactCase: false, qualified: true, defaultSchema: 'public' };
+  const exact = { exactCase: true, qualified: false };
+  const table = (name: string): SchemaObject => ({ ...index(name), kind: 'table' });
+  const tables = [table('orders'), table('hr.salaries'), table('hr.people')];
+
+  test('a hidden name unticks the table in every schema, as the server refuses a query on it', () => {
+    const hidden = visibility({ names: ['salaries'] });
+    expect(tables.map((each) => isShown(hidden, each, sql))).toEqual([true, false, true]);
+    expect(isShown(hidden, table('hr.salaries'))).toBe(true);
+    expect(shownSummary(hidden, tables, sql)).toBe('Shows 2 of 3 tables');
+  });
+
+  test('fixes the checkbox of a table an entry that is not its own name covers', () => {
+    const hidden = visibility({ names: ['salaries', 'hr.people'] });
+    expect(lockOf(hidden, table('hr.salaries'), sql)).toEqual({
+      by: 'pattern',
+      pattern: 'salaries',
+    });
+    expect(lockOf(hidden, table('hr.people'), sql)).toBeUndefined();
+    expect(looseEntries(hidden.names, tables, sql)).toEqual(['salaries']);
+    expect(matchCount('salaries', tables, { mode: 'except', naming: sql })).toBe(1);
+    expect(matchCount('salaries', tables, { mode: 'only', naming: sql })).toBe(0);
+  });
+
+  test('keeps two names that differ by case apart where the source does', () => {
+    expect(withName(['orders'], 'Orders', exact)).toEqual(['orders', 'Orders']);
+    expect(withName(['orders'], 'Orders')).toEqual(['orders']);
+    const only = visibility({ mode: 'only', names: ['orders'] });
+    expect(isShown(only, index('Orders'), exact)).toBe(false);
+    expect(isShown(only, index('Orders'))).toBe(true);
+    expect(withObject(only, 'Orders', true, exact).names).toEqual(['orders', 'Orders']);
+    expect(withObject(only, 'orders', false, exact).names).toEqual([]);
+  });
+});

@@ -7,7 +7,9 @@ import {
   descriptionsSchema,
   guardrailsSchema,
   hiddenFieldsSchema,
+  objectNamingSchema,
   objectVisibilitySchema,
+  wholeObjectVisibilitySchema,
 } from '../connectors.ts';
 import { defineEndpoint } from './contract.ts';
 
@@ -91,7 +93,8 @@ export const connectorPatchSchema = z.object({
   secret: z.record(z.string(), z.unknown()).optional(),
   accessLevel: accessLevelSchema.optional(),
   hiddenFields: hiddenFieldsSchema.optional(),
-  visibility: objectVisibilitySchema.optional(),
+  /** What the connector shows, replaced whole: a partial one is refused. */
+  visibility: wholeObjectVisibilitySchema.optional(),
   guardrails: guardrailsSchema.optional(),
   descriptions: descriptionsSchema.optional(),
 });
@@ -135,6 +138,8 @@ const schemaViewEntitySchema = z.object({
 /** Validates the schema of a connector as admins see it, with what the model gets of each field. */
 export const schemaViewSchema = z.object({
   readAt: z.number().nullable(),
+  /** How the source names its objects, for reading the connector's list as the server does. */
+  naming: objectNamingSchema,
   entities: z.array(schemaViewEntitySchema),
 });
 
@@ -255,6 +260,6 @@ export const countObjectUsageEndpoint = defineEndpoint({
   method: 'POST',
   path: '/connectors/:connectorId/object-usage',
   params: connectorParams,
-  body: objectVisibilitySchema,
+  body: wholeObjectVisibilitySchema,
   output: objectUsageSchema,
 });

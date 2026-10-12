@@ -1,10 +1,11 @@
-import type { ObjectVisibility } from '@quanthea/shared';
+import type { ObjectNaming, ObjectVisibility } from '@quanthea/shared';
 import { useState } from 'react';
 import { Input } from '../../ui/input.tsx';
 import styles from './objects.module.css';
 import {
   filteredObjects,
   isShown,
+  type Lock,
   lockOf,
   objectsNoun,
   type SchemaObject,
@@ -25,6 +26,8 @@ interface ChecklistProps {
   readonly objects: readonly SchemaObject[];
   /** The visibility being edited. */
   readonly visibility: ObjectVisibility;
+  /** How the source names its objects, as the server says. */
+  readonly naming: ObjectNaming;
   /** Replaces the visibility. */
   readonly onChange: (visibility: ObjectVisibility) => void;
 }
@@ -32,12 +35,11 @@ interface ChecklistProps {
 /**
  * What a row says after the name: why its checkbox is fixed, or the object's size.
  *
- * @param visibility - The visibility being edited.
+ * @param lock - Why the checkbox is fixed, if it is.
  * @param object - The object.
  * @returns Such as `system`, `by logs-*` or `8,200 rows`; empty when there is nothing to say.
  */
-function rowNote(visibility: ObjectVisibility, object: SchemaObject): string {
-  const lock = lockOf(visibility, object);
+function rowNote(lock: Lock | undefined, object: SchemaObject): string {
   if (lock?.by === 'system') return 'system';
   if (lock?.by === 'pattern') return `by ${lock.pattern}`;
   if (object.system) return 'system';
@@ -50,19 +52,22 @@ interface ObjectRowProps {
   readonly object: SchemaObject;
   /** The visibility being edited. */
   readonly visibility: ObjectVisibility;
+  /** How the source names its objects. */
+  readonly naming: ObjectNaming;
   /** Called with whether the object is ticked now. */
   readonly onToggle: (shown: boolean) => void;
 }
 
 /**
  * One object of the checklist: ticked when the connector shows it. The checkbox is fixed while
- * the system switch or a pattern decides for it.
+ * the system switch or another entry of the list decides for it.
  *
- * @param props - The object, the visibility and the toggle callback.
+ * @param props - The object, the visibility, the naming and the toggle callback.
  * @returns The row.
  */
-function ObjectRow({ object, visibility, onToggle }: ObjectRowProps) {
-  const shown = isShown(visibility, object);
+function ObjectRow({ object, visibility, naming, onToggle }: ObjectRowProps) {
+  const shown = isShown(visibility, object, naming);
+  const lock = lockOf(visibility, object, naming);
   return (
     <li>
       <label className={styles.row} data-shown={shown}>
@@ -70,11 +75,11 @@ function ObjectRow({ object, visibility, onToggle }: ObjectRowProps) {
           type="checkbox"
           className={styles.box}
           checked={shown}
-          disabled={lockOf(visibility, object) !== undefined}
+          disabled={lock !== undefined}
           onChange={(event) => onToggle(event.target.checked)}
         />
         <span className={styles.rowName}>{object.name}</span>
-        <span className={styles.rowNote}>{rowNote(visibility, object)}</span>
+        <span className={styles.rowNote}>{rowNote(lock, object)}</span>
       </label>
     </li>
   );
@@ -98,18 +103,19 @@ interface ChecklistHeadProps extends ChecklistProps {
  * @returns The header.
  */
 function ChecklistHead(props: ChecklistHeadProps) {
-  const { objects, visibility, onChange, matching, filter, setFilter } = props;
-  const free = matching.filter((object) => lockOf(visibility, object) === undefined);
+  const { objects, visibility, naming, onChange, matching, filter, setFilter } = props;
+  const free = matching.filter((object) => lockOf(visibility, object, naming) === undefined);
+  const set = (shown: boolean) => onChange(withObjects(visibility, names, shown, naming));
   const names = free.map((object) => object.name);
   const all = filter.trim() === '' ? 'all' : 'these';
   return (
     <div className={styles.listHead}>
-      <span className={styles.summary}>{shownSummary(visibility, objects)}</span>
+      <span className={styles.summary}>{shownSummary(visibility, objects, naming)}</span>
       <span className={styles.bulk}>
-        <button type="button" onClick={() => onChange(withObjects(visibility, names, true))}>
+        <button type="button" onClick={() => set(true)}>
           Tick {all}
         </button>
-        <button type="button" onClick={() => onChange(withObjects(visibility, names, false))}>
+        <button type="button" onClick={() => set(false)}>
           Clear {all}
         </button>
       </span>
@@ -151,7 +157,7 @@ function ChecklistFoot({ matching }: { readonly matching: number }) {
  * @param props - The objects, the visibility and the change callback.
  * @returns The checklist, or a note while the schema holds nothing.
  */
-export function ObjectChecklist({ objects, visibility, onChange }: ChecklistProps) {
+export function ObjectChecklist({ objects, visibility, naming, onChange }: ChecklistProps) {
   const [filter, setFilter] = useState('');
   if (objects.length === 0)
     return (
@@ -162,14 +168,15 @@ export function ObjectChecklist({ objects, visibility, onChange }: ChecklistProp
   const matching = filteredObjects(objects, filter);
   return (
     <div className={styles.checklist}>
-      <ChecklistHead {...{ objects, visibility, onChange, matching, filter, setFilter }} />
+      <ChecklistHead {...{ objects, visibility, naming, onChange, matching, filter, setFilter }} />
       <ul className={styles.rows} aria-label={`The ${objectsNoun(objects)} the schema found`}>
         {matching.slice(0, maxRows).map((object) => (
           <ObjectRow
             key={object.name}
             object={object}
             visibility={visibility}
-            onToggle={(shown) => onChange(withObject(visibility, object.name, shown))}
+            naming={naming}
+            onToggle={(shown) => onChange(withObject(visibility, object.name, shown, naming))}
           />
         ))}
       </ul>

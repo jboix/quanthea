@@ -205,9 +205,11 @@ export {
   type AccessLevel,
   accessLevelSchema,
   connectorNameSchema,
+  coveringEntry,
   defaultAccessLevel,
   defaultObjectVisibility,
   descriptionsSchema,
+  foldedNaming,
   type Guardrails,
   guardrailsSchema,
   hiddenFieldsSchema,
@@ -215,9 +217,12 @@ export {
   lowCardinalityLimit,
   matchesObjectName,
   maxObjectNames,
+  type ObjectNaming,
   type ObjectVisibility,
   objectListModes,
+  objectNamingSchema,
   objectVisibilitySchema,
+  wholeObjectVisibilitySchema,
 } from './connectors.ts';
 export * from './dataset/index.ts';
 export {

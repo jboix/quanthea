@@ -62,6 +62,25 @@ const newConnector = {
   secret: { token: 'super-secret-token-value-9f2a' },
 };
 
+describe('a change of what a connector shows', () => {
+  test('is refused when partial, and the stored list stays', async () => {
+    const call = client(admin);
+    const id = String((await call('POST', '/api/connectors', newConnector)).body.id);
+    const visibility = { showSystem: false, mode: 'only', names: ['events'] };
+    expect((await call('PATCH', `/api/connectors/${id}`, { visibility })).status).toBe(200);
+    const partial = await call('PATCH', `/api/connectors/${id}`, {
+      visibility: { showSystem: true },
+    });
+    expect(partial.status).toBe(400);
+    expect(JSON.stringify(partial.body)).toContain('A visibility is replaced whole');
+    const misspelt = await call('PATCH', `/api/connectors/${id}`, {
+      visibility: { ...visibility, name: ['events'] },
+    });
+    expect(misspelt.status).toBe(400);
+    expect((await call('GET', `/api/connectors/${id}`)).body).toMatchObject({ visibility });
+  });
+});
+
 describe('connector routes', () => {
   test('create, read, list, change, test, read the schema, delete', async () => {
     const call = client(admin);

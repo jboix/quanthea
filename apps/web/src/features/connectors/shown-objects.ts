@@ -1,14 +1,20 @@
 /**
  * What a connector shows of its source, as the form edits it: the checklist over the objects the
- * schema found, the list of names and patterns behind it, and the counts.
+ * schema found, the list of names and patterns behind it, and the counts. Whether the list covers
+ * a name is the server's rule (`coveringEntry` in `@quanthea/shared`), read with the naming the
+ * schema view gives for the source, so the checklist ticks what a query may read.
  */
 import {
-  matchesObjectName,
+  coveringEntry,
+  foldedNaming,
+  listShowsObject,
+  type ObjectNaming,
   type ObjectUsage,
   type ObjectVisibility,
-  objectVisibilitySchema,
   type SchemaView,
+  wholeObjectVisibilitySchema,
 } from '@quanthea/shared';
+import { wordMatcher } from '../../ui/suggest-items.ts';
 
 /** One object of a schema view: an index, a table, a collection, a metric or an endpoint. */
 export type SchemaObject = SchemaView['entities'][number];
@@ -50,14 +56,16 @@ export function objectsNoun(objects: readonly SchemaObject[]): string {
 }
 
 /**
- * The entry of a list that covers a name: the name itself, or a pattern.
+ * Whether two names are the same to a source: without case, unless it tells names apart by it.
  *
- * @param names - The list's names and patterns.
- * @param name - The name of an object.
- * @returns The first entry that covers it, or `undefined`.
+ * @param first - One name.
+ * @param second - The other.
+ * @param naming - How the source names its objects.
+ * @returns `true` when they name the same object.
  */
-function coveringEntry(names: readonly string[], name: string): string | undefined {
-  return names.find((entry) => matchesObjectName(entry, name));
+function sameName(first: string, second: string, naming: ObjectNaming): boolean {
+  const [one, other] = [first.trim(), second.trim()];
+  return naming.exactCase ? one === other : one.toLowerCase() === other.toLowerCase();
 }
 
 /**
@@ -76,12 +84,16 @@ export function isPattern(entry: string): boolean {
  *
  * @param visibility - The visibility.
  * @param object - The object.
+ * @param naming - How the source names its objects.
  * @returns `true` when the connector would show it.
  */
-export function isShown(visibility: ObjectVisibility, object: SchemaObject): boolean {
+export function isShown(
+  visibility: ObjectVisibility,
+  object: SchemaObject,
+  naming: ObjectNaming = foldedNaming,
+): boolean {
   if (object.system && !visibility.showSystem) return false;
-  const listed = coveringEntry(visibility.names, object.name) !== undefined;
-  return visibility.mode === 'only' ? listed : !listed;
+  return listShowsObject(visibility, object.name, naming);
 }
 
 /** Why an object's checkbox cannot be changed. */
@@ -98,44 +110,60 @@ export type Lock =
     };
 
 /**
- * Why an object's checkbox cannot be changed, if it cannot: the switch hides it, or a pattern of
- * the list covers it, and a list has no way to except one name from a pattern.
+ * Why an object's checkbox cannot be changed, if it cannot: the switch hides it, or an entry of
+ * the list that is not its own name covers it, and a list has no way to except one name from
+ * such an entry. That entry is a pattern, or for a table a hidden name that covers it in every
+ * schema, such as `salaries` for `hr.salaries`.
  *
  * @param visibility - The visibility.
  * @param object - The object.
+ * @param naming - How the source names its objects.
  * @returns The lock, or `undefined` when the checkbox is free.
  */
-export function lockOf(visibility: ObjectVisibility, object: SchemaObject): Lock | undefined {
+export function lockOf(
+  visibility: ObjectVisibility,
+  object: SchemaObject,
+  naming: ObjectNaming = foldedNaming,
+): Lock | undefined {
   if (object.system && !visibility.showSystem) return { by: 'system' };
-  const entry = coveringEntry(visibility.names, object.name);
-  if (entry === undefined || !isPattern(entry)) return undefined;
+  const entry = coveringEntry(visibility, object.name, naming);
+  if (entry === undefined || sameName(entry, object.name, naming)) return undefined;
   return { by: 'pattern', pattern: entry };
 }
 
 /**
- * A list with a name added, unless an entry is the same already. Names compare without case.
+ * A list with a name added, unless an entry is the same already. Names compare as the source
+ * compares them.
  *
  * @param names - The list.
  * @param name - The name or pattern to add.
+ * @param naming - How the source names its objects.
  * @returns The new list, or the same one.
  */
-export function withName(names: readonly string[], name: string): readonly string[] {
+export function withName(
+  names: readonly string[],
+  name: string,
+  naming: ObjectNaming = foldedNaming,
+): readonly string[] {
   const added = name.trim();
-  const lower = added.toLowerCase();
-  if (added === '' || names.some((entry) => entry.toLowerCase() === lower)) return names;
+  if (added === '' || names.some((entry) => sameName(entry, added, naming))) return names;
   return [...names, added];
 }
 
 /**
- * A list without a name. Names compare without case.
+ * A list without a name. Names compare as the source compares them.
  *
  * @param names - The list.
  * @param name - The name or pattern to remove.
+ * @param naming - How the source names its objects.
  * @returns The new list.
  */
-export function withoutName(names: readonly string[], name: string): readonly string[] {
-  const lower = name.trim().toLowerCase();
-  return names.filter((entry) => entry.toLowerCase() !== lower);
+export function withoutName(
+  names: readonly string[],
+  name: string,
+  naming: ObjectNaming = foldedNaming,
+): readonly string[] {
+  return names.filter((entry) => !sameName(entry, name, naming));
 }
 
 /**
@@ -145,16 +173,18 @@ export function withoutName(names: readonly string[], name: string): readonly st
  * @param visibility - The visibility.
  * @param name - The object's name.
  * @param shown - Whether it is ticked now.
+ * @param naming - How the source names its objects.
  * @returns The new visibility.
  */
 export function withObject(
   visibility: ObjectVisibility,
   name: string,
   shown: boolean,
+  naming: ObjectNaming = foldedNaming,
 ): ObjectVisibility {
   const listed = shown === (visibility.mode === 'only');
-  const names = listed ? withName(visibility.names, name) : withoutName(visibility.names, name);
-  return { ...visibility, names: [...names] };
+  const edit = listed ? withName : withoutName;
+  return { ...visibility, names: [...edit(visibility.names, name, naming)] };
 }
 
 /**
@@ -163,37 +193,60 @@ export function withObject(
  * @param visibility - The visibility.
  * @param names - The objects' names.
  * @param shown - Whether they are ticked now.
+ * @param naming - How the source names its objects.
  * @returns The new visibility.
  */
 export function withObjects(
   visibility: ObjectVisibility,
   names: readonly string[],
   shown: boolean,
+  naming: ObjectNaming = foldedNaming,
 ): ObjectVisibility {
-  return names.reduce((next, name) => withObject(next, name, shown), visibility);
+  return names.reduce((next, name) => withObject(next, name, shown, naming), visibility);
+}
+
+/** How a list reads a name: the way the list reads, and how the source names its objects. */
+export interface ListReading {
+  /** Whether the list holds the hidden names or the only names shown. */
+  readonly mode: ObjectVisibility['mode'];
+  /** How the source names its objects; plain names without case when left out. */
+  readonly naming?: ObjectNaming | undefined;
 }
 
 /**
- * How many objects an entry of the list covers.
+ * How many objects an entry of the list covers, as the server reads it.
  *
  * @param entry - A name or a pattern.
  * @param objects - The schema's objects.
+ * @param reading - How the list reads; a list of hidden plain names when left out.
  * @returns The number of objects it covers.
  */
-export function matchCount(entry: string, objects: readonly SchemaObject[]): number {
-  return objects.filter((object) => matchesObjectName(entry, object.name)).length;
+export function matchCount(
+  entry: string,
+  objects: readonly SchemaObject[],
+  reading: ListReading = { mode: 'except' },
+): number {
+  const list = { mode: reading.mode, names: [entry] };
+  const naming = reading.naming ?? foldedNaming;
+  return objects.filter((object) => coveringEntry(list, object.name, naming) !== undefined).length;
 }
 
 /**
- * The entries of a list the checklist cannot show as a tick: the patterns, and the names the
- * schema lacks.
+ * The entries of a list the checklist cannot show as a tick: the patterns, and the names that are
+ * not the name of an object of the schema.
  *
  * @param names - The list.
  * @param objects - The schema's objects.
+ * @param naming - How the source names its objects.
  * @returns The entries, in the list's order.
  */
-export function looseEntries(names: readonly string[], objects: readonly SchemaObject[]): string[] {
-  return names.filter((entry) => isPattern(entry) || matchCount(entry, objects) === 0);
+export function looseEntries(
+  names: readonly string[],
+  objects: readonly SchemaObject[],
+  naming: ObjectNaming = foldedNaming,
+): string[] {
+  const named = (entry: string) => objects.some((object) => sameName(object.name, entry, naming));
+  return names.filter((entry) => isPattern(entry) || !named(entry));
 }
 
 /**
@@ -201,13 +254,15 @@ export function looseEntries(names: readonly string[], objects: readonly SchemaO
  *
  * @param visibility - The visibility.
  * @param objects - The schema's objects.
+ * @param naming - How the source names its objects.
  * @returns Such as `Shows 12 of 40 indices · 6 system hidden`.
  */
 export function shownSummary(
   visibility: ObjectVisibility,
   objects: readonly SchemaObject[],
+  naming: ObjectNaming = foldedNaming,
 ): string {
-  const shown = objects.filter((object) => isShown(visibility, object)).length;
+  const shown = objects.filter((object) => isShown(visibility, object, naming)).length;
   const system = visibility.showSystem ? 0 : objects.filter((object) => object.system).length;
   const line = `Shows ${shown.toLocaleString('en')} of ${objects.length.toLocaleString('en')} ${objectsNoun(objects)}`;
   return system === 0 ? line : `${line} · ${system.toLocaleString('en')} system hidden`;
@@ -237,12 +292,8 @@ export function filteredObjects(
   objects: readonly SchemaObject[],
   filter: string,
 ): readonly SchemaObject[] {
-  const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return objects;
-  return objects.filter((object) => {
-    const name = object.name.toLowerCase();
-    return words.every((word) => name.includes(word));
-  });
+  const matches = wordMatcher(filter);
+  return objects.filter((object) => matches(object.name));
 }
 
 /**
@@ -269,7 +320,7 @@ export function objectUsagePath(connectorId: string, visibility: ObjectVisibilit
  */
 export function visibilityOf(search: URLSearchParams): ObjectVisibility | undefined {
   if (!search.has('mode')) return undefined;
-  return objectVisibilitySchema.safeParse({
+  return wholeObjectVisibilitySchema.safeParse({
     showSystem: search.get('system') === '1',
     mode: search.get('mode'),
     names: search.getAll('name'),

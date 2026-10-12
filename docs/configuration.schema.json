@@ -254,7 +254,8 @@
                   "maxLength": 200
                 }
               }
-            }
+            },
+            "additionalProperties": false
           },
           "guardrails": {
             "default": {},

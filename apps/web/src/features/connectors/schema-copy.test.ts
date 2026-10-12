@@ -34,8 +34,9 @@ describe('schema copy', () => {
 
   test('counts entities by kind, or as entities when kinds mix', () => {
     const table = { ...shown, name: 't', kind: 'table' as const, fields: [] };
-    expect(schemaSummary({ readAt: 1, entities: [table, table] })).toBe('2 tables');
-    expect(schemaSummary({ readAt: 1, entities: [table, { ...table, kind: 'view' }] })).toBe(
+    const view = { readAt: 1, naming: { exactCase: false, qualified: true } };
+    expect(schemaSummary({ ...view, entities: [table, table] })).toBe('2 tables');
+    expect(schemaSummary({ ...view, entities: [table, { ...table, kind: 'view' }] })).toBe(
       '2 entities',
     );
   });

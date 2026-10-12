@@ -2405,15 +2405,34 @@ Injection tests cover every binder, and integration tests run the attacks agains
 A connector's `visibility` says which indices, tables, collections, metrics, keys or endpoints of
 its source it shows: `showSystem` (off by default) and a list of `names` that are hidden (`mode:
 except`, the default) or the only ones shown (`mode: only`). A name is one the schema lists, or a
-pattern where `*` stands for any run of characters (`logs-*`); names compare without case
-(`matchesObjectName` in `@quanthea/shared`). `connections/` turns it into an `ObjectScope`, the
+pattern where `*` stands for any run of characters (`logs-*`). The list is read as the source
+names its objects (`listShowsObject` and `coveringEntry` in `@quanthea/shared`, with the
+`ObjectNaming` that `namingOf` gives a family):
+
+- Names compare with case where the source tells two names apart by it: MongoDB collections,
+  Redis keys, Prometheus metrics and HTTP endpoints. There `only: [orders]` does not show
+  `Orders`, and `except: [orders]` does not hide it. Names fold case for SQL, Elasticsearch,
+  OpenSearch and Loki.
+- A SQL name is a dotted path. An `except` name hides a table when it covers any ending of the
+  path, and an `only` name shows a table written as listed, in PostgreSQL also without `public.`.
+- One function answers for a name (`showsObject`): the catalogue, a sample, the schema view and
+  the check of a query all call it, so nothing is listed that a query on it would be refused.
+
+`connections/` turns the setting into an `ObjectScope`, the
 setting with the naming rules of the kind's language and SQL dialect, and hands the same scope to
 the query engine (`QuerySource.scope`), the gate (`GateSubject.scope`) and the validators
 (`lookup`). So a panel, a variable source, an annotation, a builder, a saved query, an alert, a
 report, a snapshot, Ask and the agent's test runs are all checked by the one `executor.run`, and a
 dashboard, alert or report that names a hidden object is also refused when it is saved
 (`checkBinding`). The connector endpoints carry `visibility`, and the schema view marks each
-entity `system` and `shown`, so an admin sees everything the source has and what is hidden.
+entity `system` and `shown`, so an admin sees everything the source has and what is hidden. It
+also carries the source's `naming`, with which the browser reads a draft of the list by the same
+shared function.
+
+A visibility is strict. An unknown key is refused, in the API and in the configuration file, so a
+misspelt `names` is not read as an empty list. A `PATCH` of a connector, and the count of the
+dashboards a change affects, take a whole visibility (`wholeObjectVisibilitySchema`): a partial
+one is refused with a message that says so, since filling it with defaults would empty the list.
 
 System objects are the source's own (`isSystemObject`):
 
@@ -2434,15 +2453,15 @@ query read them and adds nothing to the schema.
 How the objects of a query are known depends on the language (`scope/check.ts`). The check reads
 the bound query, so a variable's value is already in it.
 
-| Language | What is read                                                                                                   | How sure                                                                                                                                                |
-| -------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Search   | Names written in full, from the text; patterns, aliases and data streams, resolved by the server.              | Exact, on the server's own answer.                                                                                                                      |
-| MongoDB  | The pipeline's collection and every `$lookup.from`, `$graphLookup.from` and `$unionWith`, at any depth.        | Exact for collections. A view reads what its definition says.                                                                                           |
-| Redis    | The key: every argument of `MGET` and `EXISTS`, the first argument of the other reads.                         | Exact.                                                                                                                                                  |
-| HTTP     | `METHOD /path`; a `{parameter}` in a listed name stands for any text.                                          | Exact for the request sent. A `{parameter}` also covers deeper paths, so the connector's allowed paths stay the limit.                                  |
-| PromQL   | Metric names: bare, quoted in braces, or `__name__="…"`.                                                       | Exact for names. A selector without a name, or with any other matcher on `__name__`, is refused on a connector that lists names.                        |
-| LogQL    | The one object of a Loki connector, `logs`.                                                                    | Exact, and all or nothing: stream labels are not objects.                                                                                               |
-| SQL      | The names after `FROM`, `JOIN`, a comma of a `FROM` clause and `TABLE`, without the statement's own CTE names. | Best effort. A view, a function, a synonym or the search path reaches a table the text never names. A role that cannot read the table is the guarantee. |
+| Language | What is read                                                                                                                                               | How sure                                                                                                                                                |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Search   | Names written in full, from the text; patterns, aliases and data streams, resolved by the server.                                                          | Exact, on the server's own answer.                                                                                                                      |
+| MongoDB  | The pipeline's collection and every `$lookup.from`, `$graphLookup.from` and `$unionWith`, at any depth (`query/mongodb-reads.ts`, shared with the binder). | Exact for collections, case included. A view reads what its definition says.                                                                            |
+| Redis    | The key: every argument of `MGET` and `EXISTS`, the first argument of the other reads.                                                                     | Exact, case included.                                                                                                                                   |
+| HTTP     | `METHOD /path`; a `{parameter}` in a listed name stands for any text.                                                                                      | Exact for the request sent, case included. A `{parameter}` also covers deeper paths, so the connector's allowed paths stay the limit.                   |
+| PromQL   | Metric names: bare, quoted in braces, or `__name__="…"`.                                                                                                   | Exact for names, case included. A selector without a name, or with any other matcher on `__name__`, is refused on a connector that lists names.         |
+| LogQL    | The one object of a Loki connector, `logs`.                                                                                                                | Exact, and all or nothing: stream labels are not objects.                                                                                               |
+| SQL      | The names after `FROM`, `JOIN`, a comma of a `FROM` clause and `TABLE`, without the statement's own CTE names.                                             | Best effort. A view, a function, a synonym or the search path reaches a table the text never names. A role that cannot read the table is the guarantee. |
 
 - **Search** (`scope/search-scope.ts`). `ConnectorInstance.resolveObjects` is optional in the kit;
   the search kinds implement it with `GET /_resolve/index/<expression>?expand_wildcards=open`,
@@ -2467,7 +2486,8 @@ the bound query, so a variable's value is already in it.
   holds commas starts (`GROUP BY`, `ORDER BY`, `LIMIT`, `WINDOW name AS`, `SETTINGS name =`), so an
   alias that spells a clause (`FROM orders format, salaries`, `AS settings`) ends nothing. An `except` name hides a table however its schema is written: `salaries`
   hides `public.salaries` and `hr.salaries`. An `only` name shows a table written as the schema
-  lists it, and in PostgreSQL also with `public.` in front. A name a `WITH` clause defines is not
+  lists it, and in PostgreSQL also with `public.` in front. The catalogue follows the same rule
+  through `showsObject`: with `except: [salaries]` it leaves `hr.salaries` out too. A name a `WITH` clause defines is not
   a table inside that clause's scope. A function where a table goes is not a table; it is refused
   when it is a system one (`pg_ls_dir`, `system.query`). The functions that read a table named in
   text or by pattern are refused on a connector that hides anything: PostgreSQL's `query_to_xml`
@@ -2618,8 +2638,10 @@ dashboard alike. So the connector screen counts who reads it before saving.
   search and MongoDB kinds), the choice between All but these and Only these, a checklist of the
   cached schema's objects where a tick means shown, and the patterns and unknown names as chips
   with what each covers. Each mode keeps its own list while the draft is open. A checkbox is fixed
-  while the switch or a pattern decides for its object (`lockOf` in `shown-objects.ts`, which
-  matches names with the server's `matchesObjectName`).
+  while the switch or an entry that is not the object's own name decides for it: a pattern, or
+  for a table a hidden name that covers it in every schema (`lockOf` in `shown-objects.ts`). The
+  ticks come from the server's rule, `listShowsObject`, read with the `naming` of the schema
+  view.
 - Save asks the count first (`use-visibility-guard.ts`). With nothing counted it saves. Otherwise
   it shows the numbers and waits for Save anyway or Cancel, with the warning the access change
   uses (`ChangeWarning` in `access-warning.tsx`). A failed count shows its reason with the same

@@ -4,7 +4,6 @@
  * name, but a view, another function or the search path can reach a table the text never names.
  * A database role that cannot read the table is the guarantee.
  */
-import { matchesObjectName } from '@quanthea/shared';
 import { QueryError } from '../query-error.ts';
 import type { SqlFlavor } from '../sql-dialects.ts';
 import {
@@ -12,6 +11,7 @@ import {
   notShown,
   type ObjectFamily,
   type ObjectScope,
+  requireShown,
   restricts,
 } from './object-scope.ts';
 import { sqlReads } from './sql-tables.ts';
@@ -41,47 +41,6 @@ const readerFunctions: Readonly<Partial<Record<ObjectFamily, readonly string[]>>
     'loop',
   ],
 };
-
-/**
- * The names a written table may go by: as written, and without PostgreSQL's default schema, which
- * the schema leaves out.
- *
- * @param family - The source's family.
- * @param parts - The table's parts.
- * @returns The names, the written one first.
- */
-function namesOf(family: ObjectFamily, parts: readonly string[]): string[] {
-  const written = parts.join('.');
-  const inPublic = family === 'postgres' && parts.length === 2 && /^public$/i.test(parts[0] ?? '');
-  return inPublic ? [written, parts[1] ?? ''] : [written];
-}
-
-/**
- * Every way a written table ends: `orders` for `shop.orders`. A hidden name hides the table in
- * every schema, since the text does not say which one a bare name reads.
- *
- * @param parts - The table's parts.
- * @returns The table's trailing names, the whole one first.
- */
-function endingsOf(parts: readonly string[]): string[] {
-  return parts.map((_part, index) => parts.slice(index).join('.'));
-}
-
-/**
- * Whether the connector's list lets a written table through. An `except` list hides a table when
- * a name covers it or any of its endings; an `only` list shows a table written as it is listed.
- *
- * @param scope - The connector's scope.
- * @param parts - The table's parts.
- * @returns `true` when the list does not hide the table.
- */
-function listShowsTable(scope: ObjectScope, parts: readonly string[]): boolean {
-  const { mode, names } = scope.visibility;
-  const covered = (candidates: readonly string[]) =>
-    candidates.some((candidate) => names.some((name) => matchesObjectName(name, candidate)));
-  if (mode === 'only') return covered(namesOf(scope.family, parts));
-  return !covered(endingsOf(parts));
-}
 
 /**
  * Refuses a table or a table function of the source's own, unless the connector shows them.
@@ -125,8 +84,6 @@ export function checkSqlScope(scope: ObjectScope, text: string, flavor: SqlFlavo
   const reads = sqlReads(sqlTokens(text, flavor));
   refuseReaders(scope, reads.calls);
   for (const parts of reads.tableFunctions) refuseSystem(scope, parts);
-  for (const parts of reads.tables) {
-    refuseSystem(scope, parts);
-    if (!listShowsTable(scope, parts)) throw notShown(parts.join('.'));
-  }
+  // The same answer as the catalogue gives for the table's name, so it lists nothing refused here.
+  for (const parts of reads.tables) requireShown(scope, parts.join('.'));
 }

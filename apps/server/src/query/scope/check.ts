@@ -77,7 +77,8 @@ function readablePath(path: string): string {
 function checkHttp(scope: ObjectScope, query: HttpQuery): void {
   const endpoint = `${query.method} ${readablePath(query.path)}`;
   const names = scope.visibility.names.map((name) => name.replace(/\{[^{}]*\}/g, '*'));
-  if (!listShowsObject({ mode: scope.visibility.mode, names }, endpoint)) throw notShown(endpoint);
+  const list = { mode: scope.visibility.mode, names };
+  if (!listShowsObject(list, endpoint, namingOf(scope.family))) throw notShown(endpoint);
 }
 
 /**

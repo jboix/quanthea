@@ -102,7 +102,15 @@ in the [configuration file](../configuration.md#connectors) and in the API, as `
   `showSystem` to show them.
 - **A list of names.** With `mode: except` the names are hidden; with `mode: only` nothing else is
   shown. A name is one the schema lists, or a pattern such as `logs-*`, where `*` stands for any
-  text. Names match in any case.
+  text.
+- **Case counts where the source says so.** MongoDB collections, Redis keys, Prometheus metrics
+  and HTTP endpoints are told apart by case, so their names match as written: `orders` does not
+  cover `Orders`, and an endpoint is `GET /users`, with the method in capitals. Names of SQL
+  tables, of Elasticsearch and OpenSearch indices and of Loki match in any case.
+- **On a SQL source a hidden name hides the table in every schema.** `salaries` hides
+  `hr.salaries` and `public.salaries`, in the catalogue as in a query. To hide one of them only,
+  write it with its schema. With `mode: only`, a name shows the table written as the schema lists
+  it.
 
 On the connector's page:
 
@@ -116,8 +124,9 @@ On the connector's page:
   and says how many objects the entry covers. Patterns and names the schema lacks show as chips
   with that count. A name the schema lacks is marked **not in the schema** and kept: the object
   may come later.
-- A checkbox is greyed out while the switch or a pattern decides for its object. Remove the pattern
-  to tick or clear one name under it.
+- A checkbox is greyed out while the switch or another entry decides for its object: a pattern,
+  or on a SQL source a hidden name that covers the table in every schema. Remove that entry to
+  tick or clear one name under it.
 - With **Only these** and nothing ticked or listed, the connector shows nothing.
 - A list holds at most 500 names and patterns. Use a pattern for the rest.
 - **Save what it shows** saves the whole section. **Reset** puts back what is saved.

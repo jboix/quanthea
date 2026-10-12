@@ -8,7 +8,12 @@ import {
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
 import type { ConnectorRow } from '../db/connector-repository.ts';
 import { type GateSubject, isHiddenField, isWithheldField } from '../gate/subject.ts';
-import { isSystemObject, type ObjectScope, showsObject } from '../query/scope/object-scope.ts';
+import {
+  isSystemObject,
+  namingOf,
+  type ObjectScope,
+  showsObject,
+} from '../query/scope/object-scope.ts';
 import { maskSecret } from '../secrets/mask.ts';
 
 /**
@@ -147,6 +152,7 @@ export function toSchemaView(
 ): SchemaView {
   return {
     readAt,
+    naming: namingOf(subject.scope.family),
     entities: (snapshot?.entities ?? []).map((entity) => entityView(subject, entity)),
   };
 }

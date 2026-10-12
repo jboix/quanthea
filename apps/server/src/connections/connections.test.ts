@@ -153,7 +153,8 @@ describe('connections', () => {
     expect(await connections.test(created.id, AbortSignal.timeout(1000))).toMatchObject({
       ok: true,
     });
-    expect(connections.schema(created.id)).toEqual({ readAt: null, entities: [] });
+    const naming = { exactCase: false, qualified: true, defaultSchema: 'public' };
+    expect(connections.schema(created.id)).toEqual({ readAt: null, naming, entities: [] });
     const view = await connections.refreshSchema(created.id, AbortSignal.timeout(1000));
     expect(view.readAt).toBe(clock);
     expect(view.entities[0]?.fields).toEqual([

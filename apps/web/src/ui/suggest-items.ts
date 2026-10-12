@@ -9,6 +9,21 @@ export interface SuggestionList {
 }
 
 /**
+ * Whether a name holds every word of a text, in any case: how a filter and a suggestion list match
+ * what was typed.
+ *
+ * @param text - What was typed.
+ * @returns A test of one name; every name passes for a text with no word.
+ */
+export function wordMatcher(text: string): (name: string) => boolean {
+  const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+  return (name) => {
+    const lower = name.toLowerCase();
+    return words.every((word) => lower.includes(word));
+  };
+}
+
+/**
  * The names that match what was typed: every word typed appears in the name, in any case. Names
  * that start with the text come first, and the list stops at a limit so a large catalogue stays
  * quick to draw.
@@ -20,11 +35,7 @@ export interface SuggestionList {
  */
 export function suggestionsFor(names: readonly string[], text: string, limit = 50): SuggestionList {
   const typed = text.trim().toLowerCase();
-  const words = typed.split(/\s+/).filter(Boolean);
-  const matches = names.filter((name) => {
-    const lower = name.toLowerCase();
-    return words.every((word) => lower.includes(word));
-  });
+  const matches = names.filter(wordMatcher(text));
   const starts = (name: string) => typed !== '' && name.toLowerCase().startsWith(typed);
   const ordered = [...matches.filter(starts), ...matches.filter((name) => !starts(name))];
   return { items: ordered.slice(0, limit), more: Math.max(0, ordered.length - limit) };
