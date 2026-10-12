@@ -3431,7 +3431,8 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
   yesterday, every `env:up` script first runs `dev/refresh.ts` for its profile: it removes the
   profile's volumes created before today (UTC), with their containers, and the `up` that follows
   seeds them again. `bun run evals` and `bun run dev:seed` stop with what to run when the dev
-  Postgres tells of an incident on another day (`dev/freshness.ts`).
+  Postgres tells of an incident on another day (`dev/freshness.ts`). `bun run evals --search` also
+  stops when the dev OpenSearch holds no player events of today.
 
 ## 15. Testing and evals
 
@@ -3466,8 +3467,15 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
 - **Evals** (`evals/`, `bun run evals`): 13 questions about the dev data's checkout incident,
   each with what a good answer holds: the connectors it queries, the range of panels, the topics
   its panels' titles and queries show, the failed writes it may take, and, when the answer needs
-  them, the markers its charts carry (every annotation of the spec is a marker set). A run builds the
-  server's services on a database of its own, adds the dev Postgres and Prometheus, and drives the
+  them, the markers its charts carry (every annotation of the spec is a marker set). An
+  expectation can also name the shape of one panel: the builder asked of the edit tool, the
+  aggregations in its search body, its table operations in order, and its view (`evals/shape.ts`).
+  A run builds the
+  server's services on a database of its own, adds the dev Postgres and Prometheus, and, with
+  `--search`, the dev OpenSearch as the connector `opensearch-events` (`evals/setup.ts`). It then
+  waits until that server holds events of today in `core_events`, and stops with what to run
+  otherwise. The flag is off by default: a connector more changes every prompt, so no cached
+  response would match. The run drives the
   agent headless with Gemini through the OpenAI-compatible provider (`gemini-3.5-flash-lite` by
   default; `--model` and `--build-model` change it). It answers the agent's question with the
   first option, approves the plan, lets the build run, then runs the last version's queries again
@@ -3505,7 +3513,8 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
   `--allow-failures` sets a limit. `--provider` picks Google (the default) or Anthropic, each with the
   models quanthea suggests for it (`evals/providers.ts`). The Evals workflow runs them by hand on
   `main`, for the repository's owner only, on the provider picked or both, one job each, in the
-  `evals` environment that holds the providers' keys; each job gets only its own. The summary shows
+  `evals` environment that holds the providers' keys; each job gets only its own. Its `search`
+  input starts the search servers too and passes `--search`. The summary shows
   on the run's page, the report is its artifact, and the job fails only when the run breaks. Each job also
   writes the run in evalmark's result format (`evals/evalmark.ts`) and records it with the
   evalmark action on the `evalmark` branch, whose dashboard keeps every run since. The Website

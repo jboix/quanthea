@@ -149,11 +149,13 @@ reads, frozen or not, and its follow-up cards.
 
 ```sh
 bun run env:up                      # the dev Postgres and Prometheus
+bun run env:up:search               # the dev Elasticsearch and OpenSearch, for --search
 GEMINI_API_KEY=… bun run evals      # every question and case, on Gemini
 ANTHROPIC_API_KEY=… bun run evals --provider anthropic   # the same, on Anthropic
 GEMINI_API_KEY=… bun run evals --only a1,a2,a3,a4   # the answer cases only
 GEMINI_API_KEY=… bun run evals --only al1,al2,al3,al4   # the alert cases only
 GEMINI_API_KEY=… bun run evals --only r1,r2,r3,r4   # the report cases only
+GEMINI_API_KEY=… bun run evals --search             # with the dev OpenSearch as a connector
 ```
 
 The dev data tells of an incident yesterday. `bun run env:up` seeds the data again when it was
@@ -166,10 +168,23 @@ yesterday's.
 | `--provider <name>`           | `google` (the default) or `anthropic`, with its key in `GEMINI_API_KEY` or `ANTHROPIC_API_KEY`. |
 | `--model <id>`                | The model for every job, instead of the provider's suggested pair.                              |
 | `--build-model <id>`          | Another model for building and repairs.                                                         |
+| `--search`                    | Adds the dev OpenSearch as the connector `opensearch-events`. See below.                        |
 | `--no-cache`                  | Asks the provider again, and keeps its answers.                                                 |
 | `--allow-failures <n>`        | Exits with an error when more than n questions fail. Without it, never.                         |
 | `--rescore <report.json>`     | Scores a report again with the questions as they are now, with no model call.                   |
 | `--compare <a.json> <b.json>` | Each question's verdict and tokens from one report to the next.                                 |
+
+### The search connector
+
+Without `--search`, the world holds two connectors: `postgres-orders` and `prometheus-dev`. With
+it, the world also holds `opensearch-events`, the dev OpenSearch, whose index `core_events` holds
+the events of a media player. Questions about that index need the flag.
+
+- Start the server first with `bun run env:up:search`.
+- The run waits until the server answers and `core_events` holds events of today. It stops with
+  that advice when the index was seeded on an earlier day.
+- Every prompt lists the connectors. A run with the flag therefore shares no cached response with
+  a run without it, so the flag is off unless asked for.
 
 Without `--model`, a run uses the models quanthea suggests for the provider, split by job as its
 presets split them: on Google, `gemini-3.5-flash-lite` talks, writes titles and answers, and
@@ -203,7 +218,8 @@ Live calls are spaced 4 seconds apart, to stay under the free tier's limit per m
 ## In GitHub Actions
 
 The Evals workflow runs by hand only: Actions, Evals, Run workflow, on `main`, picking the provider:
-`google`, `anthropic`, or `both`, one job each. Its jobs run for the repository's owner alone, in
+`google`, `anthropic`, or `both`, one job each. Ticking `search` also starts the dev Elasticsearch
+and OpenSearch and runs with `--search`. Its jobs run for the repository's owner alone, in
 the `evals` environment, which holds `GEMINI_API_KEY` and `ANTHROPIC_API_KEY`; each job gets only
 its own provider's key. A job starts the dev data sources, asks the questions with the provider's
 suggested models, and keeps the cache between runs. The summary table shows on the run's page; the
@@ -230,3 +246,16 @@ patterns over the panels' titles and queries.
 When a good answer marks events on its charts, such as deploys, add `markers` with their own
 topics and connectors. Each annotation of the dashboard is a marker set; the topics match a set's
 label or query. A run without markers then fails with "no markers on the charts".
+
+When a good answer has one panel of a known shape, add `shape`. Every part given must hold on the
+same panel, and the score names each missing part on the panel that comes closest.
+
+| Field          | What it expects                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------------- |
+| `builder`      | The data kind the agent asked the edit tool for: a builder's name, `raw` or `saved`.                 |
+| `aggregations` | Aggregations in the search body: a type such as `date_histogram`, or `terms:event_name`.             |
+| `operations`   | The names of the panel's table operations, in order. The panel may have others between them.         |
+| `view.kind`    | The view's kind.                                                                                     |
+| `view.recipe`  | The chart recipe the agent asked for.                                                                |
+| `view.has`     | Fields the view must hold, as paths such as `sort.field`.                                            |
+| `needs`        | What the world must have before the question can be answered: `http` or `pinned-target`. Not scored. |

@@ -1,8 +1,9 @@
 name: Evals
 
 # Asks the agent the eval questions against the dev data sources, on the provider picked when the
-# run starts: Google (Gemini) or Anthropic, or both, one job each. Each job starts from the models
-# quanthea suggests for its provider. The summary shows on the run's page; the report, as an HTML
+# run starts: Google (Gemini) or Anthropic, or both, one job each. With `search` ticked, a job also
+# starts the dev search servers and adds the dev OpenSearch as a connector. Each job starts from
+# the models quanthea suggests for its provider. The summary shows on the run's page; the report, as an HTML
 # page and as JSON, is the job's artifact; and evalmark records the run on the `evalmark` branch,
 # where its dashboard keeps every run since. Then the Website workflow deploys the site again, which
 # copies that dashboard to /evals/. Failing questions are what the report and the dashboard show,
@@ -24,6 +25,11 @@ on:
       only:
         description: Only these questions, such as q3,q7 (empty for all)
         default: ''
+        required: false
+      search:
+        description: Add the dev OpenSearch as a connector (--search)
+        type: boolean
+        default: false
         required: false
 
 permissions: {}
@@ -61,6 +67,11 @@ jobs:
       - name: Start the dev data sources
         run: bun run env:up
 
+      # Only when asked: the search connector changes every prompt, and so the response cache.
+      - name: Start the dev search servers
+        if: ${{ inputs.search }}
+        run: bun run env:up:search
+
       # Keeps the responses of earlier runs: a rerun on the same day with the
       # same prompts calls the provider only for what changed.
       - name: Restore the response cache
@@ -77,9 +88,11 @@ jobs:
           ANTHROPIC_API_KEY: ${{ matrix.provider == 'anthropic' && secrets.ANTHROPIC_API_KEY || '' }}
           PROVIDER: ${{ matrix.provider }}
           ONLY: ${{ inputs.only }}
+          SEARCH: ${{ inputs.search }}
         run: |
           set -- --provider "$PROVIDER"
           if [ -n "$ONLY" ]; then set -- "$@" --only "$ONLY"; fi
+          if [ "$SEARCH" = "true" ]; then set -- "$@" --search; fi
           bun run evals "$@"
 
       - name: Upload the report

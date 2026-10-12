@@ -1,7 +1,7 @@
 /**
  * The world the evals run in: the server's services on a database of their own, the dev data
  * sources as connectors, one notification channel that sends nowhere, Gemini as the model, a clock
- * fixed for the day, and the response cache.
+ * fixed for the day, and the response cache. When asked, the dev OpenSearch joins the connectors.
  */
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -12,6 +12,7 @@ import type { Answers } from '@quanthea/server/src/agent/answer-types.ts';
 import { languageModel } from '@quanthea/server/src/agent/model.ts';
 import { type Agent, createAgent } from '@quanthea/server/src/agent/run.ts';
 import {
+  devOpensearch,
   devPostgres,
   devPrometheus,
 } from '@quanthea/server/src/connectors/_shared/test/dev-sources.ts';
@@ -34,6 +35,21 @@ export interface EvalModels {
   /** For building and repairs, when it differs. */
   readonly build?: string | undefined;
 }
+
+/** What a run adds to the world beyond the dev Postgres and Prometheus. */
+export interface WorldOptions {
+  /** Adds the dev OpenSearch, which holds the player events, as a connector. */
+  readonly search?: boolean | undefined;
+}
+
+/** The name of the connector on the dev OpenSearch. */
+export const searchConnector = 'opensearch-events';
+
+/** The index of the player events on the dev OpenSearch. */
+const eventsIndex = 'core_events';
+
+/** How long the player events may take to show: the seed refreshes the index as it ends. */
+const eventsTimeoutMs = 30_000;
 
 /** What the evals run against. */
 export interface EvalWorld {
@@ -65,17 +81,78 @@ export function evalsNow(): number {
 }
 
 /**
- * Adds the dev Postgres and Prometheus as connectors, as `bun run dev:seed` does.
+ * The player events of today on the dev OpenSearch. The index is seeded up to the time of the
+ * seed, so one seeded on an earlier day holds none.
  *
- * @param services - The services.
- * @returns Once both are added.
+ * @param now - The current instant.
+ * @returns How many events the index holds since midnight UTC.
+ * @throws {Error} When the server does not answer, or has no such index.
  */
-async function addConnectors(services: EvalWorld['services']): Promise<void> {
+export async function eventsToday(now: Date = new Date()): Promise<number> {
+  const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  // The time field takes epoch milliseconds only.
+  const query = { range: { '@timestamp': { gte: midnight } } };
+  const response = await fetch(`${devOpensearch.config.url}/${eventsIndex}/_count`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ query }),
+  });
+  if (!response.ok) throw new Error(`The dev OpenSearch answers ${response.status}.`);
+  return ((await response.json()) as { count?: number }).count ?? 0;
+}
+
+/**
+ * Waits until the dev OpenSearch answers and holds player events of today.
+ *
+ * @param count - Counts today's events; it may fail while the server starts.
+ * @param timeoutMs - How long to wait.
+ * @returns Once there is an event.
+ * @throws {Error} With the advice to start the search sources, when none shows in time.
+ */
+export async function waitForEvents(
+  count: () => Promise<number> = eventsToday,
+  timeoutMs: number = eventsTimeoutMs,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    if ((await count().catch(() => 0)) > 0) return;
+    await Bun.sleep(Math.min(500, timeoutMs));
+  } while (Date.now() < deadline);
+  throw new Error(
+    `The dev OpenSearch does not hold today's ${eventsIndex}. Run bun run env:up:search.`,
+  );
+}
+
+/**
+ * The connectors of the world: the dev Postgres and Prometheus, as `bun run dev:seed` adds them,
+ * and the dev OpenSearch when asked. A connector more changes what every prompt lists, so the
+ * responses cached without it no longer match.
+ *
+ * @param options - What the run adds.
+ * @returns The connectors, as given to the connections service.
+ */
+export function worldConnectors(options: WorldOptions = {}): Record<string, unknown>[] {
   const hiddenFields = ['customers.email', 'customers.phone'];
   const postgres = { name: 'postgres-orders', kind: 'postgres', ...devPostgres, hiddenFields };
   const prometheus = { name: 'prometheus-dev', kind: 'prometheus', ...devPrometheus };
-  await services.connections.create(connectorInputSchema.parse(postgres), evalsActor);
-  await services.connections.create(connectorInputSchema.parse(prometheus), evalsActor);
+  const search = { name: searchConnector, kind: 'opensearch', ...devOpensearch };
+  return options.search ? [postgres, prometheus, search] : [postgres, prometheus];
+}
+
+/**
+ * Adds the world's connectors.
+ *
+ * @param services - The services.
+ * @param options - What the run adds.
+ * @returns Once each is added.
+ */
+async function addConnectors(
+  services: EvalWorld['services'],
+  options: WorldOptions,
+): Promise<void> {
+  for (const connector of worldConnectors(options)) {
+    await services.connections.create(connectorInputSchema.parse(connector), evalsActor);
+  }
 }
 
 /**
@@ -118,16 +195,18 @@ function cachedModels(cache: CacheOptions, counts: CacheCounts): typeof language
  * @param models - The models.
  * @param apiKey - The provider's key, if there is one; without it, only cached responses play.
  * @param cache - The cache's place and behaviour.
+ * @param options - What the run adds: the search connector.
  * @returns The world.
  */
 export async function openWorld(
   models: EvalModels,
   apiKey: string | undefined,
   cache: Omit<CacheOptions, 'live' | 'aliases'>,
+  options: WorldOptions = {},
 ): Promise<EvalWorld> {
   const dir = mkdtempSync(join(tmpdir(), 'quanthea-evals-'));
   const services = await testServices(dir, connectorKinds, evalsNow);
-  await addConnectors(services);
+  await addConnectors(services, options);
   const channelId = await addChannel(services);
   const aliases = new Map([[channelId, 'evals-channel']]);
   const gateway = gatewayOf(models.provider ?? 'google', models);

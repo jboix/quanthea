@@ -1,7 +1,8 @@
 /**
  * `bun run evals`: asks the agent each question against the dev data and scores what it builds.
- * It needs the data sources (`bun run env:up`) and the provider's key, except for what the response
- * cache already holds. It is never part of `bun run verify`.
+ * It needs the data sources (`bun run env:up`, and `bun run env:up:search` with `--search`) and the
+ * provider's key, except for what the response cache already holds. It is never part of
+ * `bun run verify`.
  */
 import { appendFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -29,7 +30,7 @@ import {
 import { type AnyReportCase, reportCases, selectReportCases } from './report-cases.ts';
 import { driveReport, type ReportBench } from './report-drive.ts';
 import { driveRunAnswer } from './run-answer-drive.ts';
-import { type EvalModels, type EvalWorld, openWorld } from './setup.ts';
+import { type EvalModels, type EvalWorld, openWorld, waitForEvents } from './setup.ts';
 
 /** What `--help` prints. */
 const usage = `Asks the agent each question against the dev data, and scores what it builds. Then
@@ -48,14 +49,16 @@ the database, and asks about that run (r3, r4).
   bun run evals --only r1,r2,r3,r4      only the report cases
   bun run evals --model gemini-3.8-flash
   bun run evals --build-model gemini-3.8-flash   another model for building and repairs
+  bun run evals --search                with the dev OpenSearch as a third connector
   bun run evals --no-cache              ask the provider again, and keep its answers
   bun run evals --allow-failures 2      exit with an error when more than 2 questions fail
   bun run evals --rescore <report.json> score a report again, with no model call
   bun run evals --compare <a.json> <b.json>
 
-It needs the data sources (bun run env:up) and the provider's key, GEMINI_API_KEY or
-ANTHROPIC_API_KEY, except for the responses the
-cache in evals/.cache already holds. Reports go to evals/reports, as JSON and as an HTML page;
+It needs the data sources (bun run env:up, and bun run env:up:search with --search) and the
+provider's key, GEMINI_API_KEY or ANTHROPIC_API_KEY, except for the responses the
+cache in evals/.cache already holds. A run with --search lists one connector more in every
+prompt, so it shares no cached response with a run without it. Reports go to evals/reports, as JSON and as an HTML page;
 in GitHub Actions the summary also goes to the job's summary page. It exits with an error when
 more questions fail than --allow-failures allows; without it, failing questions are reported,
 never an error.
@@ -76,6 +79,7 @@ function readFlags() {
     provider: text,
     model: text,
     'build-model': text,
+    search: { type: 'boolean' },
     'no-cache': { type: 'boolean' },
     'allow-failures': text,
     rescore: text,
@@ -121,17 +125,20 @@ function exitCodeOf(report: Report, allowed: number | undefined): number {
 }
 
 /**
- * Checks the dev data sources: they answer, and their incident is yesterday's.
+ * Checks the dev data sources: they answer, and their incident is yesterday's. With the search
+ * connector, the dev OpenSearch answers too and holds player events of today.
  *
+ * @param search - Whether the run adds the search connector.
  * @returns Once they are ready.
  * @throws {Error} With the advice to start or seed them again.
  */
-async function checkSources(): Promise<void> {
+async function checkSources(search: boolean): Promise<void> {
   await waitForFirstScrape().catch(() => {
     throw new Error('The dev data sources do not answer. Start them with bun run env:up.');
   });
   const stale = await staleDataReason(new Date());
   if (stale) throw new Error(stale);
+  if (search) await waitForEvents();
 }
 
 /**
@@ -254,14 +261,15 @@ async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<
   const others = [...answerCases, ...alertCases, ...reportCases].map((each) => each.id);
   const selected = selectQuestions(only, others);
   const models = modelsOf(flags);
-  await checkSources();
+  const search = flags.search ?? false;
+  await checkSources(search);
   const cache = { dir: join(here, '.cache'), read: !flags['no-cache'], minIntervalMs: 4000 };
   const provider = models.provider ?? 'google';
   const apiKey = apiKeyOf(provider, process.env);
   if (apiKey === undefined) {
     process.stdout.write(`${keyVariableOf(provider)} is not set: only cached responses play.\n`);
   }
-  const world = await openWorld(models, apiKey, cache);
+  const world = await openWorld(models, apiKey, cache, { search });
   const startedAt = new Date().toISOString();
   const outcomes: EvalOutcome[] = [];
   const bench = benchOnce(world);
