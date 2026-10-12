@@ -29,6 +29,8 @@
   background: var(--color-ground);
   font-size: 12px;
   color: var(--color-ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

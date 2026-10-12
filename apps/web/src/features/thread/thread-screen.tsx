@@ -189,6 +189,7 @@ function ThreadHeader({
   readonly thread: ThreadDetail;
   readonly messages: readonly ThreadMessage[];
 }) {
+  const connectors = thread.connectors.map((connector) => connector.name).join(' · ');
   return (
     <TitleHeader
       className={styles.head}
@@ -198,8 +199,8 @@ function ThreadHeader({
       actions={
         <>
           <ThreadCost messages={messages} />
-          <span className={styles.connectors}>
-            {thread.connectors.map((connector) => connector.name).join(' · ')}
+          <span className={styles.connectors} title={connectors}>
+            {connectors}
           </span>
         </>
       }
