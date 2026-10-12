@@ -16,8 +16,8 @@
 # - trino (profile "trino"): a coordinator on localhost:8081 whose catalog orders is the dev Postgres
 #   (dev/trino/catalog), read as its owner. No authentication: any user name is accepted.
 # - elasticsearch and opensearch (profile "search"): single nodes without security, on
-#   localhost:9201 and localhost:9202, with the request logs in daily indices logs-YYYY.MM.DD
-#   (dev/log-seed), seeded by search-seed.
+#   localhost:9201 and localhost:9202, with the request logs in daily indices logs-YYYY.MM.DD and
+#   the player events in the index core_events (dev/log-seed), seeded by search-seed.
 # - influxdb (profile "influxdb"): InfluxDB 3 Core on localhost:8186 (dev/influxdb), the database
 #   telemetry with the request metrics of the incident, seeded by influxdb-seed. Token
 #   apiv3_quanthea-dev-token.

@@ -56,7 +56,7 @@ const errorMessages: Readonly<Record<string, string>> = {
  * @param seed - The seed.
  * @returns The number.
  */
-function draw(seed: number): number {
+export function draw(seed: number): number {
   let value = (seed + 0x6d2b79f5) | 0;
   value = Math.imul(value ^ (value >>> 15), value | 1);
   value ^= value + Math.imul(value ^ (value >>> 7), value | 61);

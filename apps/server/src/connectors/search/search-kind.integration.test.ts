@@ -259,6 +259,42 @@ for (const server of servers) {
       });
     });
 
+    test('reads the player events, whose times are epoch milliseconds, as instants', async () => {
+      const bounds = { gte: timeRange.from.getTime(), lte: timeRange.to.getTime() };
+      const frame = await frameOf(
+        search(
+          {
+            size: 20,
+            query: { bool: { filter: [{ range: { '@timestamp': bounds } }] } },
+            sort: [{ '@timestamp': 'desc' }],
+          },
+          'core_events',
+        ),
+      );
+      const types = Object.fromEntries(frame.fields.map((field) => [field.name, field.type]));
+      expect(types).toMatchObject({
+        '@timestamp': 'time',
+        user_ip: 'string',
+        'session.qoe_timings.total': 'number',
+        'session.media.swisstxt': 'boolean',
+      });
+      const times = frame.values[frame.fields.findIndex((field) => field.name === '@timestamp')];
+      expect(times).toHaveLength(20);
+      for (const time of times as number[]) {
+        expect(time).toBeGreaterThanOrEqual(bounds.gte);
+        expect(time).toBeLessThanOrEqual(bounds.lte);
+      }
+      const snapshot = await connection.describe(AbortSignal.timeout(20_000));
+      const events = snapshot.entities.find((entity) => entity.name === 'core_events');
+      const fields = (events?.fields ?? []).map((field) => [field.name, field.type]);
+      expect(Object.fromEntries(fields)).toMatchObject({
+        '@timestamp': 'time',
+        event_name: 'string',
+        'session.player.platform': 'string',
+        'data.stall.count': 'number',
+      });
+    });
+
     test('samples keyword fields, text fields through their keyword, and nothing unknown', async () => {
       const levels = await connection.sampleValues(
         { entity: 'logs-*', field: 'level' },

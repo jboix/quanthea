@@ -145,5 +145,77 @@ for (const server of servers) {
       expect(times).toHaveLength(5);
       expect([...(times as number[])].sort((a, b) => b - a)).toEqual(times as number[]);
     });
+
+    /**
+     * Runs a builder over the dev player events, whose time field takes epoch milliseconds only.
+     *
+     * @param data - The request, without its connector and index.
+     * @returns The frame.
+     */
+    function onEvents(data: Record<string, unknown>): Promise<Frame> {
+      return run({ index: 'core_events', ...data });
+    }
+
+    test('measures the player events over time and over the range', async () => {
+      const series = await onEvents({ kind: 'search-series', by: 'event_name', interval: '5m' });
+      expect(series.fields.map((field) => [field.name, field.type])).toEqual([
+        ['time', 'time'],
+        ['series', 'string'],
+        ['value', 'number'],
+      ]);
+      const [times, names] = series.values as [number[], string[]];
+      expect(Math.min(...times)).toBeGreaterThanOrEqual(timeRange.from.getTime() - 5 * 60_000);
+      expect(Math.max(...times)).toBeLessThanOrEqual(timeRange.to.getTime());
+      expect(new Set(names)).toEqual(new Set(['START', 'HEARTBEAT', 'STOP', 'ERROR']));
+      const refused = await onEvents({
+        kind: 'search-ratio',
+        match: [{ field: 'data.business_error', value: 'true' }],
+        of: [{ field: 'event_name', value: 'ERROR' }],
+        over: 'range',
+        by: 'session.player.platform',
+      });
+      const [platforms, shares] = refused.values as [string[], number[]];
+      expect([...platforms].sort()).toEqual(['Android', 'Apple', 'Web']);
+      expect(shares.every((share) => share > 0 && share <= 1)).toBe(true);
+      expect(shares[platforms.indexOf('Web')]).toBeLessThan(0.9);
+      const sessions = await onEvents({
+        kind: 'search-stat',
+        measure: { fn: 'cardinality', field: 'session_id' },
+      });
+      expect((sessions.values[0] as number[])[0]).toBeGreaterThan(200);
+    });
+
+    test('breaks the player events down, bins them and lists the latest', async () => {
+      const starts = [{ field: 'event_name', value: 'START' }];
+      const slow = await onEvents({
+        kind: 'search-breakdown',
+        by: 'session.media.bu',
+        measure: { fn: 'percentiles', field: 'session.qoe_timings.total', percents: [95] },
+        filters: starts,
+      });
+      expect(slow.fields.map((field) => field.name)).toEqual(['session.media.bu', 'value p95']);
+      expect(slow.meta.rowCount).toBe(4);
+      const bins = await onEvents({
+        kind: 'search-histogram',
+        field: 'session.qoe_timings.total',
+        width: 250,
+        filters: starts,
+      });
+      expect((bins.values[0] as number[]).every((bin) => bin % 250 === 0)).toBe(true);
+      const rows = await onEvents({
+        kind: 'search-rows',
+        fields: ['@timestamp', 'user_ip', 'data.error_type'],
+        filters: [{ field: 'event_name', value: 'ERROR' }],
+        limit: 5,
+      });
+      const column = (name: string) =>
+        rows.values[rows.fields.findIndex((field) => field.name === name)] ?? [];
+      const instants = column('@timestamp') as number[];
+      expect(instants).toHaveLength(5);
+      expect([...instants].sort((a, b) => b - a)).toEqual(instants);
+      expect(instants.every((time) => time >= timeRange.from.getTime())).toBe(true);
+      expect(instants.every((time) => time <= timeRange.to.getTime())).toBe(true);
+      expect(column('user_ip').every((address) => /^198\.18\./.test(String(address)))).toBe(true);
+    });
   });
 }
