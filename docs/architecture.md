@@ -2092,7 +2092,10 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   engine in `connectors/search/` (`defineSearchKind`): OpenSearch forked from Elasticsearch 7.10
   and both still share the search API and the DSL. Each kind has its own logo and
   authentication: Elasticsearch basic or an API key, OpenSearch basic or a bearer token from its
-  security plugin. The connection test fails, naming the right kind, when the server is the other
+  security plugin. An error about how the query is written (a parsing error, a refused argument, a
+  value in the wrong format) carries the server's reason in its safe message, cut to 300
+  characters: the server raises it while reading the query, before any document, so it quotes
+  only the query. Every other error keeps its reason for people allowed to see the data. The connection test fails, naming the right kind, when the server is the other
   product. Both go over the kit's HTTP client: the REST API, no client library. It sends searches (`POST /<index>/_search`) and reads mappings,
   document counts and the root answer, nothing that writes. The size is capped at `maxRows + 1`,
   and at 0 with aggregations. The timeout goes in the body (`timeout`), with
@@ -2227,7 +2230,10 @@ that changes with its settings).
      is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value (a string, or a
      list for a multi-value variable; `{"$var": "service", "as": "list"}` is a list in every case),
      never text inside a string. `__from` and `__to` are ISO times; `__interval` is a bucket width
-     that keeps the range within 1000 buckets. A body with any key with a word starting with
+     that keeps the range within 1000 buckets. A `range` clause bounded by them gets
+     `"format": "strict_date_optional_time"` unless it names a format: a date field accepts only
+     its mapping's formats (`epoch_millis` alone, for one), and refuses ISO text with a parse error
+     otherwise. A body with any key with a word starting with
      `script`, in snake_case or camelCase (`script`, `_script`, `script_fields`, `script_score`,
      `scripted_metric`, `minimum_should_match_script` and the rest), or with `runtime_mappings` is
      refused, because the search server would run it. One exception: a `bucket_script` whose

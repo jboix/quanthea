@@ -274,20 +274,12 @@ describe('search mappings and catalog', () => {
 });
 
 describe('search errors', () => {
-  test('map error types to codes with messages that quote no values', () => {
+  test('map error types to codes, and hide the reason of an error that is not about the query', () => {
     const cases: [number, object, string][] = [
-      [400, { type: 'parsing_exception', reason: 'unknown query [secret]' }, 'syntax'],
-      [
-        400,
-        {
-          type: 'search_phase_execution_exception',
-          root_cause: [{ type: 'number_format_exception', reason: 'For input string: "secret"' }],
-        },
-        'syntax',
-      ],
       [401, { type: 'security_exception', reason: 'secret' }, 'authentication'],
       [403, { type: 'security_exception', reason: 'secret' }, 'permission'],
       [503, { type: 'something_new', reason: 'secret' }, 'internal'],
+      [429, { type: 'circuit_breaking_exception', reason: 'secret' }, 'rejected'],
     ];
     for (const [status, error, code] of cases) {
       const converted = toConnectorError(status, error, 'The search server');
@@ -295,6 +287,28 @@ describe('search errors', () => {
       expect(converted.safeMessage).not.toContain('secret');
       expect(converted.message).toContain('secret');
     }
+  });
+
+  test('carry the reason of an error about how the query is written, so it can be fixed', () => {
+    const reason =
+      'failed to parse date field [2026-10-12T11:55:24.000Z] with format [epoch_millis]';
+    const failed = {
+      type: 'search_phase_execution_exception',
+      root_cause: [{ type: 'parse_exception', reason }],
+    };
+    expect(toConnectorError(400, failed, 'The search server')).toMatchObject({
+      code: 'syntax',
+      safeMessage: `A value of the search cannot be read. The server says: ${reason}`,
+    });
+    const parsing = { type: 'parsing_exception', reason: 'unknown query [matc]' };
+    expect(toConnectorError(400, parsing, 'x').safeMessage).toBe(
+      'The search body has an error. The server says: unknown query [matc]',
+    );
+  });
+
+  test('cut a long reason short', () => {
+    const long = { type: 'parsing_exception', reason: 'x'.repeat(1000) };
+    expect(toConnectorError(400, long, 'x').safeMessage.length).toBeLessThan(400);
   });
 
   test('name a missing index, which is schema rather than data', () => {
