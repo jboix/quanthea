@@ -36,7 +36,8 @@ The draft pane shows what the alert would have done, before it ever runs:
   handle at its right, or use the arrow keys, and the shading, the summary ("Would have fired 2
   times · 23 minutes in total · 1 spike too short to fire") and the series follow at once.
 - **The series**: one per service, host or label value, each with how often it would have fired.
-- **Notifies**: the channels, and a preview of the message as each service shows it: a Slack
+- **Notifies**: the channels, when the alert is quiet and when it may next notify, and a preview
+  of the message as each service shows it: a Slack
   message, a Discord embed, a Teams card, a PagerDuty incident, a webhook's JSON. **Edit the
   message** changes its title, body and fields.
 
@@ -79,7 +80,9 @@ number of alerts firing.
 - **Series** gives each series' state, value and since when.
 - **What happened** lists the changes of state, whether each notified or was held back by quiet
   hours, the times it could not be checked, and who activated, deactivated, muted or unmuted it.
-- **Notifies** lists the channels and the latest messages, with whether they got through.
+- **Notifies** lists the channels, its [quiet hours](#quiet-hours) and the latest messages, with
+  whether they got through. During quiet hours the header says **Quiet hours until 07:00**, and
+  Notifies says when it may next notify.
 - **Shown on** lists the dashboard panels it is linked to.
 
 ### Tune a live alert

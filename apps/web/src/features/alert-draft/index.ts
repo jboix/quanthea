@@ -15,6 +15,7 @@ export {
   loadAlertDraft,
   runAlertIntent,
 } from './data.ts';
+export { quietSummary } from './quiet-hours.ts';
 export {
   asReplayed,
   byFiring,

@@ -1,14 +1,15 @@
 /**
- * Whom the draft notifies and what they would see: the channels, when they hear, a preview per
- * channel filled with a firing from the replay, and the message template to edit by hand.
+ * Whom the draft notifies and what they would see: the channels, when they hear, when the alert
+ * is quiet, a preview per channel filled with a firing from the replay, and the message template to edit by hand.
  */
-import type { AlertSpec, MessageTemplate } from '@quanthea/shared';
+import type { AlertSpec, DefaultQuietHours, MessageTemplate } from '@quanthea/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import styles from './alert-draft.module.css';
 import { ChannelPreview } from './channel-preview.tsx';
 import { durationWords } from './condition.ts';
 import type { ChannelChoice, PreviewOutcome } from './data.ts';
+import { quietSummary } from './quiet-hours.ts';
 import { TemplateEditor } from './template-editor.tsx';
 
 /** Props of {@link Notifies}. */
@@ -19,6 +20,8 @@ interface NotifiesProps {
   readonly channels: readonly ChannelChoice[];
   /** What each kind would send, once loaded. */
   readonly previews: PreviewOutcome | undefined;
+  /** The quiet hours of the alerts that set none, or `null`. */
+  readonly defaultQuietHours: DefaultQuietHours | null;
   /** Whether the template can change now. */
   readonly disabled: boolean;
   /** Saves a changed template. */
@@ -70,12 +73,38 @@ function Previews({
 }
 
 /**
+ * When the draft is quiet: which quiet hours it keeps, whether they hold now, and when it may
+ * next notify.
+ *
+ * @param props - The spec and the default.
+ * @param props.spec - The draft's spec.
+ * @param props.defaults - The quiet hours of the alerts that set none, or `null`.
+ * @returns The line.
+ */
+function QuietHoursLine({
+  spec,
+  defaults,
+}: {
+  readonly spec: AlertSpec;
+  readonly defaults: DefaultQuietHours | null;
+}) {
+  const { schedule, status } = quietSummary(spec, defaults, Date.now());
+  return (
+    <p className={styles.note}>
+      {schedule} {status}
+    </p>
+  );
+}
+
+/**
  * The Notifies card.
  *
- * @param props - The spec, the channels, the previews and the template's save.
+ * @param props - The spec, the channels, the previews, the default quiet hours and the
+ *   template's save.
  * @returns The card.
  */
-export function Notifies({ spec, channels, previews, disabled, onTemplate }: NotifiesProps) {
+export function Notifies(props: NotifiesProps) {
+  const { spec, channels, previews, disabled, onTemplate } = props;
   const [editing, setEditing] = useState(false);
   const named = spec.channels.map(
     (id) =>
@@ -101,6 +130,7 @@ export function Notifies({ spec, channels, previews, disabled, onTemplate }: Not
         </span>
       )}
       <p className={styles.note}>{notifyWords(spec)}</p>
+      <QuietHoursLine spec={spec} defaults={props.defaultQuietHours} />
       {editing ? (
         <TemplateEditor
           template={spec.message}

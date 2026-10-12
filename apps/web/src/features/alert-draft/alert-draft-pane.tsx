@@ -1,7 +1,7 @@
 /**
  * The draft pane of an alert thread: the draft's title and version, Send a test notification and
  * Activate; the condition as a sentence of values to change; the replay with the threshold to
- * drag; the series; and whom it notifies with a preview per channel. Every change made here saves
+ * drag; the series; and whom it notifies, when it is quiet, with a preview per channel. Every change made here saves
  * a new draft version by hand, which the conversation shows and the agent reads.
  */
 import type { AlertSpec, NotifiedSeries } from '@quanthea/shared';
@@ -257,6 +257,7 @@ function DraftBody(props: DraftProps) {
             spec={spec}
             channels={draft.channels}
             previews={previews}
+            defaultQuietHours={draft.alert.defaultQuietHours}
             disabled={busy}
             onTemplate={(message) => onHandEdit({ ...spec, message })}
           />

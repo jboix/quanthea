@@ -253,7 +253,8 @@ gate's leak tests check that every one of those paths drops hidden fields.
     its axes (`ValueAxis`) so the handle converts pixels to values without ECharts leaving
     `charts/`;
   - the series, one alert each, which would have fired and how often;
-  - Notifies: the channels, when they hear, and a preview per channel, drawn roughly as the
+  - Notifies: the channels, when they hear, when the alert is quiet (below), and a preview per
+    channel, drawn roughly as the
     service shows it (a Slack message with its coloured bar, a Discord embed, a Teams card, a
     PagerDuty incident line, a webhook's JSON), read from what the preview endpoint says each
     recipe would send and kept as plain text. The previews come through the
@@ -302,7 +303,8 @@ gate's leak tests check that every one of those paths drops hidden fields.
   series' last value. New alert, for editors, opens `/threads/new?make=alert`.
 - **An alert's page** (`/alerts/:alertId`) is laid out like a pinned dashboard. The header holds
   the breadcrumb, the title, the state pill (`Firing 18 min · checkout-svc`, `Pending 2 of 5 min`,
-  `OK`, `Deactivated`), a pill when muted (`Muted until 18:00`) and the version pill
+  `OK`, `Deactivated`), a pill when muted (`Muted until 18:00`), a pill while an alert being
+  evaluated is in its quiet hours (`Quiet hours until 07:00`) and the version pill
   (`v3 · active`). Its actions: Change for editors (Edit with the agent, which opens the
   conversation that wrote it, and Deactivate or Activate again), Mute for analysts and above (1
   hour, 4 hours, until tomorrow 09:00, a custom end within 7 days, and Until I unmute for
@@ -331,7 +333,17 @@ gate's leak tests check that every one of those paths drops hidden fields.
     version is active, changes held from the old one lapse.
   - Each series now (state, value, since), What happened (the changes of state, whether each
     notified or was "held back by quiet hours", the times it could not be checked and could be again, and the activations,
-    deactivations, mutes and unmutes from the audit log, the latest first), and Notifies (the channels by name and kind, the latest messages with their outcome).
+    deactivations, mutes and unmutes from the audit log, the latest first), and Notifies (the channels by name and kind, when the alert is quiet, the latest messages with
+    their outcome).
+  - **When it is quiet** reads the same on the page and in the draft pane
+    (`alert-draft/quiet-hours.ts`): "Quiet Mon to Fri 22:00 to 07:00; Sat and Sun all day
+    (Europe/Zurich), the default for all alerts. Quiet now. It may next notify Tue 07:00.", or
+    "Next quiet from 22:00.", or why it keeps none ("the default leaves critical alerts alone").
+    `GET /api/alerts/:id` carries the default of the alert settings (`defaultQuietHours`), so the
+    browser applies `quietHoursOf` to the version shown and `nextQuietChange` to the clock.
+    `nextQuietChange` looks at each window's start and end over the coming days and returns the
+    first at which quiet hours change, moved to the jump when daylight saving skips it; `null`
+    when they hold every hour of the week. Times read on the browser's clock.
   - **Shown on** (`shown-on.tsx`) lists the panels the alert is linked to: the dashboard and the
     panel, each a link, or "not on the shown version" when the version shown has no such panel.
     Editors get × to unlink, Link to a panel… (pick a pinned dashboard, then one of its panels,

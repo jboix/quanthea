@@ -7,7 +7,7 @@
  */
 import { z } from 'zod';
 import { timeOfDaySchema, weekdays } from '../reports/schedule.ts';
-import { isoWeekday, isTimeZone, wallTimeOf } from '../reports/zoned.ts';
+import { addDays, instantOf, isoWeekday, isTimeZone, wallTimeOf } from '../reports/zoned.ts';
 
 /** Validates one quiet window: the days it starts on, and the times it starts and ends. */
 const quietWindowSchema = z.strictObject({
@@ -85,6 +85,78 @@ export function isQuietAt(quietHours: QuietHours, instant: number): boolean {
   const weekday = isoWeekday(wall) - 1;
   const minute = wall.hour * 60 + wall.minute;
   return quietHours.windows.some((window) => windowHolds(window, weekday, minute));
+}
+
+/** How far the search for the next change looks, in days: a week, and a day either side. */
+const searchDays = 9;
+
+/** A minute, in milliseconds. */
+const minuteMs = 60_000;
+
+/**
+ * The instants the clock shows a start or an end of a window, from the day of an instant on.
+ *
+ * @param quietHours - The quiet hours.
+ * @param instant - Epoch milliseconds.
+ * @returns The instants after it, the earliest first.
+ */
+function boundariesAfter(quietHours: QuietHours, instant: number): number[] {
+  const today = wallTimeOf(instant, quietHours.timezone);
+  const times = new Set(quietHours.windows.flatMap((window) => [window.from, window.to]));
+  const instants = Array.from({ length: searchDays }, (_unused, days) =>
+    [...times].map((time) => {
+      const minutes = minutesOf(time);
+      const wall = {
+        ...addDays(today, days),
+        hour: Math.floor(minutes / 60),
+        minute: minutes % 60,
+      };
+      return instantOf(wall, quietHours.timezone);
+    }),
+  );
+  return instants
+    .flat()
+    .filter((each) => each > instant)
+    .sort((a, b) => a - b);
+}
+
+/**
+ * The first minute between two instants at which quiet hours are no longer as at the first. The
+ * change is at the second unless daylight saving moved it: a window ends with a skipped hour.
+ *
+ * @param quietHours - The quiet hours.
+ * @param same - An instant, on a minute.
+ * @param changed - A later instant, at which they differ from the first.
+ * @returns Epoch milliseconds.
+ */
+function firstChange(quietHours: QuietHours, same: number, changed: number): number {
+  const quiet = isQuietAt(quietHours, same);
+  let low = same;
+  let high = changed;
+  while (high - low > minuteMs) {
+    const middle = low + Math.floor((high - low) / (2 * minuteMs)) * minuteMs;
+    if (isQuietAt(quietHours, middle) === quiet) low = middle;
+    else high = middle;
+  }
+  return high;
+}
+
+/**
+ * When quiet hours next start, or next end: the first instant after one at which they hold when
+ * they did not, or no longer hold when they did.
+ *
+ * @param quietHours - The quiet hours.
+ * @param instant - Epoch milliseconds.
+ * @returns Epoch milliseconds, on a minute; `null` when they hold every hour of the week.
+ */
+export function nextQuietChange(quietHours: QuietHours, instant: number): number | null {
+  const quiet = isQuietAt(quietHours, instant);
+  const boundaries = boundariesAfter(quietHours, instant);
+  const index = boundaries.findIndex((each) => isQuietAt(quietHours, each) !== quiet);
+  const changed = boundaries[index];
+  if (changed === undefined) return null;
+  const same = Math.floor(instant / minuteMs) * minuteMs;
+  return firstChange(quietHours, Math.max(same, boundaries[index - 1] ?? same), changed);
 }
 
 /**

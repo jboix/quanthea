@@ -257,7 +257,8 @@ function detailOf(
     events: context.states.events(id, recentEvents),
     checks: context.states.checkEvents(id, recentEvents),
   };
-  return { ...toDetail(item, parts, role), ...detailExtras(activity, id, spec) };
+  const defaultQuietHours = context.settings.get().quietHours;
+  return { ...toDetail(item, parts, role), ...detailExtras(activity, id, spec), defaultQuietHours };
 }
 
 /**

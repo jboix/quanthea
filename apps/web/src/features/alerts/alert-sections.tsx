@@ -1,9 +1,10 @@
 /**
  * The alert page's sections below the chart: each series now, what happened, and where it
- * notifies with the latest messages sent.
+ * notifies, when it is quiet, with the latest messages sent.
  */
 import type { AlertDetail, AlertState } from '@quanthea/shared';
 import { Pill } from '../../ui/pill.tsx';
+import { quietSummary } from '../alert-draft/index.ts';
 import styles from './alert.module.css';
 import type { StateTone } from './state-text.ts';
 import { timeline } from './timeline.ts';
@@ -110,7 +111,39 @@ export function WhatHappened({
 }
 
 /**
- * Where it notifies, by channel name and kind, and the latest messages sent about it.
+ * The spec of the version an alert's page shows: the active one, else the latest it lists.
+ *
+ * @param alert - The alert.
+ * @returns The spec, or nothing when the reader sees no version.
+ */
+export function shownSpec(alert: AlertDetail): AlertDetail['versions'][number]['spec'] | undefined {
+  const version = alert.activeVersion ?? alert.latestVersion;
+  return (alert.versions.find((each) => each.version === version) ?? alert.versions[0])?.spec;
+}
+
+/**
+ * When the alert is quiet: which quiet hours it keeps, whether they hold now, and when it may
+ * next notify.
+ *
+ * @param props - The alert and the current time.
+ * @param props.alert - The alert.
+ * @param props.now - The current time.
+ * @returns The line, or nothing when the reader sees no version.
+ */
+function QuietHoursLine({ alert, now }: { readonly alert: AlertDetail; readonly now: number }) {
+  const spec = shownSpec(alert);
+  if (!spec) return null;
+  const { schedule, status } = quietSummary(spec, alert.defaultQuietHours, now);
+  return (
+    <p className={styles.chartNote}>
+      {schedule} {status}
+    </p>
+  );
+}
+
+/**
+ * Where it notifies, by channel name and kind, when it is quiet, and the latest messages sent
+ * about it.
  *
  * @param props - The alert and the current time.
  * @param props.alert - The alert.
@@ -135,6 +168,7 @@ export function Notifies({ alert, now }: { readonly alert: AlertDetail; readonly
           ))}
         </ul>
       )}
+      <QuietHoursLine alert={alert} now={now} />
       <h3 className={styles.subheading}>Latest messages</h3>
       {alert.sends.length === 0 && <p className={styles.chartNote}>None sent yet.</p>}
       <ol className={styles.timeline}>

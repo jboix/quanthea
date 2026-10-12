@@ -178,6 +178,17 @@ const alertActivitySchema = z.object({
   until: z.number().nullable(),
 });
 
+/**
+ * Validates the quiet hours of every alert that sets none of its own, and the severities they
+ * leave alone: an alert that must wake someone has one of those.
+ */
+export const defaultQuietHoursSchema = quietHoursSchema.extend({
+  exceptSeverities: z
+    .array(z.enum(alertSeverities))
+    .max(alertSeverities.length)
+    .default(['critical']),
+});
+
 /** Validates an alert with its versions, series and recent changes of state. */
 export const alertDetailSchema = alertListItemSchema.extend({
   versions: z.array(alertVersionSchema),
@@ -191,6 +202,11 @@ export const alertDetailSchema = alertListItemSchema.extend({
   sends: z.array(alertSendSchema),
   /** Activations, deactivations and mutes, the latest first. */
   activity: z.array(alertActivitySchema),
+  /**
+   * The quiet hours of the alerts that set none, and the severities they leave alone; `null` for
+   * none. With a version's spec they say when the alert is quiet (`quietHoursOf`).
+   */
+  defaultQuietHours: defaultQuietHoursSchema.nullable(),
   /**
    * Whether the reader may activate, deactivate, change or test it: an editor who owns its thread
    * or an admin, or any editor when it has no thread.
@@ -311,17 +327,6 @@ export const replayAlertVersionEndpoint = defineEndpoint({
   params: alertParams.extend({ version: z.string().regex(/^[1-9]\d{0,5}$/) }),
   body: replayWindowSchema,
   output: alertReplaySchema,
-});
-
-/**
- * Validates the quiet hours of every alert that sets none of its own, and the severities they
- * leave alone: an alert that must wake someone has one of those.
- */
-export const defaultQuietHoursSchema = quietHoursSchema.extend({
-  exceptSeverities: z
-    .array(z.enum(alertSeverities))
-    .max(alertSeverities.length)
-    .default(['critical']),
 });
 
 /**

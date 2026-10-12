@@ -88,7 +88,7 @@ export function toSummary(
 }
 
 /**
- * Builds an alert's detail, but for its channels, sends and activity.
+ * Builds an alert's detail, but for its channels, sends, activity and the default quiet hours.
  *
  * @param summary - Its list item.
  * @param parts - Its versions, series, recent changes of state and check events.
@@ -104,7 +104,7 @@ export function toDetail(
     readonly checks: readonly CheckEventRow[];
   },
   role: Role,
-): Omit<AlertDetail, 'channels' | 'sends' | 'activity' | 'canChange'> {
+): Omit<AlertDetail, 'channels' | 'sends' | 'activity' | 'canChange' | 'defaultQuietHours'> {
   const versions = parts.versions
     .filter((version) => canSeeVersion(version, role))
     .map((version) => ({

@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { isQuietAt, type QuietHours, quietHoursOf, quietHoursSchema } from './quiet-hours.ts';
+import {
+  isQuietAt,
+  nextQuietChange,
+  type QuietHours,
+  quietHoursOf,
+  quietHoursSchema,
+} from './quiet-hours.ts';
 
 const weekdaysOnly = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
 
@@ -139,6 +145,58 @@ describe('quiet hours', () => {
       false,
     );
     expect(quietHoursSchema.safeParse({ timezone: 'UTC', windows: [] }).success).toBe(false);
+  });
+});
+
+/**
+ * When quiet hours next start or end after a UTC time.
+ *
+ * @param quietHours - The quiet hours.
+ * @param iso - The instant.
+ * @returns The instant of the change, as ISO, or `null`.
+ */
+function changeAfter(quietHours: QuietHours, iso: string): string | null {
+  const change = nextQuietChange(quietHours, Date.parse(iso));
+  return change === null ? null : new Date(change).toISOString();
+}
+
+describe('the next change of quiet hours', () => {
+  const nights = hours('UTC', weekdaysOnly, '22:00', '07:00');
+
+  test('is their end while they hold, and their start while they do not', () => {
+    expect(changeAfter(nights, '2026-10-12T23:30:20Z')).toBe('2026-10-13T07:00:00.000Z');
+    expect(changeAfter(nights, '2026-10-13T07:00:00Z')).toBe('2026-10-13T22:00:00.000Z');
+    // Friday night ends on Saturday morning; the next one starts on Monday.
+    expect(changeAfter(nights, '2026-10-17T03:00:00Z')).toBe('2026-10-17T07:00:00.000Z');
+    expect(changeAfter(nights, '2026-10-17T08:00:00Z')).toBe('2026-10-19T22:00:00.000Z');
+  });
+
+  test('skips the end of a window another one covers', () => {
+    const weekend = { days: ['saturday' as const, 'sunday' as const], from: '00:00', to: '00:00' };
+    const both = { ...nights, windows: [...nights.windows, weekend] };
+    // Friday night runs into the weekend, which ends on Monday at midnight.
+    expect(changeAfter(both, '2026-10-16T23:00:00Z')).toBe('2026-10-19T00:00:00.000Z');
+  });
+
+  test('is on the clock of the time zone', () => {
+    const zurich = hours('Europe/Zurich', weekdaysOnly, '22:00', '07:00');
+    expect(changeAfter(zurich, '2026-10-12T21:00:00Z')).toBe('2026-10-13T05:00:00.000Z');
+    // The clocks go back on Sunday 25 October: Monday 07:00 is 06:00 UTC.
+    expect(changeAfter(zurich, '2026-10-23T21:00:00Z')).toBe('2026-10-24T05:00:00.000Z');
+    expect(changeAfter(zurich, '2026-10-24T12:00:00Z')).toBe('2026-10-26T21:00:00.000Z');
+  });
+
+  test('is the jump when the clock skips the end of a window', () => {
+    // On 29 March 2026 the clock in Zurich goes from 02:00 to 03:00, at 01:00 UTC.
+    const early = hours('Europe/Zurich', ['saturday'], '22:00', '02:30');
+    expect(changeAfter(early, '2026-03-28T23:00:00Z')).toBe('2026-03-29T01:00:00.000Z');
+  });
+
+  test('is never when they hold every hour of the week, and a week away for one window', () => {
+    const always = hours('UTC', [...weekdaysOnly, 'saturday', 'sunday'], '09:00', '09:00');
+    expect(changeAfter(always, '2026-10-12T12:00:00Z')).toBeNull();
+    const lunch = hours('UTC', ['monday'], '12:00', '13:00');
+    expect(changeAfter(lunch, '2026-10-12T13:00:00Z')).toBe('2026-10-19T12:00:00.000Z');
   });
 });
 
