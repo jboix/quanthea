@@ -2,6 +2,7 @@ import { type SavedQuery, shapeGuides } from '@quanthea/shared';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
 import { Pill } from '../../ui/pill.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import type { PreviewConnector } from './data.ts';
 import styles from './queries.module.css';
 import { SavedPreview } from './saved-preview.tsx';
@@ -55,20 +56,21 @@ interface SavedDetailProps {
 export function SavedDetail({ recipe, connectors, onEdit, onRemove }: SavedDetailProps) {
   return (
     <div className={styles.detail}>
-      <header className={styles.detailHead}>
-        <div className={styles.titleRow}>
-          <h2 className={styles.detailTitle}>{recipe.name}</h2>
-          <Pill mono>{recipe.id}</Pill>
-          <span className={styles.spacer} />
-          <Button size="small" onClick={onEdit}>
-            Edit
-          </Button>
-          <Button size="small" variant="danger" onClick={onRemove}>
-            Remove
-          </Button>
-        </div>
-        <p className={styles.hint}>{recipe.description}</p>
-      </header>
+      <TitleHeader
+        title={recipe.name}
+        badges={<Pill mono>{recipe.id}</Pill>}
+        below={<p className={styles.hint}>{recipe.description}</p>}
+        actions={
+          <>
+            <Button size="small" onClick={onEdit}>
+              Edit
+            </Button>
+            <Button size="small" variant="danger" onClick={onRemove}>
+              Remove
+            </Button>
+          </>
+        }
+      />
       <TemplateCard recipe={recipe} />
       <Card
         title="Preview"

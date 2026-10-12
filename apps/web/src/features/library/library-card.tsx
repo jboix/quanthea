@@ -3,6 +3,7 @@ import { Link, type SubmitTarget, useFetcher } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
 import { VariantIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import { PanelPreview, useCanEdit } from '../dashboard/index.ts';
 import styles from './library.module.css';
 
@@ -101,14 +102,19 @@ export function LibraryCard({ entry }: { readonly entry: LibraryEntry }) {
   const titleId = `library-${entry.dashboardId}`;
   return (
     <article className={styles.card} aria-labelledby={titleId}>
-      <header className={styles.cardHead}>
-        <h2 id={titleId} className={styles.cardTitle}>
-          <Link to={`/d/${entry.dashboardId}`}>{entry.title}</Link>
-        </h2>
-        <Pill shape="tag" mono>
-          Pinned · v{entry.version}
-        </Pill>
-      </header>
+      <TitleHeader
+        size="card"
+        align="start"
+        wrap
+        title={entry.title}
+        titleId={titleId}
+        titleContent={<Link to={`/d/${entry.dashboardId}`}>{entry.title}</Link>}
+        actions={
+          <Pill shape="tag" mono>
+            Pinned · v{entry.version}
+          </Pill>
+        }
+      />
       {entry.preview && (
         <figure className={styles.figure}>
           <PanelPreview

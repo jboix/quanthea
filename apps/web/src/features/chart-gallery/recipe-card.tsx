@@ -2,6 +2,7 @@ import type { ChartRecipe } from '@quanthea/shared';
 import { useState } from 'react';
 import { Pill } from '../../ui/pill.tsx';
 import { Switch } from '../../ui/switch.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import { PanelView } from '../dashboard/index.ts';
 import styles from './gallery.module.css';
 import { samplePanel } from './sample.ts';
@@ -139,11 +140,18 @@ export function RecipeCard({ recipe, variant, enabled, onToggle }: RecipeCardPro
     : recipe.title;
   return (
     <article className={styles.card} aria-label={title} data-off={!enabled}>
-      <header className={styles.cardHead}>
-        <h3 className={styles.cardTitle}>{title}</h3>
-        <Pill mono>{recipe.id}</Pill>
-        <Pill>{recipe.data.shape}</Pill>
-      </header>
+      <TitleHeader
+        level={3}
+        size="compact"
+        wrap
+        title={title}
+        actions={
+          <>
+            <Pill mono>{recipe.id}</Pill>
+            <Pill>{recipe.data.shape}</Pill>
+          </>
+        }
+      />
       <SampleChart recipe={recipe} variants={shown ? [shown] : []} />
       {variant === undefined && <VariantChips recipe={recipe} value={chosen} onChange={choose} />}
       <p className={styles.use}>

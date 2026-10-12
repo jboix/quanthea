@@ -12,25 +12,8 @@
 }
 
 .head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding: 14px 18px;
   border-bottom: 1px solid var(--color-divider);
-}
-
-.headText {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  gap: 2px;
-  min-width: 0;
-}
-
-.title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
 }
 
 .meta {

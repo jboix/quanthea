@@ -4,6 +4,7 @@ import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
 import { Switch } from '../../ui/switch.tsx';
 import { TextArea } from '../../ui/text-area.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import type { PreviewConnector } from './data.ts';
 import {
   ChartSelect,
@@ -230,10 +231,10 @@ export function BuiltInDetail({
 }: BuiltInDetailProps) {
   return (
     <div className={styles.detail}>
-      <header className={styles.detailHead}>
-        <h2 className={styles.detailTitle}>{recipe.name}</h2>
-        <p className={styles.hint}>{recipe.description}</p>
-      </header>
+      <TitleHeader
+        title={recipe.name}
+        below={<p className={styles.hint}>{recipe.description}</p>}
+      />
       <Card>
         <Switch
           label="In the default set"

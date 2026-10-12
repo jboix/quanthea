@@ -95,28 +95,6 @@
   min-width: 0;
 }
 
-.detailHead {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.titleRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.spacer {
-  flex-grow: 1;
-}
-
-.detailTitle {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-}
-
 .fields {
   width: 100%;
   border-collapse: collapse;

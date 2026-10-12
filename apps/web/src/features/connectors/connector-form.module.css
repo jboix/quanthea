@@ -6,10 +6,12 @@
   padding: 28px 32px 48px;
 }
 
+/* The title names the connector, which may be one long word: it wraps inside the screen. */
 .title {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .subtitle {

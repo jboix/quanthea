@@ -2,6 +2,7 @@ import type { ConnectorDetail, ConnectorKindInfo } from '@quanthea/shared';
 import { Link } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import styles from './connector.module.css';
 import { type Health, useHealth } from './health.ts';
 import { KindIcon } from './kind-icon.tsx';
@@ -72,7 +73,7 @@ function TitlePills({
 function HeaderActions({ connector, health }: PartProps) {
   if (!connector.installed) return null;
   return (
-    <div className={styles.headerActions}>
+    <>
       <Button onClick={health.retest} disabled={health.testing}>
         Test
       </Button>
@@ -81,7 +82,39 @@ function HeaderActions({ connector, health }: PartProps) {
           Edit connection
         </Link>
       )}
-    </div>
+    </>
+  );
+}
+
+/**
+ * The lines under the name: the target, the file that manages the connector, and why a test failed.
+ *
+ * @param props - The connector and the failure.
+ * @param props.connector - The connector.
+ * @param props.failure - Why the last test failed, if it did.
+ * @returns The lines.
+ */
+function HeaderNotes({
+  connector,
+  failure,
+}: {
+  readonly connector: ConnectorDetail;
+  readonly failure: string | undefined;
+}) {
+  return (
+    <>
+      {connector.target !== null && <p className={styles.target}>{connector.target}</p>}
+      {connector.managedBy && (
+        <p className={styles.target}>
+          The configuration file manages this connector. Change it there.
+        </p>
+      )}
+      {failure !== undefined && (
+        <p role="alert" className={styles.failure}>
+          {failure}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -99,26 +132,15 @@ export function ConnectorHeader({ connector }: { readonly connector: ConnectorDe
   const kind = kinds.find((candidate) => candidate.kind === connector.kind);
   const failure = health.report && !health.report.ok ? health.report.message : undefined;
   return (
-    <header className={styles.header}>
-      <div className={styles.headerText}>
-        <div className={styles.titleRow}>
-          <KindIcon kind={connector.kind} info={kind} size={28} />
-          <h2 className={styles.name}>{connector.name}</h2>
-          <TitlePills connector={connector} health={health} kind={kind} />
-        </div>
-        {connector.target !== null && <p className={styles.target}>{connector.target}</p>}
-        {connector.managedBy && (
-          <p className={styles.target}>
-            The configuration file manages this connector. Change it there.
-          </p>
-        )}
-        {failure !== undefined && (
-          <p role="alert" className={styles.failure}>
-            {failure}
-          </p>
-        )}
-      </div>
-      <HeaderActions connector={connector} health={health} />
-    </header>
+    <TitleHeader
+      className={styles.header}
+      mono
+      align="start"
+      title={connector.name}
+      before={<KindIcon kind={connector.kind} info={kind} size={28} />}
+      badges={<TitlePills connector={connector} health={health} kind={kind} />}
+      below={<HeaderNotes connector={connector} failure={failure} />}
+      actions={<HeaderActions connector={connector} health={health} />}
+    />
   );
 }

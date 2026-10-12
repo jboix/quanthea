@@ -5,6 +5,7 @@ import { buttonClassName } from '../../ui/button.tsx';
 import { SearchIcon } from '../../ui/icons.tsx';
 import { Placeholder } from '../../ui/placeholder.tsx';
 import { StatusDot } from '../../ui/status-dot.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import { accessLevelName } from './access-levels.ts';
 import styles from './connectors.module.css';
 import { type Health, healthStatus, useHealth } from './health.ts';
@@ -126,12 +127,16 @@ export function ConnectorsLayout() {
   return (
     <div className={styles.screen}>
       <aside className={styles.sidebar}>
-        <header className={styles.sidebarHeader}>
-          <h1 className={styles.sidebarTitle}>Connectors</h1>
-          <Link to="/connectors/new" className={buttonClassName('primary')}>
-            Add
-          </Link>
-        </header>
+        <TitleHeader
+          className={styles.sidebarHeader}
+          level={1}
+          title="Connectors"
+          actions={
+            <Link to="/connectors/new" className={buttonClassName('primary')}>
+              Add
+            </Link>
+          }
+        />
         {connectors.length >= filterFrom && <ConnectorFilter value={filter} onChange={setFilter} />}
         <nav aria-label="Connectors">
           <ul className={styles.list}>

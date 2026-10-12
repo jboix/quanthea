@@ -15,17 +15,8 @@
 }
 
 .sidebarHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border);
-}
-
-.sidebarTitle {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
 }
 
 .list {

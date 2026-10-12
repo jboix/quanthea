@@ -5,32 +5,8 @@
 }
 
 .header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
   padding: 14px 28px;
   border-bottom: 1px solid var(--color-border);
-}
-
-.headerText {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.titleRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.name {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 20px;
-  font-weight: 500;
 }
 
 .target {
@@ -45,12 +21,6 @@
   margin: 0;
   font-size: 13px;
   color: var(--color-danger);
-}
-
-.headerActions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 10px;
 }
 
 .columns {

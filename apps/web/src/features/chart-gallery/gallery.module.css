@@ -84,20 +84,6 @@
   background: var(--color-surface);
 }
 
-.cardHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.cardTitle {
-  flex-grow: 1;
-  margin: 0;
-  font-size: 14.5px;
-  font-weight: 600;
-}
-
 .chart {
   display: flex;
   flex-direction: column;

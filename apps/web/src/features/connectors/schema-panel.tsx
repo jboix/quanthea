@@ -2,6 +2,7 @@ import type { ConnectorDetail, SchemaView } from '@quanthea/shared';
 import { useEffect, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import { readTime, schemaSummary } from './schema-copy.ts';
 import { SchemaEntityRow } from './schema-entity.tsx';
 import styles from './schema-panel.module.css';
@@ -69,21 +70,23 @@ function PanelHead({ schema, refresh }: PanelHeadProps) {
       ? 'not read yet'
       : `${schemaSummary(schema)} · read ${readTime(schema.readAt)}`;
   return (
-    <header className={styles.head}>
-      <div className={styles.headText}>
-        <h3 id="schema-title" className={styles.title}>
-          Schema the model gets
-        </h3>
-        <span className={styles.meta}>{meta}</span>
-      </div>
-      <Button
-        size="small"
-        disabled={refresh.pending}
-        onClick={() => refresh.submit({ intent: 'refresh-schema' })}
-      >
-        {refresh.pending ? 'Reading…' : 'Re-read'}
-      </Button>
-    </header>
+    <TitleHeader
+      className={styles.head}
+      level={3}
+      size="card"
+      title="Schema the model gets"
+      titleId="schema-title"
+      below={<span className={styles.meta}>{meta}</span>}
+      actions={
+        <Button
+          size="small"
+          disabled={refresh.pending}
+          onClick={() => refresh.submit({ intent: 'refresh-schema' })}
+        >
+          {refresh.pending ? 'Reading…' : 'Re-read'}
+        </Button>
+      }
+    />
   );
 }
 
