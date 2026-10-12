@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import styles from './alert-draft.module.css';
 import { ConditionSentence } from './condition-sentence.tsx';
 import type { AlertDraftData, PreviewOutcome, PreviewRequest } from './data.ts';
@@ -116,33 +117,37 @@ function PaneHead(
   const { alert, version, spec } = draft;
   const active = alert.activeVersion === version;
   return (
-    <header className={styles.head}>
-      <h2 className={styles.title}>{spec.title}</h2>
-      <Pill tone={active ? 'ok' : 'draft'} mono>
-        v{version} · {active ? 'active' : 'draft'}
-      </Pill>
-      <span className={styles.spacer} />
-      <div className={styles.actions}>
-        {alert.activeVersion !== null && (
-          <Link className={styles.link} to={`/alerts/${alert.id}`}>
-            Open the alert page
-          </Link>
-        )}
-        <Button
-          disabled={busy || spec.channels.length === 0}
-          onClick={() => props.onTest(alert.id, version, props.sample)}
-        >
-          Send a test notification
-        </Button>
-        <Button
-          variant="dark"
-          disabled={busy || active}
-          onClick={() => props.onActivate(alert.id, version)}
-        >
-          Activate
-        </Button>
-      </div>
-    </header>
+    <TitleHeader
+      className={styles.head}
+      title={spec.title}
+      badges={
+        <Pill tone={active ? 'ok' : 'draft'} mono>
+          v{version} · {active ? 'active' : 'draft'}
+        </Pill>
+      }
+      actions={
+        <>
+          {alert.activeVersion !== null && (
+            <Link className={styles.link} to={`/alerts/${alert.id}`}>
+              Open the alert page
+            </Link>
+          )}
+          <Button
+            disabled={busy || spec.channels.length === 0}
+            onClick={() => props.onTest(alert.id, version, props.sample)}
+          >
+            Send a test notification
+          </Button>
+          <Button
+            variant="dark"
+            disabled={busy || active}
+            onClick={() => props.onActivate(alert.id, version)}
+          >
+            Activate
+          </Button>
+        </>
+      }
+    />
   );
 }
 

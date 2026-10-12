@@ -2,6 +2,7 @@ import type { Plan, ThreadState } from '@quanthea/shared';
 import type { CSSProperties } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import { DashboardCanvas, type PanelPlanMark } from '../dashboard/index.ts';
 import type { ThreadData } from './data.ts';
 import styles from './draft-pane.module.css';
@@ -151,20 +152,27 @@ function PaneHeader(props: DraftPaneProps) {
   const pinned = data.dashboard?.pinnedVersion ?? null;
   const status = statusOf(data.thread.state, running, props.stopped, shown, latest);
   return (
-    <header className={styles.head}>
-      <h2 className={styles.title}>
-        {data.version?.spec.title ?? plan?.title ?? 'Untitled dashboard'}
-      </h2>
-      <Pill tone={status.tone} mono>
-        {pillText(props, status.text, pinned)}
-      </Pill>
-      {pinned !== null && shown !== pinned && <Pill mono>library shows v{pinned}</Pill>}
-      <span className={styles.spacer} />
-      {shown !== undefined && shown !== latest && (
-        <Button onClick={() => props.onShowVersion(undefined)}>Back to v{latest}</Button>
-      )}
-      <PinButton {...props} shown={shown} />
-    </header>
+    <TitleHeader
+      className={styles.head}
+      size="section"
+      title={data.version?.spec.title ?? plan?.title ?? 'Untitled dashboard'}
+      badges={
+        <>
+          <Pill tone={status.tone} mono>
+            {pillText(props, status.text, pinned)}
+          </Pill>
+          {pinned !== null && shown !== pinned && <Pill mono>library shows v{pinned}</Pill>}
+        </>
+      }
+      actions={
+        <>
+          {shown !== undefined && shown !== latest && (
+            <Button onClick={() => props.onShowVersion(undefined)}>Back to v{latest}</Button>
+          )}
+          <PinButton {...props} shown={shown} />
+        </>
+      }
+    />
   );
 }
 

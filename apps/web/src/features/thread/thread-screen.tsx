@@ -9,6 +9,7 @@ import {
 } from '@quanthea/shared';
 import { useEffect, useState } from 'react';
 import { NewBelow } from '../../ui/new-below.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import { useFollowEnd } from '../../ui/use-follow-end.ts';
 import { AlertDraftPane } from '../alert-draft/index.ts';
 import { ReportDraftPane } from '../report-draft/index.ts';
@@ -189,13 +190,20 @@ function ThreadHeader({
   readonly messages: readonly ThreadMessage[];
 }) {
   return (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{thread.title ?? firstQuestion(messages) ?? 'New thread'}</h1>
-      <ThreadCost messages={messages} />
-      <span className={styles.connectors}>
-        {thread.connectors.map((connector) => connector.name).join(' · ')}
-      </span>
-    </header>
+    <TitleHeader
+      className={styles.head}
+      level={1}
+      size="compact"
+      title={thread.title ?? firstQuestion(messages) ?? 'New thread'}
+      actions={
+        <>
+          <ThreadCost messages={messages} />
+          <span className={styles.connectors}>
+            {thread.connectors.map((connector) => connector.name).join(' · ')}
+          </span>
+        </>
+      }
+    />
   );
 }
 

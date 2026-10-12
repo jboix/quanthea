@@ -9,6 +9,7 @@ import type { ReportSpec } from '@quanthea/shared';
 import { Link } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
+import { TitleHeader } from '../../ui/title-header.tsx';
 import type { ReportDraftData } from './data.ts';
 import { PreviewSection } from './preview-section.tsx';
 import styles from './report-draft.module.css';
@@ -54,33 +55,37 @@ function PaneHead(props: DraftProps) {
   const { report, version, spec } = draft;
   const active = report.activeVersion === version && !report.deactivated;
   return (
-    <header className={styles.head}>
-      <h2 className={styles.title}>{spec.title}</h2>
-      <Pill tone={active ? 'ok' : 'draft'} mono>
-        v{version} · {active ? 'active' : 'draft'}
-      </Pill>
-      <span className={styles.spacer} />
-      <div className={styles.actions}>
-        {report.activeVersion !== null && (
-          <Link className={styles.link} to={`/reports/${report.id}`}>
-            Open the report page
-          </Link>
-        )}
-        <Button
-          disabled={busy || spec.delivery.channels.length === 0}
-          onClick={() => props.onTest(report.id, version)}
-        >
-          Send a test now
-        </Button>
-        <Button
-          variant="dark"
-          disabled={busy || active}
-          onClick={() => props.onActivate(report.id, version)}
-        >
-          Activate
-        </Button>
-      </div>
-    </header>
+    <TitleHeader
+      className={styles.head}
+      title={spec.title}
+      badges={
+        <Pill tone={active ? 'ok' : 'draft'} mono>
+          v{version} · {active ? 'active' : 'draft'}
+        </Pill>
+      }
+      actions={
+        <>
+          {report.activeVersion !== null && (
+            <Link className={styles.link} to={`/reports/${report.id}`}>
+              Open the report page
+            </Link>
+          )}
+          <Button
+            disabled={busy || spec.delivery.channels.length === 0}
+            onClick={() => props.onTest(report.id, version)}
+          >
+            Send a test now
+          </Button>
+          <Button
+            variant="dark"
+            disabled={busy || active}
+            onClick={() => props.onActivate(report.id, version)}
+          >
+            Activate
+          </Button>
+        </>
+      }
+    />
   );
 }
 
