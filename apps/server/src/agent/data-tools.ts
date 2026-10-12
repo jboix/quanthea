@@ -116,7 +116,7 @@ function testQueryTool(context: RunContext, resolveTime: (expression: string) =>
   const { modelView, signal } = context;
   return tool({
     description:
-      "Run a query and see its result as your access level allows: shapes, row counts, and more at higher levels. Use it before putting a query in a dashboard. Write it as the connector kind's guide says (read_guide); variables and the time range work as in a panel.",
+      "Run a query and see its result as your access level allows: shapes, row counts, and more at higher levels. Use it before putting a query in a dashboard. Write it as the connector kind's guide says (read_guide), in the connector's own language: a raw query, never a builder such as search-series (a builder is tested when edit_dashboard saves it, with the same errors). Variables and the time range work as in a panel.",
     inputSchema: z.object({
       connector: z.string(),
       query: testQuerySchema,

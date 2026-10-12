@@ -2,7 +2,7 @@
  * Runs a query template against a connector: binds the variables, applies the guardrails and the
  * timeout, checks the frames the connector returns, and caches the result briefly.
  */
-import { type Frame, frameProblems, type Guardrails } from '@quanthea/shared';
+import { type Frame, frameProblems, type Guardrails, queryBuilders } from '@quanthea/shared';
 import {
   type BoundQuery,
   ConnectorError,
@@ -58,6 +58,22 @@ export interface QueryResult {
 }
 
 /**
+ * What to say when a query is not in its connector's language: the language it speaks and the
+ * builders of that language, so whoever wrote the query picks one that runs.
+ *
+ * @param spoken - The connector's language.
+ * @param written - The query's language.
+ * @returns The message.
+ */
+function wrongLanguage(spoken: string, written: string): string {
+  const builders = queryBuilders
+    .filter((builder) => builder.language === spoken)
+    .map((builder) => builder.id);
+  const use = builders.length === 0 ? '' : ` Its builders are ${builders.join(', ')}.`;
+  return `This connector runs ${spoken} queries, not ${written}.${use}`;
+}
+
+/**
  * Binds a template for its language.
  *
  * @param source - The connector.
@@ -68,10 +84,7 @@ export interface QueryResult {
 function bind(source: QuerySource, request: QueryRequest): BoundQuery {
   const { template } = request;
   if (template.language !== source.language) {
-    throw new QueryError(
-      'invalid',
-      `This connector runs ${source.language} queries, not ${template.language}.`,
-    );
+    throw new QueryError('invalid', wrongLanguage(source.language, template.language));
   }
   const maxPoints = Math.min(source.guardrails.maxRows, maxPromqlPoints);
   return bindTemplate(template, request.variables, request.timeRange, {
