@@ -283,18 +283,12 @@ describe('compactGrid', () => {
 });
 
 describe('the tool schemas', () => {
-  test('have no reference loops, which Gemini refuses, and stay small', () => {
+  // The size of the edit schema is measured per query language in schema-size.test.ts.
+  test('have no reference loops, which Gemini refuses', () => {
     for (const schema of [editRequestSchema, planSchema]) {
       const json = JSON.stringify(z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }));
       expect(json).not.toContain('$ref');
     }
-    const full = JSON.stringify(
-      z.toJSONSchema(editRequestSchemaFor({ builtIn: ['rate', 'sql-stat'], saved: [] }), {
-        io: 'input',
-        unrepresentable: 'any',
-      }),
-    );
-    expect(full.length).toBeLessThan(16_000);
   });
 
   test('offer only the chart recipes switched on', () => {
