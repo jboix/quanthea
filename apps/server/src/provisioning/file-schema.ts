@@ -4,6 +4,7 @@
  * by `bun run config:schema`; a test fails when that file is out of date.
  */
 import {
+  alertSettingsSchema,
   chartSettingsSchema,
   connectorNameSchema,
   modelGatewaySchema,
@@ -104,6 +105,9 @@ const configFileSchema = z
     retention: retentionSettingsSchema.optional(),
     charts: chartSettingsSchema.optional(),
     queries: querySettingsSchema.optional(),
+    alerts: alertSettingsSchema
+      .optional()
+      .describe('The alert settings: the cap per connector, and the default quiet hours.'),
     plugins: pluginsSection.optional(),
     provisioning: z
       .strictObject({ prune: z.boolean().optional() })

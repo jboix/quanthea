@@ -1,6 +1,7 @@
 /**
- * Settings sections in the configuration file: `model`, `retention`, `charts` and `queries`, each
- * with the API's fields. A section is managed as a whole. The model gateway's API keys are secrets:
+ * Settings sections in the configuration file: `model`, `retention`, `charts`, `queries` and
+ * `alerts`, each with the API's fields. A section is managed as a whole. The model gateway's API
+ * keys are secrets:
  *
  * ```yaml
  * model:
@@ -12,6 +13,7 @@
  * ```
  */
 import {
+  alertSettingsSchema,
   chartSettingsSchema,
   defaultModelSettings,
   modelGatewaySchema,
@@ -20,6 +22,7 @@ import {
 } from '@quanthea/shared';
 import type { z } from 'zod';
 import type { ConfigFile } from '../config/config-file.ts';
+import type { AlertSettingsService } from '../settings/alert-settings.ts';
 import type { ChartSettingsService } from '../settings/chart-settings.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
 import type { QuerySettingsService } from '../settings/query-settings.ts';
@@ -28,7 +31,7 @@ import { type Applier, type Planned, provisioningActor } from './reconcile.ts';
 import { secretValue } from './secret-references.ts';
 
 /** The settings sections the file may hold. */
-export const settingsSections = ['model', 'retention', 'charts', 'queries'] as const;
+export const settingsSections = ['model', 'retention', 'charts', 'queries', 'alerts'] as const;
 
 /** A settings section. */
 type SettingsSection = (typeof settingsSections)[number];
@@ -47,6 +50,7 @@ const schemas: Readonly<Record<SettingsSection, z.ZodType>> = {
   retention: retentionSettingsSchema,
   charts: chartSettingsSchema,
   queries: querySettingsSchema,
+  alerts: alertSettingsSchema,
 };
 
 /** The services that store the sections. */
@@ -59,6 +63,8 @@ export interface SettingsServices {
   readonly chartSettings: ChartSettingsService;
   /** The query settings. */
   readonly querySettings: QuerySettingsService;
+  /** The alert settings. */
+  readonly alertSettings: AlertSettingsService;
 }
 
 /**
@@ -155,6 +161,8 @@ async function saveSection(
     services.chartSettings.save(value as z.output<typeof chartSettingsSchema>, actor);
   if (item.name === 'queries')
     services.querySettings.save(value as z.output<typeof querySettingsSchema>, actor);
+  if (item.name === 'alerts')
+    services.alertSettings.save(value as z.output<typeof alertSettingsSchema>, actor);
 }
 
 /**

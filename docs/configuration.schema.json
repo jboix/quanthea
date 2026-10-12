@@ -529,6 +529,89 @@
       },
       "additionalProperties": false
     },
+    "alerts": {
+      "description": "The alert settings: the cap per connector, and the default quiet hours.",
+      "type": "object",
+      "properties": {
+        "maxActivePerConnector": {
+          "default": 50,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "notifyOnError": {
+          "default": true,
+          "type": "boolean"
+        },
+        "quietHours": {
+          "default": null,
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "windows": {
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "days": {
+                        "minItems": 1,
+                        "maxItems": 7,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "monday",
+                            "tuesday",
+                            "wednesday",
+                            "thursday",
+                            "friday",
+                            "saturday",
+                            "sunday"
+                          ]
+                        }
+                      },
+                      "from": {
+                        "type": "string",
+                        "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+                      },
+                      "to": {
+                        "type": "string",
+                        "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+                      }
+                    },
+                    "required": ["days", "from", "to"],
+                    "additionalProperties": false
+                  }
+                },
+                "exceptSeverities": {
+                  "default": ["critical"],
+                  "maxItems": 3,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": ["critical", "warning", "info"]
+                  }
+                }
+              },
+              "required": ["timezone", "windows"],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "plugins": {
       "type": "object",
       "properties": {

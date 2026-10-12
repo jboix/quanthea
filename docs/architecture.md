@@ -3327,7 +3327,7 @@ value and where it comes from, and each key by where it comes from, never its va
 or a directory whose `*.yaml`, `*.yml` and `*.json` files are read in name order (`/etc/quanthea`
 in the image, empty until a file is mounted). YAML is parsed with Bun's built-in parser. Each
 top-level key is a section (`server`, `users`, `signIn`, `connectors`, `model`, `retention`,
-`charts`, `queries`, `provisioning`); the keys of `server` are the settings' names
+`charts`, `queries`, `alerts`, `plugins`, `provisioning`); the keys of `server` are the settings' names
 (`publicUrl`, `port`, `dataDir`…). A key is set in one file only. `${NAME}` in a text value is
 replaced by the environment variable `NAME` (`$${` writes a literal `${`), and an unset one stops
 the server. An unknown section or setting, or an invalid value, stops the server with every issue
@@ -3335,8 +3335,8 @@ listed. Relative paths resolve against the working directory.
 
 **Provisioning** (`provisioning/`): the same file declares what quanthea stores, so an instance
 can be rebuilt from Git. It declares users (by email), sign-in providers (by id), connectors (by
-name), and the settings sections `model`, `retention`, `charts` and `queries`, each with the API's
-fields:
+name), and the settings sections `model`, `retention`, `charts`, `queries` and `alerts` (the
+cap per connector, `notifyOnError` and the default quiet hours), each with the API's fields:
 
 ```yaml
 users:

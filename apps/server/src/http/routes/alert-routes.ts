@@ -23,6 +23,7 @@ import {
 import type { Hono } from 'hono';
 import type { Alerts } from '../../alerts/alerts.ts';
 import type { Users } from '../../auth/users.ts';
+import type { Managed } from '../../provisioning/managed.ts';
 import type { AlertSettingsService } from '../../settings/alert-settings.ts';
 import type { ThreadBin } from '../../threads/bin.ts';
 import type { AppEnv } from '../app-env.ts';
@@ -36,6 +37,8 @@ export interface AlertRouteServices {
   readonly alerts: Alerts;
   /** The alert settings. */
   readonly alertSettings: AlertSettingsService;
+  /** What the configuration file manages. */
+  readonly managed: Managed;
   /** The users, for names. */
   readonly users: Pick<Users, 'nameOf'>;
   /** The bin, for the owner of an alert's thread. */
@@ -189,13 +192,16 @@ function mountChangeEndpoints(app: Hono<AppEnv>, services: AlertRouteServices): 
 export function mountAlertEndpoints(app: Hono<AppEnv>, services: AlertRouteServices): void {
   mountReadEndpoints(app, services);
   mountChangeEndpoints(app, services);
-  const { alertSettings } = services;
+  const { alertSettings, managed } = services;
   mountEndpoint(app, getAlertSettingsEndpoint, {
     access: 'admin',
     handle: () => alertSettings.get(),
   });
   mountEndpoint(app, saveAlertSettingsEndpoint, {
     access: 'admin',
-    handle: ({ body, principal }) => alertSettings.save(body, actorOf(principal)),
+    handle: ({ body, principal }) => {
+      managed.refuseChange('settings', 'alerts');
+      return alertSettings.save(body, actorOf(principal));
+    },
   });
 }

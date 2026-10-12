@@ -137,9 +137,9 @@ Which quiet hours an alert keeps:
 - **Its own**, when its version sets some (`quietHours` in the [alert spec](../alert-spec.md)).
   They hold whatever its severity.
 - **None**, when its version says `none`: it always notifies.
-- **The default** otherwise: the quiet hours of the alert settings. Critical alerts ignore the
-  default, so the ones that must wake someone do. `exceptSeverities` names other severities, or
-  none.
+- **The default** otherwise: `alerts.quietHours` in the
+  [configuration file](../configuration.md#alerts). Critical alerts ignore the default, so the
+  ones that must wake someone do. `exceptSeverities` names other severities, or none.
 
 A mute is separate: it silences one alert until a time, whatever the hour.
 
@@ -149,6 +149,10 @@ Admins open **Settings** on the Alerts page:
 
 - **The most alerts active per connector**, 50 by default, so a source isn't checked to death.
 - **Notify when an alert cannot be checked or a report fails**, on by default.
+
+The same settings, and the default quiet hours, can come from the
+[configuration file](../configuration.md#alerts). The file then manages them, and saving the
+dialog is refused.
 
 Messages go to the channels admins set up in [Notifications](notifications.md). Without a
 channel, an alert still fires on its page; the agent says an admin can add one.

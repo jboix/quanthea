@@ -16,6 +16,7 @@ export const configSections = [
   'retention',
   'charts',
   'queries',
+  'alerts',
   'users',
   'signIn',
   'plugins',

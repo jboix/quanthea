@@ -1,7 +1,7 @@
 # The configuration file
 
 quanthea can be set up entirely from a file: the server settings, the users, sign-in, the data
-sources, the model, retention, queries, charts and plugins. Keep it in Git and an instance can be
+sources, the model, retention, queries, charts, the alert settings and plugins. Keep it in Git and an instance can be
 rebuilt from it. Everything the file leaves out stays editable in the interface.
 
 The file is optional. Without one, an admin sets everything up in the interface.
@@ -269,6 +269,40 @@ A saved query's `params` declares its placeholders, at most 10: each a `name` an
 `graph`, `geo`, `ohlc` or `rows`. **Settings → Queries** and **Settings → Charts** show the
 builder and recipe ids.
 
+## alerts
+
+The [alert settings](guide/alerts.md#settings), and the quiet hours of every alert that sets none
+of its own.
+
+```yaml
+alerts:
+  maxActivePerConnector: 50
+  notifyOnError: true
+  quietHours:
+    timezone: Europe/Zurich
+    windows:
+      - { days: [monday, tuesday, wednesday, thursday, friday], from: "22:00", to: "07:00" }
+      - { days: [saturday, sunday], from: "00:00", to: "00:00" }
+    exceptSeverities: [critical]
+```
+
+| Key                           | Default      | What it sets                                                    |
+| ----------------------------- | ------------ | --------------------------------------------------------------- |
+| `maxActivePerConnector`       | `50`         | The most alerts active on one connector.                        |
+| `notifyOnError`               | `true`       | Tell the channels when an alert cannot be checked.              |
+| `quietHours`                  | `null`       | When alerts send nothing. `null` for never.                     |
+| `quietHours.timezone`         |              | The IANA time zone of the clock, such as `Europe/Zurich`.       |
+| `quietHours.windows`          |              | 1 to 8 windows: `days`, `from` and `to`, as `HH:MM`.            |
+| `quietHours.exceptSeverities` | `[critical]` | The severities that notify whatever the hour. `[]` spares none. |
+
+- `days` name the day a window starts on. A window whose `to` is at or before its `from` ends the
+  next day, so Friday `22:00` to `07:00` ends on Saturday morning.
+- `from` and `to` the same make a whole day: `00:00` to `00:00` on Saturday and Sunday is the
+  weekend.
+- Quote the times: YAML reads an unquoted `22:00` as a number.
+
+[Quiet hours](guide/alerts.md#quiet-hours) says what an alert does during them.
+
 ## plugins
 
 [Connector plugins](deployment.md#connector-plugins), read at startup.
@@ -297,5 +331,5 @@ is deleted, a user disabled, a provider removed. A settings section keeps its va
 
 ## What the file can't declare
 
-Notification channels, alert and report settings, dashboards, alerts and reports live in the
+Notification channels, the report settings, dashboards, alerts and reports live in the
 interface. Their state is in the database, which you back up with the data volume.

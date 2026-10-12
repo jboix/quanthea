@@ -223,6 +223,24 @@ describe('provisioning settings sections', () => {
     expect(services.managed.pathsOf('settings')).toEqual({ queries: path });
     expect(services.retention.get().binDays).toBe(7);
   });
+
+  test('saves the alert settings with their quiet hours, and refuses an unknown time zone', async () => {
+    const window = '{ days: [saturday, sunday], from: "00:00", to: "00:00" }';
+    const quiet = (timezone: string) =>
+      `alerts:\n  quietHours:\n    timezone: ${timezone}\n    windows:\n      - ${window}\n`;
+    await apply(quiet('Europe/Zurich'));
+    expect(services.alertSettings.get()).toEqual({
+      maxActivePerConnector: 50,
+      notifyOnError: true,
+      quietHours: {
+        timezone: 'Europe/Zurich',
+        windows: [{ days: ['saturday', 'sunday'], from: '00:00', to: '00:00' }],
+        exceptSeverities: ['critical'],
+      },
+    });
+    expect(() => services.managed.refuseChange('settings', 'alerts')).toThrow('manages this');
+    await expect(apply(quiet('Mars/Olympus'))).rejects.toThrow('alerts.quietHours.timezone');
+  });
 });
 
 describe('provisioning users and sign-in', () => {
