@@ -1,6 +1,7 @@
 /**
  * The second migration, run on a database of the release before it holding real rows: the upgrade
- * keeps the data working. `upgrade-0003.test.ts` does the same for the third.
+ * keeps the data working. `upgrade-0003.test.ts` does the same for the third,
+ * `upgrade-0004.test.ts` for the fourth.
  */
 import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';

@@ -77,8 +77,8 @@ number of alerts firing.
 - **The chart** replays the shown version over 6 hours, 24 hours or 7 days, with the threshold
   and the firing periods.
 - **Series** gives each series' state, value and since when.
-- **What happened** lists the changes of state, whether each notified, the times it could not be
-  checked, and who activated, deactivated, muted or unmuted it.
+- **What happened** lists the changes of state, whether each notified or was held back by quiet
+  hours, the times it could not be checked, and who activated, deactivated, muted or unmuted it.
 - **Notifies** lists the channels and the latest messages, with whether they got through.
 - **Shown on** lists the dashboard panels it is linked to.
 
@@ -121,7 +121,8 @@ checked, and everything that happens to it stays in **What happened**.
   cannot be checked.
 - **When they end**, each series still firing sends one message, and it says since when. An alert
   still unable to be checked says so then.
-- **What fired and resolved inside them** sends nothing. It shows in the history.
+- **What fired and resolved inside them** sends nothing. It shows in the history, marked "held
+  back by quiet hours".
 - **What fired before them and resolved inside them** says it resolved once they end, so a channel
   such as PagerDuty closes its incident.
 - **Deactivating** an alert during quiet hours still resolves what was firing.

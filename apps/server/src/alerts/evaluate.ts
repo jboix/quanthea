@@ -159,6 +159,7 @@ function eventOf(
     seriesKey: input.key,
     labels: input.observed.labels,
     notified: decision.event !== null,
+    quiet: decision.held,
   };
 }
 

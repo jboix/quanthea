@@ -246,7 +246,9 @@ describe('quiet hours', () => {
     for (let minutes = 1; minutes <= 4; minutes += 1) await evaluate(minutes * minute, at(9));
     expect(sent).toEqual([]);
     expect(states.series('a1')[0]).toMatchObject({ state: 'firing', announced: false });
-    expect(states.events('a1', 10)).toMatchObject([{ to: 'firing', at: minute, notified: false }]);
+    expect(states.events('a1', 10)).toMatchObject([
+      { to: 'firing', at: minute, notified: false, quiet: true },
+    ]);
     await evaluate(5 * minute, at(9));
     await evaluate(6 * minute, at(9));
     expect(sent.map((each) => [each.event, each.at])).toEqual([

@@ -261,7 +261,15 @@ describe('the alerts on a dashboard', () => {
     fixture.panelLinks.link(alertId, { dashboardId, panelId, how: 'by_hand' }, editor.id);
     const now = Date.now();
     const labels = { service: 'payments' };
-    const event = { version: 1, seriesKey: 'p', labels, value: 5, message: null, notified: true };
+    const event = {
+      version: 1,
+      seriesKey: 'p',
+      labels,
+      value: 5,
+      message: null,
+      notified: true,
+      quiet: false,
+    };
     const series = {
       key: 'p',
       labels,

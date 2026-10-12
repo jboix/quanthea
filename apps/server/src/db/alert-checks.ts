@@ -26,6 +26,8 @@ export interface CheckEventRow {
   readonly reason: string | null;
   /** Whether it sent a notification. */
   readonly notified: boolean;
+  /** Whether quiet hours held back the notification it would have sent. */
+  readonly quiet: boolean;
 }
 
 /** The state of an alert that never failed. */
@@ -51,6 +53,8 @@ interface StoredCheckEvent {
   reason: string | null;
   /** 0 or 1. */
   notified: number;
+  /** 0 or 1. */
+  quiet: number;
 }
 
 /**
@@ -69,12 +73,12 @@ export function checkStatements(database: Database) {
        WHERE id = ?`,
     ),
     events: database.query<StoredCheckEvent, [string, number]>(
-      `SELECT kind, at, reason, notified FROM alert_check_events WHERE alert_id = ?
+      `SELECT kind, at, reason, notified, quiet FROM alert_check_events WHERE alert_id = ?
        ORDER BY at DESC, id DESC LIMIT ?`,
     ),
     insert: database.query(
-      `INSERT INTO alert_check_events (id, alert_id, kind, at, reason, notified)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO alert_check_events (id, alert_id, kind, at, reason, notified, quiet)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ),
     purge: database.query('DELETE FROM alert_check_events WHERE at < ?'),
   };
@@ -116,8 +120,8 @@ export function writeCheck(
 ): void {
   statements.save.run(state.failures, state.errorSince, Number(state.notified), alertId);
   if (event === null) return;
-  const { id, kind, at, reason, notified } = event;
-  statements.insert.run(id, alertId, kind, at, reason, Number(notified));
+  const { id, kind, at, reason, notified, quiet } = event;
+  statements.insert.run(id, alertId, kind, at, reason, Number(notified), Number(quiet));
 }
 
 /**
@@ -138,5 +142,6 @@ export function readCheckEvents(
     at: stored.at,
     reason: stored.reason,
     notified: stored.notified === 1,
+    quiet: stored.quiet === 1,
   }));
 }

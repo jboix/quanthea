@@ -19,6 +19,7 @@ describe('when a series notifies', () => {
       event: 'alert.firing',
       announced: true,
       late: false,
+      held: false,
     });
     const announced = {
       ...calm,
@@ -46,11 +47,13 @@ describe('when a series notifies', () => {
       event: 'alert.resolved',
       announced: false,
       late: false,
+      held: false,
     });
     expect(decideNotification({ onResolved: false }, resolved)).toEqual({
       event: null,
       announced: false,
       late: false,
+      held: false,
     });
     expect(decideNotification(notify, { ...resolved, state: null }).event).toBe('alert.resolved');
     expect(decideNotification(notify, { ...calm, state: 'ok' }).event).toBeNull();
@@ -62,11 +65,13 @@ describe('when a series notifies', () => {
       event: null,
       announced: false,
       late: false,
+      held: false,
     });
     expect(decideNotification(notify, { ...muted, announced: true, state: 'ok' })).toEqual({
       event: null,
       announced: false,
       late: false,
+      held: false,
     });
   });
 
@@ -76,11 +81,13 @@ describe('when a series notifies', () => {
       event: null,
       announced: false,
       late: false,
+      held: true,
     });
     expect(decideNotification(notify, { ...night, quiet: false, state: 'firing' })).toEqual({
       event: 'alert.firing',
       announced: true,
       late: true,
+      held: false,
     });
     expect(decideNotification(notify, { ...night, state: 'ok' }).event).toBeNull();
   });
@@ -88,17 +95,22 @@ describe('when a series notifies', () => {
   test('a repeat waits for quiet hours to end', () => {
     const firing = { ...calm, announced: true, notifiedAt: 0, state: 'firing' as const };
     const due = { ...firing, now: 40 * minute };
-    expect(decideNotification(notify, { ...due, quiet: true }).event).toBeNull();
+    expect(decideNotification(notify, { ...due, quiet: true })).toMatchObject({
+      event: null,
+      held: true,
+    });
+    expect(decideNotification(notify, { ...firing, quiet: true }).held).toBe(false);
     expect(decideNotification(notify, due)).toEqual({
       event: 'alert.firing',
       announced: true,
       late: false,
+      held: false,
     });
   });
 
   test('a resolution it owes waits for quiet hours to end', () => {
     const resolved = { ...calm, announced: true, state: 'ok' as const };
-    const waiting = { event: null, announced: true, late: false };
+    const waiting = { event: null, announced: true, late: false, held: true };
     expect(decideNotification(notify, { ...resolved, quiet: true })).toEqual(waiting);
     expect(decideNotification(notify, { ...resolved, quiet: true, state: null })).toEqual(waiting);
     expect(decideNotification(notify, resolved).event).toBe('alert.resolved');
@@ -112,6 +124,7 @@ describe('when a series notifies', () => {
         event: null,
         announced: true,
         late: false,
+        held: false,
       });
   });
 });

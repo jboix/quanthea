@@ -1,7 +1,7 @@
 /**
- * "What happened" on an alert's page: its series' changes of state, whether each notified, the
- * times it could not be checked and could be again, and what people did to it (activations,
- * deactivations, mutes and unmutes), the latest first.
+ * "What happened" on an alert's page: its series' changes of state, whether each notified or
+ * quiet hours held its notification back, the times it could not be checked and could be again,
+ * and what people did to it (activations, deactivations, mutes and unmutes), the latest first.
  */
 import type { AlertDetail } from '@quanthea/shared';
 import { muteEnd, type StateTone } from './state-text.ts';
@@ -60,21 +60,25 @@ function changeWords(event: AlertEvent): string {
  */
 function eventEntry(event: AlertEvent, detail: AlertDetail, index: number): TimelineEntry {
   const value = event.value === null ? '' : ` (${valueText(event.value, detail.format)})`;
-  const notified = notifiedWords(event.notified, detail);
+  const notified = notifiedWords(event, detail);
   const text = `${seriesName(event.labels)} ${changeWords(event)}${value}${notified}`;
   return { key: `event-${index}`, at: event.at, text, tone: toneOf[event.to] };
 }
 
 /**
- * The channels a line says were notified, when it notified.
+ * What a line says of its notification: the channels notified, or that quiet hours held it back.
  *
- * @param notified - Whether it notified.
+ * @param change - Whether it notified, and whether quiet hours held its notification back.
  * @param detail - The alert, for its channels.
- * @returns Such as ` · notified Ops Slack`, or nothing.
+ * @returns Such as ` · notified Ops Slack` or ` · held back by quiet hours`, or nothing.
  */
-function notifiedWords(notified: boolean, detail: AlertDetail): string {
+function notifiedWords(
+  change: { readonly notified: boolean; readonly quiet: boolean },
+  detail: AlertDetail,
+): string {
+  if (change.quiet) return ' · held back by quiet hours';
   const channels = detail.channels.map((channel) => channel.name).join(', ');
-  return notified ? ` · notified ${channels}`.trimEnd() : '';
+  return change.notified ? ` · notified ${channels}`.trimEnd() : '';
 }
 
 /**
@@ -89,7 +93,7 @@ function checkEntry(check: AlertCheck, detail: AlertDetail, index: number): Time
   const error = check.kind === 'error';
   const reason = check.reason ? `: ${check.reason}` : '';
   const words = error ? `Cannot be checked${reason}` : 'Can be checked again';
-  const text = `${words}${notifiedWords(check.notified, detail)}`;
+  const text = `${words}${notifiedWords(check, detail)}`;
   return { key: `check-${index}`, at: check.at, text, tone: error ? 'danger' : 'ok' };
 }
 

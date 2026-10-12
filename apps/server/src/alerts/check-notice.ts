@@ -37,8 +37,20 @@ export interface CheckDecision {
   readonly state: CheckState;
   /** The event to send, if any. */
   readonly event: CheckEvent | null;
-  /** What to record in the timeline, if anything. */
+  /** What to record in the timeline, if anything; `quiet` when quiet hours held its message. */
   readonly record: Omit<CheckEventRow, 'notified'> | null;
+}
+
+/**
+ * Whether an alert in error owes its `alert.error`: not announced yet, and not muted.
+ *
+ * @param errorSince - Since when it is in error, or `null` when it is not.
+ * @param previous - The state before.
+ * @param facts - The evaluation.
+ * @returns `true` when the message is due, quiet hours aside.
+ */
+function owesError(errorSince: number | null, previous: CheckState, facts: CheckFacts): boolean {
+  return errorSince !== null && !previous.notified && !facts.quiet;
 }
 
 /**
@@ -53,15 +65,13 @@ function failedCheck(previous: CheckState, facts: CheckFacts, failure: string): 
   const failures = previous.failures + 1;
   const entered = previous.errorSince === null && failures >= failuresBeforeError;
   const errorSince = entered ? facts.now : previous.errorSince;
-  const speaks = !facts.quiet && !facts.held;
-  const announce = errorSince !== null && !previous.notified && speaks;
-  const event = announce ? 'alert.error' : null;
-  const record =
-    entered || announce ? { kind: 'error' as const, at: facts.now, reason: failure } : null;
+  const owed = owesError(errorSince, previous, facts);
+  const announce = owed && !facts.held;
+  const row = { kind: 'error' as const, at: facts.now, reason: failure, quiet: owed && facts.held };
   return {
     state: { failures, errorSince, notified: previous.notified || announce },
-    event,
-    record,
+    event: announce ? 'alert.error' : null,
+    record: entered || announce ? row : null,
   };
 }
 
@@ -82,7 +92,7 @@ function passedCheck(previous: CheckState, facts: CheckFacts): CheckDecision {
   return {
     state: { failures: 0, errorSince: null, notified: waits },
     event,
-    record: recorded ? { kind: 'recovered', at: facts.now, reason: null } : null,
+    record: recorded ? { kind: 'recovered', at: facts.now, reason: null, quiet: waits } : null,
   };
 }
 

@@ -117,6 +117,7 @@ describe('the alert state repository', () => {
       value: 2,
       message: null,
       notified: true,
+      quiet: true,
     };
     states.saveEvaluation('a', { evaluatedAt: 1, series: [row], removed: [], events: [event] });
     expect(states.series('a')).toEqual([row]);

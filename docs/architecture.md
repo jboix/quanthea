@@ -330,7 +330,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
     changes to `POST /api/alerts/:id/versions`, which saves and activates it; once another
     version is active, changes held from the old one lapse.
   - Each series now (state, value, since), What happened (the changes of state, whether each
-    notified, the times it could not be checked and could be again, and the activations,
+    notified or was "held back by quiet hours", the times it could not be checked and could be again, and the activations,
     deactivations, mutes and unmutes from the audit log, the latest first), and Notifies (the channels by name and kind, the latest messages with their outcome).
   - **Shown on** (`shown-on.tsx`) lists the panels the alert is linked to: the dashboard and the
     panel, each a link, or "not on the shown version" when the version shown has no such panel.
@@ -935,6 +935,10 @@ times.
   wake someone is critical, or says `none`.
 - During quiet hours the alert is evaluated as ever, and the states and changes of state are
   saved with `notified` 0. Nothing is sent: no firing, no repeat, no `alert.error`.
+- A change whose message they held back is saved with `quiet` 1 (`alert_events`,
+  `alert_check_events`): a firing or a repeat that was due, a resolution or a recovery that waits,
+  an alert going into error. What happened shows it as "held back by quiet hours". A change that
+  would have sent nothing anyway, such as a series going pending, is not marked.
 - At the first evaluation after they end, a series still firing that has not announced it sends
   `alert.firing`. A firing announced later than it began (after quiet hours, or a mute) says since
   when: the message gets the field `Firing since` (`{since}`) unless it names `{since}` already or
@@ -966,7 +970,8 @@ evaluations in a row (`failuresBeforeError`) is in error. One failure is a blip 
   off: the evaluator then records and logs only. A report run that fails for good follows the
   same setting (section 5.10).
 - Each going into error, each `alert.error` sent later, and each recovery is a row of
-  `alert_check_events` (the reason, whether it notified), shown in What happened. The count of
+  `alert_check_events` (the reason, whether it notified, whether quiet hours held its message
+  back), shown in What happened. The count of
   failures, since when it is in error and whether that was announced stay on the alert's row.
 - Deactivating an alert in error takes it out of error and records the recovery. When it had sent
   `alert.error`, it sends `alert.recovered` (unless muted or the setting is off), so PagerDuty
@@ -2664,14 +2669,16 @@ CREATE TABLE alert_events (
   version INTEGER NOT NULL, series_key TEXT NOT NULL, labels TEXT NOT NULL,
   from_state TEXT NOT NULL, to_state TEXT NOT NULL, at INTEGER NOT NULL, value REAL,
   message TEXT,                      -- why the query failed, for a change to 'error'
-  notified INTEGER NOT NULL DEFAULT 0);
+  notified INTEGER NOT NULL DEFAULT 0,
+  quiet INTEGER NOT NULL DEFAULT 0); -- 1: quiet hours held back the message it would have sent
 
 -- "What happened" too: the alert went into error, or can be checked again; kept 90 days
 CREATE TABLE alert_check_events (
   id TEXT PRIMARY KEY, alert_id TEXT NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
   kind TEXT NOT NULL CHECK (kind IN ('error','recovered')), at INTEGER NOT NULL,
   reason TEXT,                       -- why the query failed, for 'error'
-  notified INTEGER NOT NULL DEFAULT 0);
+  notified INTEGER NOT NULL DEFAULT 0,
+  quiet INTEGER NOT NULL DEFAULT 0); -- 1: quiet hours held back the message it would have sent
 
 -- an alert shown on a dashboard panel, by panel id: it follows the panel across versions
 CREATE TABLE alert_links (
@@ -2800,6 +2807,8 @@ the runs each person has opened (`report_seen`). `0002` shipped in v0.3.0.
 `0003-version-trigger-and-layouts.sql` recreates the dashboard versions' trigger so that it covers
 every column but `pinned_at`, as the alert and report versions' triggers do, and adds the layouts
 of dashboard versions (`dashboard_layouts`), whose revisions a trigger keeps from being rewritten.
+`0003` shipped in v0.4.0. `0004-quiet-hours-and-connector-visibility.sql` adds `quiet` to the
+changes of state and to the check events of alerts: whether quiet hours held back the message.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite

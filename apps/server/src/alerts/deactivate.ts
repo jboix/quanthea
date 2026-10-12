@@ -71,7 +71,7 @@ function leaveError(context: AlertsContext, alert: AlertRow, quiet: boolean, now
   if (previous.errorSince === null && !previous.notified)
     return { check: undefined, announce: false };
   const announce = previous.notified && !quiet && context.settings.get().notifyOnError;
-  const event = { id: newId(), kind: 'recovered' as const, at: now, reason: null };
+  const event = { id: newId(), kind: 'recovered' as const, at: now, reason: null, quiet: false };
   return { check: { state: checkable, event: { ...event, notified: announce } }, announce };
 }
 
@@ -128,6 +128,7 @@ function endingEvents(
       value: each.value,
       message: null,
       notified: resolving.includes(each),
+      quiet: false,
     }));
 }
 

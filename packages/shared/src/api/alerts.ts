@@ -133,6 +133,8 @@ const alertEventSchema = z.object({
   message: z.string().nullable(),
   /** Whether the change sent a notification. */
   notified: z.boolean(),
+  /** Whether quiet hours held back the notification it would have sent. */
+  quiet: z.boolean(),
 });
 
 /** Validates a time an alert went into error, or could be checked again, for the timeline. */
@@ -144,6 +146,8 @@ const alertCheckEventSchema = z.object({
   reason: z.string().nullable(),
   /** Whether it sent a notification. */
   notified: z.boolean(),
+  /** Whether quiet hours held back the notification it would have sent. */
+  quiet: z.boolean(),
 });
 
 /** Validates a channel an alert sends to, by name and kind only. */

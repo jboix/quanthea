@@ -42,6 +42,8 @@ export interface NotifyDecision {
   readonly announced: boolean;
   /** Whether it announces a firing that began before this evaluation. */
   readonly late: boolean;
+  /** Whether quiet hours held back a message it would have sent. */
+  readonly held: boolean;
 }
 
 /**
@@ -51,7 +53,7 @@ export interface NotifyDecision {
  * @returns The decision.
  */
 function silent(announced: boolean): NotifyDecision {
-  return { event: null, announced, late: false };
+  return { event: null, announced, late: false, held: false };
 }
 
 /**
@@ -70,7 +72,7 @@ export function decideNotification(
   const { announced } = facts;
   if (facts.state !== 'ok' && facts.state !== null) return silent(announced);
   const resolved = announced && notify.onResolved && !facts.muted;
-  if (resolved && facts.quiet) return silent(true);
+  if (resolved && facts.quiet) return { ...silent(true), held: true };
   return { ...silent(false), event: resolved ? 'alert.resolved' : null };
 }
 
@@ -84,9 +86,10 @@ export function decideNotification(
  */
 function firingDecision(notify: AlertSpec['notify'], facts: NotifyFacts): NotifyDecision {
   const { announced } = facts;
-  if (facts.muted || facts.quiet) return silent(announced);
-  if (!announced) return { event: 'alert.firing', announced: true, late: facts.since < facts.now };
-  return { ...silent(true), event: repeatDue(notify, facts) ? 'alert.firing' : null };
+  const due = !announced || repeatDue(notify, facts);
+  if (facts.muted || !due) return silent(announced);
+  if (facts.quiet) return { ...silent(announced), held: true };
+  return { ...silent(true), event: 'alert.firing', late: !announced && facts.since < facts.now };
 }
 
 /**

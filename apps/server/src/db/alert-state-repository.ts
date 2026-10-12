@@ -57,6 +57,8 @@ export interface EventRow {
   readonly message: string | null;
   /** Whether it sent a notification. */
   readonly notified: boolean;
+  /** Whether quiet hours held back the notification it would have sent. */
+  readonly quiet: boolean;
 }
 
 /** What one evaluation leaves. */
@@ -174,6 +176,8 @@ interface StoredEvent {
   message: string | null;
   /** 0 or 1. */
   notified: number;
+  /** 0 or 1. */
+  quiet: number;
 }
 
 /**
@@ -192,8 +196,8 @@ function stateStatements(database: Database) {
       'SELECT alert_id, state, count(*) AS count FROM alert_series GROUP BY alert_id, state',
     ),
     events: database.query<StoredEvent, [string, number]>(
-      `SELECT version, series_key, labels, from_state, to_state, at, value, message, notified
-       FROM alert_events WHERE alert_id = ? ORDER BY at DESC, id DESC LIMIT ?`,
+      `SELECT version, series_key, labels, from_state, to_state, at, value, message, notified,
+         quiet FROM alert_events WHERE alert_id = ? ORDER BY at DESC, id DESC LIMIT ?`,
     ),
     upsert: database.query(
       `INSERT INTO alert_series (alert_id, series_key, labels, state, since, value, last_seen_at,
@@ -206,7 +210,7 @@ function stateStatements(database: Database) {
     remove: database.query('DELETE FROM alert_series WHERE alert_id = ? AND series_key = ?'),
     insertEvent: database.query(
       `INSERT INTO alert_events (id, alert_id, version, series_key, labels, from_state, to_state,
-         at, value, message, notified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         at, value, message, notified, quiet) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     evaluated: database.query('UPDATE alerts SET evaluated_at = ? WHERE id = ?'),
     purge: database.query('DELETE FROM alert_events WHERE at < ?'),
@@ -250,6 +254,7 @@ function eventOf(stored: StoredEvent): EventRow {
     value: stored.value,
     message: stored.message,
     notified: stored.notified === 1,
+    quiet: stored.quiet === 1,
   };
 }
 
@@ -273,7 +278,7 @@ function evaluationSaver(
   const insert = (alertId: string, event: EvaluationRecord['events'][number]) => {
     const place = [event.id, alertId, event.version, event.seriesKey, JSON.stringify(event.labels)];
     const change = [event.from, event.to, event.at, event.value, event.message];
-    statements.insertEvent.run(...place, ...change, Number(event.notified));
+    statements.insertEvent.run(...place, ...change, Number(event.notified), Number(event.quiet));
   };
   return database.transaction((alertId: string, record: EvaluationRecord) => {
     for (const row of record.series) upsert(alertId, row);

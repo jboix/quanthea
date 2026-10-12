@@ -62,6 +62,7 @@ describe('runMigrations', () => {
       '0001-schema.sql',
       '0002-snapshots-questions-analyst.sql',
       '0003-version-trigger-and-layouts.sql',
+      '0004-quiet-hours-and-connector-visibility.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
