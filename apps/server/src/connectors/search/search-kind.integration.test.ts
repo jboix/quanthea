@@ -308,9 +308,16 @@ for (const server of servers) {
         AbortSignal.timeout(20_000),
       );
       expect(messages).toMatchObject({ complete: false });
+      const narrowed = await connection.sampleValues(
+        { entity: '*,-.*,-core_events', field: 'level' },
+        10,
+        AbortSignal.timeout(20_000),
+      );
+      expect([...narrowed.values].sort()).toEqual(['error', 'info', 'warn']);
       for (const field of [
         { entity: 'logs-*', field: 'nope' },
         { entity: '.security', field: 'level' },
+        { entity: 'logs-*,../_cat', field: 'level' },
       ]) {
         const failure = await connection
           .sampleValues(field, 10, AbortSignal.timeout(20_000))

@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import type { AccessLevel } from '@quanthea/shared';
-import { ConnectorError, type ConnectorInstance } from '../connectors/_shared/index.ts';
+import type { AccessLevel, ObjectVisibility } from '@quanthea/shared';
+import {
+  ConnectorError,
+  type ConnectorInstance,
+  type ResolvedObject,
+} from '../connectors/_shared/index.ts';
 import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
 import { everythingShown, type ObjectScope, scopeOf } from '../query/scope/object-scope.ts';
 import { sampleForModel } from './sample.ts';
@@ -22,6 +26,7 @@ function sampleAt(
     limit?: number;
     from?: ConnectorInstance;
     scope?: ObjectScope;
+    entity?: string;
   } = {},
 ) {
   const subject = {
@@ -36,7 +41,7 @@ function sampleAt(
   return sampleForModel(
     subject,
     options.from ?? instance,
-    service,
+    { ...service, entity: options.entity ?? service.entity },
     options.limit ?? 10,
     AbortSignal.timeout(1000),
   );
@@ -108,5 +113,110 @@ describe('sampleForModel', () => {
       ok: false,
       error: 'Column "events.service" does not exist.',
     });
+  });
+});
+
+/** What the fake search server holds. */
+const cluster: readonly ResolvedObject[] = [
+  { name: 'logs-app' },
+  { name: 'logs-secret' },
+  { name: 'security-auditlog-2026.10.12' },
+  { name: 'all-logs', members: ['logs-app', 'logs-secret'] },
+];
+
+/**
+ * Whether a glob covers a name, as the fake server expands it.
+ *
+ * @param pattern - The pattern.
+ * @param name - The name.
+ * @returns `true` when it does.
+ */
+function covers(pattern: string, name: string): boolean {
+  const source = pattern.split('*').map((part) => part.replace(/[.+-]/g, '\\$&'));
+  return new RegExp(`^${source.join('.*')}$`).test(name);
+}
+
+/**
+ * Samples a field of a search connector, on a fake server.
+ *
+ * @param entity - The index expression the model names.
+ * @param visibility - The connector's visibility; the default when not given.
+ * @param resolves - Whether the kind can resolve an index expression.
+ * @returns The model sample, and the entities the source was asked to sample.
+ */
+async function searchSample(
+  entity: string,
+  visibility: Partial<ObjectVisibility> = {},
+  resolves = true,
+) {
+  const asked: string[] = [];
+  const search: ConnectorInstance = {
+    ...instance,
+    sampleValues: (field) => {
+      asked.push(field.entity);
+      return Promise.resolve({ values: ['info'], complete: true });
+    },
+    ...(resolves && {
+      resolveObjects: (expression: string) =>
+        Promise.resolve(
+          cluster.filter(({ name }) => expression.split(',').some((item) => covers(item, name))),
+        ),
+    }),
+  };
+  const scope = scopeOf({ showSystem: false, mode: 'except', names: [], ...visibility }, 'search');
+  return { sample: await sampleAt(4, { from: search, scope, entity }), asked };
+}
+
+describe('sampleForModel on a search connector', () => {
+  const hidden = { names: ['logs-secret'] };
+
+  test('samples a pattern without the hidden indices it reaches', async () => {
+    for (const pattern of ['logs-*', '*']) {
+      const { sample, asked } = await searchSample(pattern, hidden);
+      expect(sample).toEqual({ ok: true, values: ['info'] });
+      expect(asked).toHaveLength(1);
+      expect(asked[0]).toStartWith(`${pattern},`);
+      expect(asked[0]?.split(',')).toContain('-logs-secret');
+    }
+    expect((await searchSample('logs-a*', hidden)).asked).toEqual(['logs-a*']);
+  });
+
+  test('refuses a pattern that reaches only hidden indices', async () => {
+    const cases: [string, Partial<ObjectVisibility>][] = [
+      ['logs-secre*', hidden],
+      ['secu*', {}],
+      ['secu*', { mode: 'only', names: ['secu*'] }],
+    ];
+    for (const [pattern, visibility] of cases) {
+      const { sample, asked } = await searchSample(pattern, visibility);
+      expect(sample).toEqual({
+        ok: false,
+        error:
+          'The index pattern reaches nothing this connector shows. Name an index its schema lists, or its pattern.',
+      });
+      expect(asked).toEqual([]);
+    }
+  });
+
+  test('refuses a hidden index in a list, and an alias onto one', async () => {
+    const listed = await searchSample('logs-app,logs-secret', hidden);
+    expect(listed.sample).toMatchObject({ ok: false });
+    expect(listed.asked).toEqual([]);
+    const alias = await searchSample('all-logs', hidden);
+    expect(alias.sample).toMatchObject({ ok: false });
+    expect(alias.asked).toEqual([]);
+  });
+
+  test('refuses a pattern when the kind cannot resolve it', async () => {
+    const { sample, asked } = await searchSample('logs-*', hidden, false);
+    expect(sample).toMatchObject({ ok: false });
+    expect(asked).toEqual([]);
+    expect((await searchSample('logs-app', hidden, false)).asked).toEqual(['logs-app']);
+    expect((await searchSample('logs-app,logs-secret', hidden, false)).asked).toEqual([]);
+  });
+
+  test('asks the source nothing more when the connector shows everything', async () => {
+    const { asked } = await searchSample('*', { showSystem: true }, false);
+    expect(asked).toEqual(['*']);
   });
 });

@@ -2497,7 +2497,11 @@ model-ready results and never throw.
     to read the total without the group, or one group at a time.
 - The objects a connector does not show are left out of the schema at every level
   (`showsObject` in `modelSchema`), so the catalog, `describe`, Ask and Explain never list them,
-  and `sampleForModel` refuses their fields. Queries on them are refused by the query engine.
+  and `sampleForModel` refuses their fields. A search entity is an index expression, so
+  `sampleForModel` checks its names and narrows it with `narrowSearch`, as the executor does for a
+  query: a pattern is sampled without the hidden indices it reaches, and one that reaches only
+  hidden indices, or an alias onto one, is refused. Queries on them are refused by the query
+  engine.
 - Hidden fields (`entity.field`, or a bare `field`) are removed at every level: from the schema, and
   from results by column name and label name. Names compare without case, and a hidden object
   hides every field under it: a hidden `logs.user` hides `user.email`. Results do not say which

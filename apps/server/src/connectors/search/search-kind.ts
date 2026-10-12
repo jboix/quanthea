@@ -76,8 +76,21 @@ export function basicAuth(
   return { Authorization: `Basic ${Buffer.from(credentials).toString('base64')}` };
 }
 
-/** An index or pattern, as the binder allows them. */
-const indexPattern = /^[a-z0-9*][a-z0-9_.*+-]{0,254}$/;
+/**
+ * One item of an index expression: an index or pattern as the binder allows them, or an exclusion
+ * (`-name`), which may name a dot index.
+ */
+const indexItem = /^(?:-\.?)?[a-z0-9*][a-z0-9_.*+-]{0,254}$/;
+
+/**
+ * Whether an entity is an index expression a sample may read.
+ *
+ * @param entity - An index, a pattern, or a comma-separated list with exclusions.
+ * @returns `true` when every item is well formed.
+ */
+function isIndexExpression(entity: string): boolean {
+  return entity.split(',').every((item) => indexItem.test(item));
+}
 
 /** How long health checks, schema reads and samples may take, in milliseconds. */
 const metadataTimeoutMs = 30_000;
@@ -224,7 +237,7 @@ async function test(
  *
  * @param api - The API.
  * @param types - The field types cache.
- * @param field - The index pattern and the field.
+ * @param field - The index expression and the field.
  * @param limit - How many values at most.
  * @param signal - The caller's signal.
  * @returns The values and whether there are more.
@@ -238,7 +251,7 @@ async function sampleValues(
   signal: AbortSignal,
 ) {
   const bounded = AbortSignal.any([signal, AbortSignal.timeout(metadataTimeoutMs)]);
-  const known = indexPattern.test(field.entity)
+  const known = isIndexExpression(field.entity)
     ? await types.typesOf(field.entity, bounded)
     : new Map<string, string>();
   const keyword = known.get(field.field) === 'text' ? `${field.field}.keyword` : field.field;
