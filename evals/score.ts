@@ -4,9 +4,10 @@
  */
 import { fixedTimeOf, type PanelQuery, type TurnUsage } from '@quanthea/shared';
 import type { Expectation } from './questions.ts';
+import { type BuiltShape, shapeFaults } from './shape.ts';
 
 /** One panel of the dashboard built, as the scoring reads it. */
-export interface BuiltPanel {
+export interface BuiltPanel extends BuiltShape {
   /** Its id. */
   readonly id: string;
   /** Its title. */
@@ -56,12 +57,14 @@ export interface Score {
 }
 
 /**
- * A panel's queries, from the text the outcome keeps: its title, then its queries as JSON.
+ * A panel's queries: those the outcome keeps, else those in its text, which is its title, then
+ * its queries as JSON.
  *
  * @param panel - The panel.
  * @returns Its queries; none when the text holds none.
  */
 export function panelQueries(panel: BuiltPanel): PanelQuery[] {
+  if (panel.queries) return [...panel.queries];
   try {
     return JSON.parse(panel.text.slice(panel.text.indexOf('\n') + 1)) as PanelQuery[];
   } catch {
@@ -202,6 +205,7 @@ export function score(outcome: Outcome, expect: Expectation): Score {
     ...faults(outcome, expect),
     ...missing(outcome, expect),
     ...unmarked(outcome, expect),
+    ...(expect.shape ? shapeFaults(outcome.panels, expect.shape) : []),
     ...fixedTimes(outcome),
     ...duplicates(outcome),
   ];

@@ -3,6 +3,7 @@
  * checkout-svc, yesterday at 12:02 UTC, rolled back 36 minutes later. Each says what a good answer
  * holds. Add one only when a failure surprises you; grow toward 50 when you compare models.
  */
+import type { View } from '@quanthea/shared';
 
 /** What a good answer to a question holds. */
 export interface Expectation {
@@ -16,6 +17,26 @@ export interface Expectation {
   readonly maxRepairs: number;
   /** The markers the charts must carry, when a good answer needs them. */
   readonly markers?: MarkersExpectation;
+  /** How one panel must get its data and show it, when a good answer has one such panel. */
+  readonly shape?: ShapeExpectation;
+}
+
+/** How a panel of a good answer gets its data and shows it. Every part given must hold. */
+export interface ShapeExpectation {
+  /** The data kind asked of the edit tool: a builder's name, `raw` or `saved`. */
+  readonly builder?: string;
+  /** Aggregations in the search body: a type such as `date_histogram`, or `terms:event_name`. */
+  readonly aggregations?: readonly string[];
+  /** The names of the table operations, in order; the panel may have others between them. */
+  readonly operations?: readonly string[];
+  /** The view: its kind, its chart recipe, and the fields it must hold, such as `sort.field`. */
+  readonly view?: {
+    readonly kind: View['kind'];
+    readonly recipe?: string;
+    readonly has?: readonly string[];
+  };
+  /** What the world must have before the question can be answered; the scoring does not read it. */
+  readonly needs?: readonly ('http' | 'pinned-target')[];
 }
 
 /** What the markers of a good answer hold. */

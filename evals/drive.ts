@@ -3,7 +3,14 @@
  * first option (or the question's scripted answer), approves the plan, and lets the build run.
  * Then it reads what was built, runs the last version's queries again, and adds up what it cost.
  */
-import { addUsage, type DashboardSpec, type TokenUsage, type TurnUsage } from '@quanthea/shared';
+import {
+  addUsage,
+  type DashboardSpec,
+  type Panel,
+  type TokenUsage,
+  type TurnUsage,
+} from '@quanthea/shared';
+import { type AskedPanel, askedFields, askedOf, type WriteOutput } from './asked.ts';
 import type { Question } from './questions.ts';
 import type { BuiltPanel, Outcome } from './score.ts';
 import { type EvalWorld, evalsActor } from './setup.ts';
@@ -17,8 +24,14 @@ interface StoredPart {
   readonly type: string;
   /** A text part's text. */
   readonly text?: string;
-  /** A tool call's input. */
-  readonly input?: { readonly question?: string; readonly options?: readonly string[] };
+  /** A tool call's input: a question to the person, or the panels of an edit. */
+  readonly input?: {
+    readonly question?: string;
+    readonly options?: readonly string[];
+    readonly panels?: readonly AskedPanel[];
+  };
+  /** What a write tool returned: whether it saved a version, and the panels it left out. */
+  readonly output?: WriteOutput;
   /** A data part's data. */
   readonly data?: { readonly outcome?: string };
 }
@@ -103,18 +116,38 @@ function lastSpec(world: EvalWorld, threadId: string): DashboardSpec | undefined
 }
 
 /**
+ * The names of a panel's table operations, in order.
+ *
+ * @param panel - The panel.
+ * @returns The field to spread; none for a panel without operations.
+ */
+function operationsField(panel: Panel): Pick<BuiltPanel, 'operations'> {
+  const { operations } = panel as { operations?: readonly { readonly op: string }[] };
+  if (!operations || operations.length === 0) return {};
+  return { operations: operations.map((operation) => operation.op) };
+}
+
+/**
  * A spec's panels, as the scoring reads them.
  *
  * @param spec - The spec.
+ * @param asked - What the agent asked the edit tool for, by panel.
  * @returns The panels.
  */
-function panelsOf(spec: DashboardSpec | undefined): BuiltPanel[] {
+export function panelsOf(
+  spec: DashboardSpec | undefined,
+  asked: ReadonlyMap<string, AskedPanel> = new Map(),
+): BuiltPanel[] {
   return (spec?.panels ?? []).map((panel) => ({
     id: panel.id,
     title: panel.title,
     connectors: [...new Set(panel.queries.map((query) => query.connector))],
     text: `${panel.title}\n${JSON.stringify(panel.queries)}`,
     kind: panel.view.kind,
+    queries: panel.queries,
+    view: panel.view,
+    ...operationsField(panel),
+    ...askedFields(panel, asked),
   }));
 }
 
@@ -248,11 +281,12 @@ export async function drive(world: EvalWorld, question: Question): Promise<Outco
   }
   const spec = lastSpec(world, threadId);
   const { state } = world.services.threads.get(threadId);
-  const counted = tally(messagesOf(world, threadId));
+  const messages = messagesOf(world, threadId);
+  const counted = tally(messages);
   return {
     id: question.id,
     built: state === 'ready' && spec !== undefined,
-    panels: panelsOf(spec),
+    panels: panelsOf(spec, askedOf(messages)),
     ...markersField(spec),
     failing: await failingOf(world, spec),
     turns,
