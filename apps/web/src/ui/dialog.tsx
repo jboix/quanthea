@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef } from 'react';
 import styles from './dialog.module.css';
+import { TitleHeader } from './title-header.tsx';
 
 /** Props of {@link Dialog}. */
 interface DialogProps {
@@ -30,12 +31,16 @@ export function Dialog({ title, open, onClose, children }: DialogProps) {
   }, [open]);
   return (
     <dialog ref={ref} className={styles.dialog} aria-label={title} onClose={onClose}>
-      <header className={styles.header}>
-        <h2 className={styles.title}>{title}</h2>
-        <button type="button" className={styles.close} aria-label="Close" onClick={onClose}>
-          ×
-        </button>
-      </header>
+      <TitleHeader
+        className={styles.header}
+        size="card"
+        title={title}
+        actions={
+          <button type="button" className={styles.close} aria-label="Close" onClick={onClose}>
+            ×
+          </button>
+        }
+      />
       {open && children}
     </dialog>
   );

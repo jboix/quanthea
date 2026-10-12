@@ -1,5 +1,6 @@
 import { type ReactNode, type RefObject, useEffect, useId, useRef } from 'react';
 import styles from './drawer.module.css';
+import { TitleHeader } from './title-header.tsx';
 
 /** Props of {@link Drawer}. */
 interface DrawerProps {
@@ -52,14 +53,16 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
   return (
     <dialog ref={dialog} className={styles.drawer} aria-labelledby={titleId} onClose={onClose}>
       <div className={styles.panel}>
-        <header className={styles.header}>
-          <h2 id={titleId} className={styles.title}>
-            {title}
-          </h2>
-          <button type="button" className={styles.close} aria-label="Close" onClick={onClose}>
-            ×
-          </button>
-        </header>
+        <TitleHeader
+          size="section"
+          title={title}
+          titleId={titleId}
+          actions={
+            <button type="button" className={styles.close} aria-label="Close" onClick={onClose}>
+              ×
+            </button>
+          }
+        />
         {children}
       </div>
     </dialog>

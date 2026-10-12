@@ -28,19 +28,6 @@
   overflow: hidden;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
 .close {
   width: 32px;
   height: 32px;

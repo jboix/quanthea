@@ -1,5 +1,6 @@
 import { type ReactNode, useId } from 'react';
 import styles from './card.module.css';
+import { TitleHeader } from './title-header.tsx';
 
 /** Props of {@link Card}. */
 interface CardProps {
@@ -23,22 +24,22 @@ interface CardProps {
  */
 export function Card({ title, description, actions, variant = 'solid', children }: CardProps) {
   const titleId = useId();
-  const hasHeader = title !== undefined || actions !== undefined;
   const className = variant === 'dashed' ? `${styles.card} ${styles.dashed}` : styles.card;
   return (
     <section className={className} aria-labelledby={title === undefined ? undefined : titleId}>
-      {hasHeader && (
-        <div className={styles.header}>
-          <div className={styles.titles}>
-            {title !== undefined && (
-              <h2 id={titleId} className={styles.title}>
-                {title}
-              </h2>
-            )}
-            {description !== undefined && <p className={styles.description}>{description}</p>}
-          </div>
-          {actions}
-        </div>
+      {title === undefined ? (
+        actions !== undefined && <div className={styles.actions}>{actions}</div>
+      ) : (
+        <TitleHeader
+          as="div"
+          size="compact"
+          align="start"
+          wrap
+          title={title}
+          titleId={titleId}
+          below={description !== undefined && <p className={styles.description}>{description}</p>}
+          actions={actions}
+        />
       )}
       {children}
     </section>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import styles from './page.module.css';
+import { TitleHeader } from './title-header.tsx';
 
 /** Props of {@link Page}. */
 interface PageProps {
@@ -23,13 +24,14 @@ interface PageProps {
 export function Page({ title, subtitle, actions, children }: PageProps) {
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <div className={styles.titles}>
-          <h1 className={styles.title}>{title}</h1>
-          {subtitle !== undefined && <p className={styles.subtitle}>{subtitle}</p>}
-        </div>
-        {actions}
-      </header>
+      <TitleHeader
+        level={1}
+        size="page"
+        align="start"
+        title={title}
+        below={subtitle !== undefined && <p className={styles.subtitle}>{subtitle}</p>}
+        actions={actions}
+      />
       {children}
     </div>
   );

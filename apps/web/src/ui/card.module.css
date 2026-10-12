@@ -8,23 +8,12 @@
   border-radius: var(--radius-panel);
 }
 
-.header {
+/* The controls of a card with no heading, at its end. */
+.actions {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.titles {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.title {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .description {
