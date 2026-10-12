@@ -2,7 +2,8 @@
  * The result of a test query as the model receives it. Level 1: whether it worked. Level 2: also
  * the shape (fields, types, row counts, label names). Level 3: also per-field summaries. Level 4:
  * also the rows. Hidden fields and labels are removed at every level; below level 4 errors carry
- * only safe messages.
+ * only safe messages. A reader with a time zone also gets, in the summaries of a result of few
+ * frames, each number's profile over the clock.
  */
 import { datasetOfFrames, type Field, type Frame } from '@quanthea/shared';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../query/executor.ts';
@@ -12,6 +13,19 @@ import { type FieldSummary, summarizeFrame } from './summaries.ts';
 
 /** The most rows a level 4 result gives the model, whatever the connector's row limit. */
 export const modelRowLimit = 500;
+
+/** The most frames a result may have for its summaries to carry profiles over the clock. */
+export const profiledFrameLimit = 5;
+
+/** How one result is shaped: the level, the hidden names, and the reader's time zone if any. */
+interface Shaping {
+  /** The access level, 2 or more. */
+  readonly level: number;
+  /** The hidden names. */
+  readonly hidden: ReadonlySet<string>;
+  /** The time zone the summaries profile numbers in; none, no profile. */
+  readonly timeZone?: string | undefined;
+}
 
 /** A result frame as the model sees it. */
 export interface ModelFrame {
@@ -107,16 +121,16 @@ function rowsOf(frame: Frame): unknown[][] {
  * One frame as the model sees it at a level.
  *
  * @param frame - The frame.
- * @param level - The access level, 2 or more.
- * @param hidden - The hidden names.
+ * @param shaping - The level, the hidden names and the reader's time zone.
  * @returns The frame for the model.
  */
-function modelFrame(frame: Frame, level: number, hidden: ReadonlySet<string>): ModelFrame {
+function modelFrame(frame: Frame, shaping: Shaping): ModelFrame {
+  const { level, hidden } = shaping;
   const visible = withoutHidden(frame, hidden);
   const truncated = frame.meta.truncated || (level >= 4 && frame.meta.rowCount > modelRowLimit);
   const shape = { fields: modelFields(visible, level), rowCount: frame.meta.rowCount, truncated };
   if (level < 3) return shape;
-  const summaries = summarizeFrame(visible);
+  const summaries = summarizeFrame(visible, shaping.timeZone);
   return level < 4 ? { ...shape, summaries } : { ...shape, summaries, rows: rowsOf(visible) };
 }
 
@@ -125,15 +139,22 @@ function modelFrame(frame: Frame, level: number, hidden: ReadonlySet<string>): M
  *
  * @param subject - The connector.
  * @param frames - The frames.
+ * @param timeZone - The reader's time zone: from level 3, a result of at most
+ *   {@link profiledFrameLimit} frames profiles its numbers over that clock.
  * @returns The result for the model.
  */
-export function modelTestResult(subject: GateSubject, frames: readonly Frame[]): ModelTestResult {
+export function modelTestResult(
+  subject: GateSubject,
+  frames: readonly Frame[],
+  timeZone?: string,
+): ModelTestResult {
   if (subject.accessLevel < 2) return { ok: true };
-  const hidden = hiddenResultNames(subject);
-  return {
-    ok: true,
-    frames: frames.map((frame) => modelFrame(frame, subject.accessLevel, hidden)),
+  const shaping = {
+    level: subject.accessLevel,
+    hidden: hiddenResultNames(subject),
+    timeZone: frames.length <= profiledFrameLimit ? timeZone : undefined,
   };
+  return { ok: true, frames: frames.map((frame) => modelFrame(frame, shaping)) };
 }
 
 /**
@@ -143,10 +164,15 @@ export function modelTestResult(subject: GateSubject, frames: readonly Frame[]):
  *
  * @param subject - The connector.
  * @param frames - The frames.
+ * @param timeZone - The reader's time zone, as {@link modelTestResult} takes it.
  * @returns The result for the model.
  */
-export function modelPanelResult(subject: GateSubject, frames: readonly Frame[]): ModelTestResult {
-  const result = modelTestResult(subject, frames);
+export function modelPanelResult(
+  subject: GateSubject,
+  frames: readonly Frame[],
+  timeZone?: string,
+): ModelTestResult {
+  const result = modelTestResult(subject, frames, timeZone);
   if (!result.ok || subject.accessLevel < 2 || frames.length === 0) return result;
   const dataset = datasetOfFrames(visibleFrames(subject, frames));
   const columns = dataset.dimensions.map((dimension) => `${dimension.name}: ${dimension.type}`);
@@ -173,6 +199,7 @@ export function modelTestError(subject: GateSubject, error: unknown): ModelTestR
  * @param executor - The query executor.
  * @param source - The resolved connector.
  * @param request - The query.
+ * @param timeZone - The reader's time zone, as {@link modelTestResult} takes it.
  * @returns The result for the model; it never throws.
  */
 export async function testQueryForModel(
@@ -180,10 +207,11 @@ export async function testQueryForModel(
   executor: QueryExecutor,
   source: QuerySource,
   request: QueryRequest,
+  timeZone?: string,
 ): Promise<ModelTestResult> {
   try {
     const result = await executor.run(source, request);
-    return modelTestResult(subject, result.frames);
+    return modelTestResult(subject, result.frames, timeZone);
   } catch (error) {
     return modelTestError(subject, error);
   }

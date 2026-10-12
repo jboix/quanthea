@@ -144,19 +144,23 @@ export interface ModelView {
    *
    * @param name - The connector.
    * @param request - The query, its variables and its time range.
+   * @param timeZone - The reader's time zone: from level 3, a series over days is then also
+   *   profiled by hour of day and by weekday on that clock.
    * @returns What the access level lets through of the result.
    */
-  testQuery(name: string, request: QueryRequest): Promise<ModelTestResult>;
+  testQuery(name: string, request: QueryRequest, timeZone?: string): Promise<ModelTestResult>;
   /**
    * Shapes a saved panel's result for the model.
    *
    * @param name - The connector the query ran on.
    * @param outcome - Its frames, or its error message (already free of data).
+   * @param timeZone - The reader's time zone, as {@link ModelView.testQuery} takes it.
    * @returns What the access level lets through.
    */
   panelResult(
     name: string,
     outcome: { frames: readonly Frame[]; error: string | null },
+    timeZone?: string,
   ): ModelTestResult;
   /**
    * A result without the connector's hidden fields, for what is derived from it and shown to the
@@ -272,11 +276,11 @@ function resultMethods(
   subjects: () => ReadonlyMap<string, GateSubject>,
 ): Pick<ModelView, 'panelResult' | 'visibleFrames'> {
   return {
-    panelResult(name, outcome) {
+    panelResult(name, outcome, timeZone) {
       const subject = subjects().get(name);
       if (!subject) return { ok: false, error: unreachable(name) };
       return outcome.error === null
-        ? modelPanelResult(subject, outcome.frames)
+        ? modelPanelResult(subject, outcome.frames, timeZone)
         : { ok: false, error: outcome.error };
     },
     visibleFrames(name, frames) {
@@ -347,10 +351,10 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
       if (!opened) return { ok: false, error: unreachable(name) };
       return sampleForModel(opened.subject, opened.source.instance, field, limit, signal);
     },
-    async testQuery(name, request) {
+    async testQuery(name, request, timeZone) {
       const opened = await access.open(name).catch(() => undefined);
       if (!opened) return { ok: false, error: unreachable(name) };
-      return testQueryForModel(opened.subject, executor, opened.source, request);
+      return testQueryForModel(opened.subject, executor, opened.source, request, timeZone);
     },
     ...alertMethods(subjects),
     ...resultMethods(subjects),

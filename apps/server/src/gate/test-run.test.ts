@@ -3,7 +3,13 @@ import type { AccessLevel, Frame } from '@quanthea/shared';
 import { ConnectorError } from '../connectors/_shared/index.ts';
 import { QueryError } from '../query/query-error.ts';
 import type { GateSubject } from './subject.ts';
-import { modelPanelResult, modelRowLimit, modelTestError, modelTestResult } from './test-run.ts';
+import {
+  modelPanelResult,
+  modelRowLimit,
+  modelTestError,
+  modelTestResult,
+  profiledFrameLimit,
+} from './test-run.ts';
 
 const frame: Frame = {
   refId: 'A',
@@ -141,5 +147,56 @@ describe('modelPanelResult', () => {
   test('names no columns at level 1, or for an empty result', () => {
     expect(modelPanelResult(subjectAt(1), [frame])).toEqual({ ok: true });
     expect(modelPanelResult(subjectAt(2), [])).toEqual({ ok: true, frames: [] });
+  });
+});
+
+describe('the profile over the clock', () => {
+  const from = Date.UTC(2026, 9, 5);
+  const counts = Array.from({ length: 4 * 24 }, (_unused, index) => (index % 24 === 20 ? 90 : 10));
+  const hourly: Frame = {
+    refId: 'A',
+    fields: [
+      { name: 'time', type: 'time' },
+      { name: 'plays', type: 'number' },
+      { name: 'email', type: 'number' },
+    ],
+    values: [counts.map((_value, index) => from + index * 3_600_000), counts, counts],
+    meta: { rowCount: counts.length, truncated: false, durationMs: 3 },
+  };
+
+  /**
+   * The result as JSON text, to look for what it lets out.
+   *
+   * @param level - The access level.
+   * @param frames - The frames.
+   * @param timeZone - The reader's time zone, if any.
+   * @returns The JSON.
+   */
+  function shown(level: AccessLevel, frames: readonly Frame[], timeZone?: string): string {
+    return JSON.stringify(modelTestResult(subjectAt(level), frames, timeZone));
+  }
+
+  test('levels 3 and 4 give it to a reader with a time zone, and only to one', () => {
+    expect(shown(3, [hourly], 'UTC')).toContain('"peakHour":{"days":4,"hours":[{"hour":20');
+    expect(shown(4, [hourly], 'UTC')).toContain('"byHour"');
+    expect(shown(3, [hourly])).not.toContain('profile');
+  });
+
+  test('levels 1 and 2 never give it', () => {
+    expect(shown(1, [hourly], 'UTC')).not.toContain('profile');
+    expect(shown(2, [hourly], 'UTC')).not.toContain('profile');
+  });
+
+  test('a hidden field has no profile', () => {
+    const result = modelTestResult(subjectAt(3), [hourly], 'UTC');
+    const summaries = result.ok ? result.frames?.[0]?.summaries : undefined;
+    expect(summaries?.map((summary) => summary.field)).toEqual(['time', 'plays']);
+  });
+
+  test('a result of many frames has none, a panel result of few has it', () => {
+    const many = Array.from({ length: profiledFrameLimit + 1 }, () => hourly);
+    expect(shown(3, many, 'UTC')).not.toContain('profile');
+    const panel = modelPanelResult(subjectAt(3), [hourly], 'UTC');
+    expect(JSON.stringify(panel)).toContain('"profile"');
   });
 });

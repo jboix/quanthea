@@ -228,10 +228,11 @@ async function recordRead(
   const timeRange = { from: new Date(window.from), to: new Date(window.to) };
   const { refId, template, connector } = target;
   const request = { refId, template, variables: context.bindings, timeRange };
-  const result = await context.modelView.testQuery(connector, {
-    ...request,
-    signal: context.signal,
-  });
+  const result = await context.modelView.testQuery(
+    connector,
+    { ...request, signal: context.signal },
+    context.timeZone,
+  );
   const evidence: AnswerEvidence = {
     id: `e${context.state.evidence.length + 1}`,
     connector,
@@ -260,7 +261,7 @@ function readTool(
 ) {
   return tool({
     description:
-      "Read data through your access level: run a panel's query (panelId), or a query you write (connector and query). Level 3 returns per-field summaries, with when the extremes and spikes happened; level 4 also rows. Each read gets an evidenceId to cite.",
+      "Read data through your access level: run a panel's query (panelId), or a query you write (connector and query). Level 3 returns per-field summaries, with when the extremes and spikes happened and, for a series over days, its profile by hour of day and by weekday; level 4 also rows. Each read gets an evidenceId to cite.",
     inputSchema: readInput(context.readable),
     execute: async (input) => {
       const target = targetOf(context, input);

@@ -1,9 +1,11 @@
 /**
  * Level 3 summaries of a result: per field counts, ranges, means, spikes and top values, and, when
- * the result has a time column, when each number was lowest and highest and when it spiked. A
+ * the result has a time column, when each number was lowest and highest and when it spiked. For a
+ * reader with a time zone, a long and fine enough series also has its profile over the clock. A
  * summary never holds a row.
  */
 import type { Field, Frame } from '@quanthea/shared';
+import { type Profiler, profilerOf, type TimeProfile } from './time-profile.ts';
 
 /** A time window in which a number stayed above its spike threshold. */
 export interface SpikeWindow {
@@ -33,6 +35,8 @@ export type FieldSummary =
       readonly maxAt?: string;
       /** With a time column: consecutive points above the spike threshold, merged, by time. */
       readonly spikeWindows?: readonly SpikeWindow[];
+      /** For a reader with a time zone, over days: the number by hour of day and by weekday. */
+      readonly profile?: TimeProfile;
     }
   | {
       readonly field: string;
@@ -88,6 +92,14 @@ interface Point {
   readonly value: number;
   /** Its row. */
   readonly index: number;
+}
+
+/** The time column of a frame, and how its numbers are profiled over the clock, if they are. */
+interface Timing {
+  /** The time column. */
+  readonly times: readonly unknown[];
+  /** Profiles a number column, for a reader with a time zone. */
+  readonly profiler?: Profiler | undefined;
 }
 
 /** A number with the time of its row. */
@@ -157,26 +169,29 @@ function spikeWindowsOf(timed: readonly TimedPoint[], threshold: number): SpikeW
 }
 
 /**
- * When a number column was at its lowest and highest, and when it spiked.
+ * When a number column was at its lowest and highest, when it spiked, and its profile over the
+ * clock when the timing has a profiler and the series is long and fine enough.
  *
  * @param points - The numbers.
- * @param times - The frame's time column.
+ * @param timing - The frame's time column and its profiler.
  * @param range - The minimum, the maximum and the spike threshold.
  * @returns The times; empty when no number has a time.
  */
 function timesOf(
   points: readonly Point[],
-  times: readonly unknown[],
+  timing: Timing,
   range: { readonly min: number; readonly max: number; readonly threshold: number },
 ) {
-  const timed = timedPoints(points, times);
+  const timed = timedPoints(points, timing.times);
   if (timed.length === 0) return {};
   const minAt = firstTimeOf(timed, range.min);
   const maxAt = firstTimeOf(timed, range.max);
+  const profile = timing.profiler?.(timed);
   return {
     ...(minAt === undefined ? {} : { minAt }),
     ...(maxAt === undefined ? {} : { maxAt }),
     spikeWindows: spikeWindowsOf(timed, range.threshold),
+    ...(profile === undefined ? {} : { profile }),
   };
 }
 
@@ -204,13 +219,13 @@ function spikesOf(points: readonly Point[], threshold: number, times: readonly u
  *
  * @param field - The field name.
  * @param values - The column.
- * @param times - The frame's time column, to date the extremes and spikes, if it has one.
+ * @param timing - The frame's time column, to date the extremes and spikes, if it has one.
  * @returns The summary.
  */
 function summarizeNumbers(
   field: string,
   values: readonly unknown[],
-  times: readonly unknown[] | undefined,
+  timing: Timing | undefined,
 ): FieldSummary {
   const present = values.flatMap((value, index) =>
     typeof value === 'number' ? [{ value, index }] : [],
@@ -232,8 +247,8 @@ function summarizeNumbers(
     min: round(min),
     max: round(max),
     mean: round(mean),
-    spikes: spikesOf(present, threshold, times),
-    ...(times ? timesOf(present, times, { min, max, threshold }) : {}),
+    spikes: spikesOf(present, threshold, timing?.times),
+    ...(timing ? timesOf(present, timing, { min, max, threshold }) : {}),
   };
 }
 
@@ -262,15 +277,15 @@ function summarizeStrings(field: string, values: readonly unknown[]): FieldSumma
  *
  * @param field - The field.
  * @param values - Its column.
- * @param times - The frame's time column, if it has one.
+ * @param timing - The frame's time column, if it has one.
  * @returns The summary.
  */
 function summarizeField(
   field: Field,
   values: readonly unknown[],
-  times: readonly unknown[] | undefined,
+  timing: Timing | undefined,
 ): FieldSummary {
-  if (field.type === 'number') return summarizeNumbers(field.name, values, times);
+  if (field.type === 'number') return summarizeNumbers(field.name, values, timing);
   if (field.type === 'string') return summarizeStrings(field.name, values);
   const present = values.filter((value) => value !== null);
   const nulls = values.length - present.length;
@@ -300,12 +315,15 @@ function summarizeField(
  * Summarizes every field of a frame.
  *
  * @param frame - The frame.
+ * @param timeZone - The reader's time zone, to profile its numbers over the clock; none, no profile.
  * @returns One summary per field.
  */
-export function summarizeFrame(frame: Frame): FieldSummary[] {
+export function summarizeFrame(frame: Frame, timeZone?: string): FieldSummary[] {
   const timeIndex = frame.fields.findIndex((field) => field.type === 'time');
   const times = timeIndex === -1 ? undefined : frame.values[timeIndex];
+  const profiler = timeZone === undefined ? undefined : profilerOf(timeZone);
+  const timing = times && { times, profiler };
   return frame.fields.map((field, index) =>
-    summarizeField(field, frame.values[index] ?? [], times),
+    summarizeField(field, frame.values[index] ?? [], timing),
   );
 }

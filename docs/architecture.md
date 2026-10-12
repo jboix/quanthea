@@ -1688,6 +1688,11 @@ The model's tools are decided per connector of the dashboard:
   sentences and no tables. They carry the dashboard as written (panels, queries, variables,
   markers), never data, and each connector with what the model may read of it. A query the model
   writes bounds its time with `__from` and `__to`, or with a date in ISO 8601 text.
+- A read passes the question's time zone to the gate (`read_data`, and `read_run` for a report's
+  frozen results), so a series over days comes back with its profile by hour of day and by
+  weekday on that clock. The instructions say to read "when is it busiest, and is it the same
+  every day" there, from an hourly series over three days or more, and to widen the read's window
+  when the range asked about is shorter.
 - Each step goes to the usage ledger as the `answer` job, against the person who asked and the
   dashboard, with the feature of its mode: `question` for `ask`, `explanation` for `explain`.
   The outcome carries the answer's usage by model.
@@ -2315,6 +2320,23 @@ model-ready results and never throw.
   a number's summary gives the time its min and max were first reached (`minAt`, `maxAt`), and its
   spike windows (`spikeWindows`): consecutive points above mean + 3σ, in time order, merged into
   `{ from, to, peak }`, the five highest peaks.
+- A reader with a time zone also gets a number's profile over the clock (`gate/time-profile.ts`),
+  in its summary as `profile`. Only an answer's reads name a time zone, the one of the question: a
+  thread's test run gets none.
+  - `byHour`: each hour of the day, with the mean of that hour over the days and its lowest and
+    highest day. An hour of one day is the mean of its points.
+  - `peakHour`: which hour was the highest of its day, on how many days, the five most frequent.
+    A day counts when at least 12 of its hours have points.
+  - `byWeekday`: each day of the week from Monday, with the mean of its days, the lowest and
+    highest of them, and how many there were. A point belongs to the day the middle of its bucket
+    falls on, so a daily bucket cut at midnight UTC keeps its day in another zone.
+  - The hours need buckets of an hour or less over three days or more; the weekdays need buckets
+    of a day or less over two weeks or more. The bucket is the median gap between the times of the
+    series. A shorter or coarser series has no profile, since one day says nothing of the next.
+  - It follows the level rules of the summary it sits in: from level 3 only, never for a hidden
+    field. A result of more than five frames has none, to keep what the model reads small.
+  - A result with several series in one frame, such as a count per country and hour, is profiled
+    as one: the mean over the series.
 - Hidden fields (`entity.field`, or a bare `field`) are removed at every level: from the schema, and
   from results by column name and label name. Names compare without case, and a hidden object
   hides every field under it: a hidden `logs.user` hides `user.email`. Results do not say which

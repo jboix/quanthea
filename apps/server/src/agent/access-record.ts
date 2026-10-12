@@ -46,9 +46,9 @@ function readingMethods(view: ModelView, note: Note) {
       note(name);
       return view.sample(name, field, limit, signal);
     }) satisfies ModelView['sample'],
-    testQuery: ((name, request) => {
+    testQuery: ((name, request, timeZone) => {
       note(name);
-      return view.testQuery(name, request);
+      return view.testQuery(name, request, timeZone);
     }) satisfies ModelView['testQuery'],
   };
 }
@@ -62,9 +62,9 @@ function readingMethods(view: ModelView, note: Note) {
  */
 function shapingMethods(view: ModelView, note: Note) {
   return {
-    panelResult: ((name, outcome) => {
+    panelResult: ((name, outcome, timeZone) => {
       note(name);
-      return view.panelResult(name, outcome);
+      return view.panelResult(name, outcome, timeZone);
     }) satisfies ModelView['panelResult'],
     alertCheck: ((name, series) => {
       note(name);

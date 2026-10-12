@@ -40,6 +40,28 @@ already read. If no answer comes, the message says why: the model's output was c
 it wrote a call that could not be read, its provider withheld the response, it stopped with
 nothing, or the limits of one answer were reached.
 
+### Time of day and day of the week
+
+Ask "When do we have the most traffic during the day, and is it consistent?" and the model reads
+the measure hour by hour over several days. From such a read it gets, beside the lowest, highest
+and mean values, a profile on the dashboard's clock:
+
+- each hour of the day, with its mean over the days and its lowest and highest day;
+- which hour was the highest of its day, and on how many of the days;
+- each day of the week, when the read covers two weeks or more.
+
+So the answer says which hours are busy and how steady that is, from numbers it read, not from
+arithmetic of its own.
+
+- The hours need points an hour apart or closer, over three days or more. The days of the week
+  need points a day apart or closer, over two weeks or more.
+- When the range you look at is shorter, the model may read a longer one for the profile.
+- When the source holds fewer days than that, there is no profile, and the answer says the data is
+  too short to call a pattern.
+
+The profile is part of a summary, so it follows the source's access level like the other
+aggregates.
+
 ### What the model may read
 
 Answers read data only from sources at the **Aggregates** or **Full access** level. At a lower

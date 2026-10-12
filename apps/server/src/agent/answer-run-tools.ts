@@ -56,10 +56,11 @@ function recordFrozen(
 ) {
   const { panel, query, outcome, window } = read;
   const result = outcome
-    ? context.modelView.panelResult(query.connector, {
-        frames: outcome.frames,
-        error: outcome.error?.message ?? null,
-      })
+    ? context.modelView.panelResult(
+        query.connector,
+        { frames: outcome.frames, error: outcome.error?.message ?? null },
+        context.timeZone,
+      )
     : { ok: false as const, error: 'The run holds no result for this query.' };
   const evidence: AnswerEvidence = {
     id: `e${context.state.evidence.length + 1}`,

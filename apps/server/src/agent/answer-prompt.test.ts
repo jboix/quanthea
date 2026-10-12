@@ -16,4 +16,17 @@ describe('how a query bounds its time', () => {
     expect(instructions).toContain('with the built-in __from and __to');
     expect(instructions).toContain('ISO 8601 text, such as 2026-10-05T14:47:01Z');
   });
+
+  test('the rules of a question say where the time of day and the weekday are read', () => {
+    const facts = {
+      spec: dashboardSpecSchema.parse(eventsSpec()),
+      connectors: [{ name: 'events', kind: 'elasticsearch', language: 'search', accessLevel: 3 }],
+      range: { from: Date.parse('2026-10-03T12:00:00Z'), to: Date.parse('2026-10-03T14:00:00Z') },
+      timeZone: 'UTC',
+      variables: {},
+    };
+    const instructions = askInstructions(facts, (level) => level >= 3);
+    expect(instructions).toContain('buckets of an hour or less over three days or more');
+    expect(instructions).toContain('peakHour');
+  });
 });

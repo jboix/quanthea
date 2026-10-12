@@ -113,3 +113,39 @@ test('gives no times without a time column', () => {
     spikes: [],
   });
 });
+
+/**
+ * A frame of hourly counts over some days: 10 an hour, 100 at 20:00 UTC.
+ *
+ * @param days - How many days.
+ * @returns The frame.
+ */
+function hourlyFrame(days: number): Frame {
+  const from = Date.UTC(2026, 9, 5);
+  const counts = Array.from({ length: days * 24 }, (_unused, index) =>
+    index % 24 === 20 ? 100 : 10,
+  );
+  return {
+    refId: 'A',
+    fields: [
+      { name: 'time', type: 'time' },
+      { name: 'plays', type: 'number' },
+    ],
+    values: [counts.map((_value, index) => from + index * 60 * minute), counts],
+    meta: { rowCount: counts.length, truncated: false, durationMs: 1 },
+  };
+}
+
+test('profiles a number over the clock for a reader with a time zone', () => {
+  const [, plays] = summarizeFrame(hourlyFrame(4), 'Europe/Zurich');
+  expect(plays).toMatchObject({
+    field: 'plays',
+    profile: { timeZone: 'Europe/Zurich', peakHour: { days: 4, hours: [{ hour: 22, days: 4 }] } },
+  });
+});
+
+test('gives no profile without a time zone, nor for a series too short for one', () => {
+  expect(summarizeFrame(hourlyFrame(4))[1]).not.toHaveProperty('profile');
+  expect(summarizeFrame(hourlyFrame(2), 'UTC')[1]).not.toHaveProperty('profile');
+  expect(summarizeFrame(frame, 'UTC')[1]).not.toHaveProperty('profile');
+});
