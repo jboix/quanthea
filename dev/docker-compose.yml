@@ -173,7 +173,7 @@ services:
 
   clickhouse:
     profiles: [clickhouse]
-    image: clickhouse/clickhouse-server:26.9.8.3-alpine
+    image: clickhouse/clickhouse-server:26.9.10.4-alpine
     environment:
       CLICKHOUSE_DB: orders
       CLICKHOUSE_USER: quanthea_admin
