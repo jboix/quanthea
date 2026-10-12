@@ -3,7 +3,13 @@
  * it starts and ends), the time zone of their clock, and the severities that notify whatever the
  * hour. A line under them reads the windows back in words.
  */
-import { alertSeverities, isTimeZone, type Weekday, weekdays } from '@quanthea/shared';
+import {
+  alertSeverities,
+  isTimeZone,
+  maxQuietWindows,
+  type Weekday,
+  weekdays,
+} from '@quanthea/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Input } from '../../ui/input.tsx';
@@ -11,7 +17,6 @@ import { quietHoursWords } from '../alert-draft/index.ts';
 import styles from './alerts.module.css';
 import {
   type DefaultQuiet,
-  maxWindows,
   type QuietWindow,
   quietHoursProblem,
   toggled,
@@ -159,7 +164,7 @@ function Windows({ value, onChange }: QuietHoursFieldsProps) {
           onRemove={windows.length > 1 ? () => remove(index) : undefined}
         />
       ))}
-      <Button size="small" disabled={windows.length >= maxWindows} onClick={add}>
+      <Button size="small" disabled={windows.length >= maxQuietWindows} onClick={add}>
         Add a window
       </Button>
     </>

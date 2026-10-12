@@ -12,6 +12,7 @@ import {
   alertSpecSchema,
   alertVariableSchema,
   durationSchema,
+  maxTemplateFields,
   namedFormatterSchema,
   queryTemplateSchema,
 } from '@quanthea/shared';
@@ -39,7 +40,7 @@ const messageEditSchema = z.strictObject({
   body: z.string().min(1).max(1000).optional(),
   fields: z
     .array(z.strictObject({ label: z.string().min(1).max(60), value: z.string().min(1).max(200) }))
-    .max(8)
+    .max(maxTemplateFields)
     .optional(),
 });
 

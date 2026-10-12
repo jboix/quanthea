@@ -11,6 +11,7 @@ import {
   type AlertState,
   durationMs,
   type MessageTemplate,
+  maxTemplateFields,
   type Notification,
   type NotificationEvent,
   notificationValues,
@@ -123,9 +124,6 @@ export interface NotificationSubject {
   readonly url: string;
 }
 
-/** The most fields a message template holds. */
-const maxFields = 8;
-
 /**
  * A template that says since when the series fires: itself when it names `{since}` or has no
  * room for a field, else with the field `Firing since`.
@@ -136,7 +134,7 @@ const maxFields = 8;
 function sayingSince(template: MessageTemplate): MessageTemplate {
   const texts = [template.title, template.body, ...template.fields.map((field) => field.value)];
   const says = texts.some((text) => text.includes('{since}'));
-  if (says || template.fields.length >= maxFields) return template;
+  if (says || template.fields.length >= maxTemplateFields) return template;
   return { ...template, fields: [...template.fields, { label: 'Firing since', value: '{since}' }] };
 }
 

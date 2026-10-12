@@ -22,6 +22,9 @@ const quietWindowSchema = z.strictObject({
 /** One quiet window. */
 type QuietWindow = z.infer<typeof quietWindowSchema>;
 
+/** The most windows quiet hours hold. */
+export const maxQuietWindows = 8;
+
 /** Validates quiet hours: the windows, and the time zone of their clock. */
 export const quietHoursSchema = z.strictObject({
   /** The IANA time zone of the clock, such as `Europe/Zurich`. */
@@ -31,7 +34,7 @@ export const quietHoursSchema = z.strictObject({
     .max(64)
     .refine(isTimeZone, 'Use an IANA time zone such as Europe/Zurich.'),
   /** The windows; it is quiet while any of them holds. */
-  windows: z.array(quietWindowSchema).min(1).max(8),
+  windows: z.array(quietWindowSchema).min(1).max(maxQuietWindows),
 });
 
 /** Quiet hours. */

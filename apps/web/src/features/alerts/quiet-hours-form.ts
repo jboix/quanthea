@@ -15,9 +15,6 @@ export type DefaultQuiet = NonNullable<AlertSettings['quietHours']>;
 /** One window of the quiet hours. */
 export type QuietWindow = DefaultQuiet['windows'][number];
 
-/** The most windows quiet hours hold. */
-export const maxWindows = 8;
-
 /**
  * The quiet hours a switch turned on starts with: every night, on the browser's clock, with
  * critical alerts left alone.

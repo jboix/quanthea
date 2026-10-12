@@ -53,6 +53,9 @@ const templateText = (max: number, known: readonly string[]) =>
       message: `Use only these placeholders: ${placeholderList(known)}.`,
     });
 
+/** The most labelled fields a message template holds. */
+export const maxTemplateFields = 8;
+
 /**
  * Validates a template: a title, a short body, and labelled fields.
  *
@@ -65,7 +68,7 @@ const templateSchema = (known: readonly string[]) =>
     body: templateText(1000, known),
     fields: z
       .array(z.strictObject({ label: z.string().min(1).max(60), value: templateText(200, known) }))
-      .max(8)
+      .max(maxTemplateFields)
       .default([]),
   });
 
