@@ -3,7 +3,8 @@
  * HTML page. Both show each question's verdict and why, its cost, what the agent asked, and each
  * panel with its query; for an answer case, the answer's text and each read; for an alert case,
  * the condition, the replay and the tools used; for a report case, the schedule, the period and the
- * run's numbers; for a run case, each answer and its follow-up cards.
+ * run's numbers; for a run case, each answer and its follow-up cards. A run with parity questions
+ * also shows a table of the families of panels, by family id.
  */
 
 import { alertCases, alertCaseText } from './alert-cases.ts';
@@ -11,9 +12,11 @@ import { isAlert } from './alert-score.ts';
 import { answerCases, caseText } from './answer-cases.ts';
 import { isAnswer } from './answer-score.ts';
 import { escapeHtml } from './html.ts';
+import { parityCases } from './parity-cases.ts';
 import { questions } from './questions.ts';
 import { htmlAlertBody, markdownAlertBody } from './render-alert.ts';
 import { htmlAnswerBody, markdownAnswerBody } from './render-answer.ts';
+import { htmlParity, markdownParity } from './render-parity.ts';
 import {
   htmlReportBody,
   htmlRunAnswerBody,
@@ -64,7 +67,7 @@ function queriesOf(panel: BuiltPanel): PanelQuery[] {
  * @returns The question, or the panel an explanation is about.
  */
 function questionText(id: string): string {
-  const question = questions.find((each) => each.id === id);
+  const question = [...questions, ...parityCases].find((each) => each.id === id);
   if (question) return question.question;
   const answerCase = answerCases.find((each) => each.id === id);
   if (answerCase) return caseText(answerCase);
@@ -201,6 +204,7 @@ export function markdownReport(report: Report): string {
     '',
     cache,
     '',
+    ...markdownParity(report),
     '| | Question | Built, read or saved | Repairs or steps | Tokens | Cost | Time | Why it fails |',
     '| --- | --- | --: | --: | --: | --: | --: | --- |',
     ...report.results.map(markdownRow),
@@ -282,7 +286,16 @@ h2 { margin: 0; font-size: 16px; }
 .panels li { margin: 10px 0; }
 pre { margin: 6px 0 0; padding: 8px 10px; overflow-x: auto; border-radius: 8px; background: var(--ground); font: 12.5px/1.5 ui-monospace, monospace; white-space: pre-wrap; }
 summary { cursor: pointer; color: var(--muted); }
-.answer { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--border); white-space: pre-wrap; }`;
+.answer { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--border); white-space: pre-wrap; }
+.parity { margin: 16px 0; padding: 16px 20px; overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.parity table { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 14px; }
+.parity th, .parity td { padding: 5px 8px; border-top: 1px solid var(--border); text-align: left; vertical-align: top; }
+.parity th { border-top: 0; color: var(--muted); font-weight: 500; }
+.status { padding: 1px 8px; border-radius: 6px; background: var(--ground); color: var(--muted); font-size: 12px; text-transform: uppercase; }
+tr[data-status="green"] .status { background: var(--ok-soft); color: var(--ok); }
+tr[data-status="red"] .status { background: var(--bad-soft); color: var(--bad); }
+.mark[data-mark="yes"] { color: var(--ok); }
+.mark[data-mark="no"] { color: var(--bad); }`;
 
 /**
  * The report as one HTML page, with no script and no external resource.
@@ -299,6 +312,7 @@ export function htmlReport(report: Report): string {
 <h1>${escapeHtml(title)}</h1>
 <p class="muted">${escapeHtml(facts)}</p>
 <p class="muted">${escapeHtml(cache)}</p>
+${htmlParity(report)}
 ${report.results.map(htmlQuestion).join('\n')}
 </main></body>
 </html>

@@ -14,6 +14,7 @@ import type { CacheCounts } from './cache.ts';
 import { parityCases } from './parity-cases.ts';
 import { type Skipped, scoreParity, skippedLine } from './parity-score.ts';
 import { questions } from './questions.ts';
+import { parityLine } from './render-parity.ts';
 import { reportCases } from './report-cases.ts';
 import { isReport, type ReportCaseOutcome, scoreReport } from './report-score.ts';
 import { isRunAnswer, type RunAnswerCaseOutcome, scoreRunAnswer } from './run-answer-score.ts';
@@ -267,7 +268,8 @@ function line({ outcome, score: scored }: Result): string {
 }
 
 /**
- * The report as a table, with the totals.
+ * The report as a table, with the totals, then the parity score when the run has parity
+ * questions, and the questions it skipped.
  *
  * @param report - The report.
  * @returns The text.
@@ -277,12 +279,14 @@ export function summary(report: Report): string {
   const usage = totalUsage(report.results);
   const { build, model } = report.models;
   const models = build ? `${model}, building with ${build}` : model;
+  const parity = parityLine(report);
   return [
     `Evals of ${report.startedAt} on ${models}`,
     '',
     ...report.results.map(line),
     '',
     `${passed} of ${report.results.length} pass · ${tokensOf(usage)} tokens · ${dollars(usage)} at list price`,
+    ...(parity === undefined ? [] : [parity]),
     ...(report.skipped ?? []).map(skippedLine),
     cacheSentence(report.cache),
   ].join('\n');

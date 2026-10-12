@@ -249,6 +249,37 @@ function viewFaults(panel: BuiltShape, expect: ShapeExpectation['view']): string
   return [...kind, ...recipeFaults(panel, expect.recipe), ...fields];
 }
 
+/** What the panel closest to a shape misses, its data apart from its view. */
+export interface ClosestFaults {
+  /** The panel's id. */
+  readonly id: string;
+  /** What its data misses: the data kind asked, aggregations, and operations. */
+  readonly data: readonly string[];
+  /** What its view misses: its kind, its recipe, and the fields it must hold. */
+  readonly view: readonly string[];
+}
+
+/**
+ * The panel that comes closest to a shape, with what it misses.
+ *
+ * @param panels - The panels built.
+ * @param expect - The shape expected.
+ * @returns The panel's id and what it misses; nothing when no panel was built.
+ */
+export function closestFaults(
+  panels: readonly ShapedPanel[],
+  expect: ShapeExpectation,
+): ClosestFaults | undefined {
+  let closest: ClosestFaults | undefined;
+  for (const panel of panels) {
+    const data = dataFaults(panel, expect);
+    const view = viewFaults(panel, expect.view);
+    const fewer = !closest || data.length + view.length < closest.data.length + closest.view.length;
+    if (fewer) closest = { id: panel.id, data, view };
+  }
+  return closest;
+}
+
 /**
  * What the shape misses, read on the panel that comes closest to it: an answer has the shape when
  * one of its panels has all of it.
@@ -258,11 +289,7 @@ function viewFaults(panel: BuiltShape, expect: ShapeExpectation['view']): string
  * @returns The reasons, each starting with the panel's id; none when a panel has the shape.
  */
 export function shapeFaults(panels: readonly ShapedPanel[], expect: ShapeExpectation): string[] {
-  let closest: string[] | undefined;
-  for (const panel of panels) {
-    const reasons = [...dataFaults(panel, expect), ...viewFaults(panel, expect.view)];
-    if (closest === undefined || reasons.length < closest.length)
-      closest = reasons.map((reason) => `${panel.id}: ${reason}`);
-  }
-  return closest ?? [];
+  const closest = closestFaults(panels, expect);
+  if (!closest) return [];
+  return [...closest.data, ...closest.view].map((reason) => `${closest.id}: ${reason}`);
 }

@@ -1,7 +1,9 @@
 /**
  * A run's report in evalmark's result format, so the Evals workflow can record it: each question
  * and case is a case with one trial, its failed expectations are failed checks, and the agent's
- * questions and last words make a short transcript. The provider and models are its labels.
+ * questions and last words make a short transcript. The provider and models are its labels. A
+ * parity question is a case like the others, tagged `parity`; one that was skipped is a case with
+ * a skipped trial, so it shows as neither a pass nor a failure.
  */
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -9,6 +11,8 @@ import { costOf, type TurnUsage } from '@quanthea/shared';
 import type { Case, Result as EvalmarkResult, Message, Trial } from 'evalmark';
 import { alertCases } from './alert-cases.ts';
 import { answerCases } from './answer-cases.ts';
+import { parityCases } from './parity-cases.ts';
+import { type Skipped, skippedLine } from './parity-score.ts';
 import { questions } from './questions.ts';
 import type { EvalOutcome, Report, Result } from './report.ts';
 import { reportCases } from './report-cases.ts';
@@ -19,6 +23,7 @@ type AnyCase = (
   | typeof answerCases
   | typeof alertCases
   | typeof reportCases
+  | typeof parityCases
 )[number];
 
 /**
@@ -36,7 +41,7 @@ function questionOf(each: AnyCase): string {
 
 /** What each question or case asks, by id. */
 const asked: ReadonlyMap<string, string> = new Map(
-  [...questions, ...answerCases, ...alertCases, ...reportCases].map((each) => [
+  [...questions, ...answerCases, ...alertCases, ...reportCases, ...parityCases].map((each) => [
     each.id,
     questionOf(each),
   ]),
@@ -48,6 +53,7 @@ const kinds: readonly (readonly [RegExp, string])[] = [
   [/^al\d/, 'alert'],
   [/^a\d/, 'answer'],
   [/^r\d/, 'report'],
+  [/^f\d/, 'parity'],
 ];
 
 /**
@@ -127,13 +133,13 @@ function trialOf({ outcome, score }: Result): Trial {
 }
 
 /**
- * One question or case.
+ * A question or case with one trial.
  *
- * @param result - Its result.
+ * @param id - Its id.
+ * @param trial - Its trial.
  * @returns The case.
  */
-function caseOf(result: Result): Case {
-  const { id } = result.outcome;
+function caseOf(id: string, trial: Trial): Case {
   const question = asked.get(id);
   const kind = kinds.find(([pattern]) => pattern.test(id))?.[1];
   return {
@@ -141,8 +147,18 @@ function caseOf(result: Result): Case {
     title: question === undefined ? id : `${id}: ${question}`,
     ...(question === undefined ? {} : { input: question }),
     ...(kind === undefined ? {} : { tags: [kind] }),
-    trials: [trialOf(result)],
+    trials: [trial],
   };
+}
+
+/**
+ * The trial of a parity question that was not asked: skipped, with what the world lacks.
+ *
+ * @param skipped - The question and what it lacks.
+ * @returns The trial.
+ */
+function skippedTrial(skipped: Skipped): Trial {
+  return { status: 'skip', output: skippedLine(skipped) };
 }
 
 /**
@@ -159,7 +175,10 @@ export function evalmarkResult(report: Report): EvalmarkResult {
     suite: 'quanthea',
     startedAt: report.startedAt,
     labels: { provider, model: build ?? model, 'talk-model': model },
-    cases: report.results.map(caseOf),
+    cases: [
+      ...report.results.map((result) => caseOf(result.outcome.id, trialOf(result))),
+      ...(report.skipped ?? []).map((skipped) => caseOf(skipped.id, skippedTrial(skipped))),
+    ],
   };
 }
 

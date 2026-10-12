@@ -145,6 +145,49 @@ the schedule in words, the period, the headline panels, the preview, the run's h
 beside the database's, the tools and what the agent said; for `r3` and `r4`, each answer with its
 reads, frozen or not, and its follow-up cards.
 
+## Parity questions
+
+The parity questions (`f01` to `f33`, in `parity-cases.ts`) are dashboard questions about the
+player events of the dev OpenSearch, the index `core_events`. Each asks for one family of panels:
+what the data is and how it is shown, such as a ratio over time or a table with a column coloured
+by steps. `parity-families.ts` lists the families, and a question's id is its family's id.
+
+A question expects the panel of the finished work: the builder asked of the edit tool, the
+aggregations in the search body, the table operations and the view. Most name a builder, an
+operation or a view field that does not exist yet, so they fail until it does. A failing family is
+therefore work still to do, not a regression.
+
+- **The flag.** They run only when `--only` names them: `--only parity` for all of them, or their
+  ids, such as `--only f05,f11`. They need `--search`, and the run stops without it.
+- **Why there are 33.** The other questions stay few, because each tests the agent as a whole.
+  These measure coverage: one question per family, so the set is as long as the list of families.
+  They are 33 beside the 13 other dashboard questions, and each builds a dashboard, which is why
+  a run with no `--only` asks none.
+- **Skipped.** A question that needs what the world lacks, an HTTP connector or a pinned dashboard
+  to link to, is not asked. It is reported as skipped, and counts neither as a pass nor as a
+  failure.
+- **A change names its families.** A change that adds a builder, an operation or a view field
+  names in its commit the families it should turn green. It adds no question, and edits
+  `parity-cases.ts` only to correct an expectation.
+
+The report shows the families in a table, by family id, above the questions:
+
+| Column  | What it shows                                                                               |
+| ------- | ------------------------------------------------------------------------------------------- |
+| Verdict | Green when the question passes, red when it fails, skipped when it was not asked.           |
+| Shape   | Whether one panel gets its data as expected: the builder, the aggregations, the operations. |
+| View    | Whether that panel shows it as expected: the view's kind, its recipe and its fields.        |
+| Why     | What did not hold, or what the world lacks.                                                 |
+
+The two marks are read on the panel that comes closest to the expected shape. A mark is empty when
+the question expects nothing of that part. A family can be red with both marks set: the rest of
+its expectation, such as the panel count or a field of the dashboard, did not hold.
+
+The score reads `Parity: 5 of 31 families green, 26 red, 2 skipped`: the families asked are the
+green and the red ones. It heads the table, and the printed summary ends with it. In
+`evalmark.json` each parity question is a case tagged `parity`, and a skipped one has a skipped
+trial, so the families are recorded over time with the other questions.
+
 ## Run them
 
 ```sh
@@ -156,6 +199,7 @@ GEMINI_API_KEY=… bun run evals --only a1,a2,a3,a4   # the answer cases only
 GEMINI_API_KEY=… bun run evals --only al1,al2,al3,al4   # the alert cases only
 GEMINI_API_KEY=… bun run evals --only r1,r2,r3,r4   # the report cases only
 GEMINI_API_KEY=… bun run evals --search             # with the dev OpenSearch as a connector
+GEMINI_API_KEY=… bun run evals --only parity --search   # the parity questions only
 ```
 
 The dev data tells of an incident yesterday. `bun run env:up` seeds the data again when it was
@@ -165,6 +209,7 @@ yesterday's.
 | Flag                          | What it does                                                                                    |
 | ----------------------------- | ----------------------------------------------------------------------------------------------- |
 | `--only q3,q7`                | Asks only these questions or cases, to work on one failure.                                     |
+| `--only parity`               | Asks the parity questions, `f01` to `f33`. Needs `--search`.                                    |
 | `--provider <name>`           | `google` (the default) or `anthropic`, with its key in `GEMINI_API_KEY` or `ANTHROPIC_API_KEY`. |
 | `--model <id>`                | The model for every job, instead of the provider's suggested pair.                              |
 | `--build-model <id>`          | Another model for building and repairs.                                                         |
@@ -191,7 +236,8 @@ presets split them: on Google, `gemini-3.5-flash-lite` talks, writes titles and 
 `gemini-3.8-flash` builds and repairs; on Anthropic, `claude-haiku-4-5` and `claude-sonnet-5`.
 
 Reports go to `evals/reports/`, which git ignores: an HTML page to read, with each question's
-verdict and why, what the agent asked or said last, and each panel with its query (for an answer
+verdict and why, what the agent asked or said last, and each panel with its query (for the parity
+questions, a table of the families first; for an answer
 case, the answer's text and each read with what it returned; for an alert case, the condition,
 the replay and the tools; for a report case, the schedule, the period, the run's numbers and the
 follow-up cards); the JSON
@@ -211,7 +257,8 @@ when the run breaks, or when more questions fail than `--allow-failures` allows,
 - **One failure at a time.** `--only q3` asks one question.
 - **The full set only when prompts or models change**, not routinely.
 - **A small set.** Stay at 10 to 15 questions. Add one only when a failure surprises you, and grow
-  toward 50 only when you are about to compare models.
+  toward 50 only when you are about to compare models. The parity questions are apart: one per
+  family of panels, asked only when `--only` names them.
 
 Live calls are spaced 4 seconds apart, to stay under the free tier's limit per minute.
 

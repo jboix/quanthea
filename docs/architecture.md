@@ -3474,7 +3474,10 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
   of panels on the player events, and expect the shape of the finished work, so most fail until
   the builder, operation or view they name exists. They run only when `--only parity` or their ids
   name them, with `--search`. One that needs what the world lacks, such as an HTTP connector, is
-  skipped and reported as skipped, never as a failure.
+  skipped and reported as skipped, never as a failure. The report shows them in a table by family
+  id (`evals/render-parity.ts`): green, red or skipped, with a mark for the shape of the data and
+  one for the view, and the count of green families among those asked. The evalmark result holds
+  them as cases tagged `parity`, a skipped one with a skipped trial.
   A run builds the
   server's services on a database of its own, adds the dev Postgres and Prometheus, and, with
   `--search`, the dev OpenSearch as the connector `opensearch-events` (`evals/setup.ts`). It then
