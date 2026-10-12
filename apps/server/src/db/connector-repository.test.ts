@@ -27,6 +27,7 @@ const orders: ConnectorRow = {
   secret: new Uint8Array([1, 2, 3]),
   accessLevel: 2,
   hiddenFields: ['customers.email'],
+  visibility: { showSystem: false, mode: 'except', names: [] },
   guardrails: { timeoutMs: 10_000, maxRows: 50_000, maxRangeDays: 90 },
   descriptions: { orders: 'One row per order attempt.' },
   createdAt: 1000,
@@ -41,6 +42,17 @@ describe('connector repository', () => {
     expect(repository.get(orders.id)).toEqual(orders);
     expect(repository.getByName('postgres-orders')?.id).toBe(orders.id);
     expect(repository.list().map((row) => row.name)).toEqual(['metrics', 'postgres-orders']);
+  });
+
+  test('keeps which objects a connector shows', () => {
+    const repository = createConnectorRepository(database);
+    const visibility: ConnectorRow['visibility'] = {
+      showSystem: true,
+      mode: 'only',
+      names: ['orders', 'logs-*'],
+    };
+    repository.save({ ...orders, visibility });
+    expect(repository.get(orders.id)?.visibility).toEqual(visibility);
   });
 
   test('updates a connector saved again with the same id, keeping its cached schema', () => {

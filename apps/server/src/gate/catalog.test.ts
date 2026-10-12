@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { connectorInputSchema } from '@quanthea/shared';
+import { everythingShown } from '../query/scope/object-scope.ts';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
 import { connectorCatalog, createValueCache } from './catalog.ts';
 import type { ModelEntity } from './model-schema.ts';
@@ -71,6 +72,7 @@ describe('connectorCatalog', () => {
       kind: 'prometheus',
       accessLevel: 2,
       hiddenFields: [],
+      scope: everythingShown,
       descriptions: {},
     },
     language: 'promql',

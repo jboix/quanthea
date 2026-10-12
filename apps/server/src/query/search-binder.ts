@@ -30,6 +30,9 @@ export interface SearchTemplate {
  */
 const indexItem = /^-?[a-z0-9*][a-z0-9_.*+-]{0,254}$/;
 
+/** One index or pattern of a connector that shows its server's own indices: a dot may lead. */
+const systemIndexItem = /^-?[a-z0-9*.][a-z0-9_.*+-]{0,254}$/;
+
 /**
  * A key holding or running a script: one with a word starting with `script`, in snake_case or, once
  * `Script` is split off, camelCase. It matches `script` itself, `_script` sorts, `script_fields`,
@@ -68,15 +71,19 @@ const maxBuckets = 1000;
  * Checks an index expression.
  *
  * @param index - The index, pattern or comma-separated list.
+ * @param showSystem - Whether the connector shows its server's own indices, so a dot may lead.
  * @returns The index.
  * @throws {QueryError} `invalid` for a hidden, system or remote index, or a malformed name.
  */
-function checkIndex(index: string): string {
+function checkIndex(index: string, showSystem: boolean): string {
   const items = index.split(',');
-  if (items[0]?.startsWith('-') || !items.every((item) => indexItem.test(item))) {
+  const shape = showSystem ? systemIndexItem : indexItem;
+  if (items[0]?.startsWith('-') || !items.every((item) => shape.test(item))) {
     throw new QueryError(
       'invalid',
-      'An index is lowercase letters, digits, -, _, . and * patterns, not hidden (.) or system (_) indices.',
+      showSystem
+        ? 'An index is lowercase letters, digits, -, _, . and * patterns, with no remote cluster.'
+        : 'An index is lowercase letters, digits, -, _, . and * patterns, not hidden (.) or system (_) indices.',
     );
   }
   return index;
@@ -293,6 +300,7 @@ function withRangeFormats(node: unknown, parent?: string): unknown {
  * @param template - The index and the body.
  * @param variables - The variable values.
  * @param timeRange - The time range, for `__from`, `__to` and `__interval`.
+ * @param showSystem - Whether the connector shows its server's own indices, so a dot may lead.
  * @returns The bound query.
  * @throws {QueryError} `invalid` for a malformed index, a script, a hidden query, a read of
  *   another index, or an unknown variable.
@@ -301,6 +309,7 @@ export function bindSearch(
   template: SearchTemplate,
   variables: Variables,
   timeRange: TimeRange,
+  showSystem = false,
 ): SearchQuery {
   const builtIns = {
     __from: timeRange.from.toISOString(),
@@ -311,5 +320,5 @@ export function bindSearch(
   const bound = bindJsonVariables(template.body, { variables, builtIns });
   // After binding, so a variable's date and one the query writes itself read the same way.
   const body = withRangeFormats(bound) as SearchQuery['body'];
-  return { language: 'search', index: checkIndex(template.index), body };
+  return { language: 'search', index: checkIndex(template.index, showSystem), body };
 }

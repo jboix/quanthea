@@ -1,5 +1,6 @@
 /** What the gate knows about a connector: its access level, hidden fields and descriptions. */
 import type { AccessLevel } from '@quanthea/shared';
+import type { ObjectScope } from '../query/scope/object-scope.ts';
 
 /** A connector as the gate sees it. */
 export interface GateSubject {
@@ -13,6 +14,8 @@ export interface GateSubject {
   readonly accessLevel: AccessLevel;
   /** `entity.field` or bare `field` entries removed from everything the model receives. */
   readonly hiddenFields: readonly string[];
+  /** Which indices, tables or collections the connector shows: the model never lists another. */
+  readonly scope: ObjectScope;
   /** Admin-written descriptions by `entity` or `entity.field`; they replace the source's. */
   readonly descriptions: Readonly<Record<string, string>>;
 }

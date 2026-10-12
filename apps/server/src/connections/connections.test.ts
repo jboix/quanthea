@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { connectorInputSchema } from '@quanthea/shared';
+import { connectorInputSchema, type ObjectVisibility } from '@quanthea/shared';
 import { ConnectorError, defineConnector } from '../connectors/_shared/index.ts';
 import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
 import { createAuditRepository } from '../db/audit-repository.ts';
@@ -162,6 +162,21 @@ describe('connections', () => {
       { name: 'errors', type: 'integer', hidden: true, modelSees: 'nothing' },
     ]);
     expect(connections.schema(created.id)).toEqual(view);
+    expect(view.entities[0]).toMatchObject({ name: 'events', system: false, shown: true });
+  });
+
+  test('marks the objects a connector does not show, and says so to every reader', async () => {
+    const created = await createEvents();
+    await connections.refreshSchema(created.id, AbortSignal.timeout(1000));
+    const visibility: ObjectVisibility = { showSystem: false, mode: 'except', names: ['events'] };
+    const updated = await connections.update(created.id, { visibility }, 'admin-1');
+    expect(updated.visibility).toEqual(visibility);
+    expect(connections.schema(created.id).entities[0]).toMatchObject({ shown: false });
+    const { source, subject } = await connections.open('events');
+    expect(source.scope).toEqual({ family: 'postgres', visibility });
+    expect(subject.scope).toEqual(source.scope);
+    expect(connections.lookup('events')).toMatchObject({ scope: source.scope });
+    expect(connections.subjects()[0]?.subject.scope).toEqual(source.scope);
   });
 
   test('reports a source that fails to describe itself with its safe message only', async () => {
@@ -226,6 +241,10 @@ describe('connections', () => {
       kind: 'memory',
       accessLevel: 2,
       hiddenFields: ['events.errors'],
+      scope: {
+        family: 'postgres',
+        visibility: { showSystem: false, mode: 'except', names: [] },
+      },
       descriptions: {},
     });
   });

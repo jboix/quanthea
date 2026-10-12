@@ -148,6 +148,7 @@ describe('provisioning connectors', () => {
         secret: { token: 'typed-in-the-interface-01' },
         accessLevel: 1,
         hiddenFields: [],
+        visibility: { showSystem: false, mode: 'except', names: [] },
         guardrails: { timeoutMs: 10_000, maxRows: 50_000, maxRangeDays: 90 },
         descriptions: {},
       },

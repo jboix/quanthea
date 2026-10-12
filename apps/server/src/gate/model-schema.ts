@@ -1,6 +1,10 @@
-/** The schema the model receives: the snapshot minus hidden fields, with metadata by access level. */
+/**
+ * The schema the model receives: the snapshot minus the objects its connector does not show and
+ * the hidden fields, with metadata by access level.
+ */
 import { lowCardinalityLimit } from '@quanthea/shared';
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
+import { showsObject } from '../query/scope/object-scope.ts';
 import { type GateSubject, isWithheldField } from './subject.ts';
 
 /** A field as the model sees it. */
@@ -88,7 +92,8 @@ function modelEntity(subject: GateSubject, entity: SchemaEntity): ModelEntity {
 }
 
 /**
- * The schema the model receives. Hidden fields are removed at every level. Level 1 gets names,
+ * The schema the model receives. The objects the connector does not show are left out, and hidden
+ * fields are removed, at every level. Level 1 gets names,
  * types and descriptions; from level 2 it also gets row estimates and the number of distinct values
  * of fields with few of them.
  *
@@ -97,5 +102,7 @@ function modelEntity(subject: GateSubject, entity: SchemaEntity): ModelEntity {
  * @returns The entities for the model.
  */
 export function modelSchema(subject: GateSubject, snapshot: SchemaSnapshot): ModelEntity[] {
-  return snapshot.entities.map((entity) => modelEntity(subject, entity));
+  return snapshot.entities
+    .filter((entity) => showsObject(subject.scope, entity.name))
+    .map((entity) => modelEntity(subject, entity));
 }

@@ -165,7 +165,7 @@ from `scripts/arch-server-rules.cjs`. The table summarizes them.
 | -------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `lib/`               | errors, logger, ids, the task limiter                       | nothing internal                                                                                                            | everything else                                                                                |
 | `connectors/<kind>/` | talk to one kind of source; return Frames                   | `connectors/_shared`, `lib`, `@quanthea/shared`, its own driver                                                             | other connector kinds, anything else in the app                                                |
-| `query/`             | bind variables, enforce guardrails, run, cache              | `connectors`, `lib`, shared                                                                                                 | everything else                                                                                |
+| `query/`             | bind variables, enforce guardrails and scope, run, cache    | `connectors`, `lib`, shared                                                                                                 | everything else                                                                                |
 | `gate/`              | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                                                                            | everything else                                                                                |
 | `agent/`             | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `settings`, `lib`; types only from `alerts`, `reports`, `usage` and the Dashboards service | everything else, **`connectors`, `query`, `db`** above all                                     |
 | `dashboards/`        | validate, store, pin and run specs                          | `db`, `query`, `lib`, shared; connectors through injected functions                                                         | everything else                                                                                |
@@ -1297,8 +1297,8 @@ metric (label names), at most 80 per connector, with a note to call `describe` f
 From level 2, fields with at most 20 distinct values also list their values, sampled through the
 same gate function as `sample_values`. A Prometheus label is sampled once per connector, since its
 values are counted across metrics. At most 30 fields are sampled per connector, and sampled values
-are kept for ten minutes. Level 1 shows no values and no row counts, and hidden fields never
-appear. The catalog replaces exploring call by call, which cost a model request per step.
+are kept for ten minutes. Level 1 shows no values and no row counts, and hidden fields and the
+objects a connector does not show never appear. The catalog replaces exploring call by call, which cost a model request per step.
 
 A connector with more than 40 tables or metrics is trimmed to what the thread is about
 (`gate/catalog-focus.ts`): the entities whose names, descriptions or field names share words with
@@ -2268,8 +2268,8 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
 ### Query engine (`query/`)
 
 `createQueryExecutor(cache).run(source, request)` runs one template against a connector the caller
-resolved (`QuerySource`: the open instance, its language and SQL dialect, guardrails and a version
-that changes with its settings).
+resolved (`QuerySource`: the open instance, its language and SQL dialect, guardrails, the objects
+the connector shows and a version that changes with its settings).
 
 1. The time range is checked against `maxRangeDays`.
 2. The template is bound for its language (`query/sql-binder.ts`, `query/promql-binder.ts`):
@@ -2334,8 +2334,8 @@ that changes with its settings).
      A `wrapper` query (a body in base64, which could hide a script) is refused, and so is every
      read of another index's documents: a terms lookup (a `terms` field naming an `index`), an
      `indexed_shape`, a `percolate` query, and a `_index` in a `like`, `unlike` or `docs` list.
-     The index is lowercase names and patterns, never a hidden (`.`), system (`_`) or remote (`:`)
-     index.
+     The index is lowercase names and patterns, never a system (`_`) or remote (`:`) index, and a
+     hidden (`.`) one only on a connector that shows its server's own indices.
    - **HTTP** (`query/http-binder.ts`): `$name` in the path becomes its value URL-encoded, one
      value only, so it stays one segment; the path is absolute and holds no `?`, `#`, `\` or
      control character (URL parsing drops tab and newlines, which would join `.` and `.` into a
@@ -2363,18 +2363,93 @@ that changes with its settings).
      sessions, queries, plans or catalog (`$currentOp`, `$queryStats`, `$planCacheStats`,
      `$listCatalog`, `$listClusterCatalog`, `$indexStats`, `$collStats`, `$listSearchIndexes` and
      the rest) is refused anywhere in the pipeline, and so is an operator that runs JavaScript
-     (`$where`, `$function`, `$accumulator`). A collection is never a `system.` one: the pipeline's
-     own, and every collection a stage reads, at any depth (`$lookup.from`, `$graphLookup.from`,
-     `$unionWith`). A `$lookup` or `$unionWith` that names no collection, on `$documents`, passes. A
+     (`$where`, `$function`, `$accumulator`). A collection is a `system.` one only on a connector
+     that shows them: the pipeline's own, and every collection a stage reads, at any depth
+     (`$lookup.from`, `$graphLookup.from`, `$unionWith`). A `$lookup` or `$unionWith` that names no collection, on `$documents`, passes. A
      stage that names another database (`db`) is refused.
-3. The connector runs the bound query with an abort signal that fires at `timeoutMs` or when the
+3. The bound query is checked against the objects the connector shows (`query/scope/`, below). A
+   query that names a hidden object is `invalid` and never reaches the source.
+4. The connector runs the bound query with an abort signal that fires at `timeoutMs` or when the
    caller gives up. The executor also races the signal, so a connector that ignores it cannot hold
-   the caller.
-4. Every frame is checked (`frameProblems`); invalid frames are a connector error.
-5. The frames are cached for 15 seconds by connector, version, refId, bound query and time range.
+   the caller. A search is narrowed first: the source resolves its index expression, and the hidden
+   names a pattern reaches are excluded.
+5. Every frame is checked (`frameProblems`); invalid frames are a connector error.
+6. The frames are cached for 15 seconds by connector, version, refId, bound query and time range.
+   The version changes with the connector's settings, so a cached result never outlives the list
+   it was narrowed with.
 
 Failures are `QueryError`s (`invalid`, `guardrail`, `timeout`, `connector`) with a safe message.
 Injection tests cover every binder, and integration tests run the attacks against the dev sources.
+
+#### The objects a connector shows (`query/scope/`)
+
+A connector's `visibility` says which indices, tables, collections, metrics, keys or endpoints of
+its source it shows: `showSystem` (off by default) and a list of `names` that are hidden (`mode:
+except`, the default) or the only ones shown (`mode: only`). A name is one the schema lists, or a
+pattern where `*` stands for any run of characters (`logs-*`); names compare without case
+(`matchesObjectName` in `@quanthea/shared`). `connections/` turns it into an `ObjectScope`, the
+setting with the naming rules of the kind's language and SQL dialect, and hands the same scope to
+the query engine (`QuerySource.scope`), the gate (`GateSubject.scope`) and the validators
+(`lookup`). So a panel, a variable source, an annotation, a builder, a saved query, an alert, a
+report, a snapshot, Ask and the agent's test runs are all checked by the one `executor.run`, and a
+dashboard, alert or report that names a hidden object is also refused when it is saved
+(`checkBinding`). The connector endpoints carry `visibility`, and the schema view marks each
+entity `system` and `shown`, so an admin sees everything the source has and what is hidden.
+
+System objects are the source's own (`isSystemObject`):
+
+| Source                    | Hidden unless `showSystem`                                                                                            |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Elasticsearch, OpenSearch | Names that start with `.`, and `security-auditlog-*`, `top_queries-*`, `ilm-history-*`.                               |
+| PostgreSQL, TimescaleDB   | `information_schema`, `pg_catalog`, every `pg_*`, `_timescaledb*` and `timescaledb_*` schema, and a bare `pg_*` name. |
+| MySQL, MariaDB            | `information_schema`, `performance_schema`, `mysql`, `sys`.                                                           |
+| ClickHouse                | `system`, `information_schema`.                                                                                       |
+| Trino, InfluxDB           | `information_schema`, `system` (as a catalog or a schema).                                                            |
+| A plugin's SQL (`ansi`)   | `information_schema`.                                                                                                 |
+| MongoDB                   | `system.` collections.                                                                                                |
+| The others                | Nothing: they have no system objects.                                                                                 |
+
+The built-in SQL and MongoDB catalogs never list system objects, so there `showSystem` lets a
+query read them and adds nothing to the schema.
+
+How the objects of a query are known depends on the language (`scope/check.ts`). The check reads
+the bound query, so a variable's value is already in it.
+
+| Language | What is read                                                                                                   | How sure                                                                                                                                                |
+| -------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Search   | Names written in full, from the text; patterns, aliases and data streams, resolved by the server.              | Exact, on the server's own answer.                                                                                                                      |
+| MongoDB  | The pipeline's collection and every `$lookup.from`, `$graphLookup.from` and `$unionWith`, at any depth.        | Exact for collections. A view reads what its definition says.                                                                                           |
+| Redis    | The key: every argument of `MGET` and `EXISTS`, the first argument of the other reads.                         | Exact.                                                                                                                                                  |
+| HTTP     | `METHOD /path`; a `{parameter}` in a listed name stands for any text.                                          | Exact for the request sent. A `{parameter}` also covers deeper paths, so the connector's allowed paths stay the limit.                                  |
+| PromQL   | Metric names: bare, quoted in braces, or `__name__="…"`.                                                       | Exact for names. A selector without a name, or with any other matcher on `__name__`, is refused on a connector that lists names.                        |
+| LogQL    | The one object of a Loki connector, `logs`.                                                                    | Exact, and all or nothing: stream labels are not objects.                                                                                               |
+| SQL      | The names after `FROM`, `JOIN`, a comma of a `FROM` clause and `TABLE`, without the statement's own CTE names. | Best effort. A view, a function, a synonym or the search path reaches a table the text never names. A role that cannot read the table is the guarantee. |
+
+- **Search** (`scope/search-scope.ts`). `ConnectorInstance.resolveObjects` is optional in the kit;
+  the search kinds implement it with `GET /_resolve/index/<expression>?expand_wildcards=open`,
+  which answers the indices, the aliases with the indices behind them, and the data streams. A
+  hidden name the query writes in full is refused. A hidden name a pattern reaches is excluded,
+  appended as `-name`, so `*` on OpenSearch runs as `*,-.plugins-ml-config,-top_queries-…`. An
+  alias is hidden by its own name, by a system index behind it, or by an index behind it that an
+  `except` list names; an `only` list judges it by its own name. A pattern that reaches only
+  hidden names, or more than 50 of them, is refused. The role needs to resolve index names
+  (`view_index_metadata` on Elasticsearch, `indices:admin/resolve/index` on OpenSearch): without
+  it every search fails with the server's refusal, on any connector that hides something, which
+  is every connector by default. A kind without `resolveObjects` gets names checked and patterns
+  refused. An index created between the resolution and the search, a few milliseconds later, is
+  not excluded.
+- **SQL** (`scope/sql-tokens.ts`, `sql-tables.ts`, `sql-scope.ts`). The statement is read as
+  tokens over the dialect's own lexer, so a name in a string or a comment is not a table and a
+  quoted identifier is. An `except` name hides a table however its schema is written: `salaries`
+  hides `public.salaries` and `hr.salaries`. An `only` name shows a table written as the schema
+  lists it, and in PostgreSQL also with `public.` in front. A name a `WITH` clause defines is not
+  a table inside that clause's scope. A function where a table goes is not a table; it is refused
+  when it is a system one (`pg_ls_dir`, `system.query`). The functions that read a table named in
+  text or by pattern are refused on a connector that hides anything: PostgreSQL's `query_to_xml`
+  and `table_to_xml` family and `dblink`, ClickHouse's `merge`, `remote`, `remoteSecure`,
+  `cluster`, `clusterAllReplicas`, `dictionary` and `loop`. A `U&"…"` identifier where a table
+  goes is refused, since its name is written in escapes. The list is not a security boundary for
+  SQL: it keeps the agent on the tables chosen for it.
 
 ### Access gate (`gate/`)
 
@@ -2418,6 +2493,9 @@ model-ready results and never throw.
     points share their times. A series with no row in an hour may be zero there or missing, so
     neither the sum nor the mean over the series is the measure. The instructions of an answer say
     to read the total without the group, or one group at a time.
+- The objects a connector does not show are left out of the schema at every level
+  (`showsObject` in `modelSchema`), so the catalog, `describe`, Ask and Explain never list them,
+  and `sampleForModel` refuses their fields. Queries on them are refused by the query engine.
 - Hidden fields (`entity.field`, or a bare `field`) are removed at every level: from the schema, and
   from results by column name and label name. Names compare without case, and a hidden object
   hides every field under it: a hidden `logs.user` hides `user.email`. Results do not say which
@@ -2533,6 +2611,7 @@ CREATE TABLE connectors (
   secret BLOB NOT NULL,             -- AES-GCM sealed, bound to the connector id
   access_level INTEGER NOT NULL DEFAULT 2 CHECK (access_level BETWEEN 1 AND 4),
   hidden_fields TEXT NOT NULL DEFAULT '[]',
+  visibility TEXT NOT NULL DEFAULT '{}', -- JSON: showSystem, mode (except or only), names
   guardrails TEXT NOT NULL,         -- JSON: timeoutMs, maxRows, maxRangeDays, statements
   descriptions TEXT NOT NULL DEFAULT '{}',
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
@@ -2841,6 +2920,8 @@ every column but `pinned_at`, as the alert and report versions' triggers do, and
 of dashboard versions (`dashboard_layouts`), whose revisions a trigger keeps from being rewritten.
 `0003` shipped in v0.4.0. `0004-quiet-hours-and-connector-visibility.sql` adds `quiet` to the
 changes of state and to the check events of alerts: whether quiet hours held back the message.
+It also adds the connectors' `visibility`; a connector of an earlier release gets `{}`, which
+hides system objects and shows everything else.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite

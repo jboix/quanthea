@@ -158,6 +158,14 @@ describe('bindMongodb', () => {
     expect(() => bind([{ match: {} }])).toThrow(/Stage 1/);
     expect(() => bind([], {}, 'system.users')).toThrow(/collection/);
     expect(() => bind([], {}, 'a/b')).toThrow(/collection/);
+  });
+
+  test('takes a system collection when the connector shows them', () => {
+    const template = { collection: 'system.profile', pipeline: [{ $unionWith: 'system.views' }] };
+    expect(bindMongodb(template, {}, timeRange, true).collection).toBe('system.profile');
+    expect(() => bindMongodb({ ...template, collection: 'a/b' }, {}, timeRange, true)).toThrow(
+      /collection/,
+    );
     expect(() => bind([{ $match: { x: { $var: 'nope' } } }])).toThrow(/Unknown variable/);
   });
 });

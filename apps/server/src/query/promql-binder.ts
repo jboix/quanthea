@@ -8,7 +8,7 @@ import { QueryError } from './query-error.ts';
 import { type Variables, valuesOf } from './variables.ts';
 
 /** A run of PromQL text. */
-interface PromqlSegment {
+export interface PromqlSegment {
   /** `code`, a `string` literal (with its quotes), or a `comment`. */
   readonly kind: 'code' | 'string' | 'comment';
   /** The text. */
@@ -73,7 +73,7 @@ function intervalValue(name: string, variables: Variables): string | undefined {
  * @returns The segments, in order.
  * @throws {QueryError} `invalid` when a string is not closed.
  */
-function splitPromql(text: string): PromqlSegment[] {
+export function splitPromql(text: string): PromqlSegment[] {
   const segments: PromqlSegment[] = [];
   const starts = new RegExp(literalStart.source, 'g');
   let codeStart = 0;

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { everythingShown } from '../query/scope/object-scope.ts';
 import {
   countNarrowedThreads,
   narrowsAccess,
@@ -14,6 +15,7 @@ const subject: GateSubject = {
   kind: 'postgres',
   accessLevel: 4,
   hiddenFields: ['customers.phone'],
+  scope: everythingShown,
   descriptions: {},
 };
 

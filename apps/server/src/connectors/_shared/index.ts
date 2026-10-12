@@ -30,6 +30,7 @@ export {
   type PromqlQuery,
   type QueryLanguage,
   type RedisQuery,
+  type ResolvedObject,
   type SampleResult,
   type SchemaEntity,
   type SchemaField,

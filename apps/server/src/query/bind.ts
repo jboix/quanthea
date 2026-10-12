@@ -29,6 +29,8 @@ export interface BindOptions {
   readonly dialect?: SqlFlavor | undefined;
   /** The most points a PromQL or LogQL series may have, which sets the step. */
   readonly maxPoints?: number;
+  /** Whether the connector shows its source's own objects: dot indices, `system.` collections. */
+  readonly showSystem?: boolean | undefined;
 }
 
 /**
@@ -53,7 +55,7 @@ export function bindTemplate(
     case 'sql':
       return bindSql(template.sql, variables, timeRange, options.dialect ?? 'postgres');
     case 'search':
-      return bindSearch(template, variables, timeRange);
+      return bindSearch(template, variables, timeRange, options.showSystem);
     case 'logql':
       return bindLogql(template, variables, timeRange, maxPoints);
     case 'http':
@@ -61,7 +63,7 @@ export function bindTemplate(
     case 'redis':
       return bindRedis(template, variables, timeRange);
     case 'mongodb':
-      return bindMongodb(template, variables, timeRange);
+      return bindMongodb(template, variables, timeRange, options.showSystem);
     default:
       return bindPromql(template, variables, timeRange, maxPoints);
   }

@@ -43,6 +43,7 @@ export type {
 export type {
   FieldReference,
   HealthReport,
+  ResolvedObject,
   SampleResult,
   SchemaEntity,
   SchemaField,

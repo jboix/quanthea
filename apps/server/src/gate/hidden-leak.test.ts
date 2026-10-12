@@ -4,6 +4,7 @@
  */
 import { describe, expect, test } from 'bun:test';
 import type { Field, Frame } from '@quanthea/shared';
+import { everythingShown } from '../query/scope/object-scope.ts';
 import { modelAlertCheck, modelAlertReplay } from './alert-view.ts';
 import type { GateSubject } from './subject.ts';
 import { modelPanelResult, modelTestResult } from './test-run.ts';
@@ -150,6 +151,7 @@ function subjectFor(each: HiddenCase, accessLevel: 2 | 3 | 4): GateSubject {
     kind: each.kind,
     accessLevel,
     hiddenFields: [each.hiddenField, 'owner'],
+    scope: everythingShown,
     descriptions: {},
   };
 }
@@ -180,6 +182,7 @@ describe.each([2, 3, 4] as const)('at level %i', (accessLevel) => {
       kind: 'elasticsearch',
       accessLevel,
       hiddenFields: ['owner', 'logs.user'],
+      scope: everythingShown,
       descriptions: {},
     };
     const labels = { OWNER: secret, 'user.email': secret, service: 'checkout' };
@@ -198,6 +201,7 @@ test('a replay never shows a hidden label, whatever its case or nesting', () => 
     kind: 'elasticsearch',
     accessLevel: 4,
     hiddenFields: ['owner', 'logs.user'],
+    scope: everythingShown,
     descriptions: {},
   };
   const series = {

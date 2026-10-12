@@ -7,6 +7,7 @@ import type { Frame } from '@quanthea/shared';
 import { ConnectorError, type ConnectorInstance } from '../connectors/_shared/index.ts';
 import { createQueryExecutor, type QuerySource } from '../query/executor.ts';
 import { createResultCache } from '../query/result-cache.ts';
+import { everythingShown } from '../query/scope/object-scope.ts';
 import type { GateSubject } from './subject.ts';
 import { testQueryForModel } from './test-run.ts';
 
@@ -60,6 +61,7 @@ function sourceReturning(outcome: Frame[] | ConnectorError): QuerySource {
   const unused = () => Promise.reject(new Error('unused'));
   return {
     connectorId: 'c',
+    scope: everythingShown,
     version: 1,
     language: 'sql',
     instance: {
@@ -87,6 +89,7 @@ describe.each([1, 2] as const)('level %i never leaks a value', (accessLevel) => 
     kind: 'postgres',
     accessLevel,
     hiddenFields: [],
+    scope: everythingShown,
     descriptions: {},
   };
 

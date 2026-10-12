@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { AccessLevel } from '@quanthea/shared';
 import { ConnectorError, type ConnectorInstance } from '../connectors/_shared/index.ts';
 import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
+import { everythingShown, type ObjectScope, scopeOf } from '../query/scope/object-scope.ts';
 import { sampleForModel } from './sample.ts';
 
 const instance = memoryConnector.open({ config: { rowCount: 5 }, secret: { token: 't' } });
@@ -16,7 +17,12 @@ const service = { entity: 'events', field: 'service' };
  */
 function sampleAt(
   accessLevel: AccessLevel,
-  options: { hiddenFields?: string[]; limit?: number; from?: ConnectorInstance } = {},
+  options: {
+    hiddenFields?: string[];
+    limit?: number;
+    from?: ConnectorInstance;
+    scope?: ObjectScope;
+  } = {},
 ) {
   const subject = {
     id: 'c-memory',
@@ -24,6 +30,7 @@ function sampleAt(
     kind: 'memory',
     accessLevel,
     hiddenFields: options.hiddenFields ?? [],
+    scope: options.scope ?? everythingShown,
     descriptions: {},
   };
   return sampleForModel(
@@ -75,6 +82,18 @@ describe('sampleForModel', () => {
     };
     await sampleAt(2, { limit: 10_000, from: counting });
     expect(asked).toBe(50);
+  });
+
+  test('refuses a field of an object the connector does not show', async () => {
+    const scope = scopeOf(
+      { showSystem: false, mode: 'except', names: ['events'] },
+      'sql',
+      'postgres',
+    );
+    expect(await sampleAt(4, { scope })).toEqual({
+      ok: false,
+      error: 'memory does not show events.',
+    });
   });
 
   test('gives only the safe message of a connector error', async () => {

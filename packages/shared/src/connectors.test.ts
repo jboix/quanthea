@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { guardrailsSchema } from './connectors.ts';
+import {
+  guardrailsSchema,
+  listShowsObject,
+  matchesObjectName,
+  objectVisibilitySchema,
+} from './connectors.ts';
 
 /**
  * The messages of the issues a guardrails value raises.
@@ -31,5 +36,40 @@ describe('guardrailsSchema', () => {
       'Use a number.',
       'Use a whole number.',
     ]);
+  });
+});
+
+describe('matchesObjectName', () => {
+  test('compares a plain name whole and without case', () => {
+    expect(matchesObjectName('Orders', 'orders')).toBe(true);
+    expect(matchesObjectName('orders', 'orders_archive')).toBe(false);
+  });
+
+  test('lets a star stand for any run of characters, dots included', () => {
+    expect(matchesObjectName('logs-*', 'logs-2026.10.12')).toBe(true);
+    expect(matchesObjectName('logs-*', 'logs')).toBe(false);
+    expect(matchesObjectName('*', 'anything')).toBe(true);
+    expect(matchesObjectName('analytics.*', 'analytics.events')).toBe(true);
+    expect(matchesObjectName('*-audit-*', 'security-audit-2026')).toBe(true);
+    expect(matchesObjectName('a*b*c', 'a-b')).toBe(false);
+    expect(matchesObjectName('ab*ba', 'aba')).toBe(false);
+  });
+});
+
+describe('listShowsObject', () => {
+  test('an except list hides its names and shows the rest', () => {
+    const visibility = { mode: 'except', names: ['logs-secret-*'] } as const;
+    expect(listShowsObject(visibility, 'logs-secret-1')).toBe(false);
+    expect(listShowsObject(visibility, 'logs-app-1')).toBe(true);
+  });
+
+  test('an only list shows its names and hides the rest', () => {
+    const visibility = { mode: 'only', names: ['orders', 'logs-*'] } as const;
+    expect(listShowsObject(visibility, 'orders')).toBe(true);
+    expect(listShowsObject(visibility, 'customers')).toBe(false);
+  });
+
+  test('an empty except list shows everything', () => {
+    expect(listShowsObject(objectVisibilitySchema.parse({}), 'orders')).toBe(true);
   });
 });

@@ -62,3 +62,11 @@ export interface SampleResult {
   /** `false` when the field has more distinct values than were requested. */
   readonly complete: boolean;
 }
+
+/** One thing an expression of names and patterns reaches, as the source resolves it now. */
+export interface ResolvedObject {
+  /** The name, as the source has it: an index, an alias, a data stream. */
+  readonly name: string;
+  /** For a name that stands for others, such as an alias: the objects behind it. */
+  readonly members?: readonly string[];
+}

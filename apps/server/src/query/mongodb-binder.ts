@@ -28,6 +28,9 @@ export interface MongodbTemplate {
 /** A collection name: no system collection, no namespace tricks. */
 const collectionName = /^(?!system\.)[A-Za-z0-9_][A-Za-z0-9_.-]{0,119}$/;
 
+/** A collection name of a connector that shows its database's `system.` collections. */
+const anyCollectionName = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,119}$/;
+
 /** The stages that read another collection, with the key of their object that names it. */
 const foreignKeys: ReadonlyMap<string, string> = new Map([
   ['$lookup', 'from'],
@@ -51,10 +54,11 @@ function collectionError(): QueryError {
  * Checks a collection name.
  *
  * @param name - The name, as the query gives it.
- * @throws {QueryError} `invalid` for anything but a name that is not a system collection.
+ * @param shape - What a name may be: {@link collectionName}, or {@link anyCollectionName}.
+ * @throws {QueryError} `invalid` for anything but a name of that shape.
  */
-function checkCollection(name: unknown): void {
-  if (typeof name !== 'string' || !collectionName.test(name)) throw collectionError();
+function checkCollection(name: unknown, shape: RegExp): void {
+  if (typeof name !== 'string' || !shape.test(name)) throw collectionError();
 }
 
 /**
@@ -64,31 +68,33 @@ function checkCollection(name: unknown): void {
  *
  * @param key - The key, such as `$lookup`.
  * @param value - Its value.
+ * @param shape - What a collection name may be.
  * @throws {QueryError} `invalid` for a system collection, a malformed name or another database.
  */
-function checkForeign(key: string, value: unknown): void {
+function checkForeign(key: string, value: unknown, shape: RegExp): void {
   if (key === '$unionWith' && typeof value === 'string') {
-    checkCollection(value);
+    checkCollection(value, shape);
     return;
   }
   const field = foreignKeys.get(key);
   if (field === undefined || value === null || typeof value !== 'object') return;
   if ('db' in value) throw collectionError();
   if (!(field in value)) return;
-  checkCollection((value as Readonly<Record<string, unknown>>)[field]);
+  checkCollection((value as Readonly<Record<string, unknown>>)[field], shape);
 }
 
 /**
  * Checks every collection a bound pipeline reads, in nested pipelines too.
  *
  * @param node - The pipeline or a part of it.
+ * @param shape - What a collection name may be.
  * @throws {QueryError} `invalid` for a system collection, a malformed name or another database.
  */
-function checkCollections(node: unknown): void {
+function checkCollections(node: unknown, shape: RegExp): void {
   if (node === null || typeof node !== 'object') return;
   for (const [key, value] of Object.entries(node)) {
-    checkForeign(key, value);
-    checkCollections(value);
+    checkForeign(key, value, shape);
+    checkCollections(value, shape);
   }
 }
 
@@ -177,6 +183,7 @@ function builtInsOf(timeRange: TimeRange): Readonly<Record<string, unknown>> {
  * @param template - The collection and the pipeline.
  * @param variables - The variable values.
  * @param timeRange - The time range, for `__from`, `__to` and `__interval_ms`.
+ * @param showSystem - Whether the connector shows its database's `system.` collections.
  * @returns The bound query.
  * @throws {QueryError} `invalid` for a malformed or system collection, read first or by a stage, a
  *   malformed stage, a refused key, or an unknown variable.
@@ -185,8 +192,10 @@ export function bindMongodb(
   template: MongodbTemplate,
   variables: Variables,
   timeRange: TimeRange,
+  showSystem = false,
 ): MongodbQuery {
-  checkCollection(template.collection);
+  const shape = showSystem ? anyCollectionName : collectionName;
+  checkCollection(template.collection, shape);
   checkStages(template.pipeline);
   const { pipeline } = bindJsonVariables(
     { pipeline: template.pipeline },
@@ -198,6 +207,6 @@ export function bindMongodb(
       placeValue,
     },
   ) as { pipeline: Record<string, unknown>[] };
-  checkCollections(pipeline);
+  checkCollections(pipeline, shape);
   return { language: 'mongodb', collection: template.collection, pipeline };
 }

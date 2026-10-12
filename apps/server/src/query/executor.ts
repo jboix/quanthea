@@ -14,6 +14,9 @@ import { bindTemplate, maxPromqlPoints, type QueryTemplate } from './bind.ts';
 import { checkTimeRange } from './guardrails.ts';
 import { QueryError } from './query-error.ts';
 import type { ResultCache } from './result-cache.ts';
+import { checkScope } from './scope/check.ts';
+import type { ObjectScope } from './scope/object-scope.ts';
+import { narrowSearch } from './scope/search-scope.ts';
 import type { SqlFlavor } from './sql-dialects.ts';
 import type { Variables } from './variables.ts';
 
@@ -31,6 +34,8 @@ export interface QuerySource {
   readonly instance: ConnectorInstance;
   /** The connector's guardrails. */
   readonly guardrails: Guardrails;
+  /** Which of the source's objects the connector shows: a query on another is refused. */
+  readonly scope: ObjectScope;
 }
 
 /** One query to run. */
@@ -74,12 +79,13 @@ function wrongLanguage(spoken: string, written: string): string {
 }
 
 /**
- * Binds a template for its language.
+ * Binds a template for its language and checks the objects it names.
  *
  * @param source - The connector.
  * @param request - The query.
  * @returns The bound query.
- * @throws {QueryError} `invalid` when the template is in another language or does not bind.
+ * @throws {QueryError} `invalid` when the template is in another language, does not bind, or
+ *   names an object the connector does not show.
  */
 function bind(source: QuerySource, request: QueryRequest): BoundQuery {
   const { template } = request;
@@ -87,10 +93,13 @@ function bind(source: QuerySource, request: QueryRequest): BoundQuery {
     throw new QueryError('invalid', wrongLanguage(source.language, template.language));
   }
   const maxPoints = Math.min(source.guardrails.maxRows, maxPromqlPoints);
-  return bindTemplate(template, request.variables, request.timeRange, {
+  const bound = bindTemplate(template, request.variables, request.timeRange, {
     dialect: source.dialect,
     maxPoints,
+    showSystem: source.scope.visibility.showSystem,
   });
+  checkScope(source.scope, bound, source.dialect);
+  return bound;
 }
 
 /**
@@ -111,20 +120,50 @@ function whenAborted(signal: AbortSignal): Promise<never> {
   });
 }
 
+/** A bound query as it ran, and its frames. */
+interface Ran {
+  /** The query the connector received. */
+  readonly bound: BoundQuery;
+  /** The frames. */
+  readonly frames: Frame[];
+}
+
+/**
+ * The query the connector receives: a search loses the indices its connector does not show, which
+ * the source resolves first, so a pattern cannot reach them.
+ *
+ * @param source - The connector.
+ * @param bound - The bound query.
+ * @param signal - Aborted on timeout or when the caller gives up.
+ * @returns The query to execute.
+ */
+async function narrowed(
+  source: QuerySource,
+  bound: BoundQuery,
+  signal: AbortSignal,
+): Promise<BoundQuery> {
+  if (bound.language !== 'search') return bound;
+  return Promise.race([
+    narrowSearch(source.scope, bound, source.instance, signal),
+    whenAborted(signal),
+  ]);
+}
+
 /**
  * Runs a bound query with the timeout and checks the frames.
  *
  * @param source - The connector.
  * @param request - The query.
  * @param bound - The bound query.
- * @returns The frames.
- * @throws {QueryError} `timeout`, or `connector` wrapping the connector's error or invalid frames.
+ * @returns The query the connector received and its frames.
+ * @throws {QueryError} `invalid` for a search on indices the connector does not show, `timeout`,
+ *   or `connector` wrapping the connector's error or invalid frames.
  */
 async function runBound(
   source: QuerySource,
   request: QueryRequest,
   bound: BoundQuery,
-): Promise<Frame[]> {
+): Promise<Ran> {
   const { timeoutMs, maxRows } = source.guardrails;
   const signals = [AbortSignal.timeout(timeoutMs), ...(request.signal ? [request.signal] : [])];
   const signal = AbortSignal.any(signals);
@@ -136,14 +175,15 @@ async function runBound(
     timeRange: request.timeRange,
   };
   try {
+    const query = await narrowed(source, bound, signal);
     const frames = await Promise.race([
-      source.instance.execute(bound, context),
+      source.instance.execute(query, context),
       whenAborted(signal),
     ]);
     const problems = frames.flatMap((frame) => frameProblems(frame));
     if (problems.length > 0)
       throw new ConnectorError('internal', `The connector returned invalid frames: ${problems[0]}`);
-    return frames;
+    return { bound: query, frames };
   } catch (error) {
     throw toQueryError(error);
   }
@@ -199,9 +239,9 @@ export function createQueryExecutor(cache: ResultCache): QueryExecutor {
       ]);
       const cached = cache.get(key);
       if (cached) return { frames: cached, bound, cached: true };
-      const frames = await runBound(source, request, bound);
-      cache.set(key, frames);
-      return { frames, bound, cached: false };
+      const ran = await runBound(source, request, bound);
+      cache.set(key, ran.frames);
+      return { frames: ran.frames, bound: ran.bound, cached: false };
     },
   };
 }

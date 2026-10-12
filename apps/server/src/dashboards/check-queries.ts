@@ -16,6 +16,7 @@ import { bindTemplate } from '../query/bind.ts';
 import type { QuerySource } from '../query/executor.ts';
 import { checkTimeRange } from '../query/guardrails.ts';
 import { QueryError } from '../query/query-error.ts';
+import { checkScope } from '../query/scope/check.ts';
 import type { Variables } from '../query/variables.ts';
 import type { SpecIssue } from './issues.ts';
 
@@ -27,6 +28,8 @@ export interface ConnectorFacts {
   readonly dialect?: QuerySource['dialect'];
   /** Its guardrails. */
   readonly guardrails: Guardrails;
+  /** Which objects it shows; a query that names another is an issue. Not checked when absent. */
+  readonly scope?: QuerySource['scope'] | undefined;
 }
 
 /** A connector whose kind is not offered, because the plugin that added it is gone. */
@@ -89,7 +92,8 @@ function sampleBinding(variable: Variable) {
 }
 
 /**
- * Checks that a template binds with the declared variables.
+ * Checks that a template binds with the declared variables, and names no object its connector
+ * hides.
  *
  * @param located - The query and its path.
  * @param connector - The query's connector.
@@ -106,7 +110,10 @@ export function checkBinding(
   const { query, path } = located;
   const range = { from: new Date(timeRange.from), to: new Date(timeRange.to) };
   try {
-    bindTemplate(query, variables, range, { dialect: connector.dialect });
+    const { dialect, scope } = connector;
+    const showSystem = scope?.visibility.showSystem;
+    const bound = bindTemplate(query, variables, range, { dialect, showSystem });
+    if (scope) checkScope(scope, bound, dialect);
     return [];
   } catch (error) {
     if (!(error instanceof QueryError)) throw error;

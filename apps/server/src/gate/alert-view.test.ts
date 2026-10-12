@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { AccessLevel } from '@quanthea/shared';
+import { everythingShown } from '../query/scope/object-scope.ts';
 import { modelAlertCheck, modelAlertReplay, replayRefusal } from './alert-view.ts';
 import type { GateSubject } from './subject.ts';
 
@@ -16,6 +17,7 @@ function subject(accessLevel: AccessLevel): GateSubject {
     kind: 'prometheus',
     accessLevel,
     hiddenFields: ['owner'],
+    scope: everythingShown,
     descriptions: {},
   };
 }

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import type { AccessLevel } from '@quanthea/shared';
+import type { AccessLevel, ObjectVisibility } from '@quanthea/shared';
 import type { SchemaSnapshot } from '../connectors/_shared/index.ts';
+import { everythingShown, scopeOf } from '../query/scope/object-scope.ts';
 import { modelSchema } from './model-schema.ts';
 import type { GateSubject } from './subject.ts';
 
@@ -34,6 +35,7 @@ function subjectAt(accessLevel: AccessLevel): GateSubject {
     kind: 'postgres',
     accessLevel,
     hiddenFields: ['customers.email', 'phone'],
+    scope: everythingShown,
     descriptions: { customers: 'Shop customers.' },
   };
 }
@@ -105,5 +107,37 @@ describe('modelSchema', () => {
     const subject = { ...subjectAt(3), hiddenFields: ['logs.user.email'] };
     const names = modelSchema(subject, logs)[0]?.fields.map((field) => field.name);
     expect(names).toEqual(['user.name', 'username']);
+  });
+});
+
+describe('modelSchema and the objects a connector shows', () => {
+  const indices: SchemaSnapshot = {
+    entities: ['.plugins-ml-config', 'core_events', 'logs-*', 'top_queries-2026.10.12-59492'].map(
+      (name) => ({ name, kind: 'index' as const, fields: [] }),
+    ),
+  };
+
+  /**
+   * The index names the model gets with a visibility.
+   *
+   * @param visibility - What differs from the default.
+   * @returns The names.
+   */
+  function shownWith(visibility: Partial<ObjectVisibility>): string[] {
+    const scope = scopeOf(
+      { showSystem: false, mode: 'except', names: [], ...visibility },
+      'search',
+    );
+    return modelSchema({ ...subjectAt(2), scope }, indices).map((entity) => entity.name);
+  }
+
+  test("leaves out the source's own objects unless the connector shows them", () => {
+    expect(shownWith({})).toEqual(['core_events', 'logs-*']);
+    expect(shownWith({ showSystem: true })).toHaveLength(4);
+  });
+
+  test("leaves out the names an except list hides, and all but an only list's", () => {
+    expect(shownWith({ names: ['logs-*'] })).toEqual(['core_events']);
+    expect(shownWith({ mode: 'only', names: ['logs-*', '.plugins-*'] })).toEqual(['logs-*']);
   });
 });

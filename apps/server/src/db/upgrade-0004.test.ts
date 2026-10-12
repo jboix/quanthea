@@ -1,13 +1,15 @@
 /**
- * The fourth migration, run on a database of the release before it holding real rows: an alert's
- * history is kept, and none of it says quiet hours held a notification back.
+ * The migration that follows the last release, run on a database of that release holding real
+ * rows: the upgrade keeps the data working. An alert's history is kept, and none of it says quiet
+ * hours held a notification back.
  */
 import type { Database } from 'bun:sqlite';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { copyFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { temporaryDir } from '../test/fixtures.ts';
 import { createAlertStateRepository } from './alert-state-repository.ts';
+import { createConnectorRepository } from './connector-repository.ts';
 import { openDatabase } from './database.ts';
 import { runMigrations } from './migrate.ts';
 
@@ -72,4 +74,26 @@ test('an alert keeps its history, with nothing held back by quiet hours', () => 
   expect(states.checkEvents('a', 5)).toEqual([
     { kind: 'error', at: 6, reason: 'timeout', notified: false, quiet: false },
   ]);
+});
+
+describe('the connectors after the upgrade', () => {
+  test('keep their settings, hide system objects and show everything else', () => {
+    const migrationsDir = releasedDatabase();
+    database.run(
+      `INSERT INTO connectors (id, name, kind, config, secret, access_level, hidden_fields,
+         guardrails, descriptions, created_at, updated_at)
+       VALUES ('c1', 'logs', 'opensearch', '{"url":"http://search:9200"}', x'0102', 3,
+         '["logs.user.email"]', '{"timeoutMs":5000,"maxRows":100,"maxRangeDays":7}', '{}', 1, 2)`,
+    );
+    copyFileSync(join(shipped, upgrade), join(migrationsDir, upgrade));
+    expect(runMigrations(database, migrationsDir)).toEqual([upgrade]);
+    const repository = createConnectorRepository(database);
+    expect(repository.get('c1')).toMatchObject({
+      name: 'logs',
+      accessLevel: 3,
+      hiddenFields: ['logs.user.email'],
+      guardrails: { timeoutMs: 5000, maxRows: 100, maxRangeDays: 7 },
+      visibility: { showSystem: false, mode: 'except', names: [] },
+    });
+  });
 });

@@ -13,7 +13,13 @@ import {
   sqlPlaceholderStyles,
   sqlRowLimits,
 } from './queries.ts';
-import type { FieldReference, HealthReport, SampleResult, SchemaSnapshot } from './schema.ts';
+import type {
+  FieldReference,
+  HealthReport,
+  ResolvedObject,
+  SampleResult,
+  SchemaSnapshot,
+} from './schema.ts';
 
 /**
  * An open connection to one source. The core calls it only with bound queries and guardrails it has
@@ -54,6 +60,18 @@ export interface ConnectorInstance {
    * @throws {ConnectorError} When the query fails, times out or is aborted.
    */
   execute(query: BoundQuery, context: ExecutionContext): Promise<Frame[]>;
+  /**
+   * Resolves an expression of names and patterns, such as a search query's `logs-*,metrics`, to
+   * what it reaches now. Only a kind whose queries take patterns needs it: the core calls it
+   * before such a query runs, to keep the query off the objects the connector does not show.
+   * Without it, the core refuses a pattern on a connector that hides anything.
+   *
+   * @param expression - The names and patterns, as the query gives them.
+   * @param signal - Aborted when the caller gives up.
+   * @returns Everything the expression reaches: nothing for a pattern that matches nothing.
+   * @throws {ConnectorError} When the source cannot resolve it.
+   */
+  resolveObjects?(expression: string, signal: AbortSignal): Promise<ResolvedObject[]>;
   /**
    * Releases pooled connections. The core calls it when the connector is changed or deleted.
    *

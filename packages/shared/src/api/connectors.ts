@@ -7,6 +7,7 @@ import {
   descriptionsSchema,
   guardrailsSchema,
   hiddenFieldsSchema,
+  objectVisibilitySchema,
 } from '../connectors.ts';
 import { defineEndpoint } from './contract.ts';
 
@@ -60,6 +61,8 @@ export const connectorDetailSchema = connectorSummarySchema.extend({
   target: z.string().nullable(),
   secret: z.record(z.string(), z.string()),
   hiddenFields: hiddenFieldsSchema,
+  /** Which indices, tables or collections the connector shows. */
+  visibility: objectVisibilitySchema,
   guardrails: guardrailsSchema,
   descriptions: descriptionsSchema,
   createdAt: z.number(),
@@ -76,6 +79,7 @@ export const connectorInputSchema = z.object({
   secret: z.record(z.string(), z.unknown()),
   accessLevel: accessLevelSchema.default(2),
   hiddenFields: hiddenFieldsSchema.default([]),
+  visibility: objectVisibilitySchema.prefault({}),
   guardrails: guardrailsSchema.prefault({}),
   descriptions: descriptionsSchema.default({}),
 });
@@ -87,6 +91,7 @@ export const connectorPatchSchema = z.object({
   secret: z.record(z.string(), z.unknown()).optional(),
   accessLevel: accessLevelSchema.optional(),
   hiddenFields: hiddenFieldsSchema.optional(),
+  visibility: objectVisibilitySchema.optional(),
   guardrails: guardrailsSchema.optional(),
   descriptions: descriptionsSchema.optional(),
 });
@@ -120,6 +125,10 @@ const schemaViewEntitySchema = z.object({
   description: z.string().optional(),
   adminDescription: z.string().optional(),
   rows: z.number().optional(),
+  /** Whether it is one of the source's own objects, hidden unless the connector shows them. */
+  system: z.boolean(),
+  /** Whether the connector shows it: the model lists it and queries may read it. */
+  shown: z.boolean(),
   fields: z.array(schemaViewFieldSchema),
 });
 

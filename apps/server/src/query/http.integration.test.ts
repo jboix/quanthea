@@ -7,6 +7,7 @@ import {
 import { httpConnector } from '../connectors/http/http-connector.ts';
 import { createQueryExecutor, type QuerySource } from './executor.ts';
 import { createResultCache } from './result-cache.ts';
+import { everythingShown } from './scope/object-scope.ts';
 
 const incident = devIncidentStart();
 const timeRange = {
@@ -21,6 +22,7 @@ describe.skipIf(!integrationFor('http'))('HTTP templates through the executor', 
   });
   const source: QuerySource = {
     connectorId: 'api',
+    scope: everythingShown,
     version: 1,
     language: 'http',
     instance,

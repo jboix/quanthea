@@ -164,6 +164,7 @@ connectors:
       password: ${ORDERS_DB_PASSWORD}
     accessLevel: 3
     hiddenFields: [customers.email, customers.phone]
+    visibility: { mode: except, names: [salaries, audit.*] }
     guardrails: { timeoutMs: 15000, maxRows: 100000, maxRangeDays: 180 }
     descriptions:
       orders: One row per checkout attempt, paid or not.
@@ -180,8 +181,14 @@ connectors:
 | `secret`       | none    | The credentials, each a secret reference.                                                                                                                                                        |
 | `accessLevel`  | `2`     | 1 schema only, 2 schema and metadata, 3 aggregates, 4 full access.                                                                                                                               |
 | `hiddenFields` | `[]`    | Fields the model never sees: `table.column`, a bare `column`, or a dotted path into a nested field (`logs.user.email`). Names match in any case, and a hidden object hides every field under it. |
+| `visibility`   | below   | Which tables, indices or collections the connector shows. See [what a connector shows](guide/data-sources.md#what-a-connector-shows).                                                            |
 | `guardrails`   | below   | `timeoutMs` 10000, `maxRows` 50000, `maxRangeDays` 90.                                                                                                                                           |
 | `descriptions` | `{}`    | Descriptions of tables and columns, read by the model.                                                                                                                                           |
+
+`visibility` has three fields. `showSystem` (`false`) shows the source's own objects, such as dot
+indices or `pg_catalog`. `names` (`[]`) lists names as the schema has them, or patterns such as
+`logs-*`. `mode` says how the list reads: `except` (the default) hides the names, `only` shows
+nothing else.
 
 `config` is stored in clear. A URL in it must not hold a username or a password, even from a
 variable, and a host field must not hold `@`: put the username in the kind's `username` field and the password in `secret`.

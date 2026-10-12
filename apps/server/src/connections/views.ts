@@ -8,6 +8,7 @@ import {
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
 import type { ConnectorRow } from '../db/connector-repository.ts';
 import { type GateSubject, isHiddenField, isWithheldField } from '../gate/subject.ts';
+import { isSystemObject, type ObjectScope, showsObject } from '../query/scope/object-scope.ts';
 import { maskSecret } from '../secrets/mask.ts';
 
 /**
@@ -54,6 +55,7 @@ export function toDetail(
     target,
     secret: masked,
     hiddenFields: [...row.hiddenFields],
+    visibility: { ...row.visibility, names: [...row.visibility.names] },
     guardrails: row.guardrails,
     descriptions: { ...row.descriptions },
     createdAt: row.createdAt,
@@ -64,15 +66,17 @@ export function toDetail(
  * The gate subject of a stored connector.
  *
  * @param row - The stored connector.
+ * @param scope - Which objects it shows, by its kind's naming rules.
  * @returns The subject.
  */
-export function toSubject(row: ConnectorRow): GateSubject {
+export function toSubject(row: ConnectorRow, scope: ObjectScope): GateSubject {
   return {
     id: row.id,
     name: row.name,
     kind: row.kind,
     accessLevel: row.accessLevel,
     hiddenFields: row.hiddenFields,
+    scope,
     descriptions: row.descriptions,
   };
 }
@@ -110,6 +114,8 @@ function entityView(subject: GateSubject, entity: SchemaEntity): SchemaView['ent
     ...(entity.description === undefined ? {} : { description: entity.description }),
     ...(adminDescription === undefined ? {} : { adminDescription }),
     ...(entity.rowEstimate === undefined ? {} : { rows: entity.rowEstimate }),
+    system: isSystemObject(subject.scope.family, entity.name),
+    shown: showsObject(subject.scope, entity.name),
     fields: entity.fields.map((field) => {
       const fieldAdminDescription = subject.descriptions[`${entity.name}.${field.name}`];
       return {
@@ -126,20 +132,19 @@ function entityView(subject: GateSubject, entity: SchemaEntity): SchemaView['ent
 }
 
 /**
- * The schema of a connector as admins see it: every field, hidden ones marked, and what the model
- * gets of each.
+ * The schema of a connector as admins see it: every object, with whether the connector shows it,
+ * and every field, hidden ones marked, with what the model gets of each.
  *
- * @param row - The stored connector.
+ * @param subject - The connector, as the gate sees it.
  * @param snapshot - The cached snapshot, if the schema was ever read.
  * @param readAt - When it was read.
  * @returns The schema view.
  */
 export function toSchemaView(
-  row: ConnectorRow,
+  subject: GateSubject,
   snapshot: SchemaSnapshot | undefined,
   readAt: number | null,
 ): SchemaView {
-  const subject = toSubject(row);
   return {
     readAt,
     entities: (snapshot?.entities ?? []).map((entity) => entityView(subject, entity)),

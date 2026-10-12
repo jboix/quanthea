@@ -8,6 +8,7 @@ import {
 import { prometheusConnector } from '../connectors/prometheus/prometheus-connector.ts';
 import { createQueryExecutor, type QuerySource } from '../query/executor.ts';
 import { createResultCache } from '../query/result-cache.ts';
+import { everythingShown } from '../query/scope/object-scope.ts';
 import { replayAlert } from './replay.ts';
 
 const minute = 60_000;
@@ -20,6 +21,7 @@ describe.skipIf(!integrationEnabled)('replaying an alert against the dev Prometh
   });
   const source: QuerySource = {
     connectorId: 'prom',
+    scope: everythingShown,
     version: 1,
     language: 'promql',
     instance: prometheus,

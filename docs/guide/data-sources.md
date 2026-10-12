@@ -89,6 +89,47 @@ The count and the mark follow the model's tool calls. The model also gets a shor
 values with each question, read at the access in force then. An earlier answer that quoted one of
 those values, with no tool call, is not counted or marked.
 
+### What a connector shows
+
+A connector shows the model, and lets queries read, what the source's credentials can read, with
+two limits you set. They are in the [configuration file](../configuration.md#connectors) and the
+API, as `visibility`.
+
+- **System objects are hidden.** They are the source's own: on Elasticsearch and OpenSearch the
+  indices whose name starts with a dot and the security audit, query insight and lifecycle history
+  indices; on a SQL source `information_schema` and the server's catalogs (`pg_catalog`,
+  `performance_schema`, `mysql`, `sys`, `system`); on MongoDB the `system.` collections. Set
+  `showSystem` to show them.
+- **A list of names.** With `mode: except` the names are hidden; with `mode: only` nothing else is
+  shown. A name is one the schema lists, or a pattern such as `logs-*`, where `*` stands for any
+  text. Names match in any case.
+
+A hidden object is left out of what the model reads, and every query on it is refused with a
+message that names it: a panel, a variable, a marker, a saved query, an alert, a report and a
+question in **Ask about this**. A dashboard that names one cannot be saved. A pinned dashboard that
+reads an object you hide later shows the refusal on its panels.
+
+How sure the refusal is depends on the source:
+
+| Source                    | What is checked                                           | How sure                                                                                                            |
+| ------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Elasticsearch, OpenSearch | The server resolves the index names and patterns first.   | Exact: `*` reaches only what is shown, aliases and data streams included.                                           |
+| MongoDB                   | The collection, and the ones a pipeline joins or appends. | Exact for collections. A view reads what its definition says.                                                       |
+| Redis, Valkey             | The key a command reads.                                  | Exact.                                                                                                              |
+| HTTP                      | The method and path of the request.                       | Exact for the request. `{id}` in a name stands for any text, so the allowed paths of the connection stay the limit. |
+| Prometheus                | The metric names of the expression.                       | Exact. A selector that names no metric is refused once you list names.                                              |
+| Loki                      | The one object, `logs`.                                   | All or nothing. Restrict streams with the credentials.                                                              |
+| SQL sources               | The table names after `FROM` and `JOIN`.                  | Best effort: a view, a function or the search path can reach a table the query never names.                         |
+
+For SQL, treat the list as a way to keep the model on the right tables, not as a lock. For data
+that must never leave, use a database role that cannot read it.
+
+On Elasticsearch and OpenSearch the credentials must be allowed to resolve index names
+(`view_index_metadata`, or `indices:admin/resolve/index`). Searches fail with the server's refusal
+otherwise.
+
+A SQL or MongoDB schema never lists system objects. `showSystem` lets queries read them there.
+
 ### Guardrails
 
 | Guardrail               | Default | What it does                          |
@@ -106,15 +147,15 @@ what a query gives.
 Under the limits, the page lists the rules of the connector's query language. They are rules, not
 settings: turning one off would run text a model wrote on the data source.
 
-| Query language                     | What is always refused                                                                                                                                                                                                                                  |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SQL                                | A second statement. A statement that does not start with `SELECT`, `WITH`, `VALUES` or `TABLE`, or that holds a keyword that writes or changes the schema. A value as SQL text: variables are parameters.                                               |
-| PromQL                             | Anything but an expression sent to the query endpoints. A variable outside a quoted label matcher value, except an interval where a duration goes.                                                                                                      |
-| LogQL                              | Anything but an expression sent to the query endpoints. A variable outside a quoted value, except an interval where a duration goes. The formatting templates `line_format` and `label_format`, which the source runs.                                  |
-| Search (Elasticsearch, OpenSearch) | Scripts, except the two fixed ratio scripts of a `bucket_script`. Runtime fields. Lookups of another index: a terms lookup, an indexed shape, a percolator, a document list that names an `_index`. Wrapper queries. Hidden, system and remote indices. |
-| HTTP                               | Another origin, a redirect to one, and cloud metadata addresses. A method or a path the connection does not allow. A path with a `.` or `..` segment, `?`, `#` or a backslash. A variable in a header.                                                  |
-| Redis (Valkey)                     | Any command outside the fixed list of reads: nothing writes, scans every key or runs a script.                                                                                                                                                          |
-| MongoDB                            | `$out` and `$merge`. JavaScript: `$where`, `$function`, `$accumulator`. Stages that wait for changes or read the server's operations, sessions, queries, plans, catalog or statistics. Another database, and `system.` collections.                     |
+| Query language                     | What is always refused                                                                                                                                                                                                                             |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SQL                                | A second statement. A statement that does not start with `SELECT`, `WITH`, `VALUES` or `TABLE`, or that holds a keyword that writes or changes the schema. A value as SQL text: variables are parameters.                                          |
+| PromQL                             | Anything but an expression sent to the query endpoints. A variable outside a quoted label matcher value, except an interval where a duration goes.                                                                                                 |
+| LogQL                              | Anything but an expression sent to the query endpoints. A variable outside a quoted value, except an interval where a duration goes. The formatting templates `line_format` and `label_format`, which the source runs.                             |
+| Search (Elasticsearch, OpenSearch) | Scripts, except the two fixed ratio scripts of a `bucket_script`. Runtime fields. Lookups of another index: a terms lookup, an indexed shape, a percolator, a document list that names an `_index`. Wrapper queries. Remote indices and `_` names. |
+| HTTP                               | Another origin, a redirect to one, and cloud metadata addresses. A method or a path the connection does not allow. A path with a `.` or `..` segment, `?`, `#` or a backslash. A variable in a header.                                             |
+| Redis (Valkey)                     | Any command outside the fixed list of reads: nothing writes, scans every key or runs a script.                                                                                                                                                     |
+| MongoDB                            | `$out` and `$merge`. JavaScript: `$where`, `$function`, `$accumulator`. Stages that wait for changes or read the server's operations, sessions, queries, plans, catalog or statistics. Another database.                                           |
 
 ### The schema and descriptions
 

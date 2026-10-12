@@ -7,6 +7,8 @@ import {
   type Guardrails,
   guardrailsSchema,
   hiddenFieldsSchema,
+  type ObjectVisibility,
+  objectVisibilitySchema,
 } from '@quanthea/shared';
 
 /** A configured connector as stored. `config` is validated by its kind, not here. */
@@ -25,6 +27,8 @@ export interface ConnectorRow {
   readonly accessLevel: AccessLevel;
   /** Fields removed from everything the model receives. */
   readonly hiddenFields: readonly string[];
+  /** Which indices, tables or collections of the source the connector shows. */
+  readonly visibility: ObjectVisibility;
   /** The limits enforced on every query. */
   readonly guardrails: Guardrails;
   /** Admin-written descriptions, keyed by `entity` or `entity.field`. */
@@ -110,6 +114,8 @@ interface StoredConnector {
   access_level: number;
   /** The hidden fields JSON. */
   hidden_fields: string;
+  /** The visibility JSON. */
+  visibility: string;
   /** The guardrails JSON. */
   guardrails: string;
   /** The descriptions JSON. */
@@ -136,6 +142,7 @@ function toConnector(stored: StoredConnector): ConnectorRow {
     secret: new Uint8Array(stored.secret),
     accessLevel: accessLevelSchema.parse(stored.access_level),
     hiddenFields: hiddenFieldsSchema.parse(JSON.parse(stored.hidden_fields)),
+    visibility: objectVisibilitySchema.parse(JSON.parse(stored.visibility)),
     guardrails: guardrailsSchema.parse(JSON.parse(stored.guardrails)),
     descriptions: descriptionsSchema.parse(JSON.parse(stored.descriptions)),
     createdAt: stored.created_at,
@@ -158,6 +165,7 @@ function toValues(row: ConnectorRow) {
     row.secret,
     row.accessLevel,
     JSON.stringify(row.hiddenFields),
+    JSON.stringify(row.visibility),
     JSON.stringify(row.guardrails),
     JSON.stringify(row.descriptions),
     row.createdAt,
@@ -206,11 +214,12 @@ export function createConnectorRepository(database: Database): ConnectorReposito
   );
   // An upsert on id: a name taken by another connector fails instead of replacing it.
   const upsert = database.query(
-    `INSERT INTO connectors (id, name, kind, config, secret, access_level, hidden_fields, guardrails,
-       descriptions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO connectors (id, name, kind, config, secret, access_level, hidden_fields, visibility,
+       guardrails, descriptions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (id) DO UPDATE SET name = excluded.name, kind = excluded.kind,
        config = excluded.config, secret = excluded.secret, access_level = excluded.access_level,
-       hidden_fields = excluded.hidden_fields, guardrails = excluded.guardrails,
+       hidden_fields = excluded.hidden_fields, visibility = excluded.visibility,
+       guardrails = excluded.guardrails,
        descriptions = excluded.descriptions, updated_at = excluded.updated_at`,
   );
   const deleteById = database.query('DELETE FROM connectors WHERE id = ?');

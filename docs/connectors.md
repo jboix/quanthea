@@ -127,6 +127,11 @@ source: the first call does.
 | `sampleValues(field, limit, signal)` | Returns at most `limit` distinct values of one field, and whether that was all of them.                                                     |
 | `execute(query, context)`            | Runs the bound query and returns frames named `context.refId`.                                                                              |
 | `close()`                            | Releases pooled connections. The core calls it when the connector changes or is deleted.                                                    |
+| `resolveObjects(expression, signal)` | Optional. Resolves the names and patterns of a query to what they reach now, each with the objects behind it when it stands for others.     |
+
+Implement `resolveObjects` only when the kind's queries take patterns, as a search takes
+`logs-*`. The core calls it before such a query runs, to keep it off the objects the connector
+does not show. Without it, a pattern is refused on a connector that hides anything.
 
 `execute` must respect the whole `ExecutionContext`:
 

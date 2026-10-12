@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { everythingShown } from '../query/scope/object-scope.ts';
 import { connectorCatalog } from './catalog.ts';
 import { focusedEntities } from './catalog-focus.ts';
 import type { ModelEntity } from './model-schema.ts';
@@ -52,6 +53,7 @@ describe('focusedEntities', () => {
         kind: 'prometheus',
         accessLevel: 2,
         hiddenFields: [],
+        scope: everythingShown,
         descriptions: {},
       },
       language: 'promql',

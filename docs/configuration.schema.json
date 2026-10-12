@@ -231,6 +231,31 @@
               "maxLength": 200
             }
           },
+          "visibility": {
+            "default": {},
+            "type": "object",
+            "properties": {
+              "showSystem": {
+                "default": false,
+                "type": "boolean"
+              },
+              "mode": {
+                "default": "except",
+                "type": "string",
+                "enum": ["except", "only"]
+              },
+              "names": {
+                "default": [],
+                "maxItems": 500,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              }
+            }
+          },
           "guardrails": {
             "default": {},
             "type": "object",

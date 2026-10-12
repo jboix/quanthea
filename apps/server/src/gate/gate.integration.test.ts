@@ -8,6 +8,7 @@ import {
 import { postgresConnector } from '../connectors/postgres/postgres-connector.ts';
 import { createQueryExecutor, type QuerySource } from '../query/executor.ts';
 import { createResultCache } from '../query/result-cache.ts';
+import { everythingShown } from '../query/scope/object-scope.ts';
 import { testQueryForModel } from './test-run.ts';
 
 const incident = devIncidentStart();
@@ -23,6 +24,7 @@ describe.skipIf(!integrationEnabled)('the gate over the dev database', () => {
   });
   const source: QuerySource = {
     connectorId: 'pg',
+    scope: everythingShown,
     version: 1,
     language: 'sql',
     instance,
@@ -45,6 +47,7 @@ describe.skipIf(!integrationEnabled)('the gate over the dev database', () => {
       kind: 'postgres',
       accessLevel,
       hiddenFields: ['customers.email'],
+      scope: everythingShown,
       descriptions: {},
     };
     const executor = createQueryExecutor(createResultCache({ ttlMs: 1, maxEntries: 1 }));

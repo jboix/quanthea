@@ -10,6 +10,7 @@ import { prometheusConnector } from '../connectors/prometheus/prometheus-connect
 import { createQueryExecutor, type QueryRequest, type QuerySource } from './executor.ts';
 import type { QueryError } from './query-error.ts';
 import { createResultCache } from './result-cache.ts';
+import { everythingShown } from './scope/object-scope.ts';
 
 const incident = devIncidentStart();
 const timeRange = {
@@ -29,6 +30,7 @@ describe.skipIf(!integrationEnabled)('query executor against the dev sources', (
   });
   const postgresSource: QuerySource = {
     connectorId: 'pg',
+    scope: everythingShown,
     version: 1,
     language: 'sql',
     instance: postgres,
@@ -36,6 +38,7 @@ describe.skipIf(!integrationEnabled)('query executor against the dev sources', (
   };
   const prometheusSource: QuerySource = {
     connectorId: 'prom',
+    scope: everythingShown,
     version: 1,
     language: 'promql',
     instance: prometheus,

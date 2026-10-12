@@ -2,6 +2,7 @@
 import { type AlertSpec, alertSpecSchema, type Field, type Frame } from '@quanthea/shared';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../../query/executor.ts';
 import { QueryError } from '../../query/query-error.ts';
+import { everythingShown } from '../../query/scope/object-scope.ts';
 
 /** A minute, in milliseconds. */
 export const minute = 60_000;
@@ -98,6 +99,7 @@ export function fakeEngine(answer: (request: QueryRequest) => FakeAnswer) {
   const openSource = (name: string): Promise<QuerySource> =>
     Promise.resolve({
       connectorId: name,
+      scope: everythingShown,
       version: 1,
       language: 'promql',
       instance: {} as QuerySource['instance'],

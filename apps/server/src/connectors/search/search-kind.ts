@@ -21,6 +21,7 @@ import { createSearchApi, type SearchApi, type ServerInfo } from './api.ts';
 import { describeIndices, mergedTypes } from './catalog.ts';
 import { searchGuide } from './guide.ts';
 import { hitsFrame } from './hits.ts';
+import { resolveIndices } from './resolve.ts';
 
 /** The settings every search kind has. */
 interface SearchConfig {
@@ -318,6 +319,7 @@ export function defineSearchKind<
           query.language === 'search'
             ? execute(api, types, query, context)
             : Promise.reject(new ConnectorError('rejected', 'This connector runs searches only.')),
+        resolveObjects: (expression, signal) => resolveIndices(api, expression, signal),
         close: () => Promise.resolve(),
       };
     },

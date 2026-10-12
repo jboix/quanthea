@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { AccessLevel, Frame } from '@quanthea/shared';
 import { ConnectorError } from '../connectors/_shared/index.ts';
 import { QueryError } from '../query/query-error.ts';
+import { everythingShown } from '../query/scope/object-scope.ts';
 import type { GateSubject } from './subject.ts';
 import {
   modelPanelResult,
@@ -40,6 +41,7 @@ function subjectAt(accessLevel: AccessLevel): GateSubject {
     kind: 'postgres',
     accessLevel,
     hiddenFields: ['customers.email', 'tenant'],
+    scope: everythingShown,
     descriptions: {},
   };
 }

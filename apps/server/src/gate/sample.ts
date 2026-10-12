@@ -1,10 +1,14 @@
-/** Distinct values of a field for the model: from level 2, never hidden fields, never many. */
+/**
+ * Distinct values of a field for the model: from level 2, never of an object the connector does
+ * not show, never hidden fields, never many.
+ */
 import { lowCardinalityLimit } from '@quanthea/shared';
 import {
   ConnectorError,
   type ConnectorInstance,
   type FieldReference,
 } from '../connectors/_shared/index.ts';
+import { showsObject } from '../query/scope/object-scope.ts';
 import { type GateSubject, isWithheldField } from './subject.ts';
 
 /** Sample values for the model. */
@@ -13,7 +17,8 @@ export type ModelSample =
   | { readonly ok: false; readonly error: string };
 
 /**
- * Reads distinct values of a field for the model. Level 1 gets none, hidden fields get none, and a
+ * Reads distinct values of a field for the model. Level 1 gets none, an object the connector does
+ * not show gets none, hidden fields get none, and a
  * field with more distinct values than asked for (at most {@link lowCardinalityLimit}) is refused,
  * so identifiers and personal data are not listed.
  *
@@ -38,6 +43,8 @@ export async function sampleForModel(
       error: `Sample values need access level 2 or higher; ${subject.name} is at level 1.`,
     };
   }
+  if (!showsObject(subject.scope, field.entity))
+    return { ok: false, error: `${subject.name} does not show ${field.entity}.` };
   if (isWithheldField(subject, field.entity, field.field))
     return { ok: false, error: `${name} is hidden.` };
   const capped = Math.max(1, Math.min(Math.trunc(limit), lowCardinalityLimit));

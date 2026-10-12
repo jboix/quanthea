@@ -9,6 +9,7 @@ import { lokiConnector } from '../connectors/loki/loki-connector.ts';
 import { elasticsearchConnector } from '../connectors/search/elasticsearch-connector.ts';
 import { createQueryExecutor, type QuerySource } from './executor.ts';
 import { createResultCache } from './result-cache.ts';
+import { everythingShown } from './scope/object-scope.ts';
 import type { Variables } from './variables.ts';
 
 const incident = devIncidentStart();
@@ -32,6 +33,7 @@ describe.skipIf(!integrationFor('search'))('search templates through the executo
   });
   const source: QuerySource = {
     connectorId: 'es',
+    scope: everythingShown,
     version: 1,
     language: 'search',
     instance,
@@ -94,6 +96,7 @@ describe.skipIf(!integrationFor('loki'))('LogQL templates through the executor',
   });
   const source: QuerySource = {
     connectorId: 'loki',
+    scope: everythingShown,
     version: 1,
     language: 'logql',
     instance,

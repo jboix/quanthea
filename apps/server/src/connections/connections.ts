@@ -26,6 +26,7 @@ import type { GateSubject } from '../gate/subject.ts';
 import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
 import type { QuerySource } from '../query/executor.ts';
+import { type ObjectScope, scopeOf } from '../query/scope/object-scope.ts';
 import { sqlFlavorOf } from '../query/sql-dialects.ts';
 import type { SecretBox } from '../secrets/secret-box.ts';
 import { installed, kindInfo, kindOf, notInstalled, storedKindOf, targetOf } from './kinds.ts';
@@ -42,7 +43,7 @@ type ConnectorPatch = z.output<typeof connectorPatchSchema>;
 export interface OpenConnector {
   /** The query engine's view: instance, language, guardrails, version. */
   readonly source: QuerySource;
-  /** The gate's view: access level, hidden fields, descriptions. */
+  /** The gate's view: access level, hidden fields, shown objects, descriptions. */
   readonly subject: GateSubject;
 }
 
@@ -143,13 +144,13 @@ export interface Connections {
    * Says what dashboard validation needs of a connector, without opening it.
    *
    * @param name - The connector name.
-   * @returns Its query language, SQL dialect and guardrails, or `undefined` when no usable
-   *   connector has the name.
+   * @returns Its query language, SQL dialect, guardrails and the objects it shows, or `undefined`
+   *   when no usable connector has the name.
    */
   lookup(
     name: string,
   ):
-    | (Pick<QuerySource, 'language' | 'dialect'> & { guardrails: Guardrails })
+    | (Pick<QuerySource, 'language' | 'dialect' | 'scope'> & { guardrails: Guardrails })
     | { readonly notInstalled: string }
     | undefined;
   /**
@@ -342,6 +343,7 @@ function patched(
     config,
     accessLevel: patch.accessLevel ?? row.accessLevel,
     hiddenFields: patch.hiddenFields ?? row.hiddenFields,
+    visibility: patch.visibility ?? row.visibility,
     guardrails: patch.guardrails ?? row.guardrails,
     descriptions: patch.descriptions ?? row.descriptions,
     updatedAt: Math.max(time, row.updatedAt + 1),
@@ -406,6 +408,20 @@ async function removeConnector(context: ServiceContext, id: string, actor: strin
 }
 
 /**
+ * Which objects a connector shows, by its kind's naming rules. A connector whose kind is gone has
+ * no system objects to tell apart.
+ *
+ * @param context - The service context.
+ * @param row - The stored connector.
+ * @returns The scope.
+ */
+function scopeFor(context: ServiceContext, row: ConnectorRow): ObjectScope {
+  const kind = context.kinds.find((candidate) => candidate.kind === row.kind);
+  if (!kind) return { visibility: row.visibility, family: 'plain' };
+  return scopeOf(row.visibility, kind.language, sqlFlavorOf(kind));
+}
+
+/**
  * Reads the cached schema view of a connector.
  *
  * @param context - The service context.
@@ -416,7 +432,7 @@ function cachedSchema(context: ServiceContext, id: string): SchemaView {
   const row = find(context, id);
   const cached = context.repository.readSchema(id);
   const snapshot = cached ? snapshotSchema.parse(cached.snapshot) : undefined;
-  return toSchemaView(row, snapshot, cached?.readAt ?? null);
+  return toSchemaView(toSubject(row, scopeFor(context, row)), snapshot, cached?.readAt ?? null);
 }
 
 /**
@@ -449,7 +465,7 @@ async function refreshSchema(
   const snapshot = await (await instanceOf(context, row)).describe(signal).catch(asSourceFailure);
   const readAt = context.clock();
   context.repository.writeSchema(id, { snapshot, readAt });
-  return toSchemaView(row, snapshot, readAt);
+  return toSchemaView(toSubject(row, scopeFor(context, row)), snapshot, readAt);
 }
 
 /**
@@ -465,6 +481,7 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
   if (!row) throw new AppError('not_found', `No connector is named "${name}".`);
   const instance = await instanceOf(context, row);
   const kind = storedKindOf(context.kinds, row);
+  const scope = scopeFor(context, row);
   const source = {
     connectorId: row.id,
     version: row.updatedAt,
@@ -472,8 +489,9 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
     dialect: sqlFlavorOf(kind),
     instance,
     guardrails: row.guardrails,
+    scope,
   };
-  return { source, subject: toSubject(row) };
+  return { source, subject: toSubject(row, scope) };
 }
 
 /**
@@ -481,14 +499,19 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
  *
  * @param context - The service context.
  * @param name - The connector name.
- * @returns The language and guardrails, or `undefined` for an unknown name or kind.
+ * @returns The language, the guardrails and the scope, or `undefined` for an unknown name.
  */
 function lookupConnector(context: ServiceContext, name: string) {
   const row = context.repository.getByName(name);
   if (!row) return undefined;
   const kind = context.kinds.find((candidate) => candidate.kind === row.kind);
   if (!kind) return { notInstalled: notInstalled(row.kind) };
-  return { language: kind.language, dialect: sqlFlavorOf(kind), guardrails: row.guardrails };
+  return {
+    language: kind.language,
+    dialect: sqlFlavorOf(kind),
+    guardrails: row.guardrails,
+    scope: scopeFor(context, row),
+  };
 }
 
 /**
@@ -526,7 +549,8 @@ function subjectsOf(context: ServiceContext) {
     const guide = kind.queryGuide === undefined ? {} : { guide: kind.queryGuide };
     const flavor = sqlFlavorOf(kind);
     const dialect = flavor === undefined ? {} : { dialect: flavor };
-    return [{ subject: toSubject(row), language: kind.language, ...dialect, ...guide }];
+    const subject = toSubject(row, scopeFor(context, row));
+    return [{ subject, language: kind.language, ...dialect, ...guide }];
   });
 }
 

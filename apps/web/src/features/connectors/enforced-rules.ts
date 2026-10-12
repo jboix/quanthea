@@ -80,9 +80,9 @@ const rulesByLanguage: Readonly<Record<QueryLanguage, readonly EnforcedRule[]>> 
         'A wrapper query is refused, because it hides a query in base64 where no check can read it.',
     },
     {
-      rule: 'No hidden, system or remote index',
+      rule: 'No remote index',
       stops:
-        'An index name that starts with . or _, or that names another cluster with a colon, is refused.',
+        'An index name that starts with _, or that names another cluster with a colon, is refused.',
     },
     { rule: 'Values are bound', stops: jsonValues },
   ],
@@ -136,9 +136,9 @@ const rulesByLanguage: Readonly<Record<QueryLanguage, readonly EnforcedRule[]>> 
         "A stage that waits for changes or reads the server's operations, sessions, queries, plans, catalog or statistics is refused.",
     },
     {
-      rule: 'One database, no system collection',
+      rule: 'One database',
       stops:
-        "Every collection a pipeline reads, through $lookup, $graphLookup and $unionWith too, is in the connector's database and never a system. one.",
+        "Every collection a pipeline reads, through $lookup, $graphLookup and $unionWith too, is in the connector's database.",
     },
     {
       rule: 'Values are bound',

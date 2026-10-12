@@ -283,6 +283,13 @@ describe('bindSearch', () => {
     );
   });
 
+  test("takes a dot index when the connector shows its server's own indices", () => {
+    const shown = (index: string) => bindSearch({ index, body: {} }, {}, timeRange, true).index;
+    expect(shown('.kibana_1,logs-*')).toBe('.kibana_1,logs-*');
+    for (const index of ['_all', 'remote:logs', 'Logs', '-logs'])
+      expect(() => shown(index)).toThrow('An index is lowercase');
+  });
+
   test('picks a bucket width that keeps the range within a thousand buckets', () => {
     const range = (hours: number) => ({
       from: new Date(0),
