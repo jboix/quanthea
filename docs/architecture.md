@@ -2230,10 +2230,12 @@ that changes with its settings).
      is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value (a string, or a
      list for a multi-value variable; `{"$var": "service", "as": "list"}` is a list in every case),
      never text inside a string. `__from` and `__to` are ISO times; `__interval` is a bucket width
-     that keeps the range within 1000 buckets. A `range` clause bounded by them gets
-     `"format": "strict_date_optional_time"` unless it names a format: a date field accepts only
-     its mapping's formats (`epoch_millis` alone, for one), and refuses ISO text with a parse error
-     otherwise. A body with any key with a word starting with
+     that keeps the range within 1000 buckets. Once the values are bound, a `range` clause with a
+     bound in ISO 8601 text (`__from`, `__to`, a variable holding a date, or a date the query
+     writes itself, such as `2026-10-05T14:47:01Z`) gets
+     `"format": "strict_date_optional_time||epoch_millis"` unless it names a format: a date field
+     accepts only its mapping's formats (`epoch_millis` alone, for one), and refuses ISO text with
+     a parse error otherwise. The second format keeps a number beside the text readable. A body with any key with a word starting with
      `script`, in snake_case or camelCase (`script`, `_script`, `script_fields`, `script_score`,
      `scripted_metric`, `minimum_should_match_script` and the rest), or with `runtime_mappings` is
      refused, because the search server would run it. One exception: a `bucket_script` whose

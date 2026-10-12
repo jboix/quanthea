@@ -232,39 +232,49 @@ function refuseHiddenRead(key: string, value: unknown, parent: string | undefine
   );
 }
 
-/** The format of the time range's bounds: the ISO 8601 text `__from` and `__to` are bound as. */
-const boundFormat = 'strict_date_optional_time';
+/**
+ * The formats a range's bounds are read in when one is ISO 8601 text: that text, as `__from` and
+ * `__to` are bound and as a model writes a date, or epoch milliseconds for a bound given as a number.
+ */
+const boundFormat = 'strict_date_optional_time||epoch_millis';
 
 /**
- * Whether a value is the `__from` or `__to` variable node.
+ * A date or a time in ISO 8601: `2026-10-05`, `2026-10-05T14:47`, `2026-10-05T14:47:01.250Z`,
+ * with an offset or without, and any date math after `||`.
+ */
+const isoText =
+  /^\d{4}-\d{2}-\d{2}(?:T\d{2}(?::\d{2}(?::\d{2}(?:[.,]\d{1,9})?)?)?(?:Z|[+-]\d{2}(?::?\d{2})?)?)?(?:\|\|.*)?$/;
+
+/**
+ * Whether a value is a date or a time written as ISO 8601 text.
  *
  * @param value - The value.
- * @returns `true` for `{"$var": "__from"}` or `{"$var": "__to"}`.
+ * @returns `true` for such as `2026-10-05T14:47:01Z`, `false` for a number or any other text.
  */
-function timeBound(value: unknown): boolean {
-  return isObject(value) && (value.$var === '__from' || value.$var === '__to');
+function isoBound(value: unknown): boolean {
+  return typeof value === 'string' && isoText.test(value);
 }
 
 /**
- * The bounds of a range clause's field, saying how they are written when they are the time range.
+ * The bounds of a range clause's field, saying how they are written when one is ISO 8601 text.
  * A date field accepts only the formats of its mapping, such as `epoch_millis` alone, and refuses
  * any other with a parse error; a range's own `format` says how its bounds read, whatever the
  * field's.
  *
- * @param bounds - The bounds of one field, such as `{ gte, lte }`.
- * @returns The bounds, with the format when they hold a time bound and name no format.
+ * @param bounds - The bounds of one field, such as `{ gte, lte }`, with their values bound.
+ * @returns The bounds, with the format when one is ISO text and they name no format.
  */
 function withBoundFormat(bounds: unknown): unknown {
   if (!isObject(bounds) || 'format' in bounds) return bounds;
-  return Object.values(bounds).some(timeBound) ? { ...bounds, format: boundFormat } : bounds;
+  return Object.values(bounds).some(isoBound) ? { ...bounds, format: boundFormat } : bounds;
 }
 
 /**
- * A search body whose time ranges say how their bounds are written.
+ * A search body whose ranges over dates say how their bounds are written.
  *
- * @param node - A node of the body.
+ * @param node - A node of the bound body.
  * @param parent - The key the node is under.
- * @returns The node, with the format on each range over the time range.
+ * @returns The node, with the format on each range bounded by ISO text.
  */
 function withRangeFormats(node: unknown, parent?: string): unknown {
   if (Array.isArray(node)) return node.map((item) => withRangeFormats(item, parent));
@@ -298,7 +308,8 @@ export function bindSearch(
     __interval: searchInterval(timeRange),
   };
   refuseScripts(template.body);
-  const formatted = withRangeFormats(template.body) as SearchTemplate['body'];
-  const body = bindJsonVariables(formatted, { variables, builtIns });
+  const bound = bindJsonVariables(template.body, { variables, builtIns });
+  // After binding, so a variable's date and one the query writes itself read the same way.
+  const body = withRangeFormats(bound) as SearchQuery['body'];
   return { language: 'search', index: checkIndex(template.index), body };
 }

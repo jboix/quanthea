@@ -56,7 +56,7 @@ describe('bindSearch', () => {
                   '@timestamp': {
                     gte: '2026-09-27T12:00:00.000Z',
                     lte: '2026-09-27T13:00:00.000Z',
-                    format: 'strict_date_optional_time',
+                    format: 'strict_date_optional_time||epoch_millis',
                   },
                 },
               },
@@ -93,6 +93,66 @@ describe('bindSearch', () => {
       },
     });
   });
+  test('a range bounded by ISO text the query writes itself gets the format', () => {
+    const written = { gte: '2026-10-05T14:47:01Z', lt: 1_791_000_000_000 };
+    const bound = bind({
+      query: {
+        bool: {
+          filter: [
+            { range: { '@timestamp': written } },
+            { range: { day: { gte: '2026-10-05', lte: '2026-10-06T00:00:00.000+02:00||/d' } } },
+          ],
+        },
+      },
+    });
+    const format = 'strict_date_optional_time||epoch_millis';
+    expect(bound.body).toEqual({
+      query: {
+        bool: {
+          filter: [
+            { range: { '@timestamp': { ...written, format } } },
+            {
+              range: {
+                day: { gte: '2026-10-05', lte: '2026-10-06T00:00:00.000+02:00||/d', format },
+              },
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  test('a range bounded by a variable holding a date gets the format, once it is bound', () => {
+    const bound = bind(
+      { query: { range: { at: { gte: { $var: 'since' } } } } },
+      {
+        since: '2026-10-05T14:47:01Z',
+      },
+    );
+    expect(bound.body).toEqual({
+      query: {
+        range: {
+          at: { gte: '2026-10-05T14:47:01Z', format: 'strict_date_optional_time||epoch_millis' },
+        },
+      },
+    });
+  });
+
+  test('a range bounded by numbers, date math or other text gets no format', () => {
+    const body = {
+      query: {
+        bool: {
+          filter: [
+            { range: { '@timestamp': { gte: 1_791_000_000_000, lte: 'now-1h' } } },
+            { range: { version: { gte: '2026-10', lt: '2026-10-05 release' } } },
+            { range: { at: { gte: '14:47:01', time_zone: '+02:00' } } },
+          ],
+        },
+      },
+    };
+    expect(bind(body).body).toEqual(body);
+  });
+
   test('gives a list for a node "as" list, whatever the number of values', () => {
     const body = { query: { terms: { level: { $var: 'level', as: 'list' } } } };
     expect(bind(body, { level: 'error' }).body).toEqual({ query: { terms: { level: ['error'] } } });
