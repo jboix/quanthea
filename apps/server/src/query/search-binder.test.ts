@@ -56,6 +56,7 @@ describe('bindSearch', () => {
                   '@timestamp': {
                     gte: '2026-09-27T12:00:00.000Z',
                     lte: '2026-09-27T13:00:00.000Z',
+                    format: 'strict_date_optional_time',
                   },
                 },
               },
@@ -67,6 +68,31 @@ describe('bindSearch', () => {
     });
   });
 
+  test('a range keeps the format it names, and one over another field gets none', () => {
+    const bound = bind(
+      {
+        query: {
+          bool: {
+            filter: [
+              { range: { at: { gte: { $var: '__from' }, format: 'epoch_millis' } } },
+              { range: { duration_ms: { gte: 100 } } },
+            ],
+          },
+        },
+      },
+      {},
+    );
+    expect(bound.body).toEqual({
+      query: {
+        bool: {
+          filter: [
+            { range: { at: { gte: '2026-09-27T12:00:00.000Z', format: 'epoch_millis' } } },
+            { range: { duration_ms: { gte: 100 } } },
+          ],
+        },
+      },
+    });
+  });
   test('gives a list for a node "as" list, whatever the number of values', () => {
     const body = { query: { terms: { level: { $var: 'level', as: 'list' } } } };
     expect(bind(body, { level: 'error' }).body).toEqual({ query: { terms: { level: ['error'] } } });

@@ -232,6 +232,51 @@ function refuseHiddenRead(key: string, value: unknown, parent: string | undefine
   );
 }
 
+/** The format of the time range's bounds: the ISO 8601 text `__from` and `__to` are bound as. */
+const boundFormat = 'strict_date_optional_time';
+
+/**
+ * Whether a value is the `__from` or `__to` variable node.
+ *
+ * @param value - The value.
+ * @returns `true` for `{"$var": "__from"}` or `{"$var": "__to"}`.
+ */
+function timeBound(value: unknown): boolean {
+  return isObject(value) && (value.$var === '__from' || value.$var === '__to');
+}
+
+/**
+ * The bounds of a range clause's field, saying how they are written when they are the time range.
+ * A date field accepts only the formats of its mapping, such as `epoch_millis` alone, and refuses
+ * any other with a parse error; a range's own `format` says how its bounds read, whatever the
+ * field's.
+ *
+ * @param bounds - The bounds of one field, such as `{ gte, lte }`.
+ * @returns The bounds, with the format when they hold a time bound and name no format.
+ */
+function withBoundFormat(bounds: unknown): unknown {
+  if (!isObject(bounds) || 'format' in bounds) return bounds;
+  return Object.values(bounds).some(timeBound) ? { ...bounds, format: boundFormat } : bounds;
+}
+
+/**
+ * A search body whose time ranges say how their bounds are written.
+ *
+ * @param node - A node of the body.
+ * @param parent - The key the node is under.
+ * @returns The node, with the format on each range over the time range.
+ */
+function withRangeFormats(node: unknown, parent?: string): unknown {
+  if (Array.isArray(node)) return node.map((item) => withRangeFormats(item, parent));
+  if (!isObject(node)) return node;
+  return Object.fromEntries(
+    Object.entries(node).map(([key, value]) => {
+      const child = parent === 'range' ? withBoundFormat(value) : value;
+      return [key, withRangeFormats(child, key)];
+    }),
+  );
+}
+
 /**
  * Binds a search template.
  *
@@ -253,6 +298,7 @@ export function bindSearch(
     __interval: searchInterval(timeRange),
   };
   refuseScripts(template.body);
-  const body = bindJsonVariables(template.body, { variables, builtIns });
+  const formatted = withRangeFormats(template.body) as SearchTemplate['body'];
+  const body = bindJsonVariables(formatted, { variables, builtIns });
   return { language: 'search', index: checkIndex(template.index), body };
 }
