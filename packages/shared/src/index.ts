@@ -211,31 +211,7 @@ export {
   hiddenFieldsSchema,
   lowCardinalityLimit,
 } from './connectors.ts';
-export {
-  type Cell,
-  type Dataset,
-  type Dimension,
-  type DimensionType,
-  datasetSchema,
-  type ShapeKind,
-  shapeGuides,
-  shapeKinds,
-} from './dataset/contract.ts';
-export { datasetOfFrames } from './dataset/from-frames.ts';
-export {
-  columnIndex,
-  columnValues,
-  compareCells,
-  filterRows,
-  fiveNumbers,
-  histogramBins,
-  longToWide,
-  rowsToGraph,
-  rowsToTree,
-  sortRows,
-  type TreeNode,
-} from './dataset/reshape.ts';
-export * from './dataset/stat.ts';
+export * from './dataset/index.ts';
 export {
   type CalendarParts,
   calendarParts,
@@ -328,72 +304,5 @@ export {
   roles,
 } from './roles.ts';
 export { safeNext } from './safe-next.ts';
-export * from './spec/alert.ts';
-export {
-  type Annotation,
-  type DashboardSpec,
-  dashboardSpecSchema,
-  gridColumns,
-  type MarkerColor,
-  markerColors,
-  type Panel,
-} from './spec/dashboard.ts';
-export {
-  type DiffLine,
-  diffLines,
-  diffSpecs,
-  type FieldChange,
-  type PanelDiff,
-  type SpecDiff,
-} from './spec/diff.ts';
-export { fixedTimeOf } from './spec/fixed-time.ts';
-export {
-  applyLayout,
-  type DashboardLayout,
-  dashboardLayoutSchema,
-  type LaidOutSpec,
-  type LayoutPanel,
-  layoutProblems,
-  type PanelGrid,
-  packGrid,
-  packLayout,
-  specLayout,
-} from './spec/layout.ts';
-export { refIdSchema, slugSchema, variableNameSchema } from './spec/names.ts';
-export {
-  durationSchema,
-  type PanelQuery,
-  panelQuerySchema,
-  type QueryTemplate,
-  queryLanguageNames,
-  queryTemplateSchema,
-  queryText,
-  queryTextKey,
-} from './spec/queries.ts';
-export * from './spec/report.ts';
-export {
-  type ResolvedTimeRange,
-  resolveTime,
-  resolveTimeRange,
-  type TimeRangeExpression,
-  timeRangeSchema,
-} from './spec/time.ts';
-export {
-  allValue,
-  isMultiValue,
-  maxTextValueLength,
-  type Variable,
-  type VariableValues,
-  variableSchema,
-  variableValuesSchema,
-} from './spec/variables.ts';
-export {
-  type ChartView,
-  type DatasetTransform,
-  type Reduce,
-  type StatView,
-  type TableView,
-  type View,
-  viewSchema,
-} from './spec/views.ts';
+export * from './spec/index.ts';
 export * from './threads.ts';

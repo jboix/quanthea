@@ -1,0 +1,70 @@
+/** The spec's part of the public surface of `@quanthea/shared`. */
+
+export * from './alert.ts';
+export {
+  type Annotation,
+  type DashboardSpec,
+  dashboardSpecSchema,
+  gridColumns,
+  type MarkerColor,
+  markerColors,
+  type Panel,
+} from './dashboard.ts';
+export {
+  type DiffLine,
+  diffLines,
+  diffSpecs,
+  type FieldChange,
+  type PanelDiff,
+  type SpecDiff,
+} from './diff.ts';
+export { fixedTimeOf } from './fixed-time.ts';
+export {
+  applyLayout,
+  type DashboardLayout,
+  dashboardLayoutSchema,
+  type LaidOutSpec,
+  type LayoutPanel,
+  layoutProblems,
+  type PanelGrid,
+  packGrid,
+  packLayout,
+  specLayout,
+} from './layout.ts';
+export { refIdSchema, slugSchema, variableNameSchema } from './names.ts';
+export {
+  durationSchema,
+  type PanelQuery,
+  panelQuerySchema,
+  type QueryTemplate,
+  queryLanguageNames,
+  queryTemplateSchema,
+  queryText,
+  queryTextKey,
+} from './queries.ts';
+export * from './report.ts';
+export {
+  type ResolvedTimeRange,
+  resolveTime,
+  resolveTimeRange,
+  type TimeRangeExpression,
+  timeRangeSchema,
+} from './time.ts';
+export {
+  allValue,
+  isMultiValue,
+  maxTextValueLength,
+  type Variable,
+  type VariableValues,
+  variableSchema,
+  variableValuesSchema,
+} from './variables.ts';
+export {
+  type ChartView,
+  type DatasetTransform,
+  type Reduce,
+  type StatView,
+  type TableView,
+  type View,
+  viewSchema,
+} from './views.ts';
