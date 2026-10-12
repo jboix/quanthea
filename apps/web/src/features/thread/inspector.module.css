@@ -19,10 +19,19 @@
   border-bottom: 0;
 }
 
+/* The tabs and the close button keep their size; the panel's name gives way with an ellipsis. */
+.head > :not(.subject) {
+  flex-shrink: 0;
+}
+
 .subject {
+  min-width: 0;
   margin-left: auto;
+  overflow: hidden;
   font-size: 13px;
   color: var(--color-ink-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .close {

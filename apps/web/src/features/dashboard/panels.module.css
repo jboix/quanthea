@@ -29,6 +29,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
+}
+
+/* The title wraps and gives way; the marks beside it keep their size and their one line. */
+.heading > :not(.title) {
+  flex-shrink: 0;
+}
+
+.mark,
+.layoutNote,
+.planTag {
+  white-space: nowrap;
 }
 
 .titleButton {
@@ -66,7 +78,9 @@
 
 .title {
   flex-grow: 1;
+  min-width: 0;
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: 15px;
   font-weight: 600;
 }
