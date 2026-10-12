@@ -190,6 +190,12 @@ indices or `pg_catalog`. `names` (`[]`) lists names as the schema has them, or p
 `logs-*`. `mode` says how the list reads: `except` (the default) hides the names, `only` shows
 nothing else. With `mode: only` and no names, the connector shows nothing.
 
+A connector the file declared before `visibility` existed hides system objects from the next
+start, as the file's default says. Write `showSystem: true` when a dashboard, alert or report
+reads one (`information_schema`, `pg_catalog`, a dot index), and to keep an Elasticsearch or
+OpenSearch connector from resolving index names, which its credentials must be allowed to do
+once it hides anything.
+
 The connector's page edits the same three fields, with a checklist of what the schema found. It
 counts the threads and pinned dashboards that read an object before hiding it. The file does not:
 a pinned dashboard that reads an object the file hides shows the refusal on its panels. On a

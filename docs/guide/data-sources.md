@@ -156,6 +156,11 @@ otherwise.
 
 A SQL or MongoDB schema never lists system objects. `showSystem` lets queries read them there.
 
+A connector made before this setting existed keeps **Show system objects** on after the upgrade,
+so its dashboards, alerts and reports run as before. Turn it off when nothing reads a system
+object. A connector declared in the configuration file follows the file, where `showSystem` is
+off unless you write it.
+
 ### Guardrails
 
 | Guardrail               | Default | What it does                          |

@@ -2437,7 +2437,8 @@ the bound query, so a variable's value is already in it.
   hidden names, or more than 50 of them, is refused. The role needs to resolve index names
   (`view_index_metadata` on Elasticsearch, `indices:admin/resolve/index` on OpenSearch): without
   it every search fails with the server's refusal, on any connector that hides something, which
-  is every connector by default. A kind without `resolveObjects` gets names checked and patterns
+  is every new connector by default. The search always resolves, also for a name written in full,
+  because the name can be an alias onto a hidden index. A kind without `resolveObjects` gets names checked and patterns
   refused. An index created between the resolution and the search, a few milliseconds later, is
   not excluded.
 - **SQL** (`scope/sql-tokens.ts`, `sql-scan.ts`, `sql-tables.ts`, `sql-scope.ts`). The statement
@@ -2962,8 +2963,11 @@ every column but `pinned_at`, as the alert and report versions' triggers do, and
 of dashboard versions (`dashboard_layouts`), whose revisions a trigger keeps from being rewritten.
 `0003` shipped in v0.4.0. `0004-quiet-hours-and-connector-visibility.sql` adds `quiet` to the
 changes of state and to the check events of alerts: whether quiet hours held back the message.
-It also adds the connectors' `visibility`; a connector of an earlier release gets `{}`, which
-hides system objects and shows everything else.
+It also adds the connectors' `visibility`. A connector of an earlier release gets
+`{"showSystem":true}`, which shows everything as before, so its stored dashboards, alerts and
+reports keep running and its searches resolve nothing. A connector made later gets `{}`, which
+hides system objects. A connector declared in the configuration file takes the file's
+`visibility` at the next start, and the default there hides system objects.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite

@@ -13,3 +13,7 @@ ALTER TABLE alert_check_events ADD COLUMN quiet INTEGER NOT NULL DEFAULT 0
 -- shown, and a list of names that are hidden (`except`) or the only ones shown (`only`). An
 -- empty object is the default: system objects hidden, everything else shown.
 ALTER TABLE connectors ADD COLUMN visibility TEXT NOT NULL DEFAULT '{}';
+
+-- A connector of an earlier release showed its source's own objects, and its dashboards, alerts
+-- and reports may read them. It keeps showing them; a connector made from now on hides them.
+UPDATE connectors SET visibility = '{"showSystem":true}';

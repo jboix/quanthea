@@ -7,6 +7,9 @@ import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { copyFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import type { ObjectVisibility } from '@quanthea/shared';
+import { checkScope } from '../query/scope/check.ts';
+import { restricts, scopeOf } from '../query/scope/object-scope.ts';
 import { temporaryDir } from '../test/fixtures.ts';
 import { createAlertStateRepository } from './alert-state-repository.ts';
 import { createConnectorRepository } from './connector-repository.ts';
@@ -33,6 +36,9 @@ const released = [
   '0003-version-trigger-and-layouts.sql',
 ];
 const upgrade = '0004-quiet-hours-and-connector-visibility.sql';
+
+/** The visibility of a new connector. */
+const hidesSystem: ObjectVisibility = { showSystem: false, mode: 'except', names: [] };
 
 /**
  * Builds a database at the schema of the last release.
@@ -76,24 +82,74 @@ test('an alert keeps its history, with nothing held back by quiet hours', () => 
   ]);
 });
 
+/** The columns and values of a connector row of the last release, but for its id, name and kind. */
+const settings = `config, secret, access_level, hidden_fields, guardrails, descriptions, created_at,
+  updated_at) VALUES (?, ?, ?, '{"url":"http://search:9200"}', x'0102', 3, '["logs.user.email"]',
+  '{"timeoutMs":5000,"maxRows":100,"maxRangeDays":7}', '{}', 1, 2)`;
+
+/**
+ * Inserts a connector as the last release did, without a visibility.
+ *
+ * @param id - Its id.
+ * @param name - Its name.
+ * @param kind - Its kind.
+ */
+function insertConnector(id: string, name: string, kind: string): void {
+  database.run(`INSERT INTO connectors (id, name, kind, ${settings}`, [id, name, kind]);
+}
+
+/**
+ * Upgrades a database of the last release that holds a search and a SQL connector.
+ *
+ * @returns The connectors.
+ */
+function upgraded(): ReturnType<typeof createConnectorRepository> {
+  const migrationsDir = releasedDatabase();
+  insertConnector('c1', 'logs', 'opensearch');
+  insertConnector('c2', 'orders', 'postgres');
+  copyFileSync(join(shipped, upgrade), join(migrationsDir, upgrade));
+  expect(runMigrations(database, migrationsDir)).toEqual([upgrade]);
+  return createConnectorRepository(database);
+}
+
 describe('the connectors after the upgrade', () => {
-  test('keep their settings, hide system objects and show everything else', () => {
-    const migrationsDir = releasedDatabase();
-    database.run(
-      `INSERT INTO connectors (id, name, kind, config, secret, access_level, hidden_fields,
-         guardrails, descriptions, created_at, updated_at)
-       VALUES ('c1', 'logs', 'opensearch', '{"url":"http://search:9200"}', x'0102', 3,
-         '["logs.user.email"]', '{"timeoutMs":5000,"maxRows":100,"maxRangeDays":7}', '{}', 1, 2)`,
-    );
-    copyFileSync(join(shipped, upgrade), join(migrationsDir, upgrade));
-    expect(runMigrations(database, migrationsDir)).toEqual([upgrade]);
-    const repository = createConnectorRepository(database);
+  test('keep their settings and show everything, system objects included', () => {
+    const repository = upgraded();
     expect(repository.get('c1')).toMatchObject({
       name: 'logs',
       accessLevel: 3,
       hiddenFields: ['logs.user.email'],
       guardrails: { timeoutMs: 5000, maxRows: 100, maxRangeDays: 7 },
-      visibility: { showSystem: false, mode: 'except', names: [] },
+      visibility: { showSystem: true, mode: 'except', names: [] },
     });
+    expect(repository.get('c2')?.visibility).toEqual({
+      showSystem: true,
+      mode: 'except',
+      names: [],
+    });
+  });
+
+  test('keep their stored queries running: nothing is checked or resolved', () => {
+    const repository = upgraded();
+    const search = scopeOf(repository.get('c1')?.visibility ?? hidesSystem, 'search');
+    const sql = scopeOf(repository.get('c2')?.visibility ?? hidesSystem, 'sql', 'postgres');
+    expect(restricts(search)).toBe(false);
+    expect(restricts(sql)).toBe(false);
+    const catalogRead = {
+      language: 'sql',
+      text: 'SELECT * FROM pg_catalog.pg_class',
+      parameters: [],
+    } as const;
+    expect(() => checkScope(sql, catalogRead, 'postgres')).not.toThrow();
+    expect(() =>
+      checkScope(search, { language: 'search', index: '.kibana', body: {} }),
+    ).not.toThrow();
+    expect(() => checkScope(scopeOf(hidesSystem, 'sql', 'postgres'), catalogRead)).toThrow();
+  });
+
+  test('a connector made after it hides system objects by default', () => {
+    const repository = upgraded();
+    insertConnector('c3', 'new', 'postgres');
+    expect(repository.get('c3')?.visibility).toEqual(hidesSystem);
   });
 });
