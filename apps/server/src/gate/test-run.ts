@@ -3,7 +3,7 @@
  * the shape (fields, types, row counts, label names). Level 3: also per-field summaries. Level 4:
  * also the rows. Hidden fields and labels are removed at every level; below level 4 errors carry
  * only safe messages. A reader with a time zone also gets, in the summaries of a result of few
- * frames, each number's profile over the clock.
+ * number columns, each number's profile over the clock.
  */
 import { datasetOfFrames, type Field, type Frame } from '@quanthea/shared';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../query/executor.ts';
@@ -14,8 +14,11 @@ import { type FieldSummary, summarizeFrame } from './summaries.ts';
 /** The most rows a level 4 result gives the model, whatever the connector's row limit. */
 export const modelRowLimit = 500;
 
-/** The most frames a result may have for its summaries to carry profiles over the clock. */
-export const profiledFrameLimit = 5;
+/**
+ * The most number columns a result may have beside a time, over all its frames, for its summaries
+ * to carry profiles over the clock. A profile is up to 36 slots per column.
+ */
+export const profiledColumnLimit = 8;
 
 /** How one result is shaped: the level, the hidden names, and the reader's time zone if any. */
 interface Shaping {
@@ -135,12 +138,29 @@ function modelFrame(frame: Frame, shaping: Shaping): ModelFrame {
 }
 
 /**
+ * Counts the number columns a result would profile: the visible ones of the frames with a time.
+ *
+ * @param frames - The frames.
+ * @param hidden - The hidden names.
+ * @returns How many there are, over all the frames.
+ */
+function profiledColumns(frames: readonly Frame[], hidden: ReadonlySet<string>): number {
+  const numbersOf = (frame: Frame) =>
+    frame.fields.filter(
+      (field) => field.type === 'number' && !isHiddenResultName(field.name, hidden),
+    );
+  return frames
+    .filter((frame) => frame.fields.some((field) => field.type === 'time'))
+    .reduce((count, frame) => count + numbersOf(frame).length, 0);
+}
+
+/**
  * A successful test query as the model receives it.
  *
  * @param subject - The connector.
  * @param frames - The frames.
  * @param timeZone - The reader's time zone: from level 3, a result of at most
- *   {@link profiledFrameLimit} frames profiles its numbers over that clock.
+ *   {@link profiledColumnLimit} number columns profiles them over that clock.
  * @returns The result for the model.
  */
 export function modelTestResult(
@@ -149,11 +169,9 @@ export function modelTestResult(
   timeZone?: string,
 ): ModelTestResult {
   if (subject.accessLevel < 2) return { ok: true };
-  const shaping = {
-    level: subject.accessLevel,
-    hidden: hiddenResultNames(subject),
-    timeZone: frames.length <= profiledFrameLimit ? timeZone : undefined,
-  };
+  const hidden = hiddenResultNames(subject);
+  const profiled = profiledColumns(frames, hidden) <= profiledColumnLimit;
+  const shaping = { level: subject.accessLevel, hidden, timeZone: profiled ? timeZone : undefined };
   return { ok: true, frames: frames.map((frame) => modelFrame(frame, shaping)) };
 }
 

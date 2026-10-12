@@ -34,7 +34,7 @@ export interface WeekdaySlot {
 
 /** Which hour was the highest of its day, and on how many days. */
 export interface PeakHours {
-  /** The days compared: the whole days, with points in at least half of their hours. */
+  /** The days compared: the whole days with points in at least half of their hours, not flat. */
   readonly days: number;
   /** The hours that were the highest of a day, the most frequent first. */
   readonly hours: readonly { readonly hour: number; readonly days: number }[];
@@ -46,7 +46,7 @@ export interface TimeProfile {
   readonly timeZone: string;
   /** With buckets of an hour or less over three days or more: each hour of the day. */
   readonly byHour?: readonly HourSlot[];
-  /** With {@link byHour}: which hour was the highest of its day. */
+  /** With {@link byHour}, unless every day is flat: which hour was the highest of its day. */
   readonly peakHour?: PeakHours;
   /** With buckets of a day or less over two weeks or more: each day of the week. */
   readonly byWeekday?: readonly WeekdaySlot[];
@@ -233,29 +233,45 @@ function hourSlots(cells: readonly HourCell[]): HourSlot[] {
 }
 
 /**
+ * The highest hour of a day.
+ *
+ * @param hours - The day's hours.
+ * @returns The hour, the earlier of a tie; `undefined` for a flat day, where no hour is above
+ *   another.
+ */
+function topHour(hours: readonly HourCell[]): number | undefined {
+  const values = hours.map((cell) => cell.value);
+  const highest = Math.max(...values);
+  if (highest === Math.min(...values)) return undefined;
+  return hours.find((cell) => cell.value === highest)?.hour;
+}
+
+/**
  * Which hour was the highest of its day, counted over the whole days with points in enough hours.
- * A tie goes to the earlier hour.
+ * A flat day has no highest hour and is not compared.
  *
  * @param cells - One value per hour of each day.
  * @param cutDays - The days the series starts or ends inside of, which have no highest hour.
- * @returns The days compared and the hours, the most frequent first.
+ * @returns The days compared and the hours, the most frequent first; `undefined` when no day is
+ *   left to compare, as for a series that never moves.
  */
-function peakHours(cells: readonly HourCell[], cutDays: ReadonlySet<string>): PeakHours {
+function peakHours(
+  cells: readonly HourCell[],
+  cutDays: ReadonlySet<string>,
+): PeakHours | undefined {
   const byDay = new Map<string, HourCell[]>();
   for (const cell of cells) byDay.set(cell.day, [...(byDay.get(cell.day) ?? []), cell]);
-  const fullDays = [...byDay]
+  const tops = [...byDay]
     .filter(([day, hours]) => !cutDays.has(day) && hours.length >= hoursOfFullDay)
-    .map(([, hours]) => hours);
+    .flatMap(([, hours]) => topHour(hours) ?? []);
+  if (tops.length === 0) return undefined;
   const counts = new Map<number, number>();
-  for (const day of fullDays) {
-    const top = day.reduce((best, cell) => (cell.value > best.value ? cell : best));
-    counts.set(top.hour, (counts.get(top.hour) ?? 0) + 1);
-  }
+  for (const hour of tops) counts.set(hour, (counts.get(hour) ?? 0) + 1);
   const hours = [...counts]
     .map(([hour, days]) => ({ hour, days }))
     .sort((left, right) => right.days - left.days || left.hour - right.hour)
     .slice(0, peakListLength);
-  return { days: fullDays.length, hours };
+  return { days: tops.length, hours };
 }
 
 /**
@@ -264,7 +280,7 @@ function peakHours(cells: readonly HourCell[], cutDays: ReadonlySet<string>): Pe
  * @param points - The points.
  * @param clock - The zone's clock.
  * @param scope - The layout of the series.
- * @returns The hours and the highest hours; empty when no hour is left.
+ * @returns The hours and, unless every day is flat, the highest hours; empty when no hour is left.
  */
 function hourProfile(
   points: readonly TimedValue[],
@@ -274,7 +290,8 @@ function hourProfile(
   const cells = hourCells(points, clock, scope);
   if (cells.length === 0) return {};
   const cutDays = cutPeriods(scope, (instant) => clock(instant).day);
-  return { byHour: hourSlots(cells), peakHour: peakHours(cells, cutDays) };
+  const peakHour = peakHours(cells, cutDays);
+  return { byHour: hourSlots(cells), ...(peakHour ? { peakHour } : {}) };
 }
 
 /** The value of one whole day. */

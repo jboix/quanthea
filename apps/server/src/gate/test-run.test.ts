@@ -9,7 +9,7 @@ import {
   modelRowLimit,
   modelTestError,
   modelTestResult,
-  profiledFrameLimit,
+  profiledColumnLimit,
 } from './test-run.ts';
 
 const frame: Frame = {
@@ -189,6 +189,23 @@ describe('the profile over the clock', () => {
     expect(shown(2, [hourly], 'UTC')).not.toContain('profile');
   });
 
+  test('one wide frame has none: the limit counts number columns, not frames', () => {
+    const [times = [], numbers = []] = hourly.values;
+    const wideOf = (columns: number): Frame => ({
+      ...hourly,
+      fields: [
+        { name: 'time', type: 'time' },
+        ...Array.from({ length: columns }, (_unused, index) => ({
+          name: `metric_${index}`,
+          type: 'number' as const,
+        })),
+      ],
+      values: [times, ...Array.from({ length: columns }, () => numbers)],
+    });
+    expect(shown(3, [wideOf(profiledColumnLimit)], 'UTC')).toContain('profile');
+    expect(shown(3, [wideOf(profiledColumnLimit + 1)], 'UTC')).not.toContain('profile');
+  });
+
   test('a hidden field has no profile', () => {
     const result = modelTestResult(subjectAt(3), [hourly], 'UTC');
     const summaries = result.ok ? result.frames?.[0]?.summaries : undefined;
@@ -196,8 +213,9 @@ describe('the profile over the clock', () => {
   });
 
   test('a result of many frames has none, a panel result of few has it', () => {
-    const many = Array.from({ length: profiledFrameLimit + 1 }, () => hourly);
-    expect(shown(3, many, 'UTC')).not.toContain('profile');
+    const few = Array.from({ length: profiledColumnLimit }, () => hourly);
+    expect(shown(3, few, 'UTC')).toContain('profile');
+    expect(shown(3, [...few, hourly], 'UTC')).not.toContain('profile');
     const panel = modelPanelResult(subjectAt(3), [hourly], 'UTC');
     expect(JSON.stringify(panel)).toContain('"profile"');
   });

@@ -83,6 +83,20 @@ describe('by hour of day', () => {
     });
   });
 
+  test('a series that never moves has no highest hour', () => {
+    const profile = profilerOf('UTC')?.(hourly(4, () => ({ hour: 20, value: 10 })));
+    expect(profile?.byHour).toHaveLength(24);
+    expect(profile).not.toHaveProperty('peakHour');
+  });
+
+  test('a flat day is left out of the days compared', () => {
+    const points = hourly(4, (dayIndex) => ({ hour: 20, value: dayIndex === 1 ? 10 : 100 }));
+    expect(profilerOf('UTC')?.(points)?.peakHour).toEqual({
+      days: 3,
+      hours: [{ hour: 20, days: 3 }],
+    });
+  });
+
   test('leaves the hour a series of finer buckets starts or ends inside of out', () => {
     // Quarter hours from Monday 00:45 to Thursday 01:00, each worth its minute of the hour.
     const points = Array.from({ length: 3 * 24 * 4 + 2 }, (_unused, index) => ({
