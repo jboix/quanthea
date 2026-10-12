@@ -1,6 +1,7 @@
 /** The connector endpoints: kinds, configured connectors, connection tests and schemas. Admin only. */
 import {
   countAffectedThreadsEndpoint,
+  countObjectUsageEndpoint,
   createConnectorEndpoint,
   deleteConnectorEndpoint,
   getConnectorEndpoint,
@@ -13,6 +14,7 @@ import {
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Connections } from '../../connections/connections.ts';
+import type { Dashboards } from '../../dashboards/dashboards.ts';
 import { countNarrowedThreads } from '../../gate/source-access.ts';
 import type { Managed } from '../../provisioning/managed.ts';
 import type { Threads } from '../../threads/threads.ts';
@@ -132,20 +134,49 @@ function mountAccessChangeRoute(
 }
 
 /**
+ * Mounts the endpoint that counts the threads and pinned dashboards reading an object that a
+ * change of what the connector shows would hide, before it is saved.
+ *
+ * @param app - The app.
+ * @param connections - The connectors service.
+ * @param dashboards - The dashboards, for the specs that name the connector.
+ */
+function mountObjectUsageRoute(
+  app: Hono<AppEnv>,
+  connections: Connections,
+  dashboards: Pick<Dashboards, 'objectUsage'>,
+): void {
+  mountEndpoint(app, countObjectUsageEndpoint, {
+    access: 'admin',
+    handle: ({ params, body }) =>
+      dashboards.objectUsage(connections.visibilityChange(params.connectorId, body)),
+  });
+}
+
+/** The services whose records say what a change to a connector touches. */
+export interface ConnectorUsage {
+  /** The threads, for the access their runs recorded. */
+  readonly threads: Pick<Threads, 'sourceAccess'>;
+  /** The dashboards, for the specs that name a connector. */
+  readonly dashboards: Pick<Dashboards, 'objectUsage'>;
+}
+
+/**
  * Mounts every connector endpoint. All of them need the admin role.
  *
  * @param app - The app.
  * @param connections - The connectors service.
  * @param managed - What the configuration file manages.
- * @param threads - The threads, for the access their runs recorded.
+ * @param usage - The threads and dashboards a change is counted in.
  */
 export function mountConnectorRoutes(
   app: Hono<AppEnv>,
   connections: Connections,
   managed: Managed,
-  threads: Pick<Threads, 'sourceAccess'>,
+  usage: ConnectorUsage,
 ): void {
   mountSettingsRoutes(app, connections, managed);
   mountSourceRoutes(app, connections);
-  mountAccessChangeRoute(app, connections, threads);
+  mountAccessChangeRoute(app, connections, usage.threads);
+  mountObjectUsageRoute(app, connections, usage.dashboards);
 }

@@ -8,6 +8,7 @@ import {
   type DashboardVersion,
   dashboardSpecSchema,
   type LibrarySearch,
+  type ObjectUsage,
   type PanelRun,
   type Role,
 } from '@quanthea/shared';
@@ -26,6 +27,7 @@ import {
   visibleVersion,
 } from './context.ts';
 import { type LibraryQuery, searchLibrary } from './library.ts';
+import { countObjectUsage, type VisibilityChange } from './object-usage.ts';
 import { copyPinned, copyVersion, findPinned, type PinnedMatch } from './pinned.ts';
 import { newRows } from './rows.ts';
 import { bindChoices, listVariableOptions, type RunChoices, runPanel } from './run-panel.ts';
@@ -33,6 +35,7 @@ import { type ValidationResult, validateSpec } from './validate.ts';
 import { addVersion, failuresOf, type PanelTest, restoreVersion, testRunSpec } from './versions.ts';
 
 export type { DashboardsDependencies, RunTarget } from './context.ts';
+export type { VisibilityChange } from './object-usage.ts';
 export type { PanelTest } from './versions.ts';
 
 /**
@@ -212,6 +215,30 @@ export interface Dashboards {
    * @returns The matching dashboards, and every tag and connector for the filters.
    */
   searchLibrary(query: LibraryQuery): LibrarySearch;
+  /**
+   * Counts the threads and the pinned dashboards that read an object a connector is about to stop
+   * showing. Nothing is saved.
+   *
+   * @param change - The connector and what it would show.
+   * @returns The counts.
+   */
+  objectUsage(change: VisibilityChange): ObjectUsage;
+}
+
+/**
+ * Counts the dashboards that read an object a change of visibility hides.
+ *
+ * @param context - The service context.
+ * @param change - The change.
+ * @returns The threads and pinned dashboards that read one.
+ */
+function objectUsage(context: ServiceContext, change: VisibilityChange): ObjectUsage {
+  return countObjectUsage(change, {
+    lookup: context.lookup,
+    threadSpecs: context.threadSpecs ?? (() => []),
+    pinnedSpecs: context.repository.listPinned,
+    now: context.now(),
+  });
 }
 
 /**
@@ -347,5 +374,6 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
     copyPinned: (id, actor) => copyPinned(context, id, actor),
     copyVersion: (id, version, actor) => copyVersion(context, id, version, actor),
     searchLibrary: (query) => searchLibrary(context, query),
+    objectUsage: (change) => objectUsage(context, change),
   };
 }

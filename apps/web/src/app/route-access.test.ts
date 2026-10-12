@@ -45,6 +45,7 @@ test('screen roles match the route table in docs/architecture.md', () => {
     '/connectors/:connectorId/edit': 'admin',
     '/connectors/:connectorId/health': 'admin',
     '/connectors/:connectorId/affected-threads': 'admin',
+    '/connectors/:connectorId/object-usage': 'admin',
     '/settings/model': 'admin',
     '/settings/auth': 'admin',
     '/settings/users': 'admin',

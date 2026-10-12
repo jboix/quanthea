@@ -1,6 +1,5 @@
 /** Loads and changes connectors through the API, for the routes of the connectors screen. */
 import {
-  type AccessChange,
   type ApiErrorCode,
   type ConnectorDetail,
   type ConnectorKindInfo,
@@ -8,12 +7,14 @@ import {
   type connectorInputSchema,
   type connectorPatchSchema,
   countAffectedThreadsEndpoint,
+  countObjectUsageEndpoint,
   createConnectorEndpoint,
   deleteConnectorEndpoint,
   getConnectorEndpoint,
   getConnectorSchemaEndpoint,
   listConnectorKindsEndpoint,
   listConnectorsEndpoint,
+  type ObjectUsage,
   refreshConnectorSchemaEndpoint,
   type SchemaView,
   testConnectorEndpoint,
@@ -28,6 +29,7 @@ import {
 import { z } from 'zod';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 import { accessChangeOf } from './access-change.ts';
+import { visibilityOf } from './shown-objects.ts';
 
 /** What the connectors layout shows: the list, and the kinds for names and forms. */
 export interface ConnectorsData {
@@ -209,22 +211,15 @@ export function countFor(
 }
 
 /**
- * Asks the server for the count, returning a failure instead of throwing so the screen can offer
- * to save or cancel.
+ * Awaits a count, returning a failure instead of throwing so the screen can offer to save or
+ * cancel.
  *
- * @param api - The API client.
- * @param input - The connector and the change.
- * @param input.params - The connector.
- * @param input.body - The change.
- * @returns The number of threads, or why it could not be read.
+ * @param count - The pending API call.
+ * @returns The count, or why it could not be read.
  */
-async function countAffected(
-  api: ApiClient,
-  input: { readonly params: { connectorId: string }; readonly body: AccessChange },
-): Promise<{ threads: number } | { failure: string }> {
+async function countOrFailure<Count>(count: Promise<Count>): Promise<Count | { failure: string }> {
   try {
-    const { threads } = await api.call(countAffectedThreadsEndpoint, input);
-    return { threads };
+    return await count;
   } catch (error) {
     if (error instanceof ApiError) return { failure: error.message };
     return { failure: 'The server could not be reached.' };
@@ -244,7 +239,36 @@ export function loadAffectedThreads(api: ApiClient) {
     const body = accessChangeOf(url.searchParams);
     // Without a change in the query there is nothing to restrict.
     if (body === undefined) return { threads: 0, query: url.search };
-    const counted = await countAffected(api, { params: connectorParams(params), body });
+    const input = { params: connectorParams(params), body };
+    const counted = await countOrFailure(api.call(countAffectedThreadsEndpoint, input));
+    return { ...counted, query: url.search };
+  };
+}
+
+/**
+ * How many threads and pinned dashboards read an object a visibility hides, or why they could not
+ * be counted, with the query the count was asked for.
+ */
+export type CountedUsage = (ObjectUsage | { readonly failure: string }) & {
+  /** The query of the request, to match the count with the change it was asked for. */
+  readonly query: string;
+};
+
+/**
+ * The loader of the resource route that counts the dashboards reading an object a visibility
+ * hides, before it is saved. Fetchers call it with the visibility in the query; without one, it
+ * counts none.
+ *
+ * @param api - The API client.
+ * @returns The loader.
+ */
+export function loadObjectUsage(api: ApiClient) {
+  return async ({ params, request }: LoaderFunctionArgs): Promise<CountedUsage> => {
+    const url = new URL(request.url);
+    const body = visibilityOf(url.searchParams);
+    if (body === undefined) return { threads: 0, pinned: 0, query: url.search };
+    const input = { params: connectorParams(params), body };
+    const counted = await countOrFailure(api.call(countObjectUsageEndpoint, input));
     return { ...counted, query: url.search };
   };
 }

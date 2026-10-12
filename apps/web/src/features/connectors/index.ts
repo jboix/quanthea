@@ -8,5 +8,6 @@ export {
   loadConnector,
   loadConnectors,
   loadHealth,
+  loadObjectUsage,
 } from './data.ts';
 export { connectorsRouteId } from './use-connectors-data.ts';

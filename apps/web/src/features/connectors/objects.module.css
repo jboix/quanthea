@@ -1,0 +1,137 @@
+.checklist {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.listHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-divider);
+  background: var(--color-surface-muted);
+}
+
+.listHead > div {
+  flex: 1 1 100%;
+}
+
+.summary {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-label);
+}
+
+.bulk {
+  display: flex;
+  gap: 12px;
+}
+
+.bulk button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.bulk button:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+.bulk button:disabled {
+  color: var(--color-ink-secondary);
+  text-decoration: none;
+  cursor: default;
+}
+
+.rows {
+  max-height: 300px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--color-divider);
+  cursor: pointer;
+}
+
+.rows li:last-child .row {
+  border-bottom: 0;
+}
+
+.row:hover {
+  background: var(--color-surface-muted);
+}
+
+.box {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
+.rowName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.row[data-shown="false"] .rowName {
+  color: var(--color-ink-secondary);
+}
+
+.rowNote {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-secondary);
+}
+
+.listFoot,
+.empty {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--color-ink-secondary);
+}
+
+.listFoot {
+  padding: 8px 12px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.entries,
+.addEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entriesTitle {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-ink-label);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}

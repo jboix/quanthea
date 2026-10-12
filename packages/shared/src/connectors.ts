@@ -61,11 +61,14 @@ export type Guardrails = z.output<typeof guardrailsSchema>;
 /** Validates admin-written descriptions, keyed by `entity` or `entity.field`. */
 export const descriptionsSchema = z.record(z.string().min(1).max(200), z.string().max(2000));
 
+/** The most names and patterns a connector's list holds. */
+export const maxObjectNames = 500;
+
 /**
  * Validates the names a connector's list holds: an index, table, collection, metric or endpoint as
  * the schema lists it, or a pattern where `*` stands for any run of characters, such as `logs-*`.
  */
-export const objectNamesSchema = z.array(z.string().trim().min(1).max(200)).max(500);
+export const objectNamesSchema = z.array(z.string().trim().min(1).max(200)).max(maxObjectNames);
 
 /** How a connector's list of names reads: everything but them, or nothing but them. */
 export const objectListModes = ['except', 'only'] as const;

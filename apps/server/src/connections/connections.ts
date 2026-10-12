@@ -9,10 +9,10 @@ import type {
   ConnectorSummary,
   connectorInputSchema,
   connectorPatchSchema,
-  Guardrails,
+  ObjectVisibility,
   SchemaView,
 } from '@quanthea/shared';
-import { z } from 'zod';
+import type { z } from 'zod';
 import {
   ConnectorError,
   type ConnectorInstance,
@@ -26,9 +26,16 @@ import type { GateSubject } from '../gate/subject.ts';
 import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
 import type { QuerySource } from '../query/executor.ts';
-import { type ObjectScope, scopeOf } from '../query/scope/object-scope.ts';
 import { sqlFlavorOf } from '../query/sql-dialects.ts';
 import type { SecretBox } from '../secrets/secret-box.ts';
+import {
+  type ConnectorFacts,
+  factsOf,
+  type ProposedVisibility,
+  proposedVisibility,
+  scopeFor,
+  snapshotSchema,
+} from './facts.ts';
 import { installed, kindInfo, kindOf, notInstalled, storedKindOf, targetOf } from './kinds.ts';
 import { validateNewSettings, validateSettings } from './validation.ts';
 import { toDetail, toSchemaView, toSubject, toSummary } from './views.ts';
@@ -147,12 +154,16 @@ export interface Connections {
    * @returns Its query language, SQL dialect, guardrails and the objects it shows, or `undefined`
    *   when no usable connector has the name.
    */
-  lookup(
-    name: string,
-  ):
-    | (Pick<QuerySource, 'language' | 'dialect' | 'scope'> & { guardrails: Guardrails })
-    | { readonly notInstalled: string }
-    | undefined;
+  lookup(name: string): ConnectorFacts | undefined;
+  /**
+   * Says what a connector would show with another visibility, without saving it.
+   *
+   * @param id - The connector id.
+   * @param visibility - The visibility about to be saved.
+   * @returns The connector's name, what dashboard validation would know of it, and the objects of
+   *   its cached schema that it shows now and would hide.
+   */
+  visibilityChange(id: string, visibility: ObjectVisibility): ProposedVisibility;
   /**
    * The schema snapshot of a connector by name: the cached one, or read from the source and
    * cached when it was never read. For the gate, which decides what the model sees of it.
@@ -187,11 +198,6 @@ interface ServiceContext extends ConnectionsDependencies {
     { readonly version: number; readonly instance: ConnectorInstance }
   >;
 }
-
-/** Validates a cached schema snapshot. */
-const snapshotSchema = z
-  .object({ entities: z.array(z.unknown()) })
-  .transform((value) => value as SchemaSnapshot);
 
 /**
  * Finds a connector.
@@ -408,20 +414,6 @@ async function removeConnector(context: ServiceContext, id: string, actor: strin
 }
 
 /**
- * Which objects a connector shows, by its kind's naming rules. A connector whose kind is gone has
- * no system objects to tell apart.
- *
- * @param context - The service context.
- * @param row - The stored connector.
- * @returns The scope.
- */
-function scopeFor(context: ServiceContext, row: ConnectorRow): ObjectScope {
-  const kind = context.kinds.find((candidate) => candidate.kind === row.kind);
-  if (!kind) return { visibility: row.visibility, family: 'plain' };
-  return scopeOf(row.visibility, kind.language, sqlFlavorOf(kind));
-}
-
-/**
  * Reads the cached schema view of a connector.
  *
  * @param context - The service context.
@@ -432,7 +424,11 @@ function cachedSchema(context: ServiceContext, id: string): SchemaView {
   const row = find(context, id);
   const cached = context.repository.readSchema(id);
   const snapshot = cached ? snapshotSchema.parse(cached.snapshot) : undefined;
-  return toSchemaView(toSubject(row, scopeFor(context, row)), snapshot, cached?.readAt ?? null);
+  return toSchemaView(
+    toSubject(row, scopeFor(context.kinds, row)),
+    snapshot,
+    cached?.readAt ?? null,
+  );
 }
 
 /**
@@ -465,7 +461,7 @@ async function refreshSchema(
   const snapshot = await (await instanceOf(context, row)).describe(signal).catch(asSourceFailure);
   const readAt = context.clock();
   context.repository.writeSchema(id, { snapshot, readAt });
-  return toSchemaView(toSubject(row, scopeFor(context, row)), snapshot, readAt);
+  return toSchemaView(toSubject(row, scopeFor(context.kinds, row)), snapshot, readAt);
 }
 
 /**
@@ -481,7 +477,7 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
   if (!row) throw new AppError('not_found', `No connector is named "${name}".`);
   const instance = await instanceOf(context, row);
   const kind = storedKindOf(context.kinds, row);
-  const scope = scopeFor(context, row);
+  const scope = scopeFor(context.kinds, row);
   const source = {
     connectorId: row.id,
     version: row.updatedAt,
@@ -501,17 +497,26 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
  * @param name - The connector name.
  * @returns The language, the guardrails and the scope, or `undefined` for an unknown name.
  */
-function lookupConnector(context: ServiceContext, name: string) {
+function lookupConnector(context: ServiceContext, name: string): ConnectorFacts | undefined {
   const row = context.repository.getByName(name);
-  if (!row) return undefined;
-  const kind = context.kinds.find((candidate) => candidate.kind === row.kind);
-  if (!kind) return { notInstalled: notInstalled(row.kind) };
-  return {
-    language: kind.language,
-    dialect: sqlFlavorOf(kind),
-    guardrails: row.guardrails,
-    scope: scopeFor(context, row),
-  };
+  return row ? factsOf(context.kinds, row) : undefined;
+}
+
+/**
+ * A connector as it would be with another visibility, judged on its cached schema.
+ *
+ * @param context - The service context.
+ * @param id - The connector id.
+ * @param visibility - The visibility about to be saved.
+ * @returns Its name, its facts with that visibility, and the cached objects it would hide.
+ */
+function visibilityChange(
+  context: ServiceContext,
+  id: string,
+  visibility: ObjectVisibility,
+): ProposedVisibility {
+  const cached = context.repository.readSchema(id)?.snapshot;
+  return proposedVisibility(context.kinds, find(context, id), visibility, cached);
 }
 
 /**
@@ -549,7 +554,7 @@ function subjectsOf(context: ServiceContext) {
     const guide = kind.queryGuide === undefined ? {} : { guide: kind.queryGuide };
     const flavor = sqlFlavorOf(kind);
     const dialect = flavor === undefined ? {} : { dialect: flavor };
-    const subject = toSubject(row, scopeFor(context, row));
+    const subject = toSubject(row, scopeFor(context.kinds, row));
     return [{ subject, language: kind.language, ...dialect, ...guide }];
   });
 }
@@ -612,6 +617,7 @@ export function createConnections(dependencies: ConnectionsDependencies): Connec
     refreshSchema: (id, signal) => refreshSchema(context, id, signal),
     open: (name) => openConnector(context, name),
     lookup: (name) => lookupConnector(context, name),
+    visibilityChange: (id, visibility) => visibilityChange(context, id, visibility),
     snapshot: (name, signal) => snapshotByName(context, name, signal),
     subjects: () => subjectsOf(context),
     closeAll: async () => {

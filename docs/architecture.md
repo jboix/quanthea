@@ -404,7 +404,8 @@ gate's leak tests check that every one of those paths drops hidden fields.
   a hidden column suggests the schema's fields while typing (`ui/suggest-input.tsx`, a text field
   with a list of matching names). A name the schema lacks is marked, in the list and on its chip,
   and saved all the same (`features/connectors/hidden-names.ts`, which matches names as the gate
-  does).
+  does). Which objects the connector shows is a section of its own, with a checklist of the
+  schema's objects: see "Hiding an object that dashboards read".
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
 - **Colour scheme.** Light, dark or the system's, picked under Appearance in the account menu and
@@ -456,6 +457,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/connectors/new`, `/connectors/:connectorId/edit`             | add and edit a connection                                   | admin    |
 | `/connectors/:connectorId/health`                              | resource route: the connection test, for fetchers           | admin    |
 | `/connectors/:connectorId/affected-threads`                    | resource route: the threads an access change restricts      | admin    |
+| `/connectors/:connectorId/object-usage`                        | resource route: the dashboards reading an object to hide    | admin    |
 | `/settings/model`                                              | Model: the providers, their keys and limits                 | admin    |
 | `/settings/auth`                                               | Authentication: sign-in providers, passwords                | admin    |
 | `/settings/users`                                              | Users: invite, roles, disable, reset links, sign out        | admin    |
@@ -2563,6 +2565,37 @@ model's own earlier answers quoting what it no longer sees.
   drawer shows the mark as Restricted data, and the thread shows a notice above the composer:
   continuing the conversation resends that data to the model provider.
 
+#### Hiding an object that dashboards read
+
+Hiding an object applies at once: the next query on it is refused, in a draft and in a pinned
+dashboard alike. So the connector screen counts who reads it before saving.
+
+- `POST /api/connectors/:connectorId/object-usage` (admin) takes a `visibility` and saves nothing.
+  It returns `threads`, the threads outside the bin whose latest dashboard version reads an object
+  the visibility hides, and `pinned`, the pinned dashboards whose pinned version does.
+- A spec reads a hidden object when validating it with the proposed scope finds an issue that the
+  current scope does not (`countObjectUsage` in `dashboards/object-usage.ts`, over `checkQueries`),
+  so the count is as sure as the refusal is for each query language. A search pattern is the one
+  addition: it still runs, without the hidden index, so a spec also counts when a pattern of its
+  index expression covers an object of the cached schema that the change hides.
+- `connections.visibilityChange` builds the proposed scope and the list of cached objects the
+  change hides (`connections/facts.ts`). `db/thread-specs.ts` reads the latest spec of each thread
+  whose text names the connector.
+- Alerts and reports are not counted. A thread that only holds results of the object is not
+  counted either: the access records of "Access changes" hold no object names.
+- The screen's section **What the connector shows** (`features/connectors/objects-section.tsx`)
+  edits a draft and saves it with one button. It has the switch for system objects (for SQL,
+  search and MongoDB kinds), the choice between All but these and Only these, a checklist of the
+  cached schema's objects where a tick means shown, and the patterns and unknown names as chips
+  with what each covers. Each mode keeps its own list while the draft is open. A checkbox is fixed
+  while the switch or a pattern decides for its object (`lockOf` in `shown-objects.ts`, which
+  matches names with the server's `matchesObjectName`).
+- Save asks the count first (`use-visibility-guard.ts`). With nothing counted it saves. Otherwise
+  it shows the numbers and waits for Save anyway or Cancel, with the warning the access change
+  uses (`ChangeWarning` in `access-warning.tsx`). A failed count shows its reason with the same
+  two buttons.
+- The schema panel strikes through an object the connector does not show and says "not shown".
+
 Credentials are stored encrypted. A connector config holds everything else: URL, database,
 TLS options, the access level, hidden columns, guardrails, and table and field descriptions.
 
@@ -2988,6 +3021,7 @@ indicative; the contract files are the source of truth.
 | `GET/POST /connectors`, `GET/PATCH/DELETE /connectors/:connectorId`                               | connectors                                   | admin    |
 | `POST /connectors/:connectorId/test`, `GET/POST /connectors/:connectorId/schema`                  | connection test, schema                      | admin    |
 | `POST /connectors/:connectorId/affected-threads` (a level and hidden fields, saves nothing)       | threads an access change restricts, a count  | admin    |
+| `POST /connectors/:connectorId/object-usage` (a visibility, saves nothing)                        | threads and pinned dashboards it hides from  | admin    |
 | `GET/PUT /settings/:section`                                                                      | model, auth, retention, limits               | admin    |
 | `POST /settings/model/test`                                                                       | gateway capability test                      | admin    |
 | `GET /settings/usage?days=`                                                                       | usage by hour, model, feature and user       | admin    |

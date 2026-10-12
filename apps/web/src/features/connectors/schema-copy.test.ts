@@ -27,6 +27,11 @@ describe('schema copy', () => {
     expect(entitySummary({ ...metric, fields: [field({}), field({})] })).toBe('2 labels');
   });
 
+  test('says of an entity the connector does not show that it is not shown', () => {
+    const table = { system: true, shown: false, name: 'pg_class', kind: 'table' as const };
+    expect(entitySummary({ ...table, fields: [field({})], rows: 12 })).toBe('1 column · not shown');
+  });
+
   test('counts entities by kind, or as entities when kinds mix', () => {
     const table = { ...shown, name: 't', kind: 'table' as const, fields: [] };
     expect(schemaSummary({ readAt: 1, entities: [table, table] })).toBe('2 tables');

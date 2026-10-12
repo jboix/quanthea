@@ -46,10 +46,12 @@ function rowCount(rows: number): string {
  * The line to the right of an entity's name.
  *
  * @param entity - The entity.
- * @returns Such as `14 columns · 8.2M rows` or `11 columns · 1 hidden`.
+ * @returns Such as `14 columns · 8.2M rows`, `11 columns · 1 hidden`, or `9 columns · not shown`
+ *   for an object the connector does not show.
  */
 export function entitySummary(entity: SchemaEntity): string {
   const fields = countOf(entity.fields.length, fieldNouns[entity.kind]);
+  if (!entity.shown) return `${fields} · not shown`;
   const hidden = entity.fields.filter((field) => field.hidden).length;
   if (hidden > 0) return `${fields} · ${hidden} hidden`;
   if (entity.rows !== undefined) return `${fields} · ${rowCount(entity.rows)} rows`;

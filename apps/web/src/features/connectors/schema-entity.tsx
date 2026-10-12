@@ -100,7 +100,7 @@ export function SchemaEntityRow({ entity, onDescribe }: SchemaEntityRowProps) {
   const [editing, setEditing] = useState(false);
   const description = entity.adminDescription ?? entity.description;
   return (
-    <li className={styles.entity} data-expanded={expanded}>
+    <li className={styles.entity} data-expanded={expanded} data-shown={entity.shown}>
       <button
         type="button"
         className={styles.entityHead}

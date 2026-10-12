@@ -214,6 +214,7 @@ export {
   listShowsObject,
   lowCardinalityLimit,
   matchesObjectName,
+  maxObjectNames,
   type ObjectVisibility,
   objectListModes,
   objectVisibilitySchema,

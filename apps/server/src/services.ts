@@ -43,6 +43,7 @@ import { createReportChannelUsage } from './db/report-channel-usage.ts';
 import { createSnapshotRepository } from './db/snapshot-repository.ts';
 import { createThreadBinRepository } from './db/thread-bin.ts';
 import { createThreadRepository } from './db/thread-repository.ts';
+import { threadSpecLister } from './db/thread-specs.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
 import { createUserRepository } from './db/user-repository.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
@@ -208,6 +209,7 @@ function dataServices(
     ...sourcesOf(connections, executor),
     repository: createDashboardRepository(database),
     layouts: createLayoutRepository(database),
+    threadSpecs: threadSpecLister(database),
     audit,
     ...(now ? { now } : {}),
   };

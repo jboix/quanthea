@@ -219,8 +219,8 @@ function mountDashboardRoutes(app: Hono<AppEnv>, dependencies: AppDependencies):
 function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void {
   mountAccountRoutes(app, dependencies);
   mountSystemRoutes(app, { version: dependencies.version });
-  const { connections, managed, threads } = dependencies;
-  mountConnectorRoutes(app, connections, managed, threads);
+  const { connections, managed } = dependencies;
+  mountConnectorRoutes(app, connections, managed, dependencies);
   mountDashboardRoutes(app, dependencies);
   mountSettingsRoutes(app, dependencies);
   mountThreadEndpoints(app, dependencies);

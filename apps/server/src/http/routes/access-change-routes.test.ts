@@ -45,7 +45,7 @@ function client(principal: Principal) {
   app.use(requestId());
   app.use(authenticate(fixedAuthenticator(principal)));
   mountThreadEndpoints(app, fixture);
-  mountConnectorRoutes(app, fixture.connections, fixture.managed, fixture.threads);
+  mountConnectorRoutes(app, fixture.connections, fixture.managed, fixture);
   app.onError(handleErrors(captureLogs().logger));
   app.notFound(handleNotFound);
   return async (method: string, path: string, body?: unknown) => {

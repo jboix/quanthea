@@ -188,7 +188,12 @@ connectors:
 `visibility` has three fields. `showSystem` (`false`) shows the source's own objects, such as dot
 indices or `pg_catalog`. `names` (`[]`) lists names as the schema has them, or patterns such as
 `logs-*`. `mode` says how the list reads: `except` (the default) hides the names, `only` shows
-nothing else.
+nothing else. With `mode: only` and no names, the connector shows nothing.
+
+The connector's page edits the same three fields, with a checklist of what the schema found. It
+counts the threads and pinned dashboards that read an object before hiding it. The file does not:
+a pinned dashboard that reads an object the file hides shows the refusal on its panels. On a
+connector the file declares, the section is read-only.
 
 `config` is stored in clear. A URL in it must not hold a username or a password, even from a
 variable, and a host field must not hold `@`: put the username in the kind's `username` field and the password in `secret`.

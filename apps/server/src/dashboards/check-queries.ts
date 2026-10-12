@@ -57,7 +57,7 @@ interface LocatedQuery {
  * @param spec - The spec.
  * @returns Panel queries, annotation queries and variable sources.
  */
-function queriesOf(spec: DashboardSpec): LocatedQuery[] {
+export function queriesOf(spec: DashboardSpec): LocatedQuery[] {
   const panels = spec.panels.flatMap((panel, panelIndex) =>
     panel.queries.map((query, index) => ({
       query,

@@ -12,6 +12,7 @@ import {
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { DashboardRepository, VersionRow } from '../db/dashboard-repository.ts';
 import type { LayoutRepository } from '../db/layout-repository.ts';
+import type { ThreadSpecRow } from '../db/thread-specs.ts';
 import { AppError } from '../lib/errors.ts';
 import type { ConnectorLookup } from './check-queries.ts';
 import type { SpecIssue } from './issues.ts';
@@ -29,6 +30,11 @@ export interface DashboardsDependencies extends Omit<RunnerDependencies, 'now'> 
   readonly lookup: ConnectorLookup;
   /** Stores the layouts versions are shown with; without it, every version shows its spec. */
   readonly layouts?: LayoutRepository;
+  /**
+   * Reads the latest spec of each thread outside the bin that names a connector; without it, no
+   * thread counts as using an object.
+   */
+  readonly threadSpecs?: (connector: string) => readonly ThreadSpecRow[];
   /** The clock; `Date.now` by default. */
   readonly now?: () => number;
 }

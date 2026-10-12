@@ -92,8 +92,8 @@ those values, with no tool call, is not counted or marked.
 ### What a connector shows
 
 A connector shows the model, and lets queries read, what the source's credentials can read, with
-two limits you set. They are in the [configuration file](../configuration.md#connectors) and the
-API, as `visibility`.
+two limits you set. They are in the section **What the connector shows** of the connector's page,
+in the [configuration file](../configuration.md#connectors) and in the API, as `visibility`.
 
 - **System objects are hidden.** They are the source's own: on Elasticsearch and OpenSearch the
   indices whose name starts with a dot and the security audit, query insight and lifecycle history
@@ -103,6 +103,32 @@ API, as `visibility`.
 - **A list of names.** With `mode: except` the names are hidden; with `mode: only` nothing else is
   shown. A name is one the schema lists, or a pattern such as `logs-*`, where `*` stands for any
   text. Names match in any case.
+
+On the connector's page:
+
+- **Show system objects** is the switch for the first limit. It is there for SQL sources,
+  Elasticsearch, OpenSearch and MongoDB.
+- **All but these** and **Only these** say how the list reads. Each keeps its own list while you
+  edit, so switching back loses nothing.
+- The checklist holds what the schema found, with a line that counts what is shown. A tick means
+  shown. **Tick all** and **Clear all** act on the names the filter keeps.
+- **Name or pattern** adds an entry such as `logs-*`, suggests the schema's names while you type,
+  and says how many objects the entry covers. Patterns and names the schema lacks show as chips
+  with that count. A name the schema lacks is marked **not in the schema** and kept: the object
+  may come later.
+- A checkbox is greyed out while the switch or a pattern decides for its object. Remove the pattern
+  to tick or clear one name under it.
+- With **Only these** and nothing ticked or listed, the connector shows nothing.
+- A list holds at most 500 names and patterns. Use a pattern for the rest.
+- **Save what it shows** saves the whole section. **Reset** puts back what is saved.
+
+Before saving, the page counts the threads and the pinned dashboards that read an object the
+change hides, and asks you to confirm when there are any. The count covers the latest version of
+each thread's dashboard and the pinned version of each pinned dashboard. It leaves out threads in
+the bin, alerts and reports. If the count fails, the page says why and still lets you save or
+cancel.
+
+The schema panel on the right strikes through what the connector does not show.
 
 A hidden object is left out of what the model reads, and every query on it is refused with a
 message that names it: a panel, a variable, a marker, a saved query, an alert, a report and a

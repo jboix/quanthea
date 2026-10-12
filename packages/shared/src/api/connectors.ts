@@ -235,3 +235,26 @@ export const countAffectedThreadsEndpoint = defineEndpoint({
   body: accessChangeSchema,
   output: z.object({ threads: z.int().min(0) }),
 });
+
+/** Validates how many dashboards read an object a connector is about to stop showing. */
+export const objectUsageSchema = z.object({
+  /** The threads whose latest draft reads one. */
+  threads: z.int().min(0),
+  /** The pinned dashboards whose pinned version reads one. */
+  pinned: z.int().min(0),
+});
+
+/** How many dashboards read an object a connector is about to stop showing. */
+export type ObjectUsage = z.infer<typeof objectUsageSchema>;
+
+/**
+ * Counts the threads and the pinned dashboards with a query on an object that a change of what the
+ * connector shows would hide. Nothing is saved.
+ */
+export const countObjectUsageEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/connectors/:connectorId/object-usage',
+  params: connectorParams,
+  body: objectVisibilitySchema,
+  output: objectUsageSchema,
+});
