@@ -66,6 +66,10 @@ A field that holds a hidden one is removed whole: hiding `logs.user.email` also 
 column that holds an array of user objects, and the schema marks `user` as holding a hidden field.
 A column that ends with a hidden name, such as `c.email`, is removed too.
 
+**Add column** suggests the columns of the schema while you type. A name the schema does not have
+is marked **not in the schema** and still hidden: the column may come later, or only in a query's
+result.
+
 A query that renames a column gets past the name: its top values show at the aggregates level, its
 rows at full access. For data that must never leave, use a database role or a view that cannot
 read it.

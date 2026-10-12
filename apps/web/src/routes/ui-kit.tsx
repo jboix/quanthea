@@ -14,6 +14,7 @@ import { RadioCards } from '../ui/radio-cards.tsx';
 import { Segmented } from '../ui/segmented.tsx';
 import { Select } from '../ui/select.tsx';
 import { StatusDot } from '../ui/status-dot.tsx';
+import { SuggestInput } from '../ui/suggest-input.tsx';
 import { Switch } from '../ui/switch.tsx';
 import { Tabs } from '../ui/tabs.tsx';
 import { TextArea } from '../ui/text-area.tsx';
@@ -128,6 +129,30 @@ function SearchSample() {
   );
 }
 
+/** The names the suggesting input sample offers. */
+const sampleColumns = ['customers.email', 'customers.phone', 'orders.total', 'orders.placed_at'];
+
+/**
+ * An input that suggests names while typing, as the hidden columns list uses it.
+ *
+ * @returns The field.
+ */
+function SuggestSample() {
+  const [text, setText] = useState('');
+  return (
+    <SuggestInput
+      label="Column to hide, with suggestions"
+      mono
+      placeholder="table.column"
+      suggestions={sampleColumns}
+      unknownNote="Not in the schema. It is taken all the same."
+      value={text}
+      onChange={setText}
+      onCommit={() => setText('')}
+    />
+  );
+}
+
 /**
  * Inputs, a select and switches, as in the settings screens.
  *
@@ -146,6 +171,7 @@ function FormControls() {
         />
       </div>
       <SearchSample />
+      <SuggestSample />
       <TextArea
         label="Query"
         mono

@@ -1,12 +1,13 @@
 import type { AccessLevel, ConnectorDetail, SchemaView } from '@quanthea/shared';
-import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
-import { Input } from '../../ui/input.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import { RadioCards } from '../../ui/radio-cards.tsx';
+import { SuggestInput } from '../../ui/suggest-input.tsx';
 import { accessLevels } from './access-levels.ts';
 import { AccessWarning } from './access-warning.tsx';
 import styles from './connector.module.css';
+import { hideableFields, schemaNames } from './hidden-names.ts';
 import { useAccessGuard } from './use-access-guard.ts';
 import { failureOf } from './use-connector-change.ts';
 
@@ -54,6 +55,8 @@ function AccessLevelCards({ connector }: SectionProps) {
 interface AddHiddenFieldProps {
   /** The fields of the schema not hidden yet, as `entity.field`. */
   readonly candidates: readonly string[];
+  /** Whether a name hides a field of the schema. */
+  readonly inSchema: (name: string) => boolean;
   /** Called with the field to hide. */
   readonly onAdd: (field: string) => void;
   /** Called when the user gives up. */
@@ -61,14 +64,14 @@ interface AddHiddenFieldProps {
 }
 
 /**
- * The inline form that adds a hidden field, suggesting the schema's fields.
+ * The inline form that adds a hidden field, suggesting the schema's fields while typing. A name
+ * the schema lacks is marked and still added: the column may come later, or from a query.
  *
- * @param props - The suggestions and callbacks.
+ * @param props - The suggestions, the schema test and the callbacks.
  * @returns The form.
  */
-function AddHiddenField({ candidates, onAdd, onCancel }: AddHiddenFieldProps) {
+function AddHiddenField({ candidates, inSchema, onAdd, onCancel }: AddHiddenFieldProps) {
   const [value, setValue] = useState('');
-  const listId = useId();
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => input.current?.focus(), []);
   const add = (event: FormEvent) => {
@@ -77,22 +80,20 @@ function AddHiddenField({ candidates, onAdd, onCancel }: AddHiddenFieldProps) {
   };
   return (
     <form className={styles.addField} onSubmit={add}>
-      <Input
+      <SuggestInput
         ref={input}
         label="Column to hide"
         hideLabel
         mono
-        list={listId}
         placeholder="table.column"
+        suggestions={candidates}
+        isKnown={inSchema}
+        unknownNote="Not in the schema. It is hidden all the same, wherever a result has it."
         value={value}
-        onChange={(event) => setValue(event.target.value)}
-        onKeyDown={(event) => event.key === 'Escape' && onCancel()}
+        onChange={setValue}
+        onCommit={onAdd}
+        onCancel={onCancel}
       />
-      <datalist id={listId}>
-        {candidates.map((candidate) => (
-          <option key={candidate} value={candidate} />
-        ))}
-      </datalist>
       <Button type="submit" size="small">
         Hide
       </Button>
@@ -103,17 +104,35 @@ function AddHiddenField({ candidates, onAdd, onCancel }: AddHiddenFieldProps) {
   );
 }
 
+/** Props of {@link HiddenChip}. */
+interface HiddenChipProps {
+  /** The hidden name. */
+  readonly field: string;
+  /** Whether the schema has it. */
+  readonly known: boolean;
+  /** Called to stop hiding it. */
+  readonly onRemove: () => void;
+}
+
 /**
- * The fields of a schema that are not hidden yet.
+ * One hidden name as a removable chip. A name the schema lacks is amber and says so.
  *
- * @param schema - The schema.
- * @param hidden - The hidden fields.
- * @returns `entity.field` names.
+ * @param props - The name, whether the schema has it, and the remove callback.
+ * @returns The chip.
  */
-function hideableFields(schema: SchemaView, hidden: readonly string[]): string[] {
-  return schema.entities
-    .flatMap((entity) => entity.fields.map((field) => `${entity.name}.${field.name}`))
-    .filter((name) => !hidden.includes(name));
+function HiddenChip({ field, known, onRemove }: HiddenChipProps) {
+  return (
+    <Pill
+      tone={known ? 'danger' : 'draft'}
+      shape="tag"
+      mono
+      removeLabel={`Stop hiding ${field}`}
+      onRemove={onRemove}
+    >
+      {field}
+      {!known && <span className={styles.chipNote}>not in the schema</span>}
+    </Pill>
+  );
 }
 
 /** Props of {@link HiddenChips}. */
@@ -134,27 +153,25 @@ interface HiddenChipsProps {
  */
 function HiddenChips({ hidden, schema, save }: HiddenChipsProps) {
   const [adding, setAdding] = useState(false);
+  const inSchema = useMemo(() => schemaNames(schema), [schema]);
   const add = (field: string) => {
-    save([...hidden, field]);
+    if (!hidden.includes(field)) save([...hidden, field]);
     setAdding(false);
   };
   return (
     <div className={styles.chips}>
       {hidden.map((field) => (
-        <Pill
+        <HiddenChip
           key={field}
-          tone="danger"
-          shape="tag"
-          mono
-          removeLabel={`Stop hiding ${field}`}
+          field={field}
+          known={inSchema(field)}
           onRemove={() => save(hidden.filter((other) => other !== field))}
-        >
-          {field}
-        </Pill>
+        />
       ))}
       {adding ? (
         <AddHiddenField
           candidates={hideableFields(schema, hidden)}
+          inSchema={inSchema}
           onAdd={add}
           onCancel={() => setAdding(false)}
         />

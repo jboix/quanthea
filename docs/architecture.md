@@ -396,6 +396,10 @@ gate's leak tests check that every one of those paths drops hidden fields.
   (`follow-up-cards.tsx`): the kind, the title and the prompt as plain text, and for editors Start
   this alert or Start this dashboard, a link to `/threads/new?make=alert&prompt=…` that fills the
   question box and sends nothing.
+- **Connector settings.** Adding a hidden column on the connector screen suggests the schema's
+  fields while typing (`ui/suggest-input.tsx`, a text field with a list of matching names). A name
+  the schema lacks is marked, in the list and on its chip, and saved all the same
+  (`features/connectors/hidden-names.ts`, which matches names as the gate does).
 - `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
   from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
 - **Colour scheme.** Light, dark or the system's, picked under Appearance in the account menu and

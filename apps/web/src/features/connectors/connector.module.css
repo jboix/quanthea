@@ -149,12 +149,20 @@
 
 .addField {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
 }
 
 .addField > div:first-child {
-  width: 240px;
+  flex: 0 1 280px;
+}
+
+.chipNote {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  opacity: 0.85;
 }
 
 .guardrails {
