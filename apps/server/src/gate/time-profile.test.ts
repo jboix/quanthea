@@ -73,6 +73,26 @@ describe('by hour of day', () => {
       hours: [{ hour: 20, days: 3 }],
     });
   });
+
+  test('leaves the day a series starts or ends inside of out of the highest hours', () => {
+    // From Monday 12:00 to Friday 15:00: the peak at 20:00 is missing from the last day.
+    const points = hourly(5, () => ({ hour: 20, value: 100 })).slice(12, 4 * 24 + 16);
+    expect(profilerOf('UTC')?.(points)?.peakHour).toEqual({
+      days: 3,
+      hours: [{ hour: 20, days: 3 }],
+    });
+  });
+
+  test('leaves the hour a series of finer buckets starts or ends inside of out', () => {
+    // Quarter hours from Monday 00:45 to Thursday 01:00, each worth its minute of the hour.
+    const points = Array.from({ length: 3 * 24 * 4 + 2 }, (_unused, index) => ({
+      at: monday + (index + 3) * 15 * 60_000,
+      value: ((index + 3) % 4) * 15,
+    }));
+    const profile = profilerOf('UTC')?.(points);
+    expect(profile?.byHour?.[0]).toEqual({ hour: 0, mean: 22.5, min: 22.5, max: 22.5 });
+    expect(profile?.byHour?.[1]).toEqual({ hour: 1, mean: 22.5, min: 22.5, max: 22.5 });
+  });
 });
 
 describe('by weekday', () => {
@@ -109,6 +129,38 @@ describe('by weekday', () => {
     expect(profile?.byWeekday).toHaveLength(7);
     expect(profile?.byWeekday?.[0]).toMatchObject({ weekday: 'Monday', mean: 13.75, days: 2 });
   });
+
+  test('leaves the days a series starts and ends inside of out of their weekday', () => {
+    // Fourteen days from Monday 15:00, each point worth its hour of the day.
+    const points = Array.from({ length: 14 * 24 }, (_unused, index) => ({
+      at: monday + (index + 15) * hour,
+      value: (index + 15) % 24,
+    }));
+    const profile = profilerOf('UTC')?.(points);
+    expect(profile?.byWeekday).toHaveLength(7);
+    expect(profile?.byWeekday?.[0]).toEqual({
+      weekday: 'Monday',
+      mean: 11.5,
+      min: 11.5,
+      max: 11.5,
+      days: 1,
+    });
+    expect(profile?.byWeekday?.[1]).toMatchObject({ weekday: 'Tuesday', mean: 11.5, days: 2 });
+  });
+
+  test('leaves a day with points in under half of its buckets out of its weekday', () => {
+    // The second Wednesday has its first six hours only.
+    const points = hourly(14, () => ({ hour: 3, value: 100 })).filter(
+      (_point, index) => Math.floor(index / 24) !== 9 || index % 24 < 6,
+    );
+    expect(profilerOf('UTC')?.(points)?.byWeekday?.[2]).toEqual({
+      weekday: 'Wednesday',
+      mean: 13.75,
+      min: 13.75,
+      max: 13.75,
+      days: 1,
+    });
+  });
 });
 
 describe('when a profile means nothing', () => {
@@ -129,6 +181,19 @@ describe('when a profile means nothing', () => {
       at: monday + index * 7 * day,
       value: index,
     }));
+    expect(profilerOf('UTC')?.(points)).toBeUndefined();
+  });
+
+  test('none for several series in one frame, where an hour holds the groups it has', () => {
+    // One group of 100 at 03:00 and ten at 15:00, on four days: the mean of both hours is 100.
+    const points = Array.from({ length: 4 }, (_unused, dayIndex) => dayIndex).flatMap((dayIndex) =>
+      Array.from({ length: 24 }, (_unused, hourOfDay) => hourOfDay).flatMap((hourOfDay) =>
+        Array.from({ length: hourOfDay === 15 ? 10 : 1 }, () => ({
+          at: monday + dayIndex * day + hourOfDay * hour,
+          value: 100,
+        })),
+      ),
+    );
     expect(profilerOf('UTC')?.(points)).toBeUndefined();
   });
 

@@ -28,5 +28,6 @@ describe('how a query bounds its time', () => {
     const instructions = askInstructions(facts, (level) => level >= 3);
     expect(instructions).toContain('buckets of an hour or less over three days or more');
     expect(instructions).toContain('peakHour');
+    expect(instructions).toContain('The profile needs one row per bucket');
   });
 });

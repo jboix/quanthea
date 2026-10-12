@@ -140,7 +140,8 @@ test('profiles a number over the clock for a reader with a time zone', () => {
   const [, plays] = summarizeFrame(hourlyFrame(4), 'Europe/Zurich');
   expect(plays).toMatchObject({
     field: 'plays',
-    profile: { timeZone: 'Europe/Zurich', peakHour: { days: 4, hours: [{ hour: 22, days: 4 }] } },
+    // In Zurich the series starts at 02:00 and ends at 01:00: three of its days are whole.
+    profile: { timeZone: 'Europe/Zurich', peakHour: { days: 3, hours: [{ hour: 22, days: 3 }] } },
   });
 });
 

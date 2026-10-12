@@ -2326,17 +2326,26 @@ model-ready results and never throw.
   - `byHour`: each hour of the day, with the mean of that hour over the days and its lowest and
     highest day. An hour of one day is the mean of its points.
   - `peakHour`: which hour was the highest of its day, on how many days, the five most frequent.
-    A day counts when at least 12 of its hours have points.
+    A day counts when it is whole and at least 12 of its hours have points.
   - `byWeekday`: each day of the week from Monday, with the mean of its days, the lowest and
     highest of them, and how many there were. A point belongs to the day the middle of its bucket
-    falls on, so a daily bucket cut at midnight UTC keeps its day in another zone.
+    falls on, so a daily bucket cut at midnight UTC keeps its day in another zone. A day counts
+    when it is whole and at least half of its buckets have points.
+  - A day is whole unless the series starts or ends inside it: the bucket before the first point,
+    or after the last, would fall on the same day. A read of the last 14 days starts and ends in
+    the middle of a day, and the mean of half a day is not that of the day. The same rule leaves
+    out the hour a series of finer buckets starts or ends inside of.
+  - A series of daily buckets has no cut day to find: its first and last buckets may hold a part of
+    their day, which the points do not say.
   - The hours need buckets of an hour or less over three days or more; the weekdays need buckets
     of a day or less over two weeks or more. The bucket is the median gap between the times of the
     series. A shorter or coarser series has no profile, since one day says nothing of the next.
   - It follows the level rules of the summary it sits in: from level 3 only, never for a hidden
     field. A result of more than five frames has none, to keep what the model reads small.
-  - A result with several series in one frame, such as a count per country and hour, is profiled
-    as one: the mean over the series.
+  - A result with several series in one frame, such as a count per country and hour, has none: its
+    points share their times. A series with no row in an hour may be zero there or missing, so
+    neither the sum nor the mean over the series is the measure. The instructions of an answer say
+    to read the total without the group, or one group at a time.
 - Hidden fields (`entity.field`, or a bare `field`) are removed at every level: from the schema, and
   from results by column name and label name. Names compare without case, and a hidden object
   hides every field under it: a hidden `logs.user` hides `user.email`. Results do not say which
