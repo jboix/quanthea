@@ -192,6 +192,45 @@ describe('the next change of quiet hours', () => {
     expect(changeAfter(early, '2026-03-28T23:00:00Z')).toBe('2026-03-29T01:00:00.000Z');
   });
 
+  test('follows the hour the clock shows twice, with a boundary inside it', () => {
+    // On 25 October 2026 the clock in Zurich goes from 03:00 back to 02:00, at 01:00 UTC.
+    const early = hours('Europe/Zurich', [...weekdaysOnly, 'saturday', 'sunday'], '22:00', '02:30');
+    // Quiet until the first 02:30, then again from the second 02:00 to the second 02:30.
+    expect(changeAfter(early, '2026-10-25T00:10:00Z')).toBe('2026-10-25T00:30:00.000Z');
+    expect(changeAfter(early, '2026-10-25T00:40:00Z')).toBe('2026-10-25T01:00:00.000Z');
+    expect(changeAfter(early, '2026-10-25T01:10:00Z')).toBe('2026-10-25T01:30:00.000Z');
+    expect(changeAfter(early, '2026-10-25T01:30:00Z')).toBe('2026-10-25T21:00:00.000Z');
+  });
+
+  test('is the end of a window that starts in the repeated hour, the second time too', () => {
+    const repeated = hours('Europe/Zurich', ['sunday'], '02:15', '02:45');
+    expect(changeAfter(repeated, '2026-10-24T23:00:00Z')).toBe('2026-10-25T00:15:00.000Z');
+    expect(changeAfter(repeated, '2026-10-25T00:50:00Z')).toBe('2026-10-25T01:15:00.000Z');
+    expect(changeAfter(repeated, '2026-10-25T01:20:00Z')).toBe('2026-10-25T01:45:00.000Z');
+  });
+
+  test('agrees with a scan minute by minute across the days the clock changes', () => {
+    const minute = 60_000;
+    const cases = [
+      ['Europe/Zurich', '2026-10-24T20:00:00Z'],
+      ['Europe/Zurich', '2026-03-28T20:00:00Z'],
+      ['Australia/Lord_Howe', '2026-04-04T10:00:00Z'],
+      ['America/St_Johns', '2026-11-01T00:00:00Z'],
+    ] as const;
+    for (const [timezone, start] of cases) {
+      const quietHours = hours(timezone, [...weekdaysOnly, 'saturday', 'sunday'], '01:45', '02:20');
+      for (
+        let at = Date.parse(start);
+        at < Date.parse(start) + 12 * 60 * minute;
+        at += 7 * minute
+      ) {
+        let scanned = at + minute;
+        while (isQuietAt(quietHours, scanned) === isQuietAt(quietHours, at)) scanned += minute;
+        expect([timezone, at, nextQuietChange(quietHours, at)]).toEqual([timezone, at, scanned]);
+      }
+    }
+  });
+
   test('is never when they hold every hour of the week, and a week away for one window', () => {
     const always = hours('UTC', [...weekdaysOnly, 'saturday', 'sunday'], '09:00', '09:00');
     expect(changeAfter(always, '2026-10-12T12:00:00Z')).toBeNull();

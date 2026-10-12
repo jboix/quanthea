@@ -96,57 +96,103 @@ const searchDays = 9;
 /** A minute, in milliseconds. */
 const minuteMs = 60_000;
 
+/** A day, in milliseconds. */
+const dayMs = 1440 * minuteMs;
+
 /**
- * The instants the clock shows a start or an end of a window, from the day of an instant on.
+ * How far the clock of a time zone is ahead of UTC at an instant.
  *
- * @param quietHours - The quiet hours.
  * @param instant - Epoch milliseconds.
- * @returns The instants after it, the earliest first.
+ * @param timeZone - An IANA time zone.
+ * @returns Milliseconds, a whole number of minutes.
  */
-function boundariesAfter(quietHours: QuietHours, instant: number): number[] {
-  const today = wallTimeOf(instant, quietHours.timezone);
-  const times = new Set(quietHours.windows.flatMap((window) => [window.from, window.to]));
-  const instants = Array.from({ length: searchDays }, (_unused, days) =>
-    [...times].map((time) => {
-      const minutes = minutesOf(time);
-      const wall = {
-        ...addDays(today, days),
-        hour: Math.floor(minutes / 60),
-        minute: minutes % 60,
-      };
-      return instantOf(wall, quietHours.timezone);
-    }),
-  );
-  return instants
-    .flat()
-    .filter((each) => each > instant)
-    .sort((a, b) => a - b);
+function offsetAt(instant: number, timeZone: string): number {
+  const wall = wallTimeOf(instant, timeZone);
+  const shown = Date.UTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute);
+  return shown - Math.floor(instant / minuteMs) * minuteMs;
+}
+
+/** A change of a time zone's offset, as when daylight saving starts or ends. */
+interface ClockShift {
+  /** The first minute on the new offset. */
+  readonly at: number;
+  /** How far the clock went back, in milliseconds; negative when it went forward. */
+  readonly back: number;
 }
 
 /**
- * The first minute between two instants at which quiet hours are no longer as at the first. The
- * change is at the second unless daylight saving moved it: a window ends with a skipped hour.
+ * The change of offset between two instants a day apart, if the zone has one there.
  *
- * @param quietHours - The quiet hours.
- * @param same - An instant, on a minute.
- * @param changed - A later instant, at which they differ from the first.
- * @returns Epoch milliseconds.
+ * @param timeZone - An IANA time zone.
+ * @param from - An instant, on a minute.
+ * @returns The shift, or `undefined` when the offset is the same a day later.
  */
-function firstChange(quietHours: QuietHours, same: number, changed: number): number {
-  const quiet = isQuietAt(quietHours, same);
-  let low = same;
-  let high = changed;
+function shiftWithinDay(timeZone: string, from: number): ClockShift | undefined {
+  const before = offsetAt(from, timeZone);
+  const back = before - offsetAt(from + dayMs, timeZone);
+  if (back === 0) return undefined;
+  let low = from;
+  let high = from + dayMs;
   while (high - low > minuteMs) {
     const middle = low + Math.floor((high - low) / (2 * minuteMs)) * minuteMs;
-    if (isQuietAt(quietHours, middle) === quiet) low = middle;
+    if (offsetAt(middle, timeZone) === before) low = middle;
     else high = middle;
   }
-  return high;
+  return { at: high, back };
+}
+
+/**
+ * The changes of a time zone's offset in the days the search looks at.
+ *
+ * @param timeZone - An IANA time zone.
+ * @param instant - Epoch milliseconds.
+ * @returns The shifts from a day before the instant on, the earliest first.
+ */
+function shiftsAfter(timeZone: string, instant: number): ClockShift[] {
+  // From a day before: a shift just past still repeats times that are yet to come.
+  const start = Math.floor(instant / minuteMs) * minuteMs - dayMs;
+  return Array.from({ length: searchDays + 2 }, (_unused, days) =>
+    shiftWithinDay(timeZone, start + days * dayMs),
+  ).filter((shift) => shift !== undefined);
+}
+
+/**
+ * The instants the clock shows a start or an end of a window, from the day of an instant on. A
+ * time the clock shows twice, in the hour repeated when it goes back, is there both times.
+ *
+ * @param quietHours - The quiet hours.
+ * @param instant - Epoch milliseconds.
+ * @param shifts - The changes of the zone's offset in those days.
+ * @returns The instants, in no order.
+ */
+function boundariesFrom(
+  quietHours: QuietHours,
+  instant: number,
+  shifts: readonly ClockShift[],
+): number[] {
+  const today = wallTimeOf(instant, quietHours.timezone);
+  const times = new Set(quietHours.windows.flatMap((window) => [window.from, window.to]));
+  const firsts = Array.from({ length: searchDays }, (_unused, days) =>
+    [...times].map((time) => {
+      const minutes = minutesOf(time);
+      const date = addDays(today, days);
+      const wall = { ...date, hour: Math.floor(minutes / 60), minute: minutes % 60 };
+      return instantOf(wall, quietHours.timezone);
+    }),
+  ).flat();
+  const seconds = firsts.flatMap((first) =>
+    shifts
+      .filter(({ at, back }) => back > 0 && first >= at - back && first < at)
+      .map(({ back }) => first + back),
+  );
+  return [...firsts, ...seconds];
 }
 
 /**
  * When quiet hours next start, or next end: the first instant after one at which they hold when
- * they did not, or no longer hold when they did.
+ * they did not, or no longer hold when they did. They change only when the clock shows a start or
+ * an end of a window, or when it jumps: a window ends with a skipped hour, and holds again in a
+ * repeated one.
  *
  * @param quietHours - The quiet hours.
  * @param instant - Epoch milliseconds.
@@ -154,12 +200,12 @@ function firstChange(quietHours: QuietHours, same: number, changed: number): num
  */
 export function nextQuietChange(quietHours: QuietHours, instant: number): number | null {
   const quiet = isQuietAt(quietHours, instant);
-  const boundaries = boundariesAfter(quietHours, instant);
-  const index = boundaries.findIndex((each) => isQuietAt(quietHours, each) !== quiet);
-  const changed = boundaries[index];
-  if (changed === undefined) return null;
-  const same = Math.floor(instant / minuteMs) * minuteMs;
-  return firstChange(quietHours, Math.max(same, boundaries[index - 1] ?? same), changed);
+  const shifts = shiftsAfter(quietHours.timezone, instant);
+  const jumps = shifts.map((shift) => shift.at);
+  const changed = [...boundariesFrom(quietHours, instant, shifts), ...jumps]
+    .filter((each) => each > instant && isQuietAt(quietHours, each) !== quiet)
+    .sort((a, b) => a - b);
+  return changed[0] ?? null;
 }
 
 /**
