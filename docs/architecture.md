@@ -1587,7 +1587,8 @@ activates one.
   (`data-alertPlan`) names them.
 - **`edit_alert`** takes the fields to set and a one-line note: the whole alert the first time,
   then only what changes. `value`, `notify` and `message` merge field by field over the draft;
-  the rest replace (`agent/alert-edit.ts`). A query is a raw query in the connector's language.
+  the rest replace (`agent/alert-edit.ts`). `quietHours` takes the alert's own windows, `none`, or
+  `default`, which removes them from the spec so the alert follows the default again. A query is a raw query in the connector's language.
   The tool refuses a channel id not in the list, then `services.alerts.check` validates the merged
   spec and runs its query once, and `saveVersion` adds the version with the thread's id. A failure
   is counted like a failed dashboard write, streams a `data-repair` part with the issues by path,
@@ -1607,10 +1608,14 @@ activates one.
 
 The instructions (`agent/alert-prompt.ts`, `agent/alert-turn.ts`) carry the persona and rules of
 the mode and the catalog, then the time, the channels it may notify by id, name and kind (none:
-say an admin adds one in Settings → Notifications, and leave the channels empty), the current
+say an admin adds one in Settings → Notifications, and leave the channels empty), the default
+quiet hours and the severities they leave alone (`services.alertSettings`), the current
 draft, the panel the thread started from with its title and queries, whether a replay can be read,
 and what the phase asks. The message template uses the placeholders only; the agent writes it once
-and nothing fills it with a model later.
+and nothing fills it with a model later. The rules say when quiet hours come up: the agent sets
+them when the person says when they do not want to hear ("not at night, not on weekends"), offers
+them once for a warning or info alert nobody gets up for or whose replay fires mostly at night,
+and never for an alert that must wake someone. A silence for one evening is a mute.
 
 The person's own changes to the draft feed the conversation: a hand edit stores a user message
 with a `data-handEdit` part (the versions and the fields that changed), and the next turn reads it

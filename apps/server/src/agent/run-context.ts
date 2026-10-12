@@ -1,5 +1,5 @@
 /** What one agent run shares between its tools: the services, the thread, and its counters. */
-import type { ModelSettings, ThreadData, TurnUsage } from '@quanthea/shared';
+import type { DefaultQuietHours, ModelSettings, ThreadData, TurnUsage } from '@quanthea/shared';
 import type { UIMessage, UIMessageStreamWriter } from 'ai';
 import type { Alerts } from '../alerts/alerts.ts';
 import type { PanelLinks } from '../alerts/links.ts';
@@ -31,6 +31,8 @@ export interface AgentServices {
   readonly panelLinks?: Pick<PanelLinks, 'candidates'> | undefined;
   /** The notification channels an alert or a report may notify, by id, name and kind. */
   readonly channels?: (() => readonly ChannelChoice[]) | undefined;
+  /** The quiet hours of the alerts that set none, from the alert settings; `null` for none. */
+  readonly quietHours?: (() => DefaultQuietHours | null) | undefined;
 }
 
 /** What an alert thread needs of the alerts: check, save, replay and read a draft. */

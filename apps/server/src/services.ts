@@ -407,6 +407,20 @@ function settingsServices(
 }
 
 /**
+ * What the agent is told of the notification side: the channels an alert or a report may notify,
+ * and the quiet hours of the alerts that set none.
+ *
+ * @param data - The notification channels and the alert settings.
+ * @returns How to read both, at each turn.
+ */
+function alertFacts(data: Pick<Services, 'notifications' | 'alertSettings'>) {
+  return {
+    channels: () => data.notifications.picker(),
+    quietHours: () => data.alertSettings.get().quietHours,
+  };
+}
+
+/**
  * Creates the services.
  *
  * @param dependencies - The database, the connector kinds, the secret box and the settings.
@@ -424,8 +438,7 @@ export function createServices(dependencies: ServiceDependencies): Services {
     repository: createThreadBinRepository(dependencies.database),
     audit,
   });
-  const channels = () => data.notifications.picker();
-  const agent = createAgent({ ...data, threads, usage, ...settings, channels });
+  const agent = createAgent({ ...data, threads, usage, ...settings, ...alertFacts(data) });
   const writer = createMetadataWriter({ modelSettings: settings.modelSettings, usage });
   const describeForPin = pinDescriber(writer, threads, bin);
   return {

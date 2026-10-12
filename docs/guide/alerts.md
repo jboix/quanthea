@@ -136,7 +136,9 @@ catch up to an hour later.
 Which quiet hours an alert keeps:
 
 - **Its own**, when its version sets some (`quietHours` in the [alert spec](../alert-spec.md)).
-  They hold whatever its severity.
+  They hold whatever its severity. Ask the agent in the alert's thread: "not at night, not on
+  weekends", "quiet from 22:00 to 07:00, Zurich time", "always notify" or "back to the default".
+  It offers them itself for an alert nobody needs waking for.
 - **None**, when its version says `none`: it always notifies.
 - **The default** otherwise: `alerts.quietHours` in the
   [configuration file](../configuration.md#alerts). Critical alerts ignore the default, so the

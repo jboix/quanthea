@@ -1,8 +1,8 @@
 /**
  * One turn in an alert thread: its instructions and its tools. The instructions carry what lasts
  * first (who the agent is there, its rules, the catalog), then the turn's facts: the time, the
- * channels it may notify, the draft, the panel the thread started from, whether a replay can be
- * read, and what the phase asks.
+ * channels it may notify, the default quiet hours, the draft, the panel the thread started from,
+ * whether a replay can be read, and what the phase asks.
  */
 import {
   type AlertPlan,
@@ -56,6 +56,21 @@ function channelsLine(context: RunContext): string {
     return 'Channels: none yet. An admin adds them in Settings → Notifications; leave "channels" empty.';
   const listed = channels.map((channel) => `${channel.id} ("${channel.name}", ${channel.kind})`);
   return `Channels you may notify, by id: ${listed.join(', ')}.`;
+}
+
+/**
+ * The quiet hours an alert keeps when it sets none of its own, in a line.
+ *
+ * @param context - The run.
+ * @returns The line.
+ */
+function quietHoursLine(context: RunContext): string {
+  const defaults = context.quietHours?.() ?? null;
+  if (defaults === null)
+    return 'Default quiet hours: none. The alert notifies at any hour unless you set its "quietHours".';
+  const { exceptSeverities, ...quietHours } = defaults;
+  const spared = exceptSeverities.length > 0 ? exceptSeverities.join(', ') : 'no';
+  return `Default quiet hours, for an alert that sets none of its own: ${JSON.stringify(quietHours)}. They leave ${spared} alerts alone. Tell the person when the alert will be quiet under them.`;
 }
 
 /**
@@ -132,6 +147,7 @@ export async function alertInstructions(
   const facts = [
     nowLine(now, hints.timeZone),
     channelsLine(context),
+    quietHoursLine(context),
     ...(draft ? [`Current draft, version ${draft.version}:\n${JSON.stringify(draft.spec)}`] : []),
     ...seedLines(context),
     ...linkLines(context),

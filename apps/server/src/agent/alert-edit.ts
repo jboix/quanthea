@@ -1,11 +1,13 @@
 /**
  * What `edit_alert` takes and how it lands on the draft: the fields to set, merged over the
  * thread's latest alert version. `value`, `notify` and `message` merge field by field; the rest
- * replace. The merged spec is checked as a whole by the alerts service.
+ * replace, and `quietHours: 'default'` takes the alert's own quiet hours away. The merged spec is
+ * checked as a whole by the alerts service.
  */
 import {
   type AlertSpec,
   alertConditionSchema,
+  alertQuietHoursSchema,
   alertSeverities,
   alertSpecSchema,
   alertVariableSchema,
@@ -58,6 +60,8 @@ export const alertEditSchema = z.strictObject({
   notify: notifyEditSchema.optional(),
   message: messageEditSchema.optional(),
   timezone: z.string().min(1).max(64).optional(),
+  /** Its own quiet hours, `none` to always notify, or `default` to follow the alert settings. */
+  quietHours: z.union([z.literal('default'), alertQuietHoursSchema]).optional(),
 });
 
 /** An edit of the alert. */
@@ -92,8 +96,21 @@ export function currentAlert(context: RunContext): AlertDraft | undefined {
 }
 
 /**
+ * A merged spec with the quiet hours it keeps: its own, or none of its own for `default`.
+ *
+ * @param merged - The merged spec, without quiet hours.
+ * @param quietHours - What the edit or the draft says of them.
+ * @returns The spec.
+ */
+function withQuietHours(merged: Record<string, unknown>, quietHours: unknown): unknown {
+  const followsDefault = quietHours === undefined || quietHours === 'default';
+  return followsDefault ? merged : { ...merged, quietHours };
+}
+
+/**
  * Merges an edit over the draft: `value`, `notify` and `message` field by field, the rest
- * replaced. A query gets the refId alerts use.
+ * replaced. A query gets the refId alerts use, and `quietHours: 'default'` leaves the spec without
+ * quiet hours of its own.
  *
  * @param current - The draft's spec, if any.
  * @param edit - The edit.
@@ -102,7 +119,7 @@ export function currentAlert(context: RunContext): AlertDraft | undefined {
 export function mergeAlert(current: AlertSpec | undefined, edit: AlertEdit): unknown {
   const { note: _note, value, notify, message, query, ...replaced } = edit;
   const base: Record<string, unknown> = current ? { ...current } : { specVersion: 1 };
-  return {
+  const { quietHours, ...merged } = {
     ...base,
     ...replaced,
     ...(query ? { query: { ...query, refId: 'A' } } : {}),
@@ -110,6 +127,7 @@ export function mergeAlert(current: AlertSpec | undefined, edit: AlertEdit): unk
     ...(notify ? { notify: { ...(current?.notify ?? {}), ...notify } } : {}),
     ...(message ? { message: { ...(current?.message ?? {}), ...message } } : {}),
   };
+  return withQuietHours(merged, quietHours);
 }
 
 /**

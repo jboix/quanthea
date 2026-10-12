@@ -40,7 +40,7 @@ const proposeAlertSchema = z.strictObject({
 function proposeAlertTool(context: RunContext) {
   return tool({
     description:
-      'Propose the alert before writing it: its title, what it watches (in words) on which connector, when it fires (such as "above 2% for 5 minutes"), how often it checks, and the channels by id. The person approves it; then you write it. Call it once, as your last action.',
+      'Propose the alert before writing it: its title, what it watches (in words) on which connector, when it fires (such as "above 2% for 5 minutes"), how often it checks, and the channels by id. "notify" says in a few words when it repeats or stays quiet ("not at night or on weekends"), if the person asked. The person approves it; then you write it. Call it once, as your last action.',
     inputSchema: providerSchema(proposeAlertSchema),
     execute: (input) => {
       const issues = unknownChannels(context, input.channels);

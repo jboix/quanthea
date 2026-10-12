@@ -263,6 +263,59 @@ describe('an alert thread', () => {
     expect(latest?.spec.message.title).toBe('{alert}: {series} at {value}');
   });
 
+  test('sets quiet hours, and takes them away again for the default', async () => {
+    await addEvents(2);
+    const assistant = await approvedThread();
+    const nights = {
+      timezone: 'Europe/Zurich',
+      windows: [{ days: ['saturday' as const, 'sunday' as const], from: '22:00', to: '07:00' }],
+    };
+    const first = agentWith(
+      { tool: 'edit_alert', input: alertEdit({ quietHours: nights }) },
+      { text: 'Done.' },
+    );
+    await chat(first.agent, assistant);
+    const { alertId } = services.threads.get(threadId);
+    const latest = () => services.alerts.get(alertId ?? '', 'editor').versions[0]?.spec;
+    expect(latest()?.quietHours).toEqual(nights);
+    const higher = { note: 'higher', severity: 'info' };
+    const done = { text: 'Done.' };
+    await chat(
+      agentWith({ tool: 'edit_alert', input: higher }, done).agent,
+      userMessage('u2', 'Info'),
+    );
+    expect(latest()?.quietHours).toEqual(nights);
+    const back = { note: 'default quiet hours', quietHours: 'default' };
+    await chat(
+      agentWith({ tool: 'edit_alert', input: back }, done).agent,
+      userMessage('u3', 'Default'),
+    );
+    expect(latest()).toMatchObject({ severity: 'info' });
+    expect(latest()?.quietHours).toBeUndefined();
+  });
+
+  test('tells the model the default quiet hours and whom they spare', async () => {
+    const { agent, model } = agentWith({ text: 'What should it watch?' });
+    await chat(agent, userMessage('u1', 'Errors?'));
+    expect(JSON.stringify(model.doStreamCalls[0]?.prompt)).toContain('Default quiet hours: none.');
+    const quietHours = {
+      timezone: 'UTC',
+      windows: [{ days: ['monday' as const], from: '22:00', to: '07:00' }],
+      exceptSeverities: ['critical' as const],
+    };
+    services.alertSettings.save({ ...services.alertSettings.get(), quietHours }, 'admin-1');
+    const next = scriptedStreamModel({ text: 'And when?' });
+    const told = createAgent({
+      ...services,
+      quietHours: () => services.alertSettings.get().quietHours,
+      buildModel: () => next,
+    });
+    await chat(told, userMessage('u2', 'Checkout errors'));
+    const prompt = JSON.stringify(next.doStreamCalls[0]?.prompt);
+    expect(prompt).toContain('They leave critical alerts alone.');
+    expect(prompt).toContain('22:00');
+  });
+
   test('offers the replay only where the access level shows numbers', async () => {
     await addEvents(3);
     const assistant = await approvedThread();
