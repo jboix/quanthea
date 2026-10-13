@@ -226,11 +226,12 @@ An allowed script keeps these limits:
 
 - It is written in the query, as text or as `{"source": …, "params": {…}}`. A stored script and a
   language other than Painless are refused.
-- The aggregation names its buckets in `buckets_path`.
+- The aggregation names its buckets in `buckets_path`, written out: a variable there is refused.
 - It is one arithmetic expression of at most 300 characters: numbers, `params.name`,
   `+ - * / %`, comparisons, `&& || !`, `? :`, parentheses and a few `Math` functions. A statement,
   a loop, a string or another call is refused, because a script that loops or allocates can
-  exhaust the search server's memory.
+  exhaust the search server's memory. An operator stands between two values, so `++`, `--`, a
+  shift, a regex and a comment are refused too.
 - A value that changes goes in `params`, never in the text. The search server compiles each
   distinct text and limits how many it compiles in a few minutes. A dashboard variable goes there
   as `{"min": {"$var": "threshold"}}` and arrives as text, which

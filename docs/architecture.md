@@ -2924,6 +2924,11 @@ With the setting on, a script of the query's own keeps these limits (`checkScrip
 
 - It sits in a `bucket_script` or `bucket_selector` declared under `aggs`, and the aggregation
   has a `buckets_path` that maps each name to a path. The script reads only those numbers.
+- The aggregation, its `buckets_path` and the `params` of its script are written out. A
+  `{"$var": …}` node in the place of one of them is refused: once bound it would be text or a
+  list, which is the other form of `buckets_path` and nothing the two others read. With the
+  setting on, a `bucket_script` or `bucket_selector` key whose value is not an object is refused
+  too.
 - It is written in the query: text, or an object with `source` and optionally `params` and
   `lang: painless`. A stored script (`id`), another language and any other key are refused.
 - Its text holds no variable. A `{"$var": …}` node is a value of `params`, never the text or a
@@ -2937,6 +2942,11 @@ With the setting on, a script of the query's own keeps these limits (`checkScrip
   parentheses, `Math.abs`, `ceil`, `exp`, `floor`, `log`, `log10`, `max`, `min`, `pow`, `round`
   and `sqrt`, and `Double.parseDouble`. The text is read token by token, and anything else is
   refused: a statement, a loop, a string, `new`, a bracket, a method call.
+- Its tokens are in the order of an expression (`isExpression`). A value and an operator take
+  turns, a `-` or a `!` is a sign only where a value is expected, a parenthesis opens only there,
+  and every parenthesis closes. So an operator never follows another: a `/` opens no regex, and
+  `++`, `--`, `<<`, `>>`, `?:` and a `//` or `/*` comment are refused. What a `?` pairs with and
+  where a comma stands are left to the server's compiler.
 
 The last limit is there because the servers do not bound a script enough. OpenSearch stops a loop
 after a fixed number of statements; Elasticsearch 9 ran a loop of two million and has no such

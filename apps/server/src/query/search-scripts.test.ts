@@ -269,6 +269,73 @@ describe('a bucket script on a connector that allows one', () => {
     }
   });
 
+  test('an operator stands between two values: no regex, increment, shift, elvis or comment', () => {
+    const refused = [
+      '/1+/ == null ? 1 : 0',
+      'params.errors++ + params.errors++',
+      '--params.errors',
+      'params.errors--',
+      'params.errors --1',
+      '++params.errors',
+      '1 << 62',
+      'params.errors >> 1',
+      'params.errors >>> 1',
+      'params.errors ?: 1',
+      'params.errors // 1',
+      'params.errors /* 1 */',
+      '1 /* 2 */ + 3',
+      'params.errors +',
+      '* params.errors',
+      'params.errors params.warnings',
+      '1 2',
+      'params.errors !params.warnings',
+      '()',
+      'Math.abs()',
+      '(params.errors',
+      'params.errors)',
+      ')params.errors(',
+      'Math.max(params.errors,)',
+    ];
+    for (const source of refused)
+      expect(() => bind(over('bucket_script', source), true)).toThrow(
+        'A bucket script is one expression',
+      );
+  });
+
+  test('a minus or a not before a value is read as a sign, after a value as an operator', () => {
+    const sources = [
+      'params.errors - -1',
+      'params.errors * -params.warnings',
+      '-(params.errors - 1)',
+      '!(params.errors > 1) ? -1 : 1',
+      'Math.pow(-params.errors, 2)',
+      '- params.errors',
+    ];
+    for (const source of sources)
+      expect(() => bind(over('bucket_script', source), true)).not.toThrow();
+  });
+
+  test('a variable stands only for a value inside params', () => {
+    const variables = { p: '_count' };
+    const paths = { buckets_path: { $var: 'p' }, script: 'params._value * 2' };
+    const body = (bucket: unknown) => ({
+      aggs: { a: { terms: { field: 'x' }, aggs: { value: { bucket_script: bucket } } } },
+    });
+    expect(() => bind(body(paths), true, variables)).toThrow('names the buckets its script reads');
+    const params = { source: 'params.errors', params: { $var: 'p' } };
+    expect(() => bind(over('bucket_script', params), true, variables)).toThrow(
+      'is an object of values',
+    );
+    for (const aggregation of ['bucket_script', 'bucket_selector']) {
+      const refusal = `A ${aggregation} is written out`;
+      expect(() => bind(body({ $var: 'p' }), true, variables)).toThrow('is written out');
+      const listed = { aggs: { a: { [aggregation]: [{ script: 'params.a' }] } } };
+      expect(() => bind(listed, true)).toThrow(refusal);
+      const text = { aggs: { a: { [aggregation]: 'params.a' } } };
+      expect(() => bind(text, true)).toThrow(refusal);
+    }
+  });
+
   test('a long run of one token is read in linear time', () => {
     const started = performance.now();
     for (const filler of [' ', '1', '(', 'params.a']) {

@@ -3,7 +3,8 @@
  * go around hidden fields and access levels. A `bucket_script` may name one of the two fixed ratio
  * scripts on every connector. On a connector whose admin allows bucket scripts, `bucket_script` and
  * `bucket_selector` may also hold a script of their own: it receives only the numbers of the
- * buckets it names, and here it is kept to one arithmetic expression over them.
+ * buckets it names, and here it is kept to one arithmetic expression over them: values and
+ * operators in turn, with nothing a variable could replace but a value of its `params`.
  */
 import { searchRatioScripts, searchScriptLength } from '../connectors/_shared/index.ts';
 import { QueryError } from './query-error.ts';
@@ -35,14 +36,38 @@ const ratioScripts: ReadonlySet<unknown> = new Set(Object.values(searchRatioScri
 const scriptKeys: ReadonlySet<string> = new Set(['source', 'params', 'lang']);
 
 /**
- * One token of a bucket script: a number, a value of `params`, `null`, `true` or `false`, a `Math`
- * function, `Double.parseDouble` for a variable's value, which arrives as text, a parenthesis, or
- * an operator of arithmetic, comparison or logic. There is no token
- * for a statement, a loop, a string, `new`, a bracket or a method call: a script with a loop or an
- * allocation can exhaust the search server's memory, which neither server bounds.
+ * One token of a bucket script, by kind: a value (a number, a value of `params`, `null`, `true` or
+ * `false`), a call (a `Math` function, or `Double.parseDouble` for a variable's value, which
+ * arrives as text), a parenthesis, a binary operator of arithmetic, comparison or logic with `?`,
+ * `:` and the comma of a call, `!`, and `-`, which is a sign or an operator by where it stands.
+ * `--` is no token. There is no token for a statement, a loop, a string, `new`, a bracket or a
+ * method call: a script with a loop or an allocation can exhaust the search server's memory,
+ * which neither server bounds.
  */
 const token =
-  /(?<space>\s+)|(?<operand>\d+(?:\.\d+)?(?:[eE][+-]?\d+)?(?![\w.])|params\.[A-Za-z_]\w*(?![\w.])|(?:null|true|false)(?![\w.])|\))|(?<call>(?:Math\.(?:abs|ceil|exp|floor|log|log10|max|min|pow|round|sqrt)|Double\.parseDouble)(?=\s*\())|(?<open>\()|==|!=|<=|>=|&&|\|\||[-+*/%<>!?:,]/y;
+  /(?<space>\s+)|(?<value>\d+(?:\.\d+)?(?:[eE][+-]?\d+)?(?![\w.])|params\.[A-Za-z_]\w*(?![\w.])|(?:null|true|false)(?![\w.]))|(?<call>(?:Math\.(?:abs|ceil|exp|floor|log|log10|max|min|pow|round|sqrt)|Double\.parseDouble)(?=\s*\())|(?<open>\()|(?<close>\))|(?<binary>==|!=|<=|>=|&&|\|\||[+*/%<>?:,])|(?<not>!)|(?<minus>-(?!-))/y;
+
+/**
+ * The kinds of token that may stand where a value is expected, each with whether a value has been
+ * read once it is passed. An operator is not among them, so `/` opens no regex, and neither `++`,
+ * `<<`, `?:` nor a comment is read.
+ */
+const beforeValue: Readonly<Record<string, boolean>> = {
+  value: true,
+  call: false,
+  open: false,
+  not: false,
+  minus: false,
+};
+
+/**
+ * The kinds of token that may follow a value, in the same form. A parenthesis never opens there,
+ * so no value is called as a method, and no value follows another.
+ */
+const afterValue: Readonly<Record<string, boolean>> = { binary: false, minus: false, close: true };
+
+/** How each parenthesis moves the depth of an expression. */
+const depths: Readonly<Record<string, number>> = { open: 1, close: -1 };
 
 /** What a script's text may hold, for the refusal. */
 const expressionOnly =
@@ -73,21 +98,63 @@ function scriptKey(key: string): boolean {
 }
 
 /**
- * Whether a text is one expression of the tokens a bucket script may hold. A parenthesis never
- * follows a value, so no value is called as a method.
+ * The kind of the token at a place of a script.
+ *
+ * @param source - The script text.
+ * @param at - The place.
+ * @returns The name of the token's kind, or `undefined` when no token starts there.
+ */
+function kindAt(source: string, at: number): string | undefined {
+  token.lastIndex = at;
+  const groups = token.exec(source)?.groups ?? {};
+  return Object.keys(groups).find((kind) => groups[kind] !== undefined);
+}
+
+/** How far a script is read: whether a value was just read, and how many parentheses are open. */
+interface Reading {
+  /** Whether the last token ended a value, so an operator or a closing parenthesis may follow. */
+  readonly hasValue: boolean;
+  /** The parentheses open. */
+  readonly depth: number;
+}
+
+/**
+ * A reading once one more token is passed.
+ *
+ * @param reading - The reading before the token.
+ * @param kind - The token's kind, or `undefined` for no token.
+ * @returns The reading after it, or `undefined` when the token may not stand there.
+ */
+function passed(reading: Reading, kind: string | undefined): Reading | undefined {
+  if (kind === 'space') return reading;
+  const hasValue = (reading.hasValue ? afterValue : beforeValue)[kind ?? ''];
+  const depth = reading.depth + (depths[kind ?? ''] ?? 0);
+  return hasValue === undefined || depth < 0 ? undefined : { hasValue, depth };
+}
+
+/**
+ * Whether a text is one expression of the tokens a bucket script may hold: values and operators
+ * in turn, a sign or a call only where a value is expected, and every parenthesis closed.
  *
  * @param source - The script text.
  * @returns `true` for an expression.
  */
 function isExpression(source: string): boolean {
-  let afterOperand = false;
-  for (let at = 0; at < source.length; at = token.lastIndex) {
-    token.lastIndex = at;
-    const groups = token.exec(source)?.groups;
-    if (!groups || (groups.open !== undefined && afterOperand)) return false;
-    if (groups.space === undefined) afterOperand = groups.operand !== undefined;
-  }
-  return source.trim() !== '';
+  let reading: Reading | undefined = { hasValue: false, depth: 0 };
+  for (let at = 0; reading && at < source.length; at = token.lastIndex)
+    reading = passed(reading, kindAt(source, at));
+  return reading?.hasValue === true && reading.depth === 0;
+}
+
+/**
+ * Whether the `params` of a script are values the query writes: none, or an object. A variable
+ * stands for one value inside it, never for the object.
+ *
+ * @param params - The value of the `params` key.
+ * @returns `true` for no params, or an object that is not a variable.
+ */
+function holdsValues(params: unknown): boolean {
+  return params === undefined || (isObject(params) && !('$var' in params));
 }
 
 /**
@@ -103,8 +170,8 @@ function objectProblem(script: Readonly<Record<string, unknown>>): string | unde
     return 'A bucket script is written in the query: text, or {"source": text, "params": {…}}. A stored script ("id") and any other key are refused.';
   if (script.lang !== undefined && script.lang !== 'painless')
     return 'A bucket script is Painless: leave "lang" out, or write "painless".';
-  if (script.params !== undefined && !isObject(script.params))
-    return 'The "params" of a bucket script is an object of values, such as {"min": 100}.';
+  if (!holdsValues(script.params))
+    return 'The "params" of a bucket script is an object of values, such as {"min": 100}. A variable stands for one of them, as {"min": {"$var": "threshold"}}.';
   return undefined;
 }
 
@@ -126,14 +193,15 @@ function scriptProblem(script: unknown): string | undefined {
 }
 
 /**
- * Whether an aggregation names the buckets its script reads: an object of paths.
+ * Whether an aggregation names the buckets its script reads: an object of paths, written out. A
+ * variable there would be replaced by text or a list, the forms that name no path.
  *
  * @param aggregation - The body of a `bucket_script` or `bucket_selector`.
- * @returns `true` when `buckets_path` maps at least one name to a path.
+ * @returns `true` when `buckets_path` maps at least one name to a path and is no variable.
  */
 function namesBuckets(aggregation: Readonly<Record<string, unknown>>): boolean {
   const paths = aggregation.buckets_path;
-  if (!isObject(paths)) return false;
+  if (!isObject(paths) || '$var' in paths) return false;
   const values = Object.values(paths);
   return values.length > 0 && values.every((path) => typeof path === 'string');
 }
@@ -150,16 +218,35 @@ function ratioScript(script: unknown, aggregation: string | undefined): boolean 
 }
 
 /**
- * Checks a `bucket_script` or `bucket_selector` that holds a script of the query's own, on a
- * connector that allows one: it is an aggregation, and it names its buckets.
+ * The body of a `bucket_script` or `bucket_selector`, which the query writes out.
  *
  * @param key - The aggregation's key.
- * @param value - Its body.
- * @param ancestors - The keys from the body down to the aggregation's name.
- * @throws {QueryError} `invalid` when it is not under `aggs`, or has no `buckets_path`.
+ * @param value - Its value.
+ * @returns The body.
+ * @throws {QueryError} `invalid` for a value that is not an object, or is a variable.
  */
-function checkBucketAggregation(key: string, value: unknown, ancestors: readonly string[]): void {
-  if (!isObject(value) || value.script === undefined || ratioScript(value.script, key)) return;
+function writtenOut(key: string, value: unknown): Readonly<Record<string, unknown>> {
+  if (isObject(value) && !('$var' in value)) return value;
+  throw new QueryError(
+    'invalid',
+    `A ${key} is written out in the query: an object with "buckets_path" and "script". A variable stands only for a value inside the "params" of its script.`,
+  );
+}
+
+/**
+ * Checks a `bucket_script` or `bucket_selector` on a connector that allows a script of the
+ * query's own: it is written out and, with such a script, it is an aggregation and names its
+ * buckets.
+ *
+ * @param key - The aggregation's key.
+ * @param body - Its value.
+ * @param ancestors - The keys from the body down to the aggregation's name.
+ * @throws {QueryError} `invalid` when it is not an object, is a variable, is not under `aggs`, or
+ *   has no `buckets_path`.
+ */
+function checkBucketAggregation(key: string, body: unknown, ancestors: readonly string[]): void {
+  const value = writtenOut(key, body);
+  if (value.script === undefined || ratioScript(value.script, key)) return;
   if (!aggregationKeys.has(ancestors.at(-2)))
     throw new QueryError(
       'invalid',
