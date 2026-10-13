@@ -33,6 +33,25 @@ function manyPanels(count: number): Panel[] {
   });
 }
 
+/** The place beside a table that takes the left half of the first row. */
+const besideTable = { x: 6, y: 0, w: 6, h: 7 };
+
+/** A chart of the built dashboard that is not over time. */
+const chartPanel = built.panels[4] as Panel;
+
+/**
+ * A table on the first row.
+ *
+ * @param fields - How many columns it shows.
+ * @param w - The grid columns it takes.
+ * @returns The panel, with the id `slowest`.
+ */
+function tableOf(fields: number, w: number): Panel {
+  const columns = Array.from({ length: fields }, (_, index) => ({ field: `field_${index}` }));
+  const view = { kind: 'table' as const, ref: 'A', columns };
+  return { ...chartPanel, id: 'slowest', title: 'Slowest', grid: { x: 0, y: 0, w, h: 7 }, view };
+}
+
 describe('the layout map', () => {
   test('reads the grid row by row, with each panel’s kind and columns, and the gaps', () => {
     expect(layoutMap(built.panels)).toEqual([
@@ -160,20 +179,50 @@ describe('the layout check', () => {
     ]);
   });
 
-  test('advises on a table too narrow for its columns', () => {
-    const [stat] = built.panels as [Panel];
-    const columns = ['route', 'p50', 'p95', 'errors'].map((field) => ({ field }));
-    const table: Panel = {
-      ...stat,
-      id: 'slowest',
-      grid: { x: 0, y: 0, w: 12, h: 7 },
-      view: { kind: 'table', ref: 'A', columns },
-    };
-    expect(layoutReport([table]).advice).toBeUndefined();
-    expect(layoutReport([{ ...table, grid: { x: 0, y: 0, w: 4, h: 7 } }]).advice).toEqual([
+  test('advises on a table too narrow for its columns, with a repair that is wide enough', () => {
+    expect(layoutReport([tableOf(6, 12)]).advice).toBeUndefined();
+    expect(layoutReport([tableOf(6, 4)]).advice).toEqual([
       'Row y0 leaves columns 5-12 empty: arrange its panels to fill the row.',
-      '"slowest" is a table of 4 columns in 4 grid columns: give it at least 6, with "two" or "full".',
+      '"slowest" is a table of 6 columns in 4 grid columns: give it at least 6, with "two" or "full".',
     ]);
+    expect(layoutReport([tableOf(8, 6), { ...chartPanel, grid: besideTable }]).advice).toEqual([
+      '"slowest" is a table of 8 columns in 6 grid columns: give it the whole row, with "full".',
+    ]);
+  });
+
+  test('never advises on a table that has the whole row, however many columns it has', () => {
+    expect(layoutReport([tableOf(30, 12)]).advice).toBeUndefined();
+  });
+
+  test('finds nothing to repair in a row the server arranged by name', () => {
+    const [first, second, time, , chart] = built.panels as [Panel, Panel, Panel, Panel, Panel];
+    const adviceOf = (rows: string[][], ...panels: Panel[]) =>
+      layoutReport(arranged(rows, { ...built, panels }).panels).advice;
+    expect(adviceOf([['stats', 'error-rate', 'failed-orders']], first, second)).toBeUndefined();
+    expect(
+      adviceOf([['chart-table', 'top-codes', 'slowest']], chart, tableOf(5, 6)),
+    ).toBeUndefined();
+    expect(
+      adviceOf([['chart-table', 'slowest', 'top-codes']], tableOf(4, 6), chart),
+    ).toBeUndefined();
+    expect(adviceOf([['two', 'latency', 'slowest']], time, tableOf(6, 4))).toBeUndefined();
+    expect(
+      adviceOf([['three', 'slowest', 'latency', 'top-codes']], tableOf(4, 6), time, chart),
+    ).toBeUndefined();
+    expect(adviceOf([['full', 'slowest', 'latency']], tableOf(12, 6), time)).toBeUndefined();
+  });
+
+  test('names a repair that leaves no advice on the table, for every number of columns', () => {
+    const [, , time] = built.panels as [Panel, Panel, Panel];
+    for (let fields = 1; fields <= 14; fields += 1) {
+      const narrow = [tableOf(fields, 1), { ...time, grid: { x: 1, y: 0, w: 11, h: 7 } }];
+      const [told] = layoutReport(narrow).advice ?? [];
+      if (fields === 1) expect(told).toBeUndefined();
+      else expect(told).toContain(`"slowest" is a table of ${fields} columns in 1 grid columns`);
+      const repair = told?.includes('"two"') ? 'two' : 'full';
+      const repaired = arranged([[repair, 'slowest', 'latency']], { ...built, panels: narrow });
+      expect(layoutReport(repaired.panels).advice).toBeUndefined();
+    }
   });
 
   test('reads a report’s grid without its headline numbers, and names a number left on it', () => {

@@ -1483,7 +1483,8 @@ directly onto an ECharts `dataset`.
 - **The layout check.** With the map comes `layout.advice` (`dashboards/panels/layout-check.ts`),
   at most eight lines, each naming the row or the panel and the repair: a row with empty columns,
   a number wider than half the grid when there are other numbers to share a row with, a table with
-  fewer than one and a half grid columns per column, a chart with a legend under five rows tall,
+  fewer grid columns than it has columns (so `chart-table` suits a table of up to five columns
+  and `two` one of up to six, and the repair named is `full` beyond that), a chart with a legend under five rows tall,
   and numbers below a chart or a table. The check never refuses: it is advice with a version
   already saved, so a spec that was valid stays saveable, a person's arrangement is never an
   error, and stored versions are not touched. The prompt asks the agent to repair advice once,

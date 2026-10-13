@@ -25,8 +25,8 @@ interface LayoutReportOptions {
 /** The widest a number reads well: half the grid. */
 const widestStat = 6;
 
-/** The grid columns one column of a table needs. */
-const columnsPerField = 1.5;
+/** The grid columns a table needs for each column it shows, and the most "two" gives a panel. */
+const tableWidths = { perField: 1, half: gridColumns / 2 } as const;
 
 /** The fewest rows a chart with a legend needs. */
 const shortestWithLegend = 5;
@@ -48,7 +48,9 @@ function hasLegend(panel: Panel): boolean {
 }
 
 /**
- * A table too narrow for its columns, if it is.
+ * A table too narrow for its columns, if it is. A table needs a grid column for each column it
+ * shows, so "chart-table" suits one of up to five columns and "two" one of up to six. The repair
+ * named is always wide enough, and a table on a whole row has all there is.
  *
  * @param panel - The panel.
  * @returns The advice, none for another kind or a table wide enough.
@@ -56,10 +58,14 @@ function hasLegend(panel: Panel): boolean {
 function tableAdvice(panel: Panel): string[] {
   if (panel.view.kind !== 'table') return [];
   const fields = panel.view.columns.length;
-  const needed = Math.min(gridColumns, Math.ceil(fields * columnsPerField));
+  const needed = Math.min(gridColumns, fields * tableWidths.perField);
   if (panel.grid.w >= needed) return [];
+  const repair =
+    needed > tableWidths.half
+      ? 'give it the whole row, with "full"'
+      : `give it at least ${needed}, with "two" or "full"`;
   return [
-    `"${panel.id}" is a table of ${fields} columns in ${panel.grid.w} grid columns: give it at least ${needed}, with "two" or "full".`,
+    `"${panel.id}" is a table of ${fields} columns in ${panel.grid.w} grid columns: ${repair}.`,
   ];
 }
 
