@@ -25,6 +25,37 @@ describe('the condition in words', () => {
   test('no data', () => {
     expect(conditionWords({ kind: 'no_data', for: '10m' }, null)).toBe('no data for 10m');
   });
+
+  test('a change, a comparison with the past and a band', () => {
+    const moved = { direction: 'down', amount: 50, unit: 'percent' } as const;
+    expect(conditionWords({ kind: 'change', ...moved, within: '10m', for: '0m' }, null)).toBe(
+      'down 50% or more within 10m',
+    );
+    expect(conditionWords({ kind: 'past', ...moved, ago: '7d', for: '10m' }, null)).toBe(
+      'down 50% or more from a week earlier for 10m',
+    );
+    const band = { kind: 'band', side: 'either', deviations: 3, baseline: '1d' } as const;
+    expect(conditionWords({ ...band, for: '5m' }, null)).toBe(
+      'more than 3 deviations from its mean of the last 1d for 5m',
+    );
+  });
+
+  test('joined tests, each with the column it reads and its own format', () => {
+    const percent = { $fmt: 'percent', decimals: 0 } as const;
+    const share = { kind: 'threshold', op: 'above', value: 0.02 } as const;
+    const requests = {
+      ...share,
+      value: 100,
+      field: 'requests',
+      format: { $fmt: 'number' },
+    } as const;
+    expect(conditionWords({ kind: 'all', of: [share, requests], for: '5m' }, percent)).toBe(
+      'above 2% and requests above 100 for 5m',
+    );
+    expect(conditionWords({ kind: 'any', of: [share, requests], for: '0m' }, percent)).toBe(
+      'above 2% or requests above 100',
+    );
+  });
 });
 
 test('values read with four significant digits without a format, a dash for none', () => {
