@@ -131,6 +131,12 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   - To see a chart cut to the stretch that has data, ask for it in the thread: "cut this chart to
     its data".
   - A snapshot and a report's run show the time range they ran over.
+- **Coloured cells.** A table column can show a value as a text, in a colour, or both: `0` as
+  "idle", a load time green under 2 seconds, amber up to 4 and red above. Ask for it in the
+  thread: "colour the median by steps: green under 2 s, amber from 2 to 4, red above", or "show
+  null as none". The colours are named tones (neutral, good, warning, bad and eight series
+  colours) that follow the light and the dark scheme. Say "as a background" for a tint behind
+  the text.
 - **A result cut short.** When a source returns more rows than the connector's row limit, the
   chart says so under it. Narrow the time range to see the rest.
 - **Charts further down** draw when you scroll to them, and all of them draw when you print the

@@ -106,6 +106,63 @@ describe('tableRows', () => {
     expect(keysByRoute('desc')).toEqual(unsorted);
   });
 
+  test('a mapped cell takes the mapping text and skips the format', () => {
+    const mapped: TableView = {
+      kind: 'table',
+      ref: 'A',
+      columns: [
+        { field: 'route', mappings: [{ match: { value: 'GET /cart' }, text: 'Cart' }] },
+        {
+          field: 'Value',
+          format: { $fmt: 'duration', unit: 's' },
+          toneAs: 'background',
+          mappings: [
+            { match: { to: 0.5 }, tone: 'good' },
+            { match: { from: 0.5, to: 1 }, text: 'slowing', tone: 'warning' },
+            { match: { from: 1 }, tone: 'bad' },
+          ],
+        },
+      ],
+    };
+    const table = tableRows(mapped, [{ refId: 'A', frames: [instant], error: null }]);
+    expect(table.columns.map((column) => column.toneAs)).toEqual([undefined, 'background']);
+    expect(table.rows.map((row) => row.cells)).toEqual([
+      [
+        { value: 'GET /cart', text: 'Cart' },
+        { value: 0.64, text: 'slowing', tone: 'warning' },
+      ],
+      [
+        { value: 'POST /checkout/confirm', text: 'POST /checkout/confirm' },
+        { value: 2.9, text: '2.9 s', tone: 'bad' },
+      ],
+      [
+        { value: 'GET /orders/:id', text: 'GET /orders/:id' },
+        { value: 0.41, text: '410 ms', tone: 'good' },
+      ],
+    ]);
+  });
+
+  test('a mapping of no value gives a missing cell its text, and sorting reads the raw value', () => {
+    const mappings = [{ match: { null: true as const }, text: 'none', tone: 'neutral' as const }];
+    const missing: TableView = {
+      kind: 'table',
+      ref: 'A',
+      columns: [
+        { field: 'absent', mappings },
+        { field: 'Value', mappings: [{ match: { from: 0 }, text: 'a number' }] },
+      ],
+      sort: { field: 'Value', dir: 'asc' },
+      limit: 1,
+    };
+    const { rows } = tableRows(missing, [{ refId: 'A', frames: [instant], error: null }]);
+    expect(rows.map((row) => row.cells)).toEqual([
+      [
+        { value: null, text: 'none', tone: 'neutral' },
+        { value: 0.41, text: 'a number' },
+      ],
+    ]);
+  });
+
   test('a column the result lacks reads null with an empty text', () => {
     const missing: TableView = { kind: 'table', ref: 'A', columns: [{ field: 'absent' }] };
     const { rows } = tableRows(missing, [{ refId: 'A', frames: [instant], error: null }]);

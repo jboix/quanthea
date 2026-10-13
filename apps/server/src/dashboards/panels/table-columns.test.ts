@@ -42,6 +42,43 @@ describe('the columns of a table', () => {
   });
 
   /**
+   * The table of hosts with mappings on its errors column, completed and validated.
+   *
+   * @param mappings - The mappings of the column.
+   * @returns The view and the issues of the spec.
+   */
+  function mapped(mappings: object[]) {
+    const options = { columns: [{ field: 'errors', mappings, toneAs: 'background' }] };
+    const panel = { ...hosts, chart: { recipe: 'table.rows', options } };
+    const built = applyEdit(undefined, edit({ title: 'Hosts', panels: [panel], summary: 'x' }));
+    const tests = [testOf('hosts', fields, [['a'], [3]])];
+    const completed = completeCharts(built.spec, built.charts, tests);
+    return { view: completed.spec.panels[0]?.view, issues: issuesOf(completed.spec) };
+  }
+
+  test('take thresholds as range mappings with a tone, and refuse a colour', () => {
+    const steps = [
+      { match: { to: 5 }, tone: 'good' as const },
+      { match: { from: 5 }, text: 'many', tone: 'bad' as const },
+    ];
+    expect(mapped(steps)).toEqual({
+      view: {
+        kind: 'table',
+        ref: 'A',
+        columns: [
+          { field: 'host' },
+          { field: 'errors', mappings: steps, toneAs: 'background' as const },
+        ],
+      },
+      issues: [],
+    });
+    const colored = mapped([{ match: { from: 5 }, tone: 'red' }]).issues;
+    expect(colored).toHaveLength(1);
+    expect(colored[0]).toStartWith('panels[0].view.columns[1].mappings[0].tone: ');
+    expect(colored[0]).toContain('"warning"');
+  });
+
+  /**
    * A table over a raw query, completed from a result without rows.
    *
    * @param chart - More of the chart, such as its roles.

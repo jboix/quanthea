@@ -116,10 +116,27 @@ type StatView = {
 type TableView = {
   kind: 'table'
   ref: string
-  columns: { field: string; label?: string; format?: Formatter; align?: 'left' | 'right' }[]
+  columns: {
+    field: string; label?: string; format?: Formatter; align?: 'left' | 'right'
+    mappings?: Mapping[]                    // ≤ 20, the first match wins
+    toneAs?: 'text' | 'background'          // default: text
+  }[]
   sort?: { field: string; dir: 'asc' | 'desc' }
   limit?: number                            // ≤ 500
 }
+
+// A value becomes a text, a tone, or both. A threshold is a list of range mappings.
+type Mapping = {
+  match:
+    | { value: string | number | boolean }
+    | { null: true }
+    | { from?: number; to?: number }        // from inclusive, to exclusive, at least one
+  text?: string                             // replaces the format
+  tone?: Tone
+}
+
+type Tone = 'neutral' | 'good' | 'warning' | 'bad'
+  | 'series1' | 'series2' | 'series3' | 'series4' | 'series5' | 'series6' | 'series7' | 'series8'
 
 type ChartView = {
   kind: 'chart'
@@ -205,6 +222,13 @@ they differ from the sketch above, the schemas win:
 - An "All" choice of a query-backed variable with `includeAll` has the value `$__all`.
 - A value a viewer picks for a query-backed variable is one of its options or its default; any
   other is refused when the panel runs.
+- A mapping matches the raw value of the result, before the format. A `value` is compared as it
+  reads, so `200` matches `"200"` and `true` matches `"true"`. A range reads numbers, and texts
+  that write a number.
+- A mapping gives a `text`, a `tone`, or both. A `match` says one thing: a value, `null`, or a
+  range with `from` below `to`.
+- A tone is a name from the list, never a colour. The renderer draws it from the theme's design
+  tokens, in the light and the dark scheme.
 - Formatter defaults: `number` 2 decimals, `percent` 1 decimal with `input: 'ratio'`, `bytes`
   base 1024, `duration`, `si` and `bytes` 1 decimal, `datetime` pattern `datetime`. Numbers use
   English grouping (`1,284`) and dates read `26 Sep, 14:02`.

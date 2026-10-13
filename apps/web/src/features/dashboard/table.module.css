@@ -1,0 +1,17 @@
+/*
+ * A table cell with a tone. The cell sets `--tone` to a design token, so the colour follows the
+ * scheme. Mixing the tone with the ink keeps the text readable on the surface in both schemes.
+ */
+.toned {
+  color: color-mix(in srgb, var(--tone) 70%, var(--color-ink));
+}
+
+/* A tint behind the text, which stays in the ink. */
+.toned[data-tone-as="background"] {
+  display: inline-block;
+  margin: -1px 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--tone) 18%, transparent);
+  color: var(--color-ink);
+}

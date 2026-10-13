@@ -1,7 +1,9 @@
-import type { QueryOutcome, TableView as TableViewSpec } from '@quanthea/shared';
+import type { QueryOutcome, TableView as TableViewSpec, ToneAs } from '@quanthea/shared';
 import { useMemo } from 'react';
 import styles from './panels.module.css';
-import { type TableRow, type TableRows, tableRows } from './table-rows.ts';
+import tableStyles from './table.module.css';
+import { type TableCell, type TableRow, type TableRows, tableRows } from './table-rows.ts';
+import { toneStyle } from './tone.ts';
 
 /** Props of {@link TableView}. */
 interface TableViewProps {
@@ -11,6 +13,33 @@ interface TableViewProps {
   readonly queries: readonly QueryOutcome[];
   /** The IANA time zone, or the browser's. */
   readonly timeZone: string | undefined;
+}
+
+/**
+ * What a cell shows: its text, in its tone when it has one.
+ *
+ * @param props - The cell and how its column draws a tone.
+ * @param props.cell - The cell.
+ * @param props.toneAs - Whether the tone colours the text or tints behind it.
+ * @returns The text, wrapped when it has a tone.
+ */
+function CellText({
+  cell,
+  toneAs,
+}: {
+  readonly cell: TableCell;
+  readonly toneAs: ToneAs | undefined;
+}) {
+  if (!cell.tone) return cell.text;
+  return (
+    <span
+      className={tableStyles.toned}
+      data-tone-as={toneAs ?? 'text'}
+      style={toneStyle(cell.tone)}
+    >
+      {cell.text}
+    </span>
+  );
 }
 
 /**
@@ -32,7 +61,7 @@ function BodyRow({
     <tr>
       {row.cells.map((cell, index) => (
         <td key={columns[index]?.label ?? index} data-align={columns[index]?.align}>
-          {cell.text}
+          <CellText cell={cell} toneAs={columns[index]?.toneAs} />
         </td>
       ))}
     </tr>

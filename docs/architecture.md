@@ -1685,8 +1685,8 @@ directly onto an ECharts `dataset`.
   adapter prepares the data (`prepare`) and the column of each role, so a pinned chart draws the
   same whatever the catalogue becomes.
   A table's columns are the columns of its `columns` role, in that order, each shown once.
-  `options.columns` changes them by `field` (a label, a format, an alignment) and never chooses
-  them: a column the options do not name stays. Three things are refused with a message: an
+  `options.columns` changes them by `field` (a label, a format, an alignment, mappings and how a
+  tone is drawn) and never chooses them: a column the options do not name stays. Three things are refused with a message: an
   option for a field that is not a column, an option with a key a column does not take, and
   options that list every column of the result in another order while the roles name none, since
   that asks for an order the options do not give.
@@ -4209,6 +4209,23 @@ one, and enables them again. Without any admin, it creates the default one.
   loaded and registered only when a chart draws a map; no map is fetched from elsewhere.
 - **Formatters:** every `{"$fmt": …}` object becomes a function from
   `@quanthea/shared/formatters`. ECharts string templates pass through unchanged.
+- **Mappings and tones** (`spec/tones.ts` in `@quanthea/shared`, `features/dashboard/tone.ts`). A
+  table column takes `mappings`, a list read in order: each matches a value, no value (`null`) or
+  a range of numbers (`from` included, `to` excluded, either end open), and gives a text, a tone or
+  both. `mapValue` returns the first that matches, so a threshold is a list of ranges.
+  - A match reads the raw value of the result, before the format. A value is compared as it
+    reads, so `200` matches `"200"`. A range reads numbers and texts that write a number.
+  - A mapped text replaces the column's format. A mapping with only a tone keeps the format.
+  - A tone is one of a closed list: `neutral`, `good`, `warning`, `bad` and `series1` to
+    `series8`. Each names a design token, so a spec holds no colour and a toned cell follows the
+    light and the dark scheme. `warning` has a token of its own (`--color-warning`), apart from
+    the brand's orange and the amber of a draft. `--color-series-7` and `--color-series-8` exist
+    for tones; charts still cycle through the first six series colours.
+  - `toneAs` says how a column draws its tones: `text` (the default) colours the text, mixed with
+    the ink so it stays readable on the surface, and `background` puts a tint of the tone behind
+    text in the ink.
+  - The agent sets both in `chart.options.columns`, which adds nothing to the edit tool's schema.
+    The spec schema refuses a tone that is not in the list and a match that says two things.
 - **Days and times** read `25 Sep 14:02` everywhere: on axes, in the Ask tab, on the alert pages
   and in notifications. The month's name comes from a fixed list (`calendarParts` in
   `@quanthea/shared`), since newer locale data writes `Sept` for British English.

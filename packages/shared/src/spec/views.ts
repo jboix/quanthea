@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prepareKinds } from '../chart-recipes/prepare.ts';
 import { formatterSchema } from '../formatters/schema.ts';
 import { refIdSchema, slugSchema } from './names.ts';
+import { mappingsSchema, toneAsSchema } from './tones.ts';
 
 /** Validates a field name in a result frame. */
 const fieldNameSchema = z.string().min(1).max(200);
@@ -32,6 +33,13 @@ const columnSchema = z.strictObject({
   label: z.string().max(100).optional(),
   format: formatterSchema.optional(),
   align: z.enum(['left', 'right']).optional(),
+  /**
+   * What a value of the column reads as and the tone it takes: the first mapping that matches the
+   * raw value. A mapped text replaces the format.
+   */
+  mappings: mappingsSchema.optional(),
+  /** How a cell shows its tone: as the colour of its text when left out, or as a tint behind it. */
+  toneAs: toneAsSchema.optional(),
 });
 
 /** Validates a table. */

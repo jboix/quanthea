@@ -78,7 +78,7 @@ describe('the columns of a table', () => {
 
   test('refuse options that are not a list of columns', () => {
     const problems = [
-      'options.columns is a list of { "field", "label"?, "format"?, "align"? }, one for each column to change.',
+      'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"? }, one for each column to change.',
     ];
     expect(tableOf({ overrides: { columns: { host: { label: 'Host' } } } }, hosts)).toEqual({
       problems,
@@ -93,11 +93,27 @@ describe('the columns of a table', () => {
     });
   });
 
+  test('take the mappings and the way a tone is drawn from the options', () => {
+    const mappings = [
+      { match: { null: true as const }, text: 'none' },
+      { match: { from: 0.05 }, tone: 'bad' as const },
+    ];
+    const toneAs = 'background' as const;
+    const overrides = { columns: [{ field: 'share', mappings, toneAs }] };
+    expect(tableOf({ overrides }, hosts)).toEqual({
+      view: {
+        kind: 'table',
+        ref: 'A',
+        columns: [{ field: 'host' }, { field: 'errors' }, { field: 'share', mappings, toneAs }],
+      },
+    });
+  });
+
   test('refuse an option with a key a column does not take', () => {
     const overrides = { columns: [{ field: 'host', width: 3 }] };
     expect(tableOf({ overrides }, hosts)).toEqual({
       problems: [
-        'options.columns is a list of { "field", "label"?, "format"?, "align"? }, one for each column to change.',
+        'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"? }, one for each column to change.',
       ],
     });
   });

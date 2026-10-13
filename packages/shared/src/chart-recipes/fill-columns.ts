@@ -9,10 +9,17 @@ export type TableColumns = { columns: JsonObject[] } | { problems: string[] };
 
 /** What the options of a table's columns must be. */
 const shapeProblem =
-  'options.columns is a list of { "field", "label"?, "format"?, "align"? }, one for each column to change.';
+  'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"? }, one for each column to change.';
 
 /** What the options of one column may hold. */
-const optionKeys: ReadonlySet<string> = new Set(['field', 'label', 'format', 'align']);
+const optionKeys: ReadonlySet<string> = new Set([
+  'field',
+  'label',
+  'format',
+  'align',
+  'mappings',
+  'toneAs',
+]);
 
 /**
  * Whether a value is the options of one column: an object naming its field, with nothing a column

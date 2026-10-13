@@ -56,6 +56,7 @@ export {
   type TimeRangeExpression,
   timeRangeSchema,
 } from './time.ts';
+export { type Mapping, mapValue, type Tone, type ToneAs } from './tones.ts';
 export {
   allValue,
   isMultiValue,

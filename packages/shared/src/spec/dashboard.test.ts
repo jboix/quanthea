@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { dashboardSpecSchema } from './dashboard.ts';
+import type { Mapping } from './tones.ts';
 
 /** The example from docs/dashboard-spec.md, abbreviated to three panels. */
 const example = {
@@ -167,6 +168,37 @@ describe('dashboardSpecSchema', () => {
       Object.assign(spec.panels[1]?.queries[0] ?? {}, { step: '1 minute' }),
     );
     expect(issuePaths(badStep)).toEqual(['panels.1.queries.0.step']);
+  });
+
+  test('reads a stored spec without mappings as it was written', () => {
+    const parsed = dashboardSpecSchema.parse(example);
+    expect<unknown>(parsed.panels[2]?.view).toEqual(example.panels[2]?.view);
+    expect(JSON.stringify(parsed.panels[2]?.view)).not.toMatch(/mappings|toneAs/);
+  });
+
+  test('takes mappings and how a tone is drawn on a table column', () => {
+    const column = (options: Record<string, unknown>) =>
+      changed((spec) => {
+        const view = spec.panels[2]?.view as { columns: Record<string, unknown>[] };
+        Object.assign(view.columns[1] ?? {}, options);
+      });
+    const steps: Mapping[] = [
+      { match: { to: 0.5 }, tone: 'good' },
+      { match: { from: 0.5, to: 1 }, tone: 'warning' },
+      { match: { from: 1 }, text: 'slow', tone: 'bad' },
+      { match: { null: true }, text: 'no data' },
+    ];
+    const withSteps = column({ mappings: steps, toneAs: 'background' });
+    expect(issuePaths(withSteps)).toEqual([]);
+    expect(dashboardSpecSchema.parse(withSteps).panels[2]?.view).toMatchObject({
+      columns: [{ field: 'route' }, { field: 'Value', mappings: steps, toneAs: 'background' }],
+    });
+    const path = 'panels.2.view.columns.1';
+    const colored = [{ match: { value: 1 }, tone: '#ff0000' }];
+    expect(issuePaths(column({ mappings: colored }))).toEqual([`${path}.mappings.0.tone`]);
+    expect(issuePaths(column({ toneAs: 'border' }))).toEqual([`${path}.toneAs`]);
+    const twoKinds = [{ match: { value: 1, from: 0 }, tone: 'bad' }];
+    expect(issuePaths(column({ mappings: twoKinds }))).toEqual([`${path}.mappings.0.match`]);
   });
 
   test('refuses a variable named like a built-in', () => {

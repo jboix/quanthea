@@ -27,6 +27,9 @@
   --color-series-4: #8a55c4;
   --color-series-5: #b8870b;
   --color-series-6: #c2436b;
+  /* Two more series colours, for values with a tone. Charts cycle through the first six. */
+  --color-series-7: #6f8a1c;
+  --color-series-8: #96613d;
   /* The signal dot of the quanthea mark (docs/brand). Reserved for the brand, not for data. */
   --color-brand-signal: #f29a4a;
   /* The icon tiles. They keep their colours in the dark scheme. */
@@ -39,6 +42,8 @@
   --color-ok-border: #cbe5d4;
   --color-danger: #8f2a1c;
   --color-danger-soft: #fbedea;
+  /* A value that needs attention. Not the brand's orange, and not the amber of a draft. */
+  --color-warning: #9a6700;
   --color-draft: #8a4b0f;
   --color-draft-soft: #fcefd9;
   --color-draft-border: #f0dcb8;
@@ -83,6 +88,8 @@
   --color-series-4: #ab82e3;
   --color-series-5: #d9ab2e;
   --color-series-6: #e46a90;
+  --color-series-7: #a3c14a;
+  --color-series-8: #c9956c;
 
   --color-ok: #56b37b;
   --color-ok-ink: #95d6ad;
@@ -90,6 +97,7 @@
   --color-ok-border: #26452f;
   --color-danger: #f08b7b;
   --color-danger-soft: #301a17;
+  --color-warning: #f2c94c;
   --color-draft: #f0b46a;
   --color-draft-soft: #2d2214;
   --color-draft-border: #4b3920;
