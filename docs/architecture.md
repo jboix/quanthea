@@ -3766,6 +3766,54 @@ one, and enables them again. Without any admin, it creates the default one.
   instance keeps the layouts registered when it was made, so a chart makes its instance once its
   modules are in, and makes it again if more were registered since. A map registers only once the
   geo modules are in, so the modules load before the map.
+- **Many points** (`charts/dense.ts`). Once the option is built the adapter counts the points of
+  each series, and draws a long one another way. No value changes.
+  - A line of more than 500 points is sampled to its pixels (`sampling: 'minmax'`) and draws no
+    symbols. ECharts samples only when a series has more points than its plot has device pixels,
+    and again at each size. For each pixel of the plot's width it keeps the lowest and the highest
+    point that fall in it. So no spike and no dip is lost, and every point drawn is a point of the
+    data: a tooltip never shows a value the query did not return. A test draws a line with a
+    spike and a dip side by side and finds them all.
+  - What `minmax` gives up: a gap narrower than one pixel may close, and the points that share a
+    pixel with the end of a gap may be left out. A stacked line is sampled by its own values, not
+    by the stacked ones.
+  - `lttb`, the other sampler that keeps points of the data, keeps one point per pixel: the first,
+    the last, the edges of a gap, and otherwise the point that stands out most from the point
+    before and the mean of the next pixel. Of a spike and a dip in one pixel it keeps one, so it
+    is not the one used. `average` and `sum` draw values that are in no row.
+  - A bar series of more than 1000 points and a scatter series of more than 2000 are drawn in
+    one stroke (ECharts' large mode, progressive past its own limits). Large mode gives every
+    item of a series one look and stacks nothing, so a series coloured or sized by its values (a
+    `visualMap`, a `symbolSize` that is not one number) or stacked keeps the usual drawing.
+  - A chart that draws more than 2000 points, over all its series, does not animate.
+  - The alert chart is left as it was: a replay draws at most 1500 points a line.
+- **Charts out of view** (`charts/chart.tsx`). A chart draws when it is in the window or within
+  200 pixels of it (an `IntersectionObserver`), and a new option waits until then. A chart once
+  drawn stays drawn. Before the page is printed (`beforeprint`) every chart draws, wherever it
+  is. A browser without `IntersectionObserver` draws every chart at once.
+- **Measured** with `bun run bench:charts` (`dev/chart-speed/run.ts`): the development server's
+  `/dev/chart-speed` page, which a build leaves out, draws 12 half-width time charts of one
+  series each through the chart component, in headless Chromium at 2 device pixels per pixel.
+  The numbers are medians of 3 loads on a 6-core arm64 virtual machine, before and after the two
+  rules above, in milliseconds. "Drawn" is the first frame with every chart in view drawn,
+  "at rest" the start of the first 20 frames in a row under 34 ms, and a tooltip move and a
+  resize are for one chart. The first three columns of numbers are for a window that shows all
+  12 charts.
+
+  | Series  | Points | Drawn      | At rest     | Tooltip move | Resize      | Drawn in a 1440 by 900 window |
+  | ------- | -----: | ---------- | ----------- | ------------ | ----------- | ----------------------------- |
+  | line    |   1000 | 87 → 103   | 133 → 103   | 0.36 → 0.30  | 2.7 → 3.1   | 88 → 94 (8 of 12 charts)      |
+  | line    |   5000 | 149 → 146  | 267 → 146   | 0.49 → 0.39  | 4.6 → 2.7   | 147 → 125                     |
+  | line    |  20000 | 410 → 210  | 809 → 210   | 1.15 → 0.42  | 12.2 → 2.6  | 400 → 185                     |
+  | bar     |   1000 | 185 → 192  | 341 → 292   | 1.07 → 1.04  | 8.5 → 8.6   | 186 → 150                     |
+  | bar     |   5000 | 483 → 238  | 877 → 462   | 4.16 → 0.35  | 33.0 → 3.6  | 483 → 191                     |
+  | bar     |  20000 | 1550 → 302 | 2979 → 1069 | 17.34 → 0.73 | 128.6 → 4.6 | 1570 → 237                    |
+  | scatter |   1000 | 180 → 209  | 356 → 467   | 1.74 → 1.75  | 8.3 → 8.6   | 175 → 153                     |
+  | scatter |   5000 | 148 → 368  | 875 → 368   | 2.68 → 1.13  | 9.4 → 4.9   | 149 → 274                     |
+  | scatter |  20000 | 207 → 477  | 5072 → 1454 | 10.69 → 0.80 | 21.2 → 6.5  | 205 → 347                     |
+
+  A long scatter series now takes longer to its first frame and is at rest sooner: large mode
+  draws its points at once where the usual drawing spread them over many frames.
 - The adapter reads each query's frames as one dataset, applies the view's `filter` and `sort`,
   then prepares it the way the view says (`charts/prepare/`): pivoted to one column per series,
   scaled to shares, ranked, split into groups, binned, summed up for a box plot, built into a

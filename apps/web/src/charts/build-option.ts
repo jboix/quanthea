@@ -6,6 +6,7 @@
 import type { ChartView, Dataset, MarkerOutcome, QueryOutcome } from '@quanthea/shared';
 import { type AlertMarks, withAlertMarks } from './alert-marks.ts';
 import { viewDatasets } from './datasets.ts';
+import { withDensity } from './dense.ts';
 import { wireFormatters } from './formatters.ts';
 import { isObject, type Loose } from './loose.ts';
 import { type Prepared, prepareChart } from './prepare/index.ts';
@@ -341,7 +342,7 @@ function resolvedOption(
  *
  * @param input - The view, the datasets and the markers.
  * @param context - The theme and the time zone.
- * @returns The ECharts option.
+ * @returns The ECharts option, drawn as its number of points asks (`dense.ts`).
  */
 export function buildChartOption(input: ChartInput, context: ChartContext): Loose {
   const { view } = input;
@@ -360,8 +361,8 @@ export function buildChartOption(input: ChartInput, context: ChartContext): Loos
   const timeCategories = main?.dimensions.find((column) => column.name === x)?.type === 'time';
   const styled = styleOption(resolved, context.theme, main, timeCategories);
   const empty = input.datasets.every((dataset) => dataset.source.length === 0);
-  return {
+  return withDensity({
     ...(wireFormatters(styled, format) as Loose),
     ...ownedParts(prepared, styled, context.theme, empty),
-  };
+  });
 }

@@ -1,9 +1,10 @@
 /**
  * The chart component: the only place that draws with ECharts. It draws on a canvas, loads the
- * chart types and maps an option needs, and follows its container's size.
+ * chart types and maps an option needs, and follows its container's size. A chart draws when it
+ * is in the window or about to scroll into it, and every chart draws before the page is printed.
  */
 import { type EChartsType, init } from 'echarts/core';
-import { type RefObject, useEffect, useMemo, useRef } from 'react';
+import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { buildChartOption, type ChartInput } from './build-option.ts';
 import styles from './chart.module.css';
 import type { Loose } from './loose.ts';
@@ -155,7 +156,89 @@ function valueAxisOf(chart: EChartsType): ValueAxis {
 }
 
 /**
- * Draws an option built in this folder. The instance is made once the modules it needs are in.
+ * How far outside the window a chart is already drawn, so one about to scroll in is ready.
+ */
+const drawAhead = '200px';
+
+/**
+ * Whether a chart is in the window, or within {@link drawAhead} of it. A browser without
+ * `IntersectionObserver` says every chart is.
+ *
+ * @param container - The chart's container.
+ * @returns Whether the chart is to be drawn now.
+ */
+function useInView(container: RefObject<HTMLDivElement | null>): boolean {
+  const [inView, setInView] = useState(() => typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    const element = container.current;
+    if (!element || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => setInView(entries.at(-1)?.isIntersecting ?? false),
+      { rootMargin: drawAhead },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [container]);
+  return inView;
+}
+
+/** Where a chart draws, and what it has drawn. */
+interface Drawing {
+  /** The container. */
+  readonly container: RefObject<HTMLDivElement | null>;
+  /** Where the instance is kept. */
+  readonly holder: RefObject<Instance | null>;
+  /** Called after each draw, when it holds a function. */
+  readonly afterDraw: RefObject<(() => void) | undefined>;
+  /** The option last drawn, so the same option is not drawn twice. */
+  readonly drawn: RefObject<Loose | undefined>;
+}
+
+/**
+ * Draws an option, once the modules it needs are in.
+ *
+ * @param drawing - Where to draw.
+ * @param option - The option.
+ * @param stillWanted - Whether the option is still the one to draw when its modules are in.
+ */
+function draw(drawing: Drawing, option: Loose, stillWanted: () => boolean): void {
+  void loadWhatItNeeds(option).then(() => {
+    const element = drawing.container.current;
+    if (!stillWanted() || !element) return;
+    instanceFor(element, drawing.holder).setOption(option, { notMerge: true });
+    drawing.drawn.current = option;
+    drawing.afterDraw.current?.();
+  });
+}
+
+/**
+ * Draws the option when the chart is in view and the option is not the one drawn, and before the
+ * page is printed wherever the chart is, so a printed page has every chart.
+ *
+ * @param drawing - Where to draw.
+ * @param option - The option.
+ * @param inView - Whether the chart is in the window or about to be.
+ */
+function useDrawn(drawing: Drawing, option: Loose, inView: boolean): void {
+  const { container, holder, afterDraw, drawn } = drawing;
+  useEffect(() => {
+    const parts = { container, holder, afterDraw, drawn };
+    let current = true;
+    const drawIt = (): void => {
+      if (drawn.current !== option) draw(parts, option, () => current);
+    };
+    if (inView) drawIt();
+    window.addEventListener('beforeprint', drawIt);
+    return () => {
+      current = false;
+      window.removeEventListener('beforeprint', drawIt);
+    };
+  }, [container, holder, afterDraw, drawn, option, inView]);
+}
+
+/**
+ * Draws an option built in this folder, when the chart is in view. The instance is made once the
+ * modules it needs are in.
  *
  * @param props - The option, a label, and who wants the value axis.
  * @returns The chart container.
@@ -163,23 +246,13 @@ function valueAxisOf(chart: EChartsType): ValueAxis {
 export function OptionChart({ option, label, onAxis }: OptionChartProps) {
   const container = useRef<HTMLDivElement>(null);
   const holder = useRef<Instance | null>(null);
-  const report = useRef<(() => void) | undefined>(undefined);
-  report.current = () => {
+  const afterDraw = useRef<(() => void) | undefined>(undefined);
+  const drawn = useRef<Loose | undefined>(undefined);
+  afterDraw.current = () => {
     const chart = holder.current?.chart;
     if (chart && onAxis) onAxis(valueAxisOf(chart));
   };
-  useResizeAndDispose(container, holder, report);
-  useEffect(() => {
-    let current = true;
-    void loadWhatItNeeds(option).then(() => {
-      const element = container.current;
-      if (!current || !element) return;
-      instanceFor(element, holder).setOption(option, { notMerge: true });
-      report.current?.();
-    });
-    return () => {
-      current = false;
-    };
-  }, [option]);
+  useResizeAndDispose(container, holder, afterDraw);
+  useDrawn({ container, holder, afterDraw, drawn }, option, useInView(container));
   return <div ref={container} className={styles.chart} role="img" aria-label={label} />;
 }

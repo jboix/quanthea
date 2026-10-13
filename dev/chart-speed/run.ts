@@ -1,8 +1,9 @@
 /**
  * Measures how fast the app draws a dashboard's worth of time charts, in headless Chromium: 12
  * charts of 1,000, 5,000 and 20,000 points each, through the app's own chart component, on the
- * chart speed page of the development server. It prints the time to the first draw and what a
- * tooltip move and a resize cost. `bun run bench:charts`; `--kinds line,bar,scatter` adds bars
+ * chart speed page of the development server. It prints the time to the first draw, what a
+ * tooltip move and a resize cost, and how many charts are drawn at first, after scrolling and
+ * when the page is printed. `bun run bench:charts`; `--kinds line,bar,scatter` adds bars
  * and points, `--runs 5` repeats more.
  *
  * It starts its own Vite server on port 5199 and stops it when it is done.
@@ -40,8 +41,8 @@ interface Sample extends LoadTimes {
   readonly tooltipMs: number;
   /** Mean milliseconds of a resize of one chart. */
   readonly resizeMs: number;
-  /** How many charts are drawn once the page is printed. */
-  readonly printed: number;
+  /** How many charts are drawn once the page was scrolled to its end. */
+  readonly scrolled: number;
 }
 
 /** What one round measures. */
@@ -99,22 +100,51 @@ async function startVite() {
 }
 
 /**
- * Loads the page once and measures it.
+ * Opens the page and waits until it has drawn and settled.
+ *
+ * @param page - The browser page.
+ * @param round - What to draw.
+ * @returns The load times.
+ */
+async function load(page: Page, round: Round): Promise<LoadTimes> {
+  await page.setViewportSize(windows[round.window]);
+  await page.goto(`${pageUrl}?points=${round.points}&kind=${round.kind}`);
+  await page.waitForFunction('window.chartSpeed !== undefined', undefined, { timeout: 120_000 });
+  return (await page.evaluate('window.chartSpeed.loaded')) as LoadTimes;
+}
+
+/**
+ * Loads the page once and measures it: the load, then a tooltip move and a resize on the charts
+ * drawn, then how many charts are drawn once the page was scrolled to its end.
  *
  * @param page - The browser page.
  * @param round - What to draw.
  * @returns The sample.
  */
 async function measureOnce(page: Page, round: Round): Promise<Sample> {
-  await page.setViewportSize(windows[round.window]);
-  await page.goto(`${pageUrl}?points=${round.points}&kind=${round.kind}`);
-  await page.waitForFunction('window.chartSpeed !== undefined', undefined, { timeout: 120_000 });
-  const load = (await page.evaluate('window.chartSpeed.loaded')) as LoadTimes;
+  const times = await load(page, round);
   const tooltip = (await page.evaluate('window.chartSpeed.tooltip(40)')) as number[];
   const resize = (await page.evaluate('window.chartSpeed.resize()')) as number[];
+  await page.mouse.wheel(0, 100_000);
+  await page.waitForTimeout(1000);
+  const scrolled = (await page.evaluate('window.chartSpeed.drawn()')) as number;
+  return { ...times, tooltipMs: mean(tooltip), resizeMs: mean(resize), scrolled };
+}
+
+/**
+ * Prints the page without scrolling it, and counts the charts drawn before and after.
+ *
+ * @param browser - The browser.
+ * @returns What happened, as a line.
+ */
+async function printCheck(browser: Browser): Promise<string> {
+  const page = await browser.newPage();
+  const { charts } = await load(page, { kind: 'line', points: 5000, window: 'laptop' });
   await page.pdf();
+  await page.waitForTimeout(500);
   const printed = (await page.evaluate('window.chartSpeed.drawn()')) as number;
-  return { ...load, tooltipMs: mean(tooltip), resizeMs: mean(resize), printed };
+  await page.close();
+  return `Printing: ${charts} charts drawn in the laptop window, ${printed} once the page is printed.`;
 }
 
 /**
@@ -143,7 +173,7 @@ async function measureRound(browser: Browser, round: Round, runs: number): Promi
     charts: middle((sample) => sample.charts),
     tooltipMs: middle((sample) => sample.tooltipMs),
     resizeMs: middle((sample) => sample.resizeMs),
-    printed: middle((sample) => sample.printed),
+    scrolled: middle((sample) => sample.scrolled),
   };
 }
 
@@ -165,14 +195,14 @@ function row(round: Round, sample: Sample): string {
     sample.longestFrameMs.toFixed(0),
     sample.tooltipMs.toFixed(2),
     sample.resizeMs.toFixed(2),
-    sample.printed,
+    sample.scrolled,
   ];
   return `| ${cells.join(' | ')} |`;
 }
 
 /** The head of the table. */
 const head = [
-  '| kind | points | window | charts drawn | drawn ms | settled ms | longest frame ms | tooltip move ms | resize ms | drawn when printed |',
+  '| kind | points | window | charts drawn | drawn ms | settled ms | longest frame ms | tooltip move ms | resize ms | drawn after scrolling |',
   '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
 ];
 
@@ -205,6 +235,7 @@ async function measureAll(kinds: readonly string[], runs: number): Promise<void>
     for (const round of roundsOf(kinds)) {
       process.stdout.write(`${row(round, await measureRound(browser, round, runs))}\n`);
     }
+    process.stdout.write(`\n${await printCheck(browser)}\n`);
   } finally {
     await browser.close();
   }

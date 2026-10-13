@@ -103,6 +103,10 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   [explanation](ask-and-explain.md#explain-a-panel).
 - **Alerts on panels.** A panel an [alert](alerts.md) watches shows a state pill, and its time
   chart draws the alert's threshold and when it fired.
+- **Long series.** A line with more points than its chart has pixels is drawn through the lowest
+  and the highest point of each pixel, so every spike and every dip shows, and a tooltip still
+  reads a point of the data. A chart further down the page draws when you scroll to it, and all
+  of them draw when you print the page.
 - **About** (the info icon by the title) gives the description, the tags and the sources.
 
 ![The checkout incident: errors and latency rise at the deploy marker and fall after the rollback](../screenshots/dashboard-incident-light.webp#gh-light-mode-only)
