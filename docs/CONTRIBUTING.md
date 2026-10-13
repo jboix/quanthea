@@ -133,7 +133,8 @@ Write the subject line for the changelog reader, not the diff reader.
 ## Changing behavior
 
 - Update [the architecture](./architecture.md) in the same change as the code it describes.
-- The model sees data only through the access gate, and no model-written code runs anywhere.
+- The model sees data only through the access gate, and no model-written code runs in quanthea's
+  server or browser.
   dependency-cruiser and Biome enforce both.
 - Every `/api` endpoint is declared once in `packages/shared` and declares its access: public or a
   minimum role. A test fails otherwise.

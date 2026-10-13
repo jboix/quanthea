@@ -5,6 +5,7 @@ import { requestId } from 'hono/request-id';
 import {
   captureLogs,
   fixedAuthenticator,
+  kindsWithSearch,
   temporaryDir,
   testServices,
 } from '../../test/fixtures.ts';
@@ -78,6 +79,60 @@ describe('a change of what a connector shows', () => {
     });
     expect(misspelt.status).toBe(400);
     expect((await call('GET', `/api/connectors/${id}`)).body).toMatchObject({ visibility });
+  });
+});
+
+describe('bucket scripts', () => {
+  const logs = { ...newConnector, name: 'logs', kind: 'memory-search' };
+
+  /** Offers a search kind beside the memory kind. */
+  async function offerSearch(): Promise<void> {
+    await fixture.close();
+    fixture = await testServices(dataDir.path, kindsWithSearch);
+  }
+
+  test('are off on a new connector, and an admin switches them on and off', async () => {
+    await offerSearch();
+    const call = client(admin);
+    const created = await call('POST', '/api/connectors', logs);
+    expect(created.body).toMatchObject({ kind: 'memory-search', bucketScripts: false });
+    const path = `/api/connectors/${String(created.body.id)}`;
+    const allowed = await call('PATCH', path, { bucketScripts: true });
+    expect(allowed).toMatchObject({ status: 200, body: { bucketScripts: true } });
+    expect((await call('GET', path)).body).toMatchObject({ bucketScripts: true });
+    const kept = await call('PATCH', path, { accessLevel: 3 });
+    expect(kept.body).toMatchObject({ accessLevel: 3, bucketScripts: true });
+    expect((await call('PATCH', path, { bucketScripts: false })).body).toMatchObject({
+      bucketScripts: false,
+    });
+  });
+
+  test('are refused on a connector that is not a search, and as anything but yes or no', async () => {
+    await offerSearch();
+    const call = client(admin);
+    const onSql = await call('POST', '/api/connectors', { ...newConnector, bucketScripts: true });
+    expect(onSql.status).toBe(400);
+    expect(JSON.stringify(onSql.body)).toContain('Only an Elasticsearch or OpenSearch connector');
+    const id = String((await call('POST', '/api/connectors', newConnector)).body.id);
+    expect((await call('PATCH', `/api/connectors/${id}`, { bucketScripts: true })).status).toBe(
+      400,
+    );
+    const searchId = String((await call('POST', '/api/connectors', logs)).body.id);
+    const unclear = await call('PATCH', `/api/connectors/${searchId}`, { bucketScripts: 'yes' });
+    expect(unclear.status).toBe(400);
+    expect((await call('GET', `/api/connectors/${searchId}`)).body.bucketScripts).toBe(false);
+  });
+
+  test('are not for an editor, nor for a connector the configuration file manages', async () => {
+    await offerSearch();
+    const call = client(admin);
+    const path = `/api/connectors/${String((await call('POST', '/api/connectors', logs)).body.id)}`;
+    expect((await client(editor)('PATCH', path, { bucketScripts: true })).status).toBe(403);
+    fixture.database
+      .query('INSERT INTO provisioned VALUES (?, ?, ?, ?, ?, ?)')
+      .run('connector', 'logs', '/etc/quanthea/quanthea.yaml', new Uint8Array(32), '[]', 1);
+    expect((await call('PATCH', path, { bucketScripts: true })).status).toBe(403);
+    expect((await call('GET', path)).body.bucketScripts).toBe(false);
   });
 });
 

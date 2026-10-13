@@ -3,6 +3,8 @@ import { type FormEvent, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { CheckIcon, LockIcon } from '../../ui/icons.tsx';
 import { Input } from '../../ui/input.tsx';
+import { offersBucketScripts } from './bucket-scripts.ts';
+import { BucketScriptsCard } from './bucket-scripts-card.tsx';
 import styles from './connector.module.css';
 import { enforcedRules } from './enforced-rules.ts';
 import { useHealth } from './health.ts';
@@ -173,16 +175,23 @@ function LimitsForm({ connector }: { readonly connector: ConnectorDetail }) {
   );
 }
 
+/** Props of {@link AlwaysEnforced}. */
+interface AlwaysEnforcedProps {
+  /** The query language of the connector's kind, such as `sql`. */
+  readonly language: string | undefined;
+  /** Whether the connector allows bucket scripts, which one rule of a search follows. */
+  readonly bucketScripts: boolean;
+}
+
 /**
  * The fixed rules of the connector's query language, as a list: nothing here is an input, since
  * nothing here can be changed.
  *
- * @param props - The query language.
- * @param props.language - The query language of the connector's kind, such as `sql`.
+ * @param props - The query language and the setting a rule follows.
  * @returns The card, or nothing for a language without listed rules.
  */
-function AlwaysEnforced({ language }: { readonly language: string | undefined }) {
-  const rules = enforcedRules(language);
+function AlwaysEnforced({ language, bucketScripts }: AlwaysEnforcedProps) {
+  const rules = enforcedRules(language, { bucketScripts });
   if (rules.length === 0) return null;
   return (
     <div className={styles.card}>
@@ -191,7 +200,8 @@ function AlwaysEnforced({ language }: { readonly language: string | undefined })
         Always enforced
       </h4>
       <p className={styles.cardNote}>
-        Rules, not settings. Turning one off would run text a model wrote on the data source.
+        Rules, not settings. Turning one off would run text a model wrote on the documents of the
+        data source.
       </p>
       <ul className={styles.rules} aria-labelledby="enforced-title">
         {rules.map(({ rule, stops }) => (
@@ -206,7 +216,8 @@ function AlwaysEnforced({ language }: { readonly language: string | undefined })
 }
 
 /**
- * The guardrails: the limits an admin sets, and apart from them the rules nobody can change.
+ * The guardrails: the limits an admin sets, for a search whether a bucket aggregation may hold a
+ * script, and apart from them the rules nobody can change.
  *
  * @param props - The connector and its query language.
  * @returns The section.
@@ -224,7 +235,8 @@ export function GuardrailsSection({ connector, language }: GuardrailsSectionProp
       </div>
       <LimitsForm connector={connector} />
       <WriteCheck connector={connector} />
-      <AlwaysEnforced language={language} />
+      {offersBucketScripts(language) && <BucketScriptsCard connector={connector} />}
+      <AlwaysEnforced language={language} bucketScripts={connector.bucketScripts} />
     </section>
   );
 }

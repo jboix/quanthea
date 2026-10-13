@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readConfigFile } from '../config/config-file.ts';
+import {
+  memoryConnector,
+  memorySearchConnector,
+} from '../connectors/_shared/test/memory-connector.ts';
 import { createAuditRepository } from '../db/audit-repository.ts';
 import { createProvisionedRepository } from '../db/provisioned-repository.ts';
 import { keyedHash } from '../secrets/keyed-hash.ts';
@@ -129,6 +133,32 @@ describe('provisioning connectors', () => {
     expect(detail.visibility).toEqual({ showSystem: false, mode: 'only', names: ['events'] });
   });
 
+  test('allows bucket scripts on a search connector, and takes them away again', async () => {
+    await services.close();
+    services = await testServices(dataDir.path, [memoryConnector, memorySearchConnector]);
+    const logs = (extra: string) =>
+      `connectors:\n  logs:\n    kind: memory-search\n    config: {}\n    secret: { token: "${reference('EVENTS_TOKEN')}" }\n${extra}`;
+    const stored = async () => {
+      const id = services.connections.list().find((each) => each.name === 'logs')?.id ?? '';
+      return (await services.connections.get(id)).bucketScripts;
+    };
+    await apply(logs(''));
+    expect(await stored()).toBe(false);
+    await apply(logs('    bucketScripts: true\n'));
+    expect(await stored()).toBe(true);
+    await apply(logs(''));
+    expect(await stored()).toBe(false);
+  });
+
+  test('refuses bucket scripts on another kind, and a value that is not yes or no', async () => {
+    const onSql = `connectors:\n${connector('    bucketScripts: true\n')}`;
+    await expect(apply(onSql)).rejects.toThrow('A Memory connector has no bucket scripts.');
+    const unclear = `connectors:\n${connector('    bucketScripts: sometimes\n')}`;
+    await expect(apply(unclear)).rejects.toThrow('connectors.events.bucketScripts');
+    await apply(`connectors:\n${connector('    bucketScripts: false\n')}`);
+    expect(events()).toBeDefined();
+  });
+
   test('refuses a password in a URL, even from a variable, and applies nothing', async () => {
     const url = `https://reader:${reference('PROM_PW')}@prom.internal`;
     const token = reference('EVENTS_TOKEN');
@@ -159,6 +189,7 @@ describe('provisioning connectors', () => {
         accessLevel: 1,
         hiddenFields: [],
         visibility: { showSystem: false, mode: 'except', names: [] },
+        bucketScripts: false,
         guardrails: { timeoutMs: 10_000, maxRows: 50_000, maxRangeDays: 90 },
         descriptions: {},
       },

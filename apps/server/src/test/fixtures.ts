@@ -6,7 +6,10 @@ import type { Principal, ServerSettingsView } from '@quanthea/shared';
 import type { Authenticator } from '../auth/authenticator.ts';
 import type { HashCosts } from '../auth/passwords.ts';
 import type { AnyConnectorKind } from '../connectors/_shared/index.ts';
-import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
+import {
+  memoryConnector,
+  memorySearchConnector,
+} from '../connectors/_shared/test/memory-connector.ts';
 import { openDatabase } from '../db/database.ts';
 import { runMigrations } from '../db/migrate.ts';
 import { createSettingsRepository } from '../db/settings-repository.ts';
@@ -95,6 +98,12 @@ export function temporaryDir(): { readonly path: string; readonly remove: () => 
   const path = mkdtempSync(join(tmpdir(), 'quanthea-test-'));
   return { path, remove: () => rmSync(path, { recursive: true, force: true }) };
 }
+
+/** The in-memory test kind and its search twin, for what only a search connector has. */
+export const kindsWithSearch: readonly AnyConnectorKind[] = [
+  memoryConnector,
+  memorySearchConnector,
+];
 
 /**
  * Opens a fresh database in a temporary directory and builds the services over it, wired as the

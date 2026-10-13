@@ -29,6 +29,8 @@ export interface ConnectorRow {
   readonly hiddenFields: readonly string[];
   /** Which indices, tables or collections of the source the connector shows. */
   readonly visibility: ObjectVisibility;
+  /** Whether a search may hold a script of its own in its two bucket aggregations. */
+  readonly bucketScripts: boolean;
   /** The limits enforced on every query. */
   readonly guardrails: Guardrails;
   /** Admin-written descriptions, keyed by `entity` or `entity.field`. */
@@ -116,6 +118,8 @@ interface StoredConnector {
   hidden_fields: string;
   /** The visibility JSON. */
   visibility: string;
+  /** Whether bucket scripts are allowed: 0 or 1. */
+  bucket_scripts: number;
   /** The guardrails JSON. */
   guardrails: string;
   /** The descriptions JSON. */
@@ -143,6 +147,7 @@ function toConnector(stored: StoredConnector): ConnectorRow {
     accessLevel: accessLevelSchema.parse(stored.access_level),
     hiddenFields: hiddenFieldsSchema.parse(JSON.parse(stored.hidden_fields)),
     visibility: objectVisibilitySchema.parse(JSON.parse(stored.visibility)),
+    bucketScripts: stored.bucket_scripts === 1,
     guardrails: guardrailsSchema.parse(JSON.parse(stored.guardrails)),
     descriptions: descriptionsSchema.parse(JSON.parse(stored.descriptions)),
     createdAt: stored.created_at,
@@ -166,6 +171,7 @@ function toValues(row: ConnectorRow) {
     row.accessLevel,
     JSON.stringify(row.hiddenFields),
     JSON.stringify(row.visibility),
+    row.bucketScripts ? 1 : 0,
     JSON.stringify(row.guardrails),
     JSON.stringify(row.descriptions),
     row.createdAt,
@@ -215,11 +221,12 @@ export function createConnectorRepository(database: Database): ConnectorReposito
   // An upsert on id: a name taken by another connector fails instead of replacing it.
   const upsert = database.query(
     `INSERT INTO connectors (id, name, kind, config, secret, access_level, hidden_fields, visibility,
-       guardrails, descriptions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       bucket_scripts, guardrails, descriptions, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (id) DO UPDATE SET name = excluded.name, kind = excluded.kind,
        config = excluded.config, secret = excluded.secret, access_level = excluded.access_level,
        hidden_fields = excluded.hidden_fields, visibility = excluded.visibility,
-       guardrails = excluded.guardrails,
+       bucket_scripts = excluded.bucket_scripts, guardrails = excluded.guardrails,
        descriptions = excluded.descriptions, updated_at = excluded.updated_at`,
   );
   const deleteById = database.query('DELETE FROM connectors WHERE id = ?');

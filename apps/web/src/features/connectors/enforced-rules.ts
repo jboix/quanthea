@@ -1,8 +1,9 @@
 /**
  * The rules the server enforces on every query of a language, whatever the connector's settings.
  * Each sentence says what the query binder of that language refuses. Nobody can turn one off:
- * allowing a script, a write or a second statement would run text a model wrote on the data
- * source.
+ * allowing a script that reads documents, a write or a second statement would run text a model
+ * wrote on the data source. A search has one rule that follows a setting: what a `bucket_script`
+ * and a `bucket_selector` may hold, which receive bucket numbers and no document.
  */
 import type { QueryLanguage } from '@quanthea/shared';
 
@@ -65,9 +66,9 @@ const rulesByLanguage: Readonly<Record<QueryLanguage, readonly EnforcedRule[]>> 
   ],
   search: [
     {
-      rule: 'No scripts',
+      rule: 'No scripts that read documents',
       stops:
-        'A key that holds or runs a script is refused, because a script is code the search server runs; only the two fixed ratio scripts of a bucket_script pass.',
+        'script_fields, scripted_metric, a script query, sort or score, a scripted terms, a stored script and any other script key are refused whatever the settings, because such a script reads documents and so goes around hidden fields and access levels.',
     },
     {
       rule: 'No runtime fields',
@@ -153,12 +154,40 @@ const rulesByLanguage: Readonly<Record<QueryLanguage, readonly EnforcedRule[]>> 
   ],
 };
 
+/** What a search's two bucket aggregations may hold, by whether the connector allows scripts there. */
+const bucketScriptRules: Readonly<Record<'off' | 'on', EnforcedRule>> = {
+  off: {
+    rule: 'Ratio scripts only',
+    stops:
+      'A bucket_script names one of the two fixed ratio scripts and a bucket_selector is refused, since bucket scripts are off for this connector.',
+  },
+  on: {
+    rule: 'Bucket scripts are one short expression',
+    stops:
+      'A script in bucket_script or bucket_selector is written in the query, short, and one arithmetic expression over the buckets it names in buckets_path, with no statement, loop, string or stored script, so it reads bucket numbers only and cannot exhaust the search server.',
+  },
+};
+
+/** The settings of a connector that a rule follows. */
+interface RuleSettings {
+  /** Whether the connector allows bucket scripts. */
+  readonly bucketScripts?: boolean;
+}
+
 /**
  * The rules always enforced on a query language.
  *
  * @param language - The query language of the connector's kind, if its kind is offered.
+ * @param settings - The connector's settings a rule follows: whether it allows bucket scripts.
  * @returns The rules, or none for a language this screen does not know.
  */
-export function enforcedRules(language: string | undefined): readonly EnforcedRule[] {
-  return rulesByLanguage[language as QueryLanguage] ?? [];
+export function enforcedRules(
+  language: string | undefined,
+  settings: RuleSettings = {},
+): readonly EnforcedRule[] {
+  const rules = rulesByLanguage[language as QueryLanguage] ?? [];
+  if (language !== 'search') return rules;
+  const [first, ...rest] = rules;
+  const scripts = bucketScriptRules[settings.bucketScripts ? 'on' : 'off'];
+  return first ? [first, scripts, ...rest] : rules;
 }

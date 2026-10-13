@@ -1,6 +1,7 @@
 /**
  * How to get each shape of data from Elasticsearch and OpenSearch, for the agent. It is about
- * data, not charts: any chart recipe for the shape can draw the result.
+ * data, not charts: any chart recipe for the shape can draw the result. What it says of other
+ * scripts is added where the guide is read, by what each connector allows (`searchScriptGuide`).
  */
 import { searchRatioScripts } from '../_shared/index.ts';
 
@@ -11,7 +12,7 @@ import { searchRatioScripts } from '../_shared/index.ts';
  * @returns The guide.
  */
 export function searchGuide(product: string): string {
-  return `${product} (search DSL). A query is an index or pattern ("logs-*") and a JSON body. A variable is a node of its own, {"$var": "service"}: a string, or a list for a multi-value variable; {"$var": "service", "as": "list"} is always a list, for terms. Filter the time with {"range": {"@timestamp": {"gte": {"$var": "__from"}, "lte": {"$var": "__to"}}}}. The schema names a date field with the format it is stored in, such as date (epoch_millis): a range bound is still __from, __to, or a date in ISO 8601 text such as "2026-10-05T14:47:01Z", whatever that format, and never text in another form. No scripts, runtime fields, wrapper queries, or lookups of another index's documents.
+  return `${product} (search DSL). A query is an index or pattern ("logs-*") and a JSON body. A variable is a node of its own, {"$var": "service"}: a string, or a list for a multi-value variable; {"$var": "service", "as": "list"} is always a list, for terms. Filter the time with {"range": {"@timestamp": {"gte": {"$var": "__from"}, "lte": {"$var": "__to"}}}}. The schema names a date field with the format it is stored in, such as date (epoch_millis): a range bound is still __from, __to, or a date in ISO 8601 text such as "2026-10-05T14:47:01Z", whatever that format, and never text in another form. No runtime fields, wrapper queries, or lookups of another index's documents, and no script but those this guide ends with.
 - With aggs, the result is one table: a column per bucket aggregation, nested level by level, and a column per metric of the deepest level, or "count" when it has none. Never put two bucket aggregations side by side; nest them.
 - long over time: {"size": 0, "query": …, "aggs": {"time": {"date_histogram": {"field": "@timestamp", "fixed_interval": {"$var": "__interval"}}, "aggs": {"series": {"terms": {"field": "level", "size": 10}}}}}} gives time, series, count. Add a metric under the deepest level, such as "value": {"avg": {"field": "duration_ms"}}.
 - On a dashboard, a date_histogram over the time field of the range is filled over the whole time range for you: empty buckets kept, bounds set to the range. An alert reads only the buckets that have documents. Write it as above and no more. Never set "min_doc_count": 1 on it: the chart would be cut to the stretch that has data, and a week would read like a day. A count is 0 in an empty bucket; an average or a ratio has no value there and the chart shows a gap. To set bounds yourself, write "extended_bounds": {"min": {"$var": "__from"}, "max": {"$var": "__to"}}; for a date written in ISO 8601 text, add "format": "strict_date_optional_time||epoch_millis" to the date_histogram, since a field stored as epoch_millis reads no other text.
@@ -19,7 +20,7 @@ export function searchGuide(product: string): string {
 - single: {"aggs": {"value": {"value_count": {"field": "trace_id"}}}}, or several metrics side by side.
 - percentiles: {"percentiles": {"field": "duration_ms", "percents": [50, 95, 99]}} gives one column per percentile, "name p95".
 - counts side by side: a filter with no bucket aggregation under it is a column of its count, {"errors": {"filter": {"term": {"level": "error"}}}}. Name an aggregation with a leading _ to keep it out of the table.
-- ratio, the only script: under a bucket, {"_part": {"filter": …}, "_whole": {"filter": …}, "rate": {"bucket_script": {"buckets_path": {"part": "_part>_count", "whole": "_whole>_count"}, "script": "${searchRatioScripts.ratio}"}}}; "whole": "_count" for every document of the bucket; "${searchRatioScripts.complement}" for one minus it, such as a success rate. Copy the script exactly: any other is refused.
+- ratio, with one of the two fixed scripts, on every connector: under a bucket, {"_part": {"filter": …}, "_whole": {"filter": …}, "rate": {"bucket_script": {"buckets_path": {"part": "_part>_count", "whole": "_whole>_count"}, "script": "${searchRatioScripts.ratio}"}}}; "whole": "_count" for every document of the bucket; "${searchRatioScripts.complement}" for one minus it, such as a success rate. Copy the script exactly.
 - matrix: nest a terms or histogram under another.
 - rows: no aggs; "size" up to 100, "sort": [{"@timestamp": "desc"}], "_source": ["@timestamp", "level", "message"]. Nested fields become dotted columns.
 - Aggregate on keyword fields (or text.keyword), not text fields.`;

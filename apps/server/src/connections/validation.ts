@@ -112,11 +112,13 @@ export function urlCredentialPaths(value: unknown, path: readonly string[] = [])
 
 /**
  * Validates the settings of a connector being created or changed: as `validateSettings` does,
- * and refusing a URL or a host with a username or a password.
+ * and refusing a URL or a host with a username or a password, and bucket scripts on a kind that
+ * is not a search.
  *
  * @param kind - The connector kind.
  * @param config - The configuration.
  * @param secret - The credentials.
+ * @param bucketScripts - Whether the connector is to allow bucket scripts, when the change says.
  * @returns Both, parsed.
  * @throws {AppError} `bad_request`, listing every problem without quoting values.
  */
@@ -124,6 +126,7 @@ export function validateNewSettings(
   kind: AnyConnectorKind,
   config: unknown,
   secret: unknown,
+  bucketScripts = false,
 ): { config: unknown; secret: unknown } {
   const settings = validateSettings(kind, config, secret);
   const issues: SettingIssue[] = urlCredentialPaths(settings.config).map((path) => ({
@@ -133,5 +136,25 @@ export function validateNewSettings(
   }));
   if (issues.length > 0)
     throw new AppError('bad_request', `The ${kind.displayName} settings are invalid.`, issues);
+  assertBucketScripts(kind, bucketScripts);
   return settings;
+}
+
+/**
+ * Refuses bucket scripts on a connector whose kind is not a search: only Elasticsearch and
+ * OpenSearch have the two bucket aggregations the setting is about.
+ *
+ * @param kind - The connector kind.
+ * @param bucketScripts - Whether the connector is to allow them.
+ * @throws {AppError} `bad_request` when a kind of another language is to allow them.
+ */
+function assertBucketScripts(kind: AnyConnectorKind, bucketScripts: boolean): void {
+  if (!bucketScripts || kind.language === 'search') return;
+  throw new AppError('bad_request', `A ${kind.displayName} connector has no bucket scripts.`, [
+    {
+      part: 'body',
+      path: 'bucketScripts',
+      message: 'Only an Elasticsearch or OpenSearch connector can allow bucket scripts.',
+    },
+  ]);
 }

@@ -38,6 +38,8 @@ export interface BindOptions {
   readonly maxPoints?: number;
   /** Whether the connector shows its source's own objects: dot indices, `system.` collections. */
   readonly showSystem?: boolean | undefined;
+  /** Whether the connector allows a search a script of its own in its two bucket aggregations. */
+  readonly bucketScripts?: boolean | undefined;
   /**
    * The interval the charts are cut into, such as `1h`, when the caller chose one: the step of
    * PromQL and LogQL, `__interval` of a search and of SQL, `__interval_ms` of MongoDB. Without it
@@ -92,8 +94,8 @@ function expressionRun(timeRange: TimeRange, options: BindOptions): ExpressionRu
 }
 
 /**
- * What a search is bound with: the connector's system indices, the interval of its buckets, and
- * whether its histograms stay as written.
+ * What a search is bound with: the connector's system indices and bucket scripts, the interval of
+ * its buckets, and whether its histograms stay as written.
  *
  * @param timeRange - The time range.
  * @param options - What binding depends on.
@@ -101,7 +103,8 @@ function expressionRun(timeRange: TimeRange, options: BindOptions): ExpressionRu
  */
 function searchBinding(timeRange: TimeRange, options: BindOptions): SearchBinding {
   const interval = bucketInterval('search', timeRange, options);
-  return { showSystem: options.showSystem, interval, sparse: options.sparse };
+  const { showSystem, bucketScripts, sparse } = options;
+  return { showSystem, bucketScripts, interval, sparse };
 }
 
 /**
@@ -114,7 +117,7 @@ function searchBinding(timeRange: TimeRange, options: BindOptions): SearchBindin
  *   interval the charts are cut into, when one was chosen, and the points a chart can show.
  * @returns The bound query.
  * @throws {QueryError} `invalid` for an unknown or misplaced variable, a SQL template that is not
- *   one read statement, or a search body with a script.
+ *   one read statement, or a search body with a script its connector does not allow.
  */
 export function bindTemplate(
   template: QueryTemplate,

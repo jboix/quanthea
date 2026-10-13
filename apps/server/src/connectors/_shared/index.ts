@@ -60,4 +60,6 @@ export {
   mongodbRefusedKeys,
   redisReadCommands,
   searchRatioScripts,
+  searchScriptGuide,
+  searchScriptLength,
 } from './policies.ts';

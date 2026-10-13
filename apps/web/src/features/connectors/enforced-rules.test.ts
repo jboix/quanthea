@@ -17,6 +17,23 @@ describe('enforcedRules', () => {
     }
   });
 
+  test('says what a search may run in its bucket aggregations, by the connector setting', () => {
+    const names = (bucketScripts: boolean) =>
+      enforcedRules('search', { bucketScripts }).map((rule) => rule.rule);
+    expect(names(false)).toContain('Ratio scripts only');
+    expect(names(true)).toContain('Bucket scripts are one short expression');
+    expect(names(true)).not.toContain('Ratio scripts only');
+    expect(enforcedRules('search')).toEqual(enforcedRules('search', { bucketScripts: false }));
+    for (const bucketScripts of [false, true]) {
+      const [first, ...rest] = enforcedRules('search', { bucketScripts });
+      expect(first?.rule).toBe('No scripts that read documents');
+      expect(first?.stops).toContain('whatever the settings');
+      expect(rest).toHaveLength(enforcedRules('search').length - 1);
+      for (const rule of rest) expect(rule.stops).toMatch(/^[^—]+\.$/);
+    }
+    expect(enforcedRules('sql', { bucketScripts: true })).toEqual(enforcedRules('sql'));
+  });
+
   test('lists nothing for a language it does not know, or none', () => {
     expect(enforcedRules('cypher')).toEqual([]);
     expect(enforcedRules(undefined)).toEqual([]);

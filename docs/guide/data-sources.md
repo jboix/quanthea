@@ -188,17 +188,76 @@ what a query gives.
 ### Always enforced
 
 Under the limits, the page lists the rules of the connector's query language. They are rules, not
-settings: turning one off would run text a model wrote on the data source.
+settings: turning one off would run text a model wrote on the documents of the data source. One
+rule of a search follows a setting, [bucket scripts](#bucket-scripts).
 
-| Query language                     | What is always refused                                                                                                                                                                                                                                                                                                                                                                                      |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SQL                                | A second statement. A statement that does not start with `SELECT`, `WITH`, `VALUES` or `TABLE`, or that holds a keyword that writes or changes the schema. A value as SQL text: variables are parameters. A function that reads or writes the server's files, reaches another server, runs a program or runs text as SQL, such as `pg_read_file`, `dblink`, `LOAD_FILE`, `url()` or a Trino `system.query`. |
-| PromQL                             | Anything but an expression sent to the query endpoints. A variable outside a quoted label matcher value, except an interval where a duration goes.                                                                                                                                                                                                                                                          |
-| LogQL                              | Anything but an expression sent to the query endpoints. A variable outside a quoted value, except an interval where a duration goes. The formatting templates `line_format` and `label_format`, which the source runs.                                                                                                                                                                                      |
-| Search (Elasticsearch, OpenSearch) | Scripts, except the two fixed ratio scripts of a `bucket_script`. Runtime fields. Lookups of another index: a terms lookup, an indexed shape, a percolator, a document list that names an `_index`. Wrapper queries. Remote indices and `_` names. An index name with a slash, a `%`, a `?`, or of dots alone.                                                                                              |
-| HTTP                               | Another origin, a redirect to one, and cloud metadata addresses. A method or a path the connection does not allow. A path with a `.` or `..` segment (also before a `;`), an empty segment, `?`, `#` or a backslash. A variable in a header.                                                                                                                                                                |
-| Redis (Valkey)                     | Any command outside the fixed list of reads: nothing writes, scans every key or runs a script.                                                                                                                                                                                                                                                                                                              |
-| MongoDB                            | `$out` and `$merge`. JavaScript: `$where`, `$function`, `$accumulator`. Stages that wait for changes or read the server's operations, sessions, queries, plans, catalog or statistics. Another database.                                                                                                                                                                                                    |
+| Query language                     | What is always refused                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| SQL                                | A second statement. A statement that does not start with `SELECT`, `WITH`, `VALUES` or `TABLE`, or that holds a keyword that writes or changes the schema. A value as SQL text: variables are parameters. A function that reads or writes the server's files, reaches another server, runs a program or runs text as SQL, such as `pg_read_file`, `dblink`, `LOAD_FILE`, `url()` or a Trino `system.query`.  |
+| PromQL                             | Anything but an expression sent to the query endpoints. A variable outside a quoted label matcher value, except an interval where a duration goes.                                                                                                                                                                                                                                                           |
+| LogQL                              | Anything but an expression sent to the query endpoints. A variable outside a quoted value, except an interval where a duration goes. The formatting templates `line_format` and `label_format`, which the source runs.                                                                                                                                                                                       |
+| Search (Elasticsearch, OpenSearch) | Scripts that read documents: `script_fields`, `scripted_metric`, script queries, sorts and scores, scripted `terms`, stored scripts and any other `script` key. Runtime fields. Lookups of another index: a terms lookup, an indexed shape, a percolator, a document list that names an `_index`. Wrapper queries. Remote indices and `_` names. An index name with a slash, a `%`, a `?`, or of dots alone. |
+| HTTP                               | Another origin, a redirect to one, and cloud metadata addresses. A method or a path the connection does not allow. A path with a `.` or `..` segment (also before a `;`), an empty segment, `?`, `#` or a backslash. A variable in a header.                                                                                                                                                                 |
+| Redis (Valkey)                     | Any command outside the fixed list of reads: nothing writes, scans every key or runs a script.                                                                                                                                                                                                                                                                                                               |
+| MongoDB                            | `$out` and `$merge`. JavaScript: `$where`, `$function`, `$accumulator`. Stages that wait for changes or read the server's operations, sessions, queries, plans, catalog or statistics. Another database.                                                                                                                                                                                                     |
+
+### Bucket scripts
+
+An Elasticsearch or OpenSearch connector has one more setting under the limits: **Allow a script
+in bucket_script and bucket_selector**. It is off on every connector until an admin switches it
+on, in the page or with `bucketScripts: true` in the
+[configuration file](../configuration.md#connectors).
+
+| Setting | What a search may run                                                                                                                                               |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Off     | The two fixed ratio scripts of a `bucket_script`: a share, and one minus it.                                                                                        |
+| On      | Also one expression of the query's own in a `bucket_script` or a `bucket_selector`, such as a difference of two counts, or keeping only the buckets above a number. |
+
+A query the agent writes is a query like any other: with the setting on, the agent may write such
+an expression. With it off, the agent keeps to the ratio scripts, and tells you an admin can allow
+more when a question needs it.
+
+Every other script stays refused, whatever the setting: `script_fields`, runtime fields,
+`scripted_metric`, script queries, sorts and scores, scripted `terms` and stored scripts. A script
+in those places reads documents, so it would go around hidden fields and access levels. A script
+in the two bucket aggregations receives only the numbers of the buckets it names.
+
+An allowed script keeps these limits:
+
+- It is written in the query, as text or as `{"source": …, "params": {…}}`. A stored script and a
+  language other than Painless are refused.
+- The aggregation names its buckets in `buckets_path`.
+- It is one arithmetic expression of at most 300 characters: numbers, `params.name`,
+  `+ - * / %`, comparisons, `&& || !`, `? :`, parentheses and a few `Math` functions. A statement,
+  a loop, a string or another call is refused, because a script that loops or allocates can
+  exhaust the search server's memory.
+- A value that changes goes in `params`, never in the text. The search server compiles each
+  distinct text and limits how many it compiles in a few minutes. A dashboard variable goes there
+  as `{"min": {"$var": "threshold"}}` and arrives as text, which
+  `Double.parseDouble(params.min)` reads.
+
+```json
+{
+  "_errors": { "filter": { "term": { "level": "error" } } },
+  "_warnings": { "filter": { "term": { "level": "warn" } } },
+  "more": {
+    "bucket_script": {
+      "buckets_path": { "errors": "_errors>_count", "warnings": "_warnings>_count" },
+      "script": "params.errors - params.warnings"
+    }
+  },
+  "_busy": {
+    "bucket_selector": {
+      "buckets_path": { "count": "_count" },
+      "script": { "source": "params.count > params.min", "params": { "min": 100 } }
+    }
+  }
+}
+```
+
+Switching the setting off again refuses the dashboards, alerts and reports whose queries hold such
+a script, from their next run. They show the refusal until the setting is on again or the query
+changes.
 
 ### The schema and descriptions
 

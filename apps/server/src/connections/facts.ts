@@ -14,7 +14,9 @@ import { notInstalled } from './kinds.ts';
 
 /** What dashboard validation needs of a connector, or why its kind cannot run. */
 export type StoredConnectorFacts =
-  | (Pick<QuerySource, 'language' | 'dialect' | 'scope'> & { guardrails: Guardrails })
+  | (Pick<QuerySource, 'language' | 'dialect' | 'scope' | 'bucketScripts'> & {
+      guardrails: Guardrails;
+    })
   | { readonly notInstalled: string };
 
 /** A connector as it would be with another visibility. */
@@ -51,7 +53,8 @@ export function scopeFor(kinds: readonly RegisteredKind[], row: ConnectorRow): O
  *
  * @param kinds - The connector kinds on offer.
  * @param row - The stored connector.
- * @returns The language, the guardrails and the scope, or why its kind cannot run.
+ * @returns The language, the guardrails, the scope and whether it allows bucket scripts, or why
+ *   its kind cannot run.
  */
 export function factsOf(kinds: readonly RegisteredKind[], row: ConnectorRow): StoredConnectorFacts {
   const kind = kinds.find((candidate) => candidate.kind === row.kind);
@@ -61,6 +64,7 @@ export function factsOf(kinds: readonly RegisteredKind[], row: ConnectorRow): St
     dialect: sqlFlavorOf(kind),
     guardrails: row.guardrails,
     scope: scopeFor(kinds, row),
+    bucketScripts: row.bucketScripts,
   };
 }
 

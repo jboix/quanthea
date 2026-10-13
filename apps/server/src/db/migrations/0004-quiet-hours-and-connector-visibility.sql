@@ -18,6 +18,12 @@ ALTER TABLE connectors ADD COLUMN visibility TEXT NOT NULL DEFAULT '{}';
 -- and reports may read them. It keeps showing them; a connector made from now on hides them.
 UPDATE connectors SET visibility = '{"showSystem":true}';
 
+-- ------------------------------------------------------------- connector bucket scripts
+-- Whether a search on the connector may hold a script of its own in `bucket_script` and
+-- `bucket_selector`. Off for every connector there is and every new one, until an admin allows it.
+ALTER TABLE connectors ADD COLUMN bucket_scripts INTEGER NOT NULL DEFAULT 0
+  CHECK (bucket_scripts IN (0, 1));
+
 -- ------------------------------------------------------------------------ report layouts
 -- A layout is how one version of a report is shown: the place and size of each panel of its grid
 -- and whether it is hidden, as JSON. It never changes the version. Saving adds a revision and the

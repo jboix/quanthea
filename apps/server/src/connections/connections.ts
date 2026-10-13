@@ -37,6 +37,7 @@ import {
   snapshotSchema,
 } from './facts.ts';
 import { installed, kindInfo, kindOf, notInstalled, storedKindOf, targetOf } from './kinds.ts';
+import { patched } from './patched.ts';
 import { validateNewSettings, validateSettings } from './validation.ts';
 import { toDetail, toSchemaView, toSubject, toSummary } from './views.ts';
 
@@ -306,7 +307,7 @@ async function createConnector(
   actor: string,
 ): Promise<ConnectorDetail> {
   const kind = kindOf(context.kinds, input.kind);
-  const settings = validateNewSettings(kind, input.config, input.secret);
+  const settings = validateNewSettings(kind, input.config, input.secret, input.bucketScripts);
   assertNameFree(context, input.name);
   const time = context.clock();
   const { config: _config, secret: _secret, ...fields } = input;
@@ -329,34 +330,6 @@ async function createConnector(
 }
 
 /**
- * Applies a change to a stored connector, without its credentials.
- *
- * @param row - The stored connector.
- * @param patch - The change.
- * @param config - The validated configuration.
- * @param time - Now; the version always moves forward.
- * @returns The changed connector.
- */
-function patched(
-  row: ConnectorRow,
-  patch: ConnectorPatch,
-  config: unknown,
-  time: number,
-): Omit<ConnectorRow, 'secret'> {
-  return {
-    ...row,
-    name: patch.name ?? row.name,
-    config,
-    accessLevel: patch.accessLevel ?? row.accessLevel,
-    hiddenFields: patch.hiddenFields ?? row.hiddenFields,
-    visibility: patch.visibility ?? row.visibility,
-    guardrails: patch.guardrails ?? row.guardrails,
-    descriptions: patch.descriptions ?? row.descriptions,
-    updatedAt: Math.max(time, row.updatedAt + 1),
-  };
-}
-
-/**
  * Changes a connector. Given secret fields replace the stored ones; omitted ones stay.
  *
  * @param context - The service context.
@@ -374,7 +347,8 @@ async function updateConnector(
   const row = find(context, id);
   const secret = { ...(await secretOf(context, row)), ...(patch.secret ?? {}) };
   const kind = storedKindOf(context.kinds, row);
-  const settings = validateNewSettings(kind, patch.config ?? row.config, secret);
+  const config = patch.config ?? row.config;
+  const settings = validateNewSettings(kind, config, secret, patch.bucketScripts);
   if (patch.name !== undefined) assertNameFree(context, patch.name, id);
   const updated = await save(
     context,
@@ -486,6 +460,7 @@ async function openConnector(context: ServiceContext, name: string): Promise<Ope
     instance,
     guardrails: row.guardrails,
     scope,
+    bucketScripts: row.bucketScripts,
   };
   return { source, subject: toSubject(row, scope) };
 }

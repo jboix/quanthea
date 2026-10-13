@@ -203,6 +203,25 @@ describe('query executor and the objects a connector shows', () => {
     expect(searched).toEqual(['.tasks']);
   });
 
+  test('runs a bucket script of the query only on a connector that allows one', async () => {
+    const { source, searched } = searchSource();
+    const selector = { buckets_path: { count: '_count' }, script: 'params.count > 100' };
+    const aggs = {
+      busy: { terms: { field: 'service' }, aggs: { keep: { bucket_selector: selector } } },
+    };
+    const scripted = { ...search, template: { ...search.template, body: { size: 0, aggs } } };
+    for (const refusing of [source, { ...source, bucketScripts: false }]) {
+      const failure = await failureOf(refusing, scripted);
+      expect(failure.code).toBe('invalid');
+      expect(failure.safeMessage).toContain('An admin can allow scripts in bucket_script');
+    }
+    expect(searched).toEqual([]);
+    const executor = createQueryExecutor(createResultCache({ ttlMs: 15_000, maxEntries: 10 }));
+    const { bound } = await executor.run({ ...source, bucketScripts: true }, scripted);
+    expect(bound).toMatchObject({ language: 'search', body: { aggs } });
+    expect(searched).toHaveLength(1);
+  });
+
   test('gives a source that cannot resolve the pattern as a connector failure', async () => {
     const { source } = searchSource();
     const failing = {

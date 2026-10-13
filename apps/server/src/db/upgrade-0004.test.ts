@@ -149,6 +149,17 @@ describe('the connectors after the upgrade', () => {
     expect(() => checkScope(scopeOf(hidesSystem, 'sql', 'postgres'), catalogRead)).toThrow();
   });
 
+  test('allow no bucket script until an admin says so, and neither does a new one', () => {
+    const repository = upgraded();
+    insertConnector('c3', 'new', 'elasticsearch');
+    for (const id of ['c1', 'c2', 'c3']) expect(repository.get(id)?.bucketScripts).toBe(false);
+    expect(() =>
+      database.run("UPDATE connectors SET bucket_scripts = 2 WHERE id = 'c1'"),
+    ).toThrow();
+    database.run("UPDATE connectors SET bucket_scripts = 1 WHERE id = 'c1'");
+    expect(repository.get('c1')?.bucketScripts).toBe(true);
+  });
+
   test('a connector made after it hides system objects by default', () => {
     const repository = upgraded();
     insertConnector('c3', 'new', 'postgres');

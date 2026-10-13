@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { connectorInputSchema } from '@quanthea/shared';
+import {
+  memoryConnector,
+  memorySearchConnector,
+} from '../connectors/_shared/test/memory-connector.ts';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
@@ -128,5 +132,79 @@ describe('the model view of the connectors', () => {
       ok: true,
       frames: [],
     });
+  });
+});
+
+describe('what the model reads of bucket scripts', () => {
+  let searchDir: ReturnType<typeof temporaryDir>;
+  let search: Awaited<ReturnType<typeof testServices>>;
+
+  beforeEach(async () => {
+    searchDir = temporaryDir();
+    search = await testServices(searchDir.path, [memoryConnector, memorySearchConnector]);
+    for (const name of ['app-logs', 'audit-logs', 'events']) {
+      const kind = name === 'events' ? 'memory' : 'memory-search';
+      const input = { name, kind, config: {}, secret: { token: 't' } };
+      await search.connections.create(connectorInputSchema.parse(input), 'admin-1');
+    }
+  });
+
+  afterEach(async () => {
+    await search.close();
+    searchDir.remove();
+  });
+
+  /**
+   * The guide of the search kind, as the agent reads it.
+   *
+   * @returns The text.
+   */
+  function searchGuide(): string {
+    return search.modelView.guides().find((guide) => guide.kind === 'memory-search')?.text ?? '';
+  }
+
+  /**
+   * Switches bucket scripts on for a connector.
+   *
+   * @param name - The connector.
+   */
+  async function allow(name: string): Promise<void> {
+    const id = search.connections.list().find((each) => each.name === name)?.id ?? '';
+    await search.connections.update(id, { bucketScripts: true }, 'admin-1');
+  }
+
+  test('the guide keeps to the ratio scripts while no connector allows more', () => {
+    const guide = searchGuide();
+    expect(guide).toStartWith('Memory search. A query is an index and a JSON body.\n');
+    expect(guide).toContain('bucket scripts: off on every connector of this kind');
+    expect(guide).toContain('(app-logs, audit-logs), keep to the ratio scripts');
+    expect(guide).toContain("an admin can allow bucket scripts in the connector's settings");
+    expect(guide).not.toContain('params.errors - params.warnings');
+    expect(search.modelView.guides()).toHaveLength(1);
+  });
+
+  test('the guide explains both aggregations, and names the connectors that allow them', async () => {
+    await allow('audit-logs');
+    const guide = searchGuide();
+    expect(guide).toContain('"bucket scripts: allowed" (audit-logs)');
+    expect(guide).toContain('"script": "params.errors - params.warnings"');
+    expect(guide).toContain('"bucket_selector": {"buckets_path": {"count": "_count"}');
+    expect(guide).toContain('compiles each distinct text and limits how many it compiles');
+    expect(guide).toContain('"bucket scripts: off" (app-logs), keep to the ratio scripts');
+    await allow('app-logs');
+    expect(searchGuide()).toContain('"bucket scripts: allowed" (app-logs, audit-logs)');
+    expect(searchGuide()).toContain('"bucket scripts: off", keep to the ratio scripts');
+  });
+
+  test('the catalog says it of each search connector, and of no other', async () => {
+    await allow('audit-logs');
+    const catalog = await search.modelView.catalog(signal());
+    expect(catalog).toMatch(
+      /^## app-logs \(memory-search, search\): level 2.* Bucket scripts: off\.$/m,
+    );
+    expect(catalog).toMatch(
+      /^## audit-logs \(memory-search, search\): .* Bucket scripts: allowed\.$/m,
+    );
+    expect(catalog).toMatch(/^## events \(memory, sql\): [^\n]*never values$/m);
   });
 });

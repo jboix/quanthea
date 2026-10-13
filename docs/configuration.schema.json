@@ -257,6 +257,10 @@
             },
             "additionalProperties": false
           },
+          "bucketScripts": {
+            "default": false,
+            "type": "boolean"
+          },
           "guardrails": {
             "default": {},
             "type": "object",

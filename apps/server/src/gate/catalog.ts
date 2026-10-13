@@ -192,6 +192,16 @@ function labelValuesLine(values: SampledValues): string[] {
 }
 
 /**
+ * What a search connector's heading says of scripts, in the words the search guide uses.
+ *
+ * @param subject - The connector.
+ * @returns The note.
+ */
+function scriptsNote(subject: GateSubject): string {
+  return ` Bucket scripts: ${subject.bucketScripts ? 'allowed' : 'off'}.`;
+}
+
+/**
  * One connector's part of the catalog.
  *
  * @param source - The connector.
@@ -207,7 +217,8 @@ export function connectorCatalog(
   total = entities?.length ?? 0,
 ): string {
   const { subject } = source;
-  const head = `## ${subject.name} (${subject.kind}, ${source.language}): ${source.access}`;
+  const scripts = source.language === 'search' ? scriptsNote(subject) : '';
+  const head = `## ${subject.name} (${subject.kind}, ${source.language}): ${source.access}${scripts}`;
   if (entities === undefined) return `${head}\nThe schema cannot be read right now.`;
   const shown = entities.slice(0, maxEntities);
   const lines = shown.map((entity) =>

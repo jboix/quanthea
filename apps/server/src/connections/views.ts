@@ -61,6 +61,7 @@ export function toDetail(
     secret: masked,
     hiddenFields: [...row.hiddenFields],
     visibility: { ...row.visibility, names: [...row.visibility.names] },
+    bucketScripts: row.bucketScripts,
     guardrails: row.guardrails,
     descriptions: { ...row.descriptions },
     createdAt: row.createdAt,
@@ -82,6 +83,7 @@ export function toSubject(row: ConnectorRow, scope: ObjectScope): GateSubject {
     accessLevel: row.accessLevel,
     hiddenFields: row.hiddenFields,
     scope,
+    bucketScripts: row.bucketScripts,
     descriptions: row.descriptions,
   };
 }

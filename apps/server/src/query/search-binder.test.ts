@@ -221,7 +221,6 @@ describe('bindSearch', () => {
           },
         },
       },
-      { aggs: { a: { bucket_selector: { buckets_path: {}, script: 'true' } } } },
       { aggs: { a: { terms: { Script: { source: '1' } } } } },
       { query: { terms_set: { tags: { minimumShouldMatchScript: { source: '1' } } } } },
     ];
@@ -298,7 +297,7 @@ describe('bindSearch', () => {
       ratio(searchRatioScripts.ratio, 'bucket_selector'),
     ])
       expect(() => bind(body, { script: searchRatioScripts.ratio })).toThrow(
-        'A query runs no script',
+        'only the two ratio scripts',
       );
   });
 

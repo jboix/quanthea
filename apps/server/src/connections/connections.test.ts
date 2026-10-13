@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { connectorInputSchema, type ObjectVisibility } from '@quanthea/shared';
 import { ConnectorError, defineConnector } from '../connectors/_shared/index.ts';
-import { memoryConnector } from '../connectors/_shared/test/memory-connector.ts';
+import {
+  memoryConnector,
+  memorySearchConnector,
+} from '../connectors/_shared/test/memory-connector.ts';
 import { createAuditRepository } from '../db/audit-repository.ts';
 import { createConnectorRepository } from '../db/connector-repository.ts';
 import { openDatabase } from '../db/database.ts';
@@ -246,8 +249,87 @@ describe('connections', () => {
         family: 'postgres',
         visibility: { showSystem: false, mode: 'except', names: [] },
       },
+      bucketScripts: false,
       descriptions: {},
     });
+  });
+});
+
+describe('bucket scripts', () => {
+  /**
+   * The connections with a search kind beside the memory kind.
+   *
+   * @returns The service.
+   */
+  function withSearch(): Connections {
+    return createConnections({
+      kinds: [memoryConnector, memorySearchConnector],
+      repository: createConnectorRepository(database),
+      audit: createAuditRepository(database),
+      secretBox,
+      now: () => clock,
+    });
+  }
+
+  const logs = { name: 'logs', kind: 'memory-search', config: {}, secret: { token: 't' } };
+
+  test('are off on a new connector, for the query engine, validation and the gate', async () => {
+    const search = withSearch();
+    const created = await search.create(connectorInputSchema.parse(logs), 'admin-1');
+    expect(created.bucketScripts).toBe(false);
+    const { source, subject } = await search.open('logs');
+    expect(source.bucketScripts).toBe(false);
+    expect(subject.bucketScripts).toBe(false);
+    expect(search.lookup('logs')).toMatchObject({ language: 'search', bucketScripts: false });
+  });
+
+  test('are switched on and off by a change, which every reader sees', async () => {
+    const search = withSearch();
+    const created = await search.create(connectorInputSchema.parse(logs), 'admin-1');
+    const allowed = await search.update(created.id, { bucketScripts: true }, 'admin-1');
+    expect(allowed.bucketScripts).toBe(true);
+    expect((await search.open('logs')).source.bucketScripts).toBe(true);
+    expect(search.lookup('logs')).toMatchObject({ bucketScripts: true });
+    expect(search.subjects()[0]?.subject.bucketScripts).toBe(true);
+    expect(auditActions(database)).toContain('connector.update');
+    const renamed = await search.update(created.id, { name: 'app-logs' }, 'admin-1');
+    expect(renamed.bucketScripts).toBe(true);
+    const off = await search.update(created.id, { bucketScripts: false }, 'admin-1');
+    expect(off.bucketScripts).toBe(false);
+    expect((await search.open('app-logs')).source.bucketScripts).toBe(false);
+  });
+
+  test('can be on from the start', async () => {
+    const input = connectorInputSchema.parse({ ...logs, bucketScripts: true });
+    expect((await withSearch().create(input, 'admin-1')).bucketScripts).toBe(true);
+  });
+
+  test('are refused on a connector that is not a search, when made and when changed', async () => {
+    const input = connectorInputSchema.parse({
+      name: 'events',
+      kind: 'memory',
+      config: {},
+      secret: { token: secretToken },
+      bucketScripts: true,
+    });
+    const refusal = (await connections
+      .create(input, 'admin-1')
+      .catch((error: unknown) => error)) as AppError;
+    expect(refusal.code).toBe('bad_request');
+    expect(refusal.details).toEqual([
+      {
+        part: 'body',
+        path: 'bucketScripts',
+        message: 'Only an Elasticsearch or OpenSearch connector can allow bucket scripts.',
+      },
+    ]);
+    const created = await createEvents();
+    await expect(
+      connections.update(created.id, { bucketScripts: true }, 'admin-1'),
+    ).rejects.toThrow('A Memory connector has no bucket scripts.');
+    expect((await connections.update(created.id, { bucketScripts: false }, 'admin-1')).name).toBe(
+      'events',
+    );
   });
 });
 

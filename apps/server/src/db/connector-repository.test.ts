@@ -28,6 +28,7 @@ const orders: ConnectorRow = {
   accessLevel: 2,
   hiddenFields: ['customers.email'],
   visibility: { showSystem: false, mode: 'except', names: [] },
+  bucketScripts: false,
   guardrails: { timeoutMs: 10_000, maxRows: 50_000, maxRangeDays: 90 },
   descriptions: { orders: 'One row per order attempt.' },
   createdAt: 1000,
@@ -53,6 +54,15 @@ describe('connector repository', () => {
     };
     repository.save({ ...orders, visibility });
     expect(repository.get(orders.id)?.visibility).toEqual(visibility);
+  });
+
+  test('keeps whether a connector allows bucket scripts', () => {
+    const repository = createConnectorRepository(database);
+    repository.save(orders);
+    expect(repository.get(orders.id)?.bucketScripts).toBe(false);
+    repository.save({ ...orders, bucketScripts: true });
+    expect(repository.get(orders.id)?.bucketScripts).toBe(true);
+    expect(repository.getByName(orders.name)?.bucketScripts).toBe(true);
   });
 
   test('updates a connector saved again with the same id, keeping its cached schema', () => {

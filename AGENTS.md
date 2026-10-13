@@ -77,8 +77,10 @@ the server's modules in `scripts/arch-server-rules.cjs` and, for the plugin side
 
 ## Non-negotiables
 
-- No model-written code runs anywhere. Biome bans `eval`, `new Function` and
-  `dangerouslySetInnerHTML`.
+- No model-written code runs in quanthea's own server or browser. Biome bans `eval`,
+  `new Function` and `dangerouslySetInnerHTML`. One exception runs on a data source: on a search
+  connector whose admin allows it, a `bucket_script` or `bucket_selector` may hold one arithmetic
+  expression over bucket numbers.
 - The model sees data only through `apps/server/src/gate/`. `agent/` never imports
   `connectors/`, `query/` or `db/`, and every tool passes a run's result through the gate before
   the model reads it.

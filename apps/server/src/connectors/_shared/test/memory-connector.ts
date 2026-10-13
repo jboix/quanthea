@@ -118,3 +118,17 @@ export const memoryConnector = defineConnector({
     };
   },
 });
+
+/**
+ * The memory kind as a search kind, for what only a search connector has, such as bucket scripts.
+ * It runs no search.
+ */
+export const memorySearchConnector = defineConnector({
+  kind: 'memory-search',
+  displayName: 'Memory search',
+  language: 'search',
+  queryGuide: 'Memory search. A query is an index and a JSON body.',
+  configSchema: memoryConnector.configSchema,
+  secretSchema: memoryConnector.secretSchema,
+  open: (options) => memoryConnector.open(options),
+});

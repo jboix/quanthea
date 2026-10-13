@@ -43,7 +43,7 @@ export interface PromqlQuery {
 
 /**
  * A search request in the Elasticsearch and OpenSearch query DSL, every variable already put in
- * as a JSON value. The core checked that the body holds no script.
+ * as a JSON value. The core checked that the body holds no script that reads documents.
  */
 export interface SearchQuery {
   /** The query language. */

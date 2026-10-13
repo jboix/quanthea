@@ -2322,8 +2322,8 @@ project installs and passes its own `bun run verify`; the ansi one installs with
 `quanthea plugin install`.
 
 `connectors/_shared/index.ts` re-exports the live kit and adds what only built-in kinds and the
-binders use, quanthea's policy lists (`policies.ts`): `searchRatioScripts`, `mongodbRefusedKeys`,
-`redisReadCommands`. The public kit leaves them out. The kit imports only Zod (rules
+binders use, quanthea's policy lists (`policies.ts`): `searchRatioScripts`, the limit and the
+guide of bucket scripts, `mongodbRefusedKeys`, `redisReadCommands`. The public kit leaves them out. The kit imports only Zod (rules
 `plugin-kit-is-a-leaf` and `plugin-kit-stays-small`), and a plugin receives the server's Zod and error class, so
 its schemas build the forms. `createTestKit()` returns the live kit itself, so a plugin's tests run
 the code production runs. Every copy of `ConnectorError` carries the global brand
@@ -2836,9 +2836,13 @@ the connector shows and a version that changes with its settings).
      a count of 0. A body with any key with a word starting with
      `script`, in snake_case or camelCase (`script`, `_script`, `script_fields`, `script_score`,
      `scripted_metric`, `minimum_should_match_script` and the rest), or with `runtime_mappings` is
-     refused, because the search server would run it. One exception: a `bucket_script` whose
-     `script` is one of the kit's ratio scripts, verbatim (`searchRatioScripts`: the share of `part`
-     in `whole`, or one minus it). They are quanthea's code; a query names one, never writes one.
+     refused, whatever the connector's settings: a script there reads documents, and so goes
+     around hidden fields and access levels. Two aggregations are apart, `bucket_script` and
+     `bucket_selector`: their script receives the numbers of the buckets it names and no document
+     ([scripts in a search](#scripts-in-a-search-querysearch-scriptsts)). On every connector a
+     `bucket_script` may name one of the kit's ratio scripts, verbatim (`searchRatioScripts`: the
+     share of `part` in `whole`, or one minus it). On a connector that allows bucket scripts, both
+     may hold one expression of the query's own.
      A `wrapper` query (a body in base64, which could hide a script) is refused, and so is every
      read of another index's documents: a terms lookup (a `terms` field naming an `index`), an
      `indexed_shape`, a `percolate` query, and a `_index` in a `like`, `unlike` or `docs` list.
@@ -2888,6 +2892,66 @@ the connector shows and a version that changes with its settings).
 
 Failures are `QueryError`s (`invalid`, `guardrail`, `timeout`, `connector`) with a safe message.
 Injection tests cover every binder, and integration tests run the attacks against the dev sources.
+
+#### Scripts in a search (`query/search-scripts.ts`)
+
+A search runs three kinds of script, and the binder tells them apart by where they sit.
+
+| Script                                                                                                                                                                | Allowed                                                         |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `script_fields`, runtime fields and `runtime_mappings`, `scripted_metric`, a script query, sort or score, a scripted `terms`, any other `script` key, a stored script | Never.                                                          |
+| One of the two ratio scripts, verbatim, in a `bucket_script`                                                                                                          | On every connector.                                             |
+| An expression of the query's own in a `bucket_script` or a `bucket_selector`                                                                                          | Only on a connector whose `bucketScripts` is on. It starts off. |
+
+The first row stays refused whatever the setting. A script there runs for each document: it reads
+fields the connector hides and gives values the access level withholds, and the gate sees only
+the result. A script in the two bucket aggregations runs after the aggregations, once per bucket,
+and receives in `params` the numbers its `buckets_path` names and the `params` the query wrote.
+Elasticsearch 9 and OpenSearch 3 give it nothing else: `doc`, `ctx`, `_score` and `state` do not
+compile there (`cannot resolve symbol`), and `params._source` is `null`
+(`search-scripts.integration.test.ts` records the answers of both).
+
+`bucketScripts` is a setting of a connector (`connectors.bucket_scripts`, off for every existing
+and new connector), set by an admin in the connector's page, in the API (`PATCH /connectors/:id`)
+and in the configuration file. A kind that is not a search refuses it. `connections/` hands it to
+the query engine (`QuerySource.bucketScripts`), the validators (`lookup`) and the gate
+(`GateSubject.bucketScripts`), as it does the scope. Switching it off refuses the stored queries
+that hold such a script from their next run: they show the refusal, and no version is rewritten.
+
+With the setting on, a script of the query's own keeps these limits (`checkScriptKey`):
+
+- It sits in a `bucket_script` or `bucket_selector` declared under `aggs`, and the aggregation
+  has a `buckets_path` that maps each name to a path. The script reads only those numbers.
+- It is written in the query: text, or an object with `source` and optionally `params` and
+  `lang: painless`. A stored script (`id`), another language and any other key are refused.
+- Its text holds no variable. A `{"$var": …}` node is a value of `params`, never the text or a
+  part of it. The search server compiles each distinct text, keeps a bounded cache of them and
+  limits compilations (150 in five minutes on Elasticsearch by default), so a text that changed
+  with each value would end in refusals for every dashboard on the server. A variable arrives as
+  text, which `Double.parseDouble(params.name)` reads.
+- It is at most 300 characters (`searchScriptLength`). The ratio scripts are about 50; an
+  expression over a few buckets is a line, and a cap bounds what the server compiles and keeps.
+- It is one expression: numbers, `params.name`, `+ - * / %`, comparisons, `&& || !`, `? :`,
+  parentheses, `Math.abs`, `ceil`, `exp`, `floor`, `log`, `log10`, `max`, `min`, `pow`, `round`
+  and `sqrt`, and `Double.parseDouble`. The text is read token by token, and anything else is
+  refused: a statement, a loop, a string, `new`, a bracket, a method call.
+
+The last limit is there because the servers do not bound a script enough. OpenSearch stops a loop
+after a fixed number of statements; Elasticsearch 9 ran a loop of two million and has no such
+count in this context. Neither bounds what a script allocates: a script of 90 characters that
+filled a list in a loop ended both dev servers with an exhausted heap. A string doubled on each
+line does the same without a loop. An expression of the tokens above cannot loop or allocate.
+
+The refusal with the setting off says that the connector allows only the two ratio scripts and
+that an admin can allow more in the connector's settings. The agent reads the setting where it
+reads the rest about a connector: the catalog's heading of a search connector ends with
+`Bucket scripts: allowed.` or `Bucket scripts: off.`, and the search guide ends with a section
+the gate writes (`searchScriptGuide`): the two aggregations with an example each and the limits,
+naming the connectors that allow them, or an instruction to keep to the ratio scripts and to
+tell the person an admin can allow more.
+
+MongoDB's `$where`, `$function` and `$accumulator` and the script commands of Redis stay refused
+on every connector.
 
 #### The objects a connector shows (`query/scope/`)
 
@@ -3186,6 +3250,7 @@ CREATE TABLE connectors (
   access_level INTEGER NOT NULL DEFAULT 2 CHECK (access_level BETWEEN 1 AND 4),
   hidden_fields TEXT NOT NULL DEFAULT '[]',
   visibility TEXT NOT NULL DEFAULT '{}', -- JSON: showSystem, mode (except or only), names
+  bucket_scripts INTEGER NOT NULL DEFAULT 0, -- 1 when a search may hold a bucket script
   guardrails TEXT NOT NULL,         -- JSON: timeoutMs, maxRows, maxRangeDays, statements
   descriptions TEXT NOT NULL DEFAULT '{}',
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
@@ -3498,7 +3563,9 @@ It also adds the connectors' `visibility`. A connector of an earlier release get
 `{"showSystem":true}`, which shows everything as before, so its stored dashboards, alerts and
 reports keep running and its searches resolve nothing. A connector made later gets `{}`, which
 hides system objects. A connector declared in the configuration file takes the file's
-`visibility` at the next start, and the default there hides system objects. Its last section adds
+`visibility` at the next start, and the default there hides system objects. It adds the
+connectors' `bucket_scripts`, 0 for every connector: no search holds a script of its own until an
+admin allows it. Its last section adds
 the layouts of report versions (`report_layouts`), shaped as `dashboard_layouts` is, with the
 same trigger.
 At startup each pending file runs in its own transaction, together with its row in the
@@ -4066,7 +4133,9 @@ one, and enables them again. Without any admin, it creates the default one.
 
 - The model never receives rows unless the connector is at level 4. `agent/` can't import
   around the gate (dependency-cruiser).
-- No model-written code runs anywhere. Biome bans `eval` and `dangerouslySetInnerHTML`.
+- No model-written code runs in quanthea's own server or browser. Biome bans `eval` and
+  `dangerouslySetInnerHTML`. The one exception runs on a data source, behind a connector setting
+  that starts off: a bucket script of a search, kept to one arithmetic expression.
 - The browser never sends queries. Variables are bound, not concatenated.
 - Guardrails are enforced by the executor. Connectors use read-only credentials, verified on
   test where possible: the test reads what the credentials may do and never tries a write, and

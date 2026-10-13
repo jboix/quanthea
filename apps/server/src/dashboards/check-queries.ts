@@ -30,6 +30,8 @@ export interface ConnectorFacts {
   readonly guardrails: Guardrails;
   /** Which objects it shows; a query that names another is an issue. Not checked when absent. */
   readonly scope?: QuerySource['scope'] | undefined;
+  /** Whether a search on it may hold a script of its own in its two bucket aggregations. */
+  readonly bucketScripts?: boolean | undefined;
 }
 
 /** A connector whose kind is not offered, because the plugin that added it is gone. */
@@ -110,9 +112,9 @@ export function checkBinding(
   const { query, path } = located;
   const range = { from: new Date(timeRange.from), to: new Date(timeRange.to) };
   try {
-    const { dialect, scope } = connector;
+    const { dialect, scope, bucketScripts } = connector;
     const showSystem = scope?.visibility.showSystem;
-    const bound = bindTemplate(query, variables, range, { dialect, showSystem });
+    const bound = bindTemplate(query, variables, range, { dialect, showSystem, bucketScripts });
     if (scope) checkScope(scope, bound, dialect);
     return [];
   } catch (error) {

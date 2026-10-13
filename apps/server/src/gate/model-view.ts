@@ -4,7 +4,7 @@
  * from the connectors service; the bootstrap hands it over, so the gate never imports it.
  */
 import type { AccessLevel, Frame, SourceAccess } from '@quanthea/shared';
-import type { SchemaSnapshot } from '../connectors/_shared/index.ts';
+import { type SchemaSnapshot, searchScriptGuide } from '../connectors/_shared/index.ts';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../query/executor.ts';
 import {
   type AlertSeriesNow,
@@ -245,15 +245,50 @@ function modelConnectors(access: ConnectorAccess): ModelConnector[] {
 }
 
 /**
- * The query guides of the connector kinds in use, once per kind.
+ * A search kind's guide, ended with what its connectors allow of scripts.
+ *
+ * @param guide - The kind's guide.
+ * @param subjects - The connectors of the kind.
+ * @returns The guide.
+ */
+function withScripts(guide: string, subjects: readonly GateSubject[]): string {
+  const names = (allowed: boolean) =>
+    subjects.filter((subject) => (subject.bucketScripts ?? false) === allowed).map(nameOf);
+  return `${guide}\n${searchScriptGuide(names(true), names(false))}`;
+}
+
+/**
+ * The name of a connector.
+ *
+ * @param subject - The connector.
+ * @returns Its name.
+ */
+function nameOf(subject: GateSubject): string {
+  return subject.name;
+}
+
+/**
+ * The query guides of the connector kinds in use, once per kind. A search kind's guide says which
+ * of its connectors allow bucket scripts.
  *
  * @param access - The connectors.
  * @returns The guides.
  */
 function guidesOf(access: ConnectorAccess): { kind: string; text: string }[] {
-  const byKind = new Map<string, string>();
-  for (const { subject, guide } of access.list()) if (guide) byKind.set(subject.kind, guide);
-  return [...byKind].map(([kind, text]) => ({ kind, text }));
+  const listed = access.list().filter((each) => each.guide);
+  const kinds = [...new Set(listed.map((each) => each.subject.kind))];
+  return kinds.map((kind) => {
+    const ofKind = listed.filter((each) => each.subject.kind === kind);
+    const guide = ofKind.at(-1)?.guide ?? '';
+    if (ofKind[0]?.language !== 'search') return { kind, text: guide };
+    return {
+      kind,
+      text: withScripts(
+        guide,
+        ofKind.map((each) => each.subject),
+      ),
+    };
+  });
 }
 
 /**

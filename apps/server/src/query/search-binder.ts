@@ -1,22 +1,19 @@
 /**
  * Binds variables into a search template in the Elasticsearch and OpenSearch query DSL. A variable
  * is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value: never text inside a
- * string. The body may hold no key naming a script, since a script is code the search server runs,
- * except the fixed ratio scripts a `bucket_script` may name: quanthea's own code, not the model's.
- * Nor may it hide a query in base64 (`wrapper`) or read documents of another index (a terms lookup,
- * an indexed shape, a percolator, or a `_index` in a document list), which the index check never
- * sees.
+ * string. The body may hold no script that reads documents. A `bucket_script` may name one of the
+ * fixed ratio scripts, and on a connector that allows bucket scripts a `bucket_script` or a
+ * `bucket_selector` may hold an expression of its own (`search-scripts.ts`). Nor may the body
+ * hide a query in base64 (`wrapper`) or read documents of another index (a terms lookup, an
+ * indexed shape, a percolator, or a `_index` in a document list), which the index check never sees.
  */
-import {
-  type SearchQuery,
-  searchRatioScripts,
-  type TimeRange,
-} from '../connectors/_shared/index.ts';
+import type { SearchQuery, TimeRange } from '../connectors/_shared/index.ts';
 import { chosenSeconds } from './interval.ts';
 import { bindJsonVariables } from './json-variables.ts';
 import { QueryError } from './query-error.ts';
 import { boundFormat, isoBound } from './search-dates.ts';
 import { periodFields, withBoundsFormat, withFilledHistograms } from './search-histogram.ts';
+import { checkScriptKey, isObject } from './search-scripts.ts';
 import type { Variables } from './variables.ts';
 
 /** The search template of a panel query. */
@@ -42,30 +39,13 @@ const systemIndexItem = /^-?[a-z0-9*.][a-z0-9_.*+-]{0,254}$/;
  */
 const dotsItem = /^-?\.+$/;
 
-/**
- * A key holding or running a script: one with a word starting with `script`, in snake_case or, once
- * `Script` is split off, camelCase. It matches `script` itself, `_script` sorts, `script_fields`,
- * `script_score`, `scripted_metric`, `minimum_should_match_script` and any other, but not a field
- * such as `description`. Runtime fields run scripts too, under {@link runtimeKey}.
- */
-const scriptWord = /(?:^|[^a-z])script/i;
-
-/** The key of runtime fields, which run a script for each document. */
-const runtimeKey = 'runtime_mappings';
-
 /** Keys that hide a query from this check or read another index, in lowercase: refused in any case. */
 const hiddenReadKeys: ReadonlySet<string> = new Set(['wrapper', 'percolate', 'indexed_shape']);
 
 /** The keys whose items name a document, which a `_index` may place in another index. */
 const documentListKeys: ReadonlySet<string> = new Set(['like', 'unlike', 'docs']);
 
-/** The aggregation that holds a ratio script: allowed, since its `script` is checked. */
-const ratioAggregation = 'bucket_script';
-
-export { searchRatioScripts };
-
-/** The ratio scripts, to check a `bucket_script` against. */
-const allowedScripts: ReadonlySet<unknown> = new Set(Object.values(searchRatioScripts));
+export { searchRatioScripts } from '../connectors/_shared/index.ts';
 
 /** Bucket widths `__interval` picks from, in seconds. */
 const niceIntervals = [
@@ -130,86 +110,31 @@ export function searchInterval(timeRange: TimeRange, most = maxBuckets): string 
 }
 
 /**
- * Whether a key that names a script is one the template may keep: the `bucket_script` aggregation,
- * and its ratio script, named verbatim.
- *
- * @param key - The key.
- * @param value - Its value.
- * @param parent - The key of the enclosing object.
- * @returns `true` for an allowed ratio script.
- */
-function allowedScript(key: string, value: unknown, parent: string | undefined): boolean {
-  if (key === ratioAggregation) return true;
-  return key === 'script' && parent === ratioAggregation && allowedScripts.has(value);
-}
-
-/**
- * Whether a key names a script or runtime fields, in any case.
- *
- * @param key - The key.
- * @returns `true` when the key holds or runs a script.
- */
-function scriptKey(key: string): boolean {
-  return scriptWord.test(key.replace(/Script/g, '_script')) || key.toLowerCase() === runtimeKey;
-}
-
-/**
  * Checks every key of a template for scripts, hidden queries and reads of another index, walking
  * the body.
  *
  * @param node - The node.
- * @param parent - The key of the enclosing object.
- * @throws {QueryError} `invalid` for a script other than a ratio script in a `bucket_script`, a
- *   wrapper, or a read of another index.
+ * @param bucketScripts - Whether the connector allows a script of the query's own in
+ *   `bucket_script` and `bucket_selector`.
+ * @param ancestors - The keys of the objects that enclose the node, from the body down.
+ * @throws {QueryError} `invalid` for a script the connector does not allow, a wrapper, or a read
+ *   of another index.
  */
-function refuseScripts(node: unknown, parent?: string): void {
-  if (node === null || typeof node !== 'object') return;
-  const entries = Array.isArray(node)
-    ? node.map((item): [string | undefined, unknown] => [parent, item])
-    : Object.entries(node);
-  for (const [key, value] of entries) {
-    if (!Array.isArray(node) && key !== undefined) checkKey(key, value, parent);
-    refuseScripts(value, key);
+function refuseScripts(
+  node: unknown,
+  bucketScripts: boolean,
+  ancestors: readonly string[] = [],
+): void {
+  if (Array.isArray(node)) {
+    for (const item of node) refuseScripts(item, bucketScripts, ancestors);
+    return;
   }
-}
-
-/**
- * Checks one key for a script, a hidden query or a read of another index.
- *
- * @param key - The key.
- * @param value - Its value.
- * @param parent - The key of the enclosing object.
- * @throws {QueryError} `invalid` for a key the template may not hold.
- */
-function checkKey(key: string, value: unknown, parent: string | undefined): void {
-  refuseScriptKey(key, value, parent);
-  refuseHiddenRead(key, value, parent);
-}
-
-/**
- * Checks one key for a script.
- *
- * @param key - The key.
- * @param value - Its value.
- * @param parent - The key of the enclosing object.
- * @throws {QueryError} `invalid` for a script other than a ratio script in a `bucket_script`.
- */
-function refuseScriptKey(key: string, value: unknown, parent: string | undefined): void {
-  if (!scriptKey(key) || allowedScript(key, value, parent)) return;
-  throw new QueryError(
-    'invalid',
-    `A query runs no script; "${key}" is not allowed. Use aggregations and filters, or a bucket_script with a ratio script.`,
-  );
-}
-
-/**
- * Whether a value is a JSON object, not an array or null.
- *
- * @param value - The value.
- * @returns `true` for an object.
- */
-function isObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (!isObject(node)) return;
+  for (const [key, value] of Object.entries(node)) {
+    checkScriptKey(key, value, ancestors, bucketScripts);
+    refuseHiddenRead(key, value, ancestors.at(-1));
+    refuseScripts(value, bucketScripts, [...ancestors, key]);
+  }
 }
 
 /**
@@ -312,6 +237,8 @@ function withRangeFormats(node: unknown, parent?: string): unknown {
 export interface SearchBinding {
   /** Whether the connector shows its server's own indices, so a dot may lead. */
   readonly showSystem?: boolean | undefined;
+  /** Whether the connector allows a script of the query's own in its two bucket aggregations. */
+  readonly bucketScripts?: boolean | undefined;
   /** The interval the charts are cut into, when one was chosen: `__interval`. */
   readonly interval?: string | undefined;
   /**
@@ -328,11 +255,11 @@ export interface SearchBinding {
  * @param template - The index and the body.
  * @param variables - The variable values.
  * @param timeRange - The time range, for `__from`, `__to` and `__interval`.
- * @param binding - Whether the connector shows system indices, the chosen interval, and whether
- *   histograms stay as written.
+ * @param binding - Whether the connector shows system indices and allows bucket scripts, the
+ *   chosen interval, and whether histograms stay as written.
  * @returns The bound query.
- * @throws {QueryError} `invalid` for a malformed index, a script, a hidden query, a read of
- *   another index, or an unknown variable.
+ * @throws {QueryError} `invalid` for a malformed index, a script the connector does not allow, a
+ *   hidden query, a read of another index, or an unknown variable.
  */
 export function bindSearch(
   template: SearchTemplate,
@@ -346,7 +273,7 @@ export function bindSearch(
     __to: timeRange.to.toISOString(),
     __interval: chosenSeconds(interval) === undefined ? searchInterval(timeRange) : interval,
   };
-  refuseScripts(template.body);
+  refuseScripts(template.body, binding.bucketScripts ?? false);
   const bound = bindJsonVariables(template.body, { variables, builtIns });
   // After binding, so a variable's date and one the query writes itself read the same way.
   const dated = withRangeFormats(bound) as SearchQuery['body'];

@@ -16,6 +16,11 @@ export interface GateSubject {
   readonly hiddenFields: readonly string[];
   /** Which indices, tables or collections the connector shows: the model never lists another. */
   readonly scope: ObjectScope;
+  /**
+   * Whether a search on the connector may hold a script of its own in `bucket_script` and
+   * `bucket_selector`: the catalog and the search guide say so to the model.
+   */
+  readonly bucketScripts?: boolean | undefined;
   /** Admin-written descriptions by `entity` or `entity.field`; they replace the source's. */
   readonly descriptions: Readonly<Record<string, string>>;
 }

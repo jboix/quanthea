@@ -36,6 +36,8 @@ export interface QuerySource {
   readonly guardrails: Guardrails;
   /** Which of the source's objects the connector shows: a query on another is refused. */
   readonly scope: ObjectScope;
+  /** Whether a search may hold a script of its own in its two bucket aggregations. */
+  readonly bucketScripts?: boolean | undefined;
 }
 
 /** One query to run. */
@@ -109,6 +111,7 @@ function bind(source: QuerySource, request: QueryRequest): BoundQuery {
     dialect: source.dialect,
     maxPoints,
     showSystem: source.scope.visibility.showSystem,
+    bucketScripts: source.bucketScripts,
     interval: request.interval,
     chartPoints: request.chartPoints,
     sparse: request.sparse,

@@ -65,6 +65,11 @@ export const connectorDetailSchema = connectorSummarySchema.extend({
   hiddenFields: hiddenFieldsSchema,
   /** Which indices, tables or collections the connector shows. */
   visibility: objectVisibilitySchema,
+  /**
+   * Whether a search may hold a script of its own in `bucket_script` and `bucket_selector`. Only a
+   * connector of a search kind can have it on.
+   */
+  bucketScripts: z.boolean(),
   guardrails: guardrailsSchema,
   descriptions: descriptionsSchema,
   createdAt: z.number(),
@@ -82,6 +87,8 @@ export const connectorInputSchema = z.object({
   accessLevel: accessLevelSchema.default(2),
   hiddenFields: hiddenFieldsSchema.default([]),
   visibility: objectVisibilitySchema.prefault({}),
+  /** Off unless an admin allows scripts in the two bucket aggregations of a search. */
+  bucketScripts: z.boolean().default(false),
   guardrails: guardrailsSchema.prefault({}),
   descriptions: descriptionsSchema.default({}),
 });
@@ -95,6 +102,7 @@ export const connectorPatchSchema = z.object({
   hiddenFields: hiddenFieldsSchema.optional(),
   /** What the connector shows, replaced whole: a partial one is refused. */
   visibility: wholeObjectVisibilitySchema.optional(),
+  bucketScripts: z.boolean().optional(),
   guardrails: guardrailsSchema.optional(),
   descriptions: descriptionsSchema.optional(),
 });
