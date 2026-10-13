@@ -74,6 +74,42 @@ describe('the limiter', () => {
     expect(started).toEqual(['a', 'b', 'a and b', 'next on b']);
   });
 
+  test('a task on two busy keys is overtaken a few times, then holds its keys', async () => {
+    const limiter = createLimiter({ global: 8, perKey: 1 });
+    const started: string[] = [];
+    const tasks = new Map<string, ReturnType<typeof held>>();
+    const all: Promise<void>[] = [];
+    const arrive = (name: string, keys: string[]) => {
+      const task = held(started, name);
+      tasks.set(name, task);
+      all.push(limiter.run(keys, task.task));
+    };
+    arrive('a1', ['a']);
+    arrive('b1', ['b']);
+    arrive('both', ['a', 'b']);
+    // Each key always has another task to start as the one before it ends.
+    for (const [next, ending] of [
+      ['a2', 'a1'],
+      ['b2', 'b1'],
+      ['a3', 'a2'],
+      ['b3', 'b2'],
+    ] as const) {
+      arrive(next, [next.slice(0, 1)]);
+      tasks.get(ending)?.finish();
+      await settle();
+    }
+    expect(started).toEqual(['a1', 'b1', 'a2', 'b2', 'a3']);
+    arrive('a4', ['a']);
+    tasks.get('a3')?.finish();
+    await settle();
+    expect(started).toEqual(['a1', 'b1', 'a2', 'b2', 'a3', 'both']);
+    tasks.get('both')?.finish();
+    await settle();
+    expect(started).toEqual(['a1', 'b1', 'a2', 'b2', 'a3', 'both', 'b3', 'a4']);
+    for (const name of ['b3', 'a4']) tasks.get(name)?.finish();
+    await Promise.all(all);
+  });
+
   test('two tasks on the same two keys never wait for each other', async () => {
     const limiter = createLimiter({ global: 1, perKey: 1 });
     const order: string[] = [];

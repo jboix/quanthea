@@ -1103,7 +1103,9 @@ job. Each tick lists the active, not deactivated alerts and evaluates those whos
 passed since their last evaluation (`alerts.evaluated_at`). After downtime an alert is evaluated
 once, not once per missed interval. Evaluations run at most 8 at once and 2 per connector (a ratio
 of two connectors counts on both), an alert still being evaluated is skipped, and one failing alert
-never stops the others.
+never stops the others. An evaluation that waits for two connectors is overtaken at most three
+times by later ones on either of them: then it holds both until it has run (`lib/limiter.ts`), so
+two busy connectors never keep a ratio across them from being evaluated.
 
 `alerts/evaluate.ts` evaluates one alert: it runs the query over the window ending now
 (`lookback`), reads the series (`alerts/series.ts`, `alerts/measure.ts`, `alerts/observe.ts`),
