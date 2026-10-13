@@ -82,14 +82,15 @@ A query follows it through the interval built-in of its language, and the run bi
 
 | Language      | Built-in                                                           |
 | ------------- | ------------------------------------------------------------------ |
-| PromQL, LogQL | the step of a range query, `$__interval` and `$__rate_interval`    |
+| PromQL, LogQL | `$__interval` and `$__rate_interval`, and the step with them       |
 | SQL           | `:__interval`, as in `date_bin(:__interval::interval, t, :__from)` |
 | SQL           | `:__interval_s`, the same width in seconds                         |
 | Search        | `{"$var": "__interval"}`                                           |
 | MongoDB       | `{"$var": "__interval_ms"}`                                        |
 
-A query that names its own step, such as `date_trunc('minute', …)`, is cut as it says, whatever
-the period. The agent does not write one: its write of a time chart whose query cuts time by a
+A query that names its own step, such as `date_trunc('minute', …)` or a PromQL window written out
+(`increase(x[1h])`), is cut as it says, whatever the period. A stat and a table take no interval:
+they read what their queries return. The agent does not write one: its write of a time chart whose query cuts time by a
 fixed width is refused, with the built-in to use instead. The comparison period binds the same
 interval as the period.
 

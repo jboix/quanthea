@@ -23,16 +23,36 @@ describe('a chosen interval', () => {
     expect(bound).toMatchObject({ expr: 'rate(up[3600s])', stepSeconds: 3600 });
   });
 
-  test('replaces the step a PromQL query names itself', () => {
-    const template = { language: 'promql' as const, expr: 'up', step: '15s' };
+  test('replaces the step of a PromQL query whose windows follow it', () => {
+    const template = {
+      language: 'promql' as const,
+      expr: 'rate(up[$__rate_interval])',
+      step: '15s',
+    };
     expect(bindTemplate(template, {}, week, { interval: '6h' })).toMatchObject({
       stepSeconds: 21_600,
     });
     expect(bindTemplate(template, {}, hour)).toMatchObject({ stepSeconds: 15 });
   });
 
+  test('leaves the step of a PromQL query whose window is written out', () => {
+    const template = {
+      language: 'promql' as const,
+      expr: 'sum(increase(orders_total[1h]))',
+      step: '1h',
+    };
+    const day = { from: new Date(week.to.getTime() - 86_400_000), to: week.to };
+    expect(bindTemplate(template, {}, day, { interval: '10m' })).toMatchObject({
+      stepSeconds: 3600,
+    });
+    expect(bindTemplate(template, {}, week, { interval: '1d' })).toMatchObject({
+      stepSeconds: 3600,
+    });
+    expect(() => bindTemplate(template, {}, week, { interval: 'soon' })).toThrow('duration');
+  });
+
   test('is still raised when the range would pass the point limit', () => {
-    const template = { language: 'promql' as const, expr: 'up' };
+    const template = { language: 'promql' as const, expr: 'rate(up[$__interval])' };
     const bound = bindTemplate(template, {}, week, { interval: '1m', maxPoints: 1000 });
     expect(bound).toMatchObject({ stepSeconds: 605 });
   });

@@ -61,9 +61,18 @@ async function ranOnce() {
 }
 
 describe('a run', () => {
-  test('cuts its time buckets at the interval its period takes: a week by the hour', async () => {
+  test('cuts its charts at the interval its period takes: a week by the hour', async () => {
     const { fixture } = await ranOnce();
-    expect(new Set(fixture.requests.map((request) => request.interval))).toEqual(new Set(['1h']));
+    const charted = fixture.requests.filter((request) => /AS time/.test(JSON.stringify(request)));
+    expect(charted.length).toBeGreaterThan(0);
+    expect(new Set(charted.map((request) => request.interval))).toEqual(new Set(['1h']));
+  });
+
+  test('gives its stats no interval: a number reduced from a query reads as it was written', async () => {
+    const { fixture } = await ranOnce();
+    const stats = fixture.requests.filter((request) => !/AS time/.test(JSON.stringify(request)));
+    expect(stats.length).toBeGreaterThan(0);
+    expect(new Set(stats.map((request) => request.interval))).toEqual(new Set([undefined]));
   });
 });
 

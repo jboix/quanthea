@@ -122,6 +122,12 @@ describe('a run', () => {
     expect(requests.A?.chartPoints).toBeUndefined();
   });
 
+  test('gives a chosen interval to charts only: a stat and a table reduce what they read', async () => {
+    expect((await requestsOf('ranking', '10m')).A).toMatchObject({ interval: '10m' });
+    for (const panelId of ['now', 'rows'])
+      expect((await requestsOf(panelId, '10m')).A?.interval).toBeUndefined();
+  });
+
   test('follows the width a layout gives the panel, hidden or not', async () => {
     const layout = {
       panels: [

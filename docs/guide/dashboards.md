@@ -105,8 +105,8 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   chart draws the alert's threshold and when it fired.
 - **Long series.** A chart over time asks its source for no more points than it can show: 200
   for each of the 12 columns of the grid it spans. Over a longer time range the points are
-  further apart, as Prometheus widens its step and a query that buckets by the interval widens
-  its buckets. Nothing is cut off the end. A query with a width of its own keeps it: its line is
+  further apart, as a Prometheus query that follows `$__interval` widens its step and a query
+  that buckets by the interval widens its buckets. Nothing is cut off the end. A query with a width of its own keeps it: its line is
   drawn through the lowest and the highest point of each pixel, so every spike and every dip
   shows, and a tooltip still reads a point of the data.
 - **A result cut short.** When a source returns more rows than the connector's row limit, the

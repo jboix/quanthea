@@ -3,8 +3,8 @@
  * label matcher (`env="$env"`), escaped for that string, and for `=~` and `!~` escaped as a regular
  * expression too. Anywhere else a variable is an error, except the built-in durations.
  */
-import type { PromqlQuery, TimeRange } from '../connectors/_shared/index.ts';
-import { chosenSeconds, parseDuration } from './interval.ts';
+import type { PromqlQuery } from '../connectors/_shared/index.ts';
+import { type ExpressionRun, intervalValue, stepOf } from './promql-step.ts';
 import { QueryError } from './query-error.ts';
 import { type Variables, valuesOf } from './variables.ts';
 
@@ -49,23 +49,6 @@ const trailingOperator = /(=~|!~|!=|=)\s*$/;
 /** The message for a variable where it may not be. */
 const misplacedVariable =
   'Variables go in label matcher values, such as env="$env". Only an interval variable goes where a duration does, such as [$interval].';
-
-/** A PromQL duration, the only text an interval variable may put into code. */
-const durationPattern = /^\d{1,5}[smhd]$/;
-
-/**
- * The duration an interval variable binds to, checked again here so nothing else reaches the code.
- *
- * @param name - The variable name.
- * @param variables - The variables.
- * @returns The duration, or `undefined` when the name is not an interval variable.
- */
-function intervalValue(name: string, variables: Variables): string | undefined {
-  const binding = variables[name];
-  if (!binding?.duration) return undefined;
-  const [value] = valuesOf(binding);
-  return value !== undefined && durationPattern.test(value) ? value : undefined;
-}
 
 /**
  * Splits PromQL into code, string literals and comments.
@@ -258,6 +241,19 @@ function bindSegment(
 }
 
 /**
+ * The code of an expression, without its strings and comments.
+ *
+ * @param segments - The expression's segments.
+ * @returns The code segments, joined by a space.
+ */
+function codeOf(segments: readonly PromqlSegment[]): string {
+  return segments
+    .filter((segment) => segment.kind === 'code')
+    .map((segment) => segment.text)
+    .join(' ');
+}
+
+/**
  * Binds every segment, following the brace depth to know which strings are matcher values.
  *
  * @param segments - The expression's segments.
@@ -272,54 +268,11 @@ function bindSegments(
   durations: Readonly<Record<string, string>>,
   flavor: ExpressionFlavor,
 ): string {
-  const code = segments.filter((segment) => segment.kind === 'code').map((segment) => segment.text);
-  flavor.checkCode?.(code.join(' '));
+  flavor.checkCode?.(codeOf(segments));
   const state: BindingState = { braceDepth: 0, previousCode: '' };
   return segments
     .map((segment) => bindSegment(segment, state, variables, durations, flavor))
     .join('');
-}
-
-/**
- * A template's step, with an interval variable replaced by its duration.
- *
- * @param step - The step: a duration, or `$name` of an interval variable.
- * @param variables - The variables.
- * @returns The duration.
- * @throws {QueryError} `invalid` for a variable that is not an interval variable.
- */
-function bindStep(step: string, variables: Variables): string {
-  const match = /^\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))$/.exec(step);
-  if (!match) return step;
-  const duration = intervalValue(match[1] ?? match[2] ?? '', variables);
-  if (duration === undefined)
-    throw new QueryError('invalid', 'The step takes a duration or an interval variable.');
-  return duration;
-}
-
-/**
- * The step between points: the chosen interval, else the template's step, raised so the range
- * fits in `maxPoints`.
- *
- * @param template - The template.
- * @param timeRange - The time range.
- * @param maxPoints - The most points one series may have.
- * @param interval - The interval the charts are cut into, when one was chosen, such as `1h`.
- * @returns The step in seconds.
- * @throws {QueryError} `invalid` when the step is not a duration such as `15s`.
- */
-export function stepFor(
-  template: PromqlTemplate,
-  timeRange: TimeRange,
-  maxPoints: number,
-  interval?: string,
-): number {
-  const own = template.step === undefined ? 15 : parseDuration(template.step);
-  const minimum = chosenSeconds(interval) ?? own;
-  if (minimum === undefined || minimum === 0)
-    throw new QueryError('invalid', 'The step is a duration such as 15s, 1m or 1h.');
-  const rangeSeconds = (timeRange.to.getTime() - timeRange.from.getTime()) / 1000;
-  return Math.max(minimum, Math.ceil(rangeSeconds / maxPoints));
 }
 
 /** An expression bound for its language, with the step of a range query. */
@@ -330,16 +283,6 @@ interface BoundExpression {
   readonly instant: boolean;
   /** Seconds between points. */
   readonly stepSeconds: number;
-}
-
-/** What binding an expression depends on beyond the template and the variables. */
-export interface ExpressionRun {
-  /** The time range, for `$__range`. */
-  readonly timeRange: TimeRange;
-  /** The most points one series may have, which sets the step. */
-  readonly maxPoints: number;
-  /** The interval the charts are cut into, when one was chosen: it is then the step. */
-  readonly interval?: string | undefined;
 }
 
 /**
@@ -361,8 +304,8 @@ export function bindExpression(
   flavor: ExpressionFlavor,
 ): BoundExpression {
   const { timeRange } = run;
-  const step = template.step === undefined ? undefined : bindStep(template.step, variables);
-  const stepSeconds = stepFor({ ...template, step }, timeRange, run.maxPoints, run.interval);
+  const segments = splitPromql(template.expr);
+  const stepSeconds = stepOf(template, variables, run, codeOf(segments));
   const rangeSeconds = Math.max(
     1,
     Math.round((timeRange.to.getTime() - timeRange.from.getTime()) / 1000),
@@ -372,7 +315,7 @@ export function bindExpression(
     __range: `${rangeSeconds}s`,
     __rate_interval: `${Math.max(4 * stepSeconds, 60)}s`,
   };
-  const expr = bindSegments(splitPromql(template.expr), variables, durations, flavor);
+  const expr = bindSegments(segments, variables, durations, flavor);
   return { expr, instant: template.instant ?? false, stepSeconds };
 }
 
@@ -381,9 +324,7 @@ export function bindExpression(
  *
  * @param template - The expression, and whether it is instant and its step.
  * @param variables - The variable values.
- * @param timeRange - The time range, for `$__range`.
- * @param maxPoints - The most points one series may have, which sets the step.
- * @param interval - The interval the charts are cut into, when one was chosen: it is the step.
+ * @param run - The time range, the point limit, the chosen interval and the chart's points.
  * @returns The bound query.
  * @throws {QueryError} `invalid` for an unknown variable, a variable outside a matcher value, or an
  *   unclosed string.
@@ -391,10 +332,7 @@ export function bindExpression(
 export function bindPromql(
   template: PromqlTemplate,
   variables: Variables,
-  timeRange: TimeRange,
-  maxPoints: number,
-  interval?: string,
+  run: ExpressionRun,
 ): PromqlQuery {
-  const run = { timeRange, maxPoints, interval };
   return { language: 'promql', ...bindExpression(template, variables, run, promqlFlavor) };
 }

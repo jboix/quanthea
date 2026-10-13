@@ -45,8 +45,9 @@ export interface RunChoices {
   /** The time range, or the spec's default. */
   readonly time?: TimeRangeExpression | undefined;
   /**
-   * The interval the time charts are cut into, such as `1h`, when the caller cuts them evenly, as
-   * a report's run does. Without it each query language picks its own from the time range.
+   * The interval the charts are cut into, such as `1h`, when the caller cuts them evenly, as a
+   * report's run does. Stats and tables never take it. Without it each query language picks its
+   * own from the time range.
    */
   readonly interval?: string | undefined;
 }
@@ -264,7 +265,8 @@ function runMarkers(
 /**
  * Runs one panel and the annotations its chart marks. The queries of a chart over time bind an
  * interval that gives no more points than the panel's width can show, unless the caller chose
- * the interval. The annotations, and the queries of any other panel, run as they are written.
+ * the interval. A chosen interval cuts charts only: a stat or a table reduces what its queries
+ * return, so they run as they are written, as the annotations do.
  *
  * @param dependencies - The connectors, the executor and the clock.
  * @param spec - The spec, each panel at the width it is drawn.
@@ -286,8 +288,9 @@ export async function runPanel(
   if (!panel) throw new AppError('not_found', `No panel "${panelId}" in this version.`);
   const { time, timeRange, loadOptions } = prepare(dependencies, spec, choices, signal);
   const variables = await resolveVariables(spec, choices.variables, loadOptions);
-  const engine = { timeRange, interval: choices.interval };
-  const chartPoints = choices.interval === undefined ? chartPointsOf(panel) : undefined;
+  const interval = panel.view.kind === 'chart' ? choices.interval : undefined;
+  const engine = { timeRange, interval };
+  const chartPoints = interval === undefined ? chartPointsOf(panel) : undefined;
   const run = (query: PanelQuery, points?: number) =>
     runQuery(dependencies, query, variables, { ...engine, chartPoints: points }, signal);
   const [queries, markers] = await Promise.all([

@@ -54,10 +54,22 @@ describe('the intervals a person may choose', () => {
 describe('a query that follows the interval', () => {
   const sql = (text: string) => ({ connector: 'db', language: 'sql' as const, sql: text });
 
-  test('is a PromQL or LogQL range query, whatever its step', () => {
-    const promql = { connector: 'prom', language: 'promql' as const, expr: 'up' };
+  test('is a PromQL or LogQL range query whose windows follow the step', () => {
+    const promql = {
+      connector: 'prom',
+      language: 'promql' as const,
+      expr: 'sum(rate(http_requests_total[$__rate_interval]))',
+    };
     expect(followsChartInterval(promql)).toBe(true);
+    expect(followsChartInterval({ ...promql, expr: 'increase(x[$' + '{__interval}])' })).toBe(true);
     expect(followsChartInterval({ ...promql, instant: true })).toBe(false);
+  });
+
+  test('is not one with a window written out, or with the built-in in a string only', () => {
+    const promql = { connector: 'prom', language: 'promql' as const, expr: 'up' };
+    expect(followsChartInterval(promql)).toBe(false);
+    expect(followsChartInterval({ ...promql, expr: 'increase(errors_total[1m])' })).toBe(false);
+    expect(followsChartInterval({ ...promql, expr: 'up{note="$__interval"}' })).toBe(false);
   });
 
   test('is a query that names the interval built-in of its language', () => {

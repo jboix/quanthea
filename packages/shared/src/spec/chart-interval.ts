@@ -69,17 +69,32 @@ export function fitsPeriod(interval: ChartInterval, periodMs: number): boolean {
 /** The built-ins a query cuts its time buckets with, in any query language. */
 const intervalBuiltIns = /__(?:rate_interval|interval_ms|interval_s|interval)\b/;
 
+/** The built-ins a PromQL or LogQL expression follows its step with, outside strings. */
+const stepBuiltIns = /\$\{?__(?:rate_)?interval\b/;
+
 /**
- * Whether a query is cut again when another interval is chosen. A PromQL or LogQL range query
- * always is, since the interval is its step. Any other query is when it names the interval
- * built-in of its language: `:__interval` or `:__interval_s` in SQL, `__interval` in a search,
- * `__interval_ms` in MongoDB.
+ * An expression without its quoted strings, which never hold a built-in.
+ *
+ * @param expr - A PromQL or LogQL expression.
+ * @returns The expression with each string emptied.
+ */
+function withoutStrings(expr: string): string {
+  return expr.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`[^`]*`/g, '""');
+}
+
+/**
+ * Whether a query is cut again when another interval is chosen. A PromQL or LogQL range query is
+ * when its windows follow the step, `[$__interval]` or `[$__rate_interval]`: one with a window
+ * written out keeps its own step. Any other query is when it names the interval built-in of its
+ * language: `:__interval` or `:__interval_s` in SQL, `__interval` in a search, `__interval_ms` in
+ * MongoDB.
  *
  * @param query - The query.
  * @returns `true` when a chosen interval changes its result.
  */
 export function followsChartInterval(query: QueryTemplate): boolean {
-  if (query.language === 'promql' || query.language === 'logql') return query.instant !== true;
+  if (query.language === 'promql' || query.language === 'logql')
+    return query.instant !== true && stepBuiltIns.test(withoutStrings(query.expr));
   const { connector: _connector, ...written } = query;
   return intervalBuiltIns.test(JSON.stringify(written));
 }

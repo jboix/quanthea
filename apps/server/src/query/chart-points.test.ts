@@ -53,6 +53,36 @@ describe('the points a chart can show, in PromQL and LogQL', () => {
     const instant = { language: 'promql' as const, expr: 'up', instant: true };
     expect(bindTemplate(instant, {}, day, { chartPoints: 200 })).toMatchObject({ instant: true });
   });
+
+  test('leave the step of a window written out, which a wider step would read in part', () => {
+    const errors = { language: 'promql' as const, expr: 'sum(increase(errors_total[1m]))' };
+    const stepped = { ...errors, step: '1m' };
+    expect(bindTemplate(stepped, {}, day, { chartPoints: 600 })).toMatchObject({ stepSeconds: 60 });
+    expect(bindTemplate(errors, {}, day, { chartPoints: 600 })).toMatchObject({ stepSeconds: 15 });
+    expect(bindTemplate({ ...errors, expr: 'up' }, {}, day, { chartPoints: 600 })).toMatchObject({
+      stepSeconds: 15,
+    });
+    const logs = { language: 'logql' as const, expr: 'count_over_time({app="x"}[1m])' };
+    expect(bindTemplate(logs, {}, day, { chartPoints: 600 })).toMatchObject({ stepSeconds: 15 });
+  });
+
+  test('still raise such a step to the point limit of the connector', () => {
+    const errors = { language: 'promql' as const, expr: 'increase(errors_total[1m])' };
+    const bound = bindTemplate(errors, {}, day, { maxPoints: 100, chartPoints: 1200 });
+    expect(bound).toMatchObject({ stepSeconds: 864 });
+  });
+
+  test('read the built-in in the code, not in a string or a comment', () => {
+    const named = {
+      language: 'promql' as const,
+      expr: 'increase(errors_total{note="$__interval"}[1m]) # $__interval',
+    };
+    expect(() => bindTemplate(named, {}, day, { chartPoints: 600 })).toThrow();
+    const commented = { ...named, expr: 'increase(errors_total[1m]) # $__interval' };
+    expect(bindTemplate(commented, {}, day, { chartPoints: 600 })).toMatchObject({
+      stepSeconds: 15,
+    });
+  });
 });
 
 describe('the points a chart can show, in SQL', () => {

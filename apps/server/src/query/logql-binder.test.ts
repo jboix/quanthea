@@ -14,7 +14,7 @@ function bind(expr: string, variables: Record<string, string | string[]> = {}) {
   const bindings = Object.fromEntries(
     Object.entries(variables).map(([name, value]) => [name, { value }]),
   );
-  return bindLogql({ expr }, bindings, timeRange, 11_000).expr;
+  return bindLogql({ expr }, bindings, { timeRange, maxPoints: 11_000 }).expr;
 }
 
 describe('bindLogql', () => {

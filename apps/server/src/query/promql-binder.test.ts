@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { parseDuration } from './interval.ts';
-import { bindPromql, stepFor } from './promql-binder.ts';
+import { bindPromql } from './promql-binder.ts';
+import { stepFor } from './promql-step.ts';
 import type { Variables } from './variables.ts';
 
 const timeRange = { from: new Date('2026-09-27T12:00:00Z'), to: new Date('2026-09-27T13:00:00Z') };
@@ -13,7 +14,7 @@ const timeRange = { from: new Date('2026-09-27T12:00:00Z'), to: new Date('2026-0
  * @returns The bound expression.
  */
 function bind(expr: string, variables: Variables = {}): string {
-  return bindPromql({ expr }, variables, timeRange, 11_000).expr;
+  return bindPromql({ expr }, variables, { timeRange, maxPoints: 11_000 }).expr;
 }
 
 describe('bindPromql matcher values', () => {
@@ -81,10 +82,18 @@ describe('bindPromql placement', () => {
 
   test('takes an interval variable as the step', () => {
     const interval = { value: '5m', duration: true };
-    const bound = bindPromql({ expr: 'up', step: '$interval' }, { interval }, timeRange, 11_000);
+    const bound = bindPromql(
+      { expr: 'up', step: '$interval' },
+      { interval },
+      { timeRange, maxPoints: 11_000 },
+    );
     expect(bound.stepSeconds).toBe(300);
     expect(() =>
-      bindPromql({ expr: 'up', step: '$env' }, { env: { value: 'prod' } }, timeRange, 11_000),
+      bindPromql(
+        { expr: 'up', step: '$env' },
+        { env: { value: 'prod' } },
+        { timeRange, maxPoints: 11_000 },
+      ),
     ).toThrow('The step takes a duration or an interval variable.');
   });
 
@@ -139,10 +148,8 @@ describe('steps', () => {
   });
 
   test('raises the step so the range fits in the point limit', () => {
-    expect(stepFor({ expr: 'up', step: '15s' }, timeRange, 11_000)).toBe(15);
-    expect(stepFor({ expr: 'up', step: '15s' }, timeRange, 60)).toBe(60);
-    expect(() => stepFor({ expr: 'up', step: 'soon' }, timeRange, 60)).toThrow(
-      'The step is a duration',
-    );
+    expect(stepFor({ step: '15s' }, timeRange, 11_000)).toBe(15);
+    expect(stepFor({ step: '15s' }, timeRange, 60)).toBe(60);
+    expect(() => stepFor({ step: 'soon' }, timeRange, 60)).toThrow('The step is a duration');
   });
 });

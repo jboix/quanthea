@@ -4,13 +4,14 @@
  * (`| level="$level"`), escaped for that string and, after `=~`, `!~` or `|~`, as a regular
  * expression too. Formatting templates are refused: Loki runs them.
  */
-import type { LogqlQuery, TimeRange } from '../connectors/_shared/index.ts';
+import type { LogqlQuery } from '../connectors/_shared/index.ts';
 import {
   type BindingState,
   bindExpression,
   type ExpressionFlavor,
   type PromqlTemplate,
 } from './promql-binder.ts';
+import type { ExpressionRun } from './promql-step.ts';
 import { QueryError } from './query-error.ts';
 import type { Variables } from './variables.ts';
 
@@ -41,9 +42,7 @@ const logqlFlavor: ExpressionFlavor = {
  *
  * @param template - The expression, and whether it is instant and its step.
  * @param variables - The variable values.
- * @param timeRange - The time range, for `$__range`.
- * @param maxPoints - The most points one series may have, which sets the step.
- * @param interval - The interval the charts are cut into, when one was chosen: it is the step.
+ * @param run - The time range, the point limit, the chosen interval and the chart's points.
  * @returns The bound query.
  * @throws {QueryError} `invalid` for an unknown variable, a variable outside a quoted value, a
  *   formatting template, or an unclosed string.
@@ -51,10 +50,7 @@ const logqlFlavor: ExpressionFlavor = {
 export function bindLogql(
   template: PromqlTemplate,
   variables: Variables,
-  timeRange: TimeRange,
-  maxPoints: number,
-  interval?: string,
+  run: ExpressionRun,
 ): LogqlQuery {
-  const run = { timeRange, maxPoints, interval };
   return { language: 'logql', ...bindExpression(template, variables, run, logqlFlavor) };
 }

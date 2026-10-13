@@ -5,6 +5,7 @@ import { sqlIntervalWithin } from './interval.ts';
 import { bindLogql } from './logql-binder.ts';
 import { bindMongodb, type MongodbTemplate } from './mongodb-binder.ts';
 import { bindPromql, type PromqlTemplate } from './promql-binder.ts';
+import type { ExpressionRun } from './promql-step.ts';
 import { bindRedis, type RedisTemplate } from './redis-binder.ts';
 import { bindSearch, type SearchTemplate, searchInterval } from './search-binder.ts';
 import { bindSql } from './sql-binder.ts';
@@ -67,16 +68,17 @@ function bucketInterval(
 }
 
 /**
- * The most points a PromQL or LogQL series may have: the point limit, lowered to what the chart
- * can show when no interval was chosen. The step is raised to fit it.
+ * What a PromQL or LogQL expression is bound over: the point limit, the chosen interval, and the
+ * points the chart can show when no interval was chosen.
  *
+ * @param timeRange - The time range.
  * @param options - The point limit, the chosen interval and the chart's points, each if given.
- * @returns The most points.
+ * @returns The run of the expression.
  */
-function seriesPoints(options: BindOptions): number {
-  const limit = options.maxPoints ?? maxPromqlPoints;
-  if (options.interval !== undefined || options.chartPoints === undefined) return limit;
-  return Math.max(1, Math.min(limit, options.chartPoints));
+function expressionRun(timeRange: TimeRange, options: BindOptions): ExpressionRun {
+  const { interval } = options;
+  const chartPoints = interval === undefined ? options.chartPoints : undefined;
+  return { timeRange, maxPoints: options.maxPoints ?? maxPromqlPoints, interval, chartPoints };
 }
 
 /**
@@ -97,8 +99,7 @@ export function bindTemplate(
   timeRange: TimeRange,
   options: BindOptions = {},
 ): BoundQuery {
-  const maxPoints = seriesPoints(options);
-  const { interval, showSystem } = options;
+  const { showSystem } = options;
   const bucketed = (language: 'sql' | 'search' | 'mongodb') =>
     bucketInterval(language, timeRange, options);
   switch (template.language) {
@@ -113,7 +114,7 @@ export function bindTemplate(
     case 'search':
       return bindSearch(template, variables, timeRange, showSystem, bucketed('search'));
     case 'logql':
-      return bindLogql(template, variables, timeRange, maxPoints, interval);
+      return bindLogql(template, variables, expressionRun(timeRange, options));
     case 'http':
       return bindHttp(template, variables, timeRange);
     case 'redis':
@@ -121,6 +122,6 @@ export function bindTemplate(
     case 'mongodb':
       return bindMongodb(template, variables, timeRange, showSystem, bucketed('mongodb'));
     default:
-      return bindPromql(template, variables, timeRange, maxPoints, interval);
+      return bindPromql(template, variables, expressionRun(timeRange, options));
   }
 }

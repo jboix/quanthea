@@ -2718,32 +2718,39 @@ the connector shows and a version that changes with its settings).
      only `$__interval`, `$__range`, `$__rate_interval` and interval variables are allowed: an
      interval variable's value must be one of its options and is checked again against the
      duration pattern (`15s`, `5m`, `1h`) when bound. The step is a duration or an interval
-     variable, raised so the range fits in the row limit (at most 11000 points).
+     variable, raised so the range fits in the row limit (at most 11000 points). Nothing else
+     moves the step of an expression whose windows are written out (`query/promql-step.ts`).
    - **The interval of the charts.** A caller that cuts its time charts into even intervals
      passes one with the request (`interval`, a duration such as `1h`), and it takes the place of
-     what each language would pick from the time range: it is the step of PromQL and LogQL, so
-     `$__interval` and `$__rate_interval` follow it (still raised to fit the point limit), the
-     `__interval` of a search, the `__interval_ms` of MongoDB and the `:__interval` of SQL. It is
+     what each language would pick from the time range: the `__interval` of a search, the
+     `__interval_ms` of MongoDB, the `:__interval` of SQL, and the step of a PromQL or LogQL
+     expression that names `$__interval` or `$__rate_interval`, which follow it (still raised to
+     fit the point limit). An expression that names neither keeps the step it wrote: a window
+     written out, such as `increase(x[1h])`, read at a wider step would skip the data between
+     two points, and at a finer one its windows would overlap. It is
      checked against the duration pattern before it is bound (`query/interval.ts`). A report's run
      passes the interval of its period, and a redraw the one a person chose from the closed list
-     (`chartIntervals` in `@quanthea/shared`: `1m`, `5m`, `10m`, `30m`, `1h`, `6h`, `1d`). A
-     dashboard passes none.
+     (`chartIntervals` in `@quanthea/shared`: `1m`, `5m`, `10m`, `30m`, `1h`, `6h`, `1d`). Only a
+     chart takes it: a stat and a table reduce what their queries return, so the same query
+     reads the same number whatever the period's interval. A dashboard passes none.
    - **The points a chart can show.** A chart cannot show more points than it has pixels. A run
      of a panel that is a chart over time (`isTimeChart`) passes how many points a series can
      show (`chartPoints`): 200 per grid column of the panel, at the width its layout gives it
      (`dashboards/chart-points.ts`), so 2400 at full width and 1200 at half. When no interval
      was chosen, each language's own interval is raised until the time range has no more points
      than that (`query/bind.ts`), and nothing is cut from the result.
-     - PromQL and LogQL raise the step, and `$__interval` and `$__rate_interval` with it. A
-       `step` the query names is the smallest it accepts, so it is raised too. A day at half
-       width has a step of 72 seconds where it had 15.
+     - PromQL and LogQL raise the step of an expression that names `$__interval` or
+       `$__rate_interval`, and both with it. A `step` such a query names is the smallest it
+       accepts, so it is raised too. A day at half width has a step of 72 seconds where it had 15.
      - SQL takes the next interval of the closed list for `:__interval` and `:__interval_s`: a
        day at a width of one column is cut by 30 minutes where it was cut by 10. The list ends at
        a day, so a range of more days than the chart has points keeps a point a day.
      - A search and MongoDB widen `__interval` and `__interval_ms` to the next round width.
-     - A query that cuts time by a width of its own cannot be raised: SQL that truncates by a
+     - A query that cuts time by a width of its own is not raised: SQL that truncates by a
        literal width, a histogram of a literal width, a bucket that follows an interval variable
-       a person set, an HTTP or a Redis query. It returns what it returns, up to the connector's
+       a person set, a PromQL or LogQL expression without `$__interval` or `$__rate_interval`
+       (each point of `increase(x[1m])` covers a minute, so a wider step would leave most of the
+       range unread), an HTTP or a Redis query. It returns what it returns, up to the connector's
        row limit, and the browser draws its line through a sample (see the web's charts). A
        result cut at the row limit is marked truncated, and the panel says so under the chart.
      - A chosen interval is kept as chosen: a report's run and a redraw take no cap. The
