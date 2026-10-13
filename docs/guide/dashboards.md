@@ -111,6 +111,10 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   keeps it: a line of more than 500 points is drawn through the lowest and the highest point of each
   pixel, so its spikes and dips show, and a tooltip still reads a point of the data. A line with
   missing values is drawn point by point.
+- **Empty stretches on a search source.** On Elasticsearch and OpenSearch a chart over time has
+  a point for every interval of the time range, also where there is no document: a count reads 0
+  there, and an average or a ratio has no value. A week of which one day has data is a week of
+  points, not a day.
 - **A result cut short.** When a source returns more rows than the connector's row limit, the
   chart says so under it. Narrow the time range to see the rest.
 - **Charts further down** draw when you scroll to them, and all of them draw when you print the

@@ -7,7 +7,12 @@ import { bindMongodb, type MongodbTemplate } from './mongodb-binder.ts';
 import { bindPromql, type PromqlTemplate } from './promql-binder.ts';
 import type { ExpressionRun } from './promql-step.ts';
 import { bindRedis, type RedisTemplate } from './redis-binder.ts';
-import { bindSearch, type SearchTemplate, searchInterval } from './search-binder.ts';
+import {
+  bindSearch,
+  type SearchBinding,
+  type SearchTemplate,
+  searchInterval,
+} from './search-binder.ts';
 import { bindSql } from './sql-binder.ts';
 import type { SqlFlavor } from './sql-dialects.ts';
 import type { Variables } from './variables.ts';
@@ -45,6 +50,11 @@ export interface BindOptions {
    * than that. Without it nothing is raised.
    */
   readonly chartPoints?: number | undefined;
+  /**
+   * Whether a search's date histogram keeps only the buckets it has, as the query wrote it,
+   * instead of being filled over the time range. An alert reads its result that way.
+   */
+  readonly sparse?: boolean | undefined;
 }
 
 /**
@@ -82,6 +92,19 @@ function expressionRun(timeRange: TimeRange, options: BindOptions): ExpressionRu
 }
 
 /**
+ * What a search is bound with: the connector's system indices, the interval of its buckets, and
+ * whether its histograms stay as written.
+ *
+ * @param timeRange - The time range.
+ * @param options - What binding depends on.
+ * @returns The search's binding.
+ */
+function searchBinding(timeRange: TimeRange, options: BindOptions): SearchBinding {
+  const interval = bucketInterval('search', timeRange, options);
+  return { showSystem: options.showSystem, interval, sparse: options.sparse };
+}
+
+/**
  * Binds a template: checks its variables and its statement, and substitutes the values safely.
  *
  * @param template - The template.
@@ -112,7 +135,7 @@ export function bindTemplate(
         bucketed('sql'),
       );
     case 'search':
-      return bindSearch(template, variables, timeRange, showSystem, bucketed('search'));
+      return bindSearch(template, variables, timeRange, searchBinding(timeRange, options));
     case 'logql':
       return bindLogql(template, variables, expressionRun(timeRange, options));
     case 'http':

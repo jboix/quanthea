@@ -2814,7 +2814,26 @@ the connector shows and a version that changes with its settings).
      a parse error otherwise. The second format keeps a number beside the text readable. A range
      gets the format only when it fits every bound: each bound written as text is ISO 8601 or date
      math (`now-1d/d`). A format replaces the mapping's for all the bounds, so a range that mixes
-     an ISO bound with one in the field's own format (`2026-10-06 23:59:59`) is left as written. A body with any key with a word starting with
+     an ISO bound with one in the field's own format (`2026-10-06 23:59:59`) is left as written.
+     A `date_histogram` over the field the time range filters (the field of a `range` bounded by
+     `__from` or `__to`) is filled over the whole range (`query/search-histogram.ts`): it gets
+     `"min_doc_count": 0` and `"extended_bounds"` from the start of the range to its last
+     millisecond. A date histogram returns buckets only between its first and its last document,
+     so without the bounds a chart of a week that has a day of data reads like a day. The bounds
+     are epoch milliseconds, which a server reads whatever the format of the field. A count reads
+     0 in an empty bucket; an average, a percentile or a ratio has no value there and stays
+     missing. This holds for the builders and for a raw query alike. A histogram the query decided
+     is kept as written: one with `extended_bounds` or `hard_bounds`, or with a `min_doc_count`
+     above 0. Bounds written with `__from` and `__to` get the same `format` a range gets, on the
+     histogram, so they parse. What bounds the cost: only a histogram that cuts the range into at
+     most 1500 buckets is filled (`maxFilledBuckets`; `__interval` gives at most 1000, a chosen
+     interval at most 1500), so one with a finer width of its own is left alone; and only the
+     first level of buckets is filled, so a histogram under a `terms` is left alone, where filling
+     would multiply the buckets by the terms. A `terms` under a filled histogram adds nothing to
+     an empty bucket: a series has no row there, and the chart draws a gap. An alert's query is
+     bound without the fill (`sparse`): an alert reads the buckets a search has, so a stretch
+     without a document stays no data, which the `no_data` condition is about, and never becomes
+     a count of 0. A body with any key with a word starting with
      `script`, in snake_case or camelCase (`script`, `_script`, `script_fields`, `script_score`,
      `scripted_metric`, `minimum_should_match_script` and the rest), or with `runtime_mappings` is
      refused, because the search server would run it. One exception: a `bucket_script` whose

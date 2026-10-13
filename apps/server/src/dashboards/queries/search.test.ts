@@ -71,7 +71,7 @@ describe('the search builders', () => {
         date_histogram: {
           field: '@timestamp',
           fixed_interval: { $var: 'interval' },
-          min_doc_count: 1,
+          min_doc_count: 0,
         },
         aggs: {
           _matching: { filter: { bool: { filter: [{ term: { event_name: 'ERROR' } }] } } },

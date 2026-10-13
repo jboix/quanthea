@@ -55,6 +55,11 @@ export interface QueryRequest {
    * interval is raised to fit them, unless one was chosen.
    */
   readonly chartPoints?: number | undefined;
+  /**
+   * Whether a search's date histogram keeps only the buckets it has, instead of being filled
+   * over the time range: an alert's evaluation, where a stretch without data is no data.
+   */
+  readonly sparse?: boolean | undefined;
   /** Aborted when the caller gives up. */
   readonly signal?: AbortSignal;
 }
@@ -106,6 +111,7 @@ function bind(source: QuerySource, request: QueryRequest): BoundQuery {
     showSystem: source.scope.visibility.showSystem,
     interval: request.interval,
     chartPoints: request.chartPoints,
+    sparse: request.sparse,
   });
   checkScope(source.scope, bound, source.dialect);
   return bound;

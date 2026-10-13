@@ -74,15 +74,15 @@ function terms(field: string, size: number, measure?: SearchMeasure): Json {
 }
 
 /**
- * The date histogram of a request.
+ * The date histogram of a request. It keeps its empty buckets, and the binder gives it the time
+ * range as its bounds, so the chart shows the whole range and not the stretch that has data.
  *
  * @param request - The request.
  * @param interval - The bucket width, if given.
- * @param minDocCount - The fewest documents a bucket shows with.
  * @returns The aggregation, without its sub-aggregations.
  */
-function histogramOf(request: SearchRequest, interval: string | undefined, minDocCount = 0): Json {
-  return { field: request.time, fixed_interval: intervalOf(interval), min_doc_count: minDocCount };
+function histogramOf(request: SearchRequest, interval: string | undefined): Json {
+  return { field: request.time, fixed_interval: intervalOf(interval), min_doc_count: 0 };
 }
 
 /**
@@ -120,7 +120,8 @@ function ratioLevel(request: DataOf<'search-ratio'>, ratio: Json): Json {
 }
 
 /**
- * A ratio over time: columns `time`, `series` when split, the counts when asked, and `value`.
+ * A ratio over time: columns `time`, `series` when split, the counts when asked, and `value`. A
+ * bucket with no document has no ratio: its `value` is missing, and its counts are 0.
  *
  * @param request - The request.
  * @returns The query and its output.
@@ -128,7 +129,7 @@ function ratioLevel(request: DataOf<'search-ratio'>, ratio: Json): Json {
 function ratioOverTime(request: DataOf<'search-ratio'>): BuiltData {
   const ratio = ratioAggs(request);
   const level = request.by === undefined ? ratio : ratioLevel(request, ratio);
-  const aggs = { time: { date_histogram: histogramOf(request, request.interval, 1), aggs: level } };
+  const aggs = { time: { date_histogram: histogramOf(request, request.interval), aggs: level } };
   const counts = request.counts ? ['matching', 'total'] : [];
   const columns = ['time', ...(request.by ? ['series'] : []), ...counts, 'value'];
   return {

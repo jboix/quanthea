@@ -15,6 +15,8 @@ import {
 import { chosenSeconds } from './interval.ts';
 import { bindJsonVariables } from './json-variables.ts';
 import { QueryError } from './query-error.ts';
+import { boundFormat, isoBound } from './search-dates.ts';
+import { periodFields, withBoundsFormat, withFilledHistograms } from './search-histogram.ts';
 import type { Variables } from './variables.ts';
 
 /** The search template of a panel query. */
@@ -252,29 +254,6 @@ function refuseHiddenRead(key: string, value: unknown, parent: string | undefine
   );
 }
 
-/**
- * The formats a range's bounds are read in when one is ISO 8601 text: that text, as `__from` and
- * `__to` are bound and as a model writes a date, or epoch milliseconds for a bound given as a number.
- */
-const boundFormat = 'strict_date_optional_time||epoch_millis';
-
-/**
- * A date or a time in ISO 8601: `2026-10-05`, `2026-10-05T14:47`, `2026-10-05T14:47:01.250Z`,
- * with an offset or without, and any date math after `||`.
- */
-const isoText =
-  /^\d{4}-\d{2}-\d{2}(?:T\d{2}(?::\d{2}(?::\d{2}(?:[.,]\d{1,9})?)?)?(?:Z|[+-]\d{2}(?::?\d{2})?)?)?(?:\|\|.*)?$/;
-
-/**
- * Whether a value is a date or a time written as ISO 8601 text.
- *
- * @param value - The value.
- * @returns `true` for such as `2026-10-05T14:47:01Z`, `false` for a number or any other text.
- */
-function isoBound(value: unknown): boolean {
-  return typeof value === 'string' && isoText.test(value);
-}
-
 /** Date math on the server's clock, such as `now`, `now-1h` or `now-7d/d`, which no format reads. */
 const dateMath = /^now(?:[+-]\d+[yMwdhHms]|\/[yMwdhHms])*$/;
 
@@ -310,11 +289,12 @@ function withBoundFormat(bounds: unknown): unknown {
 }
 
 /**
- * A search body whose ranges over dates say how their bounds are written.
+ * A search body whose ranges over dates, and whose date histograms with bounds, say how their
+ * bounds are written.
  *
  * @param node - A node of the bound body.
  * @param parent - The key the node is under.
- * @returns The node, with the format on each range bounded by ISO text.
+ * @returns The node, with the format on each range and each histogram bounded by ISO text.
  */
 function withRangeFormats(node: unknown, parent?: string): unknown {
   if (Array.isArray(node)) return node.map((item) => withRangeFormats(item, parent));
@@ -322,19 +302,34 @@ function withRangeFormats(node: unknown, parent?: string): unknown {
   return Object.fromEntries(
     Object.entries(node).map(([key, value]) => {
       const child = parent === 'range' ? withBoundFormat(value) : value;
-      return [key, withRangeFormats(child, key)];
+      const read = key === 'date_histogram' ? withBoundsFormat(child) : child;
+      return [key, withRangeFormats(read, key)];
     }),
   );
 }
 
+/** What binding a search depends on beyond its template, its variables and the time range. */
+export interface SearchBinding {
+  /** Whether the connector shows its server's own indices, so a dot may lead. */
+  readonly showSystem?: boolean | undefined;
+  /** The interval the charts are cut into, when one was chosen: `__interval`. */
+  readonly interval?: string | undefined;
+  /**
+   * Whether a date histogram keeps only the buckets it has, as the query wrote it. An alert reads
+   * a result that way: a stretch without a document is no data, never a count of 0.
+   */
+  readonly sparse?: boolean | undefined;
+}
+
 /**
- * Binds a search template.
+ * Binds a search template. A date histogram over the field the time range filters is filled over
+ * the whole range (`search-histogram.ts`), so a chart is never cut to the stretch that has data.
  *
  * @param template - The index and the body.
  * @param variables - The variable values.
  * @param timeRange - The time range, for `__from`, `__to` and `__interval`.
- * @param showSystem - Whether the connector shows its server's own indices, so a dot may lead.
- * @param interval - The interval the charts are cut into, when one was chosen: `__interval`.
+ * @param binding - Whether the connector shows system indices, the chosen interval, and whether
+ *   histograms stay as written.
  * @returns The bound query.
  * @throws {QueryError} `invalid` for a malformed index, a script, a hidden query, a read of
  *   another index, or an unknown variable.
@@ -343,9 +338,9 @@ export function bindSearch(
   template: SearchTemplate,
   variables: Variables,
   timeRange: TimeRange,
-  showSystem = false,
-  interval?: string,
+  binding: SearchBinding = {},
 ): SearchQuery {
+  const { interval } = binding;
   const builtIns = {
     __from: timeRange.from.toISOString(),
     __to: timeRange.to.toISOString(),
@@ -354,6 +349,9 @@ export function bindSearch(
   refuseScripts(template.body);
   const bound = bindJsonVariables(template.body, { variables, builtIns });
   // After binding, so a variable's date and one the query writes itself read the same way.
-  const body = withRangeFormats(bound) as SearchQuery['body'];
-  return { language: 'search', index: checkIndex(template.index, showSystem), body };
+  const dated = withRangeFormats(bound) as SearchQuery['body'];
+  const fields = binding.sparse ? new Set<string>() : periodFields(template.body);
+  const body = withFilledHistograms(dated, fields, timeRange);
+  const index = checkIndex(template.index, binding.showSystem ?? false);
+  return { language: 'search', index, body };
 }

@@ -63,7 +63,16 @@ describe('bindSearch', () => {
             ],
           },
         },
-        aggs: { t: { date_histogram: { field: '@timestamp', fixed_interval: '5s' } } },
+        aggs: {
+          t: {
+            date_histogram: {
+              field: '@timestamp',
+              fixed_interval: '5s',
+              min_doc_count: 0,
+              extended_bounds: { min: timeRange.from.getTime(), max: timeRange.to.getTime() - 1 },
+            },
+          },
+        },
       },
     });
   });
@@ -312,14 +321,16 @@ describe('bindSearch', () => {
   });
 
   test("takes a dot index when the connector shows its server's own indices", () => {
-    const shown = (index: string) => bindSearch({ index, body: {} }, {}, timeRange, true).index;
+    const shown = (index: string) =>
+      bindSearch({ index, body: {} }, {}, timeRange, { showSystem: true }).index;
     expect(shown('.kibana_1,logs-*')).toBe('.kibana_1,logs-*');
     for (const index of ['_all', 'remote:logs', 'Logs', '-logs'])
       expect(() => shown(index)).toThrow('An index is lowercase');
   });
 
   test('refuses a name that would reach another endpoint of the server', () => {
-    const shown = (index: string) => bindSearch({ index, body: {} }, {}, timeRange, true).index;
+    const shown = (index: string) =>
+      bindSearch({ index, body: {} }, {}, timeRange, { showSystem: true }).index;
     const reaching = [
       '_delete_by_query',
       'logs/_delete_by_query',
@@ -349,7 +360,8 @@ describe('bindSearch', () => {
   });
 
   test('refuses a name of dots, which alone in the path would search every index', () => {
-    const shown = (index: string) => bindSearch({ index, body: {} }, {}, timeRange, true).index;
+    const shown = (index: string) =>
+      bindSearch({ index, body: {} }, {}, timeRange, { showSystem: true }).index;
     for (const index of ['.', '..', '...', 'logs,..', 'logs,-..', '..,logs']) {
       expect(() => bind({}, {}, index), index).toThrow('An index is lowercase');
       expect(() => shown(index), index).toThrow('An index is lowercase');

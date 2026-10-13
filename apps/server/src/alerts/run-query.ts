@@ -28,7 +28,8 @@ export interface TimeWindow {
 
 /**
  * Runs the query of a spec over a window, its time buckets bound to the alert's interval whatever
- * the length of the window.
+ * the length of the window. A search's date histogram is not filled over the window, as a
+ * panel's is: an empty bucket would read as a count of 0 where the alert reads no data.
  *
  * @param dependencies - The connectors and the executor.
  * @param spec - The spec.
@@ -51,6 +52,8 @@ export async function runAlertQuery(
       variables: alertVariables(spec),
       timeRange: { from: new Date(window.from), to: new Date(window.to) },
       interval: alertInterval(spec, query),
+      // An alert reads the buckets a search has: a stretch without a document is no data, not 0.
+      sparse: true,
     });
     return { frames: result.frames };
   } catch (error) {
