@@ -11,6 +11,7 @@ import {
   unknownPlaceholders,
 } from '@quanthea/shared';
 import type { AlertExpectation } from './alert-cases.ts';
+import { kindFaults } from './alert-condition-score.ts';
 import type { Score } from './score.ts';
 
 /** A period of time, in epoch milliseconds. */
@@ -106,7 +107,24 @@ function inPercent(spec: AlertSpec): boolean {
 }
 
 /**
- * What is wrong with the condition: its kind, direction, threshold and wait.
+ * What is wrong with a threshold asked for as a number: its kind, direction and value.
+ *
+ * @param spec - The spec.
+ * @param threshold - The threshold a good alert fires above, as a ratio.
+ * @returns The reasons.
+ */
+function thresholdFaults(spec: AlertSpec, threshold: number): string[] {
+  const { condition } = spec;
+  if (condition.kind !== 'threshold') return ['the condition is not a threshold'];
+  const reasons = condition.op === 'above' ? [] : ['the condition fires below, not above'];
+  const wanted = threshold * (inPercent(spec) ? 100 : 1);
+  if (Math.abs(condition.value - wanted) > wanted * thresholdTolerance)
+    reasons.push(`the threshold is ${condition.value}, expected ${wanted}`);
+  return reasons;
+}
+
+/**
+ * What is wrong with the condition: its kind and values, and its wait.
  *
  * @param spec - The spec.
  * @param expect - What a good alert holds.
@@ -114,14 +132,26 @@ function inPercent(spec: AlertSpec): boolean {
  */
 function conditionFaults(spec: AlertSpec, expect: AlertExpectation): string[] {
   const { condition } = spec;
-  if (condition.kind !== 'threshold') return ['the condition is not a threshold'];
-  const reasons = condition.op === 'above' ? [] : ['the condition fires below, not above'];
-  const wanted = expect.threshold * (inPercent(spec) ? 100 : 1);
-  if (Math.abs(condition.value - wanted) > wanted * thresholdTolerance)
-    reasons.push(`the threshold is ${condition.value}, expected ${wanted}`);
+  const reasons = expect.condition
+    ? kindFaults(condition, expect.condition)
+    : thresholdFaults(spec, expect.threshold ?? Number.NaN);
   if (expect.for !== undefined && durationMs(condition.for) !== durationMs(expect.for))
     reasons.push(`the condition holds for ${condition.for}, expected ${expect.for}`);
   return reasons;
+}
+
+/**
+ * What is wrong with the second query of a ratio: there is none, or it runs elsewhere.
+ *
+ * @param spec - The spec.
+ * @param connector - The connector a good alert's second query runs on, if it has one.
+ * @returns The reasons.
+ */
+function ratioFaults(spec: AlertSpec, connector: string | undefined): string[] {
+  if (connector === undefined) return [];
+  const second = spec.dividedBy?.query.connector;
+  if (second === undefined) return ['the alert has no second query to divide by'];
+  return second === connector ? [] : [`the second query runs on ${second}, expected ${connector}`];
 }
 
 /**
@@ -260,7 +290,8 @@ export function scoreAlert(outcome: AlertCaseOutcome, expect: AlertExpectation):
   const reasons = [
     ...connector,
     ...conditionFaults(spec, expect),
-    ...splitFaults(spec),
+    ...ratioFaults(spec, expect.dividedBy),
+    ...(expect.oneSeries ? [] : splitFaults(spec)),
     ...messageFaults(spec, outcome.channelIds),
     ...(expect.checkoutFiresOnce ? replayFaults(outcome, spec) : []),
     ...conductFaults(outcome, expect),

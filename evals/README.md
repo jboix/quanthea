@@ -125,7 +125,7 @@ tests, which call none.
 
 ## Alert cases
 
-Then the alert cases (`al1` to `al4`, in `alert-cases.ts`) drive alert threads through the agent,
+Then the alert cases (`al1` to `al9`, in `alert-cases.ts`) drive alert threads through the agent,
 wired as the chat endpoint wires them. A case sets the access level of both dev connectors, asks,
 answers the agent's question with its scripted answer, approves the alert plan, and lets the agent
 write. The world holds one notification channel, a webhook to a closed local port; nothing sends
@@ -142,8 +142,10 @@ through the alerts service rather than the model.
 
 Every case also needs:
 
-- the threshold as a ratio (`0.02`), or in percent (`2`) when the query multiplies by 100;
-- one series per service, or a query that keeps to checkout;
+- for `al1` to `al4`, the threshold as a ratio (`0.02`), or in percent (`2`) when the query
+  multiplies by 100;
+- one series per service, or a query that keeps to checkout, unless the case is about every order
+  together;
 - a message that uses only the known placeholders and names `{alert}` or `{value}`;
 - channels from the list only.
 
@@ -154,11 +156,32 @@ passes 2% too, for about 16 minutes, and may fire; only checkout is scored. `al3
 when `--only` leaves `al1` out; that run is not reported. `al4` starts from the pinned checkout
 incident dashboard of the answer cases.
 
+The cases `al5` to `al9` ask for one kind of condition each, and are scored on the condition the
+saved spec holds: its kind and its values (`alert-condition-score.ts`). Their replay is shown and
+not scored.
+
+| Case  | What the person says                                                                                                                                                                              | A good alert                                                                                    |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `al5` | "Tell me when a service's request rate drops by half within 10 minutes."                                                                                                                          | on `prometheus-dev`, a change: down 50 percent within 10m                                       |
+| `al6` | "Tell me when the orders of the last hour are 30% or more below the same hour a week earlier."                                                                                                    | on `postgres-orders`, against the past: down 30 percent from 7d                                 |
+| `al7` | "Tell me when checkout's p95 latency is unusual: more than 3 deviations from its mean of the last 6 hours, either way."                                                                           | on `prometheus-dev`, a band: 3 deviations, either side, a baseline of 6h                        |
+| `al8` | "Tell me when more than 20% of the order attempts of the last 10 minutes failed, but only with more than 30 attempts in those 10 minutes."                                                        | on `postgres-orders`, tests joined by all: one above 20%, one above 30                          |
+| `al9` | "Watch the failed orders of checkout-svc in postgres-orders as a share of the requests checkout-svc got in prometheus-dev, both summed over the last 5 minutes. Tell me when it goes above 0.1%." | on `postgres-orders`, divided by a second query on `prometheus-dev`, and a threshold above 0.1% |
+
+- A number is right within 1%, a duration by its length (`600s` for `10m`), a word as written.
+- A share is right as a ratio or in percent: `0.2` or `20`, `0.001` or `0.1`.
+- The tests of a joined condition are matched in any order, each to a test of its own.
+- Each case runs at aggregates (3).
+- The kind follows the data. The dev Prometheus holds less than two days, so only the orders reach a
+  week back (`al6`). PromQL returns one number per series, so the joined tests read two columns of
+  one SQL query (`al8`). No one query reads both sources, so `al9` needs a second query.
+- There is no case for no data: it is not a new kind, and the dev data never stops.
+
 Each case is one or two runs of the agent: the plan, then the write after the approval. A run is a
 handful of model steps: a `describe` or two, the plan, `edit_alert`, the replay. `al3` changes the
 draft in one run. A case costs less than a dashboard question, which plans and builds several
-panels. Run only them with
-`--only al1,al2,al3,al4`. The report shows each alert's condition in words, its query, the replay
+panels. Run only the first four with
+`--only al1,al2,al3,al4`, and the kinds of condition with `--only al5,al6,al7,al8,al9`. The report shows each alert's condition in words, its query, the replay
 over yesterday by series, the tools the agent called and what it said.
 
 ## Report cases

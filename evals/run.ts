@@ -37,8 +37,9 @@ import { type EvalModels, type EvalWorld, openWorld, waitForEvents } from './set
 /** What `--help` prints. */
 const usage = `Asks the agent each question against the dev data, and scores what it builds. Then
 asks the dashboard answering service the answer cases (a1 to a4) on the pinned checkout incident
-dashboard, and with --search a5 on the player events, and scores its answers and explanations. Then drives the alert cases (al1 to al4)
-through alert threads, and scores the alerts saved and their replay over the incident. Last, drives
+dashboard, and with --search a5 on the player events, and scores its answers and explanations. Then drives the alert cases (al1 to al9)
+through alert threads, and scores the alerts saved: their replay over the incident (al1 to al4),
+and the kind and the values of their condition (al5 to al9). Last, drives
 the report cases (r1, r2) through a report thread, runs the report and checks its numbers against
 the database, and asks about that run (r3, r4).
 
@@ -48,6 +49,7 @@ the database, and asks about that run (r3, r4).
   bun run evals --only q3,q7            only these questions
   bun run evals --only a1,a2,a3,a4      only the answer cases
   bun run evals --only al1,al2,al3,al4  only the alert cases
+  bun run evals --only al5,al6,al7,al8,al9  only the cases of the kinds of condition
   bun run evals --only r1,r2,r3,r4      only the report cases
   bun run evals --model gemini-3.8-flash
   bun run evals --build-model gemini-3.8-flash   another model for building and repairs

@@ -76,16 +76,29 @@ function factLines(outcome: AlertCaseOutcome): string[] {
 }
 
 /**
- * The alert's query, written out.
+ * A query, written out.
+ *
+ * @param query - The query.
+ * @returns Its PromQL or SQL, or the whole of it as JSON.
+ */
+function queryWords(query: object): string {
+  const { expr, sql } = query as Record<string, unknown>;
+  const text = expr ?? sql;
+  return typeof text === 'string' ? text : JSON.stringify(query, null, 2);
+}
+
+/**
+ * The alert's query, written out, with the second query of a ratio under it.
  *
  * @param outcome - The alert case's outcome.
  * @returns The query, or nothing.
  */
 function queryText(outcome: AlertCaseOutcome): string | undefined {
   if (!outcome.spec) return undefined;
-  const query = outcome.spec.query as Record<string, unknown>;
-  const text = query.expr ?? query.sql;
-  return typeof text === 'string' ? text : JSON.stringify(query, null, 2);
+  const { query, dividedBy } = outcome.spec;
+  if (!dividedBy) return queryWords(query);
+  const second = `divided by, on ${dividedBy.query.connector}:\n${queryWords(dividedBy.query)}`;
+  return `${queryWords(query)}\n${second}`;
 }
 
 /**
