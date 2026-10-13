@@ -2652,6 +2652,31 @@ the connector shows and a version that changes with its settings).
      The template must be one statement starting with SELECT, WITH, VALUES or TABLE, without INSERT,
      UPDATE, DELETE, MERGE, TRUNCATE, DROP, ALTER, CREATE, GRANT, REVOKE, COPY or INTO outside
      literals.
+
+     One read statement can still call a function that reaches past its tables, which a read-only
+     transaction does not stop, so the binder refuses the ones each source ships
+     (`query/sql-reach.ts`), by name, bare, quoted or qualified, and a function named with
+     Unicode escapes (`U&"…"(`):
+
+     - `postgres`: the server's files (`pg_read_file`, `pg_read_binary_file`, `pg_ls_*dir`,
+       `pg_stat_file`, `pg_file_*`, `lo_import`, `lo_export`), another server (`dblink*`), text run
+       as SQL (`query_to_xml*`, `cursor_to_xml*`, `ts_stat`, `ts_rewrite`, `crosstab*`,
+       `connectby`, `xpath_table`), the server's controls (`pg_terminate_backend`,
+       `pg_cancel_backend`, `pg_reload_conf`, replication slots and origins, backups, WAL replay,
+       `pg_stat_reset*`, session advisory locks) and `set_config`.
+     - `mysql`: `LOAD_FILE`, the `sys_exec` and `sys_eval` functions of a common extension, and
+       `GET_LOCK`, whose lock would stay on the pooled connection.
+     - `clickhouse`: the table functions that read files or object storage (`file`, `s3`, `gcs`,
+       `hdfs`, `azureBlobStorage`, `iceberg*`, `deltaLake*`, `hudi`, `paimon*`, `hive`), reach
+       another server (`url`, `remote`, `remoteSecure`, `cluster`, `clusterAllReplicas`, `mysql`,
+       `postgresql`, `mongodb`, `redis`, `sqlite`, `jdbc`, `odbc`) or run a program
+       (`executable`), with their `…Cluster` forms.
+     - `trino`: the table functions that send text to the source under a catalog, where it runs
+       unread: `TABLE(catalog.system.query(…))`, `raw_query` and `procedure`.
+
+     The lists hold what each source ships. A function a database adds, such as a
+     `SECURITY DEFINER` function or an extension's, is not on them: a role that may not call it
+     is the guarantee.
    - **PromQL:** `$name` and `${name}` are replaced only inside the string value of a label matcher,
      escaped for the string, and for `=~` and `!~` always escaped as a regular expression too, so a
      value only ever matches itself (a multi-value variable joins its values with `|`). In code

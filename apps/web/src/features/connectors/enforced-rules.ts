@@ -40,6 +40,11 @@ const rulesByLanguage: Readonly<Record<QueryLanguage, readonly EnforcedRule[]>> 
         'A query starts with SELECT, WITH, VALUES or TABLE, and a keyword that writes or changes the schema, such as INSERT, UPDATE, DROP or INTO, is refused.',
     },
     {
+      rule: 'No way out of the tables',
+      stops:
+        "A function that reads or writes the server's files, reaches another server, runs a program or runs text as SQL, such as pg_read_file, dblink, LOAD_FILE or url(), is refused, because a read-only session does not stop it.",
+    },
+    {
       rule: 'Values are bound',
       stops:
         'A variable reaches the database as a parameter, never as SQL text, so a value never becomes part of the statement.',

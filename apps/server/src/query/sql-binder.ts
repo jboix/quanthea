@@ -7,6 +7,7 @@ import { sqlInterval, sqlIntervalSeconds } from './interval.ts';
 import { QueryError } from './query-error.ts';
 import { rulesOf, type SqlDialectRules, type SqlFlavor } from './sql-dialects.ts';
 import { type SqlSegment, splitSql } from './sql-lexer.ts';
+import { checkSqlReach } from './sql-reach.ts';
 import { type Variables, valuesOf } from './variables.ts';
 
 /** A `:name` placeholder that is not part of a `::type` cast. */
@@ -154,7 +155,8 @@ function bindCode(
  *   `:__interval` follows the length of the time range.
  * @returns The bound query: the dialect's placeholders and their values.
  * @throws {QueryError} `invalid` for an unknown variable, a placeholder written in the template, an
- *   unclosed literal, or a template that is not one read statement.
+ *   unclosed literal, a template that is not one read statement, or a function that reaches past
+ *   the statement's tables: a file, another server, a program, text run as SQL.
  */
 export function bindSql(
   template: string,
@@ -166,6 +168,7 @@ export function bindSql(
   const rules = rulesOf(flavor);
   const segments = splitSql(template, rules.lexicon);
   checkReadStatement(segments, rules);
+  checkSqlReach(template, flavor);
   const parameters: ParameterList = { rules, values: [], byName: new Map(), unknown: new Set() };
   const text = segments
     .map((segment) =>
