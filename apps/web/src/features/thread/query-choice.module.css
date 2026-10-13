@@ -16,7 +16,7 @@
   color: var(--color-ink-secondary);
 }
 
-.recipe {
+.query {
   display: flex;
   accent-color: var(--color-accent);
   align-items: center;
