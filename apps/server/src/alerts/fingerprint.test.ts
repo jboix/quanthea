@@ -77,6 +77,35 @@ describe('queryFingerprint', () => {
     expect(queryFingerprint({ ...a, index: 'api-*' })).not.toBe(queryFingerprint(a));
   });
 
+  test('leaves out whether a search date histogram keeps its empty buckets', () => {
+    /**
+     * A count over time, with more settings on its histogram.
+     *
+     * @param more - The settings.
+     * @returns The query.
+     */
+    const overTime = (more: Record<string, unknown>): QueryTemplate => ({
+      connector: 'logs',
+      language: 'search',
+      index: 'web-*',
+      body: {
+        size: 0,
+        aggs: { time: { date_histogram: { field: '@timestamp', fixed_interval: '1h', ...more } } },
+      },
+    });
+    const base = queryFingerprint(overTime({}));
+    expect(queryFingerprint(overTime({ min_doc_count: 1 }))).toBe(base);
+    expect(queryFingerprint(overTime({ min_doc_count: 0 }))).toBe(base);
+    expect(queryFingerprint(overTime({ fixed_interval: '1d' }))).not.toBe(base);
+    const terms = (floor: number): QueryTemplate => ({
+      connector: 'logs',
+      language: 'search',
+      index: 'web-*',
+      body: { aggs: { level: { terms: { field: 'level', min_doc_count: floor } } } },
+    });
+    expect(queryFingerprint(terms(1))).not.toBe(queryFingerprint(terms(5)));
+  });
+
   test('matches a builder rendered once with the same query written by hand', () => {
     const built = buildData(
       dataSchema.parse({

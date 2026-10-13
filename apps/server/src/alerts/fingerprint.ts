@@ -141,6 +141,26 @@ function canonicalJson(value: unknown): string {
 }
 
 /**
+ * A search body without the `min_doc_count` of its date histograms. It says whether an empty
+ * bucket is returned, not what is counted, and a builder that renders the same query may write
+ * another: a panel and an alert made from an earlier rendering still watch the same thing.
+ *
+ * @param node - A node of the body.
+ * @param parent - The key the node is under.
+ * @returns The node without those keys.
+ */
+function withoutEmptyBucketSetting(node: unknown, parent?: string): unknown {
+  if (Array.isArray(node)) return node.map((item) => withoutEmptyBucketSetting(item, parent));
+  if (node === null || typeof node !== 'object') return node;
+  const kept = Object.entries(node).filter(
+    ([key]) => parent !== 'date_histogram' || key !== 'min_doc_count',
+  );
+  return Object.fromEntries(
+    kept.map(([key, value]) => [key, withoutEmptyBucketSetting(value, key)]),
+  );
+}
+
+/**
  * The normalised body of a query, by language.
  *
  * @param query - The query.
@@ -154,7 +174,7 @@ function normalisedBody(query: QueryTemplate): string {
     case 'logql':
       return normaliseText(query.expr, expressionSyntax);
     case 'search':
-      return `${query.index}\n${canonicalJson(query.body)}`;
+      return `${query.index}\n${canonicalJson(withoutEmptyBucketSetting(query.body))}`;
     case 'mongodb':
       return `${query.collection}\n${canonicalJson(query.pipeline)}`;
     case 'redis':

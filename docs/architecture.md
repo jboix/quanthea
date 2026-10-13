@@ -1309,7 +1309,10 @@ and its text normalised. For SQL, comments go, spacing collapses to one space be
 none around punctuation, words outside quotes are lowercased, and a final semicolon goes. PromQL
 and LogQL drop `#` comments and spacing the same way, and keep the case of names. Quoted parts stay
 as written. Search, MongoDB and HTTP queries are their JSON with every object's keys in order; a
-Redis command is upper-cased. A spec keeps the query a builder rendered, so a builder's
+Redis command is upper-cased. A search leaves out the `min_doc_count` of a `date_histogram`: it
+says whether an empty bucket is returned, not what is counted, and the ratio builder wrote 1
+where it now writes 0, so a panel built again still matches an alert made from the earlier
+query. A spec keeps the query a builder rendered, so a builder's
 fingerprint is that rendered query's. The refId, the step and `instant` are left out.
 
 **Suggestions.** A panel of a pinned version is suggested for an alert when one of its queries
