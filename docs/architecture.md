@@ -1914,10 +1914,15 @@ activates one.
   of a ratio whole, or `none`, which takes it away.
   A query the edit writes must cut time by the interval the alert binds, never by a width of its
   own (`alertStepIssues` in `agent/fixed-step.ts`, over `fixedStepOf` in `@quanthea/shared`): SQL
-  that truncates or bins time by a literal width, a search histogram or a MongoDB `$dateTrunc` of
+  that selects or groups by time truncated or binned to a literal width, a search histogram or a MongoDB `$dateTrunc` of
   a written width, and a PromQL or LogQL query with a `step` are refused at `query` or
   `dividedBy.query`, with what to write instead. A query the edit leaves alone is not checked
-  again, and neither is a spec a person changes by hand. The guide says how this meets the rule
+  again, and neither is a spec a person changes by hand. The check reads the statement's code,
+  not its comments or strings, and a truncation in WHERE, HAVING or ON only bounds the rows, so
+  "today so far" (`created_at >= date_trunc('day', :__to)`) passes. It knows the spellings the
+  builders and the guides write (`date_trunc`, `date_bin`, `time_bucket`, `toStartOf…`, epoch
+  seconds divided by a number); a cast to a date or a formatted time passes it. It is advice to
+  the agent, not a boundary. The guide says how this meets the rule
   of a band: a band's SQL, search or MongoDB query still buckets by the interval, which the
   alert binds the same over the baseline, and only the PromQL and LogQL durations are written
   out. The guide also tells the three rhythms apart: the interval of the query's buckets,

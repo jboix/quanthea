@@ -82,6 +82,13 @@ describe('a query that follows the interval', () => {
     expect(followsChartInterval({ ...search, body: { size: 0 } })).toBe(false);
   });
 
+  test('is not SQL that names the built-in in a comment or a string only', () => {
+    expect(followsChartInterval(sql("SELECT date_trunc('day', t) -- :__interval"))).toBe(false);
+    expect(followsChartInterval(sql("SELECT ':__interval' AS note /* :__interval_s */"))).toBe(
+      false,
+    );
+  });
+
   test('is not one whose connector only is named like the built-in', () => {
     expect(followsChartInterval({ ...sql('SELECT 1 AS one'), connector: 'db__interval' })).toBe(
       false,

@@ -94,7 +94,7 @@ A query follows it through the interval built-in of its language, and the run bi
 A query that names its own step, such as `date_trunc('minute', …)` or a PromQL window written out
 (`increase(x[1h])`), is cut as it says, whatever the period. A stat and a table take no interval:
 they read what their queries return. The agent does not write one: its write of a time chart whose query cuts time by a
-fixed width is refused, with the built-in to use instead. The comparison period binds the same
+fixed width is refused where the check recognises it, with the built-in to use instead. The comparison period binds the same
 interval as the period.
 
 On a run's page a person may choose another interval of the list. That runs the charts' queries

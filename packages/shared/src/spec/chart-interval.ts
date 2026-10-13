@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import { durationMs } from './alert.ts';
 import type { QueryTemplate } from './queries.ts';
+import { sqlCodeOf } from './sql-code.ts';
 
 /** The intervals a chart may be cut into, finest first. */
 export const chartIntervals = ['1m', '5m', '10m', '30m', '1h', '6h', '1d'] as const;
@@ -86,8 +87,8 @@ function withoutStrings(expr: string): string {
  * Whether a query is cut again when another interval is chosen. A PromQL or LogQL range query is
  * when its windows follow the step, `[$__interval]` or `[$__rate_interval]`: one with a window
  * written out keeps its own step. Any other query is when it names the interval built-in of its
- * language: `:__interval` or `:__interval_s` in SQL, `__interval` in a search, `__interval_ms` in
- * MongoDB.
+ * language: `:__interval` or `:__interval_s` in SQL, outside its comments and strings,
+ * `__interval` in a search, `__interval_ms` in MongoDB.
  *
  * @param query - The query.
  * @returns `true` when a chosen interval changes its result.
@@ -95,6 +96,7 @@ function withoutStrings(expr: string): string {
 export function followsChartInterval(query: QueryTemplate): boolean {
   if (query.language === 'promql' || query.language === 'logql')
     return query.instant !== true && stepBuiltIns.test(withoutStrings(query.expr));
+  if (query.language === 'sql') return intervalBuiltIns.test(sqlCodeOf(query.sql));
   const { connector: _connector, ...written } = query;
   return intervalBuiltIns.test(JSON.stringify(written));
 }
