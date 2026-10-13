@@ -3,13 +3,8 @@
  * on document fields, and what to measure. Field names are paths such as `data.error_type`.
  */
 import { z } from 'zod';
-import {
-  connectorSchema,
-  durationSchema,
-  fieldPathSchema,
-  pathFilterSchema,
-  pathFiltersSchema,
-} from './fields.ts';
+import { connectorSchema, durationSchema, fieldPathSchema } from './fields.ts';
+import { searchFilterSchema, searchFiltersSchema } from './search-filters.ts';
 
 /** What a search measures; count needs no field. Percentiles give a column per percent. */
 export const searchMeasureSchema = z
@@ -28,7 +23,7 @@ const searchBase = {
   connector: connectorSchema,
   index: z.string().min(1).max(500),
   time: fieldPathSchema.default('@timestamp'),
-  filters: pathFiltersSchema,
+  filters: searchFiltersSchema,
 };
 
 /** A measure over time, split by the values of a field when `by` is given. */
@@ -48,8 +43,8 @@ const searchSeriesSchema = z.strictObject({
 const searchRatioSchema = z.strictObject({
   kind: z.literal('search-ratio'),
   ...searchBase,
-  match: z.array(pathFilterSchema).min(1).max(5),
-  of: pathFiltersSchema,
+  match: z.array(searchFilterSchema).min(1).max(5),
+  of: searchFiltersSchema,
   over: z.enum(['time', 'range']).default('time'),
   by: fieldPathSchema.optional(),
   complement: z.boolean().default(false),

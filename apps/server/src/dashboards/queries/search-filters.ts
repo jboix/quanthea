@@ -1,12 +1,9 @@
 /**
- * The filters of a search: one flat form, a field, an operator and what the operator takes, or
- * `any`, a list of such filters of which one must hold. The form is flat so its JSON schema stays
- * small: what each operator needs is checked here, in code. A variable becomes a `{"$var": "name"}`
- * node, never text in a string, and a value is always a JSON value of the body, never query text.
- *
- * The builders' requests still take the four operators of `pathFilterSchema`, which this form
- * reads as it is. The schema here is not in the edit tool's input yet: inlined in every search
- * builder it has to fit under the ceilings of `agent/edit-schema-size.test.ts`.
+ * The filters of a search: one flat form, a field, an operator and what the operator takes. Filters
+ * that share a name in `any` are alternatives: one of them must hold. The form is flat so its JSON
+ * schema stays small in the edit tool's input, where every search builder holds it: what each
+ * operator needs is checked here, in code. A variable becomes a `{"$var": "name"}` node, never
+ * text in a string, and a value is always a JSON value of the body, never query text.
  */
 import { z } from 'zod';
 import { fieldPathSchema } from './fields.ts';
@@ -24,45 +21,36 @@ const operators = ['=', '!=', '=~', '!~', '>', '>=', '<', '<=', 'like', 'in', 'e
 /** A filter's operator. */
 type Operator = (typeof operators)[number];
 
-/** The most filters of one list, counting those inside `any`. */
+/** The most filters of one list. */
 const maxFilters = 20;
 
-/** What a filter on one field may hold; which parts it needs depends on its operator. */
-const leafShape = {
-  field: fieldPathSchema.optional(),
+/** One filter of a search; which of `value` and `values` it needs depends on its operator. */
+export const searchFilterSchema = z.strictObject({
+  field: fieldPathSchema,
   op: z.enum(operators).default('='),
   value: z.string().max(200).optional(),
   values: z.array(z.string().max(200)).min(1).max(50).optional(),
-};
-
-/** One filter of a search: a filter on a field, or `any`, of which one must hold. */
-export const searchFilterSchema = z.strictObject({
-  ...leafShape,
-  any: z.array(z.strictObject(leafShape)).min(2).max(10).optional(),
+  any: z.string().min(1).max(40).optional(),
 });
 
-/** The filters of a search, all of which must hold. */
+/** The filters of a search, all of which must hold, but for those that share a name in `any`. */
 export const searchFiltersSchema = z.array(searchFilterSchema).max(maxFilters).default([]);
 
-/** A filter on one field. */
-interface SearchLeafFilter {
+/** A filter of a search. */
+export interface SearchFilter {
   /** The field. */
-  readonly field?: string | undefined;
+  readonly field: string;
   /** The operator. */
   readonly op: Operator;
   /** A literal, a pattern, a bound, or a variable such as `$platform`. */
   readonly value?: string | undefined;
   /** The list `in` takes: literals, or one variable alone. */
   readonly values?: readonly string[] | undefined;
+  /** A name shared by the filters of which one must hold. */
+  readonly any?: string | undefined;
 }
 
-/** A filter of a search. */
-export interface SearchFilter extends SearchLeafFilter {
-  /** Filters of which one must hold, in place of a field. */
-  readonly any?: readonly SearchLeafFilter[] | undefined;
-}
-
-/** A filter on one field, checked: the field, the operator and what the operator takes. */
+/** A filter, checked: the field, the operator and what the operator takes. */
 interface FilterParts {
   /** The field. */
   readonly field: string;
@@ -103,7 +91,7 @@ const takenText = {
  * @param part - The part: `value` or `values`.
  * @returns The problem, such as `needs "values"`, or `undefined` when the part is as it should be.
  */
-function partProblem(filter: SearchLeafFilter, part: 'value' | 'values'): string | undefined {
+function partProblem(filter: SearchFilter, part: 'value' | 'values'): string | undefined {
   const needed = taken[filter.op];
   const given = filter[part] !== undefined;
   if (given === (part === needed)) return undefined;
@@ -111,16 +99,15 @@ function partProblem(filter: SearchLeafFilter, part: 'value' | 'values'): string
 }
 
 /**
- * The parts of a filter on one field, checked against its operator.
+ * The parts of a filter, checked against its operator.
  *
  * @param filter - The filter.
  * @returns The field, the operator, and the value or the list.
- * @throws {QueryError} When the field is missing, or the part the operator takes is missing, or a
- *   part it does not take is given. The message names the part.
+ * @throws {QueryError} When the part the operator takes is missing, or a part it does not take is
+ *   given. The message names the part.
  */
-function partsOf(filter: SearchLeafFilter): FilterParts {
+function partsOf(filter: SearchFilter): FilterParts {
   const { field, op } = filter;
-  if (field === undefined) throw new QueryError(`A filter with "${op}" needs "field".`);
   const problem = partProblem(filter, 'value') ?? partProblem(filter, 'values');
   if (problem) throw new QueryError(`The filter on ${field} with "${op}" ${problem}.`);
   return { field, op, value: filter.value ?? '', values: filter.values ?? [] };
@@ -190,6 +177,28 @@ function regexpClause(parts: FilterParts): Json {
   return { regexp: { [parts.field]: valueNode(parts.value, false) } };
 }
 
+/** The characters a wildcard pattern matches any text or any one character with. */
+const wildcards = new Set(['*', '?']);
+
+/**
+ * A wildcard clause. A pattern written in the request starts with the text the values begin with:
+ * one that starts with a wildcard, or is empty, makes the server read every value of the field,
+ * so it is refused. A variable is not read here: a person fills it.
+ *
+ * @param parts - The filter.
+ * @returns The clause.
+ * @throws {QueryError} When a written pattern starts with `*` or `?`, or is empty.
+ */
+function wildcardClause(parts: FilterParts): Json {
+  const first = parts.value.charAt(0);
+  if (first === '' || wildcards.has(first)) {
+    throw new QueryError(
+      `The filter on ${parts.field} with "like" starts with a wildcard, which reads every value of the field: start the pattern with the text the values begin with, such as "urn:*". When the person asks for values that end with or contain a text, give them a text variable for the pattern.`,
+    );
+  }
+  return { wildcard: { [parts.field]: { value: valueNode(parts.value, false) } } };
+}
+
 /** The positive clause each operator writes; a negated operator's clause goes in `must_not`. */
 const clauses: Readonly<Record<Operator, (parts: FilterParts) => Json>> = {
   '=': equalClause,
@@ -200,7 +209,7 @@ const clauses: Readonly<Record<Operator, (parts: FilterParts) => Json>> = {
   '>=': rangeClause('gte'),
   '<': rangeClause('lt'),
   '<=': rangeClause('lte'),
-  like: (parts) => ({ wildcard: { [parts.field]: { value: valueNode(parts.value, false) } } }),
+  like: wildcardClause,
   in: (parts) => ({ terms: { [parts.field]: listNode(parts) } }),
   exists: (parts) => ({ exists: { field: parts.field } }),
 };
@@ -217,41 +226,6 @@ interface WrittenFilter {
 }
 
 /**
- * The clause of a filter on one field.
- *
- * @param filter - The filter.
- * @returns The clause, and whether it is negated.
- * @throws {QueryError} When the filter lacks a part its operator needs.
- */
-function writtenLeaf(filter: SearchLeafFilter): WrittenFilter {
-  const parts = partsOf(filter);
-  return { negated: negatedOperators.has(parts.op), clause: clauses[parts.op](parts) };
-}
-
-/**
- * The clause of an `any`: a bool query of which one alternative must hold.
- *
- * @param filter - The filter, for what it holds beside `any`.
- * @param any - The alternatives.
- * @returns The clause.
- * @throws {QueryError} When the filter also holds a field, an operator or a value of its own, or
- *   `any` holds fewer than two filters.
- */
-function anyClause(filter: SearchFilter, any: readonly SearchLeafFilter[]): Json {
-  const own = [filter.field, filter.value, filter.values].some((part) => part !== undefined);
-  if (own || filter.op !== '=') {
-    throw new QueryError(
-      'A filter with "any" takes nothing else: "field", "op", "value" and "values" go inside "any".',
-    );
-  }
-  if (any.length < 2) throw new QueryError('"any" takes two filters or more.');
-  const should = any.map(writtenLeaf).map(({ negated, clause }) => {
-    return negated ? { bool: { must_not: [clause] } } : clause;
-  });
-  return { bool: { should, minimum_should_match: 1 } };
-}
-
-/**
  * The clause of one filter.
  *
  * @param filter - The filter.
@@ -259,8 +233,45 @@ function anyClause(filter: SearchFilter, any: readonly SearchLeafFilter[]): Json
  * @throws {QueryError} When the filter lacks a part its operator needs, or holds one too many.
  */
 function written(filter: SearchFilter): WrittenFilter {
-  if (filter.any === undefined) return writtenLeaf(filter);
-  return { negated: false, clause: anyClause(filter, filter.any) };
+  const parts = partsOf(filter);
+  return { negated: negatedOperators.has(parts.op), clause: clauses[parts.op](parts) };
+}
+
+/**
+ * The clause of the filters that share a name in `any`: a bool query of which one must hold.
+ *
+ * @param name - The name they share.
+ * @param alternatives - The filters.
+ * @returns The clause.
+ * @throws {QueryError} When one filter alone has the name.
+ */
+function anyClause(name: string, alternatives: readonly SearchFilter[]): Json {
+  if (alternatives.length < 2) {
+    throw new QueryError(
+      `One filter alone has "any": "${name}". Give the same "any" to each of the filters of which one must hold, or leave it out.`,
+    );
+  }
+  const should = alternatives.map(written).map(({ negated, clause }) => {
+    return negated ? { bool: { must_not: [clause] } } : clause;
+  });
+  return { bool: { should, minimum_should_match: 1 } };
+}
+
+/**
+ * The clauses of filters: each filter's own, and one for each name in `any`, where the first
+ * filter of that name stands.
+ *
+ * @param filters - The filters.
+ * @returns The clauses, in the filters' order.
+ * @throws {QueryError} When a filter lacks a part its operator needs, or is alone in its `any`.
+ */
+function writtenAll(filters: readonly SearchFilter[]): WrittenFilter[] {
+  return filters.flatMap((filter) => {
+    if (filter.any === undefined) return [written(filter)];
+    const alternatives = filters.filter((other) => other.any === filter.any);
+    if (alternatives[0] !== filter) return [];
+    return [{ negated: false, clause: anyClause(filter.any, alternatives) }];
+  });
 }
 
 /**
@@ -273,11 +284,10 @@ function written(filter: SearchFilter): WrittenFilter {
  * @throws {QueryError} When a filter lacks a part its operator needs, or there are over twenty.
  */
 export function boolQuery(filters: readonly SearchFilter[], extra: readonly Json[] = []): Json {
-  const count = filters.reduce((sum, filter) => sum + (filter.any?.length ?? 1), 0);
-  if (count > maxFilters) {
-    throw new QueryError(`A search takes ${maxFilters} filters at most, counting those in "any".`);
+  if (filters.length > maxFilters) {
+    throw new QueryError(`A search takes ${maxFilters} filters at most.`);
   }
-  const all = filters.map(written);
+  const all = writtenAll(filters);
   const must = [...extra, ...all.filter(({ negated }) => !negated).map(({ clause }) => clause)];
   const mustNot = all.filter(({ negated }) => negated).map(({ clause }) => clause);
   const bool = mustNot.length === 0 ? { filter: must } : { filter: must, must_not: mustNot };

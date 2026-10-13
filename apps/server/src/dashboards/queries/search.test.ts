@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { PanelQuery } from '@quanthea/shared';
 import { searchRatioScripts } from '../../connectors/_shared/index.ts';
 import { bindTemplate } from '../../query/bind.ts';
+import { checkBinding } from '../check-queries.ts';
 import { buildData } from './build.ts';
 import { dataSchema } from './request.ts';
 
@@ -122,6 +123,98 @@ describe('the search builders', () => {
       if (!query) throw new Error('Nothing was built.');
       expect(() => bindTemplate(query, variables, timeRange)).not.toThrow();
     }
+  });
+
+  test('filter by a list, a bound, a wildcard, a field that has a value and one of several', () => {
+    const total = 'session.qoe_timings.total';
+    const { queries } = built({
+      kind: 'search-stat',
+      filters: [
+        { field: 'event_name', value: 'START' },
+        { field: 'session.player.platform', op: 'in', values: ['Web', 'Apple'] },
+        { field: total, op: '>', value: '3000' },
+        { field: 'session.media.id', op: 'like', value: 'urn:srf:*', any: 'media' },
+        { field: 'session.media.id', op: 'exists', any: 'media' },
+      ],
+    });
+    expect(bodyOf(queries[0]).query).toEqual({
+      bool: {
+        filter: [
+          range,
+          { term: { event_name: 'START' } },
+          { terms: { 'session.player.platform': ['Web', 'Apple'] } },
+          { range: { [total]: { gt: '3000' } } },
+          {
+            bool: {
+              should: [
+                { wildcard: { 'session.media.id': { value: 'urn:srf:*' } } },
+                { exists: { field: 'session.media.id' } },
+              ],
+              minimum_should_match: 1,
+            },
+          },
+        ],
+      },
+    });
+    const ratio = built({
+      kind: 'search-ratio',
+      match: [{ field: total, op: '>=', value: '$slow' }],
+      of: [{ field: 'session.player.platform', op: 'in', values: ['$platform'] }],
+    });
+    const aggs = bodyOf(ratio.queries[0]).aggs as { time: { aggs: Record<string, unknown> } };
+    expect(aggs.time.aggs._matching).toEqual({
+      filter: { bool: { filter: [{ range: { [total]: { gte: { $var: 'slow', as: 'one' } } } }] } },
+    });
+    expect(aggs.time.aggs._total).toEqual({
+      filter: {
+        bool: {
+          filter: [{ terms: { 'session.player.platform': { $var: 'platform', as: 'list' } } }],
+        },
+      },
+    });
+  });
+
+  test('refuse a filter its operator cannot read, with what to write', () => {
+    const stat = (filter: Record<string, unknown>) =>
+      built({ kind: 'search-stat', filters: [filter] });
+    expect(() => stat({ field: 'event_name', op: 'in', value: 'START' })).toThrow(
+      'The filter on event_name with "in" takes a list in "values", not "value".',
+    );
+    expect(() => stat({ field: 'event_name', op: '=~', values: ['$names'] })).toThrow(
+      'The filter on event_name with "=~" needs "value".',
+    );
+    expect(() => stat({ field: 'session.media.id', op: 'like', value: '*srf*' })).toThrow(
+      'starts with a wildcard, which reads every value of the field',
+    );
+    expect(() => stat({ field: 'event_name', value: 'START', any: 'a' })).toThrow(
+      'One filter alone has "any": "a".',
+    );
+    expect(() => built({ kind: 'search-ratio', match: [{ field: 'x', op: 'in' }] })).toThrow(
+      'The filter on x with "in" needs "values".',
+    );
+  });
+
+  test('report a multi-value variable where one value fits when the dashboard is checked', () => {
+    const guardrails = { timeoutMs: 10_000, maxRows: 50_000, maxRangeDays: 90 };
+    const connector = { language: 'search' as const, guardrails };
+    const several = { names: { value: ['START', 'STOP'] } };
+    const issuesOf = (filter: Record<string, unknown>) => {
+      const [query] = built({ kind: 'search-stat', filters: [filter] }).queries;
+      if (!query) throw new Error('Nothing was built.');
+      const located = { query, path: 'panels[0].queries[0]' };
+      return checkBinding(located, connector, several, { from: 0, to: 3_600_000 });
+    };
+    for (const op of ['=~', '!~', '>', '>=', '<', '<=', 'like']) {
+      expect(issuesOf({ field: 'event_name', op, value: '$names' })).toEqual([
+        {
+          path: 'panels[0].queries[0].body',
+          message:
+            'names can hold several values, and a pattern or a bound takes one: use a variable of one value there, or filter by a list with "in".',
+        },
+      ]);
+    }
+    expect(issuesOf({ field: 'event_name', op: 'in', values: ['$names'] })).toEqual([]);
+    expect(issuesOf({ field: 'event_name', op: '!=', value: '$names' })).toEqual([]);
   });
 
   test('order breakdowns by a metric, else by count, and name percentile columns', () => {

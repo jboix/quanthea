@@ -62,13 +62,15 @@ describe('the filters of a search', () => {
     ]);
   });
 
-  test('write any as alternatives of which one must hold, a negated one inside its own bool', () => {
-    const any = [
-      { field: 'session.player.platform', value: 'Web' },
-      { field: 'session.qoe_timings.total', op: '>', value: '5000' },
-      { field: 'event_name', op: '!=', value: 'HEARTBEAT' },
+  test('write the filters of one any as alternatives, a negated one inside its own bool', () => {
+    const filters = [
+      { field: 'event_name', op: '!~', value: 'ST.*' },
+      { field: 'session.player.platform', value: 'Web', any: 'a' },
+      { field: 'data.error_type', op: 'exists' },
+      { field: 'session.qoe_timings.total', op: '>', value: '5000', any: 'a' },
+      { field: 'event_name', op: '!=', value: 'HEARTBEAT', any: 'a' },
     ];
-    expect(queryOf([{ field: 'event_name', op: '!~', value: 'ST.*' }, { any }])).toEqual({
+    expect(queryOf(filters)).toEqual({
       bool: {
         filter: [
           {
@@ -81,16 +83,54 @@ describe('the filters of a search', () => {
               minimum_should_match: 1,
             },
           },
+          { exists: { field: 'data.error_type' } },
         ],
         must_not: [{ regexp: { event_name: 'ST.*' } }],
       },
     });
   });
 
+  test('keep the alternatives of two names apart', () => {
+    const web = { field: 'session.player.platform', value: 'Web' };
+    const start = { field: 'event_name', value: 'START' };
+    const filters = [
+      { ...web, any: 'a' },
+      { ...start, any: 'b' },
+      { field: 'data.error_type', op: 'exists', any: 'a' },
+      { field: 'data.error_type', op: 'exists', any: 'b' },
+    ];
+    const exists = { exists: { field: 'data.error_type' } };
+    expect(queryOf(filters)).toEqual({
+      bool: {
+        filter: [
+          {
+            bool: {
+              should: [{ term: { [web.field]: 'Web' } }, exists],
+              minimum_should_match: 1,
+            },
+          },
+          {
+            bool: { should: [{ term: { event_name: 'START' } }, exists], minimum_should_match: 1 },
+          },
+        ],
+      },
+    });
+  });
+
+  test('refuse a wildcard pattern that starts with a wildcard, but not a variable', () => {
+    const field = 'session.media.id';
+    for (const value of ['*srf*', '?rn:srf:1', '*', '']) {
+      expect(() => queryOf([{ field, op: 'like', value }])).toThrow(
+        'The filter on session.media.id with "like" starts with a wildcard, which reads every value of the field',
+      );
+    }
+    expect(() => queryOf([{ field, op: 'like', value: 'u*:srf:?' }])).not.toThrow();
+    expect(() => queryOf([{ field, op: 'like', value: '$pattern' }])).not.toThrow();
+  });
+
   test('refuse a filter missing what its operator needs, naming it', () => {
     const field = 'event_name';
     const refused: [Record<string, unknown>, string][] = [
-      [{ op: 'exists' }, 'A filter with "exists" needs "field".'],
       [{ field, op: 'in' }, 'The filter on event_name with "in" needs "values".'],
       [{ field, op: '>=' }, 'The filter on event_name with ">=" needs "value".'],
       [{ field }, 'The filter on event_name with "=" needs "value".'],
@@ -114,22 +154,18 @@ describe('the filters of a search', () => {
     for (const [filter, message] of refused) expect(() => queryOf([filter])).toThrow(message);
   });
 
-  test('refuse any beside a field of its own, any inside any, and more than twenty filters', () => {
+  test('refuse a filter alone in its any, a filter with no field, and more than twenty', () => {
     const leaf = { field: 'event_name', value: 'START' };
-    expect(() => queryOf([{ field: 'event_name', any: [leaf, leaf] }])).toThrow(
-      'A filter with "any" takes nothing else',
+    expect(() => queryOf([leaf, { ...leaf, any: 'a' }])).toThrow(
+      'One filter alone has "any": "a". Give the same "any" to each of the filters of which one must hold, or leave it out.',
     );
-    expect(() => queryOf([{ op: '!=', any: [leaf, leaf] }])).toThrow(
-      'A filter with "any" takes nothing else',
-    );
-    expect(searchFiltersSchema.safeParse([{ any: [leaf, { any: [leaf, leaf] }] }]).success).toBe(
-      false,
-    );
-    expect(searchFiltersSchema.safeParse([{ any: [leaf] }]).success).toBe(false);
-    const any = Array.from({ length: 10 }, () => leaf);
-    expect(() => queryOf([{ any }, { any }])).not.toThrow();
-    expect(() => queryOf([{ any }, { any }, leaf])).toThrow(
-      'A search takes 20 filters at most, counting those in "any".',
+    expect(searchFiltersSchema.safeParse([{ op: 'exists' }]).success).toBe(false);
+    expect(searchFiltersSchema.safeParse([{ ...leaf, any: [leaf, leaf] }]).success).toBe(false);
+    const many = Array.from({ length: 21 }, () => leaf);
+    expect(searchFiltersSchema.safeParse(many.slice(1)).success).toBe(true);
+    expect(searchFiltersSchema.safeParse(many).success).toBe(false);
+    expect(() => boolQuery(many.map((each) => ({ ...each, op: '=' as const })))).toThrow(
+      'A search takes 20 filters at most.',
     );
   });
 
@@ -181,12 +217,5 @@ describe('the filters of a search', () => {
       bool: { filter: [{ regexp: { event_name: 'ST.*' } }] },
     });
     expect(() => boundWith({ field: 'event_name', value: '$p' }, ['START', 'STOP'])).not.toThrow();
-  });
-
-  test('refuse any with fewer than two filters, however it is called', () => {
-    expect(() => boolQuery([{ op: '=', any: [] }])).toThrow('"any" takes two filters or more.');
-    expect(() => boolQuery([{ op: '=', any: [{ field: 'a', op: 'exists' }] }])).toThrow(
-      '"any" takes two filters or more.',
-    );
   });
 });

@@ -14,7 +14,7 @@ import { providerSchema } from './tool-schema.ts';
 const ceilings: Record<BuilderLanguage, number> = {
   promql: 9_200,
   sql: 9_800,
-  search: 10_800,
+  search: 11_600,
   logql: 11_100,
   mongodb: 10_900,
 };

@@ -19,6 +19,7 @@ import {
 import { type AvailableQueries, choiceLines } from '../dashboards/queries/index.ts';
 import {
   builderHints,
+  builderNotes,
   chartGuide,
   choiceGuide,
   editRules,
@@ -30,18 +31,21 @@ import {
 } from './prompt-text.ts';
 
 /**
- * The line of the query builders of one language.
+ * The lines of the query builders of one language.
  *
  * @param label - Such as `PromQL builders`.
  * @param language - The language.
  * @param ids - The builders the thread may use.
- * @returns The line, or nothing when it may use none of them.
+ * @returns The lines, with what the language's builders take beyond the others', or nothing when
+ *   it may use none of them.
  */
 function builderLines(label: string, language: BuilderLanguage, ids: readonly string[]) {
   const listed = queryBuilders
     .filter((builder) => builder.language === language && ids.includes(builder.id))
     .map((builder) => `- ${builder.id}: ${builderHints[builder.id] ?? builder.description}`);
-  return listed.length === 0 ? [] : [`${label} ({ "kind": id, "connector", …fields }):`, ...listed];
+  if (listed.length === 0) return [];
+  const note = builderNotes[language];
+  return [`${label} ({ "kind": id, "connector", …fields }):`, ...listed, ...(note ? [note] : [])];
 }
 
 /**

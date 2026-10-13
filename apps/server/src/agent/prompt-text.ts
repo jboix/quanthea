@@ -1,5 +1,5 @@
 /** The fixed parts of the agent's instructions: who it is, its rules by phase, and the panel guide. */
-import type { QueryLanguage } from '@quanthea/shared';
+import type { BuilderLanguage, QueryLanguage } from '@quanthea/shared';
 import { sourceTextRule } from './source-text.ts';
 
 /** Who the agent is and how it talks. */
@@ -95,6 +95,15 @@ export const builderHints: Readonly<Record<string, string>> = {
   'mongodb-stat': 'one count or measure; column value',
   'mongodb-histogram': 'documents per bin of a numeric field; columns bin, value',
   'mongodb-rows': 'the latest documents (newest first with "time"); the fields asked for, dotted',
+};
+
+/**
+ * What the builders of a language take beyond the filters every builder takes, said once under
+ * that language's builders and nowhere else, so a run on other sources does not carry it.
+ */
+export const builderNotes: Readonly<Partial<Record<BuilderLanguage, string>>> = {
+  search:
+    'Search filters, in "filters", "match" and "of", take more than the four operators: a bound with ">", ">=", "<" or "<=" and a "value", a number or a date as text; { "field", "op": "in", "values": ["Web", "Apple"] } for one of a list, or "values": ["$platform"], the variable alone; { "field", "op": "exists" } for a field that has a value; { "field", "op": "like", "value": "urn:srf:*" } for a wildcard (* any text, ? one character), which starts with text, never with a wildcard. Filters that carry the same "any" are alternatives of which one must hold: [{ "field": "level", "value": "error", "any": "a" }, { "field": "status", "op": ">=", "value": "500", "any": "a" }]. A multi-value variable goes with "=", "!=" or "in"; a pattern or a bound takes a variable of one value. Twenty filters at most.',
 };
 
 /** How to ask for a raw query, whatever the language. */

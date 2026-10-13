@@ -127,6 +127,22 @@ describe('instructionsFor', () => {
     expect(none).not.toContain('By what the panel shows');
   });
 
+  test('says what a search filter takes once, under the search builders, and only with them', () => {
+    const ready = { ...facts, state: 'ready' as const };
+    const search = instructionsFor({
+      ...ready,
+      languages: ['sql', 'search'],
+      queries: { builtIn: ['sql-stat', 'search-stat', 'search-rows'], saved: [] },
+    });
+    expect(search.match(/Search filters, in "filters", "match" and "of"/g)).toHaveLength(1);
+    expect(search).toContain('{ "field", "op": "in", "values": ["Web", "Apple"] }');
+    expect(search).toContain('Filters that carry the same "any" are alternatives');
+    expect(search).toContain('which starts with text, never with a wildcard');
+    expect(search.indexOf('Search filters,')).toBeGreaterThan(search.indexOf('- search-rows:'));
+    expect(search.indexOf('Search filters,')).toBeLessThan(search.indexOf('raw: {'));
+    expect(instructionsFor(ready)).not.toContain('Search filters,');
+  });
+
   test('names in its choices only builders that exist, each under its own language', () => {
     for (const choice of choices) {
       expect(Object.keys(choice.builders).length).toBeGreaterThan(0);

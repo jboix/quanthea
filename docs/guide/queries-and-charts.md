@@ -16,6 +16,22 @@ latency percentiles and top N for PromQL; series over time, breakdowns, single n
 for SQL; the same for search, LogQL and MongoDB. Each writes a query for its source's dialect, with
 names checked and quoted and variables bound.
 
+A filter compares a field with a value (`=`, `!=`), or matches it against a regular expression
+(`=~`, `!~`). The search builders, for Elasticsearch and OpenSearch, take more:
+
+- A bound: `>`, `>=`, `<`, `<=`, on a number or a date.
+- A list: `in`, with the values written out or a variable that holds several.
+- A field that has a value: `exists`.
+- A wildcard: `like`, with `*` for any text and `?` for one character.
+- Alternatives: filters that carry the same name in `any`, of which one must hold.
+
+A wildcard pattern starts with text, such as `urn:srf:*`. A pattern that starts with a wildcard
+reads every value of the field, so the builders refuse it. To search by the end or the middle of
+a value, ask for a text variable: the pattern is then yours to type.
+
+A variable that holds several values goes with `=`, `!=` or `in`. In a pattern or a bound it is
+refused when the dashboard is saved, with a message that says so.
+
 Each builder shows its fields, an example, the query it becomes, and what it returns. **Try it**
 runs the example on a connector and time range you choose, and draws it. Nothing is saved, and no
 model runs.

@@ -1620,13 +1620,24 @@ directly onto an ECharts `dataset`.
     `regexp` for a pattern. A variable in a pattern is a node that takes one value
     (`{"$var": "name", "as": "one"}`): a search server refuses a list there, even a list of one,
     so a multi-value variable in a pattern is reported when the dashboard is checked, not when a
-    viewer picks two values. The filters are written in `dashboards/queries/search-filters.ts`,
-    which also writes a list (`in`), a bound (`>`, `>=`, `<`, `<=`), a wildcard (`like`), a field
-    that has a value (`exists`) and `any`, filters of which one must hold. A bound and a wildcard
-    take one value as a pattern does. The builders' requests
-    do not take those yet: they keep the four operators the other builders have, until the
-    wider filter is shown to fit under the ceilings of the edit tool's schema as sent
-    (`agent/edit-schema-size.test.ts`). A count counts the time field's values. `search-ratio`
+    viewer picks two values. The message says to filter by a list with `in`. Every search builder
+    takes the same filter, in `filters` and in the `match` and `of` of a ratio, written in
+    `dashboards/queries/search-filters.ts`: beside the four operators, a list (`in` with
+    `values`, literals or one variable alone, as `terms`), a bound (`>`, `>=`, `<`, `<=`, as
+    `range` with the bound as a JSON string the server reads as the field's type), a wildcard
+    (`like`, as `wildcard`) and a field that has a value (`exists`). A bound and a wildcard take
+    one value as a pattern does. Filters that carry the same name in `any` are alternatives: they
+    become one bool query of which one must hold, where the first of them stands. One level only:
+    an alternative is a filter, not a list. A request takes twenty filters at most. The form is
+    flat, one object with an operator and optional parts, so its schema is short in the edit
+    tool's input, which holds it eight times: what each operator needs is checked in code, and
+    the message names the part. The MongoDB builders keep the four operators. A wildcard pattern
+    written in a request starts with a literal character: one that starts with `*` or `?`, or is
+    empty, makes the server read every value of the field in the time range, so it is refused
+    with a message. A pattern in a variable is not checked, because a person fills it: a
+    dashboard that searches by the end or the middle of a value does so through a text variable
+    the viewer sees. The agent reads all of this once, in one line under the search builders of
+    its guide, in a run that uses a search source. A count counts the time field's values. `search-ratio`
     divides the documents matching `match` by those matching `of` with two filter helpers and the
     kit's ratio script, over time or over the range (per `by` value, or in one bucket),
     `complement` for one minus it and `counts` to keep the two counts as columns.
