@@ -2601,9 +2601,14 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   sends it. The answer becomes a table by the command's shape: one value; key and value pairs
   (`MGET`, `HMGET`, `HGETALL`); members, with their scores (`ZRANGE … WITHSCORES`); stream entries
   with the time of their id and a column per field (`XRANGE`); `INFO` lines. A column is a number
-  when every value reads as one. The connection test reads `HELLO` and asks `ACL DRYRUN` whether
-  the user could run `SET`, `DEL`, `FLUSHALL`, `EVAL` and `CONFIG SET`: a dry run checks the
-  user's rights and runs nothing. A user that may not ask reports `readOnly: null`. `describe` reads up to 2000
+  when every value reads as one. The connection test reads `HELLO` and asks `ACL DRYRUN`, which checks the
+  user's rights and runs nothing, whether the user could run a write of each data type (`SET`,
+  `DEL`, `EXPIRE`, `HSET`, `LPUSH`, `SADD`, `ZADD`, `XADD`), `PUBLISH`, `FLUSHALL`, `EVAL` and
+  `CONFIG SET` (`valkey/access.ts`). The writes are tried on a key the user reads, found among
+  the first keys of a `SCAN`, since a user limited to a key pattern is refused any other key.
+  A command refused as a command is not allowed. A command refused for its key only, when no
+  key the user reads was found, leaves `readOnly: null`, as does a user that may not ask. A
+  user with only a write command outside that list still reads as read-only. `describe` reads up to 2000
   keys with `SCAN` and groups them into patterns by their last `:` segment (`service:*`), with
   their type and fields: a hash's field names, a sorted set's member and score, a stream's id,
   time and fields. `sampleValues` returns a pattern's keys (`key`), a hash field's values, or a

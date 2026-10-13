@@ -14,6 +14,7 @@ import {
   type RedisQuery,
   redisReadCommands,
 } from '../_shared/index.ts';
+import { accessSentence, readOnlyOf, readOnlyUser, writeAccess } from './access.ts';
 import { describeKeys, scanKeys } from './catalog.ts';
 import { frameOf } from './frames.ts';
 import { valkeyGuide } from './guide.ts';
@@ -87,62 +88,6 @@ async function execute(
 }
 
 /**
- * Commands that write, delete everything, run a script or change the server, as `ACL DRYRUN` is
- * asked about them. A dry run checks the user's rights and runs nothing.
- */
-const writeProbes: readonly (readonly string[])[] = [
-  ['SET', 'quanthea:probe', '1'],
-  ['DEL', 'quanthea:probe'],
-  ['FLUSHALL'],
-  ['EVAL', 'return 1', '0'],
-  ['CONFIG', 'SET', 'maxmemory', '0'],
-];
-
-/** The command that makes a user that only reads, for the admin to copy. */
-export const readOnlyUser =
-  'ACL SETUSER quanthea_read on >choose-a-password ~* +@read -@dangerous +info +acl|whoami +acl|dryrun';
-
-/**
- * The commands of {@link writeProbes} the user may run, as `ACL DRYRUN` says.
- *
- * @param session - The session.
- * @param user - The user.
- * @param signal - The caller's signal.
- * @returns Their names, or `null` when the user may not ask.
- */
-export async function allowedWrites(
-  session: ValkeySession,
-  user: string,
-  signal: AbortSignal,
-): Promise<string[] | null> {
-  try {
-    const allowed: string[] = [];
-    for (const [command = '', ...args] of writeProbes) {
-      const answer = await session.send('ACL', ['DRYRUN', user, command, ...args], signal);
-      if (answer === 'OK') allowed.push(command === 'CONFIG' ? 'CONFIG SET' : command);
-    }
-    return allowed;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * The sentence about the user.
- *
- * @param user - The user.
- * @param readOnly - Whether it cannot write.
- * @returns The sentence.
- */
-function accessSentence(user: string, readOnly: boolean | null): string {
-  if (readOnly === null)
-    return `User ${user} may not run ACL DRYRUN, so whether it can write is unknown.`;
-  return readOnly
-    ? `User ${user} cannot write.`
-    : `User ${user} can write: use a user with +@read only.`;
-}
-
-/**
  * Checks the server and what the user may do beyond reading.
  *
  * @param session - The session.
@@ -160,11 +105,11 @@ async function test(session: ValkeySession, signal: AbortSignal): Promise<Health
     const user = String(
       await session.send('ACL', ['WHOAMI'], bounded(signal)).catch(() => 'default'),
     );
-    const writes = await allowedWrites(session, user, bounded(signal));
-    const readOnly = writes === null ? null : writes.length === 0;
-    const canDo = writes?.length ? [`It may run ${writes.join(', ')}.`] : [];
+    const access = await writeAccess(session, user, bounded(signal));
+    const readOnly = readOnlyOf(access);
+    const canDo = access?.allowed.length ? [`It may run ${access.allowed.join(', ')}.`] : [];
     const server = hello.server === 'valkey' ? 'Valkey' : 'Redis';
-    const message = `${server} ${hello.version ?? '?'}. ${accessSentence(user, readOnly)}`;
+    const message = `${server} ${hello.version ?? '?'}. ${accessSentence(user, access)}`;
     const report = { ok: true, latencyMs: latencyMs(), message, readOnly, canDo };
     return { ...report, readOnlySetup: readOnlyUser };
   } catch (error) {
