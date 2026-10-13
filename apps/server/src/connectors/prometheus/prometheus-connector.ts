@@ -13,6 +13,7 @@ import {
   type SeriesData,
   seriesFrames,
 } from '../_shared/index.ts';
+import { readOnlyFlags, serverAccess } from './access.ts';
 import { createPrometheusApi, type PrometheusApi } from './api.ts';
 import { describePrometheus, metricSelector } from './catalog.ts';
 import { prometheusGuide } from './guide.ts';
@@ -118,20 +119,22 @@ async function execute(
 }
 
 /**
- * Checks that the server answers.
+ * Checks that the server answers, and reads from its flags whether a request could do more than
+ * read.
  *
  * @param api - The API client.
  * @param signal - The caller's signal.
- * @returns The health report. Prometheus cannot tell whether credentials could reach admin
- *   endpoints, so `readOnly` is `null`; the connector only calls read endpoints.
+ * @returns The health report. The connector only calls read endpoints.
  */
 async function test(api: PrometheusApi, signal: AbortSignal): Promise<HealthReport> {
   const started = performance.now();
   const latencyMs = (): number => Math.round(performance.now() - started);
   try {
     const info = await api.get<{ version: string }>('/api/v1/status/buildinfo', {}, signal);
-    const message = `Prometheus ${info.data.version}. The connector calls read endpoints only.`;
-    return { ok: true, latencyMs: latencyMs(), message, readOnly: null };
+    const { readOnly, canDo, sentence } = await serverAccess(api, signal);
+    const message = `Prometheus ${info.data.version}. The connector calls read endpoints only. ${sentence}`;
+    const report = { ok: true, latencyMs: latencyMs(), message, readOnly, canDo };
+    return { ...report, readOnlySetup: readOnlyFlags };
   } catch (error) {
     const message =
       error instanceof ConnectorError ? error.safeMessage : 'Prometheus cannot be reached.';

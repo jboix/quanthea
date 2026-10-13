@@ -99,21 +99,48 @@ function bounded(signal: AbortSignal): AbortSignal {
 }
 
 /**
- * Checks the server, the token and the database. A token cannot be limited to reading in InfluxDB
- * 3 Core, so the report says only that the connector reads.
+ * What a token may do beyond reading, as far as the server's edition says. A server that answers
+ * without a token takes every request. InfluxDB 3 Core has admin tokens only. Another edition can
+ * limit a token to reading, and does not say whether it did.
+ *
+ * @param product - The server's name, such as `InfluxDB 3 Core`.
+ * @param token - Whether the connector sends a token.
+ * @param database - The database the connector reads.
+ * @returns Whether it only reads, what it can do beyond, and how to make a token that reads.
+ */
+export function tokenAccess(product: string, token: boolean, database: string) {
+  if (!token) {
+    const finding = 'The server asks for no token: whoever reaches it can write and delete.';
+    return { readOnly: false, canDo: [finding] };
+  }
+  if (/\bCore\b/i.test(product)) {
+    const finding = `${product} has admin tokens only: this one can write, delete and manage the server, and cannot be limited to reading.`;
+    return { readOnly: false, canDo: [finding] };
+  }
+  const readOnlySetup = `influxdb3 create token --permission "db:${database}:read" --name quanthea_read`;
+  return { readOnly: null, canDo: [], readOnlySetup };
+}
+
+/**
+ * Checks the server, the token and the database, and says what the token may do beyond reading.
  *
  * @param session - The session.
+ * @param access - What the token may do, given the server's name.
  * @param signal - The caller's signal.
  * @returns The health report.
  */
-async function test(session: InfluxSession, signal: AbortSignal): Promise<HealthReport> {
+async function test(
+  session: InfluxSession,
+  access: (product: string) => ReturnType<typeof tokenAccess>,
+  signal: AbortSignal,
+): Promise<HealthReport> {
   const started = performance.now();
   const latencyMs = (): number => Math.round(performance.now() - started);
   try {
     const server = await session.ping(bounded(signal));
     await session.query('SELECT 1', [], 1, bounded(signal));
     const message = `${server.product} ${server.version}. The connector only queries, and the query endpoint cannot write.`;
-    return { ok: true, latencyMs: latencyMs(), message, readOnly: null };
+    return { ok: true, latencyMs: latencyMs(), message, ...access(server.product) };
   } catch (error) {
     const message = error instanceof ConnectorError ? error.safeMessage : 'The test failed.';
     return { ok: false, latencyMs: latencyMs(), message, readOnly: null };
@@ -203,7 +230,12 @@ export const influxdbConnector = defineConnector({
   open({ config, secret }): ConnectorInstance {
     const session = openSession({ ...config, token: secret.token || undefined });
     return {
-      test: (signal) => test(session, signal),
+      test: (signal) =>
+        test(
+          session,
+          (product) => tokenAccess(product, Boolean(secret.token), config.database),
+          signal,
+        ),
       describe: (signal) => describe(session, signal),
       sampleValues: (field, limit, signal) => sampleValues(session, field, limit, signal),
       execute: (query, context) =>

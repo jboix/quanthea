@@ -2465,7 +2465,10 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   most 1000 series); an instant query returns one table with a column per label and `Value`.
   Non-finite values become `null`. `describe` lists metric names with their type from the metadata
   API and each metric's label keys with value counts. Quoted literals are removed from the safe
-  message of an error, because label values can be data.
+  message of an error, because label values can be data. Prometheus has no users, so the
+  connection test reads the server's flags (`/api/v1/status/flags`, `prometheus/access.ts`): the
+  admin API, the lifecycle API or a remote write or OTLP receiver that is on is a finding, none
+  on is read-only, and a server that lists no flags reports `readOnly: null`.
 - **Postgres:** the `postgres` driver. `Bun.sql` 1.3 returns no column names or types (a query with
   no rows has no fields) and cannot cancel a running statement; `postgres` gives the row
   description and sends a real cancel request. Every query runs in a `read only` transaction with
@@ -2577,9 +2580,9 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   removed from the safe message.
 - **InfluxDB 3:** SQL over the HTTP API and the kit's HTTP client: `POST /api/v3/query_sql` with the
   database, the statement and its values as named parameters (`$p1`…), answered as JSON lines that
-  the reader stops at the row limit. The query endpoint runs no DML, and a Core token cannot be
-  limited to reading, so the connection test reports `readOnly: null` and says the connector only
-  queries. The answer carries no types: each column is typed from its values, and timestamps,
+  the reader stops at the row limit. The query endpoint runs no DML. A Core token cannot be limited to
+  reading, so the connection test reports that it can write, as it does for a server that asks
+  for no token; a token of another edition reports `readOnly: null`. The answer carries no types: each column is typed from its values, and timestamps,
   written in UTC without a zone, are read as UTC. `describe` reads `information_schema` (tags,
   fields and time); `sampleValues` reads the distinct values of the last seven days. Errors come
   as text; the safe message keeps the kind of error and drops what it quotes.

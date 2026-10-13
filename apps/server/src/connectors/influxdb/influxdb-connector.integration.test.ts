@@ -82,7 +82,9 @@ describe.skipIf(!live)('influxdb connector against the dev InfluxDB 3', () => {
 
   test('names the server and says the connector only queries', async () => {
     const health = await connection.test(AbortSignal.timeout(10_000));
-    expect(health).toMatchObject({ ok: true, readOnly: null });
+    // The dev server is InfluxDB 3 Core, whose tokens are all admin tokens.
+    expect(health).toMatchObject({ ok: true, readOnly: false });
+    expect(health.canDo?.[0]).toContain('admin tokens only');
     expect(health.message).toMatch(/^InfluxDB 3 Core \d+\.\d+/);
     expect(await open({ database: 'nope' }).test(AbortSignal.timeout(10_000))).toMatchObject({
       ok: false,

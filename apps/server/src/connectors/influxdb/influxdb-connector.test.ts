@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { testConnectorConformance } from '@quanthea/plugin-kit/testing';
 import { fieldTypeOfName, frameValue, inferredType, nativeTypeOf } from './columns.ts';
 import { toConnectorError } from './errors.ts';
-import { influxdbConnector } from './influxdb-connector.ts';
+import { influxdbConnector, tokenAccess } from './influxdb-connector.ts';
 
 testConnectorConformance(influxdbConnector, {
   config: { url: 'http://influxdb:8181', database: 'telemetry' },
@@ -84,5 +84,26 @@ describe('influxdb errors', () => {
       const error = toConnectorError(status, text);
       expect(error).toMatchObject({ code, safeMessage: safe });
     }
+  });
+});
+
+describe('what an InfluxDB token may do', () => {
+  test('a server that asks for no token takes every request', () => {
+    const access = tokenAccess('InfluxDB 3 Core', false, 'telemetry');
+    expect(access.readOnly).toBe(false);
+    expect(access.canDo?.[0]).toContain('asks for no token');
+  });
+
+  test('a Core token is an admin token, and cannot be limited', () => {
+    const access = tokenAccess('InfluxDB 3 Core', true, 'telemetry');
+    expect(access.readOnly).toBe(false);
+    expect(access.canDo?.[0]).toContain('admin tokens only');
+    expect(access).not.toHaveProperty('readOnlySetup');
+  });
+
+  test('a token of another edition is unknown, never read-only, with the token to create', () => {
+    const access = tokenAccess('InfluxDB 3 Enterprise', true, 'telemetry');
+    expect(access).toMatchObject({ readOnly: null, canDo: [] });
+    expect(access.readOnlySetup).toContain('db:telemetry:read');
   });
 });
