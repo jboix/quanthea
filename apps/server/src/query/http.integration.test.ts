@@ -60,23 +60,31 @@ describe.skipIf(!integrationFor('http'))('HTTP templates through the executor', 
     expect(errors.frames[0]?.meta.rowCount).toBe(91);
   });
 
-  test('keeps a path variable in its segment, so it cannot reach another route', async () => {
-    const failure = await executor
-      .run(source, {
-        refId: 'A',
-        template: {
-          language: 'http',
-          method: 'GET',
-          path: '/api/v1/services/$service/errors',
-          extract: { rows: '/points' },
-        },
-        variables: { service: { value: '../../status' } },
-        timeRange,
-      })
+  /**
+   * Runs the errors route for a service named by a variable's value.
+   *
+   * @param service - The value of the path variable.
+   * @returns The failure, or `undefined` when the request worked.
+   */
+  function errorsOf(service: string): Promise<Error | undefined> {
+    const template = {
+      language: 'http' as const,
+      method: 'GET' as const,
+      path: '/api/v1/services/$service/errors',
+      extract: { rows: '/points' },
+    };
+    return executor
+      .run(source, { refId: 'A', template, variables: { service: { value: service } }, timeRange })
       .then(
         () => undefined,
         (error: unknown) => error as Error,
       );
-    expect(failure?.message).toContain('HTTP 404');
+  }
+
+  test('keeps a path variable in its segment, so it cannot reach another route', async () => {
+    // A slash in a value is encoded, so the API sees one unknown service.
+    expect((await errorsOf('checkout-svc/errors'))?.message).toContain('HTTP 404');
+    // A value that climbs is refused before any request is sent.
+    expect((await errorsOf('../../status'))?.message).toContain('no . or .. segment');
   });
 });
