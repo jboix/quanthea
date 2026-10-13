@@ -1612,7 +1612,12 @@ directly onto an ECharts `dataset`.
     `search-ratio`, `search-breakdown`, `search-stat`, `search-histogram`, `search-rows`. Filters
     on document fields become a bool query: `term` for a literal, `terms` with a list node
     (`{"$var": "name", "as": "list"}`) for a variable, so one value or several both work, and
-    `regexp` for a pattern. A count counts the time field's values. `search-ratio` divides the
+    `regexp` for a pattern. The filters are written in `dashboards/queries/search-filters.ts`,
+    which also writes a list (`in`), a bound (`>`, `>=`, `<`, `<=`), a wildcard (`like`), a field
+    that has a value (`exists`) and `any`, filters of which one must hold. The builders' requests
+    do not take those yet: they keep the four operators the other builders have, because the
+    wider filter does not fit under the ceiling of the edit tool's schema for a search thread
+    (`dashboards/panels/schema-size.test.ts`). A count counts the time field's values. `search-ratio` divides the
     documents matching `match` by those matching `of` with two filter helpers and the kit's ratio
     script, over time or over the range (per `by` value, or in one bucket), `complement` for one
     minus it and `counts` to keep the two counts as columns.

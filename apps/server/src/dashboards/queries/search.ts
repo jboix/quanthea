@@ -5,16 +5,9 @@
  */
 import type { PanelQuery } from '@quanthea/shared';
 import type { BuiltData } from './built.ts';
-import type { PathFilter } from './fields.ts';
 import type { DataOf } from './request.ts';
-import {
-  boolQuery,
-  inRange,
-  intervalOf,
-  metricOf,
-  ratioAggs,
-  valueColumns,
-} from './search-body.ts';
+import { inRange, intervalOf, metricOf, ratioAggs, valueColumns } from './search-body.ts';
+import { boolQuery, type SearchFilter } from './search-filters.ts';
 import type { SearchMeasure } from './search-request.ts';
 
 /** A JSON object of a search body. */
@@ -29,7 +22,7 @@ interface SearchRequest {
   /** The time field. */
   readonly time: string;
   /** The filters. */
-  readonly filters: readonly PathFilter[];
+  readonly filters: readonly SearchFilter[];
 }
 
 /**

@@ -1,58 +1,14 @@
 /**
- * The parts of a search body the search builders share: filters as a bool query, the time range,
- * the measure as a metric aggregation, and the ratio aggregations. A variable becomes a
- * `{"$var": "name"}` node, never text in a string; `=` takes a list, so a multi-value variable
- * works too.
+ * The parts of a search body the search builders share: the time range, the measure as a metric
+ * aggregation, and the ratio aggregations. The filters are written in `search-filters.ts`.
  */
 import { searchRatioScripts } from '../../query/search-binder.ts';
-import type { PathFilter } from './fields.ts';
+import { boolQuery, type SearchFilter } from './search-filters.ts';
 import type { SearchMeasure } from './search-request.ts';
 import { QueryError, variableOf } from './text.ts';
 
 /** A JSON object of a search body. */
 type Json = Record<string, unknown>;
-
-/**
- * A filter's value: a variable node, as a list for `=` and `!=`, or the literal.
- *
- * @param value - Such as `ERROR` or `$platform`.
- * @param list - Whether a variable becomes a list.
- * @returns The JSON value.
- */
-function filterValue(value: string, list: boolean): unknown {
-  const variable = variableOf(value);
-  if (variable === undefined) return value;
-  return list ? { $var: variable, as: 'list' } : { $var: variable };
-}
-
-/**
- * The query clause of one filter, positive: `term` or `terms` for equality, `regexp` for a pattern.
- *
- * @param filter - The filter.
- * @returns The clause.
- */
-function clauseOf(filter: PathFilter): Json {
-  const pattern = filter.op === '=~' || filter.op === '!~';
-  if (pattern) return { regexp: { [filter.field]: filterValue(filter.value, false) } };
-  if (variableOf(filter.value))
-    return { terms: { [filter.field]: filterValue(filter.value, true) } };
-  return { term: { [filter.field]: filter.value } };
-}
-
-/**
- * Filters as a bool query: the positive ones in `filter`, the negated ones in `must_not`.
- *
- * @param filters - The filters.
- * @param extra - Clauses that must also hold, such as the time range.
- * @returns The query.
- */
-export function boolQuery(filters: readonly PathFilter[], extra: readonly Json[] = []): Json {
-  const negated = (filter: PathFilter) => filter.op === '!=' || filter.op === '!~';
-  const must = [...extra, ...filters.filter((filter) => !negated(filter)).map(clauseOf)];
-  const mustNot = filters.filter(negated).map(clauseOf);
-  const bool = mustNot.length === 0 ? { filter: must } : { filter: must, must_not: mustNot };
-  return must.length === 0 && mustNot.length === 0 ? { match_all: {} } : { bool };
-}
 
 /**
  * The time range on a field, bound to the dashboard's range.
@@ -106,9 +62,9 @@ export function valueColumns(measure: SearchMeasure): string[] {
 /** What a ratio counts and how it shows. */
 export interface RatioParts {
   /** The filters of the part. */
-  readonly match: readonly PathFilter[];
+  readonly match: readonly SearchFilter[];
   /** The filters of the whole; every document of the bucket when empty. */
-  readonly of: readonly PathFilter[];
+  readonly of: readonly SearchFilter[];
   /** Whether it is one minus the share. */
   readonly complement: boolean;
   /** Whether the counts of the part and the whole are columns. */
