@@ -280,6 +280,44 @@ describe('completeCharts', () => {
   });
 });
 
+describe('the columns of a table', () => {
+  const errors = { field: 'errors', label: 'Errors', align: 'right' as const };
+  const hosts = {
+    title: 'Hosts',
+    data: { kind: 'sql-rows', connector: 'shop', table: 'hosts', columns: ['host', 'errors'] },
+    chart: { recipe: 'table.rows', options: { columns: [errors] } },
+  };
+  const fields: Frame['fields'] = [
+    { name: 'host', type: 'string' },
+    { name: 'errors', type: 'number' },
+  ];
+  const columns = [{ field: 'host' }, errors];
+
+  test('keep the columns an option does not name, on a second write too', () => {
+    const first = applyEdit(undefined, edit({ title: 'Hosts', panels: [hosts], summary: 'x' }));
+    const tests = [testOf('hosts', fields, [['a'], [3]])];
+    const built = completeCharts(first.spec, first.charts, tests);
+    expect(built.problems.size).toBe(0);
+    expect(built.spec.panels[0]?.view).toEqual({ kind: 'table', ref: 'A', columns });
+    expect(issuesOf(built.spec)).toEqual([]);
+    const second = applyEdit(built.spec, edit({ panels: [hosts], summary: 'again' }));
+    const again = completeCharts(second.spec, second.charts, tests);
+    expect(again.spec.panels.map((panel) => panel.view)).toEqual([
+      { kind: 'table', ref: 'A', columns },
+    ]);
+  });
+
+  test('refuse an option for a field the table does not show', () => {
+    const chart = { recipe: 'table.rows', options: { columns: [{ field: 'region' }] } };
+    const request = edit({ title: 'Hosts', panels: [{ ...hosts, chart }], summary: 'x' });
+    const { spec, charts } = applyEdit(undefined, request);
+    const completed = completeCharts(spec, charts, [testOf('hosts', fields, [['a'], [3]])]);
+    expect(completed.problems.get('hosts')).toEqual([
+      'options.columns names "region", which the table does not show. Its columns are "host", "errors": name a column to show in roles.columns.',
+    ]);
+  });
+});
+
 describe('compactGrid', () => {
   test('closes the hole a removed panel leaves', () => {
     const built = specOf(undefined, firstBuild);

@@ -6,6 +6,7 @@
 import type { Dataset } from '../dataset/contract.ts';
 import type { TimeAxisMode, View } from '../spec/views.ts';
 import { type ChartUnit, formatToken, unitFormatter } from './conventions.ts';
+import { tableColumns } from './fill-columns.ts';
 import { isJsonObject, type Json, type JsonObject, mergePatch } from './merge.ts';
 import type { PrepareKind } from './prepare.ts';
 import type { ChartRecipe } from './recipe.ts';
@@ -64,30 +65,38 @@ export function fillOption(recipe: ChartRecipe, choice: Omit<ChartChoice, 'recip
   return { option: withFormatter(changed, formatter) as JsonObject };
 }
 
+/** A filled view, or what is wrong with the choice. */
+type Filled = { view: View } | { problems: string[] };
+
 /**
- * The view of a stat or table recipe: quanthea's own views, configured by the option.
+ * The view of a table recipe: the columns of the roles, each with the options given for it, and
+ * the rest of the option over the view.
  *
- * @param recipe - The recipe.
+ * @param option - The filled option.
+ * @param roles - The columns of each role.
+ * @param ref - The query the view reads.
+ * @returns The view, or what is wrong with the column options.
+ */
+function tableView(option: JsonObject, roles: RoleColumns, ref: string): Filled {
+  const { columns: asked, ...rest } = option;
+  const merged = tableColumns([roles.columns ?? []].flat(), asked);
+  if ('problems' in merged) return merged;
+  return { view: { kind: 'table', ref, ...rest, columns: merged.columns } as View };
+}
+
+/**
+ * The view of a stat recipe: quanthea's own view, configured by the option.
+ *
  * @param option - The filled option.
  * @param roles - The columns of each role.
  * @param ref - The query the view reads.
  * @returns The view.
  */
-function ownView(recipe: ChartRecipe, option: JsonObject, roles: RoleColumns, ref: string): View {
-  if (recipe.render === 'table') {
-    const names = [roles.columns ?? []].flat();
-    return { kind: 'table', ref, columns: names.map((field) => ({ field })), ...option } as View;
-  }
+function statView(option: JsonObject, roles: RoleColumns, ref: string): Filled {
   const { format, ...rest } = option;
   const field = typeof roles.value === 'string' ? roles.value : undefined;
-  return {
-    kind: 'stat',
-    ref,
-    reduce: 'last',
-    format,
-    ...(field ? { field } : {}),
-    ...rest,
-  } as View;
+  const view = { kind: 'stat', ref, reduce: 'last', format, ...(field ? { field } : {}), ...rest };
+  return { view: view as View };
 }
 
 /**
@@ -139,14 +148,15 @@ export function fillView(
   choice: ChartChoice,
   refs: readonly string[],
   dataset?: Dataset,
-): { view: View } | { problems: string[] } {
+): Filled {
   const filled = fillOption(recipe, choice);
   if (!filled.option) return { problems: filled.problems };
   const asked = choice.roles ?? {};
   const roles = dataset ? inferRoles(recipe.data.roles, dataset, asked) : asked;
   const problems = dataset ? roleProblems(recipe.data.roles, dataset, roles) : [];
   if (problems.length > 0) return { problems };
-  if (recipe.render !== 'echarts')
-    return { view: ownView(recipe, filled.option, roles, refs[0] ?? 'A') };
+  const ref = refs[0] ?? 'A';
+  if (recipe.render === 'table') return tableView(filled.option, roles, ref);
+  if (recipe.render === 'stat') return statView(filled.option, roles, ref);
   return { view: chartView(recipe, choice, filled.option, roles, refs) };
 }
