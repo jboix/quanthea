@@ -245,26 +245,33 @@ export function measure(
     truncated: keys.length > spec.value.maxSeries || columns.some((column) => column.truncated),
     problems: [...new Set(columns.flatMap((column) => column.problems))],
     divisorProblems: second.problems,
-    failure: failureOf(columns, second),
+    failure: failureOf(columns, second, spec.dividedBy !== undefined && keys.length > 0),
   };
 }
 
+/** Why a ratio whose second query returned nothing cannot be read. */
+const noDivisorReason =
+  'The second query returned no series while the first returned some, so the ratio has no value.';
+
 /**
  * Why a result cannot be read at all: a field that gave no series and says why, in the first
- * query or in the second.
+ * query or in the second, or a second query that gave no series for the first's to be divided by.
  *
  * @param columns - The fields of the first query.
  * @param second - The series of the second query.
+ * @param divided - Whether the first query returned series that a second query divides.
  * @returns The reason, or `undefined` when every field could be read.
  */
 function failureOf(
   columns: readonly FieldColumn[],
   second: ReturnType<typeof divisorSeries>,
+  divided: boolean,
 ): string | undefined {
   const first = columns.find((column) => column.empty && column.problems.length > 0)?.problems[0];
   if (first !== undefined || second.series.length > 0) return first;
   const [problem] = second.problems;
-  return problem === undefined ? undefined : `The second query: ${problem}`;
+  if (problem !== undefined) return `The second query: ${problem}`;
+  return divided ? noDivisorReason : undefined;
 }
 
 /**
@@ -367,7 +374,8 @@ export interface SeriesReading {
  * @param pasts - What each measure with history knows of the time before the window.
  * @param divisor - The points of the matching series of a ratio's second query within the window.
  * @returns The value, whether the condition holds, and the readings; `null` when no measure has a
- *   point, so the result left the series out.
+ *   point, so the result left the series out, and when a ratio has no point of the second query
+ *   to be divided by: the series then has no value to judge, and is missing as one left out.
  */
 export function readSeries(
   spec: AlertSpec,
@@ -377,6 +385,7 @@ export function readSeries(
   divisor: readonly SeriesPoint[] = [],
 ): SeriesReading | null {
   if (columns.every((points) => points.length === 0)) return null;
+  if (divisor.length === 0 && measures.some((each) => each.ratio !== undefined)) return null;
   const readings = measures.map((each, index) =>
     readingOf(columns[index] ?? [], each, pasts[index], divisor),
   );
@@ -392,7 +401,8 @@ export function readSeries(
  * @param columns - The points of each measure within the window.
  * @param pasts - What each measure with history knows of the time before the window.
  * @param divisor - The points of the matching series of a ratio's second query within the window.
- * @returns The value with whether the condition holds, or `missing` without a point.
+ * @returns The value with whether the condition holds, or `missing` without a point, and for a
+ *   ratio without a point of the second query.
  */
 export function observeSeries(
   spec: AlertSpec,

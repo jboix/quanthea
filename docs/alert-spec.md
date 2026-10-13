@@ -114,8 +114,12 @@ two.
   value. A label only one side carries is not compared. So a total per service divides each status
   code of that service, and a total with no labels divides every series.
 - **A series needs exactly one match.** A series of the first query that matches no series of the
-  second, or more than one, has no value and never fires. More than one means the second query
-  tells apart what the first does not, so no one series is its total.
+  second, or more than one, has no value: it is missing, as a series the result left out. It does
+  not start firing, and a series that fired resolves after the grace period, not at once. More
+  than one means the second query tells apart what the first does not, so no one series is its
+  total.
+- **A second query that returns nothing** while the first returns series cannot be divided by at
+  all: the alert cannot be checked, and says so as for a failed query.
 - **The series are the first query's.** A series only the second query returns is not a series of
   the alert. A series the first query stops returning goes missing, as for any alert: it is not
   read as 0.
@@ -279,7 +283,7 @@ The server fills the values from the series:
   with too little history to learn a band.
 - `{numerator}` and `{denominator}` are the two sides of a ratio, with four significant digits and
   never in `value.format`, which is the ratio's. They are empty for an alert without `dividedBy`,
-  and `{denominator}` for a series with no match in the second query.
+  and for a series with no match in the second query.
 
 ## Validation beyond the schema
 

@@ -207,7 +207,11 @@ one query can divide them, the agent lets the query divide: that is one query pe
   value, and a label only one of them has is not compared. So a total per service divides each
   status code of that service, and a total with no labels divides every series.
 - **A series needs exactly one match.** With none, or with more than one, it has no value and does
-  not fire. The agent is told when no series matches at all, and the alert is not saved.
+  not fire. A series that was firing when its match went away resolves after three checks, as a
+  series that left the result does. The agent is told when no series matches at all, and the
+  alert is not saved.
+- **A second query that returns nothing** while the first returns series means the alert cannot
+  be checked, and it says so as for a query that fails.
 - **The series are the first query's.** A service with requests and no row of errors is not a
   series: write the first query so that it returns 0.
 - **When the second query is 0**, the ratio is 0: there is nothing to take a share of. Click that

@@ -199,12 +199,13 @@ export function readingsBeside(readings: readonly Reading[]): readonly Reading[]
 }
 
 /**
- * Whether a reading saw the series at all: it has a value, or the first query's side of a ratio
- * that has none.
+ * Whether a reading saw the series at all: it has a value, or both sides of a ratio that has none
+ * because it divides by 0. A ratio without its second side is not seen.
  *
  * @param reading - The reading.
- * @returns `false` for a series the result left out.
+ * @returns `false` for a series the result left out, or left without a series to be divided by.
  */
 export function readingSeen(reading: Reading): boolean {
-  return reading.value !== null || typeof reading.numerator === 'number';
+  if (reading.value !== null) return true;
+  return typeof reading.numerator === 'number' && typeof reading.denominator === 'number';
 }

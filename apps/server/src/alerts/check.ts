@@ -94,8 +94,7 @@ function historyIssues(spec: AlertSpec, read: readonly (SeriesReading | null)[])
  */
 function ratioIssues(spec: AlertSpec, read: readonly (SeriesReading | null)[]): SpecIssue[] {
   if (!spec.dividedBy || read.length === 0) return [];
-  const matched = read.some((each) => typeof each?.readings[0]?.denominator === 'number');
-  if (matched) return [];
+  if (read.some((each) => each !== null)) return [];
   const message =
     'No series of the query has one series of the second query to be divided by. Two series match when every label both carry has the same value, and a series of the first query needs exactly one match: return the same labels from both queries, or fewer from the second.';
   return [{ path: 'dividedBy', message }];
@@ -115,7 +114,10 @@ function readResult(spec: AlertSpec, measured: Measured): AlertCheck {
   const issues = [
     ...measured.problems.map((message) => ({ path: 'value', message })),
     ...measured.divisorProblems.map((message) => ({ path: 'dividedBy', message })),
-    ...historyIssues(spec, read),
+    ...historyIssues(
+      spec,
+      read.filter((each) => each !== null),
+    ),
     ...ratioIssues(spec, read),
   ];
   if (issues.length > 0) return { ok: false, issues };

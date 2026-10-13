@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { type Frame, notificationValues, replayUnder } from '@quanthea/shared';
+import {
+  type Frame,
+  notificationValues,
+  replayRule,
+  replayUnder,
+  stepSeries,
+} from '@quanthea/shared';
 import { checkAlert } from './check.ts';
 import { queriesPerEvaluation } from './history.ts';
 import { observe } from './observe.ts';
@@ -135,23 +141,48 @@ describe('the value of a ratio', () => {
     expect(overall['{code="500", service="checkout"}']).toMatchObject({ value: 0.01 });
   });
 
-  test('has no value, and never holds, for a series the second query has no match for', () => {
-    const errors = [seriesFrame(checkout, [[0, 12]])];
-    const unmatched = { kind: 'value', value: null, holds: false };
-    const readings = [{ value: null, numerator: 12, denominator: null }];
-    expect<unknown>(observed(spec(share), errors, [seriesFrame(cart, [[0, 100]])])).toEqual({
-      '{service="checkout"}': { ...unmatched, readings },
-    });
-    expect<unknown>(observed(spec(share), errors, [])).toEqual({
-      '{service="checkout"}': { ...unmatched, readings },
+  test('is missing, as a series left out, where the second query has no one match', () => {
+    const errors = [seriesFrame(checkout, [[0, 12]]), seriesFrame(cart, [[0, 1]])];
+    const totals = [seriesFrame(cart, [[0, 100]])];
+    expect<unknown>(observed(spec(share), errors, totals)).toEqual({
+      '{service="cart"}': expect.objectContaining({ kind: 'value', value: 0.01 }),
+      '{service="checkout"}': { kind: 'missing' },
     });
     const byRegion = [
       seriesFrame({ service: 'checkout', region: 'eu' }, [[0, 50]]),
       seriesFrame({ service: 'checkout', region: 'us' }, [[0, 70]]),
     ];
-    expect(observed(spec(share), errors, byRegion)['{service="checkout"}']).toMatchObject(
-      unmatched,
+    expect(observed(spec(share), errors, byRegion)['{service="checkout"}']).toEqual({
+      kind: 'missing',
+    });
+  });
+
+  test('keeps a firing series through an evaluation without its match, within the grace', () => {
+    const rule = replayRule('5m', '1m');
+    const firing = { state: 'firing', since: 0, lastSeenAt: 9 * minute, value: 0.1 } as const;
+    const errors = [seriesFrame(checkout, [[0, 12]]), seriesFrame(cart, [[0, 1]])];
+    const { series } = observe(
+      spec(share),
+      { frames: errors, divisor: [seriesFrame(cart, [[0, 100]])] },
+      none,
     );
+    const seen = series.get('{service="checkout"}')?.observation ?? { kind: 'no_data' };
+    expect(stepSeries(firing, seen, rule, 10 * minute)).toEqual({ next: firing, transition: null });
+    expect(stepSeries(firing, seen, rule, 13 * minute).transition).toMatchObject({
+      from: 'firing',
+      to: 'ok',
+    });
+  });
+
+  test('cannot be checked when the second query returns nothing for the series of the first', () => {
+    const errors = [seriesFrame(checkout, [[0, 12]])];
+    expect<unknown>(observed(spec(share), errors, [])).toEqual({
+      '': {
+        kind: 'error',
+        message: expect.stringContaining('The second query returned no series'),
+      },
+    });
+    expect(observed(spec(share), [], [])).toEqual({});
   });
 
   test('has only the series of the first query: a total alone is not a series', () => {
@@ -343,15 +374,22 @@ describe('the replay of a ratio', () => {
     });
   });
 
-  test('judged again in the browser keeps a series without a match as seen, not as missing', () => {
+  test('judged again in the browser: a division by 0 is seen, a ratio without a match missing', () => {
     const condition = { kind: 'threshold', op: 'above', value: 0.05, for: '0m' } as const;
-    const points = [
-      { at: 0, value: 0.1, readings: [{ value: 0.1, numerator: 10, denominator: 100 }] },
-      { at: minute, value: null, readings: [{ value: null, numerator: 10, denominator: null }] },
-      { at: 2 * minute, value: null },
-    ];
-    const track = replayUnder(points, condition, '1m', 2 * minute);
-    expect(track.firing).toEqual([{ from: 0, to: minute, ongoing: false }]);
+    const first = {
+      at: 0,
+      value: 0.1,
+      readings: [{ value: 0.1, numerator: 10, denominator: 100 }],
+    };
+    const zero = { value: null, readings: [{ value: null, numerator: 10, denominator: 0 }] };
+    const seen = replayUnder([first, { at: minute, ...zero }], condition, '1m', 2 * minute);
+    expect(seen.firing).toEqual([{ from: 0, to: minute, ongoing: false }]);
+    const unmatched = {
+      value: null,
+      readings: [{ value: null, numerator: 10, denominator: null }],
+    };
+    const missing = replayUnder([first, { at: minute, ...unmatched }], condition, '1m', 2 * minute);
+    expect(missing.firing).toEqual([{ from: 0, to: 2 * minute, ongoing: true }]);
   });
 });
 

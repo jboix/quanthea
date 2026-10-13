@@ -1060,11 +1060,18 @@ condition compares the ratio as it compares any value.
   labels agree with its own: every label both carry has the same value, and a label only one side
   carries is not compared (`labelsAgree`). A total with fewer labels divides each series that
   agrees with it, and a total with no labels divides them all. No match, or more than one, gives
-  no divisor: the value is `null` and the condition does not hold. More than one means the second
-  query tells apart what the first does not, and no one series is the total.
+  no divisor. More than one means the second query tells apart what the first does not, and no
+  one series is the total.
+- **Without a divisor a series is missing.** `readSeries` reads a ratio with no point of the
+  second query in the window as it reads a series the result left out, so the grace period
+  applies: one evaluation where the second query lags does not resolve a firing series, and the
+  replay and the browser's re-judgement (`readingSeen`) agree. When the second query returns no
+  series at all while the first returns some, `measure` reports a failure, the alert as a whole
+  observes an error, and it cannot be checked: a renamed label or an emptied table shows, where
+  it would have sat at ok.
 - **The series are the first query's.** A series only the second query returns is not a series of
-  the alert. A series of the first query without a value still counts as seen, so it is `ok`, not
-  missing.
+  the alert. A ratio that divides by 0 under `no_value` has both sides and no value: it counts as
+  seen, so it is `ok`, not missing.
 - **A division by 0** reads 0 under `whenZero: 'zero'`, the default, whatever is divided, and no
   value under `no_value` (`divide`). Zero suits a condition that fires above a number. Below a
   number it fires on every moment without traffic, which is what `no_value` is for.
