@@ -5,7 +5,10 @@
  */
 import { type ThreadKind, threadKinds } from '@quanthea/shared';
 
-/** What the new-conversation screen says for each kind. */
+/**
+ * What the new-conversation screen says for each kind. A placeholder names nothing a data source
+ * may not have: no service, no table, no metric.
+ */
 export const kindWords: Readonly<
   Record<
     ThreadKind,
@@ -18,7 +21,7 @@ export const kindWords: Readonly<
 > = {
   dashboard: {
     label: 'A dashboard',
-    placeholder: 'What happened to checkout yesterday around 14:00?',
+    placeholder: 'What do you want to see?',
     note: 'The agent explores your connectors, proposes a plan, then builds a live dashboard you can refine and pin.',
   },
   alert: {

@@ -10,7 +10,12 @@ test('a link picks the alert kind with ?make=alert, and a dashboard otherwise', 
 test('a link picks the report kind with ?make=report, which has its own words', () => {
   expect(kindFrom('report')).toBe('report');
   expect(kindWords.report.label).toBe('A report');
-  expect(kindWords.report.placeholder).not.toBe(kindWords.dashboard.placeholder);
+});
+
+test('a placeholder names nothing the connected data may not have', () => {
+  expect(kindWords.dashboard.placeholder).toBe('What do you want to see?');
+  expect(kindWords.alert.placeholder).toBe('Tell me when…');
+  expect(kindWords.report.placeholder).toBe('Every Monday at 8:00, last week’s…');
 });
 
 test('a link fills the box with ?prompt=, trimmed, without control characters, capped', () => {
