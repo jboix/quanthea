@@ -38,8 +38,8 @@ The draft pane shows what the alert would have done, before it ever runs:
 - **The series**: one per service, host or label value, each with how often it would have fired.
 - **Notifies**: the channels, when the alert is quiet and when it may next notify, and a preview
   of the message as each service shows it: a Slack
-  message, a Discord embed, a Teams card, a PagerDuty incident, a webhook's JSON. **Edit the
-  message** changes its title, body and fields.
+  message, a Discord embed, a Teams card, a PagerDuty incident, an Alertmanager alert, a
+  webhook's JSON. **Edit the message** changes its title, body and fields.
 
 Every change you make here is saved as a new draft version, and the agent reads it on its next turn
 ("I changed the alert by hand, v1 → v2: threshold 3% → 2%"). Keep talking to change anything else.
@@ -55,7 +55,8 @@ label values, or one per time series.
 - A series above (or below) the threshold is **pending**, then **firing** once that held for the
   wait you set. A wait of 0 fires at once.
 - When it stops holding, it is **resolved**: the channel hears so, unless you turned that off.
-- While it keeps firing, the alert can repeat its message at an interval you set.
+- While it keeps firing, the alert can repeat its message at an interval you set. An alert that
+  sends to an [Alertmanager](notifications.md#alertmanager) needs one.
 - **No data**: an alert can fire when the query returns nothing for a while.
 - **Cannot be checked**: when the query fails twice in a row, the source down or the credentials
   wrong, the channel hears once, and again when it can be checked. An admin can turn that off.

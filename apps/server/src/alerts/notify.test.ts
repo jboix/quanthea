@@ -186,6 +186,30 @@ describe('a notification', () => {
     expect(buildNotification(about({}), 'alert.firing', minute, true).template.fields).toEqual([]);
   });
 
+  test('a firing says since when, and by when it is announced again if it repeats', () => {
+    const about = (overrides: Record<string, unknown>) => ({
+      alertId: 'a1',
+      version: 1,
+      spec: spec(overrides),
+      series: { key: '{}', labels: {}, value: 9, since: 2 * minute },
+      url: '/alerts/a1',
+    });
+    const repeat = { notify: { onResolved: true, repeatEvery: '30m' } };
+    const repeating = buildNotification(about(repeat), 'alert.firing', 10 * minute);
+    expect(repeating.firing).toEqual({
+      since: new Date(2 * minute).toISOString(),
+      again: new Date(41 * minute).toISOString(),
+    });
+    expect(notificationSchema.parse(repeating)).toEqual(repeating);
+    const once = { notify: { onResolved: true } };
+    expect(buildNotification(about(once), 'alert.firing', 10 * minute).firing).toEqual({
+      since: new Date(2 * minute).toISOString(),
+    });
+    expect(buildNotification(about(repeat), 'alert.resolved', 10 * minute)).not.toHaveProperty(
+      'firing',
+    );
+  });
+
   test('names every series of a series without labels, and writes plain numbers', () => {
     const subject = {
       alertId: 'a1',

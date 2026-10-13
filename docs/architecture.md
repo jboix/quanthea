@@ -256,7 +256,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
   - Notifies: the channels, when they hear, when the alert is quiet (below), and a preview per
     channel, drawn roughly as the
     service shows it (a Slack message with its coloured bar, a Discord embed, a Teams card, a
-    PagerDuty incident line, a webhook's JSON), read from what the preview endpoint says each
+    PagerDuty incident line, an Alertmanager alert with its labels, a webhook's JSON), read from what the preview endpoint says each
     recipe would send and kept as plain text. The previews come through the
     `/threads/:threadId/alert-previews` resource route. Edit the message opens the template
     (title, body, fields) and refuses an unknown placeholder before saving.
@@ -818,20 +818,26 @@ Alerts and reports send their messages to notification channels, which admins ke
 only admins add, change and delete channels.
 
 - **Kinds.** `webhook` (a generic JSON webhook), `slack` (an incoming webhook), `discord` (a
-  webhook), `teams` (a Workflows webhook) and `pagerduty` (an Events API v2 routing key). The
+  webhook), `teams` (a Workflows webhook), `pagerduty` (an Events API v2 routing key) and
+  `alertmanager` (the base URL of a Prometheus Alertmanager). The
   shared contract (`api/notification-channels.ts`) says what each kind takes: an https URL (a plain
-  http URL for the generic webhook only, never with a user name or password), or a routing key of
-  32 letters and digits.
-- **At rest.** The URL or routing key and the webhook's signing secret are sealed together with
-  the secret key, bound to the channel id, and sealed again at startup after a key rotation. The
-  row keeps a masked form (`hooks.slack.com/services/…/9fQx`, `••••00ab` for a routing key), which
-  is all the API ever returns.
+  http URL for the generic webhook and for Alertmanager only, never with a user name or password),
+  a base URL (the same, without a query or a fragment), or a routing key of 32 letters and digits.
+  An Alertmanager channel may also take credentials (`auth`): basic authentication or a bearer
+  token, sent as the `Authorization` header. Another kind refuses them.
+- **At rest.** The URL or routing key, the webhook's signing secret and the credentials are sealed
+  together with the secret key, bound to the channel id, and sealed again at startup after a key
+  rotation. The row keeps a masked form (`hooks.slack.com/services/…/9fQx`, `••••00ab` for a
+  routing key, the host and path of a base URL, which holds no secret), which is all the API ever
+  returns. The view says whether a secret is stored (`signed`, `authenticated`), never what it is;
+  the row's one `signed` flag says a secret is sealed, and the kind says which. A change keeps the
+  stored credentials, replaces them, or drops them with `auth: null`.
 - **Mentions.** An admin sets them per channel: Slack `<!here>`, `<!channel>`,
   `<!subteam^ID>` or `<@U…>`; Discord `<@&role id>` or `<@user id>`. Other kinds take none.
   They are added on `alert.firing`, `alert.error` and `report.failed` only, never from the
   template or the values.
 - **Recipes.** One module per kind (`webhook.ts`, `slack.ts`, `discord.ts`, `teams.ts`,
-  `pagerduty.ts`) implements `ChannelRecipe.build(notification, { target, mentions })`, which
+  `pagerduty.ts`, `alertmanager.ts`) implements `ChannelRecipe.build(notification, { target, mentions })`, which
   returns the URL and the JSON body and sends nothing; `registry.ts` holds them by kind. A recipe
   fills the template: each `{placeholder}` becomes its value escaped for the service, a missing
   value a dash, and the template's own words are escaped only as much as the service needs to keep
@@ -846,8 +852,8 @@ only admins add, change and delete channels.
     channel's own role and user ids, so even an escaped `@everyone` pings no one.
   - Teams: Adaptive Card text blocks read a subset of markdown, so every markdown character gets a
     backslash, in the template's words and the values alike.
-  - PagerDuty and the generic webhook: no escaping. PagerDuty shows text as it is, and the
-    webhook's receiver gets the values as the data gave them.
+  - PagerDuty, Alertmanager and the generic webhook: no escaping. PagerDuty and Alertmanager show
+    text as it is, and the webhook's receiver gets the values as the data gave them.
 - **What each sends.** Slack: the title (and the mentions) as the notification text, and an
   attachment coloured by state holding a header, the body, the fields, a context line (state,
   severity, series, time) and an "Open in quanthea" button. Discord: an embed with the title,
@@ -862,11 +868,39 @@ only admins add, change and delete channels.
   filled. A button or link appears only when the alert's URL is absolute. Colours: red, amber or
   blue by severity while firing, amber (Teams: `warning`) when it cannot be checked, green once
   resolved or checked again, grey for a test.
+- **Alertmanager.** `alertmanager.ts` posts a list of one alert to `/api/v2/alerts` under the
+  base URL, route prefix kept.
+  - Labels tell an alert apart, so they are the same for every message of one series of one
+    alert: `alertname` (the title), `severity`, `quanthea_alert` (the alert id) and the series'
+    labels. A label name becomes valid for Prometheus (every character but letters, digits and
+    `_` becomes `_`, a leading digit gets a `_` in front). A series label named `alertname`,
+    `severity` or `quanthea_…` gets `series_` in front, and a name already taken gets `_2`, `_3`;
+    the series' labels are taken in the order of their names, so a clash always resolves the
+    same way. A label without a value is left out. A new title is a new `alertname`: the alert
+    under the old one ends by itself.
+  - Annotations: `summary` (the title), `description` (the body, then the fields one a line) and
+    `value`. `generatorURL` is the alert's link, when it is absolute.
+  - Times. An `alert.firing` notification carries `firing`: `since` (when the series began to
+    fire) and, for an alert that repeats, `again` (by when it is announced again: `repeatEvery`
+    plus one `every` from now). `startsAt` is `since`. `endsAt` is twice the time to `again`, so
+    one lost repeat does not end the alert. Without a repeat there is no `endsAt`, and
+    Alertmanager ends the alert after its own `resolve_timeout`: an alert that sends to an
+    Alertmanager needs a repeat, and the guide says so. `alert.resolved` carries `endsAt` only,
+    which ends the alert at once. The evaluator sends nothing more for this kind: no channel
+    hears every evaluation.
+  - A mute or quiet hours hold a repeat back as any message, so Alertmanager ends the alert when
+    its `endsAt` passes and fires it again with the next message.
+  - `alert.error` fires an alert of its own (`alertname`, `severity`, `quanthea_alert`,
+    `quanthea_check="failed"`, no series label, no `endsAt`), which `alert.recovered` ends. A
+    test carries `quanthea_test="true"` and ends after 5 minutes.
+  - Reports (`report-alertmanager.ts`): `report.ready` fires nothing and ends the report's
+    failure alert; `report.failed` fires it at `warning`, with `alertname` (the report's title)
+    and `quanthea_report` (its id), without an `endsAt`.
 - **Report messages.** `report.ready` and `report.failed` (`ReportNotification` in
   `report-notifications.ts`) carry no template: our code builds the title with the period, the
   headline numbers with their change, the reason a run failed, a link to the run and links to
   dashboards. One more recipe per kind (`report-slack.ts`, `report-discord.ts`, `report-teams.ts`,
-  `report-pagerduty.ts`, `report-webhook.ts`, held by `reportRecipes` in `registry.ts`) builds the
+  `report-pagerduty.ts`, `report-alertmanager.ts`, `report-webhook.ts`, held by `reportRecipes` in `registry.ts`) builds the
   request, and escapes every title, label, number and reason as a value, as the alert recipes
   escape values. Slack: the title as the notification text and an attachment (blue when ready,
   amber when failed, grey for a test) with the numbers one a line, the context line and a button
@@ -900,7 +934,7 @@ only admins add, change and delete channels.
   allowed, since only admins set channels, as they set connectors.
 - **The log.** Each send is one row in `notification_sends`: the channel, the event, the alert id
   and the series key (for a report, its id in `report_id` and its run as the series key), the time, whether it got through, the last HTTP status, the attempts and the
-  error. An error never quotes the target. The channel keeps its last success and last failure.
+  error. An error never quotes the target or the credentials. The channel keeps its last success and last failure.
   The hourly purge job deletes sends older than 30 days and all but the newest 200 of each
   channel; a channel's sends go with it.
 - **Alerts using a channel.** The channel list shows how many alerts send to each channel, and a
@@ -914,8 +948,9 @@ only admins add, change and delete channels.
   id, name and kind only, to pick from.
 - **Settings → Notifications** (`features/notifications/`, admin) lists the channels with their
   kind, masked target, status (last sent, or the last failure with its HTTP status) and how many
-  alerts send to each. Add a channel opens a form whose fields follow the kind (the URL or routing
-  key, the webhook's signing secret, the mentions), then offers a test. Each channel has Send a
+  alerts send to each. Add a channel opens a form whose fields follow the kind (the URL, base URL
+  or routing key, the webhook's signing secret, Alertmanager's credentials, the mentions), then
+  offers a test. Each channel has Send a
   test, Recent sends (its log), Edit (an empty target or secret keeps the stored one) and Delete,
   asked twice and refused while alerts send to it. A panel shows what a generic webhook receives,
   headers and body, built by the preview endpoint from the sample message.

@@ -51,6 +51,7 @@ const channelNames: Readonly<Record<ChannelKind, string>> = {
   discord: 'Discord',
   teams: 'Microsoft Teams',
   pagerduty: 'PagerDuty',
+  alertmanager: 'Alertmanager',
 };
 
 /** The notification channels, in the order the app lists them. */

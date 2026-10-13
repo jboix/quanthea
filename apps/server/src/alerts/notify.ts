@@ -139,6 +139,22 @@ function sayingSince(template: MessageTemplate): MessageTemplate {
 }
 
 /**
+ * The firing a notification announces: since when, and by when it is announced again. A repeat
+ * goes out with the first evaluation once `repeatEvery` has passed, so one interval later at most.
+ *
+ * @param subject - The alert's spec and the series.
+ * @param now - When.
+ * @returns Since when, and by when again for an alert that repeats.
+ */
+function firingOf(subject: NotificationSubject, now: number): NonNullable<Notification['firing']> {
+  const { notify, every } = subject.spec;
+  const since = new Date(subject.series.since).toISOString();
+  if (notify.repeatEvery === undefined) return { since };
+  const again = now + durationMs(notify.repeatEvery) + durationMs(every);
+  return { since, again: new Date(again).toISOString() };
+}
+
+/**
  * Builds a notification. The template is the spec's; the values come from the series.
  *
  * @param subject - The alert, its version and spec, the series and the link.
@@ -166,6 +182,7 @@ export function buildNotification(
     series: { key: series.key, labels: { ...series.labels } },
     template: late ? sayingSince(spec.message) : spec.message,
     values: notificationValues(spec, series, subject.url),
+    ...(event === 'alert.firing' ? { firing: firingOf(subject, now) } : {}),
     at: new Date(now).toISOString(),
   };
 }

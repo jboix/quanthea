@@ -1,8 +1,10 @@
 /**
- * Notification channels as admins keep them: create, change, delete. The target and the signing
- * secret are sealed together, bound to the channel id; what comes back shows the target masked.
+ * Notification channels as admins keep them: create, change, delete. The target, the signing
+ * secret and the credentials are sealed together, bound to the channel id; what comes back shows
+ * the target masked.
  */
 import {
+  type ChannelAuth,
   type ChannelInput,
   type ChannelKind,
   type ChannelPatch,
@@ -24,12 +26,14 @@ export type ChannelInfo = Omit<ChannelView, 'createdBy'> & {
   readonly createdById: string;
 };
 
-/** What is sealed: the target, and the generic webhook's signing secret. */
+/** What is sealed: the target, the generic webhook's signing secret, and the credentials. */
 export interface SealedTarget {
-  /** The webhook URL, or the routing key. */
+  /** The webhook URL, the base URL, or the routing key. */
   readonly target: string;
   /** The signing secret, when the channel signs. */
   readonly signingSecret?: string | undefined;
+  /** The credentials, when the channel sends any. */
+  readonly auth?: ChannelAuth | undefined;
 }
 
 /** What the store needs. */
@@ -62,7 +66,7 @@ function ownerOf(id: string): string {
 
 /**
  * Masks a target: a URL keeps its host, its first path segment and its last four characters; a
- * routing key keeps its last four.
+ * routing key keeps its last four. A base URL holds no secret, so it keeps its host and its path.
  *
  * @param kind - The channel kind.
  * @param target - The target.
@@ -70,8 +74,10 @@ function ownerOf(id: string): string {
  */
 export function maskTarget(kind: ChannelKind, target: string): string {
   const tail = target.slice(-4);
-  if (channelKindInfo[kind].target === 'routing-key' || !URL.canParse(target)) return `••••${tail}`;
+  const { target: targetKind } = channelKindInfo[kind];
+  if (targetKind === 'routing-key' || !URL.canParse(target)) return `••••${tail}`;
   const url = new URL(target);
+  if (targetKind === 'base-url') return `${url.host}${url.pathname.replace(/\/+$/, '')}`;
   const [first] = url.pathname.split('/').filter(Boolean);
   if (!first) return url.host;
   return `${url.host}/${first}/…/${tail.replace(/^\/+/, '')}`;
@@ -82,7 +88,7 @@ export function maskTarget(kind: ChannelKind, target: string): string {
  *
  * @param secretBox - The secret box.
  * @param row - The channel.
- * @returns The target and any signing secret.
+ * @returns The target, and any signing secret or credentials.
  */
 export async function openTarget(secretBox: SecretBox, row: ChannelRow): Promise<SealedTarget> {
   return JSON.parse(await secretBox.open(row.secret, ownerOf(row.id))) as SealedTarget;
@@ -93,7 +99,7 @@ export async function openTarget(secretBox: SecretBox, row: ChannelRow): Promise
  *
  * @param secretBox - The secret box.
  * @param id - The channel id.
- * @param sealed - The target and any signing secret.
+ * @param sealed - The target, and any signing secret or credentials.
  * @returns The sealed bytes.
  */
 export function sealTarget(
@@ -112,12 +118,16 @@ export function sealTarget(
  * @returns The channel.
  */
 export function toInfo(row: ChannelRow, alertsUsing: (channelId: string) => number): ChannelInfo {
+  const kind = channelKindSchema.parse(row.kind);
+  const info = channelKindInfo[kind];
   return {
     id: row.id,
     name: row.name,
-    kind: channelKindSchema.parse(row.kind),
+    kind,
     target: row.targetHint,
-    signed: row.signed,
+    // One stored flag says a secret is sealed with the target; the kind says which.
+    signed: row.signed && info.signs,
+    authenticated: row.signed && info.authenticates === true,
     mentions: [...row.mentions],
     createdById: row.createdBy,
     createdAt: row.createdAt,
@@ -153,7 +163,7 @@ export function channelRow(context: StoreContext, id: string): ChannelRow {
 async function refuseInvalid(context: StoreContext, channel: ChannelInput, id: string) {
   const taken = context.repository.list().some((row) => row.name === channel.name && row.id !== id);
   if (taken) throw new AppError('conflict', `A channel is already named ${channel.name}.`);
-  if (channelKindInfo[channel.kind].target !== 'url') return;
+  if (channelKindInfo[channel.kind].target === 'routing-key') return;
   const refused = await refusedDestination(channel.target, context.resolve);
   if (refused)
     throw new AppError('bad_request', refused, [
@@ -175,15 +185,15 @@ async function store(
   base: Pick<ChannelRow, 'id' | 'createdBy' | 'createdAt' | 'lastSentAt' | 'lastError'>,
 ): Promise<ChannelRow> {
   await refuseInvalid(context, channel, base.id);
-  const { target, signingSecret } = channel;
+  const { target, signingSecret, auth } = channel;
   const row: ChannelRow = {
     ...base,
     name: channel.name,
     kind: channel.kind,
     targetHint: maskTarget(channel.kind, target),
     mentions: channel.mentions,
-    signed: signingSecret !== undefined,
-    secret: await sealTarget(context.secretBox, base.id, { target, signingSecret }),
+    signed: signingSecret !== undefined || auth !== undefined,
+    secret: await sealTarget(context.secretBox, base.id, { target, signingSecret, auth }),
     updatedAt: context.now(),
   };
   context.repository.save(row);
@@ -211,23 +221,37 @@ export async function createChannel(
 }
 
 /**
+ * A secret after a change: the stored one when the change leaves it out, none when it is `null`.
+ *
+ * @param patched - The secret the change carries, `null` to drop it, or `undefined` to keep it.
+ * @param stored - The secret stored, if any.
+ * @returns The secret to store, if any.
+ */
+function secretAfter<Secret>(
+  patched: Secret | null | undefined,
+  stored: Secret | undefined,
+): Secret | undefined {
+  return patched === undefined ? stored : (patched ?? undefined);
+}
+
+/**
  * Applies a change to a channel's settings and validates the result as a whole.
  *
- * @param current - The channel as stored, with its target opened, without its signing secret.
- * @param secret - The signing secret stored, if any.
+ * @param current - The channel as stored, with its target and secrets opened.
  * @param patch - The change.
  * @returns The channel as it would be.
  * @throws {AppError} `bad_request` with the issues when the result is not a valid channel.
  */
 function applyPatch(
-  current: Omit<ChannelInput, 'signingSecret'>,
-  secret: string | undefined,
+  current: Pick<ChannelInput, 'name' | 'kind' | 'mentions'> & SealedTarget,
   patch: ChannelPatch,
 ): ChannelInput {
-  const { signingSecret: patched, ...changes } = patch;
-  const signingSecret = patched === undefined ? secret : (patched ?? undefined);
-  const merged = { ...current, ...changes, ...(signingSecret ? { signingSecret } : {}) };
-  const parsed = channelInputSchema.safeParse(merged);
+  const { signingSecret, auth, ...changes } = patch;
+  const secrets = {
+    signingSecret: secretAfter(signingSecret, current.signingSecret),
+    auth: secretAfter(auth, current.auth),
+  };
+  const parsed = channelInputSchema.safeParse({ ...current, ...changes, ...secrets });
   if (parsed.success) return parsed.data;
   const issues = parsed.error.issues.map((issue) => ({
     part: 'body',
@@ -253,10 +277,10 @@ export async function updateChannel(
   actor: string,
 ): Promise<ChannelInfo> {
   const row = channelRow(context, id);
-  const { target, signingSecret } = await openTarget(context.secretBox, row);
+  const sealed = await openTarget(context.secretBox, row);
   const kind = channelKindSchema.parse(row.kind);
-  const current = { name: row.name, kind, target, mentions: [...row.mentions] };
-  const next = applyPatch(current, signingSecret, patch);
+  const current = { name: row.name, kind, mentions: [...row.mentions], ...sealed };
+  const next = applyPatch(current, patch);
   const stored = await store(context, next, row);
   const changed = Object.keys(patch);
   context.audit.append({ actor, action: 'channel.update', target: id, detail: { changed } });

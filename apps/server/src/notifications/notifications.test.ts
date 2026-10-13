@@ -383,6 +383,7 @@ describe('previews', () => {
       'discord',
       'teams',
       'pagerduty',
+      'alertmanager',
     ]);
     expect(JSON.stringify(previews)).toContain('&lt;!channel&gt;');
     expect(JSON.stringify(previews.find((preview) => preview.kind === 'pagerduty'))).toContain(

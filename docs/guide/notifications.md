@@ -1,7 +1,7 @@
 # Notification channels
 
 Alerts and reports send their messages to channels: a Slack channel, a Discord channel, a Teams
-channel, PagerDuty, or any webhook. A message leaves quanthea when it is sent, so only admins add
+channel, PagerDuty, a Prometheus Alertmanager, or any webhook. A message leaves quanthea when it is sent, so only admins add
 and change channels, in **Settings → Notifications**.
 
 ![Settings → Notifications: each channel with its kind, masked target, last send and the alerts that use it](../screenshots/settings-notifications-light.webp#gh-light-mode-only)
@@ -11,13 +11,14 @@ and change channels, in **Settings → Notifications**.
 
 **Add a channel**, name it ("On-call", "#sales"), pick its kind and paste its target:
 
-| Kind      | Target                                                        |
-| --------- | ------------------------------------------------------------- |
-| Slack     | An incoming webhook URL                                       |
-| Discord   | A channel webhook URL                                         |
-| Teams     | A Workflows webhook URL                                       |
-| PagerDuty | An Events API v2 routing key                                  |
-| Webhook   | Any URL; plain `http` too, for a receiver on your own network |
+| Kind         | Target                                                        |
+| ------------ | ------------------------------------------------------------- |
+| Slack        | An incoming webhook URL                                       |
+| Discord      | A channel webhook URL                                         |
+| Teams        | A Workflows webhook URL                                       |
+| PagerDuty    | An Events API v2 routing key                                  |
+| Alertmanager | Its base URL, such as `http://alertmanager:9093`              |
+| Webhook      | Any URL; plain `http` too, for a receiver on your own network |
 
 Then **Send a test**. The target is sealed and only ever shown masked.
 
@@ -25,6 +26,8 @@ Then **Send a test**. The target is sealed and only ever shown masked.
   an alert can't be checked, such as `<!here>` or a role. Mentions never come from the data.
 - **Signing secret**, for a webhook: each request is then signed, so your receiver can check it
   came from quanthea. The page shows what a webhook receives, headers and body.
+- **Credentials**, for an Alertmanager: a user name and password, or a bearer token, when yours
+  asks for them. They are sealed with the target and never shown again.
 
 ## What each service gets
 
@@ -34,6 +37,8 @@ Then **Send a test**. The target is sealed and only ever shown masked.
 - **PagerDuty**: an incident that opens when an alert fires and resolves when it stops. A report
   pages no one when it is ready; a report that fails opens a warning, which the next good run
   closes.
+- **Alertmanager**: an alert that fires and ends with yours, which Alertmanager groups, routes
+  and silences by its labels. See [Alertmanager](#alertmanager).
 - **Webhook**: the notification as JSON.
 
 Text from your data is escaped for each service, so it never becomes a link, a mention or
@@ -46,6 +51,64 @@ formatting.
 - **Delete**: asked twice, and refused while an alert or a report sends to it.
 
 A failed send is retried twice; quanthea honours a short `Retry-After`. The log keeps 30 days.
+
+## Alertmanager
+
+An Alertmanager channel posts to the v2 API of your Alertmanager (`/api/v2/alerts` under the base
+URL, route prefix included). Plain `http` is allowed, for an Alertmanager on your own network.
+
+Each series of an alert is one alert in Alertmanager, told apart by its labels:
+
+| Label            | Value                                                  |
+| ---------------- | ------------------------------------------------------ |
+| `alertname`      | The alert's title                                      |
+| `severity`       | `critical`, `warning` or `info`                        |
+| `quanthea_alert` | The alert's id, the same across versions and renames   |
+| the series' own  | Such as `service="checkout"`, one per label of the row |
+
+- **Label names** are made valid for Prometheus: every character but letters, digits and `_`
+  becomes `_`, and a name starting with a digit gets a `_` in front.
+- **A series label named `alertname`, `severity` or `quanthea_…`** is sent as `series_alertname`
+  and so on. Two labels that end up with the same name are numbered: `a_b`, `a_b_2`.
+- **Annotations**: `summary` is the message's title, `description` its body and fields, `value`
+  the value.
+- **The link** back to the alert is the alert's `generatorURL`. It needs `publicUrl` in the
+  [configuration](../configuration.md).
+- **Resolved**: the alert is sent again with its end, so Alertmanager resolves it at once.
+
+### Set a repeat
+
+Alertmanager ends an alert it has not heard about for a while. quanthea sends a message when a
+series starts firing and when it resolves, not at every check, so:
+
+- **An alert that repeats** ("repeat every 30 minutes") tells Alertmanager each time that the
+  alert holds until twice the time to its next repeat. One lost message does not end it.
+- **An alert without a repeat** is ended by Alertmanager after its own `resolve_timeout`, 5
+  minutes unless you changed it, though the series still fires.
+
+Give every alert that sends to an Alertmanager a repeat. The repeat goes to all the channels of
+the alert, so an alert that also posts to a chat repeats there too.
+
+### Quiet hours, mutes and silences
+
+Quiet hours and mutes of quanthea hold a message back before it reaches Alertmanager. Silences,
+inhibitions and time intervals of Alertmanager hold back what Alertmanager sends on.
+
+- A repeat held back by quiet hours or a mute never reaches Alertmanager, so Alertmanager ends
+  the alert when its hold runs out, and fires it again when quanthea next speaks.
+- To keep an alert firing in Alertmanager while nobody is told, leave the alert without quiet
+  hours and silence it in Alertmanager.
+
+### What else it sends
+
+- **An alert that cannot be checked** is an alert of its own, with the labels `alertname`,
+  `severity`, `quanthea_alert` and `quanthea_check="failed"`. It is said once, so Alertmanager
+  ends it after its `resolve_timeout`, or sooner when the alert can be checked again.
+- **A report** fires nothing when it is ready. A run that fails fires a `warning` with the labels
+  `alertname` (the report's title) and `quanthea_report` (its id), said once; the next good run
+  ends it.
+- **Send a test** fires an alert marked `quanthea_test="true"`, which ends by itself after 5
+  minutes. Route or silence that label if a test must page no one.
 
 ## Without a channel
 

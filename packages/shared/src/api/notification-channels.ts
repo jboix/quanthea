@@ -1,8 +1,8 @@
 /**
  * Notification channels: where alerts send their messages. Admins add and change channels, since a
  * message leaves quanthea when it is sent; editors pick channels for an alert and preview what each
- * service would receive. A channel's URL, routing key and signing secret are sealed at rest and
- * never come back: the views carry a masked form.
+ * service would receive. A channel's URL, routing key, signing secret and credentials are sealed at
+ * rest and never come back: the views carry a masked form.
  */
 import { z } from 'zod';
 import {
@@ -14,7 +14,14 @@ import { channelEvents } from '../report-notifications.ts';
 import { defineEndpoint } from './contract.ts';
 
 /** The services a channel can send to. */
-export const channelKinds = ['webhook', 'slack', 'discord', 'teams', 'pagerduty'] as const;
+export const channelKinds = [
+  'webhook',
+  'slack',
+  'discord',
+  'teams',
+  'pagerduty',
+  'alertmanager',
+] as const;
 
 /** Validates a channel kind. */
 export const channelKindSchema = z.enum(channelKinds);
@@ -26,12 +33,14 @@ export type ChannelKind = z.infer<typeof channelKindSchema>;
 interface ChannelKindInfo {
   /** The service's name. */
   readonly label: string;
-  /** What the target is: a webhook URL, or PagerDuty's routing key. */
-  readonly target: 'url' | 'routing-key';
-  /** Whether the target may be plain `http:` (only a generic webhook on a private network). */
+  /** What the target is: a webhook URL, a service's base URL, or PagerDuty's routing key. */
+  readonly target: 'url' | 'base-url' | 'routing-key';
+  /** Whether the target may be plain `http:`: a webhook or a service on a private network. */
   readonly allowsHttp: boolean;
   /** Whether the channel may sign its requests with a secret. */
   readonly signs: boolean;
+  /** Whether the channel may send credentials: basic authentication or a bearer token. */
+  readonly authenticates?: boolean;
   /** The mentions it accepts, or `null` when it takes none. */
   readonly mentions: RegExp | null;
   /** An example of a mention, for the form. */
@@ -71,6 +80,14 @@ export const channelKindInfo: Readonly<Record<ChannelKind, ChannelKindInfo>> = {
     signs: false,
     mentions: null,
   },
+  alertmanager: {
+    label: 'Alertmanager',
+    target: 'base-url',
+    allowsHttp: true,
+    signs: false,
+    authenticates: true,
+    mentions: null,
+  },
 };
 
 /** An absolute URL: its scheme, its authority, then any path, query or fragment. */
@@ -90,7 +107,9 @@ export function targetProblem(kind: ChannelKind, target: string): string | undef
   const info = channelKindInfo[kind];
   if (info.target === 'routing-key')
     return routingKeyPattern.test(target) ? undefined : 'A routing key is 32 letters and digits.';
-  return urlProblem(target, info.allowsHttp);
+  const problem = urlProblem(target, info.allowsHttp);
+  if (problem || info.target === 'url') return problem;
+  return /[?#]/.test(target) ? 'Give the base URL, without a query or a fragment.' : undefined;
 }
 
 /**
@@ -109,14 +128,39 @@ function urlProblem(target: string, allowsHttp: boolean): string | undefined {
   return undefined;
 }
 
+/** Text a header can carry: visible ASCII, no spaces. */
+const headerToken = /^[\x21-\x7e]+$/;
+
+/** Validates the credentials a channel sends: basic authentication, or a bearer token. */
+export const channelAuthSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('basic'),
+    username: z
+      .string()
+      .min(1)
+      .max(256)
+      .regex(/^[^:\p{Cc}]+$/u, 'A user name holds no colon.'),
+    password: z.string().min(1).max(1024),
+  }),
+  z.strictObject({
+    type: z.literal('bearer'),
+    token: z.string().min(1).max(4096).regex(headerToken, 'A token holds no spaces.'),
+  }),
+]);
+
+/** The credentials a channel sends. */
+export type ChannelAuth = z.infer<typeof channelAuthSchema>;
+
 /** The fields of a channel as an admin writes them. */
 const channelFields = z.strictObject({
   name: z.string().trim().min(1).max(80),
   kind: channelKindSchema,
-  /** The webhook URL, or PagerDuty's routing key. */
+  /** The webhook URL, Alertmanager's base URL, or PagerDuty's routing key. */
   target: z.string().trim().min(1).max(2000),
   /** The generic webhook's signing secret, if it signs. */
   signingSecret: z.string().min(16).max(256).optional(),
+  /** The credentials sent to an Alertmanager, if it asks for any. */
+  auth: channelAuthSchema.optional(),
   /** Who to mention when an alert starts firing, in the service's syntax. */
   mentions: z.array(z.string().trim().min(1).max(64)).max(10).default([]),
 });
@@ -132,6 +176,12 @@ export const channelInputSchema = channelFields.superRefine((channel, context) =
       path: ['signingSecret'],
       message: 'This kind signs nothing.',
     });
+  if (channel.auth !== undefined && !info.authenticates)
+    context.addIssue({
+      code: 'custom',
+      path: ['auth'],
+      message: 'This kind takes no credentials.',
+    });
   channel.mentions.forEach((mention, index) => {
     if (info.mentions?.test(mention)) return;
     const message = info.mentions
@@ -146,12 +196,13 @@ export type ChannelInput = z.output<typeof channelInputSchema>;
 
 /**
  * Validates a change to a channel. Omitted fields keep their value; a `null` signing secret stops
- * signing. The kind never changes.
+ * signing, and `null` credentials stop sending any. The kind never changes.
  */
 export const channelPatchSchema = z.strictObject({
   name: channelFields.shape.name.optional(),
   target: channelFields.shape.target.optional(),
   signingSecret: channelFields.shape.signingSecret.unwrap().nullable().optional(),
+  auth: channelAuthSchema.nullable().optional(),
   mentions: channelFields.shape.mentions.unwrap().optional(),
 });
 
@@ -167,6 +218,8 @@ export const channelViewSchema = z.object({
   target: z.string(),
   /** Whether the generic webhook signs its requests. */
   signed: z.boolean(),
+  /** Whether credentials are stored for it. */
+  authenticated: z.boolean(),
   mentions: z.array(z.string()),
   /** The name of the admin who added it. */
   createdBy: z.string(),

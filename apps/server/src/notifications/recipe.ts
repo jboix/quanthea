@@ -8,7 +8,7 @@ import type { ChannelKind, MessageTemplate, Notification } from '@quanthea/share
 
 /** The channel settings a recipe reads. The sending service opens the sealed target. */
 export interface RecipeChannel {
-  /** The webhook URL, or PagerDuty's routing key. */
+  /** The webhook URL, Alertmanager's base URL, or PagerDuty's routing key. */
   readonly target: string;
   /** The mentions an admin set, in the service's syntax. */
   readonly mentions: readonly string[];

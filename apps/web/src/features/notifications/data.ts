@@ -1,6 +1,5 @@
 /** Settings → Notifications: the loader, and the action that adds, changes, tests and deletes. */
 import {
-  type ChannelKind,
   type ChannelSend,
   type ChannelView,
   createChannelEndpoint,
@@ -16,6 +15,7 @@ import {
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { z } from 'zod';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
+import { type ChannelFields, createBody, updateBody } from './channel-body.ts';
 
 /** What the notifications screen shows. */
 export interface NotificationsData {
@@ -23,22 +23,6 @@ export interface NotificationsData {
   readonly channels: readonly ChannelView[];
   /** What a generic webhook receives for the sample message. */
   readonly webhookExample: unknown;
-}
-
-/** The fields of the channel form, as typed. */
-export interface ChannelFields {
-  /** The channel's name. */
-  readonly name: string;
-  /** The channel kind; fixed once the channel exists. */
-  readonly kind: ChannelKind;
-  /** The URL or routing key; empty on an edit keeps the stored one. */
-  readonly target: string;
-  /** The signing secret; empty keeps the stored one. */
-  readonly signingSecret: string;
-  /** Whether to stop signing. */
-  readonly unsign: boolean;
-  /** The mentions, one per line. */
-  readonly mentions: string;
 }
 
 /** What the screen submits, as JSON. */
@@ -93,44 +77,6 @@ export function loadNotifications(api: ApiClient) {
       api.call(previewNotificationEndpoint, { body }, { signal }),
     ]);
     return { channels, webhookExample: previews[0]?.body };
-  };
-}
-
-/**
- * The mentions typed, one per line or separated by spaces.
- *
- * @param text - The text.
- * @returns The mentions.
- */
-function mentionsOf(text: string): string[] {
-  return text.split(/\s+/).filter(Boolean);
-}
-
-/**
- * The body of a new channel.
- *
- * @param fields - The form's fields.
- * @returns The body.
- */
-function createBody(fields: ChannelFields) {
-  const { name, kind, target, signingSecret } = fields;
-  const mentions = mentionsOf(fields.mentions);
-  return { name, kind, target, mentions, ...(signingSecret ? { signingSecret } : {}) };
-}
-
-/**
- * The body of a change: the target and secret only when typed, so empty fields keep them.
- *
- * @param fields - The form's fields.
- * @returns The body.
- */
-function updateBody(fields: ChannelFields) {
-  const secret = fields.unsign ? { signingSecret: null } : {};
-  return {
-    name: fields.name,
-    mentions: mentionsOf(fields.mentions),
-    ...(fields.target ? { target: fields.target } : {}),
-    ...(fields.signingSecret ? { signingSecret: fields.signingSecret } : secret),
   };
 }
 

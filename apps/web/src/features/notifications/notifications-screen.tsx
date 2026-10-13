@@ -5,9 +5,10 @@ import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
 import { Dialog } from '../../ui/dialog.tsx';
 import { Page } from '../../ui/page.tsx';
+import type { ChannelFields } from './channel-body.ts';
 import { ChannelForm } from './channel-form.tsx';
 import { ChannelRow, TestResult } from './channel-row.tsx';
-import type { ChannelFields, NotificationsData } from './data.ts';
+import type { NotificationsData } from './data.ts';
 import styles from './notifications.module.css';
 import { useNotificationsIntent } from './use-intent.ts';
 

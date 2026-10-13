@@ -358,6 +358,7 @@ describe('PagerDuty', () => {
 describe('the registry', () => {
   test('has a recipe for every kind', () => {
     expect(Object.keys(channelRecipes).sort()).toEqual([
+      'alertmanager',
       'discord',
       'pagerduty',
       'slack',

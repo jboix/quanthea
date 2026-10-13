@@ -90,6 +90,27 @@ describe('reading a channel preview back', () => {
     expect(previewView('webhook', webhook).json).toContain('"event": "alert.firing"');
   });
 
+  test('reads an Alertmanager alert, with its labels as fields', () => {
+    const alert = {
+      labels: { alertname: 'Checkout 5xx', severity: 'critical', service: 'checkout' },
+      annotations: { summary: 'Checkout 5xx at 3%', description: 'Up' },
+      startsAt: '2026-10-04T12:00:00.000Z',
+    };
+    expect(previewView('alertmanager', [alert])).toMatchObject({
+      look: 'alertmanager',
+      title: 'Checkout 5xx at 3%',
+      body: 'Up',
+      fields: [
+        { label: 'alertname', value: 'Checkout 5xx' },
+        { label: 'severity', value: 'critical' },
+        { label: 'service', value: 'checkout' },
+      ],
+      context: 'firing · critical',
+    });
+    const ended = { ...alert, startsAt: undefined, endsAt: '2026-10-04T12:30:00.000Z' };
+    expect(previewView('alertmanager', [ended]).context).toBe('resolved · critical');
+  });
+
   test('never turns text into markup', () => {
     expect(unescapeSlack('&lt;script&gt;')).toBe('<script>');
     expect(unescapeMarkdown('\\*bold\\*')).toBe('*bold*');

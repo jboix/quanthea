@@ -10,7 +10,8 @@ import { Input } from '../../ui/input.tsx';
 import { Select } from '../../ui/select.tsx';
 import { Switch } from '../../ui/switch.tsx';
 import { TextArea } from '../../ui/text-area.tsx';
-import type { ChannelFields } from './data.ts';
+import type { ChannelFields } from './channel-body.ts';
+import { CredentialsFields } from './channel-credentials.tsx';
 import styles from './notifications.module.css';
 
 /** The kind choices. */
@@ -26,7 +27,12 @@ const targetHints: Readonly<Record<ChannelKind, string>> = {
   discord: 'From the channel settings, Integrations, Webhooks: https://discord.com/api/webhooks/…',
   teams: 'From a Teams workflow that posts to a channel when a webhook request is received.',
   pagerduty: 'The integration key of an Events API v2 integration on a PagerDuty service.',
+  alertmanager:
+    'Where your Alertmanager answers, such as http://alertmanager:9093, with its route prefix if it has one.',
 };
+
+/** What each kind of target is called. */
+const targetLabels = { url: 'Webhook URL', 'base-url': 'Base URL', 'routing-key': 'Routing key' };
 
 /** Props of {@link ChannelForm}. */
 interface ChannelFormProps {
@@ -53,12 +59,16 @@ function initialFields(channel: ChannelView | undefined): ChannelFields {
     target: '',
     signingSecret: '',
     unsign: false,
+    credentials: channel?.authenticated ? 'keep' : 'none',
+    username: '',
+    password: '',
+    token: '',
     mentions: channel?.mentions.join('\n') ?? '',
   };
 }
 
 /**
- * The target field: a URL or a routing key. On a change, empty keeps the stored one.
+ * The target field: a URL, a base URL or a routing key. On a change, empty keeps the stored one.
  *
  * @param props - The fields, the setter, the channel and the issue.
  * @param props.fields - The fields.
@@ -78,11 +88,10 @@ function TargetField({
   readonly channel: ChannelView | undefined;
   readonly error: string | undefined;
 }) {
-  const routingKey = channelKindInfo[fields.kind].target === 'routing-key';
   const kept = channel ? `Stored: ${channel.target}. Leave empty to keep it.` : undefined;
   return (
     <Input
-      label={routingKey ? 'Routing key' : 'Webhook URL'}
+      label={targetLabels[channelKindInfo[fields.kind].target]}
       mono
       required={!channel}
       autoComplete="off"
@@ -209,6 +218,7 @@ export function ChannelForm({ channel, onSubmit, busy, issues }: ChannelFormProp
       />
       <TargetField {...shared} error={issues.target} />
       <SecretField {...shared} error={issues.signingSecret} />
+      <CredentialsFields {...shared} error={issues.auth} />
       <MentionsField fields={fields} change={change} error={issues.mentions} />
       <Button type="submit" variant="primary" disabled={busy}>
         {channel ? 'Save' : 'Add channel'}

@@ -6,8 +6,11 @@
 
 /** A message as the preview shows it. */
 export interface PreviewView {
-  /** The service's look: a coloured bar (Slack), an embed (Discord), a card (Teams), an incident line (PagerDuty), or JSON (webhook). */
-  readonly look: 'slack' | 'discord' | 'teams' | 'pagerduty' | 'json';
+  /**
+   * The service's look: a coloured bar (Slack), an embed (Discord), a card (Teams), an incident
+   * line (PagerDuty), an alert line with its labels (Alertmanager), or JSON (webhook).
+   */
+  readonly look: 'slack' | 'discord' | 'teams' | 'pagerduty' | 'alertmanager' | 'json';
   /** The colour of the bar or header, as CSS. */
   readonly color: string | null;
   /** The title. */
@@ -169,7 +172,7 @@ function teamsView(body: Loose): PreviewView {
   };
 }
 
-/** The colours of PagerDuty's severities. */
+/** The colours of PagerDuty's severities, which Alertmanager's alerts take too. */
 const pagerDutyColors: Readonly<Record<string, string>> = {
   critical: '#c4314b',
   error: '#c4314b',
@@ -199,6 +202,28 @@ function pagerDutyView(body: Loose): PreviewView {
 }
 
 /**
+ * Alertmanager's alert: its summary, its description, and the labels that tell it apart.
+ *
+ * @param body - The request body, a list of one alert.
+ * @returns The view.
+ */
+function alertmanagerView(body: unknown): PreviewView {
+  const [alert = {}] = listOf(body);
+  const labels = objectOf(alert.labels);
+  const annotations = objectOf(alert.annotations);
+  const severity = textOf(labels.severity);
+  const state = alert.startsAt === undefined ? 'resolved' : 'firing';
+  return {
+    look: 'alertmanager',
+    color: pagerDutyColors[severity] ?? null,
+    title: textOf(annotations.summary),
+    body: textOf(annotations.description),
+    fields: Object.entries(labels).map(([label, value]) => ({ label, value: textOf(value) })),
+    context: [state, severity].filter(Boolean).join(' · '),
+  };
+}
+
+/**
  * How a channel's message reads, from its recipe's body.
  *
  * @param kind - The channel's kind.
@@ -206,6 +231,7 @@ function pagerDutyView(body: Loose): PreviewView {
  * @returns The view.
  */
 export function previewView(kind: string, body: unknown): PreviewView {
+  if (kind === 'alertmanager') return alertmanagerView(body);
   const loose = objectOf(body);
   if (kind === 'slack') return slackView(loose);
   if (kind === 'discord') return discordView(loose);

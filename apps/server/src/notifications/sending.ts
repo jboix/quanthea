@@ -1,6 +1,7 @@
 /**
  * Sends notifications to channels: each channel's recipe builds the request, the generic webhook
- * signs it, delivery retries it, and the log records it. Sending never throws to its caller.
+ * signs it, a channel with credentials sends them, delivery retries it, and the log records it.
+ * Sending never throws to its caller.
  */
 import {
   type ChannelEvent,
@@ -15,7 +16,7 @@ import {
 import type { ChannelRow, SendRow } from '../db/channel-repository.ts';
 import { newId } from '../lib/ids.ts';
 import type { Logger } from '../lib/logger.ts';
-import { openTarget, type StoreContext } from './channel-store.ts';
+import { openTarget, type SealedTarget, type StoreContext } from './channel-store.ts';
 import { type Delivery, type DeliveryOptions, deliver } from './delivery.ts';
 import type { RecipeChannel, RecipeRequest } from './recipe.ts';
 import { channelRecipes, reportRecipes } from './registry.ts';
@@ -92,25 +93,59 @@ const testTemplate = {
 };
 
 /**
- * Serializes a request and adds its headers: the generic webhook's signature when it has a secret.
+ * The header that carries a channel's credentials.
+ *
+ * @param auth - The credentials, if any.
+ * @returns The `Authorization` header, or none.
+ */
+function authorizationOf(auth: SealedTarget['auth']): Record<string, string> {
+  if (auth === undefined) return {};
+  if (auth.type === 'bearer') return { Authorization: `Bearer ${auth.token}` };
+  const pair = Buffer.from(`${auth.username}:${auth.password}`, 'utf8').toString('base64');
+  return { Authorization: `Basic ${pair}` };
+}
+
+/**
+ * The headers of a request: the credentials of a channel that has any, and the generic webhook's
+ * identity and its signature when it has a secret.
  *
  * @param row - The channel.
- * @param body - The JSON body.
- * @param signingSecret - The channel's signing secret, if any.
+ * @param body - The JSON body, serialized.
+ * @param sealed - The channel's signing secret and credentials, if any.
  * @param context - The event and the clock.
- * @returns The headers and the serialized body.
+ * @returns The headers.
  */
 async function headersFor(
   row: ChannelRow,
   body: string,
-  signingSecret: string | undefined,
+  sealed: Pick<SealedTarget, 'signingSecret' | 'auth'>,
   context: { readonly event: string; readonly deliveryId: string; readonly now: number },
 ): Promise<Record<string, string>> {
-  const headers = { 'Content-Type': 'application/json', 'User-Agent': 'quanthea' };
+  const plain = { 'Content-Type': 'application/json', 'User-Agent': 'quanthea' };
+  const headers = { ...plain, ...authorizationOf(sealed.auth) };
   if (row.kind !== 'webhook') return headers;
   const identity = { 'X-Quanthea-Event': context.event, 'X-Quanthea-Delivery': context.deliveryId };
+  const { signingSecret } = sealed;
   const signature = signingSecret ? await signatureHeaders(signingSecret, body, context.now) : {};
   return { ...headers, ...identity, ...signature };
+}
+
+/**
+ * An error a service answered, without what the channel keeps sealed.
+ *
+ * @param error - The error, which may quote the request.
+ * @param sealed - The target and any credentials.
+ * @param hint - The masked target, which takes the target's place.
+ * @returns The error, the target masked and the credentials dotted out.
+ */
+function withoutSecrets(error: string, sealed: SealedTarget, hint: string): string {
+  const { auth } = sealed;
+  const [, encoded = ''] = (authorizationOf(auth).Authorization ?? '').split(' ');
+  const typed = auth?.type === 'basic' ? auth.password : '';
+  const masked = error.replaceAll(sealed.target, hint);
+  return [encoded, typed]
+    .filter(Boolean)
+    .reduce((text, each) => text.replaceAll(each, '••••'), masked);
 }
 
 /**
@@ -128,15 +163,16 @@ async function post(
   message: Outbound,
   deliveryId: string,
 ): Promise<Delivery> {
-  const { target, signingSecret } = await openTarget(context.secretBox, row);
+  const sealed = await openTarget(context.secretBox, row);
+  const { target } = sealed;
   const kind = channelKindSchema.parse(row.kind);
   const request = message.request(kind, { target, mentions: row.mentions });
   const body = JSON.stringify(request.body);
   const meta = { event: message.event, deliveryId, now: context.now() };
-  const headers = await headersFor(row, body, signingSecret, meta);
+  const headers = await headersFor(row, body, sealed, meta);
   const delivery = await deliver({ url: request.url, headers, body }, context.delivery);
-  // A service may echo the URL back; the log never holds it.
-  const error = delivery.error?.replaceAll(target, row.targetHint) ?? null;
+  // A service may echo the URL or the credentials back; the log never holds them.
+  const error = delivery.error ? withoutSecrets(delivery.error, sealed, row.targetHint) : null;
   return { ...delivery, error };
 }
 

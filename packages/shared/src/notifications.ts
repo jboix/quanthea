@@ -105,6 +105,17 @@ export const notificationSchema = z.strictObject({
   series: z.strictObject({ key: z.string(), labels: z.record(z.string(), z.string()) }),
   template: templateSchema(notificationPlaceholders),
   values: z.partialRecord(z.enum(notificationPlaceholders), z.string()),
+  /**
+   * The firing an `alert.firing` announces: since when, and by when the series announces it again
+   * if it still fires. `again` is left out when the alert does not repeat. A channel that must be
+   * told how long a firing holds, such as Alertmanager, reads it.
+   */
+  firing: z
+    .strictObject({
+      since: z.iso.datetime({ offset: true }),
+      again: z.iso.datetime({ offset: true }).optional(),
+    })
+    .optional(),
   at: z.iso.datetime({ offset: true }),
 });
 

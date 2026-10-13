@@ -1,6 +1,7 @@
 /**
  * What a channel would send, drawn roughly as its service shows it: a Slack message with a
- * coloured bar, a Discord embed, a Teams card, a PagerDuty incident line, or a webhook's JSON.
+ * coloured bar, a Discord embed, a Teams card, a PagerDuty incident line, an
+ * Alertmanager alert with its labels, or a webhook's JSON.
  * Every text is plain text, never markup.
  */
 import styles from './channel-preview.module.css';
@@ -72,7 +73,7 @@ function ChatMessage({ view }: { readonly view: PreviewView }) {
  */
 function Message({ view }: { readonly view: PreviewView }) {
   if (view.look === 'json') return <pre className={styles.json}>{view.json}</pre>;
-  if (view.look !== 'pagerduty') return <ChatMessage view={view} />;
+  if (view.look !== 'pagerduty' && view.look !== 'alertmanager') return <ChatMessage view={view} />;
   return (
     <>
       <span className={styles.incident}>
