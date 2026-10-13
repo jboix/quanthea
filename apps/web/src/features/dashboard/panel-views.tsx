@@ -5,7 +5,6 @@ import {
   type QueryOutcome,
   reduceResult,
   type StatView as StatViewSpec,
-  type TableView as TableViewSpec,
 } from '@quanthea/shared';
 import { lazy, Suspense, useMemo } from 'react';
 import {
@@ -18,7 +17,7 @@ import {
 import { fittedNumber } from '../../ui/fitted-number.ts';
 import { shownMarkers } from './marker-sets.ts';
 import styles from './panels.module.css';
-import { tableRows } from './table-rows.ts';
+import { TableView } from './table-view.tsx';
 
 /** The chart component, loaded with ECharts the first time a dashboard draws a chart. */
 const Chart = lazy(async () => ({ default: (await import('../../charts/index.ts')).Chart }));
@@ -73,49 +72,6 @@ function StatView({ view, queries, timeZone }: ViewProps & { readonly view: Stat
         {value || '–'}
       </span>
       {subtitle !== '' && <span className={styles.statSubtitle}>{subtitle}</span>}
-    </div>
-  );
-}
-
-/**
- * A table.
- *
- * @param props - The view, the outcomes and the time zone.
- * @param props.view - The table view.
- * @returns The table.
- */
-function TableView({ view, queries, timeZone }: ViewProps & { readonly view: TableViewSpec }) {
-  const table = useMemo(() => tableRows(view, queries, timeZone), [view, queries, timeZone]);
-  return (
-    <div className={styles.tableScroll}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            {table.columns.map((column) => (
-              <th key={column.label} data-align={column.align}>
-                {column.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {table.rows.map((row) => (
-            <tr key={row.key}>
-              {row.cells.map((cell, index) => (
-                <td
-                  key={table.columns[index]?.label ?? index}
-                  data-align={table.columns[index]?.align}
-                >
-                  {cell}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {table.truncated && (
-        <p className={styles.note}>Showing the first {table.rows.length} rows.</p>
-      )}
     </div>
   );
 }
