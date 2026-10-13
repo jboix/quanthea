@@ -54,6 +54,7 @@
         "valkey/seed.ts",
         "mongodb/seed.ts",
         "screenshots/run.ts",
+        "chart-speed/run.ts",
         "social-preview/render.ts",
         "coverage-areas/report.ts"
       ],
@@ -68,6 +69,7 @@
         "valkey/**/*.ts",
         "mongodb/**/*.ts",
         "screenshots/**/*.ts",
+        "chart-speed/**/*.ts",
         "social-preview/**/*.ts",
         "coverage-areas/**/*.ts"
       ]

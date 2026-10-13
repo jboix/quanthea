@@ -102,6 +102,18 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
 }
 
 /**
+ * The chart speed page, a route of the development server only: a build leaves it out. It sits
+ * outside the layout, so it needs no session and calls no API.
+ *
+ * @returns The route, or none in a build.
+ */
+function developmentRoutes(): RouteObject[] {
+  if (!import.meta.env.DEV) return [];
+  const Component = async () => (await import('../charts/speed/speed-page.tsx')).ChartSpeedPage;
+  return [{ path: '/dev/chart-speed', lazy: { Component } }];
+}
+
+/**
  * The whole route tree. The root loader requires a session, so every screen below it can rely on
  * one. Screen errors render inside the layout, so the rail stays visible.
  *
@@ -114,6 +126,7 @@ export function createRoutes(dependencies: RouteDependencies): RouteObject[] {
     loginRoute(loadSession, dependencies.api),
     setPasswordRoute(dependencies.api),
     setupRoute(loadSession, dependencies.api),
+    ...developmentRoutes(),
     {
       id: 'root',
       path: '/',
