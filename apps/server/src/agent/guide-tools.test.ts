@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { guideTools, readGuide } from './guide-tools.ts';
+import { guideTools, markersTopic, readGuide } from './guide-tools.ts';
+import { editRules } from './prompt-text.ts';
 
 const guides = [
   { kind: 'postgres', text: 'PostgreSQL (SQL). Bind the range with :__from and :__to.' },
@@ -13,6 +14,14 @@ describe('read_guide', () => {
       kind: 'loki',
       guide: 'Loki (LogQL). Select streams by label.',
     });
+  });
+
+  test('gives how to set markers, which the instructions only point to', () => {
+    const read = readGuide([...guides, markersTopic], 'markers');
+    expect(read).toMatchObject({ kind: 'markers' });
+    expect(JSON.stringify(read)).toContain('removeMarkers');
+    expect(editRules).toContain('read_guide: { "kind": "markers" }');
+    expect(editRules).not.toContain('removeMarkers');
   });
 
   test('says which kinds there are when asked for another', () => {

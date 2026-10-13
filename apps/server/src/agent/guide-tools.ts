@@ -1,9 +1,14 @@
 /**
- * The tool that reads a connector kind's query guide: the instructions name the kinds in use, and
- * the agent reads a guide when it writes its first raw query or test query for that kind.
+ * The tool that reads a guide the instructions do not carry: a connector kind's query guide, which
+ * the agent reads when it writes its first raw query or test query for that kind, and how to set
+ * markers, which it reads before it sets any.
  */
 import { tool } from 'ai';
 import { z } from 'zod';
+import { markersGuide } from './prompt-text.ts';
+
+/** The guide to markers, under the name the instructions give it. */
+export const markersTopic = { kind: 'markers', text: markersGuide };
 
 /** A connector kind's query guide. */
 interface Guide {

@@ -16,12 +16,14 @@ import {
 } from 'ai';
 import { z } from 'zod';
 import { availableIn } from '../dashboards/queries/index.ts';
+import type { ModelConnector } from '../gate/model-view.ts';
 import { AppError } from '../lib/errors.ts';
 import type { ChartSettingsService } from '../settings/chart-settings.ts';
 import type { ModelSettingsService } from '../settings/model-settings.ts';
 import type { QuerySettingsService } from '../settings/query-settings.ts';
 import { recordingView } from './access-record.ts';
 import { withPlanDecisions } from './compact.ts';
+import { connectorsInUse } from './in-use.ts';
 import { firstQuestionMatches, matchesResponse } from './matches.ts';
 import {
   languageModel,
@@ -264,15 +266,20 @@ async function prepare(
 }
 
 /**
- * The queries a thread may use that its connectors can run: builders and saved queries in a
- * language a connector speaks.
+ * The queries a run may use that its connectors can run: builders and saved queries in a language
+ * a connector in use speaks.
  *
  * @param dependencies - The agent's dependencies.
  * @param threadId - The thread.
+ * @param inUse - The connectors the run is about.
  * @returns The builders and saved queries.
  */
-function threadQueries(dependencies: AgentDependencies, threadId: string) {
-  const languages = new Set(dependencies.modelView.connectors().map((each) => each.language));
+function threadQueries(
+  dependencies: AgentDependencies,
+  threadId: string,
+  inUse: readonly ModelConnector[],
+) {
+  const languages = new Set(inUse.map((each) => each.language));
   const chosen = dependencies.querySettings.available(dependencies.threads.row(threadId).queries);
   return availableIn(chosen, languages);
 }
@@ -322,13 +329,15 @@ function runContext(
   const counters = freshCounters(dependencies, request, turn);
   const { threadId, actor, signal } = request;
   const { settings, providerName } = turn;
-  const queries = threadQueries(dependencies, threadId);
+  const inUse = connectorsInUse({ ...dependencies, threadId }, turn.plans);
+  const queries = threadQueries(dependencies, threadId, inUse);
   const charts = dependencies.chartSettings.enabled();
   const run = {
     threadId,
     actor,
     settings,
     providerName,
+    inUse,
     queries,
     charts,
     writer,

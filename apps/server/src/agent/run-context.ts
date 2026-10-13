@@ -5,7 +5,7 @@ import type { Alerts } from '../alerts/alerts.ts';
 import type { PanelLinks } from '../alerts/links.ts';
 import type { Dashboards } from '../dashboards/dashboards.ts';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';
-import type { ModelView } from '../gate/model-view.ts';
+import type { ModelConnector, ModelView } from '../gate/model-view.ts';
 import type { Reports } from '../reports/reports.ts';
 import type { Threads } from '../threads/threads.ts';
 import type { Usage } from '../usage/usage.ts';
@@ -70,6 +70,8 @@ export interface RunContext extends AgentServices {
   /** Aborted when the person stops the run or leaves. */
   readonly signal: AbortSignal;
   /** Counters the stop conditions read. */
+  /** The connectors the run's tools and guide are about: all of them while the thread plans. */
+  readonly inUse: readonly ModelConnector[];
   readonly counters: {
     /** Whether a plan now waits for approval, which ends the run. */
     planPending: boolean;

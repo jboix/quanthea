@@ -1718,12 +1718,14 @@ directly onto an ECharts `dataset`.
   dashboard's variables, and the test run runs each set with the variables' defaults.
 
 The edit's schema is the tool's input schema, so providers that constrain tool input keep the model
-to it. Providers get it without array length bounds (`agent/tool-schema.ts`): Gemini refuses a
-forced tool call on a schema this large with them. The input is still checked against the whole
-schema. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/write-version.ts`):
+to it. Providers get it made smaller (`agent/tool-schema.ts`), because Gemini refuses a forced tool
+call on a schema this large. It leaves out what the server checks or fills by itself: the length
+bounds of arrays and texts, default values and the ban on unknown fields. Where a field takes a
+form per query language, such as a variable's source, it keeps the forms of the languages in use.
+The input is still checked against the whole schema, which fills the defaults. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/write-version.ts`):
 
-1. The thread's state machine decides: after an approved plan, or in a ready thread when the set of
-   panels stays the same.
+1. The thread's state machine decides: after an approved plan, or in a ready thread for a
+   correction.
 2. The spec is built and checked, views aside, then every panel is test-run with its defaults.
 3. Each built chart is completed from its first query's result (`dashboards/panels/complete.ts`):
    roles the model left out take the first fitting columns, and roles naming a column the result
@@ -1785,11 +1787,16 @@ Planning never runs a query: the build test-runs every query anyway. The panel g
 once there is something to write, so planning requests stay short. It lists the thread's builders
 with the columns each returns, raw and saved queries, the shapes of data, one line per chart
 recipe, and the connector kinds in use. Only builders and saved queries in a language a
-connector speaks are offered, in the guide and in the tool schema (`availableIn`), and the raw
-query syntax covers those languages only. A connector kind's query guide (how to get each shape
-of data from it, with examples) is not in the instructions: the agent reads it with `read_guide`
-before the kind's first raw query or test query, as it reads a chart recipe with
-`chart_recipe`. The instructions stay about the same size however many kinds are in use.
+connector in use speaks are offered, in the guide and in the tool schema (`availableIn`), and the
+raw query syntax covers those languages only. The connectors in use (`agent/in-use.ts`) are those
+the approved plan names and those the draft reads, and every connector while the thread plans. So
+a dashboard on two sources carries the builders of those two, however many are connected, and a
+panel on a connector the dashboard does not read yet goes through a new plan. A connector kind's
+query guide (how to get each shape of data from it, with examples) is not in the instructions: the
+agent reads it with `read_guide` before the kind's first raw query or test query, as it reads a
+chart recipe with `chart_recipe`. How a set of markers is written is read the same way,
+`read_guide("markers")`, before the agent sets any. The instructions stay about the same size
+however many kinds are in use.
 
 ### Keeping requests small
 

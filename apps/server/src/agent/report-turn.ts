@@ -10,7 +10,8 @@ import { askPersonTool } from './ask-tool.ts';
 import { cachedInstructions } from './cache.ts';
 import { chartTools } from './chart-tools.ts';
 import { dataTools } from './data-tools.ts';
-import { guideTools } from './guide-tools.ts';
+import { guideTools, markersTopic } from './guide-tools.ts';
+import { guidesInUse, languagesInUse } from './in-use-facts.ts';
 import { panelGuideFor } from './panel-guide.ts';
 import { phaseOf, reportPhaseTools, type ToolName } from './phases.ts';
 import { layoutLines, nowLine } from './prompt.ts';
@@ -96,9 +97,9 @@ function latestReportPlan(plans: readonly PlanView[]) {
 function writingGuide(context: RunContext): string[] {
   const { state } = context.threads.row(context.threadId);
   if (phaseOf(state) === 'planning') return [];
-  const languages = [...new Set(context.modelView.connectors().map((each) => each.language))];
-  const facts = { queries: context.queries, charts: context.charts, languages };
-  return [panelGuideFor({ ...facts, guides: context.modelView.guides() }), panelsInReports];
+  const facts = { queries: context.queries, charts: context.charts };
+  const inUse = { languages: languagesInUse(context), guides: guidesInUse(context) };
+  return [panelGuideFor({ ...facts, ...inUse }), panelsInReports];
 }
 
 /**
@@ -146,7 +147,11 @@ export async function reportInstructions(
  * @returns The tools.
  */
 export function reportTurnTools(context: RunContext, now: () => number) {
-  const guides = [...context.modelView.guides(), { kind: 'report', text: reportGuide }];
+  const guides = [
+    ...context.modelView.guides(),
+    { kind: 'report', text: reportGuide },
+    markersTopic,
+  ];
   return {
     ...dataTools(context, (expression) => resolveTime(expression, now())),
     ...guideTools(guides),

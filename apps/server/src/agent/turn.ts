@@ -26,7 +26,8 @@ import {
   withoutReasoning,
 } from './compact.ts';
 import { dataTools } from './data-tools.ts';
-import { guideTools } from './guide-tools.ts';
+import { guideTools, markersTopic } from './guide-tools.ts';
+import { guidesInUse, languagesInUse } from './in-use-facts.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
 import { phaseOf, phaseTools, type ToolName } from './phases.ts';
 import { instructionParts } from './prompt.ts';
@@ -144,8 +145,8 @@ export async function turnInstructions(
     declinedMatches: messages.at(-1)?.parts.some((part) => part.type === 'data-matches') ?? false,
     queries: context.queries,
     charts: context.charts,
-    languages: [...new Set(context.modelView.connectors().map((connector) => connector.language))],
-    guides: context.modelView.guides(),
+    languages: languagesInUse(context),
+    guides: guidesInUse(context),
   });
   return cachedInstructions(parts, context.settings.provider);
 }
@@ -162,7 +163,7 @@ function turnTools(context: RunContext, now: () => number) {
     ...dataTools(context, (expression) => resolveTime(expression, now())),
     ...buildTools(context),
     ...chartTools(context.charts),
-    ...guideTools(context.modelView.guides()),
+    ...guideTools([...context.modelView.guides(), markersTopic]),
     ask_person: askPersonTool(context),
   };
 }

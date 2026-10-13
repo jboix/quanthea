@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { layoutReport } from '../dashboards/panels/index.ts';
 import { AppError } from '../lib/errors.ts';
 import { fixedStepProblems, withProblems } from './fixed-step.ts';
+import { languagesInUse } from './in-use-facts.ts';
 import { type BuiltPanels, buildPanels } from './panel-build.ts';
 import {
   currentReport,
@@ -337,7 +338,10 @@ function editReportTool(context: RunContext, now: () => number) {
   return tool({
     description:
       'Write the report as a new draft version: its title; panels, each data (a query builder, a saved query or a raw query) and a chart recipe, as edit_dashboard takes them, filtering on the period with :__from and :__to, a chart over time bucketed by the interval ("bucket": "$__interval"), never by a width you write; the schedule, the period, the comparison, the headline stat panels (by id or title), the pinned dashboards to link and the channels, by id. The first write sets the title, the schedule and the period; later ones send only what changes. The server test-runs every panel over the latest period, checks the report and previews it once; you get each panel’s result, or the errors to fix.',
-    inputSchema: providerSchema(reportEditSchemaFor(context.queries, context.charts)),
+    inputSchema: providerSchema(
+      reportEditSchemaFor(context.queries, context.charts),
+      languagesInUse(context),
+    ),
     execute: (edit) => editReport(context, edit, now()),
   });
 }

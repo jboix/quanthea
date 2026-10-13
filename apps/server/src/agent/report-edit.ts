@@ -73,7 +73,9 @@ export interface ReportDraft {
  * @param context - The run.
  * @returns The draft.
  */
-export function currentReport(context: RunContext): ReportDraft | undefined {
+export function currentReport(
+  context: Pick<RunContext, 'threads' | 'threadId' | 'reports'>,
+): ReportDraft | undefined {
   const { reportId } = context.threads.row(context.threadId);
   if (reportId === null || !context.reports) return undefined;
   const { versions } = context.reports.get(reportId, 'editor');

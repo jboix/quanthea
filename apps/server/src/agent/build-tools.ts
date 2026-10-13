@@ -9,6 +9,7 @@ import {
   editRequestSchemaFor,
   layoutReport,
 } from '../dashboards/panels/index.ts';
+import { languagesInUse } from './in-use-facts.ts';
 import { buildPanels } from './panel-build.ts';
 import type { RunContext } from './run-context.ts';
 import { arrangedAsShown } from './shown-layout.ts';
@@ -122,7 +123,10 @@ function editDashboardTool(context: RunContext) {
   return tool({
     description:
       'Change the dashboard in one new version: set its title, time range and variables; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); remove panels; arrange panels in rows by name; add, replace or remove sets of markers (deploys, incidents) by id, filtered by a variable like panels (the deploys of $service). The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work, and returns the layout as a map with advice; otherwise you get the errors to fix.',
-    inputSchema: providerSchema(editRequestSchemaFor(context.queries, context.charts)),
+    inputSchema: providerSchema(
+      editRequestSchemaFor(context.queries, context.charts),
+      languagesInUse(context),
+    ),
     execute: (request) => editDashboard(context, request),
   });
 }
@@ -133,7 +137,9 @@ function editDashboardTool(context: RunContext) {
  * @param context - The run.
  * @returns The spec.
  */
-export function currentSpec(context: RunContext): DashboardSpec | undefined {
+export function currentSpec(
+  context: Pick<RunContext, 'threads' | 'threadId' | 'dashboards'>,
+): DashboardSpec | undefined {
   const { dashboardId } = context.threads.row(context.threadId);
   if (dashboardId === null) return undefined;
   const latest = context.dashboards.get(dashboardId, 'editor').versions.at(-1)?.version;
