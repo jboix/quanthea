@@ -11,9 +11,9 @@ import {
   type PanelQuery,
 } from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
+import { measure } from './measure.ts';
 import { type ReplayedSeries, replaySeries } from './replay-core.ts';
 import { type AlertQueryDependencies, runAlertQuery } from './run-query.ts';
-import { seriesOf } from './series.ts';
 
 /** The window of a replay, as asked. */
 export interface ReplayRequest {
@@ -124,11 +124,9 @@ export async function replayAlert(
   const outcome = await runAlertQuery(dependencies, spec, range, query);
   if ('error' in outcome) throw new AppError('source_failed', outcome.error);
   if (!timed(outcome.frames)) return { replayable: false, reason: noTimeReason };
-  const extraction = seriesOf(outcome.frames, spec.value);
-  const [problem] = extraction.problems;
-  if (problem !== undefined && extraction.series.length === 0)
-    return { replayable: false, reason: problem };
+  const measured = measure(outcome.frames, spec);
+  if (measured.failure !== undefined) return { replayable: false, reason: measured.failure };
   const window = { from: request.from, to: request.to, stepMs };
-  const series = withinBudget(replaySeries(spec, extraction.series, window));
-  return { replayable: true, ...window, series, truncated: extraction.truncated };
+  const series = withinBudget(replaySeries(spec, measured, window));
+  return { replayable: true, ...window, series, truncated: measured.truncated };
 }

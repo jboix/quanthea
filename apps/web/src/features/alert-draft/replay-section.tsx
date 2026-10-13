@@ -44,15 +44,17 @@ interface ReplayHeadProps {
   readonly window: DraftWindow;
   /** Picks another window. */
   readonly onWindow: (window: DraftWindow) => void;
+  /** What the dashed line is: the threshold, or the limit a change must reach. */
+  readonly line: string;
 }
 
 /**
  * The replay card's title, legend and window buttons.
  *
- * @param props - The window and its setter.
+ * @param props - The window, its setter and the name of the dashed line.
  * @returns The header.
  */
-export function ReplayHead({ window, onWindow }: ReplayHeadProps) {
+export function ReplayHead({ window, onWindow, line }: ReplayHeadProps) {
   const words = window === '7d' ? 'The last 7 days' : 'The last 24 hours';
   return (
     <div className={styles.cardHead}>
@@ -64,7 +66,7 @@ export function ReplayHead({ window, onWindow }: ReplayHeadProps) {
         </span>
         <span>
           <span className={styles.dash} />
-          threshold
+          {line}
         </span>
         <span>
           <span className={styles.spikeSwatch} />

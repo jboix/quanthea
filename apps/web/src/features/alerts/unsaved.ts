@@ -8,6 +8,7 @@ import {
   type AlertDetail,
   type AlertSpec,
   alertValueText,
+  conditionText,
   durationMs,
   thresholdHolds,
 } from '@quanthea/shared';
@@ -46,8 +47,11 @@ function thresholdText(spec: AlertSpec, withOp: boolean): string {
  */
 export function changeWords(saved: AlertSpec, tuned: AlertSpec): string {
   const withOp = operatorOf(saved) !== operatorOf(tuned);
+  const thresholds = saved.condition.kind === 'threshold' && tuned.condition.kind === 'threshold';
   const words = [
-    change('threshold', thresholdText(saved, withOp), thresholdText(tuned, withOp)),
+    thresholds
+      ? change('threshold', thresholdText(saved, withOp), thresholdText(tuned, withOp))
+      : change('condition', conditionText(saved), conditionText(tuned)),
     change('wait', durationWords(saved.condition.for), durationWords(tuned.condition.for)),
     change('checked', everyWords(saved.every), everyWords(tuned.every)),
   ];
@@ -92,12 +96,12 @@ function timesWords(count: number): string {
  * @param replay - The replay of the active version over the window.
  * @param tuned - The spec with the changes.
  * @param window - The window, such as `Last 7 days`.
- * @returns Such as `Last 7 days: would have fired 1 time instead of 2.`; nothing without a
- *   threshold.
+ * @returns Such as `Last 7 days: would have fired 1 time instead of 2.`; nothing for a condition
+ *   on the absence of data.
  */
 export function pastComparison(replay: Replayed, tuned: AlertSpec, window: string) {
   const { condition } = tuned;
-  if (condition.kind !== 'threshold') return undefined;
+  if (condition.kind === 'no_data') return undefined;
   const before = replay.series.reduce((sum, each) => sum + each.firings, 0);
   const after = seriesUnder(replay, condition, tuned.every).reduce(
     (sum, each) => sum + each.track.firings,
@@ -171,9 +175,11 @@ function namesWords(names: readonly string[]): string {
  * @param series - The series as they are now.
  * @param tuned - The spec with the changes.
  * @param now - The current time.
- * @returns Such as `Right now: checkout-svc would stop firing.`
+ * @returns Such as `Right now: checkout-svc would stop firing.`; nothing for a condition other
+ *   than a threshold, which a series' current value alone cannot judge.
  */
 export function nowComparison(series: readonly SeriesNow[], tuned: AlertSpec, now: number) {
+  if (tuned.condition.kind !== 'threshold') return undefined;
   const outcomes = new Map<Outcome, string[]>();
   for (const each of series) {
     const outcome = outcomeOf(each, tuned, now);

@@ -3,8 +3,8 @@
  * condition. The alert as a whole is the series with the empty key: a failed query and the
  * `no_data` condition are observed there.
  */
-import { type AlertSpec, type Frame, type Observation, thresholdHolds } from '@quanthea/shared';
-import { type ObservedSeries, reducePoints, seriesOf } from './series.ts';
+import type { AlertSpec, Frame, Observation } from '@quanthea/shared';
+import { type Measured, measure, observeSeries } from './measure.ts';
 
 /** The key of the series that stands for the alert as a whole. */
 export const wholeAlertKey = '';
@@ -29,27 +29,26 @@ export interface EvaluationObservations {
 }
 
 /**
- * Observes a result against a threshold: each series by its value, known series left out as
- * missing, or every known series as `no_data` when the result is empty.
+ * Observes the series of a result against the condition's tests: each series by its readings,
+ * known series left out as missing, or every known series as `no_data` when the result is empty.
  *
- * @param spec - The spec, with a threshold condition.
- * @param series - The series of the result.
+ * @param spec - The spec, with a condition that tests series.
+ * @param measured - The series of the result.
  * @param known - The keys of the series known before.
  * @returns The observations.
  */
-function observeThreshold(
+function observeTests(
   spec: AlertSpec,
-  series: readonly ObservedSeries[],
+  measured: Measured,
   known: ReadonlyMap<string, Readonly<Record<string, string>>>,
 ): Map<string, SeriesObservation> {
-  const condition = spec.condition as Extract<AlertSpec['condition'], { kind: 'threshold' }>;
   const observed = new Map<string, SeriesObservation>();
-  for (const each of series) {
-    const value = reducePoints(each.points, spec.value.reduce);
-    const holds = thresholdHolds(condition, value);
-    observed.set(each.key, { labels: each.labels, observation: { kind: 'value', value, holds } });
+  for (const each of measured.series) {
+    const observation = observeSeries(spec, measured.measures, each.columns);
+    observed.set(each.key, { labels: each.labels, observation });
   }
-  const absent: Observation = series.length === 0 ? { kind: 'no_data' } : { kind: 'missing' };
+  const absent: Observation =
+    measured.series.length === 0 ? { kind: 'no_data' } : { kind: 'missing' };
   for (const [key, labels] of known) {
     if (observed.has(key)) continue;
     const whole = key === wholeAlertKey;
@@ -73,11 +72,12 @@ function wholeAlert(observation: Observation): Map<string, SeriesObservation> {
  * Observes a result against the `no_data` condition: it holds when no series came back.
  *
  * @param series - The series of the result.
- * @param known - The series known before; those of an earlier threshold version go missing.
+ * @param known - The series known before; those of an earlier version that tested series go
+ *   missing.
  * @returns The observations.
  */
 function observeNoData(
-  series: readonly ObservedSeries[],
+  series: readonly unknown[],
   known: ReadonlyMap<string, Readonly<Record<string, string>>>,
 ): Map<string, SeriesObservation> {
   const observed = wholeAlert({ kind: 'value', value: null, holds: series.length === 0 });
@@ -101,13 +101,13 @@ export function observe(
 ): EvaluationObservations {
   if ('error' in outcome)
     return { series: wholeAlert({ kind: 'error', message: outcome.error }), truncated: false };
-  const extraction = seriesOf(outcome.frames, spec.value);
-  const [problem] = extraction.problems;
-  if (problem !== undefined && extraction.series.length === 0)
-    return { series: wholeAlert({ kind: 'error', message: problem }), truncated: false };
+  const measured = measure(outcome.frames, spec);
+  const { failure } = measured;
+  if (failure !== undefined)
+    return { series: wholeAlert({ kind: 'error', message: failure }), truncated: false };
   const series =
     spec.condition.kind === 'no_data'
-      ? observeNoData(extraction.series, known)
-      : observeThreshold(spec, extraction.series, known);
-  return { series, truncated: extraction.truncated };
+      ? observeNoData(measured.series, known)
+      : observeTests(spec, measured, known);
+  return { series, truncated: measured.truncated };
 }

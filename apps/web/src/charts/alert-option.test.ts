@@ -112,3 +112,26 @@ test('keeps a threshold that falls on a round step a step below the top', () => 
   const ratio = { ...input, series: [{ name: 'a', points: [{ at: 0, value: 0.034 }] }] };
   expect(thresholdBounds({ ...ratio, threshold: 0.04 }).max).toBeCloseTo(0.042, 9);
 });
+
+test('draws the limit of a change as a dashed line after the series, in the danger colour', () => {
+  const points = [
+    { at: 0, value: null },
+    { at: 50, value: 0.5 },
+  ];
+  const option = buildAlertOption(
+    { ...input, threshold: null, limit: { name: 'fires below (checkout)', points } },
+    defaultTheme,
+  );
+  const series = option.series as {
+    name: string;
+    data: unknown[];
+    lineStyle?: { type: string; color: string };
+  }[];
+  expect(series.map((each) => each.name)).toEqual(['checkout', 'cart', 'fires below (checkout)']);
+  expect(series[2]?.lineStyle).toMatchObject({ type: 'dashed', color: defaultTheme.danger });
+  expect(series[2]?.data).toEqual([
+    [0, null],
+    [50, 0.5],
+  ]);
+  expect((buildAlertOption(input, defaultTheme).series as unknown[]).length).toBe(2);
+});

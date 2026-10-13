@@ -35,6 +35,13 @@ export interface AlertChartInput {
   readonly axisMoved?: number | null | undefined;
   /** Whether a handle at the right writes the threshold: the line has no label, and room is left. */
   readonly handle?: boolean | undefined;
+  /**
+   * The value a series must reach at each evaluation for a change to hold: a dashed line that
+   * moves with the series, drawn in the danger colour.
+   */
+  readonly limit?:
+    | { readonly name: string; readonly points: AlertChartSeries['points'] }
+    | undefined;
   /** When the alert fired. */
   readonly firing: readonly { readonly from: number; readonly to: number }[];
   /** Writes a value as the alert's format does. */
@@ -219,8 +226,32 @@ export function buildAlertOption(
       valueFormatter: (value: number | null) => (value === null ? '–' : input.format(value)),
     },
     ...axes(input, theme, timeZone),
-    series,
+    series: [...series, ...limitLine(input, theme)],
   };
+}
+
+/**
+ * The moving limit of a change: a dashed line in the danger colour, after the series so they keep
+ * their colours.
+ *
+ * @param input - The limit, if the condition has one.
+ * @param theme - The theme.
+ * @returns The line series, or none.
+ */
+function limitLine(input: AlertChartInput, theme: ChartTheme): Loose[] {
+  if (!input.limit) return [];
+  return [
+    {
+      type: 'line',
+      name: input.limit.name,
+      showSymbol: false,
+      silent: true,
+      animation: false,
+      itemStyle: { color: theme.danger },
+      lineStyle: { color: theme.danger, type: 'dashed', width: 1.5 },
+      data: input.limit.points.map((point) => [point.at, point.value]),
+    },
+  ];
 }
 
 /**

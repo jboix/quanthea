@@ -2,10 +2,12 @@
  * The core of a replay, shared by the server and the browser: feed the state machine one
  * observation per evaluation, in time order, and collect when a series fired and when the
  * condition held too briefly to fire. The server reads each evaluation's window from the query's
- * points; the browser replays the values the server returned at another threshold, while a person
- * drags it, with the same rules. Pure.
+ * points; the browser judges the readings the server returned again under a condition a person
+ * changed, such as a threshold being dragged, with the same rules. Pure.
  */
 import { durationMs } from '../spec/alert.ts';
+import type { AlertCondition } from '../spec/alert-condition.ts';
+import { conditionDirection, conditionHolds, type Reading } from './conditions.ts';
 import {
   type Observation,
   type SeriesState,
@@ -40,6 +42,11 @@ export interface ReplayPoint {
   readonly at: number;
   /** The value. */
   readonly value: number | null;
+  /**
+   * What each test of the condition read, when that is more than the value: the earlier point of
+   * a change, the values of the parts of a joined condition.
+   */
+  readonly readings?: readonly Reading[] | undefined;
 }
 
 /** How one series would have behaved. */
@@ -59,16 +66,6 @@ export interface ReplayTrack {
 /** Which way a threshold points, for the peak of a spike; `undefined` for no threshold. */
 export type ThresholdDirection = 'above' | 'below' | undefined;
 
-/** A threshold condition, as the replay reads it. */
-export interface ReplayThreshold {
-  /** Above or below. */
-  readonly op: 'above' | 'below';
-  /** The threshold. */
-  readonly value: number;
-  /** How long it holds before firing, such as `5m`. */
-  readonly for: string;
-}
-
 /** How many evaluations a series may stay out of the result before it resolves. */
 const graceEvaluations = 3;
 
@@ -81,21 +78,6 @@ const graceEvaluations = 3;
  */
 export function replayRule(holdFor: string, every: string): StateRule {
   return { forMs: durationMs(holdFor), graceMs: graceEvaluations * durationMs(every) };
-}
-
-/**
- * Whether a threshold holds for a value.
- *
- * @param threshold - The operator and the threshold.
- * @param value - The value, if any.
- * @returns `true` when the value is strictly past the threshold.
- */
-export function thresholdHolds(
-  threshold: Pick<ReplayThreshold, 'op' | 'value'>,
-  value: number | null,
-): boolean {
-  if (value === null) return false;
-  return threshold.op === 'above' ? value > threshold.value : value < threshold.value;
 }
 
 /** What a replayed series collects as it goes. */
@@ -187,7 +169,7 @@ export function trackSeries(run: ReplayRun): ReplayTrack {
   for (const at of run.times) {
     const observation = run.observeAt(at);
     const value = observation.kind === 'value' ? observation.value : null;
-    tracker.points.push({ at, value });
+    tracker.points.push(pointOf(at, observation));
     const step = stepSeries(state, observation, run.rule, at);
     if (step.transition) record(tracker, step.transition);
     else if (tracker.pending)
@@ -198,30 +180,47 @@ export function trackSeries(run: ReplayRun): ReplayTrack {
 }
 
 /**
- * Replays the values of one series at another threshold, as the server would have: each point
- * is an evaluation, and a point without a value is a series the result left out.
+ * The point an evaluation leaves on a replay: its value, and the readings beside it.
  *
- * @param points - The value at each evaluation, from a replay.
- * @param threshold - The threshold to replay at.
+ * @param at - The evaluation.
+ * @param observation - What it observed.
+ * @returns The point.
+ */
+function pointOf(at: number, observation: Observation): ReplayPoint {
+  if (observation.kind !== 'value') return { at, value: null };
+  const { value, readings } = observation;
+  return readings ? { at, value, readings } : { at, value };
+}
+
+/**
+ * Judges the points of one replayed series again under another condition, as the server would
+ * have: each point is an evaluation, and a point without a value or a reading is a series the
+ * result left out. The condition must read what the replayed one read: the same tests on the same
+ * fields, reducers and spans. Its numbers, operators, directions, joiner and `for` may differ.
+ *
+ * @param points - The readings at each evaluation, from a replay.
+ * @param condition - The condition to judge them under.
  * @param every - How often the alert is evaluated, for the grace of a missing series.
  * @param end - The end of the replay's window.
  * @returns How the series would have behaved.
  */
-export function replayAtThreshold(
+export function replayUnder(
   points: readonly ReplayPoint[],
-  threshold: ReplayThreshold,
+  condition: AlertCondition,
   every: string,
   end: number,
 ): ReplayTrack {
-  const values = new Map(points.map((point) => [point.at, point.value]));
+  const byTime = new Map(points.map((point) => [point.at, point]));
   const observeAt = (at: number): Observation => {
-    const value = values.get(at) ?? null;
-    if (value === null) return { kind: 'missing' };
-    return { kind: 'value', value, holds: thresholdHolds(threshold, value) };
+    const point = byTime.get(at);
+    const readings = point?.readings ?? [{ value: point?.value ?? null }];
+    if (readings.every((reading) => reading.value === null)) return { kind: 'missing' };
+    const holds = conditionHolds(condition, readings);
+    return { kind: 'value', value: point?.value ?? null, holds, readings: point?.readings };
   };
   return trackSeries({
-    rule: replayRule(threshold.for, every),
-    direction: threshold.op,
+    rule: replayRule(condition.for, every),
+    direction: conditionDirection(condition),
     times: points.map((point) => point.at),
     observeAt,
     end,

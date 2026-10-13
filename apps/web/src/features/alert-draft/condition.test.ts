@@ -5,7 +5,6 @@ import {
   durationWords,
   everyWords,
   roundThreshold,
-  thresholdWords,
   watchWords,
   withBy,
   withEvery,
@@ -31,8 +30,6 @@ const spec: AlertSpec = alertSpecSchema.parse({
 describe('the condition as a sentence', () => {
   test('reads its values in words', () => {
     expect(byWords(spec)).toBe('each service');
-    expect(thresholdWords(spec)).toBe('above 2%');
-    expect(thresholdWords(spec, 0.031)).toBe('above 3.1%');
     expect(durationWords('5m')).toBe('5 minutes');
     expect(durationWords('0m')).toBe('at once');
     expect(everyWords('1m')).toBe('every minute');

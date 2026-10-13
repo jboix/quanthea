@@ -5,16 +5,17 @@
  */
 import {
   type AlertSpec,
+  conditionDirection,
   durationMs,
   type Observation,
   type ReplayTrack,
   replayRule,
   type StateRule,
-  thresholdHolds,
   trackSeries,
 } from '@quanthea/shared';
+import { type Measured, observeSeries } from './measure.ts';
 import { wholeAlertKey } from './observe.ts';
-import { type ObservedSeries, reducePoints, type SeriesPoint } from './series.ts';
+import type { SeriesPoint } from './series.ts';
 
 /** How one series would have behaved, with its key and labels. */
 export interface ReplayedSeries extends ReplayTrack {
@@ -83,10 +84,9 @@ function slidingWindow(points: readonly SeriesPoint[], windowMs: number) {
  * @returns How the series would have behaved.
  */
 function track(spec: AlertSpec, window: ReplayWindow, observeAt: (at: number) => Observation) {
-  const { condition } = spec;
   return trackSeries({
     rule: ruleOf(spec),
-    direction: condition.kind === 'threshold' ? condition.op : undefined,
+    direction: conditionDirection(spec.condition),
     times: evaluationTimes(window),
     observeAt,
     end: window.to,
@@ -94,37 +94,39 @@ function track(spec: AlertSpec, window: ReplayWindow, observeAt: (at: number) =>
 }
 
 /**
- * Replays a spec over the series of a past result.
+ * Replays a spec over the series of a past result. Each evaluation reads the points of its window
+ * and judges them as the evaluator does.
  *
  * @param spec - The spec.
- * @param series - The series of the query over the whole window, with times.
+ * @param measured - The series of the query over the whole window, with times.
  * @param window - The evaluations.
  * @returns How each series would have behaved; one series for the alert as a whole under a
  *   `no_data` condition.
  */
 export function replaySeries(
   spec: AlertSpec,
-  series: readonly ObservedSeries[],
+  measured: Pick<Measured, 'measures' | 'series'>,
   window: ReplayWindow,
 ): ReplayedSeries[] {
   const windowMs = Math.max(durationMs(spec.lookback), window.stepMs);
-  const readers = series.map((each) => slidingWindow(each.points, windowMs));
-  const { condition } = spec;
-  if (condition.kind === 'no_data') {
+  const readers = measured.series.map((each) =>
+    each.columns.map((points) => slidingWindow(points, windowMs)),
+  );
+  if (spec.condition.kind === 'no_data') {
     const observeAt = (at: number): Observation => {
-      const holds = readers.every((read) => read(at).length === 0);
+      const holds = readers.every((columns) => columns.every((read) => read(at).length === 0));
       return { kind: 'value', value: null, holds };
     };
     return [{ key: wholeAlertKey, labels: {}, ...track(spec, window, observeAt) }];
   }
-  return series.map((each, index) => {
-    const read = readers[index] ?? (() => []);
-    const observeAt = (at: number): Observation => {
-      const points = read(at);
-      if (points.length === 0) return { kind: 'missing' };
-      const value = reducePoints(points, spec.value.reduce);
-      return { kind: 'value', value, holds: thresholdHolds(condition, value) };
-    };
+  return measured.series.map((each, index) => {
+    const columns = readers[index] ?? [];
+    const observeAt = (at: number): Observation =>
+      observeSeries(
+        spec,
+        measured.measures,
+        columns.map((read) => read(at)),
+      );
     return { key: each.key, labels: each.labels, ...track(spec, window, observeAt) };
   });
 }

@@ -3,10 +3,10 @@
  * over the window ending now and reads it as the evaluator would. The caller decides what to do
  * with the issues; the series found show what the alert would watch.
  */
-import { type AlertSpec, thresholdHolds } from '@quanthea/shared';
+import { type AlertSpec, conditionTests, type Frame } from '@quanthea/shared';
 import type { SpecIssue } from '../dashboards/issues.ts';
+import { type Measured, measure, readSeries } from './measure.ts';
 import { type AlertQueryDependencies, runAlertQuery } from './run-query.ts';
-import { reducePoints, seriesOf } from './series.ts';
 import { type AlertValidationContext, validateAlertSpec, windowAt } from './validate.ts';
 
 /** A series as one evaluation now would see it. */
@@ -32,26 +32,51 @@ export type AlertCheck =
     };
 
 /**
+ * What keeps a change from ever holding: a result whose series have no point as far back as the
+ * change looks, such as an instant query or a result without a time column.
+ *
+ * @param spec - The spec.
+ * @param measured - The series of its result.
+ * @returns An issue per change test no series has an earlier point for.
+ */
+function historyIssues(spec: AlertSpec, measured: Measured): SpecIssue[] {
+  if (measured.series.length === 0) return [];
+  const joined = spec.condition.kind === 'all' || spec.condition.kind === 'any';
+  return conditionTests(spec.condition).flatMap((test, index) => {
+    if (test.kind !== 'change') return [];
+    const read = measured.series.map((each) => readSeries(spec, measured.measures, each.columns));
+    const found = read.some((each) => typeof each?.readings[index]?.reference === 'number');
+    if (found) return [];
+    const path = joined ? `condition.of[${index}].within` : 'condition.within';
+    const message = `No series has a point ${test.within} before its latest one in the window. A change needs the points of the window, with their times: a query grouped by time, never an instant one, and a lookback longer than within.`;
+    return [{ path, message }];
+  });
+}
+
+/**
  * Reads the series of a spec's result now.
  *
  * @param spec - The spec.
  * @param frames - The frames of its query.
  * @returns The series with their values, or the issues reading them.
  */
-function readSeries(spec: AlertSpec, frames: Parameters<typeof seriesOf>[0]): AlertCheck {
-  const extraction = seriesOf(frames, spec.value);
-  if (extraction.problems.length > 0)
+function readResult(spec: AlertSpec, frames: readonly Frame[]): AlertCheck {
+  const measured = measure(frames, spec);
+  const issues = [
+    ...measured.problems.map((message) => ({ path: 'value', message })),
+    ...historyIssues(spec, measured),
+  ];
+  if (issues.length > 0) return { ok: false, issues };
+  const series = measured.series.map((each) => {
+    const read = readSeries(spec, measured.measures, each.columns);
     return {
-      ok: false,
-      issues: extraction.problems.map((message) => ({ path: 'value', message })),
+      key: each.key,
+      labels: each.labels,
+      value: read?.value ?? null,
+      holds: read?.holds ?? false,
     };
-  const { condition } = spec;
-  const series = extraction.series.map((each) => {
-    const value = reducePoints(each.points, spec.value.reduce);
-    const holds = condition.kind === 'threshold' && thresholdHolds(condition, value);
-    return { key: each.key, labels: each.labels, value, holds };
   });
-  return { ok: true, spec, series, truncated: extraction.truncated };
+  return { ok: true, spec, series, truncated: measured.truncated };
 }
 
 /**
@@ -73,5 +98,5 @@ export async function checkAlert(
   const { spec } = validation;
   const outcome = await runAlertQuery(dependencies, spec, windowAt(spec, now));
   if ('error' in outcome) return { ok: false, issues: [{ path: 'query', message: outcome.error }] };
-  return readSeries(spec, outcome.frames);
+  return readResult(spec, outcome.frames);
 }

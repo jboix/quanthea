@@ -31,15 +31,22 @@ pane on the right.
 The draft pane shows what the alert would have done, before it ever runs:
 
 - **The condition as a sentence**: "Fires when the error share of each service is above 2% for 5
-  minutes, checked every minute". Each value is a button: click it to change it.
+  minutes, checked every minute". Each value is a button: click it to change it. A change reads
+  "drops by at least 50% within 10 minutes", and joined tests read one after the other, with the
+  "and" or "or" between them a button too. The sentence changes values; ask the agent to add or
+  remove a test.
 - **The replay** over the last 7 days or 24 hours, with the threshold as a dashed line. Drag the
   handle at its right, or use the arrow keys, and the shading, the summary ("Would have fired 2
-  times · 23 minutes in total · 1 spike too short to fire") and the series follow at once.
+  times · 23 minutes in total · 1 spike too short to fire") and the series follow at once. A
+  change has no fixed line: the dashed line is the value the series must reach to fire, and it
+  moves with the series. With several series it is drawn for the one that fired longest.
 - **The series**: one per service, host or label value, each with how often it would have fired.
 - **Notifies**: the channels, when the alert is quiet and when it may next notify, and a preview
   of the message as each service shows it: a Slack
   message, a Discord embed, a Teams card, a PagerDuty incident, an Alertmanager alert, a
-  webhook's JSON. **Edit the message** changes its title, body and fields.
+  webhook's JSON. **Edit the message** changes its title, body and fields. Besides `{value}` and
+  `{threshold}`, a message can name `{change}` (how far a change moved, such as `-52%`),
+  `{previous}` (the value it moved from) and `{values}` (the value of every joined test).
 
 Every change you make here is saved as a new draft version, and the agent reads it on its next turn
 ("I changed the alert by hand, v1 → v2: threshold 3% → 2%"). Keep talking to change anything else.
@@ -52,14 +59,47 @@ Every change you make here is saved as a new draft version, and the agent reads 
 Each check runs the query over a recent window and turns the result into series: one per row of
 label values, or one per time series.
 
-- A series above (or below) the threshold is **pending**, then **firing** once that held for the
-  wait you set. A wait of 0 fires at once.
+- A series the condition holds for is **pending**, then **firing** once that held for the wait you
+  set. A wait of 0 fires at once.
 - When it stops holding, it is **resolved**: the channel hears so, unless you turned that off.
 - While it keeps firing, the alert can repeat its message at an interval you set. An alert that
   sends to an [Alertmanager](notifications.md#alertmanager) needs one.
 - **No data**: an alert can fire when the query returns nothing for a while.
 - **Cannot be checked**: when the query fails twice in a row, the source down or the credentials
   wrong, the channel hears once, and again when it can be checked. An admin can turn that off.
+
+### Conditions
+
+Say what should fire in your own words; the agent picks the condition and the draft shows it as a
+sentence. There are four kinds, and nothing else: no formula to write.
+
+| Condition | Say                                    | Fires when                                                         |
+| --------- | -------------------------------------- | ------------------------------------------------------------------ |
+| Threshold | "error share above 2% for 5 minutes"   | the value is above, or below, a fixed number                       |
+| Change    | "orders dropped by half in 10 minutes" | the value rose or dropped by an amount, or more, within a duration |
+| Joined    | "above 2% and at least 100 requests"   | every one of two to four tests holds, or any one of them           |
+| No data   | "nothing came in for 10 minutes"       | the query returns nothing                                          |
+
+**A change** compares the latest value with the value a while earlier: 10 minutes earlier for
+"within 10 minutes". Use it when the normal level moves through the day and no fixed number fits.
+
+- The amount is a percentage of the earlier value ("by half" is 50%), or a difference in the value
+  itself ("by 200").
+- It needs a value from that long ago. A series that just appeared does not fire.
+- A percentage of zero is not a number, so a series that was at 0 does not fire on a percentage.
+  Use a difference for a series that rests at zero.
+- It resolves by itself once the earlier value has caught up, 10 minutes after the move in this
+  example, even when the value stays where it went. To hear for as long as a level lasts, use a
+  threshold, alone or joined with the change.
+
+**Joined tests** watch several numbers of one query, such as the error share and the request count
+of each service, so that a share on three requests wakes nobody.
+
+- The query returns each number as its own column. Each test reads one, with its own format.
+- "And" needs every test to hold, "or" one of them.
+- The value the alert shows, on its page, on the chart and as `{value}` in the message, is the
+  first test's.
+- A test with no value for a series does not hold for it.
 
 ## The alerts list
 
@@ -88,8 +128,9 @@ number of alerts firing.
 
 ### Tune a live alert
 
-The owner of its thread and admins drag the threshold, or change the wait or the interval, right
-on the page. Nothing is saved
+The owner of its thread and admins drag the threshold, or change the numbers of the condition, the
+wait or the interval, right on the page. What the alert watches, and the duration a change looks
+back over, change in its conversation. Nothing is saved
 yet: an amber bar says what the change would do ("Not saved: threshold 2% → 2.5%. Last 7 days: would
 have fired 1 time instead of 2. Right now: checkout-svc would stop firing."). **Discard** drops it;
 **Activate as v4** saves and activates it as a new version.

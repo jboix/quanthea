@@ -5,7 +5,8 @@
  */
 export { AlertDraftPane } from './alert-draft-pane.tsx';
 export { durationWords, everyWords, withThreshold } from './condition.ts';
-export { ConditionSentence, ValueEditor } from './condition-sentence.tsx';
+export { ValueEditor } from './condition-editors.tsx';
+export { ConditionSentence } from './condition-sentence.tsx';
 export {
   type AlertDraftData,
   type AlertIntent,
@@ -19,6 +20,7 @@ export { quietHoursWords, quietSummary } from './quiet-hours.ts';
 export {
   asReplayed,
   byFiring,
+  conditionLines,
   type Replayed,
   seriesUnder,
   type TrackedSeries,

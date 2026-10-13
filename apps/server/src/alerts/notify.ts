@@ -15,6 +15,7 @@ import {
   type Notification,
   type NotificationEvent,
   notificationValues,
+  type Reading,
 } from '@quanthea/shared';
 
 /** What decides whether a series notifies. */
@@ -119,6 +120,7 @@ export interface NotificationSubject {
     readonly labels: Readonly<Record<string, string>>;
     readonly value: number | null;
     readonly since: number;
+    readonly readings?: readonly Reading[] | undefined;
   };
   /** The link to the alert: quanthea's public URL, or a path without one. */
   readonly url: string;

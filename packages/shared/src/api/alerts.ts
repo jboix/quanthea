@@ -8,6 +8,7 @@ import { quietHoursSchema } from '../alerts/quiet-hours.ts';
 import { namedFormatterSchema } from '../formatters/schema.ts';
 import { notificationEvents } from '../notifications.ts';
 import { alertSeverities, alertSpecSchema } from '../spec/alert.ts';
+import { alertConditionSchema } from '../spec/alert-condition.ts';
 import { durationSchema } from '../spec/queries.ts';
 import { defineEndpoint } from './contract.ts';
 
@@ -54,17 +55,6 @@ export const alertSummarySchema = z.object({
 /** An alert without its history. */
 export type AlertSummary = z.infer<typeof alertSummarySchema>;
 
-/** Validates the condition of the version shown, as the spec has it. */
-const listedConditionSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('threshold'),
-    op: z.enum(['above', 'below']),
-    value: z.number(),
-    for: z.string(),
-  }),
-  z.object({ kind: z.literal('no_data'), for: z.string() }),
-]);
-
 /** Validates the series that stands for an alert: the worst state, then the worst value. */
 const leadSeriesSchema = z.object({
   labels: labelsSchema,
@@ -83,7 +73,7 @@ const lastNotificationSchema = z.object({
 /** Validates an alert as the list shows it: its summary, its condition and its worst series. */
 export const alertListItemSchema = alertSummarySchema.extend({
   /** The condition of the active version, else of the latest. */
-  condition: listedConditionSchema,
+  condition: alertConditionSchema,
   /** How the value reads, from the same version. */
   format: namedFormatterSchema.nullable(),
   /** The series in the worst state, with the worst value; `null` before the first evaluation. */
@@ -278,6 +268,15 @@ const replayWindowSchema = z.object({
   step: durationSchema.optional(),
 });
 
+/**
+ * Validates what one test of a condition read of a series: its value, and the earlier point a
+ * change compares with.
+ */
+export const readingSchema = z.object({
+  value: z.number().nullable(),
+  reference: z.number().nullable().optional(),
+});
+
 /** Validates a period of time. */
 const periodSchema = z.object({ from: z.number(), to: z.number() });
 
@@ -285,8 +284,17 @@ const periodSchema = z.object({ from: z.number(), to: z.number() });
 const replaySeriesSchema = z.object({
   key: z.string(),
   labels: labelsSchema,
-  /** The value at each evaluation; empty when the points were left out for size. */
-  points: z.array(z.object({ at: z.number(), value: z.number().nullable() })),
+  /**
+   * The value at each evaluation, with what each test of the condition read when that is more
+   * than the value; empty when the points were left out for size.
+   */
+  points: z.array(
+    z.object({
+      at: z.number(),
+      value: z.number().nullable(),
+      readings: z.array(readingSchema).max(4).readonly().optional(),
+    }),
+  ),
   /** When it fired; `ongoing` when it still fired at the end of the window. */
   firing: z.array(periodSchema.extend({ ongoing: z.boolean() })),
   firings: z.int(),

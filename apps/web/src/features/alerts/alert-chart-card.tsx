@@ -2,7 +2,8 @@
  * The alert page's chart: the active version's query replayed over 6 hours, 24 hours or 7 days,
  * with the threshold and the periods it fired. The replay names the saved version, never a query.
  * On a live alert an editor drags the threshold and changes the condition's values under it; the
- * chart replays the values again in the browser, and the page holds the changes unsaved.
+ * chart judges the replay's readings again in the browser, and the page holds the changes unsaved.
+ * What a replay must be run again for stays fixed there: the fields read and the span of a change.
  */
 import type { AlertDetail, AlertSpec } from '@quanthea/shared';
 import { lazy, Suspense, useEffect, useMemo } from 'react';
@@ -64,7 +65,7 @@ export function useAlertReplay(alert: AlertDetail, window: ReplayWindow) {
  * @returns The series, those that fired longest first.
  */
 function tracksOf(replay: Replayed, unsaved: AlertSpec | undefined): TrackedSeries[] {
-  if (unsaved?.condition.kind !== 'threshold') return byFiring(asReplayed(replay));
+  if (!unsaved) return byFiring(asReplayed(replay));
   return byFiring(seriesUnder(replay, unsaved.condition, unsaved.every));
 }
 
@@ -102,6 +103,7 @@ function TunedView({ replay, alert, tuning, window }: TunedViewProps) {
       <TunableChart
         replay={replay}
         spec={tuning.saved}
+        shown={tuning.shown}
         series={tracks}
         drawn={drawn}
         threshold={condition.kind === 'threshold' ? condition.value : null}
@@ -218,7 +220,7 @@ function ConditionLine({
           disabled={busy}
           onChange={tuning.change}
           saveLabel="Apply, not saved yet"
-          fixed={['watch', 'by']}
+          fixed={['watch', 'by', 'within']}
         />
       </div>
     );

@@ -102,8 +102,8 @@ export function isMuted(alert: AlertRow, now: number): boolean {
 }
 
 /**
- * Moves a series through the state machine. The series of the alert as a whole leaves a threshold
- * alert once it is ok again: there it only stands for a failed query.
+ * Moves a series through the state machine. The series of the alert as a whole leaves an alert
+ * that tests series once it is ok again: there it only stands for a failed query.
  *
  * @param spec - The spec.
  * @param input - The series.
@@ -112,7 +112,7 @@ export function isMuted(alert: AlertRow, now: number): boolean {
  */
 function stepOf(spec: AlertSpec, input: SeriesInput, now: number) {
   const step = stepSeries(input.previous, input.observed.observation, ruleOf(spec), now);
-  const whole = input.key === wholeAlertKey && spec.condition.kind === 'threshold';
+  const whole = input.key === wholeAlertKey && spec.condition.kind !== 'no_data';
   return whole && step.next?.state === 'ok' ? { ...step, next: null } : step;
 }
 
@@ -183,11 +183,13 @@ function notificationOf(
   if (decision.event === null) return null;
   const { alert, spec } = subject;
   const { now, url } = context;
+  const { observation } = input.observed;
   const series = {
     key: input.key,
     labels: input.observed.labels,
     value: state?.value ?? null,
     since: state?.since ?? now,
+    readings: observation.kind === 'value' ? observation.readings : undefined,
   };
   const about = { alertId: alert.id, version: alert.activeVersion ?? 0, spec, series, url };
   return buildNotification(about, decision.event, now, decision.late);

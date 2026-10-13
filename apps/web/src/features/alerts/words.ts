@@ -6,6 +6,7 @@ import {
   type AlertListItem,
   type AlertState,
   calendarParts,
+  conditionText,
   createFormatter,
   durationMs,
   type NamedFormatter,
@@ -43,15 +44,15 @@ export function valueText(value: number | null, format: NamedFormatter | null): 
  *
  * @param condition - The condition of the version shown.
  * @param format - The value format.
- * @returns Such as `above 2% for 5m`, `below 10` or `no data for 10m`.
+ * @returns Such as `above 2% for 5m`, `below 10`, `down 50% or more within 10m` or
+ *   `no data for 10m`.
  */
 export function conditionWords(
   condition: AlertListItem['condition'],
   format: NamedFormatter | null,
 ): string {
   const wait = durationMs(condition.for) > 0 ? ` for ${condition.for}` : '';
-  if (condition.kind === 'no_data') return `no data${wait}`;
-  return `${condition.op} ${valueText(condition.value, format)}${wait}`;
+  return `${conditionText({ value: { format: format ?? undefined }, condition })}${wait}`;
 }
 
 /**

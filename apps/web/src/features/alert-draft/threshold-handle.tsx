@@ -14,8 +14,8 @@ import { roundThreshold } from './condition.ts';
 interface ThresholdHandleProps {
   /** Converts between the chart's axes and pixels, once it is drawn. */
   readonly axis: ValueAxis | undefined;
-  /** The threshold shown. */
-  readonly value: number;
+  /** The threshold shown; `null` for a condition without one to drag, which keeps the spikes. */
+  readonly value: number | null;
   /** Writes a value as the alert's format does. */
   readonly format: (value: number) => string;
   /** The spikes too short to fire, at the threshold shown. */
@@ -61,7 +61,8 @@ function keyStep(axis: ValueAxis): number {
 function handlers(
   axis: ValueAxis,
   overlay: RefObject<HTMLDivElement | null>,
-  props: Pick<ThresholdHandleProps, 'value' | 'onMove' | 'onRelease'> & {
+  props: Pick<ThresholdHandleProps, 'onMove' | 'onRelease'> & {
+    readonly value: number;
     readonly dragging: RefObject<boolean>;
   },
 ) {
@@ -123,6 +124,12 @@ export function ThresholdHandle(props: ThresholdHandleProps) {
   const overlay = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   if (!axis) return null;
+  if (value === null)
+    return (
+      <div className={styles.overlay}>
+        <SpikeMarks axis={axis} spikes={props.spikes} />
+      </div>
+    );
   const top = axis.yOf(value);
   return (
     <div ref={overlay} className={styles.overlay}>
@@ -136,7 +143,7 @@ export function ThresholdHandle(props: ThresholdHandleProps) {
         aria-valuenow={value}
         aria-valuetext={format(value)}
         disabled={props.disabled}
-        {...handlers(axis, overlay, { ...props, dragging })}
+        {...handlers(axis, overlay, { ...props, value, dragging })}
       >
         {format(value)}
       </button>

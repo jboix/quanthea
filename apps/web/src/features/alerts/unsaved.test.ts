@@ -1,10 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import {
-  type AlertDetail,
-  type AlertSpec,
-  alertSpecSchema,
-  replayAtThreshold,
-} from '@quanthea/shared';
+import { type AlertDetail, type AlertSpec, alertSpecSchema, replayUnder } from '@quanthea/shared';
 import type { Replayed } from '../alert-draft/index.ts';
 import { changeWords, nowComparison, pastComparison } from './unsaved.ts';
 
@@ -37,7 +32,7 @@ function tunedTo(condition: Record<string, unknown>, every = '1m'): AlertSpec {
 /** Checkout reaches 3% for three minutes, then 2.4% for three more: two firings at 2%. */
 const values = [0.01, 0.03, 0.03, 0.03, 0.01, 0.024, 0.024, 0.024, 0.01];
 const points = values.map((value, index) => ({ at: index * minute, value }));
-const condition = { op: 'above', value: 0.02, for: '2m' } as const;
+const condition = { kind: 'threshold', op: 'above', value: 0.02, for: '2m' } as const;
 const replay: Replayed = {
   replayable: true,
   from: 0,
@@ -48,7 +43,7 @@ const replay: Replayed = {
     {
       key: '{service="checkout-svc"}',
       labels: { service: 'checkout-svc' },
-      ...replayAtThreshold(points, condition, '1m', 8 * minute),
+      ...replayUnder(points, condition, '1m', 8 * minute),
     },
   ],
 };
@@ -131,5 +126,34 @@ describe('the changes not saved yet', () => {
     expect(nowComparison(many, tunedTo({ value: 0.05 }), 0)).toBe(
       'Right now: 4 series would stop firing.',
     );
+  });
+
+  test('name a changed condition of another kind, and judge its replay again', () => {
+    const dropped = {
+      kind: 'change',
+      direction: 'down',
+      amount: 50,
+      unit: 'percent',
+      within: '2m',
+      for: '0m',
+    } as const;
+    const change = alertSpecSchema.parse({ ...saved, condition: dropped });
+    const less = { ...change, condition: { ...dropped, amount: 20 } };
+    expect(changeWords(change, less)).toBe(
+      'condition down 50% or more within 2m → down 20% or more within 2m',
+    );
+    // From 3% to 1% is a drop by two thirds; from 2.4% to 1% by more than half.
+    const readings = points.map((point, index) => ({
+      ...point,
+      readings: [{ value: point.value, reference: points[index - 2]?.value ?? null }],
+    }));
+    const track = replayUnder(readings, dropped, '1m', 8 * minute);
+    const changed = { ...replay, series: [{ key: 'k', labels: {}, ...track }] };
+    expect(track.firings).toBe(2);
+    const most = { ...change, condition: { ...dropped, amount: 60 } };
+    expect(pastComparison(changed, most, 'Last 7 days')).toBe(
+      'Last 7 days: would have fired 1 time instead of 2.',
+    );
+    expect(nowComparison([seriesNow('checkout-svc', 'firing', 0.01)], most, 0)).toBeUndefined();
   });
 });

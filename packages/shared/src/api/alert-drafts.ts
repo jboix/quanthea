@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import { specChangeSchema } from '../threads.ts';
+import { readingSchema } from './alerts.ts';
 import { defineEndpoint } from './contract.ts';
 import { sendResultSchema } from './notification-channels.ts';
 
@@ -64,6 +65,8 @@ export const testAlertEndpoint = defineEndpoint({
         labels: z.record(z.string().max(100), z.string().max(500)),
         value: z.number().nullable(),
         since: z.number(),
+        /** What each test of the condition read, for a change or a joined condition. */
+        readings: z.array(readingSchema).max(4).readonly().optional(),
       })
       .optional(),
   }),

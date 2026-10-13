@@ -3,7 +3,7 @@
  * tells apart, the operator and threshold, how long it must hold, and how often it is checked.
  * Each change returns the whole spec, which the hand edit saves as a new version.
  */
-import { type AlertSpec, alertValueText, durationMs } from '@quanthea/shared';
+import { type AlertSpec, durationMs } from '@quanthea/shared';
 
 /** Units of a duration in words. */
 const unitWords: Readonly<Record<string, [string, string]>> = {
@@ -50,19 +50,6 @@ export function byWords(spec: AlertSpec): string {
   return by.length > 0 ? `each ${by.join(' and ')}` : 'each series';
 }
 
-/**
- * The threshold in words.
- *
- * @param spec - The spec.
- * @param value - The threshold, if it moved from the spec's.
- * @returns Such as `above 2%`.
- */
-export function thresholdWords(spec: AlertSpec, value?: number): string {
-  const { condition } = spec;
-  if (condition.kind !== 'threshold') return 'no data';
-  return `${condition.op} ${alertValueText(spec, value ?? condition.value)}`;
-}
-
 /** Where the subject of an alert's title ends, such as before `above` in `Error share above 2%`. */
 const subjectEnd =
   /\s+(?:above|below|over|under|exceeds|per|by|for|on|across|in|of each|is|[<>≥≤])(?:\s.*)?$/i;
@@ -85,7 +72,7 @@ function titleSubject(title: string): string {
  * @param field - Such as `error_share` or `errorShare`.
  * @returns Such as `error share`.
  */
-function fieldWords(field: string): string {
+export function fieldWords(field: string): string {
   return field
     .replace(/([a-z\d])([A-Z])/g, '$1 $2')
     .replace(/[_\-.]+/g, ' ')

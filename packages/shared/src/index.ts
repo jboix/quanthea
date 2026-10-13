@@ -14,6 +14,8 @@ export {
   queryLanguageSchema,
   queryLanguages,
 } from '@quanthea/plugin-kit/contract';
+export * from './alerts/condition-words.ts';
+export * from './alerts/conditions.ts';
 export * from './alerts/notification-values.ts';
 export * from './alerts/quiet-hours.ts';
 export * from './alerts/replay-steps.ts';

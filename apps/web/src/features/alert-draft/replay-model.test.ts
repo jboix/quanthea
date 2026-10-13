@@ -85,4 +85,20 @@ describe('a replay at the threshold a person drags', () => {
       since: 5 * minute,
     });
   });
+
+  test('fills the previews with what each test read at that firing', () => {
+    const [first] = replay.series;
+    if (!first) throw new Error('no series');
+    const points = first.points.map((point) => ({
+      ...point,
+      readings: [{ value: point.value, reference: 4 }],
+    }));
+    const changed = { ...replay, series: [{ ...first, points, firingMs: 9 * minute }] };
+    expect(sampleFiring(changed)).toEqual({
+      labels: { service: 'cart' },
+      value: 1,
+      since: 10 * minute,
+      readings: [{ value: 1, reference: 4 }],
+    });
+  });
 });

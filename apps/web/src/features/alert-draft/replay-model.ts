@@ -1,14 +1,17 @@
 /**
- * A draft's replay at the threshold a person drags: the series replayed again in the browser with
- * the server's rules (`replayAtThreshold`), the series the chart draws, and the summary line.
+ * A draft's replay under a condition a person changes, such as a threshold being dragged: the
+ * series judged again in the browser with the server's rules (`replayUnder`), the series the
+ * chart draws with the line the condition compares them against, and the summary line.
  */
 import {
+  type AlertCondition,
   type AlertReplay,
   type AlertSpec,
+  changeLimit,
+  conditionTests,
   type NotifiedSeries,
-  type ReplayThreshold,
   type ReplayTrack,
-  replayAtThreshold,
+  replayUnder,
 } from '@quanthea/shared';
 
 /** A replay that ran. */
@@ -56,27 +59,77 @@ export function asReplayed(replay: Replayed): TrackedSeries[] {
 }
 
 /**
- * Every series replayed again from its values under another condition: another threshold,
- * operator or wait. A series that came without its values keeps the server's result.
+ * Every series judged again from its readings under another condition: other numbers, operators,
+ * directions, joiner or wait, on the same fields and spans. A series that came without its values
+ * keeps the server's result, and so does every series under a `no_data` condition.
  *
  * @param replay - The replay.
- * @param condition - The condition to replay under.
+ * @param condition - The condition to judge under.
  * @param every - How often the alert is evaluated.
  * @returns The series and how each would behave.
  */
 export function seriesUnder(
   replay: Replayed,
-  condition: ReplayThreshold,
+  condition: AlertCondition,
   every: string,
 ): TrackedSeries[] {
+  if (condition.kind === 'no_data') return asReplayed(replay);
   return replay.series.map(({ key, labels, ...track }) => ({
     key,
     labels,
-    track:
-      track.points.length > 0
-        ? replayAtThreshold(track.points, condition, every, replay.to)
-        : track,
+    track: track.points.length > 0 ? replayUnder(track.points, condition, every, replay.to) : track,
   }));
+}
+
+/**
+ * What the dashed line of a replay chart is, for its legend.
+ *
+ * @param condition - The condition.
+ * @returns `threshold`, or the limit a change must reach.
+ */
+export function lineName(condition: AlertCondition): string {
+  const [first] = conditionTests(condition);
+  if (first?.kind !== 'change') return 'threshold';
+  return first.direction === 'up' ? 'fires above this' : 'fires below this';
+}
+
+/** The lines a replay chart draws for what a condition compares a series against. */
+export interface ConditionLines {
+  /** The threshold of the condition's first test, when it is one; `null` otherwise. */
+  readonly threshold: number | null;
+  /**
+   * The value a series must reach at each evaluation for the condition's first test to hold, when
+   * it is a change: the earlier point moved by the amount.
+   */
+  readonly limit?: {
+    readonly name: string;
+    readonly points: { at: number; value: number | null }[];
+  };
+}
+
+/**
+ * What the chart draws for a condition, from its first test, which reads the alert's value: the
+ * line of a threshold, or the moving limit of a change for one series.
+ *
+ * @param condition - The condition.
+ * @param lead - The series whose limit is drawn, with its name; the one that fired longest.
+ * @param lead.name - Its name, written beside the limit when the chart draws several series.
+ * @param lead.points - Its points, with their readings.
+ * @returns The lines.
+ */
+export function conditionLines(
+  condition: AlertCondition,
+  lead: { readonly name?: string | undefined; readonly points: ReplayTrack['points'] } | undefined,
+): ConditionLines {
+  const [first] = conditionTests(condition);
+  if (first?.kind === 'threshold') return { threshold: first.value };
+  if (first?.kind !== 'change' || !lead || lead.points.length === 0) return { threshold: null };
+  const side = first.direction === 'up' ? 'fires above' : 'fires below';
+  const points = lead.points.map(({ at, readings }) => ({
+    at,
+    value: changeLimit(first, readings?.[0]?.reference),
+  }));
+  return { threshold: null, limit: { name: lead.name ? `${side} (${lead.name})` : side, points } };
 }
 
 /**
@@ -152,14 +205,16 @@ export function summaryText(summary: ReplaySummary): string {
 }
 
 /**
- * The value of a series at an instant, from its points.
+ * A series as a notification would name it at an instant, from its points.
  *
  * @param series - The series.
  * @param at - The instant.
- * @returns The value at the last evaluation at or before it.
+ * @returns Its labels, and its value and readings at the last evaluation at or before it.
  */
-function valueAt(series: ReplaySeries, at: number): number | null {
-  return series.points.findLast((point) => point.at <= at)?.value ?? null;
+function notifiedAt(series: ReplaySeries, at: number): NotifiedSeries {
+  const point = series.points.findLast((each) => each.at <= at);
+  const readings = point?.readings ? { readings: point.readings } : {};
+  return { labels: series.labels, value: point?.value ?? null, since: at, ...readings };
 }
 
 /**
@@ -172,8 +227,5 @@ function valueAt(series: ReplaySeries, at: number): number | null {
 export function sampleFiring(replay: Replayed): NotifiedSeries | null {
   const [first] = [...replay.series].sort((a, b) => b.firingMs - a.firingMs);
   if (!first) return null;
-  const period = first.firing[0];
-  if (period)
-    return { labels: first.labels, value: valueAt(first, period.from), since: period.from };
-  return { labels: first.labels, value: valueAt(first, replay.to), since: replay.to };
+  return notifiedAt(first, first.firing[0]?.from ?? replay.to);
 }

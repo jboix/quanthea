@@ -6,7 +6,14 @@ import { openDatabase } from '../db/database.ts';
 import { runMigrations } from '../db/migrate.ts';
 import { captureLogs, temporaryDir } from '../test/fixtures.ts';
 import { evaluateAlert } from './evaluate.ts';
-import { type FakeAnswer, fakeEngine, minute, seriesFrame, spec } from './test/fixtures.ts';
+import {
+  type FakeAnswer,
+  fakeEngine,
+  frameOf,
+  minute,
+  seriesFrame,
+  spec,
+} from './test/fixtures.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let database: ReturnType<typeof openDatabase>;
@@ -80,6 +87,84 @@ const at = (value: number, labels: Record<string, string> = { service: 'checkout
 ];
 
 describe('evaluating an alert', () => {
+  test('fires on a change within the window, and names how far it moved', async () => {
+    const { evaluate, sent, states } = harness({
+      condition: {
+        kind: 'change',
+        direction: 'down',
+        amount: 50,
+        unit: 'percent',
+        within: '10m',
+        for: '0m',
+      },
+      lookback: '20m',
+      message: { title: '{alert}', body: '{series} went {change}, from {previous} to {value}.' },
+    });
+    const labels = { service: 'checkout' };
+    // Too little history: the value is known, nothing is compared.
+    await evaluate(5 * minute, [seriesFrame(labels, [[5 * minute, 100]])]);
+    expect(states.series('a1')[0]).toMatchObject({ state: 'ok', value: 100 });
+    const halved: [number, number][] = [
+      [5 * minute, 100],
+      [16 * minute, 48],
+    ];
+    await evaluate(16 * minute, [seriesFrame(labels, halved)]);
+    expect(states.series('a1')[0]).toMatchObject({ state: 'firing', value: 48 });
+    expect(sent.map((each) => each.event)).toEqual(['alert.firing']);
+    expect(sent[0]?.values).toMatchObject({
+      value: '48',
+      change: '-52%',
+      previous: '100',
+      threshold: 'down 50% or more within 10m',
+    });
+    // The earlier point caught up: it resolves, though the value stayed.
+    const stayed: [number, number][] = [
+      [16 * minute, 48],
+      [27 * minute, 48],
+    ];
+    await evaluate(27 * minute, [seriesFrame(labels, stayed)]);
+    expect(states.series('a1')[0]).toMatchObject({ state: 'ok', value: 48 });
+  });
+
+  test('fires on joined tests of two columns, and names every value', async () => {
+    const { evaluate, sent } = harness({
+      value: { field: 'share', by: ['service'], format: { $fmt: 'percent', decimals: 1 } },
+      condition: {
+        kind: 'all',
+        of: [
+          { kind: 'threshold', op: 'above', value: 0.02 },
+          {
+            kind: 'threshold',
+            op: 'above',
+            value: 100,
+            field: 'requests',
+            format: { $fmt: 'number' },
+          },
+        ],
+        for: '0m',
+      },
+      message: { title: '{alert}', body: '{series}: {values}, {threshold}.' },
+    });
+    const fields = [
+      { name: 'service', type: 'string' as const },
+      { name: 'share', type: 'number' as const },
+      { name: 'requests', type: 'number' as const },
+    ];
+    await evaluate(minute, [
+      frameOf(fields, [
+        ['cart', 'checkout'],
+        [0.05, 0.05],
+        [40, 312],
+      ]),
+    ]);
+    expect(sent.map((each) => each.series.labels.service)).toEqual(['checkout']);
+    expect(sent[0]?.values).toMatchObject({
+      value: '5%',
+      values: '5%, requests 312',
+      threshold: 'above 2% and requests above 100',
+    });
+  });
+
   test('fires once the condition held for `for`, notifies once, then resolves', async () => {
     const { evaluate, sent, states } = harness({ notify: { onResolved: true } });
     for (let minutes = 1; minutes <= 7; minutes += 1) await evaluate(minutes * minute, at(9));

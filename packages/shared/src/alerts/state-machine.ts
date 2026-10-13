@@ -6,11 +6,21 @@
  * `error`. Pure: the evaluator and the replay feed it the same way.
  */
 import type { AlertState } from '../api/alerts.ts';
+import type { Reading } from './conditions.ts';
 
 /** What an evaluation observed of a series. */
 export type Observation =
-  /** The series came back: its value, and whether the condition holds for it. */
-  | { readonly kind: 'value'; readonly value: number | null; readonly holds: boolean }
+  /**
+   * The series came back: its value, and whether the condition holds for it. `readings` are what
+   * each test of the condition read, kept when they say more than the value. The state machine
+   * does not read them: the notification and the replay do.
+   */
+  | {
+      readonly kind: 'value';
+      readonly value: number | null;
+      readonly holds: boolean;
+      readonly readings?: readonly Reading[] | undefined;
+    }
   /** The result left the series out while others came back. */
   | { readonly kind: 'missing' }
   /** The result was empty. */

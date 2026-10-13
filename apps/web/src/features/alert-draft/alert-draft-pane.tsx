@@ -15,7 +15,14 @@ import styles from './alert-draft.module.css';
 import { ConditionSentence } from './condition-sentence.tsx';
 import type { AlertDraftData, PreviewOutcome, PreviewRequest } from './data.ts';
 import { Notifies } from './notifies.tsx';
-import { byFiring, maxChartSeries, type Replayed, sampleFiring, seriesAt } from './replay-model.ts';
+import {
+  byFiring,
+  lineName,
+  maxChartSeries,
+  type Replayed,
+  sampleFiring,
+  seriesAt,
+} from './replay-model.ts';
 import {
   type DraftWindow,
   ReplayChart,
@@ -194,6 +201,19 @@ function useDraftState(draft: AlertDraftData) {
 type DraftProps = AlertDraftPaneProps & { readonly draft: AlertDraftData };
 
 /**
+ * The spec with its threshold where a drag let it go.
+ *
+ * @param spec - The draft's spec.
+ * @param value - Where the threshold was let go.
+ * @returns The changed spec, or nothing when the threshold did not move or there is none.
+ */
+function movedThreshold(spec: AlertSpec, value: number): AlertSpec | undefined {
+  const { condition } = spec;
+  if (condition.kind !== 'threshold' || value === condition.value) return undefined;
+  return { ...spec, condition: { ...condition, value } };
+}
+
+/**
  * The replay card: the chart with the threshold to drag, or what stands in for it.
  *
  * @param props - The pane's props and the draft's state.
@@ -201,17 +221,18 @@ type DraftProps = AlertDraftPaneProps & { readonly draft: AlertDraftData };
  * @returns The card.
  */
 function ReplayCard(props: DraftProps & { readonly state: ReturnType<typeof useDraftState> }) {
-  const { draft, busy, onHandEdit, state } = props;
-  const { spec } = draft;
+  const { busy, onHandEdit, state } = props;
+  const { spec } = props.draft;
   const note = replayNote(state.outcome);
+  const line = lineName(spec.condition);
   const release = (value: number) => {
     state.setDragged(value);
-    if (spec.condition.kind === 'threshold' && value !== spec.condition.value)
-      onHandEdit({ ...spec, condition: { ...spec.condition, value } });
+    const moved = movedThreshold(spec, value);
+    if (moved) onHandEdit(moved);
   };
   return (
     <section className={styles.card} aria-label="Replay">
-      <ReplayHead window={state.window} onWindow={state.setWindow} />
+      <ReplayHead window={state.window} onWindow={state.setWindow} line={line} />
       {state.replay && note === undefined ? (
         <ReplayChart
           replay={state.replay}

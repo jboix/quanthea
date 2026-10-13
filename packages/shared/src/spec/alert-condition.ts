@@ -1,0 +1,177 @@
+/**
+ * The condition of an alert: a closed set of named kinds, plain JSON. A test compares the value of
+ * a series (`threshold`), or its latest point with an earlier one (`change`). `all` and `any` join
+ * two to four tests, each on its own number field, and `no_data` is about the query as a whole.
+ * Every kind has a `for`: how long it holds before the series fires.
+ */
+import { z } from 'zod';
+import { namedFormatterSchema } from '../formatters/schema.ts';
+import { durationSchema } from './queries.ts';
+
+/** How the points of a series within the window become one value. */
+export const alertReducers = ['last', 'max', 'min', 'mean', 'sum'] as const;
+
+/** How the points of a series within the window become one value. */
+export type AlertReducer = (typeof alertReducers)[number];
+
+/** The fields of a threshold: the value is strictly above or below a number. */
+const thresholdFields = {
+  kind: z.literal('threshold'),
+  op: z.enum(['above', 'below']),
+  value: z.number(),
+};
+
+/**
+ * The fields of a change: the latest point of the window against the latest point at least
+ * `within` before it.
+ */
+const changeFields = {
+  kind: z.literal('change'),
+  /** Whether it fires on a rise or on a drop. */
+  direction: z.enum(['up', 'down']),
+  /** How much, at least: a share of the earlier value in percent, or a difference. */
+  amount: z.number().positive(),
+  unit: z.enum(['percent', 'absolute']),
+  /** How far back the earlier point is, inside the lookback. */
+  within: durationSchema,
+};
+
+/** What a test of a joined condition may read besides the alert's value. */
+const partFields = {
+  /** The number field it reads; the alert's `value.field` when left out. */
+  field: z.string().min(1).max(200).optional(),
+  /** How its threshold and values read; the alert's `value.format` when left out. */
+  format: namedFormatterSchema.optional(),
+};
+
+/** Validates a threshold: the value of a series is above or below a number for a while. */
+const thresholdConditionSchema = z.strictObject({
+  ...thresholdFields,
+  /** How long the condition holds before the series fires; `0m` fires at once. */
+  for: durationSchema,
+});
+
+/** Validates a change: the value rose or dropped by an amount within a duration. */
+const changeConditionSchema = z.strictObject({ ...changeFields, for: durationSchema });
+
+/** Validates a condition on the absence of data: the query returns no value for a while. */
+const noDataConditionSchema = z.strictObject({
+  kind: z.literal('no_data'),
+  for: durationSchema,
+});
+
+/** Validates one test of a joined condition. */
+const conditionPartSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    ...thresholdFields,
+    ...partFields,
+    /** How its points become one value; the alert's `value.reduce` when left out. */
+    reduce: z.enum(alertReducers).optional(),
+  }),
+  z.strictObject({ ...changeFields, ...partFields }),
+]);
+
+/** One test of a joined condition. */
+export type ConditionPart = z.infer<typeof conditionPartSchema>;
+
+/**
+ * Validates tests joined: every one holds (`all`), or at least one (`any`).
+ *
+ * @param kind - How they are joined.
+ * @returns The schema.
+ */
+const joinedConditionSchema = <Kind extends 'all' | 'any'>(kind: Kind) =>
+  z.strictObject({
+    kind: z.literal(kind),
+    /** The tests, never joined ones. The first reads the alert's value. */
+    of: z.array(conditionPartSchema).min(2).max(4),
+    for: durationSchema,
+  });
+
+/** Validates the condition that fires. */
+export const alertConditionSchema = z.discriminatedUnion('kind', [
+  thresholdConditionSchema,
+  changeConditionSchema,
+  joinedConditionSchema('all'),
+  joinedConditionSchema('any'),
+  noDataConditionSchema,
+]);
+
+/** The condition that fires. */
+export type AlertCondition = z.infer<typeof alertConditionSchema>;
+
+/** A condition that joins tests. */
+export type JoinedCondition = Extract<AlertCondition, { kind: 'all' | 'any' }>;
+
+/** A test: a threshold or a change, alone as a condition or as a part of a joined one. */
+export type ConditionTest =
+  | ConditionPart
+  | Extract<AlertCondition, { kind: 'threshold' | 'change' }>;
+
+/**
+ * The tests of a condition, in order.
+ *
+ * @param condition - The condition.
+ * @returns Its parts when it joins some, itself when it is one test, none for `no_data`.
+ */
+export function conditionTests(condition: AlertCondition): readonly ConditionTest[] {
+  if (condition.kind === 'no_data') return [];
+  if (condition.kind === 'all' || condition.kind === 'any') return condition.of;
+  return [condition];
+}
+
+/** One problem of a condition against the rest of the spec. */
+export interface ConditionProblem {
+  /** The path of the field, from the spec. */
+  readonly path: (string | number)[];
+  /** What is wrong. */
+  readonly message: string;
+}
+
+/**
+ * The problems of a joined condition's first part: it reads the alert's value, so it names no
+ * field, reducer or format of its own.
+ *
+ * @param condition - The condition.
+ * @returns The problems.
+ */
+function firstPartProblems(condition: AlertCondition): ConditionProblem[] {
+  if (condition.kind !== 'all' && condition.kind !== 'any') return [];
+  const first: Record<string, unknown> = condition.of[0] ?? {};
+  return ['field', 'reduce', 'format']
+    .filter((name) => first[name] !== undefined)
+    .map((name) => ({
+      path: ['condition', 'of', 0, name],
+      message: `The first part reads the alert's value: set value.${name} instead.`,
+    }));
+}
+
+/**
+ * The problems of a condition against the value it reads and the window it is given.
+ *
+ * @param condition - The condition.
+ * @param reduce - The alert's `value.reduce`.
+ * @param lookbackMs - The alert's `lookback`, in milliseconds.
+ * @param durationMs - Reads a duration in milliseconds.
+ * @returns The problems, with paths from the spec.
+ */
+export function conditionProblems(
+  condition: AlertCondition,
+  reduce: AlertReducer,
+  lookbackMs: number,
+  durationMs: (duration: string) => number,
+): ConditionProblem[] {
+  const tests = conditionTests(condition);
+  const problems = firstPartProblems(condition);
+  if (tests[0]?.kind === 'change' && reduce !== 'last')
+    problems.push({
+      path: ['value', 'reduce'],
+      message: 'A change compares the latest point with an earlier one: use last.',
+    });
+  if (tests.some((test) => test.kind === 'change' && durationMs(test.within) >= lookbackMs))
+    problems.push({
+      path: ['lookback'],
+      message: "Use a window longer than the change's within, so it holds the earlier point.",
+    });
+  return problems;
+}

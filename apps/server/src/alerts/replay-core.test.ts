@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { replayAtThreshold } from '@quanthea/shared';
+import { type AlertSpec, replayUnder } from '@quanthea/shared';
+import { type Measured, measuresOf } from './measure.ts';
 import { replaySeries } from './replay-core.ts';
 import { type ObservedSeries, seriesKeyOf } from './series.ts';
 import { minute, spec } from './test/fixtures.ts';
@@ -27,6 +28,28 @@ function perMinute(labels: Record<string, string>, values: (number | null)[]): O
   return { key: seriesKeyOf(labels), labels, points };
 }
 
+/**
+ * Series as a spec's condition reads them: every measure reads the same points.
+ *
+ * @param subject - The spec.
+ * @param series - The series.
+ * @returns The measured series.
+ */
+function measured(subject: AlertSpec, series: readonly ObservedSeries[]): Measured {
+  const measures = measuresOf(subject);
+  return {
+    measures,
+    series: series.map(({ key, labels, points }) => ({
+      key,
+      labels,
+      columns: measures.map(() => points),
+    })),
+    truncated: false,
+    problems: [],
+    failure: undefined,
+  };
+}
+
 describe('replaying a threshold', () => {
   // Above at 3 to 4 (too short), 10 to 16 (fires at 13), 19 to 20 (pending at the end).
   const values = Array.from({ length: 21 }, (_unused, at) =>
@@ -34,26 +57,34 @@ describe('replaying a threshold', () => {
   );
 
   test('finds when it would have fired, and for how long', () => {
-    const [series] = replaySeries(threshold, [perMinute({ service: 'checkout' }, values)], window);
+    const [series] = replaySeries(
+      threshold,
+      measured(threshold, [perMinute({ service: 'checkout' }, values)]),
+      window,
+    );
     expect(series?.firing).toEqual([{ from: 13 * minute, to: 17 * minute, ongoing: false }]);
     expect(series?.firings).toBe(1);
     expect(series?.firingMs).toBe(4 * minute);
   });
 
   test('finds the spikes too short to fire, with their peak', () => {
-    const [series] = replaySeries(threshold, [perMinute({ service: 'checkout' }, values)], window);
+    const [series] = replaySeries(
+      threshold,
+      measured(threshold, [perMinute({ service: 'checkout' }, values)]),
+      window,
+    );
     expect(series?.tooShort).toEqual([{ from: 3 * minute, to: 5 * minute, peak: 7 }]);
   });
 
   test('gives the value at each evaluation', () => {
-    const [series] = replaySeries(threshold, [perMinute({}, values)], window);
+    const [series] = replaySeries(threshold, measured(threshold, [perMinute({}, values)]), window);
     expect(series?.points).toHaveLength(21);
     expect(series?.points[3]).toEqual({ at: 3 * minute, value: 6 });
   });
 
   test('counts a firing still going at the end up to the end', () => {
     const late = Array.from({ length: 21 }, (_unused, at) => (at >= 15 ? 9 : 1));
-    const [series] = replaySeries(threshold, [perMinute({}, late)], window);
+    const [series] = replaySeries(threshold, measured(threshold, [perMinute({}, late)]), window);
     expect(series?.firing).toEqual([{ from: 18 * minute, to: 20 * minute, ongoing: true }]);
     expect(series?.firingMs).toBe(2 * minute);
   });
@@ -61,7 +92,7 @@ describe('replaying a threshold', () => {
   test('replays each series on its own', () => {
     const quiet = perMinute({ service: 'cart' }, Array(21).fill(1));
     const busy = perMinute({ service: 'checkout' }, Array(21).fill(9));
-    const replayed = replaySeries(threshold, [quiet, busy], window);
+    const replayed = replaySeries(threshold, measured(threshold, [quiet, busy]), window);
     expect(replayed.map((each) => [each.labels.service, each.firings])).toEqual([
       ['cart', 0],
       ['checkout', 1],
@@ -70,7 +101,10 @@ describe('replaying a threshold', () => {
 
   test('reads the window of each evaluation, so a sparse series keeps its last point', () => {
     const sparse = perMinute({}, [9, null, null, 9, null, null, 9, null, null, 9]);
-    const [series] = replaySeries(threshold, [sparse], { ...window, to: 9 * minute });
+    const [series] = replaySeries(threshold, measured(threshold, [sparse]), {
+      ...window,
+      to: 9 * minute,
+    });
     expect(series?.points.map((point) => point.value)).toEqual([9, 9, 9, 9, 9, 9, 9, 9, 9, 9]);
     expect(series?.firing[0]?.from).toBe(3 * minute);
   });
@@ -80,7 +114,7 @@ describe('replaying a no-data condition', () => {
   test('fires once no point came for long enough', () => {
     const noData = spec({ condition: { kind: 'no_data', for: '3m' }, lookback: '3m' });
     const stops = perMinute({}, [1, 1, 1, 1, 1, 1]);
-    const [series] = replaySeries(noData, [stops], window);
+    const [series] = replaySeries(noData, measured(noData, [stops]), window);
     expect(series?.key).toBe('');
     expect(series?.firing).toEqual([{ from: 11 * minute, to: 20 * minute, ongoing: true }]);
   });
@@ -97,15 +131,10 @@ describe('replaying again at another threshold, as the browser does', () => {
   test.each([2, 4.5, 6, 8])('matches the server at %p', (threshold) => {
     const condition = { kind: 'threshold', op: 'above', value: 5, for: '2m' } as const;
     const base = spec({ condition, lookback: '2m' });
-    const [first] = replaySeries(base, [series], long);
+    const [first] = replaySeries(base, measured(base, [series]), long);
     const moved = spec({ condition: { ...condition, value: threshold }, lookback: '2m' });
-    const [server] = replaySeries(moved, [series], long);
-    const browser = replayAtThreshold(
-      first?.points ?? [],
-      { op: 'above', value: threshold, for: '2m' },
-      moved.every,
-      long.to,
-    );
+    const [server] = replaySeries(moved, measured(moved, [series]), long);
+    const browser = replayUnder(first?.points ?? [], moved.condition, moved.every, long.to);
     const { key: _key, labels: _labels, ...expected } = server ?? { key: '', labels: {} };
     expect(browser).toEqual(expected as typeof browser);
   });

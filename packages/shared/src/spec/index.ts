@@ -1,6 +1,7 @@
 /** The spec's part of the public surface of `@quanthea/shared`. */
 
 export * from './alert.ts';
+export * from './alert-condition.ts';
 export {
   type Annotation,
   type DashboardSpec,

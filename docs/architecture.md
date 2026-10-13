@@ -240,14 +240,24 @@ gate's leak tests check that every one of those paths drops hidden fields.
     minutes, checked every minute"), each value a button that opens an inline editor. What it
     watches reads as the subject of the alert's title (the words before `above`, `per` and the
     like), else the compared column in words (`error_share` reads `error share`); its editor
-    changes the column;
+    changes the column. A wait of `0m` reads "at once". A change reads "drops by at least 50%
+    within 10 minutes", with one editor for the direction, the amount and its unit and one for the
+    span, which keeps the window longer than it. Joined tests read one after the other, "for each
+    service, the error share is above 2% and requests is above 100", each later part with an
+    editor for the column it reads, and the first "and" or "or" with one that joins them the other
+    way (`condition-sentence.tsx`, `test-editors.tsx`, `condition-tests.ts`). The sentence changes
+    values, never the number of parts: the agent adds and removes them;
   - the replay of the latest version over 7 days or 24 hours, from the alert pages' replay route,
     drawn by the alert chart of `charts/`, with the threshold as a dashed line and a handle at its
     right to drag (or move with the arrow keys). The chart draws the line where the threshold is
     shown, and the saved one as a faint line marked `was` once it moved. The value axis keeps
     both in view once the threshold is let go, and stays still under the pointer while it is
-    dragged. A series keeps its colour as the threshold moves. While it moves, the browser
-    replays the values again with the shared rules (`replayAtThreshold`), so the shading, the
+    dragged. A series keeps its colour as the threshold moves. Only the threshold of a threshold
+    condition has a handle. A joined condition draws the threshold of its first part as a line.
+    A change has no fixed line: the chart draws the limit its value must reach, the earlier point
+    moved by the amount, as a dashed line that moves with the series, for the series that fired
+    longest (`conditionLines`). While the threshold moves, the browser
+    judges the replay's readings again with the shared rules (`replayUnder`), so the shading, the
     dots of the spikes too short to fire, the series list and the summary ("Would have fired 2
     times · 23 minutes in total · 1 spike too short to fire") follow at once. The chart reports
     its axes (`ValueAxis`) so the handle converts pixels to values without ECharts leaving
@@ -319,17 +329,21 @@ gate's leak tests check that every one of those paths drops hidden fields.
     (`charts/alert-option.ts`), and says how often it fired. The line sits at the threshold's
     exact value: an ECharts mark line rounds its value to two decimals unless told otherwise,
     which drew a threshold of 2.31% (0.0231) at 2%. It draws the 12 series that fired
-    longest. For analysts and viewers, and on an alert that is not active, the line under it
-    states the condition, the interval and the window.
+    longest, and the same lines as the draft pane's for a joined condition and a change. For
+    analysts and viewers, and on an alert that is not active, the line under it states the
+    condition, the interval and the window.
   - **Hand tuning**, for editors on an active alert. The chart is the draft pane's: the threshold
     has a handle to drag, and the condition under it is the draft pane's sentence, with the
-    threshold, the wait and the interval to change (what it watches and its series stay as
-    words). A change is never applied: the page holds it unsaved (`use-tuning.ts`), the chart
-    replays the values again under it in the browser (`seriesUnder`), with the saved threshold
-    faint, and an amber bar under the header says what it would do: "Not saved: threshold 2% →
-    2.5%. Last 7 days: would have fired 1 time instead of 2. Right now: checkout-svc would stop
-    firing." The window is the chart's; right now comes from each series' current value and
-    state (`unsaved.ts`). Discard drops it. Activate as v4 sends the active spec with the
+    numbers of each test, the wait and the interval to change. What a replay must run again for
+    stays as words: what each test watches, the series, and the span of a change. A change is
+    never applied: the page holds it unsaved (`use-tuning.ts`), the chart
+    judges the replay's readings again under it in the browser (`seriesUnder`), with the saved
+    threshold faint, and an amber bar under the header says what it would do: "Not saved:
+    threshold 2% → 2.5%. Last 7 days: would have fired 1 time instead of 2. Right now:
+    checkout-svc would stop firing." A condition other than a threshold reads "condition down 50%
+    or more within 10m → down 30% or more within 10m". The window is the chart's; right now comes
+    from each series' current value and state, and is left out for a condition other than a
+    threshold, which a current value alone cannot judge (`unsaved.ts`). Discard drops it. Activate as v4 sends the active spec with the
     changes to `POST /api/alerts/:id/versions`, which saves and activates it; once another
     version is active, changes held from the old one lapse.
   - Each series now (state, value, since), What happened (the changes of state, whether each
@@ -1018,6 +1032,36 @@ ok ──holds──▶ pending ──held for `for`──▶ firing
   value.
 - Hysteresis is not modelled: a value that crosses the threshold back and forth moves each time.
 
+**Conditions** (`spec/alert-condition.ts`, `alerts/conditions.ts` in `@quanthea/shared`;
+`alerts/measure.ts`). The kinds are a closed set, listed in [alert-spec.md](alert-spec.md): no
+expression is parsed anywhere. Whatever the kind, an observation of a series stays "a value, and
+whether the condition holds", so the state machine and its `for` know nothing of kinds. The work
+is split in two, and a new kind adds to each half, never a path of its own:
+
+- **Measuring** is the server's. A condition is made of tests (`conditionTests`): a threshold or
+  a change is one, `all` and `any` are their parts, `no_data` has none. Each test is a measure
+  (`measuresOf`): the number field it reads, how its points become a value, and for a change how
+  far back its earlier point is. `measure` reads the result once per field into series that carry
+  one column of points per measure, joined by series key, and `readingOf` turns the points of one
+  window into a reading: the value, and for a change the earlier point (`reference`).
+- **Judging** is pure and shared (`conditionHolds`): it takes the condition and one reading per
+  test. The evaluator, the check before a save, the replay and the browser all call it.
+
+What follows from it:
+
+- The value a series reports is the first measure's, which is always the alert's own value
+  (`value.field`, `value.reduce`): the schema refuses a first part with a field, reducer or format
+  of its own. The list, the series table, the chart and `{value}` therefore read every kind alike.
+- A reading without a value does not hold. A series is `missing` only when no measure has a point
+  for it, so a series one part lacks is still observed, with that part not holding.
+- A change compares the latest point of the window with the latest point at least `within` before
+  it. Without one, and as a share of a point that is 0, there is no change and it does not hold.
+- A measure whose field found no series is a failed check, like a missing `value.field`.
+- An observation keeps its readings beside the value when they say more than it (`readingsBeside`):
+  an earlier point, or several parts. They fill `{change}`, `{previous}` and `{values}` at the
+  evaluation that notifies, and are not stored: the series row keeps the value only.
+- `checkAlert` also refuses a change no series has an earlier point for, since it could never fire.
+
 **The evaluator** (`jobs/alert-evaluator.ts`) ticks every 15 seconds, in process like the purge
 job. Each tick lists the active, not deactivated alerts and evaluates those whose interval has
 passed since their last evaluation (`alerts.evaluated_at`). After downtime an alert is evaluated
@@ -1025,7 +1069,8 @@ once, not once per missed interval. Evaluations run at most 8 at once and 2 per 
 still being evaluated is skipped, and one failing alert never stops the others.
 
 `alerts/evaluate.ts` evaluates one alert: it runs the query over the window ending now
-(`lookback`), reads the series (`alerts/series.ts`, `alerts/observe.ts`), moves each through the
+(`lookback`), reads the series (`alerts/series.ts`, `alerts/measure.ts`, `alerts/observe.ts`),
+moves each through the
 state machine, and saves the new states, the series gone and the changes of state in one
 transaction (`alert_series`, `alert_events`). Then it sends what is due:
 
@@ -1103,7 +1148,9 @@ other notifications.
 **Replay** (`alerts/replay.ts`, `alerts/replay-core.ts`) answers "how would this have fired over
 the last 7 days". It runs the query once over the whole window, PromQL and LogQL as a range query
 at the evaluation step, then feeds the state machine in time order, each step reading the points
-of its own window. For each series it returns the value at each step, the firing periods (the last
+of its own window through the same measures and the same judgement as the evaluator. For each
+series it returns the value at each step, with the readings beside it when they say more than the
+value, the firing periods (the last
 one marked ongoing when it still fired at the end), the number of firings, the total firing time
 and the spikes too short to fire (the condition held, but not for `for`), with their peak. A result
 without a time column, such as a SQL query that is not grouped by time, cannot be replayed, and the
@@ -1111,10 +1158,13 @@ replay says why. A replay covers at most 31 days and 20,000 steps; past 50,000 p
 that fired least come without their points.
 
 The part of the replay that feeds the state machine and collects the firings and the spikes
-(`alerts/replay-steps.ts` in `@quanthea/shared`) runs in the browser too: `replayAtThreshold`
-replays the values a replay returned at another threshold, with the same rules, so a person
-dragging the threshold sees the new counts at once. A step with no value counts as a series the
-result left out. A test checks it gives what the server gives.
+(`alerts/replay-steps.ts` in `@quanthea/shared`) runs in the browser too: `replayUnder` judges
+the readings a replay returned again under another condition, with the same rules, so a person
+dragging the threshold sees the new counts at once. The condition must read what the replayed one
+read: its numbers, operators, directions, joiner and wait may differ, its fields, reducers and
+spans may not, which is why the alert page keeps those as words. A step with no value counts as a
+series the result left out. Tests check it gives what the server gives, for a threshold, a change
+and joined tests.
 
 **The purge job** deletes the changes of state and the check events older than 90 days.
 
@@ -1123,7 +1173,8 @@ alert pages show:
 
 - The list gives each alert the condition and value format of the version shown (the active one,
   else the latest), how many series it has, the series that stands for it (the worst state, then
-  the value furthest past the threshold), and the latest message sent about it: the channel's name,
+  the value furthest the way the condition's first test points), and the latest message sent
+  about it: the channel's name,
   the time, and whether it got through.
 - An alert's detail adds the channels of the version shown, by name and kind; the latest 20
   messages sent about it, by channel name, event, series and time; and the latest 50 activations,
@@ -1747,8 +1798,9 @@ activates one.
   spikes too short to fire, for the ten series that fired most, never the points. It is offered
   only when a connector is at level 3 or 4, and refused for a draft whose connector is not; the
   instructions then tell the agent to say once that the draft pane shows the replay.
-- **`read_guide("alert")`** gives the alert guide: every field of the spec, the placeholders and
-  an example.
+- **`read_guide("alert")`** gives the alert guide: every field of the spec, each kind of
+  condition with when it fits (a threshold for a fixed number, a change for a level that moves,
+  joined tests for several numbers of one query, no data), the placeholders and an example.
 - **`propose_link`**, in building and editing, while some pinned panel's query matches the
   draft's: it offers to show the alert on that panel with a card. The person decides (see 5.9).
 

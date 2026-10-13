@@ -10,6 +10,7 @@ import {
   type AlertState,
   type AlertSummary,
   alertActions,
+  conditionDirection,
 } from '@quanthea/shared';
 import type { AlertActivityRepository, AlertChange, AlertSend } from '../db/alert-activity.ts';
 import type { SeriesRow } from '../db/alert-state-repository.ts';
@@ -38,7 +39,7 @@ export const noActivity: AlertActivityRepository = {
 };
 
 /**
- * How far a value is past the threshold's side: higher is worse.
+ * How far a value is on the side the condition points to: higher is worse.
  *
  * @param value - The value, or `null`.
  * @param spec - The spec, for the condition's direction.
@@ -46,8 +47,7 @@ export const noActivity: AlertActivityRepository = {
  */
 function badness(value: number | null, spec: AlertSpec): number {
   if (value === null) return Number.NEGATIVE_INFINITY;
-  const below = spec.condition.kind === 'threshold' && spec.condition.op === 'below';
-  return below ? -value : value;
+  return conditionDirection(spec.condition) === 'below' ? -value : value;
 }
 
 /**

@@ -96,4 +96,57 @@ describe('durationMs', () => {
     expect(durationMs('5 m')).toBeNaN();
     expect(durationMs('1w')).toBeNaN();
   });
+
+  test('takes a change, with a window longer than its span and the latest point as value', () => {
+    const change = {
+      kind: 'change',
+      direction: 'down',
+      amount: 50,
+      unit: 'percent',
+      within: '10m',
+      for: '0m',
+    };
+    expect(issuePaths(spec({ condition: change, lookback: '20m' }))).toEqual([]);
+    expect(issuePaths(spec({ condition: change, lookback: '10m' }))).toEqual(['lookback']);
+    expect(issuePaths(spec({ condition: { ...change, amount: 0 }, lookback: '20m' }))).toEqual([
+      'condition.amount',
+    ]);
+    const mean = spec({ condition: change, lookback: '20m', value: { reduce: 'mean' } });
+    expect(issuePaths(mean)).toEqual(['value.reduce']);
+  });
+
+  test('takes two to four tests joined, the first on the alert’s value, never nested', () => {
+    const above = { kind: 'threshold', op: 'above', value: 0.02 };
+    const requests = {
+      kind: 'threshold',
+      op: 'above',
+      value: 100,
+      field: 'requests',
+      reduce: 'sum',
+    };
+    const joined = (of: unknown[], kind = 'all') => spec({ condition: { kind, of, for: '5m' } });
+    expect(issuePaths(joined([above, requests]))).toEqual([]);
+    expect(issuePaths(joined([above, requests], 'any'))).toEqual([]);
+    expect(issuePaths(joined([above]))).toEqual(['condition.of']);
+    expect(issuePaths(joined([above, above, above, above, above]))).toEqual(['condition.of']);
+    expect(issuePaths(joined([requests, above]))).toEqual([
+      'condition.of.0.field',
+      'condition.of.0.reduce',
+    ]);
+    expect(issuePaths(joined([above, { ...above, for: '5m' }]))).toEqual(['condition.of.1']);
+    const nested = { kind: 'all', of: [above, above] };
+    expect(issuePaths(joined([above, nested]))).toEqual(['condition.of.1.kind']);
+  });
+
+  test('checks the span of a change that is a part, and gives it no reducer', () => {
+    const above = { kind: 'threshold', op: 'above', value: 5 };
+    const rose = { kind: 'change', direction: 'up', amount: 200, unit: 'absolute', within: '15m' };
+    const joined = (part: unknown) =>
+      spec({ condition: { kind: 'all', of: [above, part], for: '0m' } });
+    expect(issuePaths(joined(rose))).toEqual(['lookback']);
+    expect(issuePaths({ ...joined(rose), lookback: '30m' })).toEqual([]);
+    expect(issuePaths({ ...joined({ ...rose, reduce: 'max' }), lookback: '30m' })).toEqual([
+      'condition.of.1',
+    ]);
+  });
 });

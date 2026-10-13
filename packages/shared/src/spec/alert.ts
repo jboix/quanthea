@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { alertQuietHoursSchema } from '../alerts/quiet-hours.ts';
 import { namedFormatterSchema } from '../formatters/schema.ts';
 import { messageTemplateSchema } from '../notifications.ts';
+import { alertConditionSchema, alertReducers, conditionProblems } from './alert-condition.ts';
 import { variableNameSchema } from './names.ts';
 import { durationSchema, panelQuerySchema } from './queries.ts';
 
@@ -47,7 +48,7 @@ export const alertValueSchema = z.strictObject({
   /** The number field compared; the first number field when left out. */
   field: z.string().min(1).max(200).optional(),
   /** How the points of a series within the window become one value. */
-  reduce: z.enum(['last', 'max', 'min', 'mean', 'sum']).default('last'),
+  reduce: z.enum(alertReducers).default('last'),
   /**
    * The columns whose values tell series apart, for results in rows. Without them, a series is a
    * field's labels and every text column of its row.
@@ -69,30 +70,6 @@ export const alertVariableSchema = z.strictObject({
 
 /** A variable of an alert, with its fixed value. */
 export type AlertVariable = z.infer<typeof alertVariableSchema>;
-
-/** Validates a threshold: the value of a series is above or below a number for a while. */
-const thresholdConditionSchema = z.strictObject({
-  kind: z.literal('threshold'),
-  op: z.enum(['above', 'below']),
-  value: z.number(),
-  /** How long the condition holds before the series fires; `0m` fires at once. */
-  for: durationSchema,
-});
-
-/** Validates a condition on the absence of data: the query returns no value for a while. */
-const noDataConditionSchema = z.strictObject({
-  kind: z.literal('no_data'),
-  for: durationSchema,
-});
-
-/** Validates the condition that fires. */
-export const alertConditionSchema = z.discriminatedUnion('kind', [
-  thresholdConditionSchema,
-  noDataConditionSchema,
-]);
-
-/** The condition that fires. */
-export type AlertCondition = z.infer<typeof alertConditionSchema>;
 
 /** Validates when notifications go out besides the first one of a firing. */
 export const alertNotifySchema = z.strictObject({
@@ -187,7 +164,9 @@ function variableProblems(spec: AlertSpecFields): FieldProblem[] {
 
 /** Validates an alert spec, version 1. */
 export const alertSpecSchema = alertSpecFields.superRefine((spec, context) => {
-  for (const problem of [...timingProblems(spec), ...variableProblems(spec)])
+  const lookback = durationMs(spec.lookback);
+  const condition = conditionProblems(spec.condition, spec.value.reduce, lookback, durationMs);
+  for (const problem of [...timingProblems(spec), ...condition, ...variableProblems(spec)])
     context.addIssue({ code: 'custom', path: problem.path, message: problem.message });
 });
 

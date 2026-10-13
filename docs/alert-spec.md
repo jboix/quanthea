@@ -1,8 +1,8 @@
 # Alert spec, v1
 
 An alert spec says what to watch, when it fires and what its notifications say. It is plain JSON,
-like the [dashboard spec](dashboard-spec.md), and lives in `packages/shared/src/spec/alert.ts` as a
-Zod schema. The server evaluates it with no model involved.
+like the [dashboard spec](dashboard-spec.md), and lives in `packages/shared/src/spec/alert.ts` and
+`alert-condition.ts` as a Zod schema. The server evaluates it with no model involved.
 
 The principles are the dashboard spec's:
 
@@ -27,11 +27,12 @@ type AlertSpec = {
     format?: NamedFormatter                 // how the value reads in a notification
   }
   variables: { name: string; value: string | string[]; interval?: boolean }[]
-  condition:
-    | { kind: 'threshold'; op: 'above' | 'below'; value: number; for: Duration }
+  condition: (Threshold | Change) & { for: Duration }
+    | { kind: 'all' | 'any'; of: Part[]; for: Duration }   // 2 to 4 parts, never nested
     | { kind: 'no_data'; for: Duration }
   every: Duration                           // how often it is evaluated; 1m or more
-  lookback: Duration                        // the window each evaluation queries; 1m to 7d, ≥ for
+  lookback: Duration                        // the window each evaluation queries; 1m to 7d, ≥ for,
+                                            // and longer than a change's `within`
   severity: 'critical' | 'warning' | 'info'
   channels: string[]                        // notification channel ids
   notify: { onResolved: boolean; repeatEvery?: Duration }   // onResolved: true by default
@@ -39,6 +40,19 @@ type AlertSpec = {
   timezone?: string                         // IANA, for times in notifications; UTC by default
   quietHours?: QuietHours | 'none'          // when it sends nothing; the settings' default if left out
 }
+
+type Reducer = 'last' | 'max' | 'min' | 'mean' | 'sum'
+type Threshold = { kind: 'threshold'; op: 'above' | 'below'; value: number }
+type Change = {
+  kind: 'change'
+  direction: 'up' | 'down'
+  amount: number                            // above 0: at least this much
+  unit: 'percent' | 'absolute'              // a share of the earlier point, or a difference
+  within: Duration                          // how far back the earlier point is
+}
+type Part =                                 // a test of a joined condition, without `for`
+  | Threshold & { field?: string; reduce?: Reducer; format?: NamedFormatter }
+  | Change & { field?: string; format?: NamedFormatter }
 
 type QuietHours = {
   timezone: string                          // IANA, the clock of the windows
@@ -72,10 +86,48 @@ duration goes, such as `[$window]` in PromQL, and the value must then be a durat
 
 ## Conditions
 
-- `threshold`: a series' value is strictly above or below `value`. It fires once it has held for
-  `for`; `0m` fires at once.
+The set of conditions is closed: each is a named `kind`, plain JSON, with no expression and no
+formula text. The agent writes one through its tool and a person changes its values in the
+condition sentence. Every kind has a `for`: the series fires once the condition has held that long,
+and `0m` fires at once.
+
+A condition is made of **tests**. A test reads one number field of a series and says whether it
+holds. `threshold` and `change` are one test each, `all` and `any` join several, and `no_data` has
+none.
+
+- `threshold`: the series' value is strictly above or below `value`.
+- `change`: the series rose or dropped by `amount` or more within `within`. It compares the latest
+  point of the window with the latest point at least `within` before it, so both lie inside the
+  `lookback`, which must be longer than `within`.
+  - `unit: 'absolute'` compares the difference. `unit: 'percent'` compares it as a share of the
+    earlier point, counted on its size, so a rise from a negative point is still a rise.
+  - It does not hold while the window has no earlier point: a new series, too little history, an
+    instant query, or a result without a time column.
+  - In percent it does not hold when the earlier point is 0: a share of nothing is not a number.
+    An absolute change does.
+  - It reads the latest point whatever the reducer, so `value.reduce` must be `last`.
+  - It stops holding once the earlier point has caught up with the new level, `within` after the
+    move, though the value may stay there. An alert about the level itself is a threshold.
+- `all` and `any`: two to four tests on the one query, in `of`. `all` holds when every test holds,
+  `any` when at least one does. A part is a threshold or a change without `for`, and never a joined
+  condition.
+  - The first part reads the alert's value: `value.field`, `value.reduce` and `value.format`. It
+    names none of its own.
+  - A later part may read another number field of the same result with `field`, reduce it with its
+    own `reduce` (a threshold only), and write its numbers with its own `format`. What it leaves
+    out is the alert's.
+  - Series are told apart as for any alert, by `value.by` or the text columns, so the parts of a
+    series are the fields of the same rows.
+  - A part with no value for a series does not hold. `all` then cannot hold for that series, and
+    `any` can through another part. A series is left out only when no part has a value for it.
+  - A part that names a column the result does not have is a failed check, as a missing
+    `value.field` is.
 - `no_data`: the query returns no value at all. It is evaluated on the alert as a whole and fires
   once that has lasted `for`.
+
+**The value a series reports** is the same for every kind: `value.field` reduced by
+`value.reduce`, which is the first test's. It is what the list, the alert's page, the replay chart
+and `{value}` show. A change reports the latest point, and a joined condition its first part.
 
 ## Quiet hours
 
@@ -97,7 +149,8 @@ notification is sent.
 
 `message` is the shared message template: a title (up to 150 characters), a body (up to 1000) and
 up to 8 labelled fields. They use only these placeholders: `{alert}`, `{series}`, `{value}`,
-`{threshold}`, `{duration}`, `{since}`, `{severity}` and `{link}`. An unknown placeholder fails
+`{values}`, `{change}`, `{previous}`, `{threshold}`, `{duration}`, `{since}`, `{severity}` and
+`{link}`. An unknown placeholder fails
 validation. Each channel fills and escapes the values for its service, so text from the data never
 becomes markup.
 
@@ -108,17 +161,29 @@ The server fills the values from the series:
 | `{alert}`     | the title                                                    |
 | `{series}`    | the labels as `name=value, …`, or `all` without labels       |
 | `{value}`     | the value, with `value.format` or four significant digits    |
-| `{threshold}` | such as `above 5%`, or `no data`                             |
+| `{values}`    | the value of every test, such as `2.4%, requests 312`        |
+| `{change}`    | how far a change moved, such as `-52%` or `+230`             |
+| `{previous}`  | the earlier point a change moved from                        |
+| `{threshold}` | the condition, such as `above 5%` or `no data`               |
 | `{duration}`  | the condition's `for`                                        |
 | `{since}`     | when the series entered its state, in `timezone`             |
 | `{severity}`  | the severity                                                 |
 | `{link}`      | the alert's page, `/alerts/<id>` under quanthea's public URL |
 
+- `{threshold}` reads after a subject: `down 50% or more within 10m` for a change, and
+  `above 2% and requests above 100` for a joined condition, each later part named by its field.
+- `{values}` names each later part by its field too, and leaves out a part without a value. For a
+  condition of one test it is `{value}`.
+- `{change}` and `{previous}` are about the first change of the condition. They are empty for a
+  condition without one, when the window held no earlier point, and for a series that is gone.
+
 ## Validation beyond the schema
 
 The schema catches shape errors and checks across fields: `every` is at least a minute, `lookback`
-covers the condition's `for`, `repeatEvery` is no shorter than `every`, a variable is named once and
-an interval variable holds a duration; the time zone of `quietHours` is known. `alerts/validate.ts` (`validateAlertSpec`) also checks:
+covers the condition's `for` and is longer than a change's `within`, `value.reduce` is `last` when
+the alert's value is read by a change, the first part of a joined condition names no field, reducer
+or format, `repeatEvery` is no shorter than `every`, a variable is named once and an interval
+variable holds a duration; the time zone of `quietHours` is known. `alerts/validate.ts` (`validateAlertSpec`) also checks:
 
 - every channel id names a notification channel (on save and activation);
 - the connector exists and runs the query's language;
@@ -129,7 +194,9 @@ an interval variable holds a duration; the time zone of `quietHours` is known. `
 
 Issues come back with paths (`{ path: 'query.expr', message: … }`). `checkAlert` (`alerts/check.ts`)
 validates, then runs the query once over the window ending now and reads it as the evaluator
-would, for the caller that writes a version.
+would, for the caller that writes a version. It refuses a change that no series of the result has
+an earlier point for, at `condition.within`: the query is instant, has no time column, or the
+window is too short, and the alert would never fire.
 
 ## Example
 
@@ -155,5 +222,22 @@ would, for the caller that writes a version.
     "title": "{alert}: {series} at {value}",
     "body": "The 5xx share is {threshold} for {duration}, since {since}. {link}"
   }
+}
+```
+
+Other conditions on the same alert:
+
+```json
+{ "kind": "change", "direction": "down", "amount": 50, "unit": "percent", "within": "10m", "for": "0m" }
+```
+
+```json
+{
+  "kind": "all",
+  "of": [
+    { "kind": "threshold", "op": "above", "value": 0.02 },
+    { "kind": "threshold", "op": "above", "value": 100, "field": "requests", "format": { "$fmt": "number" } }
+  ],
+  "for": "5m"
 }
 ```
