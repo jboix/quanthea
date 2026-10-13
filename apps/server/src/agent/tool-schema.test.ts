@@ -71,8 +71,7 @@ describe('the tool schema providers receive', () => {
     const two = await sentFor(['promql', 'sql']);
     expect(two).not.toContain('search-series');
     expect(two).not.toContain('"const":"logql"');
-    // Gemini took a forced call with the tool at about 19,000 characters and refused it at 26,000.
-    expect(two.length).toBeLessThan(16_000);
-    expect((await sentFor(['promql', 'sql', 'search'])).length).toBeLessThan(21_000);
+    // The size of what is sent is measured in edit-schema-size.test.ts.
+    expect((await sentFor(['promql', 'sql', 'search'])).length).toBeGreaterThan(two.length);
   });
 });

@@ -6,7 +6,7 @@
  *
  * The builders' requests still take the four operators of `pathFilterSchema`, which this form
  * reads as it is. The schema here is not in the edit tool's input yet: inlined in every search
- * builder it passes the ceiling of `schema-size.test.ts`.
+ * builder it has to fit under the ceilings of `agent/edit-schema-size.test.ts`.
  */
 import { z } from 'zod';
 import { fieldPathSchema } from './fields.ts';

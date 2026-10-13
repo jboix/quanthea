@@ -1620,12 +1620,12 @@ directly onto an ECharts `dataset`.
     `regexp` for a pattern. The filters are written in `dashboards/queries/search-filters.ts`,
     which also writes a list (`in`), a bound (`>`, `>=`, `<`, `<=`), a wildcard (`like`), a field
     that has a value (`exists`) and `any`, filters of which one must hold. The builders' requests
-    do not take those yet: they keep the four operators the other builders have, because the
-    wider filter does not fit under the ceiling of the edit tool's schema for a search thread
-    (`dashboards/panels/schema-size.test.ts`). A count counts the time field's values. `search-ratio` divides the
-    documents matching `match` by those matching `of` with two filter helpers and the kit's ratio
-    script, over time or over the range (per `by` value, or in one bucket), `complement` for one
-    minus it and `counts` to keep the two counts as columns.
+    do not take those yet: they keep the four operators the other builders have, until the
+    wider filter is shown to fit under the ceilings of the edit tool's schema as sent
+    (`agent/edit-schema-size.test.ts`). A count counts the time field's values. `search-ratio`
+    divides the documents matching `match` by those matching `of` with two filter helpers and the
+    kit's ratio script, over time or over the range (per `by` value, or in one bucket),
+    `complement` for one minus it and `counts` to keep the two counts as columns.
     LogQL, for Loki (`dashboards/queries/logql.ts`): `logql-series`, `logql-ratio`,
     `logql-breakdown`, `logql-stat`, `logql-lines`. A request names its streams by label, the text
     lines contain (`|=`), a parser (`json` or `logfmt`) and filters on labels and parsed fields.
@@ -1745,7 +1745,12 @@ to it. Providers get it made smaller (`agent/tool-schema.ts`), because Gemini re
 call on a schema this large. It leaves out what the server checks or fills by itself: the length
 bounds of arrays and texts, default values and the ban on unknown fields. Where a field takes a
 form per query language, such as a variable's source, it keeps the forms of the languages in use.
-The input is still checked against the whole schema, which fills the defaults. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/write-version.ts`):
+The input is still checked against the whole schema, which fills the defaults. A test measures the
+schema as sent (`agent/edit-schema-size.test.ts`) and holds it under a ceiling for a run on each
+query language, for PromQL with SQL, and for both with search: 19,000 characters for the three,
+the size Gemini is known to accept (it refused about 26,000). A run on more languages than that
+sends more. An edit then goes through one pipeline (`agent/build-tools.ts`,
+`agent/write-version.ts`):
 
 1. The thread's state machine decides: after an approved plan, or in a ready thread for a
    correction.

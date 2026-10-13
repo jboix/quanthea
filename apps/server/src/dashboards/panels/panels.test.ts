@@ -279,7 +279,7 @@ describe('compactGrid', () => {
 });
 
 describe('the tool schemas', () => {
-  // The size of the edit schema is measured per query language in schema-size.test.ts.
+  // The size of the edit schema as sent is measured in agent/edit-schema-size.test.ts.
   test('have no reference loops, which Gemini refuses', () => {
     for (const schema of [editRequestSchema, planSchema]) {
       const json = JSON.stringify(z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }));
