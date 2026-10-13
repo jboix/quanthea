@@ -4037,6 +4037,12 @@ one, and enables them again. Without any admin, it creates the default one.
     between two rows, when at least half the steps are that wide; a hole is a step more than 1.5
     times it, which leaves room for months and for days of 23 hours. Rows at the times of events
     are on no interval and are left as they are.
+  - The interval is read from the rows alone, so the thinnest results are still joined. Two rows
+    have one step, which is their interval, whatever the width of the query's buckets: a line
+    runs between them over the empty stretch. Rows of which fewer than half are one interval
+    apart have none, and are joined too. The width the run was bound with (`__interval`, the
+    PromQL step) is known on the server and is not carried to the chart; a query with a width of
+    its own would need its own.
   - A point with no value before or after it has no line to show it, so it is drawn as a dot
     (`lonePointDots`), on the alert chart too. Without it a series with one bucket of data drew
     nothing.
