@@ -4,7 +4,7 @@
  * view keeps everything it needs, so it draws the same whatever the catalogue becomes.
  */
 import type { Dataset } from '../dataset/contract.ts';
-import type { View } from '../spec/views.ts';
+import type { TimeAxisMode, View } from '../spec/views.ts';
 import { type ChartUnit, formatToken, unitFormatter } from './conventions.ts';
 import { isJsonObject, type Json, type JsonObject, mergePatch } from './merge.ts';
 import type { PrepareKind } from './prepare.ts';
@@ -23,6 +23,8 @@ export interface ChartChoice {
   readonly unit?: ChartUnit | undefined;
   /** Changes to the option, merged last. */
   readonly overrides?: JsonObject | undefined;
+  /** What a time axis covers; the whole time range when left out. */
+  readonly timeAxis?: TimeAxisMode | undefined;
 }
 
 /**
@@ -117,6 +119,7 @@ function chartView(
     prepare,
     roles,
     ...(limit ? { limit } : {}),
+    ...(choice.timeAxis === 'data' ? { timeAxis: 'data' as const } : {}),
     option,
     datasets: refs.map((ref) => ({ ref })),
   };

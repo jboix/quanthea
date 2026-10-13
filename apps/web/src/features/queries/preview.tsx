@@ -201,6 +201,7 @@ export function PreviewResult({ preview }: { readonly preview: QueryPreview }) {
             panel={preview.panel}
             queries={preview.run.queries}
             markers={preview.run.markers}
+            period={preview.run.time}
             timeZone={undefined}
           />
         </div>

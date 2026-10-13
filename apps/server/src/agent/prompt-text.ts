@@ -108,7 +108,7 @@ export const rawSyntax: Readonly<Record<QueryLanguage, string>> = {
     'PromQL uses $name only inside label matchers, and $__interval, $__range, $__rate_interval or an interval variable where a duration goes.',
   logql: 'LogQL as PromQL, also inside line and label filter values.',
   search:
-    'A search query is its JSON body as text with "index" apart; a variable is a node {"$var": "name"}, with __from, __to and __interval built in.',
+    'A search query is its JSON body as text with "index" apart; a variable is a node {"$var": "name"}, with __from, __to and __interval built in. A date_histogram over the time field is filled over the whole time range for you: never set min_doc_count 1 on it.',
   http: 'An HTTP query is the JSON of { "method"?, "path", "query"?, "body"?, "extract": { "rows", "fields"? } }, with $name in the path and query values.',
   redis:
     'A Redis query is the command and its arguments, such as "ZREVRANGE errors:by_reason 0 9 WITHSCORES".',
@@ -130,7 +130,7 @@ export function guidesLine(kinds: readonly string[]): string {
 export const savedGuide = `Saved queries: { "kind": "saved", "name": its id, "connector", "params": { placeholder: value } }. Fill every placeholder; a value may be a variable such as "$service".`;
 
 /** How a panel's chart is asked for. */
-export const chartGuide = `chart: { "recipe", "variants"?, "roles"?, "unit"?, "options"? }. roles names the column each part of the chart takes, such as { "x": "time", "series": "service", "y": "value" }; roles left out take the first columns that fit. edit_dashboard's result lists each query's "columns": roles name those, not the frames' fields. unit is how values read: number, percent (a ratio from 0 to 1), bytes, seconds, milliseconds, per-second, or a currency: EUR, USD, CHF or GBP. options is a patch of the ECharts option, merged last: JSON only, named formatters such as { "$fmt": "percent" }, never data. Call chart_recipe to read a recipe's roles, variants and pitfalls when unsure.`;
+export const chartGuide = `chart: { "recipe", "variants"?, "roles"?, "unit"?, "timeAxis"?, "options"? }. roles names the column each part of the chart takes, such as { "x": "time", "series": "service", "y": "value" }; roles left out take the first columns that fit. edit_dashboard's result lists each query's "columns": roles name those, not the frames' fields. unit is how values read: number, percent (a ratio from 0 to 1), bytes, seconds, milliseconds, per-second, or a currency: EUR, USD, CHF or GBP. options is a patch of the ECharts option, merged last: JSON only, named formatters such as { "$fmt": "percent" }, never data. A chart over time shows the whole time range on its axis, and a stretch with no data as a gap: a week with a day of data is drawn as a week. Never cut a chart to its data: no query that drops its empty time buckets, no xAxis min or max in options. "timeAxis": "data" cuts the axis to the stretch that has data; set it only when the person asks for a chart cut to its data. Call chart_recipe to read a recipe's roles, variants and pitfalls when unsure.`;
 
 /** Filters, layout, variables, time, markers and changes, whatever the data and charts. */
 export const editRules = `Filters: { "field", "op": "=" | "!=" | "=~" | "!~", "value" }, where value is a literal, a regular expression for =~ and !~, or a variable such as "$service". A multi-value variable needs =~ in PromQL; SQL builders handle it.

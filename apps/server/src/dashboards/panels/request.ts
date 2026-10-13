@@ -32,8 +32,8 @@ export type Width = z.output<typeof widthSchema>;
 const [firstId = 'trend.line', ...otherIds] = chartRecipes.map((recipe) => recipe.id);
 
 /**
- * The chart of a panel: a recipe, its variants, the columns of its roles, the unit, and changes to
- * its option.
+ * The chart of a panel: a recipe, its variants, the columns of its roles, the unit, what its time
+ * axis covers, and changes to its option.
  *
  * @param recipes - The recipes the run may use.
  * @returns The schema.
@@ -49,6 +49,8 @@ function chartSchemaWith(recipes: readonly [string, ...string[]]) {
       )
       .optional(),
     unit: z.enum(chartUnits).optional(),
+    // The one value to ask for: left out, a time axis covers the whole time range.
+    timeAxis: z.enum(['data']).optional(),
     // Not z.json(): its recursive schema is refused by Gemini. The spec check validates the values.
     options: z.record(z.string(), z.unknown()).optional(),
   });

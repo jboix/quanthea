@@ -72,7 +72,11 @@ export const line: ChartRecipe = {
     'More than 8 lines cannot be told apart.',
     'A counter drawn raw only goes up: draw its rate.',
     'Stacking series that are not parts of a total misleads.',
+    'The axis covers the whole time range, and a stretch with no data is a gap: never cut the query to its data to fill the chart.',
   ],
   sample: { roles: { x: 'time', series: 'service', y: 'requests' }, datasets: [trafficLong] },
-  queryHints: ['A value per time bucket, with a column or label naming each series.'],
+  queryHints: [
+    'A value per time bucket, with a column or label naming each series.',
+    'Keep the empty buckets a source can return: a count of 0 is a point, a missing value is a gap.',
+  ],
 };

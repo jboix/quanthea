@@ -70,6 +70,28 @@ describe('applyEdit', () => {
     ]);
   });
 
+  test('cuts a time axis to its data only when the chart asks for it', () => {
+    const latency = {
+      title: 'Latency',
+      replaces: 'latency',
+      data: { kind: 'latency', connector: 'prom', metric: 'http_request_duration_seconds' },
+      chart: { recipe: 'trend.line', timeAxis: 'data' },
+    };
+    const before = specOf(undefined, firstBuild);
+    expect(before.panels.some((panel) => 'timeAxis' in panel.view)).toBe(false);
+    const after = specOf(before, edit({ panels: [latency], summary: 'Cut to its data' }));
+    expect(after.panels.find((panel) => panel.id === 'latency')?.view).toMatchObject({
+      kind: 'chart',
+      timeAxis: 'data',
+    });
+    expect(issuesOf(after)).toEqual([]);
+    const refused = editRequestSchema.safeParse({
+      panels: [{ ...latency, chart: { recipe: 'trend.line', timeAxis: 'week' } }],
+      summary: 'x',
+    });
+    expect(refused.success).toBe(false);
+  });
+
   test('rebuilds a panel in place, removes one, and adds below the rest', () => {
     const built = specOf(undefined, firstBuild);
     const changed = specOf(

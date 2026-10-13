@@ -57,6 +57,15 @@ const datasetTransformSchema = z.discriminatedUnion('type', [
 export type DatasetTransform = z.infer<typeof datasetTransformSchema>;
 
 /**
+ * What the time axis of a chart covers: the time range its panel ran over, or only the stretch
+ * its data has.
+ */
+const timeAxisModes = ['period', 'data'] as const;
+
+/** What the time axis of a chart covers. */
+export type TimeAxisMode = (typeof timeAxisModes)[number];
+
+/**
  * Validates a chart: a JSON subset of an ECharts option, how its data is prepared, and the
  * results it draws. The validator checks the option against an allowlist; the adapter owns
  * datasets, theme and tooltips.
@@ -75,6 +84,11 @@ const chartViewSchema = z.strictObject({
     .default({}),
   /** How many categories the chart keeps, for pies, funnels and ranked bars. */
   limit: z.int().min(1).max(500).optional(),
+  /**
+   * What a time axis covers: `period`, the whole time range the panel ran over, when left out;
+   * `data`, only the stretch that has data, for a person who asks for a chart cut to its data.
+   */
+  timeAxis: z.enum(timeAxisModes).optional(),
   option: z.record(z.string(), z.json()),
   datasets: z
     .array(z.strictObject({ ref: refIdSchema, transform: datasetTransformSchema.optional() }))

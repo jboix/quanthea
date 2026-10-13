@@ -8,7 +8,13 @@ import {
   type TableView as TableViewSpec,
 } from '@quanthea/shared';
 import { lazy, Suspense, useMemo } from 'react';
-import { type AlertMarks, type ChartHighlight, chartInputOf } from '../../charts/input.ts';
+import {
+  type AlertMarks,
+  type ChartHighlight,
+  type ChartPeriod,
+  chartInputOf,
+  chartPeriodOf,
+} from '../../charts/input.ts';
 import { fittedNumber } from '../../ui/fitted-number.ts';
 import { shownMarkers } from './marker-sets.ts';
 import styles from './panels.module.css';
@@ -126,13 +132,18 @@ interface PanelViewProps extends ViewProps {
   readonly highlights?: readonly ChartHighlight[] | undefined;
   /** The thresholds and firing periods of the alerts linked to the panel, on a time chart. */
   readonly alertMarks?: AlertMarks | undefined;
+  /**
+   * The time range the panel ran over, as its run gives it: a time chart shows all of it. Without
+   * it, as for a sample, the time axis is left to the data.
+   */
+  readonly period?: ChartPeriod | undefined;
 }
 
 /**
  * The view of a panel, by kind.
  *
  * @param props - The panel, its outcomes and markers, the sets of markers hidden, the windows an
- *   open answer cites, the linked alerts' marks, and the time zone.
+ *   open answer cites, the linked alerts' marks, the time range it ran over, and the time zone.
  * @returns The view.
  */
 export function PanelView({
@@ -142,14 +153,19 @@ export function PanelView({
   hiddenMarkers,
   highlights,
   alertMarks,
+  period,
   timeZone,
 }: PanelViewProps) {
   const { view } = panel;
+  const from = period?.from;
+  const to = period?.to;
   const input = useMemo(() => {
     if (view.kind !== 'chart') return undefined;
     const shown = shownMarkers(markers, hiddenMarkers);
-    return chartInputOf(view, queries, shown, highlights, alertMarks);
-  }, [view, queries, markers, hiddenMarkers, highlights, alertMarks]);
+    const time = from === undefined || to === undefined ? undefined : { from, to };
+    const drawn = chartInputOf(view, queries, shown, highlights, alertMarks);
+    return { ...drawn, period: chartPeriodOf(panel, time) };
+  }, [panel, view, queries, markers, hiddenMarkers, highlights, alertMarks, from, to]);
   if (view.kind === 'stat') return <StatView view={view} queries={queries} timeZone={timeZone} />;
   if (view.kind === 'table') return <TableView view={view} queries={queries} timeZone={timeZone} />;
   if (!input) return null;

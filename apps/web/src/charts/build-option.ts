@@ -8,7 +8,10 @@ import { type AlertMarks, withAlertMarks } from './alert-marks.ts';
 import { viewDatasets } from './datasets.ts';
 import { withDensity } from './dense.ts';
 import { wireFormatters } from './formatters.ts';
+import { hasNoPoint, withHolesShown, withLonePointsShown } from './gaps.ts';
+import { withoutLinks } from './links.ts';
 import { isObject, type Loose } from './loose.ts';
+import { axisExtent, type ChartPeriod, onTimeAxis, withPeriodAxis } from './period-axis.ts';
 import { type Prepared, prepareChart } from './prepare/index.ts';
 import { oneColumn } from './roles.ts';
 import { expandSeries, withHighlights, withMarkers } from './series.ts';
@@ -37,6 +40,11 @@ export interface ChartInput {
   readonly highlights?: readonly ChartHighlight[] | undefined;
   /** The thresholds and firing periods of the alerts linked to the panel, on a time chart only. */
   readonly alertMarks?: AlertMarks | undefined;
+  /**
+   * The time range the panel ran over, as the server resolved it, when the time axis covers it
+   * (`chartPeriodOf`). Without it the axis is left to the data.
+   */
+  readonly period?: ChartPeriod | undefined;
 }
 
 /** How a chart looks. */
@@ -90,20 +98,21 @@ const day = 86_400_000;
 type TimePattern = 'time' | 'date' | 'datetime';
 
 /**
- * The time label pattern that fits the data: dates when points are a day or more apart, dates and
+ * The time label pattern that fits the axis: dates when points are a day or more apart, dates and
  * hours over several days, hours within a day.
  *
  * @param dataset - The main dataset.
+ * @param extent - What the time axis covers, when it covers the panel's time range.
  * @returns The pattern.
  */
-function timePattern(dataset: Dataset | undefined): TimePattern {
+function timePattern(dataset: Dataset | undefined, extent: ChartPeriod | undefined): TimePattern {
   const at = dataset?.dimensions.findIndex((column) => column.type === 'time') ?? -1;
   const times = [...new Set((dataset?.source ?? []).map((row) => row[at]))]
     .filter((cell): cell is number => typeof cell === 'number')
     .sort((a, b) => a - b);
   const gaps = times.slice(1).map((time, index) => time - (times[index] ?? time));
   if (gaps.length > 0 && gaps.every((gap) => gap >= day)) return 'date';
-  const span = (times.at(-1) ?? 0) - (times[0] ?? 0);
+  const span = extent ? extent.to - extent.from : (times.at(-1) ?? 0) - (times[0] ?? 0);
   return span > day ? 'datetime' : 'time';
 }
 
@@ -185,6 +194,7 @@ function withLabelHalo(series: Loose, theme: ChartTheme): Loose {
  * @param theme - The theme.
  * @param dataset - The main dataset, for the time labels.
  * @param timeCategories - Whether category axes hold times.
+ * @param extent - What the time axis covers, when it covers the panel's time range.
  * @returns The styled option.
  */
 function styleOption(
@@ -192,8 +202,9 @@ function styleOption(
   theme: ChartTheme,
   dataset: Dataset | undefined,
   timeCategories: boolean,
+  extent?: ChartPeriod,
 ): Loose {
-  const pattern = timePattern(dataset);
+  const pattern = timePattern(dataset, extent);
   const series = [option.series ?? []].flat().filter(isObject);
   const legendDefaults = {
     top: 0,
@@ -218,41 +229,6 @@ function styleOption(
     ...(showLegend ? { legend: merge(legendDefaults, option.legend) } : {}),
     tooltip: tooltipOf(option.tooltip, series, theme),
     ...('series' in option ? { series: series.map((each) => withLabelHalo(each, theme)) } : {}),
-  };
-}
-
-/** Keys that open a URL or emit a click event: a chart never navigates its viewer. */
-const linkKeys: readonly string[] = ['link', 'sublink', 'target', 'subtarget', 'triggerEvent'];
-
-/**
- * A value of the option without links, click events or nodes that open a link, at any depth.
- *
- * @param value - Any value of the option.
- * @returns The value without them.
- */
-function unlinked(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(unlinked);
-  if (!isObject(value)) return value;
-  const kept = Object.entries(value).filter(
-    ([key, child]) => !linkKeys.includes(key) && !(key === 'nodeClick' && child === 'link'),
-  );
-  return Object.fromEntries(kept.map(([key, child]) => [key, unlinked(child)]));
-}
-
-/**
- * The spec's option without links and click events, but for the axes `axisPointer.link` moves
- * together. Validation refuses them too; this covers specs stored before it did.
- *
- * @param option - The spec's option.
- * @returns The option that cannot navigate its viewer.
- */
-function withoutLinks(option: Loose): Loose {
-  const cleaned = unlinked(option) as Loose;
-  const { axisPointer } = option;
-  if (!isObject(axisPointer) || !Array.isArray(axisPointer.link)) return cleaned;
-  return {
-    ...cleaned,
-    axisPointer: { ...(cleaned.axisPointer as Loose), link: unlinked(axisPointer.link) },
   };
 }
 
@@ -311,7 +287,7 @@ function ownedParts(prepared: Prepared, option: Loose, theme: ChartTheme, empty:
 
 /**
  * The option with its series expanded, the markers, the highlights and the linked alerts' marks on
- * a time chart, and the tokens replaced.
+ * a time chart, a dot on each point no line reaches, and the tokens replaced.
  *
  * @param prepared - The prepared data and option.
  * @param input - The annotation markers, the windows to shade and the alerts' marks.
@@ -324,11 +300,12 @@ function resolvedOption(
   context: ChartContext,
 ): Loose {
   const expanded = expandSeries(prepared);
-  const onTime = isObject(prepared.option.xAxis) && prepared.option.xAxis.type === 'time';
+  const onTime = onTimeAxis(prepared.option);
   const { theme } = context;
   const marked = withMarkers(expanded, input.markers, theme, context.timeZone);
   const highlighted = withHighlights(marked, input.highlights ?? [], theme);
-  const series = onTime ? withAlertMarks(highlighted, input.alertMarks, theme) : expanded;
+  const alerted = withAlertMarks(highlighted, input.alertMarks, theme);
+  const series = onTime ? withLonePointsShown(alerted, prepared.datasets) : expanded;
   const tokens = {
     colors: themeColors(context.theme),
     roles: prepared.roles,
@@ -338,31 +315,50 @@ function resolvedOption(
 }
 
 /**
- * Builds the option.
+ * Whether a chart has no point at all to draw: no row, or on a time chart only missing values, as
+ * an average over a time range with no data gives.
  *
- * @param input - The view, the datasets and the markers.
+ * @param input - The view's datasets.
+ * @param prepared - The prepared data.
+ * @returns `true` when the chart says there is no data.
+ */
+function nothingToDraw(input: ChartInput, prepared: Prepared): boolean {
+  if (input.datasets.every((dataset) => dataset.source.length === 0)) return true;
+  const [main] = prepared.datasets;
+  const x = oneColumn(prepared.roles, 'x');
+  if (!main || !x || prepared.expanded || !onTimeAxis(prepared.option)) return false;
+  return hasNoPoint(main, x);
+}
+
+/**
+ * Builds the option. The time axis runs over the time range the panel ran over, when the input
+ * gives one (`period-axis.ts`), and a stretch without data shows as a gap (`gaps.ts`).
+ *
+ * @param input - The view, the datasets, the markers and the time range.
  * @param context - The theme and the time zone.
  * @returns The ECharts option, drawn as its number of points asks (`dense.ts`).
  */
 export function buildChartOption(input: ChartInput, context: ChartContext): Loose {
-  const { view } = input;
+  const { view, period } = input;
   const format = { timeZone: context.timeZone };
   const option = withoutLinks(view.option as Loose);
-  const prepared = prepareChart(view.prepare, {
-    option,
-    datasets: input.datasets,
-    roles: view.roles,
-    limit: view.limit,
-    format,
-  });
-  const resolved = resolvedOption(prepared, input, context);
+  const prepared = withHolesShown(
+    prepareChart(view.prepare, {
+      option,
+      datasets: input.datasets,
+      roles: view.roles,
+      limit: view.limit,
+      format,
+    }),
+  );
   const [main] = prepared.datasets;
   const x = oneColumn(prepared.roles, 'x');
+  const extent = period && axisExtent(period, [...prepared.datasets, ...input.datasets], x);
+  const resolved = withPeriodAxis(resolvedOption(prepared, input, context), extent);
   const timeCategories = main?.dimensions.find((column) => column.name === x)?.type === 'time';
-  const styled = styleOption(resolved, context.theme, main, timeCategories);
-  const empty = input.datasets.every((dataset) => dataset.source.length === 0);
+  const styled = styleOption(resolved, context.theme, main, timeCategories, extent);
   return withDensity({
     ...(wireFormatters(styled, format) as Loose),
-    ...ownedParts(prepared, styled, context.theme, empty),
+    ...ownedParts(prepared, styled, context.theme, nothingToDraw(input, prepared)),
   });
 }

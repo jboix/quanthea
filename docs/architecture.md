@@ -3916,6 +3916,50 @@ one, and enables them again. Without any admin, it creates the default one.
   instance keeps the layouts registered when it was made, so a chart makes its instance once its
   modules are in, and makes it again if more were registered since. A map registers only once the
   geo modules are in, so the modules load before the map.
+- **The whole time range** (`charts/period-axis.ts`). A chart over time is never cut to its data.
+  A source returns rows only where it has some, so an axis left to its data shows the stretch that
+  has data: a week with a day of data read like a day, and 24 hours and 7 days looked the same.
+  - The time axis runs from the start to the end of the time range the panel ran over. The range
+    comes from the server with the run (`PanelRun.time`: the resolved instants the queries were
+    bound with), never from the browser's clock. A pinned dashboard, a snapshot, a report's stored
+    run and a query's preview all carry it, so each draws the range it ran over.
+  - Where a point lies outside the range the axis reaches it, so no point is ever cut off: the
+    first bucket of a range usually starts before it, and a query may read further back.
+  - It applies to every chart with a time axis: lines, areas, the dual axis, thresholds,
+    candlesticks, small multiples, and the sparkline and the big number, whose trend reads as the
+    trend over the range. Bars over time drawn on an axis of categories show the buckets their
+    query returned.
+  - A chart whose queries do not follow the time range is left to its data (`followsTimeRange` in
+    the shared package). A PromQL or LogQL range query always follows it. Any other query does
+    when it names `__from` or `__to`. A query with a fixed date ran over something else, and an
+    axis over the dashboard's range would show mostly nothing.
+  - A view sets `"timeAxis": "data"` to cut its axis to the stretch that has data. It is the one
+    setting for it, off by default, for a person who asks. The agent sets it in a chart's
+    `timeAxis`; it never writes axis bounds. A time axis whose option sets `min` or `max` keeps
+    them.
+  - The alert chart already ran over its window: its axis is the window of the replay.
+- **A stretch with no data** (`charts/gaps.ts`) shows as nothing: a gap in a line, no bar.
+  - A missing value breaks a line: no recipe sets `connectNulls`. A count of 0 is a point at 0.
+    An average, a percentile or a ratio over nothing is unknown: it stays missing and is never
+    drawn as 0.
+  - A source that returns only the rows it has leaves a hole in the times, and a line would run
+    straight across it. The adapter puts a row of missing values in each hole wider than one
+    interval, on charts of lines and bars on a time axis. The interval is the smallest step
+    between two rows, when at least half the steps are that wide; a hole is a step more than 1.5
+    times it, which leaves room for months and for days of 23 hours. Rows at the times of events
+    are on no interval and are left as they are.
+  - A point with no value before or after it has no line to show it, so it is drawn as a dot
+    (`lonePointDots`), on the alert chart too. Without it a series with one bucket of data drew
+    nothing.
+  - What each source returns. PromQL and LogQL return a regular grid. Elasticsearch and
+    OpenSearch are filled by the binder, so a count is 0 in an empty bucket. SQL and MongoDB
+    return only the rows that exist: the axis and the gap rule cover them, and no row is
+    generated. A series split by a `terms` under a filled histogram has no row in an empty
+    bucket either.
+  - A line with a hole has a missing value, so it is not sampled (below). The points a chart asks
+    its source for bound it.
+  - "No data in this range" stays for a chart with no point at all: no row, or only missing
+    values. A range of zeros is drawn.
 - **Many points** (`charts/dense.ts`). Once the option is built the adapter counts the points of
   each series, and draws a long one another way. No value changes.
   - A line of more than 500 points and without a missing value is sampled to its pixels

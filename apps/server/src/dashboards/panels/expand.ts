@@ -43,11 +43,12 @@ function shapeOf(recipe: ChartRecipe, view: View): PanelShape {
  * @returns The choice.
  */
 export function choiceOf(request: PanelRequest, unit: ChartChoice['unit']): ChartChoice {
-  const { recipe, variants, roles, options } = request.chart;
+  const { recipe, variants, roles, options, timeAxis } = request.chart;
   return {
     recipe,
     variants,
     roles,
+    timeAxis,
     unit: request.chart.unit ?? unit,
     overrides: options as ChartChoice['overrides'],
   };

@@ -102,6 +102,13 @@ describe('fillView', () => {
     expect(filled.view.recipe).toEqual({ id: 'trend.line', variants: ['stacked'] });
   });
 
+  test('keeps the time axis on the whole time range, unless asked to cut it to the data', () => {
+    const usual = fillView(line, { recipe: line.id }, ['A'], traffic);
+    expect('view' in usual && 'timeAxis' in usual.view).toBe(false);
+    const cut = fillView(line, { recipe: line.id, timeAxis: 'data' }, ['A'], traffic);
+    expect('view' in cut && cut.view).toMatchObject({ kind: 'chart', timeAxis: 'data' });
+  });
+
   test('says which roles and variants are wrong', () => {
     const wrong = fillView(
       line,

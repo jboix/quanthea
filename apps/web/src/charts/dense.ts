@@ -40,7 +40,7 @@ function rowsOf(series: Loose, datasets: readonly unknown[]) {
  * @param value - A cell of a row.
  * @returns `true` for `null`, `undefined`, `NaN` and the dash ECharts takes for no value.
  */
-function isMissing(value: unknown): boolean {
+export function isMissing(value: unknown): boolean {
   return value === null || value === undefined || value === '-' || Number.isNaN(value);
 }
 

@@ -163,6 +163,7 @@ function PanelBody({
             hiddenMarkers={hiddenMarkers}
             highlights={answerMark?.windows}
             alertMarks={alertMarks}
+            period={run.value.time}
             timeZone={spec.timezone}
           />
         </div>

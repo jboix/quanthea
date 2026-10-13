@@ -111,10 +111,19 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   keeps it: a line of more than 500 points is drawn through the lowest and the highest point of each
   pixel, so its spikes and dips show, and a tooltip still reads a point of the data. A line with
   missing values is drawn point by point.
-- **Empty stretches on a search source.** On Elasticsearch and OpenSearch a chart over time has
-  a point for every interval of the time range, also where there is no document: a count reads 0
-  there, and an average or a ratio has no value. A week of which one day has data is a week of
-  points, not a day.
+- **The whole time range.** A chart over time shows all of the time range you picked, from its
+  start to its end, whatever the source returned. A week of which one day has data is drawn as a
+  week, with the rest empty. A stretch with no data is a gap in a line and no bar. A count reads 0
+  where the source can say so. An average or a ratio over nothing has no value, and is never
+  drawn as 0. A point with nothing on either side is drawn as a dot.
+  - On Elasticsearch and OpenSearch a count over time has a point for every interval of the range,
+    0 where there is no document. SQL and MongoDB return only the rows that exist, so the chart
+    leaves their empty stretches blank.
+  - A panel whose query names its own dates, and not the time range, shows the stretch its data
+    covers.
+  - To see a chart cut to the stretch that has data, ask for it in the thread: "cut this chart to
+    its data".
+  - A snapshot and a report's run show the time range they ran over.
 - **A result cut short.** When a source returns more rows than the connector's row limit, the
   chart says so under it. Narrow the time range to see the rest.
 - **Charts further down** draw when you scroll to them, and all of them draw when you print the

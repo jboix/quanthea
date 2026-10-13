@@ -69,6 +69,9 @@ type Variable =
 //   $__from, $__to as ISO times, $__from_ms, $__to_ms, $__from_s, $__to_s as epoch numbers (HTTP).
 //   On a chart over time the interval is raised until the range has no more points than the
 //   panel can show, 200 per grid column of its width.
+//   A chart over time shows the whole range: its axis runs from the start to the end of the range
+//   its panel ran over, when its queries follow the range (a PromQL or LogQL range query, or any
+//   query naming __from or __to). A query with a time of its own leaves the axis to its data.
 type TimeDefault = { from: string; to: string }   // 'now-7d' | 'now' | ISO 8601
 
 // ---------------------------------------------------------------- queries
@@ -124,6 +127,10 @@ type ChartView = {
   prepare: PrepareKind                      // how the adapter prepares the data; default 'cartesian'
   roles: Record<string, string | string[]>  // the column of each role the option's @role tokens name
   limit?: number                            // categories kept, for pies, funnels and ranked bars
+  // What a time axis covers. Left out, 'period': the whole time range the panel ran over, from
+  // its start to its end, with a stretch that has no data left empty. 'data': only the stretch
+  // that has data, for a person who asks for a chart cut to its data.
+  timeAxis?: 'period' | 'data'
   // A JSON subset of an ECharts option, filled from a chart recipe. The adapter owns: dataset,
   // grid, theme, animation, tooltip.renderMode and anything security-relevant, such as links: link
   // (but the top-level axisPointer's list), sublink, target, subtarget, triggerEvent and

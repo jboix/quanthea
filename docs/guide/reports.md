@@ -80,6 +80,9 @@ frozen when it ran.
 
 ### The interval of the charts
 
+A time chart of a run shows the whole period of the run, from its start to its end, with a
+stretch that has no data left empty.
+
 A run cuts its time charts into even intervals, taken from its period: a day by 10 minutes, a
 week by the hour, a month by the day. Ask the agent for another width, such as "last week's sales
 per day", and the report keeps it: every run then cuts its charts by the day.

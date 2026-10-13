@@ -79,6 +79,7 @@ export function PanelPreview({ dashboardId, version, panel, timeZone }: PanelPre
           panel={panel}
           queries={data.value.queries}
           markers={data.value.markers}
+          period={data.value.time}
           timeZone={timeZone}
         />
       )}

@@ -136,3 +136,53 @@ describe('markers', () => {
     expect(drawn.svg).toContain('incident');
   });
 });
+
+describe('a time chart over the time range its panel ran over', () => {
+  const hour = 3_600_000;
+  const to = Date.parse('2026-10-13T12:00:00Z');
+  const week = { from: to - 7 * 24 * hour, to };
+
+  /**
+   * The option of a line of hourly values over the week.
+   *
+   * @param hours - How many hours before the end each value is.
+   * @param period - The time range, if the axis covers it.
+   * @returns The option.
+   */
+  function hourly(hours: readonly number[], period?: typeof week) {
+    const recipe = chartRecipes.find((each) => each.id === 'trend.line') as ChartRecipe;
+    const filled = fillView(recipe, { recipe: recipe.id }, ['A']);
+    if (!('view' in filled) || filled.view.kind !== 'chart') throw new Error('Not a chart.');
+    const dataset = {
+      dimensions: [
+        { name: 'time', type: 'time' as const },
+        { name: 'value', type: 'number' as const },
+      ],
+      source: hours.map((before, index) => [to - before * hour, index + 1]),
+    };
+    return buildChartOption(
+      { view: filled.view, datasets: [dataset], markers: [], period },
+      { theme: defaultTheme, timeZone: 'UTC' },
+    );
+  }
+
+  test('labels the days of the week, though the data covers its last hours', async () => {
+    const cut = await draw(hourly([5, 4, 3, 2]));
+    expect(cut.svg).not.toContain('8 Oct');
+    const whole = await draw(hourly([5, 4, 3, 2], week));
+    expect(whole.complaints).toEqual([]);
+    expect(whole.svg).toContain('8 Oct');
+    expect(whole.svg).toContain('12 Oct');
+  });
+
+  test('draws a dot on a point between two holes, which no line reaches', async () => {
+    const dots = (svg: string) => svg.match(/matrix\(2\.5,0,0,2\.5,/g)?.length ?? 0;
+    const joined = await draw(hourly([9, 8, 7, 6, 5, 4, 3], week));
+    expect(dots(joined.svg)).toBe(0);
+    const holed = await draw(hourly([9, 8, 5, 2, 1], week));
+    expect(holed.complaints).toEqual([]);
+    expect(dots(holed.svg)).toBe(1);
+    // The line stops at each hole: three stretches, the middle one a point alone.
+    expect(holed.svg).toMatch(/d="M[\d. ]+L[\d. ]+M[\d. ]+M[\d. ]+L[\d. ]+"/);
+  });
+});

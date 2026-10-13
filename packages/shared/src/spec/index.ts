@@ -23,6 +23,7 @@ export {
 } from './diff.ts';
 export { fixedStepOf } from './fixed-step.ts';
 export { fixedTimeOf } from './fixed-time.ts';
+export { followsTimeRange } from './follows-time-range.ts';
 export {
   type Arranged,
   applyLayout,

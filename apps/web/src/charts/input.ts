@@ -4,3 +4,4 @@
  */
 export type { AlertMarks } from './alert-marks.ts';
 export { type ChartHighlight, chartInputOf } from './build-option.ts';
+export { type ChartPeriod, chartPeriodOf } from './period-axis.ts';

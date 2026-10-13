@@ -11,6 +11,7 @@ import {
   type ReferenceLine,
   referenceLine,
 } from './alert-compared.ts';
+import { lonePointDots } from './gaps.ts';
 import type { Loose } from './loose.ts';
 import type { ChartTheme } from './theme.ts';
 
@@ -204,6 +205,18 @@ function axes(input: AlertChartInput, theme: ChartTheme, timeZone: string | unde
 }
 
 /**
+ * The line of one series: its value at each evaluation, broken where it has none, with a dot on
+ * a value that has none before or after, which no line would show.
+ *
+ * @param series - The series.
+ * @returns The line series.
+ */
+function lineOf(series: AlertChartSeries): Loose {
+  const data = series.points.map((point) => [point.at, point.value]);
+  return { type: 'line', name: series.name, showSymbol: false, data, ...lonePointDots(data, 1) };
+}
+
+/**
  * Builds the option of an alert's chart.
  *
  * @param input - The series, threshold, firing periods, format and window.
@@ -217,10 +230,7 @@ export function buildAlertOption(
   timeZone?: string,
 ): Loose {
   const series = input.series.map((each, index) => ({
-    type: 'line',
-    name: each.name,
-    showSymbol: false,
-    data: each.points.map((point) => [point.at, point.value]),
+    ...lineOf(each),
     ...(index === 0 ? marks(input, theme) : {}),
   }));
   return {
