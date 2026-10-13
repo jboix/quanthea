@@ -128,6 +128,41 @@ describe('the filters of a search', () => {
     expect(() => queryOf([{ field, op: 'like', value: '$pattern' }])).not.toThrow();
   });
 
+  test('refuse a pattern with more than four wildcards', () => {
+    const field = 'session.media.id';
+    expect(() => queryOf([{ field, op: 'like', value: 'a*b*c*d?' }])).not.toThrow();
+    expect(() => queryOf([{ field, op: 'like', value: `a${'*?'.repeat(99)}` }])).toThrow(
+      'The filter on session.media.id with "like" holds more than 4 wildcards',
+    );
+  });
+
+  test('refuse a pattern or a bound that holds a variable beside other text', () => {
+    const refused: [string, string][] = [
+      ['like', '$q*'],
+      ['like', 'urn:$q*'],
+      ['=~', '$q.*'],
+      ['!~', '.*$q'],
+      ['>=', '$q.5'],
+      ['<', '1$q'],
+    ];
+    for (const [op, value] of refused) {
+      expect(() => queryOf([{ field: 'p', op, value }])).toThrow(
+        `The filter on p with "${op}" holds $q beside other text, which is sent as that text`,
+      );
+    }
+    // An anchor is no variable, and a literal to equal may hold anything.
+    expect(() => queryOf([{ field: 'p', op: '=~', value: '(a|b)$' }])).not.toThrow();
+    expect(clausesOf({ field: 'p', value: '$q*' })).toEqual([{ term: { p: '$q*' } }]);
+  });
+
+  test('take an operator of the list only, and say the list', () => {
+    const parsed = searchFiltersSchema.safeParse([{ field: 'p', op: 'contains', value: 'a' }]);
+    expect(parsed.error?.issues[0]?.message).toBe(
+      'An operator of a search filter is one of "=", "!=", "=~", "!~", ">", ">=", "<", "<=", "like", "in", "exists".',
+    );
+    expect(searchFiltersSchema.parse([{ field: 'p', value: 'a' }])[0]?.op).toBe('=');
+  });
+
   test('refuse a filter missing what its operator needs, naming it', () => {
     const field = 'event_name';
     const refused: [Record<string, unknown>, string][] = [

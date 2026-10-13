@@ -1631,12 +1631,17 @@ directly onto an ECharts `dataset`.
     an alternative is a filter, not a list. A request takes twenty filters at most. The form is
     flat, one object with an operator and optional parts, so its schema is short in the edit
     tool's input, which holds it eight times: what each operator needs is checked in code, and
-    the message names the part. The MongoDB builders keep the four operators. A wildcard pattern
+    the message names the part. The operator is a text in the schema as sent and checked against
+    the list in code, with a message that says the list: the guide names every operator once.
+    The MongoDB builders keep the four operators. A wildcard pattern
     written in a request starts with a literal character: one that starts with `*` or `?`, or is
     empty, makes the server read every value of the field in the time range, so it is refused
-    with a message. A pattern in a variable is not checked, because a person fills it: a
+    with a message, and so is one with more than four wildcards. A pattern in a variable is not
+    checked, because a person fills it: a
     dashboard that searches by the end or the middle of a value does so through a text variable
-    the viewer sees. The agent reads all of this once, in one line under the search builders of
+    the viewer sees. A variable in a pattern or a bound is the whole value: `$q*` would be sent
+    as those characters, so a pattern, a regular expression or a bound that holds a variable
+    beside other text is refused with a message. The agent reads all of this once, in one line under the search builders of
     its guide, in a run that uses a search source. A count counts the time field's values. `search-ratio`
     divides the documents matching `match` by those matching `of` with two filter helpers and the
     kit's ratio script, over time or over the range (per `by` value, or in one bucket),
@@ -1762,9 +1767,12 @@ bounds of arrays and texts, default values and the ban on unknown fields. Where 
 form per query language, such as a variable's source, it keeps the forms of the languages in use.
 The input is still checked against the whole schema, which fills the defaults. A test measures the
 schema as sent (`agent/edit-schema-size.test.ts`) and holds it under a ceiling for a run on each
-query language, for PromQL with SQL, and for both with search: 19,000 characters for the three,
-the size Gemini is known to accept (it refused about 26,000). A run on more languages than that
-sends more. An edit then goes through one pipeline (`agent/build-tools.ts`,
+query language, for PromQL with SQL, and for every run on three languages: 19,000 characters, the
+size Gemini is known to accept (it refused about 26,000). Three runs on three languages send more
+and have a ceiling of their own, so they grow no further: SQL, search and LogQL (19,260), SQL,
+LogQL and MongoDB (19,014), and search, LogQL and MongoDB (20,341). No provider was called at
+those sizes. A run on four languages sends about 22,000 to 24,000 characters and a run on all
+five about 26,900, which no test holds. An edit then goes through one pipeline (`agent/build-tools.ts`,
 `agent/write-version.ts`):
 
 1. The thread's state machine decides: after an approved plan, or in a ready thread for a

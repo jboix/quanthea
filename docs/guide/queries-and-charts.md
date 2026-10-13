@@ -25,9 +25,10 @@ A filter compares a field with a value (`=`, `!=`), or matches it against a regu
 - A wildcard: `like`, with `*` for any text and `?` for one character.
 - Alternatives: filters that carry the same name in `any`, of which one must hold.
 
-A wildcard pattern starts with text, such as `urn:srf:*`. A pattern that starts with a wildcard
-reads every value of the field, so the builders refuse it. To search by the end or the middle of
-a value, ask for a text variable: the pattern is then yours to type.
+A wildcard pattern starts with text, such as `urn:srf:*`, and holds four wildcards at most. A
+pattern that starts with a wildcard reads every value of the field, so the builders refuse it.
+To search by the end or the middle of a value, ask for a text variable: the pattern is then
+yours to type. A variable is the whole pattern or the whole bound, never a part of it.
 
 A variable that holds several values goes with `=`, `!=` or `in`. In a pattern or a bound it is
 refused when the dashboard is saved, with a message that says so.

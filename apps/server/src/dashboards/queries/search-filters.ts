@@ -24,10 +24,23 @@ type Operator = (typeof operators)[number];
 /** The most filters of one list. */
 const maxFilters = 20;
 
+/** What is said of an operator that is not one of the list. */
+const operatorProblem = `An operator of a search filter is one of ${operators.map((op) => `"${op}"`).join(', ')}.`;
+
+/**
+ * A filter's operator, "=" when left out. It is a text checked against the list here and not an
+ * enumeration of the schema: every search builder holds the filter form, some of them three
+ * times, and the guide names the operators once.
+ */
+const operatorSchema = z
+  .string()
+  .default('=')
+  .pipe(z.enum(operators, { error: operatorProblem }));
+
 /** One filter of a search; which of `value` and `values` it needs depends on its operator. */
 export const searchFilterSchema = z.strictObject({
   field: fieldPathSchema,
-  op: z.enum(operators).default('='),
+  op: operatorSchema,
   value: z.string().max(200).optional(),
   values: z.array(z.string().max(200)).min(1).max(50).optional(),
   any: z.string().min(1).max(40).optional(),
@@ -180,20 +193,30 @@ function regexpClause(parts: FilterParts): Json {
 /** The characters a wildcard pattern matches any text or any one character with. */
 const wildcards = new Set(['*', '?']);
 
+/** The most wildcards of a pattern written in a request: each one widens what the server reads. */
+const maxWildcards = 4;
+
 /**
  * A wildcard clause. A pattern written in the request starts with the text the values begin with:
  * one that starts with a wildcard, or is empty, makes the server read every value of the field,
- * so it is refused. A variable is not read here: a person fills it.
+ * so it is refused, and so is one with many wildcards. A variable is not read here: a person
+ * fills it.
  *
  * @param parts - The filter.
  * @returns The clause.
- * @throws {QueryError} When a written pattern starts with `*` or `?`, or is empty.
+ * @throws {QueryError} When a written pattern starts with `*` or `?`, is empty, or holds more
+ *   than four wildcards.
  */
 function wildcardClause(parts: FilterParts): Json {
   const first = parts.value.charAt(0);
   if (first === '' || wildcards.has(first)) {
     throw new QueryError(
       `The filter on ${parts.field} with "like" starts with a wildcard, which reads every value of the field: start the pattern with the text the values begin with, such as "urn:*". When the person asks for values that end with or contain a text, give them a text variable for the pattern.`,
+    );
+  }
+  if ([...parts.value].filter((character) => wildcards.has(character)).length > maxWildcards) {
+    throw new QueryError(
+      `The filter on ${parts.field} with "like" holds more than ${maxWildcards} wildcards: write a shorter pattern, such as "urn:*".`,
     );
   }
   return { wildcard: { [parts.field]: { value: valueNode(parts.value, false) } } };
@@ -214,6 +237,36 @@ const clauses: Readonly<Record<Operator, (parts: FilterParts) => Json>> = {
   exists: (parts) => ({ exists: { field: parts.field } }),
 };
 
+/** The operators whose value is a pattern or a bound, where a variable is the whole value. */
+const wholeValueOperators: ReadonlySet<Operator> = new Set([
+  '=~',
+  '!~',
+  '>',
+  '>=',
+  '<',
+  '<=',
+  'like',
+]);
+
+/** A variable reference somewhere in a text. */
+const variableInText = /\$[A-Za-z_]\w*/;
+
+/**
+ * Refuses a pattern or a bound that holds a variable beside other text. Only a value that is the
+ * variable alone becomes a variable: `$q*` would be sent as those three characters.
+ *
+ * @param parts - The filter.
+ * @throws {QueryError} When the value names a variable and is not that variable alone.
+ */
+function checkWholeVariable(parts: FilterParts): void {
+  if (!wholeValueOperators.has(parts.op) || variableOf(parts.value) !== undefined) return;
+  const [reference] = variableInText.exec(parts.value) ?? [];
+  if (reference === undefined) return;
+  throw new QueryError(
+    `The filter on ${parts.field} with "${parts.op}" holds ${reference} beside other text, which is sent as that text, not as the variable. A variable is the whole value: "${reference}", and the person writes the rest in it.`,
+  );
+}
+
 /** The operators whose clause must not hold. */
 const negatedOperators: ReadonlySet<Operator> = new Set(['!=', '!~']);
 
@@ -230,10 +283,12 @@ interface WrittenFilter {
  *
  * @param filter - The filter.
  * @returns The clause, and whether it is negated.
- * @throws {QueryError} When the filter lacks a part its operator needs, or holds one too many.
+ * @throws {QueryError} When the filter lacks a part its operator needs, holds one too many, or
+ *   holds a variable beside other text in a pattern or a bound.
  */
 function written(filter: SearchFilter): WrittenFilter {
   const parts = partsOf(filter);
+  checkWholeVariable(parts);
   return { negated: negatedOperators.has(parts.op), clause: clauses[parts.op](parts) };
 }
 
