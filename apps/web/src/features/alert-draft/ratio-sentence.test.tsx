@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { withDivisorField, withWhenZero } from './condition.ts';
 import type { FixedPart } from './condition-editors.tsx';
 import { ConditionSentence } from './condition-sentence.tsx';
+import { withPartField } from './condition-tests.ts';
 import { conditionLines, lineName } from './replay-model.ts';
 
 const requests = { refId: 'B', connector: 'warehouse', language: 'sql', sql: 'SELECT 2' };
@@ -145,6 +146,21 @@ describe('the sentence of a ratio', () => {
     const plain = ratioSpec({ dividedBy: undefined });
     expect(withWhenZero(plain, 'no_value')).toBe(plain);
     expect(alertSpecSchema.safeParse(withWhenZero(spec, 'no_value')).success).toBe(true);
+  });
+
+  test('keeps the column of a part that compares with history, with why', () => {
+    const above = { kind: 'threshold', op: 'above', value: 0.05 };
+    const past = { kind: 'past', direction: 'up', amount: 30, unit: 'percent', ago: '7d' };
+    const of = [above, { ...past, field: 'orders' }, { ...above, field: 'requests' }];
+    const spec = ratioSpec({ condition: { kind: 'all', of, for: '5m' } });
+    expect(withPartField(spec, 1, ' ')).toContain('cannot read a ratio');
+    expect(withPartField(spec, 1, ' sales ')).toMatchObject({
+      condition: { of: [above, { field: 'sales' }, { field: 'requests' }] },
+    });
+    const emptied = withPartField(spec, 2, '');
+    expect(alertSpecSchema.safeParse(emptied).success).toBe(true);
+    const plain = { ...spec, dividedBy: undefined };
+    expect(alertSpecSchema.safeParse(withPartField(plain, 1, '')).success).toBe(true);
   });
 
   test('draws the ratio against its threshold', () => {

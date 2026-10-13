@@ -3,8 +3,10 @@
  * for 5 minutes, checked every minute." Each value is a small button that opens an inline editor.
  * A change reads "drops by at least 50% within 10 minutes", joined tests read one after the
  * other with "and" or "or", and a ratio reads "the errors of each service, divided by the
- * requests of the second query (0 when that is 0), is above 5%". In the draft pane saving it saves a new draft version by hand; the
- * alert page holds it unsaved.
+ * requests of the second query (0 when that is 0), is above 5%". A later part of a joined
+ * condition shows the column it reads, not its own reducer or format: those are the agent's to
+ * set. In the draft pane saving it saves a new draft version by hand; the alert page holds it
+ * unsaved.
  */
 import { conditionTests } from '@quanthea/shared';
 import { Fragment } from 'react';

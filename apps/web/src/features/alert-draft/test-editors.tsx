@@ -24,6 +24,7 @@ import {
   thresholdTestWords,
   withinWords,
   withJoiner,
+  withPartField,
   withTest,
   withWithin,
 } from './condition-tests.ts';
@@ -258,8 +259,7 @@ export function PartName(props: TestProps) {
     text: field === undefined ? 'it' : fieldWords(field) || field,
     initial: field ?? '',
     hint: "The number column this part reads; empty for the alert's value.",
-    apply: (spec: AlertSpec, text: string) =>
-      withTest(spec, props.index, { field: text.trim() === '' ? undefined : text.trim() }),
+    apply: (spec: AlertSpec, text: string) => withPartField(spec, props.index, text),
   });
 }
 

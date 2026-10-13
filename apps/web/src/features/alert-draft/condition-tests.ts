@@ -11,6 +11,7 @@ import {
   type ConditionTest,
   conditionTests,
   durationMs,
+  readsHistory,
   testValueText,
 } from '@quanthea/shared';
 import { durationWords } from './condition.ts';
@@ -60,6 +61,27 @@ export function withTest(
     return { ...spec, condition: merged } as AlertSpec;
   const of = condition.of.map((each, position) => (position === index ? merged : each));
   return { ...spec, condition: { ...condition, of } } as AlertSpec;
+}
+
+/** Why a part that reads history keeps its column on an alert that divides two queries. */
+const ratioHistoryReason =
+  'This test compares with history, which cannot read a ratio of two queries. Name the column of the first query it reads.';
+
+/**
+ * The spec with another column for a part of a joined condition; an empty one reads the alert's
+ * value. A part that compares with the past or a band keeps its column on an alert with a second
+ * query: the alert's value is then a ratio, which the schema refuses for those.
+ *
+ * @param spec - The spec.
+ * @param index - The part.
+ * @param text - The column, as typed.
+ * @returns The new spec, or why the column cannot be emptied.
+ */
+export function withPartField(spec: AlertSpec, index: number, text: string): AlertSpec | string {
+  const field = text.trim() === '' ? undefined : text.trim();
+  const test = conditionTests(spec.condition)[index];
+  const ratio = spec.dividedBy !== undefined && test !== undefined && readsHistory(test);
+  return field === undefined && ratio ? ratioHistoryReason : withTest(spec, index, { field });
 }
 
 /**
