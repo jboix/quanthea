@@ -105,6 +105,11 @@ const chartViewSchema = z.strictObject({
    */
   timeAxis: z.enum(timeAxisModes).optional(),
   option: z.record(z.string(), z.json()),
+  /**
+   * The steps of a gauge: ranges in the value's own unit, each with a tone, drawn as the colours
+   * of the dial. The first range that holds a value wins. No other chart takes them.
+   */
+  mappings: mappingsSchema.optional(),
   datasets: z
     .array(z.strictObject({ ref: refIdSchema, transform: datasetTransformSchema.optional() }))
     .min(1)

@@ -204,7 +204,7 @@ export { type ChartChoice, fillView } from './chart-recipes/fill.ts';
 export { type PrepareKind, prepareKinds } from './chart-recipes/prepare.ts';
 export { type ChartFamily, type ChartRecipe, chartFamilies } from './chart-recipes/recipe.ts';
 export { inferRoles, type RoleColumns, roleProblems } from './chart-recipes/roles.ts';
-export { themeTokens } from './chart-recipes/tokens.ts';
+export { themeTokens, toneToken } from './chart-recipes/tokens.ts';
 export {
   type AccessLevel,
   accessLevelSchema,

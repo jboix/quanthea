@@ -4196,6 +4196,9 @@ one, and enables them again. Without any admin, it creates the default one.
   for now: sampling a line with a missing value drops the other points of the pixel the value
   falls in, a spike beside a hole among them. A chart of many series with a hole was not
   measured.
+  A chart recipe's options also carry the fields of the view the ECharts option cannot hold.
+  `fillView` lifts a closed list of keys out of the filled option into the view: `mappings`, the
+  steps of a gauge. The option allowlist never sees them.
 - The adapter reads each query's frames as one dataset, applies the view's `filter` and `sort`,
   then prepares it the way the view says (`charts/prepare/`): pivoted to one column per series,
   scaled to shares, ranked, split into groups, binned, summed up for a box plot, built into a
@@ -4237,6 +4240,23 @@ one, and enables them again. Without any admin, it creates the default one.
     the list and a match that says two things.
   - The stat recipe's value role takes a number column, so a stat the agent builds maps a number
     or no value. The view reads a text or a boolean column too, and the agent does not build one.
+  - A gauge takes `mappings` on its chart view, as the steps of its dial: each a range with a
+    tone. The agent sets them in `chart.options.mappings` of `kpi.gauge`, and `fillView` lifts
+    them into the view. The validator (`dashboards/check-steps.ts`) refuses mappings on a chart
+    that is not prepared as a gauge, and a gauge's mapping that is not a range with a tone, since
+    a dial draws no text and places no single value.
+  - The gauge preparation (`charts/prepare/steps.ts`) turns the steps into the colour stops of
+    the dial. A step is in the value's unit and a stop is a share of the dial, so each bound is
+    placed between the series' `min` and `max`. Each stretch takes the tone `mapValue` gives its
+    start, so the dial agrees with a stat or a cell that has the same mappings. A stretch no step
+    covers keeps the colour of the bare track.
+  - A gauge with a progress bar shows the steps as tints on its track and the bar in the tone of
+    its value, so where the bar ends still reads. A gauge with a needle shows the steps in their
+    tones. Both get flat ends, so the stops meet squarely.
+  - The stops are theme tokens, `@tone.<name>` and `@toneSoft.<name>` (the tone mixed into the
+    surface), replaced like `@ink`. The chart theme reads the colour of each tone from the same
+    design tokens the tables use (`ui/tone-tokens.ts`), so a gauge follows the scheme. A test
+    reads `tokens.css` and checks the theme's defaults against it.
 - **Days and times** read `25 Sep 14:02` everywhere: on axes, in the Ask tab, on the alert pages
   and in notifications. The month's name comes from a fixed list (`calendarParts` in
   `@quanthea/shared`), since newer locale data writes `Sept` for British English.

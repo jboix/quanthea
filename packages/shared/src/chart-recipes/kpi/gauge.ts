@@ -56,7 +56,10 @@ export const gauge: ChartRecipe = {
       },
     },
   },
-  pitfalls: ['Set max to the real maximum; the sample uses 1 for a ratio.'],
+  pitfalls: [
+    'Set max to the real maximum; the sample uses 1 for a ratio.',
+    'Thresholds colour the dial: options.mappings, ranges with a tone in the unit of the value, such as [{ "match": { "from": 0.9 }, "tone": "bad" }]. Never a colour in the option.',
+  ],
   sample: { roles: { value: 'used' }, datasets: [diskUse] },
   queryHints: ['One current value, as a ratio of its maximum or with the maximum known.'],
 };

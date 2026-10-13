@@ -4,22 +4,7 @@
  */
 import type { Tone } from '@quanthea/shared';
 import type { CSSProperties } from 'react';
-
-/** The design token of each tone, from `@quanthea/tokens`. */
-export const toneTokens: Record<Tone, string> = {
-  neutral: '--color-ink-secondary',
-  good: '--color-ok',
-  warning: '--color-warning',
-  bad: '--color-danger',
-  series1: '--color-accent',
-  series2: '--color-series-2',
-  series3: '--color-series-3',
-  series4: '--color-series-4',
-  series5: '--color-series-5',
-  series6: '--color-series-6',
-  series7: '--color-series-7',
-  series8: '--color-series-8',
-};
+import { toneTokens } from '../../ui/tone-tokens.ts';
 
 /**
  * The style that hands a tone's colour to the stylesheet, as the `--tone` property.

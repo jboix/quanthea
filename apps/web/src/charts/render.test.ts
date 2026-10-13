@@ -115,6 +115,44 @@ describe('every other chart recipe draws its sample once its modules load', () =
   for (const sample of samples.filter((each) => needsOtherModules(each.option))) drawsIt(sample);
 });
 
+describe('a gauge with steps', () => {
+  /**
+   * Draws the gauge's sample, 0.72, with three steps.
+   *
+   * @param variants - The variants of the gauge.
+   * @returns The SVG and what ECharts complained about.
+   */
+  async function drawGauge(variants: string[]) {
+    const recipe = chartRecipes.find((each) => each.id === 'kpi.gauge');
+    if (!recipe) throw new Error('No gauge.');
+    const mappings = [
+      { match: { to: 0.5 }, tone: 'good' },
+      { match: { from: 0.5, to: 0.9 }, tone: 'warning' },
+      { match: { from: 0.9 }, tone: 'bad' },
+    ];
+    const choice = { recipe: recipe.id, variants, overrides: { mappings } };
+    const filled = fillView(recipe, choice, ['A'], recipe.sample.datasets[0]);
+    if (!('view' in filled) || filled.view.kind !== 'chart') throw new Error('Not a chart.');
+    const input = { view: filled.view, datasets: recipe.sample.datasets, markers: [] };
+    return draw(buildChartOption(input, { theme: defaultTheme, timeZone: 'UTC' }));
+  }
+
+  test('draws its bar in the tone of its value over a track of three tints', async () => {
+    const drawn = await drawGauge([]);
+    expect(drawn.complaints).toEqual([]);
+    expect(drawn.svg).not.toContain('@tone');
+    expect(drawn.svg).toContain(`fill="${defaultTheme.tones.warning}"`);
+    for (const tint of ['#c1d8ca', '#e1d1b3', '#ddbfbb']) expect(drawn.svg).toContain(tint);
+  });
+
+  test('draws its dial in three tones under a needle', async () => {
+    const drawn = await drawGauge(['dial']);
+    expect(drawn.complaints).toEqual([]);
+    for (const tone of ['good', 'warning', 'bad'] as const)
+      expect(drawn.svg).toContain(defaultTheme.tones[tone]);
+  });
+});
+
 describe('markers', () => {
   test('draw each set in its colour on a time chart, with no complaint', async () => {
     const recipe = chartRecipes.find((each) => each.id === 'trend.line');

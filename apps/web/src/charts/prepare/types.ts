@@ -1,5 +1,5 @@
 /** What a preparation takes and gives. */
-import type { Dataset, FormatOptions, RoleColumns } from '@quanthea/shared';
+import type { Dataset, FormatOptions, Mapping, RoleColumns } from '@quanthea/shared';
 import type { Loose } from '../loose.ts';
 
 /** What a preparation takes. */
@@ -14,6 +14,8 @@ export interface PrepareInput {
   readonly limit: number | undefined;
   /** The time zone, for labels the preparation writes. */
   readonly format: FormatOptions;
+  /** The view's mappings, which only a gauge has: the steps of its dial. */
+  readonly mappings?: readonly Mapping[] | undefined;
 }
 
 /** What a preparation gives. */

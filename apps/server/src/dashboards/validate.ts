@@ -14,6 +14,7 @@ import { checkOption } from './check-option.ts';
 import { type ConnectorLookup, checkQueries } from './check-queries.ts';
 import { checkReferences } from './check-references.ts';
 import { checkSourceOrder } from './check-source-order.ts';
+import { checkSteps } from './check-steps.ts';
 import { pathOf, type SpecIssue } from './issues.ts';
 
 /** What validation needs besides the spec. */
@@ -64,17 +65,17 @@ function checkDirection(timeRange: ResolvedTimeRange): SpecIssue[] {
 }
 
 /**
- * Checks every chart option.
+ * Checks every chart: its option, and the steps only a gauge takes.
  *
  * @param spec - The spec.
  * @returns The issues.
  */
 function checkOptions(spec: DashboardSpec): SpecIssue[] {
-  return spec.panels.flatMap((panel, index) =>
-    panel.view.kind === 'chart'
-      ? checkOption(panel.view.option, `panels[${index}].view.option`)
-      : [],
-  );
+  return spec.panels.flatMap((panel, index) => {
+    const path = `panels[${index}].view`;
+    if (panel.view.kind !== 'chart') return [];
+    return [...checkOption(panel.view.option, `${path}.option`), ...checkSteps(panel.view, path)];
+  });
 }
 
 /**

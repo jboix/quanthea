@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { defaultTheme } from './theme.ts';
+import { readFileSync } from 'node:fs';
+import { themeTokens } from '@quanthea/shared';
+import { type ChartTheme, defaultTheme, readTheme } from './theme.ts';
 import { replaceTokens, textOn, themeColors } from './tokens.ts';
 
 /** The dark scheme's colours, as `@quanthea/tokens` sets them. */
@@ -45,5 +47,53 @@ describe('chart tokens', () => {
     const dark = markerTokens.map((token) => textOn(token, darkTheme));
     expect(dark).toEqual(markerTokens.map(() => darkTheme.surface));
     expect(textOn('rgb(0 0 0)', defaultTheme)).toBe(surface);
+  });
+});
+
+/** The stylesheet of the design tokens, split into the light and the dark scheme. */
+const [lightSheet = '', darkSheet = ''] = readFileSync(
+  new URL('../../../../packages/tokens/tokens.css', import.meta.url),
+  'utf8',
+).split(':root[data-theme="dark"]');
+
+/**
+ * The theme a page reads under one scheme of the design tokens.
+ *
+ * @param sheet - The declarations of the scheme.
+ * @returns The theme, read as the page reads it.
+ */
+function themeOf(sheet: string): ChartTheme {
+  const declared = new Map(
+    [...sheet.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((found) => [found[1], found[2]]),
+  );
+  const style = { getPropertyValue: (name: string) => declared.get(name) ?? '' };
+  const scope = globalThis as { getComputedStyle?: unknown };
+  scope.getComputedStyle = () => style;
+  try {
+    return readTheme({} as Element);
+  } finally {
+    delete scope.getComputedStyle;
+  }
+}
+
+describe('the chart theme', () => {
+  test('without a stylesheet has the colours of the light scheme', () => {
+    const { fontFamily: _text, monoFamily: _mono, ...colors } = themeOf(lightSheet);
+    expect(defaultTheme).toMatchObject(colors);
+  });
+
+  test('gives every theme token a colour in the light and in the dark scheme', () => {
+    for (const theme of [themeOf(lightSheet), themeOf(darkSheet)]) {
+      const colors = themeColors(theme);
+      for (const token of themeTokens) expect(colors[token]).toMatch(/^#[0-9a-f]{6}$/);
+    }
+  });
+
+  test('draws a tone in its design token, and its tint between the tone and the surface', () => {
+    const [light, dark] = [themeColors(themeOf(lightSheet)), themeColors(themeOf(darkSheet))];
+    expect([light['@tone.warning'], dark['@tone.warning']]).toEqual(['#9a6700', '#f2c94c']);
+    expect([light['@tone.series1'], dark['@tone.series7']]).toEqual(['#2a55c9', '#a3c14a']);
+    expect(light['@toneSoft.bad']).toBe('#ddbfbb');
+    expect(dark['@toneSoft.bad']).not.toBe(light['@toneSoft.bad']);
   });
 });

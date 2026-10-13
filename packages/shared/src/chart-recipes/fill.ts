@@ -4,7 +4,7 @@
  * view keeps everything it needs, so it draws the same whatever the catalogue becomes.
  */
 import type { Dataset } from '../dataset/contract.ts';
-import type { TimeAxisMode, View } from '../spec/views.ts';
+import type { ChartView, TimeAxisMode, View } from '../spec/views.ts';
 import { type ChartUnit, formatToken, unitFormatter } from './conventions.ts';
 import { tableColumns } from './fill-columns.ts';
 import { isJsonObject, type Json, type JsonObject, mergePatch } from './merge.ts';
@@ -116,7 +116,7 @@ function chartView(
   option: JsonObject,
   roles: RoleColumns,
   refs: readonly string[],
-): View {
+): ChartView {
   const variants = choice.variants ?? [];
   const prepare = variants.reduce<PrepareKind>(
     (kind, name) => recipe.variants[name]?.prepare ?? kind,
@@ -133,6 +133,23 @@ function chartView(
     option,
     datasets: refs.map((ref) => ({ ref })),
   };
+}
+
+/**
+ * Lifts what belongs to the view out of a chart recipe's filled option. The agent writes every
+ * change in `options`, and the ECharts option takes no key of the view, so a key of this closed
+ * list is moved: `mappings`, the steps of a gauge.
+ *
+ * @param option - The filled option.
+ * @returns The ECharts option, and the fields of the view found in it.
+ */
+function liftedFields(option: JsonObject): {
+  option: JsonObject;
+  fields: Pick<ChartView, 'mappings'>;
+} {
+  const { mappings, ...rest } = option;
+  if (mappings === undefined) return { option, fields: {} };
+  return { option: rest, fields: { mappings: mappings as ChartView['mappings'] } };
 }
 
 /**
@@ -160,5 +177,6 @@ export function fillView(
   if (recipe.render === 'table')
     return tableView(filled.option, roles, asked.columns !== undefined, ref);
   if (recipe.render === 'stat') return statView(filled.option, roles, ref);
-  return { view: chartView(recipe, choice, filled.option, roles, refs) };
+  const { option, fields } = liftedFields(filled.option);
+  return { view: { ...chartView(recipe, choice, option, roles, refs), ...fields } };
 }

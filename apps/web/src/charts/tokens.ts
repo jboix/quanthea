@@ -1,9 +1,9 @@
 /**
- * Replaces the tokens of a chart option: theme colours such as `@ink` and `@palette.1`, and role
- * tokens such as `@x`, which name the role's column. In a visual map, `dimension` becomes the
- * column's index, as ECharts wants.
+ * Replaces the tokens of a chart option: theme colours such as `@ink`, `@palette.1` and
+ * `@tone.warning`, and role tokens such as `@x`, which name the role's column. In a visual map,
+ * `dimension` becomes the column's index, as ECharts wants.
  */
-import type { Dataset, RoleColumns } from '@quanthea/shared';
+import { type Dataset, type RoleColumns, type Tone, toneToken } from '@quanthea/shared';
 import type { Loose } from './loose.ts';
 import { oneColumn } from './roles.ts';
 import type { ChartTheme } from './theme.ts';
@@ -36,6 +36,25 @@ function mix(from: string, to: string, share: number): string | undefined {
   return `#${mixed.map((value) => value.toString(16).padStart(2, '0')).join('')}`;
 }
 
+/** How much of a tone its tint holds, the rest being the surface. */
+const softShare = 0.3;
+
+/**
+ * The colour of each tone token: the tone itself, and its tint on the surface.
+ *
+ * @param theme - The theme.
+ * @returns The colours by token, such as `@tone.bad` and `@toneSoft.bad`.
+ */
+function toneColors(theme: ChartTheme): Record<string, string> {
+  const tones = Object.entries(theme.tones) as [Tone, string][];
+  return Object.fromEntries(
+    tones.flatMap(([tone, color]) => [
+      [toneToken(tone), color],
+      [toneToken(tone, true), mix(theme.surface, color, softShare) ?? color],
+    ]),
+  );
+}
+
 /**
  * The colour of each theme token.
  *
@@ -57,6 +76,7 @@ export function themeColors(theme: ChartTheme): Record<string, string> {
     '@scale.mid': mix(theme.surface, accent, 0.45) ?? accent,
     '@scale.high': accent,
     ...palette,
+    ...toneColors(theme),
   };
 }
 

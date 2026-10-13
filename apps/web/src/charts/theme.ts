@@ -1,5 +1,7 @@
 /** The chart theme, read from the design tokens of `@quanthea/tokens`. */
+import type { Tone } from '@quanthea/shared';
 import { type ResolvedScheme, useResolvedScheme } from '../ui/color-scheme.ts';
+import { toneTokens } from '../ui/tone-tokens.ts';
 
 /** The colours and fonts a chart uses. */
 export interface ChartTheme {
@@ -17,6 +19,8 @@ export interface ChartTheme {
   readonly surface: string;
   /** What fires: an alert's threshold and its firing periods. */
   readonly danger: string;
+  /** The colour of each tone, for the steps of a gauge. */
+  readonly tones: Readonly<Record<Tone, string>>;
   /** Text font. */
   readonly fontFamily: string;
   /** Font for numbers on axes. */
@@ -32,6 +36,20 @@ export const defaultTheme: ChartTheme = {
   divider: '#f2f0ea',
   surface: '#ffffff',
   danger: '#8f2a1c',
+  tones: {
+    neutral: '#55575e',
+    good: '#2f7d4f',
+    warning: '#9a6700',
+    bad: '#8f2a1c',
+    series1: '#2a55c9',
+    series2: '#d0691c',
+    series3: '#2f8f83',
+    series4: '#8a55c4',
+    series5: '#b8870b',
+    series6: '#c2436b',
+    series7: '#6f8a1c',
+    series8: '#96613d',
+  },
   fontFamily: "'IBM Plex Sans Variable', system-ui, sans-serif",
   monoFamily: "'IBM Plex Mono', ui-monospace, monospace",
 };
@@ -64,7 +82,13 @@ export function readTheme(element: Element): ChartTheme {
     key,
     read(token, defaultTheme[key as keyof typeof tokens]),
   ]);
-  return { ...defaultTheme, ...Object.fromEntries(entries), palette };
+  const tones = Object.fromEntries(
+    Object.entries(toneTokens).map(([tone, token]) => [
+      tone,
+      read(token, defaultTheme.tones[tone as Tone]),
+    ]),
+  ) as Record<Tone, string>;
+  return { ...defaultTheme, ...Object.fromEntries(entries), palette, tones };
 }
 
 /** The theme of each scheme, read once the scheme is showing. */

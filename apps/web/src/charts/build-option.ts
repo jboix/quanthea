@@ -349,6 +349,7 @@ export function buildChartOption(input: ChartInput, context: ChartContext): Loos
       roles: view.roles,
       limit: view.limit,
       format,
+      mappings: view.mappings,
     }),
   );
   const [main] = prepared.datasets;

@@ -218,6 +218,32 @@ describe('validateSpec', () => {
     ]);
   });
 
+  test('takes mappings on a gauge only among the charts, each a range with a tone', () => {
+    const gauge = { prepare: 'gauge', option: { series: [{ type: 'gauge', max: 1 }] } };
+    const steps = [
+      { match: { to: 0.9 }, tone: 'good' },
+      { match: { from: 0.9 }, tone: 'bad' },
+    ];
+    expect(issuesAfter((spec) => set(spec, 'panels.1.view.mappings', steps))).toEqual([
+      'panels[1].view.mappings: Among the charts only a gauge (kpi.gauge) takes "mappings", the steps of its dial. A table column and a stat take them too.',
+    ]);
+    const stepped = (mappings: unknown[]) =>
+      issuesAfter((spec) => {
+        set(spec, 'panels.1.view.prepare', gauge.prepare);
+        set(spec, 'panels.1.view.option', gauge.option);
+        set(spec, 'panels.1.view.mappings', mappings);
+      });
+    expect(stepped(steps)).toEqual([]);
+    expect(
+      stepped([...steps, { match: { value: 1 }, tone: 'bad' }, { match: { to: 0 }, text: 'x' }]),
+    ).toEqual(
+      [2, 3].map(
+        (index) =>
+          `panels[1].view.mappings[${index}]: A step of a gauge is a range with a tone, such as { "match": { "from": 0.9 }, "tone": "bad" }.`,
+      ),
+    );
+  });
+
   test('refuses links and click events anywhere in a chart option', () => {
     expect(
       issuesAfter((spec) => {

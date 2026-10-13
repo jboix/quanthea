@@ -9,7 +9,7 @@ import { z } from 'zod';
  * The tones a value can take: a state (`good`, `warning`, `bad`), no state (`neutral`), or one of
  * the eight series colours.
  */
-const tones = [
+export const tones = [
   'neutral',
   'good',
   'warning',
@@ -82,7 +82,7 @@ const mappingSchema = z
 /** A mapping: what it matches, and the text and the tone of a value that matches. */
 export type Mapping = z.infer<typeof mappingSchema>;
 
-/** Validates the mappings of a column or a stat: at most twenty, read in order. */
+/** Validates the mappings of a column, a stat or a gauge: at most twenty, read in order. */
 export const mappingsSchema = z.array(mappingSchema).max(20);
 
 /** Validates how a tone is drawn: as the colour of the text, or as a tint behind it. */
@@ -156,4 +156,16 @@ export function mapValue(
   value: unknown,
 ): Mapping | undefined {
   return mappings?.find((mapping) => matches(mapping.match, value));
+}
+
+/**
+ * Whether a mapping is a step of a dial: a range with a tone. A dial draws no text and places no
+ * single value, so a gauge takes no other mapping.
+ *
+ * @param mapping - The mapping.
+ * @returns Whether a dial can draw it.
+ */
+export function isStep(mapping: Mapping): boolean {
+  const { from, to } = mapping.match;
+  return mapping.tone !== undefined && (from !== undefined || to !== undefined);
 }

@@ -160,6 +160,9 @@ type ChartView = {
   option: EChartsOptionJson
   datasets: { ref: string; transform?: DatasetTransform }[]   // becomes option.dataset[i]
   markers?: { annotation: string }[]        // show dashboard annotations on this chart
+  // The steps of a gauge (prepare: 'gauge'), drawn as the colours of its dial: ranges with a tone,
+  // in the value's own unit. Refused on any other chart.
+  mappings?: Mapping[]                      // ≤ 20, the first match wins
 }
 
 type PrepareKind =
@@ -211,8 +214,9 @@ they differ from the sketch above, the schemas win:
 - Every object is strict: an unknown key is an error, so nothing rides along in a spec.
 - `option` holds JSON values only (`z.json()`), so a function or `undefined` fails to parse.
 - A chart option may use tokens the adapter replaces: `@role` for a role's column, and theme
-  colours such as `@ink`, `@palette.1` or `@scale.low`. A role a view does not name is inferred:
-  the x is the first time or text column, and the values are the number columns.
+  colours such as `@ink`, `@palette.1`, `@scale.low` or `@tone.warning`. A role a view does not
+  name is inferred: the x is the first time or text column, and the values are the number
+  columns.
 - Queries are `sql`, `promql`, `logql`, `search`, `http`, `redis` and `mongodb`.
 - A query-backed variable's `source` has no `refId`.
 - Time expressions are `now`, `now-<n><unit>` (units `s m h d w M y`) or an ISO 8601 timestamp
@@ -234,6 +238,12 @@ they differ from the sketch above, the schemas win:
   whatever the mappings say.
 - A mapping gives a `text`, a `tone`, or both. A `match` says one thing: a value, `null`, or a
   range with `from` below `to`.
+- Among the charts only a gauge takes `mappings`, and each is a step: a range with a tone. The
+  validator refuses mappings on any other chart, and a gauge's mapping that matches a value or
+  `null` or has no tone.
+- A step is written in the unit of the gauge's value. The renderer places it between the series'
+  `min` and `max` (0 and 100 when left out). A stretch of the dial no step covers keeps the
+  colour of the bare track.
 - A tone is a name from the list, never a colour. The renderer draws it from the theme's design
   tokens, in the light and the dark scheme.
 - Formatter defaults: `number` 2 decimals, `percent` 1 decimal with `input: 'ratio'`, `bytes`

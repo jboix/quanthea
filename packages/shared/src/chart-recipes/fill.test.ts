@@ -139,3 +139,42 @@ describe('the columns of a table', () => {
     });
   });
 });
+
+/**
+ * A chart recipe filled with options, on its own sample.
+ *
+ * @param id - The recipe's id.
+ * @param overrides - The options.
+ * @returns The view, or the problems.
+ */
+function chartOf(id: string, overrides: NonNullable<ChartChoice['overrides']>) {
+  const recipe = chartRecipe(id);
+  if (!recipe) throw new Error(`No recipe ${id}.`);
+  return fillView(recipe, { recipe: id, overrides }, ['A'], recipe.sample.datasets[0]);
+}
+
+describe('the mappings of a chart', () => {
+  const mappings = [
+    { match: { to: 0.7 }, tone: 'good' },
+    { match: { from: 0.7, to: 0.9 }, tone: 'warning' },
+    { match: { from: 0.9 }, tone: 'bad' },
+  ];
+
+  test('leave the options of a gauge for its view, and the rest stays in the option', () => {
+    const filled = chartOf('kpi.gauge', { mappings, series: { max: 2 } });
+    expect(filled).toMatchObject({
+      view: { kind: 'chart', prepare: 'gauge', mappings, option: { series: [{ max: 2 }] } },
+    });
+    const view = 'view' in filled && filled.view.kind === 'chart' ? filled.view : undefined;
+    expect(Object.keys(view?.option ?? {})).toEqual(['series']);
+  });
+
+  test('are no field of a view whose options name none', () => {
+    const filled = chartOf('kpi.gauge', { series: { max: 2 } });
+    expect('view' in filled && 'mappings' in filled.view).toBe(false);
+  });
+
+  test('reach the view of any chart, where validation refuses them on all but a gauge', () => {
+    expect(chartOf('kpi.big-number', { mappings })).toMatchObject({ view: { mappings } });
+  });
+});

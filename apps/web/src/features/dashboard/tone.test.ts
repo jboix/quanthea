@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { toneStyle, toneTokens } from './tone.ts';
+import { toneTokens } from '../../ui/tone-tokens.ts';
+import { toneStyle } from './tone.ts';
 
 /** The stylesheet of the design tokens, split into the light and the dark scheme. */
 const [light = '', dark = ''] = readFileSync(

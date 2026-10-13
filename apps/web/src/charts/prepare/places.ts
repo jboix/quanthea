@@ -6,7 +6,14 @@ import { columnIndex, columnValues, createFormatter, namedFormatterSchema } from
 import type { Loose } from '../loose.ts';
 import { oneColumn, xColumn } from '../roles.ts';
 import { cartesian } from './cartesian.ts';
-import { type Prepared, type PrepareInput, withFirstSeries, withVisualRange } from './types.ts';
+import { withSteps } from './steps.ts';
+import {
+  firstSeries,
+  type Prepared,
+  type PrepareInput,
+  withFirstSeries,
+  withVisualRange,
+} from './types.ts';
 
 /**
  * A day as ECharts calendars name it.
@@ -72,14 +79,16 @@ function lastValue(input: PrepareInput): number | null {
 }
 
 /**
- * The last value on a dial.
+ * The last value on a dial, whose colours are the view's steps when it has some.
  *
  * @param input - The option, datasets and roles.
  * @returns The prepared option.
  */
 export function gauge(input: PrepareInput): Prepared {
   const name = oneColumn(input.roles, 'value') ?? '';
-  const option = withFirstSeries(input.option, { data: [{ value: lastValue(input), name }] });
+  const value = lastValue(input);
+  const stepped = withSteps(firstSeries(input.option), input.mappings, value);
+  const option = withFirstSeries(input.option, { ...stepped, data: [{ value, name }] });
   return { datasets: [], option, roles: input.roles, expanded: true };
 }
 
