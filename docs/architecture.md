@@ -1617,9 +1617,13 @@ directly onto an ECharts `dataset`.
     `search-ratio`, `search-breakdown`, `search-stat`, `search-histogram`, `search-rows`. Filters
     on document fields become a bool query: `term` for a literal, `terms` with a list node
     (`{"$var": "name", "as": "list"}`) for a variable, so one value or several both work, and
-    `regexp` for a pattern. The filters are written in `dashboards/queries/search-filters.ts`,
+    `regexp` for a pattern. A variable in a pattern is a node that takes one value
+    (`{"$var": "name", "as": "one"}`): a search server refuses a list there, even a list of one,
+    so a multi-value variable in a pattern is reported when the dashboard is checked, not when a
+    viewer picks two values. The filters are written in `dashboards/queries/search-filters.ts`,
     which also writes a list (`in`), a bound (`>`, `>=`, `<`, `<=`), a wildcard (`like`), a field
-    that has a value (`exists`) and `any`, filters of which one must hold. The builders' requests
+    that has a value (`exists`) and `any`, filters of which one must hold. A bound and a wildcard
+    take one value as a pattern does. The builders' requests
     do not take those yet: they keep the four operators the other builders have, until the
     wider filter is shown to fit under the ceilings of the edit tool's schema as sent
     (`agent/edit-schema-size.test.ts`). A count counts the time field's values. `search-ratio`
@@ -2845,8 +2849,9 @@ the connector shows and a version that changes with its settings).
      `label_format` are refused: their argument is a template Loki runs.
    - **Search** (`query/search-binder.ts`), the Elasticsearch and OpenSearch query DSL: a variable
      is a JSON node, `{"$var": "service"}`, replaced by the value as a JSON value (a string, or a
-     list for a multi-value variable; `{"$var": "service", "as": "list"}` is a list in every case),
-     never text inside a string. `__from` and `__to` are ISO times; `__interval` is a bucket width
+     list for a multi-value variable; `{"$var": "service", "as": "list"}` is a list in every case,
+     and `"as": "one"` refuses a multi-value variable where only one value fits), never text
+     inside a string. `__from` and `__to` are ISO times; `__interval` is a bucket width
      that keeps the range within 1000 buckets. Once the values are bound, a `range` clause with a
      bound in ISO 8601 text (`__from`, `__to`, a variable holding a date, or a date the query
      writes itself, such as `2026-10-05T14:47:01Z`) gets

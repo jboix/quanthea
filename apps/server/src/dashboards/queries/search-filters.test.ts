@@ -46,7 +46,7 @@ describe('the filters of a search', () => {
       ]);
     }
     expect(clausesOf({ field, op: '>=', value: '$slow' })).toEqual([
-      { range: { [field]: { gte: { $var: 'slow' } } } },
+      { range: { [field]: { gte: { $var: 'slow', as: 'one' } } } },
     ]);
   });
 
@@ -58,7 +58,7 @@ describe('the filters of a search', () => {
       { wildcard: { 'session.media.id': { value: 'urn:srf:*' } } },
     ]);
     expect(clausesOf({ field: 'session.media.id', op: 'like', value: '$media' })).toEqual([
-      { wildcard: { 'session.media.id': { value: { $var: 'media' } } } },
+      { wildcard: { 'session.media.id': { value: { $var: 'media', as: 'one' } } } },
     ]);
   });
 
@@ -160,5 +160,33 @@ describe('the filters of a search', () => {
         ],
       },
     });
+  });
+
+  test('refuse a multi-value variable in a pattern or a bound when the query is bound', () => {
+    const boundWith = (filter: Record<string, unknown>, value: string | string[]) => {
+      const body = { size: 0, query: queryOf([filter]) };
+      const template = { refId: 'A', connector: 'events', language: 'search' as const };
+      return bindTemplate({ ...template, index: 'core_events', body }, { p: { value } }, timeRange);
+    };
+    const refusal =
+      'p can hold several values, and a pattern or a bound takes one: use a variable of one value there, or filter by a list with "in".';
+    for (const op of ['=~', '!~', '>', '>=', '<', '<=', 'like']) {
+      const filter = { field: 'event_name', op, value: '$p' };
+      expect(() => boundWith(filter, ['START', 'STOP'])).toThrow(refusal);
+      expect(() => boundWith(filter, ['START'])).toThrow(refusal);
+      expect(() => boundWith(filter, 'START')).not.toThrow();
+    }
+    const one = boundWith({ field: 'event_name', op: '=~', value: '$p' }, 'ST.*');
+    expect(one.language === 'search' && one.body.query).toEqual({
+      bool: { filter: [{ regexp: { event_name: 'ST.*' } }] },
+    });
+    expect(() => boundWith({ field: 'event_name', value: '$p' }, ['START', 'STOP'])).not.toThrow();
+  });
+
+  test('refuse any with fewer than two filters, however it is called', () => {
+    expect(() => boolQuery([{ op: '=', any: [] }])).toThrow('"any" takes two filters or more.');
+    expect(() => boolQuery([{ op: '=', any: [{ field: 'a', op: 'exists' }] }])).toThrow(
+      '"any" takes two filters or more.',
+    );
   });
 });

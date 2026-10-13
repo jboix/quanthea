@@ -127,16 +127,19 @@ function partsOf(filter: SearchLeafFilter): FilterParts {
 }
 
 /**
- * One value of a body: a variable node, as a list where a list goes, or the literal.
+ * One value of a body: the literal, or a variable node. Where a list goes the node asks for a
+ * list, so one value or several both work. Elsewhere it asks for one value, so a multi-value
+ * variable is refused when the query is bound, and so when the dashboard is checked: a search
+ * server refuses a list in a pattern or a bound.
  *
  * @param value - Such as `ERROR` or `$platform`.
- * @param list - Whether a variable becomes a list.
+ * @param list - Whether the value sits where a list goes.
  * @returns The JSON value.
  */
 function valueNode(value: string, list: boolean): unknown {
   const variable = variableOf(value);
   if (variable === undefined) return value;
-  return list ? { $var: variable, as: 'list' } : { $var: variable };
+  return { $var: variable, as: list ? 'list' : 'one' };
 }
 
 /**
@@ -231,7 +234,8 @@ function writtenLeaf(filter: SearchLeafFilter): WrittenFilter {
  * @param filter - The filter, for what it holds beside `any`.
  * @param any - The alternatives.
  * @returns The clause.
- * @throws {QueryError} When the filter also holds a field, an operator or a value of its own.
+ * @throws {QueryError} When the filter also holds a field, an operator or a value of its own, or
+ *   `any` holds fewer than two filters.
  */
 function anyClause(filter: SearchFilter, any: readonly SearchLeafFilter[]): Json {
   const own = [filter.field, filter.value, filter.values].some((part) => part !== undefined);
@@ -240,6 +244,7 @@ function anyClause(filter: SearchFilter, any: readonly SearchLeafFilter[]): Json
       'A filter with "any" takes nothing else: "field", "op", "value" and "values" go inside "any".',
     );
   }
+  if (any.length < 2) throw new QueryError('"any" takes two filters or more.');
   const should = any.map(writtenLeaf).map(({ negated, clause }) => {
     return negated ? { bool: { must_not: [clause] } } : clause;
   });

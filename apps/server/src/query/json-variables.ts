@@ -35,12 +35,16 @@ export interface JsonBindContext {
 /** How deep a document may nest. */
 const maxDepth = 64;
 
-/** What a reference may ask its value as: a list, or a duration in milliseconds. */
-const conversions = new Set(['list', 'ms']);
+/**
+ * What a reference may ask its value as: a list, a duration in milliseconds, or one value, where
+ * a list cannot go.
+ */
+const conversions = new Set(['list', 'ms', 'one']);
 
 /**
  * Whether a node is a variable reference: `{"$var": "name"}`, `{"$var": "name", "as": "list"}`
- * for a list whatever the number of values, or `"as": "ms"` for a duration in milliseconds.
+ * for a list whatever the number of values, `"as": "ms"` for a duration in milliseconds, or
+ * `"as": "one"` where only one value fits.
  *
  * @param node - The node.
  * @returns `true` for a well-formed reference.
@@ -53,12 +57,14 @@ function wellFormed(node: Readonly<Record<string, unknown>>): boolean {
 
 /**
  * The value of a `{"$var": "name"}` node: a built-in as it is, one value as a string, a
- * multi-value variable as a list. With `"as": "list"`, a list in every case.
+ * multi-value variable as a list. With `"as": "list"`, a list in every case. With `"as": "one"`,
+ * a multi-value variable is refused, whatever it holds.
  *
  * @param node - The node.
  * @param context - The variables and built-ins.
  * @returns The value.
- * @throws {QueryError} `invalid` for a node with other keys, or an unknown variable.
+ * @throws {QueryError} `invalid` for a node with other keys, an unknown variable, or a
+ *   multi-value variable where one value fits.
  */
 function variableValue(node: Readonly<Record<string, unknown>>, context: JsonBindContext): unknown {
   if (!wellFormed(node)) {
@@ -72,8 +78,26 @@ function variableValue(node: Readonly<Record<string, unknown>>, context: JsonBin
   const value = builtIn ?? context.variables[name]?.value;
   if (value === undefined) throw new QueryError('invalid', `Unknown variable ${name}.`);
   if (node.as === 'ms') return millisecondsOf(name, value);
+  if (node.as === 'one') return oneValue(name, value);
   if (Array.isArray(value)) return [...value];
   return node.as === 'list' ? [value] : value;
+}
+
+/**
+ * A value where only one fits, such as a pattern or a bound of a search.
+ *
+ * @param name - The variable, for the message.
+ * @param value - Its value.
+ * @returns The value.
+ * @throws {QueryError} `invalid` for a multi-value variable: a search server refuses a list
+ *   there, even a list of one.
+ */
+function oneValue(name: string, value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  throw new QueryError(
+    'invalid',
+    `${name} can hold several values, and a pattern or a bound takes one: use a variable of one value there, or filter by a list with "in".`,
+  );
 }
 
 /**
