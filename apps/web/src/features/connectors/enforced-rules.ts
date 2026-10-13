@@ -85,9 +85,9 @@ const rulesByLanguage: Readonly<Record<QueryLanguage, readonly EnforcedRule[]>> 
         'A wrapper query is refused, because it hides a query in base64 where no check can read it.',
     },
     {
-      rule: 'No remote index',
+      rule: 'Index names only',
       stops:
-        'An index name that starts with _, or that names another cluster with a colon, is refused.',
+        'An index name that starts with _, names another cluster with a colon, holds a slash, a % or a ?, or is dots alone is refused, so a query reaches the search endpoint of its indices and no other.',
     },
     { rule: 'Values are bound', stops: jsonValues },
   ],

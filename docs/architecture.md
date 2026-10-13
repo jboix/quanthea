@@ -2530,7 +2530,10 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   characters: the server raises it while reading the query, before any document, so it quotes
   only the query. Every other error keeps its reason for people allowed to see the data. The connection test fails, naming the right kind, when the server is the other
   product. Both go over the kit's HTTP client: the REST API, no client library. It sends searches (`POST /<index>/_search`) and reads mappings,
-  document counts and the root answer, nothing that writes. The size is capped at `maxRows + 1`,
+  document counts and the root answer, nothing that writes. The index is the only part of a path a
+  query sets, and the binder holds it to names: lowercase letters, digits, `-`, `_`, `.`, `+` and
+  `*`, in a comma-separated list, never a leading `_`, a slash, a `%`, a `?` or a colon, and
+  never a name of dots alone, since `/../_search` is a search of every index. The size is capped at `maxRows + 1`,
   and at 0 with aggregations. The timeout goes in the body (`timeout`), with
   `allow_partial_search_results=false`, and OpenSearch also gets `cancel_after_time_interval`; a
   search that ran out of time is a timeout error, and aborting the request cancels the search on

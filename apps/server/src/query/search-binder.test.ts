@@ -318,6 +318,45 @@ describe('bindSearch', () => {
       expect(() => shown(index)).toThrow('An index is lowercase');
   });
 
+  test('refuses a name that would reach another endpoint of the server', () => {
+    const shown = (index: string) => bindSearch({ index, body: {} }, {}, timeRange, true).index;
+    const reaching = [
+      '_delete_by_query',
+      'logs/_delete_by_query',
+      'logs/_update/1',
+      'logs/_doc/1',
+      'logs/../_cluster/settings',
+      'logs%2f_delete_by_query',
+      'logs%2F..%2F_all',
+      'logs?refresh=true',
+      'logs#x',
+      'logs\\_bulk',
+      'logs _bulk',
+      'logs\n',
+      '_bulk',
+      '_all',
+      '_cluster',
+      'logs,_all',
+      'logs,',
+      ',logs',
+      '<logs-{now/d}>',
+      'remote:logs',
+    ];
+    for (const index of reaching) {
+      expect(() => bind({}, {}, index), index).toThrow('An index is lowercase');
+      expect(() => shown(index), index).toThrow('An index is lowercase');
+    }
+  });
+
+  test('refuses a name of dots, which alone in the path would search every index', () => {
+    const shown = (index: string) => bindSearch({ index, body: {} }, {}, timeRange, true).index;
+    for (const index of ['.', '..', '...', 'logs,..', 'logs,-..', '..,logs']) {
+      expect(() => bind({}, {}, index), index).toThrow('An index is lowercase');
+      expect(() => shown(index), index).toThrow('An index is lowercase');
+    }
+    expect(shown('.a,..b,logs-2026.10.13')).toBe('.a,..b,logs-2026.10.13');
+  });
+
   test('picks a bucket width that keeps the range within a thousand buckets', () => {
     const range = (hours: number) => ({
       from: new Date(0),

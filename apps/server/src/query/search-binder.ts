@@ -35,6 +35,12 @@ const indexItem = /^-?[a-z0-9*][a-z0-9_.*+-]{0,254}$/;
 const systemIndexItem = /^-?[a-z0-9*.][a-z0-9_.*+-]{0,254}$/;
 
 /**
+ * An item that is only dots, with or without the `-` of an exclusion. No index has such a name,
+ * and alone in a request path `.` and `..` are segments: `/../_search` is a search of every index.
+ */
+const dotsItem = /^-?\.+$/;
+
+/**
  * A key holding or running a script: one with a word starting with `script`, in snake_case or, once
  * `Script` is split off, camelCase. It matches `script` itself, `_script` sorts, `script_fields`,
  * `script_score`, `scripted_metric`, `minimum_should_match_script` and any other, but not a field
@@ -79,7 +85,8 @@ const maxBuckets = 1000;
 function checkIndex(index: string, showSystem: boolean): string {
   const items = index.split(',');
   const shape = showSystem ? systemIndexItem : indexItem;
-  if (items[0]?.startsWith('-') || !items.every((item) => shape.test(item))) {
+  const wellFormed = items.every((item) => shape.test(item) && !dotsItem.test(item));
+  if (items[0]?.startsWith('-') || !wellFormed) {
     throw new QueryError(
       'invalid',
       showSystem
