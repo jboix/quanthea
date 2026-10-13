@@ -5,8 +5,11 @@
 import { type ChartView, chartRecipes, type Dataset, fillView } from '@quanthea/shared';
 import type { ChartInput } from '../build-option.ts';
 
-/** What the series of the page are drawn as. */
-export const speedKinds = ['line', 'bar', 'scatter'] as const;
+/**
+ * What the series of the page are drawn as. `holed` is a line whose source left out a few
+ * minutes in three places, as a source does that returns only the rows it has.
+ */
+export const speedKinds = ['line', 'bar', 'scatter', 'holed'] as const;
 
 /** A kind of series the page draws. */
 export type SpeedKind = (typeof speedKinds)[number];
@@ -47,24 +50,42 @@ function valueAt(index: number, points: number, noise: number): number {
   return Math.round((100 + 40 * Math.sin((index / points) * 8 * Math.PI) + noise * 20) * 100) / 100;
 }
 
+/** How many rows in a row each hole of a holed series leaves out. */
+const holeRows = 3;
+
+/**
+ * Whether a row falls in one of the three holes of a holed series: at a quarter, a half and
+ * three quarters of its length.
+ *
+ * @param index - The row's place.
+ * @param points - How many points the series has.
+ * @returns `true` for a row a holed series leaves out.
+ */
+function inHole(index: number, points: number): boolean {
+  const quarter = Math.floor(points / 4);
+  return quarter > holeRows && index >= quarter && index % quarter < holeRows;
+}
+
 /**
  * One series of the page: a value every minute.
  *
  * @param points - How many points.
  * @param seed - Which series, so each chart draws its own.
+ * @param holed - Whether the series leaves out the rows of its three holes.
  * @returns The dataset, with a `time` and a `requests` column.
  */
-export function speedDataset(points: number, seed: number): Dataset {
+export function speedDataset(points: number, seed: number, holed = false): Dataset {
   const random = seeded(seed);
+  const rows = Array.from({ length: points }, (_point, index) => [
+    start + index * minute,
+    valueAt(index, points, random()),
+  ]);
   return {
     dimensions: [
       { name: 'time', type: 'time' },
       { name: 'requests', type: 'number' },
     ],
-    source: Array.from({ length: points }, (_point, index) => [
-      start + index * minute,
-      valueAt(index, points, random()),
-    ]),
+    source: holed ? rows.filter((_row, index) => !inHole(index, points)) : rows,
   };
 }
 
@@ -90,7 +111,7 @@ export function speedView(kind: SpeedKind): ChartView {
   const { view } = filled;
   const series = [view.option.series ?? []]
     .flat()
-    .map((each) => ({ ...(each as object), type: kind }));
+    .map((each) => ({ ...(each as object), type: kind === 'holed' ? 'line' : kind }));
   return { ...view, option: { ...view.option, series } };
 }
 
@@ -106,7 +127,7 @@ export function speedInputs(kind: SpeedKind, points: number, charts: number): Ch
   const view = speedView(kind);
   return Array.from({ length: charts }, (_chart, index) => ({
     view,
-    datasets: [speedDataset(points, index + 1)],
+    datasets: [speedDataset(points, index + 1, kind === 'holed')],
     markers: [],
   }));
 }

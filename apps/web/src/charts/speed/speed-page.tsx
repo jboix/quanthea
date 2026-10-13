@@ -1,7 +1,7 @@
 /**
  * The chart speed page, served by the development server only: a dashboard's worth of time charts
  * on made-up data, drawn by the chart component as a panel draws them, with a meter the measuring
- * script reads. `?points=20000&charts=12&kind=line` chooses what it draws.
+ * script reads. `?points=20000&charts=12&kind=line` chooses what it draws; the kinds are in `speed-data.ts`.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';

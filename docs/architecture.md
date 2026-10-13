@@ -4113,8 +4113,27 @@ one, and enables them again. Without any admin, it creates the default one.
   ms at 5,000 points, 207 to 477 ms at 20,000) and is at rest sooner: large mode draws its
   points at once where the usual drawing spread them over many frames. Charts of 1,000 points
   draw a little slower (lines 87 to 103 ms, scatters 180 to 209 ms); why was not measured.
-  The lines of the page have no missing value. A line with one is not sampled, so the gain
-  for lines is not its own, and it was not measured.
+  The lines of that table have no missing value. A line with one is not sampled, so the gain
+  for lines is not its own.
+
+  One hole in the times of a chart puts a row of missing values in its dataset, so every line of
+  that chart is drawn point by point. `--kinds line,holed` measures it: `holed` is the same line
+  with three minutes left out in three places. Medians of 3 loads on the same machine, in a
+  window that shows all 12 charts, one series a chart, in milliseconds. A pair is the whole line,
+  then the holed one:
+
+  | Points | Drawn, whole line | Drawn, holed | Tooltip move | Resize    |
+  | -----: | ----------------: | -----------: | ------------ | --------- |
+  |   1000 |               103 |          102 | 0.28 → 0.29  | 3.0 → 2.9 |
+  |   5000 |               167 |          176 | 0.39 → 0.52  | 2.4 → 2.8 |
+  |  20000 |               277 |          474 | 0.43 → 1.15  | 2.5 → 4.9 |
+
+  A chart asks its source for at most 2400 points a series, where a hole costs under a tenth of
+  the first draw. A query with a width of its own can return more: at 20,000 points a holed line
+  takes 1.7 times as long to draw and its tooltip and resize cost twice as much. This is accepted
+  for now: sampling a line with a missing value drops the other points of the pixel the value
+  falls in, a spike beside a hole among them. A chart of many series with a hole was not
+  measured.
 - The adapter reads each query's frames as one dataset, applies the view's `filter` and `sort`,
   then prepares it the way the view says (`charts/prepare/`): pivoted to one column per series,
   scaled to shares, ranked, split into groups, binned, summed up for a box plot, built into a

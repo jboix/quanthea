@@ -3,8 +3,8 @@
  * charts of 1,000, 5,000 and 20,000 points each, through the app's own chart component, on the
  * chart speed page of the development server. It prints the time to the first draw, what a
  * tooltip move and a resize cost, and how many charts are drawn at first, after scrolling and
- * when the page is printed. `bun run bench:charts`; `--kinds line,bar,scatter` adds bars
- * and points, `--runs 5` repeats more.
+ * when the page is printed. `bun run bench:charts`; `--kinds line,bar,scatter,holed` adds bars,
+ * points and a line with holes in its times, `--runs 5` repeats more.
  *
  * It starts its own Vite server on port 5199 and stops it when it is done.
  */
