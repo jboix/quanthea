@@ -1373,10 +1373,12 @@ period and the comparison period, resolved on the schedule's clock when the run 
 variables' defaults it binds. Each attempt runs every panel through the panel run path
 (`dashboards/run-panel.ts`), with the period as the absolute time range and the guardrails, row
 limits and timeouts of a panel on a dashboard; then the comparison period (`reports/execute.ts`).
-Any failing query or set of markers fails the attempt. Both periods bind the interval the period
-takes (`defaultChartInterval`: a day by 10 minutes, a week by the hour, a month by the day), so a
-time chart whose query follows the interval is cut evenly, and a number is read the same way as
-the one it is compared with.
+Any failing query or set of markers fails the attempt. The charts of both periods bind one
+interval: the one the spec names (`interval`, which the agent sets when a person asks for a
+width, such as sales per day over a week), when it cuts the period into at most 1500 pieces, else
+the one the period takes (`defaultChartInterval`: a day by 10 minutes, a week by the hour, a
+month by the day). So a time chart whose query follows the interval is cut evenly, the same way
+in the period and in the one it is compared with. Stats and tables take no interval.
 
 - A success freezes each panel's run by panel id, in the shape `POST /api/panels/run` returns, as
   a snapshot does, with the headline numbers (`headlineOf` in `@quanthea/shared`: each summary
@@ -2735,7 +2737,8 @@ the connector shows and a version that changes with its settings).
      written out, such as `increase(x[1h])`, read at a wider step would skip the data between
      two points, and at a finer one its windows would overlap. It is
      checked against the duration pattern before it is bound (`query/interval.ts`). A report's run
-     passes the interval of its period, and a redraw the one a person chose from the closed list
+     passes the interval its spec names (`interval`, such as `1d` for a week drawn by the day)
+     or, without one, the interval of its period (`runInterval` in `reports/execute.ts`), and a redraw the one a person chose from the closed list
      (`chartIntervals` in `@quanthea/shared`: `1m`, `5m`, `10m`, `30m`, `1h`, `6h`, `1d`). Only a
      chart takes it: a stat and a table reduce what their queries return, so the same query
      reads the same number whatever the period's interval. A dashboard passes none.

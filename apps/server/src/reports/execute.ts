@@ -7,8 +7,10 @@
 import {
   dashboardOfReport,
   defaultChartInterval,
+  durationMs,
   type Headline,
   headlineOf,
+  maxChartPieces,
   type PanelRun,
   type PeriodRange,
   type ReportSpec,
@@ -73,14 +75,19 @@ async function runOne(
 }
 
 /**
- * The interval a run's time charts are cut into when nobody chose: the one of the closed list
- * that suits the length of its period, such as an hour over a week.
+ * The interval a run's time charts are cut into: the one the report names, when it cuts the
+ * period into no more pieces than a chart may have, else the one of the closed list that suits
+ * the length of the period, such as an hour over a week.
  *
+ * @param spec - The report spec, for the interval it names.
  * @param period - The period.
  * @returns The interval, as a duration.
  */
-export function periodInterval(period: PeriodRange): string {
-  return defaultChartInterval(period.to - period.from);
+export function runInterval(spec: Pick<ReportSpec, 'interval'>, period: PeriodRange): string {
+  const periodMs = period.to - period.from;
+  const { interval } = spec;
+  if (interval !== undefined && periodMs / durationMs(interval) <= maxChartPieces) return interval;
+  return defaultChartInterval(periodMs);
 }
 
 /**
@@ -132,8 +139,8 @@ function headlinesOf(spec: ReportSpec, panels: PanelRuns, before: PanelRuns | nu
 }
 
 /**
- * Runs a report spec over a period, then over the comparison period, both cut at the interval the
- * period takes, so a number and the one it is compared with are read the same way.
+ * Runs a report spec over a period, then over the comparison period, both cut at the interval of
+ * the run, so a number and the one it is compared with are read the same way.
  *
  * @param runner - The connectors, the executor and the clock.
  * @param spec - The report spec.
@@ -147,7 +154,7 @@ export async function executeReport(
   period: PeriodRange,
   comparison: PeriodRange | null,
 ): Promise<Execution> {
-  const interval = periodInterval(period);
+  const interval = runInterval(spec, period);
   const current = await runPeriod(runner, spec, period, interval);
   const failed = { panels: current.panels, comparisonPanels: null, headlines: [] };
   if (current.failure !== null)

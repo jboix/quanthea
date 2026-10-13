@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import { type PeriodRange, reportPeriodSchema } from '../reports/period.ts';
 import { reportScheduleSchema } from '../reports/schedule.ts';
+import { chartIntervalSchema } from './chart-interval.ts';
 import { type DashboardSpec, dashboardSpecSchema } from './dashboard.ts';
 import { arrangePanels, type DashboardLayout } from './layout.ts';
 
@@ -36,6 +37,12 @@ const reportSpecFields = dashboardSpecSchema.omit({ time: true, timezone: true }
   schedule: reportScheduleSchema,
   /** The window each run covers, resolved in the schedule's time zone. */
   period: reportPeriodSchema,
+  /**
+   * The interval each run cuts its time charts into, such as `1d` for a week drawn by the day.
+   * Left out, the period sets it. A run takes it when it cuts the period into no more pieces
+   * than a chart may have.
+   */
+  interval: chartIntervalSchema.optional(),
   /** What each run compares with: the period before, or nothing. */
   compare: z.enum(['previous_period', 'none']).default('previous_period'),
   /** Pinned dashboards to open on the run's period. */

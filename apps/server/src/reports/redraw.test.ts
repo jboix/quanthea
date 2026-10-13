@@ -38,23 +38,25 @@ function chart(id: string, bucket: string) {
 }
 
 /** The weekly sales report with one chart that follows the interval and one that does not. */
-const withCharts = () => {
+const withCharts = (more: Record<string, unknown> = {}) => {
   const { panels } = salesSpec() as { panels: unknown[] };
   const follows = chart('trend', 'date_bin(:__interval::interval, created_at, :__from)');
   return salesSpec({
     panels: [...panels, follows, chart('fixed', "date_trunc('minute', created_at)")],
+    ...more,
   });
 };
 
 /**
  * Runs the report with charts once by hand.
  *
+ * @param more - More fields of the spec, such as the interval of its charts.
  * @returns The fixture, the report and its run.
  */
-async function ranOnce() {
+async function ranOnce(more: Record<string, unknown> = {}) {
   const answer = () => [frameOf([{ name: 'orders', type: 'number' }], [[1]])];
   const fixture = reportsFixture(database, { answer });
-  const { reportId } = fixture.reports.saveVersion({ spec: withCharts() }, 'ada');
+  const { reportId } = fixture.reports.saveVersion({ spec: withCharts(more) }, 'ada');
   await fixture.reports.activate(reportId, 1, 'ada');
   const run = await fixture.reports.runNow(reportId, false, 'ada');
   return { fixture, reportId, runId: run.id };
@@ -65,6 +67,18 @@ describe('a run', () => {
     const { fixture } = await ranOnce();
     const charted = fixture.requests.filter((request) => /AS time/.test(JSON.stringify(request)));
     expect(charted.length).toBeGreaterThan(0);
+    expect(new Set(charted.map((request) => request.interval))).toEqual(new Set(['1h']));
+  });
+
+  test('cuts its charts at the interval the report names: a week by the day', async () => {
+    const { fixture } = await ranOnce({ interval: '1d' });
+    const charted = fixture.requests.filter((request) => /AS time/.test(JSON.stringify(request)));
+    expect(new Set(charted.map((request) => request.interval))).toEqual(new Set(['1d']));
+  });
+
+  test('keeps the interval of the period when the one named would cut it too fine', async () => {
+    const { fixture } = await ranOnce({ interval: '1m' });
+    const charted = fixture.requests.filter((request) => /AS time/.test(JSON.stringify(request)));
     expect(new Set(charted.map((request) => request.interval))).toEqual(new Set(['1h']));
   });
 

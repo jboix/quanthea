@@ -6,6 +6,7 @@
  * Fields left out keep the draft's.
  */
 import {
+  chartIntervalSchema,
   type DashboardSpec,
   dashboardOfReport,
   isTimeZone,
@@ -31,6 +32,8 @@ const reportFields = {
   schedule: reportScheduleSchema.optional(),
   period: reportPeriodSchema.optional(),
   compare: z.enum(['previous_period', 'none']).optional(),
+  /** The interval the time charts are cut into, when the person asks for one. */
+  interval: chartIntervalSchema.optional(),
   /** The stat panels whose numbers come first, by id or title. */
   summaryPanels: z.array(z.string().min(1).max(200)).max(8).optional(),
   seeAlso: z.array(seeAlsoEditSchema).max(5).optional(),
@@ -189,6 +192,7 @@ export function mergeReport(
 ): Record<string, unknown> {
   const { title, description, variables, panels, annotations } = dashboard;
   const deliveryTitle = edit.messageTitle ?? current?.delivery.title;
+  const interval = edit.interval ?? current?.interval;
   return {
     specVersion: 1,
     title,
@@ -198,6 +202,7 @@ export function mergeReport(
     annotations,
     schedule: timing.schedule,
     period: timing.period,
+    ...(interval === undefined ? {} : { interval }),
     compare: edit.compare ?? current?.compare ?? 'previous_period',
     seeAlso: edit.seeAlso ?? current?.seeAlso ?? [],
     delivery: {

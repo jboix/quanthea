@@ -346,6 +346,7 @@ describe('a report thread', () => {
     );
     const change = {
       summary: 'on Tuesdays',
+      interval: '1d',
       schedule: { every: 'week', weekday: 'tuesday', at: '09:00', timezone: 'Europe/Zurich' },
     };
     const editing = agentWith({ tool: 'edit_report', input: change }, { text: 'Moved.' });
@@ -361,7 +362,7 @@ describe('a report thread', () => {
       'test_query',
     ]);
     const [latest] = versions();
-    expect(latest?.version).toBe(2);
+    expect(latest).toMatchObject({ version: 2, spec: { interval: '1d' } });
     expect(latest?.spec.schedule).toMatchObject({ weekday: 'tuesday', at: '09:00' });
     expect(latest?.spec.seeAlso).toEqual([{ dashboardId: pinned, label: 'All events' }]);
     expect(latest?.spec.panels.map((panel) => panel.id)).toEqual([

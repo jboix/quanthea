@@ -26,6 +26,7 @@ type ReportSpec = {
   annotations?: Annotation[]                // as in a dashboard
   schedule: Schedule
   period: 'previous_day' | 'previous_week' | 'previous_month' | 'week_to_date'
+  interval?: '1m' | '5m' | '10m' | '30m' | '1h' | '6h' | '1d'  // of the time charts; the period's by default
   compare: 'previous_period' | 'none'       // 'previous_period' by default
   seeAlso: { dashboardId: string; label?: string }[]   // pinned dashboards, at most 5
   delivery: { channels: string[]; title?: string }     // notification channel ids, at most 20
@@ -75,8 +76,10 @@ in SQL) are its ends.
 ### The interval of the charts
 
 A run cuts its time charts into even intervals. The interval is one of a closed list (`1m`, `5m`,
-`10m`, `30m`, `1h`, `6h`, `1d`), taken from the length of the period: a day by 10 minutes, a week
-by the hour, a month by the day. It is not part of the spec.
+`10m`, `30m`, `1h`, `6h`, `1d`). The spec may name it (`interval`), such as `1d` for last week's
+sales per day. Left out, it is taken from the length of the period: a day by 10 minutes, a week by
+the hour, a month by the day. A run does not use a named interval that would cut its period into
+more than 1500 pieces: it takes the period's own.
 
 A query follows it through the interval built-in of its language, and the run binds it:
 

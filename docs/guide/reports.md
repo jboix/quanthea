@@ -81,7 +81,8 @@ frozen when it ran.
 ### The interval of the charts
 
 A run cuts its time charts into even intervals, taken from its period: a day by 10 minutes, a
-week by the hour, a month by the day.
+week by the hour, a month by the day. Ask the agent for another width, such as "last week's sales
+per day", and the report keeps it: every run then cuts its charts by the day.
 
 The **$interval** chip above the panels draws them at another one: `1m`, `5m`, `10m`, `30m`, `1h`,
 `6h` or `1d`, as far as they suit the period.
