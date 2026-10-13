@@ -69,6 +69,42 @@ describe('a line', () => {
   });
 });
 
+describe('a line with a missing value', () => {
+  /**
+   * A wide dataset of two columns over time: a full one and one with a missing value.
+   *
+   * @returns The option, one line per column.
+   */
+  function sparseOption(): Loose {
+    const source = Array.from({ length: denseLinePoints + 1 }, (_row, index) => [
+      index,
+      index,
+      index === 7 ? null : index,
+    ]);
+    const line = (y: string) => ({ type: 'line', datasetIndex: 0, encode: { x: 'time', y } });
+    return {
+      dataset: [{ dimensions: ['time', '200', '500'], source }],
+      series: [line('200'), line('500')],
+    };
+  }
+
+  test('is drawn in full: the sampler would drop the points of a pixel that starts on it', () => {
+    const [full, sparse] = withDensity(sparseOption()).series as Loose[];
+    expect(full).toMatchObject({ sampling: 'minmax', showSymbol: false });
+    expect(sparse?.sampling).toBeUndefined();
+    expect(sparse?.showSymbol).toBeUndefined();
+  });
+
+  test('is found in its own data, and in any column when the series names none', () => {
+    const data = Array.from({ length: denseLinePoints + 1 }, (_point, index) => [index, index]);
+    const holed = data.map((point, index) => (index === 3 ? [index, null] : point));
+    expect(firstSeries({ series: [{ type: 'line', data: holed }] }).sampling).toBeUndefined();
+    const { dataset } = sparseOption();
+    const unnamed = { dataset, series: [{ type: 'line', datasetIndex: 0 }] };
+    expect(firstSeries(unnamed).sampling).toBeUndefined();
+  });
+});
+
 describe('bars and points', () => {
   test('bars switch to large mode past their limit', () => {
     expect(firstSeries(optionOf('bar', largeBarPoints)).large).toBeUndefined();
@@ -126,13 +162,16 @@ describe('a long line as ECharts draws it', () => {
    * The heights ECharts draws the page's line of 20,000 points at, 640 pixels wide, with a spike
    * and a dip side by side every 1000 points.
    *
+   * @param holes - The places of the points that are missing.
+   * @param shift - How many points later each spike and dip comes.
    * @returns The vertical pixel of each point drawn, in order.
    */
-  function drawnHeights(): number[] {
+  function drawnHeights(holes: readonly number[] = [], shift = 0): number[] {
     const dataset = speedDataset(pairs * 1000, 1);
     const source = dataset.source.map(([time = null, value = null], index) => {
-      if (index % 1000 === 400) return [time, 500];
-      return [time, index % 1000 === 401 ? -50 : value];
+      if (holes.includes(index)) return [time, null];
+      if ((index - shift) % 1000 === 400) return [time, 500];
+      return [time, (index - shift) % 1000 === 401 ? -50 : value];
     });
     const input = { view: speedView('line'), datasets: [{ ...dataset, source }], markers: [] };
     const option = buildChartOption(input, { theme: defaultTheme, timeZone: 'UTC' });
@@ -156,5 +195,15 @@ describe('a long line as ECharts draws it', () => {
     const [top, bottom] = [Math.min(...heights), Math.max(...heights)];
     expect(heights.filter((height) => height === top)).toHaveLength(pairs);
     expect(heights.filter((height) => height === bottom)).toHaveLength(pairs);
+  });
+
+  test('keeps a spike that follows a missing value, wherever a pixel starts', () => {
+    const lost: number[] = [];
+    for (let offset = 0; offset < 64; offset += 1) {
+      const heights = drawnHeights([12_399 + offset], offset);
+      const top = Math.min(...heights);
+      if (heights.filter((height) => height === top).length !== pairs) lost.push(offset);
+    }
+    expect(lost).toEqual([]);
   });
 });

@@ -106,9 +106,10 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
 - **Long series.** A chart over time asks its source for no more points than it can show: 200
   for each of the 12 columns of the grid it spans. Over a longer time range the points are
   further apart, as a Prometheus query that follows `$__interval` widens its step and a query
-  that buckets by the interval widens its buckets. Nothing is cut off the end. A query with a width of its own keeps it: its line is
-  drawn through the lowest and the highest point of each pixel, so every spike and every dip
-  shows, and a tooltip still reads a point of the data.
+  that buckets by the interval widens its buckets. Nothing is cut off the end. A query with a width of its own keeps it: a line of more than 500 points
+  is drawn through the lowest and the highest point of each pixel, so its spikes and dips show,
+  and a tooltip still reads a point of the data. A line with missing values is drawn point by
+  point.
 - **A result cut short.** When a source returns more rows than the connector's row limit, the
   chart says so under it. Narrow the time range to see the rest.
 - **Charts further down** draw when you scroll to them, and all of them draw when you print the

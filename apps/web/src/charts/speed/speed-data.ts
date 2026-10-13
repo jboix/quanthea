@@ -1,5 +1,5 @@
 /**
- * The made-up data of the chart speed page: long, fine-grained series with spikes, dips and a gap,
+ * The made-up data of the chart speed page: long, fine-grained series with spikes and dips,
  * drawn through the same views and option builders as a dashboard's panels.
  */
 import { type ChartView, chartRecipes, type Dataset, fillView } from '@quanthea/shared';
@@ -32,17 +32,16 @@ function seeded(seed: number): () => number {
 }
 
 /**
- * The value of one point: a wave with noise, a spike every 997 points, a dip to zero every 1499,
- * and a gap of 20 points in the middle of the series.
+ * The value of one point: a wave with noise, a spike every 997 points and a dip to zero every
+ * 1499. No point is missing: a line with a missing value is not sampled, so it would time the
+ * usual drawing.
  *
  * @param index - The point's place.
  * @param points - How many points the series has.
  * @param noise - A number between 0 and 1.
- * @returns The value, or `null` in the gap.
+ * @returns The value.
  */
-function valueAt(index: number, points: number, noise: number): number | null {
-  const middle = Math.floor(points / 2);
-  if (index >= middle && index < middle + 20) return null;
+function valueAt(index: number, points: number, noise: number): number {
   if (index % 997 === 500) return 400 + noise * 50;
   if (index % 1499 === 700) return 0;
   return Math.round((100 + 40 * Math.sin((index / points) * 8 * Math.PI) + noise * 20) * 100) / 100;

@@ -3867,15 +3867,19 @@ one, and enables them again. Without any admin, it creates the default one.
   geo modules are in, so the modules load before the map.
 - **Many points** (`charts/dense.ts`). Once the option is built the adapter counts the points of
   each series, and draws a long one another way. No value changes.
-  - A line of more than 500 points is sampled to its pixels (`sampling: 'minmax'`) and draws no
-    symbols. ECharts samples only when a series has more points than its plot has device pixels,
-    and again at each size. For each pixel of the plot's width it keeps the lowest and the highest
-    point that fall in it. So no spike and no dip is lost, and every point drawn is a point of the
-    data: a tooltip never shows a value the query did not return. A test draws a line with a
-    spike and a dip side by side and finds them all.
-  - What `minmax` gives up: a gap narrower than one pixel may close, and the points that share a
-    pixel with the end of a gap may be left out. A stacked line is sampled by its own values, not
-    by the stacked ones.
+  - A line of more than 500 points and without a missing value is sampled to its pixels
+    (`sampling: 'minmax'`) and draws no symbols. ECharts samples only when a series has more
+    points than its plot has device pixels, and again at each size. For each pixel of the plot's
+    width it keeps the lowest and the highest point that fall in it, and every point drawn is a
+    point of the data: a tooltip never shows a value the query did not return. A test draws a
+    line with a spike and a dip side by side and finds them all.
+  - A line with a missing value is drawn in full, as it is written. The sampler starts each
+    pixel from its first point, and when that one is missing it keeps nothing else of the pixel:
+    a spike right after a gap was lost, and so was about half of a sparse series pivoted next to
+    a full one, whose missing buckets are `null`. The adapter reads the column the series draws
+    (`encode.y`), so the full series of the same table is still sampled. The points a chart asks
+    its source for bound such a line.
+  - What `minmax` gives up: a stacked line is sampled by its own values, not by the stacked ones.
   - `lttb`, the other sampler that keeps points of the data, keeps one point per pixel: the first,
     the last, the edges of a gap, and otherwise the point that stands out most from the point
     before and the mean of the next pixel. Of a spike and a dip in one pixel it keeps one, so it
@@ -3917,6 +3921,8 @@ one, and enables them again. Without any admin, it creates the default one.
 
   A long scatter series now takes longer to its first frame and is at rest sooner: large mode
   draws its points at once where the usual drawing spread them over many frames.
+  The lines of the page have no missing value. A line with one is not sampled, so the gain
+  for lines is not its own, and it was not measured.
 - The adapter reads each query's frames as one dataset, applies the view's `filter` and `sort`,
   then prepares it the way the view says (`charts/prepare/`): pivoted to one column per series,
   scaled to shares, ranked, split into groups, binned, summed up for a box plot, built into a
