@@ -31,7 +31,7 @@ const writePrivilegeList = writePrivileges.map((privilege) => `'${privilege}'`).
 
 /**
  * Checks the server and names the write privileges granted to the user itself, on the server, a
- * schema or a table, without touching table data. Those of an active role are not listed there,
+ * schema, a table or some of its columns, without touching table data. Those of an active role are not listed there,
  * so {@link roleQuery} reads the role too.
  */
 export const healthQuery = `
@@ -41,6 +41,7 @@ SELECT VERSION() AS version, CURRENT_USER() AS user_name, (
     SELECT GRANTEE, PRIVILEGE_TYPE FROM information_schema.USER_PRIVILEGES
     UNION ALL SELECT GRANTEE, PRIVILEGE_TYPE FROM information_schema.SCHEMA_PRIVILEGES
     UNION ALL SELECT GRANTEE, PRIVILEGE_TYPE FROM information_schema.TABLE_PRIVILEGES
+    UNION ALL SELECT GRANTEE, PRIVILEGE_TYPE FROM information_schema.COLUMN_PRIVILEGES
   ) AS grants
   WHERE grants.GRANTEE = CONCAT('''', REPLACE(CURRENT_USER(), '@', '''@'''), '''')
     AND grants.PRIVILEGE_TYPE IN (${writePrivilegeList})

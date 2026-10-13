@@ -4,12 +4,19 @@
  */
 import { quoteIdentifier } from './catalog.ts';
 
-/** The tables, views and foreign tables of the database's own schemas. */
-const userRelations = `
+/** The relations of the database's own schemas. */
+const ownRelations = `
   pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-  WHERE c.relkind IN ('r', 'p', 'v', 'm', 'f')
-    AND n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'
-    AND has_table_privilege(c.oid, 'INSERT, UPDATE, DELETE, TRUNCATE')`;
+  WHERE n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'`;
+
+/**
+ * The tables, views and foreign tables the role can change: by a grant on the table, or on some
+ * of its columns only, such as `GRANT UPDATE (status) ON orders`.
+ */
+const userRelations = `${ownRelations}
+    AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+    AND (has_table_privilege(c.oid, 'INSERT, UPDATE, DELETE, TRUNCATE')
+      OR has_any_column_privilege(c.oid, 'INSERT, UPDATE'))`;
 
 /**
  * Checks the server and what the role may do, without touching table data. A privilege counts
@@ -25,6 +32,8 @@ SELECT current_setting('server_version') AS version, current_user AS role,
       AND has_schema_privilege(n.oid, 'CREATE') ORDER BY 1 LIMIT 10) AS create_in,
   (SELECT count(*)::int FROM ${userRelations}) AS writable,
   ARRAY(SELECT n.nspname || '.' || c.relname FROM ${userRelations} ORDER BY 1 LIMIT 3) AS examples,
+  (SELECT count(*)::int FROM ${ownRelations}
+    AND CASE WHEN c.relkind = 'S' THEN has_sequence_privilege(c.oid, 'UPDATE') END) AS sequences,
   ARRAY(SELECT m.rolname::text FROM pg_roles m
     WHERE m.rolname IN ('pg_write_all_data', 'pg_write_server_files',
       'pg_read_server_files', 'pg_execute_server_program')
@@ -54,6 +63,8 @@ export interface HealthRow {
   readonly writable: number;
   /** Three of them. */
   readonly examples: readonly string[];
+  /** How many sequences it can set. */
+  readonly sequences: number;
   /** The server's own roles it holds that write data, read or write files, or run programs. */
   readonly server_roles: readonly string[];
   /** The TimescaleDB version, when the database has the extension. */
@@ -86,6 +97,10 @@ export function roleFindings(row: HealthRow): string[] {
   const one = (holds: boolean, sentence: string): string[] => (holds ? [sentence] : []);
   return [
     ...writableSentence(row),
+    ...one(
+      row.sequences > 0,
+      `It can set ${row.sequences === 1 ? '1 sequence' : `${row.sequences} sequences`}.`,
+    ),
     ...one(row.create_in.length > 0, `It can create tables in ${row.create_in.join(', ')}.`),
     ...one(row.create_schema, `It can create schemas in the database ${row.database}.`),
     ...one(row.server_roles.length > 0, `It is a member of ${row.server_roles.join(', ')}.`),
@@ -98,7 +113,8 @@ export function roleFindings(row: HealthRow): string[] {
  * The statements that make a role that only reads the database, for the admin to copy.
  *
  * @param database - The database the connector reads.
- * @returns The statements.
+ * @returns The statements. The last one ends the right every role has to create tables in
+ *   `public` where it still holds, without which the new role would be reported as writing.
  */
 export function readOnlyRole(database: string): string {
   return `CREATE ROLE quanthea_read LOGIN PASSWORD 'choose-a-password';
@@ -106,7 +122,10 @@ GRANT CONNECT ON DATABASE ${quoteIdentifier(database)} TO quanthea_read;
 GRANT USAGE ON SCHEMA public TO quanthea_read;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO quanthea_read;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO quanthea_read;
-ALTER ROLE quanthea_read SET default_transaction_read_only = on;`;
+ALTER ROLE quanthea_read SET default_transaction_read_only = on;
+-- PostgreSQL 14 and earlier, and a database upgraded from one, let every role create tables in
+-- public. This takes that from all of them: grant it again to the roles that need it.
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;`;
 }
 
 /**

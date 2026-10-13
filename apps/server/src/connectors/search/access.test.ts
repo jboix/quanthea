@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { ConnectorError } from '../_shared/index.ts';
-import { elasticsearchFindings, opensearchAccess, searchAccess } from './access.ts';
+import { elasticsearchFindings, opensearchAccess, readOnlySetups, searchAccess } from './access.ts';
 import type { SearchApi } from './api.ts';
 
 /**
@@ -125,6 +125,13 @@ describe('what an OpenSearch user may do', () => {
       expect(access).toMatchObject({ readOnly: null, canDo: [] });
       expect(access.sentence).toContain('unknown');
     }
+  });
+
+  test('the user to create is named as for every kind, and no mapping is replaced', () => {
+    expect(readOnlySetups.Elasticsearch).toContain('POST /_security/user/quanthea_read\n');
+    expect(readOnlySetups.OpenSearch).toContain('internalusers/quanthea_read\n');
+    expect(readOnlySetups.OpenSearch).toContain('"opendistro_security_roles": ["readall"]');
+    expect(readOnlySetups.OpenSearch).not.toContain('rolesmapping');
   });
 
   test('a server without the security plugin takes every request', async () => {

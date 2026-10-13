@@ -2495,9 +2495,11 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   lexes it, whatever the role or the database sets: with it off, `'\'` would end elsewhere and
   what the binder took for a string would run. The statement goes over the extended protocol,
   which takes one statement, also when it binds no value. The connection test reads the
-  catalog for what the role may do (`postgres/health.ts`): a superuser, tables it can change,
-  schemas and the database it can create in, the server's write and file roles, `CREATEROLE` and
-  `CREATEDB`, each however the role holds it. `describe` reads `pg_catalog`
+  catalog for what the role may do (`postgres/health.ts`): a superuser, tables it can change
+  (by a grant on the table or on some of its columns), sequences it can set, schemas and the
+  database it can create in, the server's write and file roles, `CREATEROLE` and `CREATEDB`, each
+  however the role holds it. Before PostgreSQL 15 every role may create tables in `public`, so
+  the role to create that the test offers ends with the `REVOKE` that takes it from `PUBLIC`. `describe` reads `pg_catalog`
   (comments, `reltuples`, `pg_stats.n_distinct`), never table data. SQLSTATEs map to connector
   errors; data errors (class 22) never quote the value.
   - **TimescaleDB** is the same kind (the add form finds it by name): the connection test names its
@@ -2520,7 +2522,8 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   statement is prepared, never formatted by the driver. At the timeout or when the caller gives up,
   `KILL QUERY` stops it on the server and the connection is closed rather than reused. `describe`
   reads `information_schema` (comments, `TABLE_ROWS`, index cardinality), never table data. The
-  connection test names the write privileges granted to the user itself (`mysql/health.ts`); a
+  connection test names the write privileges granted to the user itself, on the server, a
+  schema, a table or some columns (`mysql/health.ts`); a
   role's grants are not listed there, so a user with an active role and none of its own reports
   `readOnly: null`. Error numbers map to connector errors; value errors never quote the value.
 - **ClickHouse:** the HTTP interface over the kit's HTTP client, POST with the user and password

@@ -175,7 +175,11 @@ export async function searchAccess(
   }
 }
 
-/** How to make a user that only reads, by product, for the admin to copy. */
+/**
+ * How to make a user that only reads, by product, for the admin to copy. Each request creates
+ * something of its own name. OpenSearch gives the role on the user: a `PUT` of the role's mapping
+ * would replace it, and take the role from everyone mapped to it.
+ */
 export const readOnlySetups: Readonly<Record<ServerInfo['product'], string>> = {
   Elasticsearch: `POST /_security/role/quanthea_read
 {
@@ -185,11 +189,8 @@ export const readOnlySetups: Readonly<Record<ServerInfo['product'], string>> = {
   ]
 }
 
-POST /_security/user/quanthea
+POST /_security/user/quanthea_read
 { "password": "choose-a-password", "roles": ["quanthea_read"] }`,
-  OpenSearch: `PUT /_plugins/_security/api/internalusers/quanthea
-{ "password": "choose-a-password" }
-
-PUT /_plugins/_security/api/rolesmapping/readall
-{ "users": ["quanthea"] }`,
+  OpenSearch: `PUT /_plugins/_security/api/internalusers/quanthea_read
+{ "password": "choose-a-password", "opendistro_security_roles": ["readall"] }`,
 };

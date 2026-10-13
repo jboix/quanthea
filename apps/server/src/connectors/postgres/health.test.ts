@@ -13,6 +13,7 @@ const reader: HealthRow = {
   create_in: [],
   writable: 0,
   examples: [],
+  sequences: 0,
   server_roles: [],
   timescaledb: null,
 };
@@ -54,6 +55,18 @@ describe('what a PostgreSQL role may do', () => {
       ],
     });
     expect(healthOf(row).message).toContain('can write: use a read-only role');
+  });
+
+  test('a role that creates in public as everyone does is shown how to end that', () => {
+    const health = healthOf({ ...reader, role: 'quanthea_read', create_in: ['public'] });
+    expect(health.readOnly).toBe(false);
+    expect(health.canDo).toEqual(['It can create tables in public.']);
+    expect(health.readOnlySetup).toContain('REVOKE CREATE ON SCHEMA public FROM PUBLIC;');
+  });
+
+  test('a role that can set a sequence is not read-only', () => {
+    expect(roleFindings({ ...reader, sequences: 1 })).toEqual(['It can set 1 sequence.']);
+    expect(healthOf({ ...reader, sequences: 2 }).readOnly).toBe(false);
   });
 
   test('lists every table when there are few', () => {

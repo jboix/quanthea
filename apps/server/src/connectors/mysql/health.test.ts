@@ -25,6 +25,11 @@ describe('what a MySQL or MariaDB user may do', () => {
     expect(access.access).toContain('unknown');
   });
 
+  test('the question reads the grants of every level, down to the columns', () => {
+    for (const level of ['USER', 'SCHEMA', 'TABLE', 'COLUMN'])
+      expect(healthQuery).toContain(`information_schema.${level}_PRIVILEGES`);
+  });
+
   test('the question only reads the catalog', () => {
     expect(healthQuery).not.toMatch(/\b(INSERT INTO|UPDATE \w+ SET|DELETE FROM|CREATE TABLE)\b/);
     expect(healthQuery.trimStart()).toStartWith('SELECT');
