@@ -179,6 +179,37 @@ describe('the layout the agent reads and asks for', () => {
     expect(prompt).toContain('\\"arrange\\" places panels by name');
   });
 
+  test('the map is the arrangement the next version starts from, with the hidden panels marked', async () => {
+    await turn('Events?', { tool: 'edit_dashboard', input: buildEdit }, { text: 'Built.' });
+    const id = services.threads.get(threadId).dashboardId ?? '';
+    await services.dashboards.pin(id, 1, 'editor-1');
+    const layout = {
+      panels: [
+        { id: 'errors-over-time', grid: { x: 0, y: 0, w: 8, h: 8 }, hidden: false },
+        { id: 'errors-peak', grid: { x: 0, y: 8, w: 3, h: 3 }, hidden: true },
+      ],
+    };
+    services.layouts.save({ subjectId: id, version: 1 }, layout, null, 'editor-1');
+    const model = await turn('Make the chart smaller', { text: 'How small?' });
+    const prompt = JSON.stringify(model.doStreamCalls[0]?.prompt);
+    expect(prompt).toContain(
+      'y0 h3: errors-peak stat 1-3 hidden | gap 4-12\\ny3 h8: errors-over-time time 1-8 | gap 9-12',
+    );
+    expect(prompt).toContain('People see pinned version 1 as someone arranged it by hand.');
+    expect(prompt).toContain('Hidden there by hand: errors-peak');
+    // The arrangement is told once, as the map: no second list of places beside it.
+    expect(prompt).not.toContain('errors-over-time x0');
+    expect(prompt).not.toContain('errors-over-time time 1-12');
+    // The next edit starts from what the map says.
+    const again = { ...eventsPanel('Errors · peak', 'stat'), replaces: 'errors-peak' };
+    const edit = { tool: 'edit_dashboard', input: { panels: [again], summary: 'rebuilt' } };
+    await turn('Rebuild the peak', edit, { text: 'Done.' });
+    expect(gridsOf(2)).toMatchObject({
+      'errors-peak': { x: 0, y: 0, w: 3, h: 3 },
+      'errors-over-time': { x: 0, y: 3, w: 8, h: 8 },
+    });
+  });
+
   test('an arrangement made by hand gets the map and no advice', async () => {
     await turn('Events?', { tool: 'edit_dashboard', input: buildEdit }, { text: 'Built.' });
     const id = services.threads.get(threadId).dashboardId ?? '';

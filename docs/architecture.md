@@ -647,8 +647,10 @@ another was saved since. Hidden panels stay in the spec, so the thread and the m
 them, but snapshots, questions and explanations read the version through its layout and leave
 them out (`shownSpecOf` in `dashboards/context.ts`).
 
-The agent reads the layout and never writes one (`agent/shown-layout.ts`). Its instructions name
-the pinned version's arrangement and the panels hidden there. Every version it writes starts from
+The agent reads the layout and never writes one (`agent/shown-layout.ts`). Its instructions say
+that the pinned version is arranged by hand and name the panels hidden there. The places are told
+once, in the map of the draft: with a hand layout the map is the arrangement the next version
+starts from, and a hidden panel is marked `hidden` on its row. Every version it writes starts from
 that arrangement: a panel takes its hand place and size while the draft still has it where the
 pinned version's spec put it, so a panel a draft moved or resized since keeps the draft's place.
 For the hidden panels, it asks the person once whether to remove them from the next version;

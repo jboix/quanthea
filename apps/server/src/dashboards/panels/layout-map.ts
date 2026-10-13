@@ -86,15 +86,17 @@ export function columnsText(first: number, last: number): string {
  * its gaps, left to right.
  *
  * @param row - The row.
+ * @param hidden - The ids of the panels people do not see, which the line marks `hidden`.
  * @returns Such as `y0 h3: revenue stat 1-3 | orders stat 4-6 | gap 7-12`.
  */
-function rowLine(row: LayoutRow): string {
+function rowLine(row: LayoutRow, hidden: readonly string[]): string {
   const height = Math.max(...row.panels.map((panel) => panel.grid.h));
   const cells = [
     ...row.panels.map(({ id, grid, view }) => {
       const own = grid.h === height ? '' : ` h${grid.h}`;
       const columns = columnsText(grid.x + 1, grid.x + grid.w);
-      return { x: grid.x, text: `${id} ${shapeOfPanel({ view })} ${columns}${own}` };
+      const mark = hidden.includes(id) ? ' hidden' : '';
+      return { x: grid.x, text: `${id} ${shapeOfPanel({ view })} ${columns}${own}${mark}` };
     }),
     ...row.above.map(({ id, grid }) => ({
       x: grid.x,
@@ -110,8 +112,9 @@ function rowLine(row: LayoutRow): string {
  * The map of a layout.
  *
  * @param panels - The panels on the grid.
+ * @param hidden - The ids of the panels someone hid by hand, each marked `hidden` on its row.
  * @returns One line per row, top to bottom.
  */
-export function layoutMap(panels: readonly Panel[]): string[] {
-  return layoutRows(panels).map(rowLine);
+export function layoutMap(panels: readonly Panel[], hidden: readonly string[] = []): string[] {
+  return layoutRows(panels).map((row) => rowLine(row, hidden));
 }

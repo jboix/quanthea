@@ -19,7 +19,7 @@ import {
   planningRules,
   planQueryRule,
 } from './prompt-text.ts';
-import { type ShownLayoutFacts, shownLayoutLines } from './shown-layout.ts';
+import { panelsAsShown, type ShownLayoutFacts, shownLayoutLines } from './shown-layout.ts';
 import { catalogSection } from './source-text.ts';
 
 /** What the instructions of a turn depend on. */
@@ -134,6 +134,24 @@ export function layoutLines(
 }
 
 /**
+ * The current draft and its map. With a hand layout on the pinned version, the map is the
+ * arrangement the next version starts from, and it marks the panels hidden there.
+ *
+ * @param facts - The facts of the turn.
+ * @returns The lines, none without a draft.
+ */
+function draftLines(facts: TurnFacts): string[] {
+  const { draft, shown } = facts;
+  if (!draft) return [];
+  const text = `Current draft, version ${draft.version}:\n${JSON.stringify(draft.spec)}`;
+  if (!shown) return [text, layoutLines(draft.spec.panels)];
+  const hidden = shown.panels.filter((panel) => panel.hidden).map((panel) => panel.id);
+  const { rows } = layoutReport(panelsAsShown(draft.spec.panels, shown), { advise: false, hidden });
+  const map = `The next version starts from this layout, the draft as people see it arranged, a line per row of the 12-column grid (panel, kind, columns, "hidden" for a panel people do not see):\n${rows.join('\n')}`;
+  return [text, map];
+}
+
+/**
  * The part of the instructions that changes every turn: the time, the draft, the mentions, and
  * what the phase asks.
  *
@@ -141,12 +159,7 @@ export function layoutLines(
  * @returns The text.
  */
 function situation(facts: TurnFacts): string {
-  const lines = [nowLine(facts.now, facts.timeZone)];
-  if (facts.draft)
-    lines.push(
-      `Current draft, version ${facts.draft.version}:\n${JSON.stringify(facts.draft.spec)}`,
-      layoutLines(facts.draft.spec.panels),
-    );
+  const lines = [nowLine(facts.now, facts.timeZone), ...draftLines(facts)];
   if (facts.shown)
     lines.push(...shownLayoutLines(facts.shown, phaseOf(facts.state) !== 'building'));
   if (facts.mentions.length > 0) {

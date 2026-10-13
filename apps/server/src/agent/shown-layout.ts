@@ -3,7 +3,7 @@
  * hand. Every version the agent writes starts from that arrangement, and the agent asks about the
  * panels hidden there. It never writes a layout; only people do.
  */
-import { type DashboardSpec, type PanelGrid, packGrid } from '@quanthea/shared';
+import { type DashboardSpec, type Panel, type PanelGrid, packGrid } from '@quanthea/shared';
 import type { RunContext } from './run-context.ts';
 
 /** One panel of the shown layout. */
@@ -54,19 +54,16 @@ export function shownLayoutOf(
 }
 
 /**
- * What the agent is told about the hand layout: follow it, and ask about what it hides.
+ * What the agent is told about the hand layout: follow it, and ask about what it hides. The
+ * places themselves are in the map of the draft, which is drawn as arranged here.
  *
  * @param shown - The hand layout.
  * @param mayAsk - Whether the phase offers `ask_person`; building an approved plan does not.
  * @returns The lines.
  */
 export function shownLayoutLines(shown: ShownLayoutFacts, mayAsk: boolean): string[] {
-  const places = shown.panels
-    .filter((panel) => !panel.hidden)
-    .map(({ id, grid }) => `${id} x${grid.x} y${grid.y} w${grid.w} h${grid.h}`)
-    .join('; ');
   const lines = [
-    `People see pinned version ${shown.version} as someone arranged it by hand: ${places}. Every version you write starts from this arrangement, so leave the panels' widths alone unless the person asks to rearrange.`,
+    `People see pinned version ${shown.version} as someone arranged it by hand. Every version you write starts from that arrangement, which the map above shows, so leave the panels' widths alone unless the person asks to rearrange.`,
   ];
   const hidden = shown.panels.filter((panel) => panel.hidden);
   if (hidden.length === 0) return lines;
@@ -95,10 +92,28 @@ function samePlace(first: PanelGrid, second: PanelGrid | undefined): boolean {
 }
 
 /**
- * A draft arranged as people see the pinned version: each panel shown there takes its place and
- * size, while the draft still has it where the pinned version's spec put it; then the panels are
- * packed. A panel a draft moved or resized since keeps the draft's place, and so do panels hidden
- * there and panels the pinned version lacks.
+ * The panels of a draft arranged as people see the pinned version: each panel shown there takes
+ * its place and size, while the draft still has it where the pinned version's spec put it; then
+ * the panels are packed. A panel a draft moved or resized since keeps the draft's place, and so do
+ * panels hidden there and panels the pinned version lacks.
+ *
+ * @param panels - The draft's panels.
+ * @param shown - The hand layout of the pinned version.
+ * @returns The panels the next version starts from.
+ */
+export function panelsAsShown(panels: readonly Panel[], shown: ShownLayoutFacts): Panel[] {
+  const arranged = new Map(
+    shown.panels.filter((panel) => !panel.hidden).map((panel) => [panel.id, panel]),
+  );
+  const placed = panels.map((panel) => {
+    const hand = arranged.get(panel.id);
+    return hand && samePlace(panel.grid, hand.specGrid) ? { ...panel, grid: hand.grid } : panel;
+  });
+  return packGrid(placed);
+}
+
+/**
+ * A draft arranged as people see the pinned version, when someone arranged it by hand.
  *
  * @param context - The run.
  * @param spec - The thread's current draft, if any.
@@ -111,12 +126,5 @@ export function arrangedAsShown(
   const { dashboardId } = context.threads.row(context.threadId);
   const shown = spec && dashboardId !== null ? shownLayoutOf(context, dashboardId) : undefined;
   if (!spec || !shown) return spec;
-  const arranged = new Map(
-    shown.panels.filter((panel) => !panel.hidden).map((panel) => [panel.id, panel]),
-  );
-  const panels = spec.panels.map((panel) => {
-    const hand = arranged.get(panel.id);
-    return hand && samePlace(panel.grid, hand.specGrid) ? { ...panel, grid: hand.grid } : panel;
-  });
-  return { ...spec, panels: packGrid(panels) };
+  return { ...spec, panels: panelsAsShown(spec.panels, shown) };
 }

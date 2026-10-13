@@ -20,6 +20,8 @@ interface LayoutReportOptions {
   readonly headlines?: readonly string[];
   /** Whether to give advice; the map alone when false. */
   readonly advise?: boolean;
+  /** The panels someone hid by hand, by id: the map marks them. */
+  readonly hidden?: readonly string[];
 }
 
 /** The widest a number reads well: half the grid. */
@@ -172,17 +174,17 @@ function adviceFor(canvas: readonly Panel[], report: boolean): string[] {
  * badly. It is made from the panels' ids, kinds and places only.
  *
  * @param panels - The spec's panels.
- * @param options - A report's headline numbers, and whether to give advice.
+ * @param options - A report's headline numbers, whether to give advice, and the hidden panels.
  * @returns The map and the advice.
  */
 export function layoutReport(
   panels: readonly Panel[],
   options: LayoutReportOptions = {},
 ): LayoutReport {
-  const { headlines, advise = true } = options;
+  const { headlines, advise = true, hidden } = options;
   const canvas = canvasOf(panels, headlines);
   const leading = headlines?.length ? [`headline numbers: ${headlines.join(' | ')}`] : [];
-  const rows = [...leading, ...layoutMap(canvas)];
+  const rows = [...leading, ...layoutMap(canvas, hidden)];
   const advice = advise ? adviceFor(canvas, headlines !== undefined) : [];
   return advice.length > 0 ? { rows, advice } : { rows };
 }

@@ -557,7 +557,7 @@ describe('an agent run', () => {
     );
     const prompt = JSON.stringify(model.doStreamCalls[0]?.prompt);
     expect(prompt).toContain('People see pinned version 1 as someone arranged it by hand');
-    expect(prompt).toContain('errors-peak x0 y0 w12 h3');
+    expect(prompt).toContain('y0 h3: errors-peak stat 1-12');
     expect(prompt).toContain('Hidden there by hand: errors-over-time (\\"Errors over time\\")');
     expect(prompt).toContain('ask the person once, with ask_person');
   });
