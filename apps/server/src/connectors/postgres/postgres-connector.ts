@@ -92,7 +92,9 @@ interface DescribedRows {
 
 /**
  * Runs work in a read-only transaction with a statement timeout, so the server refuses writes and
- * stops long statements whatever the query says.
+ * stops long statements whatever the query says. The transaction reads strings as the standard
+ * does, whatever the role or the database sets, since the SQL binder lexes them so: with
+ * `standard_conforming_strings` off, a backslash would end a string elsewhere than the binder saw.
  *
  * @param sql - The connection pool.
  * @param timeoutMs - The statement timeout.
@@ -105,10 +107,22 @@ function readOnly<T>(
   work: (transaction: TransactionSql) => Promise<T>,
 ): Promise<T> {
   return sql.begin('read only', async (transaction) => {
-    await transaction.unsafe(`SET LOCAL statement_timeout = ${Math.trunc(timeoutMs)}`);
+    await transaction.unsafe(
+      `SET LOCAL statement_timeout = ${Math.trunc(timeoutMs)}; SET LOCAL standard_conforming_strings = on`,
+    );
     return work(transaction);
   }) as Promise<T>;
 }
+
+/**
+ * Sends a statement over the extended protocol, which takes one statement only. Without it the
+ * driver sends a statement that has no values over the simple protocol, where a second statement
+ * would run. The driver reads the option, and its types leave it out.
+ */
+const oneStatement: postgres.UnsafeQueryOptions & { readonly simple: boolean } = {
+  prepare: false,
+  simple: false,
+};
 
 /**
  * Waits for a query, cancelling it on the server when the signal fires.
@@ -182,7 +196,10 @@ async function execute(sql: Sql, query: SqlQuery, context: ExecutionContext): Pr
   const parameters = [...query.parameters] as postgres.ParameterOrJSON<never>[];
   try {
     const result = await readOnly(sql, context.timeoutMs, (transaction) =>
-      cancellable<DescribedRows>(transaction.unsafe(text, parameters).values(), context.signal),
+      cancellable<DescribedRows>(
+        transaction.unsafe(text, parameters, oneStatement).values(),
+        context.signal,
+      ),
     );
     return [toFrame(result, context, performance.now() - started)];
   } catch (error) {

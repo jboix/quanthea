@@ -2468,7 +2468,11 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
 - **Postgres:** the `postgres` driver. `Bun.sql` 1.3 returns no column names or types (a query with
   no rows has no fields) and cannot cancel a running statement; `postgres` gives the row
   description and sends a real cancel request. Every query runs in a `read only` transaction with
-  `SET LOCAL statement_timeout`, wrapped in `LIMIT maxRows + 1`. `describe` reads `pg_catalog`
+  `SET LOCAL statement_timeout`, wrapped in `LIMIT maxRows + 1`. The transaction also sets
+  `standard_conforming_strings` on, so the server reads a backslash in a string as the SQL binder
+  lexes it, whatever the role or the database sets: with it off, `'\'` would end elsewhere and
+  what the binder took for a string would run. The statement goes over the extended protocol,
+  which takes one statement, also when it binds no value. `describe` reads `pg_catalog`
   (comments, `reltuples`, `pg_stats.n_distinct`), never table data. SQLSTATEs map to connector
   errors; data errors (class 22) never quote the value.
   - **TimescaleDB** is the same kind (the add form finds it by name): the connection test names its
