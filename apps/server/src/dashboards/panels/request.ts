@@ -75,6 +75,16 @@ function panelSchemaWith<Data extends z.ZodType, Chart extends z.ZodType>(
   });
 }
 
+/**
+ * Rows of panels placed by name, from the top: each row is an arrangement (arrange.ts lists them)
+ * followed by panel ids or titles. The arrangement is checked in code, to keep the tool's schema
+ * small.
+ */
+const arrangeSchema = z
+  .array(z.array(z.string().max(200)).max(13))
+  .max(20)
+  .optional();
+
 /** The panels that show a set of markers, by id or title; every time chart when left out. */
 const markedPanelsSchema = z.array(z.string().max(200)).max(20).optional();
 
@@ -127,6 +137,7 @@ function editSchemaWith<Panel extends z.ZodType>(panels: Panel) {
     variables: z.array(variableSchema).max(20).optional(),
     panels: z.array(panels).max(20).default([]),
     remove: z.array(z.string()).max(20).default([]),
+    arrange: arrangeSchema,
     markers: z.array(markersSchema).max(10).default([]),
     removeMarkers: z.array(z.string().max(63)).max(10).default([]),
     summary: z.string().min(1).max(200),

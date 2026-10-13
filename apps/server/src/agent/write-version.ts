@@ -7,7 +7,7 @@
  */
 import { type DashboardSpec, diffSpecs, type PanelDiff, type Repair } from '@quanthea/shared';
 import type { PanelTest } from '../dashboards/dashboards.ts';
-import { compactGrid } from '../dashboards/panels/index.ts';
+import { compactGrid, type LayoutReport } from '../dashboards/panels/index.ts';
 import type { ModelTestResult } from '../gate/test-run.ts';
 import { canWrite } from '../threads/state.ts';
 import type { RunContext } from './run-context.ts';
@@ -20,6 +20,8 @@ export type WriteResult =
       readonly panels: readonly PanelReport[];
       /** New panels left out because their queries failed, and what to do. */
       readonly leftOut?: { readonly panelIds: readonly string[]; readonly next: string };
+      /** The saved version's layout as a map, and advice on what reads badly. */
+      readonly layout?: LayoutReport;
     }
   | {
       readonly ok: false;

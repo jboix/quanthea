@@ -4,7 +4,11 @@
  */
 import { type DashboardSpec, dashboardSpecSchema, type Plan, planSchema } from '@quanthea/shared';
 import { tool } from 'ai';
-import { type EditRequest, editRequestSchemaFor } from '../dashboards/panels/index.ts';
+import {
+  type EditRequest,
+  editRequestSchemaFor,
+  layoutReport,
+} from '../dashboards/panels/index.ts';
 import { buildPanels } from './panel-build.ts';
 import type { RunContext } from './run-context.ts';
 import { arrangedAsShown } from './shown-layout.ts';
@@ -61,6 +65,20 @@ function proposePlanTool(context: RunContext) {
 }
 
 /**
+ * Adds the saved version's layout to a write that worked: the map, and advice on what reads badly.
+ *
+ * @param context - The run.
+ * @param result - What the write returned.
+ * @param advise - Whether to give advice with the map.
+ * @returns The result, with the layout when a version was saved.
+ */
+function withLayout(context: RunContext, result: WriteResult, advise: boolean): WriteResult {
+  const saved = result.ok ? currentSpec(context) : undefined;
+  if (!result.ok || !saved) return result;
+  return { ...result, layout: layoutReport(saved.panels, { advise }) };
+}
+
+/**
  * Makes the edit over the draft as people see it arranged: builds the spec, test-runs it, completes
  * the charts from the data, and writes the panels that work.
  *
@@ -69,11 +87,15 @@ function proposePlanTool(context: RunContext) {
  * @returns What the model learns.
  */
 async function editDashboard(context: RunContext, request: EditRequest): Promise<WriteResult> {
-  const start = arrangedAsShown(context, currentSpec(context));
+  const draft = currentSpec(context);
+  const start = arrangedAsShown(context, draft);
   const built = await buildPanels(context, start, request, 'The dashboard is invalid.');
   if ('error' in built) return built;
   const { spec, samePanels, added, run } = built;
-  return writeVersion(context, spec, request.summary, samePanels, added, run);
+  const result = writeVersion(context, spec, request.summary, samePanels, added, run);
+  // An arrangement someone made by hand is theirs: no advice unless the edit arranges.
+  const advise = start === draft || request.arrange !== undefined;
+  return withLayout(context, result, advise);
 }
 
 /**
@@ -86,7 +108,7 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
 function editDashboardTool(context: RunContext) {
   return tool({
     description:
-      'Change the dashboard in one new version: set its title, time range and variables; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); remove panels; add, replace or remove sets of markers (deploys, incidents) by id, filtered by a variable like panels (the deploys of $service). The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work; otherwise you get the errors to fix.',
+      'Change the dashboard in one new version: set its title, time range and variables; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); remove panels; arrange panels in rows by name; add, replace or remove sets of markers (deploys, incidents) by id, filtered by a variable like panels (the deploys of $service). The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work, and returns the layout as a map with advice; otherwise you get the errors to fix.',
     inputSchema: providerSchema(editRequestSchemaFor(context.queries, context.charts)),
     execute: (request) => editDashboard(context, request),
   });

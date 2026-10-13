@@ -13,7 +13,7 @@ import { dataTools } from './data-tools.ts';
 import { guideTools } from './guide-tools.ts';
 import { panelGuideFor } from './panel-guide.ts';
 import { phaseOf, reportPhaseTools, type ToolName } from './phases.ts';
-import { nowLine } from './prompt.ts';
+import { layoutLines, nowLine } from './prompt.ts';
 import { currentReport } from './report-edit.ts';
 import {
   reportBuildingRules,
@@ -124,7 +124,12 @@ export async function reportInstructions(
     nowLine(now, hints.timeZone),
     channelsLine(context),
     pinnedLine(context),
-    ...(draft ? [`Current draft, version ${draft.version}:\n${JSON.stringify(draft.spec)}`] : []),
+    ...(draft
+      ? [
+          `Current draft, version ${draft.version}:\n${JSON.stringify(draft.spec)}`,
+          layoutLines(draft.spec.panels, draft.spec.summaryPanels),
+        ]
+      : []),
     phaseLine(context, latestReportPlan(plans)),
   ];
   const catalogPart = catalogSection(catalog);

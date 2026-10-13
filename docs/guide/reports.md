@@ -93,7 +93,10 @@ the active version that succeeded, on a screen wide enough for the grid's twelve
   one back.
 - The headline numbers keep their row at the top, in the order the report gives them.
 
-Arranging makes no new version. Each version keeps its own arrangement: a version activated
+In the report's thread, the agent arranges the panels of a draft when you ask in words, such as
+"the chart beside the table" or "both charts full width". That writes a new draft version.
+
+Arranging by hand makes no new version. Each version keeps its own arrangement: a version activated
 later starts from the grid the agent wrote. The message a report sends holds the headline
 numbers and the links, so it stays the same.
 

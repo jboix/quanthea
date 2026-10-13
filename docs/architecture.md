@@ -1270,16 +1270,16 @@ Every tool validates its input with Zod, runs as the thread's person, and return
 The data tools answer only through the gate's model view (`gate/model-view.ts`), so what a result
 shows depends on the connector's access level.
 
-| Tool                                                | Returns                                                                                                   | Notes                                                                                    |
-| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `describe(connector, scope?)`                       | entities and fields minus hidden ones, at most 60, and how many more matched                              | From the schema cache; read from the source when never read.                             |
-| `sample_values(connector, entity, field, limit≤50)` | distinct values                                                                                           | Level 2 and up. Refuses hidden and high-cardinality fields.                              |
-| `test_query(connector, query, variables?, time?)`   | L1: ok or error. L2: fields, types, row counts. L3: plus summaries. L4: plus rows                         | Default range `now-6h` to `now`. Errors are safe messages below L4.                      |
-| `ask_person(question, options)`                     | `{ asked, next }`                                                                                         | 2 to 4 options, shown as buttons; the run then stops and the answer is the next message. |
-| `propose_plan(plan)`                                | `{ planId, status, next }`                                                                                | Streams a `data-plan` part and moves the thread to `plan_pending`; the run then stops.   |
-| `edit_dashboard(edit)`                              | the new version, each panel's test result, and the new panels left out; or the issues and failures to fix | Panels of data and a chart; see "Writing a version".                                     |
-| `chart_recipe(id)`                                  | a chart recipe's roles, variants, pitfalls and option template                                            | The instructions list every recipe in one line; this reads one in full.                  |
-| `read_guide(kind)`                                  | a connector kind's query guide: each shape of data from it, with examples, and its raw query syntax       | The instructions name the kinds in use; this reads one in full.                          |
+| Tool                                                | Returns                                                                                                                                    | Notes                                                                                    |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `describe(connector, scope?)`                       | entities and fields minus hidden ones, at most 60, and how many more matched                                                               | From the schema cache; read from the source when never read.                             |
+| `sample_values(connector, entity, field, limit≤50)` | distinct values                                                                                                                            | Level 2 and up. Refuses hidden and high-cardinality fields.                              |
+| `test_query(connector, query, variables?, time?)`   | L1: ok or error. L2: fields, types, row counts. L3: plus summaries. L4: plus rows                                                          | Default range `now-6h` to `now`. Errors are safe messages below L4.                      |
+| `ask_person(question, options)`                     | `{ asked, next }`                                                                                                                          | 2 to 4 options, shown as buttons; the run then stops and the answer is the next message. |
+| `propose_plan(plan)`                                | `{ planId, status, next }`                                                                                                                 | Streams a `data-plan` part and moves the thread to `plan_pending`; the run then stops.   |
+| `edit_dashboard(edit)`                              | the new version, each panel's test result, the new panels left out, and the layout as a map with advice; or the issues and failures to fix | Panels of data and a chart; see "Writing a version".                                     |
+| `chart_recipe(id)`                                  | a chart recipe's roles, variants, pitfalls and option template                                                                             | The instructions list every recipe in one line; this reads one in full.                  |
+| `read_guide(kind)`                                  | a connector kind's query guide: each shape of data from it, with examples, and its raw query syntax                                        | The instructions name the kinds in use; this reads one in full.                          |
 
 `search_library` and `get_dashboard` arrive with the library and variants.
 
@@ -1461,6 +1461,34 @@ directly onto an ECharts `dataset`.
   that sends the whole dashboard again changes it in place instead of adding copies. New
   panels are packed in reading order into rows below, as wide as asked or as their kind usually
   is (numbers a quarter, time charts full width, tables and category charts half).
+- **Named arrangements.** An edit's `arrange` places panels by name instead of grid numbers
+  (`dashboards/panels/arrange.ts`): a list of rows from the top, each an arrangement followed by
+  panel ids or titles. The set is closed: `stats` (the numbers share a row, at most six on one),
+  `chart-table` (two panels side by side, seven columns and five, the table the narrower), `full`
+  (each on a row of its own), `two` and `three` (that many across). Every row fills the twelve
+  columns, a panel placed takes the height of its kind and a row its tallest. Panels no row names
+  follow below as they were. The server turns the rows into grid numbers, so a stored spec holds
+  plain grid numbers only. A row that cannot be placed refuses the edit before anything runs, with
+  the repair: an unknown arrangement or panel, a panel placed twice, a `chart-table` without two
+  panels. In the tool's schema a row is a list of strings, and the arrangement is checked in code,
+  which keeps the schema small.
+- **The layout map.** A saved edit returns `layout.rows` (`dashboards/panels/layout-map.ts`): the
+  grid row by row, one line per grid line a panel starts on, such as
+  `y0 h3: revenue stat 1-3 | orders stat 4-6 | gap 7-12`. Each panel has its id, its kind (`stat`,
+  `time`, `chart`, `table`) and its columns from 1 to 12; a panel of another height than its row
+  says so, a panel reaching in from the row above is in brackets, and `gap` names empty columns.
+  The instructions carry the same map under the current draft. It is made from ids, kinds and
+  places, never from data, so it needs no gate. It adds about 35 characters a panel: 414 for
+  twelve panels and 1050 for thirty, with ids of twenty characters.
+- **The layout check.** With the map comes `layout.advice` (`dashboards/panels/layout-check.ts`),
+  at most eight lines, each naming the row or the panel and the repair: a row with empty columns,
+  a number wider than half the grid when there are other numbers to share a row with, a table with
+  fewer than one and a half grid columns per column, a chart with a legend under five rows tall,
+  and numbers below a chart or a table. The check never refuses: it is advice with a version
+  already saved, so a spec that was valid stays saveable, a person's arrangement is never an
+  error, and stored versions are not touched. The prompt asks the agent to repair advice once,
+  with an edit that sends only `arrange`. An edit that starts from an arrangement made by hand
+  gets the map without advice, unless it arranges.
 - **Markers.** Sets of markers are annotations (`dashboards/panels/markers.ts`,
   `marker-placement.ts`): events such as deploys, incidents or feature flags, drawn as lines on
   time charts, from any connector, whatever the charts query. Each set has an id (a slug), a label
@@ -1524,7 +1552,7 @@ panel code, each with its switch for the agent.
 
 The instructions are assembled per turn (`agent/prompt.ts`): a persona, the rules that always
 hold, the facts of the turn, and last what the thread's phase asks for. The facts are the time now,
-the catalog of the connectors, the current draft, the panels the person mentions (the user
+the catalog of the connectors, the current draft and its layout as a map, the panels the person mentions (the user
 message's `metadata.mentions`), and their time zone (`metadata.timeZone`), so "yesterday around
 14:00" means their 14:00.
 
@@ -1740,6 +1768,12 @@ write adds one of its versions, a draft until someone activates one.
   write streams `data-reportVersion`. The model learns each panel's test result through the gate,
   as `edit_dashboard` does, and the preview's period, comparison and next run; never the headline
   numbers.
+- `edit_report` takes `arrange` as `edit_dashboard` does, and returns the layout the same way. A
+  report's headline numbers have a row of their own, so its map names them on a first line
+  (`headline numbers: revenue | orders`) and draws the other panels only. Its check gives the
+  same advice on those, and names a stat left on the grid, which leads the report once it is in
+  `summaryPanels`. The instructions carry the map under the current draft. An alert has no panels,
+  so it has no layout to read or check.
 - **`read_guide("report")`** gives the report guide: every field, the schedule's shapes, the
   periods and an example.
 

@@ -150,6 +150,12 @@ version pinned for the first time shows the grid the agent wrote.
 The agent sees the arrangement when you go back to the thread. It builds the next version from
 it, and asks whether to remove the panels you hid. The draft pane marks them `hidden on v3`.
 
+In a thread, ask the agent for an arrangement in words: "put the numbers in one row", "the chart
+beside the table", "make the latency chart full width", "these three across". It places the
+panels in rows that fill the grid, and it reads the result back, so it sees a row with empty
+columns or a table too narrow for its columns and repairs it. It leaves an arrangement you made
+by hand as it is unless you ask.
+
 ## Past threads
 
 **Past threads**, at the top right of the new thread screen, lists your threads by day, with a

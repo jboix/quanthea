@@ -49,6 +49,7 @@ export const reportGuide = `A report, as edit_report writes it. Send the whole r
 - summaryPanels: the headline stat panels, by id or title, at most 8, in order. Their numbers lead the message, with their change against the period before.
 - seeAlso: [{ "dashboardId": an id from the list, "label"?: its link's words }], at most 5. Each opens on the run's period.
 - channels: channel ids from the list, or []. messageTitle: the message's title, when it should differ from the report's.
+- arrange: rows of panels by name, as edit_dashboard takes them. The headline stats have a row of their own above the grid: arrange the other panels only.
 - summary: what changed, in one line, for the version's note.
 
 Example: { "title": "Weekly sales", "schedule": { "every": "week", "weekday": "monday", "at": "08:00", "timezone": "Europe/Zurich" }, "period": "previous_week", "compare": "previous_period", "panels": [{ "title": "Revenue", "data": { "kind": "raw", "connector": "orders-db", "language": "sql", "query": "SELECT sum(total) AS revenue FROM orders WHERE status = 'paid' AND created_at BETWEEN :__from AND :__to" }, "chart": { "recipe": "kpi.stat", "unit": "EUR" } }], "summaryPanels": ["Revenue"], "seeAlso": [], "channels": ["<an id from the list>"], "summary": "first draft" }`;

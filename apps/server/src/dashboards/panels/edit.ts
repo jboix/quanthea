@@ -1,10 +1,11 @@
 /**
  * Applies an edit to a dashboard: settings, removed panels, panels rebuilt in place, new panels
- * placed below, and sets of markers on time charts (markers.ts). The result is a spec to check,
- * test-run and save like any other.
+ * placed below, the rows the edit arranges by name (arrange.ts), and sets of markers on time charts
+ * (markers.ts). The result is a spec to check, test-run and save like any other.
  */
 import type { DashboardSpec, Panel } from '@quanthea/shared';
 import { type BuildContext, QueryError } from '../queries/index.ts';
+import { arrangedPanels } from './arrange.ts';
 import type { PanelDraft } from './draft.ts';
 import { expandPanel, type PanelChart } from './expand.ts';
 import { compactGrid, panelId, placeBelow } from './layout.ts';
@@ -163,7 +164,8 @@ function editedPanels(
  * @param context - The saved queries the run may use, and each connector's dialect.
  * @returns The new spec, to test-run, complete, check and save, and the chart choice of each
  *   panel it builds.
- * @throws {QueryError} When the edit names a panel that does not exist, or a panel cannot build.
+ * @throws {QueryError} When the edit names a panel that does not exist, a panel cannot build, or
+ *   a row it arranges cannot be placed.
  */
 export function applyEdit(
   current: DashboardSpec | undefined,
@@ -175,7 +177,8 @@ export function applyEdit(
   const charts: ChartChoices = new Map();
   const edited = editedPanels(spec.panels, request, context, charts);
   // Removed panels leave holes; the rest move up into them.
-  const placed = request.remove.length > 0 ? compactGrid(edited) : edited;
+  const compacted = request.remove.length > 0 ? compactGrid(edited) : edited;
+  const placed = arrangedPanels(compacted, request.arrange ?? []);
   const panels = placeMarkers(spec.panels, placed, annotations, request);
   return { spec: { ...spec, annotations, panels }, charts };
 }

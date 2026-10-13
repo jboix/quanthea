@@ -5,6 +5,7 @@
  * thread's phase asks of it.
  */
 import type { DashboardSpec, Plan, QueryLanguage } from '@quanthea/shared';
+import { layoutReport } from '../dashboards/panels/index.ts';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import type { ThreadState } from '../threads/state.ts';
 import { panelGuideFor } from './panel-guide.ts';
@@ -117,6 +118,22 @@ function planLines(facts: TurnFacts): string[] {
 }
 
 /**
+ * A draft's layout as a map, for the instructions: the grid row by row, without advice.
+ *
+ * @param panels - The draft's panels.
+ * @param headlines - A report's headline numbers, which have a row of their own.
+ * @returns The lines, under one line that says how to read them.
+ */
+export function layoutLines(
+  panels: DashboardSpec['panels'],
+  headlines?: readonly string[],
+): string {
+  const options = { advise: false, ...(headlines ? { headlines } : {}) };
+  const { rows } = layoutReport(panels, options);
+  return `Its layout on the 12-column grid, a line per row (panel, kind, columns):\n${rows.join('\n')}`;
+}
+
+/**
  * The part of the instructions that changes every turn: the time, the draft, the mentions, and
  * what the phase asks.
  *
@@ -128,6 +145,7 @@ function situation(facts: TurnFacts): string {
   if (facts.draft)
     lines.push(
       `Current draft, version ${facts.draft.version}:\n${JSON.stringify(facts.draft.spec)}`,
+      layoutLines(facts.draft.spec.panels),
     );
   if (facts.shown)
     lines.push(...shownLayoutLines(facts.shown, phaseOf(facts.state) !== 'building'));

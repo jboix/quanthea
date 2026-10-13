@@ -242,6 +242,34 @@ the version once and shows one at least. It is kept apart from the spec, with it
 so arranging a dashboard never makes a version. A hidden panel stays in the spec and the agent
 still sees it, but the pinned view, snapshots and questions leave it out.
 
+The agent does not write `grid` numbers. New panels go below the others, and an edit can place
+panels by name with a closed set of arrangements, which the server turns into the `grid` of each
+panel before the spec is checked and saved:
+
+| Arrangement   | What it places                                                           |
+| ------------- | ------------------------------------------------------------------------ |
+| `stats`       | The numbers share a row, at most six on one.                             |
+| `chart-table` | Two panels side by side: seven columns and five, the table the narrower. |
+| `full`        | Each panel on a row of its own.                                          |
+| `two`         | Two panels across.                                                       |
+| `three`       | Three panels across.                                                     |
+
+A row always fills the twelve columns, and a panel placed this way takes the height of its kind:
+3 rows for a number, 8 for a chart over time, 7 for another chart or a table.
+
+After a write the agent reads the layout back as a map, the grid row by row, with advice on what
+reads badly:
+
+```text
+y0 h3: error-rate stat 1-3 | failed-orders stat 4-6 | gap 7-12
+y3 h8: latency time 1-12
+```
+
+The advice covers a row with empty columns, a number wider than it needs, a table too narrow for
+its columns, a chart too short for its legend, and numbers that are not on the first rows. It
+never refuses a spec: any `grid` that fits the twelve columns is valid, and the validator still
+accepts every spec it accepted before.
+
 ## Example: "Checkout incident · 26 Sep", v3
 
 A dashboard about a checkout incident, abbreviated to three panels.

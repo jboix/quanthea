@@ -7,6 +7,7 @@
 import type { DashboardSpec, ReportPlan } from '@quanthea/shared';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { layoutReport } from '../dashboards/panels/index.ts';
 import { AppError } from '../lib/errors.ts';
 import { type BuiltPanels, buildPanels } from './panel-build.ts';
 import {
@@ -317,7 +318,10 @@ async function editReport(context: RunContext, edit: ReportEdit, now: number) {
   const spec = mergeReport(current?.spec, built.spec, edit, timing);
   const write = { spec, note: edit.summary, reportId: current?.reportId };
   const saved = await previewAndSave(context, write);
-  return saved.ok ? { ...saved, panels: checked.panels } : saved;
+  if (!saved.ok) return saved;
+  const headlines = spec.summaryPanels as readonly string[];
+  const layout = layoutReport(built.spec.panels, { headlines });
+  return { ...saved, panels: checked.panels, layout };
 }
 
 /**

@@ -19,7 +19,12 @@ const usualWidth: Readonly<Record<PanelShape, Width>> = {
 };
 
 /** The height of each kind of panel, in rows of 40 px. */
-const heights: Readonly<Record<PanelShape, number>> = { stat: 3, time: 8, chart: 7, table: 7 };
+export const heights: Readonly<Record<PanelShape, number>> = {
+  stat: 3,
+  time: 8,
+  chart: 7,
+  table: 7,
+};
 
 /** A grid position. */
 type Grid = Panel['grid'];

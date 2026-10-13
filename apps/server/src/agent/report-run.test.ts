@@ -253,6 +253,10 @@ describe('a report thread', () => {
       { reportId: thread.reportId ?? '', version: 1, note: 'first draft' },
     ]);
     expect(stream).toContain('"period":"week ');
+    // The layout comes back as a map: the headline numbers apart, then the grid.
+    expect(stream).toContain(
+      '"layout":{"rows":["headline numbers: errors-peak","y0 h8: errors-over-time time 1-12"]}',
+    );
     // Level 2 shows the columns and row counts, never values.
     expect(stream).not.toContain('checkout-svc');
   });

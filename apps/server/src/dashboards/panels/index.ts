@@ -2,4 +2,5 @@
 export { completeCharts } from './complete.ts';
 export { applyEdit, type ChartChoices } from './edit.ts';
 export { compactGrid } from './layout.ts';
+export { type LayoutReport, layoutReport } from './layout-check.ts';
 export { type EditRequest, editRequestSchemaFor } from './request.ts';
