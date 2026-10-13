@@ -6,7 +6,7 @@
 import { z } from 'zod';
 import { namedFormatterSchema } from '../formatters/schema.ts';
 import { timeExpressionSchema } from '../spec/time.ts';
-import { alertStates } from './alerts.ts';
+import { alertStates } from './alert-states.ts';
 import { defineEndpoint } from './contract.ts';
 
 /** How a link was made: from the panel, from the agent's card, by hand, or from a match. */

@@ -365,6 +365,15 @@ gate's leak tests check that every one of those paths drops hidden fields.
     notified or was "held back by quiet hours", the times it could not be checked and could be again, and the activations,
     deactivations, mutes and unmutes from the audit log, the latest first), and Notifies (the channels by name and kind, when the alert is quiet, the latest messages with
     their outcome).
+  - What happened and the latest messages show ten entries at a time. Under each list a pager
+    (`ui/pager.tsx`) says which entries the page shows and how many there are in all ("11–20 of
+    57"), with Newer and Older when there is more than one page. The alert's detail carries the
+    first page of each. Older loads the next through the `/alerts/:alertId/timeline` and
+    `/alerts/:alertId/sends` resource routes, by the cursor of the page shown; Newer goes back
+    through the pages already loaded (`use-pages.ts`).
+  - Each series now is not paged: a spec keeps at most `value.maxSeries` series (100 by default,
+    1000 at most), the page needs them all to compare the changes not saved, and the list scrolls
+    inside its card.
   - **When it is quiet** reads the same on the page and in the draft pane
     (`alert-draft/quiet-hours.ts`): "Quiet Mon to Fri 22:00 to 07:00; Sat and Sun all day
     (Europe/Zurich), the default for all alerts. Quiet now. It may next notify Tue 07:00.", or
@@ -475,6 +484,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/alerts/:alertId`                                             | an alert: state, chart, series, what happened, channels     | viewer   |
 | `/alerts/:alertId/v/:version/replay`                           | resource route: a version replayed over 6 h, 24 h or 7 d    | viewer   |
 | `/alerts/:alertId/links`                                       | resource route: where an alert is shown, for the agent card | viewer   |
+| `/alerts/:alertId/timeline`, `/alerts/:alertId/sends`          | resource routes: an older page of an alert's lists          | viewer   |
 | `/alert-link-targets`                                          | resource route: pinned dashboards' panels, to link one      | editor   |
 | `/reports`                                                     | Reports: search, each with its latest number and history    | viewer   |
 | `/reports/unseen`                                              | resource route: how many reports have a run not opened      | viewer   |
@@ -1286,10 +1296,22 @@ alert pages show:
   the value furthest the way the condition's first test points), and the latest message sent
   about it: the channel's name,
   the time, and whether it got through.
-- An alert's detail adds the channels of the version shown, by name and kind; the latest 20
-  messages sent about it, by channel name, event, series and time; and the latest 50 activations,
-  deactivations, mutes and unmutes from the audit log, each with who did it. Channel targets never
-  leave the settings.
+- An alert's detail adds the channels of the version shown, by name and kind, and the first page
+  (10 entries) of its two lists that grow without limit. `timeline` is what happened: the
+  changes of state, the times it could not be checked or could be again, and the activations,
+  deactivations, mutes and unmutes from the audit log, each with who did it, merged the latest
+  first. `sends` is the messages sent about it, by channel name, event, series and time. Channel
+  targets never leave the settings.
+- `GET /api/alerts/:id/timeline` and `GET /api/alerts/:id/sends` return a page of either list
+  (`alerts/pages.ts`, `db/alert-pages.ts`), for whoever reads the alert's detail. A page is
+  `{ entries | sends, older, total, offset }`: `older` is the cursor of the next page, `null` at
+  the end; `total` counts the whole list; `offset` counts the entries newer than the page.
+  `?before=` takes a cursor and `?limit=` at most 50.
+- A list is ordered by time and then by id, the latest first, and a cursor is the time and id of
+  the last entry of a page. The page after it holds the entries below that place, so entries that
+  arrive later move no page. Only `total` and `offset` grow with them.
+- An entry of the timeline keeps what it stored: a change of state or a check event that quiet
+  hours held back says so (`quiet`) on every page.
 - A version replays for every role that sees it: viewers and analysts replay the versions ever
   active, as they read them. A replay runs the version's saved query, as a panel run does, so it
   shows nothing a dashboard of the same query would not.
@@ -3376,7 +3398,8 @@ indicative; the contract files are the source of truth.
 | `POST /settings/notification-channels/:id/test`, `GET …/:id/sends`                                | send a test, a channel's recent sends        | admin    |
 | `GET /notification-channels`                                                                      | channels by id, name and kind, to pick from  | editor   |
 | `POST /notification-channels/preview`                                                             | what each kind would send for a template     | editor   |
-| `GET /alerts`, `GET /alerts/:id` (versions ever active, series, changes; drafts: see Ownership)   | alerts and their state                       | viewer   |
+| `GET /alerts`, `GET /alerts/:id` (versions ever active, series, first pages; drafts: Ownership)   | alerts and their state                       | viewer   |
+| `GET /alerts/:id/timeline`, `GET /alerts/:id/sends` (`before`, a cursor; `limit`, at most 50)     | a page of what happened, or of its messages  | viewer   |
 | `POST /alerts/:id/mute` (an end at most 7 days ahead; no end: editor), `POST /alerts/:id/unmute`  | stop or resume notifications                 | analyst  |
 | `POST /alerts/:id/activate` (a version), `POST /alerts/:id/deactivate` (owner, admin)             | choose the version evaluated, or stop        | editor   |
 | `POST /alerts/replay` (a spec)                                                                    | how a draft would have fired over a window   | editor   |

@@ -192,9 +192,11 @@ number of alerts firing.
 - **Series** gives each series' state, value and since when.
 - **What happened** lists the changes of state, whether each notified or was held back by quiet
   hours, the times it could not be checked, and who activated, deactivated, muted or unmuted it.
+  It shows the latest 10 entries and says how many there are in all. **Older** and **Newer** move
+  through the rest, ten at a time.
 - **Notifies** lists the channels, its [quiet hours](#quiet-hours) and the latest messages, with
-  whether they got through. During quiet hours the header says **Quiet hours until 07:00**, and
-  Notifies says when it may next notify.
+  whether they got through, ten at a time as well. During quiet hours the header says **Quiet
+  hours until 07:00**, and Notifies says when it may next notify.
 - **Shown on** lists the dashboard panels it is linked to.
 
 ### Tune a live alert

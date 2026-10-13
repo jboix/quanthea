@@ -1,14 +1,14 @@
 /**
- * The alert page's sections below the chart: each series now, what happened, and where it
- * notifies, when it is quiet, with the latest messages sent.
+ * The alert page's sections below the chart: each series now, and where it notifies, when it is
+ * quiet, with the latest messages sent.
  */
 import type { AlertDetail, AlertState } from '@quanthea/shared';
 import { Pill } from '../../ui/pill.tsx';
 import { quietSummary } from '../alert-draft/index.ts';
 import styles from './alert.module.css';
+import { LatestMessages } from './alert-paged-lists.tsx';
 import type { StateTone } from './state-text.ts';
-import { timeline } from './timeline.ts';
-import { clockWhen, durationSince, seriesName, stateWords, valueText } from './words.ts';
+import { durationSince, seriesName, stateWords, valueText } from './words.ts';
 
 /** The colour of each state. */
 const toneOf: Readonly<Record<AlertState, StateTone>> = {
@@ -17,15 +17,6 @@ const toneOf: Readonly<Record<AlertState, StateTone>> = {
   pending: 'pending',
   ok: 'ok',
   no_data: 'neutral',
-};
-
-/** What each message sent says, in the latest messages. */
-const sendWords: Readonly<Record<AlertDetail['sends'][number]['event'], string>> = {
-  'alert.firing': 'Firing',
-  'alert.resolved': 'Resolved',
-  'alert.test': 'Test',
-  'alert.error': 'Cannot be checked',
-  'alert.recovered': 'Checked again',
 };
 
 /** How bad each state is, the worst first. */
@@ -69,43 +60,6 @@ export function SeriesNow({ alert, now }: { readonly alert: AlertDetail; readonl
           );
         })}
       </ul>
-    </section>
-  );
-}
-
-/**
- * What happened, the latest first.
- *
- * @param props - The alert and the current time.
- * @param props.alert - The alert.
- * @param props.now - The current time.
- * @returns The card.
- */
-export function WhatHappened({
-  alert,
-  now,
-}: {
-  readonly alert: AlertDetail;
-  readonly now: number;
-}) {
-  const entries = timeline(alert, now);
-  return (
-    <section className={styles.card} aria-labelledby="alert-timeline-title">
-      <h2 id="alert-timeline-title" className={styles.cardTitle}>
-        What happened
-      </h2>
-      {entries.length === 0 && <p className={styles.chartNote}>Nothing yet.</p>}
-      <ol className={styles.timeline}>
-        {entries.map((entry) => (
-          <li key={entry.key}>
-            <time className={styles.when} dateTime={new Date(entry.at).toISOString()}>
-              {clockWhen(entry.at, now)}
-            </time>
-            <span className={styles.dot} data-tone={entry.tone} />
-            <span>{entry.text}</span>
-          </li>
-        ))}
-      </ol>
     </section>
   );
 }
@@ -169,22 +123,7 @@ export function Notifies({ alert, now }: { readonly alert: AlertDetail; readonly
         </ul>
       )}
       <QuietHoursLine alert={alert} now={now} />
-      <h3 className={styles.subheading}>Latest messages</h3>
-      {alert.sends.length === 0 && <p className={styles.chartNote}>None sent yet.</p>}
-      <ol className={styles.timeline}>
-        {alert.sends.map((send) => (
-          <li key={`${send.at}-${send.channel}-${send.seriesKey}`}>
-            <time className={styles.when} dateTime={new Date(send.at).toISOString()}>
-              {clockWhen(send.at, now)}
-            </time>
-            <span className={styles.dot} data-tone={send.ok ? 'ok' : 'danger'} />
-            <span>
-              {sendWords[send.event]} to {send.channel}
-              {send.ok ? '' : ', failed'}
-            </span>
-          </li>
-        ))}
-      </ol>
+      <LatestMessages key={alert.id} alert={alert} now={now} />
     </section>
   );
 }

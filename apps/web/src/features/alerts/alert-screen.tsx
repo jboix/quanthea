@@ -13,7 +13,8 @@ import { quietSummary } from '../alert-draft/index.ts';
 import styles from './alert.module.css';
 import { HeaderActions } from './alert-actions.tsx';
 import { AlertChartCard, useAlertReplay, windows } from './alert-chart-card.tsx';
-import { Notifies, SeriesNow, shownSpec, WhatHappened } from './alert-sections.tsx';
+import { WhatHappened } from './alert-paged-lists.tsx';
+import { Notifies, SeriesNow, shownSpec } from './alert-sections.tsx';
 import type { AlertData, ReplayWindow } from './data.ts';
 import { ShownOnCard } from './shown-on.tsx';
 import { muteEnd, type StateTone, statePill } from './state-text.ts';
@@ -145,7 +146,7 @@ export function AlertScreen() {
         />
         <div className={styles.columns}>
           <SeriesNow alert={alert} now={now} />
-          <WhatHappened alert={alert} now={now} />
+          <WhatHappened key={alert.id} alert={alert} now={now} />
         </div>
         <ShownOnCard links={links} />
         <Notifies alert={alert} now={now} />

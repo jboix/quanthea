@@ -18,6 +18,7 @@ import type { ConnectorLookup } from '../dashboards/check-queries.ts';
 import { refuseSpec } from '../dashboards/context.ts';
 import type { AlertActivityRepository } from '../db/alert-activity.ts';
 import type { AlertLinkRepository } from '../db/alert-link-repository.ts';
+import type { AlertPagesRepository } from '../db/alert-pages.ts';
 import type { AlertRepository, AlertRow } from '../db/alert-repository.ts';
 import type { AlertStateRepository } from '../db/alert-state-repository.ts';
 import type { AuditRepository } from '../db/audit-repository.ts';
@@ -37,8 +38,10 @@ export interface AlertsDependencies extends AlertQueryDependencies {
   readonly states: AlertStateRepository;
   /** Records who did what. */
   readonly audit: AuditRepository;
-  /** Reads the channels, the sends and the audited changes of alerts; none when left out. */
+  /** Reads the channels of alerts and the latest sends; none when left out. */
   readonly activity?: AlertActivityRepository | undefined;
+  /** Reads what happened to an alert and the messages sent about it, by page; none when left out. */
+  readonly pages?: AlertPagesRepository | undefined;
   /** Finds a connector by name, for validation. */
   readonly lookup: ConnectorLookup;
   /** The alert settings. */

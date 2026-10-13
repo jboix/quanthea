@@ -44,7 +44,7 @@ interface StoredCheck {
 }
 
 /** A check event as SQLite returns it. */
-interface StoredCheckEvent {
+export interface StoredCheckEvent {
   /** The kind. */
   kind: CheckEventRow['kind'];
   /** When. */
@@ -137,11 +137,21 @@ export function readCheckEvents(
   alertId: string,
   limit: number,
 ): CheckEventRow[] {
-  return statements.events.all(alertId, limit).map((stored) => ({
+  return statements.events.all(alertId, limit).map(checkEventOf);
+}
+
+/**
+ * Turns a stored check event into a row.
+ *
+ * @param stored - The stored event.
+ * @returns The row.
+ */
+export function checkEventOf(stored: StoredCheckEvent): CheckEventRow {
+  return {
     kind: stored.kind,
     at: stored.at,
     reason: stored.reason,
     notified: stored.notified === 1,
     quiet: stored.quiet === 1,
-  }));
+  };
 }

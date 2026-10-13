@@ -44,13 +44,11 @@ export function detailedAlert(changes: Partial<AlertDetail> = {}): AlertDetail {
     ...listedAlert(),
     versions: [],
     series: [],
-    events: [],
-    checks: [],
+    timeline: { entries: [], older: null, total: 0, offset: 0 },
     channels: [],
-    sends: [],
+    sends: { sends: [], older: null, total: 0, offset: 0 },
     defaultQuietHours: null,
     canChange: true,
-    activity: [],
     ...changes,
   };
 }

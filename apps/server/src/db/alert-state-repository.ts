@@ -157,7 +157,7 @@ interface StoredSeries {
 }
 
 /** A change of state as SQLite returns it. */
-interface StoredEvent {
+export interface StoredEvent {
   /** The version. */
   version: number;
   /** The key. */
@@ -180,6 +180,10 @@ interface StoredEvent {
   quiet: number;
 }
 
+/** The columns of a change of state, as {@link StoredEvent} names them. */
+export const eventColumns =
+  'version, series_key, labels, from_state, to_state, at, value, message, notified, quiet';
+
 /**
  * Prepares the statements.
  *
@@ -196,8 +200,8 @@ function stateStatements(database: Database) {
       'SELECT alert_id, state, count(*) AS count FROM alert_series GROUP BY alert_id, state',
     ),
     events: database.query<StoredEvent, [string, number]>(
-      `SELECT version, series_key, labels, from_state, to_state, at, value, message, notified,
-         quiet FROM alert_events WHERE alert_id = ? ORDER BY at DESC, id DESC LIMIT ?`,
+      `SELECT ${eventColumns} FROM alert_events WHERE alert_id = ?
+       ORDER BY at DESC, id DESC LIMIT ?`,
     ),
     upsert: database.query(
       `INSERT INTO alert_series (alert_id, series_key, labels, state, since, value, last_seen_at,
@@ -243,7 +247,7 @@ function seriesOf(stored: StoredSeries): SeriesRow {
  * @param stored - The stored change.
  * @returns The row.
  */
-function eventOf(stored: StoredEvent): EventRow {
+export function eventOf(stored: StoredEvent): EventRow {
   return {
     version: stored.version,
     seriesKey: stored.series_key,

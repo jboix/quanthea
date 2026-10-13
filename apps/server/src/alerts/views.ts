@@ -13,7 +13,7 @@ import {
   type Role,
 } from '@quanthea/shared';
 import type { AlertRow, AlertVersionRow } from '../db/alert-repository.ts';
-import type { CheckEventRow, EventRow, SeriesRow } from '../db/alert-state-repository.ts';
+import type { SeriesRow } from '../db/alert-state-repository.ts';
 
 /** How many series an alert has in each state, as stored. */
 export type StateCounts = Partial<Record<AlertState, number>>;
@@ -88,10 +88,10 @@ export function toSummary(
 }
 
 /**
- * Builds an alert's detail, but for its channels, sends, activity and the default quiet hours.
+ * Builds an alert's detail, but for its channels, its paged lists and the default quiet hours.
  *
  * @param summary - Its list item.
- * @param parts - Its versions, series, recent changes of state and check events.
+ * @param parts - Its versions and series.
  * @param role - The role of the reader, for the versions shown.
  * @returns The detail.
  */
@@ -100,11 +100,9 @@ export function toDetail(
   parts: {
     readonly versions: readonly AlertVersionRow[];
     readonly series: readonly SeriesRow[];
-    readonly events: readonly EventRow[];
-    readonly checks: readonly CheckEventRow[];
   },
   role: Role,
-): Omit<AlertDetail, 'channels' | 'sends' | 'activity' | 'canChange' | 'defaultQuietHours'> {
+): Omit<AlertDetail, 'channels' | 'sends' | 'timeline' | 'canChange' | 'defaultQuietHours'> {
   const versions = parts.versions
     .filter((version) => canSeeVersion(version, role))
     .map((version) => ({
@@ -119,9 +117,5 @@ export function toDetail(
     ...each,
     labels: { ...each.labels },
   }));
-  const events = parts.events.map((event) => ({
-    ...event,
-    labels: { ...event.labels },
-  }));
-  return { ...summary, versions, series, events, checks: [...parts.checks] };
+  return { ...summary, versions, series };
 }

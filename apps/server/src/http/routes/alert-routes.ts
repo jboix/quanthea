@@ -8,10 +8,13 @@
 import {
   type AlertDetail,
   type AlertSummary,
+  type AlertTimelinePage,
   activateAlertEndpoint,
   deactivateAlertEndpoint,
   getAlertEndpoint,
   getAlertSettingsEndpoint,
+  getAlertTimelineEndpoint,
+  listAlertSendsEndpoint,
   listAlertsEndpoint,
   muteAlertEndpoint,
   type Principal,
@@ -110,10 +113,49 @@ async function nameDetail(
       createdBy: await nameOf(version.createdBy),
     })),
   );
-  const activity = await Promise.all(
-    detail.activity.map(async (change) => ({ ...change, by: await nameOf(change.by) })),
+  const timeline = await nameTimeline(nameOf, detail.timeline);
+  return nameMuter(nameOf, { ...detail, versions, timeline });
+}
+
+/**
+ * Names whoever did each thing a page of the timeline lists.
+ *
+ * @param nameOf - Looks a name up by user id.
+ * @param page - The page.
+ * @returns The page with names.
+ */
+async function nameTimeline(
+  nameOf: ReturnType<typeof ownerNames>,
+  page: AlertTimelinePage,
+): Promise<AlertTimelinePage> {
+  const entries = await Promise.all(
+    page.entries.map(async (entry) =>
+      entry.type === 'activity' ? { ...entry, by: await nameOf(entry.by) } : entry,
+    ),
   );
-  return nameMuter(nameOf, { ...detail, versions, activity });
+  return { ...page, entries };
+}
+
+/**
+ * Mounts the endpoints that read an alert's lists by page, for whoever reads the alert.
+ *
+ * @param app - The app.
+ * @param services - The alerts, the users and the bin.
+ */
+function mountPageEndpoints(app: Hono<AppEnv>, services: AlertRouteServices): void {
+  const { alerts, users, bin } = services;
+  mountEndpoint(app, getAlertTimelineEndpoint, {
+    access: 'viewer',
+    handle: ({ params, query, principal }) => {
+      const reader = readerRole(signedIn(principal), bin.threadOwner);
+      return nameTimeline(ownerNames(users), alerts.timeline(params.alertId, query, reader));
+    },
+  });
+  mountEndpoint(app, listAlertSendsEndpoint, {
+    access: 'viewer',
+    handle: ({ params, query, principal }) =>
+      alerts.sends(params.alertId, query, readerRole(signedIn(principal), bin.threadOwner)),
+  });
 }
 
 /**
@@ -191,6 +233,7 @@ function mountChangeEndpoints(app: Hono<AppEnv>, services: AlertRouteServices): 
  */
 export function mountAlertEndpoints(app: Hono<AppEnv>, services: AlertRouteServices): void {
   mountReadEndpoints(app, services);
+  mountPageEndpoints(app, services);
   mountChangeEndpoints(app, services);
   const { alertSettings, managed } = services;
   mountEndpoint(app, getAlertSettingsEndpoint, {

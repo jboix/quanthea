@@ -2,7 +2,6 @@ import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { temporaryDir } from '../test/fixtures.ts';
 import { createAlertActivityRepository } from './alert-activity.ts';
-import { createAuditRepository } from './audit-repository.ts';
 import { createChannelRepository } from './channel-repository.ts';
 import { openDatabase } from './database.ts';
 import { runMigrations } from './migrate.ts';
@@ -71,17 +70,4 @@ test('lists the sends about an alert, and the latest about each alert', () => {
   expect(latest.get('a')).toMatchObject({ channel: 'pager', kind: 'pagerduty', at: 20 });
   expect(latest.get('b')).toMatchObject({ channel: '#oncall', at: 5 });
   expect(latest.has('c')).toBe(false);
-});
-
-test('reads the audited changes of an alert, the latest first, and nothing else', () => {
-  const audit = createAuditRepository(database);
-  audit.append({ actor: 'ada', action: 'alert.version', target: 'a', detail: { version: 1 } });
-  audit.append({ actor: 'ada', action: 'alert.activate', target: 'a', detail: { version: 1 } });
-  audit.append({ actor: 'ana', action: 'alert.mute', target: 'a', detail: { until: null } });
-  audit.append({ actor: 'ada', action: 'alert.deactivate', target: 'b' });
-  const changes = createAlertActivityRepository(database).changes('a', 10);
-  expect(changes.map((each) => [each.action, each.actor, each.detail])).toEqual([
-    ['alert.mute', 'ana', { until: null }],
-    ['alert.activate', 'ada', { version: 1 }],
-  ]);
 });

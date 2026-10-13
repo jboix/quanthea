@@ -348,16 +348,14 @@ describe('what the alert pages show', () => {
     const until = Date.now() + day;
     await client(analyst)('POST', `/api/alerts/${id}/mute`, { until });
     const detail = alertDetailSchema.parse((await client(viewer)('GET', `/api/alerts/${id}`)).body);
-    const activity = detail.activity.map((each) => [
-      each.action,
-      each.by,
-      each.version,
-      each.until,
-    ]);
-    expect(activity).toEqual([
-      ['mute', 'Ana', null, until],
-      ['activate', 'Eddie', 1, null],
-    ]);
-    expect(detail).toMatchObject({ channels: [], sends: [], lead: null, seriesCount: 0 });
+    expect(detail.timeline).toMatchObject({
+      entries: [
+        { type: 'activity', action: 'mute', by: 'Ana', version: null, until },
+        { type: 'activity', action: 'activate', by: 'Eddie', version: 1, until: null },
+      ],
+      ...{ older: null, total: 2, offset: 0 },
+    });
+    const sends = { sends: [], older: null, total: 0, offset: 0 };
+    expect(detail).toMatchObject({ channels: [], sends, lead: null, seriesCount: 0 });
   });
 });

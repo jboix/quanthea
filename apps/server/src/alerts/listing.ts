@@ -1,7 +1,7 @@
 /**
  * What the alert pages show beyond the stored alert: the series that stands for it, its condition,
- * the latest message sent about it, the channels it names and what people did to it. People are
- * named by user id here; the routes replace the ids with names.
+ * the latest message sent about it, the channels it names, and the first page of its lists. People
+ * are named by user id here; the routes replace the ids with names.
  */
 import {
   type AlertDetail,
@@ -9,17 +9,13 @@ import {
   type AlertSpec,
   type AlertState,
   type AlertSummary,
-  alertActions,
+  alertPageSize,
   conditionDirection,
 } from '@quanthea/shared';
-import type { AlertActivityRepository, AlertChange, AlertSend } from '../db/alert-activity.ts';
+import type { AlertActivityRepository, AlertSend } from '../db/alert-activity.ts';
+import type { AlertPagesRepository } from '../db/alert-pages.ts';
 import type { SeriesRow } from '../db/alert-state-repository.ts';
-
-/** How many messages sent about an alert its page lists. */
-const recentSends = 20;
-
-/** How many changes people made its page lists. */
-const recentChanges = 50;
+import { sendsPage, timelinePage } from './pages.ts';
 
 /** How bad each state is, the worst first. */
 const stateRank: Readonly<Record<AlertState, number>> = {
@@ -35,7 +31,6 @@ export const noActivity: AlertActivityRepository = {
   channels: () => [],
   sends: () => [],
   lastSends: () => new Map(),
-  changes: () => [],
 };
 
 /**
@@ -96,37 +91,23 @@ export function toListItem(
 }
 
 /**
- * Something someone did, as the API shows it.
+ * What an alert's page shows besides its stored state: its channels, and the first page of what
+ * happened to it and of the messages sent about it.
  *
- * @param change - The audit entry.
- * @returns The activity, or nothing for an action the timeline does not show.
- */
-function activityOf(change: AlertChange): AlertDetail['activity'] {
-  const action = alertActions.find((each) => `alert.${each}` === change.action);
-  if (!action) return [];
-  const detail = (change.detail ?? {}) as { version?: unknown; until?: unknown };
-  const version = typeof detail.version === 'number' ? detail.version : null;
-  const until = typeof detail.until === 'number' ? detail.until : null;
-  return [{ action, at: change.at, by: change.actor, version, until }];
-}
-
-/**
- * What an alert's page shows besides its stored state: its channels, the latest messages sent
- * about it and what people did to it.
- *
- * @param activity - The activity store.
+ * @param stores - The activity store and the paged lists.
  * @param alertId - The alert.
  * @param spec - The spec of the version shown.
- * @returns The channels, the sends and the activity.
+ * @returns The channels, the timeline and the sends.
  */
 export function detailExtras(
-  activity: AlertActivityRepository,
+  stores: { readonly activity: AlertActivityRepository; readonly pages: AlertPagesRepository },
   alertId: string,
   spec: AlertSpec,
-): Pick<AlertDetail, 'channels' | 'sends' | 'activity'> {
+): Pick<AlertDetail, 'channels' | 'timeline' | 'sends'> {
+  const first = { limit: alertPageSize };
   return {
-    channels: activity.channels(spec.channels),
-    sends: activity.sends(alertId, recentSends),
-    activity: activity.changes(alertId, recentChanges).flatMap(activityOf),
+    channels: stores.activity.channels(spec.channels),
+    timeline: timelinePage(stores.pages, alertId, first),
+    sends: sendsPage(stores.pages, alertId, first),
   };
 }

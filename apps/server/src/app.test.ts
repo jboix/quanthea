@@ -231,6 +231,8 @@ describe('route access', () => {
       'viewer GET /api/alerts',
       'viewer GET /api/alerts/:alertId',
       'viewer GET /api/alerts/:alertId/links',
+      'viewer GET /api/alerts/:alertId/sends',
+      'viewer GET /api/alerts/:alertId/timeline',
       'viewer POST /api/alerts/:alertId/versions/:version/replay',
     ]);
   });

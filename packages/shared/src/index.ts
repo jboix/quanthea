@@ -35,6 +35,8 @@ export {
 } from './answers.ts';
 export * from './api/alert-drafts.ts';
 export * from './api/alert-links.ts';
+export * from './api/alert-states.ts';
+export * from './api/alert-timeline.ts';
 export * from './api/alerts.ts';
 export {
   changePasswordEndpoint,

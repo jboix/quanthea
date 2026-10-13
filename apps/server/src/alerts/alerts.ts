@@ -6,7 +6,9 @@ import {
   type AlertDetail,
   type AlertListItem,
   type AlertReplay,
+  type AlertSendsPage,
   type AlertSummary,
+  type AlertTimelinePage,
   alertSpecSchema,
   type NotifiedSeries,
   type Principal,
@@ -14,6 +16,7 @@ import {
   type SpecChange,
 } from '@quanthea/shared';
 import { refuseSpec } from '../dashboards/context.ts';
+import type { AlertPagesRepository } from '../db/alert-pages.ts';
 import type { AlertRow, AlertVersionRow } from '../db/alert-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import { type ReaderRole, roleOn } from '../lib/reader-role.ts';
@@ -33,6 +36,7 @@ import { type AlertCheck, checkAlert } from './check.ts';
 import { deactivate } from './deactivate.ts';
 import type { EvaluatedAlert } from './evaluate.ts';
 import { detailExtras, noActivity, toListItem } from './listing.ts';
+import { noPages, type PageRequest, sendsPage, timelinePage } from './pages.ts';
 import { type ReplayRequest, replayAlert } from './replay.ts';
 import { sendTest } from './test-send.ts';
 import { validateAlertSpec } from './validate.ts';
@@ -44,9 +48,6 @@ import {
   toDetail,
   toSummary,
 } from './views.ts';
-
-/** How many changes of state an alert's detail lists. */
-const recentEvents = 200;
 
 /** How long the changes of state are kept: 90 days. */
 const eventsKeptMs = 90 * 86_400_000;
@@ -62,7 +63,7 @@ export interface Alerts {
    */
   list(reader: ReaderRole): AlertListItem[];
   /**
-   * Reads an alert with its versions, series and recent changes of state.
+   * Reads an alert with its versions, series and the first page of its lists.
    *
    * @param id - The alert.
    * @param reader - The role of the reader, or how to find it from the alert's thread: below
@@ -71,6 +72,27 @@ export interface Alerts {
    * @throws {AppError} `not_found`, also for an alert never activated below editor.
    */
   get(id: string, reader: ReaderRole): Omit<AlertDetail, 'canChange'>;
+  /**
+   * Reads a page of what happened to an alert: its changes of state, the times it could not be
+   * checked or could be again, and what people did to it, merged in time order.
+   *
+   * @param id - The alert.
+   * @param request - The cursor of the page before, and the most entries to return.
+   * @param reader - The role of the reader, or how to find it from the alert's thread.
+   * @returns The page, the latest first.
+   * @throws {AppError} `not_found`, as for the alert's detail.
+   */
+  timeline(id: string, request: PageRequest, reader: ReaderRole): AlertTimelinePage;
+  /**
+   * Reads a page of the messages sent about an alert.
+   *
+   * @param id - The alert.
+   * @param request - The cursor of the page before, and the most entries to return.
+   * @param reader - The role of the reader, or how to find it from the alert's thread.
+   * @returns The page, the latest first.
+   * @throws {AppError} `not_found`, as for the alert's detail.
+   */
+  sends(id: string, request: PageRequest, reader: ReaderRole): AlertSendsPage;
   /**
    * The thread that made an alert.
    *
@@ -251,14 +273,29 @@ function detailOf(
   const activity = context.activity ?? noActivity;
   const summary = toSummary(alert, shown, role, countStates(series));
   const item = toListItem(summary, spec, series, activity.sends(id, 1)[0]);
-  const parts = {
-    versions: context.repository.versions(id),
-    series,
-    events: context.states.events(id, recentEvents),
-    checks: context.states.checkEvents(id, recentEvents),
+  const parts = { versions: context.repository.versions(id), series };
+  const extras = detailExtras({ activity, pages: context.pages ?? noPages }, id, spec);
+  return {
+    ...toDetail(item, parts, role),
+    ...extras,
+    defaultQuietHours: context.settings.get().quietHours,
   };
-  const defaultQuietHours = context.settings.get().quietHours;
-  return { ...toDetail(item, parts, role), ...detailExtras(activity, id, spec), defaultQuietHours };
+}
+
+/**
+ * Reads the paged lists of an alert the role may see.
+ *
+ * @param context - The service context.
+ * @param id - The alert.
+ * @param reader - The role, or how to find it from the alert's thread.
+ * @returns The lists.
+ * @throws {AppError} `not_found`, as for the alert's detail.
+ */
+function pagesOf(context: AlertsContext, id: string, reader: ReaderRole): AlertPagesRepository {
+  const alert = alertOrThrow(context, id);
+  if (!canSeeAlert(alert, roleOn(reader, alert.threadId)))
+    throw new AppError('not_found', `No alert ${id}.`);
+  return context.pages ?? noPages;
 }
 
 /**
@@ -324,6 +361,8 @@ export function createAlerts(dependencies: AlertsDependencies): Alerts {
   return {
     list: (reader) => listAlerts(context, reader),
     get: (id, reader) => detailOf(context, id, reader),
+    timeline: (id, request, reader) => timelinePage(pagesOf(context, id, reader), id, request),
+    sends: (id, request, reader) => sendsPage(pagesOf(context, id, reader), id, request),
     threadOf: (id) => alertOrThrow(context, id).threadId,
     check: (spec) => checkAlert(context, spec, context.now()),
     ...changeMethods(context),

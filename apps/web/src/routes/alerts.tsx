@@ -10,13 +10,40 @@ import {
   loadAlert,
   loadAlertLinks,
   loadAlertReplay,
+  loadAlertSends,
   loadAlertSettings,
   loadAlerts,
+  loadAlertTimeline,
   loadFiring,
   loadLinkTargets,
   saveAlertSettings,
 } from '../features/alerts/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
+
+/**
+ * The resource routes of the pages of an alert's lists after the first. A page after a cursor
+ * never changes, so none loads again after an action.
+ *
+ * @param loadSession - Loads the current session.
+ * @param api - The API client.
+ * @returns The route objects.
+ */
+function pageRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
+  const timeline = '/alerts/:alertId/timeline';
+  const sends = '/alerts/:alertId/sends';
+  return [
+    {
+      path: timeline,
+      loader: guarded(loadSession, timeline, loadAlertTimeline(api)),
+      shouldRevalidate: () => false,
+    },
+    {
+      path: sends,
+      loader: guarded(loadSession, sends, loadAlertSends(api)),
+      shouldRevalidate: () => false,
+    },
+  ];
+}
 
 /**
  * The alerts routes, for every role. The API refuses what a role may not change.
@@ -58,6 +85,7 @@ export function alertRoutes(loadSession: SessionLoader, api: ApiClient): RouteOb
       loader: guarded(loadSession, replay, loadAlertReplay(api)),
       shouldRevalidate: () => false,
     },
+    ...pageRoutes(loadSession, api),
     // Where an alert is shown, for the agent's card; again after every action.
     { path: links, loader: guarded(loadSession, links, loadAlertLinks(api)) },
     // The pinned dashboards' panels, when Link to a panel… opens.

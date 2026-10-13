@@ -3,7 +3,7 @@
  * quiet hours held its notification back, the times it could not be checked and could be again,
  * and what people did to it (activations, deactivations, mutes and unmutes), the latest first.
  */
-import type { AlertDetail } from '@quanthea/shared';
+import type { AlertDetail, AlertTimelineEntry } from '@quanthea/shared';
 import { muteEnd, type StateTone } from './state-text.ts';
 import { seriesName, stateWords, valueText } from './words.ts';
 
@@ -20,13 +20,16 @@ export interface TimelineEntry {
 }
 
 /** A change of state. */
-type AlertEvent = AlertDetail['events'][number];
+type AlertEvent = Extract<AlertTimelineEntry, { type: 'event' }>;
 
 /** A time it went into error, or could be checked again. */
-type AlertCheck = AlertDetail['checks'][number];
+type AlertCheck = Extract<AlertTimelineEntry, { type: 'check' }>;
 
 /** Something someone did. */
-type AlertActivity = AlertDetail['activity'][number];
+type AlertActivity = Extract<AlertTimelineEntry, { type: 'activity' }>;
+
+/** What of an alert its lines read: its format, its channels and the notes of its versions. */
+type Described = Pick<AlertDetail, 'format' | 'channels' | 'versions'>;
 
 /** The colour of each state a series moves to. */
 const toneOf: Readonly<Record<AlertEvent['to'], StateTone>> = {
@@ -55,14 +58,13 @@ function changeWords(event: AlertEvent): string {
  *
  * @param event - The change.
  * @param detail - The alert, for its format and channels.
- * @param index - Its place, for the key.
  * @returns The line.
  */
-function eventEntry(event: AlertEvent, detail: AlertDetail, index: number): TimelineEntry {
+function eventEntry(event: AlertEvent, detail: Described): TimelineEntry {
   const value = event.value === null ? '' : ` (${valueText(event.value, detail.format)})`;
   const notified = notifiedWords(event, detail);
   const text = `${seriesName(event.labels)} ${changeWords(event)}${value}${notified}`;
-  return { key: `event-${index}`, at: event.at, text, tone: toneOf[event.to] };
+  return { key: event.id, at: event.at, text, tone: toneOf[event.to] };
 }
 
 /**
@@ -74,7 +76,7 @@ function eventEntry(event: AlertEvent, detail: AlertDetail, index: number): Time
  */
 function notifiedWords(
   change: { readonly notified: boolean; readonly quiet: boolean },
-  detail: AlertDetail,
+  detail: Described,
 ): string {
   if (change.quiet) return ' · held back by quiet hours';
   const channels = detail.channels.map((channel) => channel.name).join(', ');
@@ -86,15 +88,14 @@ function notifiedWords(
  *
  * @param check - What happened.
  * @param detail - The alert, for its channels.
- * @param index - Its place, for the key.
  * @returns The line.
  */
-function checkEntry(check: AlertCheck, detail: AlertDetail, index: number): TimelineEntry {
+function checkEntry(check: AlertCheck, detail: Described): TimelineEntry {
   const error = check.kind === 'error';
   const reason = check.reason ? `: ${check.reason}` : '';
   const words = error ? `Cannot be checked${reason}` : 'Can be checked again';
   const text = `${words}${notifiedWords(check, detail)}`;
-  return { key: `check-${index}`, at: check.at, text, tone: error ? 'danger' : 'ok' };
+  return { key: check.id, at: check.at, text, tone: error ? 'danger' : 'ok' };
 }
 
 /**
@@ -103,15 +104,9 @@ function checkEntry(check: AlertCheck, detail: AlertDetail, index: number): Time
  * @param activity - The change.
  * @param detail - The alert, for the notes of its versions.
  * @param now - The current time, for a mute's end.
- * @param index - Its place, for the key.
  * @returns The line.
  */
-function activityEntry(
-  activity: AlertActivity,
-  detail: AlertDetail,
-  now: number,
-  index: number,
-): TimelineEntry {
+function activityEntry(activity: AlertActivity, detail: Described, now: number): TimelineEntry {
   const by = `by ${activity.by}`;
   const note = detail.versions.find((each) => each.version === activity.version)?.note;
   const noteText = note ? `: ${note}` : '';
@@ -121,24 +116,25 @@ function activityEntry(
     mute: `Muted ${by} ${muteEnd(activity.until, now)}`,
     unmute: `Unmuted ${by}`,
   };
-  return {
-    key: `activity-${index}`,
-    at: activity.at,
-    text: words[activity.action],
-    tone: 'neutral',
-  };
+  return { key: activity.id, at: activity.at, text: words[activity.action], tone: 'neutral' };
 }
 
 /**
- * The timeline, the latest first.
+ * A page of the timeline as lines, in the order the server merged them: the latest first.
  *
- * @param detail - The alert.
+ * @param entries - The entries of the page.
+ * @param detail - The alert, for its format, its channels and the notes of its versions.
  * @param now - The current time.
  * @returns The lines.
  */
-export function timeline(detail: AlertDetail, now: number): TimelineEntry[] {
-  const events = detail.events.map((event, index) => eventEntry(event, detail, index));
-  const checks = detail.checks.map((check, index) => checkEntry(check, detail, index));
-  const activity = detail.activity.map((each, index) => activityEntry(each, detail, now, index));
-  return [...events, ...checks, ...activity].sort((a, b) => b.at - a.at);
+export function timeline(
+  entries: readonly AlertTimelineEntry[],
+  detail: Described,
+  now: number,
+): TimelineEntry[] {
+  return entries.map((entry) => {
+    if (entry.type === 'event') return eventEntry(entry, detail);
+    if (entry.type === 'check') return checkEntry(entry, detail);
+    return activityEntry(entry, detail, now);
+  });
 }

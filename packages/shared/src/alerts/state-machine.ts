@@ -5,7 +5,7 @@
  * others come back resolves after a grace period; an empty result is `no_data`, a failed query
  * `error`. Pure: the evaluator and the replay feed it the same way.
  */
-import type { AlertState } from '../api/alerts.ts';
+import type { AlertState } from '../api/alert-states.ts';
 import type { Reading } from './conditions.ts';
 
 /** What an evaluation observed of a series. */

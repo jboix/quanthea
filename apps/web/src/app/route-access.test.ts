@@ -24,6 +24,8 @@ test('screen roles match the route table in docs/architecture.md', () => {
     '/alerts/:alertId': 'viewer',
     '/alerts/:alertId/v/:version/replay': 'viewer',
     '/alerts/:alertId/links': 'viewer',
+    '/alerts/:alertId/timeline': 'viewer',
+    '/alerts/:alertId/sends': 'viewer',
     '/alert-link-targets': 'editor',
     '/account': 'viewer',
     '/d/:dashboardId': 'viewer',

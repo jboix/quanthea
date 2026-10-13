@@ -6,20 +6,12 @@
 import { z } from 'zod';
 import { quietHoursSchema } from '../alerts/quiet-hours.ts';
 import { namedFormatterSchema } from '../formatters/schema.ts';
-import { notificationEvents } from '../notifications.ts';
 import { alertSeverities, alertSpecSchema } from '../spec/alert.ts';
 import { alertConditionSchema } from '../spec/alert-condition.ts';
 import { durationSchema } from '../spec/queries.ts';
+import { alertStates, seriesLabelsSchema } from './alert-states.ts';
+import { alertSendsPageSchema, alertTimelinePageSchema } from './alert-timeline.ts';
 import { defineEndpoint } from './contract.ts';
-
-/** The states of a series: the condition holds for a while, fires, or the data is missing. */
-export const alertStates = ['ok', 'pending', 'firing', 'no_data', 'error'] as const;
-
-/** The state of a series. */
-export type AlertState = (typeof alertStates)[number];
-
-/** Validates a series' labels. */
-const labelsSchema = z.record(z.string(), z.string());
 
 /** Validates a mute: who muted, and until when (`null`: until someone unmutes). */
 const muteSchema = z.object({ until: z.number().nullable(), by: z.string(), at: z.number() });
@@ -57,7 +49,7 @@ export type AlertSummary = z.infer<typeof alertSummarySchema>;
 
 /** Validates the series that stands for an alert: the worst state, then the worst value. */
 const leadSeriesSchema = z.object({
-  labels: labelsSchema,
+  labels: seriesLabelsSchema,
   state: z.enum(alertStates),
   since: z.number(),
   value: z.number().nullable(),
@@ -102,7 +94,7 @@ const alertVersionSchema = z.object({
 /** Validates the state of one series. */
 const alertSeriesSchema = z.object({
   key: z.string(),
-  labels: labelsSchema,
+  labels: seriesLabelsSchema,
   state: z.enum(alertStates),
   since: z.number(),
   value: z.number().nullable(),
@@ -110,63 +102,8 @@ const alertSeriesSchema = z.object({
   notifiedAt: z.number().nullable(),
 });
 
-/** Validates a change of state, for the timeline. */
-const alertEventSchema = z.object({
-  version: z.int(),
-  seriesKey: z.string(),
-  labels: labelsSchema,
-  from: z.enum(alertStates),
-  to: z.enum(alertStates),
-  at: z.number(),
-  value: z.number().nullable(),
-  /** Why the query failed, for a change to `error`. */
-  message: z.string().nullable(),
-  /** Whether the change sent a notification. */
-  notified: z.boolean(),
-  /** Whether quiet hours held back the notification it would have sent. */
-  quiet: z.boolean(),
-});
-
-/** Validates a time an alert went into error, or could be checked again, for the timeline. */
-const alertCheckEventSchema = z.object({
-  /** `error`: its query failed several evaluations in a row; `recovered`: it ran again. */
-  kind: z.enum(['error', 'recovered']),
-  at: z.number(),
-  /** Why the query failed, for `error`. */
-  reason: z.string().nullable(),
-  /** Whether it sent a notification. */
-  notified: z.boolean(),
-  /** Whether quiet hours held back the notification it would have sent. */
-  quiet: z.boolean(),
-});
-
 /** Validates a channel an alert sends to, by name and kind only. */
 const alertChannelSchema = z.object({ id: z.string(), name: z.string(), kind: z.string() });
-
-/** Validates a message sent about an alert: the channel by name, never its target. */
-const alertSendSchema = z.object({
-  channel: z.string(),
-  kind: z.string(),
-  event: z.enum(notificationEvents),
-  seriesKey: z.string(),
-  at: z.number(),
-  ok: z.boolean(),
-});
-
-/** What people did to an alert, for the timeline. */
-export const alertActions = ['activate', 'deactivate', 'mute', 'unmute'] as const;
-
-/** Validates something someone did to an alert. */
-const alertActivitySchema = z.object({
-  action: z.enum(alertActions),
-  at: z.number(),
-  /** The name of whoever did it. */
-  by: z.string(),
-  /** The version activated. */
-  version: z.int().nullable(),
-  /** The end of a mute; `null` until someone unmutes, or for other actions. */
-  until: z.number().nullable(),
-});
 
 /**
  * Validates the quiet hours of every alert that sets none of its own, and the severities they
@@ -179,19 +116,19 @@ export const defaultQuietHoursSchema = quietHoursSchema.extend({
     .default(['critical']),
 });
 
-/** Validates an alert with its versions, series and recent changes of state. */
+/** Validates an alert with its versions, series and the first page of what happened. */
 export const alertDetailSchema = alertListItemSchema.extend({
   versions: z.array(alertVersionSchema),
   series: z.array(alertSeriesSchema),
-  events: z.array(alertEventSchema),
-  /** The latest times it went into error or could be checked again, the latest first. */
-  checks: z.array(alertCheckEventSchema),
+  /**
+   * The first page of what happened: changes of state, the times it could not be checked or
+   * could be again, and what people did to it, the latest first.
+   */
+  timeline: alertTimelinePageSchema,
   /** The channels the version shown sends to; a channel deleted since is left out. */
   channels: z.array(alertChannelSchema),
-  /** The latest messages sent about it, the latest first. */
-  sends: z.array(alertSendSchema),
-  /** Activations, deactivations and mutes, the latest first. */
-  activity: z.array(alertActivitySchema),
+  /** The first page of the messages sent about it, the latest first. */
+  sends: alertSendsPageSchema,
   /**
    * The quiet hours of the alerts that set none, and the severities they leave alone; `null` for
    * none. With a version's spec they say when the alert is quiet (`quietHoursOf`).
@@ -204,7 +141,7 @@ export const alertDetailSchema = alertListItemSchema.extend({
   canChange: z.boolean(),
 });
 
-/** An alert with its versions, series and recent changes of state. */
+/** An alert with its versions, series and the first page of what happened. */
 export type AlertDetail = z.infer<typeof alertDetailSchema>;
 
 /** The path parameter of one alert. */
@@ -287,7 +224,7 @@ const periodSchema = z.object({ from: z.number(), to: z.number() });
 /** Validates one series of a replay. */
 const replaySeriesSchema = z.object({
   key: z.string(),
-  labels: labelsSchema,
+  labels: seriesLabelsSchema,
   /**
    * The value at each evaluation, with what each test of the condition read when that is more
    * than the value; empty when the points were left out for size.
