@@ -104,6 +104,25 @@ function checkBaseline(spec: AlertSpec, connector: ConnectorFacts, now: number):
   return checkWindow(connector, window, pathOf(testPath(spec.condition, index, 'baseline')));
 }
 
+/** The built-ins whose value follows the length of the time range, in any query language. */
+const rangeBuiltIns = /__(?:rate_interval|interval_ms|interval|range)\b/;
+
+/**
+ * Checks the query of a band for a built-in that follows the time range. The band's history query
+ * runs over the baseline, where such a built-in takes another value than over the window, so the
+ * points of the baseline would be on another scale than the value they judge.
+ *
+ * @param spec - The spec.
+ * @returns The issue, if any, at `query`.
+ */
+function checkBandQuery(spec: AlertSpec): SpecIssue[] {
+  const band = conditionTests(spec.condition).some((test) => test.kind === 'band');
+  const found = rangeBuiltIns.exec(JSON.stringify(spec.query))?.[0];
+  if (!band || found === undefined) return [];
+  const message = `A band reads the query over its baseline too, where ${found} takes another value than over the window, so the band would be on another scale than the value. Write the duration itself, such as 5m.`;
+  return [{ path: 'query', message }];
+}
+
 /**
  * Checks one query of a parsed spec against its own connector: the connector exists and speaks
  * the query's language, the query binds with the alert's variables, and the window fits the
@@ -144,7 +163,7 @@ function checkQuery(spec: AlertSpec, context: AlertValidationContext): SpecIssue
   const second = spec.dividedBy
     ? checkOneQuery(spec, { query: spec.dividedBy.query, path: 'dividedBy.query' }, context).issues
     : [];
-  return [...first.issues, ...baseline, ...second];
+  return [...first.issues, ...checkBandQuery(spec), ...baseline, ...second];
 }
 
 /**

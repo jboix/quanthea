@@ -75,6 +75,29 @@ describe('validating an alert spec', () => {
     ]);
   });
 
+  test('refuses a band whose query uses a built-in that follows the time range', () => {
+    const band = { kind: 'band', side: 'either', deviations: 3, baseline: '12h', for: '5m' };
+    const promql = (expr: string) => ({
+      query: { refId: 'A', connector: 'prometheus', language: 'promql', expr },
+      variables: [],
+    });
+    const fixed = promql('sum(rate(http_requests_total[5m]))');
+    expect(issuesOf({ ...fixed, condition: band })).toEqual([]);
+    for (const builtIn of ['$__interval', '$__rate_interval', '$__range']) {
+      const query = promql(`sum(increase(http_requests_total[${builtIn}]))`);
+      expect(issuesOf(query)).toEqual([]);
+      expect(issuesOf({ ...query, condition: band })).toEqual([
+        { path: 'query', message: expect.stringContaining(builtIn.slice(1)) },
+      ]);
+      const above = { kind: 'threshold', op: 'above', value: 1 };
+      const { for: _for, ...part } = band;
+      const joined = { kind: 'all', of: [above, part], for: '5m' };
+      expect(issuesOf({ ...query, condition: joined }).map((issue) => issue.path)).toEqual([
+        'query',
+      ]);
+    }
+  });
+
   test('reports a baseline past the connector guardrails, at the band', () => {
     const band = { kind: 'band', side: 'either', deviations: 3, baseline: '2d', for: '5m' };
     expect(issuesOf({ condition: band })).toEqual([

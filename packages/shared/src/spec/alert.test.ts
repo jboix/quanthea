@@ -183,6 +183,37 @@ describe('durationMs', () => {
     ]);
   });
 
+  test('refuses a band on a sum, a maximum or a minimum of the window', () => {
+    const band = { kind: 'band', side: 'either', deviations: 3, baseline: '1d' };
+    const alone = (reduce: string) =>
+      spec({ condition: { ...band, for: '5m' }, value: { reduce } });
+    expect(issuePaths(alone('last'))).toEqual([]);
+    expect(issuePaths(alone('mean'))).toEqual([]);
+    for (const reduce of ['sum', 'max', 'min'])
+      expect(issuePaths(alone(reduce))).toEqual(['value.reduce']);
+    const above = { kind: 'threshold', op: 'above', value: 100 };
+    const joined = (part: unknown, reduce = 'sum') =>
+      spec({ condition: { kind: 'all', of: [above, part], for: '0m' }, value: { reduce } });
+    expect(issuePaths(joined({ ...band, field: 'p99' }))).toEqual(['value.reduce']);
+    expect(issuePaths(joined({ ...band, field: 'p99', reduce: 'mean' }))).toEqual([]);
+    expect(issuePaths(joined({ ...band, field: 'p99', reduce: 'max' }, 'last'))).toEqual([
+      'condition.of.1.reduce',
+    ]);
+  });
+
+  test('refuses a change whose span has no length', () => {
+    const change = { kind: 'change', direction: 'up', amount: 5, unit: 'absolute' };
+    const alone = (within: string) => spec({ condition: { ...change, within, for: '0m' } });
+    expect(issuePaths(alone('5m'))).toEqual([]);
+    expect(issuePaths(alone('0m'))).toEqual(['condition.within']);
+    expect(issuePaths(alone('0s'))).toEqual(['condition.within']);
+    const above = { kind: 'threshold', op: 'above', value: 100 };
+    const of = [above, { ...change, within: '0m' }];
+    expect(issuePaths(spec({ condition: { kind: 'any', of, for: '0m' } }))).toEqual([
+      'condition.of.1.within',
+    ]);
+  });
+
   test('joins one test that reads history with others, never two', () => {
     const above = { kind: 'threshold', op: 'above', value: 100 };
     const past = { kind: 'past', direction: 'up', amount: 30, unit: 'percent', ago: '7d' };

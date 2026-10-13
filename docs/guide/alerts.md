@@ -153,6 +153,8 @@ either side.
   baseline, or points that cover less than half of it. A new series waits until it has that much.
 - A series that never moved has a band of one value, so any other value is outside it. Join the
   band with a threshold to ignore small numbers.
+- The band is learned from the single points of the baseline, so the value is the latest point of
+  the window or the mean of its points, never their sum, maximum or minimum.
 - A band knows nothing of the hour or the weekday. For a level with a daily or weekly shape, compare
   against the past instead.
 

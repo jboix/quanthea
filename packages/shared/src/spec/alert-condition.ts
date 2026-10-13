@@ -287,6 +287,49 @@ function historyProblems(
   return [...bounds, ...extra];
 }
 
+/** The reducers a band can judge: its limits are learned from the single points of the baseline. */
+const bandReducers: readonly AlertReducer[] = ['last', 'mean'];
+
+/** Why a band refuses a reducer. */
+const bandReducerMessage =
+  'A band is learned from the single points of the baseline: use last or mean, never a sum, a maximum or a minimum of the window.';
+
+/**
+ * The problems of the bands whose value is not on the scale of the baseline's points: a sum, a
+ * maximum or a minimum of the window is never comparable with the mean of single points.
+ *
+ * @param condition - The condition.
+ * @param reduce - The alert's `value.reduce`.
+ * @returns The problems, at the reducer the band reads its value with: its own, else the alert's.
+ */
+function bandReducerProblems(condition: AlertCondition, reduce: AlertReducer): ConditionProblem[] {
+  return conditionTests(condition).flatMap((test, index) => {
+    if (test.kind !== 'band') return [];
+    const own = (test as { readonly reduce?: AlertReducer }).reduce;
+    if (bandReducers.includes(own ?? reduce)) return [];
+    const path = own === undefined ? ['value', 'reduce'] : testPath(condition, index, 'reduce');
+    return [{ path, message: bandReducerMessage }];
+  });
+}
+
+/**
+ * The problems of the changes whose span has no length: the latest point would be its own earlier
+ * point, and the change always 0.
+ *
+ * @param condition - The condition.
+ * @param durationMs - Reads a duration in milliseconds.
+ * @returns The problems, at each such `within`.
+ */
+function withinProblems(
+  condition: AlertCondition,
+  durationMs: (duration: string) => number,
+): ConditionProblem[] {
+  return conditionTests(condition).flatMap((test, index) => {
+    if (test.kind !== 'change' || durationMs(test.within) > 0) return [];
+    return [{ path: testPath(condition, index, 'within'), message: 'Use a span above zero.' }];
+  });
+}
+
 /**
  * The problems of a condition against the value it reads and the window it is given.
  *
@@ -303,7 +346,12 @@ export function conditionProblems(
   durationMs: (duration: string) => number,
 ): ConditionProblem[] {
   const tests = conditionTests(condition);
-  const problems = [...firstPartProblems(condition), ...historyProblems(condition, durationMs)];
+  const problems = [
+    ...firstPartProblems(condition),
+    ...historyProblems(condition, durationMs),
+    ...bandReducerProblems(condition, reduce),
+    ...withinProblems(condition, durationMs),
+  ];
   if (tests[0]?.kind === 'change' && reduce !== 'last')
     problems.push({
       path: ['value', 'reduce'],

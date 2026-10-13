@@ -184,6 +184,12 @@ and `no_data` has none.
   - A baseline that never moved has a deviation of 0: the band is its one value, and any other
     value is outside. Join the band with a threshold to ignore small numbers.
   - The baseline ends before the window, so the value never weighs on its own band.
+  - The band is that of the single points of the baseline, so the value it judges is the `last`
+    or the `mean` of the window. A `sum`, a `max` or a `min` is refused: it is on another scale
+    than a single point, or sits on one side of the mean.
+  - The query names its durations itself. A built-in that follows the time range (`$__interval`,
+    `$__rate_interval`, `$__range`, `__interval`, `__interval_ms`) is refused: it takes another
+    value over the baseline than over the window.
 - `all` and `any`: two to four tests on the one query, in `of`. `all` holds when every test holds,
   `any` when at least one does. A part is a threshold, a change, a `past` or a `band` without
   `for`, and never a joined condition. At most one part is a `past` or a `band`.
@@ -280,7 +286,8 @@ The server fills the values from the series:
 The schema catches shape errors and checks across fields: `every` is at least a minute, `lookback`
 covers the condition's `for` and is longer than a change's `within`, `value.reduce` is `last` when
 the alert's value is read by a change, the first part of a joined condition names no field, reducer
-or format, a band's `baseline` is from `1h` to `7d`, at most one test is a `past` or a `band`, no
+or format, a band's `baseline` is from `1h` to `7d` and its value is reduced by `last` or `mean`, a
+change's `within` is above zero, at most one test is a `past` or a `band`, no
 `past` or `band` reads a ratio and no `no_data` has a second query, `repeatEvery` is no shorter
 than `every`, a variable is named once and an interval variable holds a duration; the time zone of
 `quietHours` is known. `alerts/validate.ts` (`validateAlertSpec`) also checks:
@@ -290,6 +297,7 @@ than `every`, a variable is named once and an interval variable holds a duration
 - the query binds with the fixed variables exactly as it will at run time: a variable without a
   value, a misplaced variable, or a SQL template that is not one read statement is reported;
 - the window fits the connector's `maxRangeDays`, and so does the baseline of a band;
+- the query of a band uses no built-in that follows the time range, at `query`;
 - the second query of a ratio the same way, against its own connector, at `dividedBy.query`;
 - the time zone is known.
 
