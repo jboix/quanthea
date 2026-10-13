@@ -81,6 +81,18 @@ describe(':__interval when nobody chose', () => {
     expect(sqlInterval(week, undefined)).toBe('1h');
   });
 
+  test('comes in seconds too, for the dialects that bucket from epoch seconds', () => {
+    const sql = 'SELECT FLOOR(UNIX_TIMESTAMP(at) / :__interval_s) * :__interval_s AS time FROM t';
+    const template = { language: 'sql' as const, sql };
+    expect(bindTemplate(template, {}, week, { dialect: 'mysql' })).toMatchObject({
+      text: 'SELECT FLOOR(UNIX_TIMESTAMP(at) / ?) * ? AS time FROM t',
+      parameters: [3600, 3600],
+    });
+    const chosen = bindTemplate(template, {}, week, { dialect: 'clickhouse', interval: '10m' });
+    expect(chosen).toMatchObject({ parameters: [600] });
+    expect(chosen).toMatchObject({ text: expect.stringContaining('{p1:Float64}') });
+  });
+
   test('binds in every SQL dialect', () => {
     const template = { language: 'sql' as const, sql: 'SELECT :__interval AS width' };
     for (const dialect of ['postgres', 'mysql', 'clickhouse', 'trino'] as const)

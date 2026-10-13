@@ -1211,8 +1211,8 @@ notification channels' `send` (it never throws), and a keep-alive to `keepAlive`
 other notifications.
 
 **The interval of an alert's query** (`alertInterval` in `alerts/validate.ts`). A query in a
-bucketed language cuts time by the interval built-in (`:__interval` in SQL, `__interval` in a
-search, `__interval_ms` in MongoDB). An alert binds one interval to it, the one of the closed list
+bucketed language cuts time by the interval built-in (`:__interval` or `:__interval_s` in SQL,
+`__interval` in a search, `__interval_ms` in MongoDB). An alert binds one interval to it, the one of the closed list
 its `lookback` takes (`defaultChartInterval`: `1m` up to 2 hours, `5m` up to 12, `10m` up to 36,
 `30m` up to 4 days, then `1h`), in every read: an evaluation, the history of a condition and a
 replay (`alerts/run-query.ts`). Left to the time range, a bucket would be seconds wide over a
@@ -1389,7 +1389,8 @@ the one it is compared with.
   keeps its results as they ran, so its charts cannot be cut again from what is stored. Choosing
   an interval on a run's page runs the queries again: the chart panels with a query that follows
   the interval (`followsChartInterval`: a PromQL or LogQL range query, or a query that names
-  `:__interval`, `__interval` or `__interval_ms`), from the spec of the run's version, over the
+  `:__interval`, `:__interval_s`, `__interval` or `__interval_ms`), from the spec of the run's
+  version, over the
   run's own period, through the panel run path. The body is one name of the closed list, which
   must cut the period into 2 to 1500 pieces. Nothing is stored: the run, its headline numbers
   and its message stay as they were, and the page says the charts show the data as it is now.
@@ -2649,6 +2650,8 @@ the connector shows and a version that changes with its settings).
      `"bucket": "$__interval"` and write each dialect's form). Without a chosen interval it is
      the one of the closed list that suits the time range (`defaultChartInterval`): a day by 10
      minutes, a week by the hour, a month by the day.
+     `:__interval_s` is the same width in seconds, a number, for the dialects that bucket time from
+     epoch seconds (`FLOOR(UNIX_TIMESTAMP(created_at) / :__interval_s) * :__interval_s`).
    - **LogQL** (`query/logql-binder.ts`): as PromQL, and a variable also goes in the value of a
      line filter (`|= "$text"`, `|~`) or a label filter (`| level="$level"`). `line_format` and
      `label_format` are refused: their argument is a template Loki runs.

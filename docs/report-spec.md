@@ -84,6 +84,7 @@ A query follows it through the interval built-in of its language, and the run bi
 | ------------- | ------------------------------------------------------------------ |
 | PromQL, LogQL | the step of a range query, `$__interval` and `$__rate_interval`    |
 | SQL           | `:__interval`, as in `date_bin(:__interval::interval, t, :__from)` |
+| SQL           | `:__interval_s`, the same width in seconds                         |
 | Search        | `{"$var": "__interval"}`                                           |
 | MongoDB       | `{"$var": "__interval_ms"}`                                        |
 

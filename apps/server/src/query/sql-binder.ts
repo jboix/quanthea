@@ -3,7 +3,7 @@
  * value never becomes SQL text. Also checks the template is a single read statement.
  */
 import type { SqlParameter, SqlQuery, TimeRange } from '../connectors/_shared/index.ts';
-import { sqlInterval } from './interval.ts';
+import { sqlInterval, sqlIntervalSeconds } from './interval.ts';
 import { QueryError } from './query-error.ts';
 import { rulesOf, type SqlDialectRules, type SqlFlavor } from './sql-dialects.ts';
 import { type SqlSegment, splitSql } from './sql-lexer.ts';
@@ -97,7 +97,8 @@ interface SqlRun {
  *
  * @param name - The variable name.
  * @param variables - The variables.
- * @param run - The time range, for `:__from` and `:__to`, and the interval for `:__interval`.
+ * @param run - The time range, for `:__from` and `:__to`, and the interval for `:__interval` and
+ *   `:__interval_s`.
  * @returns The values, or `undefined` for an unknown variable.
  */
 function sqlValues(
@@ -108,6 +109,7 @@ function sqlValues(
   if (name === '__from') return [run.timeRange.from];
   if (name === '__to') return [run.timeRange.to];
   if (name === '__interval') return [sqlInterval(run.timeRange, run.interval)];
+  if (name === '__interval_s') return [sqlIntervalSeconds(run.timeRange, run.interval)];
   const binding = variables[name];
   return binding ? valuesOf(binding) : undefined;
 }
@@ -142,7 +144,8 @@ function bindCode(
  * Binds a SQL template.
  *
  * @param template - The SQL with `:name` variables; `:__from` and `:__to` are the time range,
- *   and `:__interval` the width of a time bucket as text, such as `10m`.
+ *   `:__interval` the width of a time bucket as text, such as `10m`, and `:__interval_s` the
+ *   same width in seconds.
  * @param variables - The variable values.
  * @param timeRange - The time range.
  * @param flavor - The connector's dialect, with its styles for `ansi`: the literals and the

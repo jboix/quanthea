@@ -4,6 +4,7 @@ import {
   chartIntervalSchema,
   defaultChartInterval,
   fitsPeriod,
+  followsChartInterval,
 } from './chart-interval.ts';
 
 const hour = 3_600_000;
@@ -47,5 +48,31 @@ describe('the intervals a person may choose', () => {
   test('the list is closed', () => {
     expect(chartIntervalSchema.safeParse('2m').success).toBe(false);
     expect(chartIntervalSchema.safeParse('10m').success).toBe(true);
+  });
+});
+
+describe('a query that follows the interval', () => {
+  const sql = (text: string) => ({ connector: 'db', language: 'sql' as const, sql: text });
+
+  test('is a PromQL or LogQL range query, whatever its step', () => {
+    const promql = { connector: 'prom', language: 'promql' as const, expr: 'up' };
+    expect(followsChartInterval(promql)).toBe(true);
+    expect(followsChartInterval({ ...promql, instant: true })).toBe(false);
+  });
+
+  test('is a query that names the interval built-in of its language', () => {
+    expect(followsChartInterval(sql('SELECT :__interval AS width'))).toBe(true);
+    expect(followsChartInterval(sql('SELECT :__interval_s AS seconds'))).toBe(true);
+    expect(followsChartInterval(sql("SELECT date_trunc('hour', t) FROM o"))).toBe(false);
+    const histogram = { date_histogram: { fixed_interval: { $var: '__interval' } } };
+    const search = { connector: 'logs', language: 'search' as const, index: 'logs-*' };
+    expect(followsChartInterval({ ...search, body: { aggs: { time: histogram } } })).toBe(true);
+    expect(followsChartInterval({ ...search, body: { size: 0 } })).toBe(false);
+  });
+
+  test('is not one whose connector only is named like the built-in', () => {
+    expect(followsChartInterval({ ...sql('SELECT 1 AS one'), connector: 'db__interval' })).toBe(
+      false,
+    );
   });
 });

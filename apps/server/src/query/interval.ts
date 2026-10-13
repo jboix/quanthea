@@ -47,3 +47,16 @@ export function sqlInterval(timeRange: TimeRange, interval: string | undefined):
   if (chosenSeconds(interval) !== undefined) return interval as string;
   return defaultChartInterval(timeRange.to.getTime() - timeRange.from.getTime());
 }
+
+/**
+ * The interval a SQL query's `:__interval_s` binds to: the same interval, in seconds, for the
+ * dialects that bucket time from epoch seconds.
+ *
+ * @param timeRange - The time range.
+ * @param interval - The interval, if one was chosen.
+ * @returns The interval in seconds, such as 600.
+ * @throws {QueryError} `invalid` for a chosen interval that is not a duration.
+ */
+export function sqlIntervalSeconds(timeRange: TimeRange, interval: string | undefined): number {
+  return parseDuration(sqlInterval(timeRange, interval)) ?? 60;
+}

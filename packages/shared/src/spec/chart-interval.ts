@@ -67,13 +67,13 @@ export function fitsPeriod(interval: ChartInterval, periodMs: number): boolean {
 }
 
 /** The built-ins a query cuts its time buckets with, in any query language. */
-const intervalBuiltIns = /__(?:rate_interval|interval_ms|interval)\b/;
+const intervalBuiltIns = /__(?:rate_interval|interval_ms|interval_s|interval)\b/;
 
 /**
  * Whether a query is cut again when another interval is chosen. A PromQL or LogQL range query
  * always is, since the interval is its step. Any other query is when it names the interval
- * built-in of its language: `:__interval` in SQL, `__interval` in a search, `__interval_ms` in
- * MongoDB.
+ * built-in of its language: `:__interval` or `:__interval_s` in SQL, `__interval` in a search,
+ * `__interval_ms` in MongoDB.
  *
  * @param query - The query.
  * @returns `true` when a chosen interval changes its result.

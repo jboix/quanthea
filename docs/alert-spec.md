@@ -100,7 +100,8 @@ Each evaluation turns the query's result into series:
 ## The interval of the query
 
 A query that cuts time into buckets takes their width from the interval built-in of its language:
-`:__interval` in SQL, `{"$var": "__interval"}` in a search, `{"$var": "__interval_ms"}` in MongoDB.
+`:__interval` in SQL (or `:__interval_s`, the same in seconds), `{"$var": "__interval"}` in a
+search, `{"$var": "__interval_ms"}` in MongoDB.
 
 - The alert binds one interval to it, from a closed list, by its `lookback`: `1m` up to 2 hours,
   `5m` up to 12 hours, `10m` up to 36 hours, `30m` up to 4 days, then `1h`.
