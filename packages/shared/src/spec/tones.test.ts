@@ -68,6 +68,25 @@ describe('mapValue', () => {
       expect(mapValue(steps, value)).toBeUndefined();
   });
 
+  test('reads only a plain decimal as a number, not another notation', () => {
+    const steps: Mapping[] = [{ match: { from: 0 }, tone: 'bad' }];
+    for (const value of ['0x1', '1e0', '0b1', '1_000', '.5', '5.', '+1', 'Infinity'])
+      expect(mapValue(steps, value)).toBeUndefined();
+    for (const value of ['1', ' 1 ', '200.00', '0']) expect(toneOf(steps, value)).toBe('bad');
+    expect(toneOf([{ match: { to: 0 }, tone: 'good' }], '-0.5')).toBe('good');
+  });
+
+  test('matches a number with a text that writes it another way', () => {
+    const mappings: Mapping[] = [{ match: { value: 200 }, tone: 'good' }];
+    expect(toneOf(mappings, '200.0')).toBe('good');
+    expect(toneOf(mappings, '200.00')).toBe('good');
+    expect(mapValue(mappings, '0xC8')).toBeUndefined();
+    expect(mapValue(mappings, '201')).toBeUndefined();
+    expect(toneOf([{ match: { value: '200.0' }, tone: 'bad' }], 200)).toBe('bad');
+    // Two texts are compared as they read: an identifier is not a number.
+    expect(mapValue([{ match: { value: '0200' }, tone: 'bad' }], '200')).toBeUndefined();
+  });
+
   test('takes the first mapping that matches', () => {
     const mappings: Mapping[] = [
       { match: { value: 0 }, text: 'idle', tone: 'neutral' },
@@ -106,10 +125,38 @@ describe('the mappings a spec may hold', () => {
     const tone = 'good';
     for (const match of [{}, { value: 1, from: 0 }, { null: true, value: 'x' }, { from: 4, to: 2 }])
       expect(problemsOf([{ match, tone }])).toEqual([
-        'A match is one of { "value": a text, a number or a boolean }, { "null": true }, or a range { "from"?, "to"? } with at least one bound and "from" below "to".',
+        'A match is one of { "value": a text, a number or a boolean }, { "null": true }, or a range of numbers { "from"?, "to"? } with at least one bound and "from" below "to".',
       ]);
     expect(problemsOf([{ match: { from: 1, to: 1 }, tone }])).toHaveLength(1);
-    expect(problemsOf([{ match: { null: false }, tone }])).toHaveLength(1);
+  });
+
+  test('say the one sentence for every match that is wrong, and nothing else', () => {
+    const wrong = [
+      { null: false },
+      { from: '2' },
+      { gte: 2 },
+      { from: 2, color: 'red' },
+      { value: null },
+      { value: ['a'] },
+      { from: Number.NaN },
+      'error',
+      null,
+      [],
+    ];
+    for (const match of wrong) {
+      const problems = problemsOf([{ match, tone: 'good' }]);
+      expect(problems).toHaveLength(1);
+      expect(problems[0]).toStartWith('A match is one of { "value": a text, a number');
+    }
+    expect(problemsOf([{ tone: 'good' }])).toHaveLength(1);
+  });
+
+  test('refuse a text that shows nothing', () => {
+    for (const text of ['', ' '])
+      expect(problemsOf([{ match: { value: 1 }, text }])).toEqual([
+        'The "text" of a mapping holds something to show.',
+      ]);
+    expect(problemsOf([{ match: { value: 1 }, text: '0' }])).toEqual([]);
   });
 
   test('refuse a colour, an unknown tone and a mapping that changes nothing', () => {

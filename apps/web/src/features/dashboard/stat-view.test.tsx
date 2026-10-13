@@ -74,3 +74,17 @@ test('a mapped text replaces the format: no value reads 0, true reads Yes, a sta
   expect(render(['ready', 'degraded'], named)).toContain('>Degraded</span>');
   expect(render(['ready'], named)).toContain('>ready</span>');
 });
+
+test('a text longer than a line wraps at the size a line fits, and a shorter one stays on one line', () => {
+  const text = 'Degraded since the last deploy of the checkout service';
+  const long: Mapping[] = [{ match: { null: true }, text }];
+  const html = render([], { mappings: long });
+  expect(html).toContain('font-size:min(32px, 6.72cqi)');
+  expect(html).toContain('white-space:normal');
+  expect(html).toContain('overflow-wrap:anywhere');
+  const short = render([], { mappings: [{ match: { null: true }, text: 'Degraded' }] });
+  expect(short).toContain('white-space:nowrap');
+  expect(short).toContain('font-size:min(32px, 20.16cqi)');
+  // A number is never wrapped.
+  expect(render([123456789.25])).toContain('white-space:nowrap');
+});

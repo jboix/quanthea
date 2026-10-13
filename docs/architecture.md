@@ -557,7 +557,9 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
    it is written, by the agent or by a person who saves it (`checkSourceOrder`, behind the
    `writing` flag of `validateSpec`). A stored version is not checked for it: with a default, the
    variable binds without its source, so the version draws, and it still pins, restores and
-   copies. The same holds for a report: its saves and previews check the order, an activation and
+   copies. The agent's next edit of such a dashboard is refused with the message, whatever the
+   edit was about, and the agent repairs the order in the same turn by sending the variables
+   again. The same holds for a report: its saves and previews check the order, an activation and
    a test send of a stored version do not.
 5. Each query goes to `query/`, which binds it, applies the connector's guardrails, runs it with a
    timeout and caches the frames for 15 s by connector, bound query and time range. The chart's
@@ -4228,7 +4230,11 @@ one, and enables them again. Without any admin, it creates the default one.
   a range of numbers (`from` included, `to` excluded, either end open), and gives a text, a tone or
   both. `mapValue` returns the first that matches, so a threshold is a list of ranges.
   - A match reads the raw value of the result, before the format. A value is compared as it
-    reads, so `200` matches `"200"`. A range reads numbers and texts that write a number.
+    reads, so `200` matches `"200"`, and a number also equals a text that writes it another way,
+    such as `"200.00"`. A range reads numbers and texts that write a plain decimal, as a SQL
+    source returns them: `0x1F` and `1e3` are identifiers, not numbers.
+  - A match is checked in code (`isMatch`), so every malformed match gets the one sentence that
+    says its three forms. A mapped text holds something to show: an empty one is refused.
   - A mapped text replaces the column's format. A mapping with only a tone keeps the format.
   - A tone is one of a closed list: `neutral`, `good`, `warning`, `bad` and `series1` to
     `series8`. Each names a design token, so a spec holds no colour and a toned cell follows the
@@ -4242,7 +4248,8 @@ one, and enables them again. Without any admin, it creates the default one.
     stat's reduced number. With `first` or `last` they read the column's own first or last value
     (`mappedResult` in `dataset/stat.ts`), so a text or a boolean can match, and a result with no
     row or no value matches `null`. A mapped text replaces the number, and the tone colours the
-    value or tints behind it.
+    value or tints behind it. A stat stays on one line and shrinks to fit, up to 24 characters:
+    a longer text wraps at the size a line of 24 fits.
   - `mappedResult` is a second function beside `reduceResult`, which still gives numbers only. A
     stat without mappings, the line under a stat and a report's headline read `reduceResult`, so
     they show what they showed, and a headline keeps its number when the stat shows a text.
@@ -4265,7 +4272,8 @@ one, and enables them again. Without any admin, it creates the default one.
     start, so the dial agrees with a stat or a cell that has the same mappings. A stretch no step
     covers keeps the colour of the bare track.
   - A gauge with a progress bar shows the steps as tints on its track and the bar in the tone of
-    its value, so where the bar ends still reads. A gauge with a needle shows the steps in their
+    its value, so where the bar ends still reads. A value at the dial's maximum or past it takes
+    the tone of the last stretch, so a step closed at the maximum (0.9 to 1) colours a full bar. A gauge with a needle shows the steps in their
     tones. Both get flat ends, so the stops meet squarely.
   - The stops are theme tokens, `@tone.<name>` and `@toneSoft.<name>` (the tone mixed into the
     surface), replaced like `@ink`. The chart theme reads the colour of each tone from the same

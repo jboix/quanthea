@@ -33,6 +33,21 @@ function extentOf(series: Loose): [number, number] | undefined {
 }
 
 /**
+ * Where a dial is cut: its ends, and every bound of a step that falls between them.
+ *
+ * @param steps - The steps, in order.
+ * @param extent - The dial's `min` and `max`.
+ * @returns The edges of its stretches, from `min` to `max`.
+ */
+function edgesOf(steps: readonly Mapping[], extent: [number, number]): number[] {
+  const [min, max] = extent;
+  const bounds = steps
+    .flatMap((step) => [step.match.from, step.match.to])
+    .filter((bound): bound is number => bound !== undefined && bound > min && bound < max);
+  return [...new Set([min, ...bounds, max])].sort((a, b) => a - b);
+}
+
+/**
  * The colour stops of a dial. The dial is cut at every bound of a step that falls on it, and each
  * stretch takes the tone of the first step that holds its start, as a value there would. A stretch
  * no step holds keeps the colour of the bare track.
@@ -44,10 +59,7 @@ function extentOf(series: Loose): [number, number] | undefined {
  */
 function stopsOf(steps: readonly Mapping[], extent: [number, number], soft: boolean): Stop[] {
   const [min, max] = extent;
-  const bounds = steps
-    .flatMap((step) => [step.match.from, step.match.to])
-    .filter((bound): bound is number => bound !== undefined && bound > min && bound < max);
-  const edges = [...new Set([min, ...bounds, max])].sort((a, b) => a - b);
+  const edges = edgesOf(steps, extent);
   return edges.slice(1).map((end, index) => {
     const tone = mapValue(steps, edges[index])?.tone;
     return [(end - min) / (max - min), tone ? toneToken(tone, soft) : '@divider'];
@@ -55,16 +67,39 @@ function stopsOf(steps: readonly Mapping[], extent: [number, number], soft: bool
 }
 
 /**
- * The progress bar of a stepped gauge: in the tone of the step that holds the value, with flat
- * ends so it meets the stops squarely.
+ * The point of the dial whose tone the bar takes: the value, or the start of the last stretch for
+ * a value at the dial's end or past it. A full bar ends in the last stretch, and a step closed at
+ * the maximum, such as 0.9 to 1, does not hold the maximum itself.
+ *
+ * @param steps - The steps, in order.
+ * @param extent - The dial's `min` and `max`.
+ * @param value - The value on the dial, or `null` when there is none.
+ * @returns The point, or `null` without a value.
+ */
+function barPoint(
+  steps: readonly Mapping[],
+  extent: [number, number],
+  value: number | null,
+): number | null | undefined {
+  if (value === null || value < extent[1]) return value;
+  return edgesOf(steps, extent).at(-2);
+}
+
+/**
+ * The progress bar of a stepped gauge: in the tone of the stretch it ends in, with flat ends so
+ * it meets the stops squarely.
  *
  * @param progress - The series' `progress`.
  * @param steps - The steps, in order.
- * @param value - The value on the dial, or `null` when there is none.
+ * @param point - The point of the dial the bar ends at, or `null` when there is no value.
  * @returns The progress bar.
  */
-function steppedBar(progress: Loose, steps: readonly Mapping[], value: number | null): Loose {
-  const tone = mapValue(steps, value)?.tone;
+function steppedBar(
+  progress: Loose,
+  steps: readonly Mapping[],
+  point: number | null | undefined,
+): Loose {
+  const tone = mapValue(steps, point)?.tone;
   const bar = { ...progress, roundCap: false };
   if (!tone) return bar;
   return { ...bar, itemStyle: { ...partOf(progress.itemStyle), color: toneToken(tone) } };
@@ -94,5 +129,6 @@ export function withSteps(
   const axisLine = partOf(series.axisLine);
   const lineStyle = { ...partOf(axisLine.lineStyle), color: stopsOf(steps, extent, hasBar) };
   const stepped = { ...series, axisLine: { ...axisLine, roundCap: false, lineStyle } };
-  return hasBar ? { ...stepped, progress: steppedBar(progress, steps, value) } : stepped;
+  if (!hasBar) return stepped;
+  return { ...stepped, progress: steppedBar(progress, steps, barPoint(steps, extent, value)) };
 }

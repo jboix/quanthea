@@ -95,6 +95,20 @@ describe('the steps of a gauge', () => {
     expect(withSteps(bar, steps, null).progress).not.toHaveProperty('itemStyle');
   });
 
+  test('give a full bar the tone of the last stretch, even for a step closed at the maximum', () => {
+    const closed: Mapping[] = [{ match: { from: 9, to: 10 }, tone: 'bad' }];
+    const ten = { ...bar, max: 10 };
+    const toned = { show: true, width: 12, roundCap: false, itemStyle: { color: '@tone.bad' } };
+    expect(withSteps(ten, closed, 10).progress).toEqual(toned);
+    expect(withSteps(ten, closed, 12).progress).toEqual(toned);
+    expect(withSteps(ten, closed, 9.5).progress).toEqual(toned);
+    expect(withSteps(ten, closed, 8.9).progress).not.toHaveProperty('itemStyle');
+    expect(withSteps(bar, steps, 1).progress).toMatchObject({ itemStyle: { color: '@tone.bad' } });
+    // A last stretch no step holds leaves a full bar its colour.
+    const low: Mapping[] = [{ match: { to: 5 }, tone: 'good' }];
+    expect(withSteps(ten, low, 10).progress).not.toHaveProperty('itemStyle');
+  });
+
   test('leave a gauge as it is without a step, or with a dial of no length', () => {
     expect(withSteps(bar, undefined, 0.5)).toBe(bar);
     expect(withSteps(bar, [{ match: { value: 1 }, tone: 'bad' }], 0.5)).toBe(bar);

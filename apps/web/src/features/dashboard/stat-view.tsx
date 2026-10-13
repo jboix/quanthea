@@ -7,6 +7,7 @@ import {
   reduceResult,
   type StatView as StatViewSpec,
 } from '@quanthea/shared';
+import type { CSSProperties } from 'react';
 import { fittedNumber } from '../../ui/fitted-number.ts';
 import styles from './stat.module.css';
 import { toneStyle } from './tone.ts';
@@ -71,6 +72,26 @@ function statText(view: StatViewSpec, queries: readonly QueryOutcome[], format: 
   return { text: mapped?.text ?? (format(number ?? value) || '–'), mapped };
 }
 
+/** The most characters of a stat that stay on one line; a longer text wraps at the size they fit. */
+const lineLength = 24;
+
+/**
+ * The size of what a stat shows. A number or a short text stays on one line and shrinks to fit.
+ * A text longer than a line, which only a mapping or a text column gives, wraps at the size a
+ * full line fits, so a sentence stays readable.
+ *
+ * @param text - The text as shown.
+ * @param tinted - Whether a tint surrounds it, whose padding counts as one character more.
+ * @returns The style to set on the value.
+ */
+function fittedValue(text: string, tinted: boolean): CSSProperties {
+  // A tint has a padding of about half a character on each side: the fit counts one more.
+  const fitted = fittedNumber(tinted ? `${text} ` : text, 32);
+  if (text.length <= lineLength) return fitted;
+  const line = fittedNumber('0'.repeat(lineLength), 32);
+  return { ...line, whiteSpace: 'normal', overflowWrap: 'anywhere' };
+}
+
 /**
  * A stat: one number or mapped text, in its tone when it has one, and a line under it.
  *
@@ -82,8 +103,7 @@ export function StatView({ view, queries, timeZone }: StatViewProps) {
   const { text, mapped } = statText(view, queries, format);
   const subtitle = statSubtitle(view, queries, format);
   const toneAs = mapped?.tone ? (view.toneAs ?? 'text') : undefined;
-  // A tint has a padding of about half a character on each side: the fit counts one more.
-  const fitted = fittedNumber(toneAs === 'background' ? `${text} ` : text, 32);
+  const fitted = fittedValue(text, toneAs === 'background');
   return (
     <div className={styles.stat}>
       <span

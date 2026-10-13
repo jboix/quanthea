@@ -232,21 +232,22 @@ they differ from the sketch above, the schemas win:
 - A value a viewer picks for a query-backed variable is one of its options or its default; any
   other is refused when the panel runs.
 - A mapping matches the raw value of the result, before the format. A `value` is compared as it
-  reads, so `200` matches `"200"` and `true` matches `"true"`. A range reads numbers, and texts
-  that write a number.
+  reads, so `200` matches `"200"` and `true` matches `"true"`, and a number also equals a text
+  that writes it another way, such as `"200.00"`. A range reads numbers, and texts that write a
+  plain decimal: `0x1F` and `1e3` are not numbers.
 - A stat's mappings read its reduced number. With `first` or `last` they read the column's own
   first or last value, so a text or a boolean can match. A result with no row or no value
   matches `null`.
 - A stat without mappings shows its number as before. A report's headline shows the number,
   whatever the mappings say.
-- A mapping gives a `text`, a `tone`, or both. A `match` says one thing: a value, `null`, or a
-  range with `from` below `to`.
+- A mapping gives a `text`, a `tone`, or both. A `text` is not empty. A `match` says one thing: a
+  value, `null`, or a range with `from` below `to`.
 - Among the charts only a gauge takes `mappings`, and each is a step: a range with a tone. The
   validator refuses mappings on any other chart, and a gauge's mapping that matches a value or
   `null`, has no tone, or has a text.
 - A step is written in the unit of the gauge's value. The renderer places it between the series'
   `min` and `max` (0 and 100 when left out). A stretch of the dial no step covers keeps the
-  colour of the bare track.
+  colour of the bare track. A value at the maximum or past it takes the tone of the last stretch.
 - A tone is a name from the list, never a colour. The renderer draws it from the theme's design
   tokens, in the light and the dark scheme.
 - Formatter defaults: `number` 2 decimals, `percent` 1 decimal with `input: 'ratio'`, `bytes`

@@ -29,36 +29,66 @@ export type Tone = (typeof tones)[number];
 
 /** What a match must be, said once for every way of getting it wrong. */
 const matchProblem =
-  'A match is one of { "value": a text, a number or a boolean }, { "null": true }, or a range { "from"?, "to"? } with at least one bound and "from" below "to".';
+  'A match is one of { "value": a text, a number or a boolean }, { "null": true }, or a range of numbers { "from"?, "to"? } with at least one bound and "from" below "to".';
 
 /**
  * What a mapping matches, in one flat form: a value, no value, or a range of numbers whose `from`
- * is included and whose `to` is not.
+ * is included and whose `to` is not. It is a type alias, so it reads as the JSON it is.
  */
-const matchSchema = z
-  .strictObject({
-    value: z.union([z.string().max(200), z.number(), z.boolean()]).optional(),
-    null: z.literal(true).optional(),
-    from: z.number().optional(),
-    to: z.number().optional(),
-  })
-  .refine(isOneMatch, matchProblem);
+type Match = {
+  /** The value to equal, as it reads. */
+  value?: string | number | boolean | undefined;
+  /** `true` to match no value. */
+  null?: true | undefined;
+  /** The start of a range, included. */
+  from?: number | undefined;
+  /** The end of a range, excluded. */
+  to?: number | undefined;
+};
 
-/** What a mapping matches. */
-type Match = z.infer<typeof matchSchema>;
+/** The keys a match may hold. */
+const matchKeys = new Set(['value', 'null', 'from', 'to']);
+
+/**
+ * Whether a part of a match is a bound of a range, or left out.
+ *
+ * @param bound - The part.
+ * @returns Whether it is a finite number or nothing.
+ */
+function isBound(bound: unknown): boolean {
+  return bound === undefined || (typeof bound === 'number' && Number.isFinite(bound));
+}
+
+/**
+ * Whether a part of a match is a value to equal, or left out.
+ *
+ * @param value - The part.
+ * @returns Whether it is a text of at most 200 characters, a number, a boolean or nothing.
+ */
+function isMatchValue(value: unknown): boolean {
+  if (typeof value === 'string') return value.length <= 200;
+  return value === undefined || typeof value === 'number' || typeof value === 'boolean';
+}
+
+/**
+ * Whether every part of a match has the type it takes, and no other part is there.
+ *
+ * @param match - The match, as written.
+ * @returns Whether its parts are well formed.
+ */
+function hasMatchParts(match: Readonly<Record<string, unknown>>): boolean {
+  if (!Object.keys(match).every((key) => matchKeys.has(key))) return false;
+  if (match.null !== undefined && match.null !== true) return false;
+  return isMatchValue(match.value) && isBound(match.from) && isBound(match.to);
+}
 
 /**
  * Whether a match says exactly one thing: a value, no value, or a range that holds a number.
  *
- * @param match - The match, with any of its fields.
+ * @param match - A match whose parts are well formed.
  * @returns Whether it is one kind of match, and a range that is not empty.
  */
-function isOneMatch(match: {
-  value?: unknown;
-  null?: true | undefined;
-  from?: number | undefined;
-  to?: number | undefined;
-}): boolean {
+function isOneMatch(match: Match): boolean {
   const ranged = match.from !== undefined || match.to !== undefined;
   const kinds = [match.value !== undefined, match.null === true, ranged];
   if (kinds.filter(Boolean).length !== 1) return false;
@@ -66,12 +96,32 @@ function isOneMatch(match: {
 }
 
 /**
+ * Whether something is a match. It is checked in code and not by a schema of its fields, so every
+ * way of getting it wrong gets the one sentence that says what a match is.
+ *
+ * @param input - What a spec holds as a match.
+ * @returns Whether it is a match.
+ */
+function isMatch(input: unknown): input is Match {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) return false;
+  const match = input as Readonly<Record<string, unknown>>;
+  return hasMatchParts(match) && isOneMatch(match as Match);
+}
+
+/** Validates what a mapping matches. */
+const matchSchema = z.custom<Match>(isMatch, matchProblem);
+
+/**
  * Validates a mapping: what it matches, and the text or the tone a matching value takes, or both.
  */
 const mappingSchema = z
   .strictObject({
     match: matchSchema,
-    text: z.string().max(100).optional(),
+    text: z
+      .string()
+      .max(100)
+      .regex(/\S/, 'The "text" of a mapping holds something to show.')
+      .optional(),
     tone: z.enum(tones).optional(),
   })
   .refine(
@@ -91,18 +141,21 @@ export const toneAsSchema = z.enum(['text', 'background']);
 /** How a tone is drawn. */
 export type ToneAs = z.infer<typeof toneAsSchema>;
 
+/** A text that writes a plain decimal number, such as `12`, `-0.5` or the `200.00` of a SQL source. */
+const decimalText = /^-?\d+(\.\d+)?$/;
+
 /**
- * The number a value stands for, for a range.
+ * The number a value stands for.
  *
  * @param value - A value of a result.
  * @returns The number, or `undefined` for anything that is not a finite number or a text that
- *   writes one, such as the decimals a SQL source returns as text.
+ *   writes a plain decimal, such as the decimals a SQL source returns as text. An identifier
+ *   that happens to read as a number in another notation, such as `0x1F` or `1e3`, is no number.
  */
 function numberOf(value: unknown): number | undefined {
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
-  if (typeof value !== 'string' || value.trim() === '') return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  if (typeof value !== 'string' || !decimalText.test(value.trim())) return undefined;
+  return Number(value);
 }
 
 /**
@@ -120,7 +173,8 @@ function inRange(match: Match, value: unknown): boolean {
 
 /**
  * Whether a value is the one a match names. A text, a number and a boolean are compared as they
- * read, so `"200"` matches the number 200 and `true` matches the text `"true"`.
+ * read, so `"200"` matches the number 200 and `true` matches the text `"true"`. A number is also
+ * equal to a text that writes it another way, so 200 matches `"200.00"`.
  *
  * @param expected - The value the match names.
  * @param value - A value of a result.
@@ -128,7 +182,10 @@ function inRange(match: Match, value: unknown): boolean {
  */
 function sameValue(expected: string | number | boolean, value: unknown): boolean {
   if (!['string', 'number', 'boolean'].includes(typeof value)) return false;
-  return String(value) === String(expected);
+  if (String(value) === String(expected)) return true;
+  if (typeof expected !== 'number' && typeof value !== 'number') return false;
+  const number = numberOf(value);
+  return number !== undefined && number === numberOf(expected);
 }
 
 /**
