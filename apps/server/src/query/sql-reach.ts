@@ -19,7 +19,8 @@ interface Refusal {
 /** The PostgreSQL functions refused. */
 const postgresRefusals: readonly Refusal[] = [
   {
-    names: /^(?:pg_read_(?:binary_)?file|pg_ls_\w*dir|pg_stat_file|pg_file_\w+|pg_logdir_ls)$/,
+    names:
+      /^(?:pg_read_(?:binary_)?file|pg_ls_\w*dir|pg_stat_file|pg_file_\w+|pg_logdir_ls|pg_current_logfile|pg_show_all_file_settings)$/,
     reason: "reads or writes the server's files",
   },
   { names: /^lo_(?:import|export)$/, reason: "reads or writes the server's files" },
@@ -31,7 +32,7 @@ const postgresRefusals: readonly Refusal[] = [
   },
   {
     names:
-      /^pg_(?:terminate_backend|cancel_backend|reload_conf|rotate_logfile|switch_wal|promote|create_restore_point|backup_st\w+|start_backup|stop_backup|\w*replication_slot\w*|logical_slot_\w+|logical_emit_message|replication_origin_\w+|wal_replay_\w+|stat_reset\w*|(?:try_)?advisory_lock(?:_shared)?)$/,
+      /^pg_(?:terminate_backend|cancel_backend|reload_conf|rotate_logfile|logfile_rotate|notify|switch_wal|promote|create_restore_point|backup_st\w+|start_backup|stop_backup|\w*replication_slot\w*|logical_slot_\w+|logical_emit_message|replication_origin_\w+|wal_replay_\w+|stat_reset\w*|(?:try_)?advisory_lock(?:_shared)?)$/,
     reason: 'changes the server outside the read-only transaction',
   },
   { names: /^set_config$/, reason: 'changes the settings of the session' },
@@ -53,7 +54,7 @@ const clickhouseRefusals: readonly Refusal[] = [
   },
   {
     names:
-      /^(?:url(?:cluster)?|remote(?:secure)?|cluster(?:allreplicas)?|mysql|postgresql|mongodb|redis|sqlite|jdbc|odbc|ytsaurus|arrowflight)$/,
+      /^(?:url(?:cluster)?|remote(?:secure)?|cluster(?:allreplicas)?|mysql|postgresql|mongodb|redis|sqlite|jdbc|odbc|ytsaurus|arrowflight|meilisearch)$/,
     reason: 'reaches another server',
   },
   { names: /^(?:executable|input)$/, reason: 'runs a program or reads what the request sends' },

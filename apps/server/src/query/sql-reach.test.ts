@@ -38,6 +38,8 @@ describe('what one PostgreSQL read statement cannot reach', () => {
       "SELECT lo_import('/etc/passwd')",
       "SELECT lo_export(16400, '/tmp/out')",
       "SELECT pg_file_write('/tmp/x', 'y', false)",
+      'SELECT pg_current_logfile()',
+      'SELECT * FROM pg_show_all_file_settings()',
     ]);
   });
 
@@ -53,6 +55,8 @@ describe('what one PostgreSQL read statement cannot reach', () => {
       "SELECT pg_create_physical_replication_slot('s')",
       "SELECT * FROM pg_logical_slot_get_changes('s', NULL, NULL)",
       'SELECT pg_advisory_lock(1)',
+      "SELECT pg_notify('jobs', 'run')",
+      'SELECT pg_logfile_rotate()',
       "SELECT set_config('statement_timeout', '0', false)",
     ]);
   });
@@ -120,6 +124,7 @@ describe('what one ClickHouse read statement cannot reach', () => {
       "SELECT * FROM remote('other:9000', system.one)",
       "SELECT * FROM remoteSecure('other:9440', db.t, 'u', 'p')",
       "SELECT * FROM cluster('all', system.one)",
+      "SELECT * FROM meilisearch('http://other:7700', 'index', 'key')",
       "SELECT * FROM s3('https://bucket/key', 'CSV')",
       "SELECT * FROM s3Cluster('all', 'https://bucket/key', 'CSV')",
       "SELECT * FROM azureBlobStorage('conn', 'c', 'b')",

@@ -2710,17 +2710,21 @@ the connector shows and a version that changes with its settings).
      since the server decodes it before any list could match it:
 
      - `postgres`: the server's files (`pg_read_file`, `pg_read_binary_file`, `pg_ls_*dir`,
-       `pg_stat_file`, `pg_file_*`, `lo_import`, `lo_export`), another server (`dblink*`), text run
+       `pg_stat_file`, `pg_file_*`, `pg_current_logfile`, `pg_show_all_file_settings`, `lo_import`,
+       `lo_export`), another server (`dblink*`), text run
        as SQL (`query_to_xml*`, `cursor_to_xml*`, `ts_stat`, `ts_rewrite`, `crosstab*`,
        `connectby`, `xpath_table`), the server's controls (`pg_terminate_backend`,
        `pg_cancel_backend`, `pg_reload_conf`, replication slots and origins, backups, WAL replay,
-       `pg_stat_reset*`, session advisory locks) and `set_config`.
+       `pg_stat_reset*`, `pg_logfile_rotate`, session advisory locks), `pg_notify`, which reaches
+       every listener of a channel, and `set_config`.
      - `mysql`: `LOAD_FILE`, the `sys_exec` and `sys_eval` functions of a common extension, and
-       `GET_LOCK`, whose lock would stay on the pooled connection.
+       `GET_LOCK`, whose lock would stay on the pooled connection. A user variable
+       set in a statement (`@row := @row + 1`, the way older servers number rows) passes, and
+       stays on the pooled connection: it holds only what the same connector can read.
      - `clickhouse`: the table functions that read files or object storage (`file`, `s3`, `gcs`,
        `hdfs`, `azureBlobStorage`, `iceberg*`, `deltaLake*`, `hudi`, `paimon*`, `hive`), reach
        another server (`url`, `remote`, `remoteSecure`, `cluster`, `clusterAllReplicas`, `mysql`,
-       `postgresql`, `mongodb`, `redis`, `sqlite`, `jdbc`, `odbc`) or run a program
+       `postgresql`, `mongodb`, `redis`, `sqlite`, `jdbc`, `odbc`, `meilisearch`) or run a program
        (`executable`), with their `…Cluster` forms.
      - `trino`: the table functions that send text to the source under a catalog, where it runs
        unread: `TABLE(catalog.system.query(…))`, `raw_query` and `procedure`.
