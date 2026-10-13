@@ -1,17 +1,42 @@
 /**
- * Arranging the version shown, on the dashboard screen: the state of the edit, its bar with Save
- * and Cancel, and the question asked before leaving with changes unsaved.
+ * Arranging the version shown, on the screen of a dashboard or of a report's run: the state of the
+ * edit, its frames over the panels, its bar with Save and Cancel, and the question asked before
+ * leaving with changes unsaved.
  */
-import type { DashboardLayout, LayoutRevision } from '@quanthea/shared';
-import { useEffect, useState } from 'react';
+import type { DashboardLayout, LayoutRevision, PanelGrid, ShownLayout } from '@quanthea/shared';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type SubmitTarget, useBlocker, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Dialog } from '../../ui/dialog.tsx';
-import type { DashboardData, Loaded } from './data.ts';
+import { useMediaQuery } from '../../ui/use-media-query.ts';
 import type { LayoutIntent } from './layout-data.ts';
 import { layoutChanged, startingLayout } from './layout-edit.ts';
 import styles from './layout-editor.module.css';
 import { HiddenMenu, HistoryMenu } from './layout-menus.tsx';
+import { LayoutOverlay } from './layout-overlay.tsx';
+import type { Loaded } from './loaded.ts';
+
+/** A version as it is arranged: the panels a layout names, and the layout it is shown with. */
+export interface ArrangedVersion {
+  /** The version. */
+  readonly version: number;
+  /** The panels on its grid, each with its title and the place its spec gives it. */
+  readonly panels: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly grid: PanelGrid;
+  }[];
+  /** The layout it is shown with, if one was saved. */
+  readonly layout: ShownLayout | null;
+}
+
+/** Where an edit is sent and read from. */
+export interface LayoutPaths {
+  /** The route whose action saves and restores layouts; the screen's own when left out. */
+  readonly action?: string | undefined;
+  /** The resource route of the version's layout history. */
+  readonly history: string;
+}
 
 /** An edit of the layout under way. */
 export interface LayoutEditor {
@@ -35,56 +60,107 @@ export interface LayoutEditor {
   readonly refusal: string | null;
 }
 
+/** A change an edit sends: the layout to save, or the revision to restore. */
+type LayoutChange = { readonly layout: DashboardLayout } | { readonly revision: number };
+
 /**
- * Sends a layout to be saved as the version's next revision, or an earlier revision to restore.
+ * The intent that saves a layout as the version's next revision, or restores an earlier revision.
  *
- * @param submit - The fetcher's submit.
- * @param version - The version shown, with the revision it is shown with.
+ * @param arranged - The version shown, with the revision it is shown with.
  * @param change - The layout, or the revision to restore.
+ * @returns The intent.
  */
-function submitLayout(
-  submit: ReturnType<typeof useFetcher>['submit'],
-  version: DashboardData['version'],
-  change: { readonly layout: DashboardLayout } | { readonly revision: number },
-): void {
-  const basedOn = version.layout?.revision ?? null;
-  const intent: LayoutIntent =
-    'layout' in change
-      ? { intent: 'layout', version: version.version, layout: change.layout, basedOn }
-      : { intent: 'restoreLayout', version: version.version, revision: change.revision, basedOn };
-  void submit(intent as unknown as SubmitTarget, { method: 'post', encType: 'application/json' });
+function intentOf(arranged: ArrangedVersion, change: LayoutChange): LayoutIntent {
+  const basedOn = arranged.layout?.revision ?? null;
+  const { version } = arranged;
+  return 'layout' in change
+    ? { intent: 'layout', version, layout: change.layout, basedOn }
+    : { intent: 'restoreLayout', version, revision: change.revision, basedOn };
+}
+
+/**
+ * The layout being edited, kept for one version: showing another version on the same screen
+ * drops it, so an arrangement never lands on panels it was not made for.
+ *
+ * @param key - What is arranged, such as the path of its layout history.
+ * @returns The layout being edited, or `null`, and its setter.
+ */
+function useDraft(key: string) {
+  const [edit, setEdit] = useState<{ key: string; layout: DashboardLayout } | null>(null);
+  const setDraft = useCallback(
+    (layout: DashboardLayout | null) => setEdit(layout && { key, layout }),
+    [key],
+  );
+  return [edit?.key === key ? edit.layout : null, setDraft] as const;
 }
 
 /**
  * The state of an edit of the version shown. A save that succeeds ends the edit, and the screen
  * reloads with the new layout.
  *
- * @param data - The dashboard and the version shown.
+ * @param arranged - The version shown.
+ * @param paths - Where the edit is sent, and the history that names the version arranged.
  * @returns The edit.
  */
-export function useLayoutEditor(data: DashboardData): LayoutEditor {
-  const { version } = data;
-  const shown = version.layout?.layout;
-  const [draft, setDraft] = useState<DashboardLayout | null>(null);
+function useLayoutEditor(arranged: ArrangedVersion, paths: LayoutPaths): LayoutEditor {
+  const { action } = paths;
+  const [draft, setDraft] = useDraft(paths.history);
   const fetcher = useFetcher<Loaded<LayoutRevision>>();
   const outcome = fetcher.state === 'idle' ? fetcher.data : undefined;
   useEffect(() => {
     if (outcome?.ok) setDraft(null);
-  }, [outcome]);
-  const base = startingLayout(version.spec, shown);
-  const save = () => {
-    if (draft) submitLayout(fetcher.submit, version, { layout: draft });
-  };
+  }, [outcome, setDraft]);
+  const base = startingLayout(arranged, arranged.layout?.layout);
+  const send = (change: LayoutChange) =>
+    void fetcher.submit(intentOf(arranged, change) as unknown as SubmitTarget, {
+      method: 'post',
+      encType: 'application/json',
+      ...(action === undefined ? {} : { action }),
+    });
   return {
     draft,
     dirty: draft !== null && layoutChanged(base, draft),
     start: () => setDraft(base),
     change: setDraft,
-    save,
+    save: () => draft && send({ layout: draft }),
     cancel: () => setDraft(null),
-    restore: (revision) => submitLayout(fetcher.submit, version, { revision }),
+    restore: (revision) => send({ revision }),
     saving: fetcher.state !== 'idle',
     refusal: outcome && !outcome.ok && draft ? outcome.message : null,
+  };
+}
+
+/** Wide enough to arrange panels: below it the grid is one column. */
+const wideScreen = '(min-width: 901px)';
+
+/**
+ * A version as people see it or as it is being arranged: the layout to draw it through, the edit
+ * with its bar and its frames, and the way into the edit for those who may arrange it, on a
+ * screen wide enough for the grid's twelve columns.
+ *
+ * @param arranged - The version shown.
+ * @param allowed - Whether the person may arrange this version.
+ * @param paths - Where the edit is sent, and where its history loads from.
+ * @returns The layout shown, the edit, its bar, notes and frames while it lasts, and Edit
+ *   layout's callback if offered.
+ */
+export function useArrangement(arranged: ArrangedVersion, allowed: boolean, paths: LayoutPaths) {
+  const editor = useLayoutEditor(arranged, paths);
+  const wide = useMediaQuery(wideScreen);
+  const titles = useMemo(
+    () => new Map(arranged.panels.map((panel) => [panel.id, panel.title])),
+    [arranged.panels],
+  );
+  const editing = editor.draft !== null;
+  return {
+    editor,
+    layout: editor.draft ?? arranged.layout?.layout,
+    bar: editing && <LayoutBar editor={editor} titles={titles} historyPath={paths.history} />,
+    notes: editing && <LayoutNotes editor={editor} />,
+    overlay: editor.draft && (
+      <LayoutOverlay layout={editor.draft} titles={titles} onChange={editor.change} />
+    ),
+    onArrange: allowed && wide ? editor.start : undefined,
   };
 }
 
@@ -92,8 +168,10 @@ export function useLayoutEditor(data: DashboardData): LayoutEditor {
 interface LayoutBarProps {
   /** The edit. */
   readonly editor: LayoutEditor;
-  /** The dashboard and the version arranged. */
-  readonly data: DashboardData;
+  /** Each panel's title, by id. */
+  readonly titles: ReadonlyMap<string, string>;
+  /** The resource route of the version's layout history. */
+  readonly historyPath: string;
 }
 
 /**
@@ -104,7 +182,7 @@ interface LayoutBarProps {
  * @param props.editor - The edit.
  * @returns The lines.
  */
-export function LayoutNotes({ editor }: { readonly editor: LayoutEditor }) {
+function LayoutNotes({ editor }: { readonly editor: LayoutEditor }) {
   return (
     <>
       <p className={styles.hint}>
@@ -123,22 +201,16 @@ export function LayoutNotes({ editor }: { readonly editor: LayoutEditor }) {
  * The bar shown while arranging, in place of the header's actions: the hidden panels, the
  * history, Cancel and Save layout.
  *
- * @param props - The edit, and the dashboard and version arranged.
+ * @param props - The edit, the panels' titles and where the history loads from.
  * @returns The bar.
  */
-export function LayoutBar({ editor, data }: LayoutBarProps) {
-  const { dashboard, version } = data;
-  const titles = new Map(version.spec.panels.map((panel) => [panel.id, panel.title]));
+function LayoutBar({ editor, titles, historyPath }: LayoutBarProps) {
   return (
     <div className={styles.bar}>
       {editor.draft && (
         <HiddenMenu layout={editor.draft} titles={titles} onChange={editor.change} />
       )}
-      <HistoryMenu
-        dashboardId={dashboard.id}
-        version={version.version}
-        onRestore={editor.restore}
-      />
+      <HistoryMenu path={historyPath} onRestore={editor.restore} />
       <Button onClick={editor.cancel} disabled={editor.saving}>
         Cancel
       </Button>
@@ -150,7 +222,7 @@ export function LayoutBar({ editor, data }: LayoutBarProps) {
 }
 
 /**
- * Asks before leaving the dashboard with an unsaved layout: in the app, and when the tab closes or
+ * Asks before leaving the page with an unsaved layout: in the app, and when the tab closes or
  * reloads. Changing the variables or the time range stays on the page and asks nothing.
  *
  * @param props - Whether there are unsaved changes.

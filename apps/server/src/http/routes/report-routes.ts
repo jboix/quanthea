@@ -2,8 +2,9 @@
  * The report endpoints. Everyone signed in reads reports and their runs (below editor, once a
  * version is active, and the runs of versions ever active); opening a run marks it seen for the
  * reader. Editors preview a spec; admins set the retries and how long runs are kept. A report's
- * drafts follow its thread: only its owner and admins see them, activate, deactivate, run it now
- * and send a test, and others read it as a viewer does (`../ownership.ts`).
+ * drafts follow its thread: only its owner and admins see them, activate, deactivate, arrange the
+ * active version, run it now and send a test, and others read it as a viewer does
+ * (`../ownership.ts`).
  */
 import {
   activateReportEndpoint,
@@ -18,12 +19,14 @@ import {
   type ReportRunDetail,
   type ReportRunSummary,
   type ReportSummary,
+  reportLayoutEndpoints,
   runReportNowEndpoint,
   saveReportSettingsEndpoint,
   testReportEndpoint,
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Users } from '../../auth/users.ts';
+import type { Layouts } from '../../dashboards/layouts.ts';
 import type { Notifications } from '../../notifications/notifications.ts';
 import type { Reports } from '../../reports/reports.ts';
 import type { ReportSettingsService } from '../../settings/report-settings.ts';
@@ -32,11 +35,14 @@ import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { canChangeAs, checkOwnerChange, madeBy, ownerNames, readerRole } from '../ownership.ts';
 import { actorOf, signedIn } from '../principal.ts';
+import { mountLayoutEndpoints } from './layout-routes.ts';
 
 /** What the report endpoints need. */
 export interface ReportRouteServices {
   /** The reports. */
   readonly reports: Reports;
+  /** The layouts reports are shown with. */
+  readonly reportLayouts: Layouts;
   /** The report settings. */
   readonly reportSettings: ReportSettingsService;
   /** The users, for names. */
@@ -234,17 +240,24 @@ function mountTryEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): vo
 }
 
 /**
- * Mounts every report endpoint, and the report settings.
+ * Mounts every report endpoint, the layouts of reports, and the report settings. A report is
+ * arranged by those who may activate it.
  *
  * @param app - The app.
- * @param services - The reports, their settings and the users.
+ * @param services - The reports, their layouts, their settings and the users.
  */
 export function mountReportEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): void {
   mountReadEndpoints(app, services);
   mountRunEndpoints(app, services);
   mountChangeEndpoints(app, services);
   mountTryEndpoints(app, services);
-  const { reportSettings } = services;
+  const { reportSettings, reports, bin, users } = services;
+  const ownerOf = (reportId: string) => madeBy(bin.threadOwner, reports.threadOf(reportId));
+  mountLayoutEndpoints(app, reportLayoutEndpoints, {
+    layouts: services.reportLayouts,
+    users,
+    ownerOf,
+  });
   mountEndpoint(app, getReportSettingsEndpoint, {
     access: 'admin',
     handle: () => reportSettings.get(),

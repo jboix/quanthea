@@ -1,36 +1,56 @@
 /**
  * The body of a run's page: the headline numbers with their change against the period before,
- * the other panels drawn from the frozen results with the dashboard's panel components, and the
- * links to dashboards opened on the run's period. Nothing runs to draw it.
+ * the other panels drawn from the frozen results with the dashboard's panel components, through
+ * the layout of the run's version, and the links to dashboards opened on the run's period.
+ * Nothing runs to draw it.
  */
 
 import {
+  type DashboardLayout,
   type DashboardSpec,
   dashboardOfReport,
   type Headline,
+  type ReportDetail,
   type ReportRunDetail,
+  reportCanvasPanels,
+  shownReport,
 } from '@quanthea/shared';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { fittedNumber } from '../../ui/fitted-number.ts';
 import { FrozenCanvas } from '../dashboard/index.ts';
 import styles from './run.module.css';
 
 /**
- * The report's panels without its headline numbers, moved up so the first row starts at the top.
+ * The panels of the report's grid as a layout shows them: without its headline numbers, at the
+ * layout's places with the hidden ones left out, or moved up to the top row without a layout.
  *
  * @param run - The run.
+ * @param layout - The layout to draw it through: its version's, or the one being arranged.
  * @returns The dashboard the frozen canvas draws.
  */
-export function canvasSpec(run: ReportRunDetail): DashboardSpec {
-  const spec = dashboardOfReport(run.spec, run.period);
-  const headlines = new Set(run.spec.summaryPanels);
-  const panels = spec.panels.filter((panel) => !headlines.has(panel.id));
-  const top = Math.min(...panels.map((panel) => panel.grid.y));
-  const moved = panels.map((panel) => ({
-    ...panel,
-    grid: { ...panel.grid, y: panel.grid.y - top },
-  }));
-  return { ...spec, panels: moved };
+export function canvasSpec(
+  run: ReportRunDetail,
+  layout: DashboardLayout | undefined,
+): DashboardSpec {
+  const shown = shownReport(run.spec, layout);
+  return dashboardOfReport({ ...shown, panels: reportCanvasPanels(shown) }, run.period);
+}
+
+/**
+ * A run as the layout editor arranges it: the panels of its grid, and whether the reader may
+ * arrange them. Only the active version is arranged, from a run that has results to show, by
+ * those who may change the report.
+ *
+ * @param report - The report.
+ * @param run - The run shown, or `null` before the first.
+ * @returns The version arranged, and whether Edit layout is offered.
+ */
+export function arrangedRun(report: ReportDetail, run: ReportRunDetail | null) {
+  const panels = run ? reportCanvasPanels(run.spec) : [];
+  const arranged = { version: run?.version ?? 0, panels, layout: run?.layout ?? null };
+  const shown = run?.status === 'ok' && run.version === report.activeVersion;
+  return { arranged, allowed: report.canChange && shown && panels.length > 0 };
 }
 
 /**
@@ -102,16 +122,28 @@ function SeeAlso({
   );
 }
 
+/** Props of {@link RunBody}. */
+interface RunBodyProps {
+  /** The run, with its frozen results. */
+  readonly run: ReportRunDetail;
+  /** The layout its panels are drawn through: its version's, or the one being arranged. */
+  readonly layout: DashboardLayout | undefined;
+  /** The frames over the panels, while the layout is arranged. */
+  readonly overlay?: ReactNode;
+}
+
 /**
  * The body of a run that succeeded.
  *
- * @param props - The run.
+ * @param props - The run, and how its panels are arranged.
  * @param props.run - The run, with its frozen results.
+ * @param props.layout - The layout its panels are drawn through, if any.
+ * @param props.overlay - The frames over the panels, while the layout is arranged.
  * @returns The headlines, the panels and the links.
  */
-export function RunBody({ run }: { readonly run: ReportRunDetail }) {
+export function RunBody({ run, layout, overlay }: RunBodyProps) {
   const short = (label: string) => label.split(',')[0] ?? label;
-  const spec = canvasSpec(run);
+  const spec = canvasSpec(run, layout);
   return (
     <>
       {run.headlines.length > 0 && (
@@ -132,6 +164,7 @@ export function RunBody({ run }: { readonly run: ReportRunDetail }) {
           time={run.period}
           variables={run.variables}
           hiddenMarkers={[]}
+          overlay={overlay}
         />
       )}
       <SeeAlso links={run.seeAlso} period={short(run.period.label)} />

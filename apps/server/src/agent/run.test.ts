@@ -549,7 +549,7 @@ describe('an agent run', () => {
         { id: 'errors-over-time', grid: { x: 0, y: 3, w: 12, h: 6 }, hidden: true },
       ],
     };
-    services.layouts.save({ dashboardId: id, version: 1 }, layout, null, 'editor-1');
+    services.layouts.save({ subjectId: id, version: 1 }, layout, null, 'editor-1');
     const model = scriptedStreamModel({ text: 'Should I remove it?' });
     await chat(
       createAgent({ ...services, buildModel: () => model }),
@@ -575,7 +575,7 @@ describe('an agent run', () => {
         { id: 'errors-over-time', grid: chart?.grid ?? peak, hidden: true },
       ],
     };
-    services.layouts.save({ dashboardId: id, version: 1 }, layout, null, 'editor-1');
+    services.layouts.save({ subjectId: id, version: 1 }, layout, null, 'editor-1');
     services.threads.proposePlan(threadId, plan, true);
     const more = { panels: [eventsPanel('Errors · total', 'stat')], summary: 'one more' };
     await chat(

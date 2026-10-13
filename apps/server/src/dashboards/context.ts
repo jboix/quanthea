@@ -118,15 +118,16 @@ export function specOf(context: ServiceContext, target: RunTarget, role: Role): 
 }
 
 /**
- * The layout a version is shown with: its latest revision, if one was saved.
+ * The layout a version of a dashboard or a report is shown with: its latest revision, if one was
+ * saved.
  *
- * @param context - The service context.
- * @param id - The dashboard id.
+ * @param context - The repository of the kind's layouts, if there is one.
+ * @param id - The dashboard or the report.
  * @param version - The version number.
  * @returns The layout and its revision, or `null` when the version shows its spec.
  */
 export function shownLayoutOf(
-  context: Pick<ServiceContext, 'layouts'>,
+  context: { readonly layouts?: LayoutRepository | undefined },
   id: string,
   version: number,
 ): ShownLayout | null {

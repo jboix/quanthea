@@ -1,12 +1,14 @@
 /**
  * The top of a run's page: the breadcrumb, the period with ‹ and › to the runs of the periods
  * before and after, the line saying when it ran and where it went (or why it failed), and the
- * actions: Ask about this, Change, Share and Versions. Below 720 px the actions fold into one menu.
+ * actions: Ask about this, Edit layout for those who may arrange the active version, Change, Share
+ * and Versions. Below 720 px the actions fold into one menu, without Edit layout.
  */
 import type { ReportDetail, ReportRunDetail } from '@quanthea/shared';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Button } from '../../ui/button.tsx';
-import { MoreIcon, QuestionIcon } from '../../ui/icons.tsx';
+import { LayoutIcon, MoreIcon, QuestionIcon } from '../../ui/icons.tsx';
 import { MenuItem } from '../../ui/menu-item.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import { TitleHeader } from '../../ui/title-header.tsx';
@@ -28,6 +30,12 @@ interface RunHeaderProps {
   readonly onAsk?: (() => void) | undefined;
   /** Whether the side panel is open. */
   readonly asking: boolean;
+  /** Starts arranging the panels; left out for who may not, or where there is nothing to arrange. */
+  readonly onArrange?: (() => void) | undefined;
+  /** The layout edit's bar, which takes the actions' place while the edit lasts. */
+  readonly bar?: ReactNode;
+  /** The layout edit's hint and the reason of a refused save, shown under the title. */
+  readonly notes?: ReactNode;
 }
 
 /**
@@ -101,7 +109,7 @@ function FoldedActions({ report, onAsk, close }: RunHeaderProps & { readonly clo
 }
 
 /**
- * The header's actions, folded into one menu on a narrow screen.
+ * The header's actions, folded into one menu on a narrow screen, where nothing is arranged.
  *
  * @param props - The header's props.
  * @returns The actions.
@@ -121,6 +129,11 @@ function HeaderActions(props: RunHeaderProps) {
           <QuestionIcon /> Ask about this
         </Button>
       )}
+      {props.onArrange && (
+        <Button onClick={props.onArrange}>
+          <LayoutIcon /> Edit layout
+        </Button>
+      )}
       <MenuButtons report={props.report} />
     </div>
   );
@@ -135,6 +148,8 @@ function HeaderActions(props: RunHeaderProps) {
 export function RunHeader(props: RunHeaderProps) {
   const { report, run } = props;
   const zone = report.schedule.timezone;
+  // No step to another run while the layout is arranged: the edit is of this page.
+  const stepped = props.bar ? null : run;
   return (
     <TitleHeader
       className={styles.header}
@@ -147,14 +162,19 @@ export function RunHeader(props: RunHeaderProps) {
           <Link to="/reports">Reports</Link> / {report.title}
         </nav>
       }
-      before={run && <Step reportId={report.id} to={run.previous} arrow="‹" which="Previous" />}
-      after={run && <Step reportId={report.id} to={run.next} arrow="›" which="Next" />}
-      below={
-        <p className={styles.ran} data-tone={run?.status === 'failed' ? 'danger' : undefined}>
-          {run ? ranLine(run, zone) : 'No run yet. Opening a run runs no query.'}
-        </p>
+      before={
+        stepped && <Step reportId={report.id} to={stepped.previous} arrow="‹" which="Previous" />
       }
-      actions={<HeaderActions {...props} />}
+      after={stepped && <Step reportId={report.id} to={stepped.next} arrow="›" which="Next" />}
+      below={
+        <>
+          <p className={styles.ran} data-tone={run?.status === 'failed' ? 'danger' : undefined}>
+            {run ? ranLine(run, zone) : 'No run yet. Opening a run runs no query.'}
+          </p>
+          {props.notes}
+        </>
+      }
+      actions={props.bar || <HeaderActions {...props} />}
     />
   );
 }

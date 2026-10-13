@@ -13,6 +13,7 @@ test('screen roles match the route table in docs/architecture.md', () => {
     '/reports/settings': 'admin',
     '/reports/:reportId': 'viewer',
     '/reports/:reportId/runs/:runId': 'viewer',
+    '/reports/:reportId/v/:version/layouts': 'editor',
     '/reports/:reportId/runs/:runId/conversations': 'viewer',
     '/reports/:reportId/runs/:runId/conversations/:conversationId': 'viewer',
     '/reports/:reportId/runs/:runId/similar-questions': 'viewer',

@@ -281,7 +281,8 @@ gate's leak tests check that every one of those paths drops hidden fields.
     the server gave to `POST /api/reports/preview` and stores nothing. The headline numbers come
     first, each with its change and the number before (`▲ 6.2% · was CHF 173,560`); the other
     panels follow, drawn from the preview's results by the dashboard's `FrozenCanvas`, moved up
-    into the rows the headlines left;
+    into the rows the headlines left, or through the version's layout when one was saved, with a
+    line saying how many panels it hides;
   - See also, the pinned dashboards it links to, by their label or title; and Sends to, its
     channels by name and kind, and the Reports page.
 
@@ -380,12 +381,16 @@ gate's leak tests check that every one of those paths drops hidden fields.
   the runs of the periods before and after, the period as the title (`Week 39 · 21 – 27 Sep`),
   and the line `Ran Mon 28 Sep 08:00 · sent to #sales · frozen: opening it runs no query`, or the
   failure with its reason and attempts in the danger colour. Its actions are Ask about this (a
-  run that succeeded), Change for editors (Edit with the agent, Run now, which opens the new run,
-  and Deactivate or Activate), Share (Copy link), and Versions for editors (each version, the
-  active one marked; Activate another). Below 720 px they fold into one menu. The body shows the
-  headline numbers with their change against the comparison period, the other panels drawn from
-  the frozen results by `FrozenCanvas`, moved up where the headlines stood, and See also, each
-  dashboard opened on the run's period.
+  run that succeeded), Edit layout (a successful run of the active version, for those who may
+  change the report, on a screen wider than 900 pixels), Change for editors (Edit with the agent,
+  Run now, which opens the new run, and Deactivate or Activate), Share (Copy link), and Versions
+  for editors (each version, the active one marked; Activate another). Below 720 px they fold
+  into one menu. The body shows the headline numbers with their change against the comparison
+  period, the other panels drawn from the frozen results by `FrozenCanvas` through the layout of
+  the run's version (moved up where the headlines stood when it has none), and See also, each
+  dashboard opened on the run's period. Edit layout is the dashboard's editor over the frozen
+  panels: its bar takes the place of the actions, the side panel closes, ‹ and › go, and Save
+  layout goes to the action of `/reports/:reportId`.
 - **Ask about a run** opens a side panel laid out like a pinned dashboard's: About (the
   description, schedule, version and sources with their levels), Ask and History. History and
   the bin of a conversation are the dashboard's own components over the run's resource routes
@@ -451,6 +456,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/reports/:reportId/runs/:runId/conversations/:conversationId` | resource route: one conversation about a run                | viewer   |
 | `/reports/:reportId/runs/:runId/similar-questions`             | resource route: earlier answered questions like a text      | viewer   |
 | `/reports/:reportId/runs/:runId/sources`                       | resource route: a run's sources and access levels           | viewer   |
+| `/reports/:reportId/v/:version/layouts`                        | resource route: the history of a version's layout           | editor   |
 | `/account`                                                     | resource route: the account menu's providers and actions    | viewer   |
 | `/d/:dashboardId`                                              | the pinned version; for editors, the latest if unpinned     | viewer   |
 | `/d/:dashboardId/v/:version`                                   | a specific version                                          | viewer   |
@@ -664,6 +670,35 @@ the others making room. The bar's **History** lists the version's revisions
 (`/d/:dashboardId/v/:version/layouts`, editors), and Restore saves a copy of an earlier one as the
 latest, which ends the edit. In the thread, the draft pane marks the panels hidden on the pinned
 version's layout (`hidden on v3`), so the person sees what the library leaves out.
+
+**Reports take the same layouts.** A report draws its panels on the dashboard's grid, so its
+versions are arranged with the same code: the layout service (`createLayouts` in
+`dashboards/layouts.ts`), the repository (`db/layout-repository.ts`, one table per kind), the
+endpoints (`defineLayoutEndpoints` in `@quanthea/shared`, mounted by `mountLayoutEndpoints`) and
+the editor (`useArrangement` in `features/dashboard/layout-editor.tsx`). What differs is in one
+place per kind, a `LayoutSubject`: which version is shown and which panels a layout names.
+
+- The version arranged is the active one (`reports/layouts.ts`), by the owner of the report's
+  thread or an admin, as for activating. Another version is refused (400).
+- A layout names the panels of the report's grid (`reportCanvasPanels`): every panel that is not
+  a headline number. The headline numbers keep their row above the grid, in the report's order.
+- Revisions are stored in `report_layouts`, with the same history, the same refusal of a stale
+  save (409) and the same Restore. A save is recorded as `report.layout`, and makes no version.
+- A version is drawn through its layout wherever it is drawn (`shownReport`): a run's page, for
+  every stored run of that version, which is where the link in a sent message leads; and the
+  thread's preview, which says how many panels the layout hides (`1 panel hidden on v3`). The
+  layout comes with `GET /reports/:id/runs/:runId`, and with each version of `GET /reports/:id`.
+- A run still computes and freezes every panel, so showing a hidden panel again needs no new
+  run. Questions about a run read the report through its layout and leave the hidden panels out.
+- The message a report sends holds the headline numbers and links only, so a layout changes
+  nothing in it.
+- The agent that writes reports does not read the layout yet. A new version starts from the grid
+  its spec gives, and takes a layout of its own once it is active.
+
+An alert has no layout. Its spec holds one query and no panels, and its page and its draft pane
+are a fixed column of cards: the chart, the series, what happened, where it is shown, and whom
+it notifies. On a dashboard, an alert is drawn on the panel it is linked to, which the
+dashboard's layout already places.
 
 ### 5.4 A new thread on a dashboard
 
@@ -1214,7 +1249,7 @@ owns the report's thread nor is an admin reads it the same way (see Ownership).
   and opening an older run never moves it back.
 - A report's detail adds its versions.
 - A report's runs list by period, the latest first, in pages (`before`, `limit`).
-- One run comes with its spec, its frozen results over the period and the period before, its
+- One run comes with its spec, the layout its version is shown with, its frozen results over the period and the period before, its
   links to dashboards, how its message went per channel (with the channel's name while it
   exists), and the runs of the periods before and after it, to step through.
 
@@ -1876,8 +1911,8 @@ analysts and above. The asker is recorded for accountability only.
    conversation it continues, if any. The run is read with the asker's role, so below editor only
    runs of versions ever active take questions, and only a run that succeeded: one that failed has
    no results to ask about (400). The browser sends no query and no result.
-2. The answering service gets the report's panels over the run's period (`dashboardOfReport`) as
-   its spec, the period as its range, the schedule's time zone, the variables the run bound, and
+2. The answering service gets the report's panels over the run's period (`dashboardOfReport`),
+   as the layout of the run's version shows them and without the panels it hides, as its spec, the period as its range, the schedule's time zone, the variables the run bound, and
    the run itself (`FrozenRun` in `agent/frozen-run.ts`): the period's name, the comparison period
    and each panel's frozen run over both. Its instructions are the run's
    (`agent/answer-run-prompt.ts`).
@@ -3017,7 +3052,9 @@ It also adds the connectors' `visibility`. A connector of an earlier release get
 `{"showSystem":true}`, which shows everything as before, so its stored dashboards, alerts and
 reports keep running and its searches resolve nothing. A connector made later gets `{}`, which
 hides system objects. A connector declared in the configuration file takes the file's
-`visibility` at the next start, and the default there hides system objects.
+`visibility` at the next start, and the default there hides system objects. Its last section adds
+the layouts of report versions (`report_layouts`), shaped as `dashboard_layouts` is, with the
+same trigger.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite
@@ -3118,6 +3155,7 @@ indicative; the contract files are the source of truth.
 | `POST /reports/:id/activate` (a version), `POST /reports/:id/deactivate` (owner, admin)           | put a version on the schedule, or stop       | editor   |
 | `POST /reports/:id/run` (`send`; owner, admin), `POST /reports/preview` (a spec)                  | run now, preview over the latest period      | editor   |
 | `POST /reports/:id/versions/:v/test` (owner, admin)                                               | send a version's message as a test           | editor   |
+| `GET`, `POST /reports/:id/versions/:v/layouts`, `POST …/layouts/:r/restore` (owner, admin)        | arrange the active version                   | editor   |
 | `POST /threads/:id/report-draft` (the whole spec)                                                 | a hand edit: a new draft version and a card  | editor   |
 | `GET/PUT /settings/reports`                                                                       | retries, their delay, how long runs are kept | admin    |
 | `POST /reports/:id/runs/:runId/questions` (streams the answer)                                    | ask about a run, from its frozen results     | analyst  |
@@ -3229,7 +3267,8 @@ one, and enables them again. Without any admin, it creates the default one.
   version is active, with the versions ever active (and, for a report, their runs, with each run's
   questions, conversations and sources; the run's ask and bin endpoints read it the same way).
   The owner and admins activate and deactivate it, send a test of a version, change an active
-  alert from its page (`POST /api/alerts/:id/versions`) and run a report now; others get 403
+  alert from its page (`POST /api/alerts/:id/versions`), run a report now and arrange its active
+  version; others get 403
   (`checkOwnerChange`). `canChange` in `GET /api/alerts/:id` and `GET /api/reports/:id` says so,
   and the pages show Change, Versions' Activate and the alert's tuning only then. An alert or a
   report whose thread was purged is open to editors. Muting stays open to analysts and above.

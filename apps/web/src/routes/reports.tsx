@@ -1,4 +1,4 @@
-/** The routes of the reports: the list, a run's page, and their resource routes. */
+/** The routes of the reports: the list, a run's page with its layout, and their resource routes. */
 import type { RouteObject } from 'react-router';
 import { guarded, requireRole } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
@@ -6,6 +6,7 @@ import {
   binRunConversation,
   changeReport,
   loadLatestRun,
+  loadReportLayoutHistory,
   loadReportSettings,
   loadReports,
   loadRun,
@@ -22,8 +23,9 @@ import {
 import type { ApiClient } from '../lib/api-client.ts';
 
 /**
- * The resource routes of a run's side panel: its conversations, one conversation (and moving it
- * to the bin, for analysts and above), the earlier questions like a text, and its sources.
+ * The resource routes of a run's page: for its side panel, its conversations, one conversation
+ * (and moving it to the bin, for analysts and above), the earlier questions like a text, and its
+ * sources; for the layout edit, the history of a version's layout.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -34,6 +36,7 @@ function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
   const conversation = '/reports/:reportId/runs/:runId/conversations/:conversationId';
   const similar = '/reports/:reportId/runs/:runId/similar-questions';
   const sources = '/reports/:reportId/runs/:runId/sources';
+  const layouts = '/reports/:reportId/v/:version/layouts';
   const analyst = requireRole(loadSession, 'analyst');
   const bin = binRunConversation(api);
   return [
@@ -57,6 +60,8 @@ function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
       loader: guarded(loadSession, sources, loadRunSources(api)),
       shouldRevalidate: () => false,
     },
+    // The layout's history, when the edit bar's History opens; again after a save or a restore.
+    { path: layouts, loader: guarded(loadSession, layouts, loadReportLayoutHistory(api)) },
   ];
 }
 
@@ -71,7 +76,7 @@ export function reportRoutes(loadSession: SessionLoader, api: ApiClient): RouteO
   const screens = async () => import('../features/reports/screens.ts');
   const editor = requireRole(loadSession, 'editor');
   const change = changeReport(api);
-  // Run now, activate and deactivate are for editors; the page shows others none of them.
+  // Run now, activate, deactivate and arranging are for editors; the page shows others none.
   const action = async (args: Parameters<typeof change>[0]) => {
     await editor(args);
     return change(args);

@@ -160,7 +160,7 @@ function PanelGrid(
  * @param props.children - The grid.
  * @returns The grid, under the layer.
  */
-function WithOverlay({
+export function WithOverlay({
   overlay,
   children,
 }: {

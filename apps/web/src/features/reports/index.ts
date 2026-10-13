@@ -9,6 +9,7 @@ export {
 export {
   changeReport,
   loadLatestRun,
+  loadReportLayoutHistory,
   loadReportSettings,
   loadReports,
   loadRun,

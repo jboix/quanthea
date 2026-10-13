@@ -57,7 +57,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'POST /panels/run': { time: { from: 0, to: 1 }, queries: [], markers: [], durationMs: 1 },
   'POST /variables/options': { options: [] },
   'GET /dashboards/:dashboardId/snapshots': { snapshots: [] },
-  'GET /dashboards/:dashboardId/versions/:version/layouts': { revisions: [] },
+  'GET /dashboards/:id/versions/:version/layouts': { revisions: [] },
   'GET /dashboards/:dashboardId/conversations': { conversations: [] },
   'GET /dashboards/:dashboardId/conversations/:conversationId': { id: 'c', questions: [] },
   'GET /dashboards/:dashboardId/similar-questions': { questions: [] },
@@ -104,6 +104,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'GET /reports': { reports: [] },
   'GET /reports/:reportId': { id: 'sample-reportId', title: 'Sample', versions: [] },
   'GET /reports/:reportId/runs': { runs: [] },
+  'GET /reports/:id/versions/:version/layouts': { revisions: [] },
   'GET /reports/:reportId/runs/:runId': { id: 'sample-runId', status: 'ok', panels: {} },
   'GET /reports/:reportId/runs/:runId/conversations': { conversations: [] },
   'GET /reports/:reportId/runs/:runId/conversations/:conversationId': {

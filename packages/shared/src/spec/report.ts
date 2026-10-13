@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { type PeriodRange, reportPeriodSchema } from '../reports/period.ts';
 import { reportScheduleSchema } from '../reports/schedule.ts';
 import { type DashboardSpec, dashboardSpecSchema } from './dashboard.ts';
+import { arrangePanels, type DashboardLayout } from './layout.ts';
 
 /** The most headline numbers a report lists. */
 export const maxSummaryPanels = 8;
@@ -108,4 +109,33 @@ export function dashboardOfReport(spec: ReportSpec, range: PeriodRange): Dashboa
   const described = description === undefined ? {} : { description };
   const timezone = spec.schedule.timezone;
   return { specVersion, title, ...described, timezone, time, variables, panels, annotations };
+}
+
+/**
+ * The panels a report draws on its grid: those that are not headline numbers, moved up so the
+ * first row starts at the top. A report's layout arranges these, and names no headline.
+ *
+ * @param spec - The report spec.
+ * @returns The panels.
+ */
+export function reportCanvasPanels(spec: ReportSpec): ReportSpec['panels'] {
+  const panels = spec.panels.filter((panel) => !spec.summaryPanels.includes(panel.id));
+  const top = Math.min(...panels.map((panel) => panel.grid.y));
+  if (!Number.isFinite(top) || top === 0) return panels;
+  return panels.map((panel) => ({ ...panel, grid: { ...panel.grid, y: panel.grid.y - top } }));
+}
+
+/**
+ * A report as people see it: the headline panels as they are, and the panels of its grid through
+ * the layout, the hidden ones left out.
+ *
+ * @param spec - The report spec.
+ * @param layout - The layout of its version, or `undefined` for the spec's own places.
+ * @returns The spec as shown.
+ */
+export function shownReport(spec: ReportSpec, layout: DashboardLayout | undefined): ReportSpec {
+  if (!layout) return spec;
+  const headlines = spec.panels.filter((panel) => spec.summaryPanels.includes(panel.id));
+  const { panels } = arrangePanels(reportCanvasPanels(spec), layout);
+  return { ...spec, panels: [...headlines, ...panels] };
 }

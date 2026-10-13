@@ -1,5 +1,5 @@
 /** The Hono app: middleware, `/api` routes, and the SPA with its `index.html` fallback. */
-import { apiPrefix, type ServerSettingsView } from '@quanthea/shared';
+import { apiPrefix, dashboardLayoutEndpoints, type ServerSettingsView } from '@quanthea/shared';
 import { Hono } from 'hono';
 import { requestId } from 'hono/request-id';
 import type { Answers } from './agent/answer-types.ts';
@@ -19,7 +19,7 @@ import type { Connections } from './connections/connections.ts';
 import type { ConversationBins } from './conversation-bins.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
 import type { Explanations } from './dashboards/explanations.ts';
-import type { DashboardLayouts } from './dashboards/layouts.ts';
+import type { Layouts } from './dashboards/layouts.ts';
 import type { Questions } from './dashboards/questions.ts';
 import type { Snapshots } from './dashboards/snapshots.ts';
 import type { ModelView } from './gate/model-view.ts';
@@ -112,7 +112,7 @@ export interface AppDependencies extends ReportServices {
   /** Snapshots of dashboards, frozen with their results. */
   readonly snapshots: Snapshots;
   /** The layouts dashboards are shown with. */
-  readonly layouts: DashboardLayouts;
+  readonly layouts: Layouts;
   /** Questions asked about dashboards, stored with their answers. */
   readonly questions: Questions;
   /** Explanations of panels, kept per version and panel. */
@@ -200,7 +200,7 @@ function mountDashboardRoutes(app: Hono<AppEnv>, dependencies: AppDependencies):
     ownerOf,
     describe: dependencies.describeForPin,
   });
-  mountLayoutEndpoints(app, { ...dependencies, ownerOf });
+  mountLayoutEndpoints(app, dashboardLayoutEndpoints, { ...dependencies, ownerOf });
   mountSnapshotEndpoints(app, {
     ...dependencies,
     ownerOf,

@@ -57,15 +57,6 @@ export {
 } from './api/contract.ts';
 export * from './api/conversation-bin.ts';
 export {
-  type LayoutRevision,
-  layoutRevisionSchema,
-  listDashboardLayoutsEndpoint,
-  restoreDashboardLayoutEndpoint,
-  type ShownLayout,
-  saveDashboardLayoutEndpoint,
-  shownLayoutSchema,
-} from './api/dashboard-layouts.ts';
-export {
   createDashboardEndpoint,
   type DashboardDetail,
   type DashboardPage,
@@ -112,6 +103,15 @@ export {
   storedSignInSchema,
   unlinkIdentityEndpoint,
 } from './api/identity-providers.ts';
+export {
+  dashboardLayoutEndpoints,
+  type LayoutEndpoints,
+  type LayoutRevision,
+  layoutRevisionSchema,
+  reportLayoutEndpoints,
+  type ShownLayout,
+  shownLayoutSchema,
+} from './api/layouts.ts';
 export {
   type LibraryEntry,
   type LibrarySearch,

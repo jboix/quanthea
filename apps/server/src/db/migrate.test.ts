@@ -102,6 +102,7 @@ describe('runMigrations', () => {
       'question_fts_docsize',
       'question_fts_idx',
       'report_conversation_bin',
+      'report_layouts',
       'report_question_fts',
       'report_question_fts_config',
       'report_question_fts_content',

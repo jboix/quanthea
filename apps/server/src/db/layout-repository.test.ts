@@ -56,7 +56,7 @@ function revision(id: string, hidden = false): NewLayout {
   const panels = [{ id: 'errors', grid: { x: 0, y: 0, w: 6, h: 3 }, hidden }];
   return {
     id,
-    dashboardId,
+    subjectId: dashboardId,
     version: 1,
     layout: { panels },
     restoredFrom: null,
@@ -89,6 +89,28 @@ describe('the layout repository', () => {
     expect(() => database.run("UPDATE dashboard_layouts SET layout = '{}'")).toThrow(
       'dashboard layouts are immutable',
     );
+  });
+
+  test('keeps the layouts of reports apart, in their own table', () => {
+    database.run(
+      "INSERT INTO reports (id, title, created_by, created_at, updated_at) VALUES ('r', 'R', 'ada', 0, 0)",
+    );
+    database.run(
+      `INSERT INTO report_versions (report_id, version, spec, created_by, created_at)
+         VALUES ('r', 1, '{}', 'ada', 0)`,
+    );
+    const reports = createLayoutRepository(database, 'report');
+    expect(reports.add({ ...revision('R1'), subjectId: 'r' }, null)).toMatchObject({
+      subjectId: 'r',
+      revision: 1,
+    });
+    expect(reports.latest('r', 1)).toMatchObject({ id: 'R1', subjectId: 'r', revision: 1 });
+    expect(createLayoutRepository(database).latest('r', 1)).toBeUndefined();
+    expect(() => database.run("UPDATE report_layouts SET layout = '{}'")).toThrow(
+      'report layouts are immutable',
+    );
+    database.run("DELETE FROM reports WHERE id = 'r'");
+    expect(database.query('SELECT count(*) AS n FROM report_layouts').get()).toEqual({ n: 0 });
   });
 
   test('goes with its dashboard', () => {

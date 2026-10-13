@@ -1,7 +1,7 @@
 /**
- * Reads and writes the layouts of dashboard versions. A revision is stored once and never changed
- * (the trigger in `migrations/0003-version-trigger-and-layouts.sql`); saving adds a revision, and
- * the latest is the one shown.
+ * Reads and writes the layouts of the versions of dashboards and of reports, each kind in its own
+ * table of the same shape. A revision is stored once and never changed (a trigger on each table);
+ * saving adds a revision, and the latest is the one shown.
  */
 import type { Database } from 'bun:sqlite';
 
@@ -9,8 +9,8 @@ import type { Database } from 'bun:sqlite';
 export interface LayoutRow {
   /** The id, a ULID. */
   readonly id: string;
-  /** The dashboard. */
-  readonly dashboardId: string;
+  /** The dashboard or the report. */
+  readonly subjectId: string;
   /** The version laid out. */
   readonly version: number;
   /** The revision, from 1 for each version. */
@@ -41,27 +41,30 @@ export interface LayoutRepository {
   /**
    * Reads the latest revision of a version's layout.
    *
-   * @param dashboardId - The dashboard.
+   * @param subjectId - The dashboard or the report.
    * @param version - The version.
    * @returns The revision, or `undefined` when the version has none.
    */
-  latest(dashboardId: string, version: number): LayoutRow | undefined;
+  latest(subjectId: string, version: number): LayoutRow | undefined;
   /**
    * Reads every revision of a version's layout.
    *
-   * @param dashboardId - The dashboard.
+   * @param subjectId - The dashboard or the report.
    * @param version - The version.
    * @returns The revisions, latest first.
    */
-  history(dashboardId: string, version: number): LayoutRow[];
+  history(subjectId: string, version: number): LayoutRow[];
 }
+
+/** Whose layouts a repository stores. */
+type LayoutKind = 'dashboard' | 'report';
 
 /** A revision as SQLite returns it. */
 interface StoredLayout {
   /** The id. */
   id: string;
-  /** The dashboard. */
-  dashboard_id: string;
+  /** The dashboard or the report. */
+  subject_id: string;
   /** The version. */
   version: number;
   /** The revision. */
@@ -76,8 +79,14 @@ interface StoredLayout {
   created_at: number;
 }
 
-/** The columns of a revision, in the order of the insert. */
-const columns = 'id, dashboard_id, version, revision, layout, restored_from, actor, created_at';
+/** The table of each kind, and the column that names what is laid out. */
+const tables: Readonly<Record<LayoutKind, { readonly table: string; readonly subject: string }>> = {
+  dashboard: { table: 'dashboard_layouts', subject: 'dashboard_id' },
+  report: { table: 'report_layouts', subject: 'report_id' },
+};
+
+/** The columns of a revision after the one that names what is laid out, in the insert's order. */
+const columns = 'version, revision, layout, restored_from, actor, created_at';
 
 /**
  * Turns a stored revision into a row.
@@ -88,7 +97,7 @@ const columns = 'id, dashboard_id, version, revision, layout, restored_from, act
 function rowOf(stored: StoredLayout): LayoutRow {
   return {
     id: stored.id,
-    dashboardId: stored.dashboard_id,
+    subjectId: stored.subject_id,
     version: stored.version,
     revision: stored.revision,
     layout: JSON.parse(stored.layout),
@@ -99,38 +108,55 @@ function rowOf(stored: StoredLayout): LayoutRow {
 }
 
 /**
- * Creates the repository over an open database.
+ * Prepares the statements that read and add the revisions of one kind's layouts.
+ *
+ * @param database - The database.
+ * @param kind - Whose layouts.
+ * @returns The insert, and the reads of the latest revision and of every revision of a version.
+ */
+function statements(database: Database, kind: LayoutKind) {
+  const { table, subject } = tables[kind];
+  const select = `SELECT id, ${subject} AS subject_id, ${columns} FROM ${table}
+    WHERE ${subject} = ? AND version = ?`;
+  return {
+    insert: database.query(
+      `INSERT INTO ${table} (id, ${subject}, ${columns}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ),
+    latest: database.query<StoredLayout, [string, number]>(
+      `${select} ORDER BY revision DESC LIMIT 1`,
+    ),
+    history: database.query<StoredLayout, [string, number]>(`${select} ORDER BY revision DESC`),
+  };
+}
+
+/**
+ * Creates the repository of one kind's layouts over an open database.
  *
  * @param database - A database the migrations have run on.
+ * @param kind - Whose layouts: dashboards' by default.
  * @returns The repository.
  */
-export function createLayoutRepository(database: Database): LayoutRepository {
-  const insert = database.query(
-    `INSERT INTO dashboard_layouts (${columns}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  const select = `SELECT ${columns} FROM dashboard_layouts WHERE dashboard_id = ? AND version = ?`;
-  const latest = database.query<StoredLayout, [string, number]>(
-    `${select} ORDER BY revision DESC LIMIT 1`,
-  );
-  const history = database.query<StoredLayout, [string, number]>(
-    `${select} ORDER BY revision DESC`,
-  );
-  const readLatest = (dashboardId: string, version: number) => {
-    const stored = latest.get(dashboardId, version);
+export function createLayoutRepository(
+  database: Database,
+  kind: LayoutKind = 'dashboard',
+): LayoutRepository {
+  const { insert, latest, history } = statements(database, kind);
+  const readLatest = (subjectId: string, version: number) => {
+    const stored = latest.get(subjectId, version);
     return stored ? rowOf(stored) : undefined;
   };
   const add = database.transaction((row: NewLayout, basedOn: number | null) => {
-    const current = readLatest(row.dashboardId, row.version)?.revision ?? null;
+    const current = readLatest(row.subjectId, row.version)?.revision ?? null;
     if (current !== basedOn) return undefined;
     const stored = { ...row, revision: (current ?? 0) + 1 };
-    const { id, dashboardId, version, revision, restoredFrom, actor, createdAt } = stored;
+    const { id, subjectId, version, revision, restoredFrom, actor, createdAt } = stored;
     const layout = JSON.stringify(row.layout);
-    insert.run(id, dashboardId, version, revision, layout, restoredFrom, actor, createdAt);
+    insert.run(id, subjectId, version, revision, layout, restoredFrom, actor, createdAt);
     return stored;
   });
   return {
     add: (row, basedOn) => add(row, basedOn),
     latest: readLatest,
-    history: (dashboardId, version) => history.all(dashboardId, version).map(rowOf),
+    history: (subjectId, version) => history.all(subjectId, version).map(rowOf),
   };
 }

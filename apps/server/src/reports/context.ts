@@ -4,6 +4,7 @@ import type { ConnectorLookup } from '../dashboards/check-queries.ts';
 import type { RunnerDependencies } from '../dashboards/run-panel.ts';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { DashboardRow } from '../db/dashboard-repository.ts';
+import type { LayoutRepository } from '../db/layout-repository.ts';
 import type { ReportRepository, ReportRow } from '../db/report-repository.ts';
 import type { ReportRunRepository } from '../db/report-run-repository.ts';
 import type { ReportSeenRepository } from '../db/report-seen-repository.ts';
@@ -14,6 +15,8 @@ import type { Logger } from '../lib/logger.ts';
 export interface ReportsDependencies extends Omit<RunnerDependencies, 'now'> {
   /** Stores reports and their versions. */
   readonly repository: ReportRepository;
+  /** Stores the layouts versions are shown with; without it, every version shows its spec. */
+  readonly layouts?: LayoutRepository | undefined;
   /** Stores their runs. */
   readonly runs: ReportRunRepository;
   /** Records who did what. */

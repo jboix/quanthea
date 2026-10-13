@@ -1,10 +1,10 @@
 /**
- * Arranging a dashboard by hand, as pure functions over a layout: move and resize a panel on the
+ * Arranging a dashboard or a report by hand, as pure functions over a layout: move and resize a panel on the
  * 12-column grid, the others making room and rising into the gaps.
  */
 import {
+  type Arranged,
   type DashboardLayout,
-  type DashboardSpec,
   gridColumns,
   type LayoutPanel,
   type PanelGrid,
@@ -152,7 +152,7 @@ export function cellsOf(
  * @param shown - The layout it is shown with, if one was saved.
  * @returns The layout.
  */
-export function startingLayout(spec: DashboardSpec, shown: DashboardLayout | undefined) {
+export function startingLayout(spec: Arranged, shown: DashboardLayout | undefined) {
   return shown ?? specLayout(spec);
 }
 

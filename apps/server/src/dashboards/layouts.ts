@@ -1,12 +1,13 @@
 /**
- * The layouts of dashboards: how the version shown is arranged, saved as revisions with a history.
- * A layout never changes the version; only the version shown takes a new layout, and a change
- * based on a revision that is no longer the latest is refused, so two people never overwrite each
- * other unseen.
+ * Layouts: how the version shown of a dashboard or a report is arranged, saved as revisions with
+ * a history. A layout never changes the version; only the version shown takes a new layout, and a
+ * change based on a revision that is no longer the latest is refused, so two people never
+ * overwrite each other unseen. What is arranged (a `LayoutSubject`) says which version is shown
+ * and which panels a layout names.
  */
 import {
+  type Arranged,
   type DashboardLayout,
-  type DashboardSpec,
   dashboardLayoutSchema,
   dashboardSpecSchema,
   layoutProblems,
@@ -21,21 +22,21 @@ import { newId } from '../lib/ids.ts';
 /** A revision of a version's layout, its layout parsed. */
 export type LayoutEntry = Omit<LayoutRow, 'layout'> & { readonly layout: DashboardLayout };
 
-/** The layouts service. */
-export interface DashboardLayouts {
+/** The layouts service of dashboards, or of reports. */
+export interface Layouts {
   /**
    * Lists the revisions of a version's layout.
    *
-   * @param dashboardId - The dashboard.
+   * @param subjectId - The dashboard or the report.
    * @param version - The version.
    * @returns The revisions, latest first.
-   * @throws {AppError} `not_found` when the dashboard has no such version.
+   * @throws {AppError} `not_found` when it has no such version.
    */
-  history(dashboardId: string, version: number): LayoutEntry[];
+  history(subjectId: string, version: number): LayoutEntry[];
   /**
    * Saves a layout of the version shown as a new revision, its shown panels packed.
    *
-   * @param target - The dashboard and the version shown.
+   * @param target - The dashboard or the report, and the version shown.
    * @param layout - The layout.
    * @param basedOn - The revision the change started from, or `null` for the spec's own.
    * @param actor - Who saves it.
@@ -52,7 +53,7 @@ export interface DashboardLayouts {
   /**
    * Restores an earlier revision of the version shown, by saving a revision that copies it.
    *
-   * @param target - The dashboard and the version shown.
+   * @param target - The dashboard or the report, and the version shown.
    * @param revision - The revision to restore.
    * @param basedOn - The latest revision the person saw.
    * @param actor - Who restores it.
@@ -67,24 +68,45 @@ export interface DashboardLayouts {
   ): LayoutEntry;
 }
 
-/** One version of a dashboard. */
+/** One version of a dashboard or a report. */
 export interface LayoutTarget {
-  /** The dashboard. */
-  readonly dashboardId: string;
+  /** The dashboard or the report. */
+  readonly subjectId: string;
   /** The version. */
   readonly version: number;
 }
 
+/** What is arranged: dashboards, or reports. */
+export interface LayoutSubject {
+  /** The audit action a saved revision is recorded under, such as `dashboard.layout`. */
+  readonly action: string;
+  /**
+   * Checks a version exists.
+   *
+   * @param target - The version.
+   * @throws {AppError} `not_found`.
+   */
+  check(target: LayoutTarget): void;
+  /**
+   * The panels a layout of the version shown names, refusing any other version.
+   *
+   * @param target - The version.
+   * @returns The panels, each with the place the spec gives it.
+   * @throws {AppError} `not_found`, or `bad_request` when the version is not the one shown.
+   */
+  arranged(target: LayoutTarget): Arranged;
+}
+
 /** What the service needs. */
 export interface LayoutsDependencies {
-  /** Stores dashboards. */
-  readonly repository: DashboardRepository;
-  /** Stores layouts. */
+  /** What is arranged. */
+  readonly subject: LayoutSubject;
+  /** Stores its layouts. */
   readonly layouts: LayoutRepository;
   /** Records who did what. */
   readonly audit: AuditRepository;
   /** The clock; `Date.now` by default. */
-  readonly now?: () => number;
+  readonly now?: (() => number) | undefined;
 }
 
 /** The service's dependencies with the clock resolved. */
@@ -101,27 +123,35 @@ function entryOf(row: LayoutRow): LayoutEntry {
 }
 
 /**
- * The spec of the version shown, refusing any other version.
+ * Dashboards as what is arranged: the version shown is the one pinned, and a layout names every
+ * panel of its spec.
  *
- * @param context - The service context.
- * @param target - The dashboard and version.
- * @returns The spec.
- * @throws {AppError} `not_found`, or `bad_request` when the version is not the one shown.
+ * @param repository - Stores dashboards.
+ * @returns The subject.
  */
-function shownSpec(context: Context, target: LayoutTarget): DashboardSpec {
-  const { dashboardId, version } = target;
-  const row = context.repository.getVersion(dashboardId, version);
-  if (!row) throw new AppError('not_found', `Dashboard ${dashboardId} has no version ${version}.`);
-  if (context.repository.get(dashboardId)?.pinnedVersionId !== row.id)
-    throw new AppError('bad_request', 'Only the version shown in the library can be arranged.');
-  return dashboardSpecSchema.parse(row.spec);
+export function dashboardSubject(repository: DashboardRepository): LayoutSubject {
+  const versionOf = ({ subjectId, version }: LayoutTarget) => {
+    const row = repository.getVersion(subjectId, version);
+    if (!row) throw new AppError('not_found', `Dashboard ${subjectId} has no version ${version}.`);
+    return row;
+  };
+  return {
+    action: 'dashboard.layout',
+    check: (target) => void versionOf(target),
+    arranged: (target) => {
+      const row = versionOf(target);
+      if (repository.get(target.subjectId)?.pinnedVersionId !== row.id)
+        throw new AppError('bad_request', 'Only the version shown in the library can be arranged.');
+      return dashboardSpecSchema.parse(row.spec);
+    },
+  };
 }
 
 /**
  * Stores a revision of the version shown.
  *
  * @param context - The service context.
- * @param target - The dashboard and version.
+ * @param target - The dashboard or the report, and the version.
  * @param change - The layout, the revision it copies if any, the base revision and the actor.
  * @returns The revision.
  */
@@ -135,38 +165,39 @@ function store(
     readonly actor: string;
   },
 ): LayoutEntry {
-  const problems = layoutProblems(shownSpec(context, target), change.layout);
+  const { subject } = context;
+  const problems = layoutProblems(subject.arranged(target), change.layout);
   if (problems.length > 0)
-    throw new AppError('bad_request', 'The layout does not fit the dashboard.', problems);
+    throw new AppError('bad_request', 'The layout does not fit its panels.', problems);
   const { restoredFrom, actor } = change;
   const layout = packLayout(change.layout);
   const row = { id: newId(), ...target, layout, restoredFrom, actor, createdAt: context.now() };
   const stored = context.layouts.add(row, change.basedOn);
   if (!stored) throw new AppError('conflict', 'Someone else changed the layout. Reload it first.');
   const detail = { version: target.version, revision: stored.revision, restoredFrom };
-  context.audit.append({ actor, action: 'dashboard.layout', target: target.dashboardId, detail });
+  context.audit.append({ actor, action: subject.action, target: target.subjectId, detail });
   return entryOf(stored);
 }
 
 /**
- * Creates the service.
+ * Creates the layouts service of dashboards, or of reports.
  *
- * @param dependencies - The repositories, the audit log and the clock.
+ * @param dependencies - What is arranged, the repository of its layouts, the audit log and the
+ *   clock.
  * @returns The service.
  */
-export function createDashboardLayouts(dependencies: LayoutsDependencies): DashboardLayouts {
+export function createLayouts(dependencies: LayoutsDependencies): Layouts {
   const context: Context = { ...dependencies, now: dependencies.now ?? Date.now };
   return {
-    history: (dashboardId, version) => {
-      if (!context.repository.getVersion(dashboardId, version))
-        throw new AppError('not_found', `Dashboard ${dashboardId} has no version ${version}.`);
-      return context.layouts.history(dashboardId, version).map(entryOf);
+    history: (subjectId, version) => {
+      context.subject.check({ subjectId, version });
+      return context.layouts.history(subjectId, version).map(entryOf);
     },
     save: (target, layout, basedOn, actor) =>
       store(context, target, { layout, restoredFrom: null, basedOn, actor }),
     restore: (target, revision, basedOn, actor) => {
       const earlier = context.layouts
-        .history(target.dashboardId, target.version)
+        .history(target.subjectId, target.version)
         .find((row) => row.revision === revision);
       if (!earlier) throw new AppError('not_found', `The layout has no revision ${revision}.`);
       const { layout } = entryOf(earlier);

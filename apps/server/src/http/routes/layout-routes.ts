@@ -1,37 +1,32 @@
 /**
- * The layout endpoints: the history of a version's layout, saving a revision, and restoring one.
- * Only those who may pin a dashboard arrange it: its thread's owner and admins. Anyone who may see
- * the version reads the layout it is shown with, through the version endpoint.
+ * The layout endpoints of dashboards and of reports: the history of a version's layout, saving a
+ * revision, and restoring one. Only those who may pin a dashboard or activate a report arrange
+ * it: its thread's owner and admins, and any editor when it has no thread. Anyone who may see the
+ * version reads the layout it is shown with, through the endpoint that reads the version.
  */
-import {
-  type LayoutRevision,
-  listDashboardLayoutsEndpoint,
-  restoreDashboardLayoutEndpoint,
-  saveDashboardLayoutEndpoint,
-} from '@quanthea/shared';
+import type { LayoutEndpoints, LayoutRevision } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Users } from '../../auth/users.ts';
-import type { DashboardLayouts, LayoutEntry } from '../../dashboards/layouts.ts';
-import type { ThreadOwner } from '../../threads/bin.ts';
+import type { LayoutEntry, Layouts } from '../../dashboards/layouts.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { checkOwnerChange, ownerNames } from '../ownership.ts';
 import { actorOf, signedIn } from '../principal.ts';
 
-/** What the layout endpoints need. */
+/** What the layout endpoints of one kind need. */
 export interface LayoutRouteServices {
   /** The layouts. */
-  readonly layouts: DashboardLayouts;
+  readonly layouts: Layouts;
   /** The users, for the names of who saved each revision. */
   readonly users: Pick<Users, 'nameOf'>;
-  /** The thread a dashboard belongs to, in the bin or not. */
-  readonly ownerOf: (dashboardId: string) => ThreadOwner | null;
+  /** The owner of the thread a dashboard or a report belongs to, or `null` without a thread. */
+  readonly ownerOf: (subjectId: string) => { readonly ownerId: string | null } | null;
 }
 
 /** The path parameters of one version. */
 interface VersionParams {
-  /** The dashboard. */
-  readonly dashboardId: string;
+  /** The dashboard or the report. */
+  readonly id: string;
   /** The version, as the path gives it. */
   readonly version: string;
 }
@@ -54,12 +49,12 @@ function revisionNamer(users: Pick<Users, 'nameOf'>) {
 }
 
 /**
- * The version a request names, after checking the person may arrange its dashboard.
+ * The version a request names, after checking the person may arrange what it belongs to.
  *
- * @param services - The owner of a dashboard.
+ * @param services - The owner of a dashboard or a report.
  * @param params - The path parameters.
  * @param principal - Who asks.
- * @returns The dashboard and version.
+ * @returns The dashboard or the report, and the version.
  * @throws {AppError} `forbidden` for anyone but its thread's owner and admins.
  */
 function arrangeable(
@@ -67,28 +62,33 @@ function arrangeable(
   params: VersionParams,
   principal: Parameters<typeof signedIn>[0],
 ) {
-  checkOwnerChange(signedIn(principal), services.ownerOf(params.dashboardId));
-  return { dashboardId: params.dashboardId, version: Number(params.version) };
+  checkOwnerChange(signedIn(principal), services.ownerOf(params.id));
+  return { subjectId: params.id, version: Number(params.version) };
 }
 
 /**
- * Mounts the layout endpoints.
+ * Mounts the layout endpoints of dashboards, or of reports.
  *
  * @param app - The app.
- * @param services - The layouts, the users and the owner of a dashboard.
+ * @param endpoints - The three endpoints of the kind.
+ * @param services - Its layouts, the users and the owner of one.
  */
-export function mountLayoutEndpoints(app: Hono<AppEnv>, services: LayoutRouteServices): void {
+export function mountLayoutEndpoints(
+  app: Hono<AppEnv>,
+  endpoints: LayoutEndpoints,
+  services: LayoutRouteServices,
+): void {
   const { layouts } = services;
-  mountEndpoint(app, listDashboardLayoutsEndpoint, {
+  mountEndpoint(app, endpoints.list, {
     access: 'editor',
     handle: async ({ params, principal }) => {
       const target = arrangeable(services, params, principal);
       const named = revisionNamer(services.users);
-      const entries = layouts.history(target.dashboardId, target.version);
+      const entries = layouts.history(target.subjectId, target.version);
       return { revisions: await Promise.all(entries.map(named)) };
     },
   });
-  mountEndpoint(app, saveDashboardLayoutEndpoint, {
+  mountEndpoint(app, endpoints.save, {
     access: 'editor',
     handle: ({ params, body, principal }) => {
       const target = arrangeable(services, params, principal);
@@ -96,7 +96,7 @@ export function mountLayoutEndpoints(app: Hono<AppEnv>, services: LayoutRouteSer
       return revisionNamer(services.users)(saved);
     },
   });
-  mountEndpoint(app, restoreDashboardLayoutEndpoint, {
+  mountEndpoint(app, endpoints.restore, {
     access: 'editor',
     handle: ({ params, body, principal }) => {
       const target = arrangeable(services, params, principal);

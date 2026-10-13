@@ -10,6 +10,7 @@ import { durationMs } from '../spec/alert.ts';
 import { durationSchema } from '../spec/queries.ts';
 import { reportSpecSchema } from '../spec/report.ts';
 import { defineEndpoint } from './contract.ts';
+import { shownLayoutSchema } from './layouts.ts';
 import { sendResultSchema } from './notification-channels.ts';
 import {
   reportPreviewSchema,
@@ -47,6 +48,8 @@ export type ReportSummary = z.infer<typeof reportSummarySchema>;
 const reportVersionSchema = z.object({
   version: z.int(),
   spec: reportSpecSchema,
+  /** The layout it is shown with, if one was saved. */
+  layout: shownLayoutSchema.nullable(),
   note: z.string().nullable(),
   /** The name of whoever saved it. */
   createdBy: z.string(),

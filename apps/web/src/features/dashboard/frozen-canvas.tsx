@@ -1,10 +1,12 @@
 /**
  * A snapshot's dashboard: the time range and variables it was taken with, which can't change, and
- * its panels drawn from the results frozen with it. A report's preview and runs draw the same way. Nothing runs; only the markers can be shown or
- * hidden, in the page.
+ * its panels drawn from the results frozen with it. A report's preview and runs draw the same
+ * way, a run under the frames of its layout while it is arranged. Nothing runs; only the markers
+ * can be shown or hidden, in the page.
  */
 import type { DashboardSpec, PanelRun, VariableValues } from '@quanthea/shared';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
+import { WithOverlay } from './canvas.tsx';
 import type { Loaded } from './data.ts';
 import { MarkerToggles } from './marker-toggles.tsx';
 import { PanelFrame } from './panel-card.tsx';
@@ -27,6 +29,8 @@ export interface FrozenCanvasProps {
   readonly hiddenMarkers: readonly string[];
   /** What the time chip says on hover; that the snapshot fixed it, by default. */
   readonly fixedNote?: string | undefined;
+  /** A layer over the panels, on the same grid: the frames while the layout is arranged. */
+  readonly overlay?: ReactNode;
 }
 
 /** The class of a chip that can't be changed. */
@@ -97,18 +101,20 @@ export function FrozenCanvas(props: FrozenCanvasProps) {
   return (
     <>
       <FrozenBar {...props} {...markers} />
-      <div className={panelStyles.grid}>
-        {props.spec.panels.map((panel) => (
-          <PanelFrame
-            key={panel.id}
-            panel={panel}
-            spec={props.spec}
-            run={frozenRun(props.panels[panel.id])}
-            loading={false}
-            hiddenMarkers={markers.hidden}
-          />
-        ))}
-      </div>
+      <WithOverlay overlay={props.overlay}>
+        <div className={panelStyles.grid}>
+          {props.spec.panels.map((panel) => (
+            <PanelFrame
+              key={panel.id}
+              panel={panel}
+              spec={props.spec}
+              run={frozenRun(props.panels[panel.id])}
+              loading={false}
+              hiddenMarkers={markers.hidden}
+            />
+          ))}
+        </div>
+      </WithOverlay>
     </>
   );
 }

@@ -164,7 +164,12 @@ function DraftBody(props: DraftProps) {
           </p>
         )}
         <ScheduleSentence spec={draft.spec} disabled={busy} onChange={onHandEdit} />
-        <PreviewSection threadId={threadId} version={draft.version} spec={draft.spec} />
+        <PreviewSection
+          threadId={threadId}
+          version={draft.version}
+          spec={draft.spec}
+          layout={draft.layout}
+        />
         <div className={styles.grid}>
           <SeeAlso draft={draft} />
           <SendsTo draft={draft} />

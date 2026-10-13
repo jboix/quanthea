@@ -1,16 +1,19 @@
 /**
  * The draft's preview over its latest period: the headline numbers with their change against the
  * period before, then the other panels drawn by the dashboard's own panel components from the
- * preview's results. Nothing runs in the browser; the preview route ran the draft once and
+ * preview's results, through the layout of the version when one was saved. Nothing runs in the browser; the preview route ran the draft once and
  * stored nothing.
  */
 
 import {
+  type DashboardLayout,
   dashboardOfReport,
   type Headline,
   type ReportPeriod,
   type ReportPreview,
   type ReportSpec,
+  reportCanvasPanels,
+  shownReport,
 } from '@quanthea/shared';
 import { useEffect } from 'react';
 import { useFetcher } from 'react-router';
@@ -69,35 +72,40 @@ function HeadlineTile({ headline }: { readonly headline: Headline }) {
 }
 
 /**
- * The panels that are not headlines, moved up into the rows the headlines left.
+ * How many panels the layout hides, in words.
  *
- * @param spec - The spec.
- * @returns The panels.
+ * @param version - The version shown.
+ * @param hidden - How many of its panels the layout hides.
+ * @returns Such as `1 panel hidden on v3`, or nothing when none is.
  */
-function otherPanels(spec: ReportSpec): ReportSpec['panels'] {
-  const panels = spec.panels.filter((panel) => !spec.summaryPanels.includes(panel.id));
-  const top = Math.min(...panels.map((panel) => panel.grid.y));
-  if (!Number.isFinite(top) || top === 0) return panels;
-  return panels.map((panel) => ({ ...panel, grid: { ...panel.grid, y: panel.grid.y - top } }));
+export function hiddenNote(version: number, hidden: number): string | undefined {
+  if (hidden === 0) return undefined;
+  return `${hidden} ${hidden === 1 ? 'panel' : 'panels'} hidden on v${version}`;
+}
+
+/** Props of {@link PreviewResults}. */
+interface PreviewResultsProps {
+  /** The draft's version. */
+  readonly version: number;
+  /** Its spec. */
+  readonly spec: ReportSpec;
+  /** The layout the version is shown with, if one was saved. */
+  readonly layout: DashboardLayout | undefined;
+  /** The preview. */
+  readonly preview: ReportPreview;
 }
 
 /**
- * The preview's results: the headlines, then the other panels.
+ * The preview's results: the headlines, then the other panels as the version's layout shows them.
  *
- * @param props - The spec and the preview.
- * @param props.spec - The draft's spec.
- * @param props.preview - The preview.
+ * @param props - The version, its spec and layout, and the preview.
  * @returns The results.
  */
-function PreviewResults({
-  spec,
-  preview,
-}: {
-  readonly spec: ReportSpec;
-  readonly preview: ReportPreview;
-}) {
+function PreviewResults({ version, spec, layout, preview }: PreviewResultsProps) {
   const time = { from: preview.period.from, to: preview.period.to };
-  const shown = { ...spec, panels: otherPanels(spec) };
+  const arranged = shownReport(spec, layout);
+  const shown = { ...arranged, panels: reportCanvasPanels(arranged) };
+  const hidden = hiddenNote(version, spec.panels.length - arranged.panels.length);
   return (
     <>
       {preview.failure && <p className={styles.failure}>{preview.failure}</p>}
@@ -118,6 +126,7 @@ function PreviewResults({
           fixedNote="The latest period the report covers"
         />
       )}
+      {hidden && <p className={styles.note}>{hidden}</p>}
     </>
   );
 }
@@ -125,20 +134,23 @@ function PreviewResults({
 /**
  * The preview of the draft on its latest period.
  *
- * @param props - The thread, the version and its spec.
+ * @param props - The thread, the version, its spec and its layout.
  * @param props.threadId - The thread.
  * @param props.version - The draft's version.
  * @param props.spec - Its spec.
+ * @param props.layout - The layout the version is shown with, if one was saved.
  * @returns The section.
  */
 export function PreviewSection({
   threadId,
   version,
   spec,
+  layout,
 }: {
   readonly threadId: string;
   readonly version: number;
   readonly spec: ReportSpec;
+  readonly layout: DashboardLayout | undefined;
 }) {
   const outcome = usePreview(threadId, version);
   const label = outcome?.ok ? ` · ${outcome.preview.period.label}` : '';
@@ -150,7 +162,9 @@ export function PreviewSection({
       </h3>
       {!outcome && <p className={styles.note}>Running the report over its latest period…</p>}
       {outcome && !outcome.ok && <p className={styles.failure}>{outcome.message}</p>}
-      {outcome?.ok && <PreviewResults spec={spec} preview={outcome.preview} />}
+      {outcome?.ok && (
+        <PreviewResults version={version} spec={spec} layout={layout} preview={outcome.preview} />
+      )}
     </section>
   );
 }

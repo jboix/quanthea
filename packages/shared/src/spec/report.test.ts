@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { dashboardSpecSchema } from './dashboard.ts';
-import { dashboardOfReport, reportSpecSchema } from './report.ts';
+import { layoutProblems, specLayout } from './layout.ts';
+import { dashboardOfReport, reportCanvasPanels, reportSpecSchema, shownReport } from './report.ts';
 
 /**
  * A stat panel over the orders.
@@ -99,5 +100,45 @@ describe('the report spec', () => {
     });
     expect(dashboard.timezone).toBe('Europe/Zurich');
     expect(dashboard.panels).toEqual(spec.panels);
+  });
+});
+
+describe('a report through its layout', () => {
+  const chart = { ...stat('by-day', 9), grid: { x: 0, y: 9, w: 12, h: 4 } };
+  const spec = reportSpecSchema.parse(
+    weekly({ panels: [stat('revenue', 0), stat('orders', 3), stat('top', 6), chart] }),
+  );
+
+  test('the grid holds the panels that are not headlines, moved up to the first row', () => {
+    const places = reportCanvasPanels(spec).map((panel) => [panel.id, panel.grid.y]);
+    expect(places).toEqual([
+      ['top', 0],
+      ['by-day', 3],
+    ]);
+  });
+
+  test('a layout names the panels of the grid and no headline', () => {
+    const arranged = { panels: reportCanvasPanels(spec) };
+    expect(layoutProblems(arranged, specLayout(arranged))).toEqual([]);
+    expect(layoutProblems(arranged, specLayout(spec))).toEqual([
+      'No such panels: revenue, orders.',
+    ]);
+  });
+
+  test('shows the grid at the layout places, leaves hidden panels out and keeps headlines', () => {
+    const layout = {
+      panels: [
+        { id: 'top', grid: { x: 0, y: 0, w: 3, h: 3 }, hidden: true },
+        { id: 'by-day', grid: { x: 0, y: 0, w: 6, h: 5 }, hidden: false },
+      ],
+    };
+    const shown = shownReport(spec, layout);
+    expect(shown.panels.map((panel) => panel.id)).toEqual(['revenue', 'orders', 'by-day']);
+    expect(shown.panels.at(-1)?.grid).toEqual({ x: 0, y: 0, w: 6, h: 5 });
+    expect(reportSpecSchema.safeParse(shown).success).toBe(true);
+  });
+
+  test('without a layout it is the spec itself', () => {
+    expect(shownReport(spec, undefined)).toBe(spec);
   });
 });

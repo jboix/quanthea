@@ -1,6 +1,6 @@
 /**
- * Reading runs: a report's runs by period, and one run with its frozen results and the runs of
- * the periods either side. Reading runs no query. Below editor, only the runs of versions ever
+ * Reading runs: a report's runs by period, and one run with its frozen results, the layout its
+ * version is shown with, and the runs of the periods either side. Reading runs no query. Below editor, only the runs of versions ever
  * active show.
  */
 import {
@@ -11,6 +11,7 @@ import {
   variableValuesSchema,
 } from '@quanthea/shared';
 import { z } from 'zod';
+import { shownLayoutOf } from '../dashboards/context.ts';
 import type { RunSummaryRow } from '../db/report-run-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import type { ReaderRole } from '../lib/reader-role.ts';
@@ -100,6 +101,7 @@ export function readRun(
   return {
     ...toRunSummary(run, spec),
     spec,
+    layout: shownLayoutOf(context, id, run.version),
     variables: variableValuesSchema.parse(run.variables),
     panels: panelRunsSchema.parse(run.panels),
     comparisonPanels: panelRunsSchema.parse(run.comparisonPanels),

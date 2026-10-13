@@ -6,6 +6,7 @@
  */
 import {
   activateReportEndpoint,
+  type DashboardLayout,
   getDashboardEndpoint,
   getReportEndpoint,
   getThreadEndpoint,
@@ -46,6 +47,8 @@ export interface ReportDraftData {
   readonly version: number;
   /** Its spec. */
   readonly spec: ReportSpec;
+  /** The layout it is shown with, if one was saved: an active version arranged by hand. */
+  readonly layout: DashboardLayout | undefined;
   /** Every channel, to name the draft's. */
   readonly channels: readonly ChannelChoice[];
   /** The pinned dashboards it links to, named. */
@@ -108,7 +111,8 @@ export async function loadReportDraft(
   const latest = latestOf(report);
   if (!latest) return null;
   const links = await linksOf(api, latest.spec, signal);
-  return { report, version: latest.version, spec: latest.spec, channels, links };
+  const layout = latest.layout?.layout;
+  return { report, version: latest.version, spec: latest.spec, layout, channels, links };
 }
 
 /** What the report draft pane asks of the thread's route action. */

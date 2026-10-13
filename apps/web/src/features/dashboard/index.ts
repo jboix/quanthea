@@ -20,10 +20,22 @@ export { useCanAsk, useConversations } from './ask-state.ts';
 export { answerMessages, type StreamedAnswer, streamedAnswer } from './ask-stream.ts';
 export { dayLabel, instantLabel } from './ask-words.ts';
 export { DashboardCanvas } from './canvas.tsx';
-export { changeDashboard, loadDashboard, loadPanelRun, loadVariableOptions } from './data.ts';
+export {
+  changeDashboard,
+  loadDashboard,
+  loadDashboardLayoutHistory,
+  loadPanelRun,
+  loadVariableOptions,
+} from './data.ts';
 export { loadExplanation } from './explain-data.ts';
 export { FrozenCanvas } from './frozen-canvas.tsx';
-export { loadLayoutHistory } from './layout-data.ts';
+export {
+  isLayoutIntent,
+  type LayoutIntent,
+  loadLayoutHistory,
+  runLayoutIntent,
+} from './layout-data.ts';
+export { LeaveGuard, useArrangement } from './layout-editor.tsx';
 export { type Loaded, loaded } from './loaded.ts';
 export { type PanelPlanMark, usePanelRunData } from './panel-card.tsx';
 export { PanelPreview } from './panel-preview.tsx';

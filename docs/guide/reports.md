@@ -31,7 +31,7 @@ draft pane, run once over its latest period.
   the day, the time, the time zone, the period or the comparison.
 - **The preview** runs the latest version over its latest period. The headline numbers come
   first, each with its change and the value before (`▲ 6.2% · was CHF 173,560`); the other panels
-  follow.
+  follow, [arranged](#arrange-the-panels) as that version is once you saved a layout for it.
 - **See also** and **Sends to** list the linked dashboards and the channels.
 - **Send a test now** sends the message to its channels, marked as a test.
 - **Activate** schedules it. Activating runs its queries once, and refuses one that fails.
@@ -77,6 +77,25 @@ frozen when it ran.
 - **Change** (the owner of its thread and admins): **Edit with the agent**, **Run now** (runs it
   over its latest period, and sends it only when you ask), **Deactivate** or **Activate**.
 - **Share → Copy link**, and **Versions** for the owner of its thread and admins.
+
+### Arrange the panels
+
+The owner of its thread and admins arrange the panels under the headline numbers, as on a
+[pinned dashboard](dashboards.md#arrange-a-pinned-dashboard). **Edit layout** shows on a run of
+the active version that succeeded, on a screen wide enough for the grid's twelve columns.
+
+- **Move** a panel by dragging its frame, and **resize** it by dragging the frame's corner.
+  **Full width**, **Half width** and **Hide** sit at the foot of each frame.
+- A hidden panel stays in the report and is still computed by every run. It is not shown and is
+  left out of questions about a run. **Hidden** in the bar lists them, and **Show** puts one back.
+- **Save layout** shows the arrangement to everyone, on every run of that version, the earlier
+  ones too. **Cancel** drops it. **History** lists the saved arrangements, and **Restore** brings
+  one back.
+- The headline numbers keep their row at the top, in the order the report gives them.
+
+Arranging makes no new version. Each version keeps its own arrangement: a version activated
+later starts from the grid the agent wrote. The message a report sends holds the headline
+numbers and the links, so it stays the same.
 
 ## When a run fails
 

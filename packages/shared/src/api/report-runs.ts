@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { headlineSchema } from '../reports/headline.ts';
 import { reportSpecSchema } from '../spec/report.ts';
 import { variableValuesSchema } from '../spec/variables.ts';
+import { shownLayoutSchema } from './layouts.ts';
 import { sendResultSchema } from './notification-channels.ts';
 import { panelRunSchema } from './panels.ts';
 
@@ -73,6 +74,8 @@ const seeAlsoLinkSchema = z.object({
 export const reportRunDetailSchema = reportRunSummarySchema.extend({
   /** The spec of the version it ran. */
   spec: reportSpecSchema,
+  /** The layout its version is shown with, if one was saved: the run draws through it. */
+  layout: shownLayoutSchema.nullable(),
   /** The variable values it ran with: the defaults. */
   variables: variableValuesSchema,
   /** Each panel's run over the period, by panel id; `null` until it succeeds. */

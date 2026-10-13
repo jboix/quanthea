@@ -7,9 +7,9 @@ import { useEffect } from 'react';
 import { useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Popover } from '../../ui/popover.tsx';
-import type { Loaded } from './data.ts';
 import { showPanel } from './layout-edit.ts';
 import styles from './layout-editor.module.css';
+import type { Loaded } from './loaded.ts';
 import { dateTimeWords } from './snapshot-words.ts';
 
 /** Props of {@link HiddenMenu}. */
@@ -49,10 +49,8 @@ export function HiddenMenu({ layout, titles, onChange }: HiddenMenuProps) {
 
 /** Props of {@link HistoryMenu}. */
 interface HistoryMenuProps {
-  /** The dashboard. */
-  readonly dashboardId: string;
-  /** The version arranged. */
-  readonly version: number;
+  /** The resource route of the layout history of the version arranged. */
+  readonly path: string;
   /** Restores a revision. */
   readonly onRestore: (revision: number) => void;
 }
@@ -61,7 +59,7 @@ interface HistoryMenuProps {
  * The layout's revisions, latest first, each earlier one with Restore. Restoring drops the edit
  * under way and shows the restored arrangement.
  *
- * @param props - The dashboard, the version and the restore callback.
+ * @param props - Where the history loads from, and the restore callback.
  * @returns The menu.
  */
 export function HistoryMenu(props: HistoryMenuProps) {
@@ -83,15 +81,15 @@ export function HistoryMenu(props: HistoryMenuProps) {
 /**
  * The revisions, loaded when the menu opens.
  *
- * @param props - The dashboard, the version and the restore callback.
+ * @param props - Where the history loads from, and the restore callback.
  * @returns The list.
  */
-function HistoryList({ dashboardId, version, onRestore }: HistoryMenuProps) {
+function HistoryList({ path, onRestore }: HistoryMenuProps) {
   const fetcher = useFetcher<Loaded<LayoutRevision[]>>();
   const { load } = fetcher;
   useEffect(() => {
-    void load(`/d/${dashboardId}/v/${version}/layouts`);
-  }, [load, dashboardId, version]);
+    void load(path);
+  }, [load, path]);
   const result = fetcher.data;
   if (!result) return <p className={styles.note}>Loading…</p>;
   if (!result.ok) return <p className={styles.note}>{result.message}</p>;

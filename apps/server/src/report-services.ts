@@ -5,8 +5,10 @@
  * setting for a run that fails.
  */
 import type { DashboardsDependencies } from './dashboards/context.ts';
+import { createLayouts, type Layouts } from './dashboards/layouts.ts';
 import type { AuditRepository } from './db/audit-repository.ts';
 import type { openDatabase } from './db/database.ts';
+import { createLayoutRepository } from './db/layout-repository.ts';
 import { createReportConversationBinRepository } from './db/report-conversation-bin.ts';
 import { createReportQuestionRepository } from './db/report-question-repository.ts';
 import { createReportRepository } from './db/report-repository.ts';
@@ -14,6 +16,7 @@ import { createReportRunRepository } from './db/report-run-repository.ts';
 import { createReportSeenRepository } from './db/report-seen-repository.ts';
 import type { Notifications } from './notifications/notifications.ts';
 import { createRunConversationBin, type RunConversationBin } from './reports/conversation-bin.ts';
+import { reportSubject } from './reports/layouts.ts';
 import { createRunQuestions, type RunQuestions } from './reports/questions.ts';
 import { createReports, type Reports } from './reports/reports.ts';
 import type { AlertSettingsService } from './settings/alert-settings.ts';
@@ -48,6 +51,8 @@ export interface ReportServiceDependencies
 export interface ReportServices {
   /** The reports: versions, runs, the schedule's needs. */
   readonly reports: Reports;
+  /** The layouts reports are shown with. */
+  readonly reportLayouts: Layouts;
   /** Retries, their delay and how long runs are kept. */
   readonly reportSettings: ReportSettingsService;
   /** Questions asked about runs, stored with their answers. */
@@ -84,11 +89,16 @@ function runQuestionServices(dependencies: ReportServiceDependencies, reports: R
 export function createReportServices(
   dependencies: ReportServiceDependencies,
 ): ReportServices & { readonly runConversationBin: RunConversationBin } {
-  const { database, notifications, alertSettings, audit } = dependencies;
+  const { database, notifications, alertSettings, audit, now } = dependencies;
   const reportSettings = createReportSettings({ store: dependencies.settings, audit });
+  const repository = createReportRepository(database);
+  const layouts = createLayoutRepository(database, 'report');
+  const subject = reportSubject(repository);
+  const reportLayouts = createLayouts({ subject, layouts, audit, now });
   const reports = createReports({
     ...dependencies,
-    repository: createReportRepository(database),
+    repository,
+    layouts,
     runs: createReportRunRepository(database),
     seen: createReportSeenRepository(database),
     dashboard: (id) => dependencies.repository.get(id),
@@ -96,7 +106,8 @@ export function createReportServices(
     sendReport: (channelIds, notification) => notifications.sendReport(channelIds, notification),
     notifyOnError: () => alertSettings.get().notifyOnError,
     settings: reportSettings,
-    ...(dependencies.now ? { now: dependencies.now } : {}),
+    ...(now ? { now } : {}),
   });
-  return { reports, reportSettings, ...runQuestionServices(dependencies, reports) };
+  const asked = runQuestionServices(dependencies, reports);
+  return { reports, reportLayouts, reportSettings, ...asked };
 }

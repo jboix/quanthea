@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { dashboardSpecSchema } from '../spec/dashboard.ts';
 import { defineEndpoint } from './contract.ts';
-import { shownLayoutSchema } from './dashboard-layouts.ts';
+import { shownLayoutSchema } from './layouts.ts';
 
 /** Validates a version in a dashboard's history. */
 const versionSummarySchema = z.object({

@@ -3,7 +3,7 @@ import type { ReportDetail, ReportListItem, ReportRunDetail } from '@quanthea/sh
 import { startPath } from './follow-up-cards.tsx';
 import { settingsFrom } from './report-settings-dialog.tsx';
 import { searchReports } from './reports-screen.tsx';
-import { canvasSpec } from './run-body.tsx';
+import { arrangedRun, canvasSpec } from './run-body.tsx';
 import { scheduleAction } from './run-menus.tsx';
 import { barHeights } from './value-history.tsx';
 
@@ -85,12 +85,40 @@ describe('a run', () => {
       spec,
       period: { from: 0, to: 1, label: 'week 40' },
     } as unknown as ReportRunDetail;
-    const drawn = canvasSpec(run);
+    const drawn = canvasSpec(run, undefined);
     expect(drawn.panels.map((each) => [each.id, each.grid.y])).toEqual([
       ['daily', 0],
       ['top', 6],
     ]);
     expect(drawn.timezone).toBe('Europe/Zurich');
+    const layout = {
+      panels: [
+        { id: 'daily', grid: { x: 0, y: 0, w: 3, h: 3 }, hidden: true },
+        { id: 'top', grid: { x: 6, y: 0, w: 6, h: 4 }, hidden: false },
+      ],
+    };
+    expect(canvasSpec(run, layout).panels.map((each) => [each.id, each.grid])).toEqual([
+      ['top', { x: 6, y: 0, w: 6, h: 4 }],
+    ]);
+  });
+
+  test('only a run of the active version is arranged, by who may change the report', () => {
+    const report = { ...weekly, versions: [], canChange: true } as unknown as ReportDetail;
+    const run = {
+      version: 1,
+      status: 'ok',
+      layout: null,
+      spec: { panels: [{ id: 'top', title: 'Top', grid: { x: 0, y: 2, w: 3, h: 3 } }] },
+    };
+    const ran = { ...run, spec: { ...run.spec, summaryPanels: [] } } as unknown as ReportRunDetail;
+    expect(arrangedRun(report, ran)).toMatchObject({
+      allowed: true,
+      arranged: { version: 1, layout: null, panels: [{ id: 'top', grid: { y: 0 } }] },
+    });
+    expect(arrangedRun({ ...report, canChange: false }, ran).allowed).toBe(false);
+    expect(arrangedRun({ ...report, activeVersion: 2 }, ran).allowed).toBe(false);
+    expect(arrangedRun(report, { ...ran, status: 'failed' }).allowed).toBe(false);
+    expect(arrangedRun(report, null)).toMatchObject({ allowed: false, arranged: { panels: [] } });
   });
 
   test('Change stops a running schedule, and activates a draft or a stopped one', () => {

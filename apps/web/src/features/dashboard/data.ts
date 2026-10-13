@@ -5,6 +5,7 @@
 import {
   type DashboardPage,
   type DashboardVersion,
+  dashboardLayoutEndpoints,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
   type PanelRun,
@@ -17,7 +18,7 @@ import {
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 import { type AlertIntent, runAlertIntent } from './alerts-data.ts';
-import { type LayoutIntent, runLayoutIntent } from './layout-data.ts';
+import { type LayoutIntent, loadLayoutHistory, runLayoutIntent } from './layout-data.ts';
 import { type Loaded, loaded } from './loaded.ts';
 import { runSnapshotIntent, type SnapshotIntent } from './snapshot-data.ts';
 
@@ -189,7 +190,7 @@ export function changeDashboard(api: ApiClient) {
         return runAlertIntent(api, dashboardId, intent);
       case 'layout':
       case 'restoreLayout':
-        return runLayoutIntent(api, dashboardId, intent);
+        return runLayoutIntent(api, dashboardLayoutEndpoints, dashboardId, intent);
       default:
         return changePin(api, dashboardId, intent);
     }
@@ -233,4 +234,14 @@ export function loadVariableOptions(api: ApiClient) {
     );
     return result.ok ? { ok: true, value: result.value.options } : result;
   };
+}
+
+/**
+ * The loader of the layout history of a dashboard's version, for the edit bar's History.
+ *
+ * @param api - The API client.
+ * @returns The loader.
+ */
+export function loadDashboardLayoutHistory(api: ApiClient) {
+  return loadLayoutHistory(api, dashboardLayoutEndpoints, 'dashboardId');
 }

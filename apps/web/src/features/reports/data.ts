@@ -15,11 +15,18 @@ import {
   type ReportListItem,
   type ReportRunDetail,
   type ReportSettings,
+  reportLayoutEndpoints,
   runReportNowEndpoint,
   saveReportSettingsEndpoint,
 } from '@quanthea/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
+import {
+  isLayoutIntent,
+  type LayoutIntent,
+  loadLayoutHistory,
+  runLayoutIntent,
+} from '../dashboard/index.ts';
 
 /** The id of the list's route, whose data the rail reads while the list is on screen. */
 export const reportsRouteId = 'reports';
@@ -44,7 +51,7 @@ export interface RunData {
   readonly run: ReportRunDetail | null;
 }
 
-/** What the run page's menus submit, as JSON. */
+/** What the run page's menus submit, as JSON. The layout edit submits its own intents. */
 export type ReportIntent =
   | { readonly intent: 'run' }
   | { readonly intent: 'activate'; readonly version: number }
@@ -171,21 +178,36 @@ async function runIntent(
 }
 
 /**
- * The action of a run's page: run the report now, activate a version, or deactivate it. Running
- * opens the new run.
+ * Runs a change, turning a refusal into a message for the page.
+ *
+ * @param change - The change.
+ * @returns What the change returns, or why the API refused it.
+ */
+async function orRefusal<Outcome>(
+  change: () => Promise<Outcome>,
+): Promise<Outcome | ReportOutcome> {
+  try {
+    return await change();
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status >= 500) throw error;
+    return { ok: false, message: error.message };
+  }
+}
+
+/**
+ * The action of a run's page: run the report now, activate a version, deactivate it, or save or
+ * restore the layout of its active version. Running opens the new run.
  *
  * @param api - The API client.
  * @returns The action. A refusal comes back as a message.
  */
 export function changeReport(api: ApiClient) {
   return async ({ params, request }: ActionFunctionArgs): Promise<ReportOutcome | Response> => {
-    const intent = (await request.json()) as ReportIntent;
-    try {
-      return await runIntent(api, params.reportId ?? '', intent);
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.status >= 500) throw error;
-      return { ok: false, message: error.message };
-    }
+    const intent = (await request.json()) as ReportIntent | LayoutIntent;
+    const reportId = params.reportId ?? '';
+    if (isLayoutIntent(intent))
+      return runLayoutIntent(api, reportLayoutEndpoints, reportId, intent);
+    return orRefusal(() => runIntent(api, reportId, intent));
   };
 }
 
@@ -207,14 +229,20 @@ export function loadReportSettings(api: ApiClient) {
  * @returns The action. A refusal comes back as a message.
  */
 export function saveReportSettings(api: ApiClient) {
-  return async ({ request }: ActionFunctionArgs): Promise<ReportOutcome> => {
-    try {
+  return ({ request }: ActionFunctionArgs): Promise<ReportOutcome> =>
+    orRefusal(async () => {
       const body = (await request.json()) as ReportSettings;
       await api.call(saveReportSettingsEndpoint, { body });
       return { ok: true };
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.status >= 500) throw error;
-      return { ok: false, message: error.message };
-    }
-  };
+    });
+}
+
+/**
+ * The loader of the layout history of a report's version, for the edit bar's History.
+ *
+ * @param api - The API client.
+ * @returns The loader.
+ */
+export function loadReportLayoutHistory(api: ApiClient) {
+  return loadLayoutHistory(api, reportLayoutEndpoints, 'reportId');
 }

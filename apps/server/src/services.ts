@@ -21,7 +21,7 @@ import type { DashboardsDependencies } from './dashboards/context.ts';
 import { type ConversationBin, createConversationBin } from './dashboards/conversation-bin.ts';
 import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
 import { createExplanations, type Explanations } from './dashboards/explanations.ts';
-import { createDashboardLayouts, type DashboardLayouts } from './dashboards/layouts.ts';
+import { createLayouts, dashboardSubject, type Layouts } from './dashboards/layouts.ts';
 import { createQuestions, type Questions } from './dashboards/questions.ts';
 import { createSnapshots, type Snapshots } from './dashboards/snapshots.ts';
 import { createAlertActivityRepository } from './db/alert-activity.ts';
@@ -93,7 +93,7 @@ export interface Services extends Accounts, ReportServices {
   /** Snapshots of dashboards, frozen with their results. */
   readonly snapshots: Snapshots;
   /** The layouts dashboards are shown with. */
-  readonly layouts: DashboardLayouts;
+  readonly layouts: Layouts;
   /** Questions asked about dashboards, stored with their answers. */
   readonly questions: Questions;
   /** Explanations of panels, kept per version and panel. */
@@ -177,9 +177,11 @@ function dashboardServices(
 ) {
   return {
     dashboards: createDashboards(dependencies),
-    layouts: createDashboardLayouts({
-      ...dependencies,
+    layouts: createLayouts({
+      subject: dashboardSubject(dependencies.repository),
       layouts: dependencies.layouts ?? createLayoutRepository(database),
+      audit: dependencies.audit,
+      now: dependencies.now,
     }),
     snapshots: createSnapshots({
       ...dependencies,

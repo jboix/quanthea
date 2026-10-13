@@ -137,7 +137,7 @@ describe('route access', () => {
     ]);
   });
 
-  test('every role reads reports and runs; editors change and try them; admins set retries', () => {
+  test('every role reads reports and runs; editors change, arrange and try them; admins set retries', () => {
     const reportRoutes = listApiRouteAccess(buildApp())
       .filter((route) => /reports/.test(route.path))
       .map((route) => `${route.access} ${route.method} ${route.path}`);
@@ -146,6 +146,9 @@ describe('route access', () => {
       'admin PUT /api/settings/reports',
       'analyst DELETE /api/reports/:reportId/runs/:runId/conversations/:conversationId',
       'analyst POST /api/reports/:reportId/runs/:runId/questions',
+      'editor GET /api/reports/:id/versions/:version/layouts',
+      'editor POST /api/reports/:id/versions/:version/layouts',
+      'editor POST /api/reports/:id/versions/:version/layouts/:revision/restore',
       'editor POST /api/reports/:reportId/activate',
       'editor POST /api/reports/:reportId/deactivate',
       'editor POST /api/reports/:reportId/run',

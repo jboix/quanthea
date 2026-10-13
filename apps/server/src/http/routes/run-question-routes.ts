@@ -13,6 +13,7 @@ import {
   type Principal,
   questionIdHeader,
   runSourcesEndpoint,
+  shownReport,
   similarRunQuestionsEndpoint,
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
@@ -86,7 +87,7 @@ function starterNamer(users: Pick<Users, 'nameOf'>, principal: Principal) {
 
 /**
  * The answering service's request for a prepared question: the report's panels over the run's
- * period, and the run's frozen results.
+ * period, as its layout shows them (hidden panels left out), and the run's frozen results.
  *
  * @param prepared - The question.
  * @param signal - Aborted when the person leaves.
@@ -103,7 +104,7 @@ function askRequestOf(prepared: PreparedRunQuestion, signal: AbortSignal): AskRe
   return {
     mode: 'ask',
     dashboardId: null,
-    spec: dashboardOfReport(run.spec, run.period),
+    spec: dashboardOfReport(shownReport(run.spec, run.layout?.layout), run.period),
     time: { from: run.period.from, to: run.period.to },
     ...{ timeZone, variables: run.variables, question, history },
     run: frozen,

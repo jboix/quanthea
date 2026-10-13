@@ -1,16 +1,18 @@
 /**
  * A run of a report, frozen: its period, when it ran and where it went, its headline numbers and
- * panels drawn from the stored results, and the side panel to ask about it. Opening it runs no
+ * panels drawn from the stored results through the layout of its version, the edit of that layout
+ * for those who may arrange the active version, and the side panel to ask about it. Opening it runs no
  * query. Before a report's first run, the page shows the report with nothing to read yet.
  */
 import type { ReportRunDetail } from '@quanthea/shared';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLoaderData } from 'react-router';
 import { Banner } from '../../ui/banner.tsx';
 import { WarningIcon } from '../../ui/icons.tsx';
+import { LeaveGuard, useArrangement } from '../dashboard/index.ts';
 import type { RunData } from './data.ts';
 import styles from './run.module.css';
-import { RunBody } from './run-body.tsx';
+import { arrangedRun, RunBody } from './run-body.tsx';
 import { RunHeader } from './run-header.tsx';
 import { RunSidePanel, type RunSideTab } from './run-side-panel.tsx';
 import { useRecountUnseen } from './unseen.ts';
@@ -53,40 +55,58 @@ function NoResults({
 }
 
 /**
- * A run's page.
+ * The run's panels as people see them, or as they are being arranged: the layout to draw them
+ * through, the edit with its bar and its frames, and the way into the edit for those who may
+ * arrange the active version. The edit is sent to the report's action.
+ *
+ * @param data - The report and the run shown.
+ * @returns The layout shown, the edit, its bar and overlay, and Edit layout's callback if offered.
+ */
+function useArrangedRun({ report, run }: RunData) {
+  const { arranged, allowed } = useMemo(() => arrangedRun(report, run), [report, run]);
+  const action = `/reports/${encodeURIComponent(report.id)}`;
+  return useArrangement(arranged, allowed, {
+    action,
+    history: `${action}/v/${arranged.version}/layouts`,
+  });
+}
+
+/**
+ * A run's page. While the layout is arranged, its bar takes the place of the header's actions and
+ * the side panel closes.
  *
  * @returns The screen.
  */
 export function RunScreen() {
-  const { report, run } = useLoaderData() as RunData;
+  const data = useLoaderData() as RunData;
+  const { report, run } = data;
   useRecountUnseen(run?.id);
   const { refusal } = useReportChange(report.id);
+  const view = useArrangedRun(data);
   const [side, setSide] = useState<RunSideTab | null>(null);
-  const askable = run?.status === 'ok';
-  const shownSide = askable ? side : null;
+  const ok = run?.status === 'ok' ? run : null;
+  const shownSide = ok && view.editor.draft === null ? side : null;
+  const closeSide = () => setSide(null);
+  const header = { onAsk: ok ? () => setSide('ask') : undefined, asking: shownSide !== null };
   return (
     <div className={styles.screen}>
       <div className={styles.content}>
         <RunHeader
-          report={report}
-          run={run}
-          onAsk={askable ? () => setSide('ask') : undefined}
-          asking={shownSide !== null}
+          {...data}
+          {...header}
+          onArrange={view.onArrange}
+          bar={view.bar}
+          notes={view.notes}
         />
         <div className={styles.main}>
           {refusal && <p className={styles.failure}>{refusal}</p>}
           <NoResults run={run} canChange={report.canChange} />
-          {run?.status === 'ok' && <RunBody run={run} />}
+          {ok && <RunBody run={ok} layout={view.layout} overlay={view.overlay} />}
         </div>
       </div>
-      {shownSide && run && (
-        <RunSidePanel
-          key={run.id}
-          run={run}
-          tab={shownSide}
-          onTab={setSide}
-          onClose={() => setSide(null)}
-        />
+      <LeaveGuard dirty={view.editor.dirty} />
+      {shownSide && ok && (
+        <RunSidePanel key={ok.id} run={ok} tab={shownSide} onTab={setSide} onClose={closeSide} />
       )}
     </div>
   );

@@ -1,7 +1,8 @@
 /**
  * The migration that follows the last release, run on a database of that release holding real
  * rows: the upgrade keeps the data working. An alert's history is kept, and none of it says quiet
- * hours held a notification back.
+ * hours held a notification back. A report and the layouts of dashboards are kept, and the
+ * report's active version can be arranged.
  */
 import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
@@ -14,6 +15,7 @@ import { temporaryDir } from '../test/fixtures.ts';
 import { createAlertStateRepository } from './alert-state-repository.ts';
 import { createConnectorRepository } from './connector-repository.ts';
 import { openDatabase } from './database.ts';
+import { createLayoutRepository } from './layout-repository.ts';
 import { runMigrations } from './migrate.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
@@ -151,5 +153,50 @@ describe('the connectors after the upgrade', () => {
     const repository = upgraded();
     insertConnector('c3', 'new', 'postgres');
     expect(repository.get('c3')?.visibility).toEqual(hidesSystem);
+  });
+});
+
+/** Stores the report `r` with an active version, as the last release did. */
+function storeReport(): void {
+  database.run(
+    "INSERT INTO reports (id, title, created_by, created_at, updated_at) VALUES ('r', 'R', 'ada', 0, 0)",
+  );
+  database.run(
+    `INSERT INTO report_versions (report_id, version, spec, created_by, created_at, activated_at)
+       VALUES ('r', 1, '{"title":"R"}', 'ada', 0, 1)`,
+  );
+  database.run("UPDATE reports SET active_version = 1 WHERE id = 'r'");
+}
+
+/** Stores the dashboard `d` with a version arranged once, as the last release did. */
+function storeArrangedDashboard(): void {
+  database.run(
+    "INSERT INTO dashboards (id, title, created_at, updated_at) VALUES ('d', 'D', 0, 0)",
+  );
+  database.run(
+    `INSERT INTO dashboard_versions (id, dashboard_id, version, spec, change_summary, actor,
+       created_at) VALUES ('v', 'd', 1, '{}', 'first', 'ada', 0)`,
+  );
+  database.run(
+    `INSERT INTO dashboard_layouts (id, dashboard_id, version, revision, layout, actor, created_at)
+       VALUES ('l', 'd', 1, 1, '{"panels":[]}', 'ada', 2)`,
+  );
+}
+
+test('a report keeps its versions and takes a layout; a dashboard keeps its own', () => {
+  const migrationsDir = releasedDatabase();
+  storeReport();
+  storeArrangedDashboard();
+  copyFileSync(join(shipped, upgrade), join(migrationsDir, upgrade));
+  expect(runMigrations(database, migrationsDir)).toEqual([upgrade]);
+  const reports = createLayoutRepository(database, 'report');
+  expect(reports.latest('r', 1)).toBeUndefined();
+  const row = { id: 'n', subjectId: 'r', version: 1, layout: { panels: [] }, restoredFrom: null };
+  expect(reports.add({ ...row, actor: 'ada', createdAt: 3 }, null)?.revision).toBe(1);
+  expect(createLayoutRepository(database).latest('d', 1)).toMatchObject({
+    id: 'l',
+    subjectId: 'd',
+    revision: 1,
+    layout: { panels: [] },
   });
 });

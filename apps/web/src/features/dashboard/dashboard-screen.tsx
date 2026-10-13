@@ -1,37 +1,38 @@
 import { applyLayout } from '@quanthea/shared';
-import { useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link, useLoaderData, useLocation } from 'react-router';
 import { LockIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import { TitleHeader } from '../../ui/title-header.tsx';
-import { useMediaQuery } from '../../ui/use-media-query.ts';
 import { marksOnVersion, type OpenAnswer } from './ask-marks.ts';
 import { DashboardCanvas } from './canvas.tsx';
 import styles from './dashboard.module.css';
 import { AboutPopover } from './dashboard-about.tsx';
 import { type AskAction, HeaderActions } from './dashboard-actions.tsx';
 import type { DashboardData } from './data.ts';
-import {
-  LayoutBar,
-  type LayoutEditor,
-  LayoutNotes,
-  LeaveGuard,
-  useLayoutEditor,
-} from './layout-editor.tsx';
-import { LayoutOverlay } from './layout-overlay.tsx';
+import { LeaveGuard, useArrangement } from './layout-editor.tsx';
 import { SidePanel, type SideTab } from './side-panel.tsx';
 import { versionNote } from './version-note.ts';
+
+/** What the layout edit puts in the header while it lasts. */
+interface LayoutEditParts {
+  /** Its bar, which takes the actions' place. */
+  readonly bar: ReactNode;
+  /** Its hint and the reason of a refused save, shown under the title. */
+  readonly notes: ReactNode;
+}
 
 /**
  * The top of the screen: where it sits, its title with what it is about, its version and whether
  * it is pinned, and its history, its thread and its link.
  *
- * @param props - The dashboard, the version shown, the way into the Ask tab, and the layout edit,
- *   whose bar takes the actions' place while it lasts, with its hint under the title.
+ * @param props - The dashboard, the version shown, the way into the Ask tab, and the layout
+ *   edit's bar, which takes the actions' place while the edit lasts, with its notes under the
+ *   title.
  * @returns The header.
  */
-function DashboardHeader(props: DashboardData & AskAction & { readonly editor: LayoutEditor }) {
-  const { version, dashboard, editor, ...actions } = props;
+function DashboardHeader(props: DashboardData & AskAction & LayoutEditParts) {
+  const { version, dashboard, bar, notes, ...actions } = props;
   const shown = version.version === dashboard.pinnedVersion;
   const note = versionNote(version, dashboard.pinnedVersion);
   return (
@@ -56,14 +57,8 @@ function DashboardHeader(props: DashboardData & AskAction & { readonly editor: L
           </Pill>
         </>
       }
-      below={editor.draft && <LayoutNotes editor={editor} />}
-      actions={
-        editor.draft ? (
-          <LayoutBar editor={editor} data={{ dashboard, version }} />
-        ) : (
-          <HeaderActions {...actions} version={version} dashboard={dashboard} />
-        )
-      }
+      below={notes}
+      actions={bar || <HeaderActions {...actions} version={version} dashboard={dashboard} />}
     />
   );
 }
@@ -80,32 +75,25 @@ function useScrollToPanel(): void {
   }, [hash]);
 }
 
-/** Wide enough to arrange panels: below it the grid is one column. */
-const wideScreen = '(min-width: 901px)';
-
 /**
  * The version as people see it, or as it is being arranged: its spec through the layout, the edit
  * and its frames, and the way into the edit for those who may arrange the version shown.
  *
  * @param data - The dashboard and the version shown.
- * @returns What the canvas shows, the edit, its overlay, and Edit layout's callback if offered.
+ * @returns What the canvas shows, the edit with its bar and overlay, and Edit layout's callback
+ *   if offered.
  */
 function useArrangedView(data: DashboardData) {
   const { dashboard, version } = data;
-  const editor = useLayoutEditor(data);
-  const wide = useMediaQuery(wideScreen);
-  const layout = editor.draft ?? version.layout?.layout;
+  const arranged = useMemo(
+    () => ({ version: version.version, panels: version.spec.panels, layout: version.layout }),
+    [version],
+  );
+  const allowed = dashboard.canChange && dashboard.pinnedVersion === version.version;
+  const history = `/d/${dashboard.id}/v/${version.version}/layouts`;
+  const { layout, ...edit } = useArrangement(arranged, allowed, { history });
   const spec = useMemo(() => applyLayout(version.spec, layout).spec, [version.spec, layout]);
-  const titles = useMemo(
-    () => new Map(version.spec.panels.map((panel) => [panel.id, panel.title])),
-    [version.spec],
-  );
-  const arrangeable = dashboard.canChange && dashboard.pinnedVersion === version.version && wide;
-  const overlay = editor.draft && (
-    <LayoutOverlay layout={editor.draft} titles={titles} onChange={editor.change} />
-  );
-  const shown = { dashboardId: dashboard.id, version: version.version, spec };
-  return { shown, editor, overlay, onArrange: arrangeable ? editor.start : undefined };
+  return { ...edit, shown: { dashboardId: dashboard.id, version: version.version, spec } };
 }
 
 /**
@@ -145,7 +133,7 @@ export function DashboardScreen() {
   return (
     <div className={styles.screen}>
       <div className={styles.content}>
-        <DashboardHeader {...loaded} {...header} editor={view.editor} />
+        <DashboardHeader {...loaded} {...header} bar={view.bar} notes={view.notes} />
         <div className={styles.main}>
           <DashboardCanvas
             refreshable

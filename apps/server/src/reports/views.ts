@@ -16,6 +16,7 @@ import {
   reportSpecSchema,
 } from '@quanthea/shared';
 import { z } from 'zod';
+import { shownLayoutOf } from '../dashboards/context.ts';
 import type { ReportRow, ReportVersionRow } from '../db/report-repository.ts';
 import type { RunSummaryRow } from '../db/report-run-repository.ts';
 import { AppError } from '../lib/errors.ts';
@@ -159,14 +160,16 @@ export function toReportSummary(
 }
 
 /**
- * A report with the versions the role may see.
+ * A report with the versions the role may see, each with the layout it is shown with.
  *
+ * @param context - The service context, for the layouts.
  * @param summary - Its summary.
  * @param versions - Its versions.
  * @param role - The role.
  * @returns The detail, naming who saved each version by user id.
  */
-export function toReportDetail(
+function toReportDetail(
+  context: Pick<ReportsContext, 'layouts'>,
   summary: ReportSummary,
   versions: VersionSpecs,
   role: Role,
@@ -176,6 +179,7 @@ export function toReportDetail(
     .map(({ row, spec }) => ({
       version: row.version,
       spec,
+      layout: shownLayoutOf(context, summary.id, row.version),
       note: row.note,
       createdBy: row.createdBy,
       createdAt: row.createdAt,
@@ -213,5 +217,5 @@ export function readReport(
   reader: ReaderRole,
 ): Omit<ReportDetail, 'canChange'> {
   const role = visibleReport(context, id, reader);
-  return toReportDetail(summaryOf(context, id, role), versionSpecs(context, id), role);
+  return toReportDetail(context, summaryOf(context, id, role), versionSpecs(context, id), role);
 }

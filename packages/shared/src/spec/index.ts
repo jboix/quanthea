@@ -20,6 +20,7 @@ export {
 } from './diff.ts';
 export { fixedTimeOf } from './fixed-time.ts';
 export {
+  type Arranged,
   applyLayout,
   type DashboardLayout,
   dashboardLayoutSchema,

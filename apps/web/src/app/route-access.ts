@@ -22,6 +22,7 @@ export const routeAccess = {
   '/reports/settings': 'admin',
   '/reports/:reportId': 'viewer',
   '/reports/:reportId/runs/:runId': 'viewer',
+  '/reports/:reportId/v/:version/layouts': 'editor',
   '/reports/:reportId/runs/:runId/conversations': 'viewer',
   '/reports/:reportId/runs/:runId/conversations/:conversationId': 'viewer',
   '/reports/:reportId/runs/:runId/similar-questions': 'viewer',
