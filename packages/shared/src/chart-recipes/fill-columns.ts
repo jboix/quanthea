@@ -49,10 +49,9 @@ export function tableColumns(names: readonly string[], asked: Json | undefined):
   if (names.length === 0) return { columns: asked };
   const unknown = asked.map((option) => option.field).filter((field) => !names.includes(field));
   if (unknown.length > 0) return { problems: [unknownProblem([...new Set(unknown)], names)] };
-  const columns = names.map((field) =>
-    asked
-      .filter((option) => option.field === field)
-      .reduce<JsonObject>((column, option) => ({ ...column, ...option }), { field }),
-  );
+  const columns = names.map((field): JsonObject => {
+    const options = asked.filter((option) => option.field === field);
+    return Object.assign({ field }, ...options);
+  });
   return { columns };
 }
