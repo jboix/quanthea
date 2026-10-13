@@ -167,11 +167,6 @@
   list-style: none;
 }
 
-.seriesList {
-  max-height: 360px;
-  overflow-y: auto;
-}
-
 .seriesRow {
   display: flex;
   justify-content: space-between;

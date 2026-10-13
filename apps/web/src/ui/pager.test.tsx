@@ -33,3 +33,13 @@ test('both controls wait while a page loads', () => {
   );
   expect(html.match(/disabled=""/g)).toHaveLength(2);
 });
+
+test('names its controls otherwise for a list that is not in order of time', () => {
+  const words = { newer: 'Previous', older: 'Next' };
+  const html = renderToStaticMarkup(
+    <Pager label="Pages" offset={0} shown={10} total={24} onOlder={move} words={words} />,
+  );
+  expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Previous/);
+  expect(html).toContain('Next');
+  expect(html).not.toContain('Newer');
+});

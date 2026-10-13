@@ -43,7 +43,8 @@ The draft pane shows what the alert would have done, before it ever runs:
   moves with the series. With several series it is drawn for the one that fired longest. A
   comparison with the past adds a dotted line, the value a week (or a day, or an hour) earlier, and
   a band is drawn as a shaded range: the series fires where it leaves it.
-- **The series**: one per service, host or label value, each with how often it would have fired.
+- **The series**: one per service, host or label value, each with how often it would have fired,
+  ten at a time.
 - **Notifies**: the channels, when the alert is quiet and when it may next notify, and a preview
   of the message as each service shows it: a Slack
   message, a Discord embed, a Teams card, a PagerDuty incident, an Alertmanager alert, a
@@ -235,7 +236,7 @@ number of alerts firing.
 
 - **The chart** replays the shown version over 6 hours, 24 hours or 7 days, with the threshold
   and the firing periods.
-- **Series** gives each series' state, value and since when.
+- **Series** gives each series' state, value and since when, the worst first and ten at a time.
 - **What happened** lists the changes of state, whether each notified or was held back by quiet
   hours, the times it could not be checked, and who activated, deactivated, muted or unmuted it.
   It shows the latest 10 entries and says how many there are in all. **Older** and **Newer** move

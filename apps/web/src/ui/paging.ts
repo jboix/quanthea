@@ -25,3 +25,16 @@ export function pageRange(offset: number, shown: number, total: number): string 
 export function hasPages(shown: number, total: number): boolean {
   return total > shown;
 }
+
+/**
+ * Where a page of a list held whole starts, when the list may have shrunk since it was chosen.
+ *
+ * @param chosen - Where the page chosen starts.
+ * @param size - How many entries a page shows.
+ * @param total - How many entries the list holds now.
+ * @returns The start of the page chosen, or of the last page the list still has.
+ */
+export function pageStart(chosen: number, size: number, total: number): number {
+  const last = Math.max(0, Math.ceil(total / size) - 1) * size;
+  return Math.min(Math.max(0, chosen), last);
+}

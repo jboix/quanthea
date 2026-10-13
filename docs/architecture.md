@@ -371,103 +371,11 @@ gate's leak tests check that every one of those paths drops hidden fields.
     first page of each. Older loads the next through the `/alerts/:alertId/timeline` and
     `/alerts/:alertId/sends` resource routes, by the cursor of the page shown; Newer goes back
     through the pages already loaded (`use-pages.ts`).
-  - Each series now is not paged: a spec keeps at most `value.maxSeries` series (100 by default,
-    1000 at most), the page needs them all to compare the changes not saved, and the list scrolls
-    inside its card.
-  - **When it is quiet** reads the same on the page and in the draft pane
-    (`alert-draft/quiet-hours.ts`): "Quiet Mon to Fri 22:00 to 07:00; Sat and Sun all day
-    (Europe/Zurich), the default for all alerts. Quiet now. It may next notify Tue 07:00.", or
-    "Next quiet from 22:00.", or why it keeps none ("the default leaves critical alerts alone").
-    `GET /api/alerts/:id` carries the default of the alert settings (`defaultQuietHours`), so the
-    browser applies `quietHoursOf` to the version shown and `nextQuietChange` to the clock.
-    `nextQuietChange` looks at each window's start and end over the coming days and returns the
-    first at which quiet hours change, moved to the jump when daylight saving skips it; `null`
-    when they hold every hour of the week. Times read on the browser's clock.
-  - **Shown on** (`shown-on.tsx`) lists the panels the alert is linked to: the dashboard and the
-    panel, each a link, or "not on the shown version" when the version shown has no such panel.
-    Editors get × to unlink, Link to a panel… (pick a pinned dashboard, then one of its panels,
-    from the `/alert-link-targets` resource route) and the suggested panels ("Also on _Checkout
-    incident_ · _Error rate by service_") with Link and Dismiss.
-- **The Alerts page's header**, for admins, has Notification channels, a link to Settings →
-  Notifications, and Settings, a dialog laid out like the bin's Retention dialog
-  (`alert-settings-dialog.tsx`). It loads and saves the alert settings through the
-  `/alerts/settings` resource route: the most alerts active per connector, and the switch Notify
-  when an alert cannot be checked or a report fails (`notifyOnError`), which reports read too.
-  The switch Quiet hours by default opens their fields (`quiet-hours-fields.tsx`,
-  `quiet-hours-form.ts`): each window's days as chips with its start and end, Add a window (up
-  to 8), the time zone (the browser's at first) and the severities that still notify at any hour.
-  A line reads them back ("Quiet every day 22:00 to 07:00 (Europe/Zurich)."), or says what keeps
-  them from being saved. Turned on, they start as every night from 22:00 to 07:00 with critical
-  alerts left alone; turned off, `quietHours` is saved as `null`. When the configuration file
-  manages the settings, the save is refused and the dialog says so. Editors and below see
-  neither; editors see New alert.
-- **Reports** (`features/reports/`). The rail's Reports carries a dot in the accent colour while a
-  report has a finished run the person has not opened (`Reports, new runs`). It reads the list
-  while the list is on screen, and otherwise the `/reports/unseen` resource route, which loads
-  when the rail mounts, after every action and when a run opens.
-- **The Reports list** (`/reports`) searches titles, schedules and numbers in the browser. Each
-  row links to the report's latest run: the title with the dot when its latest run is new to the
-  person, the schedule and period in words (`Mondays 08:00 · the previous week`), the last run's
-  first headline number with its change (`CHF 184,320 ▲ 6.2%`), or `Last run failed` in the
-  danger colour, a small bar history of that number over the last runs (`value-history.tsx`,
-  plain SVG from the list's `history`), and the next run. A draft is dashed. Editors get New
-  report (`/threads/new?make=report`); admins also get Notification channels and Settings, a
-  dialog (`report-settings-dialog.tsx`) that loads and saves the retries, their delay and how many
-  days runs are kept through the `/reports/settings` resource route.
-- **A run's page** (`/reports/:reportId/runs/:runId`; `/reports/:reportId` redirects to the
-  latest run, or shows the report before its first). The header holds the breadcrumb, ‹ and › to
-  the runs of the periods before and after, the period as the title (`Week 39 · 21 – 27 Sep`),
-  and the line `Ran Mon 28 Sep 08:00 · sent to #sales · frozen: opening it runs no query`, or the
-  failure with its reason and attempts in the danger colour. Its actions are Ask about this (a
-  run that succeeded), Edit layout (a successful run of the active version, for those who may
-  change the report, on a screen wider than 900 pixels), Change for editors (Edit with the agent,
-  Run now, which opens the new run, and Deactivate or Activate), Share (Copy link), and Versions
-  for editors (each version, the active one marked; Activate another). Below 720 px they fold
-  into one menu. The body shows the headline numbers with their change against the comparison
-  period, the other panels drawn from the frozen results by `FrozenCanvas` through the layout of
-  the run's version (moved up where the headlines stood when it has none), and See also, each
-  dashboard opened on the run's period. Edit layout is the dashboard's editor over the frozen
-  panels: its bar takes the place of the actions, the side panel closes, ‹ and › go, and Save
-  layout goes to the action of `/reports/:reportId`.
-- **Ask about a run** opens a side panel laid out like a pinned dashboard's: About (the
-  description, schedule, version and sources with their levels), Ask and History. History and
-  the bin of a conversation are the dashboard's own components over the run's resource routes
-  (`HistoryTab` and `useBinConversation` take the path the routes are under). The Ask tab
-  (`run-ask-tab.tsx`) shows one conversation; its box reads `Ask about week 39, as the report froze
-  it`, and viewers get a line saying who can ask. Each answer is plain text with its reads (a read
-  of the frozen results says so) and, under Worth watching, its follow-up cards
-  (`follow-up-cards.tsx`): the kind, the title and the prompt as plain text, and for editors Start
-  this alert or Start this dashboard, a link to `/threads/new?make=alert&prompt=…` that fills the
-  question box and sends nothing.
-- **Connector settings.** The connector screen keeps what an admin sets apart from what nobody
-  can: the access level, the hidden columns and the limits (timeout, rows, time range) are
-  controls, and the rules of the kind's query language are a list under Always enforced
-  (`features/connectors/enforced-rules.ts`), one sentence each of what the binder refuses. That
-  list restates the binders of the query engine (`query/`), so a binder change updates it. Adding
-  a hidden column suggests the schema's fields while typing (`ui/suggest-input.tsx`, a text field
-  with a list of matching names: Enter or a click takes a name and closes the list, and Escape
-  closes the list before it gives up the field). A name the schema lacks is marked, in the list and on its chip,
-  and saved all the same (`features/connectors/hidden-names.ts`, which matches names as the gate
-  does). Which objects the connector shows is a section of its own, with a checklist of the
-  schema's objects: see "Hiding an object that dashboards read".
-- `ui/` is purely presentational (`ui-is-dumb`). `ui/brand.tsx` draws the logo, icon and mark
-  from [`docs/brand/`](brand/README.md); `public/` holds the favicons and the web app manifest.
-- **Headers.** `ui/title-header.tsx` draws the header of the screens and panes (a dashboard, a
-  snapshot, an alert, a report's run, a thread and its draft panes, a connector, a query), of the
-  `Page`, `Card`, `Dialog` and `Drawer` primitives, and of the library's and the chart gallery's
-  cards. The title ends in an ellipsis when it does not fit and keeps its full text as a tooltip,
-  or wraps where the title is the content (cards). Badges and actions keep their size and move
-  below the title as a group, never over it. A feature gives it only its padding, border and
-  background. Lines that may be long, such as the hint and the refusal while a dashboard's layout
-  is arranged, go under the title, where they wrap. Smaller headings keep their own rows: the
-  section cards of the alert page and of the alert and report draft panes, the inspector's head,
-  a dashboard panel's heading, the plan and diff cards of a thread, the connector form's title,
-  the new thread screen and `ui/placeholder.tsx`.
-- **Colour scheme.** Light, dark or the system's, picked under Appearance in the account menu and
-  kept in the browser's `localStorage` (`ui/color-scheme.ts`). The system's is the default, until the person picks one. The choice
-  sets `data-theme` on the document element before the first render, and `@quanthea/tokens`
-  redefines the colour tokens for `dark`. Charts read their colours from the tokens again when the
-  scheme changes. The icon tiles keep their brand colours in both schemes.
+  - Each series now shows ten series at a time too, the worst first, with Previous and Next. The
+    alert's detail carries every series: a spec keeps at most `value.maxSeries` (100 by default,
+    1000 at most), and the page needs them all to compare the changes not saved. So the browser
+    pages them (`ui/use-local-pages.ts`), and no endpoint does. The series card of the thread's
+    draft pane pages the replay's series the same way.
 
 **Routes** (React Router data mode):
 

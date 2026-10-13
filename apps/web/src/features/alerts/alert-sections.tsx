@@ -3,7 +3,9 @@
  * quiet, with the latest messages sent.
  */
 import type { AlertDetail, AlertState } from '@quanthea/shared';
+import { Pager } from '../../ui/pager.tsx';
 import { Pill } from '../../ui/pill.tsx';
+import { useLocalPages } from '../../ui/use-local-pages.ts';
 import { quietSummary } from '../alert-draft/index.ts';
 import styles from './alert.module.css';
 import { LatestMessages } from './alert-paged-lists.tsx';
@@ -28,8 +30,44 @@ const rank: Readonly<Record<AlertState, number>> = {
   ok: 4,
 };
 
+/** How many series a page of the list shows. */
+const seriesPerPage = 10;
+
+/** What the controls of the series' pager say: the list is by state, not by time. */
+const seriesPagerWords = { newer: 'Previous', older: 'Next' } as const;
+
 /**
- * Each series as the last evaluation left it, the worst first.
+ * One series as the last evaluation left it.
+ *
+ * @param props - The series, the alert's format and the current time.
+ * @param props.series - The series.
+ * @param props.format - The alert's value format.
+ * @param props.now - The current time.
+ * @returns The row.
+ */
+function SeriesRow({
+  series,
+  format,
+  now,
+}: {
+  readonly series: AlertDetail['series'][number];
+  readonly format: AlertDetail['format'];
+  readonly now: number;
+}) {
+  const state = `${stateWords[series.state]} ${durationSince(series.since, now)}`;
+  return (
+    <li className={styles.seriesRow}>
+      <span className={styles.seriesName}>{seriesName(series.labels)}</span>
+      <span className={styles.seriesState} data-tone={toneOf[series.state]}>
+        <span className={styles.dot} data-tone={toneOf[series.state]} />
+        {valueText(series.value, format)} · {state}
+      </span>
+    </li>
+  );
+}
+
+/**
+ * Each series as the last evaluation left it, the worst first, ten at a time.
  *
  * @param props - The alert and the current time.
  * @param props.alert - The alert.
@@ -40,6 +78,7 @@ export function SeriesNow({ alert, now }: { readonly alert: AlertDetail; readonl
   const series = [...alert.series].sort(
     (a, b) => rank[a.state] - rank[b.state] || a.key.localeCompare(b.key),
   );
+  const pages = useLocalPages(series, seriesPerPage);
   return (
     <section className={styles.card} aria-labelledby="alert-series-title">
       <h2 id="alert-series-title" className={styles.cardTitle}>
@@ -47,19 +86,17 @@ export function SeriesNow({ alert, now }: { readonly alert: AlertDetail; readonl
       </h2>
       {series.length === 0 && <p className={styles.chartNote}>Not evaluated yet.</p>}
       <ul className={styles.seriesList}>
-        {series.map((each) => {
-          const state = `${stateWords[each.state]} ${durationSince(each.since, now)}`;
-          return (
-            <li key={each.key} className={styles.seriesRow}>
-              <span className={styles.seriesName}>{seriesName(each.labels)}</span>
-              <span className={styles.seriesState} data-tone={toneOf[each.state]}>
-                <span className={styles.dot} data-tone={toneOf[each.state]} />
-                {valueText(each.value, alert.format)} · {state}
-              </span>
-            </li>
-          );
-        })}
+        {pages.shown.map((each) => (
+          <SeriesRow key={each.key} series={each} format={alert.format} now={now} />
+        ))}
       </ul>
+      <Pager
+        label="Each series, pages"
+        words={seriesPagerWords}
+        {...{ offset: pages.offset, shown: pages.shown.length, total: series.length }}
+        onNewer={pages.onBefore}
+        onOlder={pages.onAfter}
+      />
     </section>
   );
 }
