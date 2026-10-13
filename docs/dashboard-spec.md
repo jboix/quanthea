@@ -160,8 +160,8 @@ type ChartView = {
   option: EChartsOptionJson
   datasets: { ref: string; transform?: DatasetTransform }[]   // becomes option.dataset[i]
   markers?: { annotation: string }[]        // show dashboard annotations on this chart
-  // The steps of a gauge (prepare: 'gauge'), drawn as the colours of its dial: ranges with a tone,
-  // in the value's own unit. Refused on any other chart.
+  // The steps of a gauge (prepare: 'gauge'), drawn as the colours of its dial: ranges with a tone
+  // and no text, in the value's own unit. Refused on any other chart.
   mappings?: Mapping[]                      // ≤ 20, the first match wins
 }
 
@@ -240,7 +240,7 @@ they differ from the sketch above, the schemas win:
   range with `from` below `to`.
 - Among the charts only a gauge takes `mappings`, and each is a step: a range with a tone. The
   validator refuses mappings on any other chart, and a gauge's mapping that matches a value or
-  `null` or has no tone.
+  `null`, has no tone, or has a text.
 - A step is written in the unit of the gauge's value. The renderer places it between the series'
   `min` and `max` (0 and 100 when left out). A stretch of the dial no step covers keeps the
   colour of the bare track.

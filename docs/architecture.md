@@ -1843,7 +1843,9 @@ query guide (how to get each shape of data from it, with examples) is not in the
 agent reads it with `read_guide` before the kind's first raw query or test query, as it reads a
 chart recipe with `chart_recipe`. How a set of markers is written is read the same way,
 `read_guide("markers")`, before the agent sets any. The instructions stay about the same size
-however many kinds are in use.
+however many kinds are in use. A test (`agent/panel-guide-size.test.ts`) holds the panel guide
+under a ceiling for a run on metrics and SQL, and for both with search: what a chart needs only
+sometimes goes into its recipe.
 
 ### Keeping requests small
 
@@ -4238,13 +4240,16 @@ one, and enables them again. Without any admin, it creates the default one.
   - The agent sets both in `chart.options.columns` for a table and in `chart.options` for a stat,
     which adds nothing to the edit tool's schema. The spec schema refuses a tone that is not in
     the list and a match that says two things.
+  - The panel guide says only where mappings go and which tones exist. Their forms are pitfalls
+    of `table.rows`, `kpi.stat` and `kpi.gauge`, which `chart_recipe` returns, so a turn that
+    builds none of the three does not carry them.
   - The stat recipe's value role takes a number column, so a stat the agent builds maps a number
     or no value. The view reads a text or a boolean column too, and the agent does not build one.
   - A gauge takes `mappings` on its chart view, as the steps of its dial: each a range with a
     tone. The agent sets them in `chart.options.mappings` of `kpi.gauge`, and `fillView` lifts
     them into the view. The validator (`dashboards/check-steps.ts`) refuses mappings on a chart
-    that is not prepared as a gauge, and a gauge's mapping that is not a range with a tone, since
-    a dial draws no text and places no single value.
+    that is not prepared as a gauge, and a gauge's mapping that is not a range with a tone or
+    that carries a text, since a dial draws no text and places no single value.
   - The gauge preparation (`charts/prepare/steps.ts`) turns the steps into the colour stops of
     the dial. A step is in the value's unit and a stop is a share of the dial, so each bound is
     placed between the series' `min` and `max`. Each stretch takes the tone `mapValue` gives its

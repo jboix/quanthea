@@ -26,7 +26,12 @@ export const stat: ChartRecipe = {
     },
     mean: { title: 'Average', whenToUse: 'The average over the range.', patch: { reduce: 'mean' } },
   },
-  pitfalls: ['Say in the title what the number covers: "now", "today", "over the range".'],
+  pitfalls: [
+    'Say in the title what the number covers: "now", "today", "over the range".',
+    'options.mappings: [{ "match", "text"?, "tone"? }], the first match wins. match is { "value": 0 }, { "null": true } or a range of numbers { "from"?, "to"? }, from included, to excluded.',
+    'Thresholds colour the number: [{ "match": { "to": 2 }, "tone": "good" }, { "match": { "from": 2 }, "tone": "bad" }]. options.toneAs: "background" tints behind the number instead.',
+    'A text replaces the number: { "match": { "null": true }, "text": "0" } shows 0 when the query returns no value. Keep it short.',
+  ],
   sample: { roles: { value: 'signups' }, datasets: [dailyCounts] },
   queryHints: ['One value, or a series whose last or total is the number.'],
 };

@@ -21,7 +21,13 @@ export const rows: ChartRecipe = {
   prepare: 'none',
   option: {},
   variants: {},
-  pitfalls: ['Tables show at most 500 rows; sort and limit in the query.'],
+  pitfalls: [
+    'Tables show at most 500 rows; sort and limit in the query.',
+    'options.columns changes columns by "field": [{ "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"? }], only those to change. The order stays that of roles.columns.',
+    'mappings: [{ "match", "text"?, "tone"? }], the first match wins. match is { "value": "error" }, { "null": true } or a range of numbers { "from"?, "to"? }, from included, to excluded.',
+    'Thresholds are ranges: [{ "match": { "to": 2 }, "tone": "good" }, { "match": { "from": 2, "to": 4 }, "tone": "warning" }, { "match": { "from": 4 }, "tone": "bad" }].',
+    'A match reads the value as the query returns it, before the format. "toneAs": "background" tints the cell; left out, the tone colours the text.',
+  ],
   sample: { roles: { columns: ['region', 'sales', 'target'] }, datasets: [regionSales] },
   queryHints: ['The rows and columns to list, sorted.'],
 };

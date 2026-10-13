@@ -42,8 +42,15 @@ describe('the steps of a gauge', () => {
     expect(colored.issues[0]).toStartWith('panels[0].view.mappings[0].tone: ');
     const valued = panelOf('kpi.gauge', { mappings: [{ match: { value: 1 }, tone: 'bad' }] });
     expect(valued.issues).toEqual([
-      'panels[0].view.mappings[0]: A step of a gauge is a range with a tone, such as { "match": { "from": 0.9 }, "tone": "bad" }.',
+      'panels[0].view.mappings[0]: A step of a gauge is a range with a tone and no text, such as { "match": { "from": 0.9 }, "tone": "bad" }.',
     ]);
+  });
+
+  test('refuse a step with a text, which a dial does not draw', () => {
+    const step = { match: { from: 0.9 }, tone: 'bad', text: 'High' };
+    const { issues } = panelOf('kpi.gauge', { mappings: [step], series: { max: 1 } });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toStartWith('panels[0].view.mappings[0]: A step of a gauge is a range');
   });
 
   test('are refused on a chart that is not a gauge', () => {

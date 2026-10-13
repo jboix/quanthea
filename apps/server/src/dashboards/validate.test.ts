@@ -239,7 +239,7 @@ describe('validateSpec', () => {
     ).toEqual(
       [2, 3].map(
         (index) =>
-          `panels[1].view.mappings[${index}]: A step of a gauge is a range with a tone, such as { "match": { "from": 0.9 }, "tone": "bad" }.`,
+          `panels[1].view.mappings[${index}]: A step of a gauge is a range with a tone and no text, such as { "match": { "from": 0.9 }, "tone": "bad" }.`,
       ),
     );
   });
