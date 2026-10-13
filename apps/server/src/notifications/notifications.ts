@@ -28,6 +28,7 @@ import {
 import { type DeliveryOptions, resolveHost } from './delivery.ts';
 import {
   alertOutbound,
+  keepAlive,
   previewBodies,
   reportOutbound,
   type SendContext,
@@ -103,6 +104,14 @@ export interface Notifications {
    * @returns Each channel's result; an unknown channel's is a failure.
    */
   send(channelIds: readonly string[], notification: Notification): Promise<SendResult[]>;
+  /**
+   * Says again that an alert still holds, to the channels that end an alert they are not told
+   * about again: Alertmanager. The other kinds get nothing, and no send is logged. It never throws.
+   *
+   * @param channelIds - The alert's channels, of any kind.
+   * @param notification - The firing, or the failed check, that still holds.
+   */
+  keepAlive(channelIds: readonly string[], notification: Notification): Promise<void>;
   /**
    * Sends a report notification to channels, logging each send. It never throws.
    *
@@ -228,6 +237,8 @@ export function createNotifications(dependencies: NotificationsDependencies): No
     ...channelMethods(context),
     send: (channelIds, notification) =>
       sendToChannels(context, channelIds, alertOutbound(notification)),
+    keepAlive: (channelIds, notification) =>
+      keepAlive(context, channelIds, alertOutbound(notification)),
     sendReport: (channelIds, notification) =>
       sendToChannels(context, channelIds, reportOutbound(notification)),
     test: async (id, actor) => {

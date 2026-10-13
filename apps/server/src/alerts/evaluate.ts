@@ -19,7 +19,7 @@ import type { AlertRow } from '../db/alert-repository.ts';
 import type { AlertStateRepository, EventRow, SeriesRow } from '../db/alert-state-repository.ts';
 import { newId } from '../lib/ids.ts';
 import type { Logger } from '../lib/logger.ts';
-import { type CheckDecision, checkNotification, decideCheck } from './check-notice.ts';
+import { type CheckDecision, checkNotification, decideCheck, keepsError } from './check-notice.ts';
 import { buildNotification, decideNotification, type NotifyDecision } from './notify.ts';
 import { observe, type SeriesObservation, wholeAlertKey } from './observe.ts';
 import { ruleOf } from './replay-core.ts';
@@ -37,6 +37,11 @@ export interface EvaluationDependencies extends AlertQueryDependencies {
   readonly states: Pick<AlertStateRepository, 'series' | 'checkState' | 'saveEvaluation'>;
   /** Sends notifications. */
   readonly notify: Notify;
+  /**
+   * Says again that a firing or a failed check still holds, to the channels that end an alert
+   * they are not told about again. It is no message to a person.
+   */
+  readonly keepAlive: Notify;
   /** Whether an alert that cannot be checked notifies its channels: the alert settings say. */
   readonly notifyOnError: () => boolean;
   /** The quiet hours of the alerts that set none: the alert settings say. */
@@ -87,6 +92,8 @@ interface SeriesOutcome {
   readonly event: (EventRow & { readonly id: string }) | null;
   /** The notification to send, if any. */
   readonly notification: Notification | null;
+  /** The firing to say again, when it still holds and nothing is sent about it. */
+  readonly keepAlive: Notification | null;
 }
 
 /**
@@ -241,8 +248,62 @@ function advance(
     key: input.key,
     row: kept && rowOf(input, kept, decision, context.now),
     event: transition && eventOf(subject, input, transition, decision),
-    notification: notificationOf(subject, input, next ?? input.previous, decision, context),
+    ...messagesOf(subject, input, next, decision, context),
   };
+}
+
+/**
+ * What an evaluation says of one series: the notification that is due, or the keep-alive of a
+ * firing it announced before and sends nothing about now.
+ *
+ * @param subject - The alert and its spec.
+ * @param input - The series.
+ * @param next - Its state after the evaluation, or `null` when it is gone.
+ * @param decision - Its notification decision.
+ * @param context - The time, the mute, the quiet hours and the link.
+ * @returns The notification and the keep-alive; at most one of them.
+ */
+function messagesOf(
+  subject: EvaluatedAlert,
+  input: SeriesInput,
+  next: SeriesState | null,
+  decision: NotifyDecision,
+  context: EvaluationContext,
+): Pick<SeriesOutcome, 'notification' | 'keepAlive'> {
+  const again = stillSaid(next, decision, context);
+  const said = again ? firingAgain(decision) : decision;
+  const message = notificationOf(subject, input, next ?? input.previous, said, context);
+  return again
+    ? { notification: null, keepAlive: message }
+    : { notification: message, keepAlive: null };
+}
+
+/**
+ * Whether a series still fires as it announced, with nothing sent about it at this evaluation. A
+ * mute and quiet hours hold the keep-alive back as they hold a message.
+ *
+ * @param next - Its state after the evaluation, if it has one.
+ * @param decision - Its notification decision.
+ * @param context - The evaluation's mute and quiet hours.
+ * @returns `true` when its firing is said again to the channels that must hear it.
+ */
+function stillSaid(
+  next: SeriesState | null,
+  decision: NotifyDecision,
+  context: EvaluationContext,
+): boolean {
+  if (context.muted || context.quiet) return false;
+  return next?.state === 'firing' && decision.announced && decision.event === null;
+}
+
+/**
+ * The decision of a keep-alive: the firing, said as it was first.
+ *
+ * @param decision - The decision of the evaluation, which sends nothing.
+ * @returns The same with the firing as its event.
+ */
+function firingAgain(decision: NotifyDecision): NotifyDecision {
+  return { ...decision, event: 'alert.firing', late: false };
 }
 
 /**
@@ -253,7 +314,7 @@ function advance(
  * @param notifications - The notifications.
  */
 async function send(
-  dependencies: Pick<EvaluationDependencies, 'notify' | 'logger'>,
+  dependencies: { readonly notify: Notify; readonly logger: Logger },
   subject: EvaluatedAlert,
   notifications: readonly Notification[],
 ): Promise<void> {
@@ -327,10 +388,14 @@ function checkOf(
   const quiet = context.muted || !dependencies.notifyOnError();
   const facts = { failure, quiet, held: context.quiet, now: context.now };
   const decision = decideCheck(dependencies.states.checkState(alert.id), facts);
-  if (decision.event === null) return { decision, notification: null };
+  const event = decision.event ?? (keepsError(decision, facts) ? 'alert.error' : null);
+  if (event === null) return { decision, notification: null, keepAlive: null };
   const about = { alertId: alert.id, version: alert.activeVersion ?? 0, spec, url: context.url };
-  const notification = checkNotification(about, decision.event, failure, context.now);
-  return { decision, notification };
+  const since = decision.state.errorSince ?? context.now;
+  const said = checkNotification(about, event, failure, context.now, since);
+  return decision.event === null
+    ? { decision, notification: null, keepAlive: said }
+    : { decision, notification: said, keepAlive: null };
 }
 
 /**
@@ -388,10 +453,19 @@ export async function evaluateAlert(
   save(dependencies, alert.id, outcomes, check.decision, now);
   const events = outcomes.flatMap((each) => (each.event ? [each.event] : []));
   reportErrors(dependencies.logger, alert.id, events);
-  const notifications = outcomes.flatMap((each) => each.notification ?? []);
-  await send(
-    dependencies,
-    subject,
-    check.notification ? [...notifications, check.notification] : notifications,
-  );
+  const said = [...outcomes.map((each) => each.notification), check.notification];
+  await send(dependencies, subject, said.filter(isSaid));
+  const again = [...outcomes.map((each) => each.keepAlive), check.keepAlive];
+  const { keepAlive: notify, logger } = dependencies;
+  await send({ notify, logger }, subject, again.filter(isSaid));
+}
+
+/**
+ * Whether there is a notification.
+ *
+ * @param notification - The notification, if any.
+ * @returns `true` when there is one.
+ */
+function isSaid(notification: Notification | null): notification is Notification {
+  return notification !== null;
 }

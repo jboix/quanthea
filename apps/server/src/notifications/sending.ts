@@ -234,6 +234,45 @@ export function sendToChannels(
   return Promise.all([...new Set(channelIds)].map((id) => sendOne(context, id, message)));
 }
 
+/** The kinds of channel that end an alert they are not told about again. */
+const keptAliveKinds: ReadonlySet<string> = new Set<ChannelKind>(['alertmanager']);
+
+/**
+ * Says again to one channel that an alert still holds. It logs no send, and never throws.
+ *
+ * @param context - Sending.
+ * @param row - The channel.
+ * @param message - The message that still holds.
+ */
+async function keepOneAlive(context: SendContext, row: ChannelRow, message: Outbound) {
+  const failed = { ok: false, error: 'The message could not be built.' };
+  const delivery = await post(context, row, message, newId()).catch(() => failed);
+  if (delivery.ok) return;
+  const fields = { channelId: row.id, alertId: message.alertId, error: delivery.error };
+  context.logger?.warn('a keep-alive was not delivered', fields);
+}
+
+/**
+ * Says again to the channels that must hear it that an alert still holds: a keep-alive. It is no
+ * message to a person, so the other kinds of channel get nothing and the log records nothing. A
+ * failure is reported to the logger. It never throws.
+ *
+ * @param context - Sending.
+ * @param channelIds - The alert's channels, of any kind.
+ * @param message - The message that still holds.
+ */
+export async function keepAlive(
+  context: SendContext,
+  channelIds: readonly string[],
+  message: Outbound,
+): Promise<void> {
+  const kept = [...new Set(channelIds)].flatMap((id) => {
+    const row = context.repository.get(id);
+    return row && keptAliveKinds.has(row.kind) ? [row] : [];
+  });
+  await Promise.all(kept.map((row) => keepOneAlive(context, row, message)));
+}
+
 /**
  * The test notification: the sample message, marked as a test.
  *

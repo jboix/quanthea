@@ -140,20 +140,24 @@ function sayingSince(template: MessageTemplate): MessageTemplate {
   return { ...template, fields: [...template.fields, { label: 'Firing since', value: '{since}' }] };
 }
 
+/** How many evaluations ahead a firing holds, so a few late or lost ones do not end it. */
+const evaluationsHeld = 4;
+
 /**
- * The firing a notification announces: since when, and by when it is announced again. A repeat
- * goes out with the first evaluation once `repeatEvery` has passed, so one interval later at most.
+ * How long something said at an evaluation holds unless the next evaluations say it again.
  *
- * @param subject - The alert's spec and the series.
- * @param now - When.
- * @returns Since when, and by when again for an alert that repeats.
+ * @param spec - The spec, for how often it is evaluated.
+ * @param since - Since when it holds, in epoch milliseconds.
+ * @param now - When it is said.
+ * @returns Since when, and until when: four evaluations ahead.
  */
-function firingOf(subject: NotificationSubject, now: number): NonNullable<Notification['firing']> {
-  const { notify, every } = subject.spec;
-  const since = new Date(subject.series.since).toISOString();
-  if (notify.repeatEvery === undefined) return { since };
-  const again = now + durationMs(notify.repeatEvery) + durationMs(every);
-  return { since, again: new Date(again).toISOString() };
+export function holdingFrom(
+  spec: Pick<AlertSpec, 'every'>,
+  since: number,
+  now: number,
+): NonNullable<Notification['firing']> {
+  const until = now + evaluationsHeld * durationMs(spec.every);
+  return { since: new Date(since).toISOString(), until: new Date(until).toISOString() };
 }
 
 /**
@@ -184,7 +188,7 @@ export function buildNotification(
     series: { key: series.key, labels: { ...series.labels } },
     template: late ? sayingSince(spec.message) : spec.message,
     values: notificationValues(spec, series, subject.url),
-    ...(event === 'alert.firing' ? { firing: firingOf(subject, now) } : {}),
+    ...(event === 'alert.firing' ? { firing: holdingFrom(spec, series.since, now) } : {}),
     at: new Date(now).toISOString(),
   };
 }

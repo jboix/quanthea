@@ -192,7 +192,7 @@ describe('a notification', () => {
     expect(buildNotification(about({}), 'alert.firing', minute, true).template.fields).toEqual([]);
   });
 
-  test('a firing says since when, and by when it is announced again if it repeats', () => {
+  test('a firing says since when, and holds for four evaluations unless it is said again', () => {
     const about = (overrides: Record<string, unknown>) => ({
       alertId: 'a1',
       version: 1,
@@ -201,16 +201,17 @@ describe('a notification', () => {
       url: '/alerts/a1',
     });
     const repeat = { notify: { onResolved: true, repeatEvery: '30m' } };
-    const repeating = buildNotification(about(repeat), 'alert.firing', 10 * minute);
-    expect(repeating.firing).toEqual({
+    const held = {
       since: new Date(2 * minute).toISOString(),
-      again: new Date(41 * minute).toISOString(),
-    });
+      until: new Date(14 * minute).toISOString(),
+    };
+    const repeating = buildNotification(about(repeat), 'alert.firing', 10 * minute);
+    expect(repeating.firing).toEqual(held);
     expect(notificationSchema.parse(repeating)).toEqual(repeating);
     const once = { notify: { onResolved: true } };
-    expect(buildNotification(about(once), 'alert.firing', 10 * minute).firing).toEqual({
-      since: new Date(2 * minute).toISOString(),
-    });
+    expect(buildNotification(about(once), 'alert.firing', 10 * minute).firing).toEqual(held);
+    const slow = buildNotification(about({ every: '5m' }), 'alert.firing', 10 * minute);
+    expect(slow.firing?.until).toBe(new Date(30 * minute).toISOString());
     expect(buildNotification(about(repeat), 'alert.resolved', 10 * minute)).not.toHaveProperty(
       'firing',
     );

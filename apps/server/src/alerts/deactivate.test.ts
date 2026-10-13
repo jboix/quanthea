@@ -47,6 +47,7 @@ function setup() {
     ...engine,
     states,
     notify,
+    keepAlive: () => Promise.resolve(),
     alertUrl: () => '/alerts/a',
     notifyOnError: () => true,
     quietHours: () => null,

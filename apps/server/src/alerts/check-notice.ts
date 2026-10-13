@@ -9,6 +9,7 @@
  */
 import type { AlertSpec, MessageTemplate, Notification } from '@quanthea/shared';
 import type { CheckEventRow, CheckState } from '../db/alert-state-repository.ts';
+import { holdingFrom } from './notify.ts';
 
 /** How many evaluations in a row must fail before an alert is in error. */
 export const failuresBeforeError = 2;
@@ -110,6 +111,21 @@ export function decideCheck(previous: CheckState, facts: CheckFacts): CheckDecis
     : failedCheck(previous, facts, facts.failure);
 }
 
+/**
+ * Whether an alert still cannot be checked as it announced, with nothing sent about it at this
+ * evaluation: its `alert.error` is then said again to the channels that must hear it. A mute, the
+ * setting and quiet hours hold that back as they hold a message.
+ *
+ * @param decision - What the evaluation decided.
+ * @param facts - The evaluation.
+ * @returns `true` when the failed check is kept alive.
+ */
+export function keepsError(decision: CheckDecision, facts: CheckFacts): boolean {
+  const { errorSince, notified } = decision.state;
+  if (decision.event !== null || facts.quiet || facts.held) return false;
+  return errorSince !== null && notified;
+}
+
 /** The fixed messages: the alert's title and why it cannot be checked fill them. */
 const checkTemplates: Readonly<Record<CheckEvent, MessageTemplate>> = {
   'alert.error': {
@@ -143,13 +159,16 @@ export interface CheckSubject {
  * @param event - Whether it cannot be checked, or can be again.
  * @param reason - Why the query failed, in words that quote no secret; `null` on recovery.
  * @param now - When.
- * @returns The notification, about the alert as a whole.
+ * @param since - Since when the alert cannot be checked; now when left out.
+ * @returns The notification, about the alert as a whole. An `alert.error` says until when it
+ *   holds, as a firing does.
  */
 export function checkNotification(
   subject: CheckSubject,
   event: CheckEvent,
   reason: string | null,
   now: number,
+  since: number = now,
 ): Notification {
   const { spec, url } = subject;
   const why = reason === null ? {} : { reason: reason.slice(0, maxReasonLength) };
@@ -165,6 +184,7 @@ export function checkNotification(
     series: { key: '', labels: {} },
     template: checkTemplates[event],
     values: { alert: spec.title, severity: spec.severity, link: url, ...why },
+    ...(event === 'alert.error' ? { firing: holdingFrom(spec, since, now) } : {}),
     at: new Date(now).toISOString(),
   };
 }

@@ -2,9 +2,8 @@
  * Alertmanager and reports. A report is not an alert, so a ready run fires nothing: it ends the
  * report's failure alert, if Alertmanager still holds one. A run that failed after its retries
  * fires that alert, at warning severity, with the labels `alertname` (the report's title) and
- * `quanthea_report` (the report id). It is said once and carries no end, so Alertmanager ends it
- * after its `resolve_timeout`. A test is marked `quanthea_test="true"` and ends by itself after
- * five minutes. Alertmanager shows text as it is, so nothing is escaped.
+ * `quanthea_report` (the report id). It is said once, so it names its own end, a day later. A
+ * test is marked `quanthea_test="true"` and ends by itself after five minutes. Alertmanager shows text as it is, so nothing is escaped.
  */
 import type { ReportNotification } from '@quanthea/shared';
 import { after, alertsUrl, generatorOf, type PostableAlert } from './alertmanager.ts';
@@ -47,9 +46,13 @@ function annotationsOf(notification: ReportNotification): Record<string, string>
   return { summary: reportTitle(notification, asIs), description };
 }
 
+/** How long a failed run holds in Alertmanager unless a run succeeds first: a day. */
+const failureLastsMs = 24 * 60 * 60_000;
+
 /**
  * When a report's alert starts and ends: a test lasts five minutes, a ready run ends the failure,
- * and a failure starts with no end.
+ * and a failure holds for a day. Nothing says a failed run again, so it names its own end:
+ * without one Alertmanager would end it after its `resolve_timeout`, minutes later.
  *
  * @param notification - The notification.
  * @returns The start, the end, or both.
@@ -57,7 +60,8 @@ function annotationsOf(notification: ReportNotification): Record<string, string>
 function timesOf(notification: ReportNotification): Pick<PostableAlert, 'startsAt' | 'endsAt'> {
   const { at } = notification;
   if (notification.test) return { startsAt: at, endsAt: after(at, testLastsMs) };
-  return notification.event === 'report.ready' ? { endsAt: at } : { startsAt: at };
+  if (notification.event === 'report.ready') return { endsAt: at };
+  return { startsAt: at, endsAt: after(at, failureLastsMs) };
 }
 
 /**

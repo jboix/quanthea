@@ -54,6 +54,7 @@ function evaluatorOver(
       saveEvaluation: () => undefined,
     },
     notify: () => Promise.resolve(),
+    keepAlive: () => Promise.resolve(),
     alertUrl: () => '',
     notifyOnError: () => true,
     quietHours: () => null,

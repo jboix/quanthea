@@ -53,8 +53,13 @@ function harness(overrides: Record<string, unknown> = {}) {
   const engine = fakeEngine((request) => (typeof answer === 'function' ? answer(request) : answer));
   const sent: Notification[] = [];
   const logs = captureLogs();
+  const kept: Notification[] = [];
   const notify = (_channels: readonly string[], notification: Notification) => {
     sent.push(notification);
+    return Promise.resolve();
+  };
+  const keepAlive = (_channels: readonly string[], notification: Notification) => {
+    kept.push(notification);
     return Promise.resolve();
   };
   const setting = { notifyOnError: true, quietHours: null as DefaultQuietHours | null };
@@ -62,6 +67,7 @@ function harness(overrides: Record<string, unknown> = {}) {
     ...engine,
     states,
     notify,
+    keepAlive,
     logger: logs.logger,
     alertUrl: () => '/alerts/a1',
     notifyOnError: () => setting.notifyOnError,
@@ -72,7 +78,7 @@ function harness(overrides: Record<string, unknown> = {}) {
     const alert = alerts.get('a1');
     if (alert) await evaluateAlert(dependencies, { alert, spec: alertSpec }, now);
   };
-  return { evaluate, sent, states, alerts, logs, dependencies, setting };
+  return { evaluate, sent, kept, states, alerts, logs, dependencies, setting };
 }
 
 /**
@@ -289,6 +295,66 @@ describe('evaluating an alert', () => {
     );
     await evaluate(12 * minute, at(1));
     expect(sent).toHaveLength(3);
+  });
+
+  test('says at every evaluation that a firing it announced still holds, as a keep-alive', async () => {
+    const { evaluate, sent, kept } = harness({
+      condition: { kind: 'threshold', op: 'above', value: 5, for: '0m' },
+    });
+    for (let minutes = 1; minutes <= 3; minutes += 1) await evaluate(minutes * minute, at(9));
+    expect(sent.map((each) => each.event)).toEqual(['alert.firing']);
+    expect(sent[0]?.firing?.until).toBe(new Date(5 * minute).toISOString());
+    expect(kept.map((each) => [each.event, each.at, each.firing])).toEqual(
+      [2, 3].map((minutes) => [
+        'alert.firing',
+        new Date(minutes * minute).toISOString(),
+        {
+          since: new Date(minute).toISOString(),
+          until: new Date((minutes + 4) * minute).toISOString(),
+        },
+      ]),
+    );
+    await evaluate(4 * minute, at(1));
+    await evaluate(5 * minute, at(1));
+    expect(sent.map((each) => each.event)).toEqual(['alert.firing', 'alert.resolved']);
+    expect(kept).toHaveLength(2);
+  });
+
+  test('holds a keep-alive back while muted and in quiet hours, as a message', async () => {
+    const { evaluate, kept, alerts, setting } = harness({
+      condition: { kind: 'threshold', op: 'above', value: 5, for: '0m' },
+    });
+    await evaluate(minute, at(9));
+    alerts.setMute('a1', { at: minute, by: 'ada', until: 3 * minute + 1 }, minute);
+    await evaluate(2 * minute, at(9));
+    await evaluate(3 * minute, at(9));
+    expect(kept).toEqual([]);
+    await evaluate(4 * minute, at(9));
+    expect(kept.map((each) => each.at)).toEqual([new Date(4 * minute).toISOString()]);
+    setting.quietHours = { ...thursday('00:00', '00:00'), exceptSeverities: [] };
+    await evaluate(5 * minute, at(9));
+    expect(kept).toHaveLength(1);
+  });
+
+  test('keeps alive that it cannot be checked, until it can again', async () => {
+    const { evaluate, sent, kept } = harness();
+    for (let minutes = 1; minutes <= 4; minutes += 1)
+      await evaluate(minutes * minute, new Error('Prometheus is down.'));
+    expect(sent.map((each) => each.event)).toEqual(['alert.error']);
+    expect(sent[0]?.firing).toEqual({
+      since: new Date(2 * minute).toISOString(),
+      until: new Date(6 * minute).toISOString(),
+    });
+    expect(kept.map((each) => [each.event, each.at, each.firing?.since])).toEqual(
+      [3, 4].map((minutes) => [
+        'alert.error',
+        new Date(minutes * minute).toISOString(),
+        new Date(2 * minute).toISOString(),
+      ]),
+    );
+    await evaluate(5 * minute, at(1));
+    await evaluate(6 * minute, at(1));
+    expect(kept).toHaveLength(2);
   });
 
   test('records a failing query once, logs it once, and one failure notifies no one', async () => {

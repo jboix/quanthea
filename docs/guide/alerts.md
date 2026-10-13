@@ -68,8 +68,9 @@ label values, or one per time series.
 - A series the condition holds for is **pending**, then **firing** once that held for the wait you
   set. A wait of 0 fires at once.
 - When it stops holding, it is **resolved**: the channel hears so, unless you turned that off.
-- While it keeps firing, the alert can repeat its message at an interval you set. An alert that
-  sends to an [Alertmanager](notifications.md#alertmanager) needs one.
+- While it keeps firing, the alert can repeat its message at an interval you set. An
+  [Alertmanager](notifications.md#alertmanager) needs no repeat: it is told at every check that
+  the series still fires.
 - **No data**: an alert can fire when the query returns nothing for a while.
 - **Cannot be checked**: when the query fails twice in a row, the source down or the credentials
   wrong, the channel hears once, and again when it can be checked. An admin can turn that off.

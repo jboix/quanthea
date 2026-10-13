@@ -76,37 +76,36 @@ Each series of an alert is one alert in Alertmanager, told apart by its labels:
   [configuration](../configuration.md).
 - **Resolved**: the alert is sent again with its end, so Alertmanager resolves it at once.
 
-### Set a repeat
+### How an alert stays firing
 
-Alertmanager ends an alert it has not heard about for a while. quanthea sends a message when a
-series starts firing and when it resolves, not at every check, so:
+Alertmanager ends an alert it has not heard about for a while. So quanthea tells it again at every
+check that a series still fires, and each time says that the alert holds for four checks more.
 
-- **An alert that repeats** ("repeat every 30 minutes") tells Alertmanager each time that the
-  alert holds until twice the time to its next repeat. One lost message does not end it.
-- **An alert without a repeat** is ended by Alertmanager after its own `resolve_timeout`, 5
-  minutes unless you changed it, though the series still fires.
-
-Give every alert that sends to an Alertmanager a repeat. The repeat goes to all the channels of
-the alert, so an alert that also posts to a chat repeats there too.
+- An alert needs no repeat to stay firing in Alertmanager. A repeat is for the channels a person
+  reads, and Alertmanager repeats to its own receivers by its own `repeat_interval`.
+- A few late or lost checks do not end the alert. When quanthea stops, Alertmanager ends the alert
+  four checks later: after 4 minutes for an alert checked every minute.
+- Only an Alertmanager channel hears this. A chat or a webhook gets the messages it always got,
+  and the channel's latest messages do not list it.
 
 ### Quiet hours, mutes and silences
 
 Quiet hours and mutes of quanthea hold a message back before it reaches Alertmanager. Silences,
 inhibitions and time intervals of Alertmanager hold back what Alertmanager sends on.
 
-- A repeat held back by quiet hours or a mute never reaches Alertmanager, so Alertmanager ends
-  the alert when its hold runs out, and fires it again when quanthea next speaks.
+- During quiet hours or a mute quanthea stops telling Alertmanager that a series still fires, so
+  Alertmanager ends the alert when its hold runs out, and fires it again once they are over.
 - To keep an alert firing in Alertmanager while nobody is told, leave the alert without quiet
   hours and silence it in Alertmanager.
 
 ### What else it sends
 
 - **An alert that cannot be checked** is an alert of its own, with the labels `alertname`,
-  `severity`, `quanthea_alert` and `quanthea_check="failed"`. It is said once, so Alertmanager
-  ends it after its `resolve_timeout`, or sooner when the alert can be checked again.
+  `severity`, `quanthea_alert` and `quanthea_check="failed"`. It stays firing as a series does,
+  until the alert can be checked again.
 - **A report** fires nothing when it is ready. A run that fails fires a `warning` with the labels
-  `alertname` (the report's title) and `quanthea_report` (its id), said once; the next good run
-  ends it.
+  `alertname` (the report's title) and `quanthea_report` (its id). It holds for a day, or until
+  the next good run ends it.
 - **Send a test** fires an alert marked `quanthea_test="true"`, which ends by itself after 5
   minutes. Route or silence that label if a test must page no one.
 

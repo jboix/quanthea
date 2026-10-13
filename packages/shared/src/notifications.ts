@@ -117,14 +117,14 @@ export const notificationSchema = z.strictObject({
   template: templateSchema(notificationPlaceholders),
   values: z.partialRecord(z.enum(notificationPlaceholders), z.string()),
   /**
-   * The firing an `alert.firing` announces: since when, and by when the series announces it again
-   * if it still fires. `again` is left out when the alert does not repeat. A channel that must be
-   * told how long a firing holds, such as Alertmanager, reads it.
+   * What an `alert.firing` or an `alert.error` says of how long it holds: since when, and until
+   * when unless it is said again. The evaluator says it again at every evaluation to a channel
+   * that must be told how long a firing holds, such as Alertmanager, which reads it.
    */
   firing: z
     .strictObject({
       since: z.iso.datetime({ offset: true }),
-      again: z.iso.datetime({ offset: true }).optional(),
+      until: z.iso.datetime({ offset: true }).optional(),
     })
     .optional(),
   at: z.iso.datetime({ offset: true }),

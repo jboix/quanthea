@@ -114,16 +114,16 @@ async function sendAt(channelId: string, at: number, build: () => Notification) 
 }
 
 /**
- * A firing that repeats: announced again within `again` minutes.
+ * A firing that holds for some minutes unless it is said again.
  *
- * @param again - Minutes until the next announcement, at the latest.
+ * @param minutes - How long it holds, from now.
  * @returns The notification's `firing`.
  */
-function repeating(again: number) {
+function holding(minutes: number) {
   return {
     firing: {
       since: new Date(noon).toISOString(),
-      again: new Date(now + again * minute).toISOString(),
+      until: new Date(now + minutes * minute).toISOString(),
     },
   };
 }
@@ -176,7 +176,7 @@ describe('the Alertmanager recipe', () => {
 describe('an alert, as an Alertmanager keeps it', () => {
   test('fires since the series began, and ends when it resolves', async () => {
     const id = await channelTo();
-    const fired = await sendAt(id, noon + 5 * minute, () => about('alert.firing', repeating(35)));
+    const fired = await sendAt(id, noon + 5 * minute, () => about('alert.firing', holding(30)));
     expect(fired).toMatchObject({ ok: true, httpStatus: 200, attempts: 1 });
     expect(alertmanager.firingAt(noon + 10 * minute)).toHaveLength(1);
     expect(alertmanager.alerts()[0]).toMatchObject({ startsAt: noon });
@@ -186,17 +186,36 @@ describe('an alert, as an Alertmanager keeps it', () => {
     expect(alertmanager.firingAt(noon + 21 * minute)).toEqual([]);
   });
 
-  test('an alert that repeats holds until its repeat, and for one lost repeat more', async () => {
+  test('a firing holds until the instant it names, and longer each time it is said again', async () => {
     const id = await channelTo();
-    await sendAt(id, noon, () => about('alert.firing', repeating(35)));
-    expect(alertmanager.firingAt(noon + 69 * minute)).toHaveLength(1);
-    expect(alertmanager.firingAt(noon + 70 * minute)).toEqual([]);
-    await sendAt(id, noon + 35 * minute, () => about('alert.firing', repeating(35)));
+    await sendAt(id, noon, () => about('alert.firing', holding(4)));
+    expect(alertmanager.firingAt(noon + 3 * minute)).toHaveLength(1);
+    expect(alertmanager.firingAt(noon + 4 * minute)).toEqual([]);
+    now = noon + minute;
+    alertmanager.setNow(now);
+    await notifications.keepAlive([id], about('alert.firing', holding(4)));
     expect(alertmanager.alerts()).toHaveLength(1);
-    expect(alertmanager.firingAt(noon + 100 * minute)).toHaveLength(1);
+    expect(alertmanager.alerts()[0]).toMatchObject({ startsAt: noon });
+    expect(alertmanager.firingAt(noon + 4 * minute)).toHaveLength(1);
+    expect(alertmanager.firingAt(noon + 5 * minute)).toEqual([]);
   });
 
-  test('an alert that does not repeat is ended by the resolve timeout', async () => {
+  test('a keep-alive is no message: it logs no send, and reaches no other kind', async () => {
+    const id = await channelTo();
+    let heard = 0;
+    const hook = Bun.serve({ port: 0, fetch: () => new Response(`${++heard}`) });
+    const chat = { name: 'Chat', kind: 'webhook', target: `http://127.0.0.1:${hook.port}/hook` };
+    const other = (await notifications.create(channelInputSchema.parse(chat), 'admin-1')).id;
+    await notifications.keepAlive([id, other, 'gone'], about('alert.firing', holding(4)));
+    await notifications.send([other], about('alert.firing', holding(4)));
+    await hook.stop();
+    expect(heard).toBe(1);
+    expect(alertmanager.alerts()).toHaveLength(1);
+    expect(notifications.sends(id)).toEqual([]);
+    expect(notifications.sends(other)).toHaveLength(1);
+  });
+
+  test('a firing that names no end is ended by the resolve timeout', async () => {
     const id = await channelTo();
     const firing = { since: new Date(noon).toISOString() };
     await sendAt(id, noon, () => about('alert.firing', { firing }));
@@ -207,8 +226,8 @@ describe('an alert, as an Alertmanager keeps it', () => {
   test('each series is an alert of its own', async () => {
     const id = await channelTo();
     const cart = { key: 'service=cart', labels: { service: 'cart' } };
-    await sendAt(id, noon, () => about('alert.firing', repeating(35)));
-    await sendAt(id, noon, () => about('alert.firing', { ...repeating(35), series: cart }));
+    await sendAt(id, noon, () => about('alert.firing', holding(4)));
+    await sendAt(id, noon, () => about('alert.firing', { ...holding(4), series: cart }));
     await sendAt(id, noon + minute, () => about('alert.resolved', { series: cart }));
     const firing = alertmanager.firingAt(noon + 2 * minute);
     expect(firing.map((alert) => alert.labels.service)).toEqual(['checkout']);
@@ -217,7 +236,7 @@ describe('an alert, as an Alertmanager keeps it', () => {
   test('an alert that cannot be checked is an alert of its own, which its recovery ends', async () => {
     const id = await channelTo();
     const whole = { series: { key: '', labels: {} } };
-    await sendAt(id, noon, () => about('alert.firing', repeating(35)));
+    await sendAt(id, noon, () => about('alert.firing', holding(4)));
     await sendAt(id, noon + minute, () => about('alert.error', whole));
     expect(alertmanager.alerts().map((alert) => alert.labels.quanthea_check)).toEqual([
       undefined,
@@ -293,6 +312,8 @@ describe('a report, as an Alertmanager keeps it', () => {
     });
     expect(failed?.annotations.description).toContain('The data source did not answer.');
     expect(alertmanager.firingAt(noon + minute)).toHaveLength(1);
+    expect(alertmanager.firingAt(noon + 23 * 60 * minute)).toHaveLength(1);
+    expect(alertmanager.firingAt(noon + 24 * 60 * minute)).toEqual([]);
     now = noon + 2 * minute;
     alertmanager.setNow(now);
     await notifications.sendReport([id], report('report.ready'));

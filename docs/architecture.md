@@ -828,18 +828,24 @@ only admins add, change and delete channels.
   - Annotations: `summary` (the title), `description` (the body, then the fields one a line) and
     `value`. `generatorURL` is the alert's link, when it is absolute.
   - Times. An `alert.firing` notification carries `firing`: `since` (when the series began to
-    fire) and, for an alert that repeats, `again` (by when it is announced again: `repeatEvery`
-    plus one `every` from now). `startsAt` is `since`. `endsAt` is twice the time to `again`, so
-    one lost repeat does not end the alert. Without a repeat there is no `endsAt`, and
-    Alertmanager ends the alert after its own `resolve_timeout`: an alert that sends to an
-    Alertmanager needs a repeat, and the guide says so. `alert.resolved` carries `endsAt` only,
-    which ends the alert at once. The evaluator sends nothing more for this kind: no channel
-    hears every evaluation.
-  - A mute or quiet hours hold a repeat back as any message, so Alertmanager ends the alert when
-    its `endsAt` passes and fires it again with the next message.
+    fire) and `until` (four evaluations from now, `holdingFrom` in `alerts/notify.ts`).
+    `startsAt` is `since` and `endsAt` is `until`. `alert.resolved` carries `endsAt` only, which
+    ends the alert at once.
+  - **Keep-alive.** Alertmanager ends an alert it is not told about again, after `endsAt` or,
+    without one, after its own `resolve_timeout`. So at every evaluation the evaluator says again
+    each firing it has announced and sends nothing else about, with a new `until`
+    (`keepAlive` in `notifications/sending.ts`). It goes to the channels of kind `alertmanager`
+    only, records no send, and a failure is a warning in the server log. An alert needs no
+    `repeatEvery` to stay firing in Alertmanager, and a few late or lost evaluations do not end
+    it.
+  - A mute or quiet hours hold the keep-alive back as any message, so Alertmanager ends the alert
+    when its `endsAt` passes and fires it again with the next keep-alive.
   - `alert.error` fires an alert of its own (`alertname`, `severity`, `quanthea_alert`,
-    `quanthea_check="failed"`, no series label, no `endsAt`), which `alert.recovered` ends. A
-    test carries `quanthea_test="true"` and ends after 5 minutes.
+    `quanthea_check="failed"`, no series label), which carries `firing` and is kept alive the
+    same way while the alert cannot be checked, and which `alert.recovered` ends. A test carries
+    `quanthea_test="true"` and ends after 5 minutes.
+  - A failed run of a report is said once and nothing says it again, so it names its own end: a
+    day later, unless a run that succeeds ends it first.
   - Reports (`report-alertmanager.ts`): `report.ready` fires nothing and ends the report's
     failure alert; `report.failed` fires it at `warning`, with `alertname` (the report's title)
     and `quanthea_report` (its id), without an `endsAt`.
@@ -1100,6 +1106,8 @@ transaction (`alert_series`, `alert_events`). A condition that reads history run
 query before the series are read (see above). Then it sends what is due:
 
 - `alert.firing` when a series fires, and again every `repeatEvery` while it keeps firing;
+- a keep-alive of every firing and failed check it has announced and says nothing else about,
+  to the Alertmanager channels only (see [Notification channels](#57-notification-channels));
 - `alert.resolved` when a series that announced firing is ok again or gone, if `onResolved`;
 - `alert.error` and `alert.recovered`, below;
 - nothing while muted, or during quiet hours.

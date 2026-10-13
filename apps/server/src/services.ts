@@ -3,7 +3,7 @@
  * the dashboards. The bootstrap and the tests wire them the same way.
  */
 
-import type { DashboardSpec, Notification } from '@quanthea/shared';
+import type { DashboardSpec } from '@quanthea/shared';
 import { type AccountDependencies, type Accounts, createAccounts } from './accounts.ts';
 import { createAnswers } from './agent/answer.ts';
 import type { Answers } from './agent/answer-types.ts';
@@ -285,8 +285,8 @@ function alertServices(
     openSource,
     executor,
     states,
-    notify: (channelIds: readonly string[], notification: Notification) =>
-      notifications.send(channelIds, notification),
+    notify: notifications.send,
+    keepAlive: notifications.keepAlive,
     alertUrl: (alertId: string) => `${origin}/alerts/${encodeURIComponent(alertId)}`,
     notifyOnError: () => alertSettings.get().notifyOnError,
     quietHours: () => alertSettings.get().quietHours,

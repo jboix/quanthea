@@ -5,11 +5,12 @@
  * id) and the series' labels. Its annotations carry the message. Alertmanager shows text as it is,
  * so nothing is escaped.
  *
- * A firing alert says until when it holds: twice the time until quanthea announces it again, so one
- * lost repeat does not end it. An alert that does not repeat says nothing, and Alertmanager ends it
- * after its own `resolve_timeout`. A resolved alert carries its end. An alert that cannot be
- * checked is an alert of its own, marked `quanthea_check="failed"`, which its recovery ends. A test
- * is marked `quanthea_test="true"` and ends by itself after five minutes.
+ * Alertmanager ends an alert it is not told about again, so a firing alert says until when it holds
+ * (`firing.until`, a few evaluations ahead) and the evaluator says it again at every evaluation
+ * while it fires: a keep-alive, which no other kind of channel receives. A resolved alert carries
+ * its end. An alert that cannot be checked is an alert of its own, marked
+ * `quanthea_check="failed"`, kept alive the same way, which its recovery ends. A test is marked
+ * `quanthea_test="true"` and ends by itself after five minutes.
  */
 import type { Notification } from '@quanthea/shared';
 import {
@@ -157,8 +158,8 @@ export function after(at: string, ms: number): string {
 }
 
 /**
- * When a notification's alert starts and ends. A firing holds until twice the time to its next
- * announcement; without one it carries no end, and Alertmanager applies its `resolve_timeout`.
+ * When a notification's alert starts and ends. A firing holds until the instant it names; one
+ * that names none carries no end, and Alertmanager applies its `resolve_timeout`.
  *
  * @param notification - The notification.
  * @returns The start, the end, or both.
@@ -168,8 +169,7 @@ function timesOf(notification: Notification): Pick<PostableAlert, 'startsAt' | '
   if (event === 'alert.resolved' || event === 'alert.recovered') return { endsAt: at };
   if (event === 'alert.test') return { startsAt: at, endsAt: after(at, testLastsMs) };
   const startsAt = firing?.since ?? at;
-  if (firing?.again === undefined) return { startsAt };
-  return { startsAt, endsAt: after(at, 2 * (Date.parse(firing.again) - Date.parse(at))) };
+  return firing?.until === undefined ? { startsAt } : { startsAt, endsAt: firing.until };
 }
 
 /**
