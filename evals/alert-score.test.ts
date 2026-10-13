@@ -158,6 +158,13 @@ describe('scoring an alert case', () => {
     ]);
   });
 
+  test('fails a case that names neither a threshold nor a condition', () => {
+    const { threshold: _threshold, ...unscored } = expectationOf('al1');
+    expect(scoreAlert(written, unscored).reasons).toEqual([
+      'the case names no threshold and no condition',
+    ]);
+  });
+
   test('fails a message that names neither the alert nor the value, or an unknown channel', () => {
     const spec = specWith({
       message: { title: 'Checkout errors', body: 'Look at {link}.' },

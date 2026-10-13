@@ -110,10 +110,11 @@ function inPercent(spec: AlertSpec): boolean {
  * What is wrong with a threshold asked for as a number: its kind, direction and value.
  *
  * @param spec - The spec.
- * @param threshold - The threshold a good alert fires above, as a ratio.
- * @returns The reasons.
+ * @param threshold - The threshold a good alert fires above, as a ratio, if the case names one.
+ * @returns The reasons. A case that names no threshold scores nothing, and says so.
  */
-function thresholdFaults(spec: AlertSpec, threshold: number): string[] {
+function thresholdFaults(spec: AlertSpec, threshold: number | undefined): string[] {
+  if (threshold === undefined) return ['the case names no threshold and no condition'];
   const { condition } = spec;
   if (condition.kind !== 'threshold') return ['the condition is not a threshold'];
   const reasons = condition.op === 'above' ? [] : ['the condition fires below, not above'];
@@ -134,7 +135,7 @@ function conditionFaults(spec: AlertSpec, expect: AlertExpectation): string[] {
   const { condition } = spec;
   const reasons = expect.condition
     ? kindFaults(condition, expect.condition)
-    : thresholdFaults(spec, expect.threshold ?? Number.NaN);
+    : thresholdFaults(spec, expect.threshold);
   if (expect.for !== undefined && durationMs(condition.for) !== durationMs(expect.for))
     reasons.push(`the condition holds for ${condition.for}, expected ${expect.for}`);
   return reasons;
