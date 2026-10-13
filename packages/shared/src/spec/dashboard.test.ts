@@ -201,6 +201,23 @@ describe('dashboardSpecSchema', () => {
     expect(issuePaths(column({ mappings: twoKinds }))).toEqual([`${path}.mappings.0.match`]);
   });
 
+  test('takes mappings and how a tone is drawn on a stat, and reads one without them as it was', () => {
+    const parsed = dashboardSpecSchema.parse(example);
+    expect<unknown>(parsed.panels[0]?.view).toEqual(example.panels[0]?.view);
+    const stat = (options: Record<string, unknown>) =>
+      changed((spec) => Object.assign(spec.panels[0]?.view ?? {}, options));
+    const mappings: Mapping[] = [
+      { match: { to: 0.01 }, tone: 'good' },
+      { match: { from: 0.01 }, tone: 'bad' },
+      { match: { null: true }, text: '0' },
+      { match: { value: true }, text: 'Yes' },
+    ];
+    expect(issuePaths(stat({ mappings, toneAs: 'background' }))).toEqual([]);
+    const colored = [{ match: { from: 1 }, tone: 'red' }];
+    expect(issuePaths(stat({ mappings: colored }))).toEqual(['panels.0.view.mappings.0.tone']);
+    expect(issuePaths(stat({ toneAs: 'border' }))).toEqual(['panels.0.view.toneAs']);
+  });
+
   test('refuses a variable named like a built-in', () => {
     const builtIn = changed((spec) => Object.assign(spec.variables[0] ?? {}, { name: '__from' }));
     expect(issuePaths(builtIn)).toEqual(['variables.0.name']);

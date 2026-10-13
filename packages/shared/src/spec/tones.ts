@@ -82,7 +82,7 @@ const mappingSchema = z
 /** A mapping: what it matches, and the text and the tone of a value that matches. */
 export type Mapping = z.infer<typeof mappingSchema>;
 
-/** Validates the mappings of a column: at most twenty, read in order. */
+/** Validates the mappings of a column or a stat: at most twenty, read in order. */
 export const mappingsSchema = z.array(mappingSchema).max(20);
 
 /** Validates how a tone is drawn: as the colour of the text, or as a tint behind it. */

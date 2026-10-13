@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { Frame } from '@quanthea/plugin-kit/contract';
 import { createFormatter } from '../formatters/format.ts';
+import type { Mapping } from '../spec/tones.ts';
 import { changeOf, headlineOf } from './headline.ts';
 
 /**
@@ -67,6 +68,13 @@ describe('a headline', () => {
       previousText: chf(173_560),
       change: { direction: 'up', text: '▲ 6.2%' },
     });
+  });
+
+  test('keeps the number of a stat whose mappings give it a text', () => {
+    const mappings: Mapping[] = [{ match: { from: 100_000 }, text: 'On target', tone: 'good' }];
+    const mapped = { ...panel, view: { ...panel.view, mappings } };
+    const headline = headlineOf(mapped, outcome(184_320), outcome(173_560), 'UTC');
+    expect(headline).toMatchObject({ value: 184_320, text: chf(184_320), previous: 173_560 });
   });
 
   test('says when there is no number, and when there is no comparison', () => {

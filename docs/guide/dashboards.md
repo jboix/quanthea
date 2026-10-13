@@ -137,6 +137,9 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   null as none". The colours are named tones (neutral, good, warning, bad and eight series
   colours) that follow the light and the dark scheme. Say "as a background" for a tint behind
   the text.
+- **Coloured numbers.** A single number takes the same steps and texts: "the 90th percentile as a
+  number, green under 2 seconds, amber from 2 to 4, red above", or "show 0 when there is no
+  data". A report that uses the panel as a headline keeps the number.
 - **A result cut short.** When a source returns more rows than the connector's row limit, the
   chart says so under it. Narrow the time range to see the rest.
 - **Charts further down** draw when you scroll to them, and all of them draw when you print the

@@ -118,25 +118,6 @@
   color: var(--color-danger);
 }
 
-.stat {
-  container-type: inline-size;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.statValue {
-  font-size: 32px;
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.01em;
-}
-
-.statSubtitle {
-  font-size: 13px;
-  color: var(--color-ink-secondary);
-}
-
 .tableScroll {
   height: 100%;
   overflow: auto;

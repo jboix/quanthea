@@ -1,11 +1,4 @@
-import {
-  createFormatter,
-  type MarkerOutcome,
-  type Panel,
-  type QueryOutcome,
-  reduceResult,
-  type StatView as StatViewSpec,
-} from '@quanthea/shared';
+import type { MarkerOutcome, Panel, QueryOutcome } from '@quanthea/shared';
 import { lazy, Suspense, useMemo } from 'react';
 import {
   type AlertMarks,
@@ -14,9 +7,9 @@ import {
   chartInputOf,
   chartPeriodOf,
 } from '../../charts/input.ts';
-import { fittedNumber } from '../../ui/fitted-number.ts';
 import { shownMarkers } from './marker-sets.ts';
 import styles from './panels.module.css';
+import { StatView } from './stat-view.tsx';
 import { TableView } from './table-view.tsx';
 
 /** The chart component, loaded with ECharts the first time a dashboard draws a chart. */
@@ -28,52 +21,6 @@ interface ViewProps {
   readonly queries: readonly QueryOutcome[];
   /** The IANA time zone, or the browser's. */
   readonly timeZone: string | undefined;
-}
-
-/**
- * The line under a stat: the comparison, then the subtitle, where `{{A.max}}` shows a reduced
- * result with the stat's format.
- *
- * @param view - The stat view.
- * @param queries - The query outcomes.
- * @param format - Formats a number with the stat's format.
- * @returns The line, or an empty string.
- */
-function statSubtitle(
-  view: StatViewSpec,
-  queries: readonly QueryOutcome[],
-  format: (value: unknown) => string,
-): string {
-  const compare = view.compare
-    ? `${view.compare.label} ${format(reduceResult(queries, view.compare.ref, view.compare.reduce)) || '–'}`
-    : '';
-  const subtitle = (view.subtitle ?? '').replace(
-    /\{\{(\w+)\.(\w+)\}\}/g,
-    (_token, ref: string, reduce: string) =>
-      format(reduceResult(queries, ref, reduce as StatViewSpec['reduce'])),
-  );
-  return [compare, subtitle].filter(Boolean).join(' · ');
-}
-
-/**
- * A stat: one number, and a line under it.
- *
- * @param props - The view, the outcomes and the time zone.
- * @param props.view - The stat view.
- * @returns The stat.
- */
-function StatView({ view, queries, timeZone }: ViewProps & { readonly view: StatViewSpec }) {
-  const format = createFormatter(view.format, { timeZone });
-  const value = format(reduceResult(queries, view.ref, view.reduce, view.field));
-  const subtitle = statSubtitle(view, queries, format);
-  return (
-    <div className={styles.stat}>
-      <span className={styles.statValue} style={fittedNumber(value || '–', 32)}>
-        {value || '–'}
-      </span>
-      {subtitle !== '' && <span className={styles.statSubtitle}>{subtitle}</span>}
-    </div>
-  );
 }
 
 /** Props of {@link PanelView}. */

@@ -4224,8 +4224,19 @@ one, and enables them again. Without any admin, it creates the default one.
   - `toneAs` says how a column draws its tones: `text` (the default) colours the text, mixed with
     the ink so it stays readable on the surface, and `background` puts a tint of the tone behind
     text in the ink.
-  - The agent sets both in `chart.options.columns`, which adds nothing to the edit tool's schema.
-    The spec schema refuses a tone that is not in the list and a match that says two things.
+  - A stat takes the same `mappings` and `toneAs` on its view (`stat-view.tsx`). They read the
+    stat's reduced number. With `first` or `last` they read the column's own first or last value
+    (`mappedResult` in `dataset/stat.ts`), so a text or a boolean can match, and a result with no
+    row or no value matches `null`. A mapped text replaces the number, and the tone colours the
+    value or tints behind it.
+  - `mappedResult` is a second function beside `reduceResult`, which still gives numbers only. A
+    stat without mappings, the line under a stat and a report's headline read `reduceResult`, so
+    they show what they showed, and a headline keeps its number when the stat shows a text.
+  - The agent sets both in `chart.options.columns` for a table and in `chart.options` for a stat,
+    which adds nothing to the edit tool's schema. The spec schema refuses a tone that is not in
+    the list and a match that says two things.
+  - The stat recipe's value role takes a number column, so a stat the agent builds maps a number
+    or no value. The view reads a text or a boolean column too, and the agent does not build one.
 - **Days and times** read `25 Sep 14:02` everywhere: on axes, in the Ask tab, on the alert pages
   and in notifications. The month's name comes from a fixed list (`calendarParts` in
   `@quanthea/shared`), since newer locale data writes `Sept` for British English.

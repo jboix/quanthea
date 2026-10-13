@@ -21,6 +21,13 @@ const statViewSchema = z.strictObject({
   field: fieldNameSchema.optional(),
   reduce: reduceSchema,
   format: formatterSchema,
+  /**
+   * What the stat reads as and the tone it takes: the first mapping that matches its value. With
+   * `first` or `last` the value is the column's own, so a text, a boolean or no value can match.
+   */
+  mappings: mappingsSchema.optional(),
+  /** How the stat shows its tone: as the colour of its text when left out, or as a tint behind it. */
+  toneAs: toneAsSchema.optional(),
   subtitle: z.string().max(200).optional(),
   compare: z
     .strictObject({ ref: refIdSchema, reduce: reduceSchema, label: z.string().min(1).max(60) })

@@ -111,6 +111,8 @@ type StatView = {
   format: Formatter
   subtitle?: string                         // plain text, supports {{ref.reduce}} tokens rendered by us
   compare?: { ref: string; reduce: StatView['reduce']; label: string }   // "baseline 0.3%"
+  mappings?: Mapping[]                      // ≤ 20, the first match wins
+  toneAs?: 'text' | 'background'            // default: text
 }
 
 type TableView = {
@@ -225,6 +227,11 @@ they differ from the sketch above, the schemas win:
 - A mapping matches the raw value of the result, before the format. A `value` is compared as it
   reads, so `200` matches `"200"` and `true` matches `"true"`. A range reads numbers, and texts
   that write a number.
+- A stat's mappings read its reduced number. With `first` or `last` they read the column's own
+  first or last value, so a text or a boolean can match. A result with no row or no value
+  matches `null`.
+- A stat without mappings shows its number as before. A report's headline shows the number,
+  whatever the mappings say.
 - A mapping gives a `text`, a `tone`, or both. A `match` says one thing: a value, `null`, or a
   range with `from` below `to`.
 - A tone is a name from the list, never a colour. The renderer draws it from the theme's design

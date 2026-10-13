@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { Frame } from '@quanthea/plugin-kit/contract';
-import { reduceResult, reduceValues, resultColumn } from './stat.ts';
+import { mappedResult, reduceResult, reduceValues, resultColumn } from './stat.ts';
 
 const frame: Frame = {
   refId: 'A',
@@ -64,5 +64,47 @@ describe('reading results as datasets', () => {
       5,
     );
     expect(resultColumn([series])).toEqual([3, 5]);
+  });
+});
+
+describe('the value a stat maps', () => {
+  /**
+   * The outcomes of one query that returns one column.
+   *
+   * @param type - The column's type.
+   * @param values - Its values, row after row.
+   * @returns The outcomes.
+   */
+  function outcomes(type: 'string' | 'number' | 'boolean', values: unknown[]) {
+    const column: Frame = {
+      refId: 'A',
+      fields: [{ name: 'state', type }],
+      values: [values],
+      meta: { rowCount: values.length, truncated: false, durationMs: 1 },
+    };
+    return [{ refId: 'A', frames: [column], error: null }];
+  }
+
+  test('is the column’s own value with first and last: a text or a boolean is kept', () => {
+    const states = outcomes('string', ['starting', 'ready', 'degraded']);
+    expect(mappedResult(states, 'A', 'first', 'state')).toBe('starting');
+    expect(mappedResult(states, 'A', 'last', 'state')).toBe('degraded');
+    expect(mappedResult(outcomes('boolean', [false, true]), 'A', 'last', 'state')).toBe(true);
+    expect(reduceResult(states, 'A', 'last', 'state')).toBeUndefined();
+  });
+
+  test('is undefined for a result without a row or without a value, which a null match reads', () => {
+    expect(mappedResult(outcomes('number', []), 'A', 'last')).toBeUndefined();
+    expect(mappedResult(outcomes('number', [null]), 'A', 'first')).toBeUndefined();
+    expect(mappedResult(outcomes('number', [4]), 'B', 'last')).toBeUndefined();
+  });
+
+  test('is the number the stat shows, for a column of numbers and for every other reduction', () => {
+    const queries = [{ refId: 'A', frames: [frame], error: null }];
+    for (const reduce of ['first', 'last', 'max', 'min', 'mean', 'sum', 'count'] as const)
+      expect(mappedResult(queries, 'A', reduce)).toBe(reduceResult(queries, 'A', reduce));
+    const texts = outcomes('string', ['a', 'b']);
+    expect(mappedResult(texts, 'A', 'count', 'state')).toBe(0);
+    expect(mappedResult(texts, 'A', 'max', 'state')).toBeUndefined();
   });
 });

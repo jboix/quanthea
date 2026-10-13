@@ -1,0 +1,36 @@
+.stat {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statValue {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * A stat with a tone. The value sets `--tone` to a design token, so the colour follows the
+ * scheme. Mixing the tone with the ink keeps the text readable on the surface in both schemes.
+ */
+.statValue[data-tone-as="text"] {
+  color: color-mix(in srgb, var(--tone) 70%, var(--color-ink));
+}
+
+/* A tint behind the value, which stays in the ink. The padding follows the fitted size. */
+.statValue[data-tone-as="background"] {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 0 0.3em;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tone) 18%, transparent);
+  color: var(--color-ink);
+}
+
+.statSubtitle {
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
