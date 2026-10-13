@@ -107,7 +107,7 @@ jobs:
       # from anything stored, should an answer echo one.
       - name: Record the run with evalmark
         if: ${{ !cancelled() }}
-        uses: jboix/evalmark@2485f026277f627591d4d0feb50a61b9f5f739b9 # v1.0.0
+        uses: jboix/evalmark@9f151c4a87255f8237cdb3449b38f340b9c52a3d # v1.0.2
         with:
           result: evals/reports/evalmark.json
           title: quanthea
