@@ -45,6 +45,23 @@ export function pathRules(patterns: string): PathRules {
 }
 
 /**
+ * The path of a URL relative to the base URL: what the path rules check.
+ *
+ * @param baseUrl - The connector's base URL.
+ * @param url - A parsed URL, its `.` and `..` segments resolved.
+ * @returns The path with the base path removed, starting with `/`, or `undefined` when the URL
+ *   leaves the base path or the origin.
+ */
+export function pathOfUrl(baseUrl: string, url: URL): string | undefined {
+  const base = new URL(baseUrl);
+  const basePath = base.pathname.replace(/\/+$/, '');
+  if (url.origin !== base.origin) return undefined;
+  if (url.pathname === basePath) return '/';
+  if (!url.pathname.startsWith(`${basePath}/`)) return undefined;
+  return url.pathname.slice(basePath.length);
+}
+
+/**
  * The path a request reaches, relative to the base URL: what the path rules check. URL parsing
  * resolves `.` and `..` segments (`%2e` included) first, as the request will.
  *
@@ -55,10 +72,5 @@ export function pathRules(patterns: string): PathRules {
  */
 export function pathUnderBase(baseUrl: string, path: string): string | undefined {
   const base = new URL(baseUrl);
-  const basePath = base.pathname.replace(/\/+$/, '');
-  const url = new URL(`${base.href.replace(/\/+$/, '')}${path}`);
-  if (url.origin !== base.origin) return undefined;
-  if (url.pathname === basePath) return '/';
-  if (!url.pathname.startsWith(`${basePath}/`)) return undefined;
-  return url.pathname.slice(basePath.length);
+  return pathOfUrl(baseUrl, new URL(`${base.href.replace(/\/+$/, '')}${path}`));
 }

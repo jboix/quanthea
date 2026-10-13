@@ -122,6 +122,23 @@ describe('createHttpClient', () => {
     expect(away.safeMessage).toContain('another origin');
   });
 
+  test('follows a redirect within the origin only where the kind allows it', async () => {
+    const signal = AbortSignal.timeout(5000);
+    const seen: string[] = [];
+    const held = client({
+      allowRedirect: (target) => {
+        seen.push(target.pathname);
+        return target.pathname !== '/base/echo';
+      },
+    });
+    const refused = await failureOf(() => held.request({ path: '/here', signal }));
+    expect(refused).toMatchObject({ code: 'rejected' });
+    expect(refused.safeMessage).toContain('a path the connector may not call');
+    expect(seen).toEqual(['/base/echo']);
+    const away = await failureOf(() => held.request({ path: '/away', signal }));
+    expect(away.safeMessage).toContain('another origin');
+  });
+
   test('stops reading past the byte cap', async () => {
     const response = await client({ maxBytes: 1024 }).request({
       path: '/big',

@@ -20,6 +20,14 @@ export interface HttpClientOptions {
   readonly timeoutMs?: number;
   /** The most bytes of a body read. Defaults to 64 MiB. */
   readonly maxBytes?: number;
+  /**
+   * Whether a redirect within the origin may be followed, for a source whose requests are held to
+   * some paths. Without it every redirect within the origin is followed.
+   *
+   * @param target - Where the redirect goes.
+   * @returns `false` to refuse it.
+   */
+  readonly allowRedirect?: (target: URL) => boolean;
 }
 
 /** The methods a connector sends. */
@@ -89,7 +97,8 @@ export interface HttpClient {
    * @param request - The request.
    * @returns The response, whatever its status.
    * @throws {ConnectorError} `unreachable` when the connection fails, `timeout` when the signal or
-   *   the timeout fires, `rejected` for a redirect to another origin or a metadata address.
+   *   the timeout fires, `rejected` for a redirect to another origin, to a metadata address or to
+   *   a path {@link HttpClientOptions.allowRedirect} refuses.
    */
   request(request: HttpRequest): Promise<HttpResponse>;
 }
@@ -115,6 +124,8 @@ interface ClientSettings {
   readonly timeoutMs: number;
   /** The byte cap. */
   readonly maxBytes: number;
+  /** Whether a redirect within the origin may be followed. */
+  readonly allowRedirect: (target: URL) => boolean;
 }
 
 /**
@@ -283,16 +294,22 @@ function wrapResponse(
  * @param url - The URL that answered.
  * @param settings - The client settings.
  * @returns The next URL, or `undefined` when the response is not a redirect.
- * @throws {ConnectorError} `rejected` for a redirect to another origin.
+ * @throws {ConnectorError} `rejected` for a redirect to another origin, or to a path the source's
+ *   kind refuses.
  */
 function redirectTarget(response: Response, url: URL, settings: ClientSettings): URL | undefined {
   const location = response.headers.get('location');
   if (response.status < 300 || response.status > 399 || location === null) return undefined;
   const target = new URL(location, url);
-  if (target.origin === settings.origin) return target;
+  if (target.origin !== settings.origin)
+    throw new ConnectorError(
+      'rejected',
+      `${settings.sourceName} redirected to another origin, which connectors never follow.`,
+    );
+  if (settings.allowRedirect(target)) return target;
   throw new ConnectorError(
     'rejected',
-    `${settings.sourceName} redirected to another origin, which connectors never follow.`,
+    `${settings.sourceName} redirected to a path the connector may not call.`,
   );
 }
 
@@ -371,6 +388,7 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
     verifyTls: options.verifyTls ?? true,
     timeoutMs: options.timeoutMs ?? 120_000,
     maxBytes: options.maxBytes ?? 64 * 1024 * 1024,
+    allowRedirect: options.allowRedirect ?? (() => true),
   };
   return {
     async request(request) {

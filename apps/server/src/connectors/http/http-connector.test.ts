@@ -51,6 +51,56 @@ describe('http path rules', () => {
   });
 });
 
+describe('http redirects', () => {
+  /**
+   * Runs a GET through a connector that allows `/v1/**` on a server that redirects.
+   *
+   * @param path - The path asked for.
+   * @returns The rows, or the error.
+   */
+  async function ask(path: string): Promise<unknown> {
+    const server = Bun.serve({
+      port: 0,
+      routes: {
+        '/v1/moved': () => new Response(null, { status: 302, headers: { location: '/v1/items' } }),
+        '/v1/out': () => new Response(null, { status: 302, headers: { location: '/admin/keys' } }),
+        '/v1/up': () => new Response(null, { status: 307, headers: { location: '../admin/keys' } }),
+        '/v1/items': () => Response.json([{ id: 1 }]),
+        '/admin/keys': () => Response.json([{ key: 'secret' }]),
+      },
+    });
+    try {
+      const connection = httpConnector.open({
+        config: httpConnector.configSchema.parse({
+          url: `http://127.0.0.1:${server.port}`,
+          paths: '/v1/**',
+        }),
+        secret: {},
+      });
+      const query = { language: 'http', method: 'GET', path, query: [], extract: { rows: '' } };
+      const signal = AbortSignal.timeout(5000);
+      const frames = await connection.execute(query as never, { ...context, signal });
+      return frames[0]?.values;
+    } catch (error) {
+      return error;
+    } finally {
+      server.stop(true);
+    }
+  }
+
+  test('follows a redirect to a path the settings allow', async () => {
+    expect(await ask('/v1/moved')).toEqual([[1]]);
+  });
+
+  test('refuses a redirect to a path the settings do not allow', async () => {
+    for (const path of ['/v1/out', '/v1/up']) {
+      const failure = await ask(path);
+      expect(failure).toMatchObject({ code: 'rejected' });
+      expect((failure as { safeMessage: string }).safeMessage).toContain('may not call');
+    }
+  });
+});
+
 describe('http extraction', () => {
   test('reads JSON pointers, with escaped tokens', () => {
     const document = { data: [{ 'a/b': { '~c': 1 } }] };

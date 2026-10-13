@@ -38,19 +38,29 @@ const pathShape = /^\/(?!\/)[^?#\\\p{Cc}]*$/u;
 /** A dot segment as URL parsing reads it: `.` or `..`, each dot also written `%2e`. */
 const dotSegment = /^(?:\.|%2e){1,2}$/i;
 
+/**
+ * A slash or a backslash written as an escape. URL parsing keeps it inside its segment, but a
+ * server or a proxy that decodes it first reads a separator, and a `..` beside it as a segment.
+ */
+const encodedSeparator = /%2f|%5c/gi;
+
 /** Why a path is refused. */
 const pathRule =
-  'A path starts with /, holds no ?, # or \\, no control character and no . or .. segment: ' +
-  'put parameters in "query".';
+  'A path starts with /, holds no ?, # or \\, no control character and no . or .. segment, ' +
+  'also between %2F: put parameters in "query".';
 
 /**
- * Whether a path holds a dot segment, which URL parsing would resolve against its parent.
+ * Whether a path holds a dot segment, which URL parsing would resolve against its parent, or one
+ * between encoded separators, which a server that decodes them would.
  *
  * @param path - The path, encoded.
- * @returns `true` when a segment is `.` or `..`, in any encoding of the dots.
+ * @returns `true` when a segment is `.` or `..`, in any encoding of the dots and the separators.
  */
 function hasDotSegment(path: string): boolean {
-  return path.split('/').some((segment) => dotSegment.test(segment));
+  return path
+    .replace(encodedSeparator, '/')
+    .split('/')
+    .some((segment) => dotSegment.test(segment));
 }
 
 /**

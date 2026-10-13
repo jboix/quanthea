@@ -100,12 +100,12 @@ const rulesByLanguage: Readonly<Record<QueryLanguage, readonly EnforcedRule[]>> 
     {
       rule: 'Allowed methods and paths only',
       stops:
-        'A request whose method or path the connection does not allow is refused; both are set under Edit connection.',
+        'A request whose method or path the connection does not allow is refused, and so is a redirect to such a path; both are set under Edit connection.',
     },
     {
       rule: 'No path tricks',
       stops:
-        'A path with a . or .. segment, a ?, a #, a backslash or a control character is refused, so it cannot leave the allowed paths.',
+        'A path with a . or .. segment, also between encoded slashes, a ?, a #, a backslash or a control character is refused, so it cannot leave the allowed paths.',
     },
     {
       rule: 'Values are bound',

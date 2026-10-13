@@ -46,7 +46,7 @@ describe('bindHttp', () => {
   });
 
   test('keeps a path variable one segment, whatever it holds', () => {
-    for (const attack of ['../admin', 'a/b', '?x=1', '#x', 'http://evil.example']) {
+    for (const attack of ['..admin', 'a/b', 'a\\b', '?x=1', '#x', 'http://evil.example']) {
       const { path } = bind({ path: '/items/$id' }, { id: attack });
       expect(path).toBe(`/items/${encodeURIComponent(attack)}`);
       expect(path.split('/')).toHaveLength(3);
@@ -95,6 +95,26 @@ describe('bindHttp', () => {
         'A path starts with /',
       );
     expect(bind({ path: '/v1/$s' }, { s: '...' }).path).toBe('/v1/...');
+  });
+
+  test('refuses a dot segment between encoded separators, which a server that decodes them would resolve', () => {
+    for (const path of [
+      '/v1/x%2f..%2fadmin',
+      '/v1/x%2F..%2Fadmin',
+      '/v1/x%2f%2e%2e%2fadmin',
+      '/v1/x%5c..%5cadmin',
+      '/v1/..%2fadmin',
+      '/v1/x%2f..',
+      '/v1/x%2f.%2fy',
+    ])
+      expect(() => bind({ path }), path).toThrow('A path starts with /');
+    for (const value of ['../admin', 'x/../../admin', '..\\admin', 'x/./y', 'x/..'])
+      expect(() => bind({ path: '/v1/items/$id' }, { id: value }), value).toThrow(
+        'A path starts with /',
+      );
+    expect(bind({ path: '/v1/items/$id' }, { id: 'a/b..c/.d' }).path).toBe(
+      '/v1/items/a%2Fb..c%2F.d',
+    );
     expect(bind({ path: '/v1/a.b/%2e%2ex' }).path).toBe('/v1/a.b/%2e%2ex');
   });
 });

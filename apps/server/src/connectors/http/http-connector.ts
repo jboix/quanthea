@@ -22,7 +22,7 @@ import { responseFrame } from './extract.ts';
 import { httpGuide } from './guide.ts';
 import { jsonIcon } from './icon.ts';
 import { type ApiDescription, type DescribedOperation, describeApi } from './openapi.ts';
-import { type PathRules, pathRules, pathUnderBase } from './paths.ts';
+import { type PathRules, pathOfUrl, pathRules, pathUnderBase } from './paths.ts';
 
 /** The configuration of an HTTP JSON connector. */
 const configSchema = z.object({
@@ -364,23 +364,26 @@ function withoutCredentials(url: string): string {
 }
 
 /**
- * Opens a connection: the client with the credentials, and the rules of the settings. The
- * description is read through a client of its own, with a smaller byte cap.
+ * Opens a connection: the client with the credentials, and the rules of the settings. A query's
+ * request follows a redirect only to a path the settings allow. The description is read through
+ * a client of its own, with a smaller byte cap.
  *
  * @param config - The configuration.
  * @param headers - The authentication headers.
  * @returns The connection.
  */
 function connect(config: Config, headers: Readonly<Record<string, string>>): Connection {
+  const paths = pathRules(config.paths);
   const options = {
     baseUrl: config.url,
     sourceName: 'The API',
     headers: { Accept: 'application/json', ...headers },
     verifyTls: config.verifyTls,
   };
-  const client = createHttpClient(options);
+  // A redirect is followed only to a path a query could have asked for itself.
+  const allowRedirect = (target: URL): boolean => paths.allows(pathOfUrl(config.url, target) ?? '');
+  const client = createHttpClient({ ...options, allowRedirect });
   const describer = createHttpClient({ ...options, maxBytes: descriptionMaxBytes });
-  const paths = pathRules(config.paths);
   const methods: HttpQuery['method'][] = config.methods === 'GET' ? ['GET'] : ['GET', 'POST'];
   return { client, methods, paths, operations: operationsReader(describer, config, paths), config };
 }

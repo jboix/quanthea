@@ -2359,7 +2359,8 @@ export const exampleConnector = defineConnector({
   and Loki's metric queries answer in it.
 - `createHttpClient` is the HTTP client of every kind that speaks HTTP. It takes an `http:` or
   `https:` base URL only (another scheme, such as `file:`, is `rejected`). It calls that origin
-  only and follows a redirect only within it. It stops at a timeout (120 seconds by default, on
+  only and follows a redirect only within it, and a kind can hold redirects to some paths
+  (`allowRedirect`). It stops at a timeout (120 seconds by default, on
   top of the caller's signal) and reads at most 64 MiB of a body.
 - A request names a path under the base URL, or an absolute URL on the same origin, such as a
   next-page link. A path is parsed first, dot segments resolved, and must stay under the base
@@ -2602,7 +2603,11 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   the path of an OpenAPI (or Swagger 2) description, JSON or YAML. The connector refuses a method
   or a path its settings do not allow before it sends anything. The path it checks is the one the
   request reaches: parsed under the base URL, `.` and `..` segments resolved (`%2e` included),
-  with the base path removed; a path that leaves the base path is refused. The response becomes
+  with the base path removed; a path that leaves the base path is refused. A redirect is followed
+  only to a path the settings allow, so an endpoint that redirects cannot lead a query out of
+  them. The binder refuses a `.` or `..` segment also between encoded separators (`%2F`, `%5C`),
+  in the template and in a variable's value: URL parsing keeps `x%2F..%2Fadmin` one segment, but
+  a server or a proxy that decodes it first would resolve it. The response becomes
   a table through `extract`: a JSON pointer to the rows (an array, or one object as one row), and
   the columns as pointers into each row with an optional type (`time` reads ISO text, or epoch
   seconds or milliseconds); without columns, every value of the first rows becomes one, nested
