@@ -79,16 +79,34 @@ Say what should fire in your own words; the agent picks the condition and the dr
 sentence. There are six kinds, and nothing else: no formula to write. An alert can also watch
 [a ratio of two queries](#a-ratio-of-two-queries).
 
-| Condition        | Say                                    | Fires when                                                         |
-| ---------------- | -------------------------------------- | ------------------------------------------------------------------ |
-| Threshold        | "error share above 2% for 5 minutes"   | the value is above, or below, a fixed number                       |
-| Change           | "orders dropped by half in 10 minutes" | the value rose or dropped by an amount, or more, within a duration |
-| Against the past | "30% above the same hour last week"    | the value is that far above, or below, its value a period earlier  |
-| Band             | "latency is unusual"                   | the value is outside the range its own recent history gives        |
-| Joined           | "above 2% and at least 100 requests"   | every one of two to four tests holds, or any one of them           |
-| No data          | "nothing came in for 10 minutes"       | the query returns nothing                                          |
+| Condition                             | Say                                    | Fires when                                                         |
+| ------------------------------------- | -------------------------------------- | ------------------------------------------------------------------ |
+| [Threshold](#threshold)               | "error share above 2% for 5 minutes"   | the value is above, or below, a fixed number                       |
+| [Change](#change)                     | "orders dropped by half in 10 minutes" | the value rose or dropped by an amount, or more, within a duration |
+| [Against the past](#against-the-past) | "30% above the same hour last week"    | the value is that far above, or below, its value a period earlier  |
+| [Band](#band)                         | "latency is unusual"                   | the value is outside the range its own recent history gives        |
+| [Joined tests](#joined-tests)         | "above 2% and at least 100 requests"   | every one of two to four tests holds, or any one of them           |
+| [No data](#no-data)                   | "nothing came in for 10 minutes"       | the query returns nothing                                          |
 
-**A change** compares the latest value with the value a while earlier: 10 minutes earlier for
+Every kind has a wait: how long it must hold before a series fires. The sentence ends with it,
+"for 5 minutes" or "at once". Quiet hours and mutes work the same for every kind: the alert is
+still checked, and only its messages wait.
+
+#### Threshold
+
+> Fires when the error share of each service is above 2% for 5 minutes, checked every minute.
+
+The value is above, or below, a fixed number. Use it when you know the number that is too much.
+
+- The number reads in the alert's format: 2% for a share, 500 ms for a latency.
+- Drag the dashed line on the replay to try another number.
+
+#### Change
+
+> Fires when the order count of each channel drops by at least 50% within 10 minutes at once,
+> checked every minute.
+
+A change compares the latest value with the value a while earlier: 10 minutes earlier for
 "within 10 minutes". Use it when the normal level moves through the day and no fixed number fits.
 
 - The amount is a percentage of the earlier value ("by half" is 50%), or a difference in the value
@@ -100,9 +118,14 @@ sentence. There are six kinds, and nothing else: no formula to write. An alert c
   example, even when the value stays where it went. To hear for as long as a level lasts, use a
   threshold, alone or joined with the change.
 
-**Against the past** compares the value with the value of the same window an hour, a day or a
-week earlier. Use it for what follows the clock or the calendar, such as traffic, orders and
-sign-ins: Monday at 9 is compared with last Monday at 9, not with Sunday night.
+#### Against the past
+
+> Fires when the order count of each channel is at least 30% above its value a week earlier for
+> 10 minutes, checked every 5 minutes.
+
+It compares the value with the value of the same window an hour, a day or a week earlier. Use it
+for what follows the clock or the calendar, such as traffic, orders and sign-ins: Monday at 9 is
+compared with last Monday at 9, not with Sunday night.
 
 - The amount is a percentage of the value then, or a difference in the value itself, above or
   below.
@@ -113,10 +136,15 @@ sign-ins: Monday at 9 is compared with last Monday at 9, not with Sunday night.
 - A percentage of zero is not a number, so a series that was at 0 then does not fire on a
   percentage. Use a difference.
 
-**A band** asks whether the value is unusual for this series. It takes the mean of the series over
-a baseline before the window, 1 hour to 7 days, and the band reaches a number of standard
-deviations each side of it, 3 unless you say otherwise. The series fires above the band, below it,
-or on either side.
+#### Band
+
+> Fires when the p95 latency of each service is more than 3 deviations from its mean of the last
+> day for 5 minutes, checked every 5 minutes.
+
+A band asks whether the value is unusual for this series. It takes the mean of the series over a
+baseline before the window, 1 hour to 7 days, and the band reaches a number of standard deviations
+each side of it, 3 unless you say otherwise. The series fires above the band, below it, or on
+either side.
 
 - Each series has its own band, learned again at every check, so it follows a level that drifts.
 - Fewer deviations fire more often: 2 is noisy, 4 fires on little.
@@ -127,20 +155,38 @@ or on either side.
 - A band knows nothing of the hour or the weekday. For a level with a daily or weekly shape, compare
   against the past instead.
 
-These two read history, so each check runs a second query on the data source: the same window a
-period earlier, or the whole baseline. Check such an alert every 5 minutes or more rather than
-every minute, and keep the baseline as short as holds the normal ups and downs. A condition has at
-most one test that reads history, and such an alert counts twice towards the most alerts active per
-connector.
+Against the past and a band read history, so each check runs a second query on the data source:
+the same window a period earlier, or the whole baseline. Check such an alert every 5 minutes or
+more rather than every minute, and keep the baseline as short as holds the normal ups and downs. A
+condition has at most one test that reads history, and such an alert counts twice towards the most
+alerts active per connector.
 
-**Joined tests** watch several numbers of one query, such as the error share and the request count
-of each service, so that a share on three requests wakes nobody.
+#### Joined tests
 
+> Fires when, for each service, the error share is above 2% and requests is above 100, for 5
+> minutes, checked every minute.
+
+Joined tests watch several numbers of one query, such as the error share and the request count of
+each service, so that a share on three requests wakes nobody.
+
+- A test is a threshold, a change, a comparison with the past or a band. Two to four are joined,
+  and joined tests are never joined again.
 - The query returns each number as its own column. Each test reads one, with its own format.
 - "And" needs every test to hold, "or" one of them.
 - The value the alert shows, on its page, on the chart and as `{value}` in the message, is the
   first test's.
 - A test with no value for a series does not hold for it.
+
+#### No data
+
+> Fires when the query returns no value for 10 minutes, checked every minute.
+
+The query returns nothing at all. Use it for what should never stop: a heartbeat, a feed, a job
+that reports.
+
+- It is about the query as a whole, not about one series. A series that disappears while others
+  remain does not fire it.
+- It cannot be joined with other tests, and it does not fit a ratio of two queries.
 
 ### A ratio of two queries
 
