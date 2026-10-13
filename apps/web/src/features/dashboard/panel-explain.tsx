@@ -1,14 +1,15 @@
 /**
  * A panel's explanation, at the top of its info bubble on a pinned version: what the panel
  * measures, how its query computes it, and why. It is written from the query and the schema, never
- * from the data, kept per version and shown to every role. Analysts and above ask for one, or a
- * new one. Everything the model wrote is shown as plain text.
+ * from the data, kept per version and shown to every role. A version with none shows the one of
+ * an earlier version, and says so. Analysts and above ask for one, or a new one. Everything the
+ * model wrote is shown as plain text.
  */
 import type { PanelExplanation } from '@quanthea/shared';
 import { useId } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { useCanAsk } from './ask-state.ts';
-import { explainedLine, explanationParagraphs } from './explain-words.ts';
+import { earlierVersionNote, explainedLine, explanationParagraphs } from './explain-words.ts';
 import styles from './panels.module.css';
 import {
   type ExplanationTarget,
@@ -70,10 +71,35 @@ function ExplanationText({ text }: { readonly text: string }) {
   );
 }
 
+/**
+ * A stored explanation, with the note of one written for an earlier version.
+ *
+ * @param props - The text and the note.
+ * @param props.text - The explanation.
+ * @param props.earlier - What to say of one written for an earlier version, or `null`.
+ * @returns The paragraphs, then the note.
+ */
+function StoredExplanation({
+  text,
+  earlier,
+}: {
+  readonly text: string;
+  readonly earlier: string | null;
+}) {
+  return (
+    <>
+      <ExplanationText text={text} />
+      {earlier && <p className={styles.explainNote}>{earlier}</p>}
+    </>
+  );
+}
+
 /** Props of {@link ExplainBody}. */
 interface ExplainBodyProps {
   /** The latest stored explanation, `undefined` while it loads. */
   readonly latest: PanelExplanation | null | undefined;
+  /** What to say of one written for an earlier version, or `null`. */
+  readonly earlier: string | null;
   /** Whether someone else's explanation is being written. */
   readonly generating: boolean;
   /** The explanation asked for here. */
@@ -88,13 +114,13 @@ interface ExplainBodyProps {
  * @param props - The stored and live explanations, and the right to ask.
  * @returns The body.
  */
-function ExplainBody({ latest, generating, live, canAsk }: ExplainBodyProps) {
+function ExplainBody({ latest, earlier, generating, live, canAsk }: ExplainBodyProps) {
   if (latest === undefined) return <p className={styles.explainMeta}>Loading…</p>;
   if (showsLive(live, latest)) {
     if (live.text === '') return <p className={styles.explainMeta}>Reading the query…</p>;
     return <ExplanationText text={live.text} />;
   }
-  if (latest) return <ExplanationText text={latest.text} />;
+  if (latest) return <StoredExplanation text={latest.text} earlier={earlier} />;
   if (generating)
     return <p className={styles.explainMeta}>Someone is asking for one. It shows here soon.</p>;
   if (!canAsk) return null;
@@ -213,6 +239,7 @@ export function PanelExplain({ target, timeZone }: PanelExplainProps) {
   const canAsk = useCanAsk();
   const state = {
     latest: stored?.explanation,
+    earlier: earlierVersionNote(stored, target.version),
     generating: stored?.generating ?? false,
     live,
     canAsk,

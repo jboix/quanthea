@@ -1,11 +1,17 @@
 /**
  * Explanations of the panels of a pinned version, kept per version and panel. An explanation is
  * written from the spec and the schema alone, so it is shown to every role, and a version's spec
- * never changes, so it stays valid. Asking again adds one; the latest is shown. Only one
- * explanation of a panel is written at a time, so none is paid for twice. The writing itself
- * happens elsewhere, so `dashboards/` never runs a model.
+ * never changes, so it stays valid. Asking again adds one; the latest is shown. A panel with none
+ * on the version shown takes the one of an earlier version, by panel id, and says whether the
+ * panel changed since. Only one explanation of a panel is written at a time, so none is paid for
+ * twice. The writing itself happens elsewhere, so `dashboards/` never runs a model.
  */
-import type { DashboardSpec, PanelExplanation, Role } from '@quanthea/shared';
+import {
+  type DashboardSpec,
+  dashboardSpecSchema,
+  type PanelExplanation,
+  type Role,
+} from '@quanthea/shared';
 import type {
   ExplanationRepository,
   ExplanationRow,
@@ -37,22 +43,25 @@ export type ExplanationInfo = Omit<PanelExplanation, 'explainedBy'> & {
   readonly explainerId: string;
 };
 
-/** The latest explanation of a panel, and whether one is being written. */
+/** The explanation a panel of a version shows, and whether one is being written. */
 export interface LatestExplanation {
-  /** The latest explanation, or `null`. */
+  /** The latest explanation of the version or, with none, of an earlier one; or `null`. */
   readonly explanation: ExplanationInfo | null;
   /** Whether one is being written now. */
   readonly generating: boolean;
+  /** Whether the panel's queries or view differ from those of the version explained. */
+  readonly panelChanged: boolean;
 }
 
 /** The explanations service. */
 export interface Explanations {
   /**
-   * Reads the latest explanation of a panel.
+   * Reads the explanation a panel of a version shows: its own latest or, with none, the latest
+   * of the nearest earlier version that explained a panel of the same id.
    *
    * @param key - The panel of a version.
    * @param role - The role the version is read with.
-   * @returns The explanation, and whether one is being written.
+   * @returns The explanation, whether one is being written, and whether the panel changed since.
    * @throws {AppError} `not_found` for a version the role may not see, or an unknown panel.
    */
   latest(key: PanelKey, role: Role): LatestExplanation;
@@ -60,9 +69,10 @@ export interface Explanations {
    * Claims the writing of a panel's explanation, as everyone sees it: on a pinned version.
    *
    * @param key - The panel of a version.
-   * @param replaces - The explanation the person saw, `null` for none.
+   * @param replaces - The explanation the person saw, of this version or an earlier one, `null`
+   *   for none.
    * @param actor - Who asks.
-   * @returns The explanation to write. Record or release it.
+   * @returns The explanation to write, for this version. Record or release it.
    * @throws {AppError} `not_found` as {@link Explanations.latest} does for a viewer, `conflict`
    *   when one is being written or the latest is not the one the person saw.
    */
@@ -145,6 +155,41 @@ function infoOf(row: ExplanationRow): ExplanationInfo {
 }
 
 /**
+ * Whether a panel differs, in its queries or its view, from the panel of the same id in the
+ * version an explanation was written for. Its title, description and place do not count.
+ *
+ * @param context - The service context.
+ * @param spec - The spec of the version shown.
+ * @param row - The explanation shown.
+ * @returns Whether it changed; `true` when the version explained can no longer be compared.
+ */
+function changedSince(context: ExplanationContext, spec: DashboardSpec, row: ExplanationRow) {
+  const explained = context.repository.getVersion(row.dashboardId, row.version);
+  const parsed = dashboardSpecSchema.safeParse(explained?.spec);
+  const before = parsed.data?.panels.find((panel) => panel.id === row.panelId);
+  const now = spec.panels.find((panel) => panel.id === row.panelId);
+  if (!before || !now) return true;
+  return !Bun.deepEquals([before.queries, before.view], [now.queries, now.view]);
+}
+
+/**
+ * Reads the explanation a panel of a version shows.
+ *
+ * @param context - The service context.
+ * @param key - The panel of a version.
+ * @param role - The role the version is read with.
+ * @returns The explanation, whether one is being written, and whether the panel changed since.
+ */
+function latest(context: ExplanationContext, key: PanelKey, role: Role): LatestExplanation {
+  const spec = specWithPanel(context, key, role);
+  const row = context.explanations.latestUpTo(key);
+  const generating = claimed(context, key);
+  if (!row) return { explanation: null, generating, panelChanged: false };
+  const panelChanged = row.version !== key.version && changedSince(context, spec, row);
+  return { explanation: infoOf(row), generating, panelChanged };
+}
+
+/**
  * Claims the writing of an explanation.
  *
  * @param context - The service context.
@@ -163,7 +208,8 @@ function prepare(
   const spec = specWithPanel(context, key, 'viewer');
   if (claimed(context, key))
     throw new AppError('conflict', 'This panel is being explained right now. Try again shortly.');
-  if ((context.explanations.latest(key)?.id ?? null) !== replaces)
+  // The one the person saw may be an earlier version's: the new one is written for this version.
+  if ((context.explanations.latestUpTo(key)?.id ?? null) !== replaces)
     throw new AppError('conflict', 'This panel was explained meanwhile. Read that explanation.');
   const claim = { id: newId(), since: context.now() };
   context.claims.set(claimKey(key), claim);
@@ -217,11 +263,7 @@ export function createExplanations(
   const now = dependencies.now ?? Date.now;
   const context: ExplanationContext = { ...dependencies, now, claims: new Map() };
   return {
-    latest: (key, role) => {
-      specWithPanel(context, key, role);
-      const row = context.explanations.latest(key);
-      return { explanation: row ? infoOf(row) : null, generating: claimed(context, key) };
-    },
+    latest: (key, role) => latest(context, key, role),
     prepare: (key, replaces, actor) => prepare(context, key, replaces, actor),
     record: (prepared, outcome) => record(context, prepared, outcome),
     release: (prepared) => release(context, prepared),

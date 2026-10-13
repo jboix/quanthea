@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { explainedLine, explanationParagraphs } from './explain-words.ts';
+import { earlierVersionNote, explainedLine, explanationParagraphs } from './explain-words.ts';
 
 describe('explanationParagraphs', () => {
   test('cuts the text at blank lines and trims each paragraph', () => {
@@ -35,5 +35,34 @@ describe('explainedLine', () => {
     expect(explainedLine({ explainedAt: at, explainedBy: 'Ana' }, 'Europe/Zurich')).toBe(
       'Explained on 4 Oct 2026 for Ana',
     );
+  });
+});
+
+/**
+ * What a panel shows: an explanation written for a version, or none.
+ *
+ * @param version - The version it was written for, `null` for no explanation.
+ * @param panelChanged - Whether the panel changed since.
+ * @returns What the panel shows.
+ */
+function shown(version: number | null, panelChanged = false) {
+  return { explanation: version === null ? null : { version }, panelChanged };
+}
+
+describe('earlierVersionNote', () => {
+  test('says nothing for an explanation of the version shown, for none, or while loading', () => {
+    expect(earlierVersionNote(shown(3), 3)).toBeNull();
+    expect(earlierVersionNote(shown(null), 3)).toBeNull();
+    expect(earlierVersionNote(undefined, 3)).toBeNull();
+  });
+
+  test('names the version an earlier one was written for', () => {
+    expect(earlierVersionNote(shown(2), 5)).toBe(
+      "Written for v2. The panel's query and view are the same in v5.",
+    );
+  });
+
+  test('says the panel changed since when its query or view did', () => {
+    expect(earlierVersionNote(shown(2, true), 5)).toBe('Written for v2. The panel changed since.');
   });
 });

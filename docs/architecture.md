@@ -2154,23 +2154,39 @@ why that choice (`dashboards/explanations.ts`, over `db/explanation-repository.t
 answering service's `explain` mode: the request carries the spec and the panel id, and nothing
 else, so it reads no data at any access level and is shown to every role.
 
-1. `GET /api/dashboards/:id/versions/:v/panels/:panelId/explanation` (viewer+) gives the panel's
-   latest explanation, or `null`, and whether one is being written now. The version is read with
-   the person's role, so viewers reach pinned versions only.
+1. `GET /api/dashboards/:id/versions/:v/panels/:panelId/explanation` (viewer+) gives the
+   explanation the panel shows, or `null`, whether one is being written now, and `panelChanged`.
+   The version is read with the person's role, so viewers reach pinned versions only.
 2. `POST` on the same path (analyst+) asks for one. The version is read as a viewer reads it, so
    only a pinned version of a pinned dashboard is explained. The body names the explanation the
    person saw (`replaces`), `null` for none.
 3. Only one explanation of a panel is written at a time. The service claims the panel in memory
    before the stream starts and releases it when the outcome comes, or when the stream fails to
-   start. A second request while one is written, or one whose `replaces` is not the latest, gets
-   `conflict` (409) and pays for nothing; the browser then reads the latest. A claim that never
-   reports back lapses after ten minutes.
+   start. A second request while one is written, or one whose `replaces` is not the one the panel
+   shows, gets `conflict` (409) and pays for nothing; the browser then reads the latest. A claim
+   that never reports back lapses after ten minutes.
 4. The route streams `Answers.stream` as the Ask tab's answers stream. A good outcome is stored
    with who asked, when, the text and the tokens by model; a failed one is not stored.
 5. A version's spec never changes, so its explanation stays valid; the browser shows the date,
    because the schema's descriptions may change. Asking again (analyst+) adds a row and the latest
    is shown; rows are never rewritten (a trigger refuses updates).
-6. Explanations go with their dashboard (`ON DELETE CASCADE`). The model steps stay in the usage
+6. An explanation follows its panel across versions, so a new version does not start with none.
+   A panel with no explanation on the version asked for shows the latest one of the nearest
+   earlier version that has one for a panel of the same id (`latestUpTo`). Later versions are
+   never read.
+   - The read goes back through the versions each time. No explanation is copied to the new
+     version, and none is rewritten.
+   - The panel is found by its id alone, so the explanation follows a panel that changed, and one
+     that was removed and added again under the same id. A version without the panel shows
+     nothing for it: the read answers `not_found`.
+   - `panelChanged` says whether the panel's `queries` or `view` differ from those of the version
+     the explanation was written for (`changedSince`). Its title, description and place do not
+     count. It is `false` for an explanation of the version asked for.
+   - The access check is the one of the version asked for. The earlier version is read for the
+     comparison only, and its explanation was written while everyone could see it.
+   - `replaces` names the explanation shown, also an earlier version's. The new one is stored for
+     the version in the path, and from then on that version shows its own.
+7. Explanations go with their dashboard (`ON DELETE CASCADE`). The model steps stay in the usage
    ledger, as the `answer` job and the `explanation` feature, against who asked.
 
 ## 7. Connectors
@@ -3312,7 +3328,7 @@ indicative; the contract files are the source of truth.
 | `GET /dashboards/:id/questions`, `GET /dashboards/:id/questions/:questionId`                      | a dashboard's questions and answers          | viewer   |
 | `GET /dashboards/:id/similar-questions?q=`                                                        | earlier answered questions sharing words     | viewer   |
 | `GET /dashboards/:id/versions/:v/sources`                                                         | a version's connectors and access levels     | viewer   |
-| `GET /dashboards/:id/versions/:v/panels/:panelId/explanation`                                     | a panel's latest explanation                 | viewer   |
+| `GET /dashboards/:id/versions/:v/panels/:panelId/explanation`                                     | the explanation a panel shows                | viewer   |
 | `POST /dashboards/:id/versions/:v/panels/:panelId/explanation` (streams it)                       | explain a panel of a pinned version          | analyst  |
 | `POST /snapshots` (a version as shown, and a lifetime)                                            | take a snapshot: the server runs the panels  | editor   |
 | `GET /snapshots/:snapshotId`                                                                      | open a live snapshot, no query               | viewer   |
@@ -3642,6 +3658,10 @@ one, and enables them again. Without any admin, it creates the default one.
   keeps one button. The explanation loads when the bubble opens: its short paragraphs as plain
   text, any `[n]` marker dropped, and "Explained on 3 Oct 2026 for Ana", since the schema's
   descriptions may change after it was written.
+  - An explanation written for an earlier version says so under its text (`earlierVersionNote`
+    in `explain-words.ts`): "Written for v2. The panel changed since." when the panel's query or
+    view differs from that version's, else "Written for v2. The panel's query and view are the
+    same in v5." Explain again then writes one for the version shown.
   - Analysts and above get Explain, or Explain again in place of the latest. The explanation
     streams in as the Ask tab's answers do (`ask-stream.ts`); when it ends, the stored one loads.
     The request goes on if the bubble closes, so the explanation is kept all the same.

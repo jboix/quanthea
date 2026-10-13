@@ -1,6 +1,7 @@
 /**
- * The words of a panel's explanation: its text cut into paragraphs, and the line that says when it
- * was written and by whose request. Plain text only: nothing the model writes is read as markup.
+ * The words of a panel's explanation: its text cut into paragraphs, the line that says when it
+ * was written and by whose request, and the note of one written for an earlier version. Plain
+ * text only: nothing the model writes is read as markup.
  */
 import { calendarParts } from '@quanthea/shared';
 
@@ -47,4 +48,30 @@ export function explainedLine(
 ): string {
   const day = dayWithYear(explanation.explainedAt, timeZone);
   return `Explained on ${day} for ${explanation.explainedBy}`;
+}
+
+/** What a panel shows as its explanation, as far as the note of an earlier version needs. */
+export interface ShownExplanation {
+  /** The explanation shown, with the version it was written for, or `null`. */
+  readonly explanation: { readonly version: number } | null;
+  /** Whether the panel's queries or view differ from that version's. */
+  readonly panelChanged: boolean;
+}
+
+/**
+ * Says that an explanation was written for an earlier version than the one shown, and whether the
+ * panel changed since. An explanation of the version shown needs no note.
+ *
+ * @param shown - What the panel shows, `undefined` while it loads.
+ * @param shownVersion - The version shown.
+ * @returns Such as `Written for v2. The panel changed since.`, or `null`.
+ */
+export function earlierVersionNote(
+  shown: ShownExplanation | undefined,
+  shownVersion: number,
+): string | null {
+  const version = shown?.explanation?.version;
+  if (version === undefined || version === shownVersion) return null;
+  if (shown?.panelChanged) return `Written for v${version}. The panel changed since.`;
+  return `Written for v${version}. The panel's query and view are the same in v${shownVersion}.`;
 }

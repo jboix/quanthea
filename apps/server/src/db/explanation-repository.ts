@@ -1,7 +1,8 @@
 /**
  * Reads and writes the explanations of panels. An explanation is stored once and never changed
  * (the trigger in `migrations/0002-snapshots-questions-analyst.sql`); asking again adds a row, and the
- * latest is the one shown.
+ * latest is the one shown. A version with none for a panel shows the one of an earlier version:
+ * the read goes back through the versions, and nothing is copied.
  */
 import type { Database } from 'bun:sqlite';
 
@@ -46,12 +47,14 @@ export interface ExplanationRepository {
    */
   insert(row: ExplanationRow): void;
   /**
-   * Reads the latest explanation of a panel.
+   * Reads the explanation a panel of a version shows: the latest written for that version or,
+   * when it has none, the latest written for the nearest earlier version that has one for a
+   * panel of the same id. Later versions are never read.
    *
    * @param key - The panel of a version.
-   * @returns The explanation, or `undefined` when there is none.
+   * @returns The explanation, or `undefined` when there is none up to that version.
    */
-  latest(key: PanelKey): ExplanationRow | undefined;
+  latestUpTo(key: PanelKey): ExplanationRow | undefined;
 }
 
 /** An explanation as SQLite returns it. */
@@ -110,10 +113,10 @@ export function createExplanationRepository(database: Database): ExplanationRepo
   const insert = database.query(
     `INSERT INTO panel_explanations (${columns}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
-  const latest = database.query<StoredExplanation, [string, number, string]>(
+  const latestUpTo = database.query<StoredExplanation, [string, number, string]>(
     `SELECT ${columns} FROM panel_explanations
-     WHERE dashboard_id = ? AND version = ? AND panel_id = ?
-     ORDER BY explained_at DESC, id DESC LIMIT 1`,
+     WHERE dashboard_id = ? AND version <= ? AND panel_id = ?
+     ORDER BY version DESC, explained_at DESC, id DESC LIMIT 1`,
   );
   return {
     insert: (row) => {
@@ -121,8 +124,8 @@ export function createExplanationRepository(database: Database): ExplanationRepo
       const written = [row.explainedBy, row.explainedAt, row.text];
       insert.run(...place, ...written, JSON.stringify(row.usage), row.tokens);
     },
-    latest: ({ dashboardId, version, panelId }) => {
-      const stored = latest.get(dashboardId, version, panelId);
+    latestUpTo: ({ dashboardId, version, panelId }) => {
+      const stored = latestUpTo.get(dashboardId, version, panelId);
       return stored ? rowOf(stored) : undefined;
     },
   };

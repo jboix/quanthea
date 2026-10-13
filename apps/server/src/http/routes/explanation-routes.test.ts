@@ -137,6 +137,9 @@ async function eventsPanel(pinned: boolean): Promise<string> {
 /** An explanation as the model gives it. */
 const explanation = (text: string) => ({ tool: 'give_answer', input: { text, citations: [] } });
 
+/** What a panel with no explanation answers. */
+const none = { explanation: null, generating: false, panelChanged: false };
+
 /**
  * The latest explanation of the panel, as a principal reads it.
  *
@@ -162,7 +165,7 @@ describe('explanation routes', () => {
   test('viewers read but cannot ask; an analyst asks, and the explanation is stored', async () => {
     await addEvents(2);
     const path = await eventsPanel(true);
-    expect(await read(viewer, path)).toEqual({ explanation: null, generating: false });
+    expect(await read(viewer, path)).toEqual(none);
     expect((await client(viewer)('POST', path, { replaces: null })).status).toBe(403);
     script(explanation('It counts the errors per minute.'));
     const asked = await client(analyst)('POST', path, { replaces: null });
@@ -212,6 +215,33 @@ describe('explanation routes', () => {
     expect(kept.get()?.count).toBe(2);
   });
 
+  test('a new version shows the earlier one until it is explained again', async () => {
+    await addEvents(2);
+    const first = await eventsPanel(true);
+    const id = first.split('/')[3] ?? '';
+    script(explanation('First.'));
+    await client(analyst)('POST', first, { replaces: null });
+    const spec = eventsSpec();
+    const [stat, chart] = spec.panels;
+    const view = { ...chart?.view, markers: [] };
+    const changed = { ...spec, panels: [stat, { ...chart, view }] };
+    const version = fixture.dashboards.addVersion(id, changed, 'no markers', 'editor-1');
+    await fixture.dashboards.pin(id, version, 'editor-1');
+    const second = first.replace('/versions/1/', `/versions/${version}/`);
+    const followed = await read(viewer, second);
+    expect(followed).toMatchObject({ explanation: { version: 1, text: 'First.' } });
+    expect(followed.panelChanged).toBe(true);
+    expect((await client(analyst)('POST', second, { replaces: null })).status).toBe(409);
+    script(explanation('Second.'));
+    const again = await client(analyst)('POST', second, { replaces: followed.explanation?.id });
+    expect(again.status).toBe(200);
+    expect(await read(viewer, second)).toMatchObject({
+      explanation: { version, text: 'Second.' },
+      panelChanged: false,
+    });
+    expect((await read(viewer, first)).explanation).toMatchObject({ version: 1, text: 'First.' });
+  });
+
   test('a panel being explained refuses a second request until the first ends', async () => {
     await addEvents(2);
     const path = await eventsPanel(true);
@@ -254,7 +284,7 @@ describe('explanation routes', () => {
     script(wrong, wrong);
     const asked = await client(analyst)('POST', path, { replaces: null });
     expect(asked.status).toBe(200);
-    expect(await read(viewer, path)).toEqual({ explanation: null, generating: false });
+    expect(await read(viewer, path)).toEqual(none);
   });
 
   test('without a model, asking fails before the stream, stores nothing, frees the panel', async () => {
@@ -263,7 +293,7 @@ describe('explanation routes', () => {
     model = undefined;
     const asked = await client(analyst)('POST', path, { replaces: null });
     expect(asked.status).toBe(400);
-    expect(await read(viewer, path)).toEqual({ explanation: null, generating: false });
+    expect(await read(viewer, path)).toEqual(none);
   });
 
   test('only pinned versions are explained; unknown panels are not found', async () => {

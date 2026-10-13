@@ -1,5 +1,5 @@
 /**
- * The endpoints of panel explanations. Every role reads a panel's latest explanation; analysts
+ * The endpoints of panel explanations. Every role reads the explanation a panel shows; analysts
  * and above ask for one, or a new one, which streams and is stored when it holds. The request to
  * the answering service carries the spec and the panel only: no range, no variables, no data.
  */
@@ -97,10 +97,10 @@ export function mountExplanationEndpoints(
     access: 'viewer',
     handle: async ({ params, principal }) => {
       const role = roleForDashboard(signedIn(principal), services.ownerOf(params.dashboardId));
-      const { explanation, generating } = explanations.latest(panelOf(params), role);
-      if (!explanation) return { explanation, generating };
+      const { explanation, ...state } = explanations.latest(panelOf(params), role);
+      if (!explanation) return { explanation, ...state };
       const { explainerId, ...rest } = explanation;
-      return { explanation: { ...rest, explainedBy: await nameOf(explainerId) }, generating };
+      return { explanation: { ...rest, explainedBy: await nameOf(explainerId) }, ...state };
     },
   });
 }

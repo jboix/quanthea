@@ -79,16 +79,31 @@ const errorsPanel = { dashboardId, version: 1, panelId: 'errors' };
 describe('explanation repository', () => {
   test('keeps one explanation per version and panel, the latest shown', () => {
     const repository = createExplanationRepository(database);
-    expect(repository.latest(errorsPanel)).toBeUndefined();
+    expect(repository.latestUpTo(errorsPanel)).toBeUndefined();
     const first = explanationRow('e1', 'errors', 3000);
     repository.insert(first);
-    expect(repository.latest(errorsPanel)).toEqual(first);
+    expect(repository.latestUpTo(errorsPanel)).toEqual(first);
     repository.insert(explanationRow('e2', 'errors', 4000));
     repository.insert(explanationRow('e3', 'latency', 5000));
     repository.insert(explanationRow('e4', 'errors', 6000, 2));
-    expect(repository.latest(errorsPanel)?.id).toBe('e2');
-    expect(repository.latest({ ...errorsPanel, panelId: 'latency' })?.id).toBe('e3');
-    expect(repository.latest({ ...errorsPanel, version: 2 })?.id).toBe('e4');
+    expect(repository.latestUpTo(errorsPanel)?.id).toBe('e2');
+    expect(repository.latestUpTo({ ...errorsPanel, panelId: 'latency' })?.id).toBe('e3');
+    expect(repository.latestUpTo({ ...errorsPanel, version: 2 })?.id).toBe('e4');
+  });
+
+  test('a version with none reads back to the nearest earlier version that has one', () => {
+    const repository = createExplanationRepository(database);
+    const at = (version: number) => repository.latestUpTo({ ...errorsPanel, version })?.id;
+    expect(at(3)).toBeUndefined();
+    repository.insert(explanationRow('e1', 'errors', 3000, 2));
+    repository.insert(explanationRow('e2', 'errors', 9000, 2));
+    repository.insert(explanationRow('e3', 'errors', 5000, 4));
+    repository.insert(explanationRow('e4', 'latency', 9500, 5));
+    expect(at(1)).toBeUndefined();
+    expect(at(2)).toBe('e2');
+    expect(at(3)).toBe('e2');
+    expect(at(4)).toBe('e3');
+    expect(at(7)).toBe('e3');
   });
 
   test('keeps the older ones and never rewrites one', () => {
@@ -108,6 +123,6 @@ describe('explanation repository', () => {
     const repository = createExplanationRepository(database);
     repository.insert(explanationRow('e1', 'errors', 3000));
     database.run('DELETE FROM dashboards');
-    expect(repository.latest(errorsPanel)).toBeUndefined();
+    expect(repository.latestUpTo(errorsPanel)).toBeUndefined();
   });
 });

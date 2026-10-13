@@ -2,7 +2,9 @@
  * Explanations of the panels of a pinned version: what a panel measures, how its query computes
  * it, and why. An explanation is written from the spec and the schema alone, never from data, so
  * one is kept per version and panel and shown to every role. Analysts and above ask for one, or
- * for a new one; the older ones are kept, and the latest is shown.
+ * for a new one; the older ones are kept, and the latest is shown. A panel with none on a version
+ * shows the latest of an earlier version that has a panel of the same id, until it is explained
+ * again.
  */
 import { z } from 'zod';
 import { defineEndpoint } from './contract.ts';
@@ -11,7 +13,10 @@ import { defineEndpoint } from './contract.ts';
 export const panelExplanationSchema = z.object({
   id: z.string(),
   dashboardId: z.string(),
-  /** The version it explains: a version's spec never changes, so it stays valid. */
+  /**
+   * The version it was written for: a version's spec never changes, so it stays valid for it. It
+   * is earlier than the version asked for when that one has no explanation of the panel yet.
+   */
   version: z.int(),
   panelId: z.string(),
   /** The explanation, plain text in short paragraphs. */
@@ -36,16 +41,24 @@ const panelParams = z.object({
 /** The path of a panel's explanation. */
 const explanationPath = '/dashboards/:dashboardId/versions/:version/panels/:panelId/explanation';
 
-/** Reads the latest explanation of a panel, and whether one is being written now. */
+/**
+ * Reads the explanation a panel of a version shows, and whether one is being written now: the
+ * latest of that version or, with none, the latest of the nearest earlier version.
+ */
 export const getPanelExplanationEndpoint = defineEndpoint({
   method: 'GET',
   path: explanationPath,
   params: panelParams,
   output: z.object({
-    /** The latest explanation, or `null` when the panel has none yet. */
+    /** The explanation, or `null` when no version up to this one has one for the panel. */
     explanation: panelExplanationSchema.nullable(),
     /** Whether someone is asking for one at this moment. */
     generating: z.boolean(),
+    /**
+     * Whether the panel's queries or view differ from those of the version the explanation was
+     * written for. Always `false` for an explanation of the version asked for.
+     */
+    panelChanged: z.boolean(),
   }),
 });
 
@@ -53,8 +66,9 @@ export const getPanelExplanationEndpoint = defineEndpoint({
  * Asks for an explanation of a panel of a pinned version. It answers with an AI SDK UI message
  * stream, not JSON: the text as it is written, then a `data-outcome` part. A good explanation is
  * stored, and the next read gives it. The request names the explanation it replaces, `null` for
- * the first: when the panel's latest is another one, or one is being written, it answers
- * `conflict`, so no explanation is paid for twice.
+ * the first: when the panel shows another one, or one is being written, it answers `conflict`,
+ * so no explanation is paid for twice. The one replaced may be an earlier version's; the new one
+ * is stored for the version in the path, and no stored explanation is changed.
  */
 export const explainPanelEndpoint = defineEndpoint({
   method: 'POST',

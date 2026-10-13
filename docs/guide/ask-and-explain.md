@@ -108,6 +108,13 @@ its query computes it, and why that choice.
 - An explanation is written from the panel's query and the source's schema only, never from the
   data, so every role may read it, whatever the source's access level.
 - It says when it was written and for whom, since a source's descriptions may change after.
+- An explanation follows its panel to the next versions of the dashboard. On a version nobody
+  explained yet, the bubble shows the latest explanation of an earlier version and names it:
+  "Written for v2."
+- When the panel's query or view changed since that version, the bubble adds "The panel changed
+  since." **Explain again** then writes one for the version shown.
+- A panel removed from the dashboard takes its explanation out of sight. Nothing is deleted: the
+  earlier versions keep theirs.
 - Viewers read an explanation once someone asked for it. Before that, the bubble says an analyst
   can ask for it.
 
