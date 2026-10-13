@@ -356,6 +356,32 @@ describe('search errors', () => {
     );
   });
 
+  test('carry why a bucket script failed, which a failed search holds under its cause', () => {
+    const failed = (reason: string, behind: object) => ({
+      type: 'search_phase_execution_exception',
+      reason: '',
+      root_cause: [],
+      caused_by: { type: 'script_exception', reason, caused_by: behind },
+    });
+    const cast = {
+      type: 'class_cast_exception',
+      reason: 'Cannot apply [>] operation to types [java.lang.Double] and [java.lang.String].',
+    };
+    expect(toConnectorError(400, failed('runtime error', cast), 'x')).toMatchObject({
+      code: 'syntax',
+      safeMessage: `A script of the search has an error. The server says: runtime error: ${cast.reason}`,
+    });
+    const overflow = { type: 'stack_overflow_error', reason: null };
+    expect(toConnectorError(400, failed('runtime error', overflow), 'x').safeMessage).toBe(
+      'A script of the search has an error. The server says: runtime error: stack_overflow_error',
+    );
+    const other = {
+      type: 'search_phase_execution_exception',
+      caused_by: { type: 'x', reason: 'secret' },
+    };
+    expect(toConnectorError(400, other, 'x').safeMessage).not.toContain('secret');
+  });
+
   test('cut a long reason short', () => {
     const long = { type: 'parsing_exception', reason: 'x'.repeat(1000) };
     expect(toConnectorError(400, long, 'x').safeMessage.length).toBeLessThan(400);

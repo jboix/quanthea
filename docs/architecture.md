@@ -2565,7 +2565,9 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   security plugin. An error about how the query is written (a parsing error, a refused argument, a
   value in the wrong format) carries the server's reason in its safe message, cut to 300
   characters: the server raises it while reading the query, before any document, so it quotes
-  only the query. Every other error keeps its reason for people allowed to see the data. The connection test fails, naming the right kind, when the server is the other
+  only the query. So does the error of a script (`script_exception`, which a failed search holds
+  under its cause): the only scripts a search runs are in `bucket_script` and `bucket_selector`,
+  which receive bucket numbers, and the reason names types and operators. Every other error keeps its reason for people allowed to see the data. The connection test fails, naming the right kind, when the server is the other
   product. Both go over the kit's HTTP client: the REST API, no client library. It sends searches (`POST /<index>/_search`) and reads mappings,
   document counts and the root answer, nothing that writes. The index is the only part of a path a
   query sets, and the binder holds it to names: lowercase letters, digits, `-`, `_`, `.`, `+` and
@@ -2948,7 +2950,8 @@ reads the rest about a connector: the catalog's heading of a search connector en
 `Bucket scripts: allowed.` or `Bucket scripts: off.`, and the search guide ends with a section
 the gate writes (`searchScriptGuide`): the two aggregations with an example each and the limits,
 naming the connectors that allow them, or an instruction to keep to the ratio scripts and to
-tell the person an admin can allow more.
+tell the person an admin can allow more. When a script fails on the server, the connector error
+carries the server's reason (`script_exception`), which names types and operators.
 
 MongoDB's `$where`, `$function` and `$accumulator` and the script commands of Redis stay refused
 on every connector.

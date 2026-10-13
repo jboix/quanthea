@@ -117,6 +117,18 @@ for (const server of servers) {
       expect(literal.docs).toEqual(kept);
     });
 
+    test('a script that fails says why, with nothing of the data', async () => {
+      const compared = byEvent('bucket_selector', {
+        source: 'params.docs > params.min',
+        params: { min: '10' },
+      });
+      await expect(run(compared)).rejects.toMatchObject({
+        code: 'syntax',
+        safeMessage:
+          'A script of the search has an error. The server says: runtime error: Cannot apply [>] operation to types [java.lang.Double] and [java.lang.String].',
+      });
+    });
+
     test('the script has no document to read: the server knows no doc, ctx or _score', async () => {
       for (const symbol of ['doc', 'ctx', '_score', 'state']) {
         const source = symbol === 'doc' ? "doc['event_name'].value" : symbol;
