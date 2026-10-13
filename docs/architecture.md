@@ -551,7 +551,9 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
    segment names data, and the options bound what a pinned dashboard shows. The options are cached
    for 60 s by variable, source, the variables before it and the time range as written (`now-6h`),
    so the panels of one dashboard share one load. "All" (`$__all`) and a missing default run the
-   variable's source query for the options too.
+   variable's source query for the options too. Variables are resolved in the order declared, so
+   a source may use only the variables before it: a spec whose source uses its own variable or a
+   later one is refused when it is validated (`checkQueries`).
 5. Each query goes to `query/`, which binds it, applies the connector's guardrails, runs it with a
    timeout and caches the frames for 15 s by connector, bound query and time range. The chart's
    markers run their annotation queries the same way, with the same variables, and come back, per

@@ -286,6 +286,27 @@ describe('validateSpec', () => {
     ]);
   });
 
+  test("refuses a variable's source that uses a later variable or its own, naming both", () => {
+    const rule = 'A source may use only the variables declared before it.';
+    const source = (expr: string) => ({ connector: 'prometheus-dev', language: 'promql', expr });
+    const pods = (expr: string, place: 'first' | 'last') => (spec: Spec) => {
+      const variable = { kind: 'query', name: 'pod', source: source(expr) };
+      const variables = spec.variables as unknown[];
+      if (place === 'first') variables.unshift(variable);
+      else variables.push(variable);
+    };
+    expect(issuesAfter(pods('label_values(up{env="$env"}, pod)', 'last'))).toEqual([]);
+    expect(issuesAfter(pods('label_values(up{env="$env"}, pod)', 'first'))).toEqual([
+      `variables[0].source.expr: The source of "pod" uses "env", which is declared after it. ${rule} Declare "env" before "pod".`,
+    ]);
+    expect(issuesAfter(pods('label_values(up{pod=~"$pod"}, pod)', 'last'))).toEqual([
+      `variables[2].source.expr: The source of "pod" uses "pod" itself. ${rule}`,
+    ]);
+    expect(issuesAfter(pods('label_values(up{env="$region"}, pod)', 'first'))).toEqual([
+      'variables[0].source.expr: Unknown variable $region.',
+    ]);
+  });
+
   test('takes an interval variable in a range and as the step, from its options only', () => {
     const withInterval = (spec: ReturnType<typeof validSpec>) => {
       spec.variables.push({
