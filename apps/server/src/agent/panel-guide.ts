@@ -16,10 +16,11 @@ import {
   shapeGuides,
   shapeKinds,
 } from '@quanthea/shared';
-import type { AvailableQueries } from '../dashboards/queries/index.ts';
+import { type AvailableQueries, choiceLines } from '../dashboards/queries/index.ts';
 import {
   builderHints,
   chartGuide,
+  choiceGuide,
   editRules,
   guidesLine,
   panelIntro,
@@ -72,7 +73,7 @@ export interface PanelGuideFacts {
 
 /**
  * The lines about data: the builders by language, the saved queries, raw queries in the languages
- * in use, and where the connector kinds' guides are.
+ * in use, which builder gives what a panel shows, and where the connector kinds' guides are.
  *
  * @param facts - The queries, languages and guides.
  * @returns The lines.
@@ -84,14 +85,14 @@ function dataLines(facts: PanelGuideFacts): string[] {
     .filter((language) => facts.languages.includes(language))
     .map((language) => rawSyntax[language]);
   const raw = [rawGuide, ...syntax].join(' ');
+  const chosen = choiceLines(available.builtIn, facts.languages);
   return [
     ...builderLanguages.flatMap((language) =>
       builderLines(`${queryLanguageNames[language]} builders`, language, available.builtIn),
     ),
     ...(available.saved.length === 0 ? [] : [savedGuide, ...available.saved.map(savedLine)]),
-    none
-      ? `${raw} This thread uses no query builders: every panel's data is a raw query.`
-      : `${raw} Prefer builders: their queries do not break.`,
+    none ? `${raw} This thread uses no query builders: every panel's data is a raw query.` : raw,
+    ...(chosen.length === 0 ? [] : [choiceGuide, ...chosen]),
     ...(facts.guides.length === 0 ? [] : [guidesLine(facts.guides.map((guide) => guide.kind))]),
   ];
 }

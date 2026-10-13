@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import type { DashboardSpec, Plan } from '@quanthea/shared';
+import { type DashboardSpec, type Plan, queryBuilders } from '@quanthea/shared';
+import { choices } from '../dashboards/queries/index.ts';
 import { instructionsFor, type TurnFacts } from './prompt.ts';
 
 const plan: Plan = {
@@ -102,6 +103,40 @@ describe('instructionsFor', () => {
   test('says every panel’s data is a raw query when the thread uses no builders', () => {
     const text = instructionsFor({ ...facts, state: 'ready', queries: { builtIn: [], saved: [] } });
     expect(text).toContain('This thread uses no query builders: every panel');
+  });
+
+  test('says which builder gives what a panel shows, for the builders offered only', () => {
+    const ready = { ...facts, state: 'ready' as const, languages: ['promql', 'sql'] as const };
+    const text = instructionsFor({
+      ...ready,
+      queries: { builtIn: ['rate', 'latency', 'sql-series', 'sql-stat'], saved: [] },
+    });
+    expect(text).toContain('By what the panel shows, its builder');
+    expect(text).toContain('- a count or a rate over time (long): rate, sql-series\n');
+    // A language in use with no builder for a row gets what a raw query returns.
+    expect(text).toContain(
+      '- percentiles over time (long): latency; else raw: a series per percentile',
+    );
+    expect(text).toContain('- one number (single): sql-stat; else raw: one row, "instant"');
+    // A row none of whose builders is offered is left out, and so is a builder not offered.
+    expect(text).not.toContain('how a number spreads');
+    expect(text).not.toContain('the latest rows');
+    expect(text).not.toContain('search-series');
+    expect(text).not.toContain('Prefer builders');
+    const none = instructionsFor({ ...ready, queries: { builtIn: [], saved: [] } });
+    expect(none).not.toContain('By what the panel shows');
+  });
+
+  test('names in its choices only builders that exist, each under its own language', () => {
+    for (const choice of choices) {
+      expect(Object.keys(choice.builders).length).toBeGreaterThan(0);
+      for (const [language, id] of Object.entries(choice.builders)) {
+        const builder = queryBuilders.find((each) => each.id === id);
+        expect<string | undefined>(builder?.language).toBe(language);
+      }
+    }
+    const named = new Set(choices.flatMap((choice) => Object.values(choice.builders)));
+    expect(queryBuilders.filter((builder) => !named.has(builder.id))).toEqual([]);
   });
 
   test('ends with what the phase asks for', () => {

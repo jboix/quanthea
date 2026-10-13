@@ -126,6 +126,10 @@ export function guidesLine(kinds: readonly string[]): string {
   return `Query guides: each connector kind in use has one, with how to get each shape of data from it and its raw query syntax. Read a kind's guide with read_guide before its first raw query or test_query in the thread; builders need none. Kinds: ${kinds.join(', ')}.`;
 }
 
+/** What heads the table of the builder to use for what a panel shows. */
+export const choiceGuide =
+  'By what the panel shows, its builder, and what a raw query returns where none fits:';
+
 /** How saved queries are asked for. */
 export const savedGuide = `Saved queries: { "kind": "saved", "name": its id, "connector", "params": { placeholder: value } }. Fill every placeholder; a value may be a variable such as "$service".`;
 

@@ -1818,7 +1818,11 @@ card has the buttons. The thread's state sets the phase
 Planning never runs a query: the build test-runs every query anyway. The panel guide only comes
 once there is something to write, so planning requests stay short. It lists the thread's builders
 with the columns each returns, raw and saved queries, the shapes of data, one line per chart
-recipe, and the connector kinds in use. Only builders and saved queries in a language a
+recipe, and the connector kinds in use. A table (`dashboards/queries/choices.ts`) says which
+builder gives what a panel shows (a count over time, a share, percentiles, a breakdown, one
+number, a spread, the latest rows) in each language, and what a raw query returns where a
+language in use has none. It lists only the builders offered, and leaves out a row none of them
+gives. Only builders and saved queries in a language a
 connector in use speaks are offered, in the guide and in the tool schema (`availableIn`), and the
 raw query syntax covers those languages only. The connectors in use (`agent/in-use.ts`) are those
 the approved plan names and those the draft reads, and every connector while the thread plans. So

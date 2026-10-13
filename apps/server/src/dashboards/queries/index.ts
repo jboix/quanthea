@@ -1,6 +1,7 @@
 /** The data side of panels: query builders, saved queries and raw queries, and what they return. */
 export { buildData } from './build.ts';
 export type { BuildContext } from './built.ts';
+export { choiceLines, choices } from './choices.ts';
 export { connectorSchema, filtersSchema, nameSchema, tableSchema } from './fields.ts';
 export { builderGuides } from './guide.ts';
 export { rawData } from './raw.ts';
