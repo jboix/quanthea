@@ -183,6 +183,21 @@ describe('an alert thread', () => {
     expect(services.threads.get(threadId).plans).toEqual([]);
   });
 
+  test('proposes one connector in each field, and says so when a name is two', async () => {
+    await addEvents(2);
+    const two = { ...plan(), connector: 'events and orders' };
+    const ratio = { ...plan(), dividedBy: 'events' };
+    const { agent } = agentWith(
+      { tool: 'propose_alert', input: two },
+      { tool: 'propose_alert', input: ratio },
+    );
+    const stream = await chat(agent, userMessage('u1', 'The share of failed orders?'));
+    expect(stream).toContain('No connector \\"events and orders\\". Connectors: events.');
+    expect(stream).toContain('in \\"dividedBy\\"');
+    const [proposed] = services.threads.get(threadId).plans;
+    expect(proposed?.body).toMatchObject({ connector: 'events', dividedBy: 'events' });
+  });
+
   test('writes the approved alert as a draft version of the thread’s alert', async () => {
     await addEvents(2);
     const assistant = await approvedThread();

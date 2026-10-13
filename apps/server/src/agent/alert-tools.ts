@@ -26,11 +26,44 @@ const proposeAlertSchema = z.strictObject({
   title: z.string().min(1).max(200),
   watch: z.string().min(1).max(300),
   connector: z.string().min(1).max(100),
+  dividedBy: z.string().min(1).max(100).optional(),
   condition: z.string().min(1).max(300),
   every: z.string().min(1).max(100),
   channels: z.array(z.string().min(1).max(64)).max(20),
   notify: z.string().max(300).optional(),
 });
+
+/**
+ * What is wrong with the connectors a plan names, if anything. A plan names one connector in each
+ * field, so a ratio of two queries on two connectors names the second in `dividedBy`.
+ *
+ * @param context - The run.
+ * @param names - The connectors the plan names.
+ * @returns The message for the model, or `undefined` when each is a connector.
+ */
+function unknownConnectors(context: RunContext, names: readonly string[]): string | undefined {
+  const known = context.modelView.connectors().map((connector) => connector.name);
+  const unknown = names.filter((name) => !known.includes(name));
+  if (unknown.length === 0) return undefined;
+  return `No connector ${unknown.map((name) => `"${name}"`).join(', ')}. Connectors: ${known.join(', ')}. Name one connector in "connector", and the connector of the second query of a ratio in "dividedBy".`;
+}
+
+/**
+ * What is wrong with a proposed plan, if anything: its channels and its connectors.
+ *
+ * @param context - The run.
+ * @param input - The plan the model proposes.
+ * @returns The message for the model, or `undefined` when the plan can be proposed.
+ */
+function planProblem(
+  context: RunContext,
+  input: z.output<typeof proposeAlertSchema>,
+): string | undefined {
+  const issues = unknownChannels(context, input.channels);
+  if (issues.length > 0) return issues.map((issue) => issue.message).join(' ');
+  const names = input.dividedBy ? [input.connector, input.dividedBy] : [input.connector];
+  return unknownConnectors(context, names);
+}
 
 /**
  * The tool that proposes an alert plan.
@@ -41,11 +74,11 @@ const proposeAlertSchema = z.strictObject({
 function proposeAlertTool(context: RunContext) {
   return tool({
     description:
-      'Propose the alert before writing it: its title, what it watches (in words) on which connector, when it fires (such as "above 2% for 5 minutes"), how often it checks, and the channels by id. "notify" says in a few words when it repeats or stays quiet ("not at night or on weekends"), if the person asked. The person approves it; then you write it. Call it once, as your last action.',
+      'Propose the alert before writing it: its title, what it watches (in words) on which connector (one name; for the ratio of two queries on two connectors, the second in "dividedBy"), when it fires (such as "above 2% for 5 minutes"), how often it checks, and the channels by id. "notify" says in a few words when it repeats or stays quiet ("not at night or on weekends"), if the person asked. The person approves it; then you write it. Call it once, as your last action.',
     inputSchema: providerSchema(proposeAlertSchema),
     execute: (input) => {
-      const issues = unknownChannels(context, input.channels);
-      if (issues.length > 0) return { error: issues.map((issue) => issue.message).join(' ') };
+      const problem = planProblem(context, input);
+      if (problem !== undefined) return { error: problem };
       const channels = context.channels?.() ?? [];
       const named = input.channels.map((id) => ({
         id,

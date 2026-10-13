@@ -1910,8 +1910,9 @@ activates one.
 | editing  | `describe`, `sample_values`, `read_guide`, `test_query`, `ask_person`, `propose_alert`, `edit_alert`, `replay_alert`, `propose_link` |
 
 - **`propose_alert`** takes the plan in words (what it watches on which connector, when it fires,
-  how often it checks) and the channels by id. It refuses an id no channel has. The plan card
-  (`data-alertPlan`) names them.
+  how often it checks) and the channels by id. It refuses an id no channel has, and a connector
+  that is not one: a plan names one connector, and the second one of a ratio of two queries in
+  `dividedBy`. The plan card (`data-alertPlan`) names them.
 - **`edit_alert`** takes the fields to set and a one-line note: the whole alert the first time,
   then only what changes. `value`, `notify` and `message` merge field by field over the draft;
   the rest replace (`agent/alert-edit.ts`). `quietHours` takes the alert's own windows, `none`, or

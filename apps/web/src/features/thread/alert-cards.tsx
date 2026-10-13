@@ -24,7 +24,10 @@ function AlertPlanFacts({ plan }: { readonly plan: AlertPlanData['body'] }) {
     <dl className={styles.planFacts}>
       <dt>Watch</dt>
       <dd>
-        {plan.watch} <span className={styles.mono}>({plan.connector})</span>
+        {plan.watch}{' '}
+        <span className={styles.mono}>
+          ({plan.dividedBy ? `${plan.connector}, divided by ${plan.dividedBy}` : plan.connector})
+        </span>
       </dd>
       <dt>Fires when</dt>
       <dd>{plan.condition}</dd>

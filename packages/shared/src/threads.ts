@@ -91,6 +91,8 @@ export const alertPlanSchema = z.strictObject({
   watch: z.string().min(1).max(300),
   /** The connector it reads. */
   connector: connectorNameSchema,
+  /** The connector of its second query, when it watches the ratio of two queries on two. */
+  dividedBy: connectorNameSchema.optional(),
   /** When it fires, such as `above 2% for 5 minutes`. */
   condition: z.string().min(1).max(300),
   /** How often it checks, such as `every minute`. */
