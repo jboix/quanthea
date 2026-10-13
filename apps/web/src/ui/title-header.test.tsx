@@ -57,3 +57,41 @@ test('the size, the alignment and the element are the caller’s', () => {
     '<div data-size="screen" data-align="end" data-mono="true" data-wrap="false">',
   );
 });
+
+/**
+ * The declarations of one rule of the header's stylesheet, read from the source: class names and
+ * layout do not exist under the test runner, so the rules that hold the layout are checked as text.
+ *
+ * @param selector - The rule's selector, as written.
+ * @returns The declarations, property to value.
+ */
+async function declarationsOf(selector: string): Promise<Record<string, string>> {
+  const css = await Bun.file(new URL('./title-header.module.css', import.meta.url)).text();
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, '').split('}');
+  const named = (rule: string) => rule.split('{')[0]?.trim().replace(/\s+/g, ' ') === selector;
+  const body = rules.find(named)?.split('{')[1] ?? '';
+  const pairs = body.split(';').map((line) => line.split(':').map((part) => part.trim()));
+  return Object.fromEntries(pairs.filter((pair) => pair.length === 2));
+}
+
+test('the stylesheet cuts the title on one line, and lets it shrink', async () => {
+  expect(await declarationsOf('.title')).toMatchObject({
+    'min-width': '0',
+    overflow: 'hidden',
+    'text-overflow': 'ellipsis',
+    'white-space': 'nowrap',
+  });
+});
+
+test('the stylesheet keeps the badges and the actions at their size', async () => {
+  expect(await declarationsOf('.badges, .actions')).toMatchObject({ flex: '0 0 auto' });
+});
+
+test('the stylesheet lets a group move below the title, and the text take the rest', async () => {
+  expect(await declarationsOf('.header')).toMatchObject({ 'flex-wrap': 'wrap' });
+  expect(await declarationsOf('.titleRow')).toMatchObject({ 'flex-wrap': 'wrap' });
+  expect(await declarationsOf('.text')).toMatchObject({
+    flex: '1 1 var(--title-header-text)',
+    'min-width': '0',
+  });
+});
