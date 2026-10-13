@@ -117,4 +117,12 @@ describe('bindHttp', () => {
     );
     expect(bind({ path: '/v1/a.b/%2e%2ex' }).path).toBe('/v1/a.b/%2e%2ex');
   });
+
+  test('refuses a dot segment before a ;, which some servers read as the segment alone', () => {
+    for (const path of ['/a/..;/b', '/a/..;x=1/admin', '/a/%2e%2e;/b', '/a//b'])
+      expect(() => bind({ path }), path).toThrow('A path starts with /');
+    for (const id of ['..;', '..;x=1', ''])
+      expect(() => bind({ path: '/v1/$id/x' }, { id }), id).toThrow('A path starts with /');
+    expect(bind({ path: '/v1/items/$id' }, { id: 'a;b' }).path).toBe('/v1/items/a%3Bb');
+  });
 });

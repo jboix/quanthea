@@ -2646,10 +2646,14 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   or a path its settings do not allow before it sends anything. The path it checks is the one the
   request reaches: parsed under the base URL, `.` and `..` segments resolved (`%2e` included),
   with the base path removed; a path that leaves the base path is refused. A redirect is followed
-  only to a path the settings allow, so an endpoint that redirects cannot lead a query out of
-  them. The binder refuses a `.` or `..` segment also between encoded separators (`%2F`, `%5C`),
-  in the template and in a variable's value: URL parsing keeps `x%2F..%2Fadmin` one segment, but
-  a server or a proxy that decodes it first would resolve it. The response becomes
+  only to a path the settings allow and that a query could have named itself, so an endpoint
+  that redirects cannot lead a query out of them. The read of the description follows a redirect
+  only under the base path. One test says which path a request may name as it is (`isPlainPath`
+  in `http/paths.ts`), for the binder and for a redirect: no empty segment inside (`/a//b`), and
+  no `.` or `..` segment, also between encoded separators (`%2F`, `%5C`) or before a `;`, in the
+  template and in a variable's value. URL parsing keeps `x%2F..%2Fadmin` and `..;` as they are,
+  but a server or a proxy that decodes the one or drops the parameters of the other would
+  resolve them. The response becomes
   a table through `extract`: a JSON pointer to the rows (an array, or one object as one row), and
   the columns as pointers into each row with an optional type (`time` reads ISO text, or epoch
   seconds or milliseconds); without columns, every value of the first rows becomes one, nested

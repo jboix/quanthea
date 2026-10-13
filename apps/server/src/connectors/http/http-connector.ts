@@ -22,7 +22,7 @@ import { responseFrame } from './extract.ts';
 import { httpGuide } from './guide.ts';
 import { jsonIcon } from './icon.ts';
 import { type ApiDescription, type DescribedOperation, describeApi } from './openapi.ts';
-import { type PathRules, pathOfUrl, pathRules, pathUnderBase } from './paths.ts';
+import { isPlainPath, type PathRules, pathOfUrl, pathRules, pathUnderBase } from './paths.ts';
 
 /** The configuration of an HTTP JSON connector. */
 const configSchema = z.object({
@@ -364,6 +364,21 @@ function withoutCredentials(url: string): string {
 }
 
 /**
+ * Reads the path a redirect leads to, when a request may name it as it is.
+ *
+ * @param baseUrl - The connector's base URL.
+ * @returns A function from a redirect's target to its path under the base URL, or `undefined`
+ *   when the target leaves the base path or the origin, or its path is not plain: a dot segment
+ *   between encoded separators or before a `;`, as the binder refuses in a query's own path.
+ */
+function plainTarget(baseUrl: string): (target: URL) => string | undefined {
+  return (target) => {
+    const path = pathOfUrl(baseUrl, target);
+    return path !== undefined && isPlainPath(path) ? path : undefined;
+  };
+}
+
+/**
  * Opens a connection: the client with the credentials, and the rules of the settings. A query's
  * request follows a redirect only to a path the settings allow. The description is read through
  * a client of its own, with a smaller byte cap.
@@ -380,10 +395,16 @@ function connect(config: Config, headers: Readonly<Record<string, string>>): Con
     headers: { Accept: 'application/json', ...headers },
     verifyTls: config.verifyTls,
   };
+  const staysUnder = plainTarget(config.url);
   // A redirect is followed only to a path a query could have asked for itself.
-  const allowRedirect = (target: URL): boolean => paths.allows(pathOfUrl(config.url, target) ?? '');
+  const allowRedirect = (target: URL): boolean => paths.allows(staysUnder(target) ?? '');
   const client = createHttpClient({ ...options, allowRedirect });
-  const describer = createHttpClient({ ...options, maxBytes: descriptionMaxBytes });
+  // The description may live outside the paths queries may call, but not outside the base path.
+  const describer = createHttpClient({
+    ...options,
+    allowRedirect: (target) => staysUnder(target) !== undefined,
+    maxBytes: descriptionMaxBytes,
+  });
   const methods: HttpQuery['method'][] = config.methods === 'GET' ? ['GET'] : ['GET', 'POST'];
   return { client, methods, paths, operations: operationsReader(describer, config, paths), config };
 }

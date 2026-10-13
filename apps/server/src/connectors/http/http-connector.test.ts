@@ -3,7 +3,7 @@ import { testConnectorConformance } from '@quanthea/plugin-kit/testing';
 import { atPointer, cellValue, inferredFields, responseFrame } from './extract.ts';
 import { httpConnector } from './http-connector.ts';
 import { describeApi } from './openapi.ts';
-import { pathRules, pathUnderBase } from './paths.ts';
+import { isPlainPath, pathRules, pathUnderBase } from './paths.ts';
 
 testConnectorConformance(httpConnector, {
   config: { url: 'https://api.example.com/v1', openapi: '/openapi.json' },
@@ -51,6 +51,15 @@ describe('http path rules', () => {
   });
 });
 
+describe('a plain path', () => {
+  test('has no dot segment, also before a ; or between encoded separators, and no empty one', () => {
+    for (const path of ['/a/..;/b', '/a/..;x=1/admin', '/a/.;/b', '/a/%2e%2e%3bx/b', '/a//b'])
+      expect(isPlainPath(path), path).toBe(false);
+    for (const path of ['/', '/a/b/', '/a;x=1/b', '/a/..b;c', '/a/b%2Fc'])
+      expect(isPlainPath(path), path).toBe(true);
+  });
+});
+
 describe('http redirects', () => {
   /**
    * Runs a GET through a connector that allows `/v1/**` on a server that redirects.
@@ -65,6 +74,15 @@ describe('http redirects', () => {
         '/v1/moved': () => new Response(null, { status: 302, headers: { location: '/v1/items' } }),
         '/v1/out': () => new Response(null, { status: 302, headers: { location: '/admin/keys' } }),
         '/v1/up': () => new Response(null, { status: 307, headers: { location: '../admin/keys' } }),
+        '/v1/enc': () =>
+          new Response(null, {
+            status: 302,
+            headers: { location: '/v1/x%2F..%2F..%2Fadmin/keys' },
+          }),
+        '/v1/semi': () =>
+          new Response(null, { status: 302, headers: { location: '/v1/..;/admin/keys' } }),
+        '/v1/x%2F..%2F..%2Fadmin/keys': () => Response.json([{ key: 'secret' }]),
+        '/v1/..;/admin/keys': () => Response.json([{ key: 'secret' }]),
         '/v1/items': () => Response.json([{ id: 1 }]),
         '/admin/keys': () => Response.json([{ key: 'secret' }]),
       },
@@ -92,8 +110,8 @@ describe('http redirects', () => {
     expect(await ask('/v1/moved')).toEqual([[1]]);
   });
 
-  test('refuses a redirect to a path the settings do not allow', async () => {
-    for (const path of ['/v1/out', '/v1/up']) {
+  test('refuses a redirect to a path the settings do not allow, or a query could not name', async () => {
+    for (const path of ['/v1/out', '/v1/up', '/v1/enc', '/v1/semi']) {
       const failure = await ask(path);
       expect(failure).toMatchObject({ code: 'rejected' });
       expect((failure as { safeMessage: string }).safeMessage).toContain('may not call');

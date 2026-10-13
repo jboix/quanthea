@@ -3,6 +3,47 @@
  * segment and `**` matches across segments.
  */
 
+/**
+ * The shape of a path: absolute, without a query, a fragment, a backslash or a control character
+ * (URL parsing drops tab and newlines, which would join `.\t.` into `..`).
+ */
+const pathShape = /^\/(?!\/)[^?#\\\p{Cc}]*$/u;
+
+/** A dot segment as URL parsing reads it: `.` or `..`, each dot also written `%2e`. */
+const dotSegment = /^(?:\.|%2e){1,2}$/i;
+
+/**
+ * A slash or a backslash written as an escape. URL parsing keeps it inside its segment, but a
+ * server or a proxy that decodes it first reads a separator, and a `..` beside it as a segment.
+ */
+const encodedSeparator = /%2f|%5c/gi;
+
+/**
+ * Whether a segment is a dot segment once its path parameters are left out: some servers read
+ * `..;x=1` as `..`.
+ *
+ * @param segment - One segment of a path, encoded.
+ * @returns `true` for `.` or `..`, alone or before a `;`.
+ */
+function isDotSegment(segment: string): boolean {
+  return dotSegment.test(segment.replace(/%3b/gi, ';').split(';')[0] ?? '');
+}
+
+/**
+ * Whether a path is one a request may name as it is: of the shape above, without an empty segment
+ * inside (`/a//b`), and without a dot segment, which URL parsing would resolve against its
+ * parent, or one between encoded separators or before a `;`, which a server that decodes them
+ * would. A query's path and the target of a redirect pass the same test.
+ *
+ * @param path - The path, encoded.
+ * @returns `true` when the path is plain.
+ */
+export function isPlainPath(path: string): boolean {
+  if (!pathShape.test(path)) return false;
+  if (path.split('/').slice(1, -1).includes('')) return false;
+  return !path.replace(encodedSeparator, '/').split('/').some(isDotSegment);
+}
+
 /** A compiled set of path patterns. */
 export interface PathRules {
   /**

@@ -5,6 +5,7 @@
  * body takes `{"$var": "name"}` nodes. Headers take no variable.
  */
 import type { HttpField, HttpQuery, TimeRange } from '../connectors/_shared/index.ts';
+import { isPlainPath } from '../connectors/http/paths.ts';
 import { bindJsonVariables } from './json-variables.ts';
 import { QueryError } from './query-error.ts';
 import { type Variables, valuesOf } from './variables.ts';
@@ -29,39 +30,10 @@ const reference = /\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))/g
 /** A parameter value that is one reference and nothing else. */
 const onlyReference = /^\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))$/;
 
-/**
- * A path the binder accepts: absolute, without a query, a fragment, a backslash or a control
- * character (URL parsing drops tab and newlines, which would join `.\t.` into `..`).
- */
-const pathShape = /^\/(?!\/)[^?#\\\p{Cc}]*$/u;
-
-/** A dot segment as URL parsing reads it: `.` or `..`, each dot also written `%2e`. */
-const dotSegment = /^(?:\.|%2e){1,2}$/i;
-
-/**
- * A slash or a backslash written as an escape. URL parsing keeps it inside its segment, but a
- * server or a proxy that decodes it first reads a separator, and a `..` beside it as a segment.
- */
-const encodedSeparator = /%2f|%5c/gi;
-
 /** Why a path is refused. */
 const pathRule =
-  'A path starts with /, holds no ?, # or \\, no control character and no . or .. segment, ' +
-  'also between %2F: put parameters in "query".';
-
-/**
- * Whether a path holds a dot segment, which URL parsing would resolve against its parent, or one
- * between encoded separators, which a server that decodes them would.
- *
- * @param path - The path, encoded.
- * @returns `true` when a segment is `.` or `..`, in any encoding of the dots and the separators.
- */
-function hasDotSegment(path: string): boolean {
-  return path
-    .replace(encodedSeparator, '/')
-    .split('/')
-    .some((segment) => dotSegment.test(segment));
-}
+  'A path starts with /, holds no ?, # or \\, no control character, no empty segment and no . or .. ' +
+  'segment, also between %2F or before a ;: put parameters in "query".';
 
 /**
  * The built-in values: the time range as ISO times, epoch milliseconds and epoch seconds.
@@ -135,12 +107,13 @@ function substitute(text: string, values: Values, encode: (value: string) => str
  * @param values - The variables and built-ins.
  * @returns The encoded path.
  * @throws {QueryError} `invalid` for a path that is not absolute, holds `?`, `#` or `\`, or holds
- *   a `.` or `..` segment (`%2e` counts as a dot) before or after the values go in.
+ *   an empty segment or a `.` or `..` segment (`%2e` counts as a dot, and what follows a `;` in
+ *   the segment is left out) before or after the values go in.
  */
 function bindPath(path: string, values: Values): string {
-  if (!pathShape.test(path) || hasDotSegment(path)) throw new QueryError('invalid', pathRule);
+  if (!isPlainPath(path)) throw new QueryError('invalid', pathRule);
   const bound = substitute(path, values, encodeURIComponent);
-  if (hasDotSegment(bound)) throw new QueryError('invalid', pathRule);
+  if (!isPlainPath(bound)) throw new QueryError('invalid', pathRule);
   return bound;
 }
 
