@@ -101,6 +101,81 @@ describe('http redirects', () => {
   });
 });
 
+describe('http methods and hosts', () => {
+  /**
+   * Sends requests through a connector and counts what its server and another server received.
+   *
+   * @param methods - The methods the connector allows.
+   * @param requests - The method and path of each request.
+   * @returns What each request gave, and what each server received.
+   */
+  async function send(methods: string, requests: readonly (readonly [string, string])[]) {
+    const received: string[] = [];
+    let elsewhere = 0;
+    const answer = (request: Request) => {
+      received.push(`${request.method} ${new URL(request.url).pathname}`);
+      return Response.json([{ id: 1 }]);
+    };
+    const server = Bun.serve({ port: 0, fetch: answer });
+    const other = Bun.serve({
+      port: 0,
+      fetch: () => {
+        elsewhere += 1;
+        return Response.json([]);
+      },
+    });
+    const config = { url: `http://127.0.0.1:${server.port}`, methods };
+    const connection = httpConnector.open({
+      config: httpConnector.configSchema.parse(config),
+      secret: {},
+    });
+    const outcomes: string[] = [];
+    for (const [method, path] of requests) {
+      const target = path.replace('OTHER', `127.0.0.1:${other.port}`);
+      const query = { language: 'http', method, path: target, query: [], extract: { rows: '' } };
+      const signal = AbortSignal.timeout(5000);
+      const outcome = await connection.execute(query as never, { ...context, signal }).then(
+        () => 'sent',
+        () => 'refused',
+      );
+      outcomes.push(outcome);
+    }
+    server.stop(true);
+    other.stop(true);
+    return { outcomes, received, elsewhere };
+  }
+
+  test('a connector that allows GET sends nothing else', async () => {
+    const requests = ['POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'get', 'GET'].map(
+      (method) => [method, '/items'] as const,
+    );
+    const { outcomes, received } = await send('GET', requests);
+    expect(outcomes).toEqual([...Array(6).fill('refused'), 'sent']);
+    expect(received).toEqual(['GET /items']);
+  });
+
+  test('a connector that allows POST too still sends no other method', async () => {
+    const requests = ['PUT', 'PATCH', 'DELETE', 'post', 'POST'].map(
+      (method) => [method, '/items'] as const,
+    );
+    const { outcomes, received } = await send('GET and POST', requests);
+    expect(outcomes).toEqual([...Array(4).fill('refused'), 'sent']);
+    expect(received).toEqual(['POST /items']);
+  });
+
+  test('no path reaches another host', async () => {
+    const { received, elsewhere } = await send('GET', [
+      ['GET', '@OTHER/x'],
+      ['GET', '//OTHER/x'],
+      ['GET', '/\\OTHER/x'],
+      ['GET', 'http://OTHER/x'],
+      ['GET', '/x@OTHER/y'],
+    ]);
+    expect(elsewhere).toBe(0);
+    for (const request of received) expect(request).toStartWith('GET /');
+  });
+});
+
 describe('http extraction', () => {
   test('reads JSON pointers, with escaped tokens', () => {
     const document = { data: [{ 'a/b': { '~c': 1 } }] };
