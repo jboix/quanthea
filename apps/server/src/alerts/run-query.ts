@@ -8,7 +8,7 @@ import type { QueryExecutor, QuerySource } from '../query/executor.ts';
 import { QueryError } from '../query/query-error.ts';
 import { historyQuery, historyWindowAt } from './history.ts';
 import type { QueryOutcome } from './observe.ts';
-import { alertVariables, windowAt } from './validate.ts';
+import { alertInterval, alertVariables, windowAt } from './validate.ts';
 
 /** What running an alert's query needs. */
 export interface AlertQueryDependencies {
@@ -27,7 +27,8 @@ export interface TimeWindow {
 }
 
 /**
- * Runs the query of a spec over a window.
+ * Runs the query of a spec over a window, its time buckets bound to the alert's interval whatever
+ * the length of the window.
  *
  * @param dependencies - The connectors and the executor.
  * @param spec - The spec.
@@ -49,6 +50,7 @@ export async function runAlertQuery(
       template: query,
       variables: alertVariables(spec),
       timeRange: { from: new Date(window.from), to: new Date(window.to) },
+      interval: alertInterval(spec, query),
     });
     return { frames: result.frames };
   } catch (error) {

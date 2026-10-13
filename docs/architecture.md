@@ -1023,9 +1023,11 @@ others, with one more thing to read:
   outside the mean of its own values.
 - **A band on the scale of its points.** The mean and the deviation are those of single points, so
   the schema refuses a band whose value is a `sum`, a `max` or a `min` of the window
-  (`conditionProblems`), and `validateAlertSpec` refuses a band whose query uses a built-in that
-  follows the time range (`$__interval`, `$__rate_interval`, `$__range`, `__interval`,
-  `__interval_ms`): over the baseline it takes another value than over the window.
+  (`conditionProblems`), and `validateAlertSpec` refuses a band whose PromQL or LogQL query uses a
+  built-in that follows the time range (`$__interval`, `$__rate_interval`, `$__range`): over the
+  baseline it takes another value than over the window. The interval of a bucketed language
+  (`:__interval`, `__interval`, `__interval_ms`) is the alert's own, the same over the baseline,
+  and a band takes it.
 - **No verdict.** A `past` whose series has no value then has no reference, and does not hold. A
   band needs 10 points with times that span half the baseline or more, else it has none either. A
   series that is only in the history is not a series of the alert. Neither ever fires on what it
@@ -1187,6 +1189,16 @@ values filled from the series. The evaluator hands it to an injected
 `notify(channelIds, notification): Promise<unknown>`, which the bootstrap wires to the
 notification channels' `send` (it never throws), and a keep-alive to `keepAlive`, wired to theirs. A failing sender is logged and does not stop the
 other notifications.
+
+**The interval of an alert's query** (`alertInterval` in `alerts/validate.ts`). A query in a
+bucketed language cuts time by the interval built-in (`:__interval` in SQL, `__interval` in a
+search, `__interval_ms` in MongoDB). An alert binds one interval to it, the one of the closed list
+its `lookback` takes (`defaultChartInterval`: `1m` up to 2 hours, `5m` up to 12, `10m` up to 36,
+`30m` up to 4 days, then `1h`), in every read: an evaluation, the history of a condition and a
+replay (`alerts/run-query.ts`). Left to the time range, a bucket would be seconds wide over a
+lookback of minutes and a quarter of an hour wide in a replay over a week, and the replay would
+judge other numbers than the evaluator. PromQL and LogQL take none: an evaluation reads the query
+at its instant, and a replay as a range query at the evaluation step.
 
 **Replay** (`alerts/replay.ts`, `alerts/replay-core.ts`) answers "how would this have fired over
 the last 7 days". It runs the query once over the whole window, PromQL and LogQL as a range query

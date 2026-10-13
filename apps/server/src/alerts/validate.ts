@@ -8,6 +8,7 @@ import {
   type AlertSpec,
   alertSpecSchema,
   conditionTests,
+  defaultChartInterval,
   durationMs,
   type PanelQuery,
   testPath,
@@ -67,6 +68,25 @@ export function windowAt(spec: AlertSpec, at: number): { from: number; to: numbe
 }
 
 /**
+ * The interval the time buckets of an alert's query are bound to: the one of the closed list its
+ * lookback takes, such as `1m` under two hours. Every read binds the same one: an evaluation, the
+ * history of a condition and a replay, so a bucket is as wide in a replay over a week as in a
+ * check over the lookback. A PromQL or LogQL query takes none: each check reads it at an instant,
+ * and a replay as a range query at the evaluation step.
+ *
+ * @param spec - The spec.
+ * @param query - The alert's query, or the second query of a ratio.
+ * @returns The interval, as a duration, or `undefined` for PromQL and LogQL.
+ */
+export function alertInterval(
+  spec: Pick<AlertSpec, 'lookback'>,
+  query: Pick<PanelQuery, 'language'>,
+): string | undefined {
+  if (query.language === 'promql' || query.language === 'logql') return undefined;
+  return defaultChartInterval(durationMs(spec.lookback));
+}
+
+/**
  * Checks a window against the connector's guardrails.
  *
  * @param connector - The connector.
@@ -104,8 +124,11 @@ function checkBaseline(spec: AlertSpec, connector: ConnectorFacts, now: number):
   return checkWindow(connector, window, pathOf(testPath(spec.condition, index, 'baseline')));
 }
 
-/** The built-ins whose value follows the length of the time range, in any query language. */
-const rangeBuiltIns = /__(?:rate_interval|interval_ms|interval|range)\b/;
+/**
+ * The built-ins whose value follows the length of the time range: the durations of PromQL and
+ * LogQL. The interval of a bucketed language is the alert's own, the same over any range.
+ */
+const rangeBuiltIns = /\$(?:\{)?__(?:rate_interval|interval|range)\b/;
 
 /**
  * Checks the query of a band for a built-in that follows the time range. The band's history query
@@ -116,9 +139,11 @@ const rangeBuiltIns = /__(?:rate_interval|interval_ms|interval|range)\b/;
  * @returns The issue, if any, at `query`.
  */
 function checkBandQuery(spec: AlertSpec): SpecIssue[] {
+  const { query } = spec;
   const band = conditionTests(spec.condition).some((test) => test.kind === 'band');
-  const found = rangeBuiltIns.exec(JSON.stringify(spec.query))?.[0];
-  if (!band || found === undefined) return [];
+  if (!band || (query.language !== 'promql' && query.language !== 'logql')) return [];
+  const found = rangeBuiltIns.exec(query.expr)?.[0].replace(/^\$\{?/, '');
+  if (found === undefined) return [];
   const message = `A band reads the query over its baseline too, where ${found} takes another value than over the window, so the band would be on another scale than the value. Write the duration itself, such as 5m.`;
   return [{ path: 'query', message }];
 }

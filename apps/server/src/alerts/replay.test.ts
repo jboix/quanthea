@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { replayAlert } from './replay.ts';
+import { runEvaluationQueries } from './run-query.ts';
 import { fakeEngine, frameOf, minute, seriesFrame, spec } from './test/fixtures.ts';
 
 const day = 24 * 60 * minute;
@@ -50,5 +51,34 @@ describe('replaying an alert over a past window', () => {
     await expect(replayAlert(engine, spec(), { from: 0, to: day })).rejects.toMatchObject({
       code: 'source_failed',
     });
+  });
+});
+
+describe("the interval of an alert's query", () => {
+  const sql =
+    'SELECT date_bin(:__interval::interval, at, :__from) AS time, count(*) AS errors FROM logs ' +
+    'WHERE at BETWEEN :__from AND :__to GROUP BY 1';
+  const bucketed = (lookback: string) =>
+    spec({ query: { refId: 'A', connector: 'logs', language: 'sql', sql }, lookback });
+
+  test('is the one its lookback takes, in a check and in a replay over a week alike', async () => {
+    const engine = fakeEngine(() => [seriesFrame({}, [[day, 9]])]);
+    await runEvaluationQueries(engine, bucketed('10m'), day);
+    await replayAlert(engine, bucketed('10m'), { from: day, to: 8 * day, step: '5m' });
+    expect(engine.requests.map((request) => request.interval)).toEqual(['1m', '1m']);
+  });
+
+  test('follows a longer lookback', async () => {
+    const engine = fakeEngine(() => [seriesFrame({}, [[day, 9]])]);
+    await runEvaluationQueries(engine, bucketed('1d'), 2 * day);
+    expect(engine.requests[0]?.interval).toBe('10m');
+  });
+
+  test('is not given to a PromQL query, which a replay reads at the evaluation step', async () => {
+    const engine = fakeEngine(() => [seriesFrame({}, [[day, 9]])]);
+    await runEvaluationQueries(engine, spec(), day);
+    await replayAlert(engine, spec(), { from: day, to: 2 * day });
+    expect(engine.requests.map((request) => request.interval)).toEqual([undefined, undefined]);
+    expect(engine.requests[1]?.template).toMatchObject({ step: '1m' });
   });
 });

@@ -97,6 +97,20 @@ Each evaluation turns the query's result into series:
 - The points of a series within the window become one value with `reduce`; `last` takes the point
   with the latest time.
 
+## The interval of the query
+
+A query that cuts time into buckets takes their width from the interval built-in of its language:
+`:__interval` in SQL, `{"$var": "__interval"}` in a search, `{"$var": "__interval_ms"}` in MongoDB.
+
+- The alert binds one interval to it, from a closed list, by its `lookback`: `1m` up to 2 hours,
+  `5m` up to 12 hours, `10m` up to 36 hours, `30m` up to 4 days, then `1h`.
+- Every read binds the same one: each evaluation, the history of a `past` or a `band`, and a
+  replay over a week. A bucket is as wide in a replay as in a check.
+- A PromQL or LogQL query takes none. An evaluation reads it at its instant, and a replay as a
+  range query at `every`.
+- `every` says how often the alert is checked. The interval says how wide a bucket of the query
+  is. Neither follows the other.
+
 ## The ratio of two queries
 
 An alert may name a second query in `dividedBy`. Its value is then the first query's value divided
@@ -197,9 +211,10 @@ and `no_data` has none.
   - The band is that of the single points of the baseline, so the value it judges is the `last`
     or the `mean` of the window. A `sum`, a `max` or a `min` is refused: it is on another scale
     than a single point, or sits on one side of the mean.
-  - The query names its durations itself. A built-in that follows the time range (`$__interval`,
-    `$__rate_interval`, `$__range`, `__interval`, `__interval_ms`) is refused: it takes another
-    value over the baseline than over the window.
+  - A PromQL or LogQL query names its durations itself. A built-in that follows the time range
+    (`$__interval`, `$__rate_interval`, `$__range`) is refused: it takes another value over the
+    baseline than over the window. The interval of a bucketed language is the alert's own, the
+    same over the baseline: see [the interval of the query](#the-interval-of-the-query).
 - `all` and `any`: two to four tests on the one query, in `of`. `all` holds when every test holds,
   `any` when at least one does. A part is a threshold, a change, a `past` or a `band` without
   `for`, and never a joined condition. At most one part is a `past` or a `band`.
@@ -307,7 +322,7 @@ than `every`, a variable is named once and an interval variable holds a duration
 - the query binds with the fixed variables exactly as it will at run time: a variable without a
   value, a misplaced variable, or a SQL template that is not one read statement is reported;
 - the window fits the connector's `maxRangeDays`, and so does the baseline of a band;
-- the query of a band uses no built-in that follows the time range, at `query`;
+- the PromQL or LogQL query of a band uses no built-in that follows the time range, at `query`;
 - the second query of a ratio the same way, against its own connector, at `dividedBy.query`;
 - the time zone is known.
 

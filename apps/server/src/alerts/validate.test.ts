@@ -98,6 +98,15 @@ describe('validating an alert spec', () => {
     }
   });
 
+  test('takes a band whose query buckets by the interval, which the alert binds itself', () => {
+    const band = { kind: 'band', side: 'either', deviations: 3, baseline: '12h', for: '5m' };
+    const sql =
+      'SELECT date_bin(:__interval::interval, at, :__from) AS time, count(*) AS errors ' +
+      'FROM logs WHERE at BETWEEN :__from AND :__to GROUP BY 1';
+    const query = { refId: 'A', connector: 'postgres', language: 'sql', sql };
+    expect(issuesOf({ query, variables: [], condition: band })).toEqual([]);
+  });
+
   test('reports a baseline past the connector guardrails, at the band', () => {
     const band = { kind: 'band', side: 'either', deviations: 3, baseline: '2d', for: '5m' };
     expect(issuesOf({ condition: band })).toEqual([
