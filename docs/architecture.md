@@ -1922,7 +1922,10 @@ activates one.
   "today so far" (`created_at >= date_trunc('day', :__to)`) passes. It knows the spellings the
   builders and the guides write (`date_trunc`, `date_bin`, `time_bucket`, `toStartOf…`, epoch
   seconds divided by a number); a cast to a date or a formatted time passes it. It is advice to
-  the agent, not a boundary. The guide says how this meets the rule
+  the agent, not a boundary. An edit that moves the lookback to another interval, such as
+  `1h` to `3h`, widens the buckets of a query that follows it under an unchanged threshold: the
+  write then tells the model so (`bucketChanged`, from `bucketChangeNote`), with the values the
+  series read now. The guide says how this meets the rule
   of a band: a band's SQL, search or MongoDB query still buckets by the interval, which the
   alert binds the same over the baseline, and only the PromQL and LogQL durations are written
   out. The guide also tells the three rhythms apart: the interval of the query's buckets,

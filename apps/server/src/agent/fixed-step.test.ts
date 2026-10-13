@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import type { DashboardSpec } from '@quanthea/shared';
+import { alertSpecSchema, type DashboardSpec } from '@quanthea/shared';
 import { specInput } from '../alerts/test/fixtures.ts';
-import { alertStepIssues, fixedStepProblems, withProblems } from './fixed-step.ts';
+import {
+  alertStepIssues,
+  bucketChangeNote,
+  fixedStepProblems,
+  withProblems,
+} from './fixed-step.ts';
 
 const fixed = "SELECT date_trunc('minute', at) AS time, count(*) AS errors FROM logs GROUP BY 1";
 const follows =
@@ -66,9 +71,15 @@ describe('the time charts a report writes', () => {
   });
 });
 
-describe('the queries an alert writes', () => {
-  const sqlQuery = (sql: string) => ({ refId: 'A', connector: 'logs', language: 'sql', sql });
+/**
+ * An alert's SQL query.
+ *
+ * @param sql - Its text.
+ * @returns The query, as JSON.
+ */
+const sqlQuery = (sql: string) => ({ refId: 'A', connector: 'logs', language: 'sql', sql });
 
+describe('the queries an alert writes', () => {
   test('are refused when they cut time by a width of their own', () => {
     const merged = specInput({ query: sqlQuery(fixed), variables: [] });
     expect(alertStepIssues(merged, { query: {} })).toEqual([
@@ -100,5 +111,32 @@ describe('the queries an alert writes', () => {
 
   test('say nothing of a spec that does not parse', () => {
     expect(alertStepIssues({ query: sqlQuery(fixed) }, { query: {} })).toEqual([]);
+  });
+});
+
+describe('a lookback that moves to another interval', () => {
+  /**
+   * An alert spec with a lookback and a query.
+   *
+   * @param lookback - The lookback.
+   * @param query - The query; the fixture's PromQL query when left out.
+   * @returns The parsed spec.
+   */
+  const spec = (lookback: string, query?: unknown) =>
+    alertSpecSchema.parse(specInput({ lookback, ...(query ? { query, variables: [] } : {}) }));
+
+  test('tells the model that the buckets changed width under the threshold', () => {
+    const note = bucketChangeNote(spec('1h', sqlQuery(follows)), spec('3h', sqlQuery(follows)));
+    expect(note).toContain('buckets of 5m where 1h bound 1m');
+  });
+
+  test('says nothing when the interval stays, or when no query is cut by it', () => {
+    const bucketed = sqlQuery(follows);
+    expect(bucketChangeNote(spec('1h', bucketed), spec('90m', bucketed))).toBeUndefined();
+    expect(bucketChangeNote(undefined, spec('3h', bucketed))).toBeUndefined();
+    expect(
+      bucketChangeNote(spec('1h', sqlQuery(fixed)), spec('3h', sqlQuery(fixed))),
+    ).toBeUndefined();
+    expect(bucketChangeNote(spec('1h'), spec('3h'))).toBeUndefined();
   });
 });

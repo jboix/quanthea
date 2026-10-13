@@ -6,9 +6,13 @@
  * one never blocks a new edit.
  */
 import {
+  type AlertSpec,
   alertSpecSchema,
   type DashboardSpec,
+  defaultChartInterval,
+  durationMs,
   fixedStepOf,
+  followsChartInterval,
   type PanelQuery,
 } from '@quanthea/shared';
 import { isTimeChart } from '../dashboards/panels/index.ts';
@@ -103,4 +107,28 @@ export function alertStepIssues(
     const why = fixedStepOf(each.query);
     return why ? [{ path: each.path, message: `${why}. ${alertReason}` }] : [];
   });
+}
+
+/**
+ * What an edit that moves an alert's lookback to another interval tells the model: the buckets
+ * of a query that follows the interval change width with it, so a count per bucket is judged by
+ * a threshold written for another width.
+ *
+ * @param before - The spec before the edit, if any.
+ * @param after - The spec the edit makes.
+ * @returns The note, or `undefined` when the interval stays or no query is cut by it.
+ */
+export function bucketChangeNote(
+  before: AlertSpec | undefined,
+  after: AlertSpec,
+): string | undefined {
+  if (!before) return undefined;
+  const widthOf = (spec: AlertSpec) => defaultChartInterval(durationMs(spec.lookback));
+  const [was, now] = [widthOf(before), widthOf(after)];
+  const queries = [after.query, ...(after.dividedBy ? [after.dividedBy.query] : [])];
+  const bucketed = queries.some(
+    (query) => !['promql', 'logql'].includes(query.language) && followsChartInterval(query),
+  );
+  if (was === now || !bucketed) return undefined;
+  return `The lookback of ${after.lookback} binds buckets of ${now} where ${before.lookback} bound ${was}, so each bucket of the query now covers another width. Read the values above against the threshold, and change it or tell the person if it no longer means the same.`;
 }

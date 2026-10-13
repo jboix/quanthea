@@ -14,7 +14,7 @@ import {
   mergeAlert,
   unknownChannels,
 } from './alert-edit.ts';
-import { alertStepIssues } from './fixed-step.ts';
+import { alertStepIssues, bucketChangeNote } from './fixed-step.ts';
 import type { AlertAuthoring, RunContext } from './run-context.ts';
 import { providerSchema } from './tool-schema.ts';
 
@@ -135,7 +135,8 @@ function saveAlert(context: RunContext, spec: AlertSpec, note: string) {
 /**
  * Writes the alert: merges the edit over the draft, checks it and runs its query once, refuses a
  * query the edit writes that cuts time by a width of its own, saves a new version, and tells the
- * model what the gate lets through of the series.
+ * model what the gate lets through of the series, and when a new lookback changed the width of
+ * the query's buckets.
  *
  * @param context - The run.
  * @param edit - The edit.
@@ -147,12 +148,13 @@ async function editAlert(context: RunContext, edit: AlertEdit) {
     return { ok: false, error: refused ?? 'Alerts are off.' };
   const channelIssues = unknownChannels(context, edit.channels);
   if (channelIssues.length > 0) return failAlert(context, 'Unknown channels.', channelIssues);
-  const merged = mergeAlert(currentAlert(context)?.spec, edit);
+  const before = currentAlert(context)?.spec;
+  const merged = mergeAlert(before, edit);
   const check = await context.alerts.check(merged);
   const issues = [...(check.ok ? [] : check.issues), ...alertStepIssues(merged, edit)];
   if (!check.ok || issues.length > 0)
     return failAlert(context, 'The alert does not work yet.', issues);
-  return saveChecked(context, check, edit.note);
+  return saveChecked(context, check, { note: edit.note, before });
 }
 
 /**
@@ -161,18 +163,21 @@ async function editAlert(context: RunContext, edit: AlertEdit) {
  *
  * @param context - The run.
  * @param check - The check, passed.
- * @param note - What changed.
- * @returns What the model learns.
+ * @param change - What changed, in words, and the spec before the edit, if any.
+ * @returns What the model learns: the series now, and `bucketChanged` when a new lookback
+ *   changed the width of the query's buckets.
  */
 function saveChecked(
   context: RunContext,
   check: Extract<Awaited<ReturnType<AlertAuthoring['check']>>, { ok: true }>,
-  note: string,
+  change: { readonly note: string; readonly before: AlertSpec | undefined },
 ) {
   try {
-    const { version } = saveAlert(context, check.spec, note);
+    const { version } = saveAlert(context, check.spec, change.note);
     const series = context.modelView.alertCheck(alertConnectors(check.spec), check.series);
-    return { ok: true, version, now: series, truncated: check.truncated };
+    const bucketChanged = bucketChangeNote(change.before, check.spec);
+    const saved = { ok: true, version, now: series, truncated: check.truncated };
+    return bucketChanged ? { ...saved, bucketChanged } : saved;
   } catch (error) {
     if (!(error instanceof AppError) || error.code !== 'bad_request') throw error;
     return failAlert(context, error.message, issuesOf(error));
