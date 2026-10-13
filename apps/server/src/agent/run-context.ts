@@ -81,6 +81,8 @@ export interface RunContext extends AgentServices {
     explaining: boolean;
     /** Whether the run builds an approved plan, which it may keep writing until the run ends. */
     buildingPlan: boolean;
+    /** How many new panels this run saved, which bounds what it adds without a plan. */
+    panelsAdded: number;
     /** The model the next step uses, for its usage. */
     modelId: string;
     /** The job the next step does, for the ledger. */

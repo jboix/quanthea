@@ -1741,7 +1741,10 @@ schema. An edit then goes through one pipeline (`agent/build-tools.ts`, `agent/w
    the model re-adds only those. The panels kept move up into the gaps. The run that builds an
    approved plan may keep writing after its first save, which makes the thread ready: it re-adds
    panels and adds more without a new plan, since its tools have none to propose. A later run
-   adds panels only through a new plan. Any other failure saves nothing. Either way the counter of failed writes
+   changes and removes panels freely and adds up to three new ones without a plan, so a
+   correction is made at once. More new panels than that in one run need a new plan, and the
+   refusal tells the model to propose it. With plan approval switched off no change to a built
+   dashboard needs a plan. Any other failure saves nothing. Either way the counter of failed writes
    goes up. The results go back to the model through the gate.
 5. The first version creates the thread's dashboard; later ones add versions. Each streams a
    `data-version` part, and a `data-diff` part with the changed panels.

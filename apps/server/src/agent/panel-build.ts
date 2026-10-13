@@ -24,8 +24,6 @@ export interface BuiltPanels {
   readonly run: WriteRun;
   /** The ids of the panels the edit adds. */
   readonly added: ReadonlySet<string>;
-  /** Whether the edit keeps the set of panels. */
-  readonly samePanels: boolean;
 }
 
 /** Why an edit could not be built: what is wrong, and the issues by path. */
@@ -46,17 +44,6 @@ export interface BuildRefusal {
  */
 function idsOf(spec: DashboardSpec): Set<string> {
   return new Set(spec.panels.map((panel) => panel.id));
-}
-
-/**
- * Whether two sets of panel ids are equal.
- *
- * @param first - One set.
- * @param second - The other.
- * @returns Whether they hold the same ids.
- */
-function sameIds(first: ReadonlySet<string>, second: ReadonlySet<string>): boolean {
-  return first.size === second.size && [...first].every((id) => second.has(id));
 }
 
 /**
@@ -123,7 +110,6 @@ export async function buildPanels(
   );
   const before = current ? idsOf(current) : new Set<string>();
   const added = new Set([...idsOf(completion.spec)].filter((id) => !before.has(id)));
-  const samePanels = current !== undefined && sameIds(before, idsOf(completion.spec));
   const run = {
     tests,
     panelProblems: panelProblems(current, completion.spec, completion.problems),
@@ -131,5 +117,5 @@ export async function buildPanels(
       ? { markerIssues: markerIssues(completion.spec, request.markers, tests) }
       : {}),
   };
-  return { spec: completion.spec, run, added, samePanels };
+  return { spec: completion.spec, run, added };
 }

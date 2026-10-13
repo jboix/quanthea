@@ -278,8 +278,34 @@ function threadQueries(dependencies: AgentDependencies, threadId: string) {
 }
 
 /**
- * The context of a run: the services, the thread, and fresh counters. A run that continues an
- * answer starts from that answer's usage.
+ * The counters a run starts with. A run that continues an answer starts from that answer's usage.
+ *
+ * @param dependencies - The agent's dependencies.
+ * @param request - The chat request.
+ * @param turn - The prepared turn.
+ * @returns The counters.
+ */
+function freshCounters(
+  dependencies: AgentDependencies,
+  request: ChatRequest,
+  turn: PreparedTurn,
+): RunContext['counters'] {
+  const continuing = (request.message as { role?: string }).role === 'assistant';
+  return {
+    planPending: false,
+    asked: false,
+    failedWrites: 0,
+    explaining: false,
+    buildingPlan: dependencies.threads.row(request.threadId).state === 'building',
+    panelsAdded: 0,
+    modelId: modelIdFor(turn.settings, 'build'),
+    job: 'build',
+    usage: startingUsage(turn.messages, continuing),
+  };
+}
+
+/**
+ * The context of a run: the services, the thread, and fresh counters.
  *
  * @param dependencies - The agent's dependencies.
  * @param request - The chat request.
@@ -293,17 +319,7 @@ function runContext(
   turn: PreparedTurn,
   writer: UIMessageStreamWriter<ThreadMessage>,
 ): RunContext {
-  const continuing = (request.message as { role?: string }).role === 'assistant';
-  const counters = {
-    planPending: false,
-    asked: false,
-    failedWrites: 0,
-    explaining: false,
-    buildingPlan: dependencies.threads.row(request.threadId).state === 'building',
-    modelId: modelIdFor(turn.settings, 'build'),
-    job: 'build',
-    usage: startingUsage(turn.messages, continuing),
-  };
+  const counters = freshCounters(dependencies, request, turn);
   const { threadId, actor, signal } = request;
   const { settings, providerName } = turn;
   const queries = threadQueries(dependencies, threadId);

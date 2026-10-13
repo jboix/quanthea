@@ -48,12 +48,12 @@ export function nextState(state: ThreadState, event: ThreadEvent): ThreadState |
 
 /**
  * Whether a thread may write a dashboard version: after an approved plan, or in a ready thread
- * when the change only touches existing panels.
+ * when the change is a small one.
  *
  * @param state - The thread state.
- * @param onlyExistingPanels - Whether the change leaves the set of panels as it is.
+ * @param smallChange - Whether the change is small enough to need no plan of its own.
  * @returns Whether the write may go ahead.
  */
-export function canWrite(state: ThreadState, onlyExistingPanels: boolean): boolean {
-  return state === 'building' || (state === 'ready' && onlyExistingPanels);
+export function canWrite(state: ThreadState, smallChange: boolean): boolean {
+  return state === 'building' || (state === 'ready' && smallChange);
 }

@@ -1,6 +1,7 @@
 /**
  * Writes a dashboard version for the agent, from the test run the edit made: checks the thread may
- * write, and saves only panels that work. New panels whose queries fail, or whose chart does not
+ * write (after an approved plan, or a small change to a built dashboard), and saves only panels
+ * that work. New panels whose queries fail, or whose chart does not
  * fit their data, are left out of the version and reported, so the model re-adds only those; any
  * other failure keeps the version from being saved. The results the model sees pass through the
  * gate.
@@ -26,6 +27,8 @@ export type WriteResult =
   | {
       readonly ok: false;
       readonly error: string;
+      /** Whether nothing failed: the change needs a plan first, or one waits for approval. */
+      readonly needsPlan?: true;
       readonly issues?: readonly { path: string; message: string }[];
       readonly panels?: readonly PanelReport[];
     };
@@ -79,19 +82,40 @@ export function reportsOf(context: RunContext, spec: DashboardSpec, run: WriteRu
 }
 
 /**
- * Why the thread may not write now, if it may not. The run that builds an approved plan may keep
- * writing after its first save, which makes the thread ready: it has no plan tool to ask again.
+ * How many new panels one run may add to a built dashboard without a plan. A plan is for what is
+ * worth approving first: a correction that adds a panel or two is not.
+ */
+export const panelsWithoutPlan = 3;
+
+/**
+ * Whether a change to a built dashboard needs no plan of its own: it changes or removes panels,
+ * and adds few. Everything is small when plans need no approval, and for the run that builds an
+ * approved plan, which has no plan tool to ask again.
  *
  * @param context - The run.
- * @param onlyExistingPanels - Whether the change keeps the set of panels.
+ * @param adding - How many panels the change adds.
+ * @returns Whether the change is small.
+ */
+function isSmall(context: RunContext, adding: number): boolean {
+  if (context.counters.buildingPlan || !context.settings.behaviour.planApproval) return true;
+  return context.counters.panelsAdded + adding <= panelsWithoutPlan;
+}
+
+/**
+ * Why the thread may not write now, if it may not, in words that say what to do instead.
+ *
+ * @param context - The run.
+ * @param adding - How many panels the change adds.
  * @returns The reason, or `undefined` when the write may go ahead.
  */
-function refusal(context: RunContext, onlyExistingPanels: boolean): string | undefined {
+function refusal(context: RunContext, adding: number): string | undefined {
   const { state } = context.threads.row(context.threadId);
-  if (canWrite(state, onlyExistingPanels)) return undefined;
-  if (context.counters.buildingPlan && state === 'ready') return undefined;
+  if (canWrite(state, isSmall(context, adding))) return undefined;
   if (state === 'plan_pending') return 'A plan waits for approval. Stop and let the person decide.';
-  return 'Propose a plan with propose_plan first. Only a change to existing panels skips the plan.';
+  if (state !== 'ready') return 'Nothing is built yet. Propose a plan with propose_plan first.';
+  const already = context.counters.panelsAdded;
+  const so = already > 0 ? `, and this turn already added ${already}` : '';
+  return `This adds ${adding} new panels${so}. A turn adds at most ${panelsWithoutPlan} without a plan. Do not try again: call propose_plan now with the new panels, and with "replaces" on the panels you change. Changing and removing panels never needs a plan.`;
 }
 
 /**
@@ -331,8 +355,7 @@ function failIssues(
  * @param context - The run.
  * @param spec - The spec the edit made, its charts completed from the test run.
  * @param changeSummary - What changed, in one line.
- * @param onlyExistingPanels - Whether the change keeps the set of panels.
- * @param droppable - New panels that may be left out when they do not work.
+ * @param droppable - The new panels, which may be left out when they do not work.
  * @param run - The test run and the chart problems.
  * @returns The result the model sees.
  */
@@ -340,12 +363,11 @@ export function writeVersion(
   context: RunContext,
   spec: DashboardSpec,
   changeSummary: string,
-  onlyExistingPanels: boolean,
   droppable: ReadonlySet<string>,
   run: WriteRun,
 ): WriteResult {
-  const refused = refusal(context, onlyExistingPanels);
-  if (refused !== undefined) return { ok: false, error: refused };
+  const refused = refusal(context, droppable.size);
+  if (refused !== undefined) return { ok: false, error: refused, needsPlan: true };
   const panels = reportsOf(context, spec, run);
   const markerIssues = run.markerIssues ?? [];
   if (markerIssues.length > 0) {

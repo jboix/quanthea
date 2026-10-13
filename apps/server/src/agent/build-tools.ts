@@ -79,6 +79,18 @@ function withLayout(context: RunContext, result: WriteResult, advise: boolean): 
 }
 
 /**
+ * How many of an edit's new panels the saved draft has: the ones left out do not count.
+ *
+ * @param context - The run.
+ * @param added - The ids of the panels the edit added.
+ * @returns The count.
+ */
+function savedOf(context: RunContext, added: ReadonlySet<string>): number {
+  const saved = currentSpec(context)?.panels ?? [];
+  return saved.filter((panel) => added.has(panel.id)).length;
+}
+
+/**
  * Makes the edit over the draft as people see it arranged: builds the spec, test-runs it, completes
  * the charts from the data, and writes the panels that work.
  *
@@ -91,8 +103,9 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
   const start = arrangedAsShown(context, draft);
   const built = await buildPanels(context, start, request, 'The dashboard is invalid.');
   if ('error' in built) return built;
-  const { spec, samePanels, added, run } = built;
-  const result = writeVersion(context, spec, request.summary, samePanels, added, run);
+  const { spec, added, run } = built;
+  const result = writeVersion(context, spec, request.summary, added, run);
+  if (result.ok) context.counters.panelsAdded += savedOf(context, added);
   // An arrangement someone made by hand is theirs: no advice unless the edit arranges.
   const advise = start === draft || request.arrange !== undefined;
   return withLayout(context, result, advise);

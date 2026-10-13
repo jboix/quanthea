@@ -607,6 +607,57 @@ describe('an agent run', () => {
     expect(second.panels).toHaveLength(3);
   });
 
+  test('adds a panel to a built dashboard and removes one, with no plan', async () => {
+    await builtThread();
+    const more = { panels: [eventsPanel('Errors · total', 'stat')], summary: 'one more' };
+    const less = { remove: ['errors-total'], summary: 'one less' };
+    const stream = await chat(
+      agentWith(
+        { tool: 'edit_dashboard', input: more },
+        { tool: 'edit_dashboard', input: less },
+        { text: 'Done.' },
+      ),
+      userMessage('u2', 'Add the total. No, drop it.'),
+    );
+    expect(stream).not.toContain('propose_plan');
+    const { dashboardId } = services.threads.get(threadId);
+    const versions = [2, 3].map(
+      (version) => services.dashboards.getVersion(dashboardId ?? '', version, 'editor').spec,
+    );
+    expect(versions.map((spec) => spec.panels.length)).toEqual([3, 2]);
+  });
+
+  test('asks for a plan when a turn adds more panels than a correction does', async () => {
+    await builtThread();
+    const titles = ['Errors · one', 'Errors · two', 'Errors · three', 'Errors · four'];
+    const many = { panels: titles.map((title) => eventsPanel(title, 'stat')), summary: 'four' };
+    const stream = await chat(
+      agentWith({ tool: 'edit_dashboard', input: many }, { text: 'It needs a plan.' }),
+      userMessage('u2', 'Add four more'),
+    );
+    expect(stream).toContain('This adds 4 new panels. A turn adds at most 3 without a plan.');
+    expect(stream).toContain('call propose_plan now');
+    const { dashboardId } = services.threads.get(threadId);
+    expect(services.dashboards.get(dashboardId ?? '', 'editor').versions).toHaveLength(1);
+  });
+
+  test('counts the panels a turn already added', async () => {
+    await builtThread();
+    const two = (first: string, second: string) => ({
+      panels: [eventsPanel(first, 'stat'), eventsPanel(second, 'stat')],
+      summary: 'two more',
+    });
+    const stream = await chat(
+      agentWith(
+        { tool: 'edit_dashboard', input: two('Errors · one', 'Errors · two') },
+        { tool: 'edit_dashboard', input: two('Errors · three', 'Errors · four') },
+        { text: 'The rest needs a plan.' },
+      ),
+      userMessage('u2', 'Add four more, two at a time'),
+    );
+    expect(stream).toContain('This adds 2 new panels, and this turn already added 2.');
+  });
+
   test('saves the new panels that work, and reports the ones left out', async () => {
     services.threads.proposePlan(threadId, plan, true);
     const mixed = {

@@ -64,7 +64,8 @@ fails goes back to the agent with the error.
 ## Refine
 
 Keep talking in the same thread: "split the latency by route", "make the error rate a percentage",
-"add the failed orders by reason". Small changes to existing panels skip the plan. Type `@` and a
+"add the failed orders by reason". Corrections skip the plan: changing a panel, removing one, and
+adding up to three in one message. A bigger change gets a new plan to approve. Type `@` and a
 panel's title to point at one panel. Each change makes a new version, and a card in the conversation
 says what changed.
 

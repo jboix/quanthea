@@ -65,6 +65,8 @@ interface WriteOutput {
   readonly version?: number;
   /** Why not. */
   readonly error?: string;
+  /** Whether it was refused only because the change needs a plan, which the agent then proposes. */
+  readonly needsPlan?: boolean;
   /** The spec's issues. */
   readonly issues?: readonly { path: string; message: string }[];
   /** The panels' test runs. */
@@ -110,14 +112,16 @@ function buildTitle(part: ToolPart, output: WriteOutput, running: boolean, teste
 }
 
 /**
- * Whether a write failed its test run or its checks: the repair card that follows it says what
- * failed, by panel title, so the log shows nothing.
+ * Whether what follows a write that saved nothing says it all, so the log shows nothing: the
+ * repair card of a write that failed its test run or its checks, which says what failed by panel
+ * title, or the plan the agent proposes when the change needed one.
  *
  * @param output - What the write returned.
- * @returns Whether the repair card covers it.
+ * @returns Whether the log is left out.
  */
 function repairCovers(output: WriteOutput): boolean {
-  return output.ok === false && ((output.panels?.length ?? 0) > 0 || !!output.issues?.length);
+  if (output.ok !== false) return false;
+  return !!output.needsPlan || (output.panels?.length ?? 0) > 0 || !!output.issues?.length;
 }
 
 /**
@@ -125,7 +129,7 @@ function repairCovers(output: WriteOutput): boolean {
  *
  * @param props - The write tool part.
  * @param props.part - The part.
- * @returns The log, or nothing when a repair card shows the failure.
+ * @returns The log, or nothing when a repair card or a plan says what happened.
  */
 export function BuildLog({ part }: { readonly part: ToolPart }) {
   const output = (part.output ?? {}) as WriteOutput;
