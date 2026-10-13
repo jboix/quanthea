@@ -97,6 +97,29 @@ interface LayoutBarProps {
 }
 
 /**
+ * The lines shown under the title while arranging: how to arrange, and why the last save was
+ * refused. They wrap there, so the header's actions hold only controls.
+ *
+ * @param props - The edit.
+ * @param props.editor - The edit.
+ * @returns The lines.
+ */
+export function LayoutNotes({ editor }: { readonly editor: LayoutEditor }) {
+  return (
+    <>
+      <p className={styles.hint}>
+        Drag a panel to move it, its corner to resize it. Only how it is shown changes.
+      </p>
+      {editor.refusal && (
+        <p className={styles.refusal} role="alert">
+          {editor.refusal}
+        </p>
+      )}
+    </>
+  );
+}
+
+/**
  * The bar shown while arranging, in place of the header's actions: the hidden panels, the
  * history, Cancel and Save layout.
  *
@@ -108,14 +131,6 @@ export function LayoutBar({ editor, data }: LayoutBarProps) {
   const titles = new Map(version.spec.panels.map((panel) => [panel.id, panel.title]));
   return (
     <div className={styles.bar}>
-      <p className={styles.hint}>
-        Drag a panel to move it, its corner to resize it. Only how it is shown changes.
-      </p>
-      {editor.refusal && (
-        <p className={styles.refusal} role="alert">
-          {editor.refusal}
-        </p>
-      )}
       {editor.draft && (
         <HiddenMenu layout={editor.draft} titles={titles} onChange={editor.change} />
       )}

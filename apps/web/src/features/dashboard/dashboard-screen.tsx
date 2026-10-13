@@ -11,7 +11,13 @@ import styles from './dashboard.module.css';
 import { AboutPopover } from './dashboard-about.tsx';
 import { type AskAction, HeaderActions } from './dashboard-actions.tsx';
 import type { DashboardData } from './data.ts';
-import { LayoutBar, type LayoutEditor, LeaveGuard, useLayoutEditor } from './layout-editor.tsx';
+import {
+  LayoutBar,
+  type LayoutEditor,
+  LayoutNotes,
+  LeaveGuard,
+  useLayoutEditor,
+} from './layout-editor.tsx';
 import { LayoutOverlay } from './layout-overlay.tsx';
 import { SidePanel, type SideTab } from './side-panel.tsx';
 import { versionNote } from './version-note.ts';
@@ -21,7 +27,7 @@ import { versionNote } from './version-note.ts';
  * it is pinned, and its history, its thread and its link.
  *
  * @param props - The dashboard, the version shown, the way into the Ask tab, and the layout edit,
- *   whose bar takes the actions' place while it lasts.
+ *   whose bar takes the actions' place while it lasts, with its hint under the title.
  * @returns The header.
  */
 function DashboardHeader(props: DashboardData & AskAction & { readonly editor: LayoutEditor }) {
@@ -50,6 +56,7 @@ function DashboardHeader(props: DashboardData & AskAction & { readonly editor: L
           </Pill>
         </>
       }
+      below={editor.draft && <LayoutNotes editor={editor} />}
       actions={
         editor.draft ? (
           <LayoutBar editor={editor} data={{ dashboard, version }} />
