@@ -174,6 +174,9 @@ and `no_data` has none.
   earlier. The same query runs a second time over the window shifted back by `ago`, and the value
   of each series there, reduced as the alert's value is, is what it is compared with.
   - `ago` is one of an hour, a day and a week: the periods a level usually repeats over.
+  - The shift is an exact length, 24 hours for `1d` and 168 for `7d`, whatever the alert's time
+    zone. Across a daylight saving change the window then is an hour off on the local clock, for
+    a day or a week after the change.
   - `unit` reads as for a change: a difference, or a share of the value then, counted on its size.
   - A series with no value then does not hold: a new series, or data that does not go back that
     far. It is watched, and compared once it is old enough.

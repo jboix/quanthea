@@ -133,6 +133,8 @@ compared with last Monday at 9, not with Sunday night.
 
 - The amount is a percentage of the value then, or a difference in the value itself, above or
   below.
+- A day earlier is exactly 24 hours earlier, and a week 168 hours. For a day or a week after the
+  clocks change, the window then is an hour off on the local clock.
 - The window is the alert's own: with a window of an hour, it is this hour against the same hour a
   week earlier.
 - A series with no value then does not fire: a series that is new, or data that does not go back
@@ -178,6 +180,9 @@ each service, so that a share on three requests wakes nobody.
 - A test is a threshold, a change, a comparison with the past or a band. Two to four are joined,
   and joined tests are never joined again.
 - The query returns each number as its own column. Each test reads one, with its own format.
+- The sentence changes each test's numbers and the column it reads. How a later test turns the
+  points of its window into one value (the latest, the mean, the sum) and how its number is
+  written are the agent's to set: ask in the conversation. The sentence does not show them.
 - "And" needs every test to hold, "or" one of them.
 - The value the alert shows, on its page, on the chart and as `{value}` in the message, is the
   first test's.
