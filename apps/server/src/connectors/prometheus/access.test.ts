@@ -68,6 +68,24 @@ describe('what a request to a Prometheus server may do', () => {
     expect(health.message).toContain('unknown');
   });
 
+  test('a server that answers with other flags, or none, is unknown too', async () => {
+    for (const flags of [{}, { 'query.timeout': '2m' }, { 'web.enable-admin-api': 'false' }]) {
+      const { health } = await healthWith(flags);
+      expect(health).toMatchObject({ ok: true, readOnly: null, canDo: [] });
+    }
+  });
+
+  test('reads a receiver turned on as a feature, as older servers do', async () => {
+    const features = 'exemplar-storage, otlp-write-receiver,remote-write-receiver';
+    const { health } = await healthWith({ ...closed, 'enable-feature': features });
+    expect(health).toMatchObject({ ok: true, readOnly: false });
+    expect(health.canDo).toEqual([
+      'The server accepts remote writes: a request can add samples.',
+      'The server accepts OTLP writes: a request can add samples.',
+    ]);
+    expect(flagFindings({ 'enable-feature': 'exemplar-storage' })).toEqual([]);
+  });
+
   test('reads a flag as on only when it says true', () => {
     expect(flagFindings({ 'web.enable-remote-write-receiver': 'true' })).toHaveLength(1);
     expect(flagFindings({ 'web.enable-remote-write-receiver': 'false' })).toEqual([]);

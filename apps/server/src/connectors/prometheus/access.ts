@@ -29,40 +29,75 @@ const writeFlags: readonly (readonly [flag: string, finding: string])[] = [
   ['web.enable-otlp-receiver', 'The server accepts OTLP writes: a request can add samples.'],
 ];
 
+/** The receivers older servers turn on through `--enable-feature`, with what each lets in. */
+const writeFeatures: readonly (readonly [feature: string, finding: string])[] = [
+  ['remote-write-receiver', 'The server accepts remote writes: a request can add samples.'],
+  ['otlp-write-receiver', 'The server accepts OTLP writes: a request can add samples.'],
+];
+
+/** The flags every Prometheus server lists: without them the answer is of something else. */
+const knownFlags = ['web.enable-admin-api', 'web.enable-lifecycle'] as const;
+
 /** What to change on a server that takes more than reads, for the admin to copy. */
 export const readOnlyFlags = `# Start Prometheus without these flags:
 #   --web.enable-admin-api
 #   --web.enable-lifecycle
 #   --web.enable-remote-write-receiver
-#   --web.enable-otlp-receiver`;
+#   --web.enable-otlp-receiver
+#   --enable-feature=remote-write-receiver or otlp-write-receiver`;
 
 /**
  * What the flags of a server open beyond reading.
  *
  * @param flags - The flags, by name, as the status API gives them.
- * @returns One sentence per API that is on.
+ * @returns One sentence per API that is on, by its own flag or by `--enable-feature`, which
+ *   turned the receivers on before they had a flag.
  */
 export function flagFindings(flags: Readonly<Record<string, string>>): string[] {
-  return writeFlags.filter(([flag]) => flags[flag] === 'true').map(([, finding]) => finding);
+  const features = (flags['enable-feature'] ?? '').split(',').map((feature) => feature.trim());
+  const found = [
+    ...writeFlags.filter(([flag]) => flags[flag] === 'true'),
+    ...writeFeatures.filter(([feature]) => features.includes(feature)),
+  ];
+  return [...new Set(found.map(([, finding]) => finding))];
 }
+
+/**
+ * Whether an answer is the flags of a Prometheus server: it says whether the admin and the
+ * lifecycle APIs are on. A server that answers the endpoint with other flags, or with none, as
+ * one that only speaks the query API may, says nothing of what it accepts.
+ *
+ * @param flags - The flags, by name.
+ * @returns `true` when each known flag reads `true` or `false`.
+ */
+function listsItsFlags(flags: Readonly<Record<string, string>>): boolean {
+  return knownFlags.every((flag) => flags[flag] === 'true' || flags[flag] === 'false');
+}
+
+/** What the test says of a server whose flags it could not read. */
+const unknownAccess: ServerAccess = {
+  readOnly: null,
+  canDo: [],
+  sentence: 'It does not list its flags, so whether a request can write is unknown.',
+};
 
 /**
  * Reads what a request to the server can do beyond reading.
  *
  * @param api - The API client.
  * @param signal - The caller's signal.
- * @returns Read-only when no write API is on, unknown when the server lists no flags, as a
- *   server that only speaks the Prometheus query API does.
+ * @returns Able to write when a write API is on, read-only when the server lists its flags and
+ *   none is, and unknown otherwise, as for a server that only speaks the Prometheus query API.
  */
 export async function serverAccess(api: PrometheusApi, signal: AbortSignal): Promise<ServerAccess> {
   try {
-    const flags = await api.get<Record<string, string>>('/api/v1/status/flags', {}, signal);
-    const canDo = flagFindings(flags.data ?? {});
-    if (canDo.length === 0)
-      return { readOnly: true, canDo, sentence: 'Its admin, lifecycle and write APIs are off.' };
-    return { readOnly: false, canDo, sentence: 'It takes more than reads.' };
+    const answer = await api.get<Record<string, string>>('/api/v1/status/flags', {}, signal);
+    const flags = answer.data ?? {};
+    const canDo = flagFindings(flags);
+    if (canDo.length > 0) return { readOnly: false, canDo, sentence: 'It takes more than reads.' };
+    if (!listsItsFlags(flags)) return unknownAccess;
+    return { readOnly: true, canDo, sentence: 'Its admin, lifecycle and write APIs are off.' };
   } catch {
-    const sentence = 'It does not list its flags, so whether a request can write is unknown.';
-    return { readOnly: null, canDo: [], sentence };
+    return unknownAccess;
   }
 }

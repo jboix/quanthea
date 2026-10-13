@@ -2485,8 +2485,9 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   API and each metric's label keys with value counts. Quoted literals are removed from the safe
   message of an error, because label values can be data. Prometheus has no users, so the
   connection test reads the server's flags (`/api/v1/status/flags`, `prometheus/access.ts`): the
-  admin API, the lifecycle API or a remote write or OTLP receiver that is on is a finding, none
-  on is read-only, and a server that lists no flags reports `readOnly: null`.
+  admin API, the lifecycle API or a remote write or OTLP receiver that is on, by its flag or by
+  `--enable-feature`, is a finding. None on is read-only when the answer holds the admin and
+  lifecycle flags. A server that lists no flags, or other ones, reports `readOnly: null`.
 - **Postgres:** the `postgres` driver. `Bun.sql` 1.3 returns no column names or types (a query with
   no rows has no fields) and cannot cancel a running statement; `postgres` gives the row
   description and sends a real cancel request. Every query runs in a `read only` transaction with
@@ -2633,7 +2634,9 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   `decimal` are numbers; an ObjectId is its hex text; a column whose values disagree is text. The
   columns come from the first 100 documents. The connection test reads `buildInfo` and the
   privileges `connectionStatus` lists (`mongodb/access.ts`), so it reports the actions that
-  write, in the connector's database or another. With no user signed in it asks for one
+  write, in the connector's database or another. A user is read-only when every action it holds
+  is one of the built-in `read`, `readAnyDatabase` and `clusterMonitor` roles; an action the test
+  knows neither as a read nor as a write reports `readOnly: null`. With no user signed in it asks for one
   collection name: a server that answers checks no access, so whoever reaches it can write. `describe` lists up to 200 collections and views, each with the fields
   of 20 sampled documents (`$sample`) and their BSON types, and a collection's estimated document
   count. `sampleValues` groups on the field path. A host may be a DNS seed list

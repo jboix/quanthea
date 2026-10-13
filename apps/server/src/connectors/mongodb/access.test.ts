@@ -41,6 +41,32 @@ describe('what a MongoDB user may do', () => {
     }
   });
 
+  test('counts what empties, rewrites or reconfigures as more than reading', () => {
+    for (const action of ['emptycapped', 'convertToCapped', 'compact', 'setParameter', 'killop']) {
+      const privileges = [...read, { resource: { cluster: true }, actions: [action] }];
+      expect(userAccess('ops', privileges, 'shop').readOnly, action).toBe(false);
+    }
+  });
+
+  test('an action the test does not know is unknown, never read-only', () => {
+    const privileges = [...read, { resource: { db: 'shop' }, actions: ['find', 'someNewAction'] }];
+    const access = userAccess('dash', privileges, 'shop');
+    expect(access).toMatchObject({ readOnly: null, canDo: [] });
+    expect(access.sentence).toContain('someNewAction');
+  });
+
+  test('the actions of the read role, as MongoDB 9 lists them, are reads', () => {
+    const actions = [
+      ...['changeStream', 'collStats', 'dbHash', 'dbStats', 'find', 'killCursors'],
+      ...['listCollections', 'listIndexes', 'listSearchIndexes', 'performRawDataOperations'],
+      'planCacheRead',
+    ];
+    const privileges = [{ resource: { db: 'shop', collection: '' }, actions }];
+    expect(userAccess('dash_ro', privileges, 'shop').readOnly).toBe(true);
+    const monitor = { resource: { cluster: true }, actions: ['serverStatus', 'listDatabases'] };
+    expect(userAccess('dash_ro', [...privileges, monitor], 'shop').readOnly).toBe(true);
+  });
+
   test('a server that asks for no sign-in can be written by whoever reaches it', () => {
     const open = anonymousAccess(true);
     expect(open.readOnly).toBe(false);
