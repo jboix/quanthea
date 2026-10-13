@@ -1669,11 +1669,17 @@ directly onto an ECharts `dataset`.
   unit's named formatter put where the recipe asks. The view keeps the filled option, how the
   adapter prepares the data (`prepare`) and the column of each role, so a pinned chart draws the
   same whatever the catalogue becomes.
-  A table's columns are the columns of its `columns` role, in that order. `options.columns` changes
-  them by `field` (a label, a format, an alignment) and never chooses them: a column the options do
-  not name stays, and an option for a field that is not a column is refused with a message naming
-  it. Before the queries have run and with no column named in the roles, the options are the only
-  columns known, so the view keeps them until the chart is completed.
+  A table's columns are the columns of its `columns` role, in that order, each shown once.
+  `options.columns` changes them by `field` (a label, a format, an alignment) and never chooses
+  them: a column the options do not name stays. Three things are refused with a message: an
+  option for a field that is not a column, an option with a key a column does not take, and
+  options that list every column of the result in another order while the roles name none, since
+  that asks for an order the options do not give.
+  Before the queries have run and with no column named in the roles, the options are the only
+  columns known, so the view keeps them until the chart is completed. A raw query that returns no
+  rows completes the table from the fields of its empty result. When the result tells no column
+  either, the edit asks for `roles.columns`, whatever the options name. A panel whose query fails
+  is not completed, so it keeps the provisional columns until an edit builds it again.
 - **Which queries.** Admins switch builders off (`GET/PUT /api/settings/queries`). A thread uses
   the default set (the builders switched on and every saved query), a set chosen when it starts,
   or none (free style: raw queries only), stored on the thread (`POST /api/threads` with

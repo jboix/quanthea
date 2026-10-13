@@ -1,6 +1,7 @@
 /** A first build shared by the panel tests: five panels of data and charts over two connectors. */
-import { type DashboardSpec, queryText } from '@quanthea/shared';
+import { type DashboardSpec, type Frame, queryText } from '@quanthea/shared';
 import type { ConnectorLookup } from '../check-queries.ts';
+import type { PanelTest } from '../dashboards.ts';
 import { validateSpec } from '../validate.ts';
 import { applyEdit } from './edit.ts';
 import { type EditRequest, editRequestSchema } from './request.ts';
@@ -22,6 +23,32 @@ const lookup: ConnectorLookup = (name) =>
  */
 export function edit(input: unknown): EditRequest {
   return editRequestSchema.parse(input);
+}
+
+/**
+ * A test run of one panel: one frame of columns.
+ *
+ * @param panelId - The panel.
+ * @param fields - The columns.
+ * @param values - One array per column.
+ * @returns The run.
+ */
+export function testOf(panelId: string, fields: Frame['fields'], values: unknown[][]): PanelTest {
+  const frame: Frame = {
+    refId: 'A',
+    fields,
+    values,
+    meta: { rowCount: values[0]?.length ?? 0, truncated: false, durationMs: 1 },
+  };
+  return {
+    panelId,
+    run: {
+      time: { from: 0, to: 1 },
+      queries: [{ refId: 'A', frames: [frame], error: null }],
+      markers: [],
+      durationMs: 1,
+    },
+  };
 }
 
 /**

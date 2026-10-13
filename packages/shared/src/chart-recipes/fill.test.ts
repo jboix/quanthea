@@ -92,4 +92,34 @@ describe('the columns of a table', () => {
       view: { kind: 'table', ref: 'A', columns: [{ field: 'share', label: 'Share' }] },
     });
   });
+
+  test('refuse an option with a key a column does not take', () => {
+    const overrides = { columns: [{ field: 'host', width: 3 }] };
+    expect(tableOf({ overrides }, hosts)).toEqual({
+      problems: [
+        'options.columns is a list of { "field", "label"?, "format"?, "align"? }, one for each column to change.',
+      ],
+    });
+  });
+
+  test('refuse options that list every column in another order, unless the roles name them', () => {
+    const overrides = { columns: [{ field: 'share' }, { field: 'errors' }, { field: 'host' }] };
+    expect(tableOf({ overrides }, hosts)).toEqual({
+      problems: [
+        'options.columns lists the columns as "share", "errors", "host", and the table shows them as "host", "errors", "share": options.columns does not order them. Name the columns in roles.columns, in the order to show.',
+      ],
+    });
+    const roles = { columns: ['errors', 'host', 'share'] };
+    expect(tableOf({ overrides, roles }, hosts)).toMatchObject({
+      view: { columns: [{ field: 'errors' }, { field: 'host' }, { field: 'share' }] },
+    });
+    const inOrder = { columns: [{ field: 'host' }, { field: 'errors' }, { field: 'share' }] };
+    expect(tableOf({ overrides: inOrder }, hosts)).toMatchObject({ view: { kind: 'table' } });
+  });
+
+  test('show a column once when the roles name it twice', () => {
+    expect(tableOf({ roles: { columns: ['host', 'errors', 'host'] } }, hosts)).toEqual({
+      view: { kind: 'table', ref: 'A', columns: [{ field: 'host' }, { field: 'errors' }] },
+    });
+  });
 });

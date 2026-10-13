@@ -74,12 +74,13 @@ type Filled = { view: View } | { problems: string[] };
  *
  * @param option - The filled option.
  * @param roles - The columns of each role.
+ * @param named - Whether the chart named the columns, and they are not the result's own.
  * @param ref - The query the view reads.
  * @returns The view, or what is wrong with the column options.
  */
-function tableView(option: JsonObject, roles: RoleColumns, ref: string): Filled {
+function tableView(option: JsonObject, roles: RoleColumns, named: boolean, ref: string): Filled {
   const { columns: asked, ...rest } = option;
-  const merged = tableColumns([roles.columns ?? []].flat(), asked);
+  const merged = tableColumns({ names: [roles.columns ?? []].flat(), named }, asked);
   if ('problems' in merged) return merged;
   return { view: { kind: 'table', ref, ...rest, columns: merged.columns } as View };
 }
@@ -156,7 +157,8 @@ export function fillView(
   const problems = dataset ? roleProblems(recipe.data.roles, dataset, roles) : [];
   if (problems.length > 0) return { problems };
   const ref = refs[0] ?? 'A';
-  if (recipe.render === 'table') return tableView(filled.option, roles, ref);
+  if (recipe.render === 'table')
+    return tableView(filled.option, roles, asked.columns !== undefined, ref);
   if (recipe.render === 'stat') return statView(filled.option, roles, ref);
   return { view: chartView(recipe, choice, filled.option, roles, refs) };
 }

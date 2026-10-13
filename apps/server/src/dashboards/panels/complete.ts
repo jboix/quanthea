@@ -4,6 +4,7 @@
  * not, or of the wrong type, become problems the agent can fix.
  */
 import {
+  type ChartRecipe,
   chartRecipe,
   type DashboardSpec,
   type Dataset,
@@ -12,18 +13,23 @@ import {
   type Frame,
   fillView,
   type Panel,
+  type RoleColumns,
 } from '@quanthea/shared';
 import type { PanelTest } from '../dashboards.ts';
 import type { ChartChoices } from './edit.ts';
 
 /**
- * A panel whose raw query returned nothing: kept as asked, but a table needs its columns.
+ * A panel whose raw query returned nothing that tells its columns: kept as asked, but a table
+ * needs its columns named. Column options do not count: they change columns, they never choose
+ * them, so a table left with them alone would show those columns only once data arrives.
  *
  * @param panel - The panel.
- * @returns The panel, or the problem of a table with no columns.
+ * @param roles - The roles the chart names.
+ * @returns The panel, or the problem of a table with no columns named.
  */
-function emptyTable(panel: Panel): Panel | string[] {
-  if (panel.view.kind !== 'table' || panel.view.columns.length > 0) return panel;
+function emptyTable(panel: Panel, roles: RoleColumns | undefined): Panel | string[] {
+  const named = [roles?.columns ?? []].flat();
+  if (panel.view.kind !== 'table' || named.length > 0) return panel;
   return [
     'The query returned no rows, so the table cannot tell its columns: name them in roles.columns.',
   ];
@@ -72,17 +78,35 @@ function declaredType(name: string): Dimension['type'] {
 }
 
 /**
+ * The table a result without rows still describes, for a table chart: its fields, which a result
+ * of no rows keeps when the source names its columns, as SQL does.
+ *
+ * @param recipe - The chart's recipe.
+ * @param frames - The result's frames.
+ * @returns The fields as an empty table, or `undefined` for another chart or a result with none.
+ */
+function fieldsOf(recipe: ChartRecipe, frames: readonly Frame[]): Dataset | undefined {
+  if (recipe.render !== 'table' || (frames[0]?.fields.length ?? 0) === 0) return undefined;
+  return datasetOfFrames(frames);
+}
+
+/**
  * The table a chart is completed from: the result, or when it has no rows, the table the data
- * says it returns, since an empty result is data, not a mistake.
+ * says it returns, since an empty result is data, not a mistake. A table chart over a raw query
+ * takes the fields of the empty result.
  *
  * @param frames - The result's frames.
- * @param columns - The declared columns.
- * @returns The table, or `undefined` when the result is empty and nothing is declared.
+ * @param chart - The chart's recipe and the columns its data declares.
+ * @returns The table, or `undefined` when the result is empty and tells no column.
  */
-function tableFor(frames: readonly Frame[], columns: readonly string[]): Dataset | undefined {
+function tableFor(
+  frames: readonly Frame[],
+  chart: { readonly recipe: ChartRecipe; readonly columns: readonly string[] },
+): Dataset | undefined {
   const result = datasetOfFrames(frames);
   if (result.source.length > 0) return result;
-  if (columns.length === 0) return undefined;
+  const { columns } = chart;
+  if (columns.length === 0) return fieldsOf(chart.recipe, frames);
   return { dimensions: columns.map((name) => ({ name, type: declaredType(name) })), source: [] };
 }
 
@@ -115,8 +139,9 @@ function completed(
   const recipe = chart ? chartRecipe(chart.choice.recipe) : undefined;
   const outcome = tests.find((test) => test.panelId === panel.id)?.run.queries[0];
   if (!chart || !recipe || !outcome || outcome.error) return panel;
-  const table = tableFor(filter(connectorOf(panel), outcome.frames), chart.columns);
-  if (!table) return emptyTable(panel);
+  const frames = filter(connectorOf(panel), outcome.frames);
+  const table = tableFor(frames, { recipe, columns: chart.columns });
+  if (!table) return emptyTable(panel, chart.choice.roles);
   const refs = panel.queries.map((query) => query.refId);
   const filled = fillView(recipe, chart.choice, refs, table);
   if ('problems' in filled) return filled.problems;
