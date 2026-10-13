@@ -32,7 +32,7 @@ export interface StreamedRows {
 }
 
 /** A session in use: its connection, and a way to say it cannot go back to the pool. */
-interface Session {
+export interface Session {
   /** The connection. */
   readonly connection: PoolConnection;
   /** Marks the connection as spent: it is closed instead of reused. */

@@ -198,7 +198,7 @@ export const clickhouseConnector = defineConnector({
   open({ config, secret }): ConnectorInstance {
     const session = openSession({ ...config, password: secret.password });
     return {
-      test: (signal) => testConnection(session, signal),
+      test: (signal) => testConnection(session, config.database, signal),
       describe: (signal) => describe(session, signal),
       sampleValues: (field, limit, signal) => sampleValues(session, field, limit, signal),
       execute: (query, context) =>

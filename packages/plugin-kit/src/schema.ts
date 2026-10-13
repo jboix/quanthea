@@ -11,6 +11,17 @@ export interface HealthReport {
   readonly message: string;
   /** Whether the credentials can only read: `true`, `false`, or `null` when the source cannot tell. */
   readonly readOnly: boolean | null;
+  /**
+   * What the credentials can do beyond reading, as the test found it, one short sentence each,
+   * such as `It can insert, update or delete in 12 tables.` The test only reads to find out: it
+   * never tries a write. The admin reads them in a warning, which never refuses the connector.
+   */
+  readonly canDo?: readonly string[];
+  /**
+   * How to make an account that only reads, as statements or settings the admin can copy into
+   * the source, such as a `CREATE ROLE` with its grants.
+   */
+  readonly readOnlySetup?: string;
 }
 
 /** One field of a schema entity: a column, a label, a document field. */

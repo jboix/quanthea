@@ -116,10 +116,11 @@ for (const server of devMysqlServers) {
       expect(readerHealth).toMatchObject({ ok: true, readOnly: true });
       expect(readerHealth.message).toStartWith(`${server.name} `);
       expect(readerHealth.message).toContain('User dash_ro@% has no write grants.');
-      expect(await owner.test(AbortSignal.timeout(10_000))).toMatchObject({
-        ok: true,
-        readOnly: false,
-      });
+      expect(readerHealth.canDo).toEqual([]);
+      const ownerHealth = await owner.test(AbortSignal.timeout(10_000));
+      expect(ownerHealth).toMatchObject({ ok: true, readOnly: false });
+      expect(ownerHealth.canDo?.[0]).toMatch(/^It holds the privileges .*\bINSERT\b/);
+      expect(ownerHealth.readOnlySetup).toContain("GRANT SELECT ON `orders`.* TO 'quanthea_read'");
     });
 
     test('fails the test of the other product, and names its kind', async () => {

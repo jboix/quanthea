@@ -96,7 +96,11 @@ describe.skipIf(!integrationEnabled)('postgres connector against the dev databas
     const readerHealth = await reader.test(AbortSignal.timeout(10_000));
     expect(readerHealth).toMatchObject({ ok: true, readOnly: true });
     expect(readerHealth.message).toContain('Role dash_ro has no write grants.');
-    expect(await owner.test(AbortSignal.timeout(10_000))).toMatchObject({
+    expect(readerHealth.canDo).toEqual([]);
+    const ownerHealth = await owner.test(AbortSignal.timeout(10_000));
+    expect(ownerHealth.canDo?.[0]).toContain('It is a superuser');
+    expect(ownerHealth.readOnlySetup).toContain('GRANT CONNECT ON DATABASE "orders"');
+    expect(ownerHealth).toMatchObject({
       ok: true,
       readOnly: false,
     });

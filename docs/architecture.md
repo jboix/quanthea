@@ -2473,7 +2473,10 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   `standard_conforming_strings` on, so the server reads a backslash in a string as the SQL binder
   lexes it, whatever the role or the database sets: with it off, `'\'` would end elsewhere and
   what the binder took for a string would run. The statement goes over the extended protocol,
-  which takes one statement, also when it binds no value. `describe` reads `pg_catalog`
+  which takes one statement, also when it binds no value. The connection test reads the
+  catalog for what the role may do (`postgres/health.ts`): a superuser, tables it can change,
+  schemas and the database it can create in, the server's write and file roles, `CREATEROLE` and
+  `CREATEDB`, each however the role holds it. `describe` reads `pg_catalog`
   (comments, `reltuples`, `pg_stats.n_distinct`), never table data. SQLSTATEs map to connector
   errors; data errors (class 22) never quote the value.
   - **TimescaleDB** is the same kind (the add form finds it by name): the connection test names its
@@ -2495,8 +2498,10 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   `maxRows + 1`, and the reader stops there too when a query asks for more with its own LIMIT. A
   statement is prepared, never formatted by the driver. At the timeout or when the caller gives up,
   `KILL QUERY` stops it on the server and the connection is closed rather than reused. `describe`
-  reads `information_schema` (comments, `TABLE_ROWS`, index cardinality), never table data. Error
-  numbers map to connector errors; value errors never quote the value.
+  reads `information_schema` (comments, `TABLE_ROWS`, index cardinality), never table data. The
+  connection test names the write privileges granted to the user itself (`mysql/health.ts`); a
+  role's grants are not listed there, so a user with an active role and none of its own reports
+  `readOnly: null`. Error numbers map to connector errors; value errors never quote the value.
 - **ClickHouse:** the HTTP interface over the kit's HTTP client, POST with the user and password
   in `X-ClickHouse-*` headers. The statement is the body and each value a `param_pN` query
   parameter, never SQL text. Each statement carries its settings: `readonly=1` (omitted for a
@@ -2509,7 +2514,7 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   `max_execution_time` is what stops a query: closing the connection cancels it only where
   ClickHouse checks between blocks. `describe` reads `system.tables` and `system.columns`
   (comments, `total_rows`); the connection test reads the user's `readonly` and `SHOW GRANTS
-  FINAL`. Error codes map to connector errors; value errors never quote the value.
+  FINAL`, and names the grants that write. Error codes map to connector errors; value errors never quote the value.
 - **Trino:** the client protocol over the kit's HTTP client: POST `/v1/statement`, then each
   `nextUri` page, which must stay on the coordinator's origin. Each query runs in its own
   `START TRANSACTION READ ONLY`, rolled back after it, so a catalog that could write refuses to

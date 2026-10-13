@@ -5,7 +5,7 @@ import { quoteIdentifier, toEntities } from './catalog.ts';
 import { clickhouseConnector } from './clickhouse-connector.ts';
 import { fieldTypeOf, frameValue, innerType } from './columns.ts';
 import { parseServerError, toConnectorError } from './errors.ts';
-import { grantsWrite } from './health.ts';
+import { readOnlyUser, writingGrant } from './health.ts';
 import { parameterText, readRows } from './session.ts';
 
 testConnectorConformance(clickhouseConnector, {
@@ -184,12 +184,23 @@ describe('clickhouse errors', () => {
 });
 
 describe('clickhouse grants', () => {
-  test('count only privileges that write, from SHOW GRANTS lines', () => {
-    expect(grantsWrite('GRANT SELECT ON orders.* TO dash_ro')).toBe(false);
-    expect(grantsWrite('GRANT SELECT(id, status), SHOW TABLES ON orders.t TO dash_ro')).toBe(false);
-    expect(grantsWrite('GRANT SELECT, INSERT, ALTER UPDATE ON default.* TO ro2')).toBe(true);
-    expect(grantsWrite('GRANT ALL ON *.* TO quanthea_admin WITH GRANT OPTION')).toBe(true);
-    expect(grantsWrite('GRANT writer TO ro2')).toBe(false);
+  test('name only the privileges that write, from SHOW GRANTS lines', () => {
+    expect(writingGrant('GRANT SELECT ON orders.* TO dash_ro')).toBeUndefined();
+    expect(
+      writingGrant('GRANT SELECT(id, status), SHOW TABLES ON orders.t TO dash_ro'),
+    ).toBeUndefined();
+    expect(writingGrant('GRANT SELECT, INSERT, ALTER UPDATE ON default.* TO ro2')).toBe(
+      'INSERT, ALTER UPDATE on default.*',
+    );
+    expect(writingGrant('GRANT ALL ON *.* TO quanthea_admin WITH GRANT OPTION')).toBe('ALL on *.*');
+    expect(writingGrant('GRANT writer TO ro2')).toBeUndefined();
+    expect(writingGrant('REVOKE INSERT ON orders.* FROM ro2')).toBeUndefined();
+  });
+
+  test('the user to create only reads, with the database quoted', () => {
+    const setup = readOnlyUser('or`ders');
+    expect(setup).toContain('SETTINGS readonly = 2');
+    expect(setup).toContain('GRANT SELECT ON `or``ders`.* TO quanthea_read;');
   });
 });
 

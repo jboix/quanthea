@@ -21,7 +21,8 @@ import { type CatalogRow, catalogQuery, quoteIdentifier, toEntities } from './ca
 import { fieldTypeOf, frameValue } from './columns.ts';
 import { toConnectorError } from './errors.ts';
 import { mysqlGuide } from './guide.ts';
-import { openPool, type StreamedRows, streamRows, withSession } from './session.ts';
+import { type HealthRow, healthQuery, readOnlyUser, roleQuery, userAccess } from './health.ts';
+import { openPool, type Session, type StreamedRows, streamRows, withSession } from './session.ts';
 
 /** A product the engine serves. */
 type Product = 'MySQL' | 'MariaDB';
@@ -61,39 +62,6 @@ const configSchema = z.object({
 const secretSchema = z.object({
   password: z.string().meta({ title: 'Password' }),
 });
-
-/** Grants that let a user change data, the schema or the server. */
-const writeGrants = [
-  'INSERT',
-  'UPDATE',
-  'DELETE',
-  'CREATE',
-  'DROP',
-  'ALTER',
-  'INDEX',
-  'CREATE VIEW',
-  'CREATE ROUTINE',
-  'ALTER ROUTINE',
-  'TRIGGER',
-  'EVENT',
-  'FILE',
-  'SUPER',
-];
-
-/** The write grants as quoted SQL strings, for an `IN` list. */
-const writeGrantList = writeGrants.map((grant) => `'${grant}'`).join(', ');
-
-/** Checks the server and counts the user's write grants, without touching table data. */
-const healthQuery = `
-SELECT VERSION() AS version, CURRENT_USER() AS user_name, (
-  SELECT COUNT(*) FROM (
-    SELECT GRANTEE, PRIVILEGE_TYPE FROM information_schema.USER_PRIVILEGES
-    UNION ALL SELECT GRANTEE, PRIVILEGE_TYPE FROM information_schema.SCHEMA_PRIVILEGES
-    UNION ALL SELECT GRANTEE, PRIVILEGE_TYPE FROM information_schema.TABLE_PRIVILEGES
-  ) AS grants
-  WHERE grants.GRANTEE = CONCAT('''', REPLACE(CURRENT_USER(), '@', '''@'''), '''')
-    AND grants.PRIVILEGE_TYPE IN (${writeGrantList})
-) AS write_grants`;
 
 /** How long health checks, schema reads and samples may take, in milliseconds. */
 const metadataTimeoutMs = 30_000;
@@ -154,29 +122,41 @@ async function execute(pool: Pool, query: SqlQuery, context: ExecutionContext): 
 }
 
 /**
- * The row of {@link healthQuery}: the server version (which names MariaDB on MariaDB), the user
- * with its host, and how many write grants it has.
+ * Reads the health row and the session's active roles. A server without roles fails the second
+ * statement, and has none.
+ *
+ * @param session - The session.
+ * @returns The row and the roles, `null` for none.
  */
-type HealthRow = [version?: string, user?: string, writeGrants?: number];
+async function readHealth(session: Session): Promise<[HealthRow, string | null]> {
+  const { rows } = await streamRows(session, healthQuery, [], 1);
+  const roles = await streamRows(session, roleQuery, [], 1).catch(() => undefined);
+  const role = roles?.rows[0]?.[0];
+  return [(rows[0] ?? []) as HealthRow, typeof role === 'string' ? role : null];
+}
 
 /**
- * Checks the connection and whether the user can write. The server must be the kind's product.
+ * Checks the connection and what the user may do beyond reading. The server must be the kind's
+ * product.
  *
  * @param pool - The pool.
  * @param product - The kind's product.
+ * @param database - The database the connector reads, for the statements of a read-only user.
  * @param signal - The caller's signal.
  * @returns The health report.
  */
-async function test(pool: Pool, product: Product, signal: AbortSignal): Promise<HealthReport> {
+async function test(
+  pool: Pool,
+  product: Product,
+  database: string,
+  signal: AbortSignal,
+): Promise<HealthReport> {
   const started = performance.now();
   const latencyMs = (): number => Math.round(performance.now() - started);
   try {
-    const { rows } = await withSession(pool, 1, metadataSignal(signal), (session) =>
-      streamRows(session, healthQuery, [], 1),
-    );
-    const [version, user, grants] = (rows[0] ?? []) as HealthRow;
-    const readOnly = Number(grants ?? 1) === 0;
-    const access = readOnly ? 'has no write grants' : 'can write: use a read-only user';
+    const [row, role] = await withSession(pool, 1, metadataSignal(signal), readHealth);
+    const [version, user] = row;
+    const { readOnly, canDo, access } = userAccess(row, role);
     const server: Product = version?.includes('MariaDB') ? 'MariaDB' : 'MySQL';
     const named = `${server} ${version ?? '?'}.`;
     if (server !== product) {
@@ -184,7 +164,8 @@ async function test(pool: Pool, product: Product, signal: AbortSignal): Promise<
       return { ok: false, latencyMs: latencyMs(), message, readOnly };
     }
     const message = `${named} User ${user ?? '?'} ${access}.`;
-    return { ok: true, latencyMs: latencyMs(), message, readOnly };
+    const readOnlySetup = readOnlyUser(database);
+    return { ok: true, latencyMs: latencyMs(), message, readOnly, canDo, readOnlySetup };
   } catch (error) {
     const message = toConnectorError(error).safeMessage;
     return { ok: false, latencyMs: latencyMs(), message, readOnly: null };
@@ -295,7 +276,7 @@ export function defineMysqlKind(product: MysqlProduct) {
     open({ config, secret }): ConnectorInstance {
       const pool = openPool({ ...config, password: secret.password });
       return {
-        test: (signal) => test(pool, product.name, signal),
+        test: (signal) => test(pool, product.name, config.database, signal),
         describe: (signal) => describe(pool, signal),
         sampleValues: (field, limit, signal) => sampleValues(pool, field, limit, signal),
         execute: (query, context) =>

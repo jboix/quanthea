@@ -17,6 +17,7 @@ import { type CatalogRow, catalogQuery, quoteIdentifier, toEntities } from './ca
 import { fieldTypeOf, frameValue } from './columns.ts';
 import { toConnectorError } from './errors.ts';
 import { postgresGuide } from './guide.ts';
+import { type HealthRow, healthOf, healthQuery } from './health.ts';
 import { postgresIcon } from './icon.ts';
 import { extensionQuery, type TimescaleRow, timescaleQuery, withTimescale } from './timescale.ts';
 
@@ -55,17 +56,6 @@ const configSchema = z.object({
 const secretSchema = z.object({
   password: z.string().meta({ title: 'Password' }),
 });
-
-/** Checks the server and whether the role can write, without touching table data. */
-const healthQuery = `
-SELECT current_setting('server_version') AS version, current_user AS role,
-  (r.rolsuper
-    OR has_database_privilege(current_database(), 'CREATE')
-    OR EXISTS (SELECT 1 FROM information_schema.table_privileges p
-      WHERE p.grantee = current_user AND p.privilege_type IN ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'))
-  ) AS can_write,
-  (SELECT extversion FROM pg_extension WHERE extname = 'timescaledb') AS timescaledb
-FROM pg_roles r WHERE r.rolname = current_user`;
 
 /** The statement timeout of health checks, schema reads and samples, in milliseconds. */
 const metadataTimeoutMs = 30_000;
@@ -207,20 +197,8 @@ async function execute(sql: Sql, query: SqlQuery, context: ExecutionContext): Pr
   }
 }
 
-/** The row of {@link healthQuery}. */
-interface HealthRow {
-  /** The server version. */
-  readonly version: string;
-  /** The role the connector uses. */
-  readonly role: string;
-  /** Whether the role can write anything. */
-  readonly can_write: boolean;
-  /** The TimescaleDB version, when the database has the extension. */
-  readonly timescaledb: string | null;
-}
-
 /**
- * Checks the connection and whether the role can write.
+ * Checks the connection and what the role may do beyond reading.
  *
  * @param sql - The connection pool.
  * @param signal - The caller's signal.
@@ -233,12 +211,7 @@ async function test(sql: Sql, signal: AbortSignal): Promise<HealthReport> {
     const rows = await readOnly(sql, metadataTimeoutMs, (transaction) =>
       cancellable<readonly HealthRow[]>(transaction.unsafe(healthQuery), signal),
     );
-    const row = rows[0];
-    const readOnlyRole = row?.can_write === false;
-    const access = readOnlyRole ? 'has no write grants' : 'can write: use a read-only role';
-    const timescale = row?.timescaledb ? ` with TimescaleDB ${row.timescaledb}` : '';
-    const message = `PostgreSQL ${row?.version ?? '?'}${timescale}. Role ${row?.role ?? '?'} ${access}.`;
-    return { ok: true, latencyMs: latencyMs(), message, readOnly: readOnlyRole };
+    return { ok: true, latencyMs: latencyMs(), ...healthOf(rows[0]) };
   } catch (error) {
     const message = toConnectorError(error).safeMessage;
     return { ok: false, latencyMs: latencyMs(), message, readOnly: null };

@@ -92,6 +92,8 @@ function testReading(connection: () => ConnectorInstance, fixture: ConformanceFi
     expect(report.ok).toBe(true);
     expect(report.latencyMs).toBeGreaterThanOrEqual(0);
     expect([true, false, null]).toContain(report.readOnly);
+    expect((report.canDo ?? []).every((sentence) => typeof sentence === 'string')).toBe(true);
+    expect(['string', 'undefined']).toContain(typeof report.readOnlySetup);
   });
 
   test('describe() lists entities with unique names and their fields', async () => {

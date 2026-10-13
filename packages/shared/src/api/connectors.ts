@@ -105,6 +105,10 @@ export const healthReportSchema = z.object({
   latencyMs: z.number(),
   message: z.string(),
   readOnly: z.boolean().nullable(),
+  /** What the credentials can do beyond reading, one sentence each. */
+  canDo: z.array(z.string()).readonly().optional(),
+  /** Statements or settings that make an account that only reads, to copy. */
+  readOnlySetup: z.string().optional(),
 });
 
 /** Validates one field of the schema view. */

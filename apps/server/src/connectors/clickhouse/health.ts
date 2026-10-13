@@ -7,28 +7,34 @@ const writePrivilege =
   /^(?:ALL|INSERT|ALTER|CREATE|DROP|UNDROP|TRUNCATE|OPTIMIZE|SYSTEM|KILL|BACKUP|MOVE|ACCESS MANAGEMENT|ROLE ADMIN)\b/;
 
 /**
- * Whether a GRANT statement gives a privilege that writes.
+ * The privileges of a GRANT statement that write, with what they are granted on.
  *
  * @param statement - One line of `SHOW GRANTS`, such as `GRANT SELECT ON orders.* TO dash_ro`.
- * @returns `true` when one of its privileges writes; `false` for a role grant or a REVOKE.
+ * @returns Such as `INSERT, ALTER TABLE on orders.*`, or `undefined` when none writes, as for a
+ *   role grant or a REVOKE.
  */
-export function grantsWrite(statement: string): boolean {
-  const privileges = /^GRANT (.+?) ON /.exec(statement)?.[1];
-  if (privileges === undefined) return false;
-  return privileges
+export function writingGrant(statement: string): string | undefined {
+  const [, privileges, target] = /^GRANT (.+?) ON (.+?) TO /.exec(statement) ?? [];
+  if (privileges === undefined) return undefined;
+  const writes = privileges
     .replace(/\([^)]*\)/g, '')
     .split(',')
-    .some((privilege) => writePrivilege.test(privilege.trim()));
+    .map((privilege) => privilege.trim())
+    .filter((privilege) => writePrivilege.test(privilege));
+  return writes.length > 0 ? `${writes.join(', ')} on ${target}` : undefined;
 }
 
+/** The most grants a report names. */
+const namedGrants = 5;
+
 /**
- * Whether the user can write, from its grants and those of its roles.
+ * What the user's grants, and those of its roles, allow beyond reading. `SHOW GRANTS` only reads.
  *
  * @param session - The session.
  * @param signal - The caller's signal.
- * @returns `true` when no grant writes.
+ * @returns One sentence per grant that writes, the first few.
  */
-async function hasNoWriteGrant(session: ClickhouseSession, signal: AbortSignal): Promise<boolean> {
+async function writeFindings(session: ClickhouseSession, signal: AbortSignal): Promise<string[]> {
   const { rows } = await session.run({
     sql: 'SHOW GRANTS FINAL',
     parameters: [],
@@ -36,7 +42,9 @@ async function hasNoWriteGrant(session: ClickhouseSession, signal: AbortSignal):
     timeoutMs: 10_000,
     signal,
   });
-  return !rows.some((row) => grantsWrite(String(row[0])));
+  const grants = rows.flatMap((row) => writingGrant(String(row[0])) ?? []);
+  const more = grants.length > namedGrants ? [`It holds ${grants.length - namedGrants} more.`] : [];
+  return [...grants.slice(0, namedGrants).map((grant) => `It holds ${grant}.`), ...more];
 }
 
 /**
@@ -52,14 +60,28 @@ function accessSentence(access: Access, readOnly: boolean): string {
 }
 
 /**
- * Checks the connection and whether the user can write.
+ * The statements that make a user that only reads the database, for the admin to copy.
+ *
+ * @param database - The database the connector reads.
+ * @returns The statements.
+ */
+export function readOnlyUser(database: string): string {
+  const quoted = `\`${database.replaceAll('`', '``')}\``;
+  return `CREATE USER quanthea_read IDENTIFIED BY 'choose-a-password' SETTINGS readonly = 2;
+GRANT SELECT ON ${quoted}.* TO quanthea_read;`;
+}
+
+/**
+ * Checks the connection and what the user may do beyond reading.
  *
  * @param session - The session.
+ * @param database - The database the connector reads, for the statements of a read-only user.
  * @param signal - The caller's signal.
  * @returns The health report. A user whose `readonly` is 1 fails it: the connector cannot run.
  */
 export async function testConnection(
   session: ClickhouseSession,
+  database: string,
   signal: AbortSignal,
 ): Promise<HealthReport> {
   const started = performance.now();
@@ -71,9 +93,11 @@ export async function testConnection(
       const message = `${server} ${readonlyOneError.safeMessage}`;
       return { ok: false, latencyMs: latencyMs(), message, readOnly: true };
     }
-    const readOnly = access.readonly === 2 || (await hasNoWriteGrant(session, signal));
+    const canDo = access.readonly === 2 ? [] : await writeFindings(session, signal);
+    const readOnly = canDo.length === 0;
     const message = `${server} ${accessSentence(access, readOnly)}`;
-    return { ok: true, latencyMs: latencyMs(), message, readOnly };
+    const readOnlySetup = readOnlyUser(database);
+    return { ok: true, latencyMs: latencyMs(), message, readOnly, canDo, readOnlySetup };
   } catch (error) {
     const message = error instanceof ConnectorError ? error.safeMessage : 'The test failed.';
     return { ok: false, latencyMs: latencyMs(), message, readOnly: null };
