@@ -103,10 +103,17 @@ describe.skipIf(!live)('valkey connector against the dev Valkey', () => {
     const health = await reader.test(AbortSignal.timeout(10_000));
     expect(health).toMatchObject({ ok: true, readOnly: true });
     expect(health.message).toMatch(/^Valkey \d+\.\d+\.\d+\. User dash_ro cannot write\.$/);
-    expect(await owner.test(AbortSignal.timeout(10_000))).toMatchObject({
-      ok: true,
-      readOnly: false,
-    });
+    expect(health.canDo).toEqual([]);
+    const [keys] = await owner.execute(redis('DBSIZE'), context());
+    const ownerHealth = await owner.test(AbortSignal.timeout(10_000));
+    expect(ownerHealth).toMatchObject({ ok: true, readOnly: false });
+    expect(ownerHealth.canDo).toEqual(['It may run SET, DEL, FLUSHALL, EVAL, CONFIG SET.']);
+    expect(ownerHealth.readOnlySetup).toContain('+@read');
+    // The dry runs ran nothing: no key was added or removed, and the probe key does not exist.
+    const [after] = await owner.execute(redis('DBSIZE'), context());
+    expect(after?.values).toEqual(keys?.values);
+    const probe = await owner.execute(redis('EXISTS', 'quanthea:probe'), context());
+    expect(probe[0]?.values).toEqual([[0]]);
   });
 
   test('reads a stream over the time range, with its time and fields, and the incident in it', async () => {

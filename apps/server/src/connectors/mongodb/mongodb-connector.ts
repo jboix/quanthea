@@ -14,6 +14,7 @@ import {
   type MongodbQuery,
   mongodbRefusedKeys,
 } from '../_shared/index.ts';
+import { anonymousAccess, type Privilege, readOnlyUser, userAccess } from './access.ts';
 import { describeDatabase, sampleField } from './catalog.ts';
 import { clientOf, toConnectorError } from './client.ts';
 import { frameOf } from './frames.ts';
@@ -63,24 +64,6 @@ const secretSchema = z.object({
 
 /** How long health checks, schema reads and samples may take, in milliseconds. */
 const metadataTimeoutMs = 30_000;
-
-/** The actions that let a user change data. */
-const writeActions = new Set([
-  'insert',
-  'update',
-  'remove',
-  'createCollection',
-  'dropCollection',
-  'dropDatabase',
-]);
-
-/** One privilege, as `connectionStatus` gives it. */
-interface Privilege {
-  /** What it applies to. */
-  readonly resource?: { readonly db?: string; readonly anyResource?: boolean };
-  /** What it allows. */
-  readonly actions?: readonly string[];
-}
 
 /**
  * The caller's signal, also fired at the metadata timeout.
@@ -147,36 +130,23 @@ async function execute(
 }
 
 /**
- * Whether privileges let a user change data in a database.
+ * Whether the server lists the database's collections, which it refuses a connection that
+ * should have signed in. It reads one name at most.
  *
- * @param privileges - The user's privileges.
  * @param database - The database.
- * @returns `true` when one allows a write there.
+ * @param signal - The caller's signal.
+ * @returns `true` when it does.
  */
-function canWrite(privileges: readonly Privilege[], database: string): boolean {
-  return privileges.some((privilege) => {
-    const { resource } = privilege;
-    const applies = resource?.anyResource || resource?.db === '' || resource?.db === database;
-    return applies && (privilege.actions ?? []).some((action) => writeActions.has(action));
-  });
+function listsCollections(database: Db, signal: AbortSignal): Promise<boolean> {
+  const command = { listCollections: 1, nameOnly: true, cursor: { batchSize: 1 } };
+  return database.command(command, { signal }).then(
+    () => true,
+    () => false,
+  );
 }
 
 /**
- * The sentence about the user.
- *
- * @param user - The user, if one signed in.
- * @param readOnly - Whether it cannot write.
- * @returns The sentence.
- */
-function accessSentence(user: string | undefined, readOnly: boolean | null): string {
-  if (user === undefined) return 'No user signed in, so whether it can write is unknown.';
-  return readOnly
-    ? `User ${user} cannot write.`
-    : `User ${user} can write: use a user with the read role only.`;
-}
-
-/**
- * Checks the server and whether the user could write.
+ * Checks the server and what the user may do beyond reading.
  *
  * @param database - The database.
  * @param signal - The caller's signal.
@@ -193,9 +163,14 @@ async function test(database: Db, signal: AbortSignal): Promise<HealthReport> {
     );
     const user: string | undefined = status.authInfo?.authenticatedUsers?.[0]?.user;
     const privileges: Privilege[] = status.authInfo?.authenticatedUserPrivileges ?? [];
-    const readOnly = user === undefined ? null : !canWrite(privileges, database.databaseName);
-    const message = `MongoDB ${String(build.version)}. ${accessSentence(user, readOnly)}`;
-    return { ok: true, latencyMs: latencyMs(), message, readOnly };
+    const name = database.databaseName;
+    const { readOnly, canDo, sentence } =
+      user === undefined
+        ? anonymousAccess(await listsCollections(database, bounded(signal)))
+        : userAccess(user, privileges, name);
+    const message = `MongoDB ${String(build.version)}. ${sentence}`;
+    const readOnlySetup = readOnlyUser(name);
+    return { ok: true, latencyMs: latencyMs(), message, readOnly, canDo, readOnlySetup };
   } catch (error) {
     return {
       ok: false,

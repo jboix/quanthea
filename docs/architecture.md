@@ -2589,7 +2589,8 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   (`MGET`, `HMGET`, `HGETALL`); members, with their scores (`ZRANGE … WITHSCORES`); stream entries
   with the time of their id and a column per field (`XRANGE`); `INFO` lines. A column is a number
   when every value reads as one. The connection test reads `HELLO` and asks `ACL DRYRUN` whether
-  the user could run `SET`, so it reports whether the user can write. `describe` reads up to 2000
+  the user could run `SET`, `DEL`, `FLUSHALL`, `EVAL` and `CONFIG SET`: a dry run checks the
+  user's rights and runs nothing. A user that may not ask reports `readOnly: null`. `describe` reads up to 2000
   keys with `SCAN` and groups them into patterns by their last `:` segment (`service:*`), with
   their type and fields: a hash's field names, a sorted set's member and score, a stream's id,
   time and fields. `sampleValues` returns a pattern's keys (`key`), a hash field's values, or a
@@ -2602,8 +2603,9 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   arrays and other values Extended JSON text. Dates are times; `int`, `long`, `double` and
   `decimal` are numbers; an ObjectId is its hex text; a column whose values disagree is text. The
   columns come from the first 100 documents. The connection test reads `buildInfo` and the
-  privileges `connectionStatus` lists, so it reports whether the user could insert, update or
-  remove in the database. `describe` lists up to 200 collections and views, each with the fields
+  privileges `connectionStatus` lists (`mongodb/access.ts`), so it reports the actions that
+  write, in the connector's database or another. With no user signed in it asks for one
+  collection name: a server that answers checks no access, so whoever reaches it can write. `describe` lists up to 200 collections and views, each with the fields
   of 20 sampled documents (`$sample`) and their BSON types, and a collection's estimated document
   count. `sampleValues` groups on the field path. A host may be a DNS seed list
   (`mongodb+srv://`).

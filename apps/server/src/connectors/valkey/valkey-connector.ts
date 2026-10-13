@@ -87,25 +87,41 @@ async function execute(
 }
 
 /**
- * Whether the user could write, as `ACL DRYRUN` says.
+ * Commands that write, delete everything, run a script or change the server, as `ACL DRYRUN` is
+ * asked about them. A dry run checks the user's rights and runs nothing.
+ */
+const writeProbes: readonly (readonly string[])[] = [
+  ['SET', 'quanthea:probe', '1'],
+  ['DEL', 'quanthea:probe'],
+  ['FLUSHALL'],
+  ['EVAL', 'return 1', '0'],
+  ['CONFIG', 'SET', 'maxmemory', '0'],
+];
+
+/** The command that makes a user that only reads, for the admin to copy. */
+export const readOnlyUser =
+  'ACL SETUSER quanthea_read on >choose-a-password ~* +@read -@dangerous +info +acl|whoami +acl|dryrun';
+
+/**
+ * The commands of {@link writeProbes} the user may run, as `ACL DRYRUN` says.
  *
  * @param session - The session.
  * @param user - The user.
  * @param signal - The caller's signal.
- * @returns `true` when it cannot, `false` when it can, `null` when the user may not ask.
+ * @returns Their names, or `null` when the user may not ask.
  */
-async function readOnlyOf(
+export async function allowedWrites(
   session: ValkeySession,
   user: string,
   signal: AbortSignal,
-): Promise<boolean | null> {
+): Promise<string[] | null> {
   try {
-    const answer = await session.send(
-      'ACL',
-      ['DRYRUN', user, 'SET', 'quanthea:probe', '1'],
-      signal,
-    );
-    return answer !== 'OK';
+    const allowed: string[] = [];
+    for (const [command = '', ...args] of writeProbes) {
+      const answer = await session.send('ACL', ['DRYRUN', user, command, ...args], signal);
+      if (answer === 'OK') allowed.push(command === 'CONFIG' ? 'CONFIG SET' : command);
+    }
+    return allowed;
   } catch {
     return null;
   }
@@ -127,7 +143,7 @@ function accessSentence(user: string, readOnly: boolean | null): string {
 }
 
 /**
- * Checks the server and whether the user could write.
+ * Checks the server and what the user may do beyond reading.
  *
  * @param session - The session.
  * @param signal - The caller's signal.
@@ -144,10 +160,13 @@ async function test(session: ValkeySession, signal: AbortSignal): Promise<Health
     const user = String(
       await session.send('ACL', ['WHOAMI'], bounded(signal)).catch(() => 'default'),
     );
-    const readOnly = await readOnlyOf(session, user, bounded(signal));
+    const writes = await allowedWrites(session, user, bounded(signal));
+    const readOnly = writes === null ? null : writes.length === 0;
+    const canDo = writes?.length ? [`It may run ${writes.join(', ')}.`] : [];
     const server = hello.server === 'valkey' ? 'Valkey' : 'Redis';
     const message = `${server} ${hello.version ?? '?'}. ${accessSentence(user, readOnly)}`;
-    return { ok: true, latencyMs: latencyMs(), message, readOnly };
+    const report = { ok: true, latencyMs: latencyMs(), message, readOnly, canDo };
+    return { ...report, readOnlySetup: readOnlyUser };
   } catch (error) {
     return {
       ok: false,

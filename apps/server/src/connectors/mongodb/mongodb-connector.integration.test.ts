@@ -108,10 +108,11 @@ describe.skipIf(!live)('mongodb connector against the dev MongoDB', () => {
     const health = await reader.test(AbortSignal.timeout(10_000));
     expect(health).toMatchObject({ ok: true, readOnly: true });
     expect(health.message).toMatch(/^MongoDB \d+\.\d+\.\d+\. User dash_ro cannot write\.$/);
-    expect(await owner.test(AbortSignal.timeout(10_000))).toMatchObject({
-      ok: true,
-      readOnly: false,
-    });
+    expect(health.canDo).toEqual([]);
+    const ownerHealth = await owner.test(AbortSignal.timeout(10_000));
+    expect(ownerHealth).toMatchObject({ ok: true, readOnly: false });
+    expect(ownerHealth.canDo?.[0]).toMatch(/^It can .*insert.* in the database shop\.$/);
+    expect(ownerHealth.readOnlySetup).toContain('roles: [{ role: "read", db: "shop" }]');
   });
 
   test('buckets failed orders over time, with the incident in them', async () => {

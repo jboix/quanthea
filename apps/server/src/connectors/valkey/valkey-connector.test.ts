@@ -3,8 +3,8 @@ import { testConnectorConformance } from '@quanthea/plugin-kit/testing';
 import type { RedisQuery } from '../_shared/index.ts';
 import { groupKeys, patternOf } from './catalog.ts';
 import { frameOf, tableOf } from './frames.ts';
-import { toConnectorError } from './session.ts';
-import { valkeyConnector } from './valkey-connector.ts';
+import { toConnectorError, type ValkeySession } from './session.ts';
+import { allowedWrites, readOnlyUser, valkeyConnector } from './valkey-connector.ts';
 
 testConnectorConformance(valkeyConnector, {
   config: { host: 'valkey', username: 'dash_ro' },
@@ -137,5 +137,62 @@ describe('valkey errors', () => {
     for (const message of messages) {
       expect(toConnectorError(new Error(message)).code).not.toBe('authentication');
     }
+  });
+});
+
+/**
+ * A session whose `ACL DRYRUN` allows some commands, and records every command sent.
+ *
+ * @param allowed - The commands the user may run, or `null` when it may not ask.
+ * @returns The session and what was sent.
+ */
+function dryRunSession(allowed: readonly string[] | null): {
+  session: ValkeySession;
+  sent: string[][];
+} {
+  const sent: string[][] = [];
+  const session: ValkeySession = {
+    send: (command, args) => {
+      sent.push([command, ...args]);
+      if (allowed === null) return Promise.reject(new Error('NOPERM'));
+      const asked = args[2] ?? '';
+      return Promise.resolve(
+        allowed.includes(asked) ? 'OK' : `User dash_ro has no permissions to run '${asked}'`,
+      );
+    },
+    close: () => undefined,
+  };
+  return { session, sent };
+}
+
+describe('what a Valkey user may do', () => {
+  const signal = AbortSignal.timeout(1000);
+
+  test('asks with dry runs only, so nothing is written to find out', async () => {
+    const { session, sent } = dryRunSession([]);
+    expect(await allowedWrites(session, 'dash_ro', signal)).toEqual([]);
+    expect(sent.length).toBeGreaterThan(0);
+    for (const command of sent) expect(command.slice(0, 3)).toEqual(['ACL', 'DRYRUN', 'dash_ro']);
+  });
+
+  test('names the write commands the user may run', async () => {
+    const { session } = dryRunSession(['SET', 'DEL', 'FLUSHALL', 'EVAL', 'CONFIG']);
+    expect(await allowedWrites(session, 'default', signal)).toEqual([
+      'SET',
+      'DEL',
+      'FLUSHALL',
+      'EVAL',
+      'CONFIG SET',
+    ]);
+    expect(await allowedWrites(dryRunSession(['DEL']).session, 'app', signal)).toEqual(['DEL']);
+  });
+
+  test('a user that may not ask is unknown, never read-only', async () => {
+    expect(await allowedWrites(dryRunSession(null).session, 'dash_ro', signal)).toBeNull();
+  });
+
+  test('the user to create gets the read commands only', () => {
+    expect(readOnlyUser).toContain('+@read');
+    expect(readOnlyUser).not.toMatch(/\+@(all|write)|allcommands/);
   });
 });
