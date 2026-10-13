@@ -147,6 +147,36 @@ describe('a condition in words', () => {
     ).toBe('2.4%');
   });
 
+  test('never writes a difference of percentages as a share of the earlier value', () => {
+    const points = { direction: 'up', amount: 0.05, unit: 'absolute' } as const;
+    const share = { direction: 'up', amount: 5, unit: 'percent' } as const;
+    const kinds = [
+      { kind: 'change', within: '10m', for: '0m' },
+      { kind: 'past', ago: '7d', for: '0m' },
+    ] as const;
+    for (const kind of kinds) {
+      const absolute = conditionText({ ...percent, condition: { ...kind, ...points } });
+      const relative = conditionText({ ...percent, condition: { ...kind, ...share } });
+      expect(absolute).toStartWith('up 5 percentage points or more ');
+      expect(relative).toStartWith('up 5% or more ');
+    }
+    const moved = [{ value: 0.1, reference: 0.05 }];
+    const change = { kind: 'change', within: '10m', for: '0m' } as const;
+    expect(changeWords({ ...percent, condition: { ...change, ...points } }, moved).change).toBe(
+      '+5 percentage points',
+    );
+    expect(changeWords({ ...percent, condition: { ...change, ...share } }, moved).change).toBe(
+      '+100%',
+    );
+    const one = { ...change, ...points, amount: 0.01 };
+    expect(conditionText({ ...percent, condition: one })).toBe(
+      'up 1 percentage point or more within 10m',
+    );
+    expect(conditionText({ value: {}, condition: { ...change, ...points } })).toBe(
+      'up 0.05 or more within 10m',
+    );
+  });
+
   test('writes how far a change moved, and from where', () => {
     const dropped: AlertCondition = { kind: 'change', ...halved, within: '10m', for: '0m' };
     const spec = { value: {}, condition: dropped };

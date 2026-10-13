@@ -106,8 +106,18 @@ describe('the condition sentence', () => {
     );
     const rose = { ...dropped, direction: 'up', amount: 0.05, unit: 'absolute', for: '2m' };
     expect(sentence(specWith(rose))).toBe(
-      'Fires when the error share of each service rises by at least 5% within 10 minutes for 2 minutes, checked every minute.',
+      'Fires when the error share of each service rises by at least 5 percentage points within 10 minutes for 2 minutes, checked every minute.',
     );
+  });
+
+  test('never reads a difference of percentages as a share of the earlier value', () => {
+    const points = { ...dropped, direction: 'up', amount: 0.05, unit: 'absolute' };
+    const share = { ...dropped, direction: 'up', amount: 5, unit: 'percent' };
+    expect(sentence(specWith(points))).toContain('rises by at least 5 percentage points within');
+    expect(sentence(specWith(share))).toContain('rises by at least 5% within');
+    const past = { ...lastWeek, amount: 0.3, unit: 'absolute' };
+    expect(sentence(specWith(past))).toContain('is at least 30 percentage points above');
+    expect(sentence(specWith(lastWeek))).toContain('is at least 30% above');
   });
 
   test('reads a comparison with the past as one sentence', () => {
@@ -116,7 +126,7 @@ describe('the condition sentence', () => {
     );
     const fewer = { ...lastWeek, direction: 'down', amount: 0.01, unit: 'absolute', ago: '1h' };
     expect(sentence(specWith(fewer), ['within'])).toBe(
-      'Fires when the error share of each service is at least 1% below its value an hour earlier for 10 minutes, checked every minute.',
+      'Fires when the error share of each service is at least 1 percentage point below its value an hour earlier for 10 minutes, checked every minute.',
     );
   });
 

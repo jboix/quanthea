@@ -113,6 +113,8 @@ A change compares the latest value with the value a while earlier: 10 minutes ea
 
 - The amount is a percentage of the earlier value ("by half" is 50%), or a difference in the value
   itself ("by 200").
+- For a value that is a share, a difference reads in percentage points: from 5% to 10% is "by 5
+  percentage points", and "by 5%" would be from 5% to 5.25%.
 - It needs a value from that long ago. A series that just appeared does not fire.
 - A percentage of zero is not a number, so a series that was at 0 does not fire on a percentage.
   Use a difference for a series that rests at zero.

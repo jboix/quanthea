@@ -65,19 +65,38 @@ export function testValueText(
 }
 
 /**
+ * Writes a difference between two values. A difference of two percentages is written in
+ * percentage points, never with a percent sign: `5%` is what a change of 5 percent of the earlier
+ * value reads, and the two are different conditions.
+ *
+ * @param spec - The spec.
+ * @param test - The test whose values differ.
+ * @param amount - The difference.
+ * @returns Such as `200`, `1.2 s` or `5 percentage points`.
+ */
+function differenceText(spec: ValueFormatted, test: ConditionTest, amount: number): string {
+  const text = testValueText(spec, test, amount);
+  const format = ('format' in test ? test.format : undefined) ?? spec.value.format;
+  if (format?.$fmt !== 'percent' || !text.endsWith('%')) return text;
+  const points = text.slice(0, -1);
+  return `${points} percentage point${points === '1' ? '' : 's'}`;
+}
+
+/**
  * Writes the amount of a change.
  *
  * @param spec - The spec.
  * @param test - The change.
  * @param amount - The amount, in the change's unit.
- * @returns Such as `50%`, or the difference in the value's format.
+ * @returns Such as `50%` for a share of the earlier value, or the difference in the value's
+ *   format: `200`, or `5 percentage points` for a value that is a percentage.
  */
 export function amountText(
   spec: ValueFormatted,
   test: Extract<ConditionTest, { kind: 'change' | 'past' }>,
   amount: number,
 ): string {
-  if (test.unit === 'absolute') return testValueText(spec, test, amount);
+  if (test.unit === 'absolute') return differenceText(spec, test, amount);
   return `${new Intl.NumberFormat('en', { maximumSignificantDigits: 3 }).format(amount)}%`;
 }
 

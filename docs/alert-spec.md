@@ -160,6 +160,9 @@ and `no_data` has none.
   `lookback`, which must be longer than `within`.
   - `unit: 'absolute'` compares the difference. `unit: 'percent'` compares it as a share of the
     earlier point, counted on its size, so a rise from a negative point is still a rise.
+  - The words tell the two apart for a value that is itself a percentage: a difference reads
+    `5 percentage points` in the sentence, the lists, `{threshold}` and `{change}`, and a share
+    of the earlier point reads `5%`.
   - It does not hold while the window has no earlier point: a new series, too little history, an
     instant query, or a result without a time column.
   - In percent it does not hold when the earlier point is 0: a share of nothing is not a number.
