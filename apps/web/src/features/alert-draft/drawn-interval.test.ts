@@ -6,31 +6,33 @@ const hour = 60 * minute;
 const day = 24 * hour;
 
 describe('how a replay chart is drawn', () => {
-  test('a day checked every minute is drawn by 10 minutes when nobody chose', () => {
-    const drawn = drawnAt({ from: 0, to: day, stepMs: minute }, 'auto');
-    expect(drawn.interval).toBe('10m');
-    expect(drawn.options).toEqual(['auto', 'every check', '5m', '10m', '30m', '1h', '6h']);
+  test('every check is drawn when nobody chose, so the peaks a threshold meets show', () => {
+    const drawn = drawnAt({ from: 0, to: day, stepMs: minute }, 'every check');
+    expect(drawn).toMatchObject({ value: 'every check', interval: null });
+    expect(drawn.options).toEqual(['every check', '5m', '10m', '30m', '1h', '6h']);
+    const spike = Array.from({ length: 10 }, (_check, index) => ({
+      at: index * minute,
+      value: index < 5 ? 100 : 10,
+    }));
+    const values = drawnPoints(spike, drawn.interval).map((point) => point.value ?? 0);
+    expect(Math.max(...values)).toBe(100);
   });
 
-  test('a week is drawn by the hour, and a chosen interval of the window wins', () => {
+  test('a chosen interval of the window is drawn', () => {
     const week = { from: 0, to: 7 * day, stepMs: minute };
-    expect(drawnAt(week, 'auto').interval).toBe('1h');
+    expect(drawnAt(week, '1h')).toMatchObject({ value: '1h', interval: '1h' });
     expect(drawnAt(week, '6h')).toMatchObject({ value: '6h', interval: '6h' });
   });
 
-  test('every check draws the checks as they are', () => {
-    expect(drawnAt({ from: 0, to: day, stepMs: minute }, 'every check').interval).toBeNull();
-  });
-
-  test('offers nothing as fine as the checks, and draws them when they are coarser', () => {
-    const hourly = drawnAt({ from: 0, to: day, stepMs: hour }, 'auto');
-    expect(hourly.options).toEqual(['auto', 'every check', '6h']);
+  test('offers nothing as fine as the checks', () => {
+    const hourly = drawnAt({ from: 0, to: day, stepMs: hour }, 'every check');
+    expect(hourly.options).toEqual(['every check', '6h']);
     expect(hourly.interval).toBeNull();
   });
 
-  test('a choice another window does not offer reads as automatic', () => {
+  test('a choice another window does not offer reads as every check', () => {
     const drawn = drawnAt({ from: 0, to: 7 * day, stepMs: minute }, '5m');
-    expect(drawn).toMatchObject({ value: 'auto', interval: '1h' });
+    expect(drawn).toMatchObject({ value: 'every check', interval: null });
   });
 });
 

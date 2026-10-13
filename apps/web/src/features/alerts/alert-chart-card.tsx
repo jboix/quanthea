@@ -289,7 +289,7 @@ function WindowButtons({ window, onWindow }: Pick<AlertChartCardProps, 'window' 
  */
 export function AlertChartCard({ alert, tuning, window, onWindow, outcome }: AlertChartCardProps) {
   const words = windows.find((each) => each.id === window)?.label ?? window;
-  const [chosen, setChosen] = useState<DrawnOption>('auto');
+  const [chosen, setChosen] = useState<DrawnOption>('every check');
   const replay = replayOf(outcome);
   const drawn = replay && drawnAt(replay, chosen);
   const interval = drawn?.interval ?? null;

@@ -271,19 +271,20 @@ An alert has two rhythms, and they are not the same thing.
 
 - **How often it is checked** is part of the alert: "checked every minute". Each check runs the
   query, judges the condition and may notify.
-- **The interval of the chart** is only how the line is drawn. The chart draws one point per
-  interval, the mean of the checks in it: a day by 10 minutes, a week by the hour.
+- **The interval of the chart** is only how the line is drawn. The chart draws every check, so
+  the line shows what the condition is judged on.
 
-The **$interval** chip on the chart chooses another interval, on the alert's page and in the
-draft pane: `auto`, `every check`, or `5m`, `10m`, `30m`, `1h`, `6h`, `1d`, as far as they suit the
-window and are wider than the time between checks.
+The **$interval** chip on the chart chooses a calmer line, on the alert's page and in the draft
+pane: `every check`, or one point per `5m`, `10m`, `30m`, `1h`, `6h` or `1d`, the mean of the
+checks in it, as far as they suit the window and are wider than the time between checks.
 
 - It changes the line and nothing else. The condition, how often the alert is checked, the window
   of each check and its state stay as they are. No query runs again.
 - The shaded firing periods, the spikes too short to fire and the counts always come from the
   checks, whatever the interval.
-- So the alert can fire where the line stays under the threshold. A spike of two minutes weighs
-  little in the mean of an hour. Choose **every check** to see what each check saw.
+- So under a chosen interval the alert can fire where the line stays under the threshold. A spike
+  of two minutes weighs little in the mean of an hour. Choose **every check** again to see what
+  each check saw.
 - Dragging the threshold judges the checks again, not the drawn line.
 
 The sentence under the chart says both: "The chart draws one point per 1h, the mean of the checks

@@ -1,32 +1,30 @@
 /**
  * The interval a replay chart is drawn at. A replay holds one value per check, `every` apart,
- * with the firing periods and the spikes those checks give. The chart may draw fewer points: one
- * per interval of a closed list, the mean of the checks in it. Only the lines change. The firing
+ * with the firing periods and the spikes those checks give. The chart draws every check unless a
+ * person chooses otherwise: a threshold is placed against the peaks of the checks, which a mean
+ * flattens. A person may choose fewer points: one per interval of a closed list, the mean of the
+ * checks in it. Only the lines change. The firing
  * periods, the spikes and the summary stay those of the checks, and a replay judged again under
  * another condition reads the checks, never the drawn points.
  */
 import {
   type ChartInterval,
   chartIntervalChoices,
-  defaultChartInterval,
   durationMs,
   type Reading,
   type ReplayPoint,
 } from '@quanthea/shared';
 import { everyWords } from './condition.ts';
 
-/** The choice nobody made: the interval the window takes. */
-const automaticChoice = 'auto';
-
-/** The choice that draws the checks as they are, one point each. */
+/** The choice that draws the checks as they are, one point each. It is the one nobody made. */
 const everyCheck = 'every check';
 
 /** What the chip of a replay chart offers. */
-export type DrawnOption = typeof automaticChoice | typeof everyCheck | ChartInterval;
+export type DrawnOption = typeof everyCheck | ChartInterval;
 
 /** How a replay chart is drawn. */
 export interface Drawn {
-  /** What the chip offers: the automatic choice, every check, then the intervals of the window. */
+  /** What the chip offers: every check, then the intervals of the window. */
   readonly options: readonly DrawnOption[];
   /** The option shown as chosen. */
   readonly value: DrawnOption;
@@ -46,21 +44,18 @@ interface ReplaySpan {
 
 /**
  * How a replay is drawn under a choice. The intervals offered are those of the closed list that
- * suit the window and are wider than the time between checks. The automatic choice is the
- * interval the window takes (a day by 10 minutes, a week by the hour), or every check when that
- * is no wider than the checks are apart.
+ * suit the window and are wider than the time between checks.
  *
  * @param replay - The window of the replay and the time between its checks.
- * @param chosen - What the chip holds; a choice the window does not offer reads as automatic.
+ * @param chosen - What the chip holds; a choice the window does not offer reads as every check.
  * @returns The options, the one shown and the interval drawn.
  */
 export function drawnAt(replay: ReplaySpan, chosen: DrawnOption): Drawn {
   const periodMs = replay.to - replay.from;
   const choices = chartIntervalChoices(periodMs, replay.stepMs + 1);
-  const options = [automaticChoice, everyCheck, ...choices] as const;
-  const value = options.includes(chosen) ? chosen : automaticChoice;
-  const wanted = value === automaticChoice ? defaultChartInterval(periodMs) : value;
-  return { options, value, interval: choices.find((each) => each === wanted) ?? null };
+  const options = [everyCheck, ...choices] as const;
+  const value = options.includes(chosen) ? chosen : everyCheck;
+  return { options, value, interval: choices.find((each) => each === value) ?? null };
 }
 
 /**

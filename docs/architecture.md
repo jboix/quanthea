@@ -349,12 +349,13 @@ gate's leak tests check that every one of those paths drops hidden fields.
     analysts and viewers, and on an alert that is not active, the line under it states the
     condition, how often it is checked and the window of each check.
   - **The interval of the chart** (`alert-draft/drawn-interval.ts`). A replay holds one value per
-    check, `every` apart. The chart draws one point per interval of the closed list
-    (`chartIntervals`), the mean of the checks in it at the mean of their times, cut on the clock
-    in UTC. When nobody chose it is the interval the window takes (`defaultChartInterval`: 6
-    hours by 5 minutes, a day by 10 minutes, a week by the hour), or every check when the checks
-    are no closer than that. The `$interval` chip in the card's header offers `auto`, `every
-    check` and the intervals wider than `every` that cut the window into 2 to 1500 pieces. The
+    check, `every` apart, at most 1500 of them. The chart draws every check when nobody chose:
+    the threshold is dragged against the peaks, and the firing periods are judged on the
+    checks, so a mean would hide what the condition meets. A person may choose one point per
+    interval of the closed list (`chartIntervals`), the mean of the checks in it at the mean of
+    their times, cut on the clock in UTC. The `$interval` chip in the card's header offers
+    `every check` and the intervals wider than `every` that cut the window into 2 to 1500
+    pieces. The
     lines a condition draws (the limit of a change, the value a period before, the band) are cut
     the same way, from the mean of the readings. The choice is made in the browser, on the
     replay it has: nothing is sent, no query runs again and nothing is stored.

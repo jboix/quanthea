@@ -184,7 +184,7 @@ function useDraftState(draft: AlertDraftData) {
   const { spec } = draft;
   const [window, setWindow] = useState<DraftWindow>('7d');
   const [dragged, setDragged] = useState<number | null>(null);
-  const [chosen, setChosen] = useState<DrawnOption>('auto');
+  const [chosen, setChosen] = useState<DrawnOption>('every check');
   const outcome = useReplay(draft, window);
   const replay: Replayed | undefined =
     outcome?.ok && outcome.replay.replayable ? outcome.replay : undefined;
