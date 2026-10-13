@@ -402,7 +402,8 @@ gate's leak tests check that every one of those paths drops hidden fields.
   (`features/connectors/enforced-rules.ts`), one sentence each of what the binder refuses. That
   list restates the binders of the query engine (`query/`), so a binder change updates it. Adding
   a hidden column suggests the schema's fields while typing (`ui/suggest-input.tsx`, a text field
-  with a list of matching names). A name the schema lacks is marked, in the list and on its chip,
+  with a list of matching names: Enter or a click takes a name and closes the list, and Escape
+  closes the list before it gives up the field). A name the schema lacks is marked, in the list and on its chip,
   and saved all the same (`features/connectors/hidden-names.ts`, which matches names as the gate
   does). Which objects the connector shows is a section of its own, with a checklist of the
   schema's objects: see "Hiding an object that dashboards read".
