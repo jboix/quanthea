@@ -1182,7 +1182,7 @@ evaluations in a row (`failuresBeforeError`) is in error. One failure is a blip 
 A notification is the shared contract (`Notification`): the version's message template and the
 values filled from the series. The evaluator hands it to an injected
 `notify(channelIds, notification): Promise<unknown>`, which the bootstrap wires to the
-notification channels' `send` (it never throws). A failing sender is logged and does not stop the
+notification channels' `send` (it never throws), and a keep-alive to `keepAlive`, wired to theirs. A failing sender is logged and does not stop the
 other notifications.
 
 **Replay** (`alerts/replay.ts`, `alerts/replay-core.ts`) answers "how would this have fired over
@@ -1195,7 +1195,10 @@ last step looks back to. Two queries of the usual length stay within what a sour
 one over both would pass Prometheus' limit of points. The two results are read as one stretch of
 time, and each step takes from it the window a period back, or the baseline before its window,
 through running sums (`baselineReader`), so a week of steps does not add a week of points each. A
-time bucket cut by the boundary between the two queries comes back from each as a part. For each
+time bucket cut by the boundary between the two queries comes back from each as a part. The
+series are those of the replay's own span, at most `value.maxSeries`: a series only the time before
+has takes no place under the cap. The history of an evaluation is read the same way, under no cap
+of its own, and each series of the window takes its history by key. For each
 series it returns the value at each step, with the readings beside it when they say more than the
 value, the firing periods (the last
 one marked ongoing when it still fired at the end), the number of firings, the total firing time

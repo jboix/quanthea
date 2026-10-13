@@ -8,7 +8,7 @@
 import { type AlertReplay, type AlertSpec, durationMs, type Frame } from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
 import { historyBefore, rangedQuery } from './history.ts';
-import { measure } from './measure.ts';
+import { type Measured, measure } from './measure.ts';
 import { type ReplayedSeries, replaySeries } from './replay-core.ts';
 import { type AlertQueryDependencies, runAlertQuery, runDivisorQuery } from './run-query.ts';
 
@@ -20,6 +20,14 @@ export interface ReplayRequest {
   readonly to: number;
   /** The time between evaluations, such as `5m`; the spec's `every` when left out. */
   readonly step?: string | undefined;
+}
+
+/** The frames a replay reads of its query. */
+interface ReplayFrames {
+  /** Those of the span of its steps' windows. */
+  readonly span: readonly Frame[];
+  /** Those of the span before it, for a condition that reads history; none otherwise. */
+  readonly before: readonly Frame[];
 }
 
 /** The longest window a replay covers: 31 days. */
@@ -70,7 +78,7 @@ function stepOf(spec: AlertSpec, request: ReplayRequest): number {
  * @param spec - The spec.
  * @param span - The span of the steps' windows.
  * @param step - The step, as a duration.
- * @returns The frames, those of the earlier span first.
+ * @returns The frames of the span, and those of the span before it, read first.
  * @throws {AppError} `source_failed` when a query fails.
  */
 async function readFrames(
@@ -78,16 +86,39 @@ async function readFrames(
   spec: AlertSpec,
   span: { readonly from: number; readonly to: number },
   step: string,
-): Promise<readonly Frame[]> {
+): Promise<ReplayFrames> {
   const query = rangedQuery(spec.query, step);
   const before = historyBefore(spec, span);
-  const frames: Frame[] = [];
+  const read: Frame[][] = [];
   for (const range of before ? [before, span] : [span]) {
     const outcome = await runAlertQuery(dependencies, spec, range, query);
     if ('error' in outcome) throw new AppError('source_failed', outcome.error);
-    frames.push(...outcome.frames);
+    read.push([...outcome.frames]);
   }
-  return frames;
+  return { span: read.at(-1) ?? [], before: before ? (read[0] ?? []) : [] };
+}
+
+/**
+ * Reads the series of a replay. They are the series of its own span, at most `value.maxSeries`;
+ * the span before it only adds the history of those. A series that only the time before has
+ * takes no place under the cap, as it takes none in an evaluation.
+ *
+ * @param spec - The spec.
+ * @param frames - The frames of the span and of the span before it.
+ * @param divisor - The frames of the second query, for a ratio.
+ * @returns The series of the span, with their points over both spans.
+ */
+function measureReplay(
+  spec: AlertSpec,
+  frames: ReplayFrames,
+  divisor: readonly Frame[] | undefined,
+): Measured {
+  const own = measure(frames.span, spec, undefined, divisor);
+  if (frames.before.length === 0) return own;
+  const uncapped = { ...spec, value: { ...spec.value, maxSeries: Number.MAX_SAFE_INTEGER } };
+  const whole = measure([...frames.before, ...frames.span], uncapped, undefined, divisor);
+  const kept = new Set(own.series.map((each) => each.key));
+  return { ...own, series: whole.series.filter((each) => kept.has(each.key)) };
 }
 
 /**
@@ -161,10 +192,11 @@ export async function replayAlert(
   const span = { from: request.from - reach, to: request.to };
   const step = request.step ?? spec.every;
   const frames = await readFrames(dependencies, spec, span, step);
-  if (!timed(frames)) return { replayable: false, reason: noTimeReason };
+  if (!timed([...frames.before, ...frames.span]))
+    return { replayable: false, reason: noTimeReason };
   const divisor = await readDivisor(dependencies, spec, span, step);
   if (!timed(divisor ?? [])) return { replayable: false, reason: noDivisorTimeReason };
-  const measured = measure(frames, spec, undefined, divisor);
+  const measured = measureReplay(spec, frames, divisor);
   if (measured.failure !== undefined) return { replayable: false, reason: measured.failure };
   const window = { from: request.from, to: request.to, stepMs };
   const series = withinBudget(replaySeries(spec, measured, window));

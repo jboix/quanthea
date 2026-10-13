@@ -189,7 +189,9 @@ function fieldColumns(
 }
 
 /**
- * The points the measures read of the time before the window, by measure and series key.
+ * The points the measures read of the time before the window, by measure and series key. Every
+ * series of the history result is read, under no cap: the window's series take theirs by key, and
+ * a cap by key order would leave the later ones without history, and so without a verdict.
  *
  * @param frames - The frames of the history query, if one ran.
  * @param spec - The spec.
@@ -204,7 +206,7 @@ function historyColumns(
   if (!frames) return measures.map(() => undefined);
   const columns = fieldColumns(
     frames,
-    { ...spec, value: { ...spec.value, maxSeries: 1000 } },
+    { ...spec, value: { ...spec.value, maxSeries: Number.MAX_SAFE_INTEGER } },
     measures,
   );
   return measures.map((each, index) => (each.history ? columns[index]?.points : undefined));

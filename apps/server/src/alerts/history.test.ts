@@ -141,6 +141,16 @@ describe('a comparison with the past', () => {
     expect(observed(subject, now, [])).toMatchObject({ holds: false });
   });
 
+  test('finds the history of a series however many series the past has before it', () => {
+    const then = [seriesFrame(checkout, [[0, 100]])];
+    for (let index = 0; index < 1001; index += 1)
+      then.push(seriesFrame({ service: `a${String(index).padStart(4, '0')}` }, [[0, 1]]));
+    expect(observed(subject, now, then)).toMatchObject({
+      holds: true,
+      readings: [{ value: 130, reference: 100 }],
+    });
+  });
+
   test('leaves a series that is only in the past out of the result', () => {
     const gone = [seriesFrame({ service: 'legacy' }, [[0, 1]])];
     const { series } = observe(subject, { frames: now, history: gone }, none);
@@ -267,6 +277,20 @@ describe('replaying a condition that reads history', () => {
     const replay = await replayAlert(engine, subject, { from: 2 * hour, to: 3 * hour });
     if (!replay.replayable) throw new Error('not replayable');
     expect(replay.series.map((each) => each.key)).toEqual(['{service="checkout"}']);
+  });
+
+  test('gives a series of the time before no place under the cap of series', async () => {
+    const subject = spec({ condition: outsideBand, value: { maxSeries: 1 } });
+    const engine = fakeEngine(({ timeRange }) =>
+      timeRange.to.getTime() < 2 * hour - 10 * minute
+        ? [minutes(40, 109, () => 1, { service: 'a-legacy' }), minutes(40, 109, () => 1)]
+        : [minutes(110, 180, (at) => (at >= 150 ? 9 : 1))],
+    );
+    const replay = await replayAlert(engine, subject, { from: 2 * hour, to: 3 * hour });
+    if (!replay.replayable) throw new Error('not replayable');
+    expect(replay.truncated).toBe(false);
+    expect(replay.series.map((each) => each.key)).toEqual(['{service="checkout"}']);
+    expect(replay.series[0]?.firing[0]).toMatchObject({ from: 150 * minute });
   });
 
   test('gives each step what an evaluation then would have read', async () => {
