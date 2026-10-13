@@ -2689,8 +2689,9 @@ the connector shows and a version that changes with its settings).
 
      One read statement can still call a function that reaches past its tables, which a read-only
      transaction does not stop, so the binder refuses the ones each source ships
-     (`query/sql-reach.ts`), by name, bare, quoted or qualified, and a function named with
-     Unicode escapes (`U&"…"(`):
+     (`query/sql-reach.ts`), by name, bare, quoted or qualified. A name written with Unicode
+     escapes (`U&"…"`, with or without `UESCAPE`) is refused wherever it stands, outside MySQL,
+     since the server decodes it before any list could match it:
 
      - `postgres`: the server's files (`pg_read_file`, `pg_read_binary_file`, `pg_ls_*dir`,
        `pg_stat_file`, `pg_file_*`, `lo_import`, `lo_export`), another server (`dblink*`), text run

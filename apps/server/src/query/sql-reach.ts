@@ -103,17 +103,20 @@ function isCall(tokens: readonly SqlToken[], index: number): boolean {
 }
 
 /**
- * Refuses a function named with Unicode escapes, `U&"…"(`, whose name the lists would not match.
+ * Refuses an identifier written with Unicode escapes, `U&"…"`, wherever it stands. The server
+ * decodes it before it parses, with the character a later `UESCAPE '…'` names, so the lists would
+ * not match the name it calls. MySQL has no such spelling: there `u & \`x\`` is arithmetic.
  *
  * @param tokens - The statement's tokens.
- * @param index - The index of the function's name.
+ * @param index - The index of the token after `U&`.
+ * @param dialect - The dialect's name.
  * @throws {QueryError} `invalid` for such a name.
  */
-function refuseEscapedName(tokens: readonly SqlToken[], index: number): void {
+function refuseEscapedName(tokens: readonly SqlToken[], index: number, dialect: string): void {
   const [letter, mark] = [tokens[index - 2], tokens[index - 1]];
-  if (tokens[index]?.kind !== 'name' || mark?.text !== '&') return;
+  if (dialect === 'mysql' || tokens[index]?.kind !== 'name' || mark?.text !== '&') return;
   if (letter?.kind === 'word' && letter.text === 'u')
-    throw new QueryError('invalid', 'Write a function name as it is, without Unicode escapes.');
+    throw new QueryError('invalid', 'Write a name as it is, without Unicode escapes (U&"…").');
 }
 
 /**
@@ -144,7 +147,6 @@ function refusePassThrough(tokens: readonly SqlToken[], index: number): void {
  * @throws {QueryError} `invalid` for a refused function.
  */
 function checkCall(tokens: readonly SqlToken[], index: number, dialect: string): void {
-  refuseEscapedName(tokens, index);
   if (dialect === 'trino') refusePassThrough(tokens, index);
   const name = tokens[index]?.text.toLowerCase() ?? '';
   const refusal = (refusalsByDialect[dialect] ?? []).find(({ names }) => names.test(name));
@@ -163,6 +165,7 @@ export function checkSqlReach(text: string, flavor: SqlFlavor): void {
   const dialect = typeof flavor === 'string' ? flavor : flavor.dialect;
   const tokens = sqlTokens(text, flavor);
   for (let index = 0; index < tokens.length; index += 1) {
+    refuseEscapedName(tokens, index, dialect);
     if (isCall(tokens, index)) checkCall(tokens, index, dialect);
   }
 }

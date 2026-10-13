@@ -65,6 +65,8 @@ describe('what one PostgreSQL read statement cannot reach', () => {
       "SELECT pg_read_file /* a comment */ ('/etc/passwd')",
       "SELECT pg_read_file\n-- a comment\n('/etc/passwd')",
       'SELECT U&"pg\\005Fread\\005Ffile"(\'/etc/passwd\')',
+      "SELECT U&\"pg!005Fread_file\" UESCAPE '!' ('/etc/passwd')",
+      "SELECT u&\"set!005Fconfig\" uescape '!'('statement_timeout', '0', false)",
       "SELECT x FROM (SELECT pg_read_file('/etc/passwd') AS x) AS t",
       "WITH t AS (SELECT lo_import('/etc/passwd')) SELECT * FROM t",
     ]);
