@@ -118,10 +118,26 @@ describe('instructionsFor', () => {
       '- percentiles over time (long): latency; else raw: a series per percentile',
     );
     expect(text).toContain('- one number (single): sql-stat; else raw: one row, "instant"');
-    // A row none of whose builders is offered is left out, and so is a builder not offered.
-    expect(text).not.toContain('how a number spreads');
-    expect(text).not.toContain('the latest rows');
+    // A row none of whose builders is offered keeps its raw hint, without a builder not offered.
+    expect(text).toContain('- how a number spreads (long): raw: a count per bin\n');
+    expect(text).toContain('- the latest rows (rows): raw: newest first\n');
+    expect(text).toContain('- a share of a total (long): raw: matching over all, from 0 to 1\n');
     expect(text).not.toContain('search-series');
+    // A run on metrics alone still reads how to get one number.
+    const metrics = instructionsFor({
+      ...ready,
+      languages: ['promql'],
+      queries: { builtIn: ['rate'], saved: [] },
+    });
+    expect(metrics).toContain('- one number (single): raw: one row, "instant" in PromQL\n');
+    // A share as one value is said where the ratio builders are.
+    const ratios = instructionsFor({
+      ...ready,
+      queries: { builtIn: ['ratio', 'sql-ratio', 'sql-stat'], saved: [] },
+    });
+    expect(ratios).toContain(
+      '- a share of a total (long): ratio, sql-ratio; one value (single) with "over": "range", where the builder takes it\n',
+    );
     expect(text).not.toContain('Prefer builders');
     const none = instructionsFor({ ...ready, queries: { builtIn: [], saved: [] } });
     expect(none).not.toContain('By what the panel shows');

@@ -20,6 +20,8 @@ export interface Choice {
   readonly builders: Partial<Record<BuilderLanguage, string>>;
   /** What a raw query returns for it, where no builder fits. */
   readonly otherwise: string;
+  /** What else its builders give, said after them. */
+  readonly also?: string;
 }
 
 /** The choices, from the most asked for. */
@@ -59,6 +61,7 @@ export const choices: readonly Choice[] = [
       mongodb: 'mongodb-ratio',
     },
     otherwise: 'matching over all, from 0 to 1',
+    also: 'one value (single) with "over": "range", where the builder takes it',
   },
   {
     want: 'percentiles over time',
@@ -115,25 +118,28 @@ export const choices: readonly Choice[] = [
 
 /**
  * One choice as the guide writes it: its builders among those offered, and what a raw query
- * returns when a language in use that has builders offers none for it.
+ * returns when a language in use that has builders offers none for it. A choice none of whose
+ * builders is offered keeps its line, as a raw query, so its hint is not lost.
  *
  * @param choice - The choice.
  * @param offered - The builders the thread may use.
  * @param languages - The query languages of the connectors in use.
- * @returns Such as `- one number (single): sql-stat; else raw: one row`, or nothing when no
- *   builder of the choice is offered.
+ * @returns Such as `- one number (single): sql-stat; else raw: one row`, or
+ *   `- how a number spreads (long): raw: a count per bin`.
  */
 function choiceLine(
   choice: Choice,
   offered: readonly string[],
   languages: readonly QueryLanguage[],
-): string[] {
+): string {
   const inUse = builderLanguages.filter((language) => languages.includes(language));
   const fits = (language: BuilderLanguage) => offered.includes(choice.builders[language] ?? '');
   const ids = builderLanguages.filter(fits).map((language) => choice.builders[language]);
-  if (ids.length === 0) return [];
+  const head = `- ${choice.want} (${choice.shape}):`;
+  if (ids.length === 0) return `${head} raw: ${choice.otherwise}`;
+  const also = choice.also ? `; ${choice.also}` : '';
   const raw = inUse.every(fits) ? '' : `; else raw: ${choice.otherwise}`;
-  return [`- ${choice.want} (${choice.shape}): ${ids.join(', ')}${raw}`];
+  return `${head} ${ids.join(', ')}${also}${raw}`;
 }
 
 /**
@@ -141,11 +147,14 @@ function choiceLine(
  *
  * @param offered - The builders the thread may use.
  * @param languages - The query languages of the connectors in use.
- * @returns The lines, without the choices none of its builders gives.
+ * @returns A line per choice, or none when the thread may use no builder of any choice: its
+ *   guide then says every panel's data is a raw query.
  */
 export function choiceLines(
   offered: readonly string[],
   languages: readonly QueryLanguage[],
 ): string[] {
-  return choices.flatMap((choice) => choiceLine(choice, offered, languages));
+  const named = choices.flatMap((choice) => Object.values(choice.builders));
+  if (!named.some((id) => offered.includes(id))) return [];
+  return choices.map((choice) => choiceLine(choice, offered, languages));
 }

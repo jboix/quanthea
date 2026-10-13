@@ -1843,8 +1843,9 @@ with the columns each returns, raw and saved queries, the shapes of data, one li
 recipe, and the connector kinds in use. A table (`dashboards/queries/choices.ts`) says which
 builder gives what a panel shows (a count over time, a share, percentiles, a breakdown, one
 number, a spread, the latest rows) in each language, and what a raw query returns where a
-language in use has none. It lists only the builders offered, and leaves out a row none of them
-gives. Only builders and saved queries in a language a
+language in use has none. It lists only the builders offered. A row none of them gives stays as
+a raw query, so a run on metrics alone still reads how to get one number, and the row of shares
+says that a ratio builder over the range gives one value. Only builders and saved queries in a language a
 connector in use speaks are offered, in the guide and in the tool schema (`availableIn`), and the
 raw query syntax covers those languages only. The connectors in use (`agent/in-use.ts`) are those
 the approved plan names and those the draft reads, and every connector while the thread plans. So
