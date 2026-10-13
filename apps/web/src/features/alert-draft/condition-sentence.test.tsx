@@ -67,6 +67,17 @@ const lastWeek = {
 const unusual = { kind: 'band', side: 'either', deviations: 3, baseline: '1d', for: '5m' };
 
 /**
+ * Markup without its tags. It strips until nothing changes, so what is left holds no tag.
+ *
+ * @param html - The markup.
+ * @returns The text.
+ */
+function withoutTags(html: string): string {
+  const stripped = html.replace(/<[^>]*>/g, '');
+  return stripped === html ? html : withoutTags(stripped);
+}
+
+/**
  * The sentence as plain text.
  *
  * @param spec - The spec.
@@ -83,8 +94,7 @@ function sentence(spec: AlertSpec, fixed?: readonly FixedPart[]): string {
       fixed={fixed}
     />,
   );
-  return html
-    .replace(/<[^>]+>/g, '')
+  return withoutTags(html)
     .replace(/&#x27;/g, "'")
     .replace(/\s+/g, ' ');
 }

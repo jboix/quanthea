@@ -32,6 +32,17 @@ function ratioSpec(overrides: Record<string, unknown> = {}): AlertSpec {
 }
 
 /**
+ * Markup without its tags. It strips until nothing changes, so what is left holds no tag.
+ *
+ * @param html - The markup.
+ * @returns The text.
+ */
+function withoutTags(html: string): string {
+  const stripped = html.replace(/<[^>]*>/g, '');
+  return stripped === html ? html : withoutTags(stripped);
+}
+
+/**
  * The sentence as plain text.
  *
  * @param spec - The spec.
@@ -48,7 +59,7 @@ function sentence(spec: AlertSpec, fixed?: readonly FixedPart[]): string {
       fixed={fixed}
     />,
   );
-  return html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
+  return withoutTags(html).replace(/\s+/g, ' ');
 }
 
 /**

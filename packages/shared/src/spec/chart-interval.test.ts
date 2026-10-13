@@ -72,6 +72,15 @@ describe('a query that follows the interval', () => {
     expect(followsChartInterval({ ...promql, expr: 'up{note="$__interval"}' })).toBe(false);
   });
 
+  test('reads a long expression of quotes that never close in linear time', () => {
+    const promql = { connector: 'prom', language: 'promql' as const, expr: 'up' };
+    const texts = [`"${'\\"'.repeat(100_000)}`, `'${"\\'".repeat(100_000)}`, '`'.repeat(100_001)];
+    const started = performance.now();
+    for (const expr of texts) expect(followsChartInterval({ ...promql, expr })).toBe(false);
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(followsChartInterval({ ...promql, expr: 'up{note="$__interval' })).toBe(false);
+  });
+
   test('is a query that names the interval built-in of its language', () => {
     expect(followsChartInterval(sql('SELECT :__interval AS width'))).toBe(true);
     expect(followsChartInterval(sql('SELECT :__interval_s AS seconds'))).toBe(true);

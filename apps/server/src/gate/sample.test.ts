@@ -132,7 +132,7 @@ const cluster: readonly ResolvedObject[] = [
  * @returns `true` when it does.
  */
 function covers(pattern: string, name: string): boolean {
-  const source = pattern.split('*').map((part) => part.replace(/[.+-]/g, '\\$&'));
+  const source = pattern.split('*').map((part) => part.replace(/[\\^$.*+?()[\]{}|-]/g, '\\$&'));
   return new RegExp(`^${source.join('.*')}$`).test(name);
 }
 

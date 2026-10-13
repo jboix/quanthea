@@ -4,9 +4,13 @@
  * reading aid of those checks, not the binder's lexer: it knows the quotes every dialect shares.
  */
 
-/** A string, a dollar-quoted string, a comment or a quoted identifier, whichever starts first. */
+/**
+ * A string, a dollar-quoted string, a comment or a quoted identifier, whichever starts first. One
+ * that is never closed runs to the end of the text, so the pattern reads each character once: a
+ * long text of opening quotes cannot make it start over at each of them.
+ */
 const literal =
-  /'(?:[^'\\]|\\.|'')*'|\$(\w*)\$[\s\S]*?\$\1\$|--[^\n]*|\/\*[\s\S]*?\*\/|"(?:[^"]|"")*"|`[^`]*`/g;
+  /'(?:[^'\\]|\\(?:[\s\S]|$)|'')*(?:'|$)|\$(\w*)\$[\s\S]*?(?:\$\1\$|$)|--[^\n]*|\/\*[\s\S]*?(?:\*\/|$)|"(?:[^"]|"")*(?:"|$)|`[^`]*(?:`|$)/g;
 
 /**
  * What a literal leaves in the code.

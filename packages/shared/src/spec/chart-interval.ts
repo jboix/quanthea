@@ -74,13 +74,20 @@ const intervalBuiltIns = /__(?:rate_interval|interval_ms|interval_s|interval)\b/
 const stepBuiltIns = /\$\{?__(?:rate_)?interval\b/;
 
 /**
+ * A quoted string of PromQL or LogQL. One that is never closed runs to the end of the text, so the
+ * pattern reads each character once.
+ */
+const quoted =
+  /"(?:[^"\\]|\\(?:[\s\S]|$))*(?:"|$)|'(?:[^'\\]|\\(?:[\s\S]|$))*(?:'|$)|`[^`]*(?:`|$)/g;
+
+/**
  * An expression without its quoted strings, which never hold a built-in.
  *
  * @param expr - A PromQL or LogQL expression.
  * @returns The expression with each string emptied.
  */
 function withoutStrings(expr: string): string {
-  return expr.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`[^`]*`/g, '""');
+  return expr.replace(quoted, '""');
 }
 
 /**
