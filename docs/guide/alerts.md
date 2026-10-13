@@ -42,7 +42,8 @@ The draft pane shows what the alert would have done, before it ever runs:
   change has no fixed line: the dashed line is the value the series must reach to fire, and it
   moves with the series. With several series it is drawn for the one that fired longest. A
   comparison with the past adds a dotted line, the value a week (or a day, or an hour) earlier, and
-  a band is drawn as a shaded range: the series fires where it leaves it.
+  a band is drawn as a shaded range: the series fires where it leaves it. The **$interval** chip
+  chooses how fine the line is drawn: see [the interval of the chart](#the-interval-of-the-chart).
 - **The series**: one per service, host or label value, each with how often it would have fired,
   ten at a time.
 - **Notifies**: the channels, when the alert is quiet and when it may next notify, and a preview
@@ -249,7 +250,7 @@ number of alerts firing.
 ![An alert's page: its state, the replay with the threshold, each series and what happened](../screenshots/alert-dark.webp#gh-dark-mode-only)
 
 - **The chart** replays the shown version over 6 hours, 24 hours or 7 days, with the threshold
-  and the firing periods.
+  and the firing periods. The **$interval** chip chooses how fine the line is drawn.
 - **Series** gives each series' state, value and since when, the worst first and ten at a time.
 - **What happened** lists the changes of state, whether each notified or was held back by quiet
   hours, the times it could not be checked, and who activated, deactivated, muted or unmuted it.
@@ -260,10 +261,35 @@ number of alerts firing.
   hours until 07:00**, and Notifies says when it may next notify.
 - **Shown on** lists the dashboard panels it is linked to.
 
+### The interval of the chart
+
+An alert has two rhythms, and they are not the same thing.
+
+- **How often it is checked** is part of the alert: "checked every minute". Each check runs the
+  query, judges the condition and may notify.
+- **The interval of the chart** is only how the line is drawn. The chart draws one point per
+  interval, the mean of the checks in it: a day by 10 minutes, a week by the hour.
+
+The **$interval** chip on the chart chooses another interval, on the alert's page and in the
+draft pane: `auto`, `every check`, or `5m`, `10m`, `30m`, `1h`, `6h`, `1d`, as far as they suit the
+window and are wider than the time between checks.
+
+- It changes the line and nothing else. The condition, how often the alert is checked, the window
+  of each check and its state stay as they are. No query runs again.
+- The shaded firing periods, the spikes too short to fire and the counts always come from the
+  checks, whatever the interval.
+- So the alert can fire where the line stays under the threshold. A spike of two minutes weighs
+  little in the mean of an hour. Choose **every check** to see what each check saw.
+- Dragging the threshold judges the checks again, not the drawn line.
+
+The sentence under the chart says both: "The chart draws one point per 1h, the mean of the checks
+in it. The alert is still checked every minute: the firing periods come from those checks, not
+from the line."
+
 ### Tune a live alert
 
 The owner of its thread and admins drag the threshold, or change the numbers of the condition, the
-wait or the interval, right on the page. What the alert watches, and how far back a condition
+wait or how often it is checked, right on the page. What the alert watches, and how far back a condition
 looks (the duration of a change, the period it compares with, the baseline of a band), change in
 its conversation. Nothing is saved
 yet: an amber bar says what the change would do ("Not saved: threshold 2% → 2.5%. Last 7 days: would

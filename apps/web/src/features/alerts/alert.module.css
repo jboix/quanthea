@@ -90,6 +90,13 @@
   color: var(--color-ink-secondary);
 }
 
+.chartControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
 .windows {
   display: flex;
   gap: 6px;

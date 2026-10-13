@@ -274,7 +274,9 @@ gate's leak tests check that every one of those paths drops hidden fields.
     dots of the spikes too short to fire, the series list and the summary ("Would have fired 2
     times · 23 minutes in total · 1 spike too short to fire") follow at once. The chart reports
     its axes (`ValueAxis`) so the handle converts pixels to values without ECharts leaving
-    `charts/`;
+    `charts/`. The `$interval` chip in the card's header chooses the interval the lines are
+    drawn at, as on the alert's page, and the sentence under the summary tells it from how often
+    the alert is checked;
   - the series, one alert each, which would have fired and how often;
   - Notifies: the channels, when they hear, when the alert is quiet (below), and a preview per
     channel, drawn roughly as the
@@ -345,10 +347,28 @@ gate's leak tests check that every one of those paths drops hidden fields.
     longest, and the same lines as the draft pane's for a joined condition, a change, a
     comparison with the past and a band. For
     analysts and viewers, and on an alert that is not active, the line under it states the
-    condition, the interval and the window.
+    condition, how often it is checked and the window of each check.
+  - **The interval of the chart** (`alert-draft/drawn-interval.ts`). A replay holds one value per
+    check, `every` apart. The chart draws one point per interval of the closed list
+    (`chartIntervals`), the mean of the checks in it at the mean of their times, cut on the clock
+    in UTC. When nobody chose it is the interval the window takes (`defaultChartInterval`: 6
+    hours by 5 minutes, a day by 10 minutes, a week by the hour), or every check when the checks
+    are no closer than that. The `$interval` chip in the card's header offers `auto`, `every
+    check` and the intervals wider than `every` that cut the window into 2 to 1500 pieces. The
+    lines a condition draws (the limit of a change, the value a period before, the band) are cut
+    the same way, from the mean of the readings. The choice is made in the browser, on the
+    replay it has: nothing is sent, no query runs again and nothing is stored.
+  - **What the interval does not touch.** The firing periods, the spikes too short to fire, the
+    counts and the summary are those of the checks. Judging the replay again under a changed
+    condition (`replayUnder`) reads the checks, never the drawn points. So the alert can fire
+    where the drawn line stays under the threshold: a spike of two minutes weighs little in the
+    mean of an hour. The sentence under the chart says which is which: "The chart draws one
+    point per 1h, the mean of the checks in it. The alert is still checked every minute: the
+    firing periods come from those checks, not from the line."
   - **Hand tuning**, for editors on an active alert. The chart is the draft pane's: the threshold
     has a handle to drag, and the condition under it is the draft pane's sentence, with the
-    numbers of each test, the wait and the interval to change. What a replay must run again for
+    numbers of each test, the wait and how often it is checked to change. What a replay must run
+    again for
     stays as words: what each test watches, the series, and how far back a test looks (the span
     of a change, the period of a comparison with the past, the baseline of a band). A change is
     never applied: the page holds it unsaved (`use-tuning.ts`), the chart

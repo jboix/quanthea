@@ -2,8 +2,11 @@
  * The replay of the draft: the last 24 hours or 7 days as it would have fired, with the threshold
  * as a dashed line a person drags. While it moves, the browser replays the values again with the
  * server's rules, so the shading, the spikes and the summary follow at once; the release saves it.
+ * A chip chooses the interval the lines are drawn at, which changes nothing of the checks.
  */
+import { IntervalChip } from '../dashboard/index.ts';
 import styles from './alert-draft.module.css';
+import { type Drawn, type DrawnOption, drawnNote } from './drawn-interval.ts';
 import { type Replayed, summarize, summaryText } from './replay-model.ts';
 import { TunableChart, type TunableChartProps } from './tunable-chart.tsx';
 
@@ -34,6 +37,7 @@ export function ReplayChart(props: Omit<TunableChartProps, 'label'>) {
       <p className={styles.summary} aria-live="polite">
         <strong>{summaryText(summarize(props.series))}</strong>
       </p>
+      <p className={styles.note}>{drawnNote(props.interval ?? null, props.spec.every)}</p>
     </>
   );
 }
@@ -46,15 +50,43 @@ interface ReplayHeadProps {
   readonly onWindow: (window: DraftWindow) => void;
   /** What the dashed line is: the threshold, or the limit a change must reach; `null` for none. */
   readonly line: string | null;
+  /** How the chart is drawn, once the replay is there. */
+  readonly drawn: Drawn | undefined;
+  /** Chooses the interval the chart is drawn at. */
+  readonly onDrawn: (option: DrawnOption) => void;
 }
 
 /**
- * The replay card's title, legend and window buttons.
+ * The buttons that pick the window of the replay.
  *
- * @param props - The window, its setter and the name of the dashed line.
+ * @param props - The window and its setter.
+ * @returns The buttons.
+ */
+function WindowButtons({ window, onWindow }: Pick<ReplayHeadProps, 'window' | 'onWindow'>) {
+  return (
+    <span className={styles.windows}>
+      {draftWindows.map((each) => (
+        <button
+          key={each}
+          type="button"
+          className={styles.window}
+          aria-pressed={each === window}
+          onClick={() => onWindow(each)}
+        >
+          {each === '7d' ? '7 d' : '24 h'}
+        </button>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * The replay card's title, legend, interval chip and window buttons.
+ *
+ * @param props - The window, its setter, the name of the dashed line and the chart's interval.
  * @returns The header.
  */
-export function ReplayHead({ window, onWindow, line }: ReplayHeadProps) {
+export function ReplayHead({ window, onWindow, line, drawn, onDrawn }: ReplayHeadProps) {
   const words = window === '7d' ? 'The last 7 days' : 'The last 24 hours';
   return (
     <div className={styles.cardHead}>
@@ -74,19 +106,8 @@ export function ReplayHead({ window, onWindow, line }: ReplayHeadProps) {
           <span className={styles.spikeSwatch} />
           too short to fire
         </span>
-        <span className={styles.windows}>
-          {draftWindows.map((each) => (
-            <button
-              key={each}
-              type="button"
-              className={styles.window}
-              aria-pressed={each === window}
-              onClick={() => onWindow(each)}
-            >
-              {each === '7d' ? '7 d' : '24 h'}
-            </button>
-          ))}
-        </span>
+        {drawn && <IntervalChip options={drawn.options} value={drawn.value} onChange={onDrawn} />}
+        <WindowButtons window={window} onWindow={onWindow} />
       </div>
     </div>
   );

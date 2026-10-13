@@ -1,41 +1,39 @@
 /**
  * The choice of the interval a time chart is cut into, on a report's run and on an alert: the
- * options of its chip, and the interval an option stands for. The chip is the dashboard's own, so
- * the choice is written as the variable a dashboard would declare.
+ * options of its chip, and the option a pick stands for. The chip is the dashboard's own, so the
+ * choice is written as the variable a dashboard would declare.
  */
 import { type ChartInterval, chartIntervals, type Variable } from '@quanthea/shared';
 
 /**
- * The variable the chip shows: the choice nobody made, then the intervals to choose from.
+ * The variable the chip shows.
  *
- * @param choices - The intervals that suit the period shown.
- * @param automatic - How the choice nobody made reads, such as `auto` or `as stored`.
- * @returns A variable with those options.
+ * @param options - The choice nobody made, such as `auto` or `as stored`, then the others.
+ * @returns A variable with those options, the first one its default.
  */
-export function intervalVariable(choices: readonly ChartInterval[], automatic: string): Variable {
+export function intervalVariable(options: readonly string[]): Variable {
   return {
     kind: 'custom',
     name: 'interval',
     label: 'Interval of the charts',
-    options: [automatic, ...choices],
-    default: automatic,
+    options: [...options],
+    default: options[0] ?? '',
   };
 }
 
 /**
- * The interval an option of the chip stands for.
+ * The option a pick of the chip stands for.
  *
- * @param option - What the chip gave: an option, or nothing to go back to the default.
- * @param choices - The intervals that suit the period shown.
- * @returns The interval, or `null` for the choice nobody made and for anything else.
+ * @param picked - What the chip gave: an option, or nothing to go back to the default.
+ * @param options - The options offered, the choice nobody made first.
+ * @returns The option, or the first one for nothing and for anything not offered.
  */
-export function pickedInterval(
-  option: string | readonly string[],
-  choices: readonly ChartInterval[],
-): ChartInterval | null {
-  const [value] = [option].flat();
-  const interval = chartIntervals.find((each) => each === value);
-  return interval && choices.includes(interval) ? interval : null;
+export function pickedOption<Option extends string>(
+  picked: string | readonly string[],
+  options: readonly Option[],
+): Option | undefined {
+  const [value] = [picked].flat();
+  return options.find((each) => each === value) ?? options[0];
 }
 
 /**

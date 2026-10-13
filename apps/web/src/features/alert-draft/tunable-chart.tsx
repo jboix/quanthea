@@ -4,12 +4,15 @@
  * right moves it. The saved threshold stays as a faint line once the threshold moved, and the
  * value axis keeps both in view. A change draws the limit the series that fired longest must
  * reach, as a dashed line that moves with it; a comparison with the past draws the value then
- * too, and a band its range. Only the threshold of a threshold condition has a handle. The draft pane and the alert page share it.
+ * too, and a band its range. Only the threshold of a threshold condition has a handle. The lines
+ * are drawn at the chart's interval, the firing periods as the checks gave them. The draft pane
+ * and the alert page share it.
  */
-import { type AlertSpec, alertValueText } from '@quanthea/shared';
+import { type AlertSpec, alertValueText, type ChartInterval } from '@quanthea/shared';
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import type { AlertChartInput, ValueAxis } from '../../charts/index.ts';
 import styles from './alert-draft.module.css';
+import { drawnPoints } from './drawn-interval.ts';
 import { conditionLines, type Replayed, type TrackedSeries } from './replay-model.ts';
 import { ThresholdHandle } from './threshold-handle.tsx';
 
@@ -32,6 +35,8 @@ export interface TunableChartProps {
   readonly drawn: readonly TrackedSeries[];
   /** The threshold a person drags, or `null` for a condition other than a threshold. */
   readonly threshold: number | null;
+  /** The interval the lines are drawn at; every check when `null` or left out. */
+  readonly interval?: ChartInterval | null | undefined;
   /** What the chart shows, for screen readers. */
   readonly label: string;
   /** Whether the threshold can move. */
@@ -53,30 +58,45 @@ export function seriesName(labels: Readonly<Record<string, string>>): string {
   return values.length > 0 ? values.join(', ') : 'all';
 }
 
+/** What of the chart's props says what it draws. */
+type DrawnProps = Pick<
+  TunableChartProps,
+  'replay' | 'spec' | 'shown' | 'series' | 'drawn' | 'threshold' | 'interval'
+>;
+
 /**
- * What the chart draws: the series given, when each series fired at the threshold shown, and the
- * threshold's line where it is shown.
+ * The series the chart draws, at its interval, in the replay's order, so a series keeps its
+ * colour as the threshold moves.
  *
- * @param props - The replay, the saved spec, the series and the threshold shown.
+ * @param props - The replay, the series to draw and the interval.
+ * @returns Each series' name and points.
+ */
+function drawnSeries(props: Pick<DrawnProps, 'replay' | 'drawn' | 'interval'>) {
+  const order = new Map(props.replay.series.map((each, index) => [each.key, index]));
+  return [...props.drawn]
+    .sort((first, second) => (order.get(first.key) ?? 0) - (order.get(second.key) ?? 0))
+    .map((each) => ({
+      name: seriesName(each.labels),
+      points: drawnPoints(each.track.points, props.interval ?? null),
+    }));
+}
+
+/**
+ * What the chart draws: the series given, at the chart's interval, when each series fired at the
+ * threshold shown, and the threshold's line where it is shown.
+ *
+ * @param props - The replay, the saved spec, the series, the threshold shown and the interval.
  * @param format - Writes a value as the alert's format does.
  * @returns The chart's input.
  */
-function chartInput(
-  props: Pick<TunableChartProps, 'replay' | 'spec' | 'shown' | 'series' | 'drawn' | 'threshold'>,
-  format: (value: number) => string,
-): AlertChartInput {
+function chartInput(props: DrawnProps, format: (value: number) => string): AlertChartInput {
   const { replay, spec, series } = props;
   const [lead] = props.drawn;
   const name = lead && props.drawn.length > 1 ? seriesName(lead.labels) : undefined;
-  const points = lead?.track.points ?? [];
+  const points = drawnPoints(lead?.track.points ?? [], props.interval ?? null);
   const lines = conditionLines((props.shown ?? spec).condition, { name, points });
-  // In the replay's order, so a series keeps its colour as the threshold moves.
-  const order = new Map(replay.series.map((each, index) => [each.key, index]));
-  const drawn = [...props.drawn].sort(
-    (first, second) => (order.get(first.key) ?? 0) - (order.get(second.key) ?? 0),
-  );
   return {
-    series: drawn.map((each) => ({ name: seriesName(each.labels), points: each.track.points })),
+    series: drawnSeries(props),
     threshold: conditionLines(spec.condition, undefined).threshold,
     moved: props.threshold ?? lines.threshold,
     handle: props.threshold !== null,
@@ -107,16 +127,16 @@ function useFormat(spec: AlertSpec): (value: number) => string {
  * @returns The chart and its handle.
  */
 export function TunableChart(props: TunableChartProps) {
-  const { replay, spec, shown, series, drawn, threshold } = props;
+  const { replay, spec, shown, series, drawn, threshold, interval } = props;
   const [axis, setAxis] = useState<ValueAxis | undefined>(undefined);
   const drag = useDragStart(props);
   const format = useFormat(spec);
   const input = useMemo(
     () => ({
-      ...chartInput({ replay, spec, shown, series, drawn, threshold }, format),
+      ...chartInput({ replay, spec, shown, series, drawn, threshold, interval }, format),
       axisMoved: drag.start,
     }),
-    [replay, spec, shown, series, drawn, threshold, format, drag.start],
+    [replay, spec, shown, series, drawn, threshold, interval, format, drag.start],
   );
   return (
     <div className={styles.chartBox}>

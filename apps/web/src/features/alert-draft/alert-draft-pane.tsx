@@ -14,6 +14,7 @@ import { TitleHeader } from '../../ui/title-header.tsx';
 import styles from './alert-draft.module.css';
 import { ConditionSentence } from './condition-sentence.tsx';
 import type { AlertDraftData, PreviewOutcome, PreviewRequest } from './data.ts';
+import { type DrawnOption, drawnAt } from './drawn-interval.ts';
 import { Notifies } from './notifies.tsx';
 import {
   byFiring,
@@ -173,7 +174,8 @@ function replayNote(outcome: ReplayOutcome | undefined): string | undefined {
 
 /**
  * The state of a written draft: the window, the replay, the threshold being dragged, the series
- * at that threshold, and a firing to fill the previews and the test with.
+ * at that threshold, the interval the chart is drawn at, and a firing to fill the previews and
+ * the test with.
  *
  * @param draft - The draft.
  * @returns The state.
@@ -182,9 +184,11 @@ function useDraftState(draft: AlertDraftData) {
   const { spec } = draft;
   const [window, setWindow] = useState<DraftWindow>('7d');
   const [dragged, setDragged] = useState<number | null>(null);
+  const [chosen, setChosen] = useState<DrawnOption>('auto');
   const outcome = useReplay(draft, window);
   const replay: Replayed | undefined =
     outcome?.ok && outcome.replay.replayable ? outcome.replay : undefined;
+  const view = { drawn: replay && drawnAt(replay, chosen), onDrawn: setChosen };
   const threshold = dragged ?? (spec.condition.kind === 'threshold' ? spec.condition.value : null);
   const series = useMemo(
     () => (replay ? byFiring(seriesAt(replay, spec, threshold ?? 0)) : []),
@@ -194,7 +198,8 @@ function useDraftState(draft: AlertDraftData) {
   // Undefined while the replay loads; null once it is known there is no firing to show.
   const noSample = outcome ? null : undefined;
   const sample = replay ? sampleFiring(replay) : noSample;
-  return { window, setWindow, setDragged, outcome, replay, threshold, series, drawn, sample };
+  const shown = { window, setWindow, setDragged, outcome, replay, threshold, series, drawn };
+  return { ...shown, sample, view };
 }
 
 /** The pane's props for a written draft. */
@@ -232,7 +237,7 @@ function ReplayCard(props: DraftProps & { readonly state: ReturnType<typeof useD
   };
   return (
     <section className={styles.card} aria-label="Replay">
-      <ReplayHead window={state.window} onWindow={state.setWindow} line={line} />
+      <ReplayHead window={state.window} onWindow={state.setWindow} line={line} {...state.view} />
       {state.replay && note === undefined ? (
         <ReplayChart
           replay={state.replay}
@@ -240,6 +245,7 @@ function ReplayCard(props: DraftProps & { readonly state: ReturnType<typeof useD
           series={state.series}
           drawn={state.drawn}
           threshold={state.threshold}
+          interval={state.view.drawn?.interval}
           disabled={busy}
           onMove={state.setDragged}
           onRelease={release}

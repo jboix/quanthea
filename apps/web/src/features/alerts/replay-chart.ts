@@ -1,7 +1,7 @@
 /** Turns a replay into what the alert's chart draws, and into a line about how often it fired. */
-import type { AlertListItem, AlertReplay } from '@quanthea/shared';
+import type { AlertListItem, AlertReplay, ChartInterval } from '@quanthea/shared';
 import type { AlertChartInput } from '../../charts/index.ts';
-import { conditionLines } from '../alert-draft/index.ts';
+import { conditionLines, drawnPoints } from '../alert-draft/index.ts';
 import { seriesName, valueText } from './words.ts';
 
 /** The most series the chart draws: those that fired longest. */
@@ -11,19 +11,24 @@ export const maxChartSeries = 12;
 type Replayed = Extract<AlertReplay, { replayable: true }>;
 
 /**
- * What the chart draws: the series that fired longest, what the condition compares them against
- * (a threshold, or the limit of a change for the series that fired longest) and every firing
- * period.
+ * What the chart draws: the series that fired longest, at the chart's interval, what the
+ * condition compares them against (a threshold, or the limit of a change for the series that
+ * fired longest) and every firing period, as the checks gave it.
  *
  * @param replay - The replay.
  * @param alert - The alert, for its condition and format.
+ * @param interval - The interval the lines are drawn at, or `null` for every check.
  * @returns The chart's input.
  */
-export function chartInputOf(replay: Replayed, alert: AlertListItem): AlertChartInput {
+export function chartInputOf(
+  replay: Replayed,
+  alert: AlertListItem,
+  interval: ChartInterval | null = null,
+): AlertChartInput {
   const series = [...replay.series]
     .sort((a, b) => b.firingMs - a.firingMs)
     .slice(0, maxChartSeries)
-    .map((each) => ({ name: seriesName(each.labels), points: each.points }));
+    .map((each) => ({ name: seriesName(each.labels), points: drawnPoints(each.points, interval) }));
   const { condition, format } = alert;
   const [lead] = series;
   const named = lead && { ...lead, name: series.length > 1 ? lead.name : undefined };

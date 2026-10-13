@@ -37,6 +37,16 @@ test('the chart draws the series that fired longest first, the threshold and the
   expect(chartInputOf(replay, noData).threshold).toBeNull();
 });
 
+test('the chart draws the mean of the checks of each interval, and the firing periods as they were', () => {
+  const checked = series('checkout', 54 * 60_000, 2);
+  const points = [0, 1, 2, 3].map((minute) => ({ at: minute * 60_000, value: minute }));
+  const fine = { ...replay, series: [{ ...checked, points }] };
+  const input = chartInputOf(fine, listedAlert(), '5m');
+  expect(input.series[0]?.points).toEqual([{ at: 90_000, value: 1.5 }]);
+  expect(input.firing).toEqual(chartInputOf(fine, listedAlert()).firing);
+  expect(chartInputOf(fine, listedAlert()).series[0]?.points).toHaveLength(4);
+});
+
 test('says how often and how long the alert fired over the window', () => {
   expect(firingSummary(replay, '24 h')).toBe('Fired 2 times over the last 24 h, 54 min in all.');
   expect(firingSummary({ ...replay, series: [series('cart', 0, 0)] }, '6 h')).toBe(

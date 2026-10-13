@@ -13,6 +13,7 @@ import {
   changeLimit,
   conditionTests,
   type NotifiedSeries,
+  type ReplayPoint,
   type ReplayTrack,
   replayUnder,
 } from '@quanthea/shared';
@@ -123,8 +124,8 @@ export interface ConditionLines {
 interface LeadSeries {
   /** Its name, written beside the lines when the chart draws several series. */
   readonly name?: string | undefined;
-  /** Its points, with their readings. */
-  readonly points: ReplayTrack['points'];
+  /** Its points, with their readings: the checks, or the points of the chart's interval. */
+  readonly points: readonly ReplayPoint[];
 }
 
 /**

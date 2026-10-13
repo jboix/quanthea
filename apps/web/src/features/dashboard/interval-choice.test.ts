@@ -1,24 +1,26 @@
 import { describe, expect, test } from 'bun:test';
-import { intervalParam, intervalVariable, pickedInterval } from './interval-choice.ts';
+import { intervalParam, intervalVariable, pickedOption } from './interval-choice.ts';
 
 describe('the interval chip', () => {
-  test('offers the choice nobody made first, then the intervals of the period', () => {
-    expect(intervalVariable(['30m', '1h'], 'auto')).toMatchObject({
+  test('offers the choice nobody made first, then the others', () => {
+    expect(intervalVariable(['auto', '30m', '1h'])).toMatchObject({
       name: 'interval',
       options: ['auto', '30m', '1h'],
       default: 'auto',
     });
   });
 
-  test('reads an interval of the period, and nothing for the automatic choice', () => {
-    expect(pickedInterval('1h', ['30m', '1h'])).toBe('1h');
-    expect(pickedInterval('auto', ['30m', '1h'])).toBeNull();
-    expect(pickedInterval([], ['30m', '1h'])).toBeNull();
+  test('reads an option it offers, and the first one for nothing', () => {
+    const options = ['auto', '30m', '1h'] as const;
+    expect(pickedOption('1h', options)).toBe('1h');
+    expect(pickedOption('auto', options)).toBe('auto');
+    expect(pickedOption([], options)).toBe('auto');
   });
 
-  test('never reads an interval the period does not offer, or a duration of its own', () => {
-    expect(pickedInterval('1m', ['30m', '1h'])).toBeNull();
-    expect(pickedInterval('7m', ['30m', '1h'])).toBeNull();
+  test('never reads an interval it does not offer, or a duration of its own', () => {
+    const options = ['as stored', '30m', '1h'] as const;
+    expect(pickedOption('1m', options)).toBe('as stored');
+    expect(pickedOption('7m', options)).toBe('as stored');
   });
 
   test('reads a URL parameter only when it is of the closed list', () => {

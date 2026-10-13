@@ -16,6 +16,12 @@ export {
   loadAlertDraft,
   runAlertIntent,
 } from './data.ts';
+export {
+  type DrawnOption,
+  drawnAt,
+  drawnNote,
+  drawnPoints,
+} from './drawn-interval.ts';
 export { quietHoursWords, quietSummary } from './quiet-hours.ts';
 export {
   asReplayed,

@@ -8,6 +8,9 @@ import { redrawChoices } from './redraw-data.ts';
 import styles from './run.module.css';
 import type { useRedraw } from './use-redraw.ts';
 
+/** The choice nobody made: the charts as the run stored them. */
+const asStored = 'as stored';
+
 /**
  * What the line beside the chip says.
  *
@@ -41,10 +44,9 @@ export function RunInterval({
   return (
     <div className={styles.interval}>
       <IntervalChip
-        choices={choices}
-        value={drawn.interval}
-        automatic="as stored"
-        onChange={drawn.choose}
+        options={[asStored, ...choices]}
+        value={drawn.interval ?? asStored}
+        onChange={(option) => drawn.choose(option === asStored ? null : option)}
       />
       <p className={styles.intervalNote} aria-live="polite">
         {intervalNote(drawn)}
