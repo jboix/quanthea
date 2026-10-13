@@ -147,7 +147,7 @@ export interface Dashboards {
    */
   bindVariables(spec: DashboardSpec, choices: RunChoices, signal?: AbortSignal): Promise<Variables>;
   /**
-   * Validates a spec against the current connectors, without saving it.
+   * Validates a spec that is being written against the current connectors, without saving it.
    *
    * @param spec - The spec, as JSON.
    * @returns The spec with its grid repaired, or the issues.
@@ -257,7 +257,7 @@ function create(
   changeSummary: string | undefined,
   actor: string,
 ): DashboardDetail {
-  const spec = validOrRefuse(context, input);
+  const spec = validOrRefuse(context, input, true);
   const { dashboard, version } = newRows(spec, changeSummary, actor, context.now());
   context.repository.create(dashboard, version);
   const detail = { title: spec.title };
@@ -366,7 +366,8 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
     variableOptions: (target, name, role, signal) =>
       listVariableOptions(context, specOf(context, target, role), name, target, signal),
     bindVariables: (spec, choices, signal) => bindChoices(context, spec, choices, signal),
-    check: (spec) => validateSpec(spec, { lookup: context.lookup, now: context.now() }),
+    check: (spec) =>
+      validateSpec(spec, { lookup: context.lookup, now: context.now(), writing: true }),
     testRun: (spec) => testRunSpec(context, spec),
     addVersion: (id, spec, changeSummary, actor) =>
       addVersion(context, id, spec, changeSummary, actor),

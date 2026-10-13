@@ -53,8 +53,35 @@ export function failuresOf(spec: DashboardSpec, tests: readonly PanelTest[]): Sp
   });
 }
 
+/** A new version: what it holds, what changed and who made it. */
+interface VersionChange {
+  /** The valid spec. */
+  readonly spec: DashboardSpec;
+  /** What changed, in one line. */
+  readonly changeSummary: string;
+  /** Who made the change. */
+  readonly actor: string;
+}
+
 /**
- * Adds a version to a dashboard.
+ * Stores a valid spec as the next version of a dashboard.
+ *
+ * @param context - The service context.
+ * @param id - The dashboard id.
+ * @param change - The spec, what changed and who made the change.
+ * @returns The new version number.
+ */
+function appendVersion(context: ServiceContext, id: string, change: VersionChange): number {
+  const { actor } = change;
+  const version = { id: newId(), dashboardId: id, ...change, pinnedAt: null };
+  const number = context.repository.addVersion({ ...version, createdAt: context.now() });
+  const detail = { version: number };
+  context.audit.append({ actor, action: 'dashboard.version', target: id, detail });
+  return number;
+}
+
+/**
+ * Adds a version to a dashboard from a spec that is being written.
  *
  * @param context - The service context.
  * @param id - The dashboard id.
@@ -72,34 +99,20 @@ export function addVersion(
   actor: string,
 ): number {
   visibleVersion(context, id, 1, 'editor');
-  const spec = validOrRefuse(context, input);
-  const version = {
-    id: newId(),
-    dashboardId: id,
-    spec,
-    changeSummary,
-    pinnedAt: null,
-    actor,
-    createdAt: context.now(),
-  };
-  const number = context.repository.addVersion(version);
-  context.audit.append({
-    actor,
-    action: 'dashboard.version',
-    target: id,
-    detail: { version: number },
-  });
-  return number;
+  const spec = validOrRefuse(context, input, true);
+  return appendVersion(context, id, { spec, changeSummary, actor });
 }
 
 /**
- * Restores an older version as a new one, for Undo.
+ * Restores an older version as a new one, for Undo. The older spec is checked as a stored version
+ * is, so a version that pinned once can always be restored.
  *
  * @param context - The service context.
  * @param id - The dashboard id.
  * @param from - The version to restore.
  * @param actor - Who restores it.
  * @returns The new version number.
+ * @throws {AppError} `not_found` for an unknown version, `bad_request` with the spec's issues.
  */
 export function restoreVersion(
   context: ServiceContext,
@@ -108,5 +121,6 @@ export function restoreVersion(
   actor: string,
 ): number {
   const older = visibleVersion(context, id, from, 'editor');
-  return addVersion(context, id, older.spec, `restored v${from}`, actor);
+  const spec = validOrRefuse(context, older.spec);
+  return appendVersion(context, id, { spec, changeSummary: `restored v${from}`, actor });
 }

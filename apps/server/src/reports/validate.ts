@@ -19,6 +19,8 @@ export interface ReportValidationContext {
   readonly lookup: ConnectorLookup;
   /** The current instant, for the latest period. */
   readonly now: number;
+  /** Whether the spec is being written: the rules for new writes apply only then. */
+  readonly writing?: boolean | undefined;
   /** Whether a notification channel exists; channels are not checked without it. */
   readonly channelExists?: ((channelId: string) => boolean) | undefined;
   /** Whether a dashboard is pinned; links are not checked without it. */

@@ -42,7 +42,8 @@ export function specOf(current: DashboardSpec | undefined, request: EditRequest)
  * @returns The issues, as `path: message`.
  */
 export function issuesOf(spec: DashboardSpec): string[] {
-  const result = validateSpec(spec, { lookup, now: Date.parse('2026-09-29T12:00:00Z') });
+  const now = Date.parse('2026-09-29T12:00:00Z');
+  const result = validateSpec(spec, { lookup, now, writing: true });
   return result.ok ? [] : result.issues.map((issue) => `${issue.path}: ${issue.message}`);
 }
 

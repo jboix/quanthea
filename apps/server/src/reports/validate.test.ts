@@ -30,6 +30,7 @@ function issuePaths(
   context: {
     channelExists?: (id: string) => boolean;
     dashboardPinned?: (id: string) => boolean;
+    writing?: boolean;
   } = {},
   maxRangeDays?: number,
 ): string[] {
@@ -74,5 +75,18 @@ describe('validating a report spec', () => {
     expect(issuePaths(spec, { channelExists: () => true, dashboardPinned: () => true })).toEqual(
       [],
     );
+  });
+
+  test("checks the order of a source's variables when the report is written, not when stored", () => {
+    const sql = 'SELECT name FROM stores WHERE region = :region';
+    const source = { connector: 'orders', language: 'sql', sql };
+    const variables = [
+      { kind: 'query', name: 'store', source, default: 'main' },
+      { kind: 'custom', name: 'region', options: ['eu', 'us'], default: 'eu' },
+    ];
+    expect(issuePaths(salesSpec({ variables }), { writing: true })).toEqual([
+      'variables[0].source.sql',
+    ]);
+    expect(issuePaths(salesSpec({ variables }))).toEqual([]);
   });
 });

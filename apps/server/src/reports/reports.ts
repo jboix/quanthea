@@ -290,7 +290,7 @@ function scheduleMethods(
  * @returns The results, and the run that would follow.
  */
 async function preview(context: ReportsContext, input: unknown): Promise<ReportPreview> {
-  const { spec, periods, execution } = await checkReport(context, input);
+  const { spec, periods, execution } = await checkReport(context, input, true);
   const zone = spec.schedule.timezone;
   const named = (range: { from: number; to: number }) => ({
     ...range,

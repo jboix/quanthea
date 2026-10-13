@@ -72,11 +72,17 @@ export function refuseSpec(message: string, issues: readonly SpecIssue[]): never
  *
  * @param context - The service context.
  * @param input - The spec, as JSON.
+ * @param writing - Whether the spec is being written, and not read from a stored version: the
+ *   rules for new writes apply only then.
  * @returns The valid spec.
  * @throws {AppError} `bad_request` with the issues.
  */
-export function validOrRefuse(context: ServiceContext, input: unknown): DashboardSpec {
-  const result = validateSpec(input, { lookup: context.lookup, now: context.now() });
+export function validOrRefuse(
+  context: ServiceContext,
+  input: unknown,
+  writing = false,
+): DashboardSpec {
+  const result = validateSpec(input, { lookup: context.lookup, now: context.now(), writing });
   if (!result.ok) refuseSpec('The spec is invalid.', result.issues);
   return result.spec;
 }

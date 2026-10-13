@@ -1,7 +1,7 @@
 /**
  * Checks every query in a spec: its connector exists and speaks its language, its variables are
- * declared and in the right places, a variable's source uses only the variables before it, it is
- * a read statement, and the default time range fits the connector's guardrails.
+ * declared and in the right places, it is a read statement, and the default time range fits the
+ * connector's guardrails.
  */
 import type {
   DashboardSpec,
@@ -94,6 +94,18 @@ function sampleBinding(variable: Variable) {
 }
 
 /**
+ * Sample values of every variable a spec declares.
+ *
+ * @param spec - The spec.
+ * @returns The bindings, by variable name.
+ */
+export function sampleVariables(spec: DashboardSpec): Variables {
+  return Object.fromEntries(
+    spec.variables.map((variable) => [variable.name, sampleBinding(variable)]),
+  );
+}
+
+/**
  * Checks that a template binds with the declared variables, and names no object its connector
  * hides.
  *
@@ -171,73 +183,6 @@ function checkDefaultRange(
   });
 }
 
-/** What binding a variable's source needs besides its connector. */
-interface SourceBinding {
-  /** Sample values of every declared variable. */
-  readonly variables: Variables;
-  /** The default time range. */
-  readonly timeRange: ResolvedTimeRange;
-}
-
-/**
- * What to say of a source that uses a variable resolved after it.
- *
- * @param name - The variable the source belongs to.
- * @param used - The variable its source uses.
- * @returns The message, naming both.
- */
-function orderMessage(name: string, used: string): string {
-  const rule = 'A source may use only the variables declared before it.';
-  if (used === name) return `The source of "${name}" uses "${name}" itself. ${rule}`;
-  return `The source of "${name}" uses "${used}", which is declared after it. ${rule} Declare "${used}" before "${name}".`;
-}
-
-/**
- * The connector a query can be bound on.
- *
- * @param located - The query and its path.
- * @param lookup - Finds a connector by name.
- * @returns Its facts, or `undefined` when it is missing, not installed or of another language.
- */
-function boundOn(located: LocatedQuery, lookup: ConnectorLookup): ConnectorFacts | undefined {
-  const connector = lookup(located.query.connector);
-  if (!connector || 'notInstalled' in connector) return undefined;
-  return checkConnector(located, connector).length === 0 ? connector : undefined;
-}
-
-/**
- * Checks a variable's source uses neither its own variable nor one declared after it. Variables
- * are resolved in the order declared, so such a source could never run. A source uses a variable
- * when it binds with every variable and no longer binds without that one. A source with an issue
- * of its own (its connector, an undeclared variable) is left to that issue.
- *
- * @param spec - A spec that passed the schema.
- * @param index - The place of a variable in the spec's variables.
- * @param lookup - Finds a connector by name.
- * @param binding - Sample values of every declared variable, and the default time range.
- * @returns One issue per variable used too early, at the source's text.
- */
-function checkSourceOrder(
-  spec: DashboardSpec,
-  index: number,
-  lookup: ConnectorLookup,
-  binding: SourceBinding,
-): SpecIssue[] {
-  const variable = spec.variables[index];
-  if (variable?.kind !== 'query') return [];
-  const located = { query: variable.source, path: `variables[${index}].source` };
-  const connector = boundOn(located, lookup);
-  if (!connector) return [];
-  const binds = (variables: Variables) =>
-    checkBinding(located, connector, variables, binding.timeRange).length === 0;
-  if (!binds(binding.variables)) return [];
-  const path = `${located.path}.${queryTextKey(variable.source)}`;
-  return spec.variables.slice(index).flatMap(({ name }) => {
-    const { [name]: _without, ...others } = binding.variables;
-    return binds(others) ? [] : [{ path, message: orderMessage(variable.name, name) }];
-  });
-}
-
 /**
  * Checks every query of a spec.
  *
@@ -251,9 +196,7 @@ export function checkQueries(
   lookup: ConnectorLookup,
   timeRange: ResolvedTimeRange,
 ): SpecIssue[] {
-  const variables = Object.fromEntries(
-    spec.variables.map((variable) => [variable.name, sampleBinding(variable)]),
-  );
+  const variables = sampleVariables(spec);
   const used = new Map<string, ConnectorFacts>();
   const issues = queriesOf(spec).flatMap((located) => {
     const connector = lookup(located.query.connector);
@@ -262,8 +205,5 @@ export function checkQueries(
     used.set(located.query.connector, connector);
     return checkBinding(located, connector, variables, timeRange);
   });
-  const order = spec.variables.flatMap((_variable, index) =>
-    checkSourceOrder(spec, index, lookup, { variables, timeRange }),
-  );
-  return [...issues, ...order, ...checkDefaultRange(used, timeRange)];
+  return [...issues, ...checkDefaultRange(used, timeRange)];
 }

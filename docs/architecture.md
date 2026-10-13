@@ -552,8 +552,13 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
    for 60 s by variable, source, the variables before it and the time range as written (`now-6h`),
    so the panels of one dashboard share one load. "All" (`$__all`) and a missing default run the
    variable's source query for the options too. Variables are resolved in the order declared, so
-   a source may use only the variables before it: a spec whose source uses its own variable or a
-   later one is refused when it is validated (`checkQueries`).
+   a source may use only the variables before it: one that uses its own variable or a later one
+   runs without that value, so its options never load. A spec with such a source is refused when
+   it is written, by the agent or by a person who saves it (`checkSourceOrder`, behind the
+   `writing` flag of `validateSpec`). A stored version is not checked for it: with a default, the
+   variable binds without its source, so the version draws, and it still pins, restores and
+   copies. The same holds for a report: its saves and previews check the order, an activation and
+   a test send of a stored version do not.
 5. Each query goes to `query/`, which binds it, applies the connector's guardrails, runs it with a
    timeout and caches the frames for 15 s by connector, bound query and time range. The chart's
    markers run their annotation queries the same way, with the same variables, and come back, per

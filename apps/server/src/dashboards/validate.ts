@@ -13,6 +13,7 @@ import {
 import { checkOption } from './check-option.ts';
 import { type ConnectorLookup, checkQueries } from './check-queries.ts';
 import { checkReferences } from './check-references.ts';
+import { checkSourceOrder } from './check-source-order.ts';
 import { pathOf, type SpecIssue } from './issues.ts';
 
 /** What validation needs besides the spec. */
@@ -21,6 +22,12 @@ export interface ValidationContext {
   readonly lookup: ConnectorLookup;
   /** The current instant, for relative default times. */
   readonly now: number;
+  /**
+   * Whether the spec is being written, by the agent or by a person who saves it. The rules that
+   * came after dashboards were stored apply only then, so a stored version still pins, restores
+   * and copies: today, the order of the variables a source uses.
+   */
+  readonly writing?: boolean | undefined;
 }
 
 /** The outcome of validation: a clean spec, or the issues. */
@@ -94,6 +101,7 @@ export function validateSpec(input: unknown, context: ValidationContext): Valida
     ...checkReferences(spec),
     ...checkOptions(spec),
     ...checkQueries(spec, context.lookup, timeRange),
+    ...(context.writing ? checkSourceOrder(spec, context.lookup, timeRange) : []),
   ];
   if (issues.length > 0) return { ok: false, issues };
   return { ok: true, spec: { ...spec, panels: packGrid(spec.panels) } };

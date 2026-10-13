@@ -38,12 +38,14 @@ export interface ReportCheck {
  * What validation needs: the connectors, the clock, the channels and the pinned dashboards.
  *
  * @param context - The service context.
+ * @param writing - Whether the spec is being written, and not read from a stored version.
  * @returns The validation context.
  */
-function validationOf(context: ReportsContext): ReportValidationContext {
+function validationOf(context: ReportsContext, writing: boolean): ReportValidationContext {
   return {
     lookup: context.lookup,
     now: context.now(),
+    writing,
     channelExists: context.channelExists,
     dashboardPinned: (id) => Boolean(context.dashboard(id)?.pinnedVersionId),
   };
@@ -54,11 +56,13 @@ function validationOf(context: ReportsContext): ReportValidationContext {
  *
  * @param context - The service context.
  * @param input - The spec, as JSON.
+ * @param writing - Whether the spec is being written, and not read from a stored version: the
+ *   rules for new writes apply only then.
  * @returns The valid spec.
  * @throws {AppError} `bad_request` with the issues.
  */
-export function validReport(context: ReportsContext, input: unknown): ReportSpec {
-  const validation = validateReportSpec(input, validationOf(context));
+function validReport(context: ReportsContext, input: unknown, writing: boolean): ReportSpec {
+  const validation = validateReportSpec(input, validationOf(context, writing));
   if (!validation.ok) refuseSpec('The report spec is invalid.', validation.issues);
   return validation.spec;
 }
@@ -68,11 +72,16 @@ export function validReport(context: ReportsContext, input: unknown): ReportSpec
  *
  * @param context - The service context.
  * @param input - The spec, as JSON.
+ * @param writing - Whether the spec is being written, and not read from a stored version.
  * @returns The spec, the periods and the results.
  * @throws {AppError} `bad_request` with the issues of an invalid spec.
  */
-export async function checkReport(context: ReportsContext, input: unknown): Promise<ReportCheck> {
-  const spec = validReport(context, input);
+export async function checkReport(
+  context: ReportsContext,
+  input: unknown,
+  writing = false,
+): Promise<ReportCheck> {
+  const spec = validReport(context, input, writing);
   const periods = periodsAt(spec, context.now());
   const runner = { openSource: context.openSource, executor: context.executor, now: context.now };
   const execution = await executeReport(runner, spec, periods.period, periods.comparison);
@@ -94,7 +103,7 @@ export function saveVersion(
   actor: string,
 ): { reportId: string; version: number } {
   if (input.reportId !== undefined) reportOrThrow(context, input.reportId);
-  const spec = validReport(context, input.spec);
+  const spec = validReport(context, input.spec, true);
   const reportId = input.reportId ?? newId();
   const row = { reportId, title: spec.title, spec, note: input.note ?? null, createdBy: actor };
   const version = context.repository.addVersion(

@@ -125,7 +125,7 @@ type Spec = ReturnType<typeof validSpec> & Record<string, unknown>;
 function issuesAfter(change: (spec: Spec) => void): string[] {
   const spec = validSpec() as Spec;
   change(spec);
-  const result = validateSpec(spec, { lookup, now: now });
+  const result = validateSpec(spec, { lookup, now: now, writing: true });
   return result.ok ? [] : result.issues.map((issue) => `${issue.path}: ${issue.message}`);
 }
 

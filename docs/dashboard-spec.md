@@ -218,8 +218,10 @@ The Zod schema catches shape errors. `dashboards/validate` (`validateSpec`) also
   misplaced variable, a multi-value variable where one value fits (`env="$services"`), or a SQL
   template that is not one read statement are all reported when the spec is saved;
 - a query-backed variable's `source` uses only the variables declared before it. Variables are
-  resolved in the order declared, so a source that uses its own variable or a later one is
-  refused, with a message that names both;
+  resolved in the order declared, so a source that uses its own variable or a later one runs
+  without that value and its options never load. It is refused when the spec is written, with a
+  message that names both. A version stored before this check still pins, restores and copies:
+  with a default, its variable binds without the source;
 - `refId`s are unique within a panel, and every `ref` in a view points at one of them;
 - panel, annotation and variable names are unique, and chart `markers` name an annotation;
 - a variable's default is among its options, and a text variable's pattern compiles and matches
