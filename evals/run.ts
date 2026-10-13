@@ -1,6 +1,6 @@
 /**
- * `bun run evals`: asks the agent each question against the dev data and scores what it builds.
- * It needs the data sources (`bun run env:up`, and `bun run env:up:search` with `--search`) and the
+ * `bun run evals`: runs the eval cases against the dev data and scores what the agent makes. It
+ * needs the data sources (`bun run env:up`, and `bun run env:up:search` with `--search`) and the
  * provider's key, except for what the response cache already holds. It is never part of
  * `bun run verify`.
  */
@@ -9,73 +9,38 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { staleDataReason } from '@quanthea/dev/freshness.ts';
 import { waitForFirstScrape } from '@quanthea/server/src/connectors/_shared/test/dev-sources.ts';
-import { type AlertCase, alertCases, selectAlertCases } from './alert-cases.ts';
-import { type AlertBench, driveAlert } from './alert-drive.ts';
-import { type AnswerCase, answerCases, needsSearch, selectAnswerCases } from './answer-cases.ts';
-import { type AnswerBench, driveAnswer, openBench } from './answer-drive.ts';
-import { drive } from './drive.ts';
-import { writeEvalmark } from './evalmark.ts';
-import { type Need, type ParityCase, parityCases, parityWord } from './parity-cases.ts';
-import { parityPlanOf, type Skipped, skippedLine } from './parity-score.ts';
-import { apiKeyOf, keyVariableOf, providerOf, suggestedModels } from './providers.ts';
-import { selectQuestions } from './questions.ts';
-import { htmlReport, markdownReport } from './render.ts';
+import { defaultCases, namedCases } from './cases/index.ts';
+import { parityWord } from './cases/parity.ts';
+import type { EvalCase } from './core/case.ts';
+import { type CaseResult, caseStatus, type TrialResult } from './core/result.ts';
+import { type RunSetup, runCase } from './core/runner.ts';
+import { planCases, selectCases, skippedLine } from './core/select.ts';
+import { record } from './fixtures/record.ts';
+import { calibrate, judgeSaved } from './judge/commands.ts';
+import type { Judge } from './judge/judge.ts';
+import { defaultJudge, type LiveJudge, openLiveJudge } from './judge/live.ts';
+import { judgePromptVersion } from './judge/prompt.ts';
+import { writeEvalmark } from './report/evalmark.ts';
+import { htmlReport, markdownReport } from './report/render.ts';
+import { type Report, readReport, rescore, statusWord, writeReport } from './report/report.ts';
+import { comparison, summary } from './report/summary.ts';
+import { knownUnstable, observed, readBook, writeBook } from './report/unstable.ts';
+import { usage } from './usage.ts';
 import {
-  comparison,
-  type EvalOutcome,
-  type Report,
-  readReport,
-  scoreAll,
-  summary,
-  writeReport,
-} from './report.ts';
-import { type AnyReportCase, reportCases, selectReportCases } from './report-cases.ts';
-import { driveReport, type ReportBench } from './report-drive.ts';
-import { driveRunAnswer } from './run-answer-drive.ts';
-import { type EvalModels, type EvalWorld, openWorld, waitForEvents } from './setup.ts';
-
-/** What `--help` prints. */
-const usage = `Asks the agent each question against the dev data, and scores what it builds. Then
-asks the dashboard answering service the answer cases (a1 to a4) on the pinned checkout incident
-dashboard, and with --search a5 on the player events, and scores its answers and explanations. Then drives the alert cases (al1 to al9)
-through alert threads, and scores the alerts saved: their replay over the incident (al1 to al4),
-and the kind and the values of their condition (al5 to al9). Last, drives
-the report cases (r1, r2) through a report thread, runs the report and checks its numbers against
-the database, and asks about that run (r3, r4).
-
-  bun run evals                         every question and case, on Gemini: gemini-3.5-flash-lite
-                                        talks, gemini-3.8-flash builds
-  bun run evals --provider anthropic    on Anthropic: claude-haiku-4-5 talks, claude-sonnet-5 builds
-  bun run evals --only q3,q7            only these questions
-  bun run evals --only a1,a2,a3,a4      only the answer cases
-  bun run evals --only al1,al2,al3,al4  only the alert cases
-  bun run evals --only al5,al6,al7,al8,al9  only the cases of the kinds of condition
-  bun run evals --only r1,r2,r3,r4      only the report cases
-  bun run evals --model gemini-3.8-flash
-  bun run evals --build-model gemini-3.8-flash   another model for building and repairs
-  bun run evals --search                with the dev OpenSearch as a third connector
-  bun run evals --only parity --search  the parity questions (f01 to f33), one per family of
-                                        panels on the player events; or --only f05,f11
-  bun run evals --no-cache              ask the provider again, and keep its answers
-  bun run evals --allow-failures 2      exit with an error when more than 2 questions fail
-  bun run evals --rescore <report.json> score a report again, with no model call
-  bun run evals --compare <a.json> <b.json>
-
-It needs the data sources (bun run env:up, and bun run env:up:search with --search) and the
-provider's key, GEMINI_API_KEY or ANTHROPIC_API_KEY, except for the responses the
-cache in evals/.cache already holds. A run with --search lists one connector more in every
-prompt, so it shares no cached response with a run without it. Reports go to evals/reports, as JSON and as an HTML page;
-in GitHub Actions the summary also goes to the job's summary page. It exits with an error when
-more questions fail than --allow-failures allows; without it, failing questions are reported,
-never an error. The parity questions run only when --only names them, and need --search. One that
-needs what the world lacks, such as an HTTP connector, is skipped and reported as skipped.
-`;
-
-/** What the world has of what a parity question may need: nothing yet. */
-const worldHas: readonly Need[] = [];
+  apiKeyOf,
+  type EvalProvider,
+  keyVariableOf,
+  providerOf,
+  suggestedModels,
+} from './world/providers.ts';
+import { type EvalModels, evalsNow, waitForEvents } from './world/setup.ts';
 
 const here = import.meta.dir;
 const reportsDir = join(here, 'reports');
+const bookPath = join(here, 'unstable.json');
+
+/** The most calls to the judge's model in a run. */
+const judgeBudget = 300;
 
 /**
  * Reads the flags.
@@ -84,20 +49,33 @@ const reportsDir = join(here, 'reports');
  */
 function readFlags() {
   const text = { type: 'string' } as const;
+  const yes = { type: 'boolean' } as const;
   const options = {
     only: text,
     provider: text,
     model: text,
     'build-model': text,
-    search: { type: 'boolean' },
-    'no-cache': { type: 'boolean' },
+    search: yes,
+    trials: text,
+    sample: text,
+    'no-judge': yes,
+    'judge-provider': text,
+    'judge-model': text,
+    'no-cache': yes,
     'allow-failures': text,
     rescore: text,
-    compare: { type: 'boolean' },
-    help: { type: 'boolean' },
+    compare: yes,
+    judge: text,
+    twice: yes,
+    calibrate: yes,
+    record: text,
+    help: yes,
   } as const;
   return parseArgs({ args: process.argv.slice(2), options, allowPositionals: true });
 }
+
+/** The flags, as read. */
+type Flags = ReturnType<typeof readFlags>['values'];
 
 /**
  * Keeps a report: JSON to score again, an HTML page to read, the evalmark result the Evals
@@ -117,19 +95,19 @@ function publish(report: Report): string {
 }
 
 /**
- * The exit code for a report: an error when more questions fail than allowed. Without a limit,
- * failing questions are what the report shows, never an error: a model's answers vary.
+ * The exit code for a report: an error when more cases fail than allowed. Without a limit,
+ * failing cases are what the report shows, never an error: a model's answers vary.
  *
  * @param report - The report.
- * @param allowed - How many questions may fail, or `undefined` for no limit.
+ * @param allowed - How many cases may fail, or `undefined` for no limit.
  * @returns The exit code.
  */
 function exitCodeOf(report: Report, allowed: number | undefined): number {
   if (allowed === undefined) return 0;
-  const failed = report.results.filter((result) => !result.score.pass).length;
+  const failed = report.results.filter((result) => caseStatus(result) === 'fail').length;
   if (failed <= allowed) return 0;
   process.stderr.write(
-    `${failed} ${failed === 1 ? 'question fails' : 'questions fail'}, more than the ${allowed} allowed.\n`,
+    `${failed} ${failed === 1 ? 'case fails' : 'cases fail'}, more than the ${allowed} allowed.\n`,
   );
   return 1;
 }
@@ -152,140 +130,12 @@ async function checkSources(search: boolean): Promise<void> {
 }
 
 /**
- * Keeps an outcome and prints its verdict.
- *
- * @param outcomes - The outcomes so far.
- * @param outcome - The new one.
- */
-function keep(outcomes: EvalOutcome[], outcome: EvalOutcome): void {
-  outcomes.push(outcome);
-  const [result] = scoreAll([outcome]);
-  process.stdout.write(`${outcome.id}: ${result?.score.pass ? 'pass' : 'FAIL'}\n`);
-}
-
-/**
- * The answer cases a run asks: those `--only` keeps, without the ones about the dev OpenSearch
- * when the world has no search connector. It says which ones it leaves out.
- *
- * @param only - The ids to keep, or none for every case.
- * @param search - Whether the run adds the search connector.
- * @returns The cases.
- */
-function answerPlan(only: readonly string[], search: boolean): readonly AnswerCase[] {
-  const wanted = selectAnswerCases(only);
-  if (search) return wanted;
-  for (const left of wanted.filter(needsSearch))
-    process.stdout.write(`${left.id}: skipped, it needs --search\n`);
-  return wanted.filter((each) => !needsSearch(each));
-}
-
-/**
- * Runs the answer cases on the pinned checkout incident dashboard, one after the other.
- *
- * @param world - The world.
- * @param bench - Opens the pinned dashboard, once.
- * @param cases - The cases.
- * @param outcomes - The outcomes so far, which theirs join.
- * @returns Once every case has run.
- */
-async function answerAll(
-  world: EvalWorld,
-  bench: () => Promise<AnswerBench>,
-  cases: readonly AnswerCase[],
-  outcomes: EvalOutcome[],
-): Promise<void> {
-  if (cases.length === 0) return;
-  const opened = await bench();
-  for (const answerCase of cases) keep(outcomes, await driveAnswer(world, opened, answerCase));
-}
-
-/**
- * Runs the alert cases in alert threads, one after the other, with the checkout incident
- * dashboard pinned for the case that starts from its panel.
- *
- * @param world - The world.
- * @param bench - Opens the pinned dashboard, once.
- * @param cases - The cases.
- * @param outcomes - The outcomes so far, which theirs join.
- * @returns Once every case has run.
- */
-async function alertAll(
-  world: EvalWorld,
-  bench: () => Promise<AnswerBench>,
-  cases: readonly AlertCase[],
-  outcomes: EvalOutcome[],
-): Promise<void> {
-  if (cases.length === 0) return;
-  const alertBench: AlertBench = { bench: await bench(), threads: new Map() };
-  for (const alertCase of cases) keep(outcomes, await driveAlert(world, alertBench, alertCase));
-}
-
-/**
- * Runs the report cases, one after the other: report threads, then questions about their runs.
- *
- * @param world - The world.
- * @param bench - Opens the pinned dashboard, once.
- * @param cases - The cases.
- * @param outcomes - The outcomes so far, which theirs join.
- * @returns Once every case has run.
- */
-async function reportAll(
-  world: EvalWorld,
-  bench: () => Promise<AnswerBench>,
-  cases: readonly AnyReportCase[],
-  outcomes: EvalOutcome[],
-): Promise<void> {
-  if (cases.length === 0) return;
-  const reportBench: ReportBench = { bench: await bench(), threads: new Map(), runs: new Map() };
-  for (const reportCase of cases) {
-    const outcome =
-      reportCase.mode === 'write'
-        ? await driveReport(world, reportBench, reportCase)
-        : await driveRunAnswer(world, reportBench, reportCase);
-    keep(outcomes, outcome);
-  }
-}
-
-/**
- * Asks the parity questions, one after the other, and says which ones were skipped.
- *
- * @param world - The world.
- * @param cases - The questions to ask.
- * @param skipped - The questions the world cannot answer yet.
- * @param outcomes - The outcomes so far, which theirs join.
- * @returns Once every question has run.
- */
-async function parityAll(
-  world: EvalWorld,
-  cases: readonly ParityCase[],
-  skipped: readonly Skipped[],
-  outcomes: EvalOutcome[],
-): Promise<void> {
-  for (const parityCase of cases) keep(outcomes, await drive(world, parityCase));
-  for (const each of skipped) process.stdout.write(`${skippedLine(each)}\n`);
-}
-
-/**
- * Opens the pinned checkout incident dashboard the first time it is asked for.
- *
- * @param world - The world.
- * @returns The opener.
- */
-function benchOnce(world: EvalWorld): () => Promise<AnswerBench> {
-  let opened: Promise<AnswerBench> | undefined;
-  return () => {
-    opened ??= openBench(world);
-    return opened;
-  };
-}
-
-/**
  * The run's provider and models: the flags, or else the models quanthea suggests for the provider.
  *
  * @param flags - The flags.
  * @returns The models.
  */
-function modelsOf(flags: ReturnType<typeof readFlags>['values']): EvalModels {
+function modelsOf(flags: Flags): EvalModels {
   const provider = providerOf(flags.provider);
   const suggested = suggestedModels(provider);
   const model = flags.model ?? suggested.model;
@@ -309,64 +159,187 @@ function apiKeyFor(models: EvalModels): string | undefined {
 }
 
 /**
- * The response cache of a run: read unless `--no-cache`, with live calls spaced apart.
+ * Opens the judge the flags ask for: one fixed model, with a key of its own. Only `JUDGE_API_KEY`
+ * turns it on: were the run's own key enough, a run on the judge's provider would be judged and a
+ * run on another would not, and the two would not compare.
  *
  * @param flags - The flags.
- * @returns The cache's place and behaviour.
+ * @param draw - Which sample of the judge's answers to draw.
+ * @returns The judge, or nothing when the flags turn it off or no key is set.
  */
-function cacheOf(flags: ReturnType<typeof readFlags>['values']) {
-  return { dir: join(here, '.cache'), read: !flags['no-cache'], minIntervalMs: 4000 };
+async function openJudge(flags: Flags, draw = 1): Promise<LiveJudge | undefined> {
+  if (flags['no-judge']) return undefined;
+  const provider: EvalProvider = providerOf(flags['judge-provider'] ?? defaultJudge.provider);
+  const model = flags['judge-model'] ?? defaultJudge.model;
+  const apiKey = process.env.JUDGE_API_KEY || undefined;
+  if (apiKey === undefined) {
+    process.stdout.write('JUDGE_API_KEY is not set: no judge reads the rubrics.\n');
+    return undefined;
+  }
+  const dir = join(here, '.cache', 'judge');
+  return openLiveJudge({ provider, model, apiKey, dir, budget: judgeBudget, draw });
 }
 
 /**
- * Asks every selected question, then runs every selected answer case, alert case and report case,
- * then the parity questions `--only` names, one after the other, and prints each verdict as it
- * comes.
+ * What every trial of a run shares.
+ *
+ * @param flags - The flags.
+ * @param judge - The judge, if one reads the rubrics.
+ * @returns The setup.
+ */
+function setupOf(flags: Flags, judge: Judge | undefined): RunSetup {
+  const models = modelsOf(flags);
+  const trials = Number(flags.trials ?? 1);
+  if (!Number.isInteger(trials) || trials < 1) throw new Error('--trials takes a whole number.');
+  return {
+    models,
+    apiKey: apiKeyFor(models),
+    cache: { dir: join(here, '.cache'), read: !flags['no-cache'], minIntervalMs: 4000 },
+    search: flags.search ?? false,
+    trials,
+    sample: flags.sample ?? '',
+    judge,
+    pacing: { last: 0 },
+    counts: { hits: 0, misses: 0 },
+  };
+}
+
+/**
+ * Prints a trial's status as it comes.
+ *
+ * @param evalCase - The case.
+ * @param setup - The run's setup, for how many trials a case has.
+ * @returns The printer.
+ */
+function printer(evalCase: EvalCase, setup: RunSetup): (trial: TrialResult) => void {
+  return (trial) => {
+    const which = setup.trials > 1 ? ` [${trial.trial}/${setup.trials}]` : '';
+    process.stdout.write(`${evalCase.id}${which}: ${statusWord(trial.status)}\n`);
+  };
+}
+
+/**
+ * The cases a run takes, split into those the world can run and those it skips.
+ *
+ * @param flags - The flags.
+ * @returns The plan.
+ */
+function planOf(flags: Flags) {
+  const only = flags.only?.split(',').map((id) => id.trim()) ?? [];
+  const catalogue = { defaults: defaultCases, named: namedCases, namedWord: parityWord };
+  return planCases(selectCases(only, catalogue), flags.search ? ['search'] : []);
+}
+
+/**
+ * What produced a run's numbers.
+ *
+ * @param setup - The run's setup.
+ * @param judge - The judge, if one read the rubrics.
+ * @returns The versions.
+ */
+function versionsOf(setup: RunSetup, judge: Judge | undefined): Report['versions'] {
+  return {
+    judge: judge?.label ?? null,
+    judgePrompt: judgePromptVersion,
+    data: new Date(evalsNow()).toISOString().slice(0, 10),
+    sample: setup.sample,
+  };
+}
+
+/**
+ * Runs every case the world can run, one after the other, and prints each status as it comes.
+ *
+ * @param ready - The cases.
+ * @param setup - The run's setup.
+ * @returns Each case's results.
+ */
+async function runAll(ready: readonly EvalCase[], setup: RunSetup): Promise<CaseResult[]> {
+  const results: CaseResult[] = [];
+  for (const evalCase of ready)
+    results.push(await runCase(evalCase, setup, printer(evalCase, setup)));
+  return results;
+}
+
+/**
+ * Runs every selected case, and prints the summary.
  *
  * @param flags - The flags.
  * @returns The report.
  */
-async function evaluate(flags: ReturnType<typeof readFlags>['values']): Promise<Report> {
-  const only = flags.only?.split(',').map((id) => id.trim()) ?? [];
-  const cases = [...answerCases, ...alertCases, ...reportCases, ...parityCases];
-  const selected = selectQuestions(only, [...cases.map((each) => each.id), parityWord]);
-  const models = modelsOf(flags);
-  const search = flags.search ?? false;
-  const parity = parityPlanOf(only, worldHas, search);
-  await checkSources(search);
-  const world = await openWorld(models, apiKeyFor(models), cacheOf(flags), { search });
+async function evaluate(flags: Flags): Promise<Report> {
+  const plan = planOf(flags);
+  await checkSources(flags.search ?? false);
+  const live = await openJudge(flags);
+  const setup = setupOf(flags, live?.judge);
   const startedAt = new Date().toISOString();
-  const outcomes: EvalOutcome[] = [];
-  const bench = benchOnce(world);
-  try {
-    for (const question of selected) keep(outcomes, await drive(world, question));
-    await answerAll(world, bench, answerPlan(only, search), outcomes);
-    await alertAll(world, bench, selectAlertCases(only), outcomes);
-    await reportAll(world, bench, selectReportCases(only), outcomes);
-    await parityAll(world, parity.ready, parity.skipped, outcomes);
-  } finally {
-    await world.close();
-  }
-  const skipped = parity.skipped.length > 0 ? { skipped: parity.skipped } : {};
-  const results = scoreAll(outcomes);
-  const report = { startedAt, models, cache: world.counts, results, ...skipped };
+  const results = await runAll(plan.ready, setup).finally(() => live?.close());
+  for (const each of plan.skipped) process.stdout.write(`${skippedLine(each)}\n`);
+  const known = knownUnstable(readBook(bookPath), setup.models);
+  const report: Report = {
+    version: 2,
+    startedAt,
+    models: setup.models,
+    versions: versionsOf(setup, live?.judge),
+    cache: setup.counts,
+    judged: live?.judge.counts ?? { hits: 0, misses: 0 },
+    results,
+    ...(plan.skipped.length > 0 ? { skipped: plan.skipped } : {}),
+    ...(known.length > 0 ? { knownUnstable: known } : {}),
+  };
+  // Trials are observations of the cases: the book keeps them for the runs to come.
+  if (setup.trials > 1)
+    writeBook(
+      bookPath,
+      observed(readBook(bookPath), setup.models, results, startedAt.slice(0, 10)),
+    );
   process.stdout.write(`\n${summary(report)}\n`);
   return report;
 }
 
 /**
- * A saved report, scored again against the questions as they are now.
+ * Compares two saved reports (`--compare`).
  *
- * @param path - The report's file.
- * @returns The report with its new scores.
+ * @param positionals - The two files.
+ * @returns The comparison.
+ * @throws {Error} When a file is missing.
  */
-function rescore(path: string): Report {
-  const report = readReport(path);
-  return { ...report, results: scoreAll(report.results.map((result) => result.outcome)) };
+function compared(positionals: readonly string[]): string {
+  const [before, after] = positionals;
+  if (!before || !after) throw new Error('Give two reports: --compare <a.json> <b.json>.');
+  return comparison(readReport(before), readReport(after));
 }
 
 /**
- * Runs what the flags ask: compare, rescore, or evaluate.
+ * Reads the rubrics of a saved report (`--judge`), twice with `--twice`.
+ *
+ * @param flags - The flags.
+ * @param path - The report's file.
+ * @returns What happened, in words.
+ */
+async function judgedSaved(flags: Flags, path: string): Promise<string> {
+  const judges = [await openJudge(flags), ...(flags.twice ? [await openJudge(flags, 2)] : [])];
+  return judgeSaved(path, judges, reportsDir);
+}
+
+/**
+ * Runs a command that reads saved reports or fixtures and runs no selection of cases: compare,
+ * rescore, calibrate, judge, or record.
+ *
+ * @param flags - The flags.
+ * @param positionals - The files named after the flags.
+ * @returns What it printed, or nothing when the flags name no such command.
+ */
+async function sideCommand(flags: Flags, positionals: string[]): Promise<string | undefined> {
+  if (flags.compare) return compared(positionals);
+  if (flags.rescore) return summary(rescore(readReport(flags.rescore)));
+  if (flags.calibrate) return calibrate(positionals.map(readReport), join(here, 'judge'));
+  if (flags.judge) return judgedSaved(flags, flags.judge);
+  if (flags.record) return record(flags.record, setupOf(flags, undefined), join(here, 'fixtures'));
+  return undefined;
+}
+
+/**
+ * Runs what the flags ask.
  *
  * @returns The exit code.
  */
@@ -376,14 +349,9 @@ async function main(): Promise<number> {
     process.stdout.write(usage);
     return 0;
   }
-  if (flags.compare) {
-    const [before, after] = positionals;
-    if (!before || !after) throw new Error('Give two reports: --compare <a.json> <b.json>.');
-    process.stdout.write(`${comparison(readReport(before), readReport(after))}\n`);
-    return 0;
-  }
-  if (flags.rescore) {
-    process.stdout.write(`${summary(rescore(flags.rescore))}\n`);
+  const printed = await sideCommand(flags, positionals);
+  if (printed !== undefined) {
+    process.stdout.write(`${printed}\n`);
     return 0;
   }
   const report = await evaluate(flags);

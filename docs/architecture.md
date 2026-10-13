@@ -145,7 +145,7 @@ The two paths that matter:
 │   └── quanthea-plugin-sqlite/       an example connector plugin: read-only SQLite files
 ├── dev/                             docker-compose + seed data for local sources, the demo,
 │                                    and screenshots/ (bun run screenshots)
-├── evals/                           prompt → expected dashboard, answer and alert checks
+├── evals/                           the eval cases: fixture, act, checks, rubric
 ├── docs/                            architecture, the specs, configuration, guide/ (the user
 │                                    guide), screenshots/, brand, contributing, security
 ├── scripts/                         remark-check-formatted.mjs (the docs:check plugin)
@@ -4616,76 +4616,67 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
 - **Web:** unit tests for the chart adapter, the panel reductions and tables, and the URL state.
   Component tests for the plan card, diff card and variables bar (happy-dom) and Playwright smoke
   tests later.
-- **Evals** (`evals/`, `bun run evals`): 13 questions about the dev data's checkout incident,
-  each with what a good answer holds: the connectors it queries, the range of panels, the topics
-  its panels' titles and queries show, the failed writes it may take, and, when the answer needs
-  them, the markers its charts carry (every annotation of the spec is a marker set). An
-  expectation can also name the shape of one panel: the builder asked of the edit tool, the
-  aggregations in its search body, its table operations in order, and its view (`evals/shape.ts`).
-  The parity questions (`evals/parity-cases.ts`, `f01` to `f33`) ask for one panel of each family
-  of panels on the player events, and expect the shape of the finished work, so most fail until
-  the builder, operation or view they name exists. They run only when `--only parity` or their ids
-  name them, with `--search`. One that needs what the world lacks, such as an HTTP connector, is
-  skipped and reported as skipped, never as a failure. The report shows them in a table by family
-  id (`evals/render-parity.ts`): green, red or skipped, with a mark for the shape of the data,
-  one for the view and one for the layout, and the count of green families among those asked. The evalmark result holds
-  them as cases tagged `parity`, a skipped one with a skipped trial.
-  A run builds the
-  server's services on a database of its own, adds the dev Postgres and Prometheus, and, with
-  `--search`, the dev OpenSearch as the connector `opensearch-events` (`evals/setup.ts`). It then
-  waits until that server holds events of today in `core_events`, and stops with what to run
-  otherwise. The flag is off by default: a connector more changes every prompt, so no cached
-  response would match. The run drives the
-  agent headless with Gemini through the OpenAI-compatible provider (`gemini-3.5-flash-lite` by
-  default; `--model` and `--build-model` change it). It answers the agent's question with the
-  first option, approves the plan, lets the build run, then runs the last version's queries again
-  and scores (`evals/score.ts`, unit-tested). Then four answer cases (`evals/answer-cases.ts`)
-  call the answering service on the dev seed's checkout incident dashboard, pinned: a question at
-  aggregates (it must read, cite a read, name the errors, the deploy and a time range), the same
-  question at schema and metadata only (it must read nothing, say it cannot read the numbers, and
-  quote no measurement), a panel's explanation (no read, no citation, no measurement), and a
-  follow-up (a duration). Each case sets both dev connectors' access level and makes one service
-  call, prepared and stored as the question and explanation endpoints do; the scoring is in
-  `evals/answer-score.ts`, unit-tested. Then four alert cases (`evals/alert-cases.ts`) drive
-  alert threads, with one webhook channel to a closed local port that nothing sends to: a 5xx
-  share above 2% for 5 minutes at aggregates, the same at schema and metadata only (no
-  `replay_alert` call, and the agent says it cannot replay), a follow-up that waits 10 minutes (a
-  new version), and an alert started from the pinned dashboard's error rate panel (the panel's
-  query fingerprint and a `from_panel` link). Each saved version is replayed over yesterday through
-  the alerts service, and checkout must fire once, soon after the deploy; the scoring is in
-  `evals/alert-score.ts`, unit-tested. Last, four report cases (`evals/report-cases.ts`): a
-  report thread asks for a daily report of yesterday's orders, revenue and failed orders at 07:00
-  in Zurich, compared with the day before (the schedule, the period, the comparison, headline
-  panels for the orders and the revenue, every query on the dev Postgres, a preview with no
-  failure, channels from the list), and a follow-up makes it weekly on Mondays over the week before
-  (a new version). The evals then run the daily version now through the reports service and check
-  its headline numbers against the period's orders counted on the dev Postgres directly: the
-  orders between the paid ones and every attempt, the revenue between their totals in cents or
-  francs. Two cases ask about that run as the run question endpoint does: at aggregates, an
-  answer that cites a frozen read and names the failures and the incident, then 1 to 3 follow-up
-  cards; at schema and metadata only, no measurement and a word that it cannot read the numbers.
-  The scoring is in `evals/report-score.ts` and `evals/run-answer-score.ts`, unit-tested. Every
-  saved dashboard and report also gets a layout mark (`evals/layout-mark.ts`, unit-tested on
-  hand-written specs), read from the saved spec with the rows of the server's layout check: no
-  row leaves columns empty, the first row holds a number and something of what was asked (for a
-  report, the headline row), and related panels share a row. The mark stands beside the verdict
-  in the report and never changes it. A
-  middleware keeps every model response in `evals/.cache`,
-  under a hash of the model and the request, with the clock fixed at 10:00 UTC for the day and the
-  ids a run makes written as stable aliases, so reruns call the provider only for what changed;
-  `--only`, `--rescore` (scoring with no model call) and `--compare` keep runs cheap. Reports go to `evals/reports/` as an HTML page
-  and as JSON (`evals/render.ts`); failing questions are reported, not an error, unless
-  `--allow-failures` sets a limit. `--provider` picks Google (the default) or Anthropic, each with the
-  models quanthea suggests for it (`evals/providers.ts`). The Evals workflow runs them by hand on
-  `main`, for the repository's owner only, on the provider picked or both, one job each, in the
-  `evals` environment that holds the providers' keys; each job gets only its own. Its `search`
-  input starts the search servers too and passes `--search`. The summary shows
-  on the run's page, the report is its artifact, and the job fails only when the run breaks. Each job also
-  writes the run in evalmark's result format (`evals/evalmark.ts`) and records it with the
-  evalmark action on the `evalmark` branch, whose dashboard keeps every run since. The Website
-  workflow copies that dashboard to `/evals/` with the action's export mode, and the Evals workflow
-  starts it after its runs. They are never part of `verify`, because they
-  cost tokens and are not deterministic.
+- **Evals** (`evals/`, `bun run evals`): cases the agent is run on against the dev data. They
+  are never part of `verify`, because they cost tokens and are not deterministic. `evals/README.md`
+  is their guide.
+  - **One shape.** Every case is a fixture (`given`), one act on a surface of the product
+    (`input`), checks decided by code, and a rubric a judge reads (`evals/core/case.ts`). The
+    surfaces are a dashboard thread, an alert thread, a report thread, a question about a pinned
+    dashboard, a panel's explanation, and the questions about a report's run
+    (`evals/surfaces/`).
+  - **Independence.** Each trial of a case opens the server's services on a database of its own,
+    adds the dev Postgres and Prometheus (and, with `--search`, the dev OpenSearch as
+    `opensearch-events`), and runs the case's fixture. A fixture is built by the app's services
+    and checked by its schemas, with no model call: a pinned dashboard, an answered question, an
+    alert thread started from a panel, a thread that already wrote an alert or a report, a report
+    with a run (`evals/fixtures/`). No case starts from what another case made.
+  - **Buckets.** A capability case asks exactly and has one right outcome, so a failure is the
+    product's: the alert and report cases, the cases at schema and metadata only, and the parity
+    cases (`evals/cases/parity.ts`, `f01` to `f33`, one per family of panels on the player
+    events, run only when `--only` names them). A realistic case asks as a person would and takes
+    any reasonable answer: the 13 dashboard questions and the open questions about a dashboard or
+    a run. Each bucket has its own headline number.
+  - **Checks.** A check is one assertion, pure, so a saved report scores again with no model call
+    (`--rescore`). Structure checks say the thing was made and runs. Result checks compare what
+    was returned with a truth computed from the dev data on a path of its own
+    (`evals/truth/`): a panel's number or its totals per group against plain requests to the dev
+    OpenSearch, a report run's headline numbers against the orders counted on the dev Postgres, an
+    alert's replay against the incident. Feature checks say the thing has the feature the case is
+    about, such as a view's fields or a condition's kind. Legacy checks are patterns over a
+    title, a query or a text: each stands in for a rubric or a result check, and counts only
+    while the trial has none. A failed gate skips the checks after it (`evals/core/score.ts`).
+  - **The judge.** One fixed small model reads a rubric, one sentence at a time, against what the
+    case made, written out without the provider or the model (`evals/judge/`). It answers yes, no
+    or uncertain with a reason, only when no deciding check failed, and its verdicts are cached
+    under everything it was sent, its model and the version of its instructions. `--judge` and
+    `--calibrate` compare it with the maintainer's labels in `evals/judge/labels.json`. Without a
+    key for it, no judge runs and the legacy patterns decide.
+  - **Status and trials.** A trial ends in `pass`, `fail`, `review` (the judge was unsure) or
+    `error` (the provider or the harness failed, after one more try): an error and a review are in
+    no count. `--trials n` runs a case n times and shows the fraction. A middleware keeps every
+    model response in `evals/.cache` under a hash of the model, its settings and the request,
+    with the clock fixed at 10:00 UTC for the day and the ids a run makes written as stable
+    aliases; a trial after the first, or a named sample set, is part of the key, so trials are
+    new samples and the same trial replays (`evals/world/cache.ts`). Cases whose trials disagreed
+    are kept in `evals/unstable.json` and set apart by later runs.
+  - **Reports.** A report keeps, per trial, each check's outcome, each verdict, the truths, the
+    tool calls and what was made, with the models, the judge and the day of the data
+    (`evals/report/`). It goes to `evals/reports/` as JSON, as an HTML page, and in evalmark's
+    result format with every trial. Its head gives the two bucket numbers, how far the realistic
+    count moves by itself, the unstable and the erred cases, and the number as scored before
+    rubrics and results. Every saved dashboard and report also gets a layout mark
+    (`evals/report/layout-mark.ts`), read from the saved spec with the rows of the server's layout
+    check, which stands beside the status and never changes it.
+  - **Running them.** `--provider` picks Google (the default) or Anthropic, each with the models
+    quanthea suggests for it (`evals/world/providers.ts`). The Evals workflow runs them by hand on
+    `main`, for the repository's owner only, on the provider picked or both, one job each, in the
+    `evals` environment that holds the providers' keys; each job gets only its own, and the
+    judge's key when the environment holds one. Its `search` input starts the search servers too
+    and passes `--search`. The summary shows on the run's page, the report is its artifact, and
+    the job fails only when the run breaks. Each job records the run with the evalmark action on
+    the `evalmark` branch, whose dashboard keeps every run since. The Website workflow copies
+    that dashboard to `/evals/` with the action's export mode, and the Evals workflow starts it
+    after its runs.
 
 ## 16. Quality gates
 

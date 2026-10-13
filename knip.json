@@ -38,7 +38,7 @@
     },
     "evals": {
       "entry": ["run.ts"],
-      "project": ["*.ts"]
+      "project": ["**/*.ts"]
     },
     "dev": {
       "entry": [

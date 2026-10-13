@@ -86,6 +86,8 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ matrix.provider == 'google' && secrets.GEMINI_API_KEY || '' }}
           ANTHROPIC_API_KEY: ${{ matrix.provider == 'anthropic' && secrets.ANTHROPIC_API_KEY || '' }}
+          # The judge's own key, for both jobs: one fixed judge reads every run. Empty, no judge runs.
+          JUDGE_API_KEY: ${{ secrets.JUDGE_API_KEY }}
           PROVIDER: ${{ matrix.provider }}
           ONLY: ${{ inputs.only }}
           SEARCH: ${{ inputs.search }}
