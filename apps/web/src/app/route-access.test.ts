@@ -18,6 +18,7 @@ test('screen roles match the route table in docs/architecture.md', () => {
     '/reports/:reportId/runs/:runId/conversations/:conversationId': 'viewer',
     '/reports/:reportId/runs/:runId/similar-questions': 'viewer',
     '/reports/:reportId/runs/:runId/sources': 'viewer',
+    '/reports/:reportId/runs/:runId/redraw': 'viewer',
     '/alerts': 'viewer',
     '/alerts/firing': 'viewer',
     '/alerts/settings': 'admin',

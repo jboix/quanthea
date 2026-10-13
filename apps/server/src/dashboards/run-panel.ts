@@ -43,6 +43,11 @@ export interface RunChoices {
   readonly variables: VariableValues;
   /** The time range, or the spec's default. */
   readonly time?: TimeRangeExpression | undefined;
+  /**
+   * The interval the time charts are cut into, such as `1h`, when the caller cuts them evenly, as
+   * a report's run does. Without it each query language picks its own from the time range.
+   */
+  readonly interval?: string | undefined;
 }
 
 /** The most markers one annotation draws. */
@@ -53,6 +58,14 @@ const maxOptions = 1000;
 
 /** A time range for the query engine. */
 type EngineRange = { readonly from: Date; readonly to: Date };
+
+/** What a query runs over: the time range, and the interval of its buckets when one was chosen. */
+interface EngineRun {
+  /** The time range. */
+  readonly timeRange: EngineRange;
+  /** The interval the charts are cut into, if the caller chose one. */
+  readonly interval?: string | undefined;
+}
 
 /**
  * Why a query did not run, in words that quote no data.
@@ -73,7 +86,7 @@ function failureOf(error: unknown): NonNullable<QueryOutcome['error']> {
  * @param dependencies - The connectors and the executor.
  * @param query - The query.
  * @param variables - The resolved variables.
- * @param timeRange - The time range.
+ * @param run - The time range, and the interval when one was chosen.
  * @param signal - Aborted when the caller gives up.
  * @returns The frames, or why it failed.
  */
@@ -81,7 +94,7 @@ async function runQuery(
   dependencies: RunnerDependencies,
   query: PanelQuery,
   variables: Variables,
-  timeRange: EngineRange,
+  run: EngineRun,
   signal?: AbortSignal,
 ): Promise<QueryOutcome> {
   try {
@@ -90,7 +103,7 @@ async function runQuery(
       refId: query.refId,
       template: query,
       variables,
-      timeRange,
+      ...run,
       ...(signal ? { signal } : {}),
     };
     const result = await dependencies.executor.run(source, request);
@@ -181,7 +194,8 @@ function optionsLoader(dependencies: RunnerDependencies, range: RunRange, signal
     const cached = dependencies.optionsCache?.get(key);
     if (cached) return cached;
     const query = { ...variable.source, refId: 'options' } as PanelQuery;
-    const outcome = await runQuery(dependencies, query, resolved, range.timeRange, signal);
+    const { timeRange } = range;
+    const outcome = await runQuery(dependencies, query, resolved, { timeRange }, signal);
     if (outcome.error)
       throw new AppError('source_failed', `$${variable.name}: ${outcome.error.message}`);
     const options = optionsOf(outcome.frames);
@@ -235,7 +249,8 @@ export async function runPanel(
   if (!panel) throw new AppError('not_found', `No panel "${panelId}" in this version.`);
   const { time, timeRange, loadOptions } = prepare(dependencies, spec, choices, signal);
   const variables = await resolveVariables(spec, choices.variables, loadOptions);
-  const run = (query: PanelQuery) => runQuery(dependencies, query, variables, timeRange, signal);
+  const engine = { timeRange, interval: choices.interval };
+  const run = (query: PanelQuery) => runQuery(dependencies, query, variables, engine, signal);
   const marked = panel.view.kind === 'chart' ? (panel.view.markers ?? []) : [];
   const annotations = marked.flatMap(({ annotation }) =>
     spec.annotations.filter((each) => each.id === annotation),

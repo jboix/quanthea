@@ -2,7 +2,7 @@
  * Binds the variables of a JSON document, structurally: a variable is a node of its own,
  * `{"$var": "service"}`, replaced by the value as a JSON value, never text inside a string.
  */
-import { parseDuration } from './promql-binder.ts';
+import { parseDuration } from './interval.ts';
 import { QueryError } from './query-error.ts';
 import type { Variables } from './variables.ts';
 

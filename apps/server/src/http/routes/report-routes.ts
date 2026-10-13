@@ -19,6 +19,7 @@ import {
   type ReportRunDetail,
   type ReportRunSummary,
   type ReportSummary,
+  redrawReportRunEndpoint,
   reportLayoutEndpoints,
   runReportNowEndpoint,
   saveReportSettingsEndpoint,
@@ -177,6 +178,13 @@ function mountRunEndpoints(app: Hono<AppEnv>, services: ReportRouteServices): vo
       const run = reports.run(params.reportId, params.runId, readerRole(reader, bin.threadOwner));
       reports.see(params.reportId, params.runId, reader.id);
       return nameRun(ownerNames(users), withChannelNames(services.notifications, run));
+    },
+  });
+  mountEndpoint(app, redrawReportRunEndpoint, {
+    access: 'viewer',
+    handle: ({ params, body, principal }) => {
+      const reader = readerRole(signedIn(principal), bin.threadOwner);
+      return reports.redraw(params.reportId, params.runId, body.interval, reader);
     },
   });
 }

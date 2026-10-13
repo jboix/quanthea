@@ -48,6 +48,8 @@ export interface QueryRequest {
   readonly variables: Variables;
   /** The time range. */
   readonly timeRange: TimeRange;
+  /** The interval the charts are cut into, such as `1h`, when the caller chose one. */
+  readonly interval?: string | undefined;
   /** Aborted when the caller gives up. */
   readonly signal?: AbortSignal;
 }
@@ -97,6 +99,7 @@ function bind(source: QuerySource, request: QueryRequest): BoundQuery {
     dialect: source.dialect,
     maxPoints,
     showSystem: source.scope.visibility.showSystem,
+    interval: request.interval,
   });
   checkScope(source.scope, bound, source.dialect);
   return bound;

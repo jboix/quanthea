@@ -19,4 +19,5 @@ export {
   saveReportSettings,
   unseenPath,
 } from './data.ts';
+export { loadRunRedraw } from './redraw-data.ts';
 export { useUnseenReports } from './unseen.ts';

@@ -78,6 +78,22 @@ frozen when it ran.
   over its latest period, and sends it only when you ask), **Deactivate** or **Activate**.
 - **Share → Copy link**, and **Versions** for the owner of its thread and admins.
 
+### The interval of the charts
+
+A run cuts its time charts into even intervals, taken from its period: a day by 10 minutes, a
+week by the hour, a month by the day.
+
+The **$interval** chip above the panels draws them at another one: `1m`, `5m`, `10m`, `30m`, `1h`,
+`6h` or `1d`, as far as they suit the period.
+
+- The run kept its results as they ran, so another interval runs the charts' queries again, over
+  the run's own period. The charts then show the data as it is now, and the page says so.
+- Nothing is stored. The headline numbers, the tables and the message that was sent stay as the
+  run kept them, and **as stored** brings the stored charts back.
+- A chart whose query names its own step, such as one grouped by the minute, keeps what the run
+  stored. A run without a chart that follows the interval shows no chip.
+- Reload the page, or open the run again, and it shows the run as stored.
+
 ### Arrange the panels
 
 The owner of its thread and admins arrange the panels under the headline numbers, as on a

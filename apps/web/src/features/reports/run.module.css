@@ -209,3 +209,16 @@
     padding: 16px 16px 32px;
   }
 }
+
+.interval {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.intervalNote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}

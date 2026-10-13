@@ -12,6 +12,7 @@ import {
   mongodbRefusedKeys,
   type TimeRange,
 } from '../connectors/_shared/index.ts';
+import { chosenSeconds } from './interval.ts';
 import { bindJsonVariables } from './json-variables.ts';
 import { foreignReads } from './mongodb-reads.ts';
 import { QueryError } from './query-error.ts';
@@ -139,13 +140,14 @@ function checkStages(pipeline: readonly unknown[]): void {
  * milliseconds that keeps the range within 1000 buckets.
  *
  * @param timeRange - The time range.
+ * @param interval - The interval the charts are cut into, when one was chosen.
  * @returns The values by name.
  */
-function builtInsOf(timeRange: TimeRange): Readonly<Record<string, unknown>> {
+function builtInsOf(timeRange: TimeRange, interval?: string): Readonly<Record<string, unknown>> {
   return {
     __from: { $date: timeRange.from.toISOString() },
     __to: { $date: timeRange.to.toISOString() },
-    __interval_ms: bucketSeconds(timeRange) * 1000,
+    __interval_ms: (chosenSeconds(interval) ?? bucketSeconds(timeRange)) * 1000,
   };
 }
 
@@ -156,6 +158,7 @@ function builtInsOf(timeRange: TimeRange): Readonly<Record<string, unknown>> {
  * @param variables - The variable values.
  * @param timeRange - The time range, for `__from`, `__to` and `__interval_ms`.
  * @param showSystem - Whether the connector shows its database's `system.` collections.
+ * @param interval - The interval the charts are cut into, when one was chosen: `__interval_ms`.
  * @returns The bound query.
  * @throws {QueryError} `invalid` for a malformed or system collection, read first or by a stage, a
  *   malformed stage, a refused key, or an unknown variable.
@@ -165,6 +168,7 @@ export function bindMongodb(
   variables: Variables,
   timeRange: TimeRange,
   showSystem = false,
+  interval?: string,
 ): MongodbQuery {
   const shape = showSystem ? anyCollectionName : collectionName;
   checkCollection(template.collection, shape);
@@ -173,7 +177,7 @@ export function bindMongodb(
     { pipeline: template.pipeline },
     {
       variables,
-      builtIns: builtInsOf(timeRange),
+      builtIns: builtInsOf(timeRange, interval),
       checkKey: refuseKey,
       operatorKeys: true,
       placeValue,

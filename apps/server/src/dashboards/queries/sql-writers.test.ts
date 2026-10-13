@@ -48,6 +48,18 @@ describe('the SQL builders for MySQL', () => {
     expect(bound.parameters.filter((value) => value === '5m')).toHaveLength(6);
   });
 
+  test('take the built-in interval as a bucket, bound from the time range or a chosen one', () => {
+    const sql = mysqlOf({
+      kind: 'sql-series',
+      table: 'orders',
+      time: 'created_at',
+      bucket: '$__interval',
+    });
+    expect(sql).toContain('RIGHT(:__interval, 1)');
+    expect(bindSql(sql, {}, range(), 'mysql').parameters).toContain('1m');
+    expect(bindSql(sql, {}, range(), 'mysql', '6h').parameters).toContain('6h');
+  });
+
   test('escape backslashes as well as quotes, so a value cannot close its string', () => {
     const sql = mysqlOf({
       kind: 'sql-stat',

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { bindPromql, parseDuration, stepFor } from './promql-binder.ts';
+import { parseDuration } from './interval.ts';
+import { bindPromql, stepFor } from './promql-binder.ts';
 import type { Variables } from './variables.ts';
 
 const timeRange = { from: new Date('2026-09-27T12:00:00Z'), to: new Date('2026-09-27T13:00:00Z') };

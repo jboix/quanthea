@@ -3,6 +3,7 @@
  * value never becomes SQL text. Also checks the template is a single read statement.
  */
 import type { SqlParameter, SqlQuery, TimeRange } from '../connectors/_shared/index.ts';
+import { sqlInterval } from './interval.ts';
 import { QueryError } from './query-error.ts';
 import { rulesOf, type SqlDialectRules, type SqlFlavor } from './sql-dialects.ts';
 import { type SqlSegment, splitSql } from './sql-lexer.ts';
@@ -83,21 +84,30 @@ function placeholderFor(
   return text;
 }
 
+/** What the built-ins of a run bind to. */
+interface SqlRun {
+  /** The time range. */
+  readonly timeRange: TimeRange;
+  /** The interval the charts are cut into, when one was chosen. */
+  readonly interval?: string | undefined;
+}
+
 /**
  * The values of a variable or built-in.
  *
  * @param name - The variable name.
  * @param variables - The variables.
- * @param timeRange - The time range, for `:__from` and `:__to`.
+ * @param run - The time range, for `:__from` and `:__to`, and the interval for `:__interval`.
  * @returns The values, or `undefined` for an unknown variable.
  */
 function sqlValues(
   name: string,
   variables: Variables,
-  timeRange: TimeRange,
+  run: SqlRun,
 ): readonly SqlParameter[] | undefined {
-  if (name === '__from') return [timeRange.from];
-  if (name === '__to') return [timeRange.to];
+  if (name === '__from') return [run.timeRange.from];
+  if (name === '__to') return [run.timeRange.to];
+  if (name === '__interval') return [sqlInterval(run.timeRange, run.interval)];
   const binding = variables[name];
   return binding ? valuesOf(binding) : undefined;
 }
@@ -107,7 +117,7 @@ function sqlValues(
  *
  * @param code - The code.
  * @param variables - The variable values.
- * @param timeRange - The time range.
+ * @param run - The time range and the interval.
  * @param parameters - The parameters bound so far.
  * @returns The code with placeholders.
  * @throws {QueryError} `invalid` for a placeholder the template wrote itself.
@@ -115,14 +125,14 @@ function sqlValues(
 function bindCode(
   code: string,
   variables: Variables,
-  timeRange: TimeRange,
+  run: SqlRun,
   parameters: ParameterList,
 ): string {
   const { rules } = parameters;
   if (rules.writtenPlaceholder.test(code))
     throw new QueryError('invalid', rules.writtenPlaceholderMessage);
   return code.replace(namedPlaceholder, (placeholder, name: string) => {
-    const values = sqlValues(name, variables, timeRange);
+    const values = sqlValues(name, variables, run);
     if (values === undefined) parameters.unknown.add(name);
     return values === undefined ? placeholder : placeholderFor(name, values, parameters);
   });
@@ -131,11 +141,14 @@ function bindCode(
 /**
  * Binds a SQL template.
  *
- * @param template - The SQL with `:name` variables; `:__from` and `:__to` are the time range.
+ * @param template - The SQL with `:name` variables; `:__from` and `:__to` are the time range,
+ *   and `:__interval` the width of a time bucket as text, such as `10m`.
  * @param variables - The variable values.
  * @param timeRange - The time range.
  * @param flavor - The connector's dialect, with its styles for `ansi`: the literals and the
  *   placeholders.
+ * @param interval - The interval the charts are cut into, when one was chosen; else
+ *   `:__interval` follows the length of the time range.
  * @returns The bound query: the dialect's placeholders and their values.
  * @throws {QueryError} `invalid` for an unknown variable, a placeholder written in the template, an
  *   unclosed literal, or a template that is not one read statement.
@@ -145,6 +158,7 @@ export function bindSql(
   variables: Variables,
   timeRange: TimeRange,
   flavor: SqlFlavor,
+  interval?: string,
 ): SqlQuery {
   const rules = rulesOf(flavor);
   const segments = splitSql(template, rules.lexicon);
@@ -154,7 +168,7 @@ export function bindSql(
     .map((segment) =>
       segment.kind === 'literal'
         ? segment.text
-        : bindCode(segment.text, variables, timeRange, parameters),
+        : bindCode(segment.text, variables, { timeRange, interval }, parameters),
     )
     .join('');
   if (parameters.unknown.size > 0) {

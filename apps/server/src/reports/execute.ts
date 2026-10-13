@@ -6,6 +6,7 @@
  */
 import {
   dashboardOfReport,
+  defaultChartInterval,
   type Headline,
   headlineOf,
   type PanelRun,
@@ -51,6 +52,7 @@ function failureOf(run: PanelRun): string | null {
  * @param runner - The connectors, the executor and the clock.
  * @param spec - The dashboard the report runs.
  * @param panelId - The panel.
+ * @param interval - The interval its time buckets are cut into.
  * @returns The run, or why it could not run.
  * @throws {unknown} Anything that is not an application error.
  */
@@ -58,9 +60,11 @@ async function runOne(
   runner: RunnerDependencies,
   spec: ReturnType<typeof dashboardOfReport>,
   panelId: string,
+  interval: string,
 ): Promise<{ run: PanelRun | null; failure: string | null }> {
   try {
-    const run = await runPanel(runner, spec, panelId, { variables: {}, time: spec.time });
+    const choices = { variables: {}, time: spec.time, interval };
+    const run = await runPanel(runner, spec, panelId, choices);
     return { run, failure: failureOf(run) };
   } catch (error) {
     if (error instanceof AppError) return { run: null, failure: error.message };
@@ -69,21 +73,37 @@ async function runOne(
 }
 
 /**
- * Runs every panel over one period, at once.
+ * The interval a run's time charts are cut into when nobody chose: the one of the closed list
+ * that suits the length of its period, such as an hour over a week.
+ *
+ * @param period - The period.
+ * @returns The interval, as a duration.
+ */
+export function periodInterval(period: PeriodRange): string {
+  return defaultChartInterval(period.to - period.from);
+}
+
+/**
+ * Runs every panel of a spec over one period, at once, with its time buckets cut at an interval.
  *
  * @param runner - The connectors, the executor and the clock.
- * @param spec - The report spec.
+ * @param spec - The report spec, with the panels to run.
  * @param period - The period.
+ * @param interval - The interval, as a duration.
  * @returns Each panel's run, or the first failure.
  */
-async function runPeriod(
+export async function runPeriod(
   runner: RunnerDependencies,
   spec: ReportSpec,
   period: PeriodRange,
+  interval: string,
 ): Promise<{ panels: PanelRuns; failure: string | null }> {
   const dashboard = dashboardOfReport(spec, period);
   const outcomes = await Promise.all(
-    spec.panels.map(async (panel) => ({ panel, ...(await runOne(runner, dashboard, panel.id)) })),
+    spec.panels.map(async (panel) => ({
+      panel,
+      ...(await runOne(runner, dashboard, panel.id, interval)),
+    })),
   );
   const failed = outcomes.find((outcome) => outcome.failure !== null);
   const failure = failed ? `Panel "${failed.panel.title}": ${failed.failure}` : null;
@@ -112,7 +132,8 @@ function headlinesOf(spec: ReportSpec, panels: PanelRuns, before: PanelRuns | nu
 }
 
 /**
- * Runs a report spec over a period, then over the comparison period.
+ * Runs a report spec over a period, then over the comparison period, both cut at the interval the
+ * period takes, so a number and the one it is compared with are read the same way.
  *
  * @param runner - The connectors, the executor and the clock.
  * @param spec - The report spec.
@@ -126,11 +147,12 @@ export async function executeReport(
   period: PeriodRange,
   comparison: PeriodRange | null,
 ): Promise<Execution> {
-  const current = await runPeriod(runner, spec, period);
+  const interval = periodInterval(period);
+  const current = await runPeriod(runner, spec, period, interval);
   const failed = { panels: current.panels, comparisonPanels: null, headlines: [] };
   if (current.failure !== null)
     return { ...failed, failure: current.failure.slice(0, maxReasonLength) };
-  const before = comparison === null ? null : await runPeriod(runner, spec, comparison);
+  const before = comparison === null ? null : await runPeriod(runner, spec, comparison, interval);
   if (before?.failure)
     return { ...failed, failure: `The period before: ${before.failure}`.slice(0, maxReasonLength) };
   const comparisonPanels = before === null ? null : before.panels;

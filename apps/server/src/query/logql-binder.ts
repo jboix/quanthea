@@ -43,6 +43,7 @@ const logqlFlavor: ExpressionFlavor = {
  * @param variables - The variable values.
  * @param timeRange - The time range, for `$__range`.
  * @param maxPoints - The most points one series may have, which sets the step.
+ * @param interval - The interval the charts are cut into, when one was chosen: it is the step.
  * @returns The bound query.
  * @throws {QueryError} `invalid` for an unknown variable, a variable outside a quoted value, a
  *   formatting template, or an unclosed string.
@@ -52,7 +53,8 @@ export function bindLogql(
   variables: Variables,
   timeRange: TimeRange,
   maxPoints: number,
+  interval?: string,
 ): LogqlQuery {
-  const bound = bindExpression(template, variables, timeRange, maxPoints, logqlFlavor);
-  return { language: 'logql', ...bound };
+  const run = { timeRange, maxPoints, interval };
+  return { language: 'logql', ...bindExpression(template, variables, run, logqlFlavor) };
 }

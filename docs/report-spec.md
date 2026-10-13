@@ -72,6 +72,27 @@ week 1 of 2026. A day lasts 23 or 25 hours when the clock changes.
 The panels run over the period as their time range: `$__from` and `$__to` (`:__from` and `:__to`
 in SQL) are its ends.
 
+### The interval of the charts
+
+A run cuts its time charts into even intervals. The interval is one of a closed list (`1m`, `5m`,
+`10m`, `30m`, `1h`, `6h`, `1d`), taken from the length of the period: a day by 10 minutes, a week
+by the hour, a month by the day. It is not part of the spec.
+
+A query follows it through the interval built-in of its language, and the run binds it:
+
+| Language      | Built-in                                                           |
+| ------------- | ------------------------------------------------------------------ |
+| PromQL, LogQL | the step of a range query, `$__interval` and `$__rate_interval`    |
+| SQL           | `:__interval`, as in `date_bin(:__interval::interval, t, :__from)` |
+| Search        | `{"$var": "__interval"}`                                           |
+| MongoDB       | `{"$var": "__interval_ms"}`                                        |
+
+A query that names its own step, such as `date_trunc('minute', …)`, is cut as it says, whatever
+the period. The comparison period binds the same interval as the period.
+
+On a run's page a person may choose another interval of the list. That runs the charts' queries
+again over the run's period and stores nothing: see [reports](guide/reports.md#a-run).
+
 ## The comparison
 
 With `compare: 'previous_period'`, each run also runs every panel over the period before: the day,

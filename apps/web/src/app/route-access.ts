@@ -29,6 +29,7 @@ export const routeAccess = {
   '/reports/:reportId/runs/:runId/conversations/:conversationId': 'viewer',
   '/reports/:reportId/runs/:runId/similar-questions': 'viewer',
   '/reports/:reportId/runs/:runId/sources': 'viewer',
+  '/reports/:reportId/runs/:runId/redraw': 'viewer',
   '/account': 'viewer',
   '/d/:dashboardId': 'viewer',
   '/d/:dashboardId/v/:version': 'viewer',

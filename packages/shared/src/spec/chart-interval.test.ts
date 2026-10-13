@@ -1,0 +1,51 @@
+import { describe, expect, test } from 'bun:test';
+import {
+  chartIntervalChoices,
+  chartIntervalSchema,
+  defaultChartInterval,
+  fitsPeriod,
+} from './chart-interval.ts';
+
+const hour = 3_600_000;
+const day = 24 * hour;
+
+describe('the interval a period takes when nobody chose', () => {
+  test('a day is cut by 10 minutes, a week by the hour, a month by the day', () => {
+    expect(defaultChartInterval(day)).toBe('10m');
+    expect(defaultChartInterval(7 * day)).toBe('1h');
+    expect(defaultChartInterval(28 * day)).toBe('1d');
+    expect(defaultChartInterval(31 * day)).toBe('1d');
+  });
+
+  test('short periods are cut finer, and a day with a changed clock stays by 10 minutes', () => {
+    expect(defaultChartInterval(10 * 60_000)).toBe('1m');
+    expect(defaultChartInterval(6 * hour)).toBe('5m');
+    expect(defaultChartInterval(25 * hour)).toBe('10m');
+    expect(defaultChartInterval(3 * day)).toBe('30m');
+    expect(defaultChartInterval(20 * day)).toBe('6h');
+  });
+});
+
+describe('the intervals a person may choose', () => {
+  test('a day offers every interval that leaves at least two pieces', () => {
+    expect(chartIntervalChoices(day)).toEqual(['1m', '5m', '10m', '30m', '1h', '6h']);
+  });
+
+  test('a month leaves out the intervals that would cut it too fine', () => {
+    expect(chartIntervalChoices(31 * day)).toEqual(['30m', '1h', '6h', '1d']);
+  });
+
+  test('nothing finer than the data comes is offered', () => {
+    expect(chartIntervalChoices(day, 15 * 60_000)).toEqual(['30m', '1h', '6h']);
+  });
+
+  test('an interval is checked against the period', () => {
+    expect(fitsPeriod('1m', 7 * day)).toBe(false);
+    expect(fitsPeriod('1h', 7 * day)).toBe(true);
+  });
+
+  test('the list is closed', () => {
+    expect(chartIntervalSchema.safeParse('2m').success).toBe(false);
+    expect(chartIntervalSchema.safeParse('10m').success).toBe(true);
+  });
+});

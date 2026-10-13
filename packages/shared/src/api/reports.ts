@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { reportPeriodSchema } from '../reports/period.ts';
 import { reportScheduleSchema } from '../reports/schedule.ts';
 import { durationMs } from '../spec/alert.ts';
+import { chartIntervalSchema } from '../spec/chart-interval.ts';
 import { durationSchema } from '../spec/queries.ts';
 import { reportSpecSchema } from '../spec/report.ts';
 import { defineEndpoint } from './contract.ts';
@@ -14,6 +15,7 @@ import { shownLayoutSchema } from './layouts.ts';
 import { sendResultSchema } from './notification-channels.ts';
 import {
   reportPreviewSchema,
+  reportRedrawSchema,
   reportRunDetailSchema,
   reportRunSummarySchema,
 } from './report-runs.ts';
@@ -136,6 +138,19 @@ export const getReportRunEndpoint = defineEndpoint({
   path: '/reports/:reportId/runs/:runId',
   params: reportParams.extend({ runId: z.string().min(1).max(64) }),
   output: reportRunDetailSchema,
+});
+
+/**
+ * Draws the charts of a stored run again at an interval of the closed list: the chart panels
+ * whose queries follow the interval run over the run's period, from the spec of its version. The
+ * browser names the run and the interval, never a query. Nothing is stored.
+ */
+export const redrawReportRunEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/reports/:reportId/runs/:runId/redraw',
+  params: reportParams.extend({ runId: z.string().min(1).max(64) }),
+  body: z.object({ interval: chartIntervalSchema }),
+  output: reportRedrawSchema,
 });
 
 /** Activates a version: it is checked and its queries run once over its latest period. */

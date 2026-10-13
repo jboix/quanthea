@@ -31,6 +31,12 @@ export interface BindOptions {
   readonly maxPoints?: number;
   /** Whether the connector shows its source's own objects: dot indices, `system.` collections. */
   readonly showSystem?: boolean | undefined;
+  /**
+   * The interval the charts are cut into, such as `1h`, when the caller chose one: the step of
+   * PromQL and LogQL, `__interval` of a search and of SQL, `__interval_ms` of MongoDB. Without it
+   * each language picks its own from the time range.
+   */
+  readonly interval?: string | undefined;
 }
 
 /**
@@ -39,7 +45,8 @@ export interface BindOptions {
  * @param template - The template.
  * @param variables - The variable values.
  * @param timeRange - The time range.
- * @param options - The SQL dialect (PostgreSQL when not given) and the point limit of series.
+ * @param options - The SQL dialect (PostgreSQL when not given), the point limit of series and
+ *   the interval the charts are cut into, when one was chosen.
  * @returns The bound query.
  * @throws {QueryError} `invalid` for an unknown or misplaced variable, a SQL template that is not
  *   one read statement, or a search body with a script.
@@ -51,20 +58,21 @@ export function bindTemplate(
   options: BindOptions = {},
 ): BoundQuery {
   const maxPoints = options.maxPoints ?? maxPromqlPoints;
+  const { interval, showSystem } = options;
   switch (template.language) {
     case 'sql':
-      return bindSql(template.sql, variables, timeRange, options.dialect ?? 'postgres');
+      return bindSql(template.sql, variables, timeRange, options.dialect ?? 'postgres', interval);
     case 'search':
-      return bindSearch(template, variables, timeRange, options.showSystem);
+      return bindSearch(template, variables, timeRange, showSystem, interval);
     case 'logql':
-      return bindLogql(template, variables, timeRange, maxPoints);
+      return bindLogql(template, variables, timeRange, maxPoints, interval);
     case 'http':
       return bindHttp(template, variables, timeRange);
     case 'redis':
       return bindRedis(template, variables, timeRange);
     case 'mongodb':
-      return bindMongodb(template, variables, timeRange, options.showSystem);
+      return bindMongodb(template, variables, timeRange, showSystem, interval);
     default:
-      return bindPromql(template, variables, timeRange, maxPoints);
+      return bindPromql(template, variables, timeRange, maxPoints, interval);
   }
 }

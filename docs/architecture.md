@@ -403,6 +403,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/reports/:reportId/runs/:runId/conversations/:conversationId` | resource route: one conversation about a run                | viewer   |
 | `/reports/:reportId/runs/:runId/similar-questions`             | resource route: earlier answered questions like a text      | viewer   |
 | `/reports/:reportId/runs/:runId/sources`                       | resource route: a run's sources and access levels           | viewer   |
+| `/reports/:reportId/runs/:runId/redraw`                        | resource route: a run's charts at another interval          | viewer   |
 | `/reports/:reportId/v/:version/layouts`                        | resource route: the history of a version's layout           | editor   |
 | `/account`                                                     | resource route: the account menu's providers and actions    | viewer   |
 | `/d/:dashboardId`                                              | the pinned version; for editors, the latest if unpinned     | viewer   |
@@ -1339,7 +1340,10 @@ period and the comparison period, resolved on the schedule's clock when the run 
 variables' defaults it binds. Each attempt runs every panel through the panel run path
 (`dashboards/run-panel.ts`), with the period as the absolute time range and the guardrails, row
 limits and timeouts of a panel on a dashboard; then the comparison period (`reports/execute.ts`).
-Any failing query or set of markers fails the attempt.
+Any failing query or set of markers fails the attempt. Both periods bind the interval the period
+takes (`defaultChartInterval`: a day by 10 minutes, a week by the hour, a month by the day), so a
+time chart whose query follows the interval is cut evenly, and a number is read the same way as
+the one it is compared with.
 
 - A success freezes each panel's run by panel id, in the shape `POST /api/panels/run` returns, as
   a snapshot does, with the headline numbers (`headlineOf` in `@quanthea/shared`: each summary
@@ -1349,6 +1353,16 @@ Any failing query or set of markers fails the attempt.
 - Two triggers keep runs as they were: a finished run is never rewritten, and a run records once
   when its message went out (`sent_at`, `delivery`).
 - Opening a run runs no query.
+- **Another interval** (`reports/redraw.ts`, `POST /api/reports/:id/runs/:runId/redraw`). A run
+  keeps its results as they ran, so its charts cannot be cut again from what is stored. Choosing
+  an interval on a run's page runs the queries again: the chart panels with a query that follows
+  the interval (`followsChartInterval`: a PromQL or LogQL range query, or a query that names
+  `:__interval`, `__interval` or `__interval_ms`), from the spec of the run's version, over the
+  run's own period, through the panel run path. The body is one name of the closed list, which
+  must cut the period into 2 to 1500 pieces. Nothing is stored: the run, its headline numbers
+  and its message stay as they were, and the page says the charts show the data as it is now.
+  Numbers, tables and charts with a fixed step keep what the run stored. Whoever reads the run
+  may ask for it, as a viewer runs the panels of a pinned dashboard.
 
 **The scheduler** (`jobs/report-scheduler.ts`) ticks every 15 seconds, in process like the alert
 evaluator, with no model. Each tick:
@@ -2589,6 +2603,20 @@ the connector shows and a version that changes with its settings).
      interval variable's value must be one of its options and is checked again against the
      duration pattern (`15s`, `5m`, `1h`) when bound. The step is a duration or an interval
      variable, raised so the range fits in the row limit (at most 11000 points).
+   - **The interval of the charts.** A caller that cuts its time charts into even intervals
+     passes one with the request (`interval`, a duration such as `1h`), and it takes the place of
+     what each language would pick from the time range: it is the step of PromQL and LogQL, so
+     `$__interval` and `$__rate_interval` follow it (still raised to fit the point limit), the
+     `__interval` of a search, the `__interval_ms` of MongoDB and the `:__interval` of SQL. It is
+     checked against the duration pattern before it is bound (`query/interval.ts`). A report's run
+     passes the interval of its period, and a redraw the one a person chose from the closed list
+     (`chartIntervals` in `@quanthea/shared`: `1m`, `5m`, `10m`, `30m`, `1h`, `6h`, `1d`). A
+     dashboard passes none.
+   - **`:__interval` in SQL** is the width of a time bucket, bound as text such as `10m`
+     (`date_bin(:__interval::interval, created_at, :__from)`; the builders take
+     `"bucket": "$__interval"` and write each dialect's form). Without a chosen interval it is
+     the one of the closed list that suits the time range (`defaultChartInterval`): a day by 10
+     minutes, a week by the hour, a month by the day.
    - **LogQL** (`query/logql-binder.ts`): as PromQL, and a variable also goes in the value of a
      line filter (`|= "$text"`, `|~`) or a label filter (`| level="$level"`). `line_format` and
      `label_format` are refused: their argument is a template Loki runs.
@@ -3371,6 +3399,7 @@ indicative; the contract files are the source of truth.
 | `GET /reports`, `GET /reports/:id` (versions ever active; drafts: see Ownership)                  | reports, their latest run and next run       | viewer   |
 | `GET /reports/:id/runs?before=&limit=`, `GET /reports/:id/runs/:runId` (frozen, with neighbours)  | a report's runs, one run's results           | viewer   |
 | `POST /reports/:id/activate` (a version), `POST /reports/:id/deactivate` (owner, admin)           | put a version on the schedule, or stop       | editor   |
+| `POST /reports/:id/runs/:runId/redraw` (`interval`, of the closed list)                           | a run's charts at another interval, unstored | viewer   |
 | `POST /reports/:id/run` (`send`; owner, admin), `POST /reports/preview` (a spec)                  | run now, preview over the latest period      | editor   |
 | `POST /reports/:id/versions/:v/test` (owner, admin)                                               | send a version's message as a test           | editor   |
 | `GET`, `POST /reports/:id/versions/:v/layouts`, `POST …/layouts/:r/restore` (owner, admin)        | arrange the active version                   | editor   |

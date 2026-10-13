@@ -29,6 +29,8 @@ export {
 } from './data.ts';
 export { loadExplanation } from './explain-data.ts';
 export { FrozenCanvas } from './frozen-canvas.tsx';
+export { IntervalChip } from './interval-chip.tsx';
+export { intervalParam } from './interval-choice.ts';
 export {
   isLayoutIntent,
   type LayoutIntent,

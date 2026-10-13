@@ -12,6 +12,7 @@ import {
   searchRatioScripts,
   type TimeRange,
 } from '../connectors/_shared/index.ts';
+import { chosenSeconds } from './interval.ts';
 import { bindJsonVariables } from './json-variables.ts';
 import { QueryError } from './query-error.ts';
 import type { Variables } from './variables.ts';
@@ -321,6 +322,7 @@ function withRangeFormats(node: unknown, parent?: string): unknown {
  * @param variables - The variable values.
  * @param timeRange - The time range, for `__from`, `__to` and `__interval`.
  * @param showSystem - Whether the connector shows its server's own indices, so a dot may lead.
+ * @param interval - The interval the charts are cut into, when one was chosen: `__interval`.
  * @returns The bound query.
  * @throws {QueryError} `invalid` for a malformed index, a script, a hidden query, a read of
  *   another index, or an unknown variable.
@@ -330,11 +332,12 @@ export function bindSearch(
   variables: Variables,
   timeRange: TimeRange,
   showSystem = false,
+  interval?: string,
 ): SearchQuery {
   const builtIns = {
     __from: timeRange.from.toISOString(),
     __to: timeRange.to.toISOString(),
-    __interval: searchInterval(timeRange),
+    __interval: chosenSeconds(interval) === undefined ? searchInterval(timeRange) : interval,
   };
   refuseScripts(template.body);
   const bound = bindJsonVariables(template.body, { variables, builtIns });

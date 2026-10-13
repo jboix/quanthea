@@ -12,6 +12,7 @@ import {
   loadRun,
   loadRunConversation,
   loadRunConversations,
+  loadRunRedraw,
   loadRunSources,
   loadSimilarRunQuestions,
   loadUnseen,
@@ -37,6 +38,7 @@ function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
   const similar = '/reports/:reportId/runs/:runId/similar-questions';
   const sources = '/reports/:reportId/runs/:runId/sources';
   const layouts = '/reports/:reportId/v/:version/layouts';
+  const redraw = '/reports/:reportId/runs/:runId/redraw';
   const analyst = requireRole(loadSession, 'analyst');
   const bin = binRunConversation(api);
   return [
@@ -58,6 +60,12 @@ function askRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
     {
       path: sources,
       loader: guarded(loadSession, sources, loadRunSources(api)),
+      shouldRevalidate: () => false,
+    },
+    // A run's charts at another interval, asked for by the chip; never again by itself.
+    {
+      path: redraw,
+      loader: guarded(loadSession, redraw, loadRunRedraw(api)),
       shouldRevalidate: () => false,
     },
     // The layout's history, when the edit bar's History opens; again after a save or a restore.

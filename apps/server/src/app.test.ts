@@ -162,6 +162,7 @@ describe('route access', () => {
       'viewer GET /api/reports/:reportId/runs/:runId/conversations/:conversationId',
       'viewer GET /api/reports/:reportId/runs/:runId/similar-questions',
       'viewer GET /api/reports/:reportId/runs/:runId/sources',
+      'viewer POST /api/reports/:reportId/runs/:runId/redraw',
     ]);
   });
 

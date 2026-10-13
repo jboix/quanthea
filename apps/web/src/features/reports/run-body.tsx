@@ -19,7 +19,10 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { fittedNumber } from '../../ui/fitted-number.ts';
 import { FrozenCanvas } from '../dashboard/index.ts';
+import { drawnPanels } from './redraw-data.ts';
 import styles from './run.module.css';
+import { RunInterval } from './run-interval.tsx';
+import { useRedraw } from './use-redraw.ts';
 
 /**
  * The panels of the report's grid as a layout shows them: without its headline numbers, at the
@@ -139,11 +142,12 @@ interface RunBodyProps {
  * @param props.run - The run, with its frozen results.
  * @param props.layout - The layout its panels are drawn through, if any.
  * @param props.overlay - The frames over the panels, while the layout is arranged.
- * @returns The headlines, the panels and the links.
+ * @returns The headlines, the interval of the charts, the panels and the links.
  */
 export function RunBody({ run, layout, overlay }: RunBodyProps) {
   const short = (label: string) => label.split(',')[0] ?? label;
   const spec = canvasSpec(run, layout);
+  const drawn = useRedraw(run);
   return (
     <>
       {run.headlines.length > 0 && (
@@ -157,10 +161,11 @@ export function RunBody({ run, layout, overlay }: RunBodyProps) {
           ))}
         </div>
       )}
+      <RunInterval run={run} drawn={drawn} />
       {spec.panels.length > 0 && run.panels && (
         <FrozenCanvas
           spec={spec}
-          panels={run.panels}
+          panels={drawnPanels(run.panels, drawn.redraw)}
           time={run.period}
           variables={run.variables}
           hiddenMarkers={[]}

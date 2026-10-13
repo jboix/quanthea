@@ -3,6 +3,7 @@
 export * from './alert.ts';
 export * from './alert-condition.ts';
 export * from './alert-ratio.ts';
+export * from './chart-interval.ts';
 export {
   type Annotation,
   type DashboardSpec,

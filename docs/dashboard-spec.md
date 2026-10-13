@@ -63,7 +63,9 @@ type Variable =
 
 // The built-in time variable (always present, not listed in `variables`):
 //   default range lives in `time`, values exposed as $__from, $__to, $__range, $__interval
-//   (PromQL, LogQL), :__from, :__to (SQL), {"$var": "__from"}, "__to", "__interval" (search), and
+//   (PromQL, LogQL), :__from, :__to, :__interval (SQL: a bucket width as text, such as '10m',
+//   from a closed list by the length of the range), {"$var": "__from"}, "__to", "__interval"
+//   (search), and
 //   $__from, $__to as ISO times, $__from_ms, $__to_ms, $__from_s, $__to_s as epoch numbers (HTTP).
 type TimeDefault = { from: string; to: string }   // 'now-7d' | 'now' | ISO 8601
 

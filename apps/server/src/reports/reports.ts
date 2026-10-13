@@ -5,12 +5,14 @@
  * user id; the routes name them.
  */
 import {
+  type ChartInterval,
   latestRunAt,
   nextRunAt,
   periodLabel,
   type ReportDetail,
   type ReportListItem,
   type ReportPreview,
+  type ReportRedraw,
   type ReportRunDetail,
   type ReportRunSummary,
   type ReportSpec,
@@ -32,6 +34,7 @@ import { type ReportsContext, type ReportsDependencies, reportOrThrow } from './
 import { listForReader } from './listing.ts';
 import { reportMessage } from './messages.ts';
 import { listRuns, type RunPage, readRun } from './reading.ts';
+import { redrawRun } from './redraw.ts';
 import { attemptRun, createRun } from './runs.ts';
 import { readReport, summaryOf, toRunSummary } from './views.ts';
 
@@ -90,6 +93,22 @@ export interface Reports {
    * @returns The run.
    */
   run(id: string, runId: string, reader: ReaderRole): ReportRunDetail;
+  /**
+   * Draws the charts of a stored run again at another interval, from the data as it is now.
+   * Nothing is stored.
+   *
+   * @param id - The report.
+   * @param runId - The run.
+   * @param interval - The interval, of the closed list.
+   * @param reader - The role of the reader, or how to find it from the report's thread.
+   * @returns Each chart's new run.
+   */
+  redraw(
+    id: string,
+    runId: string,
+    interval: ChartInterval,
+    reader: ReaderRole,
+  ): Promise<ReportRedraw>;
   /**
    * Records that a person opened a run, so the list stops showing it as new to them.
    *
@@ -360,6 +379,7 @@ export function createReports(dependencies: ReportsDependencies): Reports {
     threadOf: (id) => reportOrThrow(context, id).threadId,
     runs: (id, reader, page) => listRuns(context, id, reader, page),
     run: (id, runId, reader) => readRun(context, id, runId, reader),
+    redraw: (id, runId, interval, reader) => redrawRun(context, id, runId, interval, reader),
     see: (id, runId, readerId) => context.seen?.see(readerId, id, runId, context.now()),
     saveVersion: (input, actor) => saveVersion(context, input, actor),
     activate: async (id, version, actor) => {

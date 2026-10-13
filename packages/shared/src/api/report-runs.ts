@@ -4,6 +4,7 @@
  */
 import { z } from 'zod';
 import { headlineSchema } from '../reports/headline.ts';
+import { chartIntervalSchema } from '../spec/chart-interval.ts';
 import { reportSpecSchema } from '../spec/report.ts';
 import { variableValuesSchema } from '../spec/variables.ts';
 import { shownLayoutSchema } from './layouts.ts';
@@ -93,6 +94,19 @@ export const reportRunDetailSchema = reportRunSummarySchema.extend({
 
 /** One run with its frozen results. */
 export type ReportRunDetail = z.infer<typeof reportRunDetailSchema>;
+
+/**
+ * Validates the charts of a run drawn again at another interval: each chart's run over the run's
+ * period, from the data as it is now, stored nowhere.
+ */
+export const reportRedrawSchema = z.object({
+  interval: chartIntervalSchema,
+  /** Each redrawn chart's run, by panel id; the other panels keep what the run stored. */
+  panels: z.record(z.string(), panelRunSchema),
+});
+
+/** The charts of a run drawn again at another interval. */
+export type ReportRedraw = z.infer<typeof reportRedrawSchema>;
 
 /** Validates a preview: a spec run over its latest period, stored nowhere. */
 export const reportPreviewSchema = z.object({
