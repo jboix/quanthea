@@ -3945,8 +3945,12 @@ one, and enables them again. Without any admin, it creates the default one.
   | scatter |   5000 | 148 → 368  | 875 → 368   | 2.68 → 1.13  | 9.4 → 4.9   | 149 → 274                     |
   | scatter |  20000 | 207 → 477  | 5072 → 1454 | 10.69 → 0.80 | 21.2 → 6.5  | 205 → 347                     |
 
-  A long scatter series now takes longer to its first frame and is at rest sooner: large mode
-  draws its points at once where the usual drawing spread them over many frames.
+  The script times the tree it runs in and has no switch for the rules: the left number of each
+  pair was taken at the commit that added the page, before the rules, and the right one after.
+  Not every number is better. A long scatter series takes longer to its first frame (148 to 368
+  ms at 5,000 points, 207 to 477 ms at 20,000) and is at rest sooner: large mode draws its
+  points at once where the usual drawing spread them over many frames. Charts of 1,000 points
+  draw a little slower (lines 87 to 103 ms, scatters 180 to 209 ms); why was not measured.
   The lines of the page have no missing value. A line with one is not sampled, so the gain
   for lines is not its own, and it was not measured.
 - The adapter reads each query's frames as one dataset, applies the view's `filter` and `sort`,
