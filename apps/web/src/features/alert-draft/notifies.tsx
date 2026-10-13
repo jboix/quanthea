@@ -1,6 +1,7 @@
 /**
  * Whom the draft notifies and what they would see: the channels, when they hear, when the alert
- * is quiet, a preview per channel filled with a firing from the replay, and the message template to edit by hand.
+ * is quiet, a preview per channel filled with a firing from the replay, and the message template
+ * to edit by hand.
  */
 import type { AlertSpec, DefaultQuietHours, MessageTemplate } from '@quanthea/shared';
 import { useState } from 'react';
