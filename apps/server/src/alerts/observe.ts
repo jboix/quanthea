@@ -10,11 +10,15 @@ import { type Measured, measure, observeSeries, pastsOf } from './measure.ts';
 export const wholeAlertKey = '';
 
 /**
- * What the query gave: frames, with those of the history query when the condition reads history,
- * or why either failed.
+ * What the queries gave: the frames of the alert's query, with those of the history query when
+ * the condition reads history and those of the second query of a ratio, or why one failed.
  */
 export type QueryOutcome =
-  | { readonly frames: readonly Frame[]; readonly history?: readonly Frame[] }
+  | {
+      readonly frames: readonly Frame[];
+      readonly history?: readonly Frame[] | undefined;
+      readonly divisor?: readonly Frame[] | undefined;
+    }
   | { readonly error: string };
 
 /** An observation of one series, with its labels. */
@@ -50,7 +54,8 @@ function observeTests(
   const observed = new Map<string, SeriesObservation>();
   for (const each of measured.series) {
     const pasts = pastsOf(measured, each);
-    const observation = observeSeries(spec, measured.measures, each.columns, pasts);
+    const { measures } = measured;
+    const observation = observeSeries(spec, measures, each.columns, pasts, each.divisor);
     observed.set(each.key, { labels: each.labels, observation });
   }
   const absent: Observation =
@@ -107,7 +112,7 @@ export function observe(
 ): EvaluationObservations {
   if ('error' in outcome)
     return { series: wholeAlert({ kind: 'error', message: outcome.error }), truncated: false };
-  const measured = measure(outcome.frames, spec, outcome.history);
+  const measured = measure(outcome.frames, spec, outcome.history, outcome.divisor);
   const { failure } = measured;
   if (failure !== undefined)
     return { series: wholeAlert({ kind: 'error', message: failure }), truncated: false };

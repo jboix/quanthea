@@ -158,6 +158,8 @@ describe('a notification', () => {
       change: '',
       previous: '',
       band: '',
+      numerator: '',
+      denominator: '',
       threshold: 'above 5%',
       duration: '5m',
       since: '3 Oct, 12:04 UTC',

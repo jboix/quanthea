@@ -1,13 +1,15 @@
 /**
  * Validates an alert spec: the schema first, then what the schema cannot see. The connector
  * exists and speaks the query's language, the query binds with the alert's fixed variables, the
- * window fits the connector's guardrails, and the time zone is known. Issues come back with paths.
+ * window fits the connector's guardrails, and the time zone is known. The second query of a ratio
+ * is checked the same way against its own connector. Issues come back with paths.
  */
 import {
   type AlertSpec,
   alertSpecSchema,
   conditionTests,
   durationMs,
+  type PanelQuery,
   testPath,
 } from '@quanthea/shared';
 import {
@@ -103,23 +105,46 @@ function checkBaseline(spec: AlertSpec, connector: ConnectorFacts, now: number):
 }
 
 /**
- * Checks the query of a parsed spec.
+ * Checks one query of a parsed spec against its own connector: the connector exists and speaks
+ * the query's language, the query binds with the alert's variables, and the window fits the
+ * connector's guardrails.
+ *
+ * @param spec - The spec.
+ * @param located - The query and its path in the spec.
+ * @param context - The connectors and the current instant.
+ * @returns The issues, and the connector when it can be queried.
+ */
+function checkOneQuery(
+  spec: AlertSpec,
+  located: { readonly query: PanelQuery; readonly path: string },
+  context: AlertValidationContext,
+): { readonly issues: SpecIssue[]; readonly connector?: ConnectorFacts } {
+  const connector = context.lookup(located.query.connector);
+  const problems = checkConnector(located, connector);
+  if (problems.length > 0 || !connector || 'notInstalled' in connector) return { issues: problems };
+  const window = windowAt(spec, context.now);
+  const issues = [
+    ...checkBinding(located, connector, alertVariables(spec), window),
+    ...checkWindow(connector, window, 'lookback'),
+  ];
+  return { issues, connector };
+}
+
+/**
+ * Checks the queries of a parsed spec: its query, and the second query of a ratio, each against
+ * its own connector.
  *
  * @param spec - The spec.
  * @param context - The connectors and the current instant.
  * @returns The issues.
  */
 function checkQuery(spec: AlertSpec, context: AlertValidationContext): SpecIssue[] {
-  const located = { query: spec.query, path: 'query' };
-  const connector = context.lookup(spec.query.connector);
-  const problems = checkConnector(located, connector);
-  if (problems.length > 0 || !connector || 'notInstalled' in connector) return problems;
-  const window = windowAt(spec, context.now);
-  return [
-    ...checkBinding(located, connector, alertVariables(spec), window),
-    ...checkWindow(connector, window, 'lookback'),
-    ...checkBaseline(spec, connector, context.now),
-  ];
+  const first = checkOneQuery(spec, { query: spec.query, path: 'query' }, context);
+  const baseline = first.connector ? checkBaseline(spec, first.connector, context.now) : [];
+  const second = spec.dividedBy
+    ? checkOneQuery(spec, { query: spec.dividedBy.query, path: 'dividedBy.query' }, context).issues
+    : [];
+  return [...first.issues, ...baseline, ...second];
 }
 
 /**

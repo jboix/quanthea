@@ -1,8 +1,9 @@
 /**
  * An alert's condition as a sentence: "Fires when the error share of each service is above 2%
  * for 5 minutes, checked every minute." Each value is a small button that opens an inline editor.
- * A change reads "drops by at least 50% within 10 minutes", and joined tests read one after the
- * other with "and" or "or". In the draft pane saving it saves a new draft version by hand; the
+ * A change reads "drops by at least 50% within 10 minutes", joined tests read one after the
+ * other with "and" or "or", and a ratio reads "the errors of each service, divided by the
+ * requests of the second query (0 when that is 0), is above 5%". In the draft pane saving it saves a new draft version by hand; the
  * alert page holds it unsaved.
  */
 import { conditionTests } from '@quanthea/shared';
@@ -20,6 +21,7 @@ import {
 } from './condition.ts';
 import { type ConditionSentenceProps, durationChange, textValue } from './condition-editors.tsx';
 import { holdLead, isJoined } from './condition-tests.ts';
+import { RatioPhrase } from './ratio-editors.tsx';
 import { JoinerValue, PartName, TestPhrase } from './test-editors.tsx';
 
 /**
@@ -34,8 +36,8 @@ function JoinedTests(props: ConditionSentenceProps) {
   return places.map((place) => (
     <Fragment key={place}>
       {place > 0 && <JoinerValue {...props} plain={place > 1} />}
-      {place === 0 ? watch : <PartName {...props} index={place} />}{' '}
-      <TestPhrase {...props} index={place} />
+      {place === 0 ? watch : <PartName {...props} index={place} />}
+      {place === 0 && <RatioPhrase {...props} />} <TestPhrase {...props} index={place} />
     </Fragment>
   ));
 }
@@ -60,7 +62,8 @@ function Held(props: ConditionSentenceProps) {
   return (
     <>
       {' '}
-      {watch} of {by} <TestPhrase {...props} index={0} />
+      {watch} of {by}
+      <RatioPhrase {...props} /> <TestPhrase {...props} index={0} />
     </>
   );
 }

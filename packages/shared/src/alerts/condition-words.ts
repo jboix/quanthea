@@ -217,3 +217,25 @@ export function bandText(spec: Conditioned, readings: readonly Reading[]): strin
   if (!test || limits === null) return '';
   return `${testValueText(spec, test, limits.lower)} to ${testValueText(spec, test, limits.upper)}`;
 }
+
+/** The two sides of a ratio, as a message names them. */
+export interface RatioWords {
+  /** The first query's value; empty for an alert without a ratio. */
+  readonly numerator: string;
+  /** The second query's value; empty without a ratio, and when no series of it matched. */
+  readonly denominator: string;
+}
+
+/**
+ * Writes the two sides of a ratio a series read. They are not in the ratio's format, which is
+ * often a percentage: each is written with four significant digits.
+ *
+ * @param readings - One reading per test, in order; the first reads the alert's value.
+ * @returns The two values; both empty for an alert without a ratio.
+ */
+export function ratioWords(readings: readonly Reading[]): RatioWords {
+  const [first] = readings;
+  const text = (value: number | null | undefined) =>
+    typeof value === 'number' ? numberText(undefined, value) : '';
+  return { numerator: text(first?.numerator), denominator: text(first?.denominator) };
+}

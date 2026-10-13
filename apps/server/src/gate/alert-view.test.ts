@@ -58,14 +58,14 @@ const replay = {
 
 describe('an alert check as the model sees it', () => {
   test('says only that the query ran at level 1', () => {
-    expect(modelAlertCheck(subject(1), series)).toEqual({
+    expect(modelAlertCheck([subject(1)], series)).toEqual({
       level: 1,
       note: 'The query ran. Your access level shows nothing of its result.',
     });
   });
 
   test('counts the series and names their visible labels at level 2', () => {
-    expect(modelAlertCheck(subject(2), series)).toEqual({
+    expect(modelAlertCheck([subject(2)], series)).toEqual({
       level: 2,
       seriesCount: 2,
       labelNames: ['service'],
@@ -73,7 +73,7 @@ describe('an alert check as the model sees it', () => {
   });
 
   test('shows labels and values from level 3, never a hidden label', () => {
-    const view = modelAlertCheck(subject(3), series);
+    const view = modelAlertCheck([subject(3)], series);
     expect(view).toMatchObject({ level: 3, seriesCount: 2, holdingNow: 1 });
     expect(JSON.stringify(view)).toContain('service=checkout');
     expect(JSON.stringify(view)).not.toContain('example.com');
@@ -82,11 +82,11 @@ describe('an alert check as the model sees it', () => {
 
 describe('a replay as the model sees it', () => {
   test('is refused below level 3', () => {
-    expect(modelAlertReplay(subject(2), replay)).toEqual({ ok: false, error: replayRefusal });
+    expect(modelAlertReplay([subject(2)], replay)).toEqual({ ok: false, error: replayRefusal });
   });
 
   test('summarizes counts and periods, the series that fired most first, with no points', () => {
-    const view = modelAlertReplay(subject(3), replay);
+    const view = modelAlertReplay([subject(3)], replay);
     expect(view).toMatchObject({
       ok: true,
       seriesCount: 2,
@@ -103,9 +103,35 @@ describe('a replay as the model sees it', () => {
   });
 
   test('passes on why a draft cannot be replayed', () => {
-    expect(modelAlertReplay(subject(4), { replayable: false, reason: 'No time.' })).toEqual({
+    expect(modelAlertReplay([subject(4)], { replayable: false, reason: 'No time.' })).toEqual({
       ok: false,
       error: 'No time.',
     });
+  });
+});
+
+describe('an alert on a ratio of two connectors', () => {
+  /** The second connector, with the `service` label hidden. */
+  const second = (accessLevel: AccessLevel): GateSubject => ({
+    ...subject(accessLevel),
+    id: 'c-warehouse',
+    name: 'warehouse',
+    hiddenFields: ['service'],
+  });
+
+  test('is read at the weaker of the two levels', () => {
+    expect(modelAlertCheck([subject(3), second(1)], series)).toMatchObject({ level: 1 });
+    expect(modelAlertCheck([subject(2), second(4)], series)).toMatchObject({ level: 2 });
+    expect(modelAlertReplay([subject(4), second(2)], replay)).toEqual({
+      ok: false,
+      error: replayRefusal,
+    });
+  });
+
+  test('hides the fields either connector hides', () => {
+    const text = JSON.stringify(modelAlertCheck([subject(3), second(3)], series));
+    expect(text).not.toContain('checkout');
+    expect(text).not.toContain('ana@example.com');
+    expect(JSON.stringify(modelAlertReplay([second(3), subject(3)], replay))).not.toContain('cart');
   });
 });

@@ -174,22 +174,22 @@ export interface ModelView {
   /**
    * Shapes an alert's check for the model: the series it would watch now.
    *
-   * @param name - The connector the alert's query ran on.
+   * @param names - The connectors the alert's queries ran on: one, or two for a ratio.
    * @param series - The series the check found.
-   * @returns What the access level lets through.
+   * @returns What the weakest of their access levels lets through.
    */
   alertCheck(
-    name: string,
+    names: readonly string[],
     series: readonly AlertSeriesNow[],
   ): ModelAlertCheck | { readonly ok: false; readonly error: string };
   /**
    * Shapes an alert's replay for the model: a summary, from level 3 only.
    *
-   * @param name - The connector the alert's query ran on.
+   * @param names - The connectors the alert's queries ran on: one, or two for a ratio.
    * @param replay - The replay.
    * @returns The summary, or why not.
    */
-  alertReplay(name: string, replay: ReplayView): ReturnType<typeof modelAlertReplay>;
+  alertReplay(names: readonly string[], replay: ReplayView): ReturnType<typeof modelAlertReplay>;
   /**
    * The access a result of a connector is read at now, for the thread to record.
    *
@@ -299,14 +299,20 @@ function resultMethods(
 function alertMethods(
   subjects: () => ReadonlyMap<string, GateSubject>,
 ): Pick<ModelView, 'alertCheck' | 'alertReplay'> {
+  const found = (names: readonly string[]) => {
+    const known = subjects();
+    const missing = names.find((name) => !known.has(name));
+    if (missing !== undefined || names.length === 0) return unreachable(missing ?? '');
+    return names.flatMap((name) => known.get(name) ?? []);
+  };
   return {
-    alertCheck(name, series) {
-      const subject = subjects().get(name);
-      return subject ? modelAlertCheck(subject, series) : { ok: false, error: unreachable(name) };
+    alertCheck(names, series) {
+      const all = found(names);
+      return typeof all === 'string' ? { ok: false, error: all } : modelAlertCheck(all, series);
     },
-    alertReplay(name, replay) {
-      const subject = subjects().get(name);
-      return subject ? modelAlertReplay(subject, replay) : { ok: false, error: unreachable(name) };
+    alertReplay(names, replay) {
+      const all = found(names);
+      return typeof all === 'string' ? { ok: false, error: all } : modelAlertReplay(all, replay);
     },
   };
 }

@@ -10,6 +10,7 @@ import {
   bandText,
   changeWords,
   conditionText,
+  ratioWords,
   readingsText,
 } from './condition-words.ts';
 import type { Reading } from './conditions.ts';
@@ -25,7 +26,7 @@ export interface NotifiedSeries {
   /**
    * What each test of the condition read, when that is more than the value: the earlier point of
    * a change, the value a period before, the mean and deviation of a band's baseline, the values
-   * of the parts of a joined condition.
+   * of the parts of a joined condition, the two sides of a ratio.
    */
   readonly readings?: readonly Reading[] | undefined;
 }
@@ -80,6 +81,7 @@ export function notificationValues(
     values: readingsText(spec, readings),
     ...changeWords(spec, readings),
     band: bandText(spec, readings),
+    ...ratioWords(readings),
     threshold: thresholdText(spec),
     duration: spec.condition.for,
     since: timeText(spec, series.since),

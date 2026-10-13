@@ -1,13 +1,15 @@
 /**
  * The alert spec: a query, the number it watches, the condition that fires, how often it is
- * evaluated, and the message its notifications carry. Plain JSON, like the dashboard spec: the
- * server evaluates it with no model involved, and variables are fixed values bound at run time.
+ * evaluated, and the message its notifications carry. A second query makes the number a ratio.
+ * Plain JSON, like the dashboard spec: the server evaluates it with no model involved, and
+ * variables are fixed values bound at run time.
  */
 import { z } from 'zod';
 import { alertQuietHoursSchema } from '../alerts/quiet-hours.ts';
 import { namedFormatterSchema } from '../formatters/schema.ts';
 import { messageTemplateSchema } from '../notifications.ts';
 import { alertConditionSchema, alertReducers, conditionProblems } from './alert-condition.ts';
+import { alertDivisorSchema, ratioProblems } from './alert-ratio.ts';
 import { variableNameSchema } from './names.ts';
 import { durationSchema, panelQuerySchema } from './queries.ts';
 
@@ -85,6 +87,11 @@ const alertSpecFields = z.strictObject({
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   query: panelQuerySchema,
+  /**
+   * A second query the first is divided by. The alert's value is then the ratio of the two, series
+   * matched by their labels, and the condition compares the ratio.
+   */
+  dividedBy: alertDivisorSchema.optional(),
   value: alertValueSchema.prefault({}),
   variables: z.array(alertVariableSchema).max(20).default([]),
   condition: alertConditionSchema,
@@ -166,7 +173,9 @@ function variableProblems(spec: AlertSpecFields): FieldProblem[] {
 export const alertSpecSchema = alertSpecFields.superRefine((spec, context) => {
   const lookback = durationMs(spec.lookback);
   const condition = conditionProblems(spec.condition, spec.value.reduce, lookback, durationMs);
-  for (const problem of [...timingProblems(spec), ...condition, ...variableProblems(spec)])
+  const ratio = ratioProblems(spec.condition, spec.dividedBy !== undefined);
+  const problems = [...timingProblems(spec), ...condition, ...ratio, ...variableProblems(spec)];
+  for (const problem of problems)
     context.addIssue({ code: 'custom', path: problem.path, message: problem.message });
 });
 

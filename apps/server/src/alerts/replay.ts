@@ -2,15 +2,15 @@
  * Replays an alert over a past window, such as the last 7 days of a draft: one query over the
  * whole window, at the evaluation step, then the state machine in time order. A condition that
  * compares with history reads the time before the window with one more query, once for the whole
- * replay and never once per step. A result without a time column cannot be replayed, and the
- * replay says why.
+ * replay and never once per step, and a ratio reads its second query over the window, once too.
+ * A result without a time column cannot be replayed, and the replay says why.
  */
 import { type AlertReplay, type AlertSpec, durationMs, type Frame } from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
 import { historyBefore, rangedQuery } from './history.ts';
 import { measure } from './measure.ts';
 import { type ReplayedSeries, replaySeries } from './replay-core.ts';
-import { type AlertQueryDependencies, runAlertQuery } from './run-query.ts';
+import { type AlertQueryDependencies, runAlertQuery, runDivisorQuery } from './run-query.ts';
 
 /** The window of a replay, as asked. */
 export interface ReplayRequest {
@@ -35,6 +35,11 @@ const maxReturnedPoints = 50_000;
 const noTimeReason =
   'The query returns no time column, so its past values cannot be read one evaluation at a ' +
   'time. A replay needs a time series, such as a query grouped by time.';
+
+/** Why a ratio whose second query has no times cannot be replayed. */
+const noDivisorTimeReason =
+  'The second query returns no time column, so the ratio cannot be read one evaluation at a ' +
+  'time. A replay needs a time series from both queries, such as queries grouped by time.';
 
 /**
  * Checks the window and works out the step.
@@ -86,6 +91,28 @@ async function readFrames(
 }
 
 /**
+ * Reads the second query of a ratio over the span of a replay, as a range query at the step.
+ *
+ * @param dependencies - The connectors and the executor.
+ * @param spec - The spec.
+ * @param span - The span of the steps' windows.
+ * @param step - The step, as a duration.
+ * @returns Its frames, or nothing for a spec without a second query.
+ * @throws {AppError} `source_failed` when the query fails.
+ */
+async function readDivisor(
+  dependencies: AlertQueryDependencies,
+  spec: AlertSpec,
+  span: { readonly from: number; readonly to: number },
+  step: string,
+): Promise<readonly Frame[] | undefined> {
+  const query = spec.dividedBy && rangedQuery(spec.dividedBy.query, step);
+  const outcome = await runDivisorQuery(dependencies, spec, span, query);
+  if (outcome && 'error' in outcome) throw new AppError('source_failed', outcome.error);
+  return outcome;
+}
+
+/**
  * Whether every frame with rows has a time column.
  *
  * @param frames - The frames.
@@ -132,9 +159,12 @@ export async function replayAlert(
   const stepMs = stepOf(spec, request);
   const reach = Math.max(durationMs(spec.lookback), stepMs);
   const span = { from: request.from - reach, to: request.to };
-  const frames = await readFrames(dependencies, spec, span, request.step ?? spec.every);
+  const step = request.step ?? spec.every;
+  const frames = await readFrames(dependencies, spec, span, step);
   if (!timed(frames)) return { replayable: false, reason: noTimeReason };
-  const measured = measure(frames, spec);
+  const divisor = await readDivisor(dependencies, spec, span, step);
+  if (!timed(divisor ?? [])) return { replayable: false, reason: noDivisorTimeReason };
+  const measured = measure(frames, spec, undefined, divisor);
   if (measured.failure !== undefined) return { replayable: false, reason: measured.failure };
   const window = { from: request.from, to: request.to, stepMs };
   const series = withinBudget(replaySeries(spec, measured, window));

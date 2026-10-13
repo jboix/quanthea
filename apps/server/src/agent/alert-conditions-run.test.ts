@@ -246,6 +246,68 @@ describe('the alert agent and the kinds of condition', () => {
     expect(conditions()).toEqual([]);
   });
 
+  test('writes a ratio of two connectors, sees it at the weaker access, and takes it away', async () => {
+    const totals = { name: 'totals', kind: 'memory', config: {}, secret: { token: 't' } };
+    const input = connectorInputSchema.parse({ ...totals, accessLevel: 1 });
+    await services.connections.create(input, 'admin-1');
+    const assistant = await approvedThread();
+    const second = { connector: 'totals', language: 'sql', sql: 'SELECT * FROM events' };
+    const dividedBy = { query: second, field: 'errors', by: ['service'] };
+    const condition = { kind: 'threshold', op: 'above', value: 0.5, for: '0m' };
+    const message = { title: '{alert}: {series}', body: '{numerator} of {denominator}.' };
+    const stream = await chat(
+      assistant,
+      { tool: 'edit_alert', input: alertEdit({ dividedBy, condition, message }) },
+      { tool: 'edit_alert', input: { note: 'the errors alone', dividedBy: 'none' } },
+      { text: 'Ok.' },
+    );
+    expect(stream).toContain('"level":1');
+    expect(stream).toContain('"seriesCount":3');
+    const { alertId } = services.threads.get(threadId);
+    const [latest, first] = services.alerts.get(alertId ?? '', 'editor').versions;
+    expect<unknown>(first?.spec.dividedBy).toEqual({
+      ...dividedBy,
+      query: { ...second, refId: 'B' },
+      whenZero: 'zero',
+    });
+    expect(latest?.spec).not.toHaveProperty('dividedBy');
+  });
+
+  test('is told what cannot compare a ratio, and when no series of the two queries match', async () => {
+    const empty = {
+      name: 'totals',
+      kind: 'memory',
+      config: { rowCount: 0 },
+      secret: { token: 't' },
+    };
+    await services.connections.create(connectorInputSchema.parse(empty), 'admin-1');
+    const assistant = await approvedThread();
+    const second = { connector: 'totals', language: 'sql', sql: 'SELECT * FROM events' };
+    const past = { kind: 'past', direction: 'up', amount: 30, unit: 'percent', ago: '1d' };
+    const above = { kind: 'threshold', op: 'above', value: 0.5, for: '0m' };
+    const stream = await chat(
+      assistant,
+      {
+        tool: 'edit_alert',
+        input: alertEdit({ dividedBy: { query: second }, condition: { ...past, for: '0m' } }),
+      },
+      { tool: 'edit_alert', input: alertEdit({ dividedBy: { query: second }, condition: above }) },
+      { text: 'Stopped.' },
+    );
+    expect(stream).toContain('A ratio is compared by a threshold or a change');
+    expect(stream).toContain('No series of the query has one series of the second query');
+    expect(conditions()).toEqual([]);
+  });
+
+  test('reads in its guide when a ratio fits and how its series match', () => {
+    expect(alertGuide).toContain('dividedBy: optional, a second query');
+    expect(alertGuide).toContain('When one query can divide');
+    expect(alertGuide).toContain('every label both carry has the same value');
+    expect(alertGuide).toContain('"whenZero": "zero" | "no_value"');
+    expect(alertGuide).toContain('Never a past or a band on the ratio');
+    expect(alertGuide).toContain('{numerator} and {denominator}');
+  });
+
   test('reads in its guide when each kind fits', () => {
     for (const kind of [
       '"threshold"',

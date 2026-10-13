@@ -1,7 +1,7 @@
 /**
  * Replays an alert over past points: at each step it reads the window that evaluation would have
- * queried, and for a condition that reads history the window a period back or the baseline before
- * it, feeds the state machine in time order, and reports when each series would have fired, and
+ * queried, for a ratio the same window of the second query, and for a condition that reads
+ * history the window a period back or the baseline before it, feeds the state machine in time order, and reports when each series would have fired, and
  * when the condition held but not long enough to fire. Pure.
  */
 import {
@@ -34,8 +34,9 @@ export interface ReplayedSeries extends ReplayTrack {
 export interface ReplayInput {
   /** The measures of the condition. */
   readonly measures: readonly Measure[];
-  /** The series, with the points of each measure. */
-  readonly series: readonly Omit<MeasuredSeries, 'history'>[];
+  /** The series, with the points of each measure, and of the second query of a ratio. */
+  readonly series: readonly (Omit<MeasuredSeries, 'history' | 'divisor'> &
+    Partial<Pick<MeasuredSeries, 'divisor'>>)[];
 }
 
 /** The evaluations of a replay. */
@@ -117,27 +118,29 @@ function pastReader(
 }
 
 /**
- * A reader of what one series gives each evaluation: the points of its window, per measure, and
- * what each measure with history knows of the past.
+ * A reader of what one series gives each evaluation: the points of its window, per measure, what
+ * each measure with history knows of the past, and the points of the second query of a ratio.
  *
  * @param measures - The measures.
- * @param columns - The points of each measure.
+ * @param series - The points of each measure, and of the matching series of the second query.
  * @param windowMs - The length of each evaluation's window.
- * @returns A function from an evaluation time to the points and the pasts.
+ * @returns A function from an evaluation time to the points, the pasts and the divisor's points.
  */
 function seriesReader(
   measures: readonly Measure[],
-  columns: readonly (readonly SeriesPoint[])[],
+  series: ReplayInput['series'][number],
   windowMs: number,
 ) {
-  const windows = columns.map((points) => slidingWindow(points, windowMs));
-  const pasts = columns.map((points, index) => {
+  const windows = series.columns.map((points) => slidingWindow(points, windowMs));
+  const pasts = series.columns.map((points, index) => {
     const measured = measures[index];
     return measured && pastReader(points, measured, windowMs);
   });
+  const divisor = slidingWindow(series.divisor ?? [], windowMs);
   return (at: number) => ({
     columns: windows.map((read) => read(at)),
     pasts: pasts.map((read) => read?.(at)),
+    divisor: divisor(at),
   });
 }
 
@@ -219,10 +222,10 @@ export function replaySeries(
     (each) => !reads || seenSince(each.columns, window.from - windowMs),
   );
   return series.map((each) => {
-    const read = seriesReader(measures, each.columns, windowMs);
+    const read = seriesReader(measures, each, windowMs);
     const observeAt = (at: number): Observation => {
-      const { columns, pasts } = read(at);
-      return observeSeries(spec, measures, columns, pasts);
+      const { columns, pasts, divisor } = read(at);
+      return observeSeries(spec, measures, columns, pasts, divisor);
     };
     return { key: each.key, labels: each.labels, ...track(spec, window, observeAt) };
   });

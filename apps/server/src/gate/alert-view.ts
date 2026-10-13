@@ -91,21 +91,41 @@ function labelText(labels: Readonly<Record<string, string>>): string {
   return pairs.length === 0 ? 'all' : pairs.join(', ');
 }
 
+/** What the gate applies to an alert's result: the level and the hidden names. */
+interface AlertAccess {
+  /** The access level. */
+  readonly level: AccessLevel;
+  /** The hidden names, from {@link hiddenResultNames}. */
+  readonly hidden: ReadonlySet<string>;
+}
+
+/**
+ * The access an alert's result is read at. A ratio is a value of two connectors' data, so it is
+ * read at the weaker of their two levels, with the hidden fields of both.
+ *
+ * @param subjects - The connectors the alert's queries ran on: one, or two for a ratio.
+ * @returns The lowest level and every hidden name.
+ */
+function accessOf(subjects: readonly GateSubject[]): AlertAccess {
+  const levels = subjects.map((subject) => subject.accessLevel);
+  const hidden = new Set(subjects.flatMap((subject) => [...hiddenResultNames(subject)]));
+  return { level: Math.min(...levels) as AccessLevel, hidden };
+}
+
 /**
  * An alert's check as the model may see it.
  *
- * @param subject - The connector the query ran on.
+ * @param subjects - The connectors the alert's queries ran on: one, or two for a ratio.
  * @param series - The series the check found.
- * @returns What the access level lets through.
+ * @returns What the weaker access level lets through.
  */
 export function modelAlertCheck(
-  subject: GateSubject,
+  subjects: readonly GateSubject[],
   series: readonly AlertSeriesNow[],
 ): ModelAlertCheck {
-  const level: AccessLevel = subject.accessLevel;
+  const { level, hidden } = accessOf(subjects);
   if (level === 1)
     return { level, note: 'The query ran. Your access level shows nothing of its result.' };
-  const hidden = hiddenResultNames(subject);
   const visible = series.map((each) => ({ ...each, labels: visibleLabels(each.labels, hidden) }));
   if (level === 2) {
     const labelNames = [...new Set(visible.flatMap((each) => Object.keys(each.labels)))];
@@ -158,14 +178,14 @@ function seriesSummary(series: ReplayedSeriesView, hidden: ReadonlySet<string>) 
  * A replay as the model may see it: counts, firing periods and the spikes too short to fire, for
  * the series that fired most, never the points. Refused below level 3.
  *
- * @param subject - The connector the query ran on.
+ * @param subjects - The connectors the alert's queries ran on: one, or two for a ratio.
  * @param replay - The replay.
  * @returns The summary, or why not.
  */
-export function modelAlertReplay(subject: GateSubject, replay: ReplayView) {
-  if (subject.accessLevel < 3) return { ok: false as const, error: replayRefusal };
+export function modelAlertReplay(subjects: readonly GateSubject[], replay: ReplayView) {
+  const { level, hidden } = accessOf(subjects);
+  if (level < 3) return { ok: false as const, error: replayRefusal };
   if (!replay.replayable) return { ok: false as const, error: replay.reason };
-  const hidden = hiddenResultNames(subject);
   const ranked = [...replay.series].sort(
     (first, second) =>
       second.firingMs - first.firingMs || second.tooShort.length - first.tooShort.length,

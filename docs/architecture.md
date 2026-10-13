@@ -249,8 +249,13 @@ gate's leak tests check that every one of those paths drops hidden fields.
     (`history-editors.tsx`). Joined tests read one after the other, "for each
     service, the error share is above 2% and requests is above 100", each later part with an
     editor for the column it reads, and the first "and" or "or" with one that joins them the other
-    way (`condition-sentence.tsx`, `test-editors.tsx`, `condition-tests.ts`). The sentence changes
-    values, never the number of parts: the agent adds and removes them;
+    way (`condition-sentence.tsx`, `test-editors.tsx`, `condition-tests.ts`). A ratio reads "the
+    errors of each service, divided by the requests of the second query (0 when that is 0), is
+    above 5%": what is divided is the first query's column in words, not the title's subject,
+    with an editor for the column divided by and one for what a division by 0 reads
+    (`ratio-editors.tsx`). The chart of a ratio draws the ratio against its threshold; the two
+    sides are on other scales and are not drawn. The sentence changes values, never the number of
+    parts nor a query: the agent adds and removes them;
   - the replay of the latest version over 7 days or 24 hours, from the alert pages' replay route,
     drawn by the alert chart of `charts/`, with the threshold as a dashed line and a handle at its
     right to drag (or move with the arrow keys). The chart draws the line where the threshold is
@@ -981,8 +986,8 @@ only admins add, change and delete channels.
 
 ### 5.8 Alerts (no model)
 
-An alert watches one query and notifies channels when a condition holds. The spec is in
-[alert-spec.md](alert-spec.md). The server evaluates it with no model: the query runs through
+An alert watches one query, or the ratio of two, and notifies channels when a condition holds.
+The spec is in [alert-spec.md](alert-spec.md). The server evaluates it with no model: the query runs through
 `query/` like a panel's, with the alert's fixed variables bound, the connector's guardrails, row
 limit and timeout, and never through the gate.
 
@@ -1001,7 +1006,8 @@ reads it the same way (see Ownership). `alerts/changes.ts` and `alerts/deactivat
   refuses it), and
   holds to the cap of active alerts per connector (`maxActivePerConnector`, the Alerts page's
   Settings, 50 by default; `conflict` past it). The cap counts the queries an evaluation runs, so
-  an alert whose condition reads history counts twice. It resumes evaluation. It is refused while the
+  an alert whose condition reads history counts twice, and the second query of a ratio counts on
+  the connector it runs on. It resumes evaluation. It is refused while the
   alert's thread is in the bin.
 - `activateChange` takes changes an editor made by hand on a live alert's page: the whole spec
   and the active version it starts from (`conflict` once another version is active). It refuses
@@ -1112,11 +1118,56 @@ others, with one more thing to read:
 - The readings fill `{change}` and `{previous}` for a `past` as for a change, and `{band}` (the
   edges, in the value's format) for a band.
 
+**The ratio of two queries** (`spec/alert-ratio.ts` in `@quanthea/shared`, `alerts/ratio.ts`). An
+alert may name a second query in `dividedBy`. Its value is then the first query's value divided by
+the second's. It is a shape of the alert's value, not a kind of condition and not a formula: the
+condition compares the ratio as it compares any value.
+
+- **Reading.** A measure that reads the alert's value (a test without a `field` of its own) is
+  marked as a ratio. `readingOf` reads the first query's points as before, reads the matching
+  series of the second query the same way, with the same reducer, and divides (`ratioReading`).
+  The reading keeps both sides (`numerator`, `denominator`) beside the value.
+- **Matching.** `divisorFor` gives a series of the first query the one series of the second whose
+  labels agree with its own: every label both carry has the same value, and a label only one side
+  carries is not compared (`labelsAgree`). A total with fewer labels divides each series that
+  agrees with it, and a total with no labels divides them all. No match, or more than one, gives
+  no divisor: the value is `null` and the condition does not hold. More than one means the second
+  query tells apart what the first does not, and no one series is the total.
+- **The series are the first query's.** A series only the second query returns is not a series of
+  the alert. A series of the first query without a value still counts as seen, so it is `ok`, not
+  missing.
+- **A division by 0** reads 0 under `whenZero: 'zero'`, the default, whatever is divided, and no
+  value under `no_value` (`divide`). Zero suits a condition that fires above a number. Below a
+  number it fires on every moment without traffic, which is what `no_value` is for.
+- **What compares it.** A threshold and a change. A change divides the latest points of both sides
+  and the earlier points of both sides. In a joined condition, a part with a `field` reads that
+  column of the first query, undivided. The schema refuses a `past` or a `band` that reads the
+  ratio, since it would read the history of both queries, and `no_data`, which watches one query.
+- **The cost.** `runEvaluationQueries` runs the second query after the first, over the same
+  window, with the alert's variables, through `query/` on its own connector: that connector's
+  guardrails, timeout, row limit and visibility. A second query that fails fails the evaluation,
+  and the reason says it was the second. The evaluation takes a place on both connectors in the
+  evaluator's limiter at once (`lib/limiter.ts` counts a task against several keys), so two
+  ratios across the same pair never wait for each other.
+- **The check.** `validateAlertSpec` checks the second query against its own connector, at
+  `dividedBy.query`. `checkAlert` runs both queries and refuses a second query none of whose
+  series matches, and a `dividedBy.field` the result does not have, at `dividedBy`.
+- **The replay** reads the second query once over its whole span, at the step, and each step
+  divides the two windows as an evaluation does. Both queries need a time column.
+- **In the browser**, `replayUnder` treats a step with no value as seen when its reading has a
+  numerator, as the server does.
+- The readings fill `{numerator}` and `{denominator}`, with four significant digits: the value's
+  format is the ratio's, often a percentage.
+- **Access.** What the model learns of a ratio's check and replay passes the gate at the weaker of
+  the two connectors' access levels, with the hidden fields of both (`gate/alert-view.ts`), and
+  the thread records the access of both.
+
 **The evaluator** (`jobs/alert-evaluator.ts`) ticks every 15 seconds, in process like the purge
 job. Each tick lists the active, not deactivated alerts and evaluates those whose interval has
 passed since their last evaluation (`alerts.evaluated_at`). After downtime an alert is evaluated
-once, not once per missed interval. Evaluations run at most 8 at once and 2 per connector, an alert
-still being evaluated is skipped, and one failing alert never stops the others.
+once, not once per missed interval. Evaluations run at most 8 at once and 2 per connector (a ratio
+of two connectors counts on both), an alert still being evaluated is skipped, and one failing alert
+never stops the others.
 
 `alerts/evaluate.ts` evaluates one alert: it runs the query over the window ending now
 (`lookback`), reads the series (`alerts/series.ts`, `alerts/measure.ts`, `alerts/observe.ts`),
@@ -1220,8 +1271,9 @@ The part of the replay that feeds the state machine and collects the firings and
 the readings a replay returned again under another condition, with the same rules, so a person
 dragging the threshold sees the new counts at once. The condition must read what the replayed one
 read: its numbers, operators, directions, sides, joiner and wait may differ, its fields, reducers
-and spans (a change's `within`, a `past`'s `ago`, a band's `baseline`) may not, which is why the alert page keeps those as words. A step with no value counts as a
-series the result left out. Tests check it gives what the server gives, for a threshold, a change
+and spans (a change's `within`, a `past`'s `ago`, a band's `baseline`) may not, nor the column and
+the division by 0 of a ratio, which is why the alert page keeps those as words. A step with no
+value counts as a series the result left out, unless it is a ratio whose first query had a value. Tests check it gives what the server gives, for a threshold, a change
 and joined tests.
 
 **The purge job** deletes the changes of state and the check events older than 90 days.
@@ -1294,7 +1346,9 @@ suggestions.
 
 **What shows where.** A linked panel shows a state pill, its info bubble says which alert
 watches it, and its time chart draws the threshold and the firing periods, which the variables row
-toggles; the About tab lists the dashboard's alerts. The alert page lists the panels it is shown
+toggles; the About tab lists the dashboard's alerts. An alert on a ratio matches and links by its
+first query, and shows its state and its firing periods with no threshold line (`link-alert.ts`):
+the threshold is a number on the ratio, and the panel draws the first query's values. The alert page lists the panels it is shown
 on. Section 11 has the details.
 
 Snapshots are unchanged: the alert pills and firing periods are not part of a panel's run, so a
@@ -1850,7 +1904,9 @@ activates one.
   and the model repairs it within the same attempts. A write streams `data-alertVersion`. The
   model learns the series the alert would watch now through the gate (`gate/alert-view.ts`):
   level 1 that the query ran, level 2 how many series and their label names, levels 3 and 4 the
-  labels, values and whether the condition holds.
+  labels, values and whether the condition holds. For a ratio of two connectors the level is the
+  weaker of the two, and the hidden fields are those of both. `dividedBy` takes the second query
+  of a ratio whole, or `none`, which takes it away.
 - **`replay_alert`** replays the draft over the last 24 hours or 7 days, at another threshold when
   asked, without saving it. It returns a summary through the gate: counts, firing periods and the
   spikes too short to fire, for the ten series that fired most, never the points. It is offered

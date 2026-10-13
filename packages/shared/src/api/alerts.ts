@@ -270,13 +270,15 @@ const replayWindowSchema = z.object({
 
 /**
  * Validates what one test of a condition read of a series: its value, what it compares with (the
- * earlier point of a change, the value a period before, the mean of a band's baseline), and the
- * deviation of a band's baseline.
+ * earlier point of a change, the value a period before, the mean of a band's baseline), the
+ * deviation of a band's baseline, and the two sides of a ratio.
  */
 export const readingSchema = z.object({
   value: z.number().nullable(),
   reference: z.number().nullable().optional(),
   spread: z.number().nullable().optional(),
+  numerator: z.number().nullable().optional(),
+  denominator: z.number().nullable().optional(),
 });
 
 /** Validates a period of time. */

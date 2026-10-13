@@ -1,7 +1,8 @@
 /**
  * What `edit_alert` takes and how it lands on the draft: the fields to set, merged over the
  * thread's latest alert version. `value`, `notify` and `message` merge field by field; the rest
- * replace, and `quietHours: 'default'` takes the alert's own quiet hours away. The merged spec is
+ * replace, `quietHours: 'default'` takes the alert's own quiet hours away, and
+ * `dividedBy: 'none'` the second query of a ratio. The merged spec is
  * checked as a whole by the alerts service.
  */
 import {
@@ -15,6 +16,7 @@ import {
   maxTemplateFields,
   namedFormatterSchema,
   queryTemplateSchema,
+  ratioZeroRules,
 } from '@quanthea/shared';
 import { z } from 'zod';
 import type { RunContext } from './run-context.ts';
@@ -27,6 +29,20 @@ const valueEditSchema = z.strictObject({
   maxSeries: z.int().min(1).max(1000).optional(),
   format: namedFormatterSchema.optional(),
 });
+
+/**
+ * Validates the second query of a ratio, as an edit sets it: the whole of it, replaced. `none`
+ * takes the ratio away.
+ */
+const dividedByEditSchema = z.union([
+  z.literal('none'),
+  z.strictObject({
+    query: queryTemplateSchema,
+    field: z.string().min(1).max(200).optional(),
+    by: z.array(z.string().min(1).max(200)).max(10).optional(),
+    whenZero: z.enum(ratioZeroRules).optional(),
+  }),
+]);
 
 /** Validates the fields of `notify` to change. */
 const notifyEditSchema = z.strictObject({
@@ -51,6 +67,8 @@ export const alertEditSchema = z.strictObject({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
   query: queryTemplateSchema.optional(),
+  /** The second query of a ratio, or `none` to watch the query alone again. */
+  dividedBy: dividedByEditSchema.optional(),
   value: valueEditSchema.optional(),
   variables: z.array(alertVariableSchema).max(20).optional(),
   condition: alertConditionSchema.optional(),
@@ -109,16 +127,34 @@ function withQuietHours(merged: Record<string, unknown>, quietHours: unknown): u
 }
 
 /**
+ * A merged spec with the second query of a ratio the edit asks for: the edit's, with the refId
+ * alerts give it, the draft's when the edit says nothing, or none for `none`.
+ *
+ * @param merged - The merged spec, with the draft's second query if it has one.
+ * @param edit - What the edit says of it.
+ * @returns The spec.
+ */
+function withDivisor(
+  merged: Record<string, unknown>,
+  edit: AlertEdit['dividedBy'],
+): Record<string, unknown> {
+  if (edit === undefined) return merged;
+  const { dividedBy: _dividedBy, ...rest } = merged;
+  if (edit === 'none') return rest;
+  return { ...rest, dividedBy: { ...edit, query: { ...edit.query, refId: 'B' } } };
+}
+
+/**
  * Merges an edit over the draft: `value`, `notify` and `message` field by field, the rest
- * replaced. A query gets the refId alerts use, and `quietHours: 'default'` leaves the spec without
- * quiet hours of its own.
+ * replaced. A query gets the refId alerts use, `quietHours: 'default'` leaves the spec without
+ * quiet hours of its own, and `dividedBy: 'none'` without a second query.
  *
  * @param current - The draft's spec, if any.
  * @param edit - The edit.
  * @returns The merged spec, as JSON for the alerts service to check.
  */
 export function mergeAlert(current: AlertSpec | undefined, edit: AlertEdit): unknown {
-  const { note: _note, value, notify, message, query, ...replaced } = edit;
+  const { note: _note, value, notify, message, query, dividedBy, ...replaced } = edit;
   const base: Record<string, unknown> = current ? { ...current } : { specVersion: 1 };
   const { quietHours, ...merged } = {
     ...base,
@@ -128,7 +164,7 @@ export function mergeAlert(current: AlertSpec | undefined, edit: AlertEdit): unk
     ...(notify ? { notify: { ...(current?.notify ?? {}), ...notify } } : {}),
     ...(message ? { message: { ...(current?.message ?? {}), ...message } } : {}),
   };
-  return withQuietHours(merged, quietHours);
+  return withQuietHours(withDivisor(merged, dividedBy), quietHours);
 }
 
 /**

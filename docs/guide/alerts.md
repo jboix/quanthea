@@ -49,8 +49,9 @@ The draft pane shows what the alert would have done, before it ever runs:
   message, a Discord embed, a Teams card, a PagerDuty incident, an Alertmanager alert, a
   webhook's JSON. **Edit the message** changes its title, body and fields. Besides `{value}` and
   `{threshold}`, a message can name `{change}` (how far a change moved, such as `-52%`),
-  `{previous}` (the value it moved from), `{band}` (the band of a band, such as `1.2% to 2.4%`) and
-  `{values}` (the value of every joined test).
+  `{previous}` (the value it moved from), `{band}` (the band of a band, such as `1.2% to 2.4%`),
+  `{values}` (the value of every joined test), and `{numerator}` and `{denominator}` (the two
+  sides of a ratio).
 
 Every change you make here is saved as a new draft version, and the agent reads it on its next turn
 ("I changed the alert by hand, v1 → v2: threshold 3% → 2%"). Keep talking to change anything else.
@@ -75,7 +76,8 @@ label values, or one per time series.
 ### Conditions
 
 Say what should fire in your own words; the agent picks the condition and the draft shows it as a
-sentence. There are six kinds, and nothing else: no formula to write.
+sentence. There are six kinds, and nothing else: no formula to write. An alert can also watch
+[a ratio of two queries](#a-ratio-of-two-queries).
 
 | Condition        | Say                                    | Fires when                                                         |
 | ---------------- | -------------------------------------- | ------------------------------------------------------------------ |
@@ -140,6 +142,36 @@ of each service, so that a share on three requests wakes nobody.
   first test's.
 - A test with no value for a series does not hold for it.
 
+### A ratio of two queries
+
+An alert can watch one query divided by another: errors as a share of requests, failed jobs out of
+all jobs. Say "the errors in the logs as a share of the requests in the warehouse", and the agent
+writes a second query. The sentence then reads "the errors of each service, divided by the
+requests of the second query (0 when that is 0), is above 5%".
+
+Use it when the two numbers live in two data sources, or in two places one query cannot join. When
+one query can divide them, the agent lets the query divide: that is one query per check, not two.
+
+- **Series are matched by their labels.** The errors of `service=checkout` are divided by the
+  requests of `service=checkout`. Two series match when every label they both have has the same
+  value, and a label only one of them has is not compared. So a total per service divides each
+  status code of that service, and a total with no labels divides every series.
+- **A series needs exactly one match.** With none, or with more than one, it has no value and does
+  not fire. The agent is told when no series matches at all, and the alert is not saved.
+- **The series are the first query's.** A service with requests and no row of errors is not a
+  series: write the first query so that it returns 0.
+- **When the second query is 0**, the ratio is 0: there is nothing to take a share of. Click that
+  part of the sentence to make it **no value** instead, which never fires. Do so for an alert that
+  fires below a number, such as a success share under 99%, or every quiet minute fires.
+- **What can compare it.** A threshold or a change, and joined tests: "error share above 5% and
+  at least 100 errors". Against the past and a band cannot read a ratio, nor can no data. For
+  those, the query has to divide.
+- The value on the alert's page, on the chart and as `{value}` is the ratio. A message can name
+  both sides with `{numerator}` and `{denominator}`.
+- Each check runs both queries, each within the limits of its own data source. The alert counts
+  towards the most alerts active on each of the two.
+- The agent sees the result as the weaker of the two data sources' access levels allows.
+
 ## The alerts list
 
 ![The alerts list: firing first, then pending and OK, each with its condition and worst series](../screenshots/alerts-light.webp#gh-light-mode-only)
@@ -191,6 +223,10 @@ have fired 1 time instead of 2. Right now: checkout-svc would stop firing."). **
 An alert can be linked to the panels that show the same thing. A linked panel shows the alert's
 state in its header, and its time chart draws the threshold and the firing periods. A toggle in
 the variables row hides them.
+
+An alert on a ratio links by its first query. The panel shows its state and its firing periods,
+and no threshold line: the threshold is a number on the ratio, and the panel draws the first
+query's values.
 
 - The agent offers a link when an alert's query matches a pinned panel's. Only your **Link** makes
   it.

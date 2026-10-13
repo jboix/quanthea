@@ -3,7 +3,7 @@
  * tells apart, the operator and threshold, how long it must hold, and how often it is checked.
  * Each change returns the whole spec, which the hand edit saves as a new version.
  */
-import { type AlertSpec, durationMs } from '@quanthea/shared';
+import { type AlertSpec, durationMs, type RatioZeroRule } from '@quanthea/shared';
 
 /** Units of a duration in words. */
 const unitWords: Readonly<Record<string, [string, string]>> = {
@@ -82,13 +82,61 @@ export function fieldWords(field: string): string {
 
 /**
  * What the alert watches, in words: the subject of its title, else its value's column as words.
+ * A ratio names its first query's column, since the title is about the ratio, not about the side
+ * that is divided.
  *
  * @param spec - The spec.
  * @returns Such as `the checkout error share`, `the error share`, or `the value`.
  */
-export function watchWords(spec: Pick<AlertSpec, 'title' | 'value'>): string {
-  const words = titleSubject(spec.title) || fieldWords(spec.value.field ?? '') || 'value';
+export function watchWords(spec: Pick<AlertSpec, 'title' | 'value' | 'dividedBy'>): string {
+  const column = fieldWords(spec.value.field ?? '');
+  const words = (spec.dividedBy ? column : titleSubject(spec.title) || column) || 'value';
   return /^the\s/i.test(words) ? words : `the ${words}`;
+}
+
+/**
+ * What a ratio is divided by, in words: the second query's column.
+ *
+ * @param spec - The spec.
+ * @returns Such as `the requests`, or `the value` for the first number column.
+ */
+export function divisorWords(spec: Pick<AlertSpec, 'dividedBy'>): string {
+  return `the ${fieldWords(spec.dividedBy?.field ?? '') || 'value'}`;
+}
+
+/**
+ * What a ratio reads when the second query's value is 0, in words.
+ *
+ * @param rule - The rule.
+ * @returns `0 when that is 0`, or `no value when that is 0`.
+ */
+export function zeroWords(rule: RatioZeroRule): string {
+  return rule === 'zero' ? '0 when that is 0' : 'no value when that is 0';
+}
+
+/**
+ * The spec with another column of the second query to divide by.
+ *
+ * @param spec - The spec.
+ * @param text - The column; none for the first number column.
+ * @returns The new spec; the same spec for an alert without a second query.
+ */
+export function withDivisorField(spec: AlertSpec, text: string): AlertSpec {
+  if (!spec.dividedBy) return spec;
+  const field = text.trim();
+  const { field: _field, ...rest } = spec.dividedBy;
+  return { ...spec, dividedBy: field === '' ? rest : { ...rest, field } };
+}
+
+/**
+ * The spec with another reading of a division by 0.
+ *
+ * @param spec - The spec.
+ * @param whenZero - The rule.
+ * @returns The new spec; the same spec for an alert without a second query.
+ */
+export function withWhenZero(spec: AlertSpec, whenZero: RatioZeroRule): AlertSpec {
+  return spec.dividedBy ? { ...spec, dividedBy: { ...spec.dividedBy, whenZero } } : spec;
 }
 
 /**

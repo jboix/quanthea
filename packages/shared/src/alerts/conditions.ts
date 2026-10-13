@@ -19,6 +19,13 @@ export interface Reading {
   readonly reference?: number | null | undefined;
   /** The standard deviation of a band's baseline; `null` with too little history. */
   readonly spread?: number | null | undefined;
+  /** For a ratio, the first query's value, which the ratio divides. */
+  readonly numerator?: number | null | undefined;
+  /**
+   * For a ratio, the second query's value, which the ratio divides by; `null` when no series of
+   * the second query matches.
+   */
+  readonly denominator?: number | null | undefined;
 }
 
 /** A threshold: an operator and a number. */
@@ -182,9 +189,22 @@ export function conditionDirection(condition: AlertCondition): 'above' | 'below'
  * The readings worth keeping beside a series' value: none when the value alone says it all.
  *
  * @param readings - The readings of a series.
- * @returns The readings, or `undefined` for one reading without an earlier point.
+ * @returns The readings, or `undefined` for one reading without an earlier point or the two sides
+ *   of a ratio.
  */
 export function readingsBeside(readings: readonly Reading[]): readonly Reading[] | undefined {
   const [first] = readings;
-  return readings.length === 1 && first?.reference === undefined ? undefined : readings;
+  const alone = first?.reference === undefined && first?.numerator === undefined;
+  return readings.length === 1 && alone ? undefined : readings;
+}
+
+/**
+ * Whether a reading saw the series at all: it has a value, or the first query's side of a ratio
+ * that has none.
+ *
+ * @param reading - The reading.
+ * @returns `false` for a series the result left out.
+ */
+export function readingSeen(reading: Reading): boolean {
+  return reading.value !== null || typeof reading.numerator === 'number';
 }

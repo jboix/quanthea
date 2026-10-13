@@ -1,8 +1,8 @@
 /**
  * Checks an alert spec before it is saved or activated: it validates, then runs the query once
- * over the window ending now, with the history query of a condition that reads history, and reads
- * them as the evaluator would. The caller decides what to do
- * with the issues; the series found show what the alert would watch.
+ * over the window ending now, with the second query of a ratio and the history query of a
+ * condition that reads history, and reads them as the evaluator would. The caller decides what to
+ * do with the issues; the series found show what the alert would watch.
  */
 import {
   type AlertSpec,
@@ -85,6 +85,23 @@ function historyIssues(spec: AlertSpec, read: readonly (SeriesReading | null)[])
 }
 
 /**
+ * What keeps a ratio from ever having a value: a second query none of whose series matches a
+ * series of the first, by the labels both carry.
+ *
+ * @param spec - The spec.
+ * @param read - What each series of its result reads now.
+ * @returns The issue, at `dividedBy`, or none for a spec without a ratio or without series.
+ */
+function ratioIssues(spec: AlertSpec, read: readonly (SeriesReading | null)[]): SpecIssue[] {
+  if (!spec.dividedBy || read.length === 0) return [];
+  const matched = read.some((each) => typeof each?.readings[0]?.denominator === 'number');
+  if (matched) return [];
+  const message =
+    'No series of the query has one series of the second query to be divided by. Two series match when every label both carry has the same value, and a series of the first query needs exactly one match: return the same labels from both queries, or fewer from the second.';
+  return [{ path: 'dividedBy', message }];
+}
+
+/**
  * Reads the series of a spec's result now.
  *
  * @param spec - The spec.
@@ -93,11 +110,13 @@ function historyIssues(spec: AlertSpec, read: readonly (SeriesReading | null)[])
  */
 function readResult(spec: AlertSpec, measured: Measured): AlertCheck {
   const read = measured.series.map((each) =>
-    readSeries(spec, measured.measures, each.columns, pastsOf(measured, each)),
+    readSeries(spec, measured.measures, each.columns, pastsOf(measured, each), each.divisor),
   );
   const issues = [
     ...measured.problems.map((message) => ({ path: 'value', message })),
+    ...measured.divisorProblems.map((message) => ({ path: 'dividedBy', message })),
     ...historyIssues(spec, read),
+    ...ratioIssues(spec, read),
   ];
   if (issues.length > 0) return { ok: false, issues };
   const series = measured.series.map((each, index) => ({
@@ -128,5 +147,5 @@ export async function checkAlert(
   const { spec } = validation;
   const outcome = await runEvaluationQueries(dependencies, spec, now);
   if ('error' in outcome) return { ok: false, issues: [{ path: 'query', message: outcome.error }] };
-  return readResult(spec, measure(outcome.frames, spec, outcome.history));
+  return readResult(spec, measure(outcome.frames, spec, outcome.history, outcome.divisor));
 }

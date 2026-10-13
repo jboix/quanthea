@@ -66,13 +66,13 @@ function shapingMethods(view: ModelView, note: Note) {
       note(name);
       return view.panelResult(name, outcome, timeZone);
     }) satisfies ModelView['panelResult'],
-    alertCheck: ((name, series) => {
-      note(name);
-      return view.alertCheck(name, series);
+    alertCheck: ((names, series) => {
+      names.forEach(note);
+      return view.alertCheck(names, series);
     }) satisfies ModelView['alertCheck'],
-    alertReplay: ((name, replay) => {
-      note(name);
-      return view.alertReplay(name, replay);
+    alertReplay: ((names, replay) => {
+      names.forEach(note);
+      return view.alertReplay(names, replay);
     }) satisfies ModelView['alertReplay'],
   };
 }

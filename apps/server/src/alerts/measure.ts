@@ -2,9 +2,9 @@
  * Reads what a condition needs of a result. Each test of the condition is a measure: the number
  * field it reads, how its points become a value, and what it needs of the time before the window.
  * The series of the result carry one column of points per measure, and an evaluation turns the
- * points of its window into one reading per measure. The evaluator, the check and the replay all
- * read through here, so a new kind of condition is a new measure and a new judgement, never a new
- * path.
+ * points of its window into one reading per measure. A measure of a ratio also reads the matching
+ * series of the second query. The evaluator, the check and the replay all read through here, so a
+ * new kind of condition is a new measure and a new judgement, never a new path.
  */
 import {
   type AlertReducer,
@@ -15,10 +15,13 @@ import {
   durationMs,
   type Frame,
   type Observation,
+  type RatioZeroRule,
   type Reading,
   readingsBeside,
+  readsRatio,
 } from '@quanthea/shared';
 import { baselineReader } from './baseline.ts';
+import { divisorFor, divisorSeries, ratioReading } from './ratio.ts';
 import { reducePoints, type SeriesPoint, seriesOf } from './series.ts';
 
 /**
@@ -42,6 +45,11 @@ export interface Measure {
   readonly withinMs: number | null;
   /** What it reads of the time before the window; nothing for most tests. */
   readonly history?: History | undefined;
+  /**
+   * For a measure that reads a ratio, what a division by 0 reads. Its value is then its reading of
+   * the first query divided by the same reading of the second.
+   */
+  readonly ratio?: RatioZeroRule | undefined;
 }
 
 /** What a measure knows of the time before the window, at one evaluation. */
@@ -65,6 +73,11 @@ export interface MeasuredSeries {
    * a measure without history, and when no history was read.
    */
   readonly history: readonly (readonly SeriesPoint[])[];
+  /**
+   * The points of the series of the second query this one is divided by; none without a ratio,
+   * and when no one series of the second query matches its labels.
+   */
+  readonly divisor: readonly SeriesPoint[];
 }
 
 /** The series of a result, as a condition reads them. */
@@ -77,23 +90,29 @@ export interface Measured {
   readonly truncated: boolean;
   /** What does not fit the spec, such as a column some frame does not have. */
   readonly problems: readonly string[];
+  /** What does not fit the spec in the result of a ratio's second query. */
+  readonly divisorProblems: readonly string[];
   /** Why the result cannot be read at all: the problem of a measure that found no series. */
   readonly failure: string | undefined;
 }
 
 /**
  * The measure of one test: its own field and reducer, else the alert's. A change reads the latest
- * point, whatever the reducer.
+ * point, whatever the reducer. A test that names no field reads the alert's value, which is the
+ * ratio when the alert has a second query.
  *
  * @param test - The test.
- * @param value - The alert's value.
+ * @param spec - The spec.
  * @returns The measure.
  */
-function measureOf(test: ConditionTest, value: AlertSpec['value']): Measure {
+function measureOf(test: ConditionTest, spec: AlertSpec): Measure {
+  const { value } = spec;
   const own = test as { readonly field?: string; readonly reduce?: AlertReducer };
   const field = own.field ?? value.field;
-  if (test.kind === 'change') return { field, reduce: 'last', withinMs: durationMs(test.within) };
-  const reduced = { field, reduce: own.reduce ?? value.reduce, withinMs: null };
+  const ratio = readsRatio(test) ? spec.dividedBy?.whenZero : undefined;
+  if (test.kind === 'change')
+    return { field, reduce: 'last', withinMs: durationMs(test.within), ratio };
+  const reduced = { field, reduce: own.reduce ?? value.reduce, withinMs: null, ratio };
   if (test.kind === 'past')
     return { ...reduced, history: { kind: 'shifted', ms: durationMs(test.ago) } };
   if (test.kind === 'band')
@@ -112,7 +131,7 @@ export function measuresOf(spec: AlertSpec): Measure[] {
   const tests = conditionTests(spec.condition);
   if (tests.length === 0)
     return [{ field: spec.value.field, reduce: spec.value.reduce, withinMs: null }];
-  return tests.map((test) => measureOf(test, spec.value));
+  return tests.map((test) => measureOf(test, spec));
 }
 
 /** The points of one field, by series key, with what did not fit. */
@@ -198,16 +217,19 @@ function historyColumns(
  * @param spec - The spec.
  * @param history - The frames of the history query, when the condition reads history and the
  *   caller ran it apart: the evaluator and the check do, the replay reads one span of time.
+ * @param divisor - The frames of the second query, for a ratio.
  * @returns The series that any measure found, at most `value.maxSeries`, and the problems.
  */
 export function measure(
   frames: readonly Frame[],
   spec: AlertSpec,
   history?: readonly Frame[],
+  divisor?: readonly Frame[],
 ): Measured {
   const measures = measuresOf(spec);
   const columns = fieldColumns(frames, spec, measures);
   const before = historyColumns(history, spec, measures);
+  const second = divisorSeries(divisor ?? [], spec);
   const labels = new Map(columns.flatMap((column) => [...column.labels]));
   const keys = [...labels.keys()].sort();
   const series = keys.slice(0, spec.value.maxSeries).map((key) => ({
@@ -215,14 +237,34 @@ export function measure(
     labels: labels.get(key) ?? {},
     columns: columns.map((column) => column.points.get(key) ?? []),
     history: before.map((column) => column?.get(key) ?? []),
+    divisor: divisorFor(labels.get(key) ?? {}, second.series)?.points ?? [],
   }));
   return {
     measures,
     series,
     truncated: keys.length > spec.value.maxSeries || columns.some((column) => column.truncated),
     problems: [...new Set(columns.flatMap((column) => column.problems))],
-    failure: columns.find((column) => column.empty && column.problems.length > 0)?.problems[0],
+    divisorProblems: second.problems,
+    failure: failureOf(columns, second),
   };
+}
+
+/**
+ * Why a result cannot be read at all: a field that gave no series and says why, in the first
+ * query or in the second.
+ *
+ * @param columns - The fields of the first query.
+ * @param second - The series of the second query.
+ * @returns The reason, or `undefined` when every field could be read.
+ */
+function failureOf(
+  columns: readonly FieldColumn[],
+  second: ReturnType<typeof divisorSeries>,
+): string | undefined {
+  const first = columns.find((column) => column.empty && column.problems.length > 0)?.problems[0];
+  if (first !== undefined || second.series.length > 0) return first;
+  const [problem] = second.problems;
+  return problem === undefined ? undefined : `The second query: ${problem}`;
 }
 
 /**
@@ -267,14 +309,14 @@ export function pastOf(measured: Measure, points: readonly SeriesPoint[]): Past 
 }
 
 /**
- * What one measure reads of the points of a window.
+ * What one measure reads of the points of one query within a window.
  *
  * @param points - The points of the measure's field within the window.
  * @param measured - The measure.
  * @param past - What it knows of the time before the window, for a measure with history.
  * @returns The reading.
  */
-export function readingOf(
+function plainReading(
   points: readonly SeriesPoint[],
   measured: Measure,
   past?: Past | undefined,
@@ -283,6 +325,27 @@ export function readingOf(
   const value = reducePoints(points, measured.reduce);
   if (!measured.history) return { value };
   return { value, ...(past ?? noPast[measured.history.kind]) };
+}
+
+/**
+ * What one measure reads of the points of a window. A measure of a ratio reads the second query's
+ * points the same way, and divides.
+ *
+ * @param points - The points of the measure's field within the window.
+ * @param measured - The measure.
+ * @param past - What it knows of the time before the window, for a measure with history.
+ * @param divisor - The points of the matching series of the second query within the window.
+ * @returns The reading.
+ */
+export function readingOf(
+  points: readonly SeriesPoint[],
+  measured: Measure,
+  past?: Past | undefined,
+  divisor: readonly SeriesPoint[] = [],
+): Reading {
+  const reading = plainReading(points, measured, past);
+  if (measured.ratio === undefined) return reading;
+  return ratioReading(reading, plainReading(divisor, measured), measured.ratio);
 }
 
 /** A series as one evaluation reads it. */
@@ -302,6 +365,7 @@ export interface SeriesReading {
  * @param measures - Its measures.
  * @param columns - The points of each measure within the window.
  * @param pasts - What each measure with history knows of the time before the window.
+ * @param divisor - The points of the matching series of a ratio's second query within the window.
  * @returns The value, whether the condition holds, and the readings; `null` when no measure has a
  *   point, so the result left the series out.
  */
@@ -310,10 +374,11 @@ export function readSeries(
   measures: readonly Measure[],
   columns: readonly (readonly SeriesPoint[])[],
   pasts: readonly (Past | undefined)[] = [],
+  divisor: readonly SeriesPoint[] = [],
 ): SeriesReading | null {
   if (columns.every((points) => points.length === 0)) return null;
   const readings = measures.map((each, index) =>
-    readingOf(columns[index] ?? [], each, pasts[index]),
+    readingOf(columns[index] ?? [], each, pasts[index], divisor),
   );
   const value = readings[0]?.value ?? null;
   return { value, holds: conditionHolds(spec.condition, readings), readings };
@@ -326,6 +391,7 @@ export function readSeries(
  * @param measures - Its measures.
  * @param columns - The points of each measure within the window.
  * @param pasts - What each measure with history knows of the time before the window.
+ * @param divisor - The points of the matching series of a ratio's second query within the window.
  * @returns The value with whether the condition holds, or `missing` without a point.
  */
 export function observeSeries(
@@ -333,8 +399,9 @@ export function observeSeries(
   measures: readonly Measure[],
   columns: readonly (readonly SeriesPoint[])[],
   pasts: readonly (Past | undefined)[] = [],
+  divisor: readonly SeriesPoint[] = [],
 ): Observation {
-  const read = readSeries(spec, measures, columns, pasts);
+  const read = readSeries(spec, measures, columns, pasts, divisor);
   if (!read) return { kind: 'missing' };
   const readings = readingsBeside(read.readings);
   return { kind: 'value', value: read.value, holds: read.holds, ...(readings ? { readings } : {}) };

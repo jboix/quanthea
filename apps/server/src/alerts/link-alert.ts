@@ -1,6 +1,8 @@
 /**
  * An alert as a dashboard shows it on a linked panel: whether it is evaluated and muted, its
  * active threshold and fixed variables, each series' state, and its firing periods over a range.
+ * An alert on a ratio shows its states and firing periods, never a threshold line: the panel
+ * draws the first query's values, and the threshold is a number on the ratio.
  */
 import {
   type AlertSpec,
@@ -65,7 +67,8 @@ export function panelAlertOf(
 ): PanelAlert {
   const spec = activeSpec(context, alert);
   const series = context.states.series(alert.id);
-  const { condition } = spec ?? {};
+  // A ratio's threshold is on the ratio's scale, and the panel draws the first query's values.
+  const condition = spec?.dividedBy ? undefined : spec?.condition;
   const changes = context.links.firingChanges(alert.id, range.to);
   return {
     id: alert.id,

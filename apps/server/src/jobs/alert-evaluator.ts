@@ -2,9 +2,10 @@
  * The alert evaluator: an in-process job that ticks every few seconds and evaluates each active
  * alert once its interval has passed since its last evaluation. After downtime an alert is
  * evaluated once, not once per missed interval. Evaluations run within a cap per connector and a
- * cap in all, and one failing alert never stops the others.
+ * cap in all, an alert on a ratio of two connectors counting on both, and one failing alert never
+ * stops the others.
  */
-import { durationMs } from '@quanthea/shared';
+import { alertConnectors, durationMs } from '@quanthea/shared';
 import type { Alerts } from '../alerts/alerts.ts';
 import type { EvaluatedAlert, EvaluationDependencies, evaluateAlert } from '../alerts/evaluate.ts';
 import { createLimiter, type LimiterCaps } from '../lib/limiter.ts';
@@ -89,7 +90,9 @@ export function createAlertEvaluator(dependencies: AlertEvaluatorDependencies): 
     const alertId = subject.alert.id;
     running.add(alertId);
     try {
-      await limiter.run(subject.spec.query.connector, () => evaluate(evaluation, subject, clock()));
+      await limiter.run(alertConnectors(subject.spec), () =>
+        evaluate(evaluation, subject, clock()),
+      );
     } catch (error) {
       logger.error('an alert evaluation failed', { alertId, error: String(error) });
     } finally {

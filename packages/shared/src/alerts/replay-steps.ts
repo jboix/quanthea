@@ -7,7 +7,7 @@
  */
 import { durationMs } from '../spec/alert.ts';
 import type { AlertCondition } from '../spec/alert-condition.ts';
-import { conditionDirection, conditionHolds, type Reading } from './conditions.ts';
+import { conditionDirection, conditionHolds, type Reading, readingSeen } from './conditions.ts';
 import {
   type Observation,
   type SeriesState,
@@ -195,7 +195,7 @@ function pointOf(at: number, observation: Observation): ReplayPoint {
 /**
  * Judges the points of one replayed series again under another condition, as the server would
  * have: each point is an evaluation, and a point without a value or a reading is a series the
- * result left out. The condition must read what the replayed one read: the same tests on the same
+ * result left out, unless it is a ratio whose first query had a value. The condition must read what the replayed one read: the same tests on the same
  * fields, reducers and spans. Its numbers, operators, directions, joiner and `for` may differ.
  *
  * @param points - The readings at each evaluation, from a replay.
@@ -214,7 +214,7 @@ export function replayUnder(
   const observeAt = (at: number): Observation => {
     const point = byTime.get(at);
     const readings = point?.readings ?? [{ value: point?.value ?? null }];
-    if (readings.every((reading) => reading.value === null)) return { kind: 'missing' };
+    if (!readings.some(readingSeen)) return { kind: 'missing' };
     const holds = conditionHolds(condition, readings);
     return { kind: 'value', value: point?.value ?? null, holds, readings: point?.readings };
   };

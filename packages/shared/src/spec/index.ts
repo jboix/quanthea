@@ -2,6 +2,7 @@
 
 export * from './alert.ts';
 export * from './alert-condition.ts';
+export * from './alert-ratio.ts';
 export {
   type Annotation,
   type DashboardSpec,

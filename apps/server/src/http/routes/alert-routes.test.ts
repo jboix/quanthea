@@ -228,6 +228,40 @@ describe('activating', () => {
     expect((await activate(saveAlert())).status).toBe(200);
     expect((await activate(saveAlert())).status).toBe(409);
   });
+
+  test('counts the second query of a ratio on the connector it runs on', async () => {
+    const totals = { name: 'totals', kind: 'memory', config: {}, secret: { token: 't' } };
+    await fixture.connections.create(connectorInputSchema.parse(totals), 'admin-1');
+    await client(admin)('PUT', '/api/settings/alerts', { maxActivePerConnector: 2 });
+    const second = {
+      refId: 'B',
+      connector: 'totals',
+      language: 'sql',
+      sql: 'SELECT * FROM events',
+    };
+    const dividedBy = { query: second, field: 'errors', by: ['service'] };
+    const condition = { kind: 'threshold', op: 'above', value: 2, for: '5m' };
+    const ratio = () =>
+      fixture.alerts.saveVersion({ spec: { ...eventsAlert(), dividedBy, condition } }, editor.id)
+        .alertId;
+    const activate = (id: string) =>
+      client(editor)('POST', `/api/alerts/${id}/activate`, { version: 1 });
+    expect((await activate(ratio())).status).toBe(200);
+    expect((await activate(ratio())).status).toBe(200);
+    const refused = await activate(ratio());
+    expect(refused.status).toBe(409);
+    const replay = await client(editor)('POST', '/api/alerts/replay', {
+      spec: { ...eventsAlert(), dividedBy, condition },
+      from: Date.now() - hour,
+      to: Date.now(),
+    });
+    const replayed = alertReplaySchema.parse(replay.body);
+    if (!replayed.replayable) throw new Error(replayed.reason);
+    const readings = replayed.series.flatMap((each) => each.points.map((point) => point.readings));
+    expect(readings.find((each) => each?.[0]?.value === 1)).toEqual([
+      { value: 1, numerator: expect.any(Number), denominator: expect.any(Number) },
+    ]);
+  });
 });
 
 describe('replaying', () => {

@@ -1,8 +1,8 @@
 # Alert spec, v1
 
 An alert spec says what to watch, when it fires and what its notifications say. It is plain JSON,
-like the [dashboard spec](dashboard-spec.md), and lives in `packages/shared/src/spec/alert.ts` and
-`alert-condition.ts` as a Zod schema. The server evaluates it with no model involved.
+like the [dashboard spec](dashboard-spec.md), and lives in `packages/shared/src/spec/alert.ts`,
+`alert-condition.ts` and `alert-ratio.ts` as a Zod schema. The server evaluates it with no model involved.
 
 The principles are the dashboard spec's:
 
@@ -19,6 +19,12 @@ type AlertSpec = {
   title: string
   description?: string
   query: PanelQuery                         // as in a dashboard panel, with its refId
+  dividedBy?: {                             // a second query: the value is then a ratio
+    query: PanelQuery                       // on the same connector or another
+    field?: string                          // the number column divided by; the first one by default
+    by?: string[]                           // the columns that tell its series apart, for rows
+    whenZero: 'zero' | 'no_value'           // what a division by 0 reads; 'zero'
+  }
   value: {
     field?: string                          // the number column compared; the first one by default
     reduce: 'last' | 'max' | 'min' | 'mean' | 'sum'   // the points of the window to one value; 'last'
@@ -90,6 +96,42 @@ Each evaluation turns the query's result into series:
 - Past `maxSeries`, the series are dropped in order of their keys, and the result says so.
 - The points of a series within the window become one value with `reduce`; `last` takes the point
   with the latest time.
+
+## The ratio of two queries
+
+An alert may name a second query in `dividedBy`. Its value is then the first query's value divided
+by the second's, and the condition compares that ratio. There is no formula: the division is the
+one thing `dividedBy` does.
+
+Use it when one query cannot divide: the two sides are on two connectors, or in two tables or
+indices one query cannot join. When one query can divide, let it. That is one query per check, not
+two.
+
+- **Both sides are read the same way.** The points of each side within the window become one value
+  with `value.reduce`, then the first is divided by the second. `sum` over `sum` suits counts,
+  `last` over `last` gauges. The alert's variables bind in both queries.
+- **Series match by their labels.** Two series match when every label both carry has the same
+  value. A label only one side carries is not compared. So a total per service divides each status
+  code of that service, and a total with no labels divides every series.
+- **A series needs exactly one match.** A series of the first query that matches no series of the
+  second, or more than one, has no value and never fires. More than one means the second query
+  tells apart what the first does not, so no one series is its total.
+- **The series are the first query's.** A series only the second query returns is not a series of
+  the alert. A series the first query stops returning goes missing, as for any alert: it is not
+  read as 0.
+- **A division by 0** reads 0 with `whenZero: 'zero'`, the default, whatever is divided: there is
+  nothing to take a share of. With `no_value` it has no value and never holds. Use `no_value` for
+  a condition that fires below a number, such as a success share under 99%: with `zero`, every
+  moment without traffic reads 0 and fires.
+- **What compares a ratio.** A `threshold`, or a `change`, which divides the latest points of both
+  sides and the earlier points of both sides. In `all` and `any`, a part without a `field` reads
+  the ratio, and a part with one reads that column of the first query, undivided: "error share
+  above 5% with at least 100 errors". A `past` or a `band` that reads the ratio is refused: it
+  would read the history of both queries. So is `no_data`, which watches one query.
+- **The cost.** The second query runs at every evaluation, after the first, over the same window,
+  through the query engine with its own connector's guardrails, timeout, row limit and visibility.
+  It counts as one query towards the cap of active alerts of the connector it runs on. An
+  evaluation whose second query fails cannot be checked.
 
 ## Variables
 
@@ -194,27 +236,29 @@ notification is sent.
 
 `message` is the shared message template: a title (up to 150 characters), a body (up to 1000) and
 up to 8 labelled fields. They use only these placeholders: `{alert}`, `{series}`, `{value}`,
-`{values}`, `{change}`, `{previous}`, `{band}`, `{threshold}`, `{duration}`, `{since}`, `{severity}` and
-`{link}`. An unknown placeholder fails
+`{values}`, `{change}`, `{previous}`, `{band}`, `{numerator}`, `{denominator}`, `{threshold}`,
+`{duration}`, `{since}`, `{severity}` and `{link}`. An unknown placeholder fails
 validation. Each channel fills and escapes the values for its service, so text from the data never
 becomes markup.
 
 The server fills the values from the series:
 
-| Placeholder   | Value                                                        |
-| ------------- | ------------------------------------------------------------ |
-| `{alert}`     | the title                                                    |
-| `{series}`    | the labels as `name=value, …`, or `all` without labels       |
-| `{value}`     | the value, with `value.format` or four significant digits    |
-| `{values}`    | the value of every test, such as `2.4%, requests 312`        |
-| `{change}`    | how far a change or a `past` moved, such as `-52%` or `+230` |
-| `{previous}`  | the earlier value it moved from                              |
-| `{band}`      | the band of a `band`, such as `1.2% to 2.4%`                 |
-| `{threshold}` | the condition, such as `above 5%` or `no data`               |
-| `{duration}`  | the condition's `for`                                        |
-| `{since}`     | when the series entered its state, in `timezone`             |
-| `{severity}`  | the severity                                                 |
-| `{link}`      | the alert's page, `/alerts/<id>` under quanthea's public URL |
+| Placeholder     | Value                                                        |
+| --------------- | ------------------------------------------------------------ |
+| `{alert}`       | the title                                                    |
+| `{series}`      | the labels as `name=value, …`, or `all` without labels       |
+| `{value}`       | the value, with `value.format` or four significant digits    |
+| `{values}`      | the value of every test, such as `2.4%, requests 312`        |
+| `{change}`      | how far a change or a `past` moved, such as `-52%` or `+230` |
+| `{previous}`    | the earlier value it moved from                              |
+| `{band}`        | the band of a `band`, such as `1.2% to 2.4%`                 |
+| `{numerator}`   | for a ratio, the first query's value, such as `12`           |
+| `{denominator}` | for a ratio, the second query's value, such as `480`         |
+| `{threshold}`   | the condition, such as `above 5%` or `no data`               |
+| `{duration}`    | the condition's `for`                                        |
+| `{since}`       | when the series entered its state, in `timezone`             |
+| `{severity}`    | the severity                                                 |
+| `{link}`        | the alert's page, `/alerts/<id>` under quanthea's public URL |
 
 - `{threshold}` reads after a subject: `down 50% or more within 10m` for a change, and
   `above 2% and requests above 100` for a joined condition, each later part named by its field.
@@ -227,20 +271,26 @@ The server fills the values from the series:
   gone.
 - `{band}` is about the first `band` of the condition. It is empty for a condition without one, and
   with too little history to learn a band.
+- `{numerator}` and `{denominator}` are the two sides of a ratio, with four significant digits and
+  never in `value.format`, which is the ratio's. They are empty for an alert without `dividedBy`,
+  and `{denominator}` for a series with no match in the second query.
 
 ## Validation beyond the schema
 
 The schema catches shape errors and checks across fields: `every` is at least a minute, `lookback`
 covers the condition's `for` and is longer than a change's `within`, `value.reduce` is `last` when
 the alert's value is read by a change, the first part of a joined condition names no field, reducer
-or format, a band's `baseline` is from `1h` to `7d`, at most one test is a `past` or a `band`, `repeatEvery` is no shorter than `every`, a variable is named once and an interval
-variable holds a duration; the time zone of `quietHours` is known. `alerts/validate.ts` (`validateAlertSpec`) also checks:
+or format, a band's `baseline` is from `1h` to `7d`, at most one test is a `past` or a `band`, no
+`past` or `band` reads a ratio and no `no_data` has a second query, `repeatEvery` is no shorter
+than `every`, a variable is named once and an interval variable holds a duration; the time zone of
+`quietHours` is known. `alerts/validate.ts` (`validateAlertSpec`) also checks:
 
 - every channel id names a notification channel (on save and activation);
 - the connector exists and runs the query's language;
 - the query binds with the fixed variables exactly as it will at run time: a variable without a
   value, a misplaced variable, or a SQL template that is not one read statement is reported;
 - the window fits the connector's `maxRangeDays`, and so does the baseline of a band;
+- the second query of a ratio the same way, against its own connector, at `dividedBy.query`;
 - the time zone is known.
 
 Issues come back with paths (`{ path: 'query.expr', message: … }`). `checkAlert` (`alerts/check.ts`)
@@ -250,7 +300,9 @@ an earlier point for, at `condition.within`: the query is instant, has no time c
 window is too short, and the alert would never fire. It runs the history query of a `past` or a
 `band` too, and refuses for the same reason a `past` no series has a value for then (at
 `condition.ago`) and a `band` no series has enough history for (at `condition.baseline`). It says
-nothing of history while the query returns no series at all.
+nothing of history while the query returns no series at all. It runs the second query of a ratio
+too, and refuses, at `dividedBy`, a second query none of whose series matches a series of the
+first, and a `dividedBy.field` the result does not have.
 
 ## Example
 

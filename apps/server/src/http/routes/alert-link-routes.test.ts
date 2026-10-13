@@ -313,4 +313,23 @@ describe('the alerts on a dashboard', () => {
       { labels, from: now - 600_000, to: null },
     ]);
   });
+
+  test('show an alert on a ratio by its first query, without a threshold line', async () => {
+    const second = {
+      refId: 'B',
+      connector: 'events',
+      language: 'sql',
+      sql: 'SELECT * FROM events',
+    };
+    const dividedBy = { query: second, field: 'errors', by: ['service'] };
+    const condition = { kind: 'threshold', op: 'above', value: 0.5, for: '5m' };
+    const spec = { ...eventsAlert(), dividedBy, condition };
+    const { alertId } = fixture.alerts.saveVersion({ spec }, editor.id);
+    await fixture.alerts.activate(alertId, 1, editor.id);
+    const onDashboard = dashboardAlertsSchema.parse(
+      (await client(editor)('GET', `/api/dashboards/${dashboardId}/alerts`)).body,
+    );
+    expect(onDashboard.suggestions).toContainEqual({ alertId, panelId });
+    expect(onDashboard.alerts[0]).toMatchObject({ id: alertId, evaluated: true, threshold: null });
+  });
 });

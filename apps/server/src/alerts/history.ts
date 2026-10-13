@@ -30,15 +30,24 @@ export function historyOf(spec: AlertSpec): History | undefined {
   return measuresOf(spec).find((each) => each.history)?.history;
 }
 
+/** What of a stored spec says which queries an evaluation runs. */
+type QueriedSpec = Pick<AlertSpec, 'condition'> & {
+  readonly query?: { readonly connector?: string } | undefined;
+  readonly dividedBy?: { readonly query?: { readonly connector?: string } } | undefined;
+};
+
 /**
- * How many queries one evaluation of a spec runs on its connector.
+ * How many queries one evaluation of a spec runs on a connector.
  *
  * @param spec - The spec, as stored.
- * @returns 2 for a condition that reads history, 1 otherwise.
+ * @param connector - The connector.
+ * @returns The alert's query when it is on the connector, one more for a condition that reads
+ *   history, and one for the second query of a ratio when that is on the connector.
  */
-export function queriesPerEvaluation(spec: Pick<AlertSpec, 'condition'>): number {
-  if (!spec.condition) return 1;
-  return conditionTests(spec.condition).some(readsHistory) ? 2 : 1;
+export function queriesPerEvaluation(spec: QueriedSpec, connector: string): number {
+  const reads = spec.condition ? conditionTests(spec.condition).some(readsHistory) : false;
+  const own = spec.query?.connector === connector ? (reads ? 2 : 1) : 0;
+  return own + (spec.dividedBy?.query?.connector === connector ? 1 : 0);
 }
 
 /**

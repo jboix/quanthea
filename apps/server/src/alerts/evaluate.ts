@@ -1,6 +1,6 @@
 /**
- * Evaluates one alert: runs its query over the window ending now, and its history query when the
- * condition compares with the past, moves each series through the
+ * Evaluates one alert: runs its query over the window ending now, the second query of a ratio, and
+ * its history query when the condition compares with the past, moves each series through the
  * state machine, saves the new states and the changes, and whether the alert can be checked, then
  * sends the notifications that are due. No model is involved, and a mute or quiet hours stop the
  * notifications only.

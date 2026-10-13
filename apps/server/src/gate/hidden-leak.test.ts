@@ -186,7 +186,7 @@ describe.each([2, 3, 4] as const)('at level %i', (accessLevel) => {
       descriptions: {},
     };
     const labels = { OWNER: secret, 'user.email': secret, service: 'checkout' };
-    const text = JSON.stringify(modelAlertCheck(subject, [{ labels, value: 1, holds: true }]));
+    const text = JSON.stringify(modelAlertCheck([subject], [{ labels, value: 1, holds: true }]));
     expect(text).not.toContain(secret);
     expect(text.toLowerCase()).not.toContain('owner');
     expect(text).not.toContain('user.email');
@@ -218,7 +218,7 @@ test('a replay never shows a hidden label, whatever its case or nesting', () => 
     truncated: false,
     series: [series],
   };
-  const text = JSON.stringify(modelAlertReplay(subject, replay));
+  const text = JSON.stringify(modelAlertReplay([subject], replay));
   expect(text).not.toContain(secret);
   expect(text).toContain('service=checkout');
 });

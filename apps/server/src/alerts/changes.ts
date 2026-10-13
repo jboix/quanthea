@@ -7,6 +7,7 @@ import {
   type AlertSeed,
   type AlertSettings,
   type AlertSpec,
+  alertConnectors,
   alertSpecChanges,
   alertSpecSchema,
   hasRole,
@@ -146,9 +147,9 @@ function linkSeed(context: AlertsContext, alertId: string, seed: AlertSeed, acto
 }
 
 /**
- * Refuses an activation that would pass the cap of active alerts on the spec's connector. The cap
- * counts the queries an evaluation runs: an alert whose condition reads history runs two, and
- * counts twice.
+ * Refuses an activation that would pass the cap of active alerts on a connector the spec queries.
+ * The cap counts the queries an evaluation runs there: an alert whose condition reads history
+ * runs two and counts twice, and the second query of a ratio counts on its own connector.
  *
  * @param context - The service context.
  * @param alertId - The alert being activated.
@@ -156,23 +157,42 @@ function linkSeed(context: AlertsContext, alertId: string, seed: AlertSeed, acto
  * @throws {AppError} `conflict` at the cap.
  */
 function checkCap(context: AlertsContext, alertId: string, spec: AlertSpec): void {
-  const { maxActivePerConnector } = context.settings.get();
-  const connector = spec.query.connector;
-  const active = context.repository
+  const others = context.repository
     .evaluated()
     .filter((each) => each.alert.id !== alertId)
-    .map((each) => each.spec as AlertSpec)
-    .filter((each) => each.query?.connector === connector);
-  if (active.length >= maxActivePerConnector)
+    .map((each) => each.spec as AlertSpec);
+  for (const connector of alertConnectors(spec))
+    checkConnectorCap(context, others, spec, connector);
+}
+
+/**
+ * Refuses an activation that would pass the cap on one connector.
+ *
+ * @param context - The service context.
+ * @param others - The specs of the other active alerts.
+ * @param spec - The spec being activated.
+ * @param connector - The connector.
+ * @throws {AppError} `conflict` at the cap.
+ */
+function checkConnectorCap(
+  context: AlertsContext,
+  others: readonly AlertSpec[],
+  spec: AlertSpec,
+  connector: string,
+): void {
+  const { maxActivePerConnector } = context.settings.get();
+  const counts = others.map((each) => queriesPerEvaluation(each, connector));
+  const active = counts.filter((count) => count > 0).length;
+  if (active >= maxActivePerConnector)
     throw new AppError(
       'conflict',
-      `"${connector}" already has ${active.length} active alerts, the most allowed.`,
+      `"${connector}" already has ${active} active alerts, the most allowed.`,
     );
-  const queries = active.reduce((total, each) => total + queriesPerEvaluation(each), 0);
-  if (queries + queriesPerEvaluation(spec) > maxActivePerConnector)
+  const queries = counts.reduce((total, count) => total + count, 0);
+  if (queries + queriesPerEvaluation(spec, connector) > maxActivePerConnector)
     throw new AppError(
       'conflict',
-      `"${connector}" has no room for this alert: its ${active.length} active alerts run ${queries} queries per check, and the most allowed is ${maxActivePerConnector}. An alert that compares with history runs two.`,
+      `"${connector}" has no room for this alert: its ${active} active alerts run ${queries} queries per check, and the most allowed is ${maxActivePerConnector}. An alert that compares with history runs two, and a ratio runs its second query.`,
     );
 }
 

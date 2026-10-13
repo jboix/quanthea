@@ -19,6 +19,9 @@ export const messagePlaceholders = [
   'previous',
   // The band a series' recent history gives, such as `1.2% to 2.4%`.
   'band',
+  // The two sides of a ratio: the first query's value and the second's.
+  'numerator',
+  'denominator',
   'threshold',
   'duration',
   'since',
