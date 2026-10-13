@@ -213,7 +213,9 @@ function draw(drawing: Drawing, option: Loose, stillWanted: () => boolean): void
 
 /**
  * Draws the option when the chart is in view and the option is not the one drawn, and before the
- * page is printed wherever the chart is, so a printed page has every chart.
+ * page is printed wherever the chart is, so a printed page has every chart. What the option needs
+ * loads as soon as the chart is there, in view or not: loading is cheap, and a chart that still
+ * had modules to fetch when the page is printed would print blank.
  *
  * @param drawing - Where to draw.
  * @param option - The option.
@@ -227,6 +229,7 @@ function useDrawn(drawing: Drawing, option: Loose, inView: boolean): void {
     const drawIt = (): void => {
       if (drawn.current !== option) draw(parts, option, () => current);
     };
+    void loadWhatItNeeds(option).catch(() => undefined);
     if (inView) drawIt();
     window.addEventListener('beforeprint', drawIt);
     return () => {

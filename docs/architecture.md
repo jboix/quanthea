@@ -3926,7 +3926,11 @@ one, and enables them again. Without any admin, it creates the default one.
 - **Charts out of view** (`charts/chart.tsx`). A chart draws when it is in the window or within
   200 pixels of it (an `IntersectionObserver`), and a new option waits until then. A chart once
   drawn stays drawn. Before the page is printed (`beforeprint`) every chart draws, wherever it
-  is. A browser without `IntersectionObserver` draws every chart at once.
+  is. The modules and the map an option needs load when the chart mounts, in view or not, so
+  only the drawing is left for then. Two limits stand: a long scatter in large mode draws in
+  steps and may print partly drawn, and the 200 pixels count from the window, so inside a pane
+  that scrolls on its own a chart draws as it enters the pane. Neither the lazy drawing nor
+  printing has a test: both need a browser. A browser without `IntersectionObserver` draws every chart at once.
 - **Measured** with `bun run bench:charts` (`dev/chart-speed/run.ts`): the development server's
   `/dev/chart-speed` page, which a build leaves out, draws 12 half-width time charts of one
   series each through the chart component, in headless Chromium at 2 device pixels per pixel.
