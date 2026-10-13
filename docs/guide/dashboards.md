@@ -21,7 +21,6 @@ Open **Threads**. The question box sits in the middle of the screen.
   admin switched on. **Choose queries…** narrows them for this thread. **Free style** lets it
   write raw queries only. Builders give fewer tokens and fewer broken panels; see
   [Queries and charts](queries-and-charts.md).
-- The examples under the box fill it with a request to start from.
 
 Write as you would to a colleague. Name the time ("yesterday around 14:00", "the last 30 days"),
 what to compare and how to split it. Times are read in your browser's time zone.

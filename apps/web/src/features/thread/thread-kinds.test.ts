@@ -5,13 +5,12 @@ test('a link picks the alert kind with ?make=alert, and a dashboard otherwise', 
   expect(kindFrom('alert')).toBe('alert');
   expect(kindFrom(null)).toBe('dashboard');
   expect(kindFrom('nonsense')).toBe('dashboard');
-  expect(kindWords.alert.examples.length).toBeGreaterThan(0);
 });
 
-test('a link picks the report kind with ?make=report, which has its own examples', () => {
+test('a link picks the report kind with ?make=report, which has its own words', () => {
   expect(kindFrom('report')).toBe('report');
   expect(kindWords.report.label).toBe('A report');
-  expect(kindWords.report.examples).toContain('Every Monday at 8:00, last week’s sales');
+  expect(kindWords.report.placeholder).not.toBe(kindWords.dashboard.placeholder);
 });
 
 test('a link fills the box with ?prompt=, trimmed, without control characters, capped', () => {

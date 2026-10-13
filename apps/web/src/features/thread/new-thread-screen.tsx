@@ -165,38 +165,6 @@ const kindOptions = [
 ];
 
 /**
- * The example requests of a kind, as buttons that fill the box.
- *
- * @param props - The kind and the box's setter.
- * @param props.kind - What the thread makes.
- * @param props.onPick - Fills the box.
- * @returns The examples.
- */
-function Examples({
-  kind,
-  onPick,
-}: {
-  readonly kind: ThreadKind;
-  readonly onPick: (text: string) => void;
-}) {
-  return (
-    <div className={styles.examples}>
-      <span className={styles.examplesLabel}>Try</span>
-      {kindWords[kind].examples.map((example) => (
-        <button
-          key={example}
-          type="button"
-          className={styles.example}
-          onClick={() => onPick(example)}
-        >
-          {example}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/**
  * The new-thread screen: what to make (a dashboard, an alert or a report), one question box in the
  * middle, and past threads at the top right. Sending keeps the question on screen until the thread
  * opens and the agent starts on it.
@@ -230,7 +198,6 @@ export function NewThreadScreen() {
             <Segmented label="What to make" options={kindOptions} value={kind} onChange={setKind} />
             <AskForm ask={ask} choice={choice} placeholder={kindWords[kind].placeholder} />
             {kind === 'dashboard' && <QueryPicker queries={queries} choice={queryChoice} />}
-            <Examples kind={kind} onPick={ask.setQuestion} />
           </>
         ) : (
           <Sent question={ask.sent} />
