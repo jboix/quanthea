@@ -1,6 +1,6 @@
 /**
  * A report to read: Markdown for the job's summary page in GitHub Actions, and a self-contained
- * HTML page. Both show each question's verdict and why, its cost, what the agent asked, and each
+ * HTML page. Both show each question's verdict and why, its layout mark, its cost, what the agent asked, and each
  * panel with its query; for an answer case, the answer's text and each read; for an alert case,
  * the condition, the replay and the tools used; for a report case, the schedule, the period and the
  * run's numbers; for a run case, each answer and its follow-up cards. A run with parity questions
@@ -16,6 +16,7 @@ import { parityCases } from './parity-cases.ts';
 import { questions } from './questions.ts';
 import { htmlAlertBody, markdownAlertBody } from './render-alert.ts';
 import { htmlAnswerBody, markdownAnswerBody } from './render-answer.ts';
+import { htmlLayout, layoutLine, markdownLayout } from './render-layout.ts';
 import { htmlParity, markdownParity } from './render-parity.ts';
 import {
   htmlReportBody,
@@ -78,8 +79,8 @@ function questionText(id: string): string {
 }
 
 /**
- * The headline: how many pass, on which models, when, what it cost, and where the answers came
- * from.
+ * The headline: how many pass, on which models, when, what it cost, where the answers came
+ * from, and how many layouts read well.
  *
  * @param report - The report.
  * @returns The lines.
@@ -88,6 +89,7 @@ function headline(report: Report): {
   readonly title: string;
   readonly facts: string;
   readonly cache: string;
+  readonly layout: string;
 } {
   const passed = report.results.filter((result) => result.score.pass).length;
   const usage = totalUsage(report.results);
@@ -98,6 +100,7 @@ function headline(report: Report): {
     title: `Evals: ${passed} of ${report.results.length} pass`,
     facts: `${models} · ${when} UTC · ${tokensOf(usage).toLocaleString('en')} tokens · ${dollars(usage)} at list price`,
     cache: cacheSentence(report.cache),
+    layout: layoutLine(report.results.map((result) => result.layout)) ?? '',
   };
 }
 
@@ -117,7 +120,7 @@ function cell(text: string): string {
  * @param result - The question's result.
  * @returns The row.
  */
-function markdownRow({ outcome, score }: Result): string {
+function markdownRow({ outcome, score, layout }: Result): string {
   const cells = [
     `${score.pass ? '✅' : '❌'} ${outcome.id}`,
     cell(questionText(outcome.id)),
@@ -126,6 +129,7 @@ function markdownRow({ outcome, score }: Result): string {
     dollars(outcome.usage),
     `${Math.round(outcome.durationMs / 1000)} s`,
     cell(score.reasons.join('; ')),
+    cell(markdownLayout(layout)),
   ];
   return `| ${cells.join(' | ')} |`;
 }
@@ -196,7 +200,7 @@ function markdownBuild(outcome: Outcome): string[] {
  * @returns The Markdown.
  */
 export function markdownReport(report: Report): string {
-  const { title, facts, cache } = headline(report);
+  const { title, facts, cache, layout } = headline(report);
   return [
     `## ${title}`,
     '',
@@ -204,9 +208,10 @@ export function markdownReport(report: Report): string {
     '',
     cache,
     '',
+    ...(layout ? [layout, ''] : []),
     ...markdownParity(report),
-    '| | Question | Built, read or saved | Repairs or steps | Tokens | Cost | Time | Why it fails |',
-    '| --- | --- | --: | --: | --: | --: | --: | --- |',
+    '| | Question | Built, read or saved | Repairs or steps | Tokens | Cost | Time | Why it fails | Layout |',
+    '| --- | --- | --: | --: | --: | --: | --: | --- | --- |',
     ...report.results.map(markdownRow),
     '',
     ...report.results.map(markdownDetails),
@@ -247,7 +252,7 @@ function htmlBuild(outcome: Outcome): string {
  * @param result - The result.
  * @returns The HTML.
  */
-function htmlQuestion({ outcome, score }: Result): string {
+function htmlQuestion({ outcome, score, layout }: Result): string {
   const reasons = score.reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join('');
   const stats = [
     ...madeOf(outcome),
@@ -263,7 +268,7 @@ function htmlQuestion({ outcome, score }: Result): string {
   return `<section class="question" data-pass="${score.pass}">
 <h2><span class="verdict">${score.pass ? 'pass' : 'fail'}</span> ${escapeHtml(outcome.id)} · ${escapeHtml(questionText(outcome.id))}</h2>
 <p class="muted">${stats}</p>
-${reasonList}${failure}
+${reasonList}${failure}${htmlLayout(layout)}
 ${body}
 </section>`;
 }
@@ -281,7 +286,7 @@ h2 { margin: 0; font-size: 16px; }
 .verdict { display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 6px; background: var(--ok-soft); color: var(--ok); font-size: 12px; text-transform: uppercase; }
 .question[data-pass="false"] .verdict { background: var(--bad-soft); color: var(--bad); }
 .reasons { color: var(--bad); margin: 8px 0; }
-.asked { margin: 8px 0; }
+.asked, .layout { margin: 8px 0; }
 .panels { padding-left: 18px; }
 .panels li { margin: 10px 0; }
 pre { margin: 6px 0 0; padding: 8px 10px; overflow-x: auto; border-radius: 8px; background: var(--ground); font: 12.5px/1.5 ui-monospace, monospace; white-space: pre-wrap; }
@@ -304,7 +309,7 @@ tr[data-status="red"] .status { background: var(--bad-soft); color: var(--bad); 
  * @returns The HTML.
  */
 export function htmlReport(report: Report): string {
-  const { title, facts, cache } = headline(report);
+  const { title, facts, cache, layout } = headline(report);
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title><style>${styles}</style></head>
@@ -312,6 +317,7 @@ export function htmlReport(report: Report): string {
 <h1>${escapeHtml(title)}</h1>
 <p class="muted">${escapeHtml(facts)}</p>
 <p class="muted">${escapeHtml(cache)}</p>
+${layout ? `<p class="muted">${escapeHtml(layout)}</p>` : ''}
 ${htmlParity(report)}
 ${report.results.map(htmlQuestion).join('\n')}
 </main></body>

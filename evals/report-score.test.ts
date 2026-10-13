@@ -270,4 +270,15 @@ describe('the report of a report case', () => {
     expect(markdown).toContain('Orders: 64680 (64680); the database: 63016 paid, 64680 in all');
     expect(htmlReport(report)).toContain('Run over Sat 3 Oct: ok.');
   });
+
+  test('marks the layout of the saved spec: the headline row, then the grid without it', () => {
+    expect(scoreAll([written])[0]?.layout).toEqual({ gaps: [], firstRow: [] });
+    const stray = outcomeWith({ spec: specWith({ summaryPanels: ['orders', 'revenue'] }) });
+    expect(scoreAll([stray])[0]?.layout).toEqual({
+      gaps: ['row y0 leaves columns 4-12 empty'],
+      firstRow: ['"failed" is a number outside the headline row'],
+    });
+    const { spec: _spec, ...unsaved } = written;
+    expect(scoreAll([unsaved])[0]?.layout).toBeUndefined();
+  });
 });

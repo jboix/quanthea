@@ -144,6 +144,7 @@ export function panelsOf(
     connectors: [...new Set(panel.queries.map((query) => query.connector))],
     text: `${panel.title}\n${JSON.stringify(panel.queries)}`,
     kind: panel.view.kind,
+    grid: panel.grid,
     queries: panel.queries,
     view: panel.view,
     ...operationsField(panel),

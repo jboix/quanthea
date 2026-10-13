@@ -3848,8 +3848,8 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
   the builder, operation or view they name exists. They run only when `--only parity` or their ids
   name them, with `--search`. One that needs what the world lacks, such as an HTTP connector, is
   skipped and reported as skipped, never as a failure. The report shows them in a table by family
-  id (`evals/render-parity.ts`): green, red or skipped, with a mark for the shape of the data and
-  one for the view, and the count of green families among those asked. The evalmark result holds
+  id (`evals/render-parity.ts`): green, red or skipped, with a mark for the shape of the data,
+  one for the view and one for the layout, and the count of green families among those asked. The evalmark result holds
   them as cases tagged `parity`, a skipped one with a skipped trial.
   A run builds the
   server's services on a database of its own, adds the dev Postgres and Prometheus, and, with
@@ -3885,7 +3885,12 @@ one), the Name field proposes the vendor its base URL reaches; the admin applies
   francs. Two cases ask about that run as the run question endpoint does: at aggregates, an
   answer that cites a frozen read and names the failures and the incident, then 1 to 3 follow-up
   cards; at schema and metadata only, no measurement and a word that it cannot read the numbers.
-  The scoring is in `evals/report-score.ts` and `evals/run-answer-score.ts`, unit-tested. A
+  The scoring is in `evals/report-score.ts` and `evals/run-answer-score.ts`, unit-tested. Every
+  saved dashboard and report also gets a layout mark (`evals/layout-mark.ts`, unit-tested on
+  hand-written specs), read from the saved spec with the rows of the server's layout check: no
+  row leaves columns empty, the first row holds a number and something of what was asked (for a
+  report, the headline row), and related panels share a row. The mark stands beside the verdict
+  in the report and never changes it. A
   middleware keeps every model response in `evals/.cache`,
   under a hash of the model and the request, with the clock fixed at 10:00 UTC for the day and the
   ids a run makes written as stable aliases, so reruns call the provider only for what changed;

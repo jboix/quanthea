@@ -2,7 +2,7 @@
  * Scores what the agent built for a question against what a good answer holds. Pure, so a saved
  * report can be scored again with no model call (`--rescore`).
  */
-import { fixedTimeOf, type PanelQuery, type TurnUsage } from '@quanthea/shared';
+import { fixedTimeOf, type PanelGrid, type PanelQuery, type TurnUsage } from '@quanthea/shared';
 import type { Expectation } from './questions.ts';
 import { type BuiltShape, shapeFaults } from './shape.ts';
 
@@ -18,6 +18,8 @@ export interface BuiltPanel extends BuiltShape {
   readonly text: string;
   /** Its view's kind, such as `stat` or `chart`; absent in reports written before it was kept. */
   readonly kind?: string;
+  /** Its place on the grid; absent in reports written before it was kept. */
+  readonly grid?: PanelGrid;
 }
 
 /** What happened when the agent answered a question. */

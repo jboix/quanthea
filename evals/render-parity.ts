@@ -2,9 +2,10 @@
  * The parity questions in the report: one row per family of panels, by family id. A family is
  * green when its question passes, red when it fails, and skipped when the world lacks what the
  * question needs. Two marks say whether a panel gets its data as expected (the shape) and shows it
- * as expected (the view). A skipped family was not asked, so it never counts as a failure.
+ * as expected (the view), and a third whether the dashboard's layout reads well. A skipped family was not asked, so it never counts as a failure.
  */
 import { escapeHtml } from './html.ts';
+import { type LayoutMark, layoutReasons } from './layout-mark.ts';
 import { type ParityCase, parityCases } from './parity-cases.ts';
 import { parityFamilies } from './parity-families.ts';
 import type { Skipped } from './parity-score.ts';
@@ -18,6 +19,8 @@ interface Scored {
   readonly outcome: { readonly id: string };
   /** How it scored. */
   readonly score: Score;
+  /** How the layout of what it built reads, if it built a dashboard. */
+  readonly layout?: LayoutMark;
 }
 
 /** The part of a run's report the parity families are read from. */
@@ -46,6 +49,8 @@ export interface FamilyRow {
   readonly shape: Mark;
   /** Whether that panel shows it as expected: the view's kind, recipe and fields. */
   readonly view: Mark;
+  /** Whether the layout of the dashboard reads well: `none` when none was built. */
+  readonly layout: Mark;
   /** Why it is red, or what the world lacks when it is skipped. */
   readonly why: string;
 }
@@ -101,6 +106,17 @@ function marksOf(parityCase: ParityCase, outcome: object): Pick<FamilyRow, 'shap
 }
 
 /**
+ * The layout mark of a question that was asked, as one mark.
+ *
+ * @param layout - What the layout misses, if a dashboard was built.
+ * @returns Yes when it misses nothing.
+ */
+function layoutMarkOf(layout: LayoutMark | undefined): Mark {
+  if (!layout) return 'none';
+  return layoutReasons(layout).length === 0 ? 'yes' : 'no';
+}
+
+/**
  * A family's row, when its question was asked or skipped.
  *
  * @param parityCase - The family's question.
@@ -114,12 +130,13 @@ function rowOf(parityCase: ParityCase, what: string, run: ParityRun): FamilyRow 
   if (result) {
     const status = result.score.pass ? 'green' : 'red';
     const why = result.score.reasons.join('; ');
-    return { id, what, status, ...marksOf(parityCase, result.outcome), why };
+    const layout = layoutMarkOf(result.layout);
+    return { id, what, status, ...marksOf(parityCase, result.outcome), layout, why };
   }
   const skipped = run.skipped?.find((each) => each.id === id);
   if (!skipped) return undefined;
   const why = `the world has no ${skipped.needs.join(' and no ')}`;
-  return { id, what, status: 'skipped', shape: 'none', view: 'none', why };
+  return { id, what, status: 'skipped', shape: 'none', view: 'none', layout: 'none', why };
 }
 
 /**
@@ -194,14 +211,15 @@ export function markdownParity(run: ParityRun): string[] {
   const score = parityLine(run);
   if (score === undefined) return [];
   const lines = rows.map((row) => {
-    const cells = [row.id, signs[row.status], cell(row.what), signs[row.shape], signs[row.view]];
-    return `| ${cells.join(' | ')} | ${cell(row.why)} |`;
+    const marks = [signs[row.shape], signs[row.view], signs[row.layout]];
+    const cells = [row.id, signs[row.status], cell(row.what), ...marks, cell(row.why)];
+    return `| ${cells.join(' | ')} |`;
   });
   return [
     `### ${score}`,
     '',
-    '| Family | | A panel of it | Shape | View | Why |',
-    '| --- | --- | --- | :-: | :-: | --- |',
+    '| Family | | A panel of it | Shape | View | Layout | Why |',
+    '| --- | --- | --- | :-: | :-: | :-: | --- |',
     ...lines,
     '',
   ];
@@ -230,6 +248,7 @@ function htmlRow(row: FamilyRow): string {
     `<td>${escapeHtml(row.what)}</td>`,
     htmlMark(row.shape),
     htmlMark(row.view),
+    htmlMark(row.layout),
     `<td class="muted">${escapeHtml(row.why)}</td>`,
   ];
   return `<tr data-status="${row.status}">${cells.join('')}</tr>`;
@@ -244,7 +263,7 @@ function htmlRow(row: FamilyRow): string {
 export function htmlParity(run: ParityRun): string {
   const score = parityLine(run);
   if (score === undefined) return '';
-  const head = ['Family', '', 'A panel of it', 'Shape', 'View', 'Why']
+  const head = ['Family', '', 'A panel of it', 'Shape', 'View', 'Layout', 'Why']
     .map((title) => `<th>${title}</th>`)
     .join('');
   return `<section class="parity">

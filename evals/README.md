@@ -16,7 +16,54 @@ was built:
 - no two panels run the same query;
 - the build took no more failed writes than allowed.
 
-The report adds the tokens, the cost at list price and the time of each question.
+The report adds the tokens, the cost at list price and the time of each question, and a mark for
+the layout.
+
+## The layout mark
+
+Every dashboard a question builds, and every report a report case saves, gets a mark for its
+layout. It is read from the saved spec by code (`layout-mark.ts`), with the rows of the server's
+layout check, so the mark and the advice the agent gets agree on what a gap is. The mark stands
+beside the verdict and never changes it: a question passes or fails on what it shows, not on where.
+
+| Part         | It holds when                                                                         |
+| ------------ | ------------------------------------------------------------------------------------- |
+| No gaps      | No row of the grid leaves columns empty. A tall panel fills the rows it reaches into. |
+| First row    | The first row answers the question: the headline numbers are there.                   |
+| Side by side | Related panels share a row. It is judged only when two panels are related.            |
+
+The first row of a dashboard:
+
+- holds a number, when the dashboard has numbers;
+- holds a number, when the dashboard has three panels or more. One or two panels are the answer
+  themselves;
+- shows one of the question's topics in a panel's title or query.
+
+The first row of a report is its headline row, above the grid:
+
+- it names a headline number;
+- no number is left on the grid;
+- it shows one of the case's headline topics.
+
+The grid of a report is read without its headline numbers.
+
+Two panels are related when:
+
+- both are numbers, and the grid has two or more. Each must share a row with another panel: the
+  other numbers, or the chart it sums up;
+- they run the same queries and neither is a number, such as a chart and a table of one query.
+  They must share a row. A number and its trend are not such a pair, since numbers go first.
+
+The report shows the mark in four places:
+
+- The printed table has a cell per question, such as `layout 2/3`: the parts that hold, of those
+  judged. `layout -` means nothing was saved, or the report was written before places were kept.
+- The Markdown table has a `Layout` column: a tick, or a cross with what the layout misses.
+- The HTML page has a line per question with each part, then what the layout misses.
+- The table of parity families has a `Layout` column beside `Shape` and `View`.
+
+The run's tally reads `Layout: 5 of 7 read well (no gaps 6 of 7, first row 7 of 7, side by side
+5 of 6)`. `--rescore` marks a saved report again. The evalmark result does not hold the mark.
 
 ## Answer cases
 
@@ -195,9 +242,10 @@ The report shows the families in a table, by family id, above the questions:
 | Verdict | Green when the question passes, red when it fails, skipped when it was not asked.           |
 | Shape   | Whether one panel gets its data as expected: the builder, the aggregations, the operations. |
 | View    | Whether that panel shows it as expected: the view's kind, its recipe and its fields.        |
+| Layout  | Whether the layout of the dashboard reads well: every part of the layout mark holds.        |
 | Why     | What did not hold, or what the world lacks.                                                 |
 
-The two marks are read on the panel that comes closest to the expected shape. A mark is empty when
+The shape and view marks are read on the panel that comes closest to the expected shape. A mark is empty when
 the question expects nothing of that part. A family can be red with both marks set: the rest of
 its expectation, such as the panel count or a field of the dashboard, did not hold.
 

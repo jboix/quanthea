@@ -11,9 +11,11 @@ import { type AlertCaseOutcome, isAlert, scoreAlert } from './alert-score.ts';
 import { answerCases } from './answer-cases.ts';
 import { type AnswerCaseOutcome, isAnswer, scoreAnswer } from './answer-score.ts';
 import type { CacheCounts } from './cache.ts';
+import { dashboardLayout, type LayoutMark, reportLayout } from './layout-mark.ts';
 import { parityCases } from './parity-cases.ts';
 import { type Skipped, scoreParity, skippedLine } from './parity-score.ts';
 import { questions } from './questions.ts';
+import { layoutCell, layoutLine } from './render-layout.ts';
 import { parityLine } from './render-parity.ts';
 import { reportCases } from './report-cases.ts';
 import { isReport, type ReportCaseOutcome, scoreReport } from './report-score.ts';
@@ -35,6 +37,8 @@ export interface Result {
   readonly outcome: EvalOutcome;
   /** How it scored. */
   readonly score: Score;
+  /** How the layout of what it saved reads; absent when it saved no dashboard and no report. */
+  readonly layout?: LayoutMark;
 }
 
 /** A run's report. */
@@ -105,13 +109,53 @@ function scoreDashboardCase(outcome: Outcome | AnswerCaseOutcome | AlertCaseOutc
 }
 
 /**
+ * Marks the layout of the dashboard or the report an outcome saved. The mark stands beside the
+ * score and never changes it.
+ *
+ * @param outcome - The outcome.
+ * @returns The field to spread; none for an outcome with no layout, such as an answer's.
+ */
+function layoutField(outcome: EvalOutcome): Pick<Result, 'layout'> {
+  if (isRunAnswer(outcome) || isAlert(outcome) || isAnswer(outcome)) return {};
+  const layout = isReport(outcome)
+    ? reportLayout(outcome, headlineTopics(outcome.id))
+    : dashboardLayout(outcome, questionTopics(outcome.id));
+  return layout ? { layout } : {};
+}
+
+/**
+ * What the headline numbers of a report case must show.
+ *
+ * @param id - The case's id.
+ * @returns The topics; none when the case is gone.
+ */
+function headlineTopics(id: string): readonly RegExp[] {
+  const reportCase = reportCases.find((each) => each.id === id);
+  return reportCase?.mode === 'write' ? reportCase.expect.summaryTopics : [];
+}
+
+/**
+ * What a dashboard question or a parity question asks for.
+ *
+ * @param id - The question's id.
+ * @returns The topics; none when the question is gone.
+ */
+function questionTopics(id: string): readonly RegExp[] {
+  return [...questions, ...parityCases].find((each) => each.id === id)?.expect.topics ?? [];
+}
+
+/**
  * Scores outcomes against the questions and the answer cases as they are now.
  *
  * @param outcomes - The outcomes.
  * @returns The results.
  */
 export function scoreAll(outcomes: readonly EvalOutcome[]): Result[] {
-  return outcomes.map((outcome) => ({ outcome, score: scoreOne(outcome) }));
+  return outcomes.map((outcome) => ({
+    outcome,
+    score: scoreOne(outcome),
+    ...layoutField(outcome),
+  }));
 }
 
 /**
@@ -253,7 +297,7 @@ export function madeOf(outcome: EvalOutcome): readonly [string, string] {
  * @param result - A question's or answer case's result.
  * @returns The line.
  */
-function line({ outcome, score: scored }: Result): string {
+function line({ outcome, score: scored, layout }: Result): string {
   const [made, spent] = madeOf(outcome);
   const cells = [
     outcome.id.padEnd(4),
@@ -263,13 +307,14 @@ function line({ outcome, score: scored }: Result): string {
     `${tokensOf(outcome.usage)} tokens`.padEnd(14),
     dollars(outcome.usage).padEnd(10),
     `${Math.round(outcome.durationMs / 1000)} s`.padEnd(6),
+    layoutCell(layout).padEnd(10),
   ];
   return `${cells.join('  ')}  ${scored.reasons.join('; ')}`.trimEnd();
 }
 
 /**
- * The report as a table, with the totals, then the parity score when the run has parity
- * questions, and the questions it skipped.
+ * The report as a table, with the totals, then the layout score when the run saved a dashboard or
+ * a report, the parity score when the run has parity questions, and the questions it skipped.
  *
  * @param report - The report.
  * @returns The text.
@@ -280,12 +325,14 @@ export function summary(report: Report): string {
   const { build, model } = report.models;
   const models = build ? `${model}, building with ${build}` : model;
   const parity = parityLine(report);
+  const layouts = layoutLine(report.results.map((result) => result.layout));
   return [
     `Evals of ${report.startedAt} on ${models}`,
     '',
     ...report.results.map(line),
     '',
     `${passed} of ${report.results.length} pass · ${tokensOf(usage)} tokens · ${dollars(usage)} at list price`,
+    ...(layouts === undefined ? [] : [layouts]),
     ...(parity === undefined ? [] : [parity]),
     ...(report.skipped ?? []).map(skippedLine),
     cacheSentence(report.cache),
