@@ -103,10 +103,16 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   [explanation](ask-and-explain.md#explain-a-panel).
 - **Alerts on panels.** A panel an [alert](alerts.md) watches shows a state pill, and its time
   chart draws the alert's threshold and when it fired.
-- **Long series.** A line with more points than its chart has pixels is drawn through the lowest
-  and the highest point of each pixel, so every spike and every dip shows, and a tooltip still
-  reads a point of the data. A chart further down the page draws when you scroll to it, and all
-  of them draw when you print the page.
+- **Long series.** A chart over time asks its source for no more points than it can show: 200
+  for each of the 12 columns of the grid it spans. Over a longer time range the points are
+  further apart, as Prometheus widens its step and a query that buckets by the interval widens
+  its buckets. Nothing is cut off the end. A query with a width of its own keeps it: its line is
+  drawn through the lowest and the highest point of each pixel, so every spike and every dip
+  shows, and a tooltip still reads a point of the data.
+- **A result cut short.** When a source returns more rows than the connector's row limit, the
+  chart says so under it. Narrow the time range to see the rest.
+- **Charts further down** draw when you scroll to them, and all of them draw when you print the
+  page.
 - **About** (the info icon by the title) gives the description, the tags and the sources.
 
 ![The checkout incident: errors and latency rise at the deploy marker and fall after the rollback](../screenshots/dashboard-incident-light.webp#gh-light-mode-only)

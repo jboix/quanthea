@@ -2,7 +2,7 @@
  * The interval a query's time buckets follow. A caller that cuts its charts into even intervals,
  * such as a report's run, gives one; without it each language picks its own from the time range.
  */
-import { defaultChartInterval } from '@quanthea/shared';
+import { chartIntervals, defaultChartInterval, durationMs } from '@quanthea/shared';
 import type { TimeRange } from '../connectors/_shared/index.ts';
 import { QueryError } from './query-error.ts';
 
@@ -59,4 +59,22 @@ export function sqlInterval(timeRange: TimeRange, interval: string | undefined):
  */
 export function sqlIntervalSeconds(timeRange: TimeRange, interval: string | undefined): number {
   return parseDuration(sqlInterval(timeRange, interval)) ?? 60;
+}
+
+/**
+ * The interval a SQL query's `:__interval` binds to for a chart that has room for a number of
+ * points: the one that suits the time range, or the next of the closed list that cuts the range
+ * into no more pieces than that. Past the coarsest, a day, it stays a day.
+ *
+ * @param timeRange - The time range.
+ * @param chartPoints - The most points a series of the chart can show.
+ * @returns The interval as a duration, such as `30m`.
+ */
+export function sqlIntervalWithin(timeRange: TimeRange, chartPoints: number): string {
+  const rangeMs = timeRange.to.getTime() - timeRange.from.getTime();
+  const usual = chartIntervals.indexOf(defaultChartInterval(rangeMs));
+  const fitting = chartIntervals
+    .slice(usual)
+    .find((interval) => rangeMs / durationMs(interval) <= chartPoints);
+  return fitting ?? (chartIntervals.at(-1) as string);
 }

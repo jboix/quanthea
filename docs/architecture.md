@@ -2664,6 +2664,29 @@ the connector shows and a version that changes with its settings).
      passes the interval of its period, and a redraw the one a person chose from the closed list
      (`chartIntervals` in `@quanthea/shared`: `1m`, `5m`, `10m`, `30m`, `1h`, `6h`, `1d`). A
      dashboard passes none.
+   - **The points a chart can show.** A chart cannot show more points than it has pixels. A run
+     of a panel that is a chart over time (`isTimeChart`) passes how many points a series can
+     show (`chartPoints`): 200 per grid column of the panel, at the width its layout gives it
+     (`dashboards/chart-points.ts`), so 2400 at full width and 1200 at half. When no interval
+     was chosen, each language's own interval is raised until the time range has no more points
+     than that (`query/bind.ts`), and nothing is cut from the result.
+     - PromQL and LogQL raise the step, and `$__interval` and `$__rate_interval` with it. A
+       `step` the query names is the smallest it accepts, so it is raised too. A day at half
+       width has a step of 72 seconds where it had 15.
+     - SQL takes the next interval of the closed list for `:__interval` and `:__interval_s`: a
+       day at a width of one column is cut by 30 minutes where it was cut by 10. The list ends at
+       a day, so a range of more days than the chart has points keeps a point a day.
+     - A search and MongoDB widen `__interval` and `__interval_ms` to the next round width.
+     - A query that cuts time by a width of its own cannot be raised: SQL that truncates by a
+       literal width, a histogram of a literal width, a bucket that follows an interval variable
+       a person set, an HTTP or a Redis query. It returns what it returns, up to the connector's
+       row limit, and the browser draws its line through a sample (see the web's charts). A
+       result cut at the row limit is marked truncated, and the panel says so under the chart.
+     - A chosen interval is kept as chosen: a report's run and a redraw take no cap. The
+       markers of a chart, a chart of categories, a stat and a table run as they are written,
+       and an alert's evaluation does not go through a panel at all.
+     - A snapshot and the test run of a spec go through the same run of a panel, so a time chart
+       gets the same points there.
    - **`:__interval` in SQL** is the width of a time bucket, bound as text such as `10m`
      (`date_bin(:__interval::interval, created_at, :__from)`; the builders take
      `"bucket": "$__interval"` and write each dialect's form). Without a chosen interval it is
@@ -3787,6 +3810,10 @@ one, and enables them again. Without any admin, it creates the default one.
     `visualMap`, a `symbolSize` that is not one number) or stacked keeps the usual drawing.
   - A chart that draws more than 2000 points, over all its series, does not animate.
   - The alert chart is left as it was: a replay draws at most 1500 points a line.
+- **A result cut short.** A chart whose query came back cut at the connector's row limit
+  (`meta.truncated` on a frame: rows past the limit, or series past the most one query returns)
+  says so in a line under the chart (`features/dashboard/row-limit.ts`), on a dashboard, a
+  snapshot and a report's run. A table keeps its own line, `Showing the first N rows.`
 - **Charts out of view** (`charts/chart.tsx`). A chart draws when it is in the window or within
   200 pixels of it (an `IntersectionObserver`), and a new option waits until then. A chart once
   drawn stays drawn. Before the page is printed (`beforeprint`) every chart draws, wherever it

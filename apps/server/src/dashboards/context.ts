@@ -2,6 +2,7 @@
 import {
   applyLayout,
   type DashboardDetail,
+  type DashboardLayout,
   type DashboardSpec,
   dashboardLayoutSchema,
   dashboardSpecSchema,
@@ -135,6 +136,44 @@ export function shownLayoutOf(
   if (!row) return null;
   const parsed = dashboardLayoutSchema.safeParse(row.layout);
   return parsed.success ? { revision: row.revision, layout: parsed.data } : null;
+}
+
+/**
+ * A spec with each panel at the place a layout gives it, the hidden ones included. A panel the
+ * layout does not name keeps its own place.
+ *
+ * @param spec - The spec.
+ * @param layout - The layout, or `undefined` for the spec's own places.
+ * @returns The spec, with the layout's places.
+ */
+export function atLayoutPlaces(
+  spec: DashboardSpec,
+  layout: DashboardLayout | undefined,
+): DashboardSpec {
+  const places = new Map(layout?.panels.map((panel) => [panel.id, panel.grid]));
+  const panels = spec.panels.map((panel) => ({
+    ...panel,
+    grid: places.get(panel.id) ?? panel.grid,
+  }));
+  return { ...spec, panels };
+}
+
+/**
+ * The spec of a version the role may see, each panel at the place its layout gives it, the hidden
+ * ones included. A panel runs from it, so a time chart asks for the points its width can show.
+ *
+ * @param context - The service context.
+ * @param target - The dashboard and version.
+ * @param role - The role of the request.
+ * @returns The spec, with the layout's places.
+ */
+export function placedSpecOf(
+  context: ServiceContext,
+  target: RunTarget,
+  role: Role,
+): DashboardSpec {
+  const layout = shownLayoutOf(context, target.dashboardId, target.version)?.layout;
+  return atLayoutPlaces(specOf(context, target, role), layout);
 }
 
 /**

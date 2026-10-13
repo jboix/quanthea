@@ -18,6 +18,7 @@ import type { Variables } from '../query/variables.ts';
 import {
   type DashboardsDependencies,
   get,
+  placedSpecOf,
   type RunTarget,
   refuseSpec,
   type ServiceContext,
@@ -361,7 +362,7 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
     pin: (id, version, actor, describe) => pin(context, id, version, actor, describe),
     unpin: (id, actor) => unpin(context, id, actor),
     runPanel: (target, panelId, role, signal) =>
-      runPanel(context, specOf(context, target, role), panelId, target, signal),
+      runPanel(context, placedSpecOf(context, target, role), panelId, target, signal),
     variableOptions: (target, name, role, signal) =>
       listVariableOptions(context, specOf(context, target, role), name, target, signal),
     bindVariables: (spec, choices, signal) => bindChoices(context, spec, choices, signal),

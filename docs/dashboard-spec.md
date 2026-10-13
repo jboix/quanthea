@@ -67,6 +67,8 @@ type Variable =
 //   text, such as '10m', and in seconds, from a closed list by the length of the range),
 //   {"$var": "__from"}, "__to", "__interval" (search), and
 //   $__from, $__to as ISO times, $__from_ms, $__to_ms, $__from_s, $__to_s as epoch numbers (HTTP).
+//   On a chart over time the interval is raised until the range has no more points than the
+//   panel can show, 200 per grid column of its width.
 type TimeDefault = { from: string; to: string }   // 'now-7d' | 'now' | ISO 8601
 
 // ---------------------------------------------------------------- queries

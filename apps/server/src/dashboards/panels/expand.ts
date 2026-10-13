@@ -12,6 +12,7 @@ import {
 import { type BuildContext, buildData, QueryError } from '../queries/index.ts';
 import type { PanelDraft, PanelShape } from './draft.ts';
 import type { PanelRequest } from './request.ts';
+import { isTimeChart } from './time-chart.ts';
 
 /** A panel's chart choice, and the columns its data says it returns, when it says. */
 export interface PanelChart {
@@ -19,22 +20,6 @@ export interface PanelChart {
   readonly choice: ChartChoice;
   /** The columns the data returns, empty when only running it tells. */
   readonly columns: readonly string[];
-}
-
-/**
- * Whether a view is a chart over time, which deploy markers go on.
- *
- * @param view - The view.
- * @returns Whether its x axis is a time axis.
- */
-export function isTimeChart(view: View): boolean {
-  if (view.kind !== 'chart') return false;
-  const xAxis = view.option.xAxis;
-  const axes = Array.isArray(xAxis) ? xAxis : [xAxis];
-  return axes.some(
-    (axis) =>
-      typeof axis === 'object' && axis !== null && !Array.isArray(axis) && axis.type === 'time',
-  );
 }
 
 /**

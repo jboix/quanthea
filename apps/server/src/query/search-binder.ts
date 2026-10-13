@@ -91,26 +91,31 @@ function checkIndex(index: string, showSystem: boolean): string {
 }
 
 /**
- * The round bucket width that keeps the time range within {@link maxBuckets} buckets.
+ * The round bucket width that keeps the time range within {@link maxBuckets} buckets, or within
+ * fewer when a chart has room for fewer points.
  *
  * @param timeRange - The time range.
+ * @param most - The most buckets, when a chart caps them below {@link maxBuckets}.
  * @returns The width in seconds, such as 30, 300 or 3600.
  */
-export function bucketSeconds(timeRange: TimeRange): number {
+export function bucketSeconds(timeRange: TimeRange, most = maxBuckets): number {
   const rangeSeconds = (timeRange.to.getTime() - timeRange.from.getTime()) / 1000;
+  const buckets = Math.max(1, Math.min(most, maxBuckets));
   return (
-    niceIntervals.find((width) => rangeSeconds / width <= maxBuckets) ?? niceIntervals.at(-1) ?? 1
+    niceIntervals.find((width) => rangeSeconds / width <= buckets) ?? niceIntervals.at(-1) ?? 1
   );
 }
 
 /**
- * The bucket width that keeps the time range within {@link maxBuckets} buckets.
+ * The bucket width that keeps the time range within {@link maxBuckets} buckets, or within fewer
+ * when a chart has room for fewer points.
  *
  * @param timeRange - The time range.
+ * @param most - The most buckets, when a chart caps them below {@link maxBuckets}.
  * @returns Such as `30s`, `5m` or `1h`.
  */
-export function searchInterval(timeRange: TimeRange): string {
-  const seconds = bucketSeconds(timeRange);
+export function searchInterval(timeRange: TimeRange, most = maxBuckets): string {
+  const seconds = bucketSeconds(timeRange, most);
   if (seconds % 3600 === 0) return `${seconds / 3600}h`;
   return seconds % 60 === 0 ? `${seconds / 60}m` : `${seconds}s`;
 }

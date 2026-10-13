@@ -5,7 +5,7 @@
  */
 import { chartRecipe, gridColumns, type Panel } from '@quanthea/shared';
 import type { PanelShape } from './draft.ts';
-import { isTimeChart } from './expand.ts';
+import { isTimeChart } from './time-chart.ts';
 
 /**
  * What a panel shows, read from its view: the kind the map names and the layout check judges.

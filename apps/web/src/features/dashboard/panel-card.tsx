@@ -9,6 +9,7 @@ import type { ExplainPlace } from './panel-explain.tsx';
 import { PanelInfo } from './panel-info.tsx';
 import { PanelView } from './panel-views.tsx';
 import styles from './panels.module.css';
+import { cutAtRowLimit, rowLimitNote } from './row-limit.ts';
 
 /** Where the panels of a version load from, and with which choices. */
 export interface RunTarget {
@@ -166,6 +167,7 @@ function PanelBody({
           />
         </div>
       )}
+      {cutAtRowLimit(panel, run.value.queries) && <p className={styles.note}>{rowLimitNote}</p>}
     </>
   );
 }

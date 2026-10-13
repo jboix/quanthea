@@ -50,6 +50,11 @@ export interface QueryRequest {
   readonly timeRange: TimeRange;
   /** The interval the charts are cut into, such as `1h`, when the caller chose one. */
   readonly interval?: string | undefined;
+  /**
+   * The most points a series of the chart can show, when the query draws a time chart: the
+   * interval is raised to fit them, unless one was chosen.
+   */
+  readonly chartPoints?: number | undefined;
   /** Aborted when the caller gives up. */
   readonly signal?: AbortSignal;
 }
@@ -100,6 +105,7 @@ function bind(source: QuerySource, request: QueryRequest): BoundQuery {
     maxPoints,
     showSystem: source.scope.visibility.showSystem,
     interval: request.interval,
+    chartPoints: request.chartPoints,
   });
   checkScope(source.scope, bound, source.dialect);
   return bound;

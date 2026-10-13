@@ -20,6 +20,7 @@ import type { QueryExecutor, QuerySource } from '../query/executor.ts';
 import { QueryError } from '../query/query-error.ts';
 import type { ResultCache } from '../query/result-cache.ts';
 import type { Variables } from '../query/variables.ts';
+import { chartPointsOf } from './chart-points.ts';
 import { type QueryVariable, resolveVariables } from './variables.ts';
 
 /** What running panels needs. */
@@ -65,6 +66,8 @@ interface EngineRun {
   readonly timeRange: EngineRange;
   /** The interval the charts are cut into, if the caller chose one. */
   readonly interval?: string | undefined;
+  /** The most points a series of the panel's time chart can show, when it draws one. */
+  readonly chartPoints?: number | undefined;
 }
 
 /**
@@ -86,7 +89,8 @@ function failureOf(error: unknown): NonNullable<QueryOutcome['error']> {
  * @param dependencies - The connectors and the executor.
  * @param query - The query.
  * @param variables - The resolved variables.
- * @param run - The time range, and the interval when one was chosen.
+ * @param run - The time range, the interval when one was chosen, and the points a time chart
+ *   can show.
  * @param signal - Aborted when the caller gives up.
  * @returns The frames, or why it failed.
  */
@@ -227,10 +231,43 @@ function prepare(
 }
 
 /**
- * Runs one panel and the annotations its chart marks.
+ * The markers of the annotations a panel's chart marks.
+ *
+ * @param spec - The spec.
+ * @param panel - The panel.
+ * @param run - Runs one query.
+ * @returns The markers of each annotation, or why its query failed.
+ */
+function runMarkers(
+  spec: DashboardSpec,
+  panel: DashboardSpec['panels'][number],
+  run: (query: PanelQuery) => Promise<QueryOutcome>,
+): Promise<MarkerOutcome[]> {
+  const marked = panel.view.kind === 'chart' ? (panel.view.markers ?? []) : [];
+  const annotations = marked.flatMap(({ annotation }) =>
+    spec.annotations.filter((each) => each.id === annotation),
+  );
+  return Promise.all(
+    annotations.map(async (annotation) => {
+      const outcome = await run(annotation.query);
+      return {
+        annotation: annotation.id,
+        label: annotation.label,
+        color: annotation.color ?? '@ink',
+        points: markersOf(annotation, outcome.frames),
+        error: outcome.error,
+      };
+    }),
+  );
+}
+
+/**
+ * Runs one panel and the annotations its chart marks. The queries of a chart over time bind an
+ * interval that gives no more points than the panel's width can show, unless the caller chose
+ * the interval. The annotations, and the queries of any other panel, run as they are written.
  *
  * @param dependencies - The connectors, the executor and the clock.
- * @param spec - The spec.
+ * @param spec - The spec, each panel at the width it is drawn.
  * @param panelId - The panel.
  * @param choices - The viewer's variables and time range.
  * @param signal - Aborted when the caller gives up.
@@ -250,25 +287,12 @@ export async function runPanel(
   const { time, timeRange, loadOptions } = prepare(dependencies, spec, choices, signal);
   const variables = await resolveVariables(spec, choices.variables, loadOptions);
   const engine = { timeRange, interval: choices.interval };
-  const run = (query: PanelQuery) => runQuery(dependencies, query, variables, engine, signal);
-  const marked = panel.view.kind === 'chart' ? (panel.view.markers ?? []) : [];
-  const annotations = marked.flatMap(({ annotation }) =>
-    spec.annotations.filter((each) => each.id === annotation),
-  );
+  const chartPoints = choices.interval === undefined ? chartPointsOf(panel) : undefined;
+  const run = (query: PanelQuery, points?: number) =>
+    runQuery(dependencies, query, variables, { ...engine, chartPoints: points }, signal);
   const [queries, markers] = await Promise.all([
-    Promise.all(panel.queries.map(run)),
-    Promise.all(
-      annotations.map(async (annotation) => {
-        const outcome = await run(annotation.query);
-        return {
-          annotation: annotation.id,
-          label: annotation.label,
-          color: annotation.color ?? '@ink',
-          points: markersOf(annotation, outcome.frames),
-          error: outcome.error,
-        };
-      }),
-    ),
+    Promise.all(panel.queries.map((query) => run(query, chartPoints))),
+    runMarkers(spec, panel, (query) => run(query)),
   ]);
   return { time, queries, markers, durationMs: Math.round(performance.now() - started) };
 }

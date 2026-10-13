@@ -5,9 +5,9 @@
  */
 import type { Annotation, Panel } from '@quanthea/shared';
 import { QueryError } from '../queries/index.ts';
-import { isTimeChart } from './expand.ts';
 import type { MarkersEdit } from './markers.ts';
 import type { MarkersRequest } from './request.ts';
+import { isTimeChart } from './time-chart.ts';
 
 /**
  * Whether a panel is a time chart.
