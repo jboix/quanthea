@@ -2820,7 +2820,13 @@ the connector shows and a version that changes with its settings).
      A `date_histogram` over the field the time range filters (the field of a `range` bounded by
      `__from` or `__to`) is filled over the whole range (`query/search-histogram.ts`): it gets
      `"min_doc_count": 0` and `"extended_bounds"` from the start of the range to its last
-     millisecond. A date histogram returns buckets only between its first and its last document,
+     millisecond. A side is extended only where the query bounds it with the range: `min` when a
+     lower bound (`gte`, `gt`) is `__from`, `max` when an upper bound (`lte`, `lt`) is `__to`.
+     On the other side the histogram ends at its documents, and a range that names a built-in the
+     other way round, such as `"lt": {"$var": "__from"}` for the stretch before the range, is not
+     filled: the filter lets no document through there, so a 0 would say nothing was there. A
+     time range that ends at or before its start is not filled either, since a server refuses
+     bounds that do not ascend. A date histogram returns buckets only between its first and its last document,
      so without the bounds a chart of a week that has a day of data reads like a day. The bounds
      are epoch milliseconds, which a server reads whatever the format of the field. A count reads
      0 in an empty bucket; an average, a percentile or a ratio has no value there and stays

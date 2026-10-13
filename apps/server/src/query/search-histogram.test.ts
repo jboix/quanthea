@@ -121,6 +121,62 @@ describe('a date histogram that is not filled', () => {
   });
 });
 
+describe('a date histogram of a query that bounds one side of the time range', () => {
+  const written = { field: '@timestamp', fixed_interval: '15m' };
+
+  test('is as written when the range ends where the time range starts', () => {
+    const earlier = { gte: '2026-09-29T12:00:00Z', lt: { $var: '__from' } };
+    const before = { range: { '@timestamp': earlier } };
+    expect(bound({ time: histogram() }, before).date_histogram).toEqual(written);
+    const swapped = { gte: { $var: '__to' }, lte: { $var: '__from' } };
+    const after = { range: { '@timestamp': swapped } };
+    expect(bound({ time: histogram() }, after).date_histogram).toEqual(written);
+  });
+
+  test('is extended only on the side the query bounds with the time range', () => {
+    const since = { range: { '@timestamp': { gte: { $var: '__from' } } } };
+    expect(bound({ time: histogram() }, since).date_histogram).toEqual({
+      ...written,
+      min_doc_count: 0,
+      extended_bounds: { min: bounds.min },
+    });
+    const until = { range: { '@timestamp': { gt: '2026-10-01', lt: { $var: '__to' } } } };
+    expect(bound({ time: histogram() }, until).date_histogram).toMatchObject({
+      min_doc_count: 0,
+      extended_bounds: { max: bounds.max },
+    });
+  });
+
+  test('is extended on both sides when two ranges bound one each', () => {
+    const since = { range: { '@timestamp': { gte: { $var: '__from' } } } };
+    const until = { range: { '@timestamp': { lte: { $var: '__to' } } } };
+    const both = { bool: { filter: [since, until] } };
+    expect(bound({ time: histogram() }, both).date_histogram).toMatchObject({
+      extended_bounds: bounds,
+    });
+  });
+});
+
+describe('a date histogram over a time range with no length', () => {
+  const template = {
+    index: 'logs-*',
+    body: { size: 0, query: inPeriod, aggs: { time: histogram() } },
+  };
+
+  test('is as written, since a server refuses bounds that do not ascend', () => {
+    const ranges = [
+      { from: week.to, to: week.to },
+      { from: week.to, to: week.from },
+    ];
+    for (const range of ranges) {
+      const body = bindSearch(template, {}, range).body as { aggs: { time: unknown } };
+      expect(body.aggs.time).toEqual({
+        date_histogram: { field: '@timestamp', fixed_interval: expect.any(String) },
+      });
+    }
+  });
+});
+
 describe('a date histogram of an alert', () => {
   test('keeps only the buckets it has, so a stretch without a document is no data', () => {
     const template = { index: 'logs-*', body: { query: inPeriod, aggs: { time: histogram() } } };

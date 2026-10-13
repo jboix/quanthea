@@ -277,7 +277,7 @@ export function bindSearch(
   const bound = bindJsonVariables(template.body, { variables, builtIns });
   // After binding, so a variable's date and one the query writes itself read the same way.
   const dated = withRangeFormats(bound) as SearchQuery['body'];
-  const fields = binding.sparse ? new Set<string>() : periodFields(template.body);
+  const fields = binding.sparse ? new Map<string, never>() : periodFields(template.body);
   const body = withFilledHistograms(dated, fields, timeRange);
   const index = checkIndex(template.index, binding.showSystem ?? false);
   return { language: 'search', index, body };
