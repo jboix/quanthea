@@ -6,7 +6,7 @@
  * query as a whole. Every kind has a `for`: how long it holds before the series fires.
  */
 import { z } from 'zod';
-import { namedFormatterSchema } from '../formatters/schema.ts';
+import { namedFormatterInputSchema, namedFormatterSchema } from '../formatters/schema.ts';
 import { durationSchema } from './queries.ts';
 
 /** How the points of a series within the window become one value. */
@@ -78,12 +78,13 @@ const bandFields = {
   baseline: durationSchema,
 };
 
-/** What a test of a joined condition may read besides the alert's value. */
+/**
+ * What a test of a joined condition may read besides the alert's value. It may also name a
+ * `format`: how its threshold and values read, the alert's `value.format` when left out.
+ */
 const partFields = {
   /** The number field it reads; the alert's `value.field` when left out. */
   field: z.string().min(1).max(200).optional(),
-  /** How its threshold and values read; the alert's `value.format` when left out. */
-  format: namedFormatterSchema.optional(),
 };
 
 /** Validates a threshold: the value of a series is above or below a number for a while. */
@@ -108,20 +109,26 @@ const noDataConditionSchema = z.strictObject({
   for: durationSchema,
 });
 
-/** What a part that reduces the points of its window may also name. */
-const reducedPartFields = {
-  ...partFields,
-  /** How its points become one value; the alert's `value.reduce` when left out. */
-  reduce: z.enum(alertReducers).optional(),
+/**
+ * Validates one test of a joined condition.
+ *
+ * @param format - How a part's `format` is validated.
+ * @returns The schema.
+ */
+const conditionPartSchemaWith = <Format extends z.ZodType>(format: Format) => {
+  const part = { ...partFields, format: format.optional() };
+  // A part that reduces its points may name how; the alert's `value.reduce` when left out.
+  const reduced = { ...part, reduce: z.enum(alertReducers).optional() };
+  return z.discriminatedUnion('kind', [
+    z.strictObject({ ...thresholdFields, ...reduced }),
+    z.strictObject({ ...changeFields, ...part }),
+    z.strictObject({ ...pastFields, ...reduced }),
+    z.strictObject({ ...bandFields, ...reduced }),
+  ]);
 };
 
 /** Validates one test of a joined condition. */
-const conditionPartSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ ...thresholdFields, ...reducedPartFields }),
-  z.strictObject({ ...changeFields, ...partFields }),
-  z.strictObject({ ...pastFields, ...reducedPartFields }),
-  z.strictObject({ ...bandFields, ...reducedPartFields }),
-]);
+const conditionPartSchema = conditionPartSchemaWith(namedFormatterSchema);
 
 /** One test of a joined condition. */
 export type ConditionPart = z.infer<typeof conditionPartSchema>;
@@ -153,6 +160,24 @@ export const alertConditionSchema = z.discriminatedUnion('kind', [
 
 /** The condition that fires. */
 export type AlertCondition = z.infer<typeof alertConditionSchema>;
+
+/**
+ * Validates the condition as a tool's input writes it: the same kinds and fields, in a smaller
+ * JSON schema. `all` and `any` share one shape, and a part's `format` is the one shape of every
+ * named formatter. It is wider than {@link alertConditionSchema}, which the spec's check applies.
+ */
+export const alertConditionInputSchema = z.discriminatedUnion('kind', [
+  thresholdConditionSchema,
+  changeConditionSchema,
+  pastConditionSchema,
+  bandConditionSchema,
+  z.strictObject({
+    kind: z.enum(['all', 'any']),
+    of: z.array(conditionPartSchemaWith(namedFormatterInputSchema)).min(2).max(4),
+    for: durationSchema,
+  }),
+  noDataConditionSchema,
+]);
 
 /** A condition that joins tests. */
 export type JoinedCondition = Extract<AlertCondition, { kind: 'all' | 'any' }>;

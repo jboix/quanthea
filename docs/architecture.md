@@ -1929,6 +1929,12 @@ activates one.
   labels, values and whether the condition holds. For a ratio of two connectors the level is the
   weaker of the two, and the hidden fields are those of both. `dividedBy` takes the second query
   of a ratio whole, or `none`, which takes it away.
+  The tool's JSON schema is held under 18,000 characters by a test
+  (`agent/alert-schema-size.test.ts`), the largest ceiling the dashboard edit tool has: providers
+  that constrain tool input refuse a schema that grows too large. So the tool takes the condition
+  in a smaller schema of the same kinds (`alertConditionInputSchema`): `all` and `any` share one
+  shape, and a part's `format` is one shape with the fields of every named formatter. It is wider
+  than the spec's schema, which the check of the merged spec applies.
 - **`replay_alert`** replays the draft over the last 24 hours or 7 days, at another threshold when
   asked, without saving it. It returns a summary through the gate: counts, firing periods and the
   spikes too short to fire, for the ten series that fired most, never the points. It is offered

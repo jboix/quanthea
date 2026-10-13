@@ -48,6 +48,22 @@ export const namedFormatterSchema = z.discriminatedUnion('$fmt', [
 /** A named formatter. */
 export type NamedFormatter = z.infer<typeof namedFormatterSchema>;
 
+/**
+ * Validates a named formatter as a tool's input names it where a schema repeats it: the fields of
+ * every named formatter in one shape, a fraction of the union's size. It is wider than
+ * {@link namedFormatterSchema}, which the spec's own check then holds it to.
+ */
+export const namedFormatterInputSchema = z.strictObject({
+  $fmt: z.enum(['number', 'percent', 'bytes', 'duration', 'si', 'currency', 'datetime']),
+  decimals: decimalsSchema,
+  unit: z.string().max(20).optional(),
+  code: z.string().max(3).optional(),
+  input: z.enum(['ratio', 'percent']).optional(),
+  compact: z.boolean().optional(),
+  base: z.literal([1000, 1024]).optional(),
+  pattern: z.enum(['time', 'date', 'datetime', 'relative']).optional(),
+});
+
 /** Validates a formatter: an ECharts string template, or a named formatter. */
 export const formatterSchema = z.union([z.string().max(200), namedFormatterSchema]);
 

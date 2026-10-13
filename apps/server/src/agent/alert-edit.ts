@@ -7,7 +7,7 @@
  */
 import {
   type AlertSpec,
-  alertConditionSchema,
+  alertConditionInputSchema,
   alertQuietHoursSchema,
   alertSeverities,
   alertSpecSchema,
@@ -71,7 +71,8 @@ export const alertEditSchema = z.strictObject({
   dividedBy: dividedByEditSchema.optional(),
   value: valueEditSchema.optional(),
   variables: z.array(alertVariableSchema).max(20).optional(),
-  condition: alertConditionSchema.optional(),
+  /** The condition, in the smaller schema of a tool's input; the spec's check holds it. */
+  condition: alertConditionInputSchema.optional(),
   every: durationSchema.optional(),
   lookback: durationSchema.optional(),
   severity: z.enum(alertSeverities).optional(),
