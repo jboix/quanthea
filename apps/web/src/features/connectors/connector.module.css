@@ -172,21 +172,13 @@
   overflow-wrap: anywhere;
 }
 
-.checkOk,
-.checkWarning {
+.checkOk {
   display: flex;
   align-items: center;
   gap: 8px;
   margin: 0;
   font-size: 13px;
-}
-
-.checkOk {
   color: var(--color-ok-ink);
-}
-
-.checkWarning {
-  color: var(--color-draft);
 }
 
 .formActions {

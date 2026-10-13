@@ -2353,6 +2353,16 @@ export const exampleConnector = defineConnector({
   whatever the kind does.
 - Failures are `ConnectorError`s with a code and a `safeMessage` that quotes no data. The model sees
   only the safe message below access level 4.
+- `test` answers a `HealthReport`: whether the source answered, a message, and `readOnly`, which
+  is `true`, `false`, or `null` when the source cannot say. A kind never answers `true` on a
+  guess. With `false` it adds `canDo`, what the credentials can do beyond reading as short
+  sentences, and any kind may add `readOnlySetup`, the statements that make an account that only
+  reads. The test finds out by reading what the source says of the user: it never tries a write.
+  The report is advice. No code path refuses, disables or blocks the saving of a connector over
+  it: the connector's page shows a warning (`features/connectors/write-warning.tsx`), headed
+  "These credentials can write. You may want to look at that.", with the findings and the
+  statements to copy, and a quieter note when `readOnly` is `null`. A connector the
+  configuration file manages gets the same warning.
 - `createFrameBuilder` lays rows out in columns and handles the row limit and truncation.
 - `seriesFrames` turns labelled series in the Prometheus API's result format (matrix, vector,
   scalar) into frames: one per series over time (at most 1000), or one table of samples. Prometheus
@@ -3937,7 +3947,12 @@ one, and enables them again. Without any admin, it creates the default one.
 - No model-written code runs anywhere. Biome bans `eval` and `dangerouslySetInnerHTML`.
 - The browser never sends queries. Variables are bound, not concatenated.
 - Guardrails are enforced by the executor. Connectors use read-only credentials, verified on
-  test where possible.
+  test where possible: the test reads what the credentials may do and never tries a write, and
+  credentials that can write get a warning, never a refusal (section 7).
+- The model never names an endpoint of a source or an HTTP method. Each kind's code sends a
+  fixed list of read calls, and a query sets only the statement, the expression, the index names
+  and body, the command or the pipeline. The HTTP JSON kind is the exception: there the admin
+  sets the methods and the paths a query may name.
 - Connectors that speak HTTP stay on their source's origin and never call a cloud metadata
   address (`createHttpClient`). Nor does the model gateway, which follows no redirect either
   (`settings/gateway-fetch.ts`). Notification channels never call one either, follow no redirect,

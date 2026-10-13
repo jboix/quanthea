@@ -56,6 +56,19 @@ function runEvents(text: string, rowCount: number, context: ExecutionContext) {
   return [builder.build(0)];
 }
 
+/** The token of the memory connector whose credentials the connection test reports as able to write. */
+const memoryWriterToken = 'memory-writer-token';
+
+/** What the connection test says of {@link memoryWriterToken}. */
+const writerHealth = {
+  ok: true,
+  latencyMs: 0,
+  message: 'In memory. The token can write.',
+  readOnly: false,
+  canDo: ['It can insert, update or delete in 1 table: events.'],
+  readOnlySetup: 'CREATE ROLE quanthea_read;',
+};
+
 /** A test connector kind over generated rows. `execute` understands one query: `SELECT * FROM events`. */
 export const memoryConnector = defineConnector({
   kind: 'memory',
@@ -73,10 +86,10 @@ export const memoryConnector = defineConnector({
   secretSchema: z.object({
     token: z.string().min(1).meta({ title: 'Token', description: 'Any non-empty string.' }),
   }),
-  open({ config }): ConnectorInstance {
+  open({ config, secret }): ConnectorInstance {
+    const reader = { ok: true, latencyMs: 0, message: 'In memory.', readOnly: true };
     return {
-      test: () =>
-        Promise.resolve({ ok: true, latencyMs: 0, message: 'In memory.', readOnly: true }),
+      test: () => Promise.resolve(secret.token === memoryWriterToken ? writerHealth : reader),
       describe: () =>
         Promise.resolve({
           entities: [

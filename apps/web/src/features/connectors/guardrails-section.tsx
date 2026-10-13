@@ -1,7 +1,7 @@
 import type { ConnectorDetail, Guardrails } from '@quanthea/shared';
 import { type FormEvent, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
-import { CheckIcon, LockIcon, WarningIcon } from '../../ui/icons.tsx';
+import { CheckIcon, LockIcon } from '../../ui/icons.tsx';
 import { Input } from '../../ui/input.tsx';
 import styles from './connector.module.css';
 import { enforcedRules } from './enforced-rules.ts';
@@ -72,21 +72,20 @@ function sameGuardrails(first: Guardrails, second: Guardrails): boolean {
 }
 
 /**
- * The line under the guardrails that says whether the connection can write, from the last test.
+ * The line under the guardrails that says the connection only reads, from the last test. The
+ * warning for one that can write is at the top of the page.
  *
  * @param props - The connector.
  * @param props.connector - The connector.
- * @returns The line, or nothing when the kind cannot tell.
+ * @returns The line, or nothing when the credentials can write or the kind cannot tell.
  */
 function WriteCheck({ connector }: { readonly connector: ConnectorDetail }) {
   const { report } = useHealth(connector.id, connector.updatedAt);
-  if (report?.readOnly === undefined || report.readOnly === null) return null;
+  if (report?.readOnly !== true) return null;
   return (
-    <p className={report.readOnly ? styles.checkOk : styles.checkWarning}>
-      {report.readOnly ? <CheckIcon /> : <WarningIcon />}
-      {report.readOnly
-        ? report.message
-        : 'The connection can write. Queries still run read-only, but a role with SELECT grants only is safer.'}
+    <p className={styles.checkOk}>
+      <CheckIcon />
+      {report.message}
     </p>
   );
 }

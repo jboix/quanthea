@@ -18,7 +18,10 @@ its data the model may see, which columns it never sees, and how far a query may
 
 Give quanthea a read-only account. Queries always run read-only, and each kind refuses what isn't
 a read (writes in SQL, scripts in a search, JavaScript in MongoDB, write commands in Valkey), but a
-role with read grants only is the hard guarantee. quanthea warns when a connection can write.
+role with read grants only is the hard guarantee. quanthea never refuses a connector whose
+credentials can write: it warns, and says what to do. See
+[What a connection can reach](#what-a-connection-can-reach) and
+[Credentials that can write](#credentials-that-can-write).
 
 ### TimescaleDB
 
@@ -207,6 +210,170 @@ place of the source's.
 
 The list shows each connector's last test. A failing source shows on its panels as a safe error,
 and alerts on it say they cannot be checked.
+
+## What a connection can reach
+
+The model writes a query. It never names an endpoint of the source or an HTTP method: the
+connector's code does, and the list is fixed for each kind. The HTTP JSON kind is the one
+exception, and there you set the methods and the paths.
+
+| Kind                      | What quanthea sends                                                                                                                                                                                                                                                               | What a query sets                                                                    |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| PostgreSQL, TimescaleDB   | One statement per query, over the protocol that takes one statement, in a `read only` transaction with a statement timeout. The transaction reads strings as the standard does, whatever the role sets.                                                                           | The text of one read statement. Values are bound.                                    |
+| MySQL, MariaDB            | One prepared statement per query, in a session set `READ ONLY`, with several statements and local files turned off in the driver, and the session's `sql_mode` pinned so quotes read one way.                                                                                     | The text of one read statement. Values are bound.                                    |
+| ClickHouse                | A POST to the HTTP interface with the statement as its body and `readonly=1` on it, or the user's own `readonly=2`.                                                                                                                                                               | The text of one read statement, without `SETTINGS` or `FORMAT`. Values are bound.    |
+| Trino                     | A POST to `/v1/statement`, GETs of that query's pages, and a DELETE of its own next page to cancel it. Each query runs in `START TRANSACTION READ ONLY`, rolled back after it.                                                                                                    | The text of one read statement. Values are literals in `EXECUTE IMMEDIATE … USING`.  |
+| InfluxDB 3                | A POST to `/api/v3/query_sql`, which runs no write, and a GET of `/ping`.                                                                                                                                                                                                         | The text of one read statement. Values are named parameters.                         |
+| Prometheus                | GETs only: `/api/v1/query`, `/api/v1/query_range`, the label and metadata lists, and the build and flags of `/api/v1/status`.                                                                                                                                                     | The expression and its step.                                                         |
+| Loki                      | GETs only: `/loki/api/v1/query`, `/loki/api/v1/query_range`, the label and detected field lists, the index statistics and the build.                                                                                                                                              | The expression and its step.                                                         |
+| Elasticsearch, OpenSearch | For a query, `POST /<index>/_search`. For the schema and the test, GETs of `/`, `/_mapping`, `/<index>/_mapping`, `/_cat/indices`, `/_resolve/index/<names>` and what the signed-in user may do (`/_security/user/_privileges`, or `/_plugins/_security/authinfo`). Nothing else. | The index names and the search body, without scripts.                                |
+| Valkey                    | One command per query, from a fixed list of reads. For the schema and the test: `HELLO`, `ACL WHOAMI`, `ACL DRYRUN` (which runs nothing), `SCAN`, `TYPE` and reads of a few keys.                                                                                                 | The command, from that list, and its arguments.                                      |
+| MongoDB                   | One `aggregate` per query, on one collection of the connector's database. For the schema and the test: `buildInfo`, `connectionStatus`, `listCollections`, a document count estimate and small samples.                                                                           | The collection and the pipeline, without stages that write or run JavaScript.        |
+| HTTP JSON                 | The request a query describes, to the base URL's origin only, with the method and the path checked against the connection's settings. A redirect is followed only within the origin and the allowed paths.                                                                        | The method (GET, or POST if you allow it), the path, the parameters and a JSON body. |
+
+What a query may hold is under [Always enforced](#always-enforced). Two things are worth knowing
+about those rules.
+
+- They refuse what is known. In SQL the server's own read-only session stops a write, and
+  quanthea refuses by name the functions that reach past the tables, such as `pg_read_file`,
+  `dblink`, `LOAD_FILE` or ClickHouse's `url()`. A function your database adds, such as a
+  `SECURITY DEFINER` function or an extension's, is not on that list.
+- A source without a read-only session has only the rules: InfluxDB, a search server, Valkey,
+  MongoDB, an HTTP API.
+
+So an account that can only read is the guarantee, whatever the kind.
+
+## Credentials that can write
+
+The connection test asks the source what the connector's credentials may do. It only reads to
+find out: it never tries a write. When they can do more than read, the connector's page says so
+at the top, large and plain:
+
+> These credentials can write. You may want to look at that.
+
+Under it the page lists what the test found, such as "It can insert, update or delete in 12
+tables", and the account to create, as statements to copy. The warning is advice. quanthea never
+refuses the connector, never blocks saving it, and runs its queries as before. A connector
+declared in the configuration file gets the same warning on its page.
+
+When the source cannot say, the page says the test could not tell. It never calls credentials
+read-only on a guess.
+
+| Kind                    | What the test reads                                                                                                      | It says "can write" for                                                                                                                                                         | It cannot tell when                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| PostgreSQL, TimescaleDB | The catalog: the role, and its privileges however it holds them (granted, inherited, given to everyone, as the owner).   | A superuser. A table it can insert into, update, delete from or truncate. `CREATE` on a schema or the database. The server's write and file roles. `CREATEROLE`, `CREATEDB`.    | Never.                                                                                                        |
+| MySQL, MariaDB          | `information_schema`: the privileges granted to the user on the server, a schema or a table.                             | `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `DROP`, `ALTER`, `INDEX`, `TRIGGER`, `EVENT`, `FILE`, `SUPER`, `CREATE USER`, `RELOAD`, `SHUTDOWN` and the routine and view privileges. | The user has an active role: a role's grants are not listed there.                                            |
+| ClickHouse              | The user's `readonly` setting and `SHOW GRANTS FINAL`.                                                                   | A grant that inserts, alters, creates, drops, truncates, optimizes, or manages the server or its users, unless the user has `readonly=2`.                                       | Never.                                                                                                        |
+| Elasticsearch           | The user's own privileges, `GET /_security/user/_privileges`.                                                            | A cluster privilege beyond `monitor` and `read_*`. An index privilege beyond `read`, `view_index_metadata` and `monitor`. Acting as another user. A server with security off.   | The server refuses the question.                                                                              |
+| OpenSearch              | The user's roles, `GET /_plugins/_security/authinfo`.                                                                    | The role `all_access`. A server without the security plugin.                                                                                                                    | The user holds any role but `readall` and `readall_and_monitor`: the plugin names roles, not what they allow. |
+| Valkey                  | `ACL DRYRUN` for `SET`, `DEL`, `FLUSHALL`, `EVAL` and `CONFIG SET`. A dry run checks the user's rights and runs nothing. | Any of them allowed.                                                                                                                                                            | The user may not run `ACL DRYRUN`.                                                                            |
+| MongoDB                 | The privileges `connectionStatus` lists.                                                                                 | An action that inserts, updates, removes, creates or drops, in the connector's database or another, or that manages users. A server that asks for no sign-in.                   | No user signed in and the server refuses to list collections.                                                 |
+| InfluxDB 3              | The server's edition, and whether the connector sends a token.                                                           | A server that asks for no token. Any token of InfluxDB 3 Core, which has admin tokens only.                                                                                     | Another edition, whose tokens can be limited to reading without the server saying so.                         |
+| Prometheus              | The server's flags, `GET /api/v1/status/flags`. Prometheus has no users: an API that is on is on for every request.      | The admin API, the lifecycle API, or a remote write or OTLP receiver turned on.                                                                                                 | The server lists no flags, as one that only speaks the Prometheus query API does.                             |
+| Trino, Loki, HTTP JSON  | Nothing about writing.                                                                                                   | Never.                                                                                                                                                                          | Always: access is set in files, in a proxy or in the API, where the test cannot read it.                      |
+
+### A read-only account, per kind
+
+Change the names, the password and what the account reads to fit. The connector's page gives the
+same statements with your database's name filled in.
+
+**PostgreSQL and TimescaleDB**
+
+```sql
+CREATE ROLE quanthea_read LOGIN PASSWORD 'choose-a-password';
+GRANT CONNECT ON DATABASE "orders" TO quanthea_read;
+GRANT USAGE ON SCHEMA public TO quanthea_read;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO quanthea_read;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO quanthea_read;
+ALTER ROLE quanthea_read SET default_transaction_read_only = on;
+```
+
+**MySQL and MariaDB**
+
+```sql
+CREATE USER 'quanthea_read'@'%' IDENTIFIED BY 'choose-a-password';
+GRANT SELECT ON `orders`.* TO 'quanthea_read'@'%';
+```
+
+**ClickHouse**
+
+```sql
+CREATE USER quanthea_read IDENTIFIED BY 'choose-a-password' SETTINGS readonly = 2;
+GRANT SELECT ON `orders`.* TO quanthea_read;
+```
+
+Use `readonly = 2`, not `readonly = 1`: the connector sets a row cap and a timeout on each
+query, and `readonly = 1` refuses every setting.
+
+**Elasticsearch**
+
+```http
+POST /_security/role/quanthea_read
+{
+  "cluster": ["monitor"],
+  "indices": [
+    { "names": ["logs-*"], "privileges": ["read", "view_index_metadata", "monitor"] }
+  ]
+}
+
+POST /_security/user/quanthea
+{ "password": "choose-a-password", "roles": ["quanthea_read"] }
+```
+
+**OpenSearch**
+
+```http
+PUT /_plugins/_security/api/internalusers/quanthea
+{ "password": "choose-a-password" }
+
+PUT /_plugins/_security/api/rolesmapping/readall
+{ "users": ["quanthea"] }
+```
+
+`readall` reads every index. A role of your own that reads fewer is as safe, but the test cannot
+read what it allows, so the page then says it could not tell.
+
+**Valkey**
+
+```text
+ACL SETUSER quanthea_read on >choose-a-password ~* +@read -@dangerous +info +acl|whoami +acl|dryrun
+```
+
+`+acl|whoami` and `+acl|dryrun` let the test ask what the user may run. Without them the page says
+it could not tell.
+
+**MongoDB**, in `mongosh`
+
+```js
+db.getSiblingDB("shop").createUser({
+  user: "quanthea_read",
+  pwd: "choose-a-password",
+  roles: [{ role: "read", db: "shop" }]
+})
+```
+
+**InfluxDB 3**
+
+InfluxDB 3 Core has admin tokens only, so no token of it is read-only. InfluxDB 3 Enterprise
+makes one:
+
+```sh
+influxdb3 create token --permission "db:telemetry:read" --name quanthea_read
+```
+
+**Prometheus**
+
+Start it without `--web.enable-admin-api`, `--web.enable-lifecycle`,
+`--web.enable-remote-write-receiver` and `--web.enable-otlp-receiver`, or put a proxy in front
+that passes only GETs of `/api/v1/`.
+
+**Trino, Loki and HTTP JSON**
+
+- Trino: give the connector's user read-only rules in the access control file, or a catalog
+  whose own credentials only read.
+- Loki: Loki has no users. Put a proxy in front that passes only GETs of `/loki/api/v1/`, so the
+  push endpoint cannot be reached.
+- HTTP JSON: use a key or a token the API limits to reading, allow GET only, and list the paths.
 
 ## In the configuration file
 

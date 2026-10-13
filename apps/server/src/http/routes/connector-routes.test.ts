@@ -118,6 +118,26 @@ describe('connector routes', () => {
     expect((await call('GET', `/api/connectors/${id}`)).status).toBe(404);
   });
 
+  test('saves a connector whose credentials can write, and its test says what they can do', async () => {
+    const call = client(admin);
+    // The token the memory connector's test reports as able to write.
+    const secret = { token: 'memory-writer-token' };
+    const created = await call('POST', '/api/connectors', { ...newConnector, secret });
+    expect(created.status).toBe(200);
+    const id = String(created.body.id);
+    expect((await call('POST', `/api/connectors/${id}/test`)).body).toEqual({
+      ok: true,
+      latencyMs: 0,
+      message: 'In memory. The token can write.',
+      readOnly: false,
+      canDo: ['It can insert, update or delete in 1 table: events.'],
+      readOnlySetup: 'CREATE ROLE quanthea_read;',
+    });
+    const changed = await call('PATCH', `/api/connectors/${id}`, { accessLevel: 3 });
+    expect(changed).toMatchObject({ status: 200, body: { accessLevel: 3 } });
+    expect((await call('POST', `/api/connectors/${id}/schema`)).status).toBe(200);
+  });
+
   test('lists the kinds with their form schemas', async () => {
     const kinds = await client(admin)('GET', '/api/connector-kinds');
     expect(kinds.body).toMatchObject([{ kind: 'memory', configSchema: { type: 'object' } }]);
