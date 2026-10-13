@@ -1,8 +1,9 @@
 /**
  * The condition of an alert: a closed set of named kinds, plain JSON. A test compares the value of
- * a series (`threshold`), or its latest point with an earlier one (`change`). `all` and `any` join
- * two to four tests, each on its own number field, and `no_data` is about the query as a whole.
- * Every kind has a `for`: how long it holds before the series fires.
+ * a series (`threshold`), its latest point with an earlier one (`change`), its value with its
+ * value a period before (`past`), or its value with the band its recent history gives (`band`).
+ * `all` and `any` join two to four tests, each on its own number field, and `no_data` is about the
+ * query as a whole. Every kind has a `for`: how long it holds before the series fires.
  */
 import { z } from 'zod';
 import { namedFormatterSchema } from '../formatters/schema.ts';
@@ -36,6 +37,47 @@ const changeFields = {
   within: durationSchema,
 };
 
+/** How far back a `past` test compares a series with itself: an hour, a day or a week. */
+export const pastPeriods = ['1h', '1d', '7d'] as const;
+
+/** How far back a `past` test compares a series with itself. */
+export type PastPeriod = (typeof pastPeriods)[number];
+
+/**
+ * The fields of a comparison with the past: the value of the window against the value of the same
+ * window `ago` before.
+ */
+const pastFields = {
+  kind: z.literal('past'),
+  /** Whether it fires above or below the value then. */
+  direction: z.enum(['up', 'down']),
+  /** How much, at least: a share of the value then in percent, or a difference. */
+  amount: z.number().positive(),
+  unit: z.enum(['percent', 'absolute']),
+  /** How far back the window it compares with is. */
+  ago: z.enum(pastPeriods),
+};
+
+/** The fewest and the most deviations a band is wide, each side of the mean. */
+export const bandDeviations = { min: 0.5, max: 10 } as const;
+
+/** The shortest and the longest baseline a band is learned from: an hour and seven days. */
+export const bandBaselineMs = { min: 3_600_000, max: 7 * 86_400_000 } as const;
+
+/**
+ * The fields of a band: the value of the window against the mean of the series over the baseline
+ * before the window, give or take a number of standard deviations.
+ */
+const bandFields = {
+  kind: z.literal('band'),
+  /** Which side of the band fires: over it, under it, or either. */
+  side: z.enum(['above', 'below', 'either']),
+  /** How many standard deviations the band reaches each side of the mean. */
+  deviations: z.number().min(bandDeviations.min).max(bandDeviations.max),
+  /** How long the history before the window is that the band is learned from. */
+  baseline: durationSchema,
+};
+
 /** What a test of a joined condition may read besides the alert's value. */
 const partFields = {
   /** The number field it reads; the alert's `value.field` when left out. */
@@ -54,21 +96,31 @@ const thresholdConditionSchema = z.strictObject({
 /** Validates a change: the value rose or dropped by an amount within a duration. */
 const changeConditionSchema = z.strictObject({ ...changeFields, for: durationSchema });
 
+/** Validates a comparison with the past: the value against the same window a period before. */
+const pastConditionSchema = z.strictObject({ ...pastFields, for: durationSchema });
+
+/** Validates a band: the value against the mean and deviation of its recent history. */
+const bandConditionSchema = z.strictObject({ ...bandFields, for: durationSchema });
+
 /** Validates a condition on the absence of data: the query returns no value for a while. */
 const noDataConditionSchema = z.strictObject({
   kind: z.literal('no_data'),
   for: durationSchema,
 });
 
+/** What a part that reduces the points of its window may also name. */
+const reducedPartFields = {
+  ...partFields,
+  /** How its points become one value; the alert's `value.reduce` when left out. */
+  reduce: z.enum(alertReducers).optional(),
+};
+
 /** Validates one test of a joined condition. */
 const conditionPartSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    ...thresholdFields,
-    ...partFields,
-    /** How its points become one value; the alert's `value.reduce` when left out. */
-    reduce: z.enum(alertReducers).optional(),
-  }),
+  z.strictObject({ ...thresholdFields, ...reducedPartFields }),
   z.strictObject({ ...changeFields, ...partFields }),
+  z.strictObject({ ...pastFields, ...reducedPartFields }),
+  z.strictObject({ ...bandFields, ...reducedPartFields }),
 ]);
 
 /** One test of a joined condition. */
@@ -92,6 +144,8 @@ const joinedConditionSchema = <Kind extends 'all' | 'any'>(kind: Kind) =>
 export const alertConditionSchema = z.discriminatedUnion('kind', [
   thresholdConditionSchema,
   changeConditionSchema,
+  pastConditionSchema,
+  bandConditionSchema,
   joinedConditionSchema('all'),
   joinedConditionSchema('any'),
   noDataConditionSchema,
@@ -103,10 +157,26 @@ export type AlertCondition = z.infer<typeof alertConditionSchema>;
 /** A condition that joins tests. */
 export type JoinedCondition = Extract<AlertCondition, { kind: 'all' | 'any' }>;
 
-/** A test: a threshold or a change, alone as a condition or as a part of a joined one. */
+/**
+ * A test: a threshold, a change, a comparison with the past or a band, alone as a condition or as
+ * a part of a joined one.
+ */
 export type ConditionTest =
   | ConditionPart
-  | Extract<AlertCondition, { kind: 'threshold' | 'change' }>;
+  | Extract<AlertCondition, { kind: 'threshold' | 'change' | 'past' | 'band' }>;
+
+/** A test that reads the time before the window, with a query of its own. */
+export type HistoryTest = Extract<ConditionTest, { kind: 'past' | 'band' }>;
+
+/**
+ * Whether a test reads the time before the window.
+ *
+ * @param test - The test.
+ * @returns `true` for a comparison with the past and for a band.
+ */
+export function readsHistory(test: ConditionTest): test is HistoryTest {
+  return test.kind === 'past' || test.kind === 'band';
+}
 
 /**
  * The tests of a condition, in order.
@@ -147,6 +217,52 @@ function firstPartProblems(condition: AlertCondition): ConditionProblem[] {
 }
 
 /**
+ * The path of a field of one test, from the spec.
+ *
+ * @param condition - The condition.
+ * @param index - The test, in the order of {@link conditionTests}.
+ * @param name - The field.
+ * @returns Such as `condition.within`, or `condition.of[1].within` in a joined condition.
+ */
+export function testPath(
+  condition: AlertCondition,
+  index: number,
+  name: string,
+): (string | number)[] {
+  const joined = condition.kind === 'all' || condition.kind === 'any';
+  return joined ? ['condition', 'of', index, name] : ['condition', name];
+}
+
+/**
+ * The problems of the tests that read history: a baseline out of bounds, and more than one such
+ * test, since each costs a query at every evaluation.
+ *
+ * @param condition - The condition.
+ * @param durationMs - Reads a duration in milliseconds.
+ * @returns The problems.
+ */
+function historyProblems(
+  condition: AlertCondition,
+  durationMs: (duration: string) => number,
+): ConditionProblem[] {
+  const tests = conditionTests(condition);
+  const reading = tests.flatMap((test, index) => (readsHistory(test) ? [index] : []));
+  const extra = reading.slice(1).map((index) => ({
+    path: ['condition', 'of', index] as (string | number)[],
+    message: 'Only one test of a condition compares with history: it costs a query of its own.',
+  }));
+  const bounds = tests.flatMap((test, index) => {
+    if (test.kind !== 'band') return [];
+    const length = durationMs(test.baseline);
+    if (length >= bandBaselineMs.min && length <= bandBaselineMs.max) return [];
+    return [
+      { path: testPath(condition, index, 'baseline'), message: 'Use a baseline from 1h to 7d.' },
+    ];
+  });
+  return [...bounds, ...extra];
+}
+
+/**
  * The problems of a condition against the value it reads and the window it is given.
  *
  * @param condition - The condition.
@@ -162,7 +278,7 @@ export function conditionProblems(
   durationMs: (duration: string) => number,
 ): ConditionProblem[] {
   const tests = conditionTests(condition);
-  const problems = firstPartProblems(condition);
+  const problems = [...firstPartProblems(condition), ...historyProblems(condition, durationMs)];
   if (tests[0]?.kind === 'change' && reduce !== 'last')
     problems.push({
       path: ['value', 'reduce'],

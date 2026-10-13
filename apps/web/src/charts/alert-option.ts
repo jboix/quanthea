@@ -1,8 +1,16 @@
 /**
  * The option of an alert's chart: each series' values over a window, the threshold as a dashed
- * line, and the periods the alert fired shaded, in the danger colour.
+ * line, what a series is compared against when that moves (the limit of a change, the value a
+ * period before, a band), and the periods the alert fired shaded, in the danger colour.
  */
 import { createFormatter } from '@quanthea/shared';
+import {
+  type BandRange,
+  bandEdges,
+  bandRange,
+  type ReferenceLine,
+  referenceLine,
+} from './alert-compared.ts';
 import type { Loose } from './loose.ts';
 import type { ChartTheme } from './theme.ts';
 
@@ -42,6 +50,10 @@ export interface AlertChartInput {
   readonly limit?:
     | { readonly name: string; readonly points: AlertChartSeries['points'] }
     | undefined;
+  /** The value the first series had a period before, for a comparison with the past. */
+  readonly reference?: ReferenceLine | undefined;
+  /** The band the history of the first series gives, for a band. */
+  readonly band?: BandRange | undefined;
   /** When the alert fired. */
   readonly firing: readonly { readonly from: number; readonly to: number }[];
   /** Writes a value as the alert's format does. */
@@ -226,8 +238,24 @@ export function buildAlertOption(
       valueFormatter: (value: number | null) => (value === null ? '–' : input.format(value)),
     },
     ...axes(input, theme, timeZone),
-    series: [...series, ...limitLine(input, theme)],
+    series: [...series, ...compared(input, theme)],
   };
+}
+
+/**
+ * What the condition compares the series against, after the series so they keep their colours:
+ * the band of a band, the value a period before, and the limit a change must reach.
+ *
+ * @param input - The band, the reference and the limit, each if the condition has one.
+ * @param theme - The theme.
+ * @returns The series.
+ */
+function compared(input: AlertChartInput, theme: ChartTheme): Loose[] {
+  return [
+    ...bandRange(input.band, theme, input.format),
+    ...referenceLine(input.reference, theme),
+    ...limitLine(input, theme),
+  ];
 }
 
 /**
@@ -255,7 +283,27 @@ function limitLine(input: AlertChartInput, theme: ChartTheme): Loose[] {
 }
 
 /**
- * The room around the plot, the legend when there are several series, and a note when there is
+ * The legend: every line by its name, a band once, as its range.
+ *
+ * @param input - The series and what they are compared against.
+ * @param theme - The theme.
+ * @returns The legend.
+ */
+function legendOf(input: AlertChartInput, theme: ChartTheme): Loose {
+  const legend = { top: 0, type: 'scroll', textStyle: { color: theme.inkSecondary } };
+  if (!input.band) return legend;
+  const { band } = input;
+  const { upper } = bandEdges(band);
+  const names = [...input.series.map((each) => each.name), upper];
+  return {
+    ...legend,
+    data: names,
+    formatter: (name: string) => (name === upper ? band.name : name),
+  };
+}
+
+/**
+ * The room around the plot, the legend when there are several lines, and a note when there is
  * no data.
  *
  * @param input - The series.
@@ -263,15 +311,15 @@ function limitLine(input: AlertChartInput, theme: ChartTheme): Loose[] {
  * @returns The grid, and the legend or the note when they show.
  */
 function frame(input: AlertChartInput, theme: ChartTheme): Loose {
-  const several = input.series.length > 1;
+  const compared = input.band !== undefined || input.reference !== undefined;
+  const several = input.series.length > 1 || compared;
   const bounded = { outerBoundsMode: 'same', outerBoundsContain: 'axisLabel' };
   const empty = input.series.every((each) => each.points.every((point) => point.value === null));
-  const legend = { top: 0, type: 'scroll', textStyle: { color: theme.inkSecondary } };
   const note = { text: 'No data in this range', left: 'center', top: 'middle' };
   const title = { ...note, textStyle: { color: theme.inkSecondary, fontSize: 13 } };
   return {
     grid: { left: 8, right: input.handle ? 72 : 16, top: several ? 36 : 16, bottom: 8, ...bounded },
-    ...(several ? { legend } : {}),
+    ...(several ? { legend: legendOf(input, theme) } : {}),
     ...(empty ? { title } : {}),
   };
 }

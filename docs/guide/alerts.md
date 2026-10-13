@@ -33,20 +33,24 @@ The draft pane shows what the alert would have done, before it ever runs:
 - **The condition as a sentence**: "Fires when the error share of each service is above 2% for 5
   minutes, checked every minute". Each value is a button: click it to change it. A change reads
   "drops by at least 50% within 10 minutes", and joined tests read one after the other, with the
-  "and" or "or" between them a button too. The sentence changes values; ask the agent to add or
-  remove a test.
+  "and" or "or" between them a button too. A comparison with the past reads "is at least 30% above
+  its value a week earlier", and a band "is more than 3 deviations from its mean of the last day".
+  The sentence changes values; ask the agent to add or remove a test.
 - **The replay** over the last 7 days or 24 hours, with the threshold as a dashed line. Drag the
   handle at its right, or use the arrow keys, and the shading, the summary ("Would have fired 2
   times · 23 minutes in total · 1 spike too short to fire") and the series follow at once. A
   change has no fixed line: the dashed line is the value the series must reach to fire, and it
-  moves with the series. With several series it is drawn for the one that fired longest.
+  moves with the series. With several series it is drawn for the one that fired longest. A
+  comparison with the past adds a dotted line, the value a week (or a day, or an hour) earlier, and
+  a band is drawn as a shaded range: the series fires where it leaves it.
 - **The series**: one per service, host or label value, each with how often it would have fired.
 - **Notifies**: the channels, when the alert is quiet and when it may next notify, and a preview
   of the message as each service shows it: a Slack
   message, a Discord embed, a Teams card, a PagerDuty incident, an Alertmanager alert, a
   webhook's JSON. **Edit the message** changes its title, body and fields. Besides `{value}` and
   `{threshold}`, a message can name `{change}` (how far a change moved, such as `-52%`),
-  `{previous}` (the value it moved from) and `{values}` (the value of every joined test).
+  `{previous}` (the value it moved from), `{band}` (the band of a band, such as `1.2% to 2.4%`) and
+  `{values}` (the value of every joined test).
 
 Every change you make here is saved as a new draft version, and the agent reads it on its next turn
 ("I changed the alert by hand, v1 → v2: threshold 3% → 2%"). Keep talking to change anything else.
@@ -71,14 +75,16 @@ label values, or one per time series.
 ### Conditions
 
 Say what should fire in your own words; the agent picks the condition and the draft shows it as a
-sentence. There are four kinds, and nothing else: no formula to write.
+sentence. There are six kinds, and nothing else: no formula to write.
 
-| Condition | Say                                    | Fires when                                                         |
-| --------- | -------------------------------------- | ------------------------------------------------------------------ |
-| Threshold | "error share above 2% for 5 minutes"   | the value is above, or below, a fixed number                       |
-| Change    | "orders dropped by half in 10 minutes" | the value rose or dropped by an amount, or more, within a duration |
-| Joined    | "above 2% and at least 100 requests"   | every one of two to four tests holds, or any one of them           |
-| No data   | "nothing came in for 10 minutes"       | the query returns nothing                                          |
+| Condition        | Say                                    | Fires when                                                         |
+| ---------------- | -------------------------------------- | ------------------------------------------------------------------ |
+| Threshold        | "error share above 2% for 5 minutes"   | the value is above, or below, a fixed number                       |
+| Change           | "orders dropped by half in 10 minutes" | the value rose or dropped by an amount, or more, within a duration |
+| Against the past | "30% above the same hour last week"    | the value is that far above, or below, its value a period earlier  |
+| Band             | "latency is unusual"                   | the value is outside the range its own recent history gives        |
+| Joined           | "above 2% and at least 100 requests"   | every one of two to four tests holds, or any one of them           |
+| No data          | "nothing came in for 10 minutes"       | the query returns nothing                                          |
 
 **A change** compares the latest value with the value a while earlier: 10 minutes earlier for
 "within 10 minutes". Use it when the normal level moves through the day and no fixed number fits.
@@ -91,6 +97,39 @@ sentence. There are four kinds, and nothing else: no formula to write.
 - It resolves by itself once the earlier value has caught up, 10 minutes after the move in this
   example, even when the value stays where it went. To hear for as long as a level lasts, use a
   threshold, alone or joined with the change.
+
+**Against the past** compares the value with the value of the same window an hour, a day or a
+week earlier. Use it for what follows the clock or the calendar, such as traffic, orders and
+sign-ins: Monday at 9 is compared with last Monday at 9, not with Sunday night.
+
+- The amount is a percentage of the value then, or a difference in the value itself, above or
+  below.
+- The window is the alert's own: with a window of an hour, it is this hour against the same hour a
+  week earlier.
+- A series with no value then does not fire: a series that is new, or data that does not go back
+  that far. The agent is told when no series has a value then, and the alert is not saved.
+- A percentage of zero is not a number, so a series that was at 0 then does not fire on a
+  percentage. Use a difference.
+
+**A band** asks whether the value is unusual for this series. It takes the mean of the series over
+a baseline before the window, 1 hour to 7 days, and the band reaches a number of standard
+deviations each side of it, 3 unless you say otherwise. The series fires above the band, below it,
+or on either side.
+
+- Each series has its own band, learned again at every check, so it follows a level that drifts.
+- Fewer deviations fire more often: 2 is noisy, 4 fires on little.
+- With too little history there is no verdict, and it never fires: fewer than 10 points over the
+  baseline, or points that cover less than half of it. A new series waits until it has that much.
+- A series that never moved has a band of one value, so any other value is outside it. Join the
+  band with a threshold to ignore small numbers.
+- A band knows nothing of the hour or the weekday. For a level with a daily or weekly shape, compare
+  against the past instead.
+
+These two read history, so each check runs a second query on the data source: the same window a
+period earlier, or the whole baseline. Check such an alert every 5 minutes or more rather than
+every minute, and keep the baseline as short as holds the normal ups and downs. A condition has at
+most one test that reads history, and such an alert counts twice towards the most alerts active per
+connector.
 
 **Joined tests** watch several numbers of one query, such as the error share and the request count
 of each service, so that a share on three requests wakes nobody.
@@ -129,8 +168,9 @@ number of alerts firing.
 ### Tune a live alert
 
 The owner of its thread and admins drag the threshold, or change the numbers of the condition, the
-wait or the interval, right on the page. What the alert watches, and the duration a change looks
-back over, change in its conversation. Nothing is saved
+wait or the interval, right on the page. What the alert watches, and how far back a condition
+looks (the duration of a change, the period it compares with, the baseline of a band), change in
+its conversation. Nothing is saved
 yet: an amber bar says what the change would do ("Not saved: threshold 2% → 2.5%. Last 7 days: would
 have fired 1 time instead of 2. Right now: checkout-svc would stop firing."). **Discard** drops it;
 **Activate as v4** saves and activates it as a new version.
@@ -199,7 +239,8 @@ A mute is separate: it silences one alert until a time, whatever the hour.
 
 Admins open **Settings** on the Alerts page:
 
-- **The most alerts active per connector**, 50 by default, so a source isn't checked to death.
+- **The most alerts active per connector**, 50 by default, so a source isn't checked to death. An
+  alert that compares with history runs two queries per check and counts twice.
 - **Notify when an alert cannot be checked or a report fails**, on by default.
 - **Quiet hours by default**, off by default. Turn it on and set the windows: the days each one
   starts on, and when it starts and ends. **Add a window** adds another, such as the whole

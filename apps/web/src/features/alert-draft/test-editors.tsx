@@ -1,7 +1,7 @@
 /**
  * The editors of the tests of a condition: the operator and number of a threshold, the direction,
  * amount and span of a change, the field a part of a joined condition reads, and the word that
- * joins the parts.
+ * joins the parts. The tests that compare with history have theirs in `history-editors.tsx`.
  */
 import { type AlertSpec, conditionTests } from '@quanthea/shared';
 import { useState } from 'react';
@@ -12,6 +12,8 @@ import { fieldWords } from './condition.ts';
 import {
   type ConditionSentenceProps,
   durationChange,
+  numberOf,
+  type TestProps,
   textValue,
   ValueEditor,
 } from './condition-editors.tsx';
@@ -25,12 +27,7 @@ import {
   withTest,
   withWithin,
 } from './condition-tests.ts';
-
-/** The sentence's props and the test an editor is about. */
-type TestProps = ConditionSentenceProps & {
-  /** The test, in the order of the condition's tests. */
-  readonly index: number;
-};
+import { BandPhrase, PastPhrase } from './history-editors.tsx';
 
 /** The operators of a threshold. */
 const operators = [
@@ -55,17 +52,6 @@ const joiners = [
   { value: 'all', label: 'and: every one holds' },
   { value: 'any', label: 'or: one is enough' },
 ];
-
-/**
- * Reads a typed number.
- *
- * @param text - The text.
- * @returns The number, or `undefined` when it is not one.
- */
-function numberOf(text: string): number | undefined {
-  const value = Number(text);
-  return text.trim() === '' || !Number.isFinite(value) ? undefined : value;
-}
 
 /**
  * The threshold's fields: the operator and the number.
@@ -233,8 +219,9 @@ function withinValue(props: TestProps & { readonly test: ChangeTest }) {
 }
 
 /**
- * One test of the condition, after what it reads: "is above 2%", or "drops by at least 50% within
- * 10 minutes".
+ * One test of the condition, after what it reads: "is above 2%", "drops by at least 50% within
+ * 10 minutes", "is at least 30% above its value a week earlier", or "is more than 3 deviations
+ * from its mean of the last day".
  *
  * @param props - The sentence's props and the test's place.
  * @returns The phrase, with its editors.
@@ -248,6 +235,8 @@ export function TestPhrase(props: TestProps) {
         is <ThresholdValue {...props} test={test} />
       </>
     );
+  if (test.kind === 'past') return <PastPhrase {...props} test={test} />;
+  if (test.kind === 'band') return <BandPhrase {...props} test={test} />;
   return (
     <>
       <ChangeValue {...props} test={test} /> within {withinValue({ ...props, test })}

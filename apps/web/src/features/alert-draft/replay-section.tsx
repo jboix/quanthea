@@ -44,8 +44,8 @@ interface ReplayHeadProps {
   readonly window: DraftWindow;
   /** Picks another window. */
   readonly onWindow: (window: DraftWindow) => void;
-  /** What the dashed line is: the threshold, or the limit a change must reach. */
-  readonly line: string;
+  /** What the dashed line is: the threshold, or the limit a change must reach; `null` for none. */
+  readonly line: string | null;
 }
 
 /**
@@ -64,10 +64,12 @@ export function ReplayHead({ window, onWindow, line }: ReplayHeadProps) {
           <span className={styles.swatch} />
           firing
         </span>
-        <span>
-          <span className={styles.dash} />
-          {line}
-        </span>
+        {line !== null && (
+          <span>
+            <span className={styles.dash} />
+            {line}
+          </span>
+        )}
         <span>
           <span className={styles.spikeSwatch} />
           too short to fire

@@ -43,6 +43,7 @@ function measured(subject: AlertSpec, series: readonly ObservedSeries[]): Measur
       key,
       labels,
       columns: measures.map(() => points),
+      history: [],
     })),
     truncated: false,
     problems: [],

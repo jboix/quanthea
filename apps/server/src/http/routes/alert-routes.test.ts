@@ -208,6 +208,26 @@ describe('activating', () => {
     expect((await send('POST', `/api/alerts/${second}/activate`, { version: 1 })).status).toBe(409);
     expect((await send('POST', `/api/alerts/${first}/activate`, { version: 1 })).status).toBe(200);
   });
+
+  test('counts an alert that compares with history twice towards the cap', async () => {
+    await client(admin)('PUT', '/api/settings/alerts', { maxActivePerConnector: 3 });
+    const condition = { kind: 'past', direction: 'up', amount: 30, unit: 'percent', ago: '1h' };
+    const compared = () =>
+      fixture.alerts.saveVersion(
+        { spec: { ...eventsAlert(), condition: { ...condition, for: '0m' } } },
+        editor.id,
+      ).alertId;
+    const send = client(editor);
+    const activate = (id: string) => send('POST', `/api/alerts/${id}/activate`, { version: 1 });
+    expect((await activate(compared())).status).toBe(200);
+    const refused = await activate(compared());
+    expect(refused.status).toBe(409);
+    expect(refused.body).toMatchObject({
+      error: { message: expect.stringContaining('run 2 queries per check') },
+    });
+    expect((await activate(saveAlert())).status).toBe(200);
+    expect((await activate(saveAlert())).status).toBe(409);
+  });
 });
 
 describe('replaying', () => {

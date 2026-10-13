@@ -5,7 +5,13 @@
 import { calendarParts } from '../formatters/calendar.ts';
 import type { MessagePlaceholder } from '../notifications.ts';
 import type { AlertSpec } from '../spec/alert.ts';
-import { alertValueText, changeWords, conditionText, readingsText } from './condition-words.ts';
+import {
+  alertValueText,
+  bandText,
+  changeWords,
+  conditionText,
+  readingsText,
+} from './condition-words.ts';
 import type { Reading } from './conditions.ts';
 
 /** The series a notification is about. */
@@ -18,7 +24,8 @@ export interface NotifiedSeries {
   readonly since: number;
   /**
    * What each test of the condition read, when that is more than the value: the earlier point of
-   * a change, the values of the parts of a joined condition.
+   * a change, the value a period before, the mean and deviation of a band's baseline, the values
+   * of the parts of a joined condition.
    */
   readonly readings?: readonly Reading[] | undefined;
 }
@@ -27,7 +34,8 @@ export interface NotifiedSeries {
  * Writes the condition a series is held against.
  *
  * @param spec - The spec.
- * @returns Such as `above 5`, `down 50% or more within 10m`, or `no data`.
+ * @returns Such as `above 5`, `down 50% or more within 10m`, `up 30% or more from a week earlier`,
+ *   or `no data`.
  */
 export function thresholdText(spec: Pick<AlertSpec, 'value' | 'condition'>): string {
   return conditionText(spec);
@@ -71,6 +79,7 @@ export function notificationValues(
     value: alertValueText(spec, series.value),
     values: readingsText(spec, readings),
     ...changeWords(spec, readings),
+    band: bandText(spec, readings),
     threshold: thresholdText(spec),
     duration: spec.condition.for,
     since: timeText(spec, series.since),

@@ -1,5 +1,6 @@
 /**
- * Evaluates one alert: runs its query over the window ending now, moves each series through the
+ * Evaluates one alert: runs its query over the window ending now, and its history query when the
+ * condition compares with the past, moves each series through the
  * state machine, saves the new states and the changes, and whether the alert can be checked, then
  * sends the notifications that are due. No model is involved, and a mute or quiet hours stop the
  * notifications only.
@@ -22,8 +23,7 @@ import { type CheckDecision, checkNotification, decideCheck } from './check-noti
 import { buildNotification, decideNotification, type NotifyDecision } from './notify.ts';
 import { observe, type SeriesObservation, wholeAlertKey } from './observe.ts';
 import { ruleOf } from './replay-core.ts';
-import { type AlertQueryDependencies, runAlertQuery } from './run-query.ts';
-import { windowAt } from './validate.ts';
+import { type AlertQueryDependencies, runEvaluationQueries } from './run-query.ts';
 
 /** Sends a notification to channels. The notification channels provide it. */
 export type Notify = (
@@ -376,7 +376,7 @@ export async function evaluateAlert(
   now: number,
 ): Promise<void> {
   const { alert, spec } = subject;
-  const outcome = await runAlertQuery(dependencies, spec, windowAt(spec, now));
+  const outcome = await runEvaluationQueries(dependencies, spec, now);
   const previous = new Map(dependencies.states.series(alert.id).map((row) => [row.key, row]));
   const known = new Map([...previous].map(([key, row]) => [key, row.labels]));
   const context = contextOf(dependencies, subject, now);

@@ -7,6 +7,9 @@ import {
   type AlertCondition,
   type AlertReplay,
   type AlertSpec,
+  agoText,
+  bandLimits,
+  type ConditionTest,
   changeLimit,
   conditionTests,
   type NotifiedSeries,
@@ -85,13 +88,18 @@ export function seriesUnder(
  * What the dashed line of a replay chart is, for its legend.
  *
  * @param condition - The condition.
- * @returns `threshold`, or the limit a change must reach.
+ * @returns `threshold`, the limit a change or a comparison with the past must reach, or for a band
+ *   nothing: the chart shades its range and names it.
  */
-export function lineName(condition: AlertCondition): string {
+export function lineName(condition: AlertCondition): string | null {
   const [first] = conditionTests(condition);
-  if (first?.kind !== 'change') return 'threshold';
+  if (first?.kind === 'band') return null;
+  if (first?.kind !== 'change' && first?.kind !== 'past') return 'threshold';
   return first.direction === 'up' ? 'fires above this' : 'fires below this';
 }
+
+/** A value at each evaluation, as a chart draws it. */
+type LinePoints = { at: number; value: number | null }[];
 
 /** The lines a replay chart draws for what a condition compares a series against. */
 export interface ConditionLines {
@@ -99,37 +107,93 @@ export interface ConditionLines {
   readonly threshold: number | null;
   /**
    * The value a series must reach at each evaluation for the condition's first test to hold, when
-   * it is a change: the earlier point moved by the amount.
+   * it is a change or a comparison with the past: the earlier value moved by the amount.
    */
-  readonly limit?: {
+  readonly limit?: { readonly name: string; readonly points: LinePoints };
+  /** The value the series had a period before, for a comparison with the past. */
+  readonly reference?: { readonly name: string; readonly points: LinePoints };
+  /** The band the history of the series gives at each evaluation, for a band. */
+  readonly band?: {
     readonly name: string;
-    readonly points: { at: number; value: number | null }[];
+    readonly points: { at: number; lower: number | null; upper: number | null }[];
   };
+}
+
+/** The series whose comparison a chart draws: the one that fired longest. */
+interface LeadSeries {
+  /** Its name, written beside the lines when the chart draws several series. */
+  readonly name?: string | undefined;
+  /** Its points, with their readings. */
+  readonly points: ReplayTrack['points'];
+}
+
+/**
+ * A name for a line of the lead series.
+ *
+ * @param words - What the line is.
+ * @param lead - The series.
+ * @returns The words, with the series' name when the chart draws several.
+ */
+function named(words: string, lead: LeadSeries): string {
+  return lead.name ? `${words} (${lead.name})` : words;
+}
+
+/**
+ * The limit a series must reach for a change, or a comparison with the past, to hold.
+ *
+ * @param test - The test.
+ * @param lead - The series.
+ * @returns The line.
+ */
+function limitOf(test: Extract<ConditionTest, { kind: 'change' | 'past' }>, lead: LeadSeries) {
+  const side = test.direction === 'up' ? 'fires above' : 'fires below';
+  const points = lead.points.map(({ at, readings }) => ({
+    at,
+    value: changeLimit(test, readings?.[0]?.reference),
+  }));
+  return { name: named(side, lead), points };
+}
+
+/**
+ * The band of a series at each evaluation.
+ *
+ * @param test - The band.
+ * @param lead - The series.
+ * @returns The range; no edges where the history was too little.
+ */
+function bandOf(test: Extract<ConditionTest, { kind: 'band' }>, lead: LeadSeries) {
+  const points = lead.points.map(({ at, readings }) => {
+    const limits = bandLimits(test, readings?.[0]);
+    return { at, lower: limits?.lower ?? null, upper: limits?.upper ?? null };
+  });
+  return { name: named('usual range', lead), points };
 }
 
 /**
  * What the chart draws for a condition, from its first test, which reads the alert's value: the
- * line of a threshold, or the moving limit of a change for one series.
+ * line of a threshold, the moving limit of a change, the value a period before with the limit it
+ * sets, or the band of a series' history.
  *
  * @param condition - The condition.
- * @param lead - The series whose limit is drawn, with its name; the one that fired longest.
- * @param lead.name - Its name, written beside the limit when the chart draws several series.
- * @param lead.points - Its points, with their readings.
+ * @param lead - The series whose comparison is drawn; the one that fired longest.
  * @returns The lines.
  */
 export function conditionLines(
   condition: AlertCondition,
-  lead: { readonly name?: string | undefined; readonly points: ReplayTrack['points'] } | undefined,
+  lead: LeadSeries | undefined,
 ): ConditionLines {
   const [first] = conditionTests(condition);
   if (first?.kind === 'threshold') return { threshold: first.value };
-  if (first?.kind !== 'change' || !lead || lead.points.length === 0) return { threshold: null };
-  const side = first.direction === 'up' ? 'fires above' : 'fires below';
-  const points = lead.points.map(({ at, readings }) => ({
+  if (!first || !lead || lead.points.length === 0) return { threshold: null };
+  if (first.kind === 'band') return { threshold: null, band: bandOf(first, lead) };
+  const limit = limitOf(first, lead);
+  if (first.kind === 'change') return { threshold: null, limit };
+  const then = lead.points.map(({ at, readings }) => ({
     at,
-    value: changeLimit(first, readings?.[0]?.reference),
+    value: readings?.[0]?.reference ?? null,
   }));
-  return { threshold: null, limit: { name: lead.name ? `${side} (${lead.name})` : side, points } };
+  const reference = { name: named(agoText(first.ago), lead), points: then };
+  return { threshold: null, limit, reference };
 }
 
 /**

@@ -11,15 +11,35 @@ import { conditionTests } from '../spec/alert-condition.ts';
 export interface Reading {
   /** The value: the points of the window reduced, or the latest point for a change. */
   readonly value: number | null;
-  /** The earlier point a change compares with; `null` when the window holds none. */
+  /**
+   * What the value is compared with: the earlier point of a change, the value a period before, or
+   * the mean of a band's baseline. `null` when there is none: no earlier point, a series that was
+   * not there then, too little history.
+   */
   readonly reference?: number | null | undefined;
+  /** The standard deviation of a band's baseline; `null` with too little history. */
+  readonly spread?: number | null | undefined;
 }
 
 /** A threshold: an operator and a number. */
 type Threshold = Pick<Extract<ConditionTest, { kind: 'threshold' }>, 'op' | 'value'>;
 
-/** A change: a direction, an amount and its unit. */
-type Change = Pick<Extract<ConditionTest, { kind: 'change' }>, 'direction' | 'amount' | 'unit'>;
+/** A change, within the window or against the past: a direction, an amount and its unit. */
+type Change = Pick<
+  Extract<ConditionTest, { kind: 'change' | 'past' }>,
+  'direction' | 'amount' | 'unit'
+>;
+
+/** A band: the side that fires and its width in deviations. */
+type Band = Pick<Extract<ConditionTest, { kind: 'band' }>, 'side' | 'deviations'>;
+
+/** The edges of a band. */
+export interface BandLimits {
+  /** The mean less the deviations. */
+  readonly lower: number;
+  /** The mean plus the deviations. */
+  readonly upper: number;
+}
 
 /** How far a comparison may be off through rounding, as a share of the amount. */
 const tolerance = 1e-9;
@@ -81,6 +101,41 @@ export function changeLimit(change: Change, reference: number | null | undefined
 }
 
 /**
+ * The edges of a band, given the mean and the deviation of its baseline.
+ *
+ * @param band - How many deviations wide it is, each side.
+ * @param reading - The mean (`reference`) and the deviation (`spread`) of the baseline.
+ * @returns The edges, or `null` with too little history to learn them.
+ */
+export function bandLimits(
+  band: Pick<Band, 'deviations'>,
+  reading: Pick<Reading, 'reference' | 'spread'> | undefined,
+): BandLimits | null {
+  const mean = reading?.reference;
+  const spread = reading?.spread;
+  if (mean === null || mean === undefined || spread === null || spread === undefined) return null;
+  const reach = band.deviations * spread;
+  return { lower: mean - reach, upper: mean + reach };
+}
+
+/**
+ * Whether a band holds for a reading: the value lies outside it, on a side that fires.
+ *
+ * @param band - The side and the width.
+ * @param reading - The value, and the mean and deviation of the baseline.
+ * @returns `true` when the value is strictly outside; never without a value or a band.
+ */
+export function bandHolds(band: Band, reading: Reading): boolean {
+  const limits = bandLimits(band, reading);
+  if (limits === null || reading.value === null) return false;
+  // A flat baseline gives a mean a rounding away from its values: that is not outside.
+  const slack = tolerance * Math.max(Math.abs(limits.lower), Math.abs(limits.upper));
+  const over = band.side !== 'below' && reading.value > limits.upper + slack;
+  const under = band.side !== 'above' && reading.value < limits.lower - slack;
+  return over || under;
+}
+
+/**
  * Whether one test holds for its reading.
  *
  * @param test - The test.
@@ -88,7 +143,9 @@ export function changeLimit(change: Change, reference: number | null | undefined
  * @returns Whether it holds; a test without a value never does.
  */
 export function testHolds(test: ConditionTest, reading: Reading): boolean {
-  return test.kind === 'change' ? changeHolds(test, reading) : thresholdHolds(test, reading.value);
+  if (test.kind === 'threshold') return thresholdHolds(test, reading.value);
+  if (test.kind === 'band') return bandHolds(test, reading);
+  return changeHolds(test, reading);
 }
 
 /**
@@ -110,13 +167,14 @@ export function conditionHolds(condition: AlertCondition, readings: readonly Rea
  * Which way a condition points, for the extreme value of a short spike.
  *
  * @param condition - The condition.
- * @returns The way of its first test: `above` for a rise too, `below` for a drop; `undefined`
- *   without a test.
+ * @returns The way of its first test: `above` for a rise too and for a band that fires over it or
+ *   on either side, `below` for a drop; `undefined` without a test.
  */
 export function conditionDirection(condition: AlertCondition): 'above' | 'below' | undefined {
   const [first] = conditionTests(condition);
   if (!first) return undefined;
   if (first.kind === 'threshold') return first.op;
+  if (first.kind === 'band') return first.side === 'below' ? 'below' : 'above';
   return first.direction === 'up' ? 'above' : 'below';
 }
 

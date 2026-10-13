@@ -1,16 +1,13 @@
 /**
  * Replays an alert over a past window, such as the last 7 days of a draft: one query over the
- * whole window, at the evaluation step, then the state machine in time order. A result without a
- * time column cannot be replayed, and the replay says why.
+ * whole window, at the evaluation step, then the state machine in time order. A condition that
+ * compares with history reads the time before the window with one more query, once for the whole
+ * replay and never once per step. A result without a time column cannot be replayed, and the
+ * replay says why.
  */
-import {
-  type AlertReplay,
-  type AlertSpec,
-  durationMs,
-  type Frame,
-  type PanelQuery,
-} from '@quanthea/shared';
+import { type AlertReplay, type AlertSpec, durationMs, type Frame } from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
+import { historyBefore, rangedQuery } from './history.ts';
 import { measure } from './measure.ts';
 import { type ReplayedSeries, replaySeries } from './replay-core.ts';
 import { type AlertQueryDependencies, runAlertQuery } from './run-query.ts';
@@ -60,17 +57,32 @@ function stepOf(spec: AlertSpec, request: ReplayRequest): number {
 }
 
 /**
- * The query a replay runs: a PromQL or LogQL query over the range at the step, never instant.
+ * Reads the points a replay feeds its steps: the query over the span of their windows, as a range
+ * query at the step for PromQL and LogQL, and, for a condition that reads history, the same query
+ * over the span before it. The two results are read as one stretch of time.
  *
+ * @param dependencies - The connectors and the executor.
  * @param spec - The spec.
+ * @param span - The span of the steps' windows.
  * @param step - The step, as a duration.
- * @returns The query.
+ * @returns The frames, those of the earlier span first.
+ * @throws {AppError} `source_failed` when a query fails.
  */
-function replayQuery(spec: AlertSpec, step: string): PanelQuery {
-  const { query } = spec;
-  if (query.language !== 'promql' && query.language !== 'logql') return query;
-  const { instant: _instant, ...ranged } = query;
-  return { ...ranged, step };
+async function readFrames(
+  dependencies: AlertQueryDependencies,
+  spec: AlertSpec,
+  span: { readonly from: number; readonly to: number },
+  step: string,
+): Promise<readonly Frame[]> {
+  const query = rangedQuery(spec.query, step);
+  const before = historyBefore(spec, span);
+  const frames: Frame[] = [];
+  for (const range of before ? [before, span] : [span]) {
+    const outcome = await runAlertQuery(dependencies, spec, range, query);
+    if ('error' in outcome) throw new AppError('source_failed', outcome.error);
+    frames.push(...outcome.frames);
+  }
+  return frames;
 }
 
 /**
@@ -119,12 +131,10 @@ export async function replayAlert(
 ): Promise<AlertReplay> {
   const stepMs = stepOf(spec, request);
   const reach = Math.max(durationMs(spec.lookback), stepMs);
-  const range = { from: request.from - reach, to: request.to };
-  const query = replayQuery(spec, request.step ?? spec.every);
-  const outcome = await runAlertQuery(dependencies, spec, range, query);
-  if ('error' in outcome) throw new AppError('source_failed', outcome.error);
-  if (!timed(outcome.frames)) return { replayable: false, reason: noTimeReason };
-  const measured = measure(outcome.frames, spec);
+  const span = { from: request.from - reach, to: request.to };
+  const frames = await readFrames(dependencies, spec, span, request.step ?? spec.every);
+  if (!timed(frames)) return { replayable: false, reason: noTimeReason };
+  const measured = measure(frames, spec);
   if (measured.failure !== undefined) return { replayable: false, reason: measured.failure };
   const window = { from: request.from, to: request.to, stepMs };
   const series = withinBudget(replaySeries(spec, measured, window));

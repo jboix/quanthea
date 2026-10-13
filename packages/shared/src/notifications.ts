@@ -13,9 +13,12 @@ export const messagePlaceholders = [
   'value',
   // The value of every test of a joined condition, such as `2.4%, requests 312`.
   'values',
-  // How far a change condition's value moved, such as `-52%`, and the earlier point it moved from.
+  // How far the value moved from an earlier one, such as `-52%`, and that earlier value: the
+  // earlier point of a change, or the value a period before.
   'change',
   'previous',
+  // The band a series' recent history gives, such as `1.2% to 2.4%`.
+  'band',
   'threshold',
   'duration',
   'since',

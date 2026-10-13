@@ -4,13 +4,18 @@
  * `no_data` condition are observed there.
  */
 import type { AlertSpec, Frame, Observation } from '@quanthea/shared';
-import { type Measured, measure, observeSeries } from './measure.ts';
+import { type Measured, measure, observeSeries, pastsOf } from './measure.ts';
 
 /** The key of the series that stands for the alert as a whole. */
 export const wholeAlertKey = '';
 
-/** What the query gave: frames, or why it failed. */
-export type QueryOutcome = { readonly frames: readonly Frame[] } | { readonly error: string };
+/**
+ * What the query gave: frames, with those of the history query when the condition reads history,
+ * or why either failed.
+ */
+export type QueryOutcome =
+  | { readonly frames: readonly Frame[]; readonly history?: readonly Frame[] }
+  | { readonly error: string };
 
 /** An observation of one series, with its labels. */
 export interface SeriesObservation {
@@ -44,7 +49,8 @@ function observeTests(
 ): Map<string, SeriesObservation> {
   const observed = new Map<string, SeriesObservation>();
   for (const each of measured.series) {
-    const observation = observeSeries(spec, measured.measures, each.columns);
+    const pasts = pastsOf(measured, each);
+    const observation = observeSeries(spec, measured.measures, each.columns, pasts);
     observed.set(each.key, { labels: each.labels, observation });
   }
   const absent: Observation =
@@ -101,7 +107,7 @@ export function observe(
 ): EvaluationObservations {
   if ('error' in outcome)
     return { series: wholeAlert({ kind: 'error', message: outcome.error }), truncated: false };
-  const measured = measure(outcome.frames, spec);
+  const measured = measure(outcome.frames, spec, outcome.history);
   const { failure } = measured;
   if (failure !== undefined)
     return { series: wholeAlert({ kind: 'error', message: failure }), truncated: false };

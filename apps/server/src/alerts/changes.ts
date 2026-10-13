@@ -24,6 +24,7 @@ import { AppError } from '../lib/errors.ts';
 import { newId } from '../lib/ids.ts';
 import { checkAlert } from './check.ts';
 import type { Notify } from './evaluate.ts';
+import { queriesPerEvaluation } from './history.ts';
 import type { AlertQueryDependencies } from './run-query.ts';
 import { validateAlertSpec } from './validate.ts';
 
@@ -145,7 +146,9 @@ function linkSeed(context: AlertsContext, alertId: string, seed: AlertSeed, acto
 }
 
 /**
- * Refuses an activation that would pass the cap of active alerts on the spec's connector.
+ * Refuses an activation that would pass the cap of active alerts on the spec's connector. The cap
+ * counts the queries an evaluation runs: an alert whose condition reads history runs two, and
+ * counts twice.
  *
  * @param context - The service context.
  * @param alertId - The alert being activated.
@@ -158,11 +161,18 @@ function checkCap(context: AlertsContext, alertId: string, spec: AlertSpec): voi
   const active = context.repository
     .evaluated()
     .filter((each) => each.alert.id !== alertId)
-    .filter((each) => (each.spec as AlertSpec).query?.connector === connector);
+    .map((each) => each.spec as AlertSpec)
+    .filter((each) => each.query?.connector === connector);
   if (active.length >= maxActivePerConnector)
     throw new AppError(
       'conflict',
       `"${connector}" already has ${active.length} active alerts, the most allowed.`,
+    );
+  const queries = active.reduce((total, each) => total + queriesPerEvaluation(each), 0);
+  if (queries + queriesPerEvaluation(spec) > maxActivePerConnector)
+    throw new AppError(
+      'conflict',
+      `"${connector}" has no room for this alert: its ${active.length} active alerts run ${queries} queries per check, and the most allowed is ${maxActivePerConnector}. An alert that compares with history runs two.`,
     );
 }
 

@@ -49,8 +49,8 @@ function harness(overrides: Record<string, unknown> = {}) {
     createdAt: at,
   });
   alerts.activate('a1', 1, at);
-  let answer: FakeAnswer = [];
-  const engine = fakeEngine(() => answer);
+  let answer: FakeAnswer | Parameters<typeof fakeEngine>[0] = [];
+  const engine = fakeEngine((request) => (typeof answer === 'function' ? answer(request) : answer));
   const sent: Notification[] = [];
   const logs = captureLogs();
   const notify = (_channels: readonly string[], notification: Notification) => {
@@ -67,7 +67,7 @@ function harness(overrides: Record<string, unknown> = {}) {
     notifyOnError: () => setting.notifyOnError,
     quietHours: () => setting.quietHours,
   };
-  const evaluate = async (now: number, next: FakeAnswer) => {
+  const evaluate = async (now: number, next: typeof answer) => {
     answer = next;
     const alert = alerts.get('a1');
     if (alert) await evaluateAlert(dependencies, { alert, spec: alertSpec }, now);
@@ -124,6 +124,87 @@ describe('evaluating an alert', () => {
     ];
     await evaluate(27 * minute, [seriesFrame(labels, stayed)]);
     expect(states.series('a1')[0]).toMatchObject({ state: 'ok', value: 48 });
+  });
+
+  test('fires against the same window a week earlier, with a query for then', async () => {
+    const week = 7 * 24 * 60 * minute;
+    const { evaluate, sent, states, dependencies } = harness({
+      condition: {
+        kind: 'past',
+        direction: 'up',
+        amount: 30,
+        unit: 'percent',
+        ago: '7d',
+        for: '0m',
+      },
+      message: { title: '{alert}', body: '{series}: {value}, {change} on {previous}.' },
+    });
+    const labels = { service: 'checkout' };
+    const now = 2 * week;
+    const thenAndNow =
+      (then: number, value: number): Parameters<typeof fakeEngine>[0] =>
+      ({ timeRange }) =>
+        timeRange.to.getTime() === now
+          ? [seriesFrame(labels, [[now, value]]), seriesFrame({ service: 'new' }, [[now, 900]])]
+          : [seriesFrame(labels, [[now - week, then]])];
+    await evaluate(now, thenAndNow(100, 120));
+    expect(dependencies.requests).toHaveLength(2);
+    expect(states.series('a1').map((each) => each.state)).toEqual(['ok', 'ok']);
+    await evaluate(now, thenAndNow(100, 140));
+    // The series that was not there a week earlier is watched, and never compared.
+    expect(states.series('a1').map((each) => [each.key, each.state])).toEqual([
+      ['{service="checkout"}', 'firing'],
+      ['{service="new"}', 'ok'],
+    ]);
+    expect(sent.map((each) => each.event)).toEqual(['alert.firing']);
+    expect(sent[0]?.values).toMatchObject({
+      value: '140',
+      change: '+40%',
+      previous: '100',
+      threshold: 'up 30% or more from a week earlier',
+    });
+  });
+
+  test('fires outside the band of its history, and never without enough of it', async () => {
+    const hour = 60 * minute;
+    const { evaluate, sent, states } = harness({
+      condition: { kind: 'band', side: 'either', deviations: 3, baseline: '1h', for: '0m' },
+      message: { title: '{alert}', body: '{series}: {value} is outside {band}.' },
+    });
+    const labels = { service: 'checkout' };
+    const now = 2 * hour;
+    const history = (count: number): [number, number][] =>
+      Array.from({ length: count }, (_, index) => [
+        now - 10 * minute - index * minute,
+        index % 2 === 0 ? 9 : 11,
+      ]);
+    const withHistory =
+      (count: number, value: number): Parameters<typeof fakeEngine>[0] =>
+      ({ timeRange }) =>
+        timeRange.to.getTime() === now
+          ? [seriesFrame(labels, [[now, value]])]
+          : [seriesFrame(labels, history(count))];
+    await evaluate(now, withHistory(5, 40));
+    expect(states.series('a1')[0]).toMatchObject({ state: 'ok', value: 40 });
+    await evaluate(now, withHistory(60, 12));
+    expect(states.series('a1')[0]).toMatchObject({ state: 'ok', value: 12 });
+    await evaluate(now, withHistory(60, 14));
+    expect(states.series('a1')[0]).toMatchObject({ state: 'firing', value: 14 });
+    expect(sent[0]?.values).toMatchObject({
+      value: '14',
+      band: '7 to 13',
+      threshold: 'more than 3 deviations from its mean of the last 1h',
+    });
+  });
+
+  test('cannot be checked when the query for its history fails', async () => {
+    const { evaluate, states } = harness({
+      condition: { kind: 'band', side: 'either', deviations: 3, baseline: '1h', for: '0m' },
+    });
+    const failing: Parameters<typeof fakeEngine>[0] = ({ timeRange }) =>
+      timeRange.to.getTime() === 0 ? at(9) : new Error('Too far back.');
+    await evaluate(0, failing);
+    expect(states.series('a1')).toMatchObject([{ key: '', state: 'error' }]);
   });
 
   test('fires on joined tests of two columns, and names every value', async () => {

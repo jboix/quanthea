@@ -74,4 +74,22 @@ describe('validating an alert spec', () => {
       'severity',
     ]);
   });
+
+  test('reports a baseline past the connector guardrails, at the band', () => {
+    const band = { kind: 'band', side: 'either', deviations: 3, baseline: '2d', for: '5m' };
+    expect(issuesOf({ condition: band })).toEqual([
+      { path: 'condition.baseline', message: expect.stringContaining('1 days') },
+    ]);
+    expect(issuesOf({ condition: { ...band, baseline: '12h' } })).toEqual([]);
+    const { for: _for, ...part } = band;
+    const above = { kind: 'threshold', op: 'above', value: 5 };
+    expect(issuesOf({ condition: { kind: 'all', of: [above, part], for: '5m' } })).toEqual([
+      { path: 'condition.of[1].baseline', message: expect.stringContaining('1 days') },
+    ]);
+  });
+
+  test('takes a comparison with a week earlier whatever the range the connector allows', () => {
+    const past = { kind: 'past', direction: 'up', amount: 30, unit: 'percent', ago: '7d' };
+    expect(issuesOf({ condition: { ...past, for: '5m' } })).toEqual([]);
+  });
 });

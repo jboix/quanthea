@@ -177,9 +177,89 @@ describe('the alert agent and the kinds of condition', () => {
     expect(conditions()).toEqual([]);
   });
 
+  test('writes a comparison with the same window a week earlier', async () => {
+    const assistant = await approvedThread();
+    const past = { kind: 'past', direction: 'up', amount: 30, unit: 'percent', ago: '7d' };
+    const message = { title: '{alert}: {series}', body: '{change} on {previous}, {threshold}.' };
+    const stream = await chat(
+      assistant,
+      { tool: 'edit_alert', input: alertEdit({ condition: { ...past, for: '0m' }, message }) },
+      { text: 'Ok.' },
+    );
+    expect(conditions()).toEqual([{ ...past, for: '0m' }]);
+    expect(stream).toContain('"seriesCount":3');
+  });
+
+  test('is told when no series has the history a band is learned from', async () => {
+    const assistant = await approvedThread();
+    const band = { kind: 'band', side: 'either', deviations: 3, baseline: '1h', for: '0m' };
+    const message = { title: '{alert}: {series}', body: '{value} is outside {band}.' };
+    const stream = await chat(
+      assistant,
+      { tool: 'edit_alert', input: alertEdit({ condition: band, message }) },
+      { text: 'Stopped.' },
+    );
+    expect(stream).toContain('condition.baseline');
+    expect(stream).toContain('No series has enough history over the 1h before the window');
+    expect(conditions()).toEqual([]);
+  });
+
+  test('writes a band once the source has the history, and refuses one out of bounds', async () => {
+    const long = {
+      name: 'history',
+      kind: 'memory',
+      config: { rowCount: 60 },
+      secret: { token: 't' },
+    };
+    const input = connectorInputSchema.parse({ ...long, accessLevel: 2 });
+    await services.connections.create(input, 'admin-1');
+    const assistant = await approvedThread();
+    const query = { connector: 'history', language: 'sql', sql: 'SELECT * FROM events' };
+    const band = { kind: 'band', side: 'either', deviations: 3, baseline: '1h', for: '0m' };
+    const message = { title: '{alert}: {series}', body: '{value} is outside {band}.' };
+    const stream = await chat(
+      assistant,
+      {
+        tool: 'edit_alert',
+        input: alertEdit({ query, message, condition: { ...band, baseline: '30d' } }),
+      },
+      { tool: 'edit_alert', input: alertEdit({ query, message, condition: band }) },
+      { text: 'Fixed.' },
+    );
+    expect(stream).toContain('Use a baseline from 1h to 7d.');
+    expect(conditions()).toEqual([band]);
+  });
+
+  test('refuses two tests that each read history', async () => {
+    const assistant = await approvedThread();
+    const past = { kind: 'past', direction: 'up', amount: 30, unit: 'percent', ago: '1d' };
+    const band = { kind: 'band', side: 'above', deviations: 3, baseline: '1h' };
+    const stream = await chat(
+      assistant,
+      {
+        tool: 'edit_alert',
+        input: alertEdit({ condition: { kind: 'all', of: [past, band], for: '0m' } }),
+      },
+      { text: 'Stopped.' },
+    );
+    expect(stream).toContain('Only one test of a condition compares with history');
+    expect(conditions()).toEqual([]);
+  });
+
   test('reads in its guide when each kind fits', () => {
-    for (const kind of ['"threshold"', '"change"', '"all" | "any"', '"no_data"'])
+    for (const kind of [
+      '"threshold"',
+      '"change"',
+      '"past"',
+      '"band"',
+      '"all" | "any"',
+      '"no_data"',
+    ])
       expect(alertGuide).toContain(`"kind": ${kind}`);
+    expect(alertGuide).toContain('30% above the same hour last week');
+    expect(alertGuide).toContain('It gives no verdict with too little history');
+    expect(alertGuide).toContain('It costs a second query at every check');
+    expect(alertGuide).toContain('{band}');
     expect(alertGuide).toContain('dropped by half in 10 minutes');
     expect(alertGuide).toContain('never holds when that point is 0');
     expect(alertGuide).toContain('{change}');

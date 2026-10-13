@@ -157,6 +157,7 @@ describe('a notification', () => {
       values: '8.4%',
       change: '',
       previous: '',
+      band: '',
       threshold: 'above 5%',
       duration: '5m',
       since: '3 Oct, 12:04 UTC',

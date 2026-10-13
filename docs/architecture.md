@@ -242,7 +242,11 @@ gate's leak tests check that every one of those paths drops hidden fields.
     like), else the compared column in words (`error_share` reads `error share`); its editor
     changes the column. A wait of `0m` reads "at once". A change reads "drops by at least 50%
     within 10 minutes", with one editor for the direction, the amount and its unit and one for the
-    span, which keeps the window longer than it. Joined tests read one after the other, "for each
+    span, which keeps the window longer than it. A comparison with the past reads "is at least
+    30% above its value a week earlier", with an editor for the amount, its unit and the side and
+    one that picks an hour, a day or a week. A band reads "is more than 3 deviations from its mean
+    of the last day", with an editor for the deviations and the side and one for the baseline
+    (`history-editors.tsx`). Joined tests read one after the other, "for each
     service, the error share is above 2% and requests is above 100", each later part with an
     editor for the column it reads, and the first "and" or "or" with one that joins them the other
     way (`condition-sentence.tsx`, `test-editors.tsx`, `condition-tests.ts`). The sentence changes
@@ -256,7 +260,11 @@ gate's leak tests check that every one of those paths drops hidden fields.
     condition has a handle. A joined condition draws the threshold of its first part as a line.
     A change has no fixed line: the chart draws the limit its value must reach, the earlier point
     moved by the amount, as a dashed line that moves with the series, for the series that fired
-    longest (`conditionLines`). While the threshold moves, the browser
+    longest (`conditionLines`). A comparison with the past draws that limit and, dotted, the
+    value a period before it is worked out from. A band is a shaded range between its edges at
+    each evaluation, with a gap where the history was too little (`charts/alert-compared.ts`).
+    Both are in the secondary ink, not a series colour, and the legend names them. While the
+    threshold moves, the browser
     judges the replay's readings again with the shared rules (`replayUnder`), so the shading, the
     dots of the spikes too short to fire, the series list and the summary ("Would have fired 2
     times · 23 minutes in total · 1 spike too short to fire") follow at once. The chart reports
@@ -329,13 +337,15 @@ gate's leak tests check that every one of those paths drops hidden fields.
     (`charts/alert-option.ts`), and says how often it fired. The line sits at the threshold's
     exact value: an ECharts mark line rounds its value to two decimals unless told otherwise,
     which drew a threshold of 2.31% (0.0231) at 2%. It draws the 12 series that fired
-    longest, and the same lines as the draft pane's for a joined condition and a change. For
+    longest, and the same lines as the draft pane's for a joined condition, a change, a
+    comparison with the past and a band. For
     analysts and viewers, and on an alert that is not active, the line under it states the
     condition, the interval and the window.
   - **Hand tuning**, for editors on an active alert. The chart is the draft pane's: the threshold
     has a handle to drag, and the condition under it is the draft pane's sentence, with the
     numbers of each test, the wait and the interval to change. What a replay must run again for
-    stays as words: what each test watches, the series, and the span of a change. A change is
+    stays as words: what each test watches, the series, and how far back a test looks (the span
+    of a change, the period of a comparison with the past, the baseline of a band). A change is
     never applied: the page holds it unsaved (`use-tuning.ts`), the chart
     judges the replay's readings again under it in the browser (`seriesUnder`), with the saved
     threshold faint, and an amber bar under the header says what it would do: "Not saved:
@@ -990,7 +1000,8 @@ reads it the same way (see Ownership). `alerts/changes.ts` and `alerts/deactivat
 - Activating validates the version again, channels included, runs its query once (a failing query
   refuses it), and
   holds to the cap of active alerts per connector (`maxActivePerConnector`, the Alerts page's
-  Settings, 50 by default; `conflict` past it). It resumes evaluation. It is refused while the
+  Settings, 50 by default; `conflict` past it). The cap counts the queries an evaluation runs, so
+  an alert whose condition reads history counts twice. It resumes evaluation. It is refused while the
   alert's thread is in the bin.
 - `activateChange` takes changes an editor made by hand on a live alert's page: the whole spec
   and the active version it starts from (`conflict` once another version is active). It refuses
@@ -1038,12 +1049,15 @@ expression is parsed anywhere. Whatever the kind, an observation of a series sta
 whether the condition holds", so the state machine and its `for` know nothing of kinds. The work
 is split in two, and a new kind adds to each half, never a path of its own:
 
-- **Measuring** is the server's. A condition is made of tests (`conditionTests`): a threshold or
-  a change is one, `all` and `any` are their parts, `no_data` has none. Each test is a measure
-  (`measuresOf`): the number field it reads, how its points become a value, and for a change how
-  far back its earlier point is. `measure` reads the result once per field into series that carry
+- **Measuring** is the server's. A condition is made of tests (`conditionTests`): a threshold, a
+  change, a comparison with the past (`past`) or a band is one, `all` and `any` are their parts,
+  `no_data` has none. Each test is a measure (`measuresOf`): the number field it reads, how its
+  points become a value, for a change how far back its earlier point is, and for a `past` or a
+  `band` the history it reads before the window. `measure` reads the result once per field into series that carry
   one column of points per measure, joined by series key, and `readingOf` turns the points of one
-  window into a reading: the value, and for a change the earlier point (`reference`).
+  window into a reading: the value, what it is compared with (`reference`: the earlier point of a
+  change, the value a period before, the mean of a band's baseline) and, for a band, the
+  deviation of the baseline (`spread`).
 - **Judging** is pure and shared (`conditionHolds`): it takes the condition and one reading per
   test. The evaluator, the check before a save, the replay and the browser all call it.
 
@@ -1062,6 +1076,42 @@ What follows from it:
   evaluation that notifies, and are not stored: the series row keeps the value only.
 - `checkAlert` also refuses a change no series has an earlier point for, since it could never fire.
 
+**Conditions that read history** (`alerts/history.ts`, `alerts/baseline.ts`). A `past` and a `band`
+compare a series with its own past, which the window does not hold. They are measures like the
+others, with one more thing to read:
+
+- A `past` reads the same window shifted back by `ago` (an hour, a day or a week, a closed set):
+  the alert's own query over `[now - lookback - ago, now - ago]`. The reference of a series is its
+  points there, reduced as its value is. The judgement is the change's: the same direction,
+  amount and unit, so `changeHolds` and `changeLimit` serve both.
+- A `band` reads the baseline that ends where the window starts: the query over
+  `[now - lookback - baseline, now - lookback]`, never instant for PromQL and LogQL, so it returns
+  points. `baselineReader` gives the mean and the standard deviation of a series' points there
+  (the population's). The band is the mean give or take `deviations` times it (`bandLimits`), and
+  `bandHolds` is strict, with a slack of a billionth of the band's size so a flat series is not
+  outside the mean of its own values.
+- **No verdict.** A `past` whose series has no value then has no reference, and does not hold. A
+  band needs 10 points with times that span half the baseline or more, else it has none either. A
+  series that is only in the history is not a series of the alert. Neither ever fires on what it
+  does not know.
+- **One history read per condition.** The schema refuses a second `past` or `band` in a joined
+  condition, so an evaluation runs at most two queries. The baseline is from `1h` to `7d` and must
+  fit the connector's `maxRangeDays`, checked at its own path.
+- **The cost.** `runEvaluationQueries` runs the alert's query, then the history query, one after
+  the other inside the evaluation's slot, so the evaluator's caps (8 evaluations at once, 2 per
+  connector) still bound the queries in flight. Both go through `query/` with the same variables,
+  guardrails, timeout, row limit and connector visibility. A history query that fails fails the
+  evaluation: the alert cannot be checked. The cap of active alerts per connector counts queries:
+  such an alert counts twice (`queriesPerEvaluation`).
+- The baseline query is the larger of the two: up to seven days at every evaluation. PromQL and
+  LogQL answer it at the step the binder picks for that range, which is coarser than the
+  window's. Nothing is cached between evaluations: the guide and the agent recommend `every` of
+  `5m` or more.
+- `checkAlert` runs the history query too, and refuses a `past` no series has a value for then and
+  a `band` no series has enough history for, each at the field that says how far back it looks.
+- The readings fill `{change}` and `{previous}` for a `past` as for a change, and `{band}` (the
+  edges, in the value's format) for a band.
+
 **The evaluator** (`jobs/alert-evaluator.ts`) ticks every 15 seconds, in process like the purge
 job. Each tick lists the active, not deactivated alerts and evaluates those whose interval has
 passed since their last evaluation (`alerts.evaluated_at`). After downtime an alert is evaluated
@@ -1072,7 +1122,8 @@ still being evaluated is skipped, and one failing alert never stops the others.
 (`lookback`), reads the series (`alerts/series.ts`, `alerts/measure.ts`, `alerts/observe.ts`),
 moves each through the
 state machine, and saves the new states, the series gone and the changes of state in one
-transaction (`alert_series`, `alert_events`). Then it sends what is due:
+transaction (`alert_series`, `alert_events`). A condition that reads history runs its second
+query before the series are read (see above). Then it sends what is due:
 
 - `alert.firing` when a series fires, and again every `repeatEvery` while it keeps firing;
 - `alert.resolved` when a series that announced firing is ok again or gone, if `onResolved`;
@@ -1148,7 +1199,14 @@ other notifications.
 **Replay** (`alerts/replay.ts`, `alerts/replay-core.ts`) answers "how would this have fired over
 the last 7 days". It runs the query once over the whole window, PromQL and LogQL as a range query
 at the evaluation step, then feeds the state machine in time order, each step reading the points
-of its own window through the same measures and the same judgement as the evaluator. For each
+of its own window through the same measures and the same judgement as the evaluator. A condition
+that reads history costs the replay one more query, never one per step: the same query over the
+time before the window (`historyBefore`), a period or a baseline long and no longer than what the
+last step looks back to. Two queries of the usual length stay within what a source answers, where
+one over both would pass Prometheus' limit of points. The two results are read as one stretch of
+time, and each step takes from it the window a period back, or the baseline before its window,
+through running sums (`baselineReader`), so a week of steps does not add a week of points each. A
+time bucket cut by the boundary between the two queries comes back from each as a part. For each
 series it returns the value at each step, with the readings beside it when they say more than the
 value, the firing periods (the last
 one marked ongoing when it still fired at the end), the number of firings, the total firing time
@@ -1161,8 +1219,8 @@ The part of the replay that feeds the state machine and collects the firings and
 (`alerts/replay-steps.ts` in `@quanthea/shared`) runs in the browser too: `replayUnder` judges
 the readings a replay returned again under another condition, with the same rules, so a person
 dragging the threshold sees the new counts at once. The condition must read what the replayed one
-read: its numbers, operators, directions, joiner and wait may differ, its fields, reducers and
-spans may not, which is why the alert page keeps those as words. A step with no value counts as a
+read: its numbers, operators, directions, sides, joiner and wait may differ, its fields, reducers
+and spans (a change's `within`, a `past`'s `ago`, a band's `baseline`) may not, which is why the alert page keeps those as words. A step with no value counts as a
 series the result left out. Tests check it gives what the server gives, for a threshold, a change
 and joined tests.
 
@@ -1800,7 +1858,9 @@ activates one.
   instructions then tell the agent to say once that the draft pane shows the replay.
 - **`read_guide("alert")`** gives the alert guide: every field of the spec, each kind of
   condition with when it fits (a threshold for a fixed number, a change for a level that moves,
-  joined tests for several numbers of one query, no data), the placeholders and an example.
+  a comparison with the past for a level that follows the clock or the calendar, a band for what
+  is unusual when nobody can name a number, joined tests for several numbers of one query, no
+  data), what the two that read history cost, the placeholders and an example.
 - **`propose_link`**, in building and editing, while some pinned panel's query matches the
   draft's: it offers to show the alert on that panel with a card. The person decides (see 5.9).
 

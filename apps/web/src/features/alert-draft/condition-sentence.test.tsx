@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { FixedPart } from './condition-editors.tsx';
 import { ConditionSentence } from './condition-sentence.tsx';
 import { changeTestWords, withJoiner, withTest, withWithin } from './condition-tests.ts';
-import { conditionLines } from './replay-model.ts';
+import { conditionLines, lineName } from './replay-model.ts';
 
 /**
  * A spec with a condition.
@@ -55,6 +55,17 @@ const busy = {
   for: '5m',
 };
 
+const lastWeek = {
+  kind: 'past',
+  direction: 'up',
+  amount: 30,
+  unit: 'percent',
+  ago: '7d',
+  for: '10m',
+};
+
+const unusual = { kind: 'band', side: 'either', deviations: 3, baseline: '1d', for: '5m' };
+
 /**
  * The sentence as plain text.
  *
@@ -97,6 +108,42 @@ describe('the condition sentence', () => {
     expect(sentence(specWith(rose))).toBe(
       'Fires when the error share of each service rises by at least 5% within 10 minutes for 2 minutes, checked every minute.',
     );
+  });
+
+  test('reads a comparison with the past as one sentence', () => {
+    expect(sentence(specWith(lastWeek))).toBe(
+      'Fires when the error share of each service is at least 30% above its value a week earlier for 10 minutes, checked every minute.',
+    );
+    const fewer = { ...lastWeek, direction: 'down', amount: 0.01, unit: 'absolute', ago: '1h' };
+    expect(sentence(specWith(fewer), ['within'])).toBe(
+      'Fires when the error share of each service is at least 1% below its value an hour earlier for 10 minutes, checked every minute.',
+    );
+  });
+
+  test('reads a band as one sentence', () => {
+    expect(sentence(specWith(unusual))).toBe(
+      'Fires when the error share of each service is more than 3 deviations from its mean of the last day for 5 minutes, checked every minute.',
+    );
+    const high = { ...unusual, side: 'above', deviations: 2.5, baseline: '6h' };
+    expect(sentence(specWith(high), ['within'])).toBe(
+      'Fires when the error share of each service is more than 2.5 deviations above its mean of the last 6 hours for 5 minutes, checked every minute.',
+    );
+  });
+
+  test('reads a test with history joined with another', () => {
+    const { for: _for, ...band } = unusual;
+    const joined = { kind: 'all', of: [{ kind: 'threshold', op: 'above', value: 0.02 }, band] };
+    expect(sentence(specWith({ ...joined, for: '5m' }))).toBe(
+      'Fires when, for each service, the error share is above 2% and it is more than 3 deviations from its mean of the last day, for 5 minutes, checked every minute.',
+    );
+  });
+
+  test('changes the values of a test with history', () => {
+    const wider = withTest(specWith(unusual), 0, { deviations: 4, side: 'above' });
+    expect(wider.condition).toMatchObject({ kind: 'band', deviations: 4, side: 'above' });
+    const daily = withTest(specWith(lastWeek), 0, { ago: '1d' });
+    expect(daily.condition).toMatchObject({ kind: 'past', ago: '1d', amount: 30 });
+    expect(alertSpecSchema.safeParse(daily).success).toBe(true);
   });
 
   test('reads joined tests one after the other, each with what it reads', () => {
@@ -189,5 +236,46 @@ describe('what the chart draws for a condition', () => {
     const named = conditionLines(specWith(dropped).condition, { name: 'checkout', points });
     expect(named.limit?.name).toBe('fires below (checkout)');
     expect(conditionLines(specWith(dropped).condition, undefined)).toEqual({ threshold: null });
+  });
+
+  test('is the value a period before and the limit it sets, for a comparison with the past', () => {
+    const lines = conditionLines(specWith(lastWeek).condition, { name: 'checkout', points });
+    expect(lines).toEqual({
+      threshold: null,
+      limit: {
+        name: 'fires above (checkout)',
+        points: [
+          { at: 0, value: null },
+          { at: 60_000, value: 130 },
+        ],
+      },
+      reference: {
+        name: 'a week earlier (checkout)',
+        points: [
+          { at: 0, value: null },
+          { at: 60_000, value: 100 },
+        ],
+      },
+    });
+    expect(lineName(specWith(lastWeek).condition)).toBe('fires above this');
+  });
+
+  test('is the band of the history at each evaluation, for a band', () => {
+    const read = [
+      { at: 0, value: 9, readings: [{ value: 9, reference: null, spread: null }] },
+      { at: 60_000, value: 14, readings: [{ value: 14, reference: 10, spread: 1 }] },
+    ];
+    expect(conditionLines(specWith(unusual).condition, { points: read })).toEqual({
+      threshold: null,
+      band: {
+        name: 'usual range',
+        points: [
+          { at: 0, lower: null, upper: null },
+          { at: 60_000, lower: 7, upper: 13 },
+        ],
+      },
+    });
+    expect(lineName(specWith(unusual).condition)).toBeNull();
+    expect(lineName(specWith(dropped).condition)).toBe('fires below this');
   });
 });

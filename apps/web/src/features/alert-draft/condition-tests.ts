@@ -1,11 +1,13 @@
 /**
- * The tests of a draft's condition as values a person changes by hand: the threshold or the
- * change of each test, the field a part of a joined condition reads, and how the parts are
- * joined. Each change returns the whole spec, as the rest of the sentence does.
+ * The tests of a draft's condition as values a person changes by hand: the threshold, the change,
+ * the comparison with the past or the band of each test, the field a part of a joined condition
+ * reads, and how the parts are joined. Each change returns the whole spec, as the rest of the sentence does.
  */
 import {
   type AlertSpec,
+  agoText,
   amountText,
+  bandSideText,
   type ConditionTest,
   conditionTests,
   durationMs,
@@ -15,6 +17,12 @@ import { durationWords } from './condition.ts';
 
 /** A change test. */
 export type ChangeTest = Extract<ConditionTest, { kind: 'change' }>;
+
+/** A comparison with the past. */
+export type PastTest = Extract<ConditionTest, { kind: 'past' }>;
+
+/** A band test. */
+export type BandTest = Extract<ConditionTest, { kind: 'band' }>;
 
 /** A threshold test. */
 export type ThresholdTest = Extract<ConditionTest, { kind: 'threshold' }>;
@@ -115,6 +123,38 @@ export function changeTestWords(spec: AlertSpec, test: ChangeTest): string {
  */
 export function withinWords(test: ChangeTest): string {
   return durationWords(test.within);
+}
+
+/**
+ * A comparison with the past in words, without how far back it looks.
+ *
+ * @param spec - The spec.
+ * @param test - The test.
+ * @returns Such as `at least 30% above` or `at least 200 below`.
+ */
+export function pastTestWords(spec: AlertSpec, test: PastTest): string {
+  const amount = amountText(spec, test, test.amount) || String(test.amount);
+  return `at least ${amount} ${test.direction === 'up' ? 'above' : 'below'}`;
+}
+
+/**
+ * How far back a comparison with the past looks, in words.
+ *
+ * @param test - The test.
+ * @returns Such as `a week earlier`.
+ */
+export function agoWords(test: PastTest): string {
+  return agoText(test.ago);
+}
+
+/**
+ * A band test in words, without its baseline.
+ *
+ * @param test - The test.
+ * @returns Such as `more than 3 deviations above` or `more than 2 deviations from`.
+ */
+export function bandTestWords(test: BandTest): string {
+  return bandSideText(test);
 }
 
 /**

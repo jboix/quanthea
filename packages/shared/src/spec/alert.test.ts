@@ -149,4 +149,51 @@ describe('durationMs', () => {
       'condition.of.1',
     ]);
   });
+
+  test('takes a comparison with the past, an hour, a day or a week back', () => {
+    const past = { kind: 'past', direction: 'up', amount: 30, unit: 'percent', for: '10m' };
+    for (const ago of ['1h', '1d', '7d'])
+      expect(issuePaths(spec({ condition: { ...past, ago }, value: { reduce: 'mean' } }))).toEqual(
+        [],
+      );
+    expect(issuePaths(spec({ condition: { ...past, ago: '2d' } }))).toEqual(['condition.ago']);
+    expect(issuePaths(spec({ condition: { ...past, ago: '7d', amount: 0 } }))).toEqual([
+      'condition.amount',
+    ]);
+  });
+
+  test('takes a band, its width and its baseline within bounds', () => {
+    const band = { kind: 'band', side: 'either', deviations: 3, baseline: '1d', for: '5m' };
+    expect(issuePaths(spec({ condition: band }))).toEqual([]);
+    expect(issuePaths(spec({ condition: { ...band, baseline: '7d' } }))).toEqual([]);
+    expect(issuePaths(spec({ condition: { ...band, baseline: '30m' } }))).toEqual([
+      'condition.baseline',
+    ]);
+    expect(issuePaths(spec({ condition: { ...band, baseline: '8d' } }))).toEqual([
+      'condition.baseline',
+    ]);
+    expect(issuePaths(spec({ condition: { ...band, deviations: 0.2 } }))).toEqual([
+      'condition.deviations',
+    ]);
+    expect(issuePaths(spec({ condition: { ...band, deviations: 11 } }))).toEqual([
+      'condition.deviations',
+    ]);
+    expect(issuePaths(spec({ condition: { ...band, side: 'outside' } }))).toEqual([
+      'condition.side',
+    ]);
+  });
+
+  test('joins one test that reads history with others, never two', () => {
+    const above = { kind: 'threshold', op: 'above', value: 100 };
+    const past = { kind: 'past', direction: 'up', amount: 30, unit: 'percent', ago: '7d' };
+    const band = { kind: 'band', side: 'above', deviations: 3, baseline: '30m', field: 'p99' };
+    const joined = (...of: unknown[]) => spec({ condition: { kind: 'all', of, for: '0m' } });
+    expect(issuePaths(joined(above, { ...past, field: 'orders', reduce: 'sum' }))).toEqual([]);
+    expect(issuePaths(joined(past, above))).toEqual([]);
+    expect(issuePaths(joined(above, band))).toEqual(['condition.of.1.baseline']);
+    expect(issuePaths(joined(past, { ...band, baseline: '1h' }))).toEqual(['condition.of.1']);
+    expect(issuePaths(joined({ ...past, reduce: 'sum' }, above))).toEqual([
+      'condition.of.0.reduce',
+    ]);
+  });
 });

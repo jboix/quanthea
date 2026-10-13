@@ -3,7 +3,13 @@
  * exists and speaks the query's language, the query binds with the alert's fixed variables, the
  * window fits the connector's guardrails, and the time zone is known. Issues come back with paths.
  */
-import { type AlertSpec, alertSpecSchema, durationMs } from '@quanthea/shared';
+import {
+  type AlertSpec,
+  alertSpecSchema,
+  conditionTests,
+  durationMs,
+  testPath,
+} from '@quanthea/shared';
 import {
   type ConnectorFacts,
   type ConnectorLookup,
@@ -15,6 +21,7 @@ import { checkTimezone } from '../dashboards/validate.ts';
 import { checkTimeRange } from '../query/guardrails.ts';
 import { QueryError } from '../query/query-error.ts';
 import type { Variables } from '../query/variables.ts';
+import { historyWindowAt } from './history.ts';
 
 /** What validation needs besides the spec. */
 export interface AlertValidationContext {
@@ -58,20 +65,41 @@ export function windowAt(spec: AlertSpec, at: number): { from: number; to: numbe
 }
 
 /**
- * Checks the window against the connector's guardrails.
+ * Checks a window against the connector's guardrails.
  *
  * @param connector - The connector.
  * @param window - The window.
- * @returns The issue, if any, at `lookback`.
+ * @param path - Where the issue goes: the field that sets the window's length.
+ * @returns The issue, if any.
  */
-function checkWindow(connector: ConnectorFacts, window: { from: number; to: number }) {
+function checkWindow(
+  connector: ConnectorFacts,
+  window: { from: number; to: number },
+  path: string,
+): SpecIssue[] {
   try {
     checkTimeRange({ from: new Date(window.from), to: new Date(window.to) }, connector.guardrails);
     return [];
   } catch (error) {
     if (!(error instanceof QueryError)) throw error;
-    return [{ path: 'lookback', message: error.safeMessage }];
+    return [{ path, message: error.safeMessage }];
   }
+}
+
+/**
+ * Checks the baseline of a band against the connector's guardrails: its query covers the whole
+ * baseline. The window of a comparison with the past is as long as the alert's own.
+ *
+ * @param spec - The spec.
+ * @param connector - The connector.
+ * @param now - The current instant.
+ * @returns The issue, if any, at the band's `baseline`.
+ */
+function checkBaseline(spec: AlertSpec, connector: ConnectorFacts, now: number): SpecIssue[] {
+  const index = conditionTests(spec.condition).findIndex((test) => test.kind === 'band');
+  const window = historyWindowAt(spec, now);
+  if (index < 0 || !window) return [];
+  return checkWindow(connector, window, pathOf(testPath(spec.condition, index, 'baseline')));
 }
 
 /**
@@ -89,7 +117,8 @@ function checkQuery(spec: AlertSpec, context: AlertValidationContext): SpecIssue
   const window = windowAt(spec, context.now);
   return [
     ...checkBinding(located, connector, alertVariables(spec), window),
-    ...checkWindow(connector, window),
+    ...checkWindow(connector, window, 'lookback'),
+    ...checkBaseline(spec, connector, context.now),
   ];
 }
 

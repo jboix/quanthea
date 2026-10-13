@@ -12,7 +12,8 @@ import { isDuration } from './condition.ts';
 
 /**
  * A part of the sentence that can be shown as plain words: what each test watches, the series, or
- * the span of a change. The alert page fixes what a replay cannot be judged again without.
+ * how far back a test looks (the span of a change, the period of a comparison with the past, the
+ * baseline of a band). The alert page fixes what a replay cannot be judged again without.
  */
 export type FixedPart = 'watch' | 'by' | 'within';
 
@@ -30,6 +31,23 @@ export interface ConditionSentenceProps {
   readonly saveLabel?: string | undefined;
   /** The parts shown as plain words, which can't change here. */
   readonly fixed?: readonly FixedPart[] | undefined;
+}
+
+/** The sentence's props and the test an editor is about. */
+export type TestProps = ConditionSentenceProps & {
+  /** The test, in the order of the condition's tests. */
+  readonly index: number;
+};
+
+/**
+ * Reads a typed number.
+ *
+ * @param text - The text.
+ * @returns The number, or `undefined` when it is not one.
+ */
+export function numberOf(text: string): number | undefined {
+  const value = Number(text);
+  return text.trim() === '' || !Number.isFinite(value) ? undefined : value;
 }
 
 /** Props of {@link ValueEditor}. */

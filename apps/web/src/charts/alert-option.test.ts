@@ -135,3 +135,66 @@ test('draws the limit of a change as a dashed line after the series, in the dang
   ]);
   expect((buildAlertOption(input, defaultTheme).series as unknown[]).length).toBe(2);
 });
+
+test('draws the value a period before as a dotted line in the secondary ink', () => {
+  const points = [{ at: 0, value: 3 }];
+  const option = buildAlertOption(
+    { ...input, threshold: null, reference: { name: 'a week earlier', points } },
+    defaultTheme,
+  );
+  const series = option.series as { name: string; lineStyle?: Record<string, unknown> }[];
+  expect(series.map((each) => each.name)).toEqual(['checkout', 'cart', 'a week earlier']);
+  expect(series[2]?.lineStyle).toMatchObject({ type: 'dotted', color: defaultTheme.inkSecondary });
+  const alone = { ...input, series: input.series.slice(0, 1), threshold: null };
+  expect(buildAlertOption(alone, defaultTheme)).not.toHaveProperty('legend');
+  const compared = { ...alone, reference: { name: 'a week earlier', points } };
+  expect(buildAlertOption(compared, defaultTheme)).toHaveProperty('legend');
+});
+
+test('shades a band between its edges, below zero too, and names the upper edge', () => {
+  const band = {
+    name: 'usual range',
+    points: [
+      { at: 0, lower: -2, upper: 4 },
+      { at: 50, lower: -2, upper: 4 },
+      { at: 100, lower: null, upper: null },
+    ],
+  };
+  const chartInput = { ...input, threshold: null, band };
+  const option = buildAlertOption(chartInput, defaultTheme, 'UTC');
+  const series = option.series as {
+    name: string;
+    data: unknown[];
+    tooltip?: { valueFormatter: (value: unknown, index: number) => string };
+  }[];
+  expect(series.map((each) => each.name)).toEqual([
+    'checkout',
+    'cart',
+    'usual range, from',
+    'usual range, to',
+  ]);
+  expect(series[3]?.data).toEqual([
+    [0, 6],
+    [50, 6],
+    [100, null],
+  ]);
+  expect(series[3]?.tooltip?.valueFormatter(6, 0)).toBe('4%');
+  expect(series[3]?.tooltip?.valueFormatter(null, 2)).toBe('–');
+  const legend = option.legend as { data: string[]; formatter: (name: string) => string };
+  expect(legend.data.map(legend.formatter)).toEqual(['checkout', 'cart', 'usual range']);
+  const chart = init(null, null, { renderer: 'svg', ssr: true, width: 640, height: 320 });
+  try {
+    chart.setOption(option);
+    const svg = chart.renderToSVGString();
+    const top = Number(chart.convertToPixel({ yAxisIndex: 0 }, 4));
+    const bottom = Number(chart.convertToPixel({ yAxisIndex: 0 }, -2));
+    const area = /<path d="M(\S+) (\S+)L(\S+) (\S+)L(\S+) (\S+)L(\S+) (\S+)Z"/.exec(svg);
+    const heights = [area?.[2], area?.[4], area?.[6], area?.[8]].map(Number);
+    expect(heights[0]).toBeCloseTo(top, 3);
+    expect(heights[1]).toBeCloseTo(top, 3);
+    expect(heights[2]).toBeCloseTo(bottom, 3);
+    expect(heights[3]).toBeCloseTo(bottom, 3);
+  } finally {
+    chart.dispose();
+  }
+});

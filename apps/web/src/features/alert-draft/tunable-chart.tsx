@@ -3,8 +3,8 @@
  * the firing periods at the threshold shown and the threshold's dashed line, and a handle at its
  * right moves it. The saved threshold stays as a faint line once the threshold moved, and the
  * value axis keeps both in view. A change draws the limit the series that fired longest must
- * reach, as a dashed line that moves with it; only the threshold of a threshold condition has a
- * handle. The draft pane and the alert page share it.
+ * reach, as a dashed line that moves with it; a comparison with the past draws the value then
+ * too, and a band its range. Only the threshold of a threshold condition has a handle. The draft pane and the alert page share it.
  */
 import { type AlertSpec, alertValueText } from '@quanthea/shared';
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
@@ -81,6 +81,8 @@ function chartInput(
     moved: props.threshold ?? lines.threshold,
     handle: props.threshold !== null,
     limit: lines.limit,
+    reference: lines.reference,
+    band: lines.band,
     firing: series.flatMap((each) => each.track.firing.map(({ from, to }) => ({ from, to }))),
     format,
     from: replay.from,
