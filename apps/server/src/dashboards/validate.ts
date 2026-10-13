@@ -26,7 +26,8 @@ export interface ValidationContext {
   /**
    * Whether the spec is being written, by the agent or by a person who saves it. The rules that
    * came after dashboards were stored apply only then, so a stored version still pins, restores
-   * and copies: today, the order of the variables a source uses.
+   * and copies: the order of the variables a source uses, and a variable with an "All" choice
+   * where only one value fits.
    */
   readonly writing?: boolean | undefined;
 }
@@ -101,7 +102,7 @@ export function validateSpec(input: unknown, context: ValidationContext): Valida
     ...checkDirection(timeRange),
     ...checkReferences(spec),
     ...checkOptions(spec),
-    ...checkQueries(spec, context.lookup, timeRange),
+    ...checkQueries(spec, context.lookup, timeRange, context.writing === true),
     ...(context.writing ? checkSourceOrder(spec, context.lookup, timeRange) : []),
   ];
   if (issues.length > 0) return { ok: false, issues };

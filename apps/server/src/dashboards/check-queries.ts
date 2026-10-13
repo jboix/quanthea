@@ -79,29 +79,45 @@ export function queriesOf(spec: DashboardSpec): LocatedQuery[] {
 }
 
 /**
- * Sample values for binding. A multi-value variable gets two values, so a template that uses it
- * where only one value fits is caught when the dashboard is saved.
+ * Whether a variable may hold several values when a query runs. A variable marked `multi` does.
+ * So does a query-backed variable with an "All" choice, which binds every option, but a version
+ * stored before this was checked must still pin, so it counts only when the spec is written.
  *
  * @param variable - The variable.
+ * @param writing - Whether the spec is being written, and not read from a stored version.
+ * @returns Whether to sample it as a list.
+ */
+function holdsSeveral(variable: Variable, writing: boolean): boolean {
+  if (isMultiValue(variable)) return true;
+  return writing && variable.kind === 'query' && variable.includeAll === true;
+}
+
+/**
+ * Sample values for binding. A variable that may hold several values gets two, so a template that
+ * uses it where only one value fits is caught when the dashboard is saved.
+ *
+ * @param variable - The variable.
+ * @param writing - Whether the spec is being written, and not read from a stored version.
  * @returns A binding.
  */
-function sampleBinding(variable: Variable) {
+function sampleBinding(variable: Variable, writing: boolean) {
   if (variable.kind === 'text') return { value: variable.default };
   if (variable.kind === 'interval') return { value: variable.default, duration: true };
   const options = variable.kind === 'custom' ? variable.options : ['a', 'b'];
   const first = options[0] ?? 'a';
-  return { value: isMultiValue(variable) ? [first, options[1] ?? first] : first };
+  return { value: holdsSeveral(variable, writing) ? [first, options[1] ?? first] : first };
 }
 
 /**
  * Sample values of every variable a spec declares.
  *
  * @param spec - The spec.
+ * @param writing - Whether the spec is being written, and not read from a stored version.
  * @returns The bindings, by variable name.
  */
-export function sampleVariables(spec: DashboardSpec): Variables {
+export function sampleVariables(spec: DashboardSpec, writing = false): Variables {
   return Object.fromEntries(
-    spec.variables.map((variable) => [variable.name, sampleBinding(variable)]),
+    spec.variables.map((variable) => [variable.name, sampleBinding(variable, writing)]),
   );
 }
 
@@ -189,14 +205,16 @@ function checkDefaultRange(
  * @param spec - A spec that passed the schema.
  * @param lookup - Finds a connector by name.
  * @param timeRange - The default time range, resolved.
+ * @param writing - Whether the spec is being written, and not read from a stored version.
  * @returns The issues.
  */
 export function checkQueries(
   spec: DashboardSpec,
   lookup: ConnectorLookup,
   timeRange: ResolvedTimeRange,
+  writing = false,
 ): SpecIssue[] {
-  const variables = sampleVariables(spec);
+  const variables = sampleVariables(spec, writing);
   const used = new Map<string, ConnectorFacts>();
   const issues = queriesOf(spec).flatMap((located) => {
     const connector = lookup(located.query.connector);

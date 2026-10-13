@@ -1620,7 +1620,8 @@ directly onto an ECharts `dataset`.
     `regexp` for a pattern. A variable in a pattern is a node that takes one value
     (`{"$var": "name", "as": "one"}`): a search server refuses a list there, even a list of one,
     so a multi-value variable in a pattern is reported when the dashboard is checked, not when a
-    viewer picks two values. The message says to filter by a list with `in`. Every search builder
+    viewer picks two values. A query-backed variable with an "All" choice counts as one of
+    several values when a dashboard is written, since "All" binds every option. The message says to filter by a list with `in`. Every search builder
     takes the same filter, in `filters` and in the `match` and `of` of a ratio, written in
     `dashboards/queries/search-filters.ts`: beside the four operators, a list (`in` with
     `values`, literals or one variable alone, as `terms`), a bound (`>`, `>=`, `<`, `<=`, as

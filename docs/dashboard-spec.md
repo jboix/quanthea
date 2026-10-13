@@ -225,7 +225,10 @@ they differ from the sketch above, the schemas win:
   only the deploys of `$service`. Each run binds the values the viewer chose.
 - An annotation's `color` is a theme token (`@ink`, `@palette.0` to `@palette.5`), replaced by
   the renderer like the option's tokens.
-- An "All" choice of a query-backed variable with `includeAll` has the value `$__all`.
+- An "All" choice of a query-backed variable with `includeAll` has the value `$__all`. It binds
+  every option, so such a variable is checked as one of several values when a dashboard is
+  written, even without `multi`: where only one value fits, the write is refused. A stored
+  version is not checked for it, so it still pins and restores.
 - A value a viewer picks for a query-backed variable is one of its options or its default; any
   other is refused when the panel runs.
 - A mapping matches the raw value of the result, before the format. A `value` is compared as it

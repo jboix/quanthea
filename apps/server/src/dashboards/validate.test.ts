@@ -369,6 +369,23 @@ describe('validateSpec', () => {
     ]);
   });
 
+  test('catches a variable with an All choice where one value fits, on write only', () => {
+    /** A query-backed variable of one value with an "All" choice, used with `=`. */
+    const withAll = (spec: Spec) => {
+      const source = { connector: 'prometheus-dev', language: 'promql', expr: 'up' };
+      const pod = { kind: 'query', name: 'pod', source, includeAll: true };
+      (spec.variables as object[]).push(pod);
+      set(spec, 'panels.0.queries.0.expr', 'up{pod="$pod"}');
+    };
+    expect(issuesAfter(withAll)).toEqual([
+      'panels[0].queries[0].expr: $pod has several values; match it with =~ instead of =.',
+    ]);
+    // A version stored before the check still pins and restores.
+    const stored = validSpec() as Spec;
+    withAll(stored);
+    expect(validateSpec(stored, { lookup, now }).ok).toBe(true);
+  });
+
   test('checks the default range against every connector used, and its direction', () => {
     expect(
       issuesAfter((spec) => Object.assign(spec, { time: { from: 'now-2d', to: 'now' } })),
