@@ -163,6 +163,10 @@ either side.
   the window or the mean of its points, never their sum, maximum or minimum.
 - A band knows nothing of the hour or the weekday. For a level with a daily or weekly shape, compare
   against the past instead.
+- The band and the value must be on one scale. A PromQL or LogQL query of a band writes its
+  windows out (`[5m]`): a duration that follows the time range would be another over the
+  baseline, and is refused. A SQL, search or MongoDB query still cuts time by the interval, as
+  every alert's does: the alert binds the same width over the baseline as over the window.
 
 Against the past and a band read history, so each check runs a second query on the data source:
 the same window a period earlier, or the whole baseline. Check such an alert every 5 minutes or
@@ -285,6 +289,11 @@ window and are wider than the time between checks.
 The sentence under the chart says both: "The chart draws one point per 1h, the mean of the checks
 in it. The alert is still checked every minute: the firing periods come from those checks, not
 from the line."
+
+A query that counts by time has a third width, that of its buckets. The agent never writes it as
+a number: the alert takes it from the window of each check (a minute for a window up to 2 hours),
+and it is the same in a check and on the chart's week. It is in the
+[alert spec](../alert-spec.md#the-interval-of-the-query).
 
 ### Tune a live alert
 

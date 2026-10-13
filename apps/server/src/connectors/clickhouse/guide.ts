@@ -6,6 +6,7 @@
 /** The guide. */
 export const clickhouseGuide = `ClickHouse (SQL). Bind the range with :__from and :__to and variables with :name; never paste values. A variable is a String: compare it to a column directly, or convert it (toUInt32(:n)). Alias every column, each name once, so roles can name it. Quote names with backticks. Times are in UTC. No SETTINGS or FORMAT clause.
 - long over time: SELECT toStartOfInterval(created_at, INTERVAL 5 MINUTE) AS time, toString(status) AS series, count() AS value … GROUP BY time, series ORDER BY time. The sql-series builder writes this.
+- by the interval the server binds, for a chart over time of a report and for an alert's query: SELECT toDateTime(toUInt32(floor(toUnixTimestamp(created_at) / :__interval_s) * :__interval_s), 'UTC') AS time, count() AS value … GROUP BY time ORDER BY time, where :__interval_s is the width in seconds. "bucket": "$__interval" in the sql-series builder writes it.
 - long by category: SELECT toString(region) AS region, sum(total) AS value … GROUP BY region ORDER BY value DESC LIMIT 20. The sql-breakdown builder writes this.
 - wide: one column per measure: SELECT toStartOfDay(t) AS time, sumIf(amount, kind = 'a') AS alpha, sumIf(amount, kind = 'b') AS beta … GROUP BY time.
 - single: SELECT count() AS value …, or several named measures in one row. The sql-stat builder writes this.

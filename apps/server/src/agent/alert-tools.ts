@@ -14,6 +14,7 @@ import {
   mergeAlert,
   unknownChannels,
 } from './alert-edit.ts';
+import { alertStepIssues } from './fixed-step.ts';
 import type { AlertAuthoring, RunContext } from './run-context.ts';
 import { providerSchema } from './tool-schema.ts';
 
@@ -132,8 +133,9 @@ function saveAlert(context: RunContext, spec: AlertSpec, note: string) {
 }
 
 /**
- * Writes the alert: merges the edit over the draft, checks it and runs its query once, saves a new
- * version, and tells the model what the gate lets through of the series.
+ * Writes the alert: merges the edit over the draft, checks it and runs its query once, refuses a
+ * query the edit writes that cuts time by a width of its own, saves a new version, and tells the
+ * model what the gate lets through of the series.
  *
  * @param context - The run.
  * @param edit - The edit.
@@ -145,8 +147,11 @@ async function editAlert(context: RunContext, edit: AlertEdit) {
     return { ok: false, error: refused ?? 'Alerts are off.' };
   const channelIssues = unknownChannels(context, edit.channels);
   if (channelIssues.length > 0) return failAlert(context, 'Unknown channels.', channelIssues);
-  const check = await context.alerts.check(mergeAlert(currentAlert(context)?.spec, edit));
-  if (!check.ok) return failAlert(context, 'The alert does not work yet.', check.issues);
+  const merged = mergeAlert(currentAlert(context)?.spec, edit);
+  const check = await context.alerts.check(merged);
+  const issues = [...(check.ok ? [] : check.issues), ...alertStepIssues(merged, edit)];
+  if (!check.ok || issues.length > 0)
+    return failAlert(context, 'The alert does not work yet.', issues);
   return saveChecked(context, check, edit.note);
 }
 
@@ -194,7 +199,7 @@ function issuesOf(error: AppError): Issue[] {
 function editAlertTool(context: RunContext) {
   return tool({
     description:
-      'Write the alert as a new draft version: the whole alert the first time, then only the fields that change, with a one-line note. The server checks the spec and runs the query once; you get the series it would watch now, as your access level allows, or the issues to fix.',
+      'Write the alert as a new draft version: the whole alert the first time, then only the fields that change, with a one-line note. The server checks the spec and runs the query once, and refuses a query that cuts time by a width of its own instead of the interval; you get the series it would watch now, as your access level allows, or the issues to fix.',
     inputSchema: providerSchema(alertEditSchema),
     execute: (edit) => editAlert(context, edit),
   });

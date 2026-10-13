@@ -103,7 +103,7 @@ export const rawGuide =
 
 /** How a raw query is written in each language, for the languages in use. */
 export const rawSyntax: Readonly<Record<QueryLanguage, string>> = {
-  sql: 'SQL uses :name variables and :__from, :__to; name every column with an alias.',
+  sql: 'SQL uses :name variables, :__from and :__to for the time range, and :__interval (text such as 10m) or :__interval_s (seconds) for the width of a time bucket; name every column with an alias.',
   promql:
     'PromQL uses $name only inside label matchers, and $__interval, $__range, $__rate_interval or an interval variable where a duration goes.',
   logql: 'LogQL as PromQL, also inside line and label filter values.',

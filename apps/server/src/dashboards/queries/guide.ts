@@ -36,7 +36,8 @@ const fieldHelp: Readonly<Record<string, string>> = {
   table: 'The table, or schema.table.',
   time: 'The timestamp column or field, which keeps rows to the time range.',
   measure: 'What to compute: a count, or a function of a column or field.',
-  bucket: 'The width of each time bucket.',
+  bucket:
+    'The width of each time bucket: a duration, an interval variable, or "$__interval" for the one the server picks from the time range.',
   columns: 'The columns to return.',
 };
 

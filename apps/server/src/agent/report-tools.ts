@@ -9,6 +9,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { layoutReport } from '../dashboards/panels/index.ts';
 import { AppError } from '../lib/errors.ts';
+import { fixedStepProblems, withProblems } from './fixed-step.ts';
 import { type BuiltPanels, buildPanels } from './panel-build.ts';
 import {
   currentReport,
@@ -273,7 +274,8 @@ function checkPanels(context: RunContext, built: BuiltPanels) {
 }
 
 /**
- * Builds the edit's panels over the latest period, on the draft's or a new dashboard.
+ * Builds the edit's panels over the latest period, on the draft's or a new dashboard. A time chart
+ * the edit writes has a problem when its query cuts time by a width of its own.
  *
  * @param context - The run.
  * @param edit - The edit.
@@ -286,7 +288,7 @@ async function builtFor(context: RunContext, edit: ReportEdit, timing: ReportTim
   const built = await buildPanels(context, start, edit, 'The report is invalid.');
   if ('error' in built)
     return failReport(context, { error: built.error, issues: built.issues ?? [] });
-  return built;
+  return { ...built, run: withProblems(built.run, fixedStepProblems(start, built.spec)) };
 }
 
 /**
@@ -334,7 +336,7 @@ async function editReport(context: RunContext, edit: ReportEdit, now: number) {
 function editReportTool(context: RunContext, now: () => number) {
   return tool({
     description:
-      'Write the report as a new draft version: its title; panels, each data (a query builder, a saved query or a raw query) and a chart recipe, as edit_dashboard takes them, filtering on the period with :__from and :__to; the schedule, the period, the comparison, the headline stat panels (by id or title), the pinned dashboards to link and the channels, by id. The first write sets the title, the schedule and the period; later ones send only what changes. The server test-runs every panel over the latest period, checks the report and previews it once; you get each panel’s result, or the errors to fix.',
+      'Write the report as a new draft version: its title; panels, each data (a query builder, a saved query or a raw query) and a chart recipe, as edit_dashboard takes them, filtering on the period with :__from and :__to, a chart over time bucketed by the interval ("bucket": "$__interval"), never by a width you write; the schedule, the period, the comparison, the headline stat panels (by id or title), the pinned dashboards to link and the channels, by id. The first write sets the title, the schedule and the period; later ones send only what changes. The server test-runs every panel over the latest period, checks the report and previews it once; you get each panel’s result, or the errors to fix.',
     inputSchema: providerSchema(reportEditSchemaFor(context.queries, context.charts)),
     execute: (edit) => editReport(context, edit, now()),
   });

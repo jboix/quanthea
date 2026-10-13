@@ -228,6 +228,34 @@ describe('an alert thread', () => {
     expect(services.alerts.get(alertId ?? '', 'editor').versions).toHaveLength(1);
   });
 
+  test('refuses a query that cuts time by a fixed width, and takes one cut by the interval', async () => {
+    await addEvents(2);
+    const assistant = await approvedThread();
+    const query = (bucket: string) => ({
+      connector: 'events',
+      language: 'sql',
+      sql: `SELECT ${bucket} AS time, * FROM events`,
+    });
+    const { agent } = agentWith(
+      { tool: 'edit_alert', input: alertEdit({ query: query("date_trunc('minute', time)") }) },
+      {
+        tool: 'edit_alert',
+        input: alertEdit({ query: query('date_bin(:__interval::interval, time, :__from)') }),
+      },
+      // A later edit that leaves the query alone is not checked for it again.
+      { tool: 'edit_alert', input: { note: 'calmer', severity: 'info' } },
+      { text: 'Fixed.' },
+    );
+    const stream = await chat(agent, assistant);
+    expect(stream).toContain('the query cuts time by a fixed width');
+    expect(stream).toContain('An alert binds one interval to its query');
+    const [refused, ...later] = stored('data-repair').map((repair) => repair.outcome);
+    expect(refused).toBe('failed');
+    expect(new Set(later)).toEqual(new Set(['repaired']));
+    const { alertId } = services.threads.get(threadId);
+    expect(services.alerts.get(alertId ?? '', 'editor').versions).toHaveLength(2);
+  });
+
   test('refuses a channel that is not in the list', async () => {
     await addEvents(2);
     const assistant = await approvedThread();

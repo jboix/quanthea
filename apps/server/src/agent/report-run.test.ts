@@ -275,6 +275,34 @@ describe('a report thread', () => {
     expect(versions()).toHaveLength(1);
   });
 
+  test('refuses a time chart that cuts time by a fixed width, and takes one cut by the interval', async () => {
+    const assistant = await approvedThread();
+    const over = (bucket: string) =>
+      eventsPanel('Errors over time', 'line', `SELECT ${bucket} AS time, * FROM events`);
+    const day = "SELECT date_trunc('day', time) AS time, * FROM events";
+    const stat = eventsPanel('Errors · peak', 'stat', day);
+    const { agent } = agentWith(
+      {
+        tool: 'edit_report',
+        input: reportEdit({ panels: [stat, over("date_trunc('hour', time)")] }),
+      },
+      {
+        tool: 'edit_report',
+        input: reportEdit({
+          panels: [stat, over('date_bin(:__interval::interval, time, :__from)')],
+        }),
+      },
+      { text: 'Fixed.' },
+    );
+    const stream = await chat(agent, assistant);
+    expect(stream).toContain('the query cuts time by a fixed width');
+    const [failed] = stored('data-repair');
+    // Only the chart over time is refused: a number may truncate time as it likes.
+    expect(failed?.panels.map((panel) => panel.title)).toEqual(['Errors over time']);
+    expect(stored('data-repair').map((repair) => repair.outcome)).toEqual(['failed', 'repaired']);
+    expect(versions()).toHaveLength(1);
+  });
+
   test('counts a panel whose query fails, names it, and stops at the limit', async () => {
     const assistant = await approvedThread();
     const failing = reportEdit({

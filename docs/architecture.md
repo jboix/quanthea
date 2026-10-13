@@ -1909,6 +1909,16 @@ activates one.
   labels, values and whether the condition holds. For a ratio of two connectors the level is the
   weaker of the two, and the hidden fields are those of both. `dividedBy` takes the second query
   of a ratio whole, or `none`, which takes it away.
+  A query the edit writes must cut time by the interval the alert binds, never by a width of its
+  own (`alertStepIssues` in `agent/fixed-step.ts`, over `fixedStepOf` in `@quanthea/shared`): SQL
+  that truncates or bins time by a literal width, a search histogram or a MongoDB `$dateTrunc` of
+  a written width, and a PromQL or LogQL query with a `step` are refused at `query` or
+  `dividedBy.query`, with what to write instead. A query the edit leaves alone is not checked
+  again, and neither is a spec a person changes by hand. The guide says how this meets the rule
+  of a band: a band's SQL, search or MongoDB query still buckets by the interval, which the
+  alert binds the same over the baseline, and only the PromQL and LogQL durations are written
+  out. The guide also tells the three rhythms apart: the interval of the query's buckets,
+  `every`, and the interval of the chart.
   The tool's JSON schema is held under 18,000 characters by a test
   (`agent/alert-schema-size.test.ts`), the largest ceiling the dashboard edit tool has: providers
   that constrain tool input refuse a schema that grows too large. So the tool takes the condition
@@ -1977,6 +1987,15 @@ write adds one of its versions, a draft until someone activates one.
   panels left out. Then the tool refuses a channel or a dashboard id not in the lists, and the
   reports service previews the merged spec once over its latest period (`reports.preview`), which
   validates it as a version is validated. `saveVersion` adds the version with the thread's id.
+- **A time chart follows the interval.** A panel that is a chart over time (`isTimeChart`) and
+  whose queries the edit writes has a problem when a query cuts time by a width of its own
+  (`fixedStepProblems` in `agent/fixed-step.ts`): a `sql-series` builder with a `bucket` such as
+  `5m`, raw SQL with `date_trunc('hour', …)`, a search or MongoDB histogram of a written width,
+  or a PromQL or LogQL `step`. The problem says what to write: `"bucket": "$__interval"` in a
+  builder, `:__interval` or `:__interval_s` in raw SQL. Such a panel fails the write as a chart
+  that does not fit its data does. A number, a table and a chart over categories are not
+  checked, and neither is a panel the edit leaves as it was. A dashboard's edit has no such
+  check: a dashboard may fix its buckets or use an interval variable.
 - A failure is counted like a failed dashboard write, streams a `data-repair` part with the
   failing panels and the issues by path, and the model repairs it within the same attempts. A
   write streams `data-reportVersion`. The model learns each panel's test result through the gate,

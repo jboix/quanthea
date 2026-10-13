@@ -6,6 +6,7 @@
 /** The guide. */
 export const influxdbGuide = `InfluxDB 3 (SQL, as in PostgreSQL). A table is a measurement: its tags are text, its fields numbers, and "time" its timestamp, in UTC. Always bound time: WHERE time BETWEEN :__from AND :__to. Variables are text: cast before comparing with a number (requests > CAST(:min AS BIGINT)). Alias every column. Quote names with double quotes.
 - long over time: SELECT date_bin(INTERVAL '5 minutes', time, :__from) AS time, service AS series, sum(errors) AS value … GROUP BY 1, 2 ORDER BY 1. The sql-series builder writes this.
+- by the interval the server binds, for a chart over time of a report and for an alert's query: SELECT date_bin(:__interval::interval, time, :__from) AS time, sum(errors) AS value … GROUP BY 1 ORDER BY 1. "bucket": "$__interval" in the sql-series builder writes it.
 - long by category: SELECT service, sum(requests) AS value … GROUP BY 1 ORDER BY 2 DESC. The sql-breakdown builder writes this.
 - single: SELECT sum(errors) / sum(requests) AS value …. The sql-stat builder writes this.
 - percentiles: approx_percentile_cont(p95_ms, 0.95) AS p95.

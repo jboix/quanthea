@@ -91,7 +91,8 @@ The **$interval** chip above the panels draws them at another one: `1m`, `5m`, `
 - Nothing is stored. The headline numbers, the tables and the message that was sent stay as the
   run kept them, and **as stored** brings the stored charts back.
 - A chart whose query names its own step, such as one grouped by the minute, keeps what the run
-  stored. A run without a chart that follows the interval shows no chip.
+  stored. A run without a chart that follows the interval shows no chip. The agent writes every
+  chart over time by the interval, so this is a chart of a report written before it did.
 - Reload the page, or open the run again, and it shows the run as stored.
 
 ### Arrange the panels

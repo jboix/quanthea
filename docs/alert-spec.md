@@ -110,7 +110,12 @@ search, `{"$var": "__interval_ms"}` in MongoDB.
 - A PromQL or LogQL query takes none. An evaluation reads it at its instant, and a replay as a
   range query at `every`.
 - `every` says how often the alert is checked. The interval says how wide a bucket of the query
-  is. Neither follows the other.
+  is. Neither follows the other. The chart on the alert's page has an interval of its own, which
+  only draws: see [the guide](guide/alerts.md#the-interval-of-the-chart).
+- The agent writes its queries this way. Its write of a query that cuts time by a width of its
+  own (`date_trunc('minute', …)`, `"fixed_interval": "1m"`, a `$dateTrunc` of a written width, a
+  PromQL or LogQL `step`) is refused, with the built-in to use instead. A spec changed by hand is
+  not checked for it.
 
 ## The ratio of two queries
 

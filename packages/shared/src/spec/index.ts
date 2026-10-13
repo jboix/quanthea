@@ -21,6 +21,7 @@ export {
   type PanelDiff,
   type SpecDiff,
 } from './diff.ts';
+export { fixedStepOf } from './fixed-step.ts';
 export { fixedTimeOf } from './fixed-time.ts';
 export {
   type Arranged,

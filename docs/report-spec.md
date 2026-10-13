@@ -89,7 +89,9 @@ A query follows it through the interval built-in of its language, and the run bi
 | MongoDB       | `{"$var": "__interval_ms"}`                                        |
 
 A query that names its own step, such as `date_trunc('minute', …)`, is cut as it says, whatever
-the period. The comparison period binds the same interval as the period.
+the period. The agent does not write one: its write of a time chart whose query cuts time by a
+fixed width is refused, with the built-in to use instead. The comparison period binds the same
+interval as the period.
 
 On a run's page a person may choose another interval of the list. That runs the charts' queries
 again over the run's period and stores nothing: see [reports](guide/reports.md#a-run).

@@ -21,9 +21,14 @@ function throwIfAborted(signal: AbortSignal): void {
   if (signal.aborted) throw new ConnectorError('timeout', 'The query was cancelled.');
 }
 
+/** The queries the memory source knows: every event, with or without a bucketed time first. */
+const eventsQuery = /^SELECT (?:.+ AS time, )?\* FROM events$/;
+
 /**
  * Runs the only query the memory source knows, `SELECT * FROM events`, the table name quoted or
- * not, over its generated rows.
+ * not, over its generated rows. A bucket written before the star, such as
+ * `SELECT date_trunc('hour', time) AS time, * FROM events`, is accepted and not applied: the rows
+ * are the same.
  *
  * @param text - The query text.
  * @param rowCount - How many rows the table holds.
@@ -32,7 +37,7 @@ function throwIfAborted(signal: AbortSignal): void {
  */
 function runEvents(text: string, rowCount: number, context: ExecutionContext) {
   throwIfAborted(context.signal);
-  if (text.trim().replace(/\s+/g, ' ').replace('"events"', 'events') !== 'SELECT * FROM events') {
+  if (!eventsQuery.test(text.trim().replace(/\s+/g, ' ').replace('"events"', 'events'))) {
     throw new ConnectorError('syntax', 'Unknown query.', `Unknown query "${text}".`);
   }
   const builder = createFrameBuilder({

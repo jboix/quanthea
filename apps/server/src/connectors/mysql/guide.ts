@@ -12,6 +12,7 @@
 export function mysqlGuide(product: string): string {
   return `${product} (SQL). Bind the range with :__from and :__to and variables with :name; never paste values. Alias every column, each name once, so roles can name it. Quote names with backticks. The session is in UTC.
 - long over time: SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(created_at) / 300) * 300) AS time, CAST(status AS CHAR) AS series, count(*) AS value … GROUP BY 1, 2 ORDER BY 1. The sql-series builder writes this.
+- by the interval the server binds, for a chart over time of a report and for an alert's query: SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(created_at) / :__interval_s) * :__interval_s) AS time, count(*) AS value … GROUP BY 1 ORDER BY 1, where :__interval_s is the width in seconds. "bucket": "$__interval" in the sql-series builder writes it.
 - long by category: SELECT CAST(region AS CHAR) AS region, sum(total) AS value … GROUP BY 1 ORDER BY 2 DESC LIMIT 20. The sql-breakdown builder writes this.
 - wide: one column per measure: SELECT DATE(t) AS time, sum(a) AS alpha, sum(b) AS beta … GROUP BY 1.
 - single: SELECT count(*) AS value …, or several named measures in one row. The sql-stat builder writes this.

@@ -6,6 +6,7 @@
 /** The guide. */
 export const trinoGuide = `Trino (SQL). Bind the range with :__from and :__to and variables with :name; never paste values. A variable is a varchar: cast it to compare with another type (CAST(:n AS bigint)). Alias every column, each name once, so roles can name it. Quote names with double quotes; name another catalog or schema as catalog.schema.table. The session is in UTC and each query runs in a read-only transaction.
 - long over time: SELECT date_trunc('hour', created_at) AS time, CAST(status AS varchar) AS series, count(*) AS value … GROUP BY 1, 2 ORDER BY 1. The sql-series builder writes this, with any bucket width.
+- by the interval the server binds, for a chart over time of a report and for an alert's query: SELECT from_unixtime(floor(to_unixtime(created_at) / :__interval_s) * :__interval_s) AS time, count(*) AS value … GROUP BY 1 ORDER BY 1, where :__interval_s is the width in seconds. "bucket": "$__interval" in the sql-series builder writes it.
 - long by category: SELECT region, sum(total) AS value … GROUP BY 1 ORDER BY 2 DESC LIMIT 20. The sql-breakdown builder writes this.
 - wide: one column per measure: SELECT date_trunc('day', t) AS time, sum(a) AS alpha, sum(b) AS beta … GROUP BY 1.
 - single: SELECT count(*) AS value …, or several named measures in one row. The sql-stat builder writes this.
