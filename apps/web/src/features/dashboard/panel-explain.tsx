@@ -9,7 +9,12 @@ import type { PanelExplanation } from '@quanthea/shared';
 import { useId } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { useCanAsk } from './ask-state.ts';
-import { earlierVersionNote, explainedLine, explanationParagraphs } from './explain-words.ts';
+import {
+  type EarlierNote,
+  earlierVersionNote,
+  explainedLine,
+  explanationParagraphs,
+} from './explain-words.ts';
 import styles from './panels.module.css';
 import {
   type ExplanationTarget,
@@ -77,19 +82,22 @@ function ExplanationText({ text }: { readonly text: string }) {
  * @param props - The text and the note.
  * @param props.text - The explanation.
  * @param props.earlier - What to say of one written for an earlier version, or `null`.
- * @returns The paragraphs, then the note.
+ * @returns The paragraphs and the note: the note first when the panel changed since, so nobody
+ *   reads the text as that of the panel shown.
  */
-function StoredExplanation({
+export function StoredExplanation({
   text,
   earlier,
 }: {
   readonly text: string;
-  readonly earlier: string | null;
+  readonly earlier: EarlierNote | null;
 }) {
+  const note = earlier && <p className={styles.explainNote}>{earlier.text}</p>;
   return (
     <>
+      {earlier?.leads && note}
       <ExplanationText text={text} />
-      {earlier && <p className={styles.explainNote}>{earlier}</p>}
+      {!earlier?.leads && note}
     </>
   );
 }
@@ -99,7 +107,7 @@ interface ExplainBodyProps {
   /** The latest stored explanation, `undefined` while it loads. */
   readonly latest: PanelExplanation | null | undefined;
   /** What to say of one written for an earlier version, or `null`. */
-  readonly earlier: string | null;
+  readonly earlier: EarlierNote | null;
   /** Whether someone else's explanation is being written. */
   readonly generating: boolean;
   /** The explanation asked for here. */

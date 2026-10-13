@@ -57,12 +57,16 @@ describe('earlierVersionNote', () => {
   });
 
   test('names the version an earlier one was written for', () => {
-    expect(earlierVersionNote(shown(2), 5)).toBe(
-      "Written for v2. The panel's query and view are the same in v5.",
-    );
+    expect(earlierVersionNote(shown(2), 5)).toEqual({
+      text: "Written for v2. The panel's queries and view are unchanged since.",
+      leads: false,
+    });
   });
 
   test('says the panel changed since when its query or view did', () => {
-    expect(earlierVersionNote(shown(2, true), 5)).toBe('Written for v2. The panel changed since.');
+    expect(earlierVersionNote(shown(2, true), 5)).toEqual({
+      text: 'This explains the panel as it was in v2. Its queries or its view changed since.',
+      leads: true,
+    });
   });
 });

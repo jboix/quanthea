@@ -111,8 +111,10 @@ its query computes it, and why that choice.
 - An explanation follows its panel to the next versions of the dashboard. On a version nobody
   explained yet, the bubble shows the latest explanation of an earlier version and names it:
   "Written for v2."
-- When the panel's query or view changed since that version, the bubble adds "The panel changed
-  since." **Explain again** then writes one for the version shown.
+- When the panel's queries or view changed since that version, the bubble says so before the
+  text: "This explains the panel as it was in v2. Its queries or its view changed since."
+  **Explain again** then writes one for the version shown. The comparison reads the panel's own
+  queries and view: a variable they use may have changed without it.
 - A panel removed from the dashboard takes its explanation out of sight. Nothing is deleted: the
   earlier versions keep theirs.
 - Viewers read an explanation once someone asked for it. Before that, the bubble says an analyst

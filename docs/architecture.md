@@ -3866,10 +3866,13 @@ one, and enables them again. Without any admin, it creates the default one.
   keeps one button. The explanation loads when the bubble opens: its short paragraphs as plain
   text, any `[n]` marker dropped, and "Explained on 3 Oct 2026 for Ana", since the schema's
   descriptions may change after it was written.
-  - An explanation written for an earlier version says so under its text (`earlierVersionNote`
-    in `explain-words.ts`): "Written for v2. The panel changed since." when the panel's query or
-    view differs from that version's, else "Written for v2. The panel's query and view are the
-    same in v5." Explain again then writes one for the version shown.
+  - An explanation written for an earlier version says so (`earlierVersionNote` in
+    `explain-words.ts`). When the panel's queries or view differ from that version's the note
+    comes before the text, so nobody reads it as that of the panel shown: "This explains the
+    panel as it was in v2. Its queries or its view changed since." Else it follows the text:
+    "Written for v2. The panel's queries and view are unchanged since." The comparison reads the
+    panel's own queries and view, not the variables or markers they name. Explain again then
+    writes one for the version shown.
   - Analysts and above get Explain, or Explain again in place of the latest. The explanation
     streams in as the Ask tab's answers do (`ask-stream.ts`); when it ends, the stored one loads.
     The request goes on if the bubble closes, so the explanation is kept all the same.

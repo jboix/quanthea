@@ -58,20 +58,33 @@ export interface ShownExplanation {
   readonly panelChanged: boolean;
 }
 
+/** What is said of an explanation written for an earlier version. */
+export interface EarlierNote {
+  /** The sentence. */
+  readonly text: string;
+  /** Whether it goes before the explanation: the panel changed, so the text may not fit it. */
+  readonly leads: boolean;
+}
+
 /**
  * Says that an explanation was written for an earlier version than the one shown, and whether the
- * panel changed since. An explanation of the version shown needs no note.
+ * panel changed since. An explanation of the version shown needs no note. The comparison reads
+ * the panel's own queries and view, not the variables or markers they name.
  *
  * @param shown - What the panel shows, `undefined` while it loads.
  * @param shownVersion - The version shown.
- * @returns Such as `Written for v2. The panel changed since.`, or `null`.
+ * @returns The note, which leads when the panel changed, or `null`.
  */
 export function earlierVersionNote(
   shown: ShownExplanation | undefined,
   shownVersion: number,
-): string | null {
+): EarlierNote | null {
   const version = shown?.explanation?.version;
   if (version === undefined || version === shownVersion) return null;
-  if (shown?.panelChanged) return `Written for v${version}. The panel changed since.`;
-  return `Written for v${version}. The panel's query and view are the same in v${shownVersion}.`;
+  if (shown?.panelChanged) {
+    const text = `This explains the panel as it was in v${version}. Its queries or its view changed since.`;
+    return { text, leads: true };
+  }
+  const text = `Written for v${version}. The panel's queries and view are unchanged since.`;
+  return { text, leads: false };
 }
