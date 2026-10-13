@@ -16,6 +16,7 @@ import {
   type HealthReport,
   type SearchQuery,
 } from '../_shared/index.ts';
+import { readOnlySetups, searchAccess } from './access.ts';
 import { aggregationsFrame } from './aggregations.ts';
 import { createSearchApi, type SearchApi, type ServerInfo } from './api.ts';
 import { describeIndices, mergedTypes } from './catalog.ts';
@@ -195,13 +196,13 @@ async function execute(
 }
 
 /**
- * Checks the connection and names the server, which must be the kind's product. Neither server
- * says whether a user could write through a search, so the report does not either.
+ * Checks the connection, names the server, which must be the kind's product, and asks it what
+ * the credentials may do beyond reading.
  *
  * @param api - The API.
  * @param product - The kind's product.
  * @param signal - The caller's signal.
- * @returns The health report.
+ * @returns The health report: read-only, able to write with what was found, or unknown.
  */
 async function test(
   api: SearchApi,
@@ -210,21 +211,18 @@ async function test(
 ): Promise<HealthReport> {
   const started = performance.now();
   const latencyMs = (): number => Math.round(performance.now() - started);
+  const bounded = AbortSignal.any([signal, AbortSignal.timeout(metadataTimeoutMs)]);
   try {
-    const server = await api.server(
-      AbortSignal.any([signal, AbortSignal.timeout(metadataTimeoutMs)]),
-    );
+    const server = await api.server(bounded);
     const named = `${server.product} ${server.version}.`;
     if (server.product !== product) {
       const message = `${named} Add it as an ${server.product} connector.`;
       return { ok: false, latencyMs: latencyMs(), message, readOnly: null };
     }
-    return {
-      ok: true,
-      latencyMs: latencyMs(),
-      message: `${named} The connector only searches.`,
-      readOnly: null,
-    };
+    const { readOnly, canDo, sentence } = await searchAccess(api, product, bounded);
+    const message = `${named} The connector only searches. ${sentence}`;
+    const readOnlySetup = readOnlySetups[product];
+    return { ok: true, latencyMs: latencyMs(), message, readOnly, canDo, readOnlySetup };
   } catch (error) {
     const message = error instanceof ConnectorError ? error.safeMessage : 'The test failed.';
     return { ok: false, latencyMs: latencyMs(), message, readOnly: null };

@@ -2557,9 +2557,15 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   carries a format only when every index that has the field names the same one: where they
   differ, or one names none, the type is plain `date`. `sampleValues` runs a terms aggregation on a field the
   mapping has, through `.keyword` for a text field. Error types map to connector errors; a
-  reason that is not about the query can quote values, so the safe message leaves it out. Neither server says whether a user could
-  write through a search, so the connection test reports `readOnly: null`: the credentials should
-  hold a read-only role.
+  reason that is not about the query can quote values, so the safe message leaves it out. The connection test asks the
+  server what the signed-in user may do (`search/access.ts`), with a GET that only reads.
+  Elasticsearch lists the user's privileges (`/_security/user/_privileges`): a cluster privilege
+  beyond `monitor` and `read_*`, an index privilege beyond `read`, `view_index_metadata` and
+  `monitor`, or a `run_as` is a finding. The security plugin of OpenSearch names the user's roles
+  (`/_plugins/_security/authinfo`) and not what they allow, so only the roles it ships and never
+  changes are known: `all_access` can write, `readall` and `readall_and_monitor` only read, and
+  any other reports `readOnly: null`. A server that knows no such endpoint has its security off:
+  whoever reaches it can write. Any other answer reports `readOnly: null`, never read-only.
 - **Loki:** the HTTP API over the kit's HTTP client, read endpoints only, with no auth, a bearer
   token or basic authentication, and a tenant (`X-Scope-OrgID`). A log query gives one table: the
   time, the line and a column per label, the stream's and those the pipeline extracted, newest

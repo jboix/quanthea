@@ -48,6 +48,16 @@ export interface SearchApi {
    */
   request<T>(request: ApiRequest): Promise<T>;
   /**
+   * Sends a GET and returns the answer whatever its status, for a question the server may not
+   * know, such as what the signed-in user may do.
+   *
+   * @param path - The path.
+   * @param signal - Aborts the request.
+   * @returns The status and the JSON answer, `undefined` when it is not JSON.
+   * @throws {ConnectorError} For a timeout or a server that cannot be reached.
+   */
+  ask(path: string, signal: AbortSignal): Promise<{ status: number; body: unknown }>;
+  /**
    * Reads which server answers, once: later calls reuse the answer.
    *
    * @param signal - Aborts the first request.
@@ -109,6 +119,10 @@ export function createSearchApi(options: ApiOptions): SearchApi {
   };
   return {
     request: (request) => send(client, request),
+    async ask(path, signal) {
+      const response = await client.request({ path, signal });
+      return { status: response.status, body: await response.json().catch(() => undefined) };
+    },
     server(signal) {
       info ??= readInfo(signal).catch((error: unknown) => {
         info = undefined;

@@ -117,7 +117,10 @@ for (const server of servers) {
 
     test('names the server, and fails the test of the other product', async () => {
       const health = await connection.test(AbortSignal.timeout(20_000));
-      expect(health).toMatchObject({ ok: true, readOnly: null });
+      // The dev servers run without security, so whoever reaches them can write.
+      expect(health).toMatchObject({ ok: true, readOnly: false });
+      expect(health.canDo?.[0]).toContain('asks for no sign-in');
+      expect(health.readOnlySetup).toContain('quanthea');
       expect(health.message).toStartWith(`${server.name} `);
       const wrong = server.kind.open({
         config: server.kind.configSchema.parse(server.other.config),
