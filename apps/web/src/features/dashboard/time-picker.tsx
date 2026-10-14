@@ -1,6 +1,7 @@
 import type { DashboardSpec, TimeRangeExpression } from '@quanthea/shared';
-import { type FormEvent, useRef, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { Button } from '../../ui/button.tsx';
+import { useDetailsDismiss } from '../../ui/use-details-dismiss.ts';
 import styles from './variables-bar.module.css';
 import { quickRanges, timeLabel } from './view-state.ts';
 
@@ -78,10 +79,10 @@ function CustomRange({
  * @returns The chip with its menu.
  */
 export function TimePicker({ spec, picked, onPick }: TimePickerProps) {
-  const details = useRef<HTMLDetailsElement>(null);
+  const { details, close } = useDetailsDismiss();
   const current = picked ?? spec.time;
   const pick = (time: TimeRangeExpression | undefined) => {
-    details.current?.removeAttribute('open');
+    close();
     onPick(time);
   };
   return (

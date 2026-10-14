@@ -7,8 +7,9 @@ import {
   optionValues,
   type Variable,
 } from '@quanthea/shared';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useFetcher } from 'react-router';
+import { useDetailsDismiss } from '../../ui/use-details-dismiss.ts';
 import type { Loaded } from './data.ts';
 import styles from './variables-bar.module.css';
 
@@ -106,13 +107,13 @@ function OptionMenu({ variable, values, state, onChoose }: OptionMenuProps) {
  * @returns The chip with its menu.
  */
 export function OptionChip({ variable, value, onChange, optionsUrl }: ChipProps) {
-  const details = useRef<HTMLDetailsElement>(null);
+  const { details, close } = useDetailsDismiss();
   const state = useOptions(variable, optionsUrl);
   const multi = isMultiValue(variable);
   const values = [value].flat();
   const choose = (option: string) => {
     if (!multi || option === allValue) {
-      details.current?.removeAttribute('open');
+      close();
       onChange(option);
       return;
     }
