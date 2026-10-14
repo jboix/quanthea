@@ -1,11 +1,15 @@
 import { expect, test } from 'bun:test';
-import { offersAll, type Variable } from './variables.ts';
+import { variableSchema } from './variables.ts';
 
-test('a fixed list and a query-backed variable offer All when they say so, others never', () => {
-  const custom: Variable = { kind: 'custom', name: 'platform', options: ['web'], default: 'web' };
-  expect(offersAll(custom)).toBe(false);
-  expect(offersAll({ ...custom, includeAll: true })).toBe(true);
-  const source = { connector: 'prom', language: 'promql', expr: 'up' } as const;
-  expect(offersAll({ kind: 'query', name: 'job', source, includeAll: true })).toBe(true);
-  expect(offersAll({ kind: 'text', name: 'order', default: 'a' })).toBe(false);
+const interval = { kind: 'interval', name: 'window', options: ['auto', '1m', '1h'] };
+
+test('an interval variable offers auto beside durations, and may default to it', () => {
+  expect(variableSchema.safeParse({ ...interval, default: 'auto' }).success).toBe(true);
+  expect(variableSchema.safeParse({ ...interval, default: '1m' }).success).toBe(true);
+});
+
+test('an interval variable refuses an option that is neither a duration nor auto', () => {
+  const often = { ...interval, options: ['often'], default: 'often' };
+  expect(variableSchema.safeParse(often).success).toBe(false);
+  expect(variableSchema.safeParse({ ...interval, default: 'auto1m' }).success).toBe(false);
 });

@@ -22,6 +22,7 @@ import type { QueryExecutor, QuerySource } from '../query/executor.ts';
 import { QueryError } from '../query/query-error.ts';
 import type { ResultCache } from '../query/result-cache.ts';
 import type { Variables } from '../query/variables.ts';
+import { withAutoIntervals } from './auto-interval.ts';
 import { chartPointsOf } from './chart-points.ts';
 import { optionsOfFrames } from './variable-option-frames.ts';
 import { type QueryVariable, resolveVariables } from './variables.ts';
@@ -276,10 +277,11 @@ export async function runPanel(
   const panel = spec.panels.find((candidate) => candidate.id === panelId);
   if (!panel) throw new AppError('not_found', `No panel "${panelId}" in this version.`);
   const { time, timeRange, loadOptions } = prepare(dependencies, spec, choices, signal);
-  const variables = await resolveVariables(spec, choices.variables, loadOptions);
   const interval = panel.view.kind === 'chart' ? choices.interval : undefined;
   const engine = { timeRange, interval };
   const chartPoints = interval === undefined ? chartPointsOf(panel) : undefined;
+  const resolved = await resolveVariables(spec, choices.variables, loadOptions);
+  const variables = withAutoIntervals(spec, resolved, timeRange, chartPoints, interval);
   const run = (query: PanelQuery, points?: number) =>
     runQuery(dependencies, query, variables, { ...engine, chartPoints: points }, signal);
   const [queries, markers] = await Promise.all([
@@ -307,8 +309,9 @@ export async function bindChoices(
   choices: RunChoices,
   signal?: AbortSignal,
 ): Promise<Variables> {
-  const { loadOptions } = prepare(dependencies, spec, choices, signal);
-  return resolveVariables(spec, choices.variables, loadOptions);
+  const { timeRange, loadOptions } = prepare(dependencies, spec, choices, signal);
+  const resolved = await resolveVariables(spec, choices.variables, loadOptions);
+  return withAutoIntervals(spec, resolved, timeRange);
 }
 
 /**
@@ -333,7 +336,7 @@ export async function listVariableOptions(
   const variable = spec.variables.find((candidate) => candidate.name === name);
   if (variable?.kind !== 'query')
     throw new AppError('not_found', `No query-backed variable $${name}.`);
-  const { loadOptions, loadLabelled } = prepare(dependencies, spec, choices, signal);
+  const { timeRange, loadOptions, loadLabelled } = prepare(dependencies, spec, choices, signal);
   const resolved = await resolveVariables(spec, choices.variables, loadOptions, name);
-  return loadLabelled(variable, resolved);
+  return loadLabelled(variable, withAutoIntervals(spec, resolved, timeRange));
 }

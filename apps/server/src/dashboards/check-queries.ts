@@ -11,7 +11,13 @@ import type {
   ResolvedTimeRange,
   Variable,
 } from '@quanthea/shared';
-import { isMultiValue, offersAll, optionValues, queryTextKey } from '@quanthea/shared';
+import {
+  autoInterval,
+  isMultiValue,
+  offersAll,
+  optionValues,
+  queryTextKey,
+} from '@quanthea/shared';
 import { bindTemplate } from '../query/bind.ts';
 import type { QuerySource } from '../query/executor.ts';
 import { checkTimeRange } from '../query/guardrails.ts';
@@ -102,7 +108,11 @@ function holdsSeveral(variable: Variable, writing: boolean): boolean {
  */
 function sampleBinding(variable: Variable, writing: boolean) {
   if (variable.kind === 'text') return { value: variable.default };
-  if (variable.kind === 'interval') return { value: variable.default, duration: true };
+  if (variable.kind === 'interval') {
+    // An `auto` default is bound as the duration a run picks; any duration checks the template.
+    const value = variable.default === autoInterval ? '5m' : variable.default;
+    return { value, duration: true };
+  }
   const options = variable.kind === 'custom' ? optionValues(variable.options) : ['a', 'b'];
   const first = options[0] ?? 'a';
   return { value: holdsSeveral(variable, writing) ? [first, options[1] ?? first] : first };

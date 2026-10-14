@@ -59,7 +59,7 @@ type Variable =
       kind: 'interval'                      // a duration to pick, such as the rate window
       name: string
       label?: string
-      options: string[]                     // durations: '1m', '5m', '1h'
+      options: string[]                     // durations: '1m', '5m', '1h', or 'auto'
       default: string                       // one of the options
     }
 
@@ -241,6 +241,10 @@ they differ from the sketch above, the schemas win:
   label, "All", or a short list (`Firefox, Safari, Chrome +2`). A name no variable has stays as
   written. Texts the server writes with a title, such as a notification, a report's headline or
   a library result, show it as stored.
+- `auto` in an interval variable is bound as a duration the server picks for each run: the usual
+  interval of the time range (`1m` up to two hours, `10m` over a day, `1h` over a week), coarser
+  when the chart is too narrow for that many points, or the interval a report's run cuts its
+  charts into. Narrowing the time range gives finer buckets. The chip shows `auto`.
 - A variable's `label` names its chip on the dashboard, in a snapshot and in a report run's bar,
   with `$name` as the tooltip. A variable without one shows `$name`.
 - An option of a fixed list may carry a label, such as `{ "value": "true", "label": "Only

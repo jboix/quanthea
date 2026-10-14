@@ -141,3 +141,20 @@ describe('a run', () => {
     expect(atLayoutPlaces(spec, undefined)).toEqual(spec);
   });
 });
+
+describe('an auto interval variable', () => {
+  const withAuto = dashboardSpecSchema.parse({
+    ...spec,
+    variables: [{ kind: 'interval', name: 'window', options: ['auto', '1m'], default: 'auto' }],
+  });
+
+  test('binds the usual duration of the range on a time chart wide enough for it', async () => {
+    const requests = await requestsOf('trend', undefined, withAuto);
+    expect(requests.A?.variables.window).toEqual({ value: '10m', duration: true });
+  });
+
+  test('binds the usual duration of the range on a stat', async () => {
+    const requests = await requestsOf('now', undefined, withAuto);
+    expect(requests.A?.variables.window).toEqual({ value: '10m', duration: true });
+  });
+});

@@ -69,6 +69,7 @@ export {
 } from './variable-options.ts';
 export {
   allValue,
+  autoInterval,
   isMultiValue,
   maxTextValueLength,
   offersAll,

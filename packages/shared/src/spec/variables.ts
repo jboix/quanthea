@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import { variableNameSchema } from './names.ts';
-import { durationSchema, queryTemplateSchema } from './queries.ts';
+import { queryTemplateSchema } from './queries.ts';
 import { variableOptionSchema, variableValueSchema } from './variable-options.ts';
 
 /** Validates one variable value. */
@@ -53,16 +53,30 @@ const textVariableSchema = z.strictObject({
 });
 
 /**
- * Validates an interval variable: durations to pick from, such as `1m`, `5m` and `1h`. It is the
- * only variable PromQL takes where a duration goes (`[$interval]`, `step`), and SQL binds it like
- * any other value (`:interval::interval`).
+ * The interval option the server picks: a duration that suits the time range and the width of the
+ * chart, bound like any other duration.
+ */
+export const autoInterval = 'auto';
+
+/**
+ * Validates an option of an interval variable: a duration, or `auto`. One pattern, not a union,
+ * keeps the schema the model receives as small as a bare duration's.
+ */
+const intervalOptionSchema = z
+  .string()
+  .regex(/^(?:\d{1,5}[smhd]|auto)$/, 'Use a duration such as 1m or 1h, or auto.');
+
+/**
+ * Validates an interval variable: durations to pick from, such as `1m`, `5m` and `1h`, and `auto`.
+ * It is the only variable PromQL takes where a duration goes (`[$interval]`, `step`), and SQL
+ * binds it like any other value (`:interval::interval`).
  */
 const intervalVariableSchema = z.strictObject({
   kind: z.literal('interval'),
   name: variableNameSchema,
   label: labelSchema,
-  options: z.array(durationSchema).min(1).max(20),
-  default: durationSchema,
+  options: z.array(intervalOptionSchema).min(1).max(20),
+  default: intervalOptionSchema,
 });
 
 /** Validates a variable. */
