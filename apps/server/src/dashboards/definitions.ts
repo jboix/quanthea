@@ -20,6 +20,7 @@ import type {
 } from '../db/definition-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import type { Dashboards } from './dashboards.ts';
+import { dataSchema } from './queries/index.ts';
 import { previewData } from './query-preview.ts';
 
 /** A connector as definitions see it: its name, its language, and which names it hides. */
@@ -237,6 +238,24 @@ function refuseHidden(definition: Definition, connectors: readonly DefinitionCon
 }
 
 /**
+ * Refuses a body its builder's own schema refuses, so a mistake shows when it is saved, not when
+ * a panel is built from it. The connector is the panel's, so any name stands in for it.
+ *
+ * @param definition - The definition.
+ * @throws {AppError} `bad_request` naming the language and the problem.
+ */
+function refuseUnbuildable(definition: Definition): void {
+  for (const body of definition.bodies) {
+    const parsed = dataSchema.safeParse({ ...body.request, connector: 'connector' });
+    if (!parsed.success)
+      throw new AppError(
+        'bad_request',
+        `The ${bodyLanguage(body)} body is not a valid ${body.request.kind} request: ${z.prettifyError(parsed.error)}`,
+      );
+  }
+}
+
+/**
  * The connector a body is tested on: the first it names, else the first of its language.
  *
  * @param body - The body.
@@ -332,6 +351,7 @@ async function save(
   const parsed = definitionSchema.safeParse(input);
   if (!parsed.success) throw new AppError('bad_request', z.prettifyError(parsed.error));
   const definition = parsed.data;
+  refuseUnbuildable(definition);
   refuseHidden(definition, dependencies.connectors());
   // The file is reviewed where it is written, and its sources may not answer yet at startup.
   const bodies = who.origin === 'file' ? [] : definition.bodies;

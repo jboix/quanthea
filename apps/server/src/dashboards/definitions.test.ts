@@ -90,6 +90,14 @@ describe('definitions', () => {
     ).rejects.toThrow('A search body uses a field hidden on events.');
   });
 
+  test('refuse a body its builder refuses, whatever its origin', async () => {
+    const wrong = { ...ratio, request: { ...ratio.request, over: 'week' } };
+    const definition = { ...errorRate, bodies: [wrong] };
+    await expect(service().save(definition, null, 'provisioning', 'file')).rejects.toThrow(
+      'The search body is not a valid search-ratio request',
+    );
+  });
+
   test('refuse a body that does not run, and say how many rows one found', async () => {
     const failing = service(async () => ({ ok: false, message: 'no such index' }));
     await expect(failing.save(errorRate, null, 'editor-1')).rejects.toThrow(
