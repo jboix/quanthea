@@ -28,6 +28,7 @@ export const docNav: readonly DocNavGroup[] = [
     items: [
       { slug: 'deployment', label: 'Deploy' },
       { slug: 'reverse-proxy', label: 'Behind a reverse proxy' },
+      { slug: 'upgrading', label: 'Upgrading' },
       { slug: 'configuration', label: 'Configuration file' },
       { slug: 'environment', label: 'Environment variables' },
     ],
