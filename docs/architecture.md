@@ -4928,8 +4928,11 @@ rather than Astro's own Markdown processor, since the docs' links, titles and sc
 remark plugins. A doc's screenshots come in pairs, `<name>-light.webp` and `<name>-dark.webp`,
 marked with GitHub's `#gh-light-mode-only` and `#gh-dark-mode-only`; the site's
 `remark-scheme-images.ts` turns the marks into the classes that show each in its scheme. `bun run
-screenshots` (`dev/screenshots/`) takes them: it starts an instance on the dev data, fills it
-through the real agent once, and shoots every screen in both schemes. The site's address and base
+screenshots` (`dev/screenshots/`) takes them: it starts an instance on the dev data, with
+Anthropic as the model or Gemini with `--provider gemini` (`models/<provider>.yaml`, put beside
+`quanthea.yaml` in a configuration directory), fills it through the real agent once (the shop's
+definitions first, then dashboards whose prompts name each panel's chart), and shoots every
+screen in both schemes. The site's address and base
 path are the ones GitHub Pages gives (`actions/configure-pages`): the custom domain set in Settings
 → Pages, else the repository's path; the `SITE_URL` and `SITE_BASE` repository variables override
 them. Pull requests deploy nothing. The build fails on a broken internal link, a page without a

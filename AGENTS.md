@@ -51,7 +51,8 @@ bun run site:dev     # the website (apps/site) on :4321, reading the docs in pla
 bun run site:build   # build the website into apps/site/dist
 bun run site:preview # serve the built website on :4321 as GitHub Pages does, search included
 GEMINI_API_KEY=… bun run demo  # the demo: the built app on the dev data, with Gemini, state in .demo/
-GEMINI_API_KEY=… bun run screenshots  # the docs' screenshots, light and dark, on the dev data
+ANTHROPIC_API_KEY=… bun run screenshots  # the docs' screenshots, light and dark, on the dev data
+                                         # (--provider gemini with GEMINI_API_KEY)
 bun run bench:charts # how fast 12 time charts of 1,000 to 20,000 points draw, in headless
                      # Chromium, on its own Vite server on :5199
 ```

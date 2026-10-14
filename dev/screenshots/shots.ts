@@ -50,6 +50,7 @@ function shotsOf(made: Scenario): Shot[] {
     { name: 'plan', path: `/threads/${made.planThread}` },
     { name: 'library', path: '/library' },
     { name: 'library-snapshots', path: '/library?view=snapshots' },
+    { name: 'definitions', path: '/definitions' },
     { name: 'dashboard', path: `/d/${made.shop}` },
     { name: 'dashboard-incident', path: `/d/${made.checkout}` },
     { name: 'dashboard-layout', path: `/d/${made.checkout}`, before: click(/^Edit layout$/) },

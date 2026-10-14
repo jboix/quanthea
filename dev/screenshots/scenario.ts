@@ -1,5 +1,6 @@
 /**
- * Fills the screenshot instance through its API, with the real agent: three pinned dashboards,
+ * Fills the screenshot instance through its API, with the real agent: the shop's definitions,
+ * three pinned dashboards,
  * two alerts, two reports with a run each, questions about a dashboard and a run, a panel
  * explanation, a snapshot, notification channels and a thread in the bin. It writes what it made
  * to `.state/scenario.json`, which the shots read.
@@ -130,6 +131,66 @@ async function channels(api: Api): Promise<void> {
 }
 
 /**
+ * The shop's definitions: two checked (failure rate, paid orders) and one by its meaning only
+ * (average basket), so the plan and the dashboards show both kinds.
+ */
+const shopDefinitions = [
+  {
+    id: 'failure-rate',
+    name: 'Failure rate',
+    synonyms: ['failed share', 'share that failed'],
+    meaning:
+      'Failed orders over all orders, leaving out the marketplace, whose failed orders the marketplace handles.',
+    bodies: [
+      {
+        shape: 'ratio',
+        request: {
+          kind: 'sql-ratio',
+          table: 'orders',
+          time: 'created_at',
+          match: [{ field: 'status', value: 'failed' }],
+          filters: [{ field: 'channel', op: '!=', value: 'marketplace' }],
+        },
+      },
+    ],
+  },
+  {
+    id: 'paid-orders',
+    name: 'Paid orders',
+    meaning: 'Orders whose payment went through. A refunded order is not a paid order.',
+    bodies: [
+      {
+        shape: 'measure',
+        request: {
+          kind: 'sql-stat',
+          table: 'orders',
+          time: 'created_at',
+          filters: [{ field: 'status', value: 'paid' }],
+          measure: { fn: 'count' },
+        },
+      },
+    ],
+  },
+  {
+    id: 'average-basket',
+    name: 'Average basket',
+    synonyms: ['basket'],
+    meaning: 'The revenue of paid orders divided by the number of paid orders, in CHF.',
+  },
+];
+
+/**
+ * Saves the shop's definitions, before any dashboard is built.
+ *
+ * @param api - An admin's client.
+ */
+async function definitions(api: Api): Promise<void> {
+  progress('Definitions: failure rate, paid orders, average basket');
+  for (const definition of shopDefinitions)
+    await api('POST', '/definitions', { definition, basedOn: null });
+}
+
+/**
  * Asks questions about a dashboard in one conversation, each following up on the one before.
  *
  * @param api - An analyst's client.
@@ -177,6 +238,7 @@ export async function runScenario(password: string): Promise<Scenario> {
   const { api: marco } = await personClient('marco.rossi@example.com', password);
   const { api: lea } = await personClient('lea.fischer@example.com', password);
   await step('channels', () => channels(ana));
+  await step('definitions', () => definitions(ana));
   const shop = await step('shop', () => pinned(ana, requests.shop, 8));
   const checkout = await step('checkout', () => pinned(ana, requests.checkout, 5));
   const planThread = await step('plan', () => {
@@ -187,14 +249,17 @@ export async function runScenario(password: string): Promise<Scenario> {
   return { ...(await finish(ana, marco, lea, { shop, checkout, payments })), planThread };
 }
 
-/** What the dashboards are asked for. */
+/**
+ * What the dashboards are asked for. Each panel names the chart it is drawn as, as a person who
+ * knows what they want would, so the screenshots show the range of charts.
+ */
 const requests = {
-  shop: 'A sales overview of the last 30 days, in Swiss francs (CHF) without decimals: revenue, paid orders and the average basket as numbers, revenue per day, revenue by category, by sales channel and by country, and the 10 best-selling products.',
+  shop: 'A sales overview of the last 30 days, in Swiss francs (CHF) without decimals. Top row: revenue, paid orders and the average basket as big numbers, each with a sparkline of its trend. Below: revenue per day as an area chart, revenue by category as a donut, revenue by sales channel as a donut, revenue by country as a ranked horizontal bar chart, and the 10 best-selling products by revenue as a ranked horizontal bar chart.',
   checkout:
-    "Yesterday's checkout incident, from 12:00 to 16:00 Zurich time, to fit one screen. First row, three numbers: the peak share of 5xx responses of checkout-svc, the failed orders in the range, and the peak p95 latency of checkout-svc. Below them, side by side at half width: the share of 5xx responses per service over time from http_requests_total (code label) as a line chart with the deploys from the deploys table marked, and the failed orders by failure_reason over the range from the orders table as a bar chart.",
-  plan: "Today's orders by sales channel: orders per hour for web, app and marketplace, the share that failed, and the average basket of each channel in CHF.",
+    "Yesterday's checkout incident, from 12:00 to 16:00 Zurich time, to fit one screen. First row, three numbers: the peak share of 5xx responses of checkout-svc, the failed orders in the range, and the peak p95 latency of checkout-svc. Below them, side by side at half width: the share of 5xx responses per service over time from http_requests_total (code label) as a line chart with the deploys from the deploys table marked, and the failed orders by failure_reason over the range from the orders table as a donut.",
+  plan: "Today's orders by sales channel: orders per hour for web, app and marketplace as stacked bars, the failure rate per hour as a line, and the average basket of each channel in CHF as a bar chart.",
   payments:
-    'Payment providers over the last 14 days: authorizations, declines and errors per provider per day, and the decline rate of each.',
+    'Payment providers over the last 14 days: authorizations, declines and errors per provider per day as stacked bars, the decline rate of each provider over time as lines with a dashed threshold at 5%, and the declines by error_code over the 14 days as a donut.',
 } as const;
 
 /** What the alerts and reports are asked for: by Ana, then by Marco. */

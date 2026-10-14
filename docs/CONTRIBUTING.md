@@ -54,10 +54,11 @@ other file in `docs/` is never read, and links to it go to GitHub.
 builds it, indexes the docs for search, and checks every internal link and every page's head.
 `bun run site:preview` then serves the build on port 4321 as GitHub Pages does: the search works,
 a folder without its final slash redirects to it, and a missing page gets the site's 404.
-`GEMINI_API_KEY=… bun run screenshots` takes the docs' screenshots, each in the light and the
-dark scheme, on the dev data (`bun run env:up`). Its first run fills a scratch instance through the
-agent; later runs reuse it, so retaking the shots after a change to the interface costs no model
-call.
+`ANTHROPIC_API_KEY=… bun run screenshots` takes the docs' screenshots, each in the light and the
+dark scheme, on the dev data (`bun run env:up`); `GEMINI_API_KEY=… bun run screenshots --provider
+gemini` takes them with Gemini. Its first run fills a scratch instance through the agent; later
+runs reuse it, so retaking the shots after a change to the interface costs no model call. Delete
+`dev/screenshots/.state/` to fill it again, such as after a change to what it asks for.
 Product facts the site states (sources, channels, models, chart types) live in
 `apps/site/src/data/facts.ts`, and a test compares them with the code.
 
