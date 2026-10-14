@@ -65,6 +65,9 @@ describe('the metadata model at pin time', () => {
     const { id } = services.dashboards.create(bare, 'first', 'editor-1');
     const describe = async () => ({ description: 'Written by the model.', tags: ['events'] });
     const pinned = await services.dashboards.pin(id, 1, 'editor-1', describe);
-    expect(pinned).toMatchObject({ description: 'Written by the model.', tags: ['events'] });
+    expect(pinned).toMatchObject({ description: null, tags: [] });
+    await Bun.sleep(0);
+    const described = services.dashboards.get(id, 'editor');
+    expect(described).toMatchObject({ description: 'Written by the model.', tags: ['events'] });
   });
 });

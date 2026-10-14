@@ -113,16 +113,33 @@ describe('dashboard routes', () => {
     const { id } = dashboardDetailSchema.parse(created.body);
     const thread = fixture.threads.create('editor-1');
     fixture.threads.attachDashboard(thread.id, id, 'Events');
-    const binMeanwhile = async () => {
-      fixture.bin.bin(thread.id, 'editor-1');
-      return null;
-    };
-    const pinned = await client(editor, binMeanwhile)('POST', `/api/dashboards/${id}/pin`, {
+    // The route checked the thread before the panels ran; the service's write checks it again.
+    fixture.bin.bin(thread.id, 'editor-1');
+    const pinning = fixture.dashboards.pin(id, 1, 'editor-1');
+    await expect(pinning).rejects.toThrow('in the bin');
+    expect(fixture.dashboards.get(id, 'editor').pinnedVersion).toBeNull();
+  });
+
+  test('pins without waiting for the model, which describes the dashboard after', async () => {
+    const created = await client(editor)('POST', '/api/dashboards', { spec: eventsSpec() });
+    const { id } = dashboardDetailSchema.parse(created.body);
+    let answer: (metadata: { description: string; tags: string[] }) => void = () => {};
+    const describe = () =>
+      new Promise<{ description: string; tags: string[] }>((resolve) => {
+        answer = resolve;
+      });
+    const pinned = await client(editor, describe)('POST', `/api/dashboards/${id}/pin`, {
       version: 1,
     });
-    expect(pinned.status).toBe(400);
-    expect(apiErrorBodySchema.parse(pinned.body).error.message).toContain('in the bin');
-    expect(fixture.dashboards.get(id, 'editor').pinnedVersion).toBeNull();
+    expect(pinned.status).toBe(200);
+    expect(fixture.dashboards.get(id, 'editor').tags).toEqual([]);
+    answer({ description: 'Events by type.', tags: ['events'] });
+    await Bun.sleep(0);
+    // The spec's own description wins over the model's.
+    expect(fixture.dashboards.get(id, 'editor')).toMatchObject({
+      description: 'Errors by service.',
+      tags: ['events'],
+    });
   });
 
   test('names the thread that edits a dashboard, while the thread exists', async () => {

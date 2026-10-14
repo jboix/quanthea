@@ -1,8 +1,14 @@
 /** Reads and writes dashboards and their versions. */
 import type { Database } from 'bun:sqlite';
 import { type PinnedRow, pinnedLister } from './dashboard-pinned.ts';
+import {
+  type PinChange,
+  type PinMetadata,
+  type PinOutcome,
+  pinDescriber,
+  pinner,
+} from './dashboard-pins.ts';
 import { type LibrarySearcher, librarySearcher } from './library-search.ts';
-import { dashboardThreadsBinned, dashboardThreadsBinnedCheck } from './thread-guards.ts';
 
 /** A dashboard as stored. */
 export interface DashboardRow {
@@ -50,23 +56,6 @@ export interface VersionRow {
 
 /** A version without its spec, for history lists. */
 export type VersionSummaryRow = Omit<VersionRow, 'spec'>;
-
-/** What pinning did. */
-export type PinOutcome = 'pinned' | 'binned' | 'missing';
-
-/** What pinning writes on the dashboard. */
-export interface PinChange {
-  /** The version to pin. */
-  readonly versionId: string;
-  /** When. */
-  readonly at: number;
-  /** The title to show from now on. */
-  readonly title: string;
-  /** The description to show from now on. */
-  readonly description: string | null;
-  /** The tags to search by. */
-  readonly tags: readonly string[];
-}
 
 /** Stores dashboards and versions. */
 export interface DashboardRepository {
@@ -117,6 +106,16 @@ export interface DashboardRepository {
    * @returns `false` when the dashboard was not pinned.
    */
   unpin(dashboardId: string, at: number): boolean;
+  /**
+   * Writes the description and tags of a pinned version, while that version is still the one
+   * shown. The description is kept when the dashboard already has one.
+   *
+   * @param dashboardId - The dashboard id.
+   * @param versionId - The version they describe.
+   * @param metadata - The description and tags.
+   * @returns `false` when another version, or none, is shown by now.
+   */
+  describePinned(dashboardId: string, versionId: string, metadata: PinMetadata): boolean;
   /**
    * Adds a version after the latest one and records the change on the dashboard, in one
    * transaction.
@@ -234,19 +233,10 @@ function writeStatements(database: Database) {
       `INSERT INTO dashboard_versions (id, dashboard_id, version, spec, change_summary, pinned_at,
          actor, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
-    pinVersion: database.query(
-      'UPDATE dashboard_versions SET pinned_at = ? WHERE id = ? AND dashboard_id = ? AND pinned_at IS NULL',
-    ),
     nextVersion: database.query<{ next: number }, [string]>(
       'SELECT coalesce(max(version), 0) + 1 AS next FROM dashboard_versions WHERE dashboard_id = ?',
     ),
     touchDashboard: database.query('UPDATE dashboards SET updated_at = ? WHERE id = ?'),
-    pinDashboard: database.query(
-      `UPDATE dashboards SET pinned_version_id = ?1, title = ?2, description = ?3, tags = ?4,
-         updated_at = ?5 WHERE id = ?6
-         AND EXISTS (SELECT 1 FROM dashboard_versions WHERE id = ?1 AND dashboard_id = ?6)
-         AND NOT (${dashboardThreadsBinned('?6')})`,
-    ),
     unpinDashboard: database.query(
       `UPDATE dashboards SET pinned_version_id = NULL, updated_at = ?
          WHERE id = ? AND pinned_version_id IS NOT NULL`,
@@ -289,34 +279,6 @@ function creator(
       version.actor,
       version.createdAt,
     );
-  });
-}
-
-/**
- * Builds the transaction that pins a version.
- *
- * @param database - A database the migrations have run on.
- * @param statements - The prepared statements.
- * @returns The pin method.
- */
-function pinner(
-  database: Database,
-  statements: ReturnType<typeof writeStatements>,
-): DashboardRepository['pin'] {
-  const threadsBinned = dashboardThreadsBinnedCheck(database);
-  return database.transaction((dashboardId: string, change: PinChange): PinOutcome => {
-    const shown = statements.pinDashboard.run(
-      change.versionId,
-      change.title,
-      change.description,
-      JSON.stringify(change.tags),
-      change.at,
-      dashboardId,
-    );
-    if (shown.changes === 0) return threadsBinned(dashboardId) ? 'binned' : 'missing';
-    // A version pinned before keeps its first pin time.
-    statements.pinVersion.run(change.at, change.versionId, dashboardId);
-    return 'pinned';
   });
 }
 
@@ -380,7 +342,8 @@ export function createDashboardRepository(database: Database): DashboardReposito
   const reads = readStatements(database);
   return {
     create: creator(database, statements),
-    pin: pinner(database, statements),
+    pin: pinner(database),
+    describePinned: pinDescriber(database),
     unpin: (dashboardId, at) => statements.unpinDashboard.run(at, dashboardId).changes > 0,
     addVersion: versionAdder(database, statements),
     get: (id) => {

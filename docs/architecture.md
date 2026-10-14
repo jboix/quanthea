@@ -589,18 +589,19 @@ shown.
 1. Validate the version again (connectors may have changed) and test-run every panel with the
    default variables. A dashboard with a failing query can't be pinned; the refusal lists each
    failing query by path.
-2. The _metadata_ model (`agent/metadata.ts`) writes a one-line description and 3 to 6 lowercase
-   tags, with the provider of the dashboard's thread (the default one without a thread). Its
-   tokens go to the usage ledger as the `metadata` job, under building dashboards. **This is best effort**: when the model
-   is not set up, fails or takes more than 20 seconds, the dashboard is pinned without tags.
-   The dashboards service gets it as a function, so `dashboards/` never imports the agent.
-3. Set `dashboards.pinned_version_id`, the title from the version, the description from the
-   version or else the model's, and the tags.
-   The same `UPDATE` checks the dashboard's thread is not in the bin, since the test run and the
-   model take seconds and the thread can be binned meanwhile; the pin is then refused (400, "in
-   the bin").
+2. Set `dashboards.pinned_version_id`, the title and description from the version, and no tags.
+   The same `UPDATE` checks the dashboard's thread is not in the bin, since the test run takes
+   seconds and the thread can be binned meanwhile; the pin is then refused (400, "in the bin").
    The version keeps `pinned_at`, the time it was first pinned. A trigger on `dashboards` rewrites
    the dashboard's rows in the library index.
+3. Answer. The pin never waits for a model.
+4. After the answer, the _metadata_ model (`agent/metadata.ts`) writes a one-line description
+   and 3 to 6 lowercase tags, with the provider of the dashboard's thread (the default one
+   without a thread). Its tokens go to the usage ledger as the `metadata` job, under building
+   dashboards. They are written only while that version is still the one shown, and the
+   version's own description is kept. **This is best effort**: when the model is not set up,
+   fails or takes more than 20 seconds, the dashboard stays without tags. The dashboards service
+   gets it as a function, so `dashboards/` never imports the agent.
 
 `POST /api/dashboards/:id/unpin` (editor+) clears `pinned_version_id`. The dashboard leaves the
 library, and viewers get "not found" for it and all its versions. Editors still open every

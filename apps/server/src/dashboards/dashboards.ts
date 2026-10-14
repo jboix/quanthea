@@ -91,7 +91,7 @@ export interface Dashboards {
    * @param id - The dashboard id.
    * @param version - The version number.
    * @param actor - Who pins it.
-   * @param describe - Writes the description and tags, once the version passes its checks.
+   * @param describe - Writes the description and tags after the pin, without holding it.
    * @returns The dashboard.
    * @throws {AppError} `bad_request` when it is the one shown already, invalid, a panel fails, or
    *   its thread is in the bin.
@@ -273,7 +273,7 @@ function create(
  * @param id - The dashboard id.
  * @param version - The version number.
  * @param actor - Who pins it.
- * @param describe - Writes the description and tags, once the version passes its checks.
+ * @param describe - Writes the description and tags after the pin, without holding it.
  * @returns The dashboard.
  */
 async function pin(
@@ -289,14 +289,12 @@ async function pin(
   const spec = validOrRefuse(context, row.spec);
   const failures = failuresOf(spec, await testRunSpec(context, spec));
   if (failures.length > 0) refuseSpec('Some panels fail. Fix them before pinning.', failures);
-  // The spec's own title and description win; the model fills what the spec leaves out.
-  const described = describe ? await describe(spec) : null;
   const change = {
     versionId: row.id,
     at: context.now(),
     title: spec.title,
-    description: spec.description ?? described?.description ?? null,
-    tags: described?.tags ?? [],
+    description: spec.description ?? null,
+    tags: [],
   };
   const outcome = context.repository.pin(id, change);
   if (outcome === 'binned')
@@ -304,7 +302,27 @@ async function pin(
   if (outcome === 'missing')
     throw new AppError('not_found', `Dashboard ${id} has no version ${version}.`);
   context.audit.append({ actor, action: 'dashboard.pin', target: id, detail: { version } });
+  if (describe) void describeLater(context, id, row.id, describe(spec));
   return get(context, id, 'editor');
+}
+
+/**
+ * Writes the description and tags the model gives a pinned version, once it gives them. The pin
+ * does not wait for the model; a spec's own description is kept.
+ *
+ * @param context - The service context.
+ * @param id - The dashboard id.
+ * @param versionId - The version pinned.
+ * @param described - The model's description and tags, or `null` when it could not.
+ */
+async function describeLater(
+  context: ServiceContext,
+  id: string,
+  versionId: string,
+  described: ReturnType<DescribeForPin>,
+): Promise<void> {
+  const metadata = await described.catch(() => null);
+  if (metadata) context.repository.describePinned(id, versionId, metadata);
 }
 
 /**
