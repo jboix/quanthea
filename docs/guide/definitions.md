@@ -29,6 +29,13 @@ production and a staging cluster. They can be limited to some connectors.
 - Definitions declared in the configuration file show the file's name and are read-only here.
   See [configuration](../configuration.md#definitions).
 
+## Save a panel's filters
+
+The easiest way to write checked filters is to build a panel first. In a thread, open a panel
+built with a query builder and choose **Save as definition**. Pick a definition, or start a new
+one with its id, name and meaning. The panel's filters become that definition's checked filters
+for the panel's query language; how the panel splits and groups the data stays with the panel.
+
 ## On dashboards
 
 - The plan says which definition each panel follows.

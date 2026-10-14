@@ -1,10 +1,18 @@
-import { type DashboardDetail, type DashboardSpec, type Panel, queryText } from '@quanthea/shared';
+import {
+  type DashboardDetail,
+  type DashboardSpec,
+  type DefinitionBody,
+  type DefinitionVersion,
+  type Panel,
+  queryText,
+} from '@quanthea/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { Tabs } from '../../ui/tabs.tsx';
 import { usePanelRunData, versionNote } from '../dashboard/index.ts';
 import styles from './inspector.module.css';
 import { shapeOf } from './messages.ts';
+import { SaveDefinition } from './save-definition.tsx';
 
 /** The inspector's tabs. */
 const tabs = [
@@ -29,6 +37,10 @@ interface InspectorProps {
   readonly onClose: () => void;
   /** Puts the panel's mention in the composer, so the next turn is about it. */
   readonly onAsk?: (() => void) | undefined;
+  /** The panel's filters as a definition's body, and the definitions, when they can be saved. */
+  readonly savable?:
+    | { readonly body: DefinitionBody; readonly definitions: readonly DefinitionVersion[] }
+    | undefined;
 }
 
 /**
@@ -138,6 +150,9 @@ export function Inspector(props: InspectorProps) {
         <span className={styles.subject}>
           {panel.title} · {connectors}
         </span>
+        {props.savable && (
+          <SaveDefinition body={props.savable.body} definitions={props.savable.definitions} />
+        )}
         {props.onAsk && (
           <Button size="small" onClick={props.onAsk}>
             Ask about this panel

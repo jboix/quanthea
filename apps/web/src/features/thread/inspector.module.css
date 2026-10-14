@@ -115,3 +115,39 @@
 .versionButton:hover {
   color: var(--color-accent);
 }
+
+.bodyWords {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 14px;
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+
+.bodyWords > div {
+  display: contents;
+}
+
+.bodyWords dt {
+  font-weight: 500;
+  color: var(--color-ink-label);
+}
+
+.bodyWords dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.dialogNote {
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}

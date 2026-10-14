@@ -1,4 +1,4 @@
-import type { Plan, ThreadState } from '@quanthea/shared';
+import type { DefinitionBody, Panel, Plan, ThreadState } from '@quanthea/shared';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
@@ -32,6 +32,8 @@ export interface DraftPaneProps {
   readonly onSelectPanel: (panelId: string | undefined) => void;
   /** Puts a panel's mention in the composer. */
   readonly onMentionPanel: (panelId: string) => void;
+  /** A built panel's filters as a definition's body, when it was built with a query builder. */
+  readonly bodyOf?: ((panel: Panel) => DefinitionBody | undefined) | undefined;
   /** Panels the latest message mentions. */
   readonly markedPanelIds: readonly string[];
   /** Shows a version, or the latest with `undefined`. */
@@ -305,6 +307,19 @@ function PaneBody(props: DraftPaneProps) {
 }
 
 /**
+ * A panel's filters and the definitions, when the person may save them as a definition.
+ *
+ * @param props - The pane's props.
+ * @param panel - The panel inspected.
+ * @returns What the inspector saves, or nothing.
+ */
+function savableOf(props: DraftPaneProps, panel: Panel) {
+  if (props.data.thread.readOnly) return undefined;
+  const body = props.bodyOf?.(panel);
+  return body ? { body, definitions: props.data.definitions } : undefined;
+}
+
+/**
  * The right pane of a thread: the draft the agent builds, live, with the inspector under it.
  *
  * @param props - The thread data, the plan, the selection and the callbacks.
@@ -329,6 +344,7 @@ export function DraftPane(props: DraftPaneProps) {
           onShowVersion={props.onShowVersion}
           onClose={() => props.onSelectPanel(undefined)}
           onAsk={data.thread.readOnly ? undefined : () => props.onMentionPanel(selected.id)}
+          savable={savableOf(props, selected)}
         />
       )}
     </section>

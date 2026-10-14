@@ -19,6 +19,7 @@ import { Conversation } from './conversation.tsx';
 import { DraftPane } from './draft-pane.tsx';
 import { LineageBanner, SeedBanner } from './lineage-banner.tsx';
 import type { ThreadMessage } from './messages.ts';
+import { bodyOfRequest, builderRequestOf } from './panel-body.ts';
 import { draftPanelsOf } from './plan-changes.ts';
 import { buildStopped } from './repairs.ts';
 import { RestrictedNotice } from './restricted-notice.tsx';
@@ -385,6 +386,10 @@ export function ThreadScreen() {
         selectedPanelId={selection.selectedPanelId}
         onSelectPanel={selection.setSelectedPanelId}
         onMentionPanel={state.mentionPanel}
+        bodyOf={(panel) => {
+          const request = builderRequestOf(chat.messages, panel);
+          return request ? bodyOfRequest(request) : undefined;
+        }}
         markedPanelIds={lastMentions(chat.messages)}
         onShowVersion={state.showVersion}
         onPin={(version) => void actions.pin(version)}

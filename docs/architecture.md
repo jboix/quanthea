@@ -1748,6 +1748,14 @@ directly onto an ECharts `dataset`.
   definitions with the thread. A panel's info bubble names the definition and version it copied
   (`features/dashboard/panel-definition.tsx`), reading `/definitions` when the bubble opens; when
   the definition changed since, it says the panel keeps its copy and how to take the new one.
+- **Saving a panel's filters as a definition.** The spec keeps only a panel's queries, so the
+  thread's inspector reads the builder request from the input of the last saved edit that wrote
+  the panel (by the panel it replaced, or the id its title makes; `features/thread/panel-body.ts`).
+  A panel built with a builder offers Save as definition: its fields but the connector and how it
+  presents the data (`by`, `over`, `limit`, `bucket`, `series`, `time`) become a body, a ratio
+  from a ratio builder, a segment from a builder of rows, a measure otherwise. It goes into a new
+  definition, or into an existing one in place of its body for that language, through
+  `POST /api/definitions`, which checks and test-runs it as any save.
 - **Which queries.** Admins switch builders off (`GET/PUT /api/settings/queries`). A thread uses
   the default set (the builders switched on and every saved query), a set chosen when it starts,
   or none (free style: raw queries only), stored on the thread (`POST /api/threads` with
