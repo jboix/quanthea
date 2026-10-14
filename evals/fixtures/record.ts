@@ -91,7 +91,7 @@ export async function record(name: string, setup: RunSetup, dir: string): Promis
   const trial = await runTrial(evalCase, setup, 1);
   if (trial.status !== 'pass')
     throw new Error(`${evalCase.id} did not pass (${trial.status}): nothing was recorded.`);
-  const path = join(dir, 'data', `${name}.json`);
+  const path = join(dir, `${name}.json`);
   writeFileSync(path, fileOf(trial, recording, evalCase.input.turns[0] ?? ''));
   return `Recorded ${path} from ${evalCase.id}. Read the diff before keeping it.`;
 }

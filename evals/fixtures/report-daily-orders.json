@@ -1,0 +1,193 @@
+{
+  "ask": "Every morning at 7:00, yesterday's orders: how many, revenue, and failed orders, compared with the day before.",
+  "said": "I set up a daily report at 07:00, Europe/Zurich, on postgres-orders. It covers the day before, compares it with the day before that, and shows the orders, the revenue of the paid orders and the failed orders. It goes to the Evals test channel.",
+  "plan": {
+    "kind": "report",
+    "title": "Daily Orders and Revenue Report",
+    "runs": "every day at 07:00, Europe/Zurich",
+    "covers": "the day before",
+    "compares": "the day before that",
+    "shows": "3 numbers (orders, revenue, failed orders) and the orders per hour",
+    "connectors": ["postgres-orders"],
+    "seeAlso": [],
+    "channels": [
+      {
+        "id": "evals-channel",
+        "name": "Evals test channel"
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": 1,
+    "title": "Daily Orders and Revenue Report",
+    "description": "Daily summary of order volume, revenue, and failures.",
+    "variables": [],
+    "panels": [
+      {
+        "id": "total-orders",
+        "title": "Total orders",
+        "grid": {
+          "x": 0,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "queries": [
+          {
+            "connector": "postgres-orders",
+            "language": "sql",
+            "sql": "SELECT count(*) AS value FROM orders WHERE created_at >= :__from AND created_at < :__to",
+            "refId": "A"
+          }
+        ],
+        "view": {
+          "kind": "stat",
+          "ref": "A",
+          "field": "value",
+          "reduce": "last",
+          "format": {
+            "$fmt": "number",
+            "compact": true
+          }
+        }
+      },
+      {
+        "id": "total-revenue",
+        "title": "Total revenue",
+        "grid": {
+          "x": 4,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "queries": [
+          {
+            "connector": "postgres-orders",
+            "language": "sql",
+            "sql": "SELECT sum(total_cents) / 100.0 AS value FROM orders WHERE status = 'paid' AND created_at >= :__from AND created_at < :__to",
+            "refId": "A"
+          }
+        ],
+        "view": {
+          "kind": "stat",
+          "ref": "A",
+          "field": "value",
+          "reduce": "last",
+          "format": {
+            "$fmt": "currency",
+            "code": "EUR"
+          }
+        }
+      },
+      {
+        "id": "failed-orders",
+        "title": "Failed orders",
+        "grid": {
+          "x": 8,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "queries": [
+          {
+            "connector": "postgres-orders",
+            "language": "sql",
+            "sql": "SELECT count(*) AS value FROM orders WHERE status = 'failed' AND created_at >= :__from AND created_at < :__to",
+            "refId": "A"
+          }
+        ],
+        "view": {
+          "kind": "stat",
+          "ref": "A",
+          "field": "value",
+          "reduce": "last",
+          "format": {
+            "$fmt": "number",
+            "compact": true
+          }
+        }
+      },
+      {
+        "id": "orders-hourly-trend",
+        "title": "Orders hourly trend",
+        "grid": {
+          "x": 0,
+          "y": 3,
+          "w": 12,
+          "h": 8
+        },
+        "queries": [
+          {
+            "connector": "postgres-orders",
+            "language": "sql",
+            "sql": "SELECT date_trunc('hour', created_at) AS time, count(*) AS value FROM orders WHERE created_at >= :__from AND created_at < :__to GROUP BY 1 ORDER BY 1",
+            "refId": "A"
+          }
+        ],
+        "view": {
+          "kind": "chart",
+          "recipe": {
+            "id": "trend.line",
+            "variants": []
+          },
+          "prepare": "cartesian",
+          "roles": {
+            "y": "value",
+            "x": "time"
+          },
+          "option": {
+            "xAxis": {
+              "type": "time"
+            },
+            "yAxis": {
+              "type": "value",
+              "axisLabel": {
+                "formatter": {
+                  "$fmt": "number",
+                  "compact": true
+                }
+              }
+            },
+            "series": [
+              {
+                "type": "line",
+                "showSymbol": false,
+                "encode": {
+                  "x": "@x",
+                  "y": "@y"
+                }
+              }
+            ],
+            "tooltip": {
+              "trigger": "axis",
+              "valueFormatter": {
+                "$fmt": "number",
+                "compact": true
+              }
+            },
+            "legend": {}
+          },
+          "datasets": [
+            {
+              "ref": "A"
+            }
+          ]
+        }
+      }
+    ],
+    "annotations": [],
+    "schedule": {
+      "every": "day",
+      "at": "07:00",
+      "timezone": "Europe/Zurich"
+    },
+    "period": "previous_day",
+    "compare": "previous_period",
+    "seeAlso": [],
+    "delivery": {
+      "channels": ["evals-channel"],
+      "title": "Daily Orders and Revenue Report"
+    },
+    "summaryPanels": ["total-orders", "total-revenue", "failed-orders"]
+  }
+}

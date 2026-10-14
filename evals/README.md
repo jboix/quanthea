@@ -162,7 +162,7 @@ from the fixture of a thread that wrote the alert, not from `al1`.
 
 - A fixture is stored through the app's own services and checked by its schemas, so one an app
   change made stale fails when it loads.
-- The two recorded threads are files in `fixtures/data/`. Edit them by hand: a fixture should be
+- The two recorded threads are files in `fixtures/`. Edit them by hand: a fixture should be
   the right answer, not one sample of it.
 - `bun run evals --record alert-checkout-share` runs the case a recording stands for and, when it
   passes, rewrites the file. Read the diff before keeping it.

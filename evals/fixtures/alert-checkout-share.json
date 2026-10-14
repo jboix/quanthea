@@ -1,0 +1,55 @@
+{
+  "ask": "Tell me when checkout's 5xx share stays above 2% for 5 minutes.",
+  "said": "I set up an alert on prometheus-dev that watches the 5xx share of checkout-svc and fires when it stays above 2% for 5 minutes. It notifies the Evals test channel.",
+  "plan": {
+    "kind": "alert",
+    "title": "Checkout 5xx share above 2%",
+    "watch": "the 5xx share of the requests of checkout-svc",
+    "connector": "prometheus-dev",
+    "condition": "above 2% for 5 minutes",
+    "every": "every minute",
+    "channels": [
+      {
+        "id": "evals-channel",
+        "name": "Evals test channel"
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": 1,
+    "title": "Checkout 5xx share above 2%",
+    "query": {
+      "connector": "prometheus-dev",
+      "language": "promql",
+      "expr": "sum(rate(http_requests_total{service=\"checkout-svc\",code=~\"5..\"}[5m])) / sum(rate(http_requests_total{service=\"checkout-svc\"}[5m]))",
+      "refId": "A"
+    },
+    "value": {
+      "reduce": "last",
+      "maxSeries": 100,
+      "format": {
+        "$fmt": "percent",
+        "decimals": 1
+      }
+    },
+    "variables": [],
+    "condition": {
+      "kind": "threshold",
+      "op": "above",
+      "value": 0.02,
+      "for": "5m"
+    },
+    "every": "1m",
+    "lookback": "10m",
+    "severity": "warning",
+    "channels": ["evals-channel"],
+    "notify": {
+      "onResolved": true
+    },
+    "message": {
+      "title": "{alert}: {series} at {value}",
+      "body": "Above {threshold} for {duration}, since {since}. {link}",
+      "fields": []
+    }
+  }
+}

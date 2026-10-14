@@ -14,8 +14,8 @@ import {
 } from '@quanthea/shared';
 import { zurich } from '../world/incident.ts';
 import { type EvalWorld, evalsActor } from '../world/setup.ts';
-import alertCheckoutShare from './data/alert-checkout-share.json' with { type: 'json' };
-import reportDailyOrders from './data/report-daily-orders.json' with { type: 'json' };
+import alertCheckoutShare from './alert-checkout-share.json' with { type: 'json' };
+import reportDailyOrders from './report-daily-orders.json' with { type: 'json' };
 
 /** The name a recording writes for the world's one notification channel. */
 export const channelAlias = 'evals-channel';
