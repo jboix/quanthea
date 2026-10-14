@@ -125,7 +125,38 @@ function repairCovers(output: WriteOutput): boolean {
 }
 
 /**
- * One write of a version: "Built · 6 of 6 queries test-run", or why it was refused.
+ * The lines of a write: one per panel it test-ran, and the reason it saved nothing, if any.
+ *
+ * @param props - The write tool part and what it returned.
+ * @param props.part - The part.
+ * @param props.output - What it returned, empty while it runs.
+ * @returns The list, or nothing while it has no line, such as while the write runs.
+ */
+function BuildLines({ part, output }: { readonly part: ToolPart; readonly output: WriteOutput }) {
+  const panels = output.panels ?? [];
+  const refusal = output.ok === false ? output.error : undefined;
+  const thrown = part.state === 'output-error' ? toolErrorText(part.errorText) : undefined;
+  if (panels.length === 0 && !refusal && !thrown) return null;
+  return (
+    <ul className={styles.logLines}>
+      {panels.map((panel) => {
+        const line = panelLine(panel);
+        return (
+          <li key={panel.panelId} data-failed={line.failed}>
+            <span className={styles.logMark}>{line.failed ? '✗' : '✓'}</span>
+            {line.text}
+          </li>
+        );
+      })}
+      {refusal && <li data-failed="true">{refusal}</li>}
+      {thrown && <li data-failed="true">{thrown}</li>}
+    </ul>
+  );
+}
+
+/**
+ * One write of a version: "Built · 6 of 6 queries test-run", or why it was refused. While it
+ * runs, only its moving heading shows.
  *
  * @param props - The write tool part.
  * @param props.part - The part.
@@ -133,32 +164,18 @@ function repairCovers(output: WriteOutput): boolean {
  */
 export function BuildLog({ part }: { readonly part: ToolPart }) {
   const output = (part.output ?? {}) as WriteOutput;
-  const panels = output.panels ?? [];
-  const queries = panels.flatMap((panel) => panel.queries);
+  const queries = (output.panels ?? []).flatMap((panel) => panel.queries);
   const passed = queries.filter((query) => query.ok).length;
   const running = part.state !== 'output-available' && part.state !== 'output-error';
   if (!running && repairCovers(output)) return null;
   const title = buildTitle(part, output, running, `${passed} of ${queries.length}`);
   return (
-    <section className={styles.log} aria-label="Built">
-      <h4 className={styles.logTitle} data-failed={!running && !output.ok}>
+    <section className={styles.log} aria-label="Built" aria-busy={running}>
+      <h4 className={styles.logTitle} data-failed={!running && !output.ok} data-running={running}>
+        {running && <span className={styles.logPulse} aria-hidden="true" />}
         {title}
       </h4>
-      <ul className={styles.logLines}>
-        {panels.map((panel) => {
-          const line = panelLine(panel);
-          return (
-            <li key={panel.panelId} data-failed={line.failed}>
-              <span className={styles.logMark}>{line.failed ? '✗' : '✓'}</span>
-              {line.text}
-            </li>
-          );
-        })}
-        {output.ok === false && output.error && <li data-failed="true">{output.error}</li>}
-        {part.state === 'output-error' && (
-          <li data-failed="true">{toolErrorText(part.errorText)}</li>
-        )}
-      </ul>
+      <BuildLines part={part} output={output} />
     </section>
   );
 }

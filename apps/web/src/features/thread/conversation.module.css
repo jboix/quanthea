@@ -83,6 +83,34 @@
   color: var(--color-draft);
 }
 
+.logTitle[data-running="true"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-ink-secondary);
+}
+
+.logPulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: log-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes log-pulse {
+  50% {
+    opacity: 0.25;
+    transform: scale(0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logPulse {
+    animation: none;
+  }
+}
+
 .logLines {
   display: flex;
   flex-direction: column;
