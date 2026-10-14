@@ -67,14 +67,14 @@ const lastWeek = {
 const unusual = { kind: 'band', side: 'either', deviations: 3, baseline: '1d', for: '5m' };
 
 /**
- * Markup without its tags. It strips until nothing changes, so what is left holds no tag.
+ * The text between the tags of markup rendered by React, which escapes every `<` in a text. The
+ * result is read by the test only, never put back into a page.
  *
  * @param html - The markup.
  * @returns The text.
  */
 function withoutTags(html: string): string {
-  const stripped = html.replace(/<[^>]*>/g, '');
-  return stripped === html ? html : withoutTags(stripped);
+  return html.split(/<[^>]*>/).join('');
 }
 
 /**
