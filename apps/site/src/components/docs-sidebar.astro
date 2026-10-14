@@ -23,18 +23,34 @@ const { current, path, slugs, versions } = Astro.props;
 
 <nav class="docs-sidebar" aria-label="Docs">
   <div class="version"><DocsVersions {...versions} /></div>
-  <DocsNavList current={current} path={path} slugs={slugs} />
+  <div class="list"><DocsNavList current={current} path={path} slugs={slugs} /></div>
 </nav>
 
 <style>
   .version {
+    flex: none;
     margin-bottom: 20px;
   }
 
+  /* The sidebar keeps the window's height, and its list scrolls on its own, apart from the page:
+     the last docs show without scrolling the page down first. The version menu stays on top. */
   .docs-sidebar {
     position: sticky;
     top: 88px;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 112px);
+    padding-right: 16px;
+    border-right: 1px solid var(--color-border);
     font-size: 14px;
+  }
+
+  .list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 16px;
   }
 
   @media (max-width: 860px) {

@@ -127,8 +127,10 @@ const { current, path, slugs, versions } = Astro.props;
     background: color-mix(in srgb, var(--color-ink) 35%, transparent);
   }
 
+  /* Above the version menu, whose open list is positioned, so the menu scrolls under it. */
   .drawer-head {
     position: sticky;
+    z-index: 10;
     top: 0;
     display: flex;
     align-items: center;
