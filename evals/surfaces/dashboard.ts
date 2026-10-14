@@ -58,6 +58,7 @@ export function panelsOf(
     grid: panel.grid,
     queries: panel.queries,
     view: panel.view,
+    ...(panel.definition ? { definition: panel.definition.id } : {}),
     ...operationsField(panel),
     ...askedFields(panel, asked),
   }));

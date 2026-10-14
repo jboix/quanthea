@@ -5,6 +5,7 @@
  * rubric says what it must show. Add one only when a failure surprises you.
  */
 import {
+  copiesDefinition,
   type DashboardCheck,
   dashboardHas,
   hasMarkers,
@@ -17,7 +18,7 @@ import {
   variablesLabelled,
 } from '../checks/dashboard.ts';
 import type { CaseOn } from '../core/case.ts';
-import { baseWorld } from '../fixtures/fixtures.ts';
+import { baseWorld, definitionsWorld } from '../fixtures/fixtures.ts';
 import { incidentHour, zurich } from '../world/incident.ts';
 
 const prometheus = 'prometheus-dev';
@@ -186,4 +187,33 @@ export const dashboardCases: readonly CaseOn<'dashboard'>[] = [
       'The dashboard has a variable that picks the rate window.',
     ],
   ),
+  {
+    ...question(
+      'q15',
+      'Show the failure rate per hour over the last 7 days.',
+      [panelCount(1, 4), maxRepairs(1), queries(postgres), copiesDefinition('failure-rate')],
+      ['A panel shows the failure rate over time, leaving out the marketplace channel.'],
+    ),
+    given: definitionsWorld,
+  },
+  {
+    ...question(
+      'q16',
+      'How many big orders did we get per day over the last 30 days?',
+      // Big orders have a meaning and no checked filters: the query follows the meaning.
+      [panelCount(1, 4), maxRepairs(1), queries(postgres), topic(/50000|50 000|500/, 'result')],
+      ['A panel counts the orders of 500 CHF or more per day, whatever their status.'],
+    ),
+    given: definitionsWorld,
+  },
+  {
+    ...question(
+      'q17',
+      'What is our failed share by channel this week?',
+      // A synonym names the definition as well as its name does.
+      [panelCount(1, 4), maxRepairs(1), queries(postgres), copiesDefinition('failure-rate')],
+      ['A panel shows the failure rate by channel, as the definition says.'],
+    ),
+    given: definitionsWorld,
+  },
 ];

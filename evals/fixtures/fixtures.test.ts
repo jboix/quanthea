@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { alertSpecSchema, reportSpecSchema } from '@quanthea/shared';
 import { allCases } from '../cases/index.ts';
-import { checkoutShareAlert, dailyOrdersReport } from './fixtures.ts';
+import { checkoutShareAlert, dailyOrdersReport, definitionsWorld } from './fixtures.ts';
 import { channelAlias, recordings } from './saved-thread.ts';
 import { closeWorlds, world } from './test-world.ts';
 
@@ -61,4 +61,14 @@ describe('the fixtures, built by the app’s services with no model', () => {
     expect(first.services.threads.list()).toHaveLength(1);
     expect(second.services.threads.list()).toHaveLength(0);
   });
+});
+
+test('the shop definitions are saved as the file would declare them, each a valid request', async () => {
+  const made = await world();
+  await definitionsWorld.prepare(made);
+  const saved = made.services.definitions.list();
+  expect(saved.map((each) => [each.definition.id, each.origin])).toEqual([
+    ['big-orders', 'file'],
+    ['failure-rate', 'file'],
+  ]);
 });

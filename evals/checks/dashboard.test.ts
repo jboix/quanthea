@@ -4,6 +4,7 @@ import { scored } from '../core/test/scoring.ts';
 import {
   type BuiltPanel,
   built,
+  copiesDefinition,
   type DashboardCheck,
   everyPanelRuns,
   hasMarkers,
@@ -346,5 +347,18 @@ describe('variable labels', () => {
       'the variable interval has no label',
     ]);
     expect(labelled.faults(outcome, noTruth)).toEqual([]);
+  });
+});
+
+describe('a definition copied into a panel', () => {
+  test('passes when a panel was built from it, and says so when none was', () => {
+    const copied = {
+      ...outcome,
+      panels: [{ ...(outcome.panels[0] as BuiltPanel), definition: 'failure-rate' }],
+    };
+    expect(copiesDefinition('failure-rate').faults(copied, noTruth)).toEqual([]);
+    expect(copiesDefinition('failure-rate').faults(outcome, noTruth)).toEqual([
+      'no panel was built from the definition failure-rate',
+    ]);
   });
 });

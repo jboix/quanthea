@@ -39,6 +39,44 @@ export const httpWorld: Fixture = worldWith('search', 'http');
 /** The world with the player events and a pinned dashboard about one media to link to. */
 export const pinnedTargetWorld: Fixture = worldWith('search', 'pinned-target');
 
+/** The shop's own definitions: a checked failure rate, and big orders by their meaning only. */
+const shopDefinitions = [
+  {
+    id: 'failure-rate',
+    name: 'Failure rate',
+    synonyms: ['failed share'],
+    meaning:
+      "Failed orders over all orders, leaving out the marketplace channel, whose failures are the marketplace's.",
+    bodies: [
+      {
+        shape: 'ratio',
+        request: {
+          kind: 'sql-ratio',
+          table: 'orders',
+          time: 'created_at',
+          match: [{ field: 'status', value: 'failed' }],
+          filters: [{ field: 'channel', op: '!=', value: 'marketplace' }],
+        },
+      },
+    ],
+  },
+  {
+    id: 'big-orders',
+    name: 'Big orders',
+    meaning: 'Orders of 500 CHF or more: total_cents of at least 50000, whatever their status.',
+  },
+];
+
+/** The world with the shop's definitions saved, as the configuration file would declare them. */
+export const definitionsWorld: Fixture = {
+  id: 'definitions:shop',
+  prepare: async (world) => {
+    for (const definition of shopDefinitions)
+      await world.services.definitions.save(definition, null, evalsActor, 'file');
+    return {};
+  },
+};
+
 /**
  * Creates and pins the checkout incident dashboard of the dev seed.
  *

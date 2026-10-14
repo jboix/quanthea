@@ -21,6 +21,8 @@ export interface BuiltPanel extends BuiltShape {
   readonly kind?: string;
   /** Its place on the grid; absent in reports written before it was kept. */
   readonly grid?: PanelGrid;
+  /** The definition its data was copied from, by id, when it was. */
+  readonly definition?: string;
 }
 
 /** What happened when the agent answered a question. */
@@ -315,4 +317,19 @@ export function variablesLabelled(): DashboardCheck {
       .map((variable: { name?: unknown }) => `the variable ${String(variable.name)} has no label`);
   };
   return { id: 'variables-labelled', kind: 'feature', faults };
+}
+
+/**
+ * A panel's data was copied from a definition, so it holds that definition's checked filters
+ * exactly and records the definition.
+ *
+ * @param id - The definition's id.
+ * @returns The check.
+ */
+export function copiesDefinition(id: string): DashboardCheck {
+  const faults = (outcome: Outcome) =>
+    outcome.panels.some((panel) => panel.definition === id)
+      ? []
+      : [`no panel was built from the definition ${id}`];
+  return { id: `copies-definition:${id}`, kind: 'feature', faults };
 }

@@ -51,7 +51,7 @@ good the agent is, and moves by itself from run to run.
 
 | Surface       | What the case acts on                           | Cases                         |
 | ------------- | ----------------------------------------------- | ----------------------------- |
-| `dashboard`   | A thread that builds a dashboard                | `q1` to `q14`, `f01` to `f33` |
+| `dashboard`   | A thread that builds a dashboard                | `q1` to `q17`, `f01` to `f33` |
 | `answer`      | A question on the Ask tab of a pinned dashboard | `a1`, `a2`, `a4`, `a5`        |
 | `explanation` | A panel's explanation                           | `a3`                          |
 | `alert`       | A thread that writes an alert                   | `al1` to `al9`                |
