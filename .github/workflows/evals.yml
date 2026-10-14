@@ -32,6 +32,10 @@ on:
         type: boolean
         default: false
         required: false
+      trials:
+        description: How many times each question runs (1 for once); more needs only
+        default: '1'
+        required: true
       judge:
         description: The provider whose small model reads the rubrics, for both jobs (none for no judge)
         type: choice
@@ -96,6 +100,7 @@ jobs:
           # One judge reads the rubrics of both jobs, on the key of the provider picked for it.
           JUDGE_API_KEY: ${{ inputs.judge == 'google' && secrets.GEMINI_API_KEY || inputs.judge == 'anthropic' && secrets.ANTHROPIC_API_KEY || '' }}
           JUDGE: ${{ inputs.judge }}
+          TRIALS: ${{ inputs.trials }}
           PROVIDER: ${{ matrix.provider }}
           ONLY: ${{ inputs.only }}
           SEARCH: ${{ inputs.search }}
@@ -103,6 +108,7 @@ jobs:
           set -- --provider "$PROVIDER"
           if [ -n "$ONLY" ]; then set -- "$@" --only "$ONLY"; fi
           if [ "$SEARCH" = "true" ]; then set -- "$@" --search; fi
+          if [ "$TRIALS" != "1" ]; then set -- "$@" --trials "$TRIALS"; fi
           if [ "$JUDGE" = "none" ]; then set -- "$@" --no-judge; else set -- "$@" --judge-provider "$JUDGE"; fi
           bun run evals "$@"
 
