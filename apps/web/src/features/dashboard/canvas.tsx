@@ -8,6 +8,7 @@ import { useSearchParams } from 'react-router';
 import { dashboardAlertsPath, useDashboardAlerts } from './alerts-data.ts';
 import type { PanelMark } from './ask-marks.ts';
 import type { Loaded } from './data.ts';
+import { LoadProgress } from './load-progress.tsx';
 import { hiddenMarkersOf, runSearchOf } from './marker-sets.ts';
 import type { PanelAlertView } from './panel-alert-view.tsx';
 import { linkedAlertsOf, panelAlertsOf, type Selection, selectionOf } from './panel-alerts.ts';
@@ -212,7 +213,12 @@ export function DashboardCanvas(props: DashboardCanvasProps) {
   const { runs, report } = useRuns(`${dashboardId}@${version}?${target.search}#${refresh}`);
   const alerts = useAlertsShown(props, choices);
   const onRefresh = () => setRefresh((count) => count + 1);
-  const actions = props.refreshable && <RunStatus spec={spec} runs={runs} onRefresh={onRefresh} />;
+  const actions = (
+    <>
+      <LoadProgress done={Object.keys(runs).length} total={spec.panels.length} />
+      {props.refreshable && <RunStatus spec={spec} runs={runs} onRefresh={onRefresh} />}
+    </>
+  );
   const shown = { search, hiddenMarkers, target, onSearch: setSearch, actions };
   return (
     <>

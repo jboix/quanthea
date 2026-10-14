@@ -6,6 +6,7 @@
 }
 
 .panel {
+  position: relative;
   grid-column: var(--column);
   grid-row: var(--row);
   display: flex;
@@ -95,6 +96,11 @@
   flex-grow: 1;
   min-height: 0;
   transition: opacity 0.15s;
+}
+
+.progress {
+  position: absolute;
+  inset: 0 12px auto;
 }
 
 .view[data-loading="true"] {

@@ -4069,6 +4069,9 @@ one, and enables them again. Without any admin, it creates the default one.
 - Each panel loads its run through a fetcher from a resource route
   (`/d/:id/v/:version/panels/:panelId`), so panels load, fail and refresh on their own. A
   query-backed variable loads its options the same way when its menu opens.
+- While a panel runs, a moving line crosses its top edge and its last view fades. While any panel
+  runs, the variables row says how many have loaded ("4 of 12 panels loaded") over a line that
+  fills (`ui/progress-line.tsx`).
 - A Refresh button ends the variables row and runs every panel again. Its tooltip says how many
   saved queries ran, against which connectors, how long they took, and that no model was called.
   It turns while panels run and warns when a query failed.

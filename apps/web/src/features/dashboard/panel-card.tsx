@@ -8,6 +8,7 @@ import {
 } from '@quanthea/shared';
 import { type CSSProperties, useEffect, useMemo } from 'react';
 import { useFetcher } from 'react-router';
+import { ProgressLine } from '../../ui/progress-line.tsx';
 import type { PanelMark } from './ask-marks.ts';
 import type { Loaded } from './data.ts';
 import { PanelAlertPill, type PanelAlertView } from './panel-alert-view.tsx';
@@ -308,6 +309,11 @@ export function PanelFrame(props: PanelFrameProps) {
       aria-busy={loading}
       style={gridPlace(panel)}
     >
+      {loading && (
+        <span className={styles.progress}>
+          <ProgressLine />
+        </span>
+      )}
       <PanelHeading {...props} />
       {planMark && <PlanNote mark={planMark} />}
       <PanelBody {...props} />
