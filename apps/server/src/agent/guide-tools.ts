@@ -5,10 +5,16 @@
  */
 import { tool } from 'ai';
 import { z } from 'zod';
-import { markersGuide } from './prompt-text.ts';
+import { markersGuide, settingsGuide } from './prompt-text.ts';
 
 /** The guide to markers, under the name the instructions give it. */
 export const markersTopic = { kind: 'markers', text: markersGuide };
+
+/**
+ * The guide to a dashboard's settings: variables, one colour per value and markers. Reading it
+ * offers edit_settings from the next step on.
+ */
+export const settingsTopic = { kind: 'settings', text: settingsGuide };
 
 /** A connector kind's query guide. */
 interface Guide {
@@ -44,15 +50,20 @@ function kindsOf(guides: readonly Guide[]): string {
 /**
  * Creates the guide tool.
  *
- * @param guides - The query guides of the connector kinds in use.
+ * @param guides - The query guides of the connector kinds in use, and the topics.
+ * @param onRead - Called with each kind whose guide was read.
  * @returns The tools.
  */
-export function guideTools(guides: readonly Guide[]) {
+export function guideTools(guides: readonly Guide[], onRead?: (kind: string) => void) {
   return {
     read_guide: tool({
       description: `Read the query guide of a connector kind: how to get each shape of data from it, with examples, and its raw query syntax. Read it before the kind's first raw query or test_query. Kinds: ${kindsOf(guides)}.`,
       inputSchema: z.strictObject({ kind: z.string().max(40) }),
-      execute: ({ kind }) => readGuide(guides, kind),
+      execute: ({ kind }) => {
+        const read = readGuide(guides, kind);
+        if ('guide' in read) onRead?.(kind);
+        return read;
+      },
     }),
   };
 }

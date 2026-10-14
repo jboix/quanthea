@@ -17,6 +17,7 @@ const keptWhole = 2;
 /** The tools whose input is a whole draft. */
 const writeTools: ReadonlySet<string> = new Set([
   'edit_dashboard',
+  'edit_settings',
   'write_dashboard',
   'patch_panel',
   'edit_alert',

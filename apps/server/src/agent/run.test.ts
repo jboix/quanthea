@@ -455,17 +455,24 @@ describe('an agent run', () => {
       language: 'sql',
       query: 'SELECT * FROM missing',
     };
-    const marked = { ...buildEdit, markers: [{ id: 'deploys', label: 'deploy', data }] };
+    const marked = {
+      title: 'Events',
+      markers: [{ id: 'deploys', label: 'deploy', data }],
+      summary: 'x',
+    };
     const stream = await chat(
       agentWith(
-        { tool: 'edit_dashboard', input: marked },
+        { tool: 'edit_dashboard', input: buildEdit },
+        { tool: 'read_guide', input: { kind: 'settings' } },
+        { tool: 'edit_settings', input: marked },
         { text: 'The deploys table is missing.' },
       ),
       userMessage('u1', 'Build it'),
     );
     expect(stream).toContain('The markers do not work.');
     expect(stream).toContain('markers[0]: the query fails: Unknown query.');
-    expect(services.threads.get(threadId).dashboardId).toBeNull();
+    const { dashboardId } = services.threads.get(threadId);
+    expect(dashboardId && services.dashboards.get(dashboardId, 'editor').versions).toHaveLength(1);
   });
 
   test('hands back markers filtered by a variable the dashboard lacks, at the set', async () => {
@@ -473,11 +480,16 @@ describe('an agent run', () => {
     const filters = [{ field: 'service', value: '$service' }];
     const deploys = { connector: 'events', table: 'events', time: 'time', text: 'service' };
     const marked = {
-      ...buildEdit,
+      title: 'Events',
       markers: [{ id: 'deploys', label: 'deploy', ...deploys, filters }],
+      summary: 'deploys',
     };
     const stream = await chat(
-      agentWith({ tool: 'edit_dashboard', input: marked }, { text: 'I will declare it.' }),
+      agentWith(
+        { tool: 'read_guide', input: { kind: 'settings' } },
+        { tool: 'edit_settings', input: marked },
+        { text: 'I will declare it.' },
+      ),
       userMessage('u1', 'Build it'),
     );
     expect(stream).toContain('The dashboard is invalid.');
@@ -485,6 +497,29 @@ describe('an agent run', () => {
       '"path":"markers[0]","message":"Unknown variables: :service. The dashboard has no variables',
     );
     expect(services.threads.get(threadId).dashboardId).toBeNull();
+  });
+
+  test('offers edit_settings only once the settings guide is read', async () => {
+    services.threads.proposePlan(threadId, plan, true);
+    const variables = [{ kind: 'text', name: 'service', label: 'Service', default: 'api' }];
+    const settings = { title: 'Events', variables, summary: 'a service to pick' };
+    const tried = await chat(
+      agentWith({ tool: 'edit_settings', input: settings }, { text: 'I need the guide.' }),
+      userMessage('u1', 'Build it'),
+    );
+    expect(tried).toContain("unavailable tool 'edit_settings'");
+    expect(services.threads.get(threadId).dashboardId).toBeNull();
+    await chat(
+      agentWith(
+        { tool: 'read_guide', input: { kind: 'settings' } },
+        { tool: 'edit_settings', input: settings },
+        { text: 'Set.' },
+      ),
+      userMessage('u2', 'Build it'),
+    );
+    const { dashboardId } = services.threads.get(threadId);
+    const spec = dashboardId && services.dashboards.getVersion(dashboardId, 1, 'editor').spec;
+    expect(spec).toMatchObject({ variables, panels: [] });
   });
 
   test('does not offer edit_dashboard before a plan is approved', async () => {

@@ -16,6 +16,7 @@ const dataToolParts = new Set([
   'tool-sample_values',
   'tool-test_query',
   'tool-edit_dashboard',
+  'tool-edit_settings',
   'tool-edit_alert',
   'tool-replay_alert',
 ]);

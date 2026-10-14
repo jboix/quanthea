@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { type BuilderLanguage, builderLanguages, queryBuilders } from '@quanthea/shared';
-import { editRequestSchemaFor } from '../dashboards/panels/index.ts';
+import { panelEditSchemaFor, settingsRequestSchema } from '../dashboards/panels/index.ts';
 import { providerSchema } from './tool-schema.ts';
 
 /**
@@ -9,36 +9,31 @@ import { providerSchema } from './tool-schema.ts';
  * forced call of the tool at about 19,000 characters as sent and refused it at about 26,000, so
  * each ceiling sits a few hundred characters above its measure: a change that passes one is a
  * decision, not a detail. Raise a ceiling only with a number the maintainer has checked against
- * the providers.
+ * the providers. Variables, colours and markers moved to edit_settings on 14 October 2026, which
+ * took 3,600 to 4,300 characters off every call.
  */
 const ceilings: Record<BuilderLanguage, number> = {
-  promql: 9_300,
-  sql: 9_900,
-  search: 11_200,
-  logql: 11_300,
-  mongodb: 11_000,
+  promql: 5_900,
+  sql: 6_700,
+  search: 7_900,
+  logql: 7_900,
+  mongodb: 7_600,
 };
 
 /** The ceiling of a run on a metrics source and a SQL source, the usual pair. */
-const pairCeiling = 12_900;
-
-/** The ceiling of a run on three query languages: what Gemini is known to accept. */
-const threeCeiling = 19_000;
+const pairCeiling = 9_300;
 
 /**
- * The runs on three languages that send more than Gemini is known to accept, each with a ceiling
- * a little above its measure, so it grows no further. No provider was called at these sizes: what
- * such a run sends is not settled. Take a run off the list when it comes under the ceiling of
- * three. The colours a dashboard gives its values added four runs, by the maintainer's choice of
- * 14 October 2026: the schema is to be made smaller as a whole, later.
+ * The ceiling of a run on three query languages: a few hundred above the largest measure, well
+ * under the 19,000 Gemini is known to accept.
  */
-const overThreeCeiling: Readonly<Record<string, number>> = {
-  'promql+search+logql': 19_200,
-  'sql+search+logql': 19_800,
-  'sql+search+mongodb': 19_500,
-  'sql+logql+mongodb': 19_500,
-  'search+logql+mongodb': 20_900,
-};
+const threeCeiling = 16_800;
+
+/**
+ * The ceiling of edit_settings, whatever the languages: a step offers it only once the agent read
+ * the settings guide.
+ */
+const settingsCeiling = 4_600;
 
 /** Every run on three of the query languages that have builders. */
 const triples = builderLanguages.flatMap((first, at) =>
@@ -60,7 +55,7 @@ async function sentFor(languages: readonly BuilderLanguage[]): Promise<string> {
   const builtIn = queryBuilders
     .filter((builder) => languages.includes(builder.language))
     .map((builder) => builder.id);
-  const schema = providerSchema(editRequestSchemaFor({ builtIn, saved: [] }), languages);
+  const schema = providerSchema(panelEditSchemaFor({ builtIn, saved: [] }), languages);
   return JSON.stringify(await schema.jsonSchema);
 }
 
@@ -93,21 +88,21 @@ describe('the size of the edit schema as providers receive it', () => {
   test('covers every run on three languages', () => {
     expect(triples).toHaveLength(10);
     expect(triples.map((triple) => triple.join('+'))).toContain('promql+sql+search');
-    for (const name of Object.keys(overThreeCeiling)) {
-      expect(triples.map((triple) => triple.join('+'))).toContain(name);
-    }
   });
 
   for (const triple of triples) {
-    const name = triple.join('+');
-    const known = overThreeCeiling[name];
-    test(`for ${name} stays under ${known ?? threeCeiling}`, async () => {
-      await expectUnder(triple, known ?? threeCeiling);
-      // A run listed as over the ceiling of three leaves the list once it is under it.
-      const size = (await sentFor(triple)).length;
-      expect(known === undefined || size > threeCeiling, `${name} is ${size}`).toBe(true);
+    test(`for ${triple.join('+')} stays under ${threeCeiling}`, async () => {
+      await expectUnder(triple, threeCeiling);
     });
   }
+
+  test('leaves the settings to edit_settings, whose schema stays under its own ceiling', async () => {
+    expect(await sentFor(['sql'])).not.toContain('removeMarkers');
+    for (const triple of triples) {
+      const size = JSON.stringify(await providerSchema(settingsRequestSchema, triple).jsonSchema);
+      expect(size.length <= settingsCeiling, `${triple.join('+')} is ${size.length}`).toBe(true);
+    }
+  });
 
   test('offers at least one builder in every language measured', () => {
     for (const language of builderLanguages) {

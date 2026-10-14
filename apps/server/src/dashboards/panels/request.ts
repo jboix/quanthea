@@ -165,6 +165,36 @@ export function editRequestSchemaFor(
   );
 }
 
+/** The edit's dashboard-wide settings, which edit_settings writes and edit_dashboard does not. */
+const settingsFields = {
+  variables: true,
+  colors: true,
+  markers: true,
+  removeMarkers: true,
+} as const;
+
+/**
+ * The schema the agent's edit_dashboard takes: the edit without the dashboard-wide settings.
+ * Most edits change panels only, so the settings' forms are left out of every call's schema.
+ *
+ * @param available - The builders and saved queries.
+ * @param recipes - The chart recipes; every one by default.
+ * @returns The schema.
+ */
+export function panelEditSchemaFor(available: AvailableQueries, recipes?: readonly string[]) {
+  return editRequestSchemaFor(available, recipes).omit(settingsFields);
+}
+
+/**
+ * Validates what edit_settings takes: variables, colours per value and sets of markers, and the
+ * title a new dashboard needs when its settings come before its panels.
+ */
+export const settingsRequestSchema = editSchemaWith(z.never()).pick({
+  ...settingsFields,
+  title: true,
+  summary: true,
+});
+
 /** Validates an edit with any builder and any chart recipe. */
 export const editRequestSchema = editSchemaWith(
   panelSchemaWith(dataSchema, chartSchemaWith([firstId, ...otherIds])),

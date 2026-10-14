@@ -1497,7 +1497,8 @@ shows depends on the connector's access level.
 | `test_query(connector, query, variables?, time?)`   | L1: ok or error. L2: fields, types, row counts. L3: plus summaries. L4: plus rows                                                          | Default range `now-6h` to `now`. Errors are safe messages below L4.                      |
 | `ask_person(question, options)`                     | `{ asked, next }`                                                                                                                          | 2 to 4 options, shown as buttons; the run then stops and the answer is the next message. |
 | `propose_plan(plan)`                                | `{ planId, status, next }`                                                                                                                 | Streams a `data-plan` part and moves the thread to `plan_pending`; the run then stops.   |
-| `edit_dashboard(edit)`                              | the new version, each panel's test result, the new panels left out, and the layout as a map with advice; or the issues and failures to fix | Panels of data and a chart; see "Writing a version".                                     |
+| `edit_dashboard(edit)`                              | the new version, each panel's test result, the new panels left out, and the layout as a map with advice; or the issues and failures to fix | Title, time range and panels of data and a chart; see "Writing a version".               |
+| `edit_settings(settings)`                           | the same as `edit_dashboard`                                                                                                               | Variables, colours per value and markers. Offered once `read_guide("settings")` is read. |
 | `chart_recipe(id)`                                  | a chart recipe's roles, variants, pitfalls and option template                                                                             | The instructions list every recipe in one line; this reads one in full.                  |
 | `read_guide(kind)`                                  | a connector kind's query guide: each shape of data from it, with examples, and its raw query syntax                                        | The instructions name the kinds in use; this reads one in full.                          |
 
@@ -1836,11 +1837,11 @@ for which service or table, and over which time. It never asks in words for appr
 card has the buttons. The thread's state sets the phase
 (`agent/phases.ts`), and each phase offers only its tools:
 
-| Phase    | Thread states          | Tools                                                                                     | Adds to the instructions                          |
-| -------- | ---------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`                                 | one question before the first plan, then the plan |
-| building | `building`             | `describe`, `sample_values`, `read_guide`, `test_query`, `chart_recipe`, `edit_dashboard` | the panel guide, the plan                         |
-| editing  | `ready`                | all of the above, `ask_person` and `propose_plan`                                         | the panel guide                                   |
+| Phase    | Thread states          | Tools                                                                                                      | Adds to the instructions                          |
+| -------- | ---------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`                                                  | one question before the first plan, then the plan |
+| building | `building`             | `describe`, `sample_values`, `read_guide`, `test_query`, `chart_recipe`, `edit_dashboard`, `edit_settings` | the panel guide, the plan                         |
+| editing  | `ready`                | all of the above, `ask_person` and `propose_plan`                                                          | the panel guide                                   |
 
 Planning never runs a query: the build test-runs every query anyway. The panel guide only comes
 once there is something to write, so planning requests stay short. It lists the thread's builders
@@ -1858,9 +1859,14 @@ a dashboard on two sources carries the builders of those two, however many are c
 panel on a connector the dashboard does not read yet goes through a new plan. A connector kind's
 query guide (how to get each shape of data from it, with examples) is not in the instructions: the
 agent reads it with `read_guide` before the kind's first raw query or test query, as it reads a
-chart recipe with `chart_recipe`. How a set of markers is written is read the same way,
-`read_guide("markers")`, before the agent sets any. The instructions stay about the same size
-however many kinds are in use. A test (`agent/panel-guide-size.test.ts`) holds the panel guide
+chart recipe with `chart_recipe`. The dashboard-wide settings (variables, one colour per value,
+markers) are read the same way, `read_guide("settings")`, and written with their own tool,
+`edit_settings`. A step offers `edit_settings` only once the agent read that guide in the run
+(`settingsStep` in `agent/turn.ts`, through the AI SDK's `activeTools`), so the many edits that
+change panels only carry neither the guide nor the forms of the settings: that took 3,600 to 4,300
+characters off every `edit_dashboard` call. Variables come before the panels that use them, and
+markers after the time charts that show them. The instructions stay about the same size however
+many kinds are in use. A test (`agent/panel-guide-size.test.ts`) holds the panel guide
 under a ceiling for a run on metrics and SQL, and for both with search: what a chart needs only
 sometimes goes into its recipe.
 

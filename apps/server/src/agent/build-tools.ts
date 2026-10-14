@@ -6,8 +6,9 @@ import { type DashboardSpec, dashboardSpecSchema, type Plan, planSchema } from '
 import { tool } from 'ai';
 import {
   type EditRequest,
-  editRequestSchemaFor,
   layoutReport,
+  panelEditSchemaFor,
+  settingsRequestSchema,
 } from '../dashboards/panels/index.ts';
 import { languagesInUse } from './in-use-facts.ts';
 import { buildPanels } from './panel-build.ts';
@@ -113,8 +114,8 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
 }
 
 /**
- * The tool that changes the dashboard: its settings, panels of data and charts, and its sets of
- * markers.
+ * The tool that changes the dashboard: its title, time range and panels of data and charts. Its
+ * variables, colours and markers are edit_settings's, so their forms stay out of this schema.
  *
  * @param context - The run.
  * @returns The tool.
@@ -122,12 +123,28 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
 function editDashboardTool(context: RunContext) {
   return tool({
     description:
-      'Change the dashboard in one new version: set its title, time range and variables; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); a title may name a variable ("Top $browser versions"), shown with its chosen value; remove panels; arrange panels in rows by name; add, replace or remove sets of markers (deploys, incidents) by id, filtered by a variable like panels (the deploys of $service). The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work, and returns the layout as a map with advice; otherwise you get the errors to fix.',
+      'Change the dashboard in one new version: set its title and time range; add panels, each data (a query builder, a saved query or a raw query) and a chart recipe; rebuild a panel in place (replaces); a title may name a variable ("Top $browser versions"), shown with its chosen value; remove panels; arrange panels in rows by name. Variables, colours per value and markers are set with edit_settings. The server writes and test-runs the queries, fills each chart from the columns the data returns, and saves the panels that work, and returns the layout as a map with advice; otherwise you get the errors to fix.',
     inputSchema: providerSchema(
-      editRequestSchemaFor(context.queries, context.charts),
+      panelEditSchemaFor(context.queries, context.charts),
       languagesInUse(context),
     ),
-    execute: (request) => editDashboard(context, request),
+    execute: (request) => editDashboard(context, { markers: [], removeMarkers: [], ...request }),
+  });
+}
+
+/**
+ * The tool that changes the dashboard-wide settings: variables, one colour per value, and sets of
+ * markers. A step offers it once the agent read the settings guide in the run.
+ *
+ * @param context - The run.
+ * @returns The tool.
+ */
+function editSettingsTool(context: RunContext) {
+  return tool({
+    description:
+      "Change the dashboard's variables, its colour per value and its sets of markers, in one new version, as the settings guide says. Set variables before the panels that use them, and markers after the time charts that show them. The panels stay as they are.",
+    inputSchema: providerSchema(settingsRequestSchema, languagesInUse(context)),
+    execute: (request) => editDashboard(context, { panels: [], remove: [], ...request }),
   });
 }
 
@@ -159,5 +176,6 @@ export function buildTools(context: RunContext) {
   return {
     propose_plan: proposePlanTool(context),
     edit_dashboard: editDashboardTool(context),
+    edit_settings: editSettingsTool(context),
   };
 }

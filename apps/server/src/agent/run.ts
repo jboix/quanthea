@@ -303,6 +303,7 @@ function freshCounters(
     asked: false,
     failedWrites: 0,
     explaining: false,
+    settingsRead: false,
     buildingPlan: dependencies.threads.row(request.threadId).state === 'building',
     panelsAdded: 0,
     modelId: modelIdFor(turn.settings, 'build'),

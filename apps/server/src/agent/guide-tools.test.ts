@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { guideTools, markersTopic, readGuide } from './guide-tools.ts';
+import { guideTools, readGuide, settingsTopic } from './guide-tools.ts';
 import { editRules } from './prompt-text.ts';
 
 const guides = [
@@ -16,12 +16,23 @@ describe('read_guide', () => {
     });
   });
 
-  test('gives how to set markers, which the instructions only point to', () => {
-    const read = readGuide([...guides, markersTopic], 'markers');
-    expect(read).toMatchObject({ kind: 'markers' });
+  test('gives how to set variables, colours and markers, which the instructions only point to', () => {
+    const read = readGuide([...guides, settingsTopic], 'settings');
+    expect(read).toMatchObject({ kind: 'settings' });
     expect(JSON.stringify(read)).toContain('removeMarkers');
-    expect(editRules).toContain('read_guide: { "kind": "markers" }');
+    expect(JSON.stringify(read)).toContain('Variables replace the list');
+    expect(editRules).toContain('read_guide: { "kind": "settings" }');
     expect(editRules).not.toContain('removeMarkers');
+    expect(editRules).not.toContain('"includeAll"');
+  });
+
+  test('says which guide was read, and nothing for one it does not have', () => {
+    const read: string[] = [];
+    const tool = guideTools([settingsTopic], (kind) => read.push(kind)).read_guide;
+    const options = { toolCallId: 'call', messages: [] } as never;
+    void tool.execute?.({ kind: 'settings' }, options);
+    void tool.execute?.({ kind: 'mysql' }, options);
+    expect(read).toEqual(['settings']);
   });
 
   test('says which kinds there are when asked for another', () => {

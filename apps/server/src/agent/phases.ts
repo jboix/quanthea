@@ -17,6 +17,7 @@ export type ToolName =
   | 'ask_person'
   | 'propose_plan'
   | 'edit_dashboard'
+  | 'edit_settings'
   | 'chart_recipe'
   | 'read_guide'
   | 'propose_alert'
@@ -36,6 +37,7 @@ export const phaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
     'test_query',
     'chart_recipe',
     'edit_dashboard',
+    'edit_settings',
   ],
   editing: [
     'describe',
@@ -46,6 +48,7 @@ export const phaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
     'propose_plan',
     'chart_recipe',
     'edit_dashboard',
+    'edit_settings',
   ],
 };
 

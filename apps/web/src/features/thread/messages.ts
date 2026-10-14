@@ -49,6 +49,7 @@ export const exploreTools: ReadonlySet<string> = new Set([
 /** The tools that write a version, shown as "Built". */
 export const buildTools: ReadonlySet<string> = new Set([
   'edit_dashboard',
+  'edit_settings',
   'write_dashboard',
   'patch_panel',
   'edit_alert',

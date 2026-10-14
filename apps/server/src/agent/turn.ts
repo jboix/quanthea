@@ -26,7 +26,7 @@ import {
   withoutReasoning,
 } from './compact.ts';
 import { dataTools } from './data-tools.ts';
-import { guideTools, markersTopic } from './guide-tools.ts';
+import { guideTools, settingsTopic } from './guide-tools.ts';
 import { guidesInUse, languagesInUse } from './in-use-facts.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
 import { phaseOf, phaseTools, type ToolName } from './phases.ts';
@@ -163,7 +163,9 @@ function turnTools(context: RunContext, now: () => number) {
     ...dataTools(context, (expression) => resolveTime(expression, now())),
     ...buildTools(context),
     ...chartTools(context.charts),
-    ...guideTools([...context.modelView.guides(), markersTopic]),
+    ...guideTools([...context.modelView.guides(), settingsTopic], (kind) => {
+      if (kind === settingsTopic.kind) context.counters.settingsRead = true;
+    }),
     ask_person: askPersonTool(context),
   };
 }
@@ -258,6 +260,19 @@ function buildingStep(context: RunContext) {
 }
 
 /**
+ * The tools the next step offers: the phase's, with edit_settings only once the settings guide
+ * was read in this run, so a step that sets no variable, colour or marker carries no form of them.
+ *
+ * @param context - The run.
+ * @param active - The tools the phase offers.
+ * @returns The step's active tools.
+ */
+function settingsStep(context: RunContext, active: readonly ToolName[]) {
+  if (context.counters.settingsRead) return { activeTools: [...active] };
+  return { activeTools: active.filter((name) => name !== 'edit_settings') };
+}
+
+/**
  * What the next step may do: once the repair attempts are spent, no tool, so the model explains
  * what failed to the person and the turn ends after it.
  *
@@ -276,13 +291,20 @@ function explainingStep(context: RunContext) {
  * @param context - The run.
  * @param modelOf - Gives the model of a job.
  * @param job - The turn's job.
+ * @param active - The tools the thread's phase offers.
  * @returns The step callback.
  */
-function stepSettings(context: RunContext, modelOf: ModelOf, job: ModelJob) {
+function stepSettings(
+  context: RunContext,
+  modelOf: ModelOf,
+  job: ModelJob,
+  active: readonly ToolName[],
+) {
   const { provider } = context.settings;
   return ({ messages }: { messages: ModelMessage[] }) => ({
     ...stepModel(context, modelOf, job),
     ...buildingStep(context),
+    ...settingsStep(context, active),
     ...explainingStep(context),
     messages: withCachedTail(
       endingOnPersonTurn(compactSteps(withoutReasoning(messages, provider))),
@@ -320,9 +342,9 @@ export async function streamTurn(
       tools,
       convertDataPart: handEditText,
     }),
-    prepareStep: stepSettings(context, modelOf, job),
+    prepareStep: stepSettings(context, modelOf, job, active),
     tools,
-    activeTools: active,
+    ...settingsStep(context, active),
     ...reasoningOption(context.settings),
     stopWhen: stopConditions(context),
     abortSignal: context.signal,

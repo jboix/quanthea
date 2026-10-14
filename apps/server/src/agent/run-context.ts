@@ -81,6 +81,8 @@ export interface RunContext extends AgentServices {
     failedWrites: number;
     /** Whether the attempts are spent and the agent explains what failed, with no tools. */
     explaining: boolean;
+    /** Whether the agent read the settings guide, which offers edit_settings from then on. */
+    settingsRead: boolean;
     /** Whether the run builds an approved plan, which it may keep writing until the run ends. */
     buildingPlan: boolean;
     /** How many new panels this run saved, which bounds what it adds without a plan. */

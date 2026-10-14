@@ -3,5 +3,10 @@ export { completeCharts } from './complete.ts';
 export { applyEdit, type ChartChoices } from './edit.ts';
 export { compactGrid } from './layout.ts';
 export { type LayoutReport, layoutReport } from './layout-check.ts';
-export { type EditRequest, editRequestSchemaFor } from './request.ts';
+export {
+  type EditRequest,
+  editRequestSchemaFor,
+  panelEditSchemaFor,
+  settingsRequestSchema,
+} from './request.ts';
 export { isTimeChart } from './time-chart.ts';
