@@ -103,8 +103,12 @@ export const builderHints: Readonly<Record<string, string>> = {
  */
 export const builderNotes: Readonly<Partial<Record<BuilderLanguage, string>>> = {
   search:
-    'Search filters, in "filters", "match" and "of", take these operators beside the four: ">", ">=", "<" and "<=" with a "value", a number or a date as text; "in" with "values": ["Web", "Apple"], or ["$platform"], the variable alone; "exists" with no value; "like" with a wildcard pattern such as "urn:srf:*" (* any text, ? one character), which starts with text and holds four wildcards at most. Filters that carry the same "any" are alternatives of which one must hold: [{ "field": "level", "value": "error", "any": "a" }, { "field": "status", "op": ">=", "value": "500", "any": "a" }]. A multi-value variable goes with "=", "!=" or "in". A pattern or a bound takes one value, and a variable there is the whole value, never beside other text. Twenty filters at most.',
+    'Search filters take more operators than the four: ranges (">", ">=", "<", "<="), "in" a list, "exists", "like" a wildcard pattern, and alternatives with "any". Read read_guide: { "kind": "search-filters" } before you use one.',
 };
+
+/** The search filters beyond the four every builder takes, read with read_guide when needed. */
+export const searchFiltersGuide =
+  'Search filters, in "filters", "match" and "of", take these operators beside the four: ">", ">=", "<" and "<=" with a "value", a number or a date as text; "in" with "values": ["Web", "Apple"], or ["$platform"], the variable alone; "exists" with no value; "like" with a wildcard pattern such as "urn:srf:*" (* any text, ? one character), which starts with text and holds four wildcards at most. Filters that carry the same "any" are alternatives of which one must hold: [{ "field": "level", "value": "error", "any": "a" }, { "field": "status", "op": ">=", "value": "500", "any": "a" }]. A multi-value variable goes with "=", "!=" or "in". A pattern or a bound takes one value, and a variable there is the whole value, never beside other text. Twenty filters at most.';
 
 /** How to ask for a raw query, whatever the language. */
 export const rawGuide =
@@ -156,7 +160,7 @@ export const markersGuide = `Markers draw events, such as deploys, incidents or 
 
 /** Filters, layout, variables, time, markers and changes, whatever the data and charts. */
 export const editRules = `Filters: { "field", "op": "=" | "!=" | "=~" | "!~", "value" }, where value is a literal, a regular expression for =~ and !~, or a variable such as "$service". A multi-value variable needs =~ in PromQL; SQL builders handle it.
-Layout: the grid has 12 columns. Put numbers first, then charts, then tables. New panels go below the others in the order sent, each as wide as its kind usually is. "arrange" places panels by name instead of by numbers: a list of rows from the top, each an arrangement followed by panel ids or titles, such as [["stats", "Revenue", "Orders", "Error rate"], ["full", "Requests"], ["chart-table", "Errors by route", "Slowest routes"]]. The arrangements: "stats" (the numbers share a row), "chart-table" (two panels side by side, the table the narrower), "full" (each on a row of its own), "two" and "three" (that many across). Rows fill the grid; panels no row names follow below as they were. On the first build, arrange every panel. A saved edit returns "layout": "rows", the grid row by row (panel, kind, columns from 1 to 12, "gap" for empty columns), and "advice" when something reads badly, such as a gap, a number too wide or a table too narrow. Repair advice once, with an edit that sends only "arrange" and "summary"; leave it when the person arranged the panels that way.
+Layout: the grid has 12 columns. Put numbers first, then charts, then tables. New panels go below the others in the order sent, each as wide as its kind usually is. "arrange" places panels by name instead of by numbers: a list of rows from the top, each an arrangement followed by panel ids or titles, such as [["stats", "Revenue", "Orders", "Error rate"], ["full", "Requests"], ["chart-table", "Errors by route", "Slowest routes"]]. The arrangements: "stats" (the numbers share a row), "chart-table" (two panels side by side, the table the narrower), "full" (each on a row of its own), "two" and "three" (that many across). Rows fill the grid; panels no row names follow below as they were. On the first build, arrange every panel. A saved edit returns "layout": the grid row by row, and "advice" when something reads badly.
 Time: { "from": "now-6h", "to": "now" }, or ISO times with an offset.
 Settings: variables, one colour per value ("colors") and markers (events such as deploys drawn as lines on time charts) are set with edit_settings, which you get once you read read_guide: { "kind": "settings" }. Set variables before the panels that use them, and markers after the charts that show them. When the question asks whether something followed an event, such as errors after a deploy, put the events as markers on the charts of what followed, not in a panel of their own.
 To change a panel, send it again with "replaces": its id. To drop one, list its id in "remove". Keep titles short.`;
@@ -167,3 +171,7 @@ To change a panel, send it again with "replaces": its id. To drop one, list its 
  * carry neither the guide nor the tool's schema.
  */
 export const settingsGuide = `${variablesGuide}\n${markersGuide}`;
+
+/** What to do with layout advice, given with the advice itself rather than on every turn. */
+export const layoutRepair =
+  'Repair this advice once, with an edit that sends only "arrange" and "summary"; leave it when the person arranged the panels that way. Rows list each panel, its kind and its columns from 1 to 12, "gap" for empty columns.';

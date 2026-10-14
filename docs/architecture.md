@@ -1639,7 +1639,9 @@ directly onto an ECharts `dataset`.
     flat, one object with an operator and optional parts, so its schema is short in the edit
     tool's input, which holds it eight times: what each operator needs is checked in code, and
     the message names the part. The operator is a text in the schema as sent and checked against
-    the list in code, with a message that says the list: the guide names every operator once.
+    the list in code, with a message that says the list. The panel guide of a run on a search
+    connector names every operator in one line and points to `read_guide("search-filters")`,
+    which gives how each is written.
     The MongoDB builders keep the four operators. A wildcard pattern
     written in a request starts with a literal character: one that starts with `*` or `?`, or is
     empty, makes the server read every value of the field in the time range, so it is refused
@@ -1745,8 +1747,9 @@ directly onto an ECharts `dataset`.
   and `two` one of up to six, and the repair named is `full` beyond that), a chart with a legend under five rows tall,
   and numbers below a chart or a table. The check never refuses: it is advice with a version
   already saved, so a spec that was valid stays saveable, a person's arrangement is never an
-  error, and stored versions are not touched. The prompt asks the agent to repair advice once,
-  with an edit that sends only `arrange`. An edit that starts from an arrangement made by hand
+  error, and stored versions are not touched. The advice comes with `layout.repair`, which asks
+  the agent to repair it once, with an edit that sends only `arrange`: the instruction rides with
+  the advice, not in every turn's guide. An edit that starts from an arrangement made by hand
   gets the map without advice, unless it arranges.
 - **Markers.** Sets of markers are annotations (`dashboards/panels/markers.ts`,
   `marker-placement.ts`): events such as deploys, incidents or feature flags, drawn as lines on

@@ -12,6 +12,8 @@ export interface LayoutReport {
   readonly rows: readonly string[];
   /** What reads badly and how to repair it; left out when nothing does. */
   readonly advice?: readonly string[];
+  /** What the agent does with the advice, given with it; left out without advice. */
+  readonly repair?: string;
 }
 
 /** What a layout report is made for. */

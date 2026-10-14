@@ -26,7 +26,7 @@ import {
   withoutReasoning,
 } from './compact.ts';
 import { dataTools } from './data-tools.ts';
-import { guideTools, settingsTopic } from './guide-tools.ts';
+import { guideTools, searchFiltersTopic, settingsTopic } from './guide-tools.ts';
 import { guidesInUse, languagesInUse } from './in-use-facts.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
 import { phaseOf, phaseTools, type ToolName } from './phases.ts';
@@ -152,6 +152,18 @@ export async function turnInstructions(
 }
 
 /**
+ * The guides a dashboard run may read: the query guides of the connector kinds, the settings, and
+ * the search filters when a search connector is in use.
+ *
+ * @param context - The run.
+ * @returns The guides.
+ */
+function dashboardTopics(context: RunContext) {
+  const search = languagesInUse(context).includes('search') ? [searchFiltersTopic] : [];
+  return [...context.modelView.guides(), settingsTopic, ...search];
+}
+
+/**
  * Every tool the agent has; the phase decides which ones a step offers.
  *
  * @param context - The run.
@@ -163,7 +175,7 @@ function turnTools(context: RunContext, now: () => number) {
     ...dataTools(context, (expression) => resolveTime(expression, now())),
     ...buildTools(context),
     ...chartTools(context.charts),
-    ...guideTools([...context.modelView.guides(), settingsTopic], (kind) => {
+    ...guideTools(dashboardTopics(context), (kind) => {
       if (kind === settingsTopic.kind) context.counters.settingsRead = true;
     }),
     ask_person: askPersonTool(context),

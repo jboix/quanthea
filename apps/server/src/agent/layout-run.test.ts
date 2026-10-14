@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { connectorInputSchema, defaultModelGateway, type Plan } from '@quanthea/shared';
 import { temporaryDir, testServices } from '../test/fixtures.ts';
+import { layoutRepair } from './prompt-text.ts';
 import { createAgent } from './run.ts';
 import { type ScriptedStep, scriptedStreamModel } from './test/mock-model.ts';
 
@@ -69,7 +70,11 @@ interface EditOutput {
   /** Why none was. */
   readonly error?: string;
   /** The layout of the saved version. */
-  readonly layout?: { readonly rows: string[]; readonly advice?: string[] };
+  readonly layout?: {
+    readonly rows: string[];
+    readonly advice?: string[];
+    readonly repair?: string;
+  };
 }
 
 /**
@@ -144,6 +149,7 @@ describe('the layout the agent reads and asks for', () => {
     expect(first?.layout).toEqual({
       rows: ['y0 h3: errors-peak stat 1-3 | gap 4-12', 'y3 h8: errors-over-time time 1-12'],
       advice: ['Row y0 leaves columns 4-12 empty: arrange its panels to fill the row.'],
+      repair: layoutRepair,
     });
     expect(second).toMatchObject({ ok: true, version: 2 });
     expect(second?.layout).toEqual({

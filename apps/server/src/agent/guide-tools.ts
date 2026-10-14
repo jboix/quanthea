@@ -5,7 +5,7 @@
  */
 import { tool } from 'ai';
 import { z } from 'zod';
-import { markersGuide, settingsGuide } from './prompt-text.ts';
+import { markersGuide, searchFiltersGuide, settingsGuide } from './prompt-text.ts';
 
 /** The guide to markers, under the name the instructions give it. */
 export const markersTopic = { kind: 'markers', text: markersGuide };
@@ -15,6 +15,9 @@ export const markersTopic = { kind: 'markers', text: markersGuide };
  * offers edit_settings from the next step on.
  */
 export const settingsTopic = { kind: 'settings', text: settingsGuide };
+
+/** The search filters beyond the four every builder takes, for a run on a search connector. */
+export const searchFiltersTopic = { kind: 'search-filters', text: searchFiltersGuide };
 
 /** A connector kind's query guide. */
 interface Guide {

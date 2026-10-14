@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { type DashboardSpec, type Plan, queryBuilders } from '@quanthea/shared';
 import { choices } from '../dashboards/queries/index.ts';
+import { searchFiltersTopic } from './guide-tools.ts';
 import { instructionsFor, type TurnFacts } from './prompt.ts';
 
 const plan: Plan = {
@@ -143,25 +144,30 @@ describe('instructionsFor', () => {
     expect(none).not.toContain('By what the panel shows');
   });
 
-  test('says what a search filter takes once, under the search builders, and only with them', () => {
+  test('points to the search filters once, under the search builders, and only with them', () => {
     const ready = { ...facts, state: 'ready' as const };
     const search = instructionsFor({
       ...ready,
       languages: ['sql', 'search'],
       queries: { builtIn: ['sql-stat', 'search-stat', 'search-rows'], saved: [] },
     });
-    expect(search.match(/Search filters, in "filters", "match" and "of"/g)).toHaveLength(1);
-    expect(search).toContain('"in" with "values": ["Web", "Apple"]');
-    expect(search).toContain('Filters that carry the same "any" are alternatives');
-    expect(search).toContain('which starts with text and holds four wildcards at most');
-    expect(search).toContain('a variable there is the whole value');
-    // The schema as sent does not list the operators: the guide names every one.
-    for (const op of ['">"', '">="', '"<"', '"<="', '"in"', '"exists"', '"like"']) {
-      expect(search.slice(search.indexOf('Search filters,'))).toContain(op);
+    expect(search.match(/Search filters take more operators/g)).toHaveLength(1);
+    expect(search).toContain('read_guide: { "kind": "search-filters" }');
+    // The schema as sent does not list the operators: the pointer names every one.
+    const pointer = search.slice(search.indexOf('Search filters take'));
+    for (const op of ['">"', '">="', '"<"', '"<="', '"in"', '"exists"', '"like"', '"any"']) {
+      expect(pointer).toContain(op);
     }
-    expect(search.indexOf('Search filters,')).toBeGreaterThan(search.indexOf('- search-rows:'));
-    expect(search.indexOf('Search filters,')).toBeLessThan(search.indexOf('raw: {'));
-    expect(instructionsFor(ready)).not.toContain('Search filters,');
+    expect(search.indexOf('Search filters take')).toBeGreaterThan(search.indexOf('- search-rows:'));
+    expect(search.indexOf('Search filters take')).toBeLessThan(search.indexOf('raw: {'));
+    expect(instructionsFor(ready)).not.toContain('Search filters');
+  });
+
+  test('gives the whole of the search filters in their guide', () => {
+    expect(searchFiltersTopic.text).toContain('"in" with "values": ["Web", "Apple"]');
+    expect(searchFiltersTopic.text).toContain('Filters that carry the same "any" are alternatives');
+    expect(searchFiltersTopic.text).toContain('which starts with text and holds four wildcards');
+    expect(searchFiltersTopic.text).toContain('a variable there is the whole value');
   });
 
   test('names in its choices only builders that exist, each under its own language', () => {

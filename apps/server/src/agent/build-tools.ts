@@ -12,6 +12,7 @@ import {
 } from '../dashboards/panels/index.ts';
 import { languagesInUse } from './in-use-facts.ts';
 import { buildPanels } from './panel-build.ts';
+import { layoutRepair } from './prompt-text.ts';
 import type { RunContext } from './run-context.ts';
 import { arrangedAsShown } from './shown-layout.ts';
 import { providerSchema } from './tool-schema.ts';
@@ -77,7 +78,8 @@ function proposePlanTool(context: RunContext) {
 function withLayout(context: RunContext, result: WriteResult, advise: boolean): WriteResult {
   const saved = result.ok ? currentSpec(context) : undefined;
   if (!result.ok || !saved) return result;
-  return { ...result, layout: layoutReport(saved.panels, { advise }) };
+  const layout = layoutReport(saved.panels, { advise });
+  return { ...result, layout: layout.advice ? { ...layout, repair: layoutRepair } : layout };
 }
 
 /**
