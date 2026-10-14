@@ -6,9 +6,11 @@ import {
   approvePlanEndpoint,
   type DashboardDetail,
   type DashboardVersion,
+  type DefinitionVersion,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
   getThreadEndpoint,
+  listDefinitionsEndpoint,
   pinDashboardEndpoint,
   rejectPlanEndpoint,
   restoreVersionEndpoint,
@@ -52,6 +54,8 @@ export interface ThreadData {
   readonly origin: SeedPanel | null;
   /** The panels hidden by hand on the pinned version's layout, if any are. */
   readonly hiddenOnPinned: HiddenOnPinned | null;
+  /** The definitions there are, for the marks of a plan's panels; none outside dashboards. */
+  readonly definitions: readonly DefinitionVersion[];
 }
 
 /** The panels hidden by hand on the version the library shows. */
@@ -225,6 +229,7 @@ async function fetchThread(
   const none = {
     ...{ dashboard: null, version: null, parent: null, alertDraft: null, origin: null },
     hiddenOnPinned: null,
+    definitions: [],
   };
   if (thread.kind === 'alert') {
     const alertDraft = await loadAlertDraft(api, thread.alertId, signal);
@@ -239,7 +244,9 @@ async function fetchThread(
   const version = await versionToShow(api, dashboard, url.searchParams.get('v'), signal);
   const parent = await parentOf(api, dashboard, signal);
   const hiddenOnPinned = await hiddenOnPinnedOf(api, dashboard, version, signal);
-  return { ...none, thread, dashboard, version, parent, reportDraft: null, hiddenOnPinned };
+  const { definitions } = await api.call(listDefinitionsEndpoint, undefined, options);
+  const found = { dashboard, version, parent, hiddenOnPinned, definitions };
+  return { ...none, thread, ...found, reportDraft: null };
 }
 
 /**

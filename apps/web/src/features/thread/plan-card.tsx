@@ -1,10 +1,18 @@
-import { type AccessLevel, type Plan, type PlanView, queryLanguageNames } from '@quanthea/shared';
+import {
+  type AccessLevel,
+  type DefinitionVersion,
+  type Plan,
+  type PlanView,
+  queryLanguageNames,
+} from '@quanthea/shared';
 import { useState } from 'react';
 import { Button } from '../../ui/button.tsx';
 import { CheckIcon } from '../../ui/icons.tsx';
+import { Pill } from '../../ui/pill.tsx';
 import styles from './cards.module.css';
 import { ChangeList } from './change-list.tsx';
 import { changeRows, type DraftPanel, isChangePlan } from './plan-changes.ts';
+import { definitionMarkOf } from './plan-definitions.ts';
 
 /** What each access level lets the model see, in the plan card's words. */
 const accessWords: Readonly<Record<AccessLevel, string>> = {
@@ -24,6 +32,8 @@ export interface PlanCardProps {
   readonly status: PlanView['status'];
   /** The access level of each connector. */
   readonly levels: Readonly<Record<string, AccessLevel>>;
+  /** The definitions there are, for the marks of the panels that follow one. */
+  readonly definitions?: readonly DefinitionVersion[] | undefined;
   /** Whether a decision or a run is on its way. */
   readonly busy: boolean;
   /** Approves the plan. */
@@ -49,24 +59,35 @@ function lowestLevel(plan: Plan, levels: PlanCardProps['levels']): AccessLevel |
 }
 
 /**
- * A first plan's panels: one row each, with its kind and language.
+ * A first plan's panels: one row each, with its kind, the definition it follows, and its language.
  *
- * @param props - The plan.
+ * @param props - The plan and the definitions.
  * @param props.plan - The plan.
+ * @param props.definitions - The definitions there are.
  * @returns The list.
  */
-function PanelList({ plan }: { readonly plan: Plan }) {
+function PanelList({
+  plan,
+  definitions = [],
+}: {
+  readonly plan: Plan;
+  readonly definitions?: readonly DefinitionVersion[] | undefined;
+}) {
   return (
     <ul className={styles.planPanels}>
-      {plan.panels.map((panel) => (
-        <li key={`${panel.kind}:${panel.title}`}>
-          <span className={styles.kind}>{panel.kind.toUpperCase()}</span>
-          <span className={styles.panelTitle}>{panel.title}</span>
-          <span className={styles.language} data-language={panel.language}>
-            {queryLanguageNames[panel.language]}
-          </span>
-        </li>
-      ))}
+      {plan.panels.map((panel) => {
+        const mark = definitionMarkOf(panel, definitions);
+        return (
+          <li key={`${panel.kind}:${panel.title}`}>
+            <span className={styles.kind}>{panel.kind.toUpperCase()}</span>
+            <span className={styles.panelTitle}>{panel.title}</span>
+            {mark && <Pill tone={mark.tone}>{mark.text}</Pill>}
+            <span className={styles.language} data-language={panel.language}>
+              {queryLanguageNames[panel.language]}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -81,7 +102,8 @@ function PlanBody({
   plan,
   levels,
   draftPanels,
-}: Pick<PlanCardProps, 'plan' | 'levels' | 'draftPanels'>) {
+  definitions,
+}: Pick<PlanCardProps, 'plan' | 'levels' | 'draftPanels' | 'definitions'>) {
   const level = lowestLevel(plan, levels);
   return (
     <div className={styles.planBody}>
@@ -102,7 +124,7 @@ function PlanBody({
       {isChangePlan(plan, draftPanels) ? (
         <ChangeList rows={changeRows(plan, draftPanels)} />
       ) : (
-        <PanelList plan={plan} />
+        <PanelList plan={plan} definitions={definitions} />
       )}
     </div>
   );
@@ -128,7 +150,7 @@ export function PlanCard(props: PlanCardProps) {
         <button type="button" className={styles.link} onClick={() => setOpen(!open)}>
           {open ? 'Hide plan' : 'Show plan'}
         </button>
-        {open && <PlanBody plan={plan} levels={props.levels} />}
+        {open && <PlanBody plan={plan} levels={props.levels} definitions={props.definitions} />}
       </div>
     );
   }
@@ -139,7 +161,12 @@ export function PlanCard(props: PlanCardProps) {
         <span className={styles.planTitle}>{plan.title}</span>
         <span className={styles.planCount}>{plan.panels.length} panels</span>
       </header>
-      <PlanBody plan={plan} levels={props.levels} draftPanels={props.draftPanels} />
+      <PlanBody
+        plan={plan}
+        levels={props.levels}
+        draftPanels={props.draftPanels}
+        definitions={props.definitions}
+      />
       <footer className={styles.planActions}>
         <Button
           variant="primary"

@@ -1,4 +1,4 @@
-import type { AccessLevel, PlanView, ThreadData } from '@quanthea/shared';
+import type { AccessLevel, DefinitionVersion, PlanView, ThreadData } from '@quanthea/shared';
 import type { ReactNode } from 'react';
 import { AlertPlanCard, HandEditCard } from './alert-cards.tsx';
 import { AskCard } from './ask-card.tsx';
@@ -29,6 +29,8 @@ export interface ConversationContext {
   readonly plans: readonly PlanView[];
   /** The access level of each connector. */
   readonly levels: Readonly<Record<string, AccessLevel>>;
+  /** The definitions there are, for the marks of a plan's panels. */
+  readonly definitions?: readonly DefinitionVersion[] | undefined;
   /** The latest version of the dashboard. */
   readonly latestVersion: number;
   /** Whether a run or a decision is on its way. */
@@ -80,6 +82,7 @@ function planCard(data: ThreadData['plan'], key: string, context: ConversationCo
       planId={data.planId}
       status={status}
       levels={context.levels}
+      definitions={context.definitions}
       busy={context.busy}
       onApprove={context.onApprove}
       onEdit={context.onEditPlan}

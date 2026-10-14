@@ -36,6 +36,7 @@ const sampleConnector = {
 /** What the fake API answers, by method and path. */
 const cannedAnswers: Readonly<Record<string, unknown>> = {
   'GET /connectors': [],
+  'GET /definitions': { definitions: [], managed: {} },
   'GET /connector-kinds': [],
   'GET /connectors/:connectorId': sampleConnector,
   'GET /connectors/:connectorId/schema': {

@@ -1741,6 +1741,13 @@ directly onto an ECharts `dataset`.
   `read_guide("definitions")`, which always has every line. A plan's panel may name its
   `definition`. A write that worked gets `notes` for each panel it wrote whose title names a
   defined term or synonym but whose data was not copied from it: the panel is kept.
+- **Where a panel's meaning came from, in the interface.** On a first plan's card, each panel that
+  names a definition carries a pill (`features/thread/plan-definitions.ts`): "Error rate ·
+  checked v3" when the definition has checked filters in the panel's language, "from the
+  meaning" otherwise, and "not defined" for an unknown id. The thread's loader reads the
+  definitions with the thread. A panel's info bubble names the definition and version it copied
+  (`features/dashboard/panel-definition.tsx`), reading `/definitions` when the bubble opens; when
+  the definition changed since, it says the panel keeps its copy and how to take the new one.
 - **Which queries.** Admins switch builders off (`GET/PUT /api/settings/queries`). A thread uses
   the default set (the builders switched on and every saved query), a set chosen when it starts,
   or none (free style: raw queries only), stored on the thread (`POST /api/threads` with

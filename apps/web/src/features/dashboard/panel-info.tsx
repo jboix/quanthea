@@ -2,6 +2,7 @@ import { type Panel, queryLanguageNames, queryText } from '@quanthea/shared';
 import { InfoIcon } from '../../ui/icons.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import { PanelAlertSection, type PanelAlertView } from './panel-alert-view.tsx';
+import { PanelDefinition } from './panel-definition.tsx';
 import { type ExplainPlace, PanelExplain } from './panel-explain.tsx';
 import styles from './panels.module.css';
 
@@ -55,6 +56,7 @@ export function PanelInfo({ panel, explain, alerts }: PanelInfoProps) {
         {alerts && <PanelAlertSection panelId={panel.id} view={alerts} />}
         {(explain || alerts) && <span className={styles.infoHeading}>Where it comes from</span>}
         {panel.description && <p className={styles.infoText}>{panel.description}</p>}
+        {panel.definition && <PanelDefinition mark={panel.definition} />}
         {panel.queries.map((query) => (
           <div key={query.refId} className={styles.infoQuery}>
             <span className={styles.infoSource}>

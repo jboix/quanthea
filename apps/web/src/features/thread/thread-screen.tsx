@@ -251,6 +251,7 @@ function ThreadConversation({ state }: { readonly state: ScreenState }) {
       messages={chat.messages}
       plans={thread.plans}
       levels={levels}
+      definitions={state.data.definitions}
       latestVersion={dashboard?.versions.at(-1)?.version ?? 0}
       busy={running || intents.busy || thread.readOnly}
       onApprove={(planId) => void actions.approve(planId)}
