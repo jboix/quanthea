@@ -169,6 +169,14 @@ describe('the mappings of a chart', () => {
     expect(Object.keys(view?.option ?? {})).toEqual(['series']);
   });
 
+  test('written inside the gauge series still reach its view, and leave the series', () => {
+    const filled = chartOf('kpi.gauge', { series: { max: 2, mappings } });
+    expect(filled).toMatchObject({ view: { mappings, option: { series: [{ max: 2 }] } } });
+    const view = 'view' in filled && filled.view.kind === 'chart' ? filled.view : undefined;
+    const [series] = (view?.option.series ?? []) as Record<string, unknown>[];
+    expect(series && 'mappings' in series).toBe(false);
+  });
+
   test('are no field of a view whose options name none', () => {
     const filled = chartOf('kpi.gauge', { series: { max: 2 } });
     expect('view' in filled && 'mappings' in filled.view).toBe(false);

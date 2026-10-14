@@ -168,7 +168,12 @@ const measures: readonly CaseOn<'dashboard'>[] = [
     {
       builder: 'search-ratio',
       aggregations: ['filter', 'bucket_script'],
-      view: { kind: 'chart', recipe: 'kpi.gauge', has: ['mappings.tone'] },
+      // The steps as quanthea's mappings, or as the dial's own ECharts colour stops.
+      view: {
+        kind: 'chart',
+        recipe: 'kpi.gauge',
+        has: ['mappings.tone|option.series.axisLine.lineStyle.color=@tone.bad'],
+      },
     },
     // The gauge may read a ratio or a percentage.
     { more: [showsNumber(playbackSuccess, { absolute: 0.002, scales: [1, 100] })] },

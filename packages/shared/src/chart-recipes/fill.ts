@@ -135,20 +135,46 @@ function chartView(
   };
 }
 
+/** A filled option, and the fields of the view lifted out of it. */
+interface Lifted {
+  /** The ECharts option. */
+  option: JsonObject;
+  /** The fields of the view found in it. */
+  fields: Pick<ChartView, 'mappings'>;
+}
+
+/**
+ * Lifts `mappings` out of the option's series, where an agent that patches the gauge series
+ * writes them. ECharts has no such key, so left there they would colour nothing.
+ *
+ * @param option - The filled option.
+ * @returns The option without them, and the mappings of the first series that holds some.
+ */
+function liftedFromSeries(option: JsonObject): Lifted {
+  const { series } = option;
+  if (!Array.isArray(series)) return { option, fields: {} };
+  const holder = series.find((each) => isJsonObject(each) && each.mappings !== undefined);
+  if (!isJsonObject(holder)) return { option, fields: {} };
+  const kept = series.map((each) => {
+    if (!isJsonObject(each)) return each;
+    const { mappings: _, ...rest } = each;
+    return rest;
+  });
+  const mappings = holder.mappings as ChartView['mappings'];
+  return { option: { ...option, series: kept }, fields: { mappings } };
+}
+
 /**
  * Lifts what belongs to the view out of a chart recipe's filled option. The agent writes every
  * change in `options`, and the ECharts option takes no key of the view, so a key of this closed
- * list is moved: `mappings`, the steps of a gauge.
+ * list is moved: `mappings`, the steps of a gauge, at the top of `options` or in its series.
  *
  * @param option - The filled option.
  * @returns The ECharts option, and the fields of the view found in it.
  */
-function liftedFields(option: JsonObject): {
-  option: JsonObject;
-  fields: Pick<ChartView, 'mappings'>;
-} {
+function liftedFields(option: JsonObject): Lifted {
   const { mappings, ...rest } = option;
-  if (mappings === undefined) return { option, fields: {} };
+  if (mappings === undefined) return liftedFromSeries(option);
   return { option: rest, fields: { mappings: mappings as ChartView['mappings'] } };
 }
 

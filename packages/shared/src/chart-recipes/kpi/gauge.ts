@@ -58,7 +58,9 @@ export const gauge: ChartRecipe = {
   },
   pitfalls: [
     'Set max to the real maximum; the sample uses 1 for a ratio.',
-    'Thresholds colour the dial: options.mappings, ranges with a tone and no text, in the unit of the value, such as [{ "match": { "from": 0.9 }, "tone": "bad" }]. Never a colour in the option.',
+    'Thresholds colour the dial: options.mappings at the top of options, ranges in the unit of the value, each with a tone and no text. Never a colour in the option.',
+    'A range is { "from"?, "to"? }, never an operator. Red under 90%, amber to 97%, green above, on a ratio:',
+    '[{ "match": { "to": 0.9 }, "tone": "bad" }, { "match": { "from": 0.9, "to": 0.97 }, "tone": "warning" }, { "match": { "from": 0.97 }, "tone": "good" }]',
   ],
   sample: { roles: { value: 'used' }, datasets: [diskUse] },
   queryHints: ['One current value, as a ratio of its maximum or with the maximum known.'],

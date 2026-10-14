@@ -4264,7 +4264,8 @@ one, and enables them again. Without any admin, it creates the default one.
     or no value. The view reads a text or a boolean column too, and the agent does not build one.
   - A gauge takes `mappings` on its chart view, as the steps of its dial: each a range with a
     tone. The agent sets them in `chart.options.mappings` of `kpi.gauge`, and `fillView` lifts
-    them into the view. The validator (`dashboards/check-steps.ts`) refuses mappings on a chart
+    them into the view, from the gauge series too when the agent writes them there (ECharts has
+    no such key, so left there they would colour nothing). The validator (`dashboards/check-steps.ts`) refuses mappings on a chart
     that is not prepared as a gauge, and a gauge's mapping that is not a range with a tone or
     that carries a text, since a dial draws no text and places no single value.
   - The gauge preparation (`charts/prepare/steps.ts`) turns the steps into the colour stops of

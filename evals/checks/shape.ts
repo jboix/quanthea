@@ -215,15 +215,17 @@ function holds(value: unknown, keys: readonly string[], wanted: string | undefin
  * Whether a view, or another part of a spec, holds a field. The path has dots between the keys of
  * nested objects, such as `sort.field`. A key under a list is looked for in each of its items, so
  * `columns.mappings` holds when one column has mappings. With `=`, the value must read as the text
- * after it, such as `layout=record`.
+ * after it, such as `layout=record`. Paths between `|` are alternatives: one is enough.
  *
  * @param value - The view, or the part of the spec.
  * @param path - The field, and after `=` the value it must have, if any.
  * @returns True when the value there is defined, or reads as the text given.
  */
 export function holdsField(value: unknown, path: string): boolean {
-  const [keys = '', wanted] = path.split('=');
-  return holds(value, keys.split('.'), wanted);
+  return path.split('|').some((each) => {
+    const [keys = '', wanted] = each.split('=');
+    return holds(value, keys.split('.'), wanted);
+  });
 }
 
 /**
@@ -264,7 +266,7 @@ function viewFaults(panel: BuiltShape, expect: ShapeExpectation['view']): string
   const kind = view.kind === expect.kind ? [] : [`a ${view.kind} view, not a ${expect.kind}`];
   const fields = (expect.has ?? [])
     .filter((path) => !holdsField(view, path))
-    .map((path) => `the view has no ${path}`);
+    .map((path) => `the view has no ${path.split('|').join(' or ')}`);
   return [...kind, ...recipeFaults(panel, expect.recipe), ...fields];
 }
 

@@ -156,6 +156,14 @@ describe('scoring a parity case', () => {
     ]);
   });
 
+  test('takes one of several fields between bars', () => {
+    const wanted = expecting(['mappings.tone|layout=record']);
+    expect(scored(wanted, tableOutcome({ layout: 'record' })).reasons).toEqual([]);
+    expect(scored(wanted, tableOutcome({ layout: 'rows' })).reasons).toEqual([
+      'events: the view has no mappings.tone or layout=record',
+    ]);
+  });
+
   test('reads a view kind that does not exist yet as a view of another kind', () => {
     expect(scoredCase('f28', { ...built, id: 'f28' }).reasons).toEqual([
       'events: data asked as search-series, not search-rows',
