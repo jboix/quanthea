@@ -5,9 +5,10 @@
 import { z } from 'zod';
 import { variableNameSchema } from './names.ts';
 import { durationSchema, queryTemplateSchema } from './queries.ts';
+import { variableOptionSchema, variableValueSchema } from './variable-options.ts';
 
 /** Validates one variable value. */
-const valueSchema = z.string().max(200);
+const valueSchema = variableValueSchema;
 
 /**
  * The longest value a text variable takes. A viewer types it and the server matches it against the
@@ -23,7 +24,8 @@ const customVariableSchema = z.strictObject({
   kind: z.literal('custom'),
   name: variableNameSchema,
   label: labelSchema,
-  options: z.array(valueSchema).min(1).max(200),
+  /** The values, each alone or with a label a viewer reads. The default names values. */
+  options: z.array(variableOptionSchema).min(1).max(200),
   default: z.union([valueSchema, z.array(valueSchema).max(200)]),
   multi: z.boolean().optional(),
   /** Whether the menu offers "All", which binds every option; it may be the default. */

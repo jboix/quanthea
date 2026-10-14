@@ -72,7 +72,7 @@ function FrozenBar(props: FrozenCanvasProps & ReturnType<typeof useHiddenMarkers
       {spec.variables.map((variable) => (
         <span key={variable.name} className={frozenChip}>
           <span className={styles.chipName}>${variable.name}</span>
-          {shown(variables[variable.name] ?? 'default')}
+          {shown(variables[variable.name] ?? 'default', variable)}
         </span>
       ))}
       <MarkerToggles spec={spec} hidden={props.hidden} onToggle={props.toggle} />

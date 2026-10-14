@@ -60,6 +60,13 @@ export {
 } from './time.ts';
 export { isStep, type Mapping, mapValue, type Tone, type ToneAs } from './tones.ts';
 export {
+  labelOfValue,
+  optionLabel,
+  optionValue,
+  optionValues,
+  type VariableOption,
+} from './variable-options.ts';
+export {
   allValue,
   isMultiValue,
   maxTextValueLength,

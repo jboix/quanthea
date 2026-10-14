@@ -1,8 +1,10 @@
 import {
   allValue,
   isMultiValue,
+  labelOfValue,
   maxTextValueLength,
   offersAll,
+  optionValues,
   type Variable,
 } from '@quanthea/shared';
 import { useRef, useState } from 'react';
@@ -23,17 +25,20 @@ interface ChipProps {
 }
 
 /**
- * The value as the chip shows it.
+ * The value as the chip shows it, each value by its label when its option has one.
  *
  * @param value - One value or several.
+ * @param variable - The variable, for the labels of its options.
  * @returns Such as `prod`, `All` or `a, b`.
  */
-export function shown(value: string | readonly string[]): string {
+export function shown(value: string | readonly string[], variable?: Variable): string {
   const values = [value].flat();
   if (values.includes(allValue)) return 'All';
-  return values.length > 3
-    ? `${values.slice(0, 3).join(', ')} +${values.length - 3}`
-    : values.join(', ');
+  const options = variable?.kind === 'custom' ? variable.options : undefined;
+  const labels = values.map((each) => labelOfValue(options, each));
+  return labels.length > 3
+    ? `${labels.slice(0, 3).join(', ')} +${labels.length - 3}`
+    : labels.join(', ');
 }
 
 /**
@@ -46,7 +51,7 @@ export function shown(value: string | readonly string[]): string {
 function useOptions(variable: Variable, optionsUrl: string) {
   const fetcher = useFetcher<Loaded<string[]>>();
   const loadedOptions = fetcher.data?.ok ? fetcher.data.value : [];
-  const listed = 'options' in variable ? variable.options : loadedOptions;
+  const listed = 'options' in variable ? optionValues(variable.options) : loadedOptions;
   const withAll = offersAll(variable) ? [allValue, ...listed] : listed;
   const load = () => {
     if (variable.kind === 'query' && fetcher.state === 'idle') void fetcher.load(optionsUrl);
@@ -87,7 +92,7 @@ function OptionMenu({ variable, values, state, onChoose }: OptionMenuProps) {
           aria-pressed={values.includes(option)}
           onClick={() => onChoose(option)}
         >
-          {option === allValue ? 'All' : option}
+          {shown(option, variable)}
         </button>
       ))}
     </fieldset>
@@ -122,7 +127,7 @@ export function OptionChip({ variable, value, onChange, optionsUrl }: ChipProps)
     >
       <summary className={styles.chipButton}>
         <span className={styles.chipName}>${variable.name}</span>
-        {shown(value)}
+        {shown(value, variable)}
       </summary>
       <OptionMenu variable={variable} values={values} state={state} onChoose={choose} />
     </details>

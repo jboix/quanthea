@@ -108,6 +108,16 @@ describe('a fixed-list variable', () => {
     expect(byDefault.platform).toEqual(all);
   });
 
+  test('binds the value of an option with a label, and refuses the label sent as a value', async () => {
+    const options = ['web', { value: 'true', label: 'Only SwissTXT' }];
+    const spec = listSpec({ options });
+    const picked = await resolveVariables(spec, { platform: 'true' }, loader());
+    expect(picked.platform).toEqual({ value: 'true' });
+    await expect(resolveVariables(spec, { platform: 'Only SwissTXT' }, loader())).rejects.toThrow(
+      '$platform has no option "Only SwissTXT".',
+    );
+  });
+
   test('refuses "All" when it does not offer it', async () => {
     await expect(resolveVariables(listSpec(), { platform: '$__all' }, loader())).rejects.toThrow(
       '$platform has no "All" choice.',

@@ -7,8 +7,10 @@ import {
   allValue,
   calendarParts,
   type DashboardSpec,
+  labelOfValue,
   resolveTimeRange,
   type TimeRangeExpression,
+  type Variable,
   type VariableValues,
 } from '@quanthea/shared';
 
@@ -89,15 +91,17 @@ export function instantLabel(instant: number, timeZone: string): string {
 }
 
 /**
- * Describes a variable's value.
+ * Describes a variable's value, each value by its label when its option has one.
  *
  * @param value - One value or several.
+ * @param variable - The variable, for the labels of its options.
  * @returns Such as `prod`, `All`, or `api + web`.
  */
-function valueWords(value: string | readonly string[]): string {
+function valueWords(value: string | readonly string[], variable?: Variable): string {
   const values = [value].flat();
   if (values.includes(allValue)) return 'All';
-  return values.join(' + ');
+  const options = variable?.kind === 'custom' ? variable.options : undefined;
+  return values.map((each) => labelOfValue(options, each)).join(' + ');
 }
 
 /**
@@ -110,7 +114,7 @@ function valueWords(value: string | readonly string[]): string {
 export function variableWords(spec: DashboardSpec, variables: VariableValues): string[] {
   return spec.variables.flatMap((variable) => {
     const value = variables[variable.name] ?? variable.default;
-    return value === undefined ? [] : [`$${variable.name} ${valueWords(value)}`];
+    return value === undefined ? [] : [`$${variable.name} ${valueWords(value, variable)}`];
   });
 }
 

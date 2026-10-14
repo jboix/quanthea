@@ -11,6 +11,7 @@ import {
   isMultiValue,
   maxTextValueLength,
   offersAll,
+  optionValues,
   type Variable,
   type VariableValues,
 } from '@quanthea/shared';
@@ -106,11 +107,13 @@ function listedBinding(
   variable: Extract<Variable, { kind: 'custom' | 'interval' }>,
   values: readonly string[],
 ): VariableBinding {
+  const options = optionValues(variable.options);
   if (values.includes(allValue)) {
     if (!offersAll(variable)) refuse(variable, 'has no "All" choice.');
-    return { value: [...variable.options] };
+    return { value: options };
   }
-  const unknown = values.find((value) => !variable.options.includes(value));
+  // A label is shown, never bound: a viewer's choice is checked against the values.
+  const unknown = values.find((value) => !options.includes(value));
   if (unknown !== undefined) refuse(variable, `has no option "${unknown}".`);
   const binding = bindingOf(variable, values);
   return variable.kind === 'interval' ? { ...binding, duration: true } : binding;

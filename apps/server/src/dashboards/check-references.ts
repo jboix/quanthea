@@ -9,6 +9,7 @@ import {
   isMultiValue,
   maxTextValueLength,
   offersAll,
+  optionValues,
   type Panel,
   type Variable,
   type View,
@@ -88,8 +89,9 @@ function checkVariable(variable: Variable, path: string): SpecIssue[] {
       { path: `${path}.default`, message: 'Only a multi-value variable has several defaults.' },
     ];
   if (variable.kind === 'query') return [];
+  const options = optionValues(variable.options);
   const unknown = defaults.find(
-    (value) => !variable.options.includes(value) && !(value === allValue && offersAll(variable)),
+    (value) => !options.includes(value) && !(value === allValue && offersAll(variable)),
   );
   return unknown === undefined
     ? []

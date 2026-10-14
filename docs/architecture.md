@@ -540,7 +540,9 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
 3. The server loads the spec. Viewers may run versions pinned at some time, while the dashboard is
    pinned; anything else is "not found" to them.
 4. `dashboards/` resolves the time range and the variables against the spec's declarations: a custom
-   value must be an option, a single-value variable takes one value, a text value the viewer types
+   value must be the value of an option (an option may carry a label a viewer reads, which is shown
+   and never bound; `spec/variable-options.ts`), "All" of a fixed list with `includeAll` binds
+   every option's value, a single-value variable takes one value, a text value the viewer types
    is at most 100 characters and must match its pattern. A pattern that could backtrack for long
    (`dashboards/safe-pattern.ts`: a back-reference, a repeated group that holds an alternation, or a
    quantifier unless its iterations cannot overlap, or quantifiers and alternations whose choices

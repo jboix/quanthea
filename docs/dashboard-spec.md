@@ -34,8 +34,8 @@ type Variable =
       kind: 'custom'
       name: string                          // [a-z][a-z0-9_]*, referenced as $name / :name
       label?: string
-      options: string[]                     // allowed values
-      default: string | string[]            // '$__all' with includeAll
+      options: (string | { value: string; label: string })[]  // a value, or one with a label
+      default: string | string[]            // values, or '$__all' with includeAll
       multi?: boolean
       includeAll?: boolean                  // offers "All", which binds every option
     }
@@ -233,6 +233,10 @@ they differ from the sketch above, the schemas win:
   `$__all`, and may be its default. It binds every option, so such a variable is checked as one of several values when a dashboard is
   written, even without `multi`: where only one value fits, the write is refused. A stored
   version is not checked for it, so it still pins and restores.
+- An option of a fixed list may carry a label, such as `{ "value": "true", "label": "Only
+  SwissTXT" }`. The chip, a snapshot's or a report run's bar and Ask show the label. The value is
+  what is checked and bound: a default, a viewer's choice and a query use values, and a label
+  sent as a value is refused. Labels for query-backed variables are not part of the spec.
 - A value a viewer picks for a query-backed variable is one of its options or its default; any
   other is refused when the panel runs.
 - A mapping matches the raw value of the result, before the format. A `value` is compared as it
