@@ -12,6 +12,7 @@ import {
   untouched,
   withFilter,
 } from './table-state.ts';
+import { ColumnWidths } from './table-widths.tsx';
 import { toneStyle } from './tone.ts';
 
 /** Props of {@link TableView}. */
@@ -52,24 +53,32 @@ function CellText({
 }
 
 /**
- * One row of a table's body.
+ * One row of a table's body. In a table of fixed widths a cell cuts a long text and keeps it
+ * whole in its title.
  *
- * @param props - The row and the columns.
+ * @param props - The row, the columns and whether the widths are fixed.
  * @param props.row - The row.
  * @param props.columns - The columns of the table.
+ * @param props.fixed - Whether the columns have fixed widths.
  * @returns The row.
  */
 function BodyRow({
   row,
   columns,
+  fixed,
 }: {
   readonly row: TableRow;
   readonly columns: TableRows['columns'];
+  readonly fixed: boolean;
 }) {
   return (
     <tr>
       {row.cells.map((cell, index) => (
-        <td key={columns[index]?.label ?? index} data-align={columns[index]?.align}>
+        <td
+          key={columns[index]?.label ?? index}
+          data-align={columns[index]?.align}
+          title={fixed ? cell.text : undefined}
+        >
           <CellText cell={cell} toneAs={columns[index]?.toneAs} />
         </td>
       ))}
@@ -95,9 +104,11 @@ function WorkedTable({
   const [state, setState] = useState<TableState>(untouched);
   const page = tablePage(table.rows, state, pageSize);
   const filtering = table.rows.length > pageSize || state.filters.some((each) => each !== '');
+  const fixed = table.columns.some((column) => column.width);
   return (
     <>
-      <table className={styles.table}>
+      <table className={styles.table} data-fixed={fixed || undefined}>
+        <ColumnWidths columns={table.columns} />
         <thead>
           <TableHead
             columns={table.columns}
@@ -116,7 +127,7 @@ function WorkedTable({
         </thead>
         <tbody>
           {page.rows.map((row) => (
-            <BodyRow key={row.key} row={row} columns={table.columns} />
+            <BodyRow key={row.key} row={row} columns={table.columns} fixed={fixed} />
           ))}
         </tbody>
       </table>

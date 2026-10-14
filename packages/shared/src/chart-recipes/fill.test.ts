@@ -78,7 +78,7 @@ describe('the columns of a table', () => {
 
   test('refuse options that are not a list of columns', () => {
     const problems = [
-      'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"? }, one for each column to change.',
+      'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"?, "width"? }, one for each column to change.',
     ];
     expect(tableOf({ overrides: { columns: { host: { label: 'Host' } } } }, hosts)).toEqual({
       problems,
@@ -110,10 +110,10 @@ describe('the columns of a table', () => {
   });
 
   test('refuse an option with a key a column does not take', () => {
-    const overrides = { columns: [{ field: 'host', width: 3 }] };
+    const overrides = { columns: [{ field: 'host', color: 'red' }] };
     expect(tableOf({ overrides }, hosts)).toEqual({
       problems: [
-        'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"? }, one for each column to change.',
+        'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"?, "width"? }, one for each column to change.',
       ],
     });
   });

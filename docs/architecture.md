@@ -4233,6 +4233,10 @@ one, and enables them again. Without any admin, it creates the default one.
   `pageSize` rows, 20 when left out. All of it runs in the browser over the rows already fetched,
   per viewer, in a snapshot and a report's run too, and starts again when the columns change. A
   refresh keeps it, and a page past the end of fewer rows shows the last page.
+- **Column widths** (`table-widths.tsx`). A column takes `width`: `narrow`, `medium` or `wide`,
+  shares of 1, 2 and 4 of the table, and a column with none takes a medium share. When one column
+  sets a width the table has a `colgroup` and a fixed layout, and a long cell ends in an ellipsis
+  with its whole text as its title. No pixel value comes from a spec.
 - **Mappings and tones** (`spec/tones.ts` in `@quanthea/shared`, `features/dashboard/tone.ts`). A
   table column takes `mappings`, a list read in order: each matches a value, no value (`null`) or
   a range of numbers (`from` included, `to` excluded, either end open), and gives a text, a tone or

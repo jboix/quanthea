@@ -122,6 +122,7 @@ type TableView = {
     field: string; label?: string; format?: Formatter; align?: 'left' | 'right'
     mappings?: Mapping[]                    // ≤ 20, the first match wins
     toneAs?: 'text' | 'background'          // default: text
+    width?: 'narrow' | 'medium' | 'wide'    // a share of the table; medium when left out
   }[]
   sort?: { field: string; dir: 'asc' | 'desc' }   // the first order; a viewer sorts by a click
   limit?: number                            // ≤ 500

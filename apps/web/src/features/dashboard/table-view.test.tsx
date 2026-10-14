@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import type { Frame, TableView as TableViewSpec } from '@quanthea/shared';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { TableView } from './table-view.tsx';
+import { columnPercents } from './table-widths.tsx';
 
 const frame: Frame = {
   refId: 'A',
@@ -83,4 +84,37 @@ test('a table longer than its page has a filter per column and a pager', () => {
   expect(html).toContain('aria-label="Table pages"');
   expect(html).toContain('1–5 of 7');
   expect(html.match(/<td /g)).toHaveLength(5);
+});
+
+test('columns that set widths share the table out of a colgroup, and a long cell keeps its title', () => {
+  const view: TableViewSpec = {
+    kind: 'table',
+    ref: 'A',
+    columns: [
+      { field: 'browser', width: 'wide' },
+      { field: 'median', width: 'narrow' },
+    ],
+  };
+  const queries = [{ refId: 'A', frames: [frame], error: null }];
+  const html = renderToStaticMarkup(<TableView view={view} queries={queries} timeZone="UTC" />);
+  expect(html).toContain('<col data-width="wide" style="width:80%"/>');
+  expect(html).toContain('<col data-width="narrow" style="width:20%"/>');
+  expect(html).toContain('data-fixed="true"');
+  expect(html).toContain('title="Firefox"');
+});
+
+test('a table whose columns set no width has no colgroup', () => {
+  const html = render();
+  expect(html).not.toContain('<colgroup');
+  expect(html).not.toContain('data-fixed');
+});
+
+test('a column with no width takes a medium share beside one that sets one', () => {
+  expect(
+    columnPercents([
+      { label: 'a', align: 'left', width: 'narrow' },
+      { label: 'b', align: 'left' },
+      { label: 'c', align: 'left', width: 'wide' },
+    ]),
+  ).toEqual([14.3, 28.6, 57.1]);
 });

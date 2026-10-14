@@ -16,6 +16,9 @@ import {
   type ToneAs,
 } from '@quanthea/shared';
 
+/** How wide a column is beside the others. */
+export type ColumnWidth = NonNullable<TableView['columns'][number]['width']>;
+
 /** One cell of a table. */
 export interface TableCell {
   /** The value as the result holds it; `null` where the result has no such column or value. */
@@ -34,6 +37,8 @@ export interface TableColumn {
   readonly align: 'left' | 'right';
   /** How the cells show their tone; as the colour of the text when left out. */
   readonly toneAs?: ToneAs;
+  /** How wide the column is beside the others, when the view says. */
+  readonly width?: ColumnWidth;
 }
 
 /** One row of a table. */
@@ -141,6 +146,7 @@ export function tableRows(
       label: column.label ?? column.field,
       align: column.align ?? 'left',
       ...(column.toneAs ? { toneAs: column.toneAs } : {}),
+      ...(column.width ? { width: column.width } : {}),
     })),
     rows: rows.slice(0, limit).map((row) => ({
       key: String(row.position),

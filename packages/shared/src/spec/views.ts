@@ -47,6 +47,8 @@ const columnSchema = z.strictObject({
   mappings: mappingsSchema.optional(),
   /** How a cell shows its tone: as the colour of its text when left out, or as a tint behind it. */
   toneAs: toneAsSchema.optional(),
+  /** How wide the column is beside the others; it shares what is left when left out. */
+  width: z.enum(['narrow', 'medium', 'wide']).optional(),
 });
 
 /** Validates a table. */

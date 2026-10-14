@@ -9,7 +9,7 @@ export type TableColumns = { columns: JsonObject[] } | { problems: string[] };
 
 /** What the options of a table's columns must be. */
 const shapeProblem =
-  'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"? }, one for each column to change.';
+  'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"?, "width"? }, one for each column to change.';
 
 /** What the options of one column may hold. */
 const optionKeys: ReadonlySet<string> = new Set([
@@ -19,6 +19,7 @@ const optionKeys: ReadonlySet<string> = new Set([
   'align',
   'mappings',
   'toneAs',
+  'width',
 ]);
 
 /**

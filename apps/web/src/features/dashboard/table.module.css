@@ -55,3 +55,14 @@
   font: inherit;
   font-size: 12px;
 }
+
+/* A table whose columns set widths lays them out as fixed, and cuts a long cell at its end. */
+[data-fixed] {
+  table-layout: fixed;
+}
+
+[data-fixed] td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
