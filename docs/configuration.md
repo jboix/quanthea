@@ -299,6 +299,38 @@ A saved query's `params` declares its placeholders, at most 10: each a `name` an
 `graph`, `geo`, `ohlc` or `rows`. **Settings → Queries** and **Settings → Charts** show the
 builder and recipe ids.
 
+## definitions
+
+Business terms with one meaning, by id. The agent reads the meaning; a panel built from a
+definition copies its checked body for that query language. A change in the file adds a version
+of the definition; panels already built keep the copy they made.
+
+```yaml
+definitions:
+  error-rate:
+    name: Error rate
+    synonyms: [failure rate]
+    meaning: ERROR events, excluding business errors and blocked media, over START events.
+    bodies:
+      - shape: ratio
+        request:
+          kind: search-ratio
+          index: core_events
+          match:
+            - { field: event_name, value: ERROR }
+            - { field: data.business_error, op: '!=', value: 'true' }
+          of:
+            - { field: event_name, value: START }
+```
+
+- `meaning` is at most 300 characters. It may not name a field hidden on a connector.
+- A body's `shape` is `measure`, `ratio` or `segment`, and its `request` is a query builder's
+  request without its `connector`. At most one body per query language.
+- `connectors` on a body limits it to those connectors; without it, it applies to every connector
+  of its language.
+- Bodies from the file are checked but not test-run at startup, since their sources may not
+  answer yet.
+
 ## alerts
 
 The [alert settings](guide/alerts.md#settings), and the quiet hours of every alert that sets none

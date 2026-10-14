@@ -7,12 +7,14 @@ import { z } from 'zod';
 import type { SignInSettings } from '../auth/providers/sign-in-settings.ts';
 import type { ConfigFile } from '../config/config-file.ts';
 import type { Connections } from '../connections/connections.ts';
+import type { Definitions } from '../dashboards/definitions.ts';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { ProvisionedRepository } from '../db/provisioned-repository.ts';
 import type { Logger } from '../lib/logger.ts';
 import type { KeyedHash } from '../secrets/keyed-hash.ts';
 import type { Peppers } from '../secrets/keys.ts';
 import { connectorApplier, planConnectors } from './connectors.ts';
+import { definitionApplier, planDefinitions } from './definitions.ts';
 import { issuesAt, type ProvisioningContext, reconcile } from './reconcile.ts';
 import { planSettings, type SettingsServices, settingsApplier } from './settings-sections.ts';
 import {
@@ -38,6 +40,8 @@ export interface ProvisionServices extends SettingsServices, UserServices {
   readonly connections: Connections;
   /** The sign-in settings. */
   readonly signInSettings: SignInSettings;
+  /** The definitions of business terms, applied after the connectors they run on. */
+  readonly definitions: Definitions;
 }
 
 /** What applying the file needs. */
@@ -92,6 +96,7 @@ async function planAll(dependencies: ProvisionDependencies) {
     passwordSignIn: planPasswordSignIn(file, issues),
     settings: planSettings(file, issues),
     connectors: planConnectors(file, issues),
+    definitions: planDefinitions(file, issues),
   };
   return { plans, issues };
 }
@@ -120,6 +125,7 @@ export async function provision(dependencies: ProvisionDependencies): Promise<vo
     )),
     ...(await reconcile(context, settingsApplier(services), plans.settings)),
     ...(await reconcile(context, connectorApplier(services.connections, logger), plans.connectors)),
+    ...(await reconcile(context, definitionApplier(services.definitions), plans.definitions)),
   ];
   if (failures.length > 0)
     throw new Error(`The configuration could not be applied:\n- ${failures.join('\n- ')}`);

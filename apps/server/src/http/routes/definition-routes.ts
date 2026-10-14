@@ -7,6 +7,7 @@ import {
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
 import type { Definitions } from '../../dashboards/definitions.ts';
+import type { Managed } from '../../provisioning/managed.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
 import { actorOf } from '../principal.ts';
@@ -17,10 +18,11 @@ import { actorOf } from '../principal.ts';
  * @param app - The app.
  * @param services - The services.
  * @param services.definitions - The definitions.
+ * @param services.managed - What the configuration file manages: those are read-only here.
  */
 export function mountDefinitionEndpoints(
   app: Hono<AppEnv>,
-  { definitions }: { readonly definitions: Definitions },
+  { definitions, managed }: { readonly definitions: Definitions; readonly managed: Managed },
 ): void {
   mountEndpoint(app, listDefinitionsEndpoint, {
     access: 'viewer',
@@ -32,12 +34,16 @@ export function mountDefinitionEndpoints(
   });
   mountEndpoint(app, saveDefinitionEndpoint, {
     access: 'editor',
-    handle: ({ body, principal }) =>
-      definitions.save(body.definition, body.basedOn, actorOf(principal)),
+    handle: ({ body, principal }) => {
+      const id = (body.definition as { id?: unknown } | null)?.id;
+      if (typeof id === 'string') managed.refuseChange('definition', id);
+      return definitions.save(body.definition, body.basedOn, actorOf(principal));
+    },
   });
   mountEndpoint(app, deleteDefinitionEndpoint, {
     access: 'editor',
     handle: ({ params, body, principal }) => {
+      managed.refuseChange('definition', params.definitionId);
       definitions.remove(params.definitionId, body.basedOn, actorOf(principal));
       return { deleted: true as const };
     },

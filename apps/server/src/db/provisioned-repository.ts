@@ -2,7 +2,7 @@
 import type { Database } from 'bun:sqlite';
 
 /** A kind of item the file manages. */
-export type ProvisionedKind = 'connector' | 'provider' | 'user' | 'settings';
+export type ProvisionedKind = 'connector' | 'provider' | 'user' | 'settings' | 'definition';
 
 /** An item the file manages. */
 export interface ProvisionedRow {

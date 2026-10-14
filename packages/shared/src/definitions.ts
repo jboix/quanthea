@@ -87,19 +87,20 @@ function bodyProblems(bodies: readonly DefinitionBody[]): string[] {
   ];
 }
 
+/** The fields of a definition, before the checks across its bodies. */
+export const definitionFieldsSchema = z.strictObject({
+  id: definitionIdSchema,
+  name: z.string().trim().min(1).max(80),
+  synonyms: z.array(z.string().trim().min(1).max(60)).max(10).default([]),
+  meaning: z.string().trim().min(1).max(maxMeaningLength),
+  bodies: z.array(definitionBodySchema).max(5).default([]),
+});
+
 /** Validates a definition: a name, synonyms, a meaning, and at most one checked body a language. */
-export const definitionSchema = z
-  .strictObject({
-    id: definitionIdSchema,
-    name: z.string().trim().min(1).max(80),
-    synonyms: z.array(z.string().trim().min(1).max(60)).max(10).default([]),
-    meaning: z.string().trim().min(1).max(maxMeaningLength),
-    bodies: z.array(definitionBodySchema).max(5).default([]),
-  })
-  .superRefine((definition, context) => {
-    for (const message of bodyProblems(definition.bodies))
-      context.addIssue({ code: 'custom', path: ['bodies'], message });
-  });
+export const definitionSchema = definitionFieldsSchema.superRefine((definition, context) => {
+  for (const message of bodyProblems(definition.bodies))
+    context.addIssue({ code: 'custom', path: ['bodies'], message });
+});
 
 /** A definition. */
 export type Definition = z.infer<typeof definitionSchema>;

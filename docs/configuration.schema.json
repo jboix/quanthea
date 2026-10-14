@@ -559,6 +559,106 @@
       },
       "additionalProperties": false
     },
+    "definitions": {
+      "description": "Definitions of business terms by id: a meaning, and checked bodies.",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]{0,62}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "synonyms": {
+            "default": [],
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            }
+          },
+          "meaning": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "bodies": {
+            "default": [],
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "shape": {
+                  "type": "string",
+                  "enum": ["measure", "ratio", "segment"]
+                },
+                "request": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "rate",
+                        "ratio",
+                        "latency",
+                        "gauge",
+                        "top",
+                        "sql-series",
+                        "sql-breakdown",
+                        "sql-stat",
+                        "sql-rows",
+                        "sql-ratio",
+                        "search-series",
+                        "search-ratio",
+                        "search-breakdown",
+                        "search-stat",
+                        "search-histogram",
+                        "search-rows",
+                        "logql-series",
+                        "logql-ratio",
+                        "logql-breakdown",
+                        "logql-stat",
+                        "logql-lines",
+                        "mongodb-series",
+                        "mongodb-ratio",
+                        "mongodb-breakdown",
+                        "mongodb-stat",
+                        "mongodb-histogram",
+                        "mongodb-rows"
+                      ]
+                    }
+                  },
+                  "required": ["kind"],
+                  "additionalProperties": {}
+                },
+                "connectors": {
+                  "minItems": 1,
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 63
+                  }
+                }
+              },
+              "required": ["shape", "request"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["name", "meaning"],
+        "additionalProperties": false
+      }
+    },
     "alerts": {
       "description": "The alert settings: the cap per connector, and the default quiet hours.",
       "type": "object",

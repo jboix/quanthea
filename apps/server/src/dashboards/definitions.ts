@@ -106,7 +106,8 @@ export interface Definitions {
    * @param input - The definition, unchecked.
    * @param basedOn - The latest version the change started from, `null` for a new one.
    * @param actor - Who saves it.
-   * @param origin - Where it comes from; the interface by default.
+   * @param origin - Where it comes from; the interface by default. A definition from the file
+   *   is checked but not test-run: its sources may not answer yet at startup.
    * @returns The saved version, and each body's test run.
    * @throws {AppError} `bad_request` for an invalid definition, a hidden field or a body that does
    *   not run; `conflict` when another version was saved since.
@@ -279,7 +280,9 @@ async function save(
   if (!parsed.success) throw new AppError('bad_request', z.prettifyError(parsed.error));
   const definition = parsed.data;
   refuseHidden(definition, dependencies.connectors());
-  const tests = await Promise.all(definition.bodies.map((body) => testBody(dependencies, body)));
+  // The file is reviewed where it is written, and its sources may not answer yet at startup.
+  const bodies = who.origin === 'file' ? [] : definition.bodies;
+  const tests = await Promise.all(bodies.map((body) => testBody(dependencies, body)));
   const row = { definitionId: definition.id, definition, deleted: false, ...who };
   return { version: versionOf(addVersion(dependencies, row, basedOn)), tests };
 }

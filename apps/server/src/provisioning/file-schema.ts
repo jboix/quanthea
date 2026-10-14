@@ -7,6 +7,8 @@ import {
   alertSettingsSchema,
   chartSettingsSchema,
   connectorNameSchema,
+  definitionFieldsSchema,
+  definitionIdSchema,
   modelGatewaySchema,
   providerConfigSchema,
   querySettingsSchema,
@@ -105,6 +107,10 @@ const configFileSchema = z
     retention: retentionSettingsSchema.optional(),
     charts: chartSettingsSchema.optional(),
     queries: querySettingsSchema.optional(),
+    definitions: z
+      .record(definitionIdSchema, definitionFieldsSchema.omit({ id: true }))
+      .optional()
+      .describe('Definitions of business terms by id: a meaning, and checked bodies.'),
     alerts: alertSettingsSchema
       .optional()
       .describe('The alert settings: the cap per connector, and the default quiet hours.'),
