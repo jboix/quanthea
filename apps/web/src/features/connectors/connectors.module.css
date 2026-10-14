@@ -5,6 +5,8 @@
 }
 
 .sidebar {
+  /* Positioned, as .content is, so hidden labels scroll inside the pane. */
+  position: relative;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -109,6 +111,9 @@
 }
 
 .content {
+  /* Positioned, so absolutely placed descendants (visually hidden labels) scroll inside this pane
+     instead of stretching the main area, which then scrolled the whole page as well. */
+  position: relative;
   flex-grow: 1;
   min-width: 0;
   overflow-y: auto;
