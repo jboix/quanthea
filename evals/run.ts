@@ -18,7 +18,7 @@ import { planCases, selectCases, skippedLine } from './core/select.ts';
 import { record } from './fixtures/record.ts';
 import { calibrate, judgeSaved } from './judge/commands.ts';
 import type { Judge } from './judge/judge.ts';
-import { defaultJudge, type LiveJudge, openLiveJudge } from './judge/live.ts';
+import { defaultJudgeProvider, judgeModels, type LiveJudge, openLiveJudge } from './judge/live.ts';
 import { judgePromptVersion } from './judge/prompt.ts';
 import { writeEvalmark } from './report/evalmark.ts';
 import { htmlReport, markdownReport } from './report/render.ts';
@@ -169,8 +169,8 @@ function apiKeyFor(models: EvalModels): string | undefined {
  */
 async function openJudge(flags: Flags, draw = 1): Promise<LiveJudge | undefined> {
   if (flags['no-judge']) return undefined;
-  const provider: EvalProvider = providerOf(flags['judge-provider'] ?? defaultJudge.provider);
-  const model = flags['judge-model'] ?? defaultJudge.model;
+  const provider: EvalProvider = providerOf(flags['judge-provider'] ?? defaultJudgeProvider);
+  const model = flags['judge-model'] ?? judgeModels[provider];
   const apiKey = process.env.JUDGE_API_KEY || undefined;
   if (apiKey === undefined) {
     process.stdout.write('JUDGE_API_KEY is not set: no judge reads the rubrics.\n');

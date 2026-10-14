@@ -101,7 +101,8 @@ each panel's query and a summary of its result (its rows only when there are few
 with its reads, or the alert with its replay, or the report with a run's numbers.
 
 - One fixed judge for every run, whichever provider made what it reads, so runs compare. By
-  default `anthropic/claude-haiku-4-5`; `--judge-provider` and `--judge-model` change it.
+  default `anthropic/claude-haiku-4-5`. `--judge-provider google` makes it
+  `google/gemini-3.5-flash-lite`, and `--judge-model` picks another model.
 - It never sees the provider or the model.
 - It answers each sentence apart: yes, no or uncertain, with a reason and the piece it is based
   on. An answer it does not give is uncertain, never a pass.
@@ -111,7 +112,7 @@ with its reads, or the alert with its replay, or the report with a run's numbers
   twice.
 - Its temperature is 0 where the provider takes it. Anthropic does. Google advises leaving its
   models' sampling alone, so there it is left alone.
-- It needs a key of its own, of its own provider: `JUDGE_API_KEY`. Only that turns it on: were a
+- It needs a key of its provider in `JUDGE_API_KEY`. Only that turns it on: were a
   run's own key enough, a run on the judge's provider would be judged and a run on another would
   not, and the two would not compare. Without it, or with `--no-judge`, no judge runs and the
   patterns decide. The report says which.
@@ -308,10 +309,10 @@ Live calls are spaced 4 seconds apart, to stay under the free tier's limit per m
 The Evals workflow runs by hand only: Actions, Evals, Run workflow, on `main`, picking the provider:
 `google`, `anthropic`, or `both`, one job each. Ticking `search` also starts the dev Elasticsearch
 and OpenSearch and runs with `--search`. Its jobs run for the repository's owner alone, in
-the `evals` environment, which holds `GEMINI_API_KEY` and `ANTHROPIC_API_KEY`; each job gets only
-its own provider's key. A job starts the dev data sources, runs the cases with the provider's
-suggested models, and keeps the cache between runs. Set the `JUDGE_API_KEY` secret of the environment to have a judge read the rubrics in both jobs;
-without it, no judge runs there. The summary table shows on the run's page; the
+the `evals` environment, which holds `GEMINI_API_KEY` and `ANTHROPIC_API_KEY`. Picking `judge`
+sets who reads the rubrics: `anthropic` (the default) or `google`, with that provider's key, or
+`none`. Each job gets its own provider's key and the judge's, so one judge reads both jobs. A job starts the dev data sources, runs the cases with the provider's
+suggested models, and keeps the cache between runs. The summary table shows on the run's page; the
 HTML report and the JSON are the `evals-report-<provider>` artifact. A job fails only when the run
 breaks, never because cases fail.
 

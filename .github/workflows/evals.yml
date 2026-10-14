@@ -10,8 +10,9 @@ name: Evals
 # not a failed job: a model's answers vary from run to run. A job fails only when the run breaks.
 #
 # Run by hand from main, by the repository's owner only. The jobs run in the `evals` environment,
-# which holds the providers' API keys and deploys from main only, and each job gets only its own
-# provider's key. Never part of the Quality workflow.
+# which holds the providers' API keys and deploys from main only. Each job gets its own provider's
+# key, and the key of the judge's provider, picked when the run starts. Never part of the Quality
+# workflow.
 
 on:
   workflow_dispatch:
@@ -31,6 +32,12 @@ on:
         type: boolean
         default: false
         required: false
+      judge:
+        description: The provider whose small model reads the rubrics, for both jobs (none for no judge)
+        type: choice
+        options: [anthropic, google, none]
+        default: anthropic
+        required: true
 
 permissions: {}
 
@@ -81,13 +88,14 @@ jobs:
           key: evals-cache-${{ matrix.provider }}-${{ github.run_id }}
           restore-keys: evals-cache-${{ matrix.provider }}-
 
-      # Each job gets its own provider's key only.
+      # Each job gets its own provider's key, and the judge's.
       - name: Ask the questions
         env:
           GEMINI_API_KEY: ${{ matrix.provider == 'google' && secrets.GEMINI_API_KEY || '' }}
           ANTHROPIC_API_KEY: ${{ matrix.provider == 'anthropic' && secrets.ANTHROPIC_API_KEY || '' }}
-          # The judge's own key, for both jobs: one fixed judge reads every run. Empty, no judge runs.
-          JUDGE_API_KEY: ${{ secrets.JUDGE_API_KEY }}
+          # One judge reads the rubrics of both jobs, on the key of the provider picked for it.
+          JUDGE_API_KEY: ${{ inputs.judge == 'google' && secrets.GEMINI_API_KEY || inputs.judge == 'anthropic' && secrets.ANTHROPIC_API_KEY || '' }}
+          JUDGE: ${{ inputs.judge }}
           PROVIDER: ${{ matrix.provider }}
           ONLY: ${{ inputs.only }}
           SEARCH: ${{ inputs.search }}
@@ -95,6 +103,7 @@ jobs:
           set -- --provider "$PROVIDER"
           if [ -n "$ONLY" ]; then set -- "$@" --only "$ONLY"; fi
           if [ "$SEARCH" = "true" ]; then set -- "$@" --search; fi
+          if [ "$JUDGE" = "none" ]; then set -- "$@" --no-judge; else set -- "$@" --judge-provider "$JUDGE"; fi
           bun run evals "$@"
 
       - name: Upload the report

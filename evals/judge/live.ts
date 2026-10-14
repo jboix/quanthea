@@ -15,8 +15,14 @@ import { type EvalProvider, gatewayOf } from '../world/providers.ts';
 import { evalsActor } from '../world/setup.ts';
 import { type AskJudge, createJudge, type Judge } from './judge.ts';
 
-/** The judge every run uses unless told otherwise: small, and not the model that builds. */
-export const defaultJudge = { provider: 'anthropic', model: 'claude-haiku-4-5' } as const;
+/** The judge's provider unless told otherwise. */
+export const defaultJudgeProvider: EvalProvider = 'anthropic';
+
+/** The judge's model on each provider unless told otherwise: a small one, not the one that builds. */
+export const judgeModels: Readonly<Record<EvalProvider, string>> = {
+  anthropic: 'claude-haiku-4-5',
+  google: 'gemini-3.5-flash-lite',
+};
 
 /** What a live judge needs. */
 export interface LiveJudgeOptions {

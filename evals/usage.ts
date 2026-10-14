@@ -18,7 +18,7 @@ checks decided by code, and a rubric a judge reads. A case starts in a world of 
   bun run evals --build-model gemini-3.8-flash   another model for building and repairs
   bun run evals --search                with the dev OpenSearch as a third connector
   bun run evals --no-judge              no judge: the patterns that stand in for rubrics decide
-  bun run evals --judge-provider google --judge-model gemini-3.8-flash
+  bun run evals --judge-provider google  the judge on Gemini (gemini-3.5-flash-lite), with its key
   bun run evals --no-cache              ask the provider again, and keep its answers
   bun run evals --allow-failures 2      exit with an error when more than 2 cases fail
   bun run evals --rescore <report.json> score a report again, with no model call
@@ -33,7 +33,8 @@ It needs the data sources (bun run env:up, and bun run env:up:search with --sear
 provider's key, GEMINI_API_KEY or ANTHROPIC_API_KEY, except for the responses the cache in
 evals/.cache already holds. A run with --search lists one connector more in every prompt, so it
 shares no cached response with a run without it. The judge needs a key of its own, of its own
-provider (Anthropic by default): JUDGE_API_KEY. Without it, no judge runs.
+provider (Anthropic by default, Google with --judge-provider google): JUDGE_API_KEY. Without
+it, no judge runs.
 
 Trials: the first trial of a case has the cache key a run without trials has, and each later
 trial has its own, so trials are new samples and the same trial replays free. Use --trials with
