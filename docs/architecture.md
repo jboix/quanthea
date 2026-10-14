@@ -4827,8 +4827,9 @@ their versions and a bump there would break `bun install --frozen-lockfile`.
 
 The kit's version lives in its `plugin-kit-v*` tags and on npm, never in a `package.json` in the
 repository, so a kit release changes neither `bun.lock` nor `main`. Its major version equals
-`kitVersion`. During 0.x, no kit commit carries a `BREAKING CHANGE` footer: going to 1.0 is a
-deliberate breaking release, with `kitVersion` set to 1.
+`kitVersion`. During 0.x, the kit's commit analyzer reads a `BREAKING CHANGE` footer as a minor
+version, because the footer of an app commit that also touches the kit marks a break of the app.
+Going to 1.0 is a deliberate breaking release, with `kitVersion` set to 1 and that rule removed.
 
 ### The website
 

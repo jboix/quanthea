@@ -121,8 +121,10 @@ semantic-release for it on the commits that changed `packages/plugin-kit`, with 
 and publishes it to npm. Scope those commits `plugin-kit`. The kit's major version equals
 `kitVersion`, so while the kit is in 0.x:
 
-- Never give a kit commit a `BREAKING CHANGE` footer. Going to 1.0 is a deliberate breaking
-  release, with `kitVersion` set to 1 in the same commit.
+- A `BREAKING CHANGE` footer makes a minor version of the kit, as a `feat` does. The footer of
+  an app commit that also touches the kit marks a break of the app, not of the kit. Going to 1.0
+  is a deliberate breaking release, with `kitVersion` set to 1 and this rule removed from
+  `packages/plugin-kit/.releaserc.json` in the same commit.
 - A `feat` makes a minor version, such as 0.1.0 to 0.2.0; a `fix` a patch, such as 0.1.1.
 
 The plugin generator (`@quanthea/create-plugin`) is released the same way from the commits that
