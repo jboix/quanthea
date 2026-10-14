@@ -1,5 +1,6 @@
 import { type FormEvent, type KeyboardEvent, useRef } from 'react';
 import styles from './composer.module.css';
+import { composerInputId } from './mention-panel.ts';
 
 /** A panel the person can mention. */
 interface MentionablePanel {
@@ -161,6 +162,7 @@ export function Composer(props: ComposerProps) {
     <form className={styles.composer} onSubmit={send}>
       {matches.length > 0 && <MentionMenu matches={matches} onPick={pick} />}
       <textarea
+        id={composerInputId}
         ref={input}
         className={styles.input}
         rows={2}

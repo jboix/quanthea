@@ -55,6 +55,11 @@
 }
 
 .titleButton:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.titleButton:hover {
   color: var(--color-accent);
 }
 

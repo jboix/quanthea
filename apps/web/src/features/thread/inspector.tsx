@@ -1,5 +1,6 @@
 import { type DashboardDetail, type DashboardSpec, type Panel, queryText } from '@quanthea/shared';
 import { useState } from 'react';
+import { Button } from '../../ui/button.tsx';
 import { Tabs } from '../../ui/tabs.tsx';
 import { usePanelRunData, versionNote } from '../dashboard/index.ts';
 import styles from './inspector.module.css';
@@ -26,6 +27,8 @@ interface InspectorProps {
   readonly onShowVersion: (version: number) => void;
   /** Closes the inspector. */
   readonly onClose: () => void;
+  /** Puts the panel's mention in the composer, so the next turn is about it. */
+  readonly onAsk?: (() => void) | undefined;
 }
 
 /**
@@ -135,6 +138,11 @@ export function Inspector(props: InspectorProps) {
         <span className={styles.subject}>
           {panel.title} · {connectors}
         </span>
+        {props.onAsk && (
+          <Button size="small" onClick={props.onAsk}>
+            Ask about this panel
+          </Button>
+        )}
         <button
           type="button"
           className={styles.close}

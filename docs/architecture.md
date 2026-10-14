@@ -1919,6 +1919,10 @@ the test; turning the switch off sends the provider's default.
   problems (each failing query's error as the gate shapes it, and the chart's problems). The write
   that works after failures streams one with the outcome `repaired`. The parts are stored with the
   answer, like the others.
+- A panel can be the focus of a turn without typing `@`: the inspector's Ask about this panel puts
+  its mention at the start of the composer, and on a pinned dashboard a panel's title (for someone
+  who may change it, while its thread exists) opens `/threads/:id?mention=<panelId>`, which does
+  the same once and leaves the address (`features/thread/mention-panel.ts`).
 - The thread folds the agent's work in each answer into one line (`features/thread/work-log.tsx`,
   `work-summary.ts`), like a chatbot's thinking. The line holds the explore calls, the writes and
   every try the agent still fixes. While the agent works it says "Looking at the data…",

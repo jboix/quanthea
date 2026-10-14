@@ -14,6 +14,7 @@ import {
   useSearchParams,
 } from 'react-router';
 import type { ThreadData, ThreadIntent, ThreadOutcome } from './data.ts';
+import { usePanelMentions } from './mention-panel.ts';
 import type { ThreadMessage } from './messages.ts';
 
 /** The parts that say a new version was written, which the draft pane loads. */
@@ -282,6 +283,7 @@ export function useThread() {
   const selection = { selectedPanelId, setSelectedPanelId };
   const showVersion = useShownVersion();
   useFirstQuestion((text) => composer.send(text), chat.messages.length === 0);
+  const mentionPanel = usePanelMentions(composer.setDraft, data.version?.spec.panels);
   const actions = useThreadActions({
     data,
     chat,
@@ -296,5 +298,6 @@ export function useThread() {
   const reportActions = useReportActions(draftContext);
   useStoredMessages(data, chat, running);
   const panes = { alertActions, reportActions };
-  return { data, chat, running, intents, composer, selection, showVersion, actions, ...panes };
+  const shown = { selection, showVersion, mentionPanel };
+  return { data, chat, running, intents, composer, actions, ...shown, ...panes };
 }

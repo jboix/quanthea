@@ -383,6 +383,7 @@ export function ThreadScreen() {
         stopped={buildStopped(chat.messages)}
         selectedPanelId={selection.selectedPanelId}
         onSelectPanel={selection.setSelectedPanelId}
+        onMentionPanel={state.mentionPanel}
         markedPanelIds={lastMentions(chat.messages)}
         onShowVersion={state.showVersion}
         onPin={(version) => void actions.pin(version)}

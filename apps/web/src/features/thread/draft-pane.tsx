@@ -30,6 +30,8 @@ export interface DraftPaneProps {
   readonly selectedPanelId: string | undefined;
   /** Picks a panel, or closes the inspector with `undefined`. */
   readonly onSelectPanel: (panelId: string | undefined) => void;
+  /** Puts a panel's mention in the composer. */
+  readonly onMentionPanel: (panelId: string) => void;
   /** Panels the latest message mentions. */
   readonly markedPanelIds: readonly string[];
   /** Shows a version, or the latest with `undefined`. */
@@ -309,7 +311,8 @@ function PaneBody(props: DraftPaneProps) {
  * @returns The pane.
  */
 export function DraftPane(props: DraftPaneProps) {
-  const { dashboard, version } = props.data;
+  const { data } = props;
+  const { dashboard, version } = data;
   const selected = version?.spec.panels.find((panel) => panel.id === props.selectedPanelId);
   return (
     <section className={styles.pane} aria-label="Dashboard draft">
@@ -325,6 +328,7 @@ export function DraftPane(props: DraftPaneProps) {
           panel={selected}
           onShowVersion={props.onShowVersion}
           onClose={() => props.onSelectPanel(undefined)}
+          onAsk={data.thread.readOnly ? undefined : () => props.onMentionPanel(selected.id)}
         />
       )}
     </section>

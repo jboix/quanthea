@@ -66,8 +66,9 @@ fails goes back to the agent with the error.
 Keep talking in the same thread: "split the latency by route", "make the error rate a percentage",
 "add the failed orders by reason". Corrections skip the plan: changing a panel, removing one, and
 adding up to three in one message. A bigger change gets a new plan to approve. Type `@` and a
-panel's title to point at one panel. Each change makes a new version, and a card in the conversation
-says what changed.
+panel's title to point at one panel, or click a panel's title and choose **Ask about this panel**.
+On a pinned dashboard, clicking a panel's title opens its thread with that panel mentioned. Each
+change makes a new version, and a card in the conversation says what changed.
 
 - **Undo** on a change card goes back to the version before it, as a new version.
 - **Compare** opens the version before the change in the draft pane, to look at it again.
