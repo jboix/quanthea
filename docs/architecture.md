@@ -3683,9 +3683,11 @@ reports keep running and its searches resolve nothing. A connector made later ge
 hides system objects. A connector declared in the configuration file takes the file's
 `visibility` at the next start, and the default there hides system objects. It adds the
 connectors' `bucket_scripts`, 0 for every connector: no search holds a script of its own until an
-admin allows it. Its last section adds
+admin allows it. It adds
 the layouts of report versions (`report_layouts`), shaped as `dashboard_layouts` is, with the
-same trigger.
+same trigger. Its last section adds the versions of definitions (`definition_versions`: the
+definition as JSON, whether the version deletes it, its origin `ui` or `file`, who and when),
+which triggers keep from being rewritten or removed.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite

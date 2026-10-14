@@ -80,6 +80,7 @@ describe('runMigrations', () => {
       'dashboard_questions',
       'dashboard_versions',
       'dashboards',
+      'definition_versions',
       'identities',
       'library_fts',
       'library_fts_config',
