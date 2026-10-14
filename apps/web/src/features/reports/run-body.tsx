@@ -51,7 +51,8 @@ export function canvasSpec(
  */
 export function arrangedRun(report: ReportDetail, run: ReportRunDetail | null) {
   const panels = run ? reportCanvasPanels(run.spec) : [];
-  const arranged = { version: run?.version ?? 0, panels, layout: run?.layout ?? null };
+  const variables = run?.spec.variables ?? [];
+  const arranged = { version: run?.version ?? 0, panels, layout: run?.layout ?? null, variables };
   const shown = run?.status === 'ok' && run.version === report.activeVersion;
   return { arranged, allowed: report.canChange && shown && panels.length > 0 };
 }

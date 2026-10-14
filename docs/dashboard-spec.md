@@ -98,7 +98,7 @@ type HttpExtract = {
 // ---------------------------------------------------------------- panels
 type Panel = {
   id: string                                // stable slug, e.g. "error-rate-by-service". Used for @mentions and diffs.
-  title: string
+  title: string                             // may name a variable: "Top $browser"
   description?: string
   grid: { x: number; y: number; w: number; h: number }   // 12-column grid, h in rows of 40px
   queries: QueryTemplate[]                  // 1..4
@@ -233,6 +233,12 @@ they differ from the sketch above, the schemas win:
   `$__all`, and may be its default. It binds every option, so such a variable is checked as one of several values when a dashboard is
   written, even without `multi`: where only one value fits, the write is refused. A stored
   version is not checked for it, so it still pins and restores.
+- A panel title may name a variable as `$name` or `${name}`. It is stored as written, since a
+  title also names its panel when an edit rebuilds it, and filled where it is shown: on the live
+  dashboard, in a snapshot, in a report's run and in the layout editor, with the chosen value's
+  label, "All", or a short list (`Firefox, Safari, Chrome +2`). A name no variable has stays as
+  written. Texts the server writes with a title, such as a notification, a report's headline or
+  a library result, show it as stored.
 - An option of a fixed list may carry a label, such as `{ "value": "true", "label": "Only
   SwissTXT" }`. The chip, a snapshot's or a report run's bar and Ask show the label. The value is
   what is checked and bound: a default, a viewer's choice and a query use values, and a label

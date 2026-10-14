@@ -1,6 +1,6 @@
 import { applyLayout } from '@quanthea/shared';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { Link, useLoaderData, useLocation } from 'react-router';
+import { Link, useLoaderData, useLocation, useSearchParams } from 'react-router';
 import { LockIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import { TitleHeader } from '../../ui/title-header.tsx';
@@ -13,6 +13,7 @@ import type { DashboardData } from './data.ts';
 import { LeaveGuard, useArrangement } from './layout-editor.tsx';
 import { SidePanel, type SideTab } from './side-panel.tsx';
 import { versionNote } from './version-note.ts';
+import { choicesFromSearch } from './view-state.ts';
 
 /** What the layout edit puts in the header while it lasts. */
 interface LayoutEditParts {
@@ -85,10 +86,12 @@ function useScrollToPanel(): void {
  */
 function useArrangedView(data: DashboardData) {
   const { dashboard, version } = data;
-  const arranged = useMemo(
-    () => ({ version: version.version, panels: version.spec.panels, layout: version.layout }),
-    [version],
-  );
+  const [search] = useSearchParams();
+  const arranged = useMemo(() => {
+    const { panels, variables } = version.spec;
+    const values = choicesFromSearch(search, version.spec).variables;
+    return { version: version.version, panels, layout: version.layout, variables, values };
+  }, [version, search]);
   const allowed = dashboard.canChange && dashboard.pinnedVersion === version.version;
   const history = `/d/${dashboard.id}/v/${version.version}/layouts`;
   const { layout, ...edit } = useArrangement(arranged, allowed, { history });

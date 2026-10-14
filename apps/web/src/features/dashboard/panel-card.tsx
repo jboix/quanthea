@@ -1,4 +1,11 @@
-import type { DashboardSpec, Panel, PanelRun, QueryOutcome } from '@quanthea/shared';
+import {
+  type DashboardSpec,
+  filledTitle,
+  type Panel,
+  type PanelRun,
+  type QueryOutcome,
+  type VariableValues,
+} from '@quanthea/shared';
 import { type CSSProperties, useEffect, useMemo } from 'react';
 import { useFetcher } from 'react-router';
 import type { PanelMark } from './ask-marks.ts';
@@ -10,6 +17,7 @@ import { PanelInfo } from './panel-info.tsx';
 import { PanelView } from './panel-views.tsx';
 import styles from './panels.module.css';
 import { cutAtRowLimit, rowLimitNote } from './row-limit.ts';
+import { choicesFromSearch } from './view-state.ts';
 
 /** Where the panels of a version load from, and with which choices. */
 export interface RunTarget {
@@ -49,8 +57,10 @@ const planMarkNotes: Readonly<Record<PanelPlanMark['tag'], string>> = {
 interface PanelCardProps {
   /** The panel. */
   readonly panel: Panel;
-  /** The spec, for its time zone. */
+  /** The spec, for its time zone, its colours and its variables. */
   readonly spec: DashboardSpec;
+  /** The variables' values, which fill the title; a live card reads them from what it runs. */
+  readonly values?: VariableValues | undefined;
   /** What to run. */
   readonly target: RunTarget;
   /** Receives each finished run, for the status line. */
@@ -197,12 +207,14 @@ function PanelBody({
  * the numbers the open answer cites it with, the pill of its alerts, and its info bubble: its
  * explanation on a pinned version, its alerts, and where its data comes from.
  *
- * @param props - The panel, whether it is marked, the pick callback, the marks, where its
- *   explanation is kept and its alerts.
+ * @param props - The panel, the spec and the variables' values for its title, whether it is
+ *   marked, the pick callback, the marks, where its explanation is kept and its alerts.
  * @returns The heading.
  */
 function PanelHeading({
   panel,
+  spec,
+  values,
   marked,
   layoutNote,
   onSelect,
@@ -212,14 +224,24 @@ function PanelHeading({
   alerts,
 }: Pick<
   PanelCardProps,
-  'panel' | 'marked' | 'onSelect' | 'planMark' | 'answerMark' | 'explain' | 'alerts' | 'layoutNote'
+  | 'panel'
+  | 'spec'
+  | 'values'
+  | 'marked'
+  | 'onSelect'
+  | 'planMark'
+  | 'answerMark'
+  | 'explain'
+  | 'alerts'
+  | 'layoutNote'
 >) {
+  const text = filledTitle(panel.title, spec.variables, values);
   const title = onSelect ? (
     <button type="button" className={styles.titleButton} onClick={() => onSelect(panel.id)}>
-      {panel.title}
+      {text}
     </button>
   ) : (
-    panel.title
+    text
   );
   return (
     <div className={styles.heading}>
@@ -317,7 +339,13 @@ function gridPlace(panel: Panel): CSSProperties {
  */
 export function PanelCard({ target, onRun, ...props }: PanelCardProps) {
   const { run, loading } = usePanelRun(props.panel, target, onRun);
-  return <PanelFrame {...props} run={run} loading={loading} />;
+  const { search } = target;
+  const { spec } = props;
+  const values = useMemo(
+    () => choicesFromSearch(new URLSearchParams(search), spec).variables,
+    [search, spec],
+  );
+  return <PanelFrame values={values} {...props} run={run} loading={loading} />;
 }
 
 /**

@@ -111,6 +111,7 @@ export function FrozenCanvas(props: FrozenCanvasProps) {
               run={frozenRun(props.panels[panel.id])}
               loading={false}
               hiddenMarkers={markers.hidden}
+              values={props.variables}
             />
           ))}
         </div>

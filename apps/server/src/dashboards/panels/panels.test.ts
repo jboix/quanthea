@@ -127,6 +127,31 @@ describe('applyEdit', () => {
     expect(again.panels.find((panel) => panel.id === 'latency')?.grid).toEqual(latency?.grid);
   });
 
+  test('rebuilds a panel whose title holds a variable, matched on the title as stored', () => {
+    const built = specOf(undefined, firstBuild);
+    const titled = {
+      ...built,
+      panels: built.panels.map((panel) =>
+        panel.id === 'latency' ? { ...panel, title: 'Latency of $service' } : panel,
+      ),
+    };
+    const again = specOf(
+      titled,
+      edit({
+        panels: [
+          {
+            title: 'Latency of $service',
+            data: { kind: 'gauge', connector: 'prom', metric: 'process_resident_memory_bytes' },
+            chart: { recipe: 'trend.line' },
+          },
+        ],
+        summary: 'same panel again',
+      }),
+    );
+    expect(again.panels.map((panel) => panel.id)).toEqual(built.panels.map((panel) => panel.id));
+    expect(again.panels.find((panel) => panel.id === 'latency')?.title).toBe('Latency of $service');
+  });
+
   test('says which panels exist when an edit names another', () => {
     const built = specOf(undefined, firstBuild);
     expect(() => applyEdit(built, edit({ remove: ['nope'], summary: 'x' }))).toThrow(

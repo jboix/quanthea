@@ -58,6 +58,7 @@ export {
   type TimeRangeExpression,
   timeRangeSchema,
 } from './time.ts';
+export { filledTitle } from './title.ts';
 export { isStep, type Mapping, mapValue, type Tone, type ToneAs } from './tones.ts';
 export {
   labelOfValue,

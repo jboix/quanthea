@@ -3,7 +3,15 @@
  * edit, its frames over the panels, its bar with Save and Cancel, and the question asked before
  * leaving with changes unsaved.
  */
-import type { DashboardLayout, LayoutRevision, PanelGrid, ShownLayout } from '@quanthea/shared';
+import {
+  type DashboardLayout,
+  filledTitle,
+  type LayoutRevision,
+  type PanelGrid,
+  type ShownLayout,
+  type Variable,
+  type VariableValues,
+} from '@quanthea/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type SubmitTarget, useBlocker, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
@@ -28,6 +36,10 @@ export interface ArrangedVersion {
   }[];
   /** The layout it is shown with, if one was saved. */
   readonly layout: ShownLayout | null;
+  /** Its variables, which fill the titles; none when it has none. */
+  readonly variables?: readonly Variable[];
+  /** The variables' values; the defaults when left out. */
+  readonly values?: VariableValues;
 }
 
 /** Where an edit is sent and read from. */
@@ -147,9 +159,10 @@ const wideScreen = '(min-width: 901px)';
 export function useArrangement(arranged: ArrangedVersion, allowed: boolean, paths: LayoutPaths) {
   const editor = useLayoutEditor(arranged, paths);
   const wide = useMediaQuery(wideScreen);
+  const { panels, variables = [], values } = arranged;
   const titles = useMemo(
-    () => new Map(arranged.panels.map((panel) => [panel.id, panel.title])),
-    [arranged.panels],
+    () => new Map(panels.map((panel) => [panel.id, filledTitle(panel.title, variables, values)])),
+    [panels, variables, values],
   );
   const editing = editor.draft !== null;
   return {

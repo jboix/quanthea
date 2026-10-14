@@ -4247,6 +4247,11 @@ one, and enables them again. Without any admin, it creates the default one.
     A chart where no category has a colour is left as it was.
   - A table cell whose raw text has a colour takes its tone (`table-rows.ts`), unless its column
     has mappings: then they alone decide.
+- **Titles with variables** (`spec/title.ts`, `filledTitle`). A panel title that names a variable
+  is drawn with its chosen value (the label of its option, "All" or a short list) by the panel
+  card, live (from the values its run is asked with), in a snapshot and a report's run (from
+  the values they ran with), and in the layout editor. The spec keeps the title as written, so
+  an edit that rebuilds a panel by its title still finds it. Server texts show it as stored.
 - **Tables a viewer works** (`features/dashboard/table-state.ts`, `table-head.tsx`). The view's
   `sort` is the first order. A click on a header sorts by that column's raw values, up, then down,
   then back to the view's order. A table with more rows than a page has a text filter under each
