@@ -1917,11 +1917,17 @@ the test; turning the switch off sends the provider's default.
   problems (each failing query's error as the gate shapes it, and the chart's problems). The write
   that works after failures streams one with the outcome `repaired`. The parts are stored with the
   answer, like the others.
-- The thread shows each part as a card (`features/thread/repair-card.tsx`): amber "Not saved · the
-  agent fixes it, try 1 of 3" with each failing panel by title and why, red "Stopped after 3 failed
-  tries" with Try again, which continues the answer with fresh attempts, and a green "Fixed after
-  1 failed try". A failed write's own log line stays only for a refusal, which has no card. The
-  draft pane says "build stopped · try again" while a building thread's latest answer stopped.
+- The thread folds the agent's work in each answer into one line (`features/thread/work-log.tsx`,
+  `work-summary.ts`), like a chatbot's thinking. The line holds the explore calls, the writes and
+  every try the agent still fixes. While the agent works it says "Looking at the data…",
+  "Building…" or "Fixing a problem with a query…"; after, what it did, such as "Explored 2 steps ·
+  built v2 · fixed after 1 failed try". Opening it shows each call and each try's card, as
+  before: amber "Not saved · the agent fixes it, try 1 of 3" with each failing panel by title and
+  why, and a green "Fixed after 1 failed try".
+- Only a try that stops the answer stays in view: red "I could not build this after 3 tries", with
+  each failing panel and Try again, which continues the answer with fresh attempts. A failed
+  write's own log line stays only for a refusal, which has no card. The draft pane says "build
+  stopped · try again" while a building thread's latest answer stopped.
 - Each job has its model; an empty one means the build model. Planning turns (the conversation,
   questions and plans) use the plan model, building and editing use the build model, and once a
   write fails in a run, its later steps use the repair model. So a cheap model can talk and plan

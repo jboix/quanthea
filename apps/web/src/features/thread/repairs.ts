@@ -21,14 +21,15 @@ function counted(count: number, one: string, many: string): string {
  * The heading of a repair card.
  *
  * @param repair - The try.
- * @returns Such as `Not saved · the agent fixes it, try 1 of 3`.
+ * @returns Such as `Not saved · the agent fixes it, try 1 of 3`, or, when the tries ran out, `I
+ *   could not build this after 3 tries`.
  */
 export function repairTitle(repair: Repair): string {
   const { attempt, of, outcome, panels } = repair;
   if (outcome === 'repaired')
     return `Fixed after ${counted(attempt, 'failed try', 'failed tries')}`;
   if (outcome === 'exhausted')
-    return `Stopped after ${counted(attempt, 'failed try', 'failed tries')}`;
+    return `I could not build this after ${counted(attempt, 'try', 'tries')}`;
   const tries = `the agent fixes it, try ${attempt} of ${of}`;
   if (outcome === 'left-out')
     return `Saved without ${counted(panels.length, 'panel', 'panels')} · ${tries}`;

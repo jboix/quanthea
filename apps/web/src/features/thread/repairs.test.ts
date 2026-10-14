@@ -33,7 +33,7 @@ describe('the repair loop in the thread', () => {
       'Saved without 1 panel · the agent fixes it, try 2 of 3',
     );
     expect(repairTitle(repair('repaired', 2))).toBe('Fixed after 2 failed tries');
-    expect(repairTitle(repair('exhausted', 3))).toBe('Stopped after 3 failed tries');
+    expect(repairTitle(repair('exhausted', 3))).toBe('I could not build this after 3 tries');
   });
 
   test('knows when the latest answer stopped with failures left, and only then', () => {

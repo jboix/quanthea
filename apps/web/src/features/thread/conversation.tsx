@@ -7,8 +7,6 @@ import { DiffCard } from './diff-card.tsx';
 import { LinkProposalCard } from './link-card.tsx';
 import { MatchesCard } from './matches-card.tsx';
 import {
-  buildTools,
-  exploreTools,
   isToolPart,
   readableText,
   type ThreadMessage,
@@ -21,8 +19,9 @@ import type { DraftPanel } from './plan-changes.ts';
 import { RepairCard } from './repair-card.tsx';
 import { ReportPlanCard } from './report-cards.tsx';
 import { TextBlock } from './text-block.tsx';
-import { BuildLog, ExploreLog } from './tool-logs.tsx';
 import { UsageLine } from './usage-line.tsx';
+import { WorkLog } from './work-log.tsx';
+import { isWorkPart } from './work-summary.ts';
 
 /** What the conversation needs besides the messages: plan statuses and the thread's actions. */
 export interface ConversationContext {
@@ -60,6 +59,8 @@ export interface ConversationContext {
 interface PartContext extends ConversationContext {
   /** Whether a question in this message still waits for an answer. */
   readonly answerable: boolean;
+  /** Whether the agent is still writing this message. */
+  readonly live: boolean;
 }
 
 /**
@@ -182,7 +183,8 @@ function diffCard(data: ThreadData['diff'], key: string, context: ConversationCo
 }
 
 /**
- * Renders a tool call that shows on its own: a question card, or a build log.
+ * Renders a tool call that shows on its own: a question card. Explore calls and writes fold into
+ * the work line.
  *
  * @param part - The tool part.
  * @param key - Its key.
@@ -196,7 +198,7 @@ function toolView(part: ToolPart, key: string, context: PartContext): ReactNode 
       <AskCard key={key} part={part} answerable={context.answerable} onAnswer={context.onAnswer} />
     );
   }
-  return buildTools.has(name) ? <BuildLog key={key} part={part} /> : null;
+  return null;
 }
 
 /**
@@ -268,8 +270,8 @@ function partView(part: ThreadPart, key: string, context: PartContext): ReactNod
 }
 
 /**
- * Renders an assistant message: explore calls grouped into one log until something else shows,
- * then each other part in order.
+ * Renders an assistant message: the agent's work folded into one line until something else shows
+ * (its words, a plan, a question, a diff), then that, in order.
  *
  * @param message - The message.
  * @param context - The conversation context.
@@ -277,23 +279,23 @@ function partView(part: ThreadPart, key: string, context: PartContext): ReactNod
  */
 function assistantParts(message: ThreadMessage, context: PartContext): ReactNode[] {
   const nodes: ReactNode[] = [];
-  let explored: ToolPart[] = [];
-  const flush = () => {
-    if (explored.length > 0)
-      nodes.push(<ExploreLog key={`explore-${nodes.length}`} parts={explored} />);
-    explored = [];
+  let work: ThreadPart[] = [];
+  const flush = (live: boolean) => {
+    if (work.length > 0)
+      nodes.push(<WorkLog key={`work-${nodes.length}`} parts={work} live={live} />);
+    work = [];
   };
   message.parts.forEach((part, index) => {
-    if (isToolPart(part) && exploreTools.has(toolName(part))) {
-      explored.push(part);
+    if (isWorkPart(part)) {
+      work.push(part);
       return;
     }
     const node = partView(part, `${message.id}-${index}`, context);
     if (node === null) return;
-    flush();
+    flush(false);
     nodes.push(node);
   });
-  flush();
+  flush(context.live);
   return nodes;
 }
 
@@ -348,6 +350,7 @@ export function Conversation({ messages, ...context }: ConversationProps) {
               ...assistantParts(message, {
                 ...context,
                 answerable: index === messages.length - 1 && !context.busy,
+                live: index === messages.length - 1 && context.busy,
               }),
               <UsageLine key="usage" usage={message.metadata?.usage} />,
             ]

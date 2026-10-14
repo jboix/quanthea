@@ -1,0 +1,71 @@
+.work {
+  display: flex;
+  flex-direction: column;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 2px 0;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+  cursor: pointer;
+  list-style: none;
+}
+
+.line::-webkit-details-marker {
+  display: none;
+}
+
+.line::after {
+  content: "›";
+  transition: transform 0.15s;
+}
+
+.work[open] > .line::after {
+  transform: rotate(90deg);
+}
+
+.line:hover .text {
+  color: var(--color-ink);
+}
+
+.work[data-state="fixed"] .line > svg {
+  color: var(--color-ok);
+}
+
+.pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: work-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes work-pulse {
+  50% {
+    opacity: 0.25;
+    transform: scale(0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+
+  .line::after {
+    transition: none;
+  }
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--color-border);
+}
