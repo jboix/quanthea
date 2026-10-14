@@ -26,7 +26,7 @@ export function mountDefinitionEndpoints(
 ): void {
   mountEndpoint(app, listDefinitionsEndpoint, {
     access: 'viewer',
-    handle: () => ({ definitions: definitions.list() }),
+    handle: () => ({ definitions: definitions.list(), managed: managed.pathsOf('definition') }),
   });
   mountEndpoint(app, definitionHistoryEndpoint, {
     access: 'viewer',

@@ -10,6 +10,7 @@ export const routeAccess = {
   '/threads/:threadId/alert-previews': 'editor',
   '/threads/:threadId/report-preview': 'editor',
   '/library': 'viewer',
+  '/definitions': 'viewer',
   '/alerts': 'viewer',
   '/alerts/firing': 'viewer',
   '/alerts/settings': 'admin',

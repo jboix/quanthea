@@ -38,6 +38,7 @@ export const docNav: readonly DocNavGroup[] = [
     items: [
       { slug: 'dashboards', label: 'Dashboards' },
       { slug: 'library', label: 'The library' },
+      { slug: 'definitions', label: 'Definitions' },
       { slug: 'ask-and-explain', label: 'Ask and Explain' },
       { slug: 'snapshots', label: 'Snapshots' },
       { slug: 'alerts', label: 'Alerts' },

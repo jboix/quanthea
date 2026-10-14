@@ -9,11 +9,17 @@ import { defineEndpoint } from './contract.ts';
 /** The definition named in a path. */
 const definitionParams = z.object({ definitionId: definitionIdSchema });
 
-/** Lists the latest version of every definition. */
+/**
+ * Lists the latest version of every definition, and the file that declares each one the
+ * configuration file manages: those are read-only.
+ */
 export const listDefinitionsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/definitions',
-  output: z.object({ definitions: z.array(definitionVersionSchema) }),
+  output: z.object({
+    definitions: z.array(definitionVersionSchema),
+    managed: z.record(z.string(), z.string()),
+  }),
 });
 
 /** Lists every version of a definition, the latest first. */

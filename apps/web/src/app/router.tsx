@@ -12,6 +12,7 @@ import { alertRoutes } from '../routes/alerts.tsx';
 import { binRoute } from '../routes/bin.tsx';
 import { connectorRoutes } from '../routes/connectors.tsx';
 import { dashboardRoutes } from '../routes/dashboard.tsx';
+import { definitionsRoute } from '../routes/definitions.tsx';
 import { libraryRoute } from '../routes/library.tsx';
 import { loginRoute, setPasswordRoute, setupRoute } from '../routes/login.tsx';
 import { NotFoundRoute } from '../routes/not-found.tsx';
@@ -85,6 +86,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
     { index: true, loader: home },
     ...threadRoutes(loadSession, api),
     libraryRoute(loadSession, api),
+    definitionsRoute(loadSession, api),
     ...alertRoutes(loadSession, api),
     ...reportRoutes(loadSession, api),
     accountRoute(loadSession, api),

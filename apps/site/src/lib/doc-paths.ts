@@ -19,6 +19,7 @@ export const publishedDocs = [
   'environment.md',
   'guide/dashboards.md',
   'guide/library.md',
+  'guide/definitions.md',
   'guide/ask-and-explain.md',
   'guide/snapshots.md',
   'guide/alerts.md',

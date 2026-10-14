@@ -8,6 +8,7 @@ import { BrandIcon } from '../ui/brand.tsx';
 import {
   BellIcon,
   BinIcon,
+  BookIcon,
   ConnectorsIcon,
   LibraryIcon,
   ReportIcon,
@@ -51,6 +52,13 @@ const topItems: readonly RailItem[] = [
     section: '/library',
     minimum: 'viewer',
     icon: <LibraryIcon />,
+  },
+  {
+    label: 'Definitions',
+    to: '/definitions',
+    section: '/definitions',
+    minimum: 'viewer',
+    icon: <BookIcon />,
   },
   {
     label: 'Alerts',

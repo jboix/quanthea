@@ -407,6 +407,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/threads/:threadId/alert-previews`                            | resource route: what an alert draft's channels would send   | editor   |
 | `/threads/:threadId/report-preview`                            | resource route: a report draft run over its latest period   | editor   |
 | `/library`                                                     | Library: pinned dashboards; `?view=snapshots`, snapshots    | viewer   |
+| `/definitions`                                                 | Definitions: read by all; editors save and delete           | viewer   |
 | `/alerts`                                                      | Alerts: search, filter by state, sections by state          | viewer   |
 | `/alerts/firing`                                               | resource route: how many alerts fire, for the rail          | viewer   |
 | `/alerts/settings`                                             | resource route: the alert settings, for the Settings dialog | admin    |

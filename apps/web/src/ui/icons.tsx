@@ -108,6 +108,20 @@ export function LibraryIcon() {
 }
 
 /**
+ * An open book: the definitions of business terms.
+ *
+ * @returns The icon.
+ */
+export function BookIcon() {
+  return (
+    <Icon>
+      <path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.5c-3-.5-6 0-8 1.5Z" />
+      <path d="M12 6v14.5" />
+    </Icon>
+  );
+}
+
+/**
  * A wide tile over two of different widths, with a corner to drag: arranging panels.
  *
  * @returns The icon.
