@@ -1906,7 +1906,9 @@ the test; turning the switch off sends the provider's default.
 - One run per thread at a time. A run stops when a plan waits for approval, when the agent asked
   the person a question, when it has made the maximum number of tool calls (setting, default 25),
   or after failed writes reach the repair attempts (setting, default 3, counted per answer). Then
-  one more step runs with no tool, so the model explains to the person what still fails; the run
+  one more step runs with no tool, so the model explains to the person what still fails: in one or
+  two plain sentences, naming the panel and never showing query code, with one question about
+  what to change (`outOfAttempts` in `agent/write-version.ts`, for dashboards and alerts); the run
   ends after it, and the thread stays in `building`, so a reply or Try again starts a new run with
   fresh attempts.
 - While an approved plan is not built yet (the thread is `building`) and no write has failed in

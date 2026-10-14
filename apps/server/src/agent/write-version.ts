@@ -119,6 +119,13 @@ function refusal(context: RunContext, adding: number): string | undefined {
 }
 
 /**
+ * What the model reads once its last attempt failed. Its next step has no tool, so it can only
+ * answer: in plain words, as a colleague would, with one question.
+ */
+export const outOfAttempts =
+  'No attempts left: stop writing. Tell the person in one or two plain sentences what failed and why, naming the panel, never query code, then ask one question about what to change.';
+
+/**
  * Counts a failed write and says what the model does next.
  *
  * @param context - The run.
@@ -128,9 +135,7 @@ function refusal(context: RunContext, adding: number): string | undefined {
 export function nextAttempt(context: RunContext, fix: string): string {
   context.counters.failedWrites += 1;
   const left = context.settings.limits.repairAttempts - context.counters.failedWrites;
-  return left > 0
-    ? `${fix} (${left} attempts left).`
-    : 'No attempts left: stop and explain the problem.';
+  return left > 0 ? `${fix} (${left} attempts left).` : outOfAttempts;
 }
 
 /**

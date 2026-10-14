@@ -17,6 +17,7 @@ import {
 import { alertStepIssues, bucketChangeNote } from './fixed-step.ts';
 import type { AlertAuthoring, RunContext } from './run-context.ts';
 import { providerSchema } from './tool-schema.ts';
+import { outOfAttempts } from './write-version.ts';
 
 /** An issue with a spec: where, and what is wrong. */
 type Issue = { readonly path: string; readonly message: string };
@@ -133,9 +134,7 @@ function failAlert(context: RunContext, error: string, issues: readonly Issue[])
     data: { attempt, of, outcome, panels: [], issues: lines },
   });
   const next =
-    attempt < of
-      ? `Fix it and write again (${of - attempt} attempts left).`
-      : 'No attempts left: stop and explain the problem.';
+    attempt < of ? `Fix it and write again (${of - attempt} attempts left).` : outOfAttempts;
   return { ok: false as const, error: `${error} ${next}`, issues };
 }
 
