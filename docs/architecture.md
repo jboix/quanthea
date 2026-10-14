@@ -4226,6 +4226,11 @@ one, and enables them again. Without any admin, it creates the default one.
   loaded and registered only when a chart draws a map; no map is fetched from elsewhere.
 - **Formatters:** every `{"$fmt": …}` object becomes a function from
   `@quanthea/shared/formatters`. ECharts string templates pass through unchanged.
+- **No free colours on write** (`dashboards/check-colors.ts`). A spec being written, by the agent
+  or by a person who saves it (the `writing` flag of `validateSpec`, on reports too), is refused
+  when a chart's option holds a hex, a colour function or a CSS colour name under a key that ends
+  in `color`. The message lists the theme tokens. A stored version is not checked, so it still
+  pins, restores and copies.
 - **A colour per value** (`charts/value-colors.ts`). A dashboard's `colors` lists a value and a
   tone, at most 50. A line, bar or scatter series whose name is the value, in any case, takes the
   tone's colour, the first entry for a value winning. ECharts gives the other series the palette

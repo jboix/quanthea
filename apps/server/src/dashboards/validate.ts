@@ -10,6 +10,7 @@ import {
   type ResolvedTimeRange,
   resolveTimeRange,
 } from '@quanthea/shared';
+import { checkColors } from './check-colors.ts';
 import { checkOption } from './check-option.ts';
 import { type ConnectorLookup, checkQueries } from './check-queries.ts';
 import { checkReferences } from './check-references.ts';
@@ -26,8 +27,8 @@ export interface ValidationContext {
   /**
    * Whether the spec is being written, by the agent or by a person who saves it. The rules that
    * came after dashboards were stored apply only then, so a stored version still pins, restores
-   * and copies: the order of the variables a source uses, and a variable with an "All" choice
-   * where only one value fits.
+   * and copies: the order of the variables a source uses, a variable with an "All" choice where
+   * only one value fits, and a free colour in a chart's option.
    */
   readonly writing?: boolean | undefined;
 }
@@ -104,6 +105,7 @@ export function validateSpec(input: unknown, context: ValidationContext): Valida
     ...checkOptions(spec),
     ...checkQueries(spec, context.lookup, timeRange, context.writing === true),
     ...(context.writing ? checkSourceOrder(spec, context.lookup, timeRange) : []),
+    ...(context.writing ? checkColors(spec) : []),
   ];
   if (issues.length > 0) return { ok: false, issues };
   return { ok: true, spec: { ...spec, panels: packGrid(spec.panels) } };

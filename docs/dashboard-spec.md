@@ -290,6 +290,11 @@ The Zod schema catches shape errors. `dashboards/validate` (`validateSpec`) also
   top-level `axisPointer.link`), `sublink`, `target`, `subtarget`, `triggerEvent` or
   `nodeClick: 'link'` anywhere, so a chart never opens a URL or emits a click event; every `$fmt` object is a valid named formatter; no string
   longer than 500 characters (a cheap guard against smuggled payloads);
+- a chart's `option` holds no free colour when the spec is written: no hex, no `rgb()`, `hsl()`
+  or other colour function anywhere, and no CSS colour name under a key that ends in `color`. A
+  chart takes theme tokens (`@tone.bad`, `@palette.1`, `@ink`…), which follow the light and the
+  dark scheme, and the message lists them. A version stored before this check still pins,
+  restores and copies;
 - the time zone is known, and the default time range runs forwards and fits the `maxRangeDays` of
   every connector the spec uses;
 - the grid has no overlaps: the validator moves an overlapping panel down rather than failing.

@@ -413,4 +413,44 @@ describe('validateSpec', () => {
       { x: 2, y: 3, w: 4, h: 3 },
     ]);
   });
+
+  describe('a colour in a chart option', () => {
+    /**
+     * A valid spec whose chart's series has a colour.
+     *
+     * @param color - The colour.
+     * @returns The spec.
+     */
+    function coloured(color: string) {
+      const spec = validSpec();
+      const chart = spec.panels.find((panel) => panel.view.kind === 'chart');
+      Object.assign(chart?.view ?? {}, {
+        option: { xAxis: { type: 'time' }, series: [{ type: 'line', itemStyle: { color } }] },
+      });
+      return spec;
+    }
+
+    test('is refused on write as a hex, a function or a name, with the tokens listed', () => {
+      for (const color of ['#ff0000', 'rgb(255, 0, 0)', 'Red']) {
+        const result = validateSpec(coloured(color), { lookup, now, writing: true });
+        const issues = result.ok ? [] : result.issues;
+        expect(issues).toHaveLength(1);
+        expect(issues[0]?.path).toEndWith('.view.option.series[0].itemStyle.color');
+        expect(issues[0]?.message).toContain('@tone.bad');
+      }
+    });
+
+    test('passes as a theme token, and a word that is not under a colour key passes', () => {
+      expect(validateSpec(coloured('@tone.bad'), { lookup, now, writing: true }).ok).toBe(true);
+      const named = coloured('@ink');
+      Object.assign(named.panels.find((panel) => panel.view.kind === 'chart')?.view ?? {}, {
+        option: { series: [{ type: 'line', name: 'red' }] },
+      });
+      expect(validateSpec(named, { lookup, now, writing: true }).ok).toBe(true);
+    });
+
+    test('is kept in a stored version, so it still pins', () => {
+      expect(validateSpec(coloured('#ff0000'), { lookup, now }).ok).toBe(true);
+    });
+  });
 });
