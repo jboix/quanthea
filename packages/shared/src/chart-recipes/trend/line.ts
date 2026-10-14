@@ -73,6 +73,7 @@ export const line: ChartRecipe = {
     'A counter drawn raw only goes up: draw its rate.',
     'Stacking series that are not parts of a total misleads.',
     'The axis covers the whole time range, and a stretch with no data is a gap: never cut the query to its data to fill the chart.',
+    'A value after each name in the legend: options.legendValues, one of total, mean, last or max.',
   ],
   sample: { roles: { x: 'time', series: 'service', y: 'requests' }, datasets: [trafficLong] },
   queryHints: [

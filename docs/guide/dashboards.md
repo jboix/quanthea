@@ -102,6 +102,8 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   versions" while Firefox is chosen.
 - **Markers.** Events such as deploys or incidents are dashed lines on time charts, labelled
   (`14:02 deploy #481`). Each set has a toggle at the end of the variables row.
+- **Values in the legend.** A chart's legend can show a number after each line: "with the total
+  of each line in the legend", or the mean, the last value or the highest.
 - **One colour per value.** Ask for "Web in blue on every chart" or "errors always red": the
   dashboard keeps a colour for the value, and every line, bar or scatter series named after it
   takes it, in the light and the dark scheme, and so do its slice of a donut, its bar in a ranked

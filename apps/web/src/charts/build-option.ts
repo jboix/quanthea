@@ -10,6 +10,7 @@ import { withDensity } from './dense.ts';
 import { wireFormatters } from './formatters.ts';
 import { hasNoPoint, withHolesShown, withLonePointsShown } from './gaps.ts';
 import { itemPalette, withItemColors } from './item-colors.ts';
+import { withLegendValues } from './legend-values.ts';
 import { withoutLinks } from './links.ts';
 import { isObject, type Loose } from './loose.ts';
 import { axisExtent, type ChartPeriod, onTimeAxis, withPeriodAxis } from './period-axis.ts';
@@ -366,5 +367,6 @@ export function buildChartOption(input: ChartInput, context: ChartContext): Loos
   const palette = itemPalette(view.prepare, prepared, input.colors, context.theme);
   const owned = ownedParts(prepared, styled, context.theme, nothingToDraw(input, prepared));
   const wired = { ...(wireFormatters(styled, format) as Loose), ...owned };
-  return withDensity(withItemColors(wired, view.prepare, palette));
+  const colored = withItemColors(wired, view.prepare, palette);
+  return withDensity(withLegendValues(colored, view.legendValues, prepared.datasets));
 }

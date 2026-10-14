@@ -167,6 +167,8 @@ type ChartView = {
   // The steps of a gauge (prepare: 'gauge'), drawn as the colours of its dial: ranges with a tone
   // and no text, in the value's own unit. Refused on any other chart.
   mappings?: Mapping[]                      // ≤ 20, the first match wins
+  // A value after each series name in the legend, written as the value axis writes numbers.
+  legendValues?: 'total' | 'mean' | 'last' | 'max'
 }
 
 type PrepareKind =

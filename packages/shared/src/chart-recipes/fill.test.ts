@@ -182,6 +182,13 @@ describe('the mappings of a chart', () => {
     expect('view' in filled && 'mappings' in filled.view).toBe(false);
   });
 
+  test('leave the value a legend shows to the view', () => {
+    const filled = chartOf('trend.line', { legendValues: 'mean' });
+    expect(filled).toMatchObject({ view: { legendValues: 'mean' } });
+    const view = 'view' in filled && filled.view.kind === 'chart' ? filled.view : undefined;
+    expect(view?.option).not.toHaveProperty('legendValues');
+  });
+
   test('reach the view of any chart, where validation refuses them on all but a gauge', () => {
     expect(chartOf('kpi.big-number', { mappings })).toMatchObject({ view: { mappings } });
   });

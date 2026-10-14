@@ -140,7 +140,7 @@ interface Lifted {
   /** The ECharts option. */
   option: JsonObject;
   /** The fields of the view found in it. */
-  fields: Pick<ChartView, 'mappings'>;
+  fields: Pick<ChartView, 'mappings' | 'legendValues'>;
 }
 
 /**
@@ -167,12 +167,26 @@ function liftedFromSeries(option: JsonObject): Lifted {
 /**
  * Lifts what belongs to the view out of a chart recipe's filled option. The agent writes every
  * change in `options`, and the ECharts option takes no key of the view, so a key of this closed
- * list is moved: `mappings`, the steps of a gauge, at the top of `options` or in its series.
+ * list is moved: `mappings`, the steps of a gauge, at the top of `options` or in its series, and
+ * `legendValues`, the value a legend shows after each series name.
  *
  * @param option - The filled option.
  * @returns The ECharts option, and the fields of the view found in it.
  */
 function liftedFields(option: JsonObject): Lifted {
+  const { legendValues, ...withoutLegend } = option;
+  const legend = legendValues === undefined ? {} : { legendValues };
+  const lifted = liftedMappings(withoutLegend);
+  return { option: lifted.option, fields: { ...lifted.fields, ...legend } as Lifted['fields'] };
+}
+
+/**
+ * Lifts a gauge's steps out of a filled option: at the top of `options` or in its series.
+ *
+ * @param option - The filled option.
+ * @returns The ECharts option, and the steps found in it.
+ */
+function liftedMappings(option: JsonObject): Lifted {
   const { mappings, ...rest } = option;
   if (mappings === undefined) return liftedFromSeries(option);
   return { option: rest, fields: { mappings: mappings as ChartView['mappings'] } };

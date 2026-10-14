@@ -115,6 +115,8 @@ const chartViewSchema = z.strictObject({
    * of the dial. The first range that holds a value wins. No other chart takes them.
    */
   mappings: mappingsSchema.optional(),
+  /** The value the legend shows after each series name, written as the value axis writes it. */
+  legendValues: z.enum(['total', 'mean', 'last', 'max']).optional(),
   datasets: z
     .array(z.strictObject({ ref: refIdSchema, transform: datasetTransformSchema.optional() }))
     .min(1)

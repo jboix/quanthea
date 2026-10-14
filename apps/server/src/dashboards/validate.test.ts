@@ -430,6 +430,20 @@ describe('validateSpec', () => {
     ]);
   });
 
+  test('takes a value for the legend, and still refuses a formatter function in the option', () => {
+    const withLegend = (formatter: unknown) =>
+      issuesAfter((spec) => {
+        const chart = spec.panels.find((panel) => panel.view.kind === 'chart');
+        Object.assign(chart?.view ?? {}, {
+          legendValues: 'total',
+          option: { series: [{ type: 'line' }], legend: { ...(formatter ? { formatter } : {}) } },
+        });
+      });
+    expect(withLegend(undefined)).toEqual([]);
+    const refused = withLegend(() => 'name');
+    expect(refused.some((issue) => issue.includes('view.option.legend'))).toBe(true);
+  });
+
   describe('a colour in a chart option', () => {
     /**
      * A valid spec whose chart's series has a colour.

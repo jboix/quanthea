@@ -4252,6 +4252,12 @@ one, and enables them again. Without any admin, it creates the default one.
   card, live (from the values its run is asked with), in a snapshot and a report's run (from
   the values they ran with), and in the layout editor. The spec keeps the title as written, so
   an edit that rebuilds a panel by its title still finds it. Server texts show it as stored.
+- **Legend values** (`charts/legend-values.ts`). A chart view's `legendValues` (`total`, `mean`,
+  `last` or `max`) puts that value of each series after its name in the legend, missing values
+  skipped, written by the value axis's label formatter. The spec holds only the word: the legend
+  formatter is a function the adapter makes, and a spec, being JSON, can hold no function. The
+  agent sets it in `chart.options.legendValues`, which `fillView` lifts into the view. A chart
+  with no legend shows none.
 - **Tables a viewer works** (`features/dashboard/table-state.ts`, `table-head.tsx`). The view's
   `sort` is the first order. A click on a header sorts by that column's raw values, up, then down,
   then back to the view's order. A table with more rows than a page has a text filter under each
