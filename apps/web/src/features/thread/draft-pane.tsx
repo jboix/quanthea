@@ -1,6 +1,7 @@
 import type { Plan, ThreadState } from '@quanthea/shared';
 import type { CSSProperties } from 'react';
-import { Button } from '../../ui/button.tsx';
+import { Link } from 'react-router';
+import { Button, buttonClassName } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import { TitleHeader } from '../../ui/title-header.tsx';
 import { DashboardCanvas, type PanelPlanMark } from '../dashboard/index.ts';
@@ -100,7 +101,8 @@ function statusOf(
 }
 
 /**
- * Pin for a version the library does not show, Unpin for the one it shows.
+ * Pin for a version the library does not show; for the one it shows, Unpin and a link to it in
+ * the library.
  *
  * @param props - The pane's props.
  * @param props.shown - The version shown in the pane.
@@ -112,9 +114,16 @@ function PinButton(props: DraftPaneProps & { readonly shown: number | undefined 
   if (shown === undefined || data.thread.readOnly) return null;
   if (shown === data.dashboard?.pinnedVersion) {
     return (
-      <Button disabled={disabled} onClick={props.onUnpin}>
-        Unpin
-      </Button>
+      <>
+        {data.thread.dashboardId && (
+          <Link to={`/d/${data.thread.dashboardId}`} className={buttonClassName()}>
+            Open in library
+          </Link>
+        )}
+        <Button disabled={disabled} onClick={props.onUnpin}>
+          Unpin
+        </Button>
+      </>
     );
   }
   return (

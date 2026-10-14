@@ -97,8 +97,8 @@ export type ThreadIntent =
 
 /** What the thread screen asks of its dashboard: show a version in the library, or none. */
 type DashboardIntent =
-  | { readonly intent: 'pin'; readonly version: number }
-  | { readonly intent: 'unpin' };
+  | { readonly intent: 'pin'; readonly dashboardId: string; readonly version: number }
+  | { readonly intent: 'unpin'; readonly dashboardId: string };
 
 /** The outcome of an intent: done, or why not. */
 export type ThreadOutcome =
@@ -263,17 +263,11 @@ export function loadThread(api: ApiClient) {
  * Pins a version of the thread's dashboard, or unpins it.
  *
  * @param api - The API client.
- * @param threadId - The thread.
- * @param intent - Pin or unpin.
+ * @param intent - Pin or unpin, with the dashboard.
  * @returns When it is done.
  */
-async function runOnDashboard(
-  api: ApiClient,
-  threadId: string,
-  intent: DashboardIntent,
-): Promise<void> {
-  const { dashboardId } = await api.call(getThreadEndpoint, { params: { threadId } });
-  const params = { dashboardId: dashboardId ?? '' };
+async function runOnDashboard(api: ApiClient, intent: DashboardIntent): Promise<void> {
+  const params = { dashboardId: intent.dashboardId };
   if (intent.intent === 'unpin') await api.call(unpinDashboardEndpoint, { params });
   else await api.call(pinDashboardEndpoint, { params, body: { version: intent.version } });
 }
@@ -308,7 +302,7 @@ async function run(
     return;
   }
   if (intent.intent === 'pin' || intent.intent === 'unpin') {
-    await runOnDashboard(api, threadId, intent);
+    await runOnDashboard(api, intent);
     return;
   }
   const endpoint = intent.intent === 'approve' ? approvePlanEndpoint : rejectPlanEndpoint;

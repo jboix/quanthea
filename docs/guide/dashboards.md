@@ -80,8 +80,9 @@ says what changed.
 
 - Pinning test-runs every panel again. A dashboard with a failing query can't be pinned, and the
   refusal names each failing query.
-- The model writes a one-line description and a few tags for the library. If it is slow or not
-  set up, the dashboard is pinned without them.
+- You stay in the thread. **Open in library** shows the dashboard as viewers see it.
+- The model then writes a one-line description and a few tags for the library. Pinning does not
+  wait for it. If it fails or is not set up, the dashboard stays without them.
 - The thread can keep adding versions after that. They stay drafts until you pin one.
 - **Unpin** takes the dashboard out of the library. Viewers no longer open it; editors still do.
 

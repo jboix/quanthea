@@ -10,7 +10,6 @@ import {
   type SubmitTarget,
   useFetcher,
   useLoaderData,
-  useNavigate,
   useRevalidator,
   useSearchParams,
 } from 'react-router';
@@ -151,20 +150,22 @@ function useThreadActions(context: ActionContext) {
 }
 
 /**
- * Pin, which opens the dashboard as the library now shows it, and Unpin.
+ * Pin and Unpin. Both stay in the thread, as activating an alert or a report does.
  *
  * @param context - What the actions need.
  * @returns The actions.
  */
 function usePinActions({ data, run, revalidate }: ActionContext) {
-  const navigate = useNavigate();
+  const dashboardId = data.thread.dashboardId;
   return {
     pin: async (version: number) => {
-      await run({ intent: 'pin', version });
-      if (data.thread.dashboardId) navigate(`/d/${data.thread.dashboardId}`);
+      if (!dashboardId) return;
+      await run({ intent: 'pin', dashboardId, version });
+      revalidate();
     },
     unpin: async () => {
-      await run({ intent: 'unpin' });
+      if (!dashboardId) return;
+      await run({ intent: 'unpin', dashboardId });
       revalidate();
     },
   };
