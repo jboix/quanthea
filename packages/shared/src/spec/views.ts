@@ -54,8 +54,11 @@ const tableViewSchema = z.strictObject({
   kind: z.literal('table'),
   ref: refIdSchema,
   columns: z.array(columnSchema).min(1).max(50),
+  /** The first order of the rows; a viewer may sort by another column with a click. */
   sort: z.strictObject({ field: fieldNameSchema, dir: z.enum(['asc', 'desc']) }).optional(),
   limit: z.int().min(1).max(500).optional(),
+  /** How many rows a page shows: 20 when left out. */
+  pageSize: z.int().min(5).max(100).optional(),
 });
 
 /** Validates a transform applied to a dataset before the chart gets it. */

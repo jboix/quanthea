@@ -22,7 +22,7 @@ export const rows: ChartRecipe = {
   option: {},
   variants: {},
   pitfalls: [
-    'Tables show at most 500 rows; sort and limit in the query.',
+    'At most 500 rows: sort and limit in the query. Viewers sort by a click, filter and page: options.pageSize sets the rows of a page, 5 to 100, 20 when left out.',
     'options.columns changes columns by "field": [{ "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"? }], only those to change. The order stays that of roles.columns.',
     'mappings: [{ "match", "text"?, "tone"? }], the first match wins. match is { "value": "error" }, { "null": true } or a range of numbers { "from"?, "to"? }, from included, to excluded.',
     'Thresholds are ranges: [{ "match": { "to": 2 }, "tone": "good" }, { "match": { "from": 2, "to": 4 }, "tone": "warning" }, { "match": { "from": 4 }, "tone": "bad" }].',

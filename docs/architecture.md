@@ -4226,6 +4226,13 @@ one, and enables them again. Without any admin, it creates the default one.
   loaded and registered only when a chart draws a map; no map is fetched from elsewhere.
 - **Formatters:** every `{"$fmt": …}` object becomes a function from
   `@quanthea/shared/formatters`. ECharts string templates pass through unchanged.
+- **Tables a viewer works** (`features/dashboard/table-state.ts`, `table-head.tsx`). The view's
+  `sort` is the first order. A click on a header sorts by that column's raw values, up, then down,
+  then back to the view's order. A table with more rows than a page has a text filter under each
+  header, which keeps the rows whose cell text holds it in any case, and a pager. A page holds
+  `pageSize` rows, 20 when left out. All of it runs in the browser over the rows already fetched,
+  per viewer, in a snapshot and a report's run too, and starts again when the columns change. A
+  refresh keeps it, and a page past the end of fewer rows shows the last page.
 - **Mappings and tones** (`spec/tones.ts` in `@quanthea/shared`, `features/dashboard/tone.ts`). A
   table column takes `mappings`, a list read in order: each matches a value, no value (`null`) or
   a range of numbers (`from` included, `to` excluded, either end open), and gives a text, a tone or

@@ -123,8 +123,9 @@ type TableView = {
     mappings?: Mapping[]                    // ≤ 20, the first match wins
     toneAs?: 'text' | 'background'          // default: text
   }[]
-  sort?: { field: string; dir: 'asc' | 'desc' }
+  sort?: { field: string; dir: 'asc' | 'desc' }   // the first order; a viewer sorts by a click
   limit?: number                            // ≤ 500
+  pageSize?: number                         // 5 to 100 rows a page, default 20
 }
 
 // A value becomes a text, a tone, or both. A threshold is a list of range mappings.

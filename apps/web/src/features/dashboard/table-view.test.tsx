@@ -54,3 +54,33 @@ test('a cell with a tone names its design token, and a cell without one is plain
 test('a column can draw its tones as a tint behind the text', () => {
   expect(render('background').match(/data-tone-as="background"/g)).toHaveLength(2);
 });
+
+test('headers sort on a click and say how they sort, and a short table has no filters or pages', () => {
+  const html = render();
+  expect(html.match(/aria-sort="none"/g)).toHaveLength(2);
+  expect(html).toContain('<button type="button"');
+  expect(html).not.toContain('aria-label="Filter browser"');
+  expect(html).not.toContain('Table pages');
+});
+
+test('a table longer than its page has a filter per column and a pager', () => {
+  const names = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+  const long: Frame = {
+    refId: 'A',
+    fields: [{ name: 'name', type: 'string' }],
+    values: [names],
+    meta: { rowCount: names.length, truncated: false, durationMs: 1 },
+  };
+  const view: TableViewSpec = {
+    kind: 'table',
+    ref: 'A',
+    columns: [{ field: 'name' }],
+    pageSize: 5,
+  };
+  const queries = [{ refId: 'A', frames: [long], error: null }];
+  const html = renderToStaticMarkup(<TableView view={view} queries={queries} timeZone="UTC" />);
+  expect(html).toContain('aria-label="Filter name"');
+  expect(html).toContain('aria-label="Table pages"');
+  expect(html).toContain('1–5 of 7');
+  expect(html.match(/<td /g)).toHaveLength(5);
+});
