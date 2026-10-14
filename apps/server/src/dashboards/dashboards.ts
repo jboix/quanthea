@@ -11,6 +11,7 @@ import {
   type ObjectUsage,
   type PanelRun,
   type Role,
+  type VariableOption,
 } from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
 import { createResultCache } from '../query/result-cache.ts';
@@ -44,6 +45,9 @@ export type { PanelTest } from './versions.ts';
  * checked against them on every panel run.
  */
 const optionsTtlMs = 60_000;
+
+/** The options of a query-backed variable, each with its label when its source gives one. */
+type Options = VariableOption[];
 
 /**
  * Writes a pinned dashboard's description and tags, best effort: `null` when it could not. The
@@ -135,7 +139,7 @@ export interface Dashboards {
     name: string,
     role: Role,
     signal?: AbortSignal,
-  ): Promise<string[]>;
+  ): Promise<Options>;
   /**
    * Binds a viewer's variable choices for a spec, as a panel run binds them, so queries run for
    * the same choices see the same values. The values stay bound, never pasted into a query.
@@ -371,7 +375,7 @@ function readVersion(
  */
 export function createDashboards(dependencies: DashboardsDependencies): Dashboards {
   const now = dependencies.now ?? Date.now;
-  const optionsCache = createResultCache<string[]>({ ttlMs: optionsTtlMs, maxEntries: 500, now });
+  const optionsCache = createResultCache<Options>({ ttlMs: optionsTtlMs, maxEntries: 500, now });
   const context: ServiceContext = { optionsCache, ...dependencies, now };
   return {
     create: (spec, changeSummary, actor) => create(context, spec, changeSummary, actor),

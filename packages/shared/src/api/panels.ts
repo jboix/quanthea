@@ -7,6 +7,7 @@ import { frameSchema } from '@quanthea/plugin-kit/contract';
 import { z } from 'zod';
 import { markerColors } from '../spec/dashboard.ts';
 import { timeRangeSchema } from '../spec/time.ts';
+import { variableOptionSchema } from '../spec/variable-options.ts';
 import { variableValuesSchema } from '../spec/variables.ts';
 import { defineEndpoint } from './contract.ts';
 
@@ -72,5 +73,5 @@ export const variableOptionsEndpoint = defineEndpoint({
   method: 'POST',
   path: '/variables/options',
   body: runTargetSchema.extend({ name: z.string().min(1) }),
-  output: z.object({ options: z.array(z.string()) }),
+  output: z.object({ options: z.array(variableOptionSchema) }),
 });

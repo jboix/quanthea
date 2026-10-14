@@ -13,6 +13,7 @@ import {
   runPanelEndpoint,
   threadFromDashboardEndpoint,
   unpinDashboardEndpoint,
+  type VariableOption,
   variableOptionsEndpoint,
 } from '@quanthea/shared';
 import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
@@ -222,7 +223,7 @@ export function loadPanelRun(api: ApiClient) {
  * @returns The loader.
  */
 export function loadVariableOptions(api: ApiClient) {
-  return async ({ params, request }: LoaderFunctionArgs): Promise<Loaded<string[]>> => {
+  return async ({ params, request }: LoaderFunctionArgs): Promise<Loaded<VariableOption[]>> => {
     const body = {
       dashboardId: params.dashboardId ?? '',
       version: Number(params.version),

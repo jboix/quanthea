@@ -246,7 +246,12 @@ they differ from the sketch above, the schemas win:
 - An option of a fixed list may carry a label, such as `{ "value": "true", "label": "Only
   SwissTXT" }`. The chip, a snapshot's or a report run's bar and Ask show the label. The value is
   what is checked and bound: a default, a viewer's choice and a query use values, and a label
-  sent as a value is refused. Labels for query-backed variables are not part of the spec.
+  sent as a value is refused.
+- A query-backed variable whose source returns a `value` column and a `label` column offers each
+  value with that label, such as `SELECT id AS value, name AS label FROM services`. The value is
+  checked and bound; the menu and the chip show the label. Without both columns, the options are
+  the distinct values of the first text column, as before. A snapshot, a report run and Ask show
+  the value.
 - A value a viewer picks for a query-backed variable is one of its options or its default; any
   other is refused when the panel runs.
 - A mapping matches the raw value of the result, before the format. A `value` is compared as it

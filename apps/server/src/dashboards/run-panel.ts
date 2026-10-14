@@ -8,11 +8,13 @@ import {
   type DashboardSpec,
   type Frame,
   type MarkerOutcome,
+  optionValues,
   type PanelQuery,
   type PanelRun,
   type QueryOutcome,
   resolveTimeRange,
   type TimeRangeExpression,
+  type VariableOption,
   type VariableValues,
 } from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
@@ -21,6 +23,7 @@ import { QueryError } from '../query/query-error.ts';
 import type { ResultCache } from '../query/result-cache.ts';
 import type { Variables } from '../query/variables.ts';
 import { chartPointsOf } from './chart-points.ts';
+import { optionsOfFrames } from './variable-option-frames.ts';
 import { type QueryVariable, resolveVariables } from './variables.ts';
 
 /** What running panels needs. */
@@ -35,7 +38,7 @@ export interface RunnerDependencies {
    * Keeps the options of query-backed variables a short while, so the panels of one dashboard
    * check a viewer's values against one load. Without it, each run loads them.
    */
-  readonly optionsCache?: ResultCache<string[]>;
+  readonly optionsCache?: ResultCache<VariableOption[]>;
 }
 
 /** The viewer's choices for a run. */
@@ -54,9 +57,6 @@ export interface RunChoices {
 
 /** The most markers one annotation draws. */
 const maxMarkers = 200;
-
-/** The most options a query-backed variable lists. */
-const maxOptions = 1000;
 
 /** A time range for the query engine. */
 type EngineRange = { readonly from: Date; readonly to: Date };
@@ -149,19 +149,6 @@ function markersOf(annotation: Annotation, frames: readonly Frame[]): MarkerOutc
 }
 
 /**
- * The distinct values of the first text field, as a variable's options.
- *
- * @param frames - The frames of the variable's source.
- * @returns At most {@link maxOptions} options, in order of appearance.
- */
-function optionsOf(frames: readonly Frame[]): string[] {
-  const frame = frames[0];
-  const index = frame?.fields.findIndex((field) => field.type === 'string') ?? -1;
-  const values = frames.flatMap((each) => (index < 0 ? [] : (each.values[index] ?? [])));
-  return [...new Set(values.map(String))].slice(0, maxOptions);
-}
-
-/**
  * Resolves the time range of a run.
  *
  * @param expression - The viewer's range, or the spec's default.
@@ -185,7 +172,7 @@ interface RunRange {
 }
 
 /**
- * Builds the loader of query-backed variable options for one run. Options are cached by the
+ * Builds the loader of query-backed variable options for one run, with their labels. Options are cached by the
  * variable, its source, the variables before it and the time range as expressions.
  *
  * @param dependencies - The connectors, the executor and the options cache.
@@ -194,7 +181,7 @@ interface RunRange {
  * @returns The loader. A failing source is a `source_failed` error.
  */
 function optionsLoader(dependencies: RunnerDependencies, range: RunRange, signal?: AbortSignal) {
-  return async (variable: QueryVariable, resolved: Variables): Promise<string[]> => {
+  return async (variable: QueryVariable, resolved: Variables): Promise<VariableOption[]> => {
     const key = JSON.stringify([variable.name, variable.source, resolved, range.expression]);
     const cached = dependencies.optionsCache?.get(key);
     if (cached) return cached;
@@ -203,7 +190,7 @@ function optionsLoader(dependencies: RunnerDependencies, range: RunRange, signal
     const outcome = await runQuery(dependencies, query, resolved, { timeRange }, signal);
     if (outcome.error)
       throw new AppError('source_failed', `$${variable.name}: ${outcome.error.message}`);
-    const options = optionsOf(outcome.frames);
+    const options = optionsOfFrames(outcome.frames);
     dependencies.optionsCache?.set(key, options);
     return options;
   };
@@ -227,8 +214,10 @@ function prepare(
   const expression = choices.time ?? spec.time;
   const time = timeOf(expression, dependencies.now());
   const timeRange = { from: new Date(time.from), to: new Date(time.to) };
-  const loadOptions = optionsLoader(dependencies, { expression, timeRange }, signal);
-  return { time, timeRange, loadOptions };
+  const loadLabelled = optionsLoader(dependencies, { expression, timeRange }, signal);
+  const loadOptions = async (variable: QueryVariable, resolved: Variables) =>
+    optionValues(await loadLabelled(variable, resolved));
+  return { time, timeRange, loadOptions, loadLabelled };
 }
 
 /**
@@ -330,7 +319,7 @@ export async function bindChoices(
  * @param name - The variable.
  * @param choices - The viewer's variables and time range.
  * @param signal - Aborted when the caller gives up.
- * @returns The options.
+ * @returns The options, each with its label when the source returns one.
  * @throws {AppError} `not_found` when the spec has no such query-backed variable, `source_failed`
  *   when its source fails.
  */
@@ -340,11 +329,11 @@ export async function listVariableOptions(
   name: string,
   choices: RunChoices,
   signal?: AbortSignal,
-): Promise<string[]> {
+): Promise<VariableOption[]> {
   const variable = spec.variables.find((candidate) => candidate.name === name);
   if (variable?.kind !== 'query')
     throw new AppError('not_found', `No query-backed variable $${name}.`);
-  const { loadOptions } = prepare(dependencies, spec, choices, signal);
+  const { loadOptions, loadLabelled } = prepare(dependencies, spec, choices, signal);
   const resolved = await resolveVariables(spec, choices.variables, loadOptions, name);
-  return loadOptions(variable, resolved);
+  return loadLabelled(variable, resolved);
 }

@@ -6,6 +6,7 @@ import {
   offersAll,
   optionValues,
   type Variable,
+  type VariableOption,
 } from '@quanthea/shared';
 import { useState } from 'react';
 import { useFetcher } from 'react-router';
@@ -30,12 +31,17 @@ interface ChipProps {
  *
  * @param value - One value or several.
  * @param variable - The variable, for the labels of its options.
+ * @param loaded - The options a query-backed variable loaded, with their labels.
  * @returns Such as `prod`, `All` or `a, b`.
  */
-export function shown(value: string | readonly string[], variable?: Variable): string {
+export function shown(
+  value: string | readonly string[],
+  variable?: Variable,
+  loaded?: readonly VariableOption[],
+): string {
   const values = [value].flat();
   if (values.includes(allValue)) return 'All';
-  const options = variable?.kind === 'custom' ? variable.options : undefined;
+  const options = variable?.kind === 'custom' ? variable.options : loaded;
   const labels = values.map((each) => labelOfValue(options, each));
   return labels.length > 3
     ? `${labels.slice(0, 3).join(', ')} +${labels.length - 3}`
@@ -67,15 +73,15 @@ export function VariableName({ variable }: { readonly variable: Variable }) {
  * @returns The options, a message when they failed, and a function to load them.
  */
 function useOptions(variable: Variable, optionsUrl: string) {
-  const fetcher = useFetcher<Loaded<string[]>>();
-  const loadedOptions = fetcher.data?.ok ? fetcher.data.value : [];
-  const listed = 'options' in variable ? optionValues(variable.options) : loadedOptions;
+  const fetcher = useFetcher<Loaded<VariableOption[]>>();
+  const loaded = fetcher.data?.ok ? fetcher.data.value : [];
+  const listed = optionValues('options' in variable ? variable.options : loaded);
   const withAll = offersAll(variable) ? [allValue, ...listed] : listed;
   const load = () => {
     if (variable.kind === 'query' && fetcher.state === 'idle') void fetcher.load(optionsUrl);
   };
   const message = fetcher.data && !fetcher.data.ok ? fetcher.data.message : undefined;
-  return { options: withAll, loading: fetcher.state !== 'idle', message, load };
+  return { options: withAll, loaded, loading: fetcher.state !== 'idle', message, load };
 }
 
 /** Props of {@link OptionMenu}. */
@@ -110,7 +116,7 @@ function OptionMenu({ variable, values, state, onChoose }: OptionMenuProps) {
           aria-pressed={values.includes(option)}
           onClick={() => onChoose(option)}
         >
-          {shown(option, variable)}
+          {shown(option, variable, state.loaded)}
         </button>
       ))}
     </fieldset>
@@ -145,7 +151,7 @@ export function OptionChip({ variable, value, onChange, optionsUrl }: ChipProps)
     >
       <summary className={styles.chipButton}>
         <VariableName variable={variable} />
-        {shown(value, variable)}
+        {shown(value, variable, state.loaded)}
       </summary>
       <OptionMenu variable={variable} values={values} state={state} onChoose={choose} />
     </details>
