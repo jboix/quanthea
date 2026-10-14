@@ -300,3 +300,19 @@ export function dashboardHas(path: string): DashboardCheck {
     holdsField(outcome.dashboard, path) ? [] : [`the dashboard has no ${path}`];
   return { id: `dashboard-has:${path}`, kind: 'feature', faults };
 }
+
+/**
+ * Every variable of the dashboard has a label, the words its chip shows in place of `$name`.
+ *
+ * @returns The check.
+ */
+export function variablesLabelled(): DashboardCheck {
+  const faults = (outcome: Outcome) => {
+    const variables = outcome.dashboard?.variables;
+    if (!Array.isArray(variables)) return [];
+    return variables
+      .filter((variable: { label?: unknown }) => typeof variable.label !== 'string')
+      .map((variable: { name?: unknown }) => `the variable ${String(variable.name)} has no label`);
+  };
+  return { id: 'variables-labelled', kind: 'feature', faults };
+}

@@ -18,6 +18,7 @@ import {
   shapeData,
   shapeView,
   topic,
+  variablesLabelled,
 } from './dashboard.ts';
 import type { ShapeExpectation } from './shape.ts';
 
@@ -328,5 +329,22 @@ describe('scoring the shape of a panel', () => {
       'errors: data asked as nothing on record, not rate',
       'errors: no view on record',
     ]);
+  });
+});
+
+/** A check context with no truths, for checks that need none. */
+const noTruth = { truth: {} };
+
+describe('variable labels', () => {
+  test('name each variable without a label', () => {
+    const variables = [
+      { kind: 'text', name: 'service', label: 'Service', default: 'api' },
+      { kind: 'interval', name: 'interval', options: ['1m'], default: '1m' },
+    ];
+    const labelled = variablesLabelled();
+    expect(labelled.faults({ ...outcome, dashboard: { variables } }, noTruth)).toEqual([
+      'the variable interval has no label',
+    ]);
+    expect(labelled.faults(outcome, noTruth)).toEqual([]);
   });
 });

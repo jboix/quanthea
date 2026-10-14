@@ -6,6 +6,7 @@
  */
 import {
   type DashboardCheck,
+  dashboardHas,
   hasMarkers,
   markersFrom,
   markerTopic,
@@ -13,6 +14,7 @@ import {
   panelCount,
   queries,
   topic,
+  variablesLabelled,
 } from '../checks/dashboard.ts';
 import type { CaseOn } from '../core/case.ts';
 import { baseWorld } from '../fixtures/fixtures.ts';
@@ -167,5 +169,21 @@ export const dashboardCases: readonly CaseOn<'dashboard'>[] = [
       markersFrom(postgres),
     ],
     ['A panel shows the 5xx errors over time, with one series per service.'],
+  ),
+  question(
+    'q14',
+    'Request rate and error rate in prod over the last 6 hours, where I can pick the service and the rate window.',
+    [
+      panelCount(1, 6),
+      maxRepairs(1),
+      queries(prometheus),
+      dashboardHas('variables.kind=interval'),
+      // Each chip shows words a person reads, such as "Service", not $service.
+      variablesLabelled(),
+    ],
+    [
+      'The dashboard has a variable that picks the service, and the panels follow it.',
+      'The dashboard has a variable that picks the rate window.',
+    ],
   ),
 ];
