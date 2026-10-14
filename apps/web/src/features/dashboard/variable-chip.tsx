@@ -43,6 +43,23 @@ export function shown(value: string | readonly string[], variable?: Variable): s
 }
 
 /**
+ * The name a chip shows: the variable's label, or `$name` when it has none. With a label, the
+ * `$name` the queries use is the chip name's tooltip.
+ *
+ * @param props - The variable.
+ * @param props.variable - The variable.
+ * @returns The chip's name.
+ */
+export function VariableName({ variable }: { readonly variable: Variable }) {
+  const code = `$${variable.name}`;
+  return (
+    <span className={styles.chipName} title={variable.label ? code : undefined}>
+      {variable.label ?? code}
+    </span>
+  );
+}
+
+/**
  * The options of a variable: listed in the spec, or loaded from its source when the menu opens.
  *
  * @param variable - The variable.
@@ -127,7 +144,7 @@ export function OptionChip({ variable, value, onChange, optionsUrl }: ChipProps)
       onToggle={(event) => event.currentTarget.open && state.load()}
     >
       <summary className={styles.chipButton}>
-        <span className={styles.chipName}>${variable.name}</span>
+        <VariableName variable={variable} />
         {shown(value, variable)}
       </summary>
       <OptionMenu variable={variable} values={values} state={state} onChoose={choose} />
@@ -149,7 +166,7 @@ export function TextChip({ variable, value, onChange }: Omit<ChipProps, 'options
   };
   return (
     <label className={styles.chipButton}>
-      <span className={styles.chipName}>${variable.name}</span>
+      <VariableName variable={variable} />
       <input
         className={styles.textInput}
         value={draft}

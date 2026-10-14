@@ -241,6 +241,8 @@ they differ from the sketch above, the schemas win:
   label, "All", or a short list (`Firefox, Safari, Chrome +2`). A name no variable has stays as
   written. Texts the server writes with a title, such as a notification, a report's headline or
   a library result, show it as stored.
+- A variable's `label` names its chip on the dashboard, in a snapshot and in a report run's bar,
+  with `$name` as the tooltip. A variable without one shows `$name`.
 - An option of a fixed list may carry a label, such as `{ "value": "true", "label": "Only
   SwissTXT" }`. The chip, a snapshot's or a report run's bar and Ask show the label. The value is
   what is checked and bound: a default, a viewer's choice and a query use values, and a label

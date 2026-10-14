@@ -11,7 +11,7 @@ import type { Loaded } from './data.ts';
 import { MarkerToggles } from './marker-toggles.tsx';
 import { PanelFrame } from './panel-card.tsx';
 import panelStyles from './panels.module.css';
-import { shown } from './variable-chip.tsx';
+import { shown, VariableName } from './variable-chip.tsx';
 import styles from './variables-bar.module.css';
 import { timeLabel } from './view-state.ts';
 
@@ -71,7 +71,7 @@ function FrozenBar(props: FrozenCanvasProps & ReturnType<typeof useHiddenMarkers
       </span>
       {spec.variables.map((variable) => (
         <span key={variable.name} className={frozenChip}>
-          <span className={styles.chipName}>${variable.name}</span>
+          <VariableName variable={variable} />
           {shown(variables[variable.name] ?? 'default', variable)}
         </span>
       ))}
