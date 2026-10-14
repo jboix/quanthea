@@ -229,6 +229,7 @@ export {
   wholeObjectVisibilitySchema,
 } from './connectors.ts';
 export * from './dataset/index.ts';
+export * from './definitions.ts';
 export {
   type CalendarParts,
   calendarParts,
