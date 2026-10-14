@@ -20,6 +20,7 @@ import { type ConversationBins, combineConversationBins } from './conversation-b
 import type { DashboardsDependencies } from './dashboards/context.ts';
 import { type ConversationBin, createConversationBin } from './dashboards/conversation-bin.ts';
 import { createDashboards, type Dashboards } from './dashboards/dashboards.ts';
+import type { Definitions } from './dashboards/definitions.ts';
 import { createExplanations, type Explanations } from './dashboards/explanations.ts';
 import { createLayouts, dashboardSubject, type Layouts } from './dashboards/layouts.ts';
 import { createQuestions, type Questions } from './dashboards/questions.ts';
@@ -47,6 +48,7 @@ import { createThreadRepository } from './db/thread-repository.ts';
 import { threadSpecLister } from './db/thread-specs.ts';
 import { createUsageRepository } from './db/usage-repository.ts';
 import { createUserRepository } from './db/user-repository.ts';
+import { definitionsOf } from './definition-services.ts';
 import { createModelView, type ModelView } from './gate/model-view.ts';
 import type { Logger } from './lib/logger.ts';
 import { createNotifications, type Notifications } from './notifications/notifications.ts';
@@ -125,6 +127,8 @@ export interface Services extends Accounts, ReportServices {
   readonly usage: Usage;
   /** The query settings. */
   readonly querySettings: QuerySettingsService;
+  /** The definitions of business terms. */
+  readonly definitions: Definitions;
   /** The chart settings. */
   readonly chartSettings: ChartSettingsService;
   /** How long deleted threads stay in the bin. */
@@ -229,7 +233,8 @@ function dataServices(
     connectorLevels: () => modelView.connectors(),
   });
   const conversationBin = combineConversationBins(answered.conversationBin, runConversationBin);
-  const data = { connections, dashboards, ...shown, modelView, ...messaging };
+  const definitions = definitionsOf(database, { dashboards, connections, audit, now });
+  const data = { connections, dashboards, definitions, ...shown, modelView, ...messaging };
   return { ...data, ...answered, conversationBin };
 }
 

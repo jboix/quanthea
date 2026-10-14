@@ -73,6 +73,7 @@ export {
   pinDashboardEndpoint,
   unpinDashboardEndpoint,
 } from './api/dashboards.ts';
+export * from './api/definitions.ts';
 export {
   type ApiErrorBody,
   type ApiErrorCode,

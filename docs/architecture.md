@@ -1709,6 +1709,16 @@ directly onto an ECharts `dataset`.
   rows completes the table from the fields of its empty result. When the result tells no column
   either, the edit asks for `roles.columns`, whatever the options name. A panel whose query fails
   is not completed, so it keeps the provisional columns until an edit builds it again.
+- **Definitions.** A definition gives a business term one meaning (`dashboards/definitions.ts`):
+  a name, synonyms, a meaning of at most 300 characters, and at most one checked body per query
+  language. A body is a measure, a ratio or a segment, written as a builder request without its
+  connector. Editors and admins save one as its next version (`definition_versions`); a change
+  that started from an older version is refused (409). A save is refused when the meaning names a
+  field hidden on any connector, or a body names one hidden on a connector of its language
+  (`isHiddenResultName`, passed in by `definition-services.ts`, since `dashboards/` does not
+  import the gate). Each body runs once over the last day on its first connector, or the first of
+  its language, through the query preview; it must run, and the answer says only how many rows it
+  found, so a renamed field that finds nothing shows as zero. A deletion is a version that says so.
 - **Which queries.** Admins switch builders off (`GET/PUT /api/settings/queries`). A thread uses
   the default set (the builders switched on and every saved query), a set chosen when it starts,
   or none (free style: raw queries only), stored on the thread (`POST /api/threads` with
@@ -3763,6 +3773,8 @@ indicative; the contract files are the source of truth.
 | `GET /model-providers`                                                                            | the providers a thread may use, without keys | editor   |
 | `GET/PUT /settings/queries`                                                                       | builders on or off, saved queries            | admin    |
 | `GET /queries`                                                                                    | the queries a thread may use                 | editor   |
+| `GET /definitions`, `GET /definitions/:definitionId/history`                                      | definitions of business terms, versions      | viewer   |
+| `POST /definitions`, `POST /definitions/:definitionId/delete`                                     | save or delete a definition, test-run bodies | editor   |
 | `GET /settings/queries/guide`, `POST /settings/queries/preview`                                   | how builders work, a test run of a query     | admin    |
 | `GET/PUT /settings/charts`                                                                        | chart recipes on or off                      | admin    |
 | `GET/POST /settings/notification-channels`, `PATCH/DELETE /settings/notification-channels/:id`    | notification channels, targets masked        | admin    |

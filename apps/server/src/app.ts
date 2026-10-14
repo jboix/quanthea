@@ -18,6 +18,7 @@ import type { Users } from './auth/users.ts';
 import type { Connections } from './connections/connections.ts';
 import type { ConversationBins } from './conversation-bins.ts';
 import type { Dashboards } from './dashboards/dashboards.ts';
+import type { Definitions } from './dashboards/definitions.ts';
 import type { Explanations } from './dashboards/explanations.ts';
 import type { Layouts } from './dashboards/layouts.ts';
 import type { Questions } from './dashboards/questions.ts';
@@ -41,6 +42,7 @@ import {
   type DashboardRouteOptions,
   mountDashboardEndpoints,
 } from './http/routes/dashboard-routes.ts';
+import { mountDefinitionEndpoints } from './http/routes/definition-routes.ts';
 import { mountExplanationEndpoints } from './http/routes/explanation-routes.ts';
 import { mountLayoutEndpoints } from './http/routes/layout-routes.ts';
 import { mountNotificationEndpoints } from './http/routes/notification-routes.ts';
@@ -137,6 +139,8 @@ export interface AppDependencies extends ReportServices {
   readonly usage: Usage;
   /** The query settings. */
   readonly querySettings: QuerySettingsService;
+  /** The definitions of business terms. */
+  readonly definitions: Definitions;
   /** The chart settings. */
   readonly chartSettings: ChartSettingsService;
   /** How long deleted threads stay in the bin. */
@@ -182,6 +186,7 @@ function mountSettingsRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): 
   mountServerSettingsEndpoints(app, dependencies);
   mountUsageEndpoints(app, dependencies);
   mountQueryEndpoints(app, dependencies);
+  mountDefinitionEndpoints(app, dependencies);
   mountChartEndpoints(app, dependencies.chartSettings, managed);
   mountNotificationEndpoints(app, dependencies);
 }
