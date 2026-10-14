@@ -308,7 +308,9 @@ Live calls are spaced 4 seconds apart, to stay under the free tier's limit per m
 
 The Evals workflow runs by hand only: Actions, Evals, Run workflow, on `main`, picking the provider:
 `google`, `anthropic`, or `both`, one job each. Ticking `search` also starts the dev Elasticsearch
-and OpenSearch and runs with `--search`. Its jobs run for the repository's owner alone, in
+and OpenSearch and runs with `--search`. `trials` runs each question that many times (1 by
+default), as `--trials`: name the questions in `only` too, since every trial costs as much as the
+question. Its jobs run for the repository's owner alone, in
 the `evals` environment, which holds `GEMINI_API_KEY` and `ANTHROPIC_API_KEY`. Picking `judge`
 sets who reads the rubrics: `anthropic` (the default) or `google`, with that provider's key, or
 `none`. Each job gets its own provider's key and the judge's, so one judge reads both jobs. A job starts the dev data sources, runs the cases with the provider's
