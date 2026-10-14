@@ -3,6 +3,7 @@
  * with data referenced by refId, queries as templates and formatting by name.
  */
 import { z } from 'zod';
+import { definitionMarkSchema } from '../definitions.ts';
 import { slugSchema } from './names.ts';
 import { panelQuerySchema } from './queries.ts';
 import { timeRangeSchema } from './time.ts';
@@ -34,6 +35,8 @@ export const panelSchema = z.strictObject({
   grid: panelGridSchema,
   queries: z.array(panelQuerySchema).min(1).max(4),
   view: viewSchema,
+  /** The definition its data was copied from, and the version copied. */
+  definition: definitionMarkSchema.optional(),
 });
 
 /** A panel. */

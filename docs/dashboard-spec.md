@@ -103,6 +103,7 @@ type Panel = {
   grid: { x: number; y: number; w: number; h: number }   // 12-column grid, h in rows of 40px
   queries: QueryTemplate[]                  // 1..4
   view: StatView | ChartView | TableView
+  definition?: { id: string; version: number }  // the definition its queries were copied from
 }
 
 type StatView = {

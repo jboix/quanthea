@@ -1,5 +1,6 @@
 /** Builds a data request into its queries and the table they return. */
 import type { BuildContext, BuiltData } from './built.ts';
+import { expandDefinition } from './definition.ts';
 import {
   logqlBreakdownData,
   logqlLinesData,
@@ -42,9 +43,9 @@ function writerOf(context: BuildContext, connector: string): SqlWriter {
   return sqlWriterFor(context.dialectOf?.(connector));
 }
 
-/** The builder of each kind but saved queries. */
+/** The builder of each kind but saved queries and definitions. */
 const builders: {
-  readonly [Kind in Exclude<DataRequest['kind'], 'saved'>]: (
+  readonly [Kind in Exclude<DataRequest['kind'], 'saved' | 'definition'>]: (
     request: DataOf<Kind>,
     context: BuildContext,
   ) => BuiltData;
@@ -90,6 +91,10 @@ const builders: {
  */
 export function buildData(request: DataRequest, context: BuildContext = { saved: [] }): BuiltData {
   if (request.kind === 'saved') return savedData(request, context);
+  if (request.kind === 'definition') {
+    const expanded = expandDefinition(request, context.definitions ?? []);
+    return { ...buildData(expanded.request, context), definition: expanded.mark };
+  }
   const build = builders[request.kind] as (
     request: DataRequest,
     context: BuildContext,

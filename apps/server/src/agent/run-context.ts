@@ -1,5 +1,11 @@
 /** What one agent run shares between its tools: the services, the thread, and its counters. */
-import type { DefaultQuietHours, ModelSettings, ThreadData, TurnUsage } from '@quanthea/shared';
+import type {
+  DefaultQuietHours,
+  DefinitionVersion,
+  ModelSettings,
+  ThreadData,
+  TurnUsage,
+} from '@quanthea/shared';
 import type { UIMessage, UIMessageStreamWriter } from 'ai';
 import type { Alerts } from '../alerts/alerts.ts';
 import type { PanelLinks } from '../alerts/links.ts';
@@ -33,6 +39,11 @@ export interface AgentServices {
   readonly channels?: (() => readonly ChannelChoice[]) | undefined;
   /** The quiet hours of the alerts that set none, from the alert settings; `null` for none. */
   readonly quietHours?: (() => DefaultQuietHours | null) | undefined;
+  /**
+   * The definitions of business terms as the model may read them: none that names a field hidden
+   * from it. None when not given.
+   */
+  readonly modelDefinitions?: (() => readonly DefinitionVersion[]) | undefined;
 }
 
 /** What an alert thread needs of the alerts: check, save, replay and read a draft. */
@@ -63,6 +74,8 @@ export interface RunContext extends AgentServices {
   readonly settings: ModelSettings;
   /** The query builders and saved queries the thread may use. */
   readonly queries: AvailableQueries;
+  /** The definitions the run may build from, read once when it starts. */
+  readonly definitions: readonly DefinitionVersion[];
   /** The chart recipes the agent is offered, by id. */
   readonly charts: readonly string[];
   /** Streams custom parts: plan cards, new versions, diffs. */

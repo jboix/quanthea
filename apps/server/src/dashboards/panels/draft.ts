@@ -1,5 +1,5 @@
 /** A panel as its request expands, before it gets an id and a place on the grid. */
-import type { PanelQuery, View } from '@quanthea/shared';
+import type { DefinitionMark, PanelQuery, View } from '@quanthea/shared';
 import type { Width } from './request.ts';
 
 /** What a panel shows, which decides its size and whether deploy markers go on it. */
@@ -19,4 +19,6 @@ export interface PanelDraft {
   readonly shape: PanelShape;
   /** The width asked for, if any. */
   readonly width: Width | undefined;
+  /** The definition its data was copied from, when it was. */
+  readonly definition?: DefinitionMark;
 }

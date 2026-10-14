@@ -84,6 +84,7 @@ export function expandPanel(
     view: filled.view,
     shape: shapeOf(recipe, filled.view),
     width: request.width,
+    ...(built.definition ? { definition: built.definition } : {}),
     chart: { choice, columns: built.output.columns },
   };
 }

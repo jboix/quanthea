@@ -19,6 +19,7 @@ beforeEach(() => {
   database = openDatabase(dataDir.path);
   runMigrations(database);
   audited.length = 0;
+  alsoHidden.clear();
 });
 
 afterEach(() => {
@@ -26,11 +27,14 @@ afterEach(() => {
   dataDir.remove();
 });
 
-/** A search connector that hides `session.email`. */
+/** Names hidden beyond `email`, which a test may add after a save. */
+const alsoHidden = new Set<string>();
+
+/** A search connector that hides `session.email`, and whatever `alsoHidden` holds. */
 const events: DefinitionConnector = {
   name: 'events',
   language: 'search',
-  isHidden: (name) => name.toLowerCase().endsWith('email'),
+  isHidden: (name) => name.toLowerCase().endsWith('email') || alsoHidden.has(name),
 };
 
 /**
@@ -107,6 +111,25 @@ describe('definitions', () => {
     expect(definitions.list().map((each) => each.definition.id)).toEqual(['sessions']);
     expect(() => definitions.remove('error-rate', 2, 'editor-1')).toThrow('No definition');
   });
+});
+
+test('the model reads no meaning, and no body, that names a field hidden since the save', async () => {
+  const definitions = service();
+  await definitions.save(errorRate, null, 'editor-1');
+  await definitions.save(
+    { ...errorRate, id: 'starts', name: 'Starts', meaning: 'Playbacks that began.' },
+    null,
+    'e',
+  );
+  alsoHidden.add('event_name');
+  expect(
+    definitions.forModel().map((each) => [each.definition.id, each.definition.bodies.length]),
+  ).toEqual([
+    ['error-rate', 0],
+    ['starts', 0],
+  ]);
+  alsoHidden.add('began');
+  expect(definitions.forModel().map((each) => each.definition.id)).toEqual(['error-rate']);
 });
 
 test('the field names of a body are read at any depth', () => {

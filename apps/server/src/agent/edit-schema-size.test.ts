@@ -24,6 +24,12 @@ const ceilings: Record<BuilderLanguage, number> = {
 const pairCeiling = 9_300;
 
 /**
+ * The ceiling of the usual pair when the run may build from definitions: the data kind
+ * `definition` adds about 400 characters, only when there are definitions.
+ */
+const pairWithDefinitionsCeiling = 9_600;
+
+/**
  * The ceiling of a run on three query languages: a few hundred above the largest measure, well
  * under the 19,000 Gemini is known to accept.
  */
@@ -49,13 +55,17 @@ const triples = builderLanguages.flatMap((first, at) =>
  * builder of those languages, no saved query, every chart recipe.
  *
  * @param languages - The languages of the connectors in use.
+ * @param definitions - The ids of the definitions the run may build from.
  * @returns The schema as JSON text.
  */
-async function sentFor(languages: readonly BuilderLanguage[]): Promise<string> {
+async function sentFor(
+  languages: readonly BuilderLanguage[],
+  definitions: readonly string[] = [],
+): Promise<string> {
   const builtIn = queryBuilders
     .filter((builder) => languages.includes(builder.language))
     .map((builder) => builder.id);
-  const schema = providerSchema(panelEditSchemaFor({ builtIn, saved: [] }), languages);
+  const schema = providerSchema(panelEditSchemaFor({ builtIn, saved: [], definitions }), languages);
   return JSON.stringify(await schema.jsonSchema);
 }
 
@@ -83,6 +93,14 @@ describe('the size of the edit schema as providers receive it', () => {
 
   test('stays under its ceiling for metrics with SQL', async () => {
     await expectUnder(['promql', 'sql'], pairCeiling);
+  });
+
+  test('offers data from a definition only when there are definitions, within the ceiling', async () => {
+    expect(await sentFor(['promql', 'sql'])).not.toContain('"definition"');
+    const withDefinitions = await sentFor(['promql', 'sql'], ['error-rate']);
+    expect(withDefinitions).toContain('"definition"');
+    const message = `With definitions the pair sends ${withDefinitions.length} characters.`;
+    expect(withDefinitions.length <= pairWithDefinitionsCeiling, message).toBe(true);
   });
 
   test('covers every run on three languages', () => {

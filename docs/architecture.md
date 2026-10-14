@@ -1719,6 +1719,18 @@ directly onto an ECharts `dataset`.
   import the gate). Each body runs once over the last day on its first connector, or the first of
   its language, through the query preview; it must run, and the answer says only how many rows it
   found, so a renamed field that finds nothing shows as zero. A deletion is a version that says so.
+- **Data from a definition.** A panel's data may be `{ kind: "definition", id, builder, connector,
+  filters, options }` (`dashboards/queries/definition.ts`), offered in the edit schema only when
+  the run has definitions with a body in one of its languages. The server takes the body for the
+  builder's language (and the connector, when the body names connectors), checks its shape fits
+  the builder, and merges: the panel's `options` (`by`, `over`, `limit`, `bucket`, `time`), then
+  the body's fields, which win, then the panel's filters added to the body's. The result is an
+  ordinary builder request, built as any other, and the panel records `definition: { id, version
+  }`. So the panel holds plain queries, and a later version of the definition never changes it.
+  No body for the language, an unknown id or a builder that does not fit is refused with what to
+  do instead (build from the meaning, or the builders that fit). The run reads the definitions
+  once when it starts, from `forModel`: the gate's hidden names leave out a definition whose
+  meaning names a field now hidden, and a body that uses one.
 - **Which queries.** Admins switch builders off (`GET/PUT /api/settings/queries`). A thread uses
   the default set (the builders switched on and every saved query), a set chosen when it starts,
   or none (free style: raw queries only), stored on the thread (`POST /api/threads` with

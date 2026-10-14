@@ -58,7 +58,8 @@ function edited(context: RunContext, current: DashboardSpec | undefined, request
   try {
     const dialectOf = (name: string) =>
       context.modelView.connectors().find((connector) => connector.name === name)?.dialect;
-    return applyEdit(current, request, { saved: context.queries.saved, dialectOf });
+    const { definitions } = context;
+    return applyEdit(current, request, { saved: context.queries.saved, dialectOf, definitions });
   } catch (error) {
     if (!(error instanceof QueryError)) throw error;
     return { error: error.message };

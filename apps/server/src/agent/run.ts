@@ -4,7 +4,7 @@
  * machine, its token budget and the run limits are checked here, whatever the model does.
  */
 
-import { threadDataSchemas } from '@quanthea/shared';
+import { bodyLanguage, threadDataSchemas } from '@quanthea/shared';
 import {
   consumeStream,
   createIdGenerator,
@@ -272,7 +272,8 @@ async function prepare(
  * @param dependencies - The agent's dependencies.
  * @param threadId - The thread.
  * @param inUse - The connectors the run is about.
- * @returns The builders and saved queries.
+ * @returns The builders and saved queries, and the definitions with a body in one of those
+ *   languages.
  */
 function threadQueries(
   dependencies: AgentDependencies,
@@ -281,7 +282,10 @@ function threadQueries(
 ) {
   const languages = new Set(inUse.map((each) => each.language));
   const chosen = dependencies.querySettings.available(dependencies.threads.row(threadId).queries);
-  return availableIn(chosen, languages);
+  const definitions = (dependencies.modelDefinitions?.() ?? [])
+    .filter((each) => each.definition.bodies.some((body) => languages.has(bodyLanguage(body))))
+    .map((each) => each.definition.id);
+  return { ...availableIn(chosen, languages), definitions };
 }
 
 /**
@@ -340,6 +344,7 @@ function runContext(
     providerName,
     inUse,
     queries,
+    definitions: dependencies.modelDefinitions?.() ?? [],
     charts,
     writer,
     signal,

@@ -1,5 +1,12 @@
 /** What building a data request gives: the queries, and the table they return. */
-import type { ChartUnit, PanelQuery, SavedQuery, ShapeKind } from '@quanthea/shared';
+import type {
+  ChartUnit,
+  DefinitionMark,
+  DefinitionVersion,
+  PanelQuery,
+  SavedQuery,
+  ShapeKind,
+} from '@quanthea/shared';
 import type { SqlFlavor } from '../../query/sql-dialects.ts';
 
 /** The table a data request returns, and a chart that suits it. */
@@ -20,6 +27,8 @@ export interface BuiltData {
   readonly queries: PanelQuery[];
   /** What they return. */
   readonly output: DataOutput;
+  /** The definition the data was copied from, when it was. */
+  readonly definition?: DefinitionMark;
 }
 
 /** What building needs beyond the request: the saved queries, and each connector's dialect. */
@@ -33,4 +42,6 @@ export interface BuildContext {
    * @returns Its dialect, or `undefined` when it is unknown or runs no SQL: PostgreSQL is written.
    */
   readonly dialectOf?: ((connector: string) => SqlFlavor | undefined) | undefined;
+  /** The definitions a request may name. */
+  readonly definitions?: readonly DefinitionVersion[] | undefined;
 }

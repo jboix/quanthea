@@ -233,8 +233,8 @@ function dataServices(
     connectorLevels: () => modelView.connectors(),
   });
   const conversationBin = combineConversationBins(answered.conversationBin, runConversationBin);
-  const definitions = definitionsOf(database, { dashboards, connections, audit, now });
-  const data = { connections, dashboards, definitions, ...shown, modelView, ...messaging };
+  const defined = definitionsOf(database, { dashboards, connections, audit, now });
+  const data = { connections, dashboards, ...defined, ...shown, modelView, ...messaging };
   return { ...data, ...answered, conversationBin };
 }
 

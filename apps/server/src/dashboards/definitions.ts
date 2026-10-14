@@ -94,6 +94,13 @@ export interface Definitions {
    */
   list(): DefinitionVersion[];
   /**
+   * Lists the definitions as the model may read them: a definition whose meaning names a field
+   * now hidden on a connector is left out, and so is a body that uses one.
+   *
+   * @returns The versions, by id.
+   */
+  forModel(): DefinitionVersion[];
+  /**
    * Lists every version of a definition.
    *
    * @param id - The definition.
@@ -153,7 +160,58 @@ export function fieldNamesOf(value: unknown): string[] {
  * @returns The words.
  */
 function wordsOf(meaning: string): string[] {
-  return meaning.match(/[A-Za-z_][\w.]*/g) ?? [];
+  // A dotted path stays whole; a full stop that ends a sentence is not part of a word.
+  return (meaning.match(/[A-Za-z_][\w.]*/g) ?? []).map((word) => word.replace(/\.+$/, ''));
+}
+
+/**
+ * The connector that hides a field a body uses, among those of its language.
+ *
+ * @param body - The body.
+ * @param connectors - The connectors there are.
+ * @returns The connector, if one does.
+ */
+function hidingBody(
+  body: DefinitionBody,
+  connectors: readonly DefinitionConnector[],
+): DefinitionConnector | undefined {
+  const names = fieldNamesOf(body.request);
+  const language = bodyLanguage(body);
+  return connectors.find((each) => each.language === language && names.some(each.isHidden));
+}
+
+/**
+ * The connector that hides a word of a meaning, if any.
+ *
+ * @param meaning - The meaning.
+ * @param connectors - The connectors there are.
+ * @returns The connector, if one does.
+ */
+function hidingMeaning(
+  meaning: string,
+  connectors: readonly DefinitionConnector[],
+): DefinitionConnector | undefined {
+  const words = wordsOf(meaning);
+  return connectors.find((connector) => words.some(connector.isHidden));
+}
+
+/**
+ * The definitions as the model may read them, as the connectors hide fields now.
+ *
+ * @param versions - The latest version of each definition.
+ * @param connectors - The connectors there are.
+ * @returns The versions the model may read, each with the bodies it may read.
+ */
+function visibleToModel(
+  versions: readonly DefinitionVersion[],
+  connectors: readonly DefinitionConnector[],
+): DefinitionVersion[] {
+  return versions.flatMap((version) => {
+    const { definition } = version;
+    if (hidingMeaning(definition.meaning, connectors)) return [];
+    const bodies = definition.bodies.filter((body) => !hidingBody(body, connectors));
+    return [{ ...version, definition: { ...definition, bodies } }];
+  });
 }
 
 /**
@@ -165,16 +223,11 @@ function wordsOf(meaning: string): string[] {
  * @throws {AppError} `bad_request` naming the connector.
  */
 function refuseHidden(definition: Definition, connectors: readonly DefinitionConnector[]): void {
-  const meaning = wordsOf(definition.meaning);
-  for (const connector of connectors) {
-    if (meaning.some(connector.isHidden))
-      throw new AppError('bad_request', `The meaning names a field hidden on ${connector.name}.`);
-  }
+  const meaning = hidingMeaning(definition.meaning, connectors);
+  if (meaning)
+    throw new AppError('bad_request', `The meaning names a field hidden on ${meaning.name}.`);
   for (const body of definition.bodies) {
-    const names = fieldNamesOf(body.request);
-    const hiding = connectors.find(
-      (each) => each.language === bodyLanguage(body) && names.some(each.isHidden),
-    );
+    const hiding = hidingBody(body, connectors);
     if (hiding)
       throw new AppError(
         'bad_request',
@@ -297,6 +350,7 @@ export function createDefinitions(dependencies: DefinitionsDependencies): Defini
   const { repository } = dependencies;
   return {
     list: () => repository.current().map(versionOf),
+    forModel: () => visibleToModel(repository.current().map(versionOf), dependencies.connectors()),
     history: (id) => repository.history(id).map(versionOf),
     save: (input, basedOn, actor, origin = 'ui') =>
       save(dependencies, input, basedOn, { actor, origin }),

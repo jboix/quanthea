@@ -158,6 +158,20 @@ const savedSchema = z.strictObject({
   params: z.record(z.string(), z.string().max(200)).default({}),
 });
 
+/**
+ * Data from a definition: its id, the builder and connector it is built with, filters the panel
+ * adds, and the builder's other fields that present the data (`by`, `over`, `limit`, `bucket`,
+ * `time`). The definition's checked body gives the rest.
+ */
+const definitionDataSchema = z.strictObject({
+  kind: z.literal('definition'),
+  id: z.string().max(63),
+  builder: z.string().max(40),
+  connector: connectorSchema,
+  filters: z.array(z.record(z.string(), z.unknown())).max(10).default([]),
+  options: z.record(z.string(), z.unknown()).default({}),
+});
+
 /** The builders' schemas, by kind. */
 export const builderSchemas = {
   rate: rateSchema,
@@ -192,6 +206,7 @@ export const dataSchema = z.discriminatedUnion('kind', [
   ...Object.values(mongodbBuilderSchemas),
   rawDataSchema,
   savedSchema,
+  definitionDataSchema,
 ]);
 
 /** A data request. */
@@ -206,6 +221,8 @@ export interface AvailableQueries {
   readonly builtIn: readonly string[];
   /** The saved queries. */
   readonly saved: readonly SavedQuery[];
+  /** The ids of the definitions with checked bodies, when the run has any. */
+  readonly definitions?: readonly string[];
 }
 
 /**
@@ -239,5 +256,6 @@ export function dataSchemaFor(available: AvailableQueries) {
     .filter(([kind]) => available.builtIn.includes(kind))
     .map(([, schema]) => schema);
   const saved = available.saved.length > 0 ? [savedSchema] : [];
-  return z.discriminatedUnion('kind', [rawDataSchema, ...builders, ...saved]);
+  const defined = (available.definitions?.length ?? 0) > 0 ? [definitionDataSchema] : [];
+  return z.discriminatedUnion('kind', [rawDataSchema, ...builders, ...saved, ...defined]);
 }
