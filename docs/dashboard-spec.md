@@ -35,8 +35,9 @@ type Variable =
       name: string                          // [a-z][a-z0-9_]*, referenced as $name / :name
       label?: string
       options: string[]                     // allowed values
-      default: string | string[]
+      default: string | string[]            // '$__all' with includeAll
       multi?: boolean
+      includeAll?: boolean                  // offers "All", which binds every option
     }
   | {
       kind: 'query'                         // options come from a source, e.g. label values
@@ -228,8 +229,8 @@ they differ from the sketch above, the schemas win:
   only the deploys of `$service`. Each run binds the values the viewer chose.
 - An annotation's `color` is a theme token (`@ink`, `@palette.0` to `@palette.5`), replaced by
   the renderer like the option's tokens.
-- An "All" choice of a query-backed variable with `includeAll` has the value `$__all`. It binds
-  every option, so such a variable is checked as one of several values when a dashboard is
+- An "All" choice of a fixed-list or query-backed variable with `includeAll` has the value
+  `$__all`, and may be its default. It binds every option, so such a variable is checked as one of several values when a dashboard is
   written, even without `multi`: where only one value fits, the write is refused. A stored
   version is not checked for it, so it still pins and restores.
 - A value a viewer picks for a query-backed variable is one of its options or its default; any

@@ -10,6 +10,7 @@ import {
   type DashboardSpec,
   isMultiValue,
   maxTextValueLength,
+  offersAll,
   type Variable,
   type VariableValues,
 } from '@quanthea/shared';
@@ -105,6 +106,10 @@ function listedBinding(
   variable: Extract<Variable, { kind: 'custom' | 'interval' }>,
   values: readonly string[],
 ): VariableBinding {
+  if (values.includes(allValue)) {
+    if (!offersAll(variable)) refuse(variable, 'has no "All" choice.');
+    return { value: [...variable.options] };
+  }
   const unknown = values.find((value) => !variable.options.includes(value));
   if (unknown !== undefined) refuse(variable, `has no option "${unknown}".`);
   const binding = bindingOf(variable, values);
@@ -152,7 +157,7 @@ async function queryBinding(
 ): Promise<VariableBinding> {
   const values = chosenValues(variable, picked);
   const all = values.includes(allValue);
-  if (all && !variable.includeAll) refuse(variable, 'has no "All" choice.');
+  if (all && !offersAll(variable)) refuse(variable, 'has no "All" choice.');
   if (all) return { value: await loadOptions(variable, resolved) };
   if (values.length === 0) return firstOption(variable, resolved, loadOptions);
   if (picked === undefined) return bindingOf(variable, values);

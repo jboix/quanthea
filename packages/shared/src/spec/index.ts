@@ -63,6 +63,7 @@ export {
   allValue,
   isMultiValue,
   maxTextValueLength,
+  offersAll,
   type Variable,
   type VariableValues,
   variableSchema,

@@ -11,7 +11,7 @@ import type {
   ResolvedTimeRange,
   Variable,
 } from '@quanthea/shared';
-import { isMultiValue, queryTextKey } from '@quanthea/shared';
+import { isMultiValue, offersAll, queryTextKey } from '@quanthea/shared';
 import { bindTemplate } from '../query/bind.ts';
 import type { QuerySource } from '../query/executor.ts';
 import { checkTimeRange } from '../query/guardrails.ts';
@@ -80,7 +80,7 @@ export function queriesOf(spec: DashboardSpec): LocatedQuery[] {
 
 /**
  * Whether a variable may hold several values when a query runs. A variable marked `multi` does.
- * So does a query-backed variable with an "All" choice, which binds every option, but a version
+ * So does a variable with an "All" choice, which binds every option, but a version
  * stored before this was checked must still pin, so it counts only when the spec is written.
  *
  * @param variable - The variable.
@@ -89,7 +89,7 @@ export function queriesOf(spec: DashboardSpec): LocatedQuery[] {
  */
 function holdsSeveral(variable: Variable, writing: boolean): boolean {
   if (isMultiValue(variable)) return true;
-  return writing && variable.kind === 'query' && variable.includeAll === true;
+  return writing && offersAll(variable);
 }
 
 /**

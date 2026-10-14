@@ -73,6 +73,48 @@ describe('a query-backed variable', () => {
   });
 });
 
+describe('a fixed-list variable', () => {
+  /**
+   * A spec with one fixed-list variable of three platforms.
+   *
+   * @param variable - What to add to the variable's declaration.
+   * @returns The spec.
+   */
+  function listSpec(variable: Record<string, unknown> = {}): DashboardSpec {
+    return dashboardSpecSchema.parse({
+      specVersion: 1,
+      title: 'Platforms',
+      time: { from: 'now-1h', to: 'now' },
+      variables: [
+        { kind: 'custom', name: 'platform', options: ['web', 'ios', 'android'], default: 'web' },
+      ].map((each) => ({ ...each, ...variable })),
+      panels: [],
+    });
+  }
+
+  test('expands "All" to every option, chosen or as its default', async () => {
+    const all = { value: ['web', 'ios', 'android'] };
+    const picked = await resolveVariables(
+      listSpec({ includeAll: true }),
+      { platform: '$__all' },
+      loader(),
+    );
+    expect(picked.platform).toEqual(all);
+    const byDefault = await resolveVariables(
+      listSpec({ includeAll: true, default: '$__all' }),
+      {},
+      loader(),
+    );
+    expect(byDefault.platform).toEqual(all);
+  });
+
+  test('refuses "All" when it does not offer it', async () => {
+    await expect(resolveVariables(listSpec(), { platform: '$__all' }, loader())).rejects.toThrow(
+      '$platform has no "All" choice.',
+    );
+  });
+});
+
 describe('a text variable', () => {
   /**
    * A spec with one text variable.

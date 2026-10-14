@@ -1,4 +1,10 @@
-import { allValue, isMultiValue, maxTextValueLength, type Variable } from '@quanthea/shared';
+import {
+  allValue,
+  isMultiValue,
+  maxTextValueLength,
+  offersAll,
+  type Variable,
+} from '@quanthea/shared';
 import { useRef, useState } from 'react';
 import { useFetcher } from 'react-router';
 import type { Loaded } from './data.ts';
@@ -41,7 +47,7 @@ function useOptions(variable: Variable, optionsUrl: string) {
   const fetcher = useFetcher<Loaded<string[]>>();
   const loadedOptions = fetcher.data?.ok ? fetcher.data.value : [];
   const listed = 'options' in variable ? variable.options : loadedOptions;
-  const withAll = variable.kind === 'query' && variable.includeAll ? [allValue, ...listed] : listed;
+  const withAll = offersAll(variable) ? [allValue, ...listed] : listed;
   const load = () => {
     if (variable.kind === 'query' && fetcher.state === 'idle') void fetcher.load(optionsUrl);
   };

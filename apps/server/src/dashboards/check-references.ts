@@ -4,9 +4,11 @@
  * their options.
  */
 import {
+  allValue,
   type DashboardSpec,
   isMultiValue,
   maxTextValueLength,
+  offersAll,
   type Panel,
   type Variable,
   type View,
@@ -86,7 +88,9 @@ function checkVariable(variable: Variable, path: string): SpecIssue[] {
       { path: `${path}.default`, message: 'Only a multi-value variable has several defaults.' },
     ];
   if (variable.kind === 'query') return [];
-  const unknown = defaults.find((value) => !variable.options.includes(value));
+  const unknown = defaults.find(
+    (value) => !variable.options.includes(value) && !(value === allValue && offersAll(variable)),
+  );
   return unknown === undefined
     ? []
     : [{ path: `${path}.default`, message: `"${unknown}" is not one of the options.` }];

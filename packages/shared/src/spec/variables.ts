@@ -26,6 +26,8 @@ const customVariableSchema = z.strictObject({
   options: z.array(valueSchema).min(1).max(200),
   default: z.union([valueSchema, z.array(valueSchema).max(200)]),
   multi: z.boolean().optional(),
+  /** Whether the menu offers "All", which binds every option; it may be the default. */
+  includeAll: z.boolean().optional(),
 });
 
 /** Validates a variable whose options come from a query, such as label values. */
@@ -91,5 +93,15 @@ export const variableValuesSchema = z.record(
 /** The values a viewer picked, by variable name. */
 export type VariableValues = z.infer<typeof variableValuesSchema>;
 
-/** The value of "All" in a query-backed variable with `includeAll`. */
+/** The value of "All" in a variable with `includeAll`. */
 export const allValue = '$__all';
+
+/**
+ * Whether a variable's menu offers "All".
+ *
+ * @param variable - The variable.
+ * @returns `true` for a custom or query-backed variable with `includeAll`.
+ */
+export function offersAll(variable: Variable): boolean {
+  return 'includeAll' in variable && variable.includeAll === true;
+}

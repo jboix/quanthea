@@ -414,6 +414,22 @@ describe('validateSpec', () => {
     ]);
   });
 
+  test('takes "All" as the default of a fixed list only when it offers All, as several values', () => {
+    const allDefault = (spec: Spec) => set(spec, 'variables.0.default', '$__all');
+    expect(issuesAfter(allDefault)).toEqual([
+      'variables[0].default: "$__all" is not one of the options.',
+    ]);
+    // All binds every option, so a query that takes one value of it is refused.
+    expect(
+      issuesAfter((spec) => {
+        allDefault(spec);
+        set(spec, 'variables.0.includeAll', true);
+      }),
+    ).toEqual([
+      'panels[0].queries[0].expr: $env has several values; match it with =~ instead of =.',
+    ]);
+  });
+
   describe('a colour in a chart option', () => {
     /**
      * A valid spec whose chart's series has a colour.

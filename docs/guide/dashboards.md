@@ -94,7 +94,9 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
 
 - **Time range and variables.** The row above the panels holds the time range and the
   dashboard's variables, such as an environment or a service. They live in the address, so a link
-  shares exactly what you see. Changing them runs the panels again and never calls a model.
+  shares exactly what you see. Changing them runs the panels again and never calls a model. A
+  variable can offer "All", which shows every value at once: ask for "a platform variable with
+  All", and for All as the default if you want it.
 - **Markers.** Events such as deploys or incidents are dashed lines on time charts, labelled
   (`14:02 deploy #481`). Each set has a toggle at the end of the variables row.
 - **One colour per value.** Ask for "Web in blue on every chart" or "errors always red": the
