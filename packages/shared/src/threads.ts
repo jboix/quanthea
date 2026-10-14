@@ -67,6 +67,8 @@ export const planSchema = z.object({
         change: z.string().min(1).max(200).optional(),
         /** The query the panel will run, when the settings ask plans to show it. */
         query: z.string().min(1).max(4000).optional(),
+        /** The definition the panel follows, by id, when it shows a defined term. */
+        definition: z.string().min(1).max(63).optional(),
       }),
     )
     .min(1)

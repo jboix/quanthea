@@ -4,10 +4,11 @@
  * what is true now: the time, the current draft, the panels the person mentions, and last what the
  * thread's phase asks of it.
  */
-import type { DashboardSpec, Plan, QueryLanguage } from '@quanthea/shared';
+import type { DashboardSpec, DefinitionVersion, Plan, QueryLanguage } from '@quanthea/shared';
 import { layoutReport } from '../dashboards/panels/index.ts';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import type { ThreadState } from '../threads/state.ts';
+import { definitionsSection } from './definition-facts.ts';
 import { panelGuideFor } from './panel-guide.ts';
 import { phaseOf } from './phases.ts';
 import {
@@ -54,6 +55,8 @@ export interface TurnFacts {
   readonly charts?: readonly string[];
   /** The pinned version as people see it, when someone arranged it by hand. */
   readonly shown?: ShownLayoutFacts | undefined;
+  /** The definitions of business terms the model may read. */
+  readonly definitions?: readonly DefinitionVersion[];
 }
 
 /**
@@ -191,8 +194,11 @@ export interface InstructionParts {
 export function instructionParts(facts: TurnFacts): InstructionParts {
   const writing = phaseOf(facts.state) === 'planning' ? [] : [panelGuideFor(facts)];
   const catalog = catalogSection(facts.catalog);
+  const defined = definitionsSection(facts.definitions ?? []);
   return {
-    lasting: [persona, generalRules, ...writing, catalog].join('\n\n'),
+    lasting: [persona, generalRules, ...(defined ? [defined] : []), ...writing, catalog].join(
+      '\n\n',
+    ),
     turn: situation(facts),
   };
 }

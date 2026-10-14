@@ -10,6 +10,7 @@ import {
   panelEditSchemaFor,
   settingsRequestSchema,
 } from '../dashboards/panels/index.ts';
+import { ignoredDefinitionNotes } from './definition-facts.ts';
 import { languagesInUse } from './in-use-facts.ts';
 import { buildPanels } from './panel-build.ts';
 import { layoutRepair } from './prompt-text.ts';
@@ -83,6 +84,23 @@ function withLayout(context: RunContext, result: WriteResult, advise: boolean): 
 }
 
 /**
+ * Adds notes to a write that worked, on the panels it wrote that name a defined term without
+ * using its definition.
+ *
+ * @param context - The run.
+ * @param result - What the write returned.
+ * @returns The result, with the notes when there are any.
+ */
+function withDefinitionNotes(context: RunContext, result: WriteResult): WriteResult {
+  const saved = result.ok ? currentSpec(context) : undefined;
+  if (!result.ok || !saved) return result;
+  const written = new Set(result.panels.map((panel) => panel.panelId));
+  const panels = saved.panels.filter((panel) => written.has(panel.id));
+  const notes = ignoredDefinitionNotes(panels, context.definitions);
+  return notes.length > 0 ? { ...result, notes } : result;
+}
+
+/**
  * How many of an edit's new panels the saved draft has: the ones left out do not count.
  *
  * @param context - The run.
@@ -112,7 +130,7 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
   if (result.ok) context.counters.panelsAdded += savedOf(context, added);
   // An arrangement someone made by hand is theirs: no advice unless the edit arranges.
   const advise = start === draft || request.arrange !== undefined;
-  return withLayout(context, result, advise);
+  return withDefinitionNotes(context, withLayout(context, result, advise));
 }
 
 /**

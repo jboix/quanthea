@@ -1731,6 +1731,15 @@ directly onto an ECharts `dataset`.
   do instead (build from the meaning, or the builders that fit). The run reads the definitions
   once when it starts, from `forModel`: the gate's hidden names leave out a definition whose
   meaning names a field now hidden, and a body that uses one.
+- **What the agent reads of definitions** (`agent/definition-facts.ts`). In every phase the lasting
+  part of the instructions holds a rule (follow the meaning, never read the word literally; name
+  the definition on the plan's panel; build from the definition where it has checked filters for
+  the language, else from the meaning and say so in the panel's description; ask about a term
+  that sounds defined but is not) and a line per definition: id, name, synonyms, meaning, and
+  where it is checked. Past 2,500 characters the lines give way to the names and a pointer to
+  `read_guide("definitions")`, which always has every line. A plan's panel may name its
+  `definition`. A write that worked gets `notes` for each panel it wrote whose title names a
+  defined term or synonym but whose data was not copied from it: the panel is kept.
 - **Which queries.** Admins switch builders off (`GET/PUT /api/settings/queries`). A thread uses
   the default set (the builders switched on and every saved query), a set chosen when it starts,
   or none (free style: raw queries only), stored on the thread (`POST /api/threads` with

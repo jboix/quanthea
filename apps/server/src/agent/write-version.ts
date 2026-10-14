@@ -23,6 +23,8 @@ export type WriteResult =
       readonly leftOut?: { readonly panelIds: readonly string[]; readonly next: string };
       /** The saved version's layout as a map, and advice on what reads badly. */
       readonly layout?: LayoutReport;
+      /** Panels that name a defined term without using its definition, and what to do. */
+      readonly notes?: readonly string[];
     }
   | {
       readonly ok: false;

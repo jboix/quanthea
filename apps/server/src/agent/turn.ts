@@ -26,6 +26,7 @@ import {
   withoutReasoning,
 } from './compact.ts';
 import { dataTools } from './data-tools.ts';
+import { definitionsTopic } from './definition-facts.ts';
 import { guideTools, searchFiltersTopic, settingsTopic } from './guide-tools.ts';
 import { guidesInUse, languagesInUse } from './in-use-facts.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
@@ -147,20 +148,22 @@ export async function turnInstructions(
     charts: context.charts,
     languages: languagesInUse(context),
     guides: guidesInUse(context),
+    definitions: context.definitions,
   });
   return cachedInstructions(parts, context.settings.provider);
 }
 
 /**
- * The guides a dashboard run may read: the query guides of the connector kinds, the settings, and
- * the search filters when a search connector is in use.
+ * The guides a dashboard run may read: the query guides of the connector kinds, the settings, the
+ * search filters when a search connector is in use, and the definitions when there are any.
  *
  * @param context - The run.
  * @returns The guides.
  */
 function dashboardTopics(context: RunContext) {
   const search = languagesInUse(context).includes('search') ? [searchFiltersTopic] : [];
-  return [...context.modelView.guides(), settingsTopic, ...search];
+  const defined = context.definitions.length > 0 ? [definitionsTopic(context.definitions)] : [];
+  return [...context.modelView.guides(), settingsTopic, ...search, ...defined];
 }
 
 /**
