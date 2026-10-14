@@ -4233,6 +4233,13 @@ one, and enables them again. Without any admin, it creates the default one.
   and frozen; the gallery and a preview pass none. A report carries them like its markers. The
   agent sets them with the edit's `colors`, which replaces the list, and reads how in the markers
   guide, so the panel guide carries only a pointer.
+  - Charts that colour items take them by category (`charts/item-colors.ts`): a donut's or a
+    funnel's slices, and the bars of a ranked bar chart of one series. The palette is set item by
+    item over the rows as prepared, after the sort, the limit and the tail. A slice no colour
+    names keeps its palette place, such a bar keeps the series colour, and "Other" is neutral.
+    A chart where no category has a colour is left as it was.
+  - A table cell whose raw text has a colour takes its tone (`table-rows.ts`), unless its column
+    has mappings: then they alone decide.
 - **Tables a viewer works** (`features/dashboard/table-state.ts`, `table-head.tsx`). The view's
   `sort` is the first order. A click on a header sorts by that column's raw values, up, then down,
   then back to the view's order. A table with more rows than a page has a text filter under each

@@ -14,6 +14,7 @@ import {
   type TableView,
   type Tone,
   type ToneAs,
+  type ValueColor,
 } from '@quanthea/shared';
 
 /** How wide a column is beside the others. */
@@ -106,20 +107,45 @@ function sortedRows(view: TableView, rows: readonly SourceRow[]): readonly Sourc
 type CellWriter = (value: unknown) => TableCell;
 
 /**
+ * The tone of a value in the dashboard's colours, read in any case.
+ *
+ * @param colors - The dashboard's colours.
+ * @returns A lookup by raw value; none for a value no colour names.
+ */
+function toneLookup(colors: readonly ValueColor[]): (value: unknown) => Tone | undefined {
+  const byValue = new Map<string, Tone>();
+  for (const { value, tone } of colors) {
+    const key = value.trim().toLowerCase();
+    if (!byValue.has(key)) byValue.set(key, tone);
+  }
+  return (value) =>
+    typeof value === 'string' ? byValue.get(value.trim().toLowerCase()) : undefined;
+}
+
+/**
  * How each column writes its cells: the text and tone of the first mapping that matches the raw
- * value, and the column's format for a value no mapping gives a text.
+ * value, and the column's format for a value no mapping gives a text. A column without mappings
+ * gives a value the dashboard colours the tone of its colour.
  *
  * @param view - The table view.
  * @param timeZone - The zone for date formatters.
+ * @param colors - The dashboard's colours.
  * @returns One writer per column, in order.
  */
-function cellWriters(view: TableView, timeZone: string | undefined): CellWriter[] {
+function cellWriters(
+  view: TableView,
+  timeZone: string | undefined,
+  colors: readonly ValueColor[],
+): CellWriter[] {
+  const dashboardTone = toneLookup(colors);
   return view.columns.map((column) => {
     const format = createFormatter(column.format ?? '{value}', { timeZone });
+    const own = column.mappings !== undefined && column.mappings.length > 0;
     return (value) => {
       const mapped = mapValue(column.mappings, value);
       const text = mapped?.text ?? format(value);
-      return mapped?.tone ? { value, text, tone: mapped.tone } : { value, text };
+      const tone = own ? mapped?.tone : dashboardTone(value);
+      return tone ? { value, text, tone } : { value, text };
     };
   });
 }
@@ -130,17 +156,19 @@ function cellWriters(view: TableView, timeZone: string | undefined): CellWriter[
  * @param view - The table view.
  * @param queries - The outcomes of the panel's queries.
  * @param timeZone - The zone for date formatters.
+ * @param colors - The dashboard's colour per value, if any.
  * @returns The columns, and the rows with each cell's raw value, text and tone.
  */
 export function tableRows(
   view: TableView,
   queries: readonly QueryOutcome[],
   timeZone?: string,
+  colors: readonly ValueColor[] = [],
 ): TableRows {
   const frames = queries.find((query) => query.refId === view.ref)?.frames ?? [];
   const rows = sortedRows(view, rawRows(view, frames));
   const limit = Math.min(view.limit ?? maxRows, maxRows);
-  const writers = cellWriters(view, timeZone);
+  const writers = cellWriters(view, timeZone, colors);
   return {
     columns: view.columns.map((column) => ({
       label: column.label ?? column.field,

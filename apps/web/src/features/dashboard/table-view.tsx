@@ -1,4 +1,9 @@
-import type { QueryOutcome, TableView as TableViewSpec, ToneAs } from '@quanthea/shared';
+import type {
+  QueryOutcome,
+  TableView as TableViewSpec,
+  ToneAs,
+  ValueColor,
+} from '@quanthea/shared';
 import { useMemo, useState } from 'react';
 import styles from './panels.module.css';
 import tableStyles from './table.module.css';
@@ -23,6 +28,8 @@ interface TableViewProps {
   readonly queries: readonly QueryOutcome[];
   /** The IANA time zone, or the browser's. */
   readonly timeZone: string | undefined;
+  /** The dashboard's colour per value, for the cells of a column without mappings. */
+  readonly colors?: readonly ValueColor[] | undefined;
 }
 
 /**
@@ -144,11 +151,14 @@ function WorkedTable({
  * A table. A viewer sorts it by a click on a header, filters it per column and reads it a page at
  * a time; that state starts again when the columns change.
  *
- * @param props - The view, the outcomes and the time zone.
+ * @param props - The view, the outcomes, the time zone and the dashboard's colours.
  * @returns The table.
  */
-export function TableView({ view, queries, timeZone }: TableViewProps) {
-  const table = useMemo(() => tableRows(view, queries, timeZone), [view, queries, timeZone]);
+export function TableView({ view, queries, timeZone, colors }: TableViewProps) {
+  const table = useMemo(
+    () => tableRows(view, queries, timeZone, colors),
+    [view, queries, timeZone, colors],
+  );
   const columnsKey = table.columns.map((column) => column.label).join('\u0000');
   return (
     <div className={styles.tableScroll}>

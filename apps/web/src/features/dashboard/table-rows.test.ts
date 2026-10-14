@@ -172,4 +172,24 @@ describe('tableRows', () => {
       [{ value: null, text: '' }],
     ]);
   });
+
+  test('a value with a dashboard colour takes its tone, unless its column has mappings', () => {
+    const colors = [{ value: 'get /cart', tone: 'series3' as const }];
+    const outcome = [{ refId: 'A', frames: [instant], error: null }];
+    const plain = tableRows(view, outcome, undefined, colors);
+    expect(plain.rows.find((row) => row.key === '0')?.cells[0]).toEqual({
+      value: 'GET /cart',
+      text: 'GET /cart',
+      tone: 'series3',
+    });
+    expect(plain.rows.find((row) => row.key === '1')?.cells[0]).not.toHaveProperty('tone');
+    const mapped: TableView = {
+      ...view,
+      columns: [
+        { field: 'route', mappings: [{ match: { value: 'GET /orders/:id' }, tone: 'bad' }] },
+      ],
+    };
+    const own = tableRows(mapped, outcome, undefined, colors);
+    expect(own.rows.map((row) => row.cells[0]?.tone)).toEqual([undefined, undefined, 'bad']);
+  });
 });

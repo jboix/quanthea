@@ -74,7 +74,8 @@ export function PanelView({
     return { ...drawn, period: chartPeriodOf(panel, time), colors };
   }, [panel, view, queries, markers, hiddenMarkers, highlights, alertMarks, from, to, colors]);
   if (view.kind === 'stat') return <StatView view={view} queries={queries} timeZone={timeZone} />;
-  if (view.kind === 'table') return <TableView view={view} queries={queries} timeZone={timeZone} />;
+  if (view.kind === 'table')
+    return <TableView view={view} queries={queries} timeZone={timeZone} colors={colors} />;
   if (!input) return null;
   return (
     <Suspense fallback={<p className={styles.note}>Loading the chart…</p>}>
