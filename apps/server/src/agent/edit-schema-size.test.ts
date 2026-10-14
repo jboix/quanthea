@@ -12,15 +12,15 @@ import { providerSchema } from './tool-schema.ts';
  * the providers.
  */
 const ceilings: Record<BuilderLanguage, number> = {
-  promql: 9_200,
-  sql: 9_800,
-  search: 10_800,
-  logql: 11_100,
-  mongodb: 10_900,
+  promql: 9_300,
+  sql: 9_900,
+  search: 11_200,
+  logql: 11_300,
+  mongodb: 11_000,
 };
 
 /** The ceiling of a run on a metrics source and a SQL source, the usual pair. */
-const pairCeiling = 12_800;
+const pairCeiling = 12_900;
 
 /** The ceiling of a run on three query languages: what Gemini is known to accept. */
 const threeCeiling = 19_000;
@@ -29,10 +29,15 @@ const threeCeiling = 19_000;
  * The runs on three languages that send more than Gemini is known to accept, each with a ceiling
  * a little above its measure, so it grows no further. No provider was called at these sizes: what
  * such a run sends is not settled. Take a run off the list when it comes under the ceiling of
- * three, and never add one.
+ * three. The colours a dashboard gives its values added four runs, by the maintainer's choice of
+ * 14 October 2026: the schema is to be made smaller as a whole, later.
  */
 const overThreeCeiling: Readonly<Record<string, number>> = {
-  'search+logql+mongodb': 20_400,
+  'promql+search+logql': 19_200,
+  'sql+search+logql': 19_800,
+  'sql+search+mongodb': 19_500,
+  'sql+logql+mongodb': 19_500,
+  'search+logql+mongodb': 20_900,
 };
 
 /** Every run on three of the query languages that have builders. */

@@ -7,6 +7,7 @@ import {
   chartRecipes,
   chartUnits,
   markerColors,
+  timeRangeSchema,
   valueColorSchema,
   variableSchema,
 } from '@quanthea/shared';
@@ -122,12 +123,6 @@ const queryMarkersSchema = z.strictObject({
   text: nameSchema.default('text'),
 });
 
-/**
- * The time range an edit sets, as text. The spec checks each end when the edit is written: its
- * patterns for a date would cost the tool's schema about 650 characters.
- */
-const editTimeSchema = z.strictObject({ from: z.string().min(1), to: z.string().min(1) });
-
 /** A set of markers: events drawn as lines on time charts, from a table or from a query. */
 const markersSchema = z.union([queryMarkersSchema, tableMarkersSchema]);
 
@@ -141,7 +136,7 @@ function editSchemaWith<Panel extends z.ZodType>(panels: Panel) {
   return z.strictObject({
     title: z.string().min(1).max(200).optional(),
     description: z.string().max(1000).optional(),
-    time: editTimeSchema.optional(),
+    time: timeRangeSchema.optional(),
     variables: z.array(variableSchema).max(20).optional(),
     colors: z.array(valueColorSchema).max(50).optional(),
     panels: z.array(panels).max(20).default([]),

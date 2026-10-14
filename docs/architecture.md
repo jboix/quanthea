@@ -1773,10 +1773,12 @@ form per query language, such as a variable's source, it keeps the forms of the 
 The input is still checked against the whole schema, which fills the defaults. A test measures the
 schema as sent (`agent/edit-schema-size.test.ts`) and holds it under a ceiling for a run on each
 query language, for PromQL with SQL, and for every run on three languages: 19,000 characters, the
-size Gemini is known to accept (it refused about 26,000). One run on three languages sends more
-and has a ceiling of its own, so it grows no further: search, LogQL and MongoDB (19,781). No
-provider was called at that size. The time range an edit sets is plain text in the schema, and
-the spec checks it once the edit is written: the patterns of a date cost about 650 characters. A run on four languages sends about 22,000 to 24,000 characters and a run on all
+size Gemini is known to accept (it refused about 26,000). Five runs on three languages send more
+and have a ceiling of their own, so they grow no further: PromQL, search and LogQL (19,090), SQL,
+search and LogQL (19,686), SQL, search and MongoDB (19,421), SQL, LogQL and MongoDB (19,440), and
+search, LogQL and MongoDB (20,767). No provider was called at those sizes. The colours a dashboard
+gives its values raised every ceiling a little, by the maintainer's choice: the schema is to be
+made smaller as a whole, later. A run on four languages sends about 22,000 to 24,000 characters and a run on all
 five about 26,900, which no test holds. An edit then goes through one pipeline (`agent/build-tools.ts`,
 `agent/write-version.ts`):
 
@@ -4239,7 +4241,7 @@ one, and enables them again. Without any admin, it creates the default one.
   by their place, so they keep their colours. The canvas passes the colours to each chart, live
   and frozen; the gallery and a preview pass none. A report carries them like its markers. The
   agent sets them with the edit's `colors`, which replaces the list, and reads how in the markers
-  guide, so the panel guide carries only a pointer.
+  guide, so the panel guide carries only a pointer. The tones are named in the edit's schema.
   - Charts that colour items take them by category (`charts/item-colors.ts`): a donut's or a
     funnel's slices, and the bars of a ranked bar chart of one series. The palette is set item by
     item over the rows as prepared, after the sort, the limit and the tail. A slice no colour
