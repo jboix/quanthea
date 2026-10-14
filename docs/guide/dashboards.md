@@ -101,6 +101,9 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   it filters on: "a filter labelled Only SwissTXT that matches true". A panel title can show the
   value chosen: "call it Most conflicting $browser versions" reads "Most conflicting Firefox
   versions" while Firefox is chosen.
+- **Zoom on a stretch.** Drag across a time chart with the mouse to make that stretch the time
+  range. Back returns to the range before. An interval variable with "auto" picks finer buckets
+  for the shorter range: ask for "a rate window I can pick, auto by default".
 - **Markers.** Events such as deploys or incidents are dashed lines on time charts, labelled
   (`14:02 deploy #481`). Each set has a toggle at the end of the variables row.
 - **Values in the legend.** A chart's legend can show a number after each line: "with the total

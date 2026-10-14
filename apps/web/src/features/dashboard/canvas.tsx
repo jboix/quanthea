@@ -5,6 +5,7 @@
 import type { DashboardAlerts, DashboardSpec, PanelRun } from '@quanthea/shared';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { RangeSelectContext, type RangeSelected } from '../../charts/range-select.tsx';
 import { dashboardAlertsPath, useDashboardAlerts } from './alerts-data.ts';
 import type { PanelMark } from './ask-marks.ts';
 import type { Loaded } from './data.ts';
@@ -16,7 +17,7 @@ import { PanelCard, type PanelPlanMark, type RunTarget } from './panel-card.tsx'
 import panelStyles from './panels.module.css';
 import { RunStatus } from './run-status.tsx';
 import { VariablesBar } from './variables-bar.tsx';
-import { choicesFromSearch, type ViewChoices } from './view-state.ts';
+import { choicesFromSearch, type ViewChoices, withTime } from './view-state.ts';
 
 /** The finished runs of the panels, for one set of choices. */
 interface RunsState {
@@ -220,15 +221,35 @@ export function DashboardCanvas(props: DashboardCanvasProps) {
     </>
   );
   const shown = { search, hiddenMarkers, target, onSearch: setSearch, actions };
+  const alertSets = linkedAlertsOf(alerts?.data);
+  const selectTime = useTimeSelect(search, setSearch);
   return (
     <>
-      <VariablesBar
-        spec={spec}
-        choices={choices}
-        {...shown}
-        alertSets={linkedAlertsOf(alerts?.data)}
-      />
-      <PanelGrid {...props} {...shown} onRun={report} alerts={alerts} />
+      <VariablesBar spec={spec} choices={choices} {...shown} alertSets={alertSets} />
+      <RangeSelectContext value={selectTime}>
+        <PanelGrid {...props} {...shown} onRun={report} alerts={alerts} />
+      </RangeSelectContext>
     </>
+  );
+}
+
+/**
+ * What selecting a stretch of a time chart does: it becomes the dashboard's time range, in the
+ * URL, so Back goes to the range before.
+ *
+ * @param search - The search parameters.
+ * @param setSearch - Sets them.
+ * @returns The selection callback.
+ */
+function useTimeSelect(
+  search: URLSearchParams,
+  setSearch: (next: URLSearchParams) => void,
+): RangeSelected {
+  return useCallback(
+    (from, to) => {
+      const time = { from: new Date(from).toISOString(), to: new Date(to).toISOString() };
+      setSearch(withTime(search, time));
+    },
+    [search, setSearch],
   );
 }

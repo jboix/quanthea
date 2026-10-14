@@ -9,6 +9,7 @@ import { buildChartOption, type ChartInput } from './build-option.ts';
 import styles from './chart.module.css';
 import type { Loose } from './loose.ts';
 import { ensureMaps } from './maps.ts';
+import { selectsTime, useRangeSelect } from './range-select.tsx';
 import { ensureModules, modulesGeneration } from './register.ts';
 import { useChartTheme } from './theme.ts';
 
@@ -241,7 +242,7 @@ function useDrawn(drawing: Drawing, option: Loose, inView: boolean): void {
 
 /**
  * Draws an option built in this folder, when the chart is in view. The instance is made once the
- * modules it needs are in.
+ * modules it needs are in. On a dashboard, dragging across a time chart selects a stretch of time.
  *
  * @param props - The option, a label, and who wants the value axis.
  * @returns The chart container.
@@ -257,5 +258,24 @@ export function OptionChart({ option, label, onAxis }: OptionChartProps) {
   };
   useResizeAndDispose(container, holder, afterDraw);
   useDrawn({ container, holder, afterDraw, drawn }, option, useInView(container));
-  return <div ref={container} className={styles.chart} role="img" aria-label={label} />;
+  const select = useRangeSelect(() => holder.current?.chart, selectsTime(option));
+  return (
+    <div className={styles.frame} {...select.handlers}>
+      <div ref={container} className={styles.chart} role="img" aria-label={label} />
+      {select.band && <SelectBand start={select.band.start} end={select.band.end} />}
+    </div>
+  );
+}
+
+/**
+ * The band over the stretch being selected.
+ *
+ * @param props - Where the drag began and where the pointer is, in pixels from the left.
+ * @param props.start - Where the drag began.
+ * @param props.end - Where the pointer is.
+ * @returns The band.
+ */
+function SelectBand({ start, end }: { readonly start: number; readonly end: number }) {
+  const place = { left: Math.min(start, end), width: Math.abs(end - start) };
+  return <span className={styles.band} style={place} aria-hidden="true" />;
 }

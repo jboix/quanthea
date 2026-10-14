@@ -4069,6 +4069,11 @@ one, and enables them again. Without any admin, it creates the default one.
 - Each panel loads its run through a fetcher from a resource route
   (`/d/:id/v/:version/panels/:panelId`), so panels load, fail and refresh on their own. A
   query-backed variable loads its options the same way when its menu opens.
+- Dragging across a time chart with a mouse or a pen selects a stretch, and the stretch becomes
+  the dashboard's time range in the URL (`charts/range-select.tsx`, provided by the canvas).
+  Back returns to the range before. Charts with a zoom of their own, snapshots and charts outside
+  a dashboard do not select. Panels with an `auto` interval or the built-in interval get finer
+  buckets over the shorter range.
 - While a panel runs, a moving line crosses its top edge and its last view fades. While any panel
   runs, the variables row says how many have loaded ("4 of 12 panels loaded") over a line that
   fills (`ui/progress-line.tsx`).
