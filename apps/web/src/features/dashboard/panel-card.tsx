@@ -1,4 +1,4 @@
-import type { DashboardSpec, Panel, PanelRun } from '@quanthea/shared';
+import type { DashboardSpec, Panel, PanelRun, QueryOutcome } from '@quanthea/shared';
 import { type CSSProperties, useEffect, useMemo } from 'react';
 import { useFetcher } from 'react-router';
 import type { PanelMark } from './ask-marks.ts';
@@ -119,6 +119,29 @@ function useAlertMarks(
 }
 
 /**
+ * Why each query that failed failed.
+ *
+ * @param props - The failed queries, and whether to name each.
+ * @param props.failures - The outcomes of the queries that failed.
+ * @param props.named - Whether the panel has several queries, so each message names its query.
+ * @returns One line per failure.
+ */
+function QueryErrors({
+  failures,
+  named,
+}: {
+  readonly failures: readonly QueryOutcome[];
+  readonly named: boolean;
+}) {
+  return failures.map((query) => (
+    <p key={query.refId} className={styles.error}>
+      {named ? `${query.refId}: ` : ''}
+      {query.error?.message}
+    </p>
+  ));
+}
+
+/**
  * The body of a panel: its view, or why it has nothing to show.
  *
  * @param props - The panel, the spec, the hidden sets of markers, the answer's marks, the alerts
@@ -146,12 +169,7 @@ function PanelBody({
   );
   return (
     <>
-      {failures.map((query) => (
-        <p key={query.refId} className={styles.error}>
-          {run.value.queries.length > 1 ? `${query.refId}: ` : ''}
-          {query.error?.message}
-        </p>
-      ))}
+      <QueryErrors failures={failures} named={run.value.queries.length > 1} />
       {failures.length < run.value.queries.length && empty && panel.view.kind !== 'stat' ? (
         <p className={styles.empty}>No data in this range.</p>
       ) : (
@@ -164,6 +182,7 @@ function PanelBody({
             highlights={answerMark?.windows}
             alertMarks={alertMarks}
             period={run.value.time}
+            colors={spec.colors}
             timeZone={spec.timezone}
           />
         </div>

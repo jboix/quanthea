@@ -34,6 +34,7 @@ const spec = {
   time: { from: 'now-1h', to: 'now' },
   variables: [],
   annotations: [],
+  colors: [],
   panels: [
     panel('errors', { x: 0, y: 0, w: 6, h: 3 }),
     panel('latency', { x: 6, y: 0, w: 6, h: 3 }),

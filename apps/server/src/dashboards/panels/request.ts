@@ -1,13 +1,13 @@
 /**
  * What the agent asks for, instead of writing a spec: panels, each a data request and a chart
- * recipe, and the dashboard's variables, time range and sets of markers. This is the edit tool's
+ * recipe, and the dashboard's variables, time range, colours per value and sets of markers. This is the edit tool's
  * input schema, so providers that constrain tool input keep the model to it.
  */
 import {
   chartRecipes,
   chartUnits,
   markerColors,
-  timeRangeSchema,
+  valueColorSchema,
   variableSchema,
 } from '@quanthea/shared';
 import { z } from 'zod';
@@ -122,6 +122,12 @@ const queryMarkersSchema = z.strictObject({
   text: nameSchema.default('text'),
 });
 
+/**
+ * The time range an edit sets, as text. The spec checks each end when the edit is written: its
+ * patterns for a date would cost the tool's schema about 650 characters.
+ */
+const editTimeSchema = z.strictObject({ from: z.string().min(1), to: z.string().min(1) });
+
 /** A set of markers: events drawn as lines on time charts, from a table or from a query. */
 const markersSchema = z.union([queryMarkersSchema, tableMarkersSchema]);
 
@@ -135,8 +141,9 @@ function editSchemaWith<Panel extends z.ZodType>(panels: Panel) {
   return z.strictObject({
     title: z.string().min(1).max(200).optional(),
     description: z.string().max(1000).optional(),
-    time: timeRangeSchema.optional(),
+    time: editTimeSchema.optional(),
     variables: z.array(variableSchema).max(20).optional(),
+    colors: z.array(valueColorSchema).max(50).optional(),
     panels: z.array(panels).max(20).default([]),
     remove: z.array(z.string()).max(20).default([]),
     arrange: arrangeSchema,

@@ -25,6 +25,7 @@ type DashboardSpec = {
   variables: Variable[]                    // the time variable is implicit and not listed here
   panels: Panel[]
   annotations?: Annotation[]               // dashboard-wide sets of markers, e.g. deploys, ≤ 10
+  colors?: { value: string; tone: Tone }[]  // a value's colour on every chart, ≤ 50, default []
 }
 
 // ---------------------------------------------------------------- variables

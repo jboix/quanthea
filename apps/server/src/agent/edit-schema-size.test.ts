@@ -32,8 +32,6 @@ const threeCeiling = 19_000;
  * three, and never add one.
  */
 const overThreeCeiling: Readonly<Record<string, number>> = {
-  'sql+search+logql': 19_300,
-  'sql+logql+mongodb': 19_100,
   'search+logql+mongodb': 20_400,
 };
 

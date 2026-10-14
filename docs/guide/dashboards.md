@@ -97,6 +97,9 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   shares exactly what you see. Changing them runs the panels again and never calls a model.
 - **Markers.** Events such as deploys or incidents are dashed lines on time charts, labelled
   (`14:02 deploy #481`). Each set has a toggle at the end of the variables row.
+- **One colour per value.** Ask for "Web in blue on every chart" or "errors always red": the
+  dashboard keeps a colour for the value, and every line, bar or scatter series named after it
+  takes it, in the light and the dark scheme. Other series keep their usual colours.
 - **Refresh** runs every panel again. Its tip says how many saved queries ran, against which
   sources, how long they took, and that no model was called.
 - **Where a number comes from.** Each panel's info bubble shows its source, the query it runs and

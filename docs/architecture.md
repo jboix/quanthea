@@ -1771,10 +1771,10 @@ form per query language, such as a variable's source, it keeps the forms of the 
 The input is still checked against the whole schema, which fills the defaults. A test measures the
 schema as sent (`agent/edit-schema-size.test.ts`) and holds it under a ceiling for a run on each
 query language, for PromQL with SQL, and for every run on three languages: 19,000 characters, the
-size Gemini is known to accept (it refused about 26,000). Three runs on three languages send more
-and have a ceiling of their own, so they grow no further: SQL, search and LogQL (19,260), SQL,
-LogQL and MongoDB (19,014), and search, LogQL and MongoDB (20,341). No provider was called at
-those sizes. A run on four languages sends about 22,000 to 24,000 characters and a run on all
+size Gemini is known to accept (it refused about 26,000). One run on three languages sends more
+and has a ceiling of its own, so it grows no further: search, LogQL and MongoDB (19,781). No
+provider was called at that size. The time range an edit sets is plain text in the schema, and
+the spec checks it once the edit is written: the patterns of a date cost about 650 characters. A run on four languages sends about 22,000 to 24,000 characters and a run on all
 five about 26,900, which no test holds. An edit then goes through one pipeline (`agent/build-tools.ts`,
 `agent/write-version.ts`):
 
@@ -4226,6 +4226,13 @@ one, and enables them again. Without any admin, it creates the default one.
   loaded and registered only when a chart draws a map; no map is fetched from elsewhere.
 - **Formatters:** every `{"$fmt": …}` object becomes a function from
   `@quanthea/shared/formatters`. ECharts string templates pass through unchanged.
+- **A colour per value** (`charts/value-colors.ts`). A dashboard's `colors` lists a value and a
+  tone, at most 50. A line, bar or scatter series whose name is the value, in any case, takes the
+  tone's colour, the first entry for a value winning. ECharts gives the other series the palette
+  by their place, so they keep their colours. The canvas passes the colours to each chart, live
+  and frozen; the gallery and a preview pass none. A report carries them like its markers. The
+  agent sets them with the edit's `colors`, which replaces the list, and reads how in the markers
+  guide, so the panel guide carries only a pointer.
 - **Tables a viewer works** (`features/dashboard/table-state.ts`, `table-head.tsx`). The view's
   `sort` is the first order. A click on a header sorts by that column's raw values, up, then down,
   then back to the view's order. A table with more rows than a page has a text filter under each

@@ -1,4 +1,4 @@
-import type { MarkerOutcome, Panel, QueryOutcome } from '@quanthea/shared';
+import type { MarkerOutcome, Panel, QueryOutcome, ValueColor } from '@quanthea/shared';
 import { lazy, Suspense, useMemo } from 'react';
 import {
   type AlertMarks,
@@ -40,13 +40,16 @@ interface PanelViewProps extends ViewProps {
    * it, as for a sample, the time axis is left to the data.
    */
   readonly period?: ChartPeriod | undefined;
+  /** The dashboard's colour per value. Left out, as in the gallery, series keep the palette. */
+  readonly colors?: readonly ValueColor[] | undefined;
 }
 
 /**
  * The view of a panel, by kind.
  *
  * @param props - The panel, its outcomes and markers, the sets of markers hidden, the windows an
- *   open answer cites, the linked alerts' marks, the time range it ran over, and the time zone.
+ *   open answer cites, the linked alerts' marks, the time range it ran over, the dashboard's
+ *   colours and the time zone.
  * @returns The view.
  */
 export function PanelView({
@@ -57,6 +60,7 @@ export function PanelView({
   highlights,
   alertMarks,
   period,
+  colors,
   timeZone,
 }: PanelViewProps) {
   const { view } = panel;
@@ -67,8 +71,8 @@ export function PanelView({
     const shown = shownMarkers(markers, hiddenMarkers);
     const time = from === undefined || to === undefined ? undefined : { from, to };
     const drawn = chartInputOf(view, queries, shown, highlights, alertMarks);
-    return { ...drawn, period: chartPeriodOf(panel, time) };
-  }, [panel, view, queries, markers, hiddenMarkers, highlights, alertMarks, from, to]);
+    return { ...drawn, period: chartPeriodOf(panel, time), colors };
+  }, [panel, view, queries, markers, hiddenMarkers, highlights, alertMarks, from, to, colors]);
   if (view.kind === 'stat') return <StatView view={view} queries={queries} timeZone={timeZone} />;
   if (view.kind === 'table') return <TableView view={view} queries={queries} timeZone={timeZone} />;
   if (!input) return null;

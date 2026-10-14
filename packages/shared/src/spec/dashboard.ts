@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { slugSchema } from './names.ts';
 import { panelQuerySchema } from './queries.ts';
 import { timeRangeSchema } from './time.ts';
+import { tones } from './tones.ts';
 import { variableSchema } from './variables.ts';
 import { viewSchema } from './views.ts';
 
@@ -69,6 +70,18 @@ const annotationSchema = z.strictObject({
 /** An annotation. */
 export type Annotation = z.infer<typeof annotationSchema>;
 
+/**
+ * Validates a colour for a value: every series named after the value takes the tone, so `Web` or
+ * an error type reads the same on every panel. A tone is a theme token, never a free colour.
+ */
+export const valueColorSchema = z.strictObject({
+  value: z.string().min(1).max(200),
+  tone: z.enum(tones),
+});
+
+/** A colour for a value, for the whole dashboard. */
+export type ValueColor = z.infer<typeof valueColorSchema>;
+
 /** Validates a dashboard spec, version 1. */
 export const dashboardSpecSchema = z.strictObject({
   specVersion: z.literal(1),
@@ -79,7 +92,8 @@ export const dashboardSpecSchema = z.strictObject({
   variables: z.array(variableSchema).max(20).default([]),
   panels: z.array(panelSchema).max(60),
   annotations: z.array(annotationSchema).max(10).default([]),
+  colors: z.array(valueColorSchema).max(50).default([]),
 });
 
-/** A dashboard spec, as parsed: `variables` and `annotations` are always present. */
+/** A dashboard spec, as parsed: `variables`, `annotations` and `colors` are always present. */
 export type DashboardSpec = z.output<typeof dashboardSpecSchema>;

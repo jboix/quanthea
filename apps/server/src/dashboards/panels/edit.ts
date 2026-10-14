@@ -34,6 +34,7 @@ function startingSpec(current: DashboardSpec | undefined, request: EditRequest):
     variables: [],
     panels: [],
     annotations: [],
+    colors: [],
   };
 }
 
@@ -42,7 +43,7 @@ function startingSpec(current: DashboardSpec | undefined, request: EditRequest):
  *
  * @param spec - The spec.
  * @param request - The edit.
- * @returns The spec with the new title, description, time range and variables.
+ * @returns The spec with the new title, description, time range, variables and colours.
  */
 function withSettings(spec: DashboardSpec, request: EditRequest): DashboardSpec {
   return {
@@ -51,6 +52,7 @@ function withSettings(spec: DashboardSpec, request: EditRequest): DashboardSpec 
     ...(request.description === undefined ? {} : { description: request.description }),
     ...(request.time === undefined ? {} : { time: request.time }),
     ...(request.variables === undefined ? {} : { variables: request.variables }),
+    ...(request.colors === undefined ? {} : { colors: request.colors }),
   };
 }
 

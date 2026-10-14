@@ -127,9 +127,17 @@ describe('dashboardSpecSchema', () => {
     expect(issuePaths(example)).toEqual([]);
   });
 
-  test('fills empty variables and annotations', () => {
+  test('fills empty variables, annotations and colours', () => {
     const { variables: _variables, annotations: _annotations, ...bare } = example;
-    expect(dashboardSpecSchema.parse(bare)).toMatchObject({ variables: [], annotations: [] });
+    const parsed = dashboardSpecSchema.parse(bare);
+    expect(parsed).toMatchObject({ variables: [], annotations: [], colors: [] });
+  });
+
+  test('takes a colour per value from the tones only', () => {
+    const colored = (tone: string) =>
+      changed((spec) => Object.assign(spec, { colors: [{ value: 'Web', tone }] }));
+    expect(issuePaths(colored('series2'))).toEqual([]);
+    expect(issuePaths(colored('#00ff00'))).toEqual(['colors.0.tone']);
   });
 
   test('takes a marker colour from the theme tokens only', () => {

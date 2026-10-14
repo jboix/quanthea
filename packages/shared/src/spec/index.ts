@@ -12,6 +12,8 @@ export {
   type MarkerColor,
   markerColors,
   type Panel,
+  type ValueColor,
+  valueColorSchema,
 } from './dashboard.ts';
 export {
   type DiffLine,

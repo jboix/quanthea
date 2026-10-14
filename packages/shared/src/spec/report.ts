@@ -111,11 +111,12 @@ export type ReportSpec = z.output<typeof reportSpecSchema>;
  * @returns The dashboard spec.
  */
 export function dashboardOfReport(spec: ReportSpec, range: PeriodRange): DashboardSpec {
-  const { specVersion, title, description, variables, panels, annotations } = spec;
+  const { specVersion, title, description, variables, panels, annotations, colors } = spec;
   const time = { from: new Date(range.from).toISOString(), to: new Date(range.to).toISOString() };
   const described = description === undefined ? {} : { description };
   const timezone = spec.schedule.timezone;
-  return { specVersion, title, ...described, timezone, time, variables, panels, annotations };
+  const shown = { variables, panels, annotations, colors };
+  return { specVersion, title, ...described, timezone, time, ...shown };
 }
 
 /**

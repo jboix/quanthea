@@ -140,7 +140,7 @@ export function startingDashboard(
   };
   const timezone = timing.schedule.timezone;
   const base = { specVersion: 1 as const, title: edit.title, timezone, time };
-  return { ...base, variables: [], panels: [], annotations: [] };
+  return { ...base, variables: [], panels: [], annotations: [], colors: [] };
 }
 
 /**
@@ -192,7 +192,7 @@ export function mergeReport(
   edit: ReportEdit,
   timing: ReportTiming,
 ): Record<string, unknown> {
-  const { title, description, variables, panels, annotations } = dashboard;
+  const { title, description, variables, panels, annotations, colors } = dashboard;
   const deliveryTitle = edit.messageTitle ?? current?.delivery.title;
   const interval = edit.interval ?? current?.interval;
   return {
@@ -202,6 +202,7 @@ export function mergeReport(
     variables,
     panels,
     annotations,
+    colors,
     schedule: timing.schedule,
     period: timing.period,
     ...(interval === undefined ? {} : { interval }),

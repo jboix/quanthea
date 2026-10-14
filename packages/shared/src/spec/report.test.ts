@@ -61,6 +61,13 @@ describe('the report spec', () => {
     expect(parsed.delivery).toEqual({ channels: [] });
     expect(parsed.variables).toEqual([]);
     expect(parsed.annotations).toEqual([]);
+    expect(parsed.colors).toEqual([]);
+  });
+
+  test('gives its dashboard its colours per value', () => {
+    const colors = [{ value: 'Web', tone: 'series2' as const }];
+    const parsed = reportSpecSchema.parse(weekly({ colors }));
+    expect(dashboardOfReport(parsed, { from: 0, to: 1000 }).colors).toEqual(colors);
   });
 
   test('takes each schedule kind and refuses a time or a day that is not one', () => {
