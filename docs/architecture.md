@@ -3703,10 +3703,13 @@ keeps its colour). It lists the features by their plain names (Building dashboar
 alerts, Building reports, Questions about dashboards, Panel explanations), the models with the vendor they reached
 (and the provider's name under it when the two differ) and, ten a page, the people who spent the most.
 
-Migrations are plain numbered `.sql` files in `db/migrations/`. A migration that shipped in a
-release (a `vX.Y.Z` tag) is never edited. Every schema change since the last release goes into the
-one file that follows it, edited in place until the next release, so a database of the last release
-upgrades in one step and keeps its data working. `0001-schema.sql` is the schema of v0.2.0;
+Migrations are plain numbered `.sql` files in `db/migrations/`. A file never changes once it is on
+`main`, since a nightly image may have run it: every schema change adds a new file, and a release
+can bring several. Each file upgrades a database of the files before it and keeps its data
+working. Up to v1.1.1 the rule was one file per release, edited in place until the release, which
+is why the early files each hold several changes. `db/migration-history.test.ts` checks that every
+file on `origin/main` is the same at HEAD, and that no commit on `main` since the rule changes,
+deletes or renames one. `0001-schema.sql` is the schema of v0.2.0;
 `0002-snapshots-questions-analyst.sql` adds the snapshots, the analyst role, the questions about
 dashboards with their conversations, full-text index and bin, the explanations of panels, and the
 ledger's `snapshot_view` kind, `feature` (every earlier model step built dashboards) and `vendor`

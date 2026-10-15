@@ -90,9 +90,10 @@ Every night `main` is built into `ghcr.io/jboix/quanthea:nightly`, when it chang
 passed. Each build also keeps its own tag, `:main-<short commit>`, such as `:main-61f1824`. A
 maintainer can build one at any time from the Nightly workflow on GitHub.
 
-Run a nightly on a test instance, or on a copy of your data, never on the instance people use.
-Until a release, the newest migration on `main` can still change. A database that ran an earlier
-form of it does not get the change later, and the next release may fail to start on it.
+Run a nightly on a test instance, or on a copy of your data, never on the instance people use. A
+nightly may migrate the database, and an older release does not start on a database a newer
+version migrated: there is no way back but a backup. A migration never changes once it is on
+`main`, so the next release upgrades a nightly's database as it would any other.
 
 ```sh
 docker pull ghcr.io/jboix/quanthea:nightly
