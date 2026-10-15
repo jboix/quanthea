@@ -1,6 +1,6 @@
 {
   "name": "quanthea",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Describe a dashboard in a chat, an agent builds it against your data sources, pin the good ones.",
   "type": "module",
