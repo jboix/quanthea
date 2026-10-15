@@ -3737,6 +3737,11 @@ same trigger. `0004` shipped in v1.0.0. `0005-definitions.sql` adds the versions
 `file`, who and when), which triggers keep from being rewritten or removed. v1.1.0 shipped these
 at the end of its `0004` by mistake, so every statement of `0005` is `IF NOT EXISTS`: a database
 that ran that file is left as it is.
+A test reads the migrations of every release from its git tag. A file a release shipped must be
+unchanged at HEAD, and a database migrated by each release's own files must upgrade to the schema
+a new install gets, with SQLite's integrity and foreign key checks clean. The test names the few
+exceptions with their reason: v0.0.0, which came before the squashed schema, and the `0004` of
+v1.1.0. CI checks out the whole history so the tags are there.
 At startup each pending file runs in its own transaction, together with its row in the
 `migrations` table (`name`, `applied_at`), so a failing file leaves the schema as it was.
 Migrations run with foreign keys off, so a file can rebuild a table others refer to (SQLite

@@ -109,7 +109,8 @@ the server's modules in `scripts/arch-server-rules.cjs` and, for the plugin side
   `apps/server/src/db/migrations/`. Never edit a migration that shipped in a release (a `vX.Y.Z`
   tag). Every schema change since the last release goes into the one migration file that follows
   it, edited in place until the next release. That file upgrades a database of the last release
-  and keeps its data working.
+  and keeps its data working. Check the last release with `git tag --sort=-v:refname`, never from
+  memory: `db/released-migrations.test.ts` fails when a released file changes.
 - `apps/web/src/ui/` holds presentational primitives in quanthea's visual language. Colours,
   radii and fonts come from the tokens in `@quanthea/tokens` (`packages/tokens/tokens.css`).
 - The logo, icon and mark come from `ui/brand.tsx`. The source files and the rule for each variant
