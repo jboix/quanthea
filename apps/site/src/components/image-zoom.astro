@@ -1,0 +1,99 @@
+---
+/**
+ * A doc's images open larger on a press, in a dialog over the dimmed page. The image first fits
+ * the window; a press on it shows it at its full size, which scrolls, and another fits it again.
+ * Escape, the close button or a press outside the image closes it.
+ */
+---
+
+<dialog class="image-zoom" id="image-zoom" aria-label="Image">
+  <button type="button" class="zoom-close" aria-label="Close the image" data-zoom-close>
+    <svg
+      viewBox="0 0 16 16"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      aria-hidden="true"
+    >
+      <path d="M3.5 3.5l9 9M12.5 3.5l-9 9"></path>
+    </svg>
+  </button>
+  <div class="zoom-stage" data-zoom-stage>
+    <img class="zoom-image" alt="" data-zoom-image />
+  </div>
+</dialog>
+
+<style>
+  .image-zoom {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .image-zoom::backdrop {
+    background: color-mix(in srgb, var(--color-ink) 70%, transparent);
+  }
+
+  .zoom-stage {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 56px 24px 24px;
+    overflow: auto;
+  }
+
+  .zoom-image {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: var(--radius-card);
+    box-shadow: 0 12px 40px rgb(0 0 0 / 0.35);
+    cursor: zoom-in;
+  }
+
+  /* At full size the image keeps its pixels and the stage scrolls around it. */
+  .zoom-stage[data-full] {
+    place-items: start;
+  }
+
+  .zoom-stage[data-full] .zoom-image {
+    max-width: none;
+    max-height: none;
+    cursor: zoom-out;
+  }
+
+  .zoom-close {
+    position: fixed;
+    z-index: 1;
+    top: 12px;
+    right: 12px;
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    cursor: pointer;
+  }
+
+  :global(.prose img) {
+    cursor: zoom-in;
+  }
+</style>
+
+<script>
+  import { attachImageZoom } from '../scripts/image-zoom.ts';
+
+  const dialog = document.querySelector<HTMLDialogElement>('#image-zoom');
+  if (dialog) attachImageZoom(dialog, document.querySelectorAll<HTMLImageElement>('.prose img'));
+</script>

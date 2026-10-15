@@ -127,11 +127,14 @@ const { current, path, slugs, versions } = Astro.props;
     background: color-mix(in srgb, var(--color-ink) 35%, transparent);
   }
 
-  /* Above the version menu, whose open list is positioned, so the menu scrolls under it. */
+  /* Above the version menu, whose open list is positioned, so the menu scrolls under it. It
+     spans the panel's whole width, over the body's padding, so nothing shows beside it. */
   .drawer-head {
     position: sticky;
     z-index: 10;
     top: 0;
+    margin: 0 -20px;
+    padding: 0 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;

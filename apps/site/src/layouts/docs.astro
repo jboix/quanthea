@@ -2,13 +2,14 @@
 /**
  * A docs page of one version: the sidebar and the search of that version, its picker, a banner on
  * `next` and on older releases, the doc itself with its title, and the table of contents from its
- * `##` and `###` headings. Pages of `next` and of older releases name the latest's as canonical.
+ * `##` and `###` headings. Its images open larger on a press. Pages of `next` and of older releases name the latest's as canonical.
  */
 import type { MarkdownHeading } from 'astro';
 import '../styles/prose.css';
 import DocsMenu from '../components/docs-menu.astro';
 import DocsSearch from '../components/docs-search.astro';
 import DocsSidebar from '../components/docs-sidebar.astro';
+import ImageZoom from '../components/image-zoom.astro';
 import { allVersions, docPages } from '../lib/docs-content.ts';
 import { docBreadcrumbs } from '../lib/structured-data.ts';
 import { link } from '../lib/url.ts';
@@ -113,6 +114,7 @@ const contents = headings.filter((heading) => heading.depth === 2 || heading.dep
       )
     }
   </div>
+  <ImageZoom />
 </Base>
 
 <style>
