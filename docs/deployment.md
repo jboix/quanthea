@@ -84,6 +84,28 @@ docker buildx imagetools inspect ghcr.io/jboix/quanthea:vX.Y.Z --format '{{ json
 docker buildx imagetools inspect ghcr.io/jboix/quanthea:vX.Y.Z --format '{{ json .Provenance }}'
 ```
 
+## Try main before a release
+
+Every night `main` is built into `ghcr.io/jboix/quanthea:nightly`, when it changed and its checks
+passed. Each build also keeps its own tag, `:main-<short commit>`, such as `:main-61f1824`. A
+maintainer can build one at any time from the Nightly workflow on GitHub.
+
+Run a nightly on a test instance, or on a copy of your data, never on the instance people use.
+Until a release, the newest migration on `main` can still change. A database that ran an earlier
+form of it does not get the change later, and the next release may fail to start on it.
+
+```sh
+docker pull ghcr.io/jboix/quanthea:nightly
+```
+
+Check its signature as for a release, with the Nightly workflow in the identity:
+
+```sh
+cosign verify ghcr.io/jboix/quanthea:nightly \
+  --certificate-identity https://github.com/jboix/quanthea/.github/workflows/nightly.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
 ## The volumes
 
 | Path    | What it holds                                                   |

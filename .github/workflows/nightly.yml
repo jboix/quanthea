@@ -1,0 +1,137 @@
+name: Nightly
+
+# Builds an image of main to try before a release, and pushes it to GHCR as :nightly, which moves
+# to each new build, and :main-<short sha>, which stays on that commit. It never touches :latest or
+# a version tag, and no release is cut.
+#
+#   check -> picks main's latest commit and builds it only when the Quality workflow passed on
+#            it. The schedule skips a night when main has not changed in the last day; a dispatch
+#            always builds.
+#   image -> builds the image for linux/amd64 and linux/arm64, with its SBOM and provenance, as
+#            the release does.
+#   sign  -> signs the pushed image by digest with cosign, keyless.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+# One nightly at a time; a newer one replaces a build still running.
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+permissions: {}
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/quanthea
+
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check that main changed and passed Quality
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = schedule ] && [ -z "$(git log --since='25 hours ago' --format=%H -1)" ]; then
+            echo "main has not changed since the last nightly"; echo "build=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          conclusion=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow quality.yml --commit "$sha" \
+            --json conclusion --jq '.[0].conclusion // ""')
+          if [ "$conclusion" != success ]; then
+            echo "Quality has not passed on $sha (${conclusion:-no finished run}): no nightly"; exit 1
+          fi
+          echo "build=true" >> "$GITHUB_OUTPUT"
+
+  image:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    env:
+      SHA: ${{ needs.check.outputs.sha }}
+    steps:
+      - name: Checkout the checked commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # The token reaches the script as a variable, never written into its text.
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build and push the image (linux/amd64, linux/arm64)
+        id: push
+        run: |
+          short=$(echo "$SHA" | cut -c1-7)
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.version=main-$short" \
+            --label "org.opencontainers.image.revision=$SHA" \
+            --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --provenance=mode=max \
+            --sbom=true \
+            --metadata-file "$RUNNER_TEMP/metadata.json" \
+            --tag "$IMAGE:nightly" \
+            --tag "$IMAGE:main-$short" \
+            --push \
+            .
+          echo "digest=$(jq -r '."containerimage.digest"' "$RUNNER_TEMP/metadata.json")" >> "$GITHUB_OUTPUT"
+
+  # Signs apart from the build, so no project code runs with an OIDC token.
+  sign:
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      packages: write
+      id-token: write # the keyless signing certificate
+    env:
+      DIGEST: ${{ needs.image.outputs.digest }}
+    steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Sign the image
+        run: |
+          case "$DIGEST" in
+            sha256:*) ;;
+            *) echo "no image digest: $DIGEST"; exit 1 ;;
+          esac
+          cosign sign --yes "$IMAGE@$DIGEST"

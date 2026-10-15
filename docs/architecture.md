@@ -153,7 +153,8 @@ The two paths that matter:
 ├── Dockerfile · .tool-versions      the image, and the Bun version CI and the image use
 ├── biome.json · knip.json · .dependency-cruiser.cjs · tsconfig.base.json
 ├── .remarkrc.mjs · commitlint.config.js · .releaserc.json · .husky/
-└── .github/  dependabot.yml · workflows/quality.yml · workflows/release.yml · octocov.yml
+└── .github/  dependabot.yml · workflows/quality.yml · workflows/release.yml ·
+              workflows/nightly.yml · octocov.yml
 ```
 
 ## 3. Server modules and who may import whom
@@ -4892,6 +4893,17 @@ The release credentials reach as little code as possible:
   installed at an exact version.
 - Every action is pinned to a commit SHA, with its version in a comment. The Dockerfile pins its
   base image and its syntax frontend by digest, with the tag beside it. Dependabot updates both.
+
+### Nightly images
+
+The Nightly workflow (`.github/workflows/nightly.yml`) builds an image of `main` to try before a
+release. It runs every night at 03:00 UTC when `main` changed in the last day, and on demand. It
+builds only a commit the Quality workflow passed on, the same way as the release (both platforms,
+SBOM, provenance), and pushes it as `:nightly`, which moves to each build, and `:main-<short sha>`,
+which stays on its commit. It never pushes `:latest` or a version tag. The sign job signs it by
+digest with cosign, keyless, naming the Nightly workflow. The image's `/api/health` reports the last
+release's version, since no release is cut; its `org.opencontainers.image.version` label says
+`main-<short sha>`.
 
 ### Settings outside the repository
 
