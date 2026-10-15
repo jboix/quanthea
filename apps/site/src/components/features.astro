@@ -12,6 +12,7 @@ import {
   signInProviders,
 } from '../data/facts.ts';
 import { commands } from '../lib/commands.ts';
+import { allVersions, docPages } from '../lib/docs-content.ts';
 import { type FeatureIcon, featureIcons } from '../lib/feature-icons.ts';
 import { link } from '../lib/url.ts';
 import SeriesGlyphs from './series-glyphs.astro';
@@ -36,6 +37,11 @@ interface Feature {
   wide?: boolean;
 }
 
+/** The docs' path for a page: the latest release's when it has it, else the unreleased docs'. */
+const released = new Set((await docPages()).map((page) => page.slug));
+const nextPath = allVersions().find((version) => version.next)?.path ?? 'docs/';
+const docOf = (slug: string) => (released.has(slug) ? `docs/${slug}/` : `${nextPath}${slug}/`);
+
 const features: Feature[] = [
   {
     title: 'Chat-built dashboards',
@@ -56,6 +62,13 @@ const features: Feature[] = [
     icon: 'library',
     text: 'Pinned dashboards are versioned and searchable by panel and query. History keeps every version, and any version can be pinned.',
     doc: 'docs/library/',
+  },
+  {
+    title: 'Definitions',
+    icon: 'book',
+    text: 'Say once what “revenue” or “failure rate” means, with checked filters. The agent builds from the definition, and each panel keeps the version it copied.',
+    doc: docOf('definitions'),
+    wide: true,
   },
   {
     title: 'Alerts',
@@ -108,6 +121,7 @@ const features: Feature[] = [
     text: 'Write a connector against @quanthea/plugin-kit and test it with its conformance suite.',
     doc: 'docs/plugins/',
     command: commands.createPlugin,
+    wide: true,
   },
 ];
 ---
@@ -254,9 +268,16 @@ const features: Feature[] = [
     font-size: 14px;
   }
 
+  /* Two columns: the narrow cards fill the rows beside the wide ones, and the last card is narrow
+     so the last row is full. */
   @media (max-width: 960px) {
     .grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-auto-flow: dense;
+    }
+
+    .wide:last-child {
+      grid-column: auto;
     }
   }
 

@@ -7,6 +7,7 @@
 export const featureIcons = {
   chat: 'M4 5h16v11H10l-6 4z M8 9.5h8 M8 12.5h5',
   chart: 'M4 4v16h16 M7 15l4-5 3 3 5-7',
+  book: 'M12 6.5C10 5 7 4.5 3.5 5v13.5c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z M12 6.5V20',
   library: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z',
   alert: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z M10 20.5a2 2 0 0 0 4 0',
   report: 'M6 3h9l3 3v15H6z M14.5 3v3.5H18 M9 17.5v-3 M12 17.5v-6 M15 17.5v-4.5',
