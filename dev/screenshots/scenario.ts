@@ -131,8 +131,8 @@ async function channels(api: Api): Promise<void> {
 }
 
 /**
- * The shop's definitions: two checked (failure rate, paid orders) and one by its meaning only
- * (average basket), so the plan and the dashboards show both kinds.
+ * The shop's definitions: two checked (failure rate, paid orders) and two by their meaning only
+ * (revenue, average basket), so the plan and the dashboards show both kinds.
  */
 const shopDefinitions = [
   {
@@ -172,6 +172,13 @@ const shopDefinitions = [
     ],
   },
   {
+    id: 'revenue',
+    name: 'Revenue',
+    synonyms: ['sales', 'turnover'],
+    meaning:
+      'The sum of total_cents of paid orders divided by 100, in CHF: total_cents is in centimes.',
+  },
+  {
     id: 'average-basket',
     name: 'Average basket',
     synonyms: ['basket'],
@@ -185,7 +192,7 @@ const shopDefinitions = [
  * @param api - An admin's client.
  */
 async function definitions(api: Api): Promise<void> {
-  progress('Definitions: failure rate, paid orders, average basket');
+  progress('Definitions: failure rate, paid orders, revenue, average basket');
   for (const definition of shopDefinitions)
     await api('POST', '/definitions', { definition, basedOn: null });
 }
@@ -254,9 +261,9 @@ export async function runScenario(password: string): Promise<Scenario> {
  * knows what they want would, so the screenshots show the range of charts.
  */
 const requests = {
-  shop: 'A sales overview of the last 30 days, in Swiss francs (CHF) without decimals. Top row: revenue, paid orders and the average basket as big numbers, each with a sparkline of its trend. Below: revenue per day as an area chart, revenue by category as a donut, revenue by sales channel as a donut, revenue by country as a ranked horizontal bar chart, and the 10 best-selling products by revenue as a ranked horizontal bar chart.',
+  shop: 'A sales overview of the last 30 days. Every amount in Swiss francs with no decimals (the CHF currency format with 0 decimals), on the axes too. Top row: revenue, paid orders and the average basket as big numbers, each with a sparkline of its trend. Below: revenue per day as an area chart, revenue by category as a donut, revenue by sales channel as a donut, revenue by country as a ranked horizontal bar chart, and the 10 best-selling products by revenue as a ranked horizontal bar chart.',
   checkout:
-    "Yesterday's checkout incident, from 12:00 to 16:00 Zurich time, to fit one screen. First row, three numbers: the peak share of 5xx responses of checkout-svc, the failed orders in the range, and the peak p95 latency of checkout-svc. Below them, side by side at half width: the share of 5xx responses per service over time from http_requests_total (code label) as a line chart with the deploys from the deploys table marked, and the failed orders by failure_reason over the range from the orders table as a donut.",
+    "Yesterday's checkout incident, from 12:00 to 16:00 Zurich time, to fit one screen. First row, three numbers over the range from the orders table: the orders, the failed orders, and the failure rate as a percent. Below them, side by side at half width: the share of 5xx responses per service over time from http_requests_total (code label) as a line chart with the deploys from the deploys table marked, and the failed orders by failure_reason over the range from the orders table as a donut.",
   plan: "Today's orders by sales channel: orders per hour for web, app and marketplace as stacked bars, the failure rate per hour as a line, and the average basket of each channel in CHF as a bar chart.",
   payments:
     'Payment providers over the last 14 days: authorizations, declines and errors per provider per day as stacked bars, the decline rate of each provider over time as lines with a dashed threshold at 5%, and the declines by error_code over the 14 days as a donut.',
