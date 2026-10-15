@@ -1,10 +1,8 @@
 /**
  * Putting a panel's mention in the composer, so the next turn is about that panel: from the
- * inspector's Ask about this panel, or from a pinned dashboard through `?mention=<panelId>`.
+ * inspector's Ask about this panel.
  */
 import type { Dispatch, SetStateAction } from 'react';
-import { useEffect } from 'react';
-import { useSearchParams } from 'react-router';
 
 /** The id of the composer's text box, which a mention focuses. */
 export const composerInputId = 'thread-message';
@@ -46,31 +44,7 @@ function useMentionPanel(
 }
 
 /**
- * Mentions the panel a link names in `?mention=`, once its panels are there, and takes the
- * parameter out of the address.
- *
- * @param mention - Mentions a panel by id.
- * @param ready - Whether the version's panels are loaded.
- */
-function useMentionFromSearch(mention: (panelId: string) => void, ready: boolean): void {
-  const [search, setSearch] = useSearchParams();
-  const panelId = search.get('mention');
-  useEffect(() => {
-    if (panelId === null || !ready) return;
-    mention(panelId);
-    setSearch(
-      (current) => {
-        current.delete('mention');
-        return current;
-      },
-      { replace: true },
-    );
-  }, [panelId, ready, mention, setSearch]);
-}
-
-/**
- * Mentions of the version's panels in the composer: the function the inspector calls, and the
- * one mention a link may ask for in `?mention=`.
+ * Mentions of the version's panels in the composer: the function the inspector calls.
  *
  * @param setDraft - Sets the composer's text.
  * @param panels - The panels of the version shown, once it is loaded.
@@ -80,7 +54,5 @@ export function usePanelMentions(
   setDraft: Dispatch<SetStateAction<string>>,
   panels: readonly { readonly id: string; readonly title: string }[] | undefined,
 ) {
-  const mention = useMentionPanel(setDraft, panels ?? []);
-  useMentionFromSearch(mention, panels !== undefined);
-  return mention;
+  return useMentionPanel(setDraft, panels ?? []);
 }

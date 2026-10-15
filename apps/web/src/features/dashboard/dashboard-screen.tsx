@@ -1,6 +1,6 @@
 import { applyLayout } from '@quanthea/shared';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { Link, useLoaderData, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { Link, useLoaderData, useLocation, useSearchParams } from 'react-router';
 import { LockIcon } from '../../ui/icons.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import { TitleHeader } from '../../ui/title-header.tsx';
@@ -12,7 +12,6 @@ import { type AskAction, HeaderActions } from './dashboard-actions.tsx';
 import type { DashboardData } from './data.ts';
 import { LeaveGuard, useArrangement } from './layout-editor.tsx';
 import { SidePanel, type SideTab } from './side-panel.tsx';
-import { useCanEdit } from './use-can-edit.ts';
 import { versionNote } from './version-note.ts';
 import { choicesFromSearch } from './view-state.ts';
 
@@ -121,23 +120,6 @@ function useAsk(data: DashboardData, arranging: boolean) {
 }
 
 /**
- * What picking a panel's title does on a dashboard: for someone who may change it, open the
- * dashboard's thread with that panel mentioned, so the next turn is about it.
- *
- * @param data - The dashboard and the version shown.
- * @param arranging - Whether the layout is being arranged, when titles do nothing.
- * @returns The callback, or nothing when titles are not links.
- */
-function usePanelChange(data: DashboardData, arranging: boolean) {
-  const canEdit = useCanEdit();
-  const navigate = useNavigate();
-  const { threadId } = data.dashboard;
-  if (!canEdit || threadId === null || arranging) return undefined;
-  return (panelId: string) =>
-    navigate(`/threads/${threadId}?mention=${encodeURIComponent(panelId)}`);
-}
-
-/**
  * A dashboard: its variables, and its panels running saved queries with no model involved. On a
  * pinned version, Ask about this opens the side panel's Ask tab, beside the header and the panels;
  * the answer that marks the charts there badges the panels it cites, in the page only.
@@ -163,7 +145,6 @@ export function DashboardScreen() {
             answerMarks={ask.marks}
             explainable={askable}
             overlay={view.overlay}
-            onSelectPanel={usePanelChange(loaded, view.editor.draft !== null)}
           />
         </div>
       </div>
