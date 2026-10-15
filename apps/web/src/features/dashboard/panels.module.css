@@ -98,6 +98,8 @@
 }
 
 .view {
+  /* A panel's grid rows give it its height, so its chart fits however short it is. */
+  --chart-min-height: 0;
   flex-grow: 1;
   min-height: 0;
   transition: opacity 0.15s;
