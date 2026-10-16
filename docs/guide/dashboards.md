@@ -67,6 +67,8 @@ Keep talking in the same thread: "split the latency by route", "make the error r
 "add the failed orders by reason". Corrections skip the plan: changing a panel, removing one, and
 adding up to three in one message. A bigger change gets a new plan to approve. Type `@` and a
 panel's title to point at one panel, or click a panel's title and choose **Ask about this panel**.
+After `@` the composer shows the first matching title in grey: the arrow keys choose another, Enter
+or Tab takes it, and the cross or Esc closes the list until the next `@`.
 Each change makes a new version, and a card in the conversation says what changed.
 
 - **Undo** on a change card goes back to the version before it, as a new version.

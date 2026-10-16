@@ -1,14 +1,9 @@
 import { type FormEvent, type KeyboardEvent, useRef } from 'react';
 import styles from './composer.module.css';
+import { MentionMenu, mentionMenuId, mentionOptionId } from './mention-menu.tsx';
 import { composerInputId } from './mention-panel.ts';
-
-/** A panel the person can mention. */
-interface MentionablePanel {
-  /** The panel id. */
-  readonly id: string;
-  /** Its title, written `@Title` in the message. */
-  readonly title: string;
-}
+import type { MentionablePanel } from './mention-query.ts';
+import { useMentionMenu } from './use-mention.ts';
 
 /** Props of {@link Composer}. */
 interface ComposerProps {
@@ -31,17 +26,6 @@ interface ComposerProps {
 }
 
 /**
- * The `@` word being typed at the end of the text, if any.
- *
- * @param text - The text.
- * @returns What follows the last `@`, when nothing but letters, digits and spaces follow it.
- */
-function mentionQuery(text: string): string | undefined {
-  const match = /(?:^|\s)@([\w ·,-]{0,40})$/.exec(text);
-  return match?.[1];
-}
-
-/**
  * The panels a text mentions.
  *
  * @param text - The text.
@@ -55,69 +39,27 @@ function mentionsIn(text: string, panels: readonly MentionablePanel[]) {
 }
 
 /**
- * The menu of panels matching an `@` being typed.
- *
- * @param props - The matching panels and the pick callback.
- * @param props.matches - The panels.
- * @param props.onPick - Called with the picked panel.
- * @returns The menu.
- */
-function MentionMenu({
-  matches,
-  onPick,
-}: {
-  readonly matches: readonly MentionablePanel[];
-  readonly onPick: (panel: MentionablePanel) => void;
-}) {
-  return (
-    <ul className={styles.menu} aria-label="Mention a panel">
-      {matches.map((panel) => (
-        <li key={panel.id}>
-          <button
-            type="button"
-            className={styles.menuItem}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => onPick(panel)}
-          >
-            {panel.title}
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/**
- * The composer's behaviour: the mention menu, picking a panel, sending, and the keys.
+ * The composer's behaviour: the mention menu, sending, and the keys.
  *
  * @param props - The composer's props.
- * @returns The input ref, the matching panels and the handlers.
+ * @returns The input ref, the menu, and the handlers.
  */
 function useComposer(props: ComposerProps) {
   const { draft, onDraft, panels, running } = props;
   const input = useRef<HTMLTextAreaElement>(null);
-  const query = mentionQuery(draft);
-  const needle = query?.trim().toLowerCase() ?? '';
-  const matches =
-    query === undefined
-      ? []
-      : panels.filter((panel) => panel.title.toLowerCase().includes(needle)).slice(0, 6);
-  const pick = (panel: MentionablePanel) => {
-    onDraft(`${draft.slice(0, draft.length - (query?.length ?? 0) - 1)}@${panel.title} `);
-    input.current?.focus();
-  };
+  const { menu, onChange } = useMentionMenu(draft, onDraft, panels, input);
   const send = (event?: FormEvent) => {
     event?.preventDefault();
     if (running || draft.trim() === '') return;
     props.onSend(draft.trim(), mentionsIn(draft, panels));
   };
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (menu.onKey(event)) return;
     if (event.key !== 'Enter' || event.shiftKey) return;
     event.preventDefault();
-    if (matches[0]) pick(matches[0]);
-    else send();
+    send();
   };
-  return { input, matches, pick, send, onKeyDown };
+  return { input, menu, onChange, send, onKeyDown };
 }
 
 /**
@@ -150,6 +92,17 @@ function ComposerBar({ model, access, running, draft, onStop }: ComposerProps) {
 }
 
 /**
+ * Scrolls the copy of the text behind the text box with it, so the greyed rest of a title stays
+ * after the cursor.
+ *
+ * @param input - The text box.
+ */
+function syncMirror(input: HTMLTextAreaElement) {
+  const mirror = input.previousElementSibling;
+  if (mirror) mirror.scrollTop = input.scrollTop;
+}
+
+/**
  * The composer: a message, `@` mentions of the draft's panels, the model and access chips, and
  * send or stop.
  *
@@ -157,21 +110,31 @@ function ComposerBar({ model, access, running, draft, onStop }: ComposerProps) {
  * @returns The composer.
  */
 export function Composer(props: ComposerProps) {
-  const { input, matches, pick, send, onKeyDown } = useComposer(props);
+  const { input, menu, onChange, send, onKeyDown } = useComposer(props);
+  const listed = menu.matches.length > 0;
   return (
     <form className={styles.composer} onSubmit={send}>
-      {matches.length > 0 && <MentionMenu matches={matches} onPick={pick} />}
-      <textarea
-        id={composerInputId}
-        ref={input}
-        className={styles.input}
-        rows={2}
-        placeholder="Reply, or @mention a panel…"
-        aria-label="Message"
-        value={props.draft}
-        onChange={(event) => props.onDraft(event.target.value)}
-        onKeyDown={onKeyDown}
-      />
+      {listed && <MentionMenu menu={menu} />}
+      <div className={styles.field}>
+        <div className={styles.mirror} aria-hidden="true">
+          {props.draft}
+          <span className={styles.ghost}>{menu.ghost}</span>
+        </div>
+        <textarea
+          id={composerInputId}
+          ref={input}
+          className={styles.input}
+          rows={2}
+          placeholder="Reply, or @mention a panel…"
+          aria-label="Message"
+          aria-controls={listed ? mentionMenuId : undefined}
+          aria-activedescendant={listed ? mentionOptionId(menu.active) : undefined}
+          value={props.draft}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={onKeyDown}
+          onScroll={(event) => syncMirror(event.currentTarget)}
+        />
+      </div>
       <ComposerBar {...props} />
     </form>
   );

@@ -1976,6 +1976,11 @@ the test; turning the switch off sends the provider's default.
   problems (each failing query's error as the gate shapes it, and the chart's problems). The write
   that works after failures streams one with the outcome `repaired`. The parts are stored with the
   answer, like the others.
+- Typing `@` opens a list of the draft's panels (`features/thread/use-mention.ts`,
+  `mention-query.ts`): titles starting with what was typed come first, and the rest of the chosen
+  title shows greyed after the text, from a copy of the text behind the text box. The arrow keys
+  choose, Enter or Tab pick, and the cross or Escape shut the list for that `@`; a new `@` opens
+  it again. A whole title followed by a space ends the mention.
 - A panel can be the focus of a turn without typing `@`: the inspector's Ask about this panel puts
   its mention at the start of the composer (`features/thread/mention-panel.ts`). A panel's title on
   a pinned dashboard is not a link.

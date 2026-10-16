@@ -13,16 +13,43 @@
   border-color: var(--color-accent);
 }
 
-.input {
+/* The text box over a copy of its text, whose greyed end shows the rest of the chosen title. */
+.field {
+  position: relative;
+  display: grid;
+}
+
+.input,
+.mirror {
+  grid-area: 1 / 1;
   min-height: 44px;
   max-height: 200px;
   padding: 0;
   border: 0;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: normal;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.input {
+  position: relative;
   outline: none;
   resize: vertical;
   background: transparent;
-  font-size: 15px;
-  line-height: 1.45;
+}
+
+.mirror {
+  overflow: hidden;
+  color: transparent;
+  pointer-events: none;
+}
+
+.ghost {
+  color: var(--color-ink-secondary);
+  opacity: 0.7;
 }
 
 .bar {
@@ -65,29 +92,73 @@
   bottom: calc(100% + 6px);
   left: 10px;
   z-index: 5;
-  min-width: 240px;
-  margin: 0;
+  min-width: 260px;
+  max-width: calc(100% - 20px);
   padding: 6px;
-  list-style: none;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: 0 8px 24px rgb(23 24 28 / 10%);
 }
 
-.menuItem {
-  width: 100%;
-  padding: 7px 10px;
+.menuHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 6px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-secondary);
+}
+
+.menuClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 50%;
   background: transparent;
-  font-size: 13.5px;
-  text-align: left;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--color-ink-secondary);
   cursor: pointer;
 }
 
-.menuItem:hover,
-.menuItem:focus-visible {
+.menuClose:hover {
+  background: var(--color-divider);
+  color: var(--color-ink);
+}
+
+.menuList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.menuItem {
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.menuItem[aria-selected="true"] {
   background: var(--color-accent-soft);
   color: var(--color-accent);
+}
+
+.menuHint {
+  margin: 4px 0 0;
+  padding: 6px 10px 2px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 11.5px;
+  color: var(--color-ink-secondary);
 }
