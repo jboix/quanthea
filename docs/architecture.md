@@ -3792,7 +3792,9 @@ admin allows it. It adds
 the layouts of report versions (`report_layouts`), shaped as `dashboard_layouts` is, with the
 same trigger. `0004` shipped in v1.0.0. `0005-definitions.sql` adds the versions of definitions
 (`definition_versions`: the definition as JSON, whether the version deletes it, its origin `ui` or
-`file`, who and when), which triggers keep from being rewritten or removed. v1.1.0 shipped these
+`file`, who and when), which triggers keep from being rewritten or removed. A definition saved
+again after it was deleted is new: it starts from no version, and its number follows the
+deleted one. v1.1.0 shipped these
 at the end of its `0004` by mistake, so every statement of `0005` is `IF NOT EXISTS`: a database
 that ran that file is left as it is. `0006-definition-threads.sql` rebuilds `threads` and
 `usage_events`, since SQLite changes a CHECK only by building the table again: a thread may make

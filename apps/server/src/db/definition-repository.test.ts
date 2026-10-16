@@ -57,6 +57,14 @@ describe('definition repository', () => {
     expect(repository.latest('error-rate')?.deleted).toBe(true);
   });
 
+  test('starts a deleted definition again from nothing, after its last version', () => {
+    const repository = createDefinitionRepository(database);
+    repository.add(errorRate('ERROR over START.'), null);
+    repository.add(errorRate('ERROR over START.', true), 1);
+    expect(repository.add(errorRate('Back again.'), 2)).toBeUndefined();
+    expect(repository.add(errorRate('Back again.'), null)?.version).toBe(3);
+  });
+
   test('never rewrites or removes a version', () => {
     createDefinitionRepository(database).add(errorRate('ERROR over START.'), null);
     expect(() => database.run("UPDATE definition_versions SET actor = 'x'")).toThrow('immutable');

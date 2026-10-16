@@ -35,7 +35,8 @@ export interface DefinitionRepository {
    * Adds a version after the latest one, unless another was added since the one it is based on.
    *
    * @param row - The version.
-   * @param basedOn - The latest version the change started from, or `null` for a new definition.
+   * @param basedOn - The latest version the change started from, or `null` for a new definition
+   *   (one never saved, or deleted).
    * @returns The stored version, or `undefined` when the latest is no longer `basedOn`.
    */
   add(row: NewDefinition, basedOn: number | null): DefinitionRow | undefined;
@@ -136,9 +137,11 @@ export function createDefinitionRepository(database: Database): DefinitionReposi
     return stored ? rowOf(stored) : undefined;
   };
   const add = database.transaction((row: NewDefinition, basedOn: number | null) => {
-    const current = readLatest(row.definitionId)?.version ?? null;
+    const latest = readLatest(row.definitionId);
+    // A deleted definition is no definition: a new one with its id starts from nothing.
+    const current = latest && !latest.deleted ? latest.version : null;
     if (current !== basedOn) return undefined;
-    const stored = { ...row, version: (current ?? 0) + 1 };
+    const stored = { ...row, version: (latest?.version ?? 0) + 1 };
     const { definitionId, version, deleted, origin, actor, createdAt } = stored;
     const json = JSON.stringify(row.definition);
     prepared.insert.run(definitionId, version, json, deleted ? 1 : 0, origin, actor, createdAt);

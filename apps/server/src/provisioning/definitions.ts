@@ -41,14 +41,14 @@ export function planDefinitions(file: ConfigFile, issues: string[]): Planned<Def
 }
 
 /**
- * The latest version of a definition, deleted or not, for the next one to start from.
+ * The latest version of a definition there is, for the next one to start from.
  *
  * @param definitions - The definitions.
  * @param id - The definition.
- * @returns The version, or `null` when there is none.
+ * @returns The version, or `null` when there is none or it was deleted.
  */
 function latestOf(definitions: Definitions, id: string): number | null {
-  return definitions.history(id)[0]?.version ?? null;
+  return definitions.list().find((each) => each.definition.id === id)?.version ?? null;
 }
 
 /**
