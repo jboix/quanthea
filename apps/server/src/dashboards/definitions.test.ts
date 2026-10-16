@@ -107,6 +107,15 @@ describe('definitions', () => {
     expect(empty.tests[0]?.rows).toBe(0);
   });
 
+  test('test-run a ratio as one share over the range, since a body holds no time column', async () => {
+    const asked: Record<string, unknown>[] = [];
+    await service(async (data) => {
+      asked.push({ ...data });
+      return { ok: true, rows: 1 };
+    }).save(errorRate, null, 'editor-1');
+    expect(asked[0]).toMatchObject({ kind: 'search-ratio', over: 'range', connector: 'events' });
+  });
+
   test('delete a definition as a version, and list only the ones left', async () => {
     const definitions = service();
     await definitions.save(errorRate, null, 'editor-1');

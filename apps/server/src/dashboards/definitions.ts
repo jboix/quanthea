@@ -286,7 +286,9 @@ async function testBody(
 ): Promise<BodyTest> {
   const connector = testConnector(body, dependencies.connectors());
   const run = dependencies.runData ?? previewRunner(dependencies.dashboards);
-  const outcome = await run({ ...body.request, connector });
+  // A body holds no time column: a ratio is tested as one share over the whole range.
+  const overRange = body.request.kind.endsWith('-ratio') ? { over: 'range' } : {};
+  const outcome = await run({ ...body.request, ...overRange, connector });
   const language = bodyLanguage(body);
   if (!outcome.ok)
     throw new AppError('bad_request', `The ${language} body does not run: ${outcome.message}`);
