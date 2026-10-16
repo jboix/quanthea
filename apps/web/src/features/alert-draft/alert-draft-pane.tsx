@@ -6,7 +6,7 @@
  * reads.
  */
 import type { AlertSpec, NotifiedSeries } from '@quanthea/shared';
-import { useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
@@ -42,6 +42,8 @@ export interface PaneNotice {
 
 /** Props of {@link AlertDraftPane}. */
 export interface AlertDraftPaneProps {
+  /** The button that shows the draft full screen, or the thread again. */
+  readonly viewButton?: ReactNode;
   /** The thread. */
   readonly threadId: string;
   /** The draft, or `null` before the agent writes it. */
@@ -136,6 +138,7 @@ function PaneHead(
       }
       actions={
         <>
+          {props.viewButton}
           {alert.activeVersion !== null && (
             <Link className={styles.link} to={`/alerts/${alert.id}`}>
               Open the alert page
@@ -313,10 +316,13 @@ export function AlertDraftPane(props: AlertDraftPaneProps) {
       {draft ? (
         <DraftBody key={`${draft.alert.id}-${draft.version}`} {...props} draft={draft} />
       ) : (
-        <p className={styles.empty}>
-          The alert appears here once the agent writes it: its condition, how it would have fired
-          over the last week, and what each channel would receive.
-        </p>
+        <>
+          {props.viewButton && <div className={styles.emptyBar}>{props.viewButton}</div>}
+          <p className={styles.empty}>
+            The alert appears here once the agent writes it: its condition, how it would have fired
+            over the last week, and what each channel would receive.
+          </p>
+        </>
       )}
     </section>
   );

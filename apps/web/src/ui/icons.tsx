@@ -381,3 +381,29 @@ export function UserIcon() {
     </Icon>
   );
 }
+
+/**
+ * Four corners pointing out, for showing something full screen.
+ *
+ * @returns The icon.
+ */
+export function ExpandIcon() {
+  return (
+    <Icon size={16}>
+      <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+    </Icon>
+  );
+}
+
+/**
+ * An arrow pointing left, for going back.
+ *
+ * @returns The icon.
+ */
+export function BackIcon() {
+  return (
+    <Icon size={16}>
+      <path d="M19 12H5M11 6l-6 6 6 6" />
+    </Icon>
+  );
+}

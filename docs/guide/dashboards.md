@@ -57,6 +57,9 @@ fails goes back to the agent with the error.
 - After the repair attempts an admin allows, the build stops and says what still fails. **Try
   again** starts over with fresh attempts.
 - Each answer shows its tokens and cost under it, and the thread's total sits in its header.
+- The button with four corners in the draft's header shows the dashboard full screen. **Thread**
+  goes back. On a phone the thread shows alone, and **Show the dashboard** in its header opens the
+  draft. Alert and report threads work the same way.
 
 ![A thread beside the dashboard it built: error rate and latency around a deploy, with the deploy marked](../screenshots/thread-light.webp#gh-light-mode-only)
 ![A thread beside the dashboard it built: error rate and latency around a deploy, with the deploy marked](../screenshots/thread-dark.webp#gh-dark-mode-only)

@@ -36,6 +36,12 @@
   max-width: 100%;
 }
 
+.emptyBar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px 0;
+}
+
 .empty {
   margin: auto;
   max-width: 340px;

@@ -152,3 +152,39 @@
   font-size: 12px;
   color: var(--color-ink-secondary);
 }
+
+/* The draft alone, full screen. */
+.screen[data-view="draft"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.screen[data-view="draft"] > .thread {
+  display: none;
+}
+
+.viewButton.narrowOnly {
+  display: none;
+}
+
+/* A phone has room for one pane: the conversation, until the person opens the draft. */
+@media (max-width: 900px) {
+  .screen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .screen[data-view="split"] > :not(.thread) {
+    display: none;
+  }
+
+  .thread {
+    border-right: 0;
+  }
+
+  .viewButton.wideOnly {
+    display: none;
+  }
+
+  .viewButton.narrowOnly {
+    display: inline-flex;
+  }
+}

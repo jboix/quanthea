@@ -1,5 +1,5 @@
 import type { DefinitionBody, Panel, Plan, ThreadState } from '@quanthea/shared';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
@@ -44,6 +44,8 @@ export interface DraftPaneProps {
   readonly onUnpin: () => void;
   /** Whether a decision is on its way. */
   readonly busy: boolean;
+  /** The button that shows the draft full screen, or the thread again. */
+  readonly viewButton?: ReactNode;
 }
 
 /** The skeleton size of each kind of planned panel, in grid columns and rows. */
@@ -179,6 +181,7 @@ function PaneHeader(props: DraftPaneProps) {
       }
       actions={
         <>
+          {props.viewButton}
           {shown !== undefined && shown !== latest && (
             <Button onClick={() => props.onShowVersion(undefined)}>Back to v{latest}</Button>
           )}

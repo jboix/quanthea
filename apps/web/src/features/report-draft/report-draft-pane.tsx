@@ -6,6 +6,7 @@
  * agent reads.
  */
 import type { ReportSpec } from '@quanthea/shared';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
@@ -25,6 +26,8 @@ export interface PaneNotice {
 
 /** Props of {@link ReportDraftPane}. */
 export interface ReportDraftPaneProps {
+  /** The button that shows the draft full screen, or the thread again. */
+  readonly viewButton?: ReactNode;
   /** The thread. */
   readonly threadId: string;
   /** The draft, or `null` before the agent writes it. */
@@ -65,6 +68,7 @@ function PaneHead(props: DraftProps) {
       }
       actions={
         <>
+          {props.viewButton}
           {report.activeVersion !== null && (
             <Link className={styles.link} to={`/reports/${report.id}`}>
               Open the report page
@@ -192,10 +196,13 @@ export function ReportDraftPane(props: ReportDraftPaneProps) {
       {draft ? (
         <DraftBody key={`${draft.report.id}-${draft.version}`} {...props} draft={draft} />
       ) : (
-        <p className={styles.empty}>
-          The report appears here once the agent writes it: when it runs, a preview on its latest
-          period, the dashboards it links to and where it is sent.
-        </p>
+        <>
+          {props.viewButton && <div className={styles.emptyBar}>{props.viewButton}</div>}
+          <p className={styles.empty}>
+            The report appears here once the agent writes it: when it runs, a preview on its latest
+            period, the dashboards it links to and where it is sent.
+          </p>
+        </>
       )}
     </section>
   );

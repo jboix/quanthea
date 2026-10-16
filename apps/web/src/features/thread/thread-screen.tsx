@@ -1,15 +1,6 @@
-import {
-  type AccessLevel,
-  addUsage,
-  isDashboardPlan,
-  type Plan,
-  pricesCheckedOn,
-  type ThreadDetail,
-  type TurnUsage,
-} from '@quanthea/shared';
-import { useEffect, useState } from 'react';
+import { type AccessLevel, isDashboardPlan, type Plan, type ThreadDetail } from '@quanthea/shared';
+import { type ReactNode, useEffect, useState } from 'react';
 import { NewBelow } from '../../ui/new-below.tsx';
-import { TitleHeader } from '../../ui/title-header.tsx';
 import { useFollowEnd } from '../../ui/use-follow-end.ts';
 import { AlertDraftPane } from '../alert-draft/index.ts';
 import { ReportDraftPane } from '../report-draft/index.ts';
@@ -24,7 +15,13 @@ import { draftPanelsOf } from './plan-changes.ts';
 import { buildStopped } from './repairs.ts';
 import { RestrictedNotice } from './restricted-notice.tsx';
 import styles from './thread.module.css';
-import { costText } from './usage-line.tsx';
+import { ThreadHeader } from './thread-header.tsx';
+import {
+  DraftViewButton,
+  OpenDraftButton,
+  type ThreadView,
+  useThreadView,
+} from './thread-view.tsx';
 import { useThread } from './use-thread.ts';
 
 /** The composer chip's words for each access level. */
@@ -140,76 +137,6 @@ function StatusLine({ state }: { readonly state: ScreenState }) {
 }
 
 /**
- * The text of the first question.
- *
- * @param messages - The messages.
- * @returns The text, or `undefined` before the first question.
- */
-function firstQuestion(messages: readonly ThreadMessage[]): string | undefined {
-  const first = messages.find((message) => message.role === 'user');
-  return first?.parts.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join(' ');
-}
-
-/**
- * What the whole thread has cost so far, from its answers' usage.
- *
- * @param props - The messages.
- * @param props.messages - The messages, as the chat holds them.
- * @returns The cost, or nothing before the first answer with usage.
- */
-function ThreadCost({ messages }: { readonly messages: readonly ThreadMessage[] }) {
-  const usage = messages.reduce<TurnUsage>(
-    (total, message) =>
-      Object.entries(message.metadata?.usage ?? {}).reduce(
-        (sum, [model, tokens]) => addUsage(sum, model, tokens),
-        total,
-      ),
-    {},
-  );
-  if (Object.keys(usage).length === 0) return null;
-  return (
-    <span className={styles.cost} title={`At list prices checked on ${pricesCheckedOn}.`}>
-      {costText(usage)} so far
-    </span>
-  );
-}
-
-/**
- * The thread's title, or its first question until the server names it, and the connectors it can
- * use.
- *
- * @param props - The thread and its messages.
- * @param props.thread - The thread.
- * @param props.messages - The messages, as the chat holds them.
- * @returns The header.
- */
-function ThreadHeader({
-  thread,
-  messages,
-}: {
-  readonly thread: ThreadDetail;
-  readonly messages: readonly ThreadMessage[];
-}) {
-  const connectors = thread.connectors.map((connector) => connector.name).join(' · ');
-  return (
-    <TitleHeader
-      className={styles.head}
-      level={1}
-      size="compact"
-      title={thread.title ?? firstQuestion(messages) ?? 'New thread'}
-      actions={
-        <>
-          <ThreadCost messages={messages} />
-          <span className={styles.connectors} title={connectors}>
-            {connectors}
-          </span>
-        </>
-      }
-    />
-  );
-}
-
-/**
  * The composer, with the draft's panels to mention and the model and access chips.
  *
  * @param props - The screen's state.
@@ -272,16 +199,23 @@ function ThreadConversation({ state }: { readonly state: ScreenState }) {
 /**
  * The left pane: the thread's title and connectors, the conversation, and the composer.
  *
- * @param props - The screen's state.
+ * @param props - The screen's state, and the button that opens the draft on a phone.
  * @param props.state - The screen's state.
+ * @param props.openDraft - The button that opens the draft where it does not fit beside.
  * @returns The pane.
  */
-function ThreadPane({ state }: { readonly state: ScreenState }) {
+function ThreadPane({
+  state,
+  openDraft,
+}: {
+  readonly state: ScreenState;
+  readonly openDraft: ReactNode;
+}) {
   const { thread } = state.data;
   const follow = useConversationEnd(thread.id, state.chat.messages);
   return (
     <section className={styles.thread} aria-label="Thread">
-      <ThreadHeader thread={thread} messages={state.chat.messages} />
+      <ThreadHeader thread={thread} messages={state.chat.messages} openDraft={openDraft} />
       <div ref={follow.ref} onScroll={follow.onScroll} className={styles.scroller}>
         {state.data.parent && <LineageBanner parent={state.data.parent} />}
         {state.data.origin && <SeedBanner origin={state.data.origin} />}
@@ -315,16 +249,24 @@ function dashboardPlanOf(thread: ThreadDetail): Plan | undefined {
 /**
  * The draft pane of an alert thread, with its actions.
  *
- * @param props - The screen's state.
+ * @param props - The screen's state and the view button.
  * @param props.state - The screen's state.
+ * @param props.viewButton - The button that shows the draft full screen, or the thread again.
  * @returns The pane.
  */
-function AlertPane({ state }: { readonly state: ScreenState }) {
+function AlertPane({
+  state,
+  viewButton,
+}: {
+  readonly state: ScreenState;
+  readonly viewButton: ReactNode;
+}) {
   const { data, running, intents, alertActions } = state;
   const outcome = intents.outcome;
   const notice = outcome?.message ? { text: outcome.message, failed: !outcome.ok } : undefined;
   return (
     <AlertDraftPane
+      viewButton={viewButton}
       threadId={data.thread.id}
       draft={data.alertDraft}
       busy={running || intents.busy || data.thread.readOnly}
@@ -339,16 +281,24 @@ function AlertPane({ state }: { readonly state: ScreenState }) {
 /**
  * The draft pane of a report thread, with its actions.
  *
- * @param props - The screen's state.
+ * @param props - The screen's state and the view button.
  * @param props.state - The screen's state.
+ * @param props.viewButton - The button that shows the draft full screen, or the thread again.
  * @returns The pane.
  */
-function ReportPane({ state }: { readonly state: ScreenState }) {
+function ReportPane({
+  state,
+  viewButton,
+}: {
+  readonly state: ScreenState;
+  readonly viewButton: ReactNode;
+}) {
   const { data, running, intents, reportActions } = state;
   const outcome = intents.outcome;
   const notice = outcome?.message ? { text: outcome.message, failed: !outcome.ok } : undefined;
   return (
     <ReportDraftPane
+      viewButton={viewButton}
       threadId={data.thread.id}
       draft={data.reportDraft}
       busy={running || intents.busy || data.thread.readOnly}
@@ -361,41 +311,94 @@ function ReportPane({ state }: { readonly state: ScreenState }) {
 }
 
 /**
- * The thread screen: the conversation on the left, the draft the agent builds on the right.
+ * The draft pane of a dashboard thread, with its actions.
+ *
+ * @param props - The screen's state, the view button, and Ask about this panel.
+ * @param props.state - The screen's state.
+ * @param props.viewButton - The button that shows the draft full screen, or the thread again.
+ * @param props.onMentionPanel - Puts a panel's mention in the composer.
+ * @returns The pane.
+ */
+function DashboardPane({
+  state,
+  viewButton,
+  onMentionPanel,
+}: {
+  readonly state: ScreenState;
+  readonly viewButton: ReactNode;
+  readonly onMentionPanel: (panelId: string) => void;
+}) {
+  const { data, chat, running, intents, selection, actions } = state;
+  return (
+    <DraftPane
+      data={data}
+      plan={dashboardPlanOf(data.thread)}
+      running={running}
+      stopped={buildStopped(chat.messages)}
+      selectedPanelId={selection.selectedPanelId}
+      onSelectPanel={selection.setSelectedPanelId}
+      onMentionPanel={onMentionPanel}
+      bodyOf={(panel) => {
+        const request = builderRequestOf(chat.messages, panel);
+        return request ? bodyOfRequest(request) : undefined;
+      }}
+      markedPanelIds={lastMentions(chat.messages)}
+      onShowVersion={state.showVersion}
+      onPin={(version) => void actions.pin(version)}
+      onUnpin={() => void actions.unpin()}
+      busy={intents.busy}
+      viewButton={viewButton}
+    />
+  );
+}
+
+/**
+ * The draft pane of the thread's kind.
+ *
+ * @param props - The screen's state, the view and its setter.
+ * @param props.state - The screen's state.
+ * @param props.view - The view shown.
+ * @param props.onView - Changes it.
+ * @returns The pane.
+ */
+function ThreadDraft({
+  state,
+  view,
+  onView,
+}: {
+  readonly state: ScreenState;
+  readonly view: ThreadView;
+  readonly onView: (view: ThreadView) => void;
+}) {
+  const kind = state.data.thread.kind;
+  const viewButton = <DraftViewButton view={view} onView={onView} noun={kind} />;
+  if (kind === 'alert') return <AlertPane state={state} viewButton={viewButton} />;
+  if (kind === 'report') return <ReportPane state={state} viewButton={viewButton} />;
+  const onMentionPanel = (panelId: string) => {
+    onView('split');
+    state.mentionPanel(panelId);
+  };
+  return <DashboardPane state={state} viewButton={viewButton} onMentionPanel={onMentionPanel} />;
+}
+
+/**
+ * The thread screen: the conversation on the left, the draft the agent builds on the right. The
+ * draft can show alone, full screen; on a phone the conversation shows alone until the person
+ * opens the draft.
  *
  * @returns The screen.
  */
 export function ThreadScreen() {
   const state = useThread();
-  const { data, chat, running, intents, selection, actions } = state;
-  if (data.thread.kind !== 'dashboard')
-    return (
-      <div className={styles.screen}>
-        <ThreadPane state={state} />
-        {data.thread.kind === 'alert' ? <AlertPane state={state} /> : <ReportPane state={state} />}
-      </div>
-    );
+  const { view, show } = useThreadView();
+  const noun = state.data.thread.kind;
   return (
-    <div className={styles.screen}>
-      <ThreadPane state={state} />
-      <DraftPane
-        data={data}
-        plan={dashboardPlanOf(data.thread)}
-        running={running}
-        stopped={buildStopped(chat.messages)}
-        selectedPanelId={selection.selectedPanelId}
-        onSelectPanel={selection.setSelectedPanelId}
-        onMentionPanel={state.mentionPanel}
-        bodyOf={(panel) => {
-          const request = builderRequestOf(chat.messages, panel);
-          return request ? bodyOfRequest(request) : undefined;
-        }}
-        markedPanelIds={lastMentions(chat.messages)}
-        onShowVersion={state.showVersion}
-        onPin={(version) => void actions.pin(version)}
-        onUnpin={() => void actions.unpin()}
-        busy={intents.busy}
+    <div className={styles.screen} data-view={view}>
+      <ThreadPane
+        state={state}
+        openDraft={<OpenDraftButton view={view} onView={show} noun={noun} />}
       />
+      <ThreadDraft state={state} view={view} onView={show} />
     </div>
   );
 }
