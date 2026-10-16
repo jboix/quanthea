@@ -87,7 +87,7 @@ const summaries: Readonly<Record<string, (input: Loose, output: Loose) => string
   propose_plan: (input, output) =>
     `propose_plan: "${String(input?.title ?? '')}", ${counted((input?.panels as unknown[] | undefined)?.length ?? 0, 'panel')}, ${String(output?.status ?? 'pending')}`,
   ask_person: (input) =>
-    `ask_person: "${String(input?.question ?? '')}" options ${JSON.stringify(input?.options ?? [])}`,
+    `ask_person: "${String(input?.question ?? '')}" options ${JSON.stringify(input?.options ?? [])}${input?.multiple === true ? ' (several)' : ''}`,
   edit_dashboard: (input, output) =>
     `edit_dashboard(${String(input?.summary ?? '')}): ${savedVersion(output)}`,
   write_dashboard: (_input, output) => `write_dashboard: ${savedVersion(output)}`,

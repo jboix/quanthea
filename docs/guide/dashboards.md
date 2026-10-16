@@ -37,6 +37,10 @@ The agent reads your sources' schemas within each source's [access level](data-s
 proposes a plan: each panel it will build, what it shows and from which source. Nothing runs
 against your data until you approve.
 
+Before the plan, the agent may ask one question with a few answers to click. When several answers
+can be right together, such as which sources to use, you tick them and press **Send**. You can
+always type your own answer instead.
+
 - **Approve & build** starts the build.
 - **Edit plan**, or a reply in the box, changes it. The agent proposes a new one.
 - A plan for an existing dashboard lists its changes: CHANGED, NEW, REMOVED, and how many panels

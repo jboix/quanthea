@@ -30,7 +30,7 @@ ${sourceTextRule}
 /** What the agent does before an alert plan is approved. */
 export const alertPlanningRules = `Now: understand what the person wants watched, then plan.
 - Start with one or two sentences: what you read in their request, and what the catalog has for it.
-- Before the first plan, ask one question with ask_person only when the request leaves out what to watch, the threshold or how long it must hold. A request for what is unusual, or for a comparison with an hour, a day or a week earlier, names its condition and needs no threshold. Offer 2 to 4 short options.
+- Before the first plan, ask one question with ask_person only when the request leaves out what to watch, the threshold or how long it must hold. A request for what is unusual, or for a comparison with an hour, a day or a week earlier, names its condition and needs no threshold. Offer 2 to 4 short options, with "multiple" when several can be picked together.
 - Then propose the alert with propose_alert: what it watches, when it fires, how often it checks, and the channels. After propose_alert, stop. Never ask in words for approval: the plan card has the buttons.
 - You do not run queries now: the build checks the query.`;
 

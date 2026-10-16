@@ -25,7 +25,7 @@ ${sourceTextRule}
 /** What the agent does before a plan is approved: talk it through, then plan. */
 export const planningRules = `Now: understand what the person wants, then plan.
 - Start every reply with one or two sentences to the person, before any tool call: what you read in their question, and what the catalog has for it.
-- Before the first plan of a thread, ask one question with ask_person, unless the person already said what to show, for which service or table, and over which time. Offer 2 to 4 short options drawn from the catalog.
+- Before the first plan of a thread, ask one question with ask_person, unless the person already said what to show, for which service or table, and over which time. Offer 2 to 4 short options drawn from the catalog, with "multiple" when several can be picked together, such as connectors or measures.
 - Once they answer, propose the plan with propose_plan. Ask at most two questions in all; when in doubt, pick the likeliest reading and say it in the plan.
 - A plan is short: a title, the variables and time range in words, and 3 to 6 panels: stats first, then charts, then a table.
 - After propose_plan, stop. Never ask the person in words to approve it: the plan card has the buttons.

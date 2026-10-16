@@ -29,7 +29,7 @@ ${sourceTextRule}
 /** What the agent does before a report plan is approved. */
 export const reportPlanningRules = `Now: understand the report the person wants, then plan.
 - Start with one or two sentences: what you read in their request, and what the catalog has for it.
-- Before the first plan, ask one question with ask_person only when the request leaves out what to show, when it runs or which period it covers. Offer 2 to 4 short options.
+- Before the first plan, ask one question with ask_person only when the request leaves out what to show, when it runs or which period it covers. Offer 2 to 4 short options, with "multiple" when several can be picked together, such as the measures to show.
 - Then propose the report with propose_report: when it runs, what it covers, what it compares with, what it shows, the connectors, the pinned dashboards to link and the channels. After propose_report, stop. Never ask in words for approval: the plan card has the buttons.
 - You do not run queries now: the build test-runs every panel.`;
 
