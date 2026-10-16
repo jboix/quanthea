@@ -28,15 +28,36 @@ export function fittedAlign(asked: Align, card: Room, room: Room): Align {
 }
 
 /**
- * The room a card has: the viewport, less the navigation rail, which stays over the content.
+ * The nearest ancestor that clips what overflows it sideways, such as a scrolling pane.
  *
+ * @param element - The card.
+ * @returns The ancestor, or `undefined` when only the viewport clips the card.
+ */
+function clippingAncestor(element: HTMLElement): HTMLElement | undefined {
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    if (getComputedStyle(node).overflowX !== 'visible') return node;
+  }
+  return undefined;
+}
+
+/**
+ * The room a card has: the viewport less the navigation rail, which stays over the content, and
+ * within the pane that clips it, such as a thread's draft beside its conversation.
+ *
+ * @param element - The card.
  * @returns The room.
  */
-function roomOnScreen(): Room {
+function roomOnScreen(element: HTMLElement): Room {
   const rail = Number.parseFloat(
     getComputedStyle(document.documentElement).getPropertyValue('--rail-width'),
   );
-  return { left: Number.isNaN(rail) ? 0 : rail, right: document.documentElement.clientWidth };
+  const screen = {
+    left: Number.isNaN(rail) ? 0 : rail,
+    right: document.documentElement.clientWidth,
+  };
+  const clip = clippingAncestor(element)?.getBoundingClientRect();
+  if (!clip) return screen;
+  return { left: Math.max(screen.left, clip.left), right: Math.min(screen.right, clip.right) };
 }
 
 /**
@@ -60,7 +81,7 @@ export function useFittedAlign(
     }
     if (!card.current) return;
     const { left, right } = card.current.getBoundingClientRect();
-    if (align === asked) setAlign(fittedAlign(asked, { left, right }, roomOnScreen()));
+    if (align === asked) setAlign(fittedAlign(asked, { left, right }, roomOnScreen(card.current)));
   }, [open, asked, align]);
   return [card, open ? align : asked];
 }
