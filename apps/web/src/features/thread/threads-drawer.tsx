@@ -6,6 +6,7 @@ import { Drawer } from '../../ui/drawer.tsx';
 import {
   BellIcon,
   BinIcon,
+  BookIcon,
   DashboardIcon,
   HistoryIcon,
   PinIcon,
@@ -103,6 +104,7 @@ const kindMarks: Readonly<Record<ThreadListItem['kind'], { words: string; icon: 
   dashboard: { words: 'A dashboard', icon: <DashboardIcon /> },
   alert: { words: 'An alert', icon: <BellIcon /> },
   report: { words: 'A report', icon: <ReportIcon /> },
+  definition: { words: 'Definitions', icon: <BookIcon /> },
 };
 
 /**

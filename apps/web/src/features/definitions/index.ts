@@ -1,5 +1,11 @@
 /** Definitions: business terms with one meaning, which every role reads and editors change. */
 
-export type { DefinitionsIntent, DefinitionsOutcome } from './data.ts';
+export { bodyPlace, bodyWords } from './body-words.ts';
+export type {
+  DefinitionsData,
+  DefinitionsIntent,
+  DefinitionsOutcome,
+} from './data.ts';
 export { definitionsAction, loadDefinitions } from './data.ts';
-export { wordsOfValue } from './definition-view.tsx';
+export { idFromName } from './definition-editor.tsx';
+export type { AssistantOutletContext } from './definitions-screen.tsx';

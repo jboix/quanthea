@@ -19,7 +19,7 @@ production and a staging cluster. They can be limited to some connectors.
 
 ## Who does what
 
-- Everyone opens **Definitions** in the rail and reads them.
+- Everyone opens **Definitions** in the rail, searches them and reads them.
 - Editors and admins add, change and delete them. Each save is a new version; nothing is
   rewritten.
 - A save is refused when the meaning or the filters name a field hidden from the model on a
@@ -29,12 +29,44 @@ production and a staging cluster. They can be limited to some connectors.
 - Definitions declared in the configuration file show the file's name and are read-only here.
   See [configuration](../configuration.md#definitions).
 
+## Ask the assistant
+
+The assistant sits beside the definitions, for editors and admins. Describe your terms in a
+sentence each, or paste a whole glossary.
+
+1. It reads your connectors and finds the tables, fields and values each term uses.
+2. When more than one connector could hold the data, it asks which ones to check. Tick as many as
+   apply, then **Send**.
+3. It writes each definition and test-runs its filters over the last day, saving nothing.
+4. A card lists the definitions: the meaning, the other words for it, and the filters in plain
+   words, with how many rows they found. **Save** one, or **Save all**.
+
+Reply in the same conversation to change a proposal. To change a definition you already have, open
+it and choose **Ask the assistant**. Past conversations are listed under the assistant's box.
+
+In a dashboard thread the agent offers a definition too, once a panel computes a term your team has
+not defined. The same card shows in the conversation.
+
+## Write one by hand
+
+Choose **Write one by hand**, give the term a name and say what it means. Its id comes from the
+name. To add checked filters, choose **Add checked filters**:
+
+- **What it is**: a share (failed orders out of all orders), a number (revenue), or a set of rows
+  (production traffic).
+- **Data**: the query language and the table, index, collection or metric the rows come from.
+- **Filters**: each a field, how it compares (is, is not, matches, does not match) and a value. A
+  share has the whole, which may be every row, and the part.
+- **In words** says what the filters mean as you write them.
+
+Checked filters the form cannot show stay as their query builder request, in JSON.
+
 ## Save a panel's filters
 
-The easiest way to write checked filters is to build a panel first. In a thread, open a panel
-built with a query builder and choose **Save as definition**. Pick a definition, or start a new
-one with its id, name and meaning. The panel's filters become that definition's checked filters
-for the panel's query language; how the panel splits and groups the data stays with the panel.
+In a thread, open a panel built with a query builder and choose **Save as definition**. Pick a
+definition, or start a new one with its name and meaning. The panel's filters become that
+definition's checked filters for the panel's query language; how the panel splits and groups the
+data stays with the panel. On a panel built otherwise the button says why it cannot save.
 
 ## On dashboards
 

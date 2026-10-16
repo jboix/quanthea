@@ -63,7 +63,7 @@ export function connectorsInUse(
 ): ModelConnector[] {
   const all = context.modelView.connectors();
   const { state, kind } = context.threads.row(context.threadId);
-  if (kind === 'alert' || phaseOf(state) === 'planning') return all;
+  if (kind === 'alert' || kind === 'definition' || phaseOf(state) === 'planning') return all;
   const names = new Set<string>();
   const plan = plans.at(-1);
   if (plan?.status === 'approved') collect(plan.body, names);

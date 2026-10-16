@@ -101,6 +101,8 @@ const summaries: Readonly<Record<string, (input: Loose, output: Loose) => string
     `edit_report(${String(input?.summary ?? '')}): ${savedVersion(output)}`,
   replay_alert: (input, output) =>
     `replay_alert(${String(input?.window ?? '7d')}): ${firings(output)}`,
+  propose_definitions: (input, output) =>
+    `propose_definitions(${JSON.stringify((input?.definitions as { id?: unknown }[] | undefined)?.map((each) => each.id) ?? [])}): ${JSON.stringify(output?.failed ?? [])} failed`,
   patch_panel: (input, output) =>
     `patch_panel(${String(input?.panelId ?? '')}): ${savedVersion(output)}`,
 };

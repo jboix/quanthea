@@ -310,16 +310,22 @@ function PaneBody(props: DraftPaneProps) {
 }
 
 /**
- * A panel's filters and the definitions, when the person may save them as a definition.
+ * A panel's filters and the definitions, when the person may save them as a definition; else why
+ * not.
  *
  * @param props - The pane's props.
  * @param panel - The panel inspected.
- * @returns What the inspector saves, or nothing.
+ * @returns What the inspector saves, or why it cannot.
  */
 function savableOf(props: DraftPaneProps, panel: Panel) {
-  if (props.data.thread.readOnly) return undefined;
+  if (props.data.thread.readOnly)
+    return { reason: 'Only the owner of this thread saves its panels as definitions.' };
   const body = props.bodyOf?.(panel);
-  return body ? { body, definitions: props.data.definitions } : undefined;
+  if (body) return { body, definitions: props.data.definitions };
+  return {
+    reason:
+      'This panel is not built with a query builder, so it has no filters to save. Ask the agent to propose it as a definition.',
+  };
 }
 
 /**

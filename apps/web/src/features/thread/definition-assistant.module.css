@@ -1,0 +1,167 @@
+.assistant {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The conversation fills the column; its pane draws no border of its own here. */
+.assistant > section {
+  flex: 1;
+  border-right: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 10px 16px 10px 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.headText {
+  flex: 1;
+  min-width: 0;
+}
+
+.headText h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.headText p {
+  margin: 2px 0 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-ink-secondary);
+}
+
+.headLink {
+  flex: none;
+  font-size: 13px;
+  color: var(--color-accent);
+}
+
+.close {
+  display: none;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 20px;
+  color: var(--color-ink-secondary);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--color-divider);
+  color: var(--color-ink);
+}
+
+@media (max-width: 1100px) {
+  .close {
+    display: inline-grid;
+    place-items: center;
+  }
+}
+
+.start {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  overflow: auto;
+}
+
+.intro {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-ink-secondary);
+}
+
+.box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+}
+
+.box:focus-within {
+  border-color: var(--color-accent);
+}
+
+.box textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  background: transparent;
+  font: inherit;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+
+.examples {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.examples button {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--color-ink-label);
+  cursor: pointer;
+}
+
+.examples button:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.past h3 {
+  margin: 8px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-secondary);
+}
+
+.past ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.past a {
+  display: block;
+  overflow: hidden;
+  font-size: 13.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-accent);
+}

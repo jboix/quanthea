@@ -49,6 +49,18 @@ function builderLines(label: string, language: BuilderLanguage, ids: readonly st
 }
 
 /**
+ * The lines of every query builder a run may use, by language, with what each returns.
+ *
+ * @param ids - The builders the run may use.
+ * @returns The lines, empty when it may use none.
+ */
+export function builderSection(ids: readonly string[]): string[] {
+  return builderLanguages.flatMap((language) =>
+    builderLines(`${queryLanguageNames[language]} builders`, language, ids),
+  );
+}
+
+/**
  * One saved query as the guide lists it.
  *
  * @param query - The saved query.
@@ -91,9 +103,7 @@ function dataLines(facts: PanelGuideFacts): string[] {
   const raw = [rawGuide, ...syntax].join(' ');
   const chosen = choiceLines(available.builtIn, facts.languages);
   return [
-    ...builderLanguages.flatMap((language) =>
-      builderLines(`${queryLanguageNames[language]} builders`, language, available.builtIn),
-    ),
+    ...builderSection(available.builtIn),
     ...(available.saved.length === 0 ? [] : [savedGuide, ...available.saved.map(savedLine)]),
     none ? `${raw} This thread uses no query builders: every panel's data is a raw query.` : raw,
     ...(chosen.length === 0 ? [] : [choiceGuide, ...chosen]),

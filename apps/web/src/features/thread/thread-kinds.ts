@@ -1,9 +1,12 @@
 /**
- * The three kinds of conversation a person starts: a dashboard, an alert or a report. Each has its
- * words on the new-conversation screen. A link picks one with `?make=alert` or `?make=report`,
+ * The three kinds of conversation a person starts from the new-conversation screen: a dashboard,
+ * an alert or a report. Each has its words there. A link picks one with `?make=alert` or `?make=report`,
  * and fills the box with `?prompt=` (or `?question=`).
  */
 import { type ThreadKind, threadKinds } from '@quanthea/shared';
+
+/** The kinds the new-conversation screen starts; definitions start on the definitions screen. */
+export type StartedKind = Exclude<ThreadKind, 'definition'>;
 
 /**
  * What the new-conversation screen says for each kind. A placeholder names nothing a data source
@@ -11,7 +14,7 @@ import { type ThreadKind, threadKinds } from '@quanthea/shared';
  */
 export const kindWords: Readonly<
   Record<
-    ThreadKind,
+    StartedKind,
     {
       readonly label: string;
       readonly placeholder: string;
@@ -45,8 +48,9 @@ export const maxPromptLength = 2000;
  * @param make - The `?make=` parameter, if any.
  * @returns The kind it names, else a dashboard.
  */
-export function kindFrom(make: string | null): ThreadKind {
-  return threadKinds.find((kind) => kind === make) ?? 'dashboard';
+export function kindFrom(make: string | null): StartedKind {
+  const named = threadKinds.find((kind) => kind === make);
+  return named === undefined || named === 'definition' ? 'dashboard' : named;
 }
 
 /**

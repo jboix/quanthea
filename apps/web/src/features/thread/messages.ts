@@ -44,6 +44,7 @@ export const exploreTools: ReadonlySet<string> = new Set([
   'sample_values',
   'test_query',
   'replay_alert',
+  'propose_definitions',
 ]);
 
 /** The tools that write a version, shown as "Built". */

@@ -117,26 +117,21 @@
 }
 
 .bodyWords {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 6px 14px;
   margin: 0 0 14px;
-  font-size: 13px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--color-ok-border);
+  border-radius: 0 6px 6px 0;
+  background: var(--color-surface-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
-.bodyWords > div {
-  display: contents;
-}
-
-.bodyWords dt {
-  font-weight: 500;
-  color: var(--color-ink-label);
-}
-
-.bodyWords dd {
-  margin: 0;
-  font-family: var(--font-mono);
-  overflow-wrap: anywhere;
+.bodyWords strong {
+  display: block;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-secondary);
 }
 
 .dialogActions {

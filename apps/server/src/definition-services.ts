@@ -11,7 +11,8 @@ import { hiddenResultNames, isHiddenResultName } from './gate/subject.ts';
  *
  * @param database - The database the versions are stored in.
  * @param services - The dashboards, the connectors, the audit log and the clock.
- * @returns The definitions service, and the definitions as the model may read them.
+ * @returns The definitions service, the definitions as the model may read them, and the check the
+ *   agent runs on the definitions it proposes.
  */
 export function definitionsOf(
   database: Parameters<typeof createDefinitionRepository>[0],
@@ -21,7 +22,11 @@ export function definitionsOf(
     audit: Pick<AuditRepository, 'append'>;
     now: (() => number) | undefined;
   },
-): { definitions: Definitions; modelDefinitions: Definitions['forModel'] } {
+): {
+  definitions: Definitions;
+  modelDefinitions: Definitions['forModel'];
+  checkDefinition: Definitions['check'];
+} {
   const { dashboards, connections, audit, now } = services;
   const repository = createDefinitionRepository(database);
   const connectors = () =>
@@ -40,5 +45,9 @@ export function definitionsOf(
     connectors,
     ...(now ? { now } : {}),
   });
-  return { definitions, modelDefinitions: definitions.forModel };
+  return {
+    definitions,
+    modelDefinitions: definitions.forModel,
+    checkDefinition: definitions.check,
+  };
 }

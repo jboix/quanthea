@@ -7,16 +7,17 @@ import { Input } from '../../ui/input.tsx';
 import { Select } from '../../ui/select.tsx';
 import { TextArea } from '../../ui/text-area.tsx';
 import {
+  bodyPlace,
+  bodyWords,
   type DefinitionsIntent,
   type DefinitionsOutcome,
-  wordsOfValue,
+  idFromName,
 } from '../definitions/index.ts';
 import styles from './inspector.module.css';
 import { withBody } from './panel-body.ts';
 
-/** A new definition's fields. */
+/** A new definition's fields; its id comes from its name. */
 interface NewFields {
-  readonly id: string;
   readonly name: string;
   readonly meaning: string;
 }
@@ -31,7 +32,8 @@ interface NewFields {
  */
 function toSave(chosen: DefinitionVersion | undefined, fields: NewFields, body: DefinitionBody) {
   if (chosen) return { definition: withBody(chosen.definition, body), basedOn: chosen.version };
-  const definition: Definition = { ...fields, synonyms: [], bodies: [body] };
+  const id = idFromName(fields.name);
+  const definition: Definition = { ...fields, id, synonyms: [], bodies: [body] };
   return { definition, basedOn: null };
 }
 
@@ -44,6 +46,7 @@ function toSave(chosen: DefinitionVersion | undefined, fields: NewFields, body: 
 function outcomeWords(outcome: DefinitionsOutcome | undefined): string | undefined {
   if (!outcome) return undefined;
   if (!outcome.ok) return outcome.message;
+  if (!('tests' in outcome)) return undefined;
   const rows = outcome.tests.map((test) => `${test.rows} rows on ${test.connector}`).join(', ');
   return `Saved as ${outcome.id}. The test run found ${rows}.`;
 }
@@ -67,7 +70,7 @@ interface SaveDefinitionProps {
 export function SaveDefinition({ body, definitions }: SaveDefinitionProps) {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState('new');
-  const [fields, setFields] = useState<NewFields>({ id: '', name: '', meaning: '' });
+  const [fields, setFields] = useState<NewFields>({ name: '', meaning: '' });
   const fetcher = useFetcher<DefinitionsOutcome>();
   const chosen = definitions.find((each) => each.definition.id === picked);
   const save = () => {
@@ -106,20 +109,10 @@ export function SaveDefinition({ body, definitions }: SaveDefinitionProps) {
  * @returns The lines.
  */
 function BodyWords({ body }: { readonly body: DefinitionBody }) {
-  const { kind, ...fields } = body.request;
   return (
-    <dl className={styles.bodyWords}>
-      <dt>Builder</dt>
-      <dd>
-        {kind} · {body.shape}
-      </dd>
-      {Object.entries(fields).map(([key, value]) => (
-        <div key={key}>
-          <dt>{key}</dt>
-          <dd>{wordsOfValue(value)}</dd>
-        </div>
-      ))}
-    </dl>
+    <p className={styles.bodyWords}>
+      <strong>{bodyPlace(body)}</strong> {bodyWords(body)}
+    </p>
   );
 }
 
@@ -174,19 +167,13 @@ function NewDefinitionFields({
   return (
     <>
       <Input
-        label="Id"
-        mono
-        value={fields.id}
-        onChange={(event) => onChange({ ...fields, id: event.target.value })}
-      />
-      <Input
         label="Name"
         value={fields.name}
         onChange={(event) => onChange({ ...fields, name: event.target.value })}
       />
       <TextArea
         label="Meaning"
-        hint="What the agent reads, in one or two sentences."
+        hint="What it means, as you would explain it to a new colleague."
         rows={3}
         value={fields.meaning}
         onChange={(event) => onChange({ ...fields, meaning: event.target.value })}

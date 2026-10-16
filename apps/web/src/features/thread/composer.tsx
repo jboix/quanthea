@@ -125,7 +125,7 @@ export function Composer(props: ComposerProps) {
           ref={input}
           className={styles.input}
           rows={2}
-          placeholder="Reply, or @mention a panel…"
+          placeholder={props.panels.length > 0 ? 'Reply, or @mention a panel…' : 'Reply…'}
           aria-label="Message"
           aria-controls={listed ? mentionMenuId : undefined}
           aria-activedescendant={listed ? mentionOptionId(menu.active) : undefined}

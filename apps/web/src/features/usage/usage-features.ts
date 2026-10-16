@@ -14,6 +14,7 @@ export const usageFeatures: readonly UsageFeature[] = [
   'report',
   'question',
   'explanation',
+  'definition',
 ];
 
 /** The plain name of each feature. */
@@ -23,6 +24,7 @@ export const featureNames: Readonly<Record<UsageFeature, string>> = {
   report: 'Building reports',
   question: 'Questions about dashboards',
   explanation: 'Panel explanations',
+  definition: 'Proposing definitions',
 };
 
 /** What one feature spent over the range. */

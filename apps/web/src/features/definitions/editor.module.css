@@ -1,0 +1,136 @@
+/* The editor of a definition: its checked filters as a form, and the save line. */
+.hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+.bodiesSection {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.bodyForm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+}
+
+.sourceRow,
+.measure {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .sourceRow,
+  .measure {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.filters legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink-label);
+}
+
+.filter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .filter {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.remove {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 18px;
+  color: var(--color-ink-secondary);
+  cursor: pointer;
+}
+
+.remove:hover {
+  background: var(--color-divider);
+  color: var(--color-ink);
+}
+
+.inWords {
+  margin: 0;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.inWords strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.delete {
+  margin-left: auto;
+}
+
+.error {
+  font-size: 13.5px;
+  color: var(--color-danger);
+}
+
+.ok {
+  font-size: 13.5px;
+  color: var(--color-ok-ink);
+}
+
+.warning {
+  font-size: 13.5px;
+  color: var(--color-warning);
+}

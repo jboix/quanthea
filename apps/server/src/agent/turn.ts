@@ -13,7 +13,7 @@ import {
   type ToolSet,
   toUIMessageStream,
 } from 'ai';
-import { alertActiveTools, alertInstructions, alertTurnTools } from './alert-turn.ts';
+import { alertActiveTools, alertTurnTools } from './alert-turn.ts';
 import { askPersonTool } from './ask-tool.ts';
 import { buildTools, currentSpec } from './build-tools.ts';
 import { cachedInstructions, withCachedTail } from './cache.ts';
@@ -27,42 +27,19 @@ import {
 } from './compact.ts';
 import { dataTools } from './data-tools.ts';
 import { definitionsTopic } from './definition-facts.ts';
+import { proposeDefinitionsTool } from './definition-tools.ts';
+import { definitionTurnTools } from './definition-turn.ts';
 import { guideTools, searchFiltersTopic, settingsTopic } from './guide-tools.ts';
 import { guidesInUse, languagesInUse } from './in-use-facts.ts';
+import { modeInstructions, type Plans, questionsOf, type TurnHints } from './mode-instructions.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
-import { phaseOf, phaseTools, type ToolName } from './phases.ts';
+import { definitionTools, phaseOf, phaseTools, type ToolName } from './phases.ts';
 import { instructionParts } from './prompt.ts';
 import { publicError } from './public-error.ts';
-import { reportActiveTools, reportInstructions, reportTurnTools } from './report-turn.ts';
-import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
+import { reportActiveTools, reportTurnTools } from './report-turn.ts';
+import type { RunContext, ThreadMessage } from './run-context.ts';
 import { shownLayoutOf } from './shown-layout.ts';
 import { tokensOf, withStep } from './usage.ts';
-
-/** What the person's latest message tells the agent besides its text. */
-export interface TurnHints {
-  /** The panels it mentions. */
-  readonly mentions: readonly { readonly panelId: string; readonly title: string }[];
-  /** The person's IANA time zone, when their browser said. */
-  readonly timeZone?: string | undefined;
-}
-
-/** The thread's plans, as the turn reads them. */
-type Plans = ReturnType<AgentServices['threads']['get']>['plans'];
-
-/**
- * The text of the person's messages in the thread.
- *
- * @param messages - The conversation.
- * @returns The texts, joined.
- */
-function questionsOf(messages: readonly ThreadMessage[]): string {
-  return messages
-    .filter((message) => message.role === 'user')
-    .flatMap((message) =>
-      message.parts.flatMap((part) => (part.type === 'text' ? [part.text] : [])),
-    )
-    .join(' ');
-}
 
 /**
  * Where a draft that started as a copy came from: the parent's title, or a placeholder when the
@@ -126,10 +103,8 @@ export async function turnInstructions(
   hints: TurnHints,
   now: number,
 ): Promise<Instructions> {
-  const { kind } = context.threads.row(context.threadId);
-  if (kind === 'alert') return alertInstructions(context, plans, hints, now, questionsOf(messages));
-  if (kind === 'report')
-    return reportInstructions(context, plans, hints, now, questionsOf(messages));
+  const ownMode = modeInstructions(context, messages, plans, hints, now);
+  if (ownMode) return ownMode;
   const spec = currentSpec(context);
   const { dashboardId, state } = context.threads.row(context.threadId);
   const parts = instructionParts({
@@ -182,6 +157,7 @@ function turnTools(context: RunContext, now: () => number) {
       if (kind === settingsTopic.kind) context.counters.settingsRead = true;
     }),
     ask_person: askPersonTool(context),
+    propose_definitions: proposeDefinitionsTool(context),
   };
 }
 
@@ -205,7 +181,12 @@ function stopConditions(context: RunContext): StopCondition<ToolSet>[] {
 }
 
 /** The usage feature each kind of thread's steps serve. */
-const featureOf = { dashboard: 'building', alert: 'alert', report: 'report' } as const;
+const featureOf = {
+  dashboard: 'building',
+  alert: 'alert',
+  report: 'report',
+  definition: 'definition',
+} as const;
 
 /**
  * The tools of a thread's kind, and those a step offers in its state.
@@ -220,6 +201,8 @@ function kindTools(context: RunContext, now: () => number): { tools: ToolSet; ac
     return { tools: alertTurnTools(context, now), active: alertActiveTools(context) };
   if (kind === 'report')
     return { tools: reportTurnTools(context, now), active: reportActiveTools(context) };
+  if (kind === 'definition')
+    return { tools: definitionTurnTools(context, now), active: [...definitionTools] };
   return { tools: turnTools(context, now), active: [...phaseTools[phaseOf(state)]] };
 }
 

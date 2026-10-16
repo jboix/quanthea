@@ -9,6 +9,7 @@ test('screen roles match the route table in docs/architecture.md', () => {
     '/threads/:threadId/report-preview': 'editor',
     '/library': 'viewer',
     '/definitions': 'viewer',
+    '/definitions/chat/:threadId': 'editor',
     '/reports': 'viewer',
     '/reports/unseen': 'viewer',
     '/reports/settings': 'admin',

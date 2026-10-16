@@ -24,9 +24,11 @@ export const usageBucketSchema = z.object({
   /**
    * The feature the model steps served: building dashboards in threads (tags at pin time
    * included), building alerts in alert threads, building reports in report threads, questions
-   * about a dashboard, or panel explanations; `null` for views.
+   * about a dashboard, panel explanations, or proposing definitions; `null` for views.
    */
-  feature: z.enum(['building', 'alert', 'report', 'question', 'explanation']).nullable(),
+  feature: z
+    .enum(['building', 'alert', 'report', 'question', 'explanation', 'definition'])
+    .nullable(),
   /** Who the model steps ran for: their thread's owner, or who asked about a dashboard; empty for tags at pin time and for views. */
   userId: z.string(),
   /** Fresh input tokens. */

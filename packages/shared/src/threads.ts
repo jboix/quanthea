@@ -1,11 +1,13 @@
 /**
- * Threads: the conversation that authors a dashboard, an alert or a report, its plans, and the
- * custom parts its messages carry (plan cards, new versions, diffs, hand edits).
+ * Threads: the conversation that authors a dashboard, an alert, a report or definitions, its plans,
+ * and the custom parts its messages carry (plan cards, new versions, diffs, hand edits, proposed
+ * definitions).
  */
 
 import { queryLanguageSchema } from '@quanthea/plugin-kit/contract';
 import { z } from 'zod';
 import { accessLevelSchema, connectorNameSchema } from './connectors.ts';
+import { definitionFieldsSchema } from './definitions.ts';
 import { slugSchema } from './spec/names.ts';
 
 /** Where a thread is: asking, waiting for plan approval, building, or ready for small edits. */
@@ -14,8 +16,11 @@ export const threadStates = ['idle', 'plan_pending', 'building', 'ready'] as con
 /** A thread state. */
 export type ThreadState = (typeof threadStates)[number];
 
-/** What a thread makes: a dashboard, an alert or a report, chosen when it starts and fixed. */
-export const threadKinds = ['dashboard', 'alert', 'report'] as const;
+/**
+ * What a thread makes, chosen when it starts and fixed: a dashboard, an alert, a report, or
+ * definitions of business terms.
+ */
+export const threadKinds = ['dashboard', 'alert', 'report', 'definition'] as const;
 
 /** What a thread makes. */
 export type ThreadKind = (typeof threadKinds)[number];
@@ -246,6 +251,29 @@ const reportDataSchemas = {
   }),
 };
 
+/**
+ * Validates definitions the agent proposes, each checked and test-run as a save would be. Nothing
+ * is saved until the person saves one from the card.
+ */
+export const definitionProposalsSchema = z.object({
+  proposals: z
+    .array(
+      z.object({
+        definition: definitionFieldsSchema,
+        /** The latest version of its id, which saving it changes; `null` for a new definition. */
+        latest: z.int().min(1).nullable(),
+        /** Each body's test run: the connector it ran on and how many rows it found. */
+        tests: z
+          .array(z.object({ language: z.string(), connector: z.string(), rows: z.int().min(0) }))
+          .max(5),
+      }),
+    )
+    .max(10),
+});
+
+/** Definitions the agent proposes. */
+export type DefinitionProposals = z.infer<typeof definitionProposalsSchema>;
+
 /** Validates a pinned dashboard that may already answer a question. */
 const pinnedMatchSchema = z.object({
   dashboardId: z.string(),
@@ -287,6 +315,8 @@ export const threadDataSchemas = {
   }),
   ...alertDataSchemas,
   ...reportDataSchemas,
+  /** Definitions the agent proposes, for the person to save. */
+  definitionProposals: definitionProposalsSchema,
 };
 
 /** The data of each custom part. */

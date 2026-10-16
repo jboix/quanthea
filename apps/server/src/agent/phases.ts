@@ -2,7 +2,8 @@
  * The phases of a thread as the agent sees them, and what each gives the model: planning talks
  * and plans, building writes the approved plan, editing refines the built dashboard or alert.
  * Each phase offers only the tools it needs, so every request carries fewer tool definitions. A
- * dashboard thread, an alert thread and a report thread have tools of their own.
+ * dashboard thread, an alert thread and a report thread have tools of their own; a definition
+ * thread has one set for every state.
  */
 import type { ThreadState } from '../threads/state.ts';
 
@@ -25,7 +26,8 @@ export type ToolName =
   | 'replay_alert'
   | 'propose_link'
   | 'propose_report'
-  | 'edit_report';
+  | 'edit_report'
+  | 'propose_definitions';
 
 /** The tools each phase offers. */
 export const phaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
@@ -49,6 +51,7 @@ export const phaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
     'chart_recipe',
     'edit_dashboard',
     'edit_settings',
+    'propose_definitions',
   ],
 };
 
@@ -108,6 +111,19 @@ export const reportPhaseTools: Readonly<Record<Phase, readonly ToolName[]>> = {
     'edit_report',
   ],
 };
+
+/**
+ * The tools of a definition thread, in every state: it has no plan to approve. The agent reads the
+ * data and the query guides, asks, and proposes definitions for the person to save.
+ */
+export const definitionTools: readonly ToolName[] = [
+  'describe',
+  'sample_values',
+  'read_guide',
+  'test_query',
+  'ask_person',
+  'propose_definitions',
+];
 
 /**
  * The phase of a thread state.

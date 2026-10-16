@@ -10,6 +10,7 @@ import type { UIMessage, UIMessageStreamWriter } from 'ai';
 import type { Alerts } from '../alerts/alerts.ts';
 import type { PanelLinks } from '../alerts/links.ts';
 import type { Dashboards } from '../dashboards/dashboards.ts';
+import type { Definitions } from '../dashboards/definitions.ts';
 import type { AvailableQueries } from '../dashboards/queries/index.ts';
 import type { ModelConnector, ModelView } from '../gate/model-view.ts';
 import type { Reports } from '../reports/reports.ts';
@@ -44,6 +45,11 @@ export interface AgentServices {
    * from it. None when not given.
    */
   readonly modelDefinitions?: (() => readonly DefinitionVersion[]) | undefined;
+  /**
+   * Checks a definition as a save would and test-runs its bodies, saving nothing: for the
+   * definitions the agent proposes. None when not given.
+   */
+  readonly checkDefinition?: Definitions['check'] | undefined;
 }
 
 /** What an alert thread needs of the alerts: check, save, replay and read a draft. */

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { AlertPlanCard, HandEditCard } from './alert-cards.tsx';
 import { AskCard } from './ask-card.tsx';
 import styles from './conversation.module.css';
+import { DefinitionProposalsCard } from './definition-proposals.tsx';
 import { DiffCard } from './diff-card.tsx';
 import { LinkProposalCard } from './link-card.tsx';
 import { MatchesCard } from './matches-card.tsx';
@@ -220,6 +221,20 @@ function planView(part: ThreadPart, key: string, context: PartContext): ReactNod
 }
 
 /**
+ * Renders a proposal the person decides on: showing an alert on a panel, or definitions to save.
+ *
+ * @param part - The data part.
+ * @param key - Its key.
+ * @returns The card, or `undefined` when the part is no proposal.
+ */
+function proposalView(part: ThreadPart, key: string): ReactNode | undefined {
+  if (part.type === 'data-linkProposal') return <LinkProposalCard key={key} data={part.data} />;
+  if (part.type === 'data-definitionProposals')
+    return <DefinitionProposalsCard key={key} data={part.data} />;
+  return undefined;
+}
+
+/**
  * Renders a card of the agent's own: matches, a plan, a diff, a repair try.
  *
  * @param part - The data part.
@@ -243,7 +258,18 @@ function dataView(part: ThreadPart, key: string, context: PartContext): ReactNod
       />
     );
   }
-  if (part.type === 'data-linkProposal') return <LinkProposalCard key={key} data={part.data} />;
+  return proposalView(part, key) ?? matchesView(part, key, context);
+}
+
+/**
+ * Renders the pinned dashboards that may already answer the first question.
+ *
+ * @param part - The data part.
+ * @param key - Its key.
+ * @param context - The conversation context.
+ * @returns The card, or nothing for another part.
+ */
+function matchesView(part: ThreadPart, key: string, context: PartContext): ReactNode {
   if (part.type !== 'data-matches') return null;
   return (
     <MatchesCard

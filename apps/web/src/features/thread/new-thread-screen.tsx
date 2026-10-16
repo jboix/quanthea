@@ -14,7 +14,7 @@ import { Select } from '../../ui/select.tsx';
 import styles from './new-thread.module.css';
 import type { NewThreadData, NewThreadIntent } from './new-thread-data.ts';
 import { QueryModeMenu, QueryPicker, useQueryChoice } from './query-choice.tsx';
-import { kindFrom, kindWords, promptFrom } from './thread-kinds.ts';
+import { kindFrom, kindWords, promptFrom, type StartedKind } from './thread-kinds.ts';
 import { ThreadsDrawer } from './threads-drawer.tsx';
 
 /**
@@ -174,7 +174,7 @@ const kindOptions = [
 export function NewThreadScreen() {
   const { threads, providers, defaultProviderId, queries } = useLoaderData() as NewThreadData;
   const [search] = useSearchParams();
-  const [kind, setKind] = useState<ThreadKind>(() => kindFrom(search.get('make')));
+  const [kind, setKind] = useState<StartedKind>(() => kindFrom(search.get('make')));
   const [providerId, setProviderId] = useState(defaultProviderId);
   const queryChoice = useQueryChoice(queries);
   const ask = useAsk(providerId, queryChoice.value, kind);

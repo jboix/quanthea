@@ -234,3 +234,16 @@ export async function testQueryForModel(
     return modelTestError(subject, error);
   }
 }
+
+/**
+ * Whether a test run found rows, as the model may learn it: from level 2, whether it found any;
+ * at level 1, only that it ran.
+ *
+ * @param accessLevel - The connector's access level.
+ * @param rows - How many rows the run found.
+ * @returns The words for the model.
+ */
+export function modelRowsFound(accessLevel: number, rows: number): string {
+  if (accessLevel < 2) return 'runs';
+  return rows > 0 ? 'finds rows' : 'finds no rows over the last day';
+}

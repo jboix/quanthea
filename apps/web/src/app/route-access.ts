@@ -11,6 +11,7 @@ export const routeAccess = {
   '/threads/:threadId/report-preview': 'editor',
   '/library': 'viewer',
   '/definitions': 'viewer',
+  '/definitions/chat/:threadId': 'editor',
   '/alerts': 'viewer',
   '/alerts/firing': 'viewer',
   '/alerts/settings': 'admin',

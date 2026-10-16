@@ -408,7 +408,8 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/threads/:threadId/alert-previews`                            | resource route: what an alert draft's channels would send   | editor   |
 | `/threads/:threadId/report-preview`                            | resource route: a report draft run over its latest period   | editor   |
 | `/library`                                                     | Library: pinned dashboards; `?view=snapshots`, snapshots    | viewer   |
-| `/definitions`                                                 | Definitions: read by all; editors save and delete           | viewer   |
+| `/definitions`                                                 | Definitions and their assistant: read by all; editors write | viewer   |
+| `/definitions/chat/:threadId`                                  | Definitions beside an open conversation with the assistant  | editor   |
 | `/alerts`                                                      | Alerts: search, filter by state, sections by state          | viewer   |
 | `/alerts/firing`                                               | resource route: how many alerts fire, for the rail          | viewer   |
 | `/alerts/settings`                                             | resource route: the alert settings, for the Settings dialog | admin    |
@@ -1503,6 +1504,7 @@ shows depends on the connector's access level.
 | `edit_settings(settings)`                           | the same as `edit_dashboard`                                                                                                               | Variables, colours per value and markers. Offered once `read_guide("settings")` is read.                                                                                      |
 | `chart_recipe(id)`                                  | a chart recipe's roles, variants, pitfalls and option template                                                                             | The instructions list every recipe in one line; this reads one in full.                                                                                                       |
 | `read_guide(kind)`                                  | a connector kind's query guide: each shape of data from it, with examples, and its raw query syntax                                        | The instructions name the kinds in use; this reads one in full.                                                                                                               |
+| `propose_definitions(definitions)`                  | what passed, as the access level allows, and what failed with why                                                                          | Checks and test-runs up to 10 definitions, saving nothing; those that pass show on a card the person saves from.                                                              |
 
 `search_library` and `get_dashboard` arrive with the library and variants.
 
@@ -1749,6 +1751,17 @@ directly onto an ECharts `dataset`.
   definitions with the thread. A panel's info bubble names the definition and version it copied
   (`features/dashboard/panel-definition.tsx`), reading `/definitions` when the bubble opens; when
   the definition changed since, it says the panel keeps its copy and how to take the new one.
+- **The definitions screen** (`features/definitions/`) lists the definitions with a search, and
+  shows one: its meaning, the other words for it, and each checked body in words, such as "The
+  share of orders where status is "failed", out of every row of orders.", with the builder request
+  behind it folded away. Editors write one by hand in a form (`body-form.tsx`,
+  `body-form-model.ts`): what it is (a share, a number or a set of rows), the data's language and
+  where the rows come from, the filters, the part of a share and what a number measures, and the
+  sentence it makes as it is written. The form writes the language's stat or ratio builder; a body
+  it cannot show stays as JSON. Beside the definitions sits the assistant, a definition thread,
+  for editors: its start (the index route) offers a box for the first message, examples and the
+  person's past conversations, and starting one opens it at `/definitions/chat/:threadId` with the
+  first message in `?ask=`. Under 1100 px the assistant covers the definitions while it is open.
 - **Saving a panel's filters as a definition.** The spec keeps only a panel's queries, so the
   thread's inspector reads the builder request from the input of the last saved edit that wrote
   the panel (by the panel it replaced, or the id its title makes; `features/thread/panel-body.ts`).
@@ -1756,7 +1769,10 @@ directly onto an ECharts `dataset`.
   presents the data (`by`, `over`, `limit`, `bucket`, `series`, `time`) become a body, a ratio
   from a ratio builder, a segment from a builder of rows, a measure otherwise. It goes into a new
   definition, or into an existing one in place of its body for that language, through
-  `POST /api/definitions`, which checks and test-runs it as any save.
+  `POST /api/definitions`, which checks and test-runs it as any save. A new one takes its id from
+  its name. The inspector always shows the button: disabled, with why, on a panel built without a
+  builder or in someone else's thread. A save test-runs a ratio as one share over the whole range,
+  since a body holds no time column.
 - **Which queries.** Admins switch builders off (`GET/PUT /api/settings/queries`). A thread uses
   the default set (the builders switched on and every saved query), a set chosen when it starts,
   or none (free style: raw queries only), stored on the thread (`POST /api/threads` with
@@ -1892,7 +1908,7 @@ card has the buttons. The thread's state sets the phase
 | -------- | ---------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
 | planning | `idle`, `plan_pending` | `describe`, `sample_values`, `ask_person`, `propose_plan`                                                  | one question before the first plan, then the plan |
 | building | `building`             | `describe`, `sample_values`, `read_guide`, `test_query`, `chart_recipe`, `edit_dashboard`, `edit_settings` | the panel guide, the plan                         |
-| editing  | `ready`                | all of the above, `ask_person` and `propose_plan`                                                          | the panel guide                                   |
+| editing  | `ready`                | all of the above, `ask_person`, `propose_plan` and `propose_definitions`                                   | the panel guide                                   |
 
 Planning never runs a query: the build test-runs every query anyway. The panel guide only comes
 once there is something to write, so planning requests stay short. It lists the thread's builders
@@ -2031,7 +2047,7 @@ connector's data at (see "Access changes"); the thread never shows it and the mo
 
 ### Alert threads
 
-A thread makes a dashboard, an alert or a report (`threads.kind`), chosen by the person when it
+A thread makes a dashboard, an alert, a report or definitions (`threads.kind`), chosen when it
 starts and fixed. They are distinct modes of the agent, with their own instructions, tools and
 draft pane; the agent never switches mode. In a dashboard thread, asked to "tell me when…", it says in
 one sentence that an alert conversation does that. In an alert thread, asked for a dashboard, it
@@ -2119,6 +2135,40 @@ as text, "I changed the alert by hand, v1 → v2: condition.value: 0.03 → 0.02
 activates from the alert's page add the same card, so the agent knows the version it continues
 from. Each step goes to
 the usage ledger with the `alert` feature.
+
+### Definition threads
+
+A definition thread (`threads.kind = 'definition'`) proposes definitions of business terms. It
+opens beside the definitions, on the definitions screen (`/definitions/chat/:threadId`); the thread
+screen sends it there. It has no plan and no draft: every state offers the same tools, `describe`,
+`sample_values`, `read_guide`, `test_query`, `ask_person` and `propose_definitions`
+(`agent/definition-turn.ts`). The instructions (`agent/definition-prompt.ts`) carry the persona and
+rules, the query builders a body may use with what each returns, the catalog, the time, and the
+definitions there are, which a proposal with the same id changes. The agent asks once which
+connectors to check, for every term together, with a question that takes several answers. It
+proposes up to 10 definitions in one call, so a pasted glossary becomes one card. Each step goes to
+the usage ledger with the `definition` feature.
+
+- **`propose_definitions`** (`agent/definition-tools.ts`) takes each definition's id, name,
+  synonyms, meaning and bodies. A body's request is a builder request without its connector and
+  without the fields that present the data (`by`, `over`, `limit`, `bucket`, `series`, `time`,
+  `counts`; `bodyRequestSchemaFor` in `dashboards/queries/request.ts`), for the builders the run
+  may use. Each definition is checked as a save checks it, and its bodies test-run, saving nothing
+  (`Definitions.check`, given to the agent as `checkDefinition`). Those that pass stream a
+  `data-definitionProposals` card with each definition, the version it changes (`null` for a new
+  one) and each body's test. The model learns what failed, with why, and for each body only what
+  its connector's access level allows: from level 2 whether it found rows, at level 1 that it ran
+  (`modelRowsFound` in `gate/test-run.ts`).
+- **The card** (`features/thread/definition-proposals.tsx`) shows each proposal's meaning,
+  synonyms and checked filters in words (`features/definitions/body-words.ts`), with how its test
+  went. It reads the definitions there are, so it marks each one new, a change of vN, or saved as
+  vN, after a reload too. Save, or Save all, posts to the definitions screen's action (`saveMany`
+  saves each on its own, so one refusal leaves the others saved). Nothing is saved until the
+  person saves.
+- **In a dashboard thread** the editing phase offers `propose_definitions` too. Once a panel built
+  with a builder computes a term the team has not defined, the agent may offer it once, with the
+  panel's filters as its body. The same card shows in the conversation, with a link to the
+  definitions.
 
 ### Report threads
 
@@ -3430,7 +3480,7 @@ CREATE TABLE schema_cache (connector_id TEXT PRIMARY KEY REFERENCES connectors(i
 
 CREATE TABLE threads (
   id TEXT PRIMARY KEY, title TEXT, state TEXT NOT NULL DEFAULT 'idle',
-  kind TEXT NOT NULL DEFAULT 'dashboard' CHECK (kind IN ('dashboard','alert','report')),  -- fixed at start
+  kind TEXT NOT NULL DEFAULT 'dashboard' CHECK (kind IN ('dashboard','alert','report','definition')),  -- fixed at start
   seed TEXT,                        -- JSON: the panel an alert thread starts from
   dashboard_id TEXT,                -- the dashboard this thread authors
   provider_id TEXT,                 -- the model provider; NULL or a removed one means the default
@@ -3551,7 +3601,7 @@ CREATE TABLE usage_events (
   id TEXT PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL,   -- 'model' | 'pinned_view' | 'snapshot_view'
   thread_id TEXT, dashboard_id TEXT, user_id TEXT, provider TEXT, model TEXT, job TEXT,
   vendor TEXT,                   -- who the step reached, such as 'gemini'; NULL for views and older steps
-  feature TEXT,                  -- 'building' | 'alert' | 'report' | 'question' | 'explanation'; NULL for views
+  feature TEXT,                  -- 'building' | 'alert' | 'report' | 'question' | 'explanation' | 'definition'; NULL for views
   input INTEGER, cached_input INTEGER, cache_write INTEGER, output INTEGER,
   cost_micros INTEGER);                        -- list price when recorded; NULL when unknown
 
@@ -3744,7 +3794,9 @@ same trigger. `0004` shipped in v1.0.0. `0005-definitions.sql` adds the versions
 (`definition_versions`: the definition as JSON, whether the version deletes it, its origin `ui` or
 `file`, who and when), which triggers keep from being rewritten or removed. v1.1.0 shipped these
 at the end of its `0004` by mistake, so every statement of `0005` is `IF NOT EXISTS`: a database
-that ran that file is left as it is.
+that ran that file is left as it is. `0006-definition-threads.sql` rebuilds `threads` and
+`usage_events`, since SQLite changes a CHECK only by building the table again: a thread may make
+definitions, and the ledger counts their steps as the `definition` feature.
 A test reads the migrations of every release from its git tag. A file a release shipped must be
 unchanged at HEAD, and a database migrated by each release's own files must upgrade to the schema
 a new install gets, with SQLite's integrity and foreign key checks clean. The test names the few

@@ -3,12 +3,8 @@ import { openDatabase } from '../db/database.ts';
 import { createDefinitionRepository } from '../db/definition-repository.ts';
 import { runMigrations } from '../db/migrate.ts';
 import { temporaryDir } from '../test/fixtures.ts';
-import {
-  createDefinitions,
-  type DefinitionConnector,
-  fieldNamesOf,
-  type RunData,
-} from './definitions.ts';
+import { type DefinitionConnector, fieldNamesOf } from './definition-hidden.ts';
+import { createDefinitions, type RunData } from './definitions.ts';
 
 let dataDir: ReturnType<typeof temporaryDir>;
 let database: ReturnType<typeof openDatabase>;
@@ -105,6 +101,18 @@ describe('definitions', () => {
     );
     const empty = await service(async () => ({ ok: true, rows: 0 })).save(errorRate, null, 'e');
     expect(empty.tests[0]?.rows).toBe(0);
+  });
+
+  test('check a definition as a save does, saving nothing, and name its latest version', async () => {
+    const definitions = service();
+    const checked = await definitions.check(errorRate);
+    expect(checked.latest).toBeNull();
+    expect(checked.tests).toEqual([{ language: 'search', connector: 'events', rows: 12 }]);
+    expect(definitions.list()).toEqual([]);
+    await definitions.save(errorRate, null, 'editor-1');
+    expect((await definitions.check(errorRate)).latest).toBe(1);
+    const leaking = { ...errorRate, meaning: 'Errors by session.email over starts.' };
+    await expect(definitions.check(leaking)).rejects.toThrow('hidden on events');
   });
 
   test('test-run a ratio as one share over the range, since a body holds no time column', async () => {

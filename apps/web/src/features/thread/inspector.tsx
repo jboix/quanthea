@@ -37,9 +37,13 @@ interface InspectorProps {
   readonly onClose: () => void;
   /** Puts the panel's mention in the composer, so the next turn is about it. */
   readonly onAsk?: (() => void) | undefined;
-  /** The panel's filters as a definition's body, and the definitions, when they can be saved. */
+  /**
+   * The panel's filters as a definition's body, and the definitions, when they can be saved; else
+   * why not, which the disabled button says.
+   */
   readonly savable?:
     | { readonly body: DefinitionBody; readonly definitions: readonly DefinitionVersion[] }
+    | { readonly reason: string }
     | undefined;
 }
 
@@ -150,7 +154,12 @@ export function Inspector(props: InspectorProps) {
         <span className={styles.subject}>
           {panel.title} · {connectors}
         </span>
-        {props.savable && (
+        {props.savable && 'reason' in props.savable && (
+          <Button size="small" disabled title={props.savable.reason}>
+            Save as definition
+          </Button>
+        )}
+        {props.savable && 'body' in props.savable && (
           <SaveDefinition body={props.savable.body} definitions={props.savable.definitions} />
         )}
         {props.onAsk && (

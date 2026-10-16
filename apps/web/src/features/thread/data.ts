@@ -18,7 +18,7 @@ import {
   type ThreadDetail,
   unpinDashboardEndpoint,
 } from '@quanthea/shared';
-import { type ActionFunctionArgs, data, type LoaderFunctionArgs } from 'react-router';
+import { type ActionFunctionArgs, data, type LoaderFunctionArgs, redirect } from 'react-router';
 import { type ApiClient, ApiError } from '../../lib/api-client.ts';
 import {
   type AlertDraftData,
@@ -238,31 +238,72 @@ async function fetchThread(
   }
   if (thread.kind === 'report')
     return { ...none, thread, reportDraft: await loadReportDraft(api, thread.reportId, signal) };
+  const { definitions } = await api.call(listDefinitionsEndpoint, undefined, options);
+  if (thread.kind === 'definition') return { ...none, thread, definitions, reportDraft: null };
   const dashboard = thread.dashboardId
     ? await api.call(getDashboardEndpoint, { params: { dashboardId: thread.dashboardId } }, options)
     : null;
   const version = await versionToShow(api, dashboard, url.searchParams.get('v'), signal);
   const parent = await parentOf(api, dashboard, signal);
   const hiddenOnPinned = await hiddenOnPinnedOf(api, dashboard, version, signal);
-  const { definitions } = await api.call(listDefinitionsEndpoint, undefined, options);
   const found = { dashboard, version, parent, hiddenOnPinned, definitions };
   return { ...none, thread, ...found, reportDraft: null };
 }
 
 /**
- * The loader of the thread screen.
+ * Fetches a thread, or answers 404 for one the API does not know.
+ *
+ * @param api - The API client.
+ * @param threadId - The thread.
+ * @param request - The navigation request.
+ * @returns The thread's data.
+ */
+async function threadOr404(api: ApiClient, threadId: string, request: Request) {
+  try {
+    return await fetchThread(api, threadId, new URL(request.url), request.signal);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.code !== 'not_found') throw error;
+    throw data(null, { status: 404, statusText: 'Not Found' });
+  }
+}
+
+/**
+ * The loader of the thread screen. A thread that makes definitions opens on the definitions
+ * screen, beside them.
  *
  * @param api - The API client.
  * @returns The loader. An unknown thread is a 404.
  */
 export function loadThread(api: ApiClient) {
   return async ({ params, request }: LoaderFunctionArgs): Promise<ThreadData> => {
-    try {
-      return await fetchThread(api, params.threadId ?? '', new URL(request.url), request.signal);
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.code !== 'not_found') throw error;
-      throw data(null, { status: 404, statusText: 'Not Found' });
-    }
+    const loaded = await threadOr404(api, params.threadId ?? '', request);
+    if (loaded.thread.kind === 'definition') throw redirect(definitionThreadPath(loaded.thread.id));
+    return loaded;
+  };
+}
+
+/**
+ * Where a thread that makes definitions opens: beside them on the definitions screen.
+ *
+ * @param threadId - The thread.
+ * @returns The path.
+ */
+export function definitionThreadPath(threadId: string): string {
+  return `/definitions/chat/${threadId}`;
+}
+
+/**
+ * The loader of the definitions screen's assistant: a thread that makes definitions. Another
+ * thread opens on the thread screen.
+ *
+ * @param api - The API client.
+ * @returns The loader. An unknown thread is a 404.
+ */
+export function loadDefinitionThread(api: ApiClient) {
+  return async ({ params, request }: LoaderFunctionArgs): Promise<ThreadData> => {
+    const loaded = await threadOr404(api, params.threadId ?? '', request);
+    if (loaded.thread.kind !== 'definition') throw redirect(`/threads/${loaded.thread.id}`);
+    return loaded;
   };
 }
 

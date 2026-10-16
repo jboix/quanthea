@@ -20,23 +20,9 @@ import type {
 } from '../db/definition-repository.ts';
 import { AppError } from '../lib/errors.ts';
 import type { Dashboards } from './dashboards.ts';
+import { type DefinitionConnector, refuseHidden, visibleToModel } from './definition-hidden.ts';
 import { dataSchema } from './queries/index.ts';
 import { previewData } from './query-preview.ts';
-
-/** A connector as definitions see it: its name, its language, and which names it hides. */
-export interface DefinitionConnector {
-  /** The connector's name. */
-  readonly name: string;
-  /** Its query language. */
-  readonly language: string;
-  /**
-   * Whether a field, column or label name is hidden on it from the model.
-   *
-   * @param name - The name.
-   * @returns `true` when it is hidden.
-   */
-  readonly isHidden: (name: string) => boolean;
-}
 
 /** How one body's test run went: ran or not, and how many rows it found. */
 export interface BodyTest {
@@ -68,6 +54,16 @@ function previewRunner(dashboards: Pick<Dashboards, 'check' | 'testRun'>): RunDa
     const frames = preview.run.queries.flatMap((query) => query.frames);
     return { ok: true, rows: frames.reduce((sum, frame) => sum + frame.meta.rowCount, 0) };
   };
+}
+
+/** A definition that passed the checks of a save, unsaved. */
+export interface CheckedDefinition {
+  /** The definition. */
+  readonly definition: Definition;
+  /** Each body's test run. */
+  readonly tests: readonly BodyTest[];
+  /** The latest version of its id, which a save starts from; `null` for a new definition. */
+  readonly latest: number | null;
 }
 
 /** What the definitions service needs. */
@@ -127,6 +123,15 @@ export interface Definitions {
     origin?: DefinitionOrigin,
   ): Promise<{ version: DefinitionVersion; tests: BodyTest[] }>;
   /**
+   * Checks a definition as a save does, test-running each body, without saving it.
+   *
+   * @param input - The definition, unchecked.
+   * @returns The definition, each body's test run, and the latest version of its id, `null` for a
+   *   new one.
+   * @throws {AppError} `bad_request` as for a save.
+   */
+  check(input: unknown): Promise<CheckedDefinition>;
+  /**
    * Deletes a definition, as a version that says so. Panels that copied it keep their copy.
    *
    * @param id - The definition.
@@ -135,106 +140,6 @@ export interface Definitions {
    * @throws {AppError} `not_found` for an unknown definition; `conflict` as for a save.
    */
   remove(id: string, basedOn: number, actor: string): void;
-}
-
-/** The keys whose values name a field, a column or a label in a builder request. */
-const fieldKeys = new Set(['field', 'column', 'by', 'time', 'series']);
-
-/**
- * The field, column and label names a body's request holds, at any depth.
- *
- * @param value - The request, or a value inside it.
- * @returns The names.
- */
-export function fieldNamesOf(value: unknown): string[] {
-  if (Array.isArray(value)) return value.flatMap((item) => fieldNamesOf(item));
-  if (typeof value !== 'object' || value === null) return [];
-  return Object.entries(value).flatMap(([key, item]) =>
-    fieldKeys.has(key) && typeof item === 'string' ? [item] : fieldNamesOf(item),
-  );
-}
-
-/**
- * The words of a meaning that could name a field: letters, digits, `_` and dotted paths.
- *
- * @param meaning - The meaning.
- * @returns The words.
- */
-function wordsOf(meaning: string): string[] {
-  // A dotted path stays whole; a full stop that ends a sentence is not part of a word.
-  return (meaning.match(/[A-Za-z_][\w.]*/g) ?? []).map((word) => word.replace(/\.+$/, ''));
-}
-
-/**
- * The connector that hides a field a body uses, among those of its language.
- *
- * @param body - The body.
- * @param connectors - The connectors there are.
- * @returns The connector, if one does.
- */
-function hidingBody(
-  body: DefinitionBody,
-  connectors: readonly DefinitionConnector[],
-): DefinitionConnector | undefined {
-  const names = fieldNamesOf(body.request);
-  const language = bodyLanguage(body);
-  return connectors.find((each) => each.language === language && names.some(each.isHidden));
-}
-
-/**
- * The connector that hides a word of a meaning, if any.
- *
- * @param meaning - The meaning.
- * @param connectors - The connectors there are.
- * @returns The connector, if one does.
- */
-function hidingMeaning(
-  meaning: string,
-  connectors: readonly DefinitionConnector[],
-): DefinitionConnector | undefined {
-  const words = wordsOf(meaning);
-  return connectors.find((connector) => words.some(connector.isHidden));
-}
-
-/**
- * The definitions as the model may read them, as the connectors hide fields now.
- *
- * @param versions - The latest version of each definition.
- * @param connectors - The connectors there are.
- * @returns The versions the model may read, each with the bodies it may read.
- */
-function visibleToModel(
-  versions: readonly DefinitionVersion[],
-  connectors: readonly DefinitionConnector[],
-): DefinitionVersion[] {
-  return versions.flatMap((version) => {
-    const { definition } = version;
-    if (hidingMeaning(definition.meaning, connectors)) return [];
-    const bodies = definition.bodies.filter((body) => !hidingBody(body, connectors));
-    return [{ ...version, definition: { ...definition, bodies } }];
-  });
-}
-
-/**
- * Refuses a definition that names a field hidden on a connector: in a body, on the connectors of
- * its language; in its meaning, on any connector.
- *
- * @param definition - The definition.
- * @param connectors - The connectors there are.
- * @throws {AppError} `bad_request` naming the connector.
- */
-function refuseHidden(definition: Definition, connectors: readonly DefinitionConnector[]): void {
-  const meaning = hidingMeaning(definition.meaning, connectors);
-  if (meaning)
-    throw new AppError('bad_request', `The meaning names a field hidden on ${meaning.name}.`);
-  for (const body of definition.bodies) {
-    const hiding = hidingBody(body, connectors);
-    if (hiding)
-      throw new AppError(
-        'bad_request',
-        `A ${bodyLanguage(body)} body uses a field hidden on ${hiding.name}.`,
-      );
-  }
 }
 
 /**
@@ -336,6 +241,40 @@ function addVersion(
 }
 
 /**
+ * Parses a definition and refuses one a save refuses before its test runs.
+ *
+ * @param dependencies - What the service needs.
+ * @param input - The definition, unchecked.
+ * @returns The definition.
+ * @throws {AppError} `bad_request` for an invalid definition, a body its builder refuses, or a
+ *   hidden field.
+ */
+function parsedDefinition(dependencies: DefinitionsDependencies, input: unknown): Definition {
+  const parsed = definitionSchema.safeParse(input);
+  if (!parsed.success) throw new AppError('bad_request', z.prettifyError(parsed.error));
+  refuseUnbuildable(parsed.data);
+  refuseHidden(parsed.data, dependencies.connectors());
+  return parsed.data;
+}
+
+/**
+ * Checks a definition and test-runs its bodies, without saving it.
+ *
+ * @param dependencies - What the service needs.
+ * @param input - The definition, unchecked.
+ * @returns The definition, its tests, and the latest version of its id.
+ */
+async function check(
+  dependencies: DefinitionsDependencies,
+  input: unknown,
+): Promise<CheckedDefinition> {
+  const definition = parsedDefinition(dependencies, input);
+  const tests = await Promise.all(definition.bodies.map((body) => testBody(dependencies, body)));
+  const latest = dependencies.repository.latest(definition.id);
+  return { definition, tests, latest: latest && !latest.deleted ? latest.version : null };
+}
+
+/**
  * Checks and saves a definition.
  *
  * @param dependencies - What the service needs.
@@ -350,11 +289,7 @@ async function save(
   basedOn: number | null,
   who: { actor: string; origin: DefinitionOrigin },
 ) {
-  const parsed = definitionSchema.safeParse(input);
-  if (!parsed.success) throw new AppError('bad_request', z.prettifyError(parsed.error));
-  const definition = parsed.data;
-  refuseUnbuildable(definition);
-  refuseHidden(definition, dependencies.connectors());
+  const definition = parsedDefinition(dependencies, input);
   // The file is reviewed where it is written, and its sources may not answer yet at startup.
   const bodies = who.origin === 'file' ? [] : definition.bodies;
   const tests = await Promise.all(bodies.map((body) => testBody(dependencies, body)));
@@ -376,6 +311,7 @@ export function createDefinitions(dependencies: DefinitionsDependencies): Defini
     history: (id) => repository.history(id).map(versionOf),
     save: (input, basedOn, actor, origin = 'ui') =>
       save(dependencies, input, basedOn, { actor, origin }),
+    check: (input) => check(dependencies, input),
     remove: (id, basedOn, actor) => {
       const latest = repository.latest(id);
       if (!latest || latest.deleted) throw new AppError('not_found', `No definition "${id}".`);

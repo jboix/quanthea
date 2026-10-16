@@ -142,10 +142,17 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   },
 };
 
-/** An API client that answers every call from {@link cannedAnswers}. */
+/** What the sample thread makes: a definitions screen's path opens a thread that makes definitions. */
+let sampleThreadKind = 'dashboard';
+
+/** An API client that answers every call from {@link cannedAnswers}, the thread of its kind. */
 const fakeApi = {
-  call: (endpoint: { method: string; path: string }) =>
-    Promise.resolve(cannedAnswers[`${endpoint.method} ${endpoint.path}`]),
+  call: (endpoint: { method: string; path: string }) => {
+    const key = `${endpoint.method} ${endpoint.path}`;
+    const answer = cannedAnswers[key];
+    if (key !== 'GET /threads/:threadId') return Promise.resolve(answer);
+    return Promise.resolve({ ...(answer as object), kind: sampleThreadKind });
+  },
 } as ApiClient;
 
 /**
@@ -203,6 +210,7 @@ describe('screen access', () => {
     for (const role of roles) {
       const allowed = hasRole(role, minimum);
       test(`${role} ${allowed ? 'opens' : 'gets 403 on'} ${pattern}`, async () => {
+        sampleThreadKind = pattern.startsWith('/definitions/') ? 'definition' : 'dashboard';
         const state = await navigate(samplePath(pattern), sessionFor(role));
         expect(state.location.pathname).toBe(samplePath(pattern));
         expect(errorStatuses(state.errors)).toEqual(allowed ? [] : [403]);

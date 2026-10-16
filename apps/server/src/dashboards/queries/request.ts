@@ -259,3 +259,40 @@ export function dataSchemaFor(available: AvailableQueries) {
   const defined = (available.definitions?.length ?? 0) > 0 ? [definitionDataSchema] : [];
   return z.discriminatedUnion('kind', [rawDataSchema, ...builders, ...saved, ...defined]);
 }
+
+/**
+ * The fields of a builder request that say how a panel presents the data, not what it means: a
+ * definition's body leaves them to the panel.
+ */
+const presentationFields = [
+  'connector',
+  'by',
+  'over',
+  'limit',
+  'bucket',
+  'series',
+  'time',
+  'counts',
+];
+
+/**
+ * The schema of a definition body's request: a builder request without its connector and the
+ * fields that present the data, for the builders a run may use. With no builder, a body cannot be
+ * written: its schema takes nothing.
+ *
+ * @param kinds - The builders' kinds.
+ * @returns The schema.
+ */
+export function bodyRequestSchemaFor(kinds: readonly string[]) {
+  const schemas = Object.entries(builderSchemas)
+    .filter(([kind]) => kinds.includes(kind))
+    .map(([, schema]) => {
+      const object = schema as z.ZodObject;
+      const present = presentationFields.filter((field) => field in object.shape);
+      const mask: Record<string, true> = Object.fromEntries(present.map((field) => [field, true]));
+      return object.omit(mask as Parameters<typeof object.omit>[0]);
+    });
+  const [first, ...others] = schemas;
+  if (!first) return z.never();
+  return z.discriminatedUnion('kind', [first, ...others]);
+}

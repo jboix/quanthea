@@ -8,6 +8,7 @@ export { rawData } from './raw.ts';
 export {
   type AvailableQueries,
   availableIn,
+  bodyRequestSchemaFor,
   dataSchema,
   dataSchemaFor,
   rawDataSchema,

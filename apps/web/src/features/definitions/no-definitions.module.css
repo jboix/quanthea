@@ -1,0 +1,60 @@
+/* The screen before the first definition: what definitions are for, with examples. */
+.blank {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 720px;
+  padding: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+}
+
+.blank h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.blank p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--color-ink-secondary);
+}
+
+.blankIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.examples {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin: 4px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.examples li {
+  padding: 10px 14px;
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 var(--radius-card) var(--radius-card) 0;
+  background: var(--color-surface-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.examples strong {
+  display: block;
+}
+
+.blankHint {
+  font-weight: 500;
+}
