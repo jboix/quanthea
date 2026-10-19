@@ -17,7 +17,7 @@
     "release:ci": "semantic-release"
   },
   "dependencies": {
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@semantic-release/exec": "^7.1.0",
