@@ -17,8 +17,8 @@
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@quanthea/shared": "workspace:*",
     "@quanthea/tokens": "workspace:*",
-    "astro": "^7.3.6",
-    "simple-icons": "^16.34.0"
+    "astro": "^7.3.8",
+    "simple-icons": "^16.35.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
