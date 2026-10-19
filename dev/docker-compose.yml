@@ -61,7 +61,7 @@ services:
       retries: 60
 
   metrics-history:
-    image: oven/bun:1.4.2-slim
+    image: oven/bun:1.4.3-slim
     working_dir: /metrics
     volumes:
       - ./metrics:/metrics:ro
@@ -81,7 +81,7 @@ services:
       - '[ -f /prometheus/.backfilled ] || (promtool tsdb create-blocks-from openmetrics /seed/history.om /prometheus && touch /prometheus/.backfilled)'
 
   metrics:
-    image: oven/bun:1.4.2-slim
+    image: oven/bun:1.4.3-slim
     working_dir: /metrics
     volumes:
       - ./metrics:/metrics:ro
@@ -173,7 +173,7 @@ services:
 
   clickhouse:
     profiles: [clickhouse]
-    image: clickhouse/clickhouse-server:26.9.10.4-alpine
+    image: clickhouse/clickhouse-server:26.9.16.11-alpine
     environment:
       CLICKHOUSE_DB: orders
       CLICKHOUSE_USER: quanthea_admin
@@ -247,7 +247,7 @@ services:
   # Run once after the servers are up: bun run env:up:search does.
   search-seed:
     profiles: [search]
-    image: oven/bun:1.4.2-slim
+    image: oven/bun:1.4.3-slim
     working_dir: /dev-sources
     volumes:
       - ./:/dev-sources:ro
@@ -277,7 +277,7 @@ services:
   # Run once after InfluxDB is up: bun run env:up:influxdb does.
   influxdb-seed:
     profiles: [influxdb]
-    image: oven/bun:1.4.2-slim
+    image: oven/bun:1.4.3-slim
     working_dir: /dev-sources
     volumes:
       - ./:/dev-sources:ro
@@ -313,7 +313,7 @@ services:
   # Run once after Valkey is up: bun run env:up:valkey does.
   valkey-seed:
     profiles: [valkey]
-    image: oven/bun:1.4.2-slim
+    image: oven/bun:1.4.3-slim
     working_dir: /dev-sources
     volumes:
       - ./:/dev-sources:ro
@@ -338,7 +338,7 @@ services:
   # Prints the seed script for mongosh: bun run env:up:mongodb runs it in the mongodb service.
   mongodb-seed:
     profiles: [mongodb]
-    image: oven/bun:1.4.2-slim
+    image: oven/bun:1.4.3-slim
     working_dir: /dev-sources
     volumes:
       - ./:/dev-sources:ro
@@ -346,7 +346,7 @@ services:
 
   http-api:
     profiles: [http]
-    image: oven/bun:1.4.2-slim
+    image: oven/bun:1.4.3-slim
     working_dir: /dev-sources
     volumes:
       - ./:/dev-sources:ro
@@ -372,7 +372,7 @@ services:
   # Run once after Loki is up: bun run env:up:loki does. It waits until Loki is ready.
   loki-seed:
     profiles: [loki]
-    image: oven/bun:1.4.2-slim
+    image: oven/bun:1.4.3-slim
     working_dir: /dev-sources
     volumes:
       - ./:/dev-sources:ro
