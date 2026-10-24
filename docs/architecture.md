@@ -4887,6 +4887,11 @@ part of the web app, as octocov's custom metrics.
 Dependabot proposes updates weekly for the actions, the Bun packages, the dev images and the base
 image, each only once it is seven days old (`cooldown`), so a version pulled in its first days
 never reaches a pull request.
+The Scan workflow (`.github/workflows/scan.yml`) runs on every push and pull request to `main`
+and weekly. zizmor audits the workflows. Trivy checks the Dockerfile and `deploy/` for
+misconfigurations, and the released image at `:latest` for high and critical vulnerabilities.
+Its findings go to the Security tab as SARIF and fail no build. Its jobs use no environment and
+no secret.
 A PR is mergeable only when the `quality` job is green. Warnings from `no-orphans` are reviewed,
 not ignored. Biome's complexity and length limits are errors.
 
