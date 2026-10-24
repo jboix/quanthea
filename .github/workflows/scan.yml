@@ -9,8 +9,8 @@ name: Scan
 # with the other actions.
 #
 # zizmor audits the workflows. Trivy checks the Dockerfile and deploy/ for misconfigurations, and
-# the released image, ghcr.io/jboix/quanthea:latest, for known vulnerabilities. The Quality
-# workflow keeps its own zizmor job, which fails the gate on a finding.
+# the released image, ghcr.io/jboix/quanthea:latest, for known vulnerabilities that have a fix.
+# The Quality workflow keeps its own zizmor job, which fails the gate on a finding.
 on:
   push:
     branches:
@@ -90,6 +90,8 @@ jobs:
           version: v0.75.0
           image-ref: ghcr.io/jboix/quanthea:latest
           severity: HIGH,CRITICAL
+          # A vulnerability Debian has not fixed yet cannot be fixed here: it is left out.
+          ignore-unfixed: true
           limit-severities-for-sarif: true
           format: sarif
           output: trivy.sarif

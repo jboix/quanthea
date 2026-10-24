@@ -4889,7 +4889,8 @@ image, each only once it is seven days old (`cooldown`), so a version pulled in 
 never reaches a pull request.
 The Scan workflow (`.github/workflows/scan.yml`) runs on every push and pull request to `main`
 and weekly. zizmor audits the workflows. Trivy checks the Dockerfile and `deploy/` for
-misconfigurations, and the released image at `:latest` for high and critical vulnerabilities.
+misconfigurations, and the released image at `:latest` for high and critical vulnerabilities that
+have a fix.
 Its findings go to the Security tab as SARIF and fail no build. Its jobs use no environment and
 no secret.
 A PR is mergeable only when the `quality` job is green. Warnings from `no-orphans` are reviewed,
