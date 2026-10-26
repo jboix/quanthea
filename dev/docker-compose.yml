@@ -173,7 +173,7 @@ services:
 
   clickhouse:
     profiles: [clickhouse]
-    image: clickhouse/clickhouse-server:26.9.16.11-alpine
+    image: clickhouse/clickhouse-server:26.9.21.9-alpine
     environment:
       CLICKHOUSE_DB: orders
       CLICKHOUSE_USER: quanthea_admin
@@ -195,7 +195,7 @@ services:
 
   trino:
     profiles: [trino]
-    image: trinodb/trino:483
+    image: trinodb/trino:484
     depends_on:
       postgres:
         condition: service_healthy
@@ -255,7 +255,7 @@ services:
 
   influxdb:
     profiles: [influxdb]
-    image: influxdb:3.12.0-core
+    image: influxdb:3.12.1-core
     command:
       - influxdb3
       - serve
@@ -321,7 +321,7 @@ services:
 
   mongodb:
     profiles: [mongodb]
-    image: mongo:9.0.2
+    image: mongo:9.0.4
     environment:
       MONGO_INITDB_ROOT_USERNAME: quanthea_admin
       MONGO_INITDB_ROOT_PASSWORD: quanthea-dev
