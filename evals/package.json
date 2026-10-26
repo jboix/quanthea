@@ -15,6 +15,6 @@
     "ai": "^7.0.137"
   },
   "devDependencies": {
-    "evalmark": "^1.0.1"
+    "evalmark": "^1.0.2"
   }
 }
