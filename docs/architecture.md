@@ -2011,6 +2011,16 @@ the test; turning the switch off sends the provider's default.
   fails, an edit that changes nothing, and one that starts from an older version (a conflict). It
   adds a version and a `data-dashboardHandEdit` card with the diff, Undo and Compare. The next turn
   reads it as "I changed the dashboard by hand, v3 → v4; keep these changes" and each field.
+- The inspector shows the hand edits as two tabs, for that person on the latest version while
+  the agent is not working (`features/thread/panel-form.tsx`, `panel-json.tsx`,
+  `use-panel-edit.ts`). Edit is a form: the title and description; a chart's main colour from the
+  theme's series colours and tones (it sets `color`, the chosen token first); a chart from the
+  recipes with its variants, in the unit the panel reads in now, which replaces the view; and the
+  text of each SQL, PromQL or LogQL query. Other languages, and anything else, are edited in the
+  JSON tab: the whole panel as text, which must parse as a JSON object before it is sent. Both
+  tabs share one edit. Run test-runs it through the `/threads/:threadId/panel-test` resource
+  route, which reloads nothing. Save goes through `/threads/:threadId/panel-edit`, and is
+  disabled until a changed query has run. Problems show at their path inside the panel.
 - The thread folds the agent's work in each answer into one line (`features/thread/work-log.tsx`,
   `work-summary.ts`), like a chatbot's thinking. The line holds the explore calls, the writes and
   every try the agent still fixes. While the agent works it says "Looking at the data…",

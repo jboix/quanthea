@@ -12,13 +12,22 @@ import { Tabs } from '../../ui/tabs.tsx';
 import { usePanelRunData, versionNote } from '../dashboard/index.ts';
 import styles from './inspector.module.css';
 import { shapeOf } from './messages.ts';
+import { PanelForm } from './panel-form.tsx';
+import { PanelJson } from './panel-json.tsx';
 import { SaveDefinition } from './save-definition.tsx';
+import { type PanelEditState, usePanelEdit } from './use-panel-edit.ts';
 
 /** The inspector's tabs. */
 const tabs = [
   { id: 'query', label: 'Query' },
   { id: 'spec', label: 'Chart spec' },
   { id: 'history', label: 'History' },
+];
+
+/** The tabs of a panel that can be edited by hand. */
+const editTabs = [
+  { id: 'edit', label: 'Edit' },
+  { id: 'json', label: 'JSON' },
 ];
 
 /** Props of {@link Inspector}. */
@@ -45,6 +54,11 @@ interface InspectorProps {
     | { readonly body: DefinitionBody; readonly definitions: readonly DefinitionVersion[] }
     | { readonly reason: string }
     | undefined;
+  /**
+   * Where a hand edit goes, when the person may edit the panel: the owner of the thread or an
+   * admin, on the latest version. Key the inspector by the panel and the version.
+   */
+  readonly editing?: { readonly threadId: string; readonly basedOn: number } | undefined;
 }
 
 /**
@@ -138,35 +152,83 @@ function HistoryTab({
 }
 
 /**
- * The inspector under the draft: the selected panel's query, its chart spec, and the history.
+ * The buttons of the inspector's header: save the panel's filters as a definition, and ask about
+ * the panel.
+ *
+ * @param props - The inspector's props.
+ * @returns The buttons.
+ */
+function HeadActions(props: InspectorProps) {
+  const { savable, onAsk } = props;
+  return (
+    <>
+      {savable && 'reason' in savable && (
+        <Button size="small" disabled title={savable.reason}>
+          Save as definition
+        </Button>
+      )}
+      {savable && 'body' in savable && (
+        <SaveDefinition body={savable.body} definitions={savable.definitions} />
+      )}
+      {onAsk && (
+        <Button size="small" onClick={onAsk}>
+          Ask about this panel
+        </Button>
+      )}
+    </>
+  );
+}
+
+/**
+ * The tab shown. The edit tabs share one edit, so a change in the form shows in the JSON.
+ *
+ * @param props - The tab, the inspector's props and the edit.
+ * @param props.tab - The tab.
+ * @param props.inspector - The inspector's props.
+ * @param props.edit - The hand edit.
+ * @returns The tab's content.
+ */
+function TabBody({
+  tab,
+  inspector,
+  edit,
+}: {
+  readonly tab: string;
+  readonly inspector: InspectorProps;
+  readonly edit: PanelEditState;
+}) {
+  if (tab === 'query') return <QueryTab {...inspector} />;
+  if (tab === 'history') return <HistoryTab {...inspector} />;
+  if (inspector.editing && tab === 'edit') return <PanelForm edit={edit} />;
+  if (inspector.editing && tab === 'json') return <PanelJson edit={edit} />;
+  return <pre className={styles.code}>{JSON.stringify(inspector.panel.view, null, 2)}</pre>;
+}
+
+/**
+ * The inspector under the draft: the selected panel's query, its chart spec, and the history; and
+ * for the person who may edit it, a form for the common changes and the panel's JSON.
  *
  * @param props - The dashboard, the version, the panel and the callbacks.
  * @returns The drawer.
  */
 export function Inspector(props: InspectorProps) {
   const [tab, setTab] = useState('query');
-  const { panel } = props;
+  const { panel, editing } = props;
+  const edit = usePanelEdit({ threadId: '', basedOn: 0, ...editing, panel });
   const connectors = [...new Set(panel.queries.map((query) => query.connector))].join(', ');
   return (
     <section className={styles.drawer} aria-label="Inspector">
       <header className={styles.head}>
-        <Tabs label="Inspector" tabs={tabs} selected={tab} onSelect={setTab} />
+        <Tabs
+          label="Inspector"
+          tabs={editing ? [...tabs, ...editTabs] : tabs}
+          selected={tab}
+          onSelect={setTab}
+        />
         <span className={styles.subject}>
           {panel.title} · {connectors}
         </span>
-        {props.savable && 'reason' in props.savable && (
-          <Button size="small" disabled title={props.savable.reason}>
-            Save as definition
-          </Button>
-        )}
-        {props.savable && 'body' in props.savable && (
-          <SaveDefinition body={props.savable.body} definitions={props.savable.definitions} />
-        )}
-        {props.onAsk && (
-          <Button size="small" onClick={props.onAsk}>
-            Ask about this panel
-          </Button>
-        )}
+        <HeadActions {...props} />
         <button
           type="button"
           className={styles.close}
@@ -177,9 +239,7 @@ export function Inspector(props: InspectorProps) {
         </button>
       </header>
       <div role="tabpanel" className={styles.body}>
-        {tab === 'query' && <QueryTab {...props} />}
-        {tab === 'spec' && <pre className={styles.code}>{JSON.stringify(panel.view, null, 2)}</pre>}
-        {tab === 'history' && <HistoryTab {...props} />}
+        <TabBody tab={tab} inspector={props} edit={edit} />
       </div>
     </section>
   );

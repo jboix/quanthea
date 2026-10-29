@@ -1,0 +1,78 @@
+/* The inspector's edit tabs: the form, the JSON, and their footer. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.variants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 13px;
+}
+
+.variants legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-weight: 600;
+  color: var(--color-ink-label);
+}
+
+.variants label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-ink-secondary);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refusal {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.issues,
+.ran {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.issues {
+  color: var(--color-danger);
+}
+
+.issues code {
+  font-family: var(--font-mono);
+}
+
+.ran [data-failed="true"] {
+  color: var(--color-danger);
+}

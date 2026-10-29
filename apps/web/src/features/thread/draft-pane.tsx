@@ -1,6 +1,6 @@
-import type { DefinitionBody, Panel, Plan, ThreadState } from '@quanthea/shared';
+import type { DefinitionBody, Panel, Plan, Role, ThreadState } from '@quanthea/shared';
 import type { CSSProperties, ReactNode } from 'react';
-import { Link } from 'react-router';
+import { Link, useRouteLoaderData } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
 import { Pill } from '../../ui/pill.tsx';
 import { TitleHeader } from '../../ui/title-header.tsx';
@@ -329,6 +329,22 @@ function savableOf(props: DraftPaneProps, panel: Panel) {
 }
 
 /**
+ * Where a hand edit of the inspected panel goes, when the person may make one: the owner of the
+ * thread or an admin, on the latest version, while the agent is not working.
+ *
+ * @param props - The pane's props.
+ * @param admin - Whether the person is an admin.
+ * @returns The thread and the version the edit starts from, or `undefined`.
+ */
+function editingOf(props: DraftPaneProps, admin: boolean) {
+  const { thread, dashboard, version } = props.data;
+  const latest = dashboard?.versions.at(-1)?.version;
+  if (props.running || !version || version.version !== latest) return undefined;
+  if (thread.readOnly && !admin) return undefined;
+  return { threadId: thread.id, basedOn: latest };
+}
+
+/**
  * The right pane of a thread: the draft the agent builds, live, with the inspector under it.
  *
  * @param props - The thread data, the plan, the selection and the callbacks.
@@ -338,6 +354,7 @@ export function DraftPane(props: DraftPaneProps) {
   const { data } = props;
   const { dashboard, version } = data;
   const selected = version?.spec.panels.find((panel) => panel.id === props.selectedPanelId);
+  const session = useRouteLoaderData('root') as { principal: { role: Role } } | undefined;
   return (
     <section className={styles.pane} aria-label="Dashboard draft">
       <PaneHeader {...props} />
@@ -346,6 +363,7 @@ export function DraftPane(props: DraftPaneProps) {
       </div>
       {dashboard && version && selected && (
         <Inspector
+          key={`${selected.id}@${version.version}`}
           dashboard={dashboard}
           version={version.version}
           spec={version.spec}
@@ -354,6 +372,7 @@ export function DraftPane(props: DraftPaneProps) {
           onClose={() => props.onSelectPanel(undefined)}
           onAsk={data.thread.readOnly ? undefined : () => props.onMentionPanel(selected.id)}
           savable={savableOf(props, selected)}
+          editing={editingOf(props, session?.principal.role === 'admin')}
         />
       )}
     </section>

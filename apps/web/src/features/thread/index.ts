@@ -5,3 +5,4 @@ export {
   startDefinitionThread,
 } from './definition-assistant-data.ts';
 export { loadRecentThreads, newThreadAction } from './new-thread-data.ts';
+export { panelSaveAction, panelTestAction } from './panel-edit-data.ts';

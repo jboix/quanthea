@@ -10,6 +10,8 @@ import {
   loadRecentThreads,
   loadThread,
   newThreadAction,
+  panelSaveAction,
+  panelTestAction,
 } from '../features/thread/index.ts';
 import type { ApiClient } from '../lib/api-client.ts';
 
@@ -41,7 +43,9 @@ export function threadRoutes(loadSession: SessionLoader, api: ApiClient): RouteO
       action: guarded(loadSession, thread, changeThread(api)),
       // Asking for an alert draft's previews changes nothing, so the thread does not load again.
       shouldRevalidate: ({ formAction, defaultShouldRevalidate }) =>
-        formAction?.endsWith('/alert-previews') ? false : defaultShouldRevalidate,
+        formAction?.endsWith('/alert-previews') || formAction?.endsWith('/panel-test')
+          ? false
+          : defaultShouldRevalidate,
       lazy: { Component: async () => (await import('../features/thread/screens.ts')).ThreadScreen },
       ErrorBoundary: ErrorPage,
     },
@@ -50,8 +54,37 @@ export function threadRoutes(loadSession: SessionLoader, api: ApiClient): RouteO
 }
 
 /**
- * The resource routes of the draft panes, which fetchers ask and nothing else reloads: what each
- * channel of an alert draft would send, and a report draft run over its latest period.
+ * The resource routes of the inspector's hand edits: a test run of an edited panel, which saves
+ * nothing, and a save. The thread reloads after a save, and never after a test run.
+ *
+ * @param loadSession - Loads the current session.
+ * @param api - The API client.
+ * @returns The route objects.
+ */
+function panelEditRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] {
+  const panelTest = '/threads/:threadId/panel-test';
+  const panelEdit = '/threads/:threadId/panel-edit';
+  const nothing = () => Promise.resolve(null);
+  return [
+    {
+      path: panelTest,
+      loader: guarded(loadSession, panelTest, nothing),
+      action: guarded(loadSession, panelTest, panelTestAction(api)),
+      shouldRevalidate: () => false,
+    },
+    {
+      path: panelEdit,
+      loader: guarded(loadSession, panelEdit, nothing),
+      action: guarded(loadSession, panelEdit, panelSaveAction(api)),
+      shouldRevalidate: () => false,
+    },
+  ];
+}
+
+/**
+ * The resource routes of the draft panes, which fetchers ask and nothing else reloads: the
+ * inspector's hand edits, what each channel of an alert draft would send, and a report draft run
+ * over its latest period.
  *
  * @param loadSession - Loads the current session.
  * @param api - The API client.
@@ -61,6 +94,7 @@ function draftRoutes(loadSession: SessionLoader, api: ApiClient): RouteObject[] 
   const previews = '/threads/:threadId/alert-previews';
   const reportPreview = '/threads/:threadId/report-preview';
   return [
+    ...panelEditRoutes(loadSession, api),
     {
       path: previews,
       loader: guarded(loadSession, previews, () => Promise.resolve(null)),

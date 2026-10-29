@@ -83,6 +83,25 @@ Each change makes a new version, and a card in the conversation says what change
 - The draft pane shows the latest version. Its version menu opens an earlier one; the address
   keeps it, so a reload or a shared link shows the same.
 
+## Edit a panel by hand
+
+Some changes are faster to make than to describe. Click a panel's title in the draft and open the
+**Edit** tab under it. The owner of the thread and admins can do this on the latest version.
+
+- **Edit** changes the title and description, a chart's main colour, the chart type with its
+  variants and unit, and the text of a SQL, PromQL or LogQL query.
+- **JSON** shows the whole panel as text, for anything else, such as a search or MongoDB query or
+  a stat's thresholds.
+- **Run** checks the panel and runs its queries without saving. Problems show at the field they
+  are about, and each query says how many rows it returned.
+- **Save** adds a new version. It stays disabled until a changed query has run.
+- Colours come from the theme only: a series colour, or good, warning, bad and neutral.
+- Picking a chart type rebuilds the chart from that type. Changes made to the old chart, its
+  colour included, are not kept.
+
+The conversation gets a card with what you changed, Undo and Compare. The agent reads it in its
+next answer and keeps your change.
+
 ## Pin
 
 **Pin** puts the version you are looking at in the library. Viewers see only pinned versions.
