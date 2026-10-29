@@ -218,6 +218,17 @@ describe('validateSpec', () => {
     ]);
   });
 
+  test('takes series colours as theme tokens only', () => {
+    const colored = (color: unknown) =>
+      issuesAfter((spec) => set(spec, 'panels.1.view.option.color', color));
+    expect(colored(['@palette.2', '@tone.bad'])).toEqual([]);
+    const refused =
+      'panels[1].view.option.color: Series colours are a list of theme tokens, such as ["@palette.2", "@tone.bad"].';
+    expect(colored(['@palette.2', 'red'])).toContain(refused);
+    expect(colored('@palette.2')).toContain(refused);
+    expect(colored([])).toContain(refused);
+  });
+
   test('takes mappings on a gauge only among the charts, each a range with a tone', () => {
     const gauge = { prepare: 'gauge', option: { series: [{ type: 'gauge', max: 1 }] } };
     const steps = [

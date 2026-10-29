@@ -4492,7 +4492,10 @@ one, and enables them again. Without any admin, it creates the default one.
   and in notifications. The month's name comes from a fixed list (`calendarParts` in
   `@quanthea/shared`), since newer locale data writes `Sept` for British English.
 - The adapter owns the dataset, the grid, the palette, fonts and axis colours (from the tokens in
-  `@quanthea/tokens`), and the tooltip's render mode, whatever the spec says.
+  `@quanthea/tokens`), and the tooltip's render mode, whatever the spec says. One exception: an
+  option's `color`, the series colours in turn, when it lists only theme tokens such as
+  `@palette.2` or `@tone.bad`. Validation refuses any other `color`, and the adapter draws the
+  palette in its place.
 - **Tooltip safety:** tooltips are forced to `renderMode: 'richText'`, drawn on the canvas, so a
   series named `<img src=x onerror=alert(1)>` is shown as text and never parsed as HTML. Legends
   and marker labels are canvas text too. A test holds this.

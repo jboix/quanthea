@@ -2,9 +2,10 @@
  * Checks a chart's ECharts option against an allowlist. The adapter owns the dataset, the grid,
  * the theme, animation and how tooltips render, so the spec may not set them, and data is never
  * inlined in a series: the adapter builds it from the queries, trees and graphs included. No part
- * of an option opens a link or emits a click event.
+ * of an option opens a link or emits a click event. The series colours may be set in order, as
+ * theme tokens only, which a hand edit's main colour does.
  */
-import { namedFormatterSchema } from '@quanthea/shared';
+import { namedFormatterSchema, themeTokens } from '@quanthea/shared';
 import type { SpecIssue } from './issues.ts';
 
 /** The top-level keys an option may have. */
@@ -168,6 +169,21 @@ function checkSeries(series: Json, path: string, issues: SpecIssue[]): void {
 }
 
 /**
+ * Checks the series colours of an option: one to twelve theme tokens, taken in turn.
+ *
+ * @param value - The `color` value.
+ * @param path - Its path.
+ * @param issues - Receives the problems.
+ */
+function checkSeriesColors(value: Json, path: string, issues: SpecIssue[]): void {
+  const tokens = new Set(themeTokens);
+  const listed = Array.isArray(value) && value.length > 0 && value.length <= 12;
+  if (listed && value.every((each) => typeof each === 'string' && tokens.has(each))) return;
+  const message = 'Series colours are a list of theme tokens, such as ["@palette.2", "@tone.bad"].';
+  issues.push({ path, message });
+}
+
+/**
  * Checks one top-level key of an option and its value.
  *
  * @param key - The key.
@@ -176,6 +192,10 @@ function checkSeries(series: Json, path: string, issues: SpecIssue[]): void {
  * @param issues - Receives the problems.
  */
 function checkTopLevel(key: string, value: Json, path: string, issues: SpecIssue[]): void {
+  if (key === 'color') {
+    checkSeriesColors(value, `${path}.color`, issues);
+    return;
+  }
   if (!allowedKeys.has(key)) {
     issues.push({ path: `${path}.${key}`, message: `"${key}" is not allowed in a chart option.` });
     return;

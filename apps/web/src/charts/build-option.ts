@@ -282,12 +282,27 @@ function ownedParts(prepared: Prepared, option: Loose, theme: ChartTheme, empty:
       dimensions: dataset.dimensions.map((column) => column.name),
       source: dataset.source,
     })),
-    color: [...theme.palette],
+    color: seriesColors(option, theme),
     textStyle: { fontFamily: theme.fontFamily, color: theme.inkSecondary },
     grid: prepared.grid ?? gridOf(option),
     animationDuration: 300,
     ...(empty ? { title: note } : {}),
   };
+}
+
+/**
+ * The colours the series take in turn: the view's own list when it holds only theme colours, as a
+ * hand edit sets it from tokens, else the theme's palette. A free colour never reaches the chart.
+ *
+ * @param option - The option, its tokens replaced.
+ * @param theme - The theme.
+ * @returns The colours.
+ */
+function seriesColors(option: Loose, theme: ChartTheme): string[] {
+  const { color } = option;
+  const themed = new Set(Object.values(themeColors(theme)));
+  const own = Array.isArray(color) && color.length > 0 && color.every((each) => themed.has(each));
+  return own ? [...(color as string[])] : [...theme.palette];
 }
 
 /**

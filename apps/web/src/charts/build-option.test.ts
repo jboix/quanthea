@@ -256,6 +256,12 @@ describe('buildChartOption', () => {
     expect(at(option, 'color')).toEqual(defaultTheme.palette);
   });
 
+  test('takes the series colours a view lists as theme tokens', () => {
+    const color = ['@palette.3', '@tone.bad'];
+    const option = build({ ...lineOption, color }, [series('a', [1])]);
+    expect(at(option, 'color')).toEqual([defaultTheme.palette[3], defaultTheme.tones.bad]);
+  });
+
   test('draws a horizontal bar chart from a table, with categories on the y axis', () => {
     const codes = frame(
       [
