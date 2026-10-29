@@ -167,7 +167,7 @@ export const planViewSchema = z.object({
 export type PlanView = z.infer<typeof planViewSchema>;
 
 /** Validates the changes of one panel, as the diff card shows them. */
-const panelDiffSchema = z.object({
+export const panelDiffSchema = z.object({
   id: z.string(),
   title: z.string(),
   status: z.enum(['added', 'removed', 'changed', 'same']),
@@ -312,6 +312,13 @@ export const threadDataSchemas = {
     from: z.int(),
     to: z.int(),
     panels: z.array(panelDiffSchema),
+  }),
+  /** The person changed a draft panel by hand, from the inspector; the agent reads it next turn. */
+  dashboardHandEdit: z.object({
+    dashboardId: z.string(),
+    from: z.int(),
+    to: z.int(),
+    panels: z.array(panelDiffSchema).max(60),
   }),
   ...alertDataSchemas,
   ...reportDataSchemas,

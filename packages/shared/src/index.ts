@@ -60,6 +60,7 @@ export {
   type ParsedEndpointInput,
 } from './api/contract.ts';
 export * from './api/conversation-bin.ts';
+export * from './api/dashboard-drafts.ts';
 export {
   createDashboardEndpoint,
   type DashboardDetail,

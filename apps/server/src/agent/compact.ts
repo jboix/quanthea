@@ -287,6 +287,33 @@ interface HandEdit {
   readonly changes: readonly { path: string; before?: string; after?: string }[];
 }
 
+/** A hand edit of a dashboard draft's panels, as its data part carries it. */
+interface PanelHandEdit {
+  /** The version before. */
+  readonly from: number;
+  /** The version the edit saved. */
+  readonly to: number;
+  /** The panels that changed, each with its fields. */
+  readonly panels: readonly { title: string; changes: HandEdit['changes'] }[];
+}
+
+/**
+ * The text the model reads for a hand edit of the dashboard draft: each panel and its fields.
+ *
+ * @param edit - The hand edit.
+ * @returns The text part.
+ */
+function panelEditText(edit: PanelHandEdit): { type: 'text'; text: string } {
+  const panels = edit.panels.map((panel) => {
+    const changes = panel.changes.map(
+      (change) => `${change.path}: ${change.before ?? '(none)'} → ${change.after ?? '(none)'}`,
+    );
+    return `"${panel.title}": ${changes.join('; ')}`;
+  });
+  const text = `[I changed the dashboard by hand, v${edit.from} → v${edit.to}; keep these changes] ${panels.join(' | ')}`;
+  return { type: 'text', text };
+}
+
 /** What each hand-edit part changed. */
 const handEdited: Readonly<Record<string, string>> = {
   'data-handEdit': 'alert',
@@ -304,6 +331,7 @@ export function handEditText(part: {
   type: string;
   data: unknown;
 }): { type: 'text'; text: string } | undefined {
+  if (part.type === 'data-dashboardHandEdit') return panelEditText(part.data as PanelHandEdit);
   const what = handEdited[part.type];
   if (what === undefined) return undefined;
   const edit = part.data as HandEdit;

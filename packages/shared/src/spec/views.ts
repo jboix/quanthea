@@ -80,7 +80,7 @@ export type DatasetTransform = z.infer<typeof datasetTransformSchema>;
  * What the time axis of a chart covers: the time range its panel ran over, or only the stretch
  * its data has.
  */
-const timeAxisModes = ['period', 'data'] as const;
+export const timeAxisModes = ['period', 'data'] as const;
 
 /** What the time axis of a chart covers. */
 export type TimeAxisMode = (typeof timeAxisModes)[number];

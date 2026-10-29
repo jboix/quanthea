@@ -38,6 +38,7 @@ import { mountChartEndpoints } from './http/routes/chart-routes.ts';
 import { mountChatRoute } from './http/routes/chat-route.ts';
 import { mountConnectorRoutes } from './http/routes/connector-routes.ts';
 import { mountConversationBinEndpoints } from './http/routes/conversation-bin-routes.ts';
+import { mountDashboardDraftEndpoints } from './http/routes/dashboard-draft-routes.ts';
 import {
   type DashboardRouteOptions,
   mountDashboardEndpoints,
@@ -229,6 +230,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountDashboardRoutes(app, dependencies);
   mountSettingsRoutes(app, dependencies);
   mountThreadEndpoints(app, dependencies);
+  mountDashboardDraftEndpoints(app, dependencies);
   mountBinEndpoints(app, dependencies);
   mountConversationBinEndpoints(app, { ...dependencies, ownerOf: dependencies.bin.ownerOf });
   mountAlertEndpoints(app, dependencies);

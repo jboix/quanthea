@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import type { ModelMessage } from 'ai';
-import { compactHistory, compactSteps, toolSummary, withoutReasoning } from './compact.ts';
+import {
+  compactHistory,
+  compactSteps,
+  handEditText,
+  toolSummary,
+  withoutReasoning,
+} from './compact.ts';
 import type { ThreadMessage } from './run-context.ts';
 
 describe('toolSummary', () => {
@@ -149,5 +155,19 @@ describe('withoutReasoning', () => {
 
   test('changes nothing for the other providers', () => {
     expect(withoutReasoning(messages, 'openai')).toEqual(messages);
+  });
+});
+
+describe('handEditText', () => {
+  test('says which panels the person changed by hand, and each field', () => {
+    const changes = [{ path: 'title', before: 'Errors', after: 'Peak errors' }];
+    const data = { dashboardId: 'd', from: 3, to: 4, panels: [{ title: 'Peak errors', changes }] };
+    expect(handEditText({ type: 'data-dashboardHandEdit', data })?.text).toBe(
+      '[I changed the dashboard by hand, v3 → v4; keep these changes] "Peak errors": title: Errors → Peak errors',
+    );
+  });
+
+  test('leaves out data parts that are no hand edit', () => {
+    expect(handEditText({ type: 'data-diff', data: {} })).toBeUndefined();
   });
 });

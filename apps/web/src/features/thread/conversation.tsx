@@ -1,6 +1,6 @@
 import type { AccessLevel, DefinitionVersion, PlanView, ThreadData } from '@quanthea/shared';
 import type { ReactNode } from 'react';
-import { AlertPlanCard, HandEditCard } from './alert-cards.tsx';
+import { AlertPlanCard } from './alert-cards.tsx';
 import { AskCard } from './ask-card.tsx';
 import styles from './conversation.module.css';
 import { DefinitionProposalsCard } from './definition-proposals.tsx';
@@ -15,6 +15,7 @@ import {
   type ToolPart,
   toolName,
 } from './messages.ts';
+import { PersonMessage } from './person-message.tsx';
 import { PlanCard } from './plan-card.tsx';
 import type { DraftPanel } from './plan-changes.ts';
 import { RepairCard } from './repair-card.tsx';
@@ -144,23 +145,6 @@ function reportPlanCard(
       onEdit={onEditPlan}
     />
   );
-}
-
-/**
- * The person's message: their words, or the card of a change they made to the alert or report
- * draft by hand.
- *
- * @param props - The message.
- * @param props.message - The user message.
- * @returns The bubble or the card.
- */
-function PersonMessage({ message }: { readonly message: ThreadMessage }) {
-  const edit = message.parts.find(
-    (part) => part.type === 'data-handEdit' || part.type === 'data-reportHandEdit',
-  );
-  if (edit?.type === 'data-handEdit' || edit?.type === 'data-reportHandEdit')
-    return <HandEditCard data={edit.data} />;
-  return <UserBubble message={message} />;
 }
 
 /**
@@ -328,33 +312,6 @@ function assistantParts(message: ThreadMessage, context: PartContext): ReactNode
   return nodes;
 }
 
-/**
- * A person's message, with the panels it mentions.
- *
- * @param props - The message.
- * @param props.message - The user message.
- * @returns The bubble.
- */
-function UserBubble({ message }: { readonly message: ThreadMessage }) {
-  const text = message.parts
-    .flatMap((part) => (part.type === 'text' ? [part.text] : []))
-    .join('\n');
-  const mentions = message.metadata?.mentions ?? [];
-  let rest = text;
-  for (const mention of mentions) rest = rest.replace(`@${mention.title}`, '');
-  return (
-    <div className={styles.user}>
-      {mentions.map((mention) => (
-        <span key={mention.panelId} className={styles.mention}>
-          @{mention.title}
-        </span>
-      ))}
-      {mentions.length > 0 ? ' ' : ''}
-      {rest.trim()}
-    </div>
-  );
-}
-
 /** Props of {@link Conversation}. */
 interface ConversationProps extends ConversationContext {
   /** The messages. */
@@ -373,7 +330,7 @@ export function Conversation({ messages, ...context }: ConversationProps) {
       {messages.map((message, index) => (
         <li key={message.id} className={styles.message} data-role={message.role}>
           {message.role === 'user' ? (
-            <PersonMessage message={message} />
+            <PersonMessage message={message} actions={context} />
           ) : (
             [
               ...assistantParts(message, {

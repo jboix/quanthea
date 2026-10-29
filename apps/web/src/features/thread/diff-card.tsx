@@ -62,6 +62,8 @@ export interface DiffCardProps {
   readonly onUndo: (version: number) => void;
   /** Shows a version in the right pane. */
   readonly onCompare: (version: number) => void;
+  /** Whether the person made the change by hand, from the inspector. */
+  readonly byHand?: boolean | undefined;
 }
 
 /**
@@ -70,9 +72,11 @@ export interface DiffCardProps {
  * @param props - The diff, the latest version and the callbacks.
  * @returns The card.
  */
-export function DiffCard({ diff, latestVersion, busy, onUndo, onCompare }: DiffCardProps) {
+export function DiffCard({ diff, latestVersion, busy, onUndo, onCompare, byHand }: DiffCardProps) {
+  const label = byHand ? 'Changed by hand' : `Changes from v${diff.from} to v${diff.to}`;
   return (
-    <section className={styles.diff} aria-label={`Changes from v${diff.from} to v${diff.to}`}>
+    <section className={styles.diff} aria-label={label}>
+      {byHand && <p className={styles.byHand}>You changed it by hand</p>}
       {diff.panels.map((panel) => {
         const lines = panelLines(panel).map((line, position) => ({
           ...line,

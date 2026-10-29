@@ -2000,6 +2000,17 @@ the test; turning the switch off sends the provider's default.
 - A panel can be the focus of a turn without typing `@`: the inspector's Ask about this panel puts
   its mention at the start of the composer (`features/thread/mention-panel.ts`). A panel's title on
   a pinned dashboard is not a link.
+- A draft panel can be edited by hand, for the small change that is faster to make than to
+  describe. The owner of the thread and admins edit the latest version only. The server checks
+  the edited panel as it checks the agent's writes (`dashboards/hand-edit.ts`): the schema, theme
+  tokens and references, a changed query that names a fixed time, and a test run of the panel's
+  queries. A chart picked from the recipes replaces the view, completed from the test run's data.
+  The panel keeps its id, and its place unless the edit gives one. A test run
+  (`POST …/panels/:panelId/test`) says what is wrong, at paths inside the panel, and how many rows
+  each query returned, and saves nothing. A save (`POST …/panels/:panelId`) refuses a panel that
+  fails, an edit that changes nothing, and one that starts from an older version (a conflict). It
+  adds a version and a `data-dashboardHandEdit` card with the diff, Undo and Compare. The next turn
+  reads it as "I changed the dashboard by hand, v3 → v4; keep these changes" and each field.
 - The thread folds the agent's work in each answer into one line (`features/thread/work-log.tsx`,
   `work-summary.ts`), like a chatbot's thinking. The line holds the explore calls, the writes and
   every try the agent still fixes. While the agent works it says "Looking at the data…",
@@ -3844,6 +3855,7 @@ indicative; the contract files are the source of truth.
 | `POST /threads/:id/plans/:planId/approve` · `/reject`                                             | plan decisions                               | editor   |
 | `POST /threads/:id/start-from` (a pinned dashboard)                                               | draft from a copy, no model                  | editor   |
 | `POST /threads/:id/restore` (a version)                                                           | Undo                                         | editor   |
+| `POST /threads/:id/dashboard-draft/panels/:panelId[/test]` (the panel; owner, admin)              | a hand edit of a panel, or its test run      | editor   |
 | `GET /dashboards` (search: `q`, `tags`, `connectors`)                                             | library                                      | viewer   |
 | `POST /dashboards` (a spec, becomes draft v1)                                                     | create from a spec                           | editor   |
 | `GET /dashboards/:id` (with its thread's id), `GET /dashboards/:id/versions/:v` (drafts: editor)  | spec                                         | viewer   |
