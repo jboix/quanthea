@@ -66,6 +66,7 @@ function shotsOf(made: Scenario): Shot[] {
     { name: 'connectors', path: '/connectors' },
     { name: 'connector', path: '/connectors/postgres-orders' },
     { name: 'settings-model', path: '/settings/model' },
+    { name: 'settings-model-identity', path: '/settings/model', before: identityProviderShown },
     { name: 'settings-usage', path: '/settings/usage?by=feature' },
     { name: 'settings-users', path: '/settings/users' },
     { name: 'settings-auth', path: '/settings/auth' },
@@ -97,6 +98,32 @@ async function askOpened(page: Page): Promise<void> {
   await click(/^Ask about this$/)(page);
   await page.getByText('What happened around 14:00?').first().click();
   await page.waitForTimeout(1500);
+}
+
+/**
+ * Selects the provider reached through Entra ID and scrolls to its card.
+ *
+ * @param page - The page.
+ */
+async function identityProviderShown(page: Page): Promise<void> {
+  // model.yaml manages the instance, so the page disables its form, the provider list included.
+  const form = await page.locator('fieldset[disabled]').first().elementHandle();
+  if (!form) throw new Error('The model settings are not managed by a file.');
+  await form.evaluate((element: HTMLFieldSetElement) => {
+    element.disabled = false;
+  });
+  await page.getByRole('button', { name: /^Azure OpenAI/ }).click();
+  await form.evaluate((element: HTMLFieldSetElement) => {
+    element.disabled = true;
+  });
+  await page.waitForTimeout(800);
+  // The provider card from its API to the test fills the window. The model fields below fail to
+  // list the fake tenant's models, so they stay out of it.
+  await page
+    .getByText('API it speaks', { exact: true })
+    .first()
+    .evaluate((element) => element.scrollIntoView({ block: 'start' }));
+  await page.waitForTimeout(1000);
 }
 
 /** Who signs in to take the shots. */

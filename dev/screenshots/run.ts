@@ -70,6 +70,7 @@ function startServer(provider: Provider) {
       QUANTHEA_PORT: new URL(baseUrl).port,
       QUANTHEA_SHOTS_PASSWORD: password,
       QUANTHEA_SHOTS_DB_PASSWORD: 'dash-ro-dev',
+      QUANTHEA_SHOTS_CLIENT_SECRET: 'screenshots-only-0000',
     },
   });
 }

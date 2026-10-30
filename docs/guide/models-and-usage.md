@@ -8,8 +8,8 @@ Both screens are for admins.
 
 ## Providers
 
-![Settings → Model: a provider with its key and the model for each job, the limits and the behaviour switches](../screenshots/settings-model-light.webp#gh-light-mode-only)
-![Settings → Model: a provider with its key and the model for each job, the limits and the behaviour switches](../screenshots/settings-model-dark.webp#gh-dark-mode-only)
+![Settings → Model: two providers, one with an API key and one through Entra ID, the provider being edited, and the limits](../screenshots/settings-model-light.webp#gh-light-mode-only)
+![Settings → Model: two providers, one with an API key and one through Entra ID, the provider being edited, and the limits](../screenshots/settings-model-dark.webp#gh-dark-mode-only)
 
 Add a provider and pick its vendor:
 
@@ -29,6 +29,9 @@ Give each provider a name people recognise ("Mistral free", "Claude for builds")
 show it. The providers list says how each one connects, and which still needs a key or secret.
 
 ### Connect through an identity provider
+
+![Settings → Model: a provider reached through Entra ID, with its issuer, client, scope, and where the token goes](../screenshots/settings-model-identity-light.webp#gh-light-mode-only)
+![Settings → Model: a provider reached through Entra ID, with its issuer, client, scope, and where the token goes](../screenshots/settings-model-identity-dark.webp#gh-dark-mode-only)
 
 Register quanthea as an app (a client) in your identity provider and give it access to the
 gateway. Then, on the provider:

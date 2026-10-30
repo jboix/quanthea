@@ -23,3 +23,21 @@ model:
         metadata: gemini-3.5-flash-lite
         answer: gemini-3.5-flash-lite
       apiKey: ${GEMINI_API_KEY}
+    # Shown, never used: the identity provider shot selects it. Its tenant does not exist, so
+    # Entra ID gives no token and the model fields list the vendor's known models.
+    - id: azure-openai
+      name: Azure OpenAI
+      provider: openai-compatible
+      baseUrl: https://contoso-ai.openai.azure.com/openai/v1
+      models:
+        plan: gpt-5-mini
+        build: gpt-5.2
+        repair: ''
+        metadata: gpt-5-mini
+        answer: gpt-5-mini
+      auth:
+        type: oauth-client-credentials
+        issuer: https://login.microsoftonline.com/7d3c1a52-9e4b-4f0e-8a61-2c5b9d0e4f17/v2.0
+        clientId: b2e8f4c1-6a3d-4e9f-9c07-5d1a8e2b3f60
+        scope: https://cognitiveservices.azure.com/.default
+      clientSecret: ${QUANTHEA_SHOTS_CLIENT_SECRET}
