@@ -1,17 +1,18 @@
 /**
  * The model settings form state: the gateway as edited, the provider being edited, and the keys
- * typed for providers. The cards read one provider at a time as flat settings, so a field's path
+ * or client secrets typed for providers. The cards read one provider at a time as flat settings, so a field's path
  * is the same whichever provider is selected.
  */
 import {
   type ModelGateway,
   type ModelProvider,
   type ModelSettings,
+  type ProviderAuth,
   type ProviderConfig,
   providerProfiles,
   settingsFor,
 } from '@quanthea/shared';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 /**
  * Sets a value at a dotted path of an object, returning a new object.
@@ -62,7 +63,41 @@ function switchVendor(
     return { ...current, provider, baseUrl: saved.baseUrl, models: saved.models };
   }
   const profile = providerProfiles[provider];
-  return { ...current, provider, baseUrl: profile.baseUrl, models: { ...profile.defaults } };
+  // Through an identity provider the base URL is the gateway's, whichever API it speaks.
+  const baseUrl = current.auth.type === 'api-key' ? profile.baseUrl : current.baseUrl;
+  return { ...current, provider, baseUrl, models: { ...profile.defaults } };
+}
+
+/** A provider reached through an identity provider, before its fields are filled in. */
+const newIdentity: ProviderAuth = {
+  type: 'oauth-client-credentials',
+  issuer: null,
+  tokenUrl: null,
+  clientId: '',
+  scope: '',
+  audience: '',
+};
+
+/**
+ * Switches how a provider is reached: back to its saved setup, or to an empty one. Through an
+ * identity provider the vendor's own API is cleared, since it takes keys only; with a key an empty
+ * base URL goes back to the vendor's own API.
+ *
+ * @param current - The provider as edited.
+ * @param saved - The provider as saved, if it was.
+ * @param type - How it is reached.
+ * @returns The provider.
+ */
+function switchConnection(
+  current: ProviderConfig,
+  saved: ProviderConfig | undefined,
+  type: ProviderAuth['type'],
+): ProviderConfig {
+  const fresh: ProviderAuth = type === 'api-key' ? { type } : newIdentity;
+  const auth = saved?.auth.type === type ? saved.auth : fresh;
+  const own = providerProfiles[current.provider].baseUrl;
+  if (type === 'api-key') return { ...current, auth, baseUrl: current.baseUrl ?? own };
+  return { ...current, auth, baseUrl: current.baseUrl === own ? null : current.baseUrl };
 }
 
 /**
@@ -132,8 +167,8 @@ function providerActions(
 }
 
 /**
- * The setters of the provider being edited: its fields, its name and its vendor, and the shared
- * limits and behaviour.
+ * The setters of the provider being edited: its fields, its name, its vendor and how it is
+ * reached, and the shared limits and behaviour.
  *
  * @param id - The provider being edited.
  * @param saved - The saved gateway, to switch back to a saved vendor.
@@ -159,6 +194,26 @@ function providerSetters(
     rename: (name: string) => setProvider((config) => ({ ...config, name })),
     chooseProvider: (provider: ModelProvider) =>
       setProvider((config) => switchVendor(config, savedConfig, provider)),
+    chooseConnection: (type: ProviderAuth['type']) =>
+      setProvider((config) => switchConnection(config, savedConfig, type)),
+  };
+}
+
+/**
+ * The keys and client secrets typed but not saved yet, by provider.
+ *
+ * @param id - The provider being edited.
+ * @returns Its typed secret, the setter, every typed secret, and a way to clear them all.
+ */
+function useTypedKeys(id: string) {
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const clearKeys = useCallback(() => setApiKeys({}), []);
+  return {
+    clearKeys,
+    apiKey: apiKeys[id],
+    setApiKey: (value: string | undefined) =>
+      setApiKeys(({ [id]: _old, ...others }) => (value ? { ...others, [id]: value } : others)),
+    apiKeys,
   };
 }
 
@@ -173,21 +228,36 @@ export function useModelSettingsForm(stored: ModelGateway) {
   const saved = withProviderUrls(stored);
   const [gateway, setGateway] = useState(saved);
   const [selectedId, select] = useState(saved.defaultProviderId);
-  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const selected =
     gateway.providers.find((config) => config.id === selectedId) ?? gateway.providers[0];
   const id = selected?.id ?? '';
+  const keys = useTypedKeys(id);
+  const setters = providerSetters(id, saved, setGateway);
   return {
     gateway,
     selected,
     select,
     settings: settingsFor(gateway, id) as ModelSettings,
-    ...providerSetters(id, saved, setGateway),
-    apiKey: apiKeys[id],
-    setApiKey: (value: string | undefined) =>
-      setApiKeys(({ [id]: _old, ...others }) => (value ? { ...others, [id]: value } : others)),
-    apiKeys,
+    ...setters,
+    // A key typed for one way in is no secret for the other.
+    chooseConnection: (type: ProviderAuth['type']) => {
+      setters.chooseConnection(type);
+      keys.setApiKey(undefined);
+    },
+    ...keys,
     ...providerActions(gateway, id, setGateway, select),
-    dirty: Object.keys(apiKeys).length > 0 || JSON.stringify(gateway) !== JSON.stringify(saved),
+    dirty:
+      Object.keys(keys.apiKeys).length > 0 || JSON.stringify(gateway) !== JSON.stringify(saved),
   };
+}
+
+/** The form state {@link useModelSettingsForm} returns. */
+export type Form = ReturnType<typeof useModelSettingsForm>;
+
+/** Props of the sections of the form. */
+export interface SectionProps {
+  /** The form state. */
+  readonly form: Form;
+  /** The server's issues by settings path. */
+  readonly issues: Readonly<Record<string, string>>;
 }

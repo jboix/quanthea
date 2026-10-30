@@ -20,17 +20,6 @@
   align-items: start;
 }
 
-.name {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.name > div:first-child {
-  align-self: stretch;
-}
-
 .keyRow {
   display: flex;
   align-items: flex-end;
@@ -65,8 +54,13 @@
   color: var(--color-draft);
 }
 
-.testLine {
+.testLines {
+  display: flex;
+  flex-direction: column;
   flex-grow: 1;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .job {
@@ -195,4 +189,72 @@
   background: var(--color-ok-soft);
   font-size: 12px;
   color: var(--color-ok-ink);
+}
+
+.connection,
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.groupLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink-label);
+}
+
+.presetsLabel {
+  align-self: center;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+.tokenPath {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+  font-size: 13px;
+}
+
+.pathOwn {
+  font-weight: 600;
+}
+
+.pathStep {
+  color: var(--color-ink-secondary);
+}
+
+.pathHost {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.connectChip {
+  padding: 3px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  font-size: 12px;
+  color: var(--color-ink-label);
+  white-space: nowrap;
+}
+
+.connectChip[data-tone="token"] {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-hover);
+}
+
+.connectChip[data-tone="missing"] {
+  border-color: var(--color-draft-border);
+  background: var(--color-draft-soft);
+  color: var(--color-draft);
 }

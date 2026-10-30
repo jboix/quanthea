@@ -6,6 +6,7 @@ import {
   type ModelProvider,
   type ModelSettingsView,
   type modelTestSchema,
+  type ProviderAuth,
   saveModelSettingsEndpoint,
   testModelSettingsEndpoint,
 } from '@quanthea/shared';
@@ -30,6 +31,7 @@ export type ModelSettingsIntent =
       readonly baseUrl: string | null;
       readonly apiKey?: string;
       readonly providerId?: string;
+      readonly auth?: ProviderAuth;
     };
 
 /** What the action returns. */

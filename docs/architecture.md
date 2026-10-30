@@ -4745,13 +4745,17 @@ browser, so it uses the client credentials grant, not PKCE.
   the key header the SDK sets, so the agent loop and the gateway's limits stay as they are.
 - The connection test reports the token step first (the issuer's host and how long the token is
   valid, or the identity provider's reason), then the model. Errors never hold the secret.
+- In **Settings → Model**, **Connect with** chooses the API key or the identity provider. **Fill
+  in for** writes the issuer's shape for Entra ID, Okta or Keycloak. The providers list shows how
+  each provider connects, and which still needs a key or client secret. A stored secret shows only
+  while the provider is reached as it was saved.
 
 A thread runs on the provider it was started with (`POST /api/threads` with `providerId`), or on
 the default when it named none or its provider was removed. Editors see the providers' names and
 build models, never their keys (`GET /api/model-providers`). The usage ledger records the
 provider's name, so two setups of the same vendor stay apart, and the vendor its base URL reaches.
 While a provider's name is empty or one quanthea gave (a vendor's name, or `Provider 2` for a new
-one), the Name field proposes the vendor its base URL reaches; the admin applies it with one click
+one), the Name field's placeholder proposes the vendor its base URL reaches
 (`suggestedProviderName`).
 
 | Variable                      | Default         | Purpose                                                             |

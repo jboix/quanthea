@@ -1,4 +1,10 @@
-import { defaultModelSettings, type ModelSettingsView } from '@quanthea/shared';
+import {
+  defaultModelSettings,
+  type ModelSettingsView,
+  type ProviderAuth,
+  type ProviderConfig,
+} from '@quanthea/shared';
+import { useEffect } from 'react';
 import { Link, type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Card } from '../../ui/card.tsx';
@@ -8,8 +14,8 @@ import { Switch } from '../../ui/switch.tsx';
 import type { ModelSettingsIntent, ModelSettingsOutcome } from './data.ts';
 import { ModelPicker, useModelList } from './model-picker.tsx';
 import styles from './model-settings.module.css';
-import { useModelSettingsForm } from './model-settings-form.ts';
-import { type Form, ProviderCard, type SectionProps } from './provider-card.tsx';
+import { type Form, type SectionProps, useModelSettingsForm } from './model-settings-form.ts';
+import { ProviderCard } from './provider-card.tsx';
 import { ProvidersCard } from './providers-card.tsx';
 
 /** The jobs, in the order the card lists them. */
@@ -29,7 +35,8 @@ const jobs = [
  */
 function JobsCard({ form, issues }: SectionProps) {
   const { provider, baseUrl } = form.settings;
-  const list = useModelList(provider, baseUrl, form.apiKey, form.selected?.id ?? '');
+  const auth = form.selected?.auth ?? { type: 'api-key' };
+  const list = useModelList(provider, baseUrl, form.apiKey, form.selected?.id ?? '', auth);
   return (
     <Card
       title="Model for each job"
@@ -181,11 +188,18 @@ function UsageCard({ usage }: { readonly usage: ModelSettingsView['usage'] }) {
  * Saves the form through the route action.
  *
  * @param form - The form state.
- * @returns The save function, whether a save runs, and the outcome's message and issues.
+ * @returns The save function, whether a save runs, and the outcome's message and issues. A
+ *   successful save clears the typed secrets.
  */
 function useSave(form: Form) {
   const fetcher = useFetcher<ModelSettingsOutcome>();
   const outcome = fetcher.data?.intent === 'save' && !fetcher.data.ok ? fetcher.data : undefined;
+  const saved = fetcher.data?.intent === 'save' && fetcher.data.ok ? fetcher.data : undefined;
+  const { clearKeys } = form;
+  // A saved secret may mask like the one before, so the form is not always reset by the new view.
+  useEffect(() => {
+    if (saved) clearKeys();
+  }, [saved, clearKeys]);
   const save = () => {
     const intent: ModelSettingsIntent = {
       intent: 'save',
@@ -218,6 +232,31 @@ function issuesUnder(issues: Readonly<Record<string, string>>, prefix: string) {
 }
 
 /**
+ * Where a provider's secret goes: nowhere but the model for a key, or the identity provider and
+ * client it names. A stored secret shows only while this stays as saved.
+ *
+ * @param auth - How the provider is reached, if known.
+ * @returns The destination, in one spelling.
+ */
+function secretDestinationOf(auth: ProviderAuth | undefined): string {
+  if (auth?.type !== 'oauth-client-credentials') return 'api-key';
+  return JSON.stringify([auth.issuer, auth.tokenUrl, auth.clientId]);
+}
+
+/**
+ * The stored secret of the provider being edited, masked: only while it is reached as it was saved.
+ *
+ * @param view - The saved settings and the masked secrets.
+ * @param selected - The provider as edited.
+ * @returns The masked secret, or `null`.
+ */
+function storedSecretOf(view: ModelSettingsView, selected: ProviderConfig | undefined) {
+  const saved = view.gateway.providers.find((config) => config.id === selected?.id);
+  if (secretDestinationOf(saved?.auth) !== secretDestinationOf(selected?.auth)) return null;
+  return view.keys[selected?.id ?? ''] ?? null;
+}
+
+/**
  * The form, reset whenever the saved settings change.
  *
  * @param props - The saved view.
@@ -235,7 +274,7 @@ function ModelSettingsForm({ view }: { readonly view: ModelSettingsView }) {
         <ProvidersCard form={form} keys={view.keys} />
         <ProviderCard
           form={form}
-          stored={view.keys[form.selected?.id ?? ''] ?? null}
+          stored={storedSecretOf(view, form.selected)}
           issues={providerIssues}
         />
         <JobsCard form={form} issues={providerIssues} />
@@ -251,8 +290,9 @@ function ModelSettingsForm({ view }: { readonly view: ModelSettingsView }) {
         <UsageCard usage={view.usage} />
         <LimitsCard form={form} issues={issues} />
         <p className={styles.note}>
-          Keys are stored on this machine only and sent to the provider or base URL above, nowhere
-          else.
+          Keys and client secrets are stored on this machine only. A key goes to its provider's base
+          URL, a client secret to its identity provider, nowhere else. Tokens stay in memory and are
+          renewed before they expire.
         </p>
       </aside>
     </div>
@@ -269,7 +309,7 @@ export function ModelSettingsScreen() {
   return (
     <Page
       title="Model"
-      subtitle="Bring your own key or point at your own gateway. Pinned dashboards never use it."
+      subtitle="Connect with a key or through your identity provider. Pinned dashboards never use it."
     >
       <ModelSettingsForm key={JSON.stringify([view.gateway, view.keys])} view={view} />
     </Page>

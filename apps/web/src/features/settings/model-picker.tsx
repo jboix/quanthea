@@ -1,4 +1,10 @@
-import { type KnownModel, type ModelProvider, providerProfiles } from '@quanthea/shared';
+import {
+  type KnownModel,
+  type ModelProvider,
+  type ProviderAuth,
+  providerAuthSchema,
+  providerProfiles,
+} from '@quanthea/shared';
 import { useEffect } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
 import { Combobox } from '../../ui/combobox.tsx';
@@ -17,13 +23,14 @@ export interface ModelList {
 }
 
 /**
- * Loads the models of the provider being edited, again whenever the provider, the base URL or a
- * typed key changes, after a short pause.
+ * Loads the models of the provider being edited, again whenever the provider, the base URL, how
+ * it is reached or a typed secret changes, after a short pause.
  *
  * @param provider - The provider.
  * @param baseUrl - The base URL, or `null`.
- * @param apiKey - A key typed but not saved yet, if any.
- * @param providerId - The saved provider being edited, whose stored key may be used.
+ * @param apiKey - A key or client secret typed but not saved yet, if any.
+ * @param providerId - The saved provider being edited, whose stored secret may be used.
+ * @param auth - How the provider is reached.
  * @returns The list.
  */
 export function useModelList(
@@ -31,15 +38,20 @@ export function useModelList(
   baseUrl: string | null,
   apiKey: string | undefined,
   providerId: string,
+  auth: ProviderAuth,
 ): ModelList {
   const fetcher = useFetcher<ModelSettingsOutcome>();
   const { submit } = fetcher;
+  const authText = JSON.stringify(auth);
   useEffect(() => {
+    // An identity provider half filled in cannot give a token yet.
+    if (!providerAuthSchema.safeParse(JSON.parse(authText)).success) return;
     const intent: ModelSettingsIntent = {
       intent: 'models',
       provider,
       baseUrl,
       providerId,
+      auth: JSON.parse(authText) as ProviderAuth,
       ...(apiKey ? { apiKey } : {}),
     };
     const timer = setTimeout(
@@ -47,7 +59,7 @@ export function useModelList(
       400,
     );
     return () => clearTimeout(timer);
-  }, [submit, provider, baseUrl, apiKey, providerId]);
+  }, [submit, provider, baseUrl, apiKey, providerId, authText]);
   const data = fetcher.data?.intent === 'models' ? fetcher.data : undefined;
   return {
     known: providerProfiles[provider].models,

@@ -18,8 +18,34 @@ Add a provider and pick its vendor:
   OpenRouter, vLLM, or Gemini's OpenAI endpoint. Give its base URL, or pick one of the common
   ones. The Gemini one also fills in Gemini's models for each job.
 
-Paste the API key. quanthea seals it with its secret key and only ever shows it masked. Give each
-provider a name people recognise ("Mistral free", "Claude for builds"): threads and usage show it.
+Then choose how quanthea connects, under **Connect with**:
+
+- **API key**: paste the key. quanthea seals it with its secret key and only ever shows it masked.
+- **Identity provider**: for a company that bans long-lived keys and puts its models behind a
+  gateway that takes its own sign-in tokens, such as Azure OpenAI with Entra ID, or LiteLLM or
+  Kong behind Okta or Keycloak. See below.
+
+Give each provider a name people recognise ("Mistral free", "Claude for builds"): threads and usage
+show it. The providers list says how each one connects, and which still needs a key or secret.
+
+### Connect through an identity provider
+
+Register quanthea as an app (a client) in your identity provider and give it access to the
+gateway. Then, on the provider:
+
+1. Set **Base URL** to your gateway. The vendors' own APIs take keys only.
+2. Choose **Identity provider**. **Fill in for** Entra ID, Okta or Keycloak writes the issuer's
+   shape; replace the words in capitals with your own.
+3. Give the **Client ID** and the **Client secret**, and the **Scope** or **Audience** your gateway
+   expects. For Azure OpenAI the scope is `https://cognitiveservices.azure.com/.default`.
+4. Save, then **Test**.
+
+quanthea finds the token URL from the issuer's discovery document. For an issuer without one,
+choose **Give a token URL instead**. It asks for a token, keeps it in memory only, and renews it
+before it expires. The client secret is sealed like a key and goes to the identity provider only.
+
+The test checks the token first, then the model, and says which step failed: a refused client
+secret, or a gateway that refuses the token, usually because of the scope or audience.
 
 With several providers, one is the **default**. Editors pick another when they start a thread,
 and a thread keeps its provider. Editors see the providers' names and models, never their keys.
