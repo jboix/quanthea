@@ -10,10 +10,17 @@ import {
   testModelSettingsEndpoint,
 } from '@quanthea/shared';
 import type { Hono } from 'hono';
+import type { z } from 'zod';
 import { testModelConnection } from '../../agent/connection-test.ts';
-import { listModels } from '../../agent/model-catalog.ts';
+import { type CatalogRequest, listModels } from '../../agent/model-catalog.ts';
 import type { Managed } from '../../provisioning/managed.ts';
 import type { ModelSettingsService } from '../../settings/model-settings.ts';
+import {
+  bearerFetch,
+  clientCredentialsOf,
+  modelTokens,
+  TokenError,
+} from '../../settings/model-token.ts';
 import { storedKeyApplies } from '../../settings/provider-destination.ts';
 import type { AppEnv } from '../app-env.ts';
 import { mountEndpoint } from '../endpoint.ts';
@@ -49,6 +56,35 @@ function mountGatewayRoutes(
   });
 }
 
+/** A listing request, as the settings form sends it. */
+type ListingBody = z.output<typeof listModelsEndpoint.body>;
+
+/**
+ * Lists the models with a key, or through an identity provider with a token.
+ *
+ * @param body - The listing request.
+ * @param secret - The key or client secret: the typed one, or the stored one when it applies.
+ * @returns The models, or why they could not be listed.
+ */
+async function catalogOf(body: ListingBody, secret: string | null) {
+  const request: CatalogRequest = {
+    provider: body.provider,
+    baseUrl: body.baseUrl,
+    apiKey: secret,
+  };
+  if (body.auth?.type !== 'oauth-client-credentials') return listModels(request);
+  const credentials = clientCredentialsOf(body.auth, secret);
+  if (credentials === null)
+    return { ok: false as const, message: 'Enter the client secret to list the models.' };
+  try {
+    await modelTokens.token(credentials);
+  } catch (error) {
+    if (error instanceof TokenError) return { ok: false as const, message: error.message };
+    throw error;
+  }
+  return listModels({ ...request, apiKey: 'token' }, bearerFetch(modelTokens, credentials));
+}
+
 /**
  * Mounts the endpoint that lists a vendor's models, for the settings form.
  *
@@ -60,13 +96,10 @@ function mountModelListRoute(app: Hono<AppEnv>, modelSettings: ModelSettingsServ
     access: 'admin',
     handle: async ({ body }) => {
       const saved = await modelSettings.resolve(body.providerId);
-      // A stored key only goes to the provider, vendor and base URL it was saved for.
-      const same = storedKeyApplies(body, { ...saved.settings, providerId: saved.providerId });
-      const catalog = await listModels({
-        provider: body.provider,
-        baseUrl: body.baseUrl,
-        apiKey: body.apiKey ?? (same ? saved.apiKey : null),
-      });
+      // A stored secret only goes where it was saved for: the vendor, base URL and identity provider.
+      const target = { ...saved.settings, auth: saved.auth, providerId: saved.providerId };
+      const same = storedKeyApplies(body, target);
+      const catalog = await catalogOf(body, body.apiKey ?? (same ? saved.apiKey : null));
       return catalog.ok
         ? { models: [...catalog.models], message: null }
         : { models: [], message: catalog.message };

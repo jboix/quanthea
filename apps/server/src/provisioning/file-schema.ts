@@ -61,11 +61,23 @@ const pluginsSection = z
   })
   .describe('Connector plugins, read at startup.');
 
-/** The `model` section, with an API key reference per provider; limits and behaviour default. */
+/**
+ * The `model` section, with an API key or client secret reference per provider; limits and
+ * behaviour default.
+ */
 const modelSection = z
   .object({
     ...modelGatewaySchema.shape,
-    providers: z.array(providerConfigSchema.and(z.object({ apiKey: secretReference.optional() }))),
+    providers: z.array(
+      providerConfigSchema.and(
+        z.object({
+          apiKey: secretReference.optional(),
+          clientSecret: secretReference
+            .optional()
+            .describe('The client secret of the identity provider, for oauth-client-credentials.'),
+        }),
+      ),
+    ),
     limits: modelGatewaySchema.shape.limits.optional(),
     behaviour: modelGatewaySchema.shape.behaviour.optional(),
   })

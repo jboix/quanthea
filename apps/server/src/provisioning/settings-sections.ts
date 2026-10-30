@@ -1,7 +1,7 @@
 /**
  * Settings sections in the configuration file: `model`, `retention`, `charts`, `queries` and
  * `alerts`, each with the API's fields. A section is managed as a whole. The model gateway's API
- * keys are secrets:
+ * keys and client secrets are secrets:
  *
  * ```yaml
  * model:
@@ -10,6 +10,12 @@
  *     - { id: anthropic, name: Anthropic, provider: anthropic, baseUrl: null,
  *         models: { build: claude-sonnet-5, plan: '', repair: '', metadata: '' },
  *         apiKey: "${ANTHROPIC_API_KEY}" }
+ *     - { id: azure, name: Azure OpenAI, provider: openai-compatible,
+ *         baseUrl: https://contoso.openai.azure.com/openai/v1, models: { build: gpt-5 },
+ *         auth: { type: oauth-client-credentials, clientId: b2e6…,
+ *                 issuer: https://login.microsoftonline.com/<tenant>/v2.0,
+ *                 scope: https://cognitiveservices.azure.com/.default },
+ *         clientSecret: "${ENTRA_CLIENT_SECRET}" }
  * ```
  */
 import {
@@ -68,23 +74,43 @@ export interface SettingsServices {
 }
 
 /**
- * The model gateway's API keys, taken out of its providers.
+ * The secret of one provider as the file gives it: its API key, or the client secret of its
+ * identity provider.
+ *
+ * @param written - The provider as written, before interpolation.
+ * @param declared - The provider, interpolated.
+ * @param index - Its place in the list.
+ * @param issues - Collects what is wrong.
+ * @returns The secret, if the file gives one.
+ */
+function providerSecret(
+  written: Record<string, unknown> | undefined,
+  declared: Record<string, unknown>,
+  index: number,
+  issues: string[],
+): string | undefined {
+  const field = declared.clientSecret === undefined ? 'apiKey' : 'clientSecret';
+  const value = declared[field];
+  if (value === undefined) return undefined;
+  return secretValue(written?.[field], value, `model.providers.${index}.${field}`, issues);
+}
+
+/**
+ * The model gateway's API keys and client secrets, taken out of its providers.
  *
  * @param file - The configuration file.
  * @param declared - The model section, interpolated.
  * @param issues - Collects what is wrong.
- * @returns The section without keys, and the keys by provider id.
+ * @returns The section without secrets, and the secrets by provider id.
  */
 function modelKeys(file: ConfigFile, declared: Record<string, unknown>, issues: string[]) {
   const written = (file.raw.model?.providers ?? []) as Record<string, unknown>[];
   const providers = Array.isArray(declared.providers) ? declared.providers : [];
   const apiKeys: Record<string, string> = {};
   const stripped = providers.map((each: Record<string, unknown>, index: number) => {
-    const { apiKey, ...rest } = each;
-    const where = `model.providers.${index}.apiKey`;
-    const key =
-      apiKey === undefined ? undefined : secretValue(written[index]?.apiKey, apiKey, where, issues);
-    if (key !== undefined) apiKeys[String(rest.id)] = key;
+    const { apiKey: _key, clientSecret: _secret, ...rest } = each;
+    const secret = providerSecret(written[index], each, index, issues);
+    if (secret !== undefined) apiKeys[String(rest.id)] = secret;
     return rest;
   });
   const { limits, behaviour } = defaultModelSettings;

@@ -1,6 +1,6 @@
 /** Model gateway endpoints: read and save the settings, and test the connection. Admin only. */
 import { z } from 'zod';
-import { modelGatewaySchema, modelProviders } from '../model-settings.ts';
+import { modelGatewaySchema, modelProviders, providerAuthSchema } from '../model-settings.ts';
 import { defineEndpoint } from './contract.ts';
 
 /** Validates the settings as the API returns them: each provider's key masked, if one is stored. */
@@ -28,6 +28,18 @@ export const modelTestSchema = z.object({
   structuredOutput: z.boolean(),
   /** What went wrong, or the model's name, in words. */
   message: z.string(),
+  /** The token step, for a provider reached through an identity provider. */
+  token: z
+    .object({
+      ok: z.boolean(),
+      /** The host that issued the token, such as `login.microsoftonline.com`. */
+      issuerHost: z.string().nullable(),
+      /** How long the token stays valid. */
+      expiresInSeconds: z.number().nullable(),
+      /** Why no token could be had; empty when one was. */
+      message: z.string(),
+    })
+    .optional(),
 });
 
 /** Reads the model settings. */
@@ -70,7 +82,10 @@ export const listModelsEndpoint = defineEndpoint({
       .url({ protocol: /^https?$/, error: 'Use an http or https URL.' })
       .max(500)
       .nullable(),
+    /** The key, or the client secret of an identity provider. */
     apiKey: z.string().min(1).max(2000).optional(),
+    /** How the provider is reached; absent means with the key. */
+    auth: providerAuthSchema.optional(),
     /** The saved provider being edited, whose stored key may be used. */
     providerId: z.string().max(40).optional(),
   }),

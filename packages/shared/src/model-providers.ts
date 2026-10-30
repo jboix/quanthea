@@ -1,8 +1,17 @@
 /**
- * What quanthea knows about each provider before asking it: its API, the models worth offering by
- * name, and the model each job starts with. The provider's own model listing adds to these.
+ * The providers the gateway speaks to, and what quanthea knows about each before asking it: its
+ * API, the models worth offering by name, and the model each job starts with. The provider's own
+ * model listing adds to these.
  */
-import type { ModelProvider } from './model-settings.ts';
+
+/**
+ * The providers the gateway speaks to. OpenAI-compatible covers LiteLLM, Ollama, vLLM, Gemini's
+ * OpenAI endpoint and more.
+ */
+export const modelProviders = ['anthropic', 'openai', 'mistral', 'openai-compatible'] as const;
+
+/** A provider. */
+export type ModelProvider = (typeof modelProviders)[number];
 
 /** A model offered by name. */
 export interface KnownModel {

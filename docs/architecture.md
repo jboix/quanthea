@@ -4725,6 +4725,27 @@ through `settings/gateway-fetch.ts`. It follows the connectors' outbound policy:
 only, never a cloud metadata address (by the host or by what a name resolves to), and no redirect
 followed.
 
+A provider is reached with its API key (`auth: { type: api-key }`, the default) or through the
+company's identity provider (`auth: { type: oauth-client-credentials }`). Companies that ban
+long-lived keys put their models behind a gateway that takes short-lived tokens: Azure OpenAI with
+Entra ID, or LiteLLM, Kong, Apigee or APIM behind Okta or Keycloak. A server has no person at a
+browser, so it uses the client credentials grant, not PKCE.
+
+- The provider names the `issuer` (or a `tokenUrl` when the issuer has no discovery document), the
+  `clientId`, and the `scope` and `audience` the gateway expects. It must point at a gateway: a
+  vendor's own API takes keys only.
+- The client secret is stored in the provider's key slot, sealed the same way. It follows a saved
+  provider only while its vendor, base URL, issuer, token URL and client stay the same.
+- `settings/model-token.ts` gets tokens with `openid-client`, as sign-in does: discovery, then the
+  client credentials grant, the client sent with HTTP Basic unless the issuer takes only the form.
+  Its requests go through the gateway fetch.
+- A token stays in memory only. It is renewed a minute before it expires (halfway through a shorter
+  life), with one request in flight per provider, and dropped on a 401, which is tried once more.
+- Each model call goes through a fetch that sends the token as `Authorization: Bearer`, in place of
+  the key header the SDK sets, so the agent loop and the gateway's limits stay as they are.
+- The connection test reports the token step first (the issuer's host and how long the token is
+  valid, or the identity provider's reason), then the model. Errors never hold the secret.
+
 A thread runs on the provider it was started with (`POST /api/threads` with `providerId`), or on
 the default when it named none or its provider was removed. Editors see the providers' names and
 build models, never their keys (`GET /api/model-providers`). The usage ledger records the

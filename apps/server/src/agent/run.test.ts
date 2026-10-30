@@ -300,6 +300,7 @@ describe('an agent run', () => {
       provider: 'mistral' as const,
       baseUrl: null,
       models: { plan: '', build: 'mistral-large-latest', repair: '', metadata: '', answer: '' },
+      auth: { type: 'api-key' as const },
     };
     const gateway = {
       ...defaultModelGateway,

@@ -417,10 +417,83 @@
                 "minLength": 1,
                 "maxLength": 60
               },
+              "auth": {
+                "default": {
+                  "type": "api-key"
+                },
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "api-key"
+                      }
+                    },
+                    "required": ["type"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "oauth-client-credentials"
+                      },
+                      "issuer": {
+                        "default": null,
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 500,
+                            "format": "uri"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tokenUrl": {
+                        "default": null,
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 500,
+                            "format": "uri"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "clientId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "scope": {
+                        "default": "",
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      "audience": {
+                        "default": "",
+                        "type": "string",
+                        "maxLength": 500
+                      }
+                    },
+                    "required": ["type", "clientId"]
+                  }
+                ]
+              },
               "apiKey": {
                 "type": "string",
                 "pattern": "^(\\$\\{[A-Za-z_][A-Za-z0-9_]*\\}|file:.+)$",
                 "description": "An environment variable in braces after a dollar sign, or file:/path. Never the secret."
+              },
+              "clientSecret": {
+                "description": "The client secret of the identity provider, for oauth-client-credentials.",
+                "type": "string",
+                "pattern": "^(\\$\\{[A-Za-z_][A-Za-z0-9_]*\\}|file:.+)$"
               }
             },
             "required": ["provider", "baseUrl", "models", "id", "name"]

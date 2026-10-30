@@ -245,6 +245,17 @@ model:
       baseUrl: http://ollama:11434/v1
       models: { plan: '', build: qwen3-coder, repair: '', metadata: '', answer: '' }
       apiKey: ${OLLAMA_API_KEY}
+    - id: azure
+      name: Azure OpenAI
+      provider: openai-compatible
+      baseUrl: https://contoso-ai.openai.azure.com/openai/v1
+      models: { plan: '', build: gpt-5, repair: '', metadata: '', answer: '' }
+      auth:
+        type: oauth-client-credentials
+        issuer: https://login.microsoftonline.com/<tenant id>/v2.0
+        clientId: b2e64a1c-9f3d-4c55-8a0e-2f6f7c1d9e10
+        scope: https://cognitiveservices.azure.com/.default
+      clientSecret: ${ENTRA_CLIENT_SECRET}
   limits:
     threadTokens: 1000000
     toolCallsPerTurn: 25
@@ -258,6 +269,12 @@ model:
 
 - `provider` is `anthropic`, `openai`, `mistral` or `openai-compatible`. `baseUrl` is `null` for
   a vendor's own API.
+- `auth` is `{ type: api-key }` when left out: the provider takes `apiKey`.
+- With `auth: { type: oauth-client-credentials }`, quanthea asks the identity provider for a
+  short-lived token and sends it to the gateway in place of a key. Give `issuer`, or `tokenUrl` for
+  an issuer without a discovery document, `clientId`, and the `scope` or `audience` the gateway
+  expects. The secret goes in `clientSecret`. `baseUrl` must be the gateway: a vendor's own API
+  takes keys only.
 - Each job's model may be empty: it then uses the build model.
 - `limits` and `behaviour` take their defaults when left out.
 

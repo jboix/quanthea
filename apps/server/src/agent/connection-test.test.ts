@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { defaultModelSettings } from '@quanthea/shared';
+import { TokenError, type TokenSource } from '../settings/model-token.ts';
 import { testModelConnection } from './connection-test.ts';
 import { languageModel, ModelUnavailableError, modelIdFor } from './model.ts';
 import { scriptedModel } from './test/mock-model.ts';
@@ -54,5 +55,40 @@ describe('languageModel', () => {
   test('uses the build model when a job has none of its own', () => {
     expect(modelIdFor(defaultModelSettings, 'repair')).toBe('claude-sonnet-5');
     expect(modelIdFor(defaultModelSettings, 'metadata')).toBe('claude-haiku-4-5');
+  });
+
+  test('reports the token step of a provider reached through an identity provider', async () => {
+    const auth = {
+      type: 'oauth-client-credentials' as const,
+      issuer: null,
+      tokenUrl: 'https://login.example/token',
+      clientId: 'quanthea',
+      scope: '',
+      audience: '',
+    };
+    const refused: TokenSource = {
+      token: () => Promise.reject(new TokenError('The identity provider refused the client.')),
+      forget: () => undefined,
+    };
+    const failed = await testModelConnection({ ...resolved, auth }, languageModel, refused);
+    expect(failed).toMatchObject({
+      ok: false,
+      message: 'The identity provider refused the client.',
+      token: { ok: false, issuerHost: null },
+    });
+    const issued: TokenSource = {
+      token: () =>
+        Promise.resolve({
+          accessToken: 't',
+          expiresAt: Date.now() + 3_600_000,
+          issuerHost: 'login.example',
+        }),
+      forget: () => undefined,
+    };
+    const model = scriptedModel({ tool: 'ping', input: { value: 42 } }, { text: '{"ok":true}' });
+    const passed = await testModelConnection({ ...resolved, auth }, () => model, issued);
+    expect(passed).toMatchObject({ ok: true, token: { ok: true, issuerHost: 'login.example' } });
+    const noSecret = await testModelConnection({ ...resolved, auth, apiKey: null });
+    expect(noSecret).toMatchObject({ ok: false, message: 'Save the client secret first.' });
   });
 });

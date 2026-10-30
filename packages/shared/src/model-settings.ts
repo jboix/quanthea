@@ -3,15 +3,9 @@
  * run, and how the agent behaves. The API key is stored sealed and never returned.
  */
 import { z } from 'zod';
+import { type ModelProvider, modelProviders, providerProfiles } from './model-providers.ts';
 
-/**
- * The providers the gateway speaks to. OpenAI-compatible covers LiteLLM, Ollama, vLLM, Gemini's
- * OpenAI endpoint and more.
- */
-export const modelProviders = ['anthropic', 'openai', 'mistral', 'openai-compatible'] as const;
-
-/** A provider. */
-export type ModelProvider = (typeof modelProviders)[number];
+export { type ModelProvider, modelProviders } from './model-providers.ts';
 
 /** Validates a model id, such as `claude-sonnet-5`. Empty means "same as build". */
 const modelIdSchema = z.string().trim().max(200);
@@ -56,6 +50,37 @@ const modelSettingsFields = z.object({
   }),
 });
 
+/** Validates an http or https URL of an identity provider. */
+const identityUrlSchema = z
+  .url({ protocol: /^https?$/, error: 'Use an http or https URL.' })
+  .max(500)
+  .nullable()
+  .default(null);
+
+/**
+ * How quanthea proves who it is to a provider: the stored API key, or a short-lived token it asks
+ * an identity provider for with a client ID and secret (OAuth client credentials). The client
+ * secret is stored like a key.
+ */
+export const providerAuthSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('api-key') }),
+  z.object({
+    type: z.literal('oauth-client-credentials'),
+    /** The issuer; its discovery document names the token URL. */
+    issuer: identityUrlSchema,
+    /** The token URL, for an issuer without a discovery document. */
+    tokenUrl: identityUrlSchema,
+    clientId: z.string().trim().min(1, 'Enter the client ID.').max(200),
+    /** The scope to ask for, such as `https://cognitiveservices.azure.com/.default`. */
+    scope: z.string().trim().max(500).default(''),
+    /** The audience to ask for, for identity providers that take one. */
+    audience: z.string().trim().max(500).default(''),
+  }),
+]);
+
+/** How a provider is reached: with a key or through an identity provider. */
+export type ProviderAuth = z.infer<typeof providerAuthSchema>;
+
 /** The settings a run uses: one provider with the limits and the behaviour. */
 export type ModelSettings = z.infer<typeof modelSettingsFields>;
 
@@ -86,16 +111,52 @@ const providerFields = modelSettingsFields.pick({
   models: true,
 });
 
+/**
+ * Checks a provider reached through an identity provider: it names where to get a token, and it
+ * points at a gateway, since the vendors' own APIs take keys only.
+ *
+ * @param config - The provider.
+ * @param context - Collects the issues.
+ */
+function checkIdentityProvider(
+  config: { provider: ModelProvider; baseUrl: string | null; auth: ProviderAuth },
+  context: z.RefinementCtx,
+): void {
+  if (config.auth.type !== 'oauth-client-credentials') return;
+  if (config.auth.issuer === null && config.auth.tokenUrl === null)
+    context.addIssue({ code: 'custom', path: ['auth', 'issuer'], message: 'Enter the issuer.' });
+  const own = providerProfiles[config.provider].baseUrl;
+  if (config.baseUrl === null || sameUrl(config.baseUrl, own))
+    context.addIssue({
+      code: 'custom',
+      path: ['baseUrl'],
+      message: 'The vendor’s own API takes keys only. Enter your gateway’s base URL.',
+    });
+}
+
+/**
+ * Whether two URLs are the same, a trailing slash aside.
+ *
+ * @param url - One URL.
+ * @param other - The other, if any.
+ * @returns Whether they match.
+ */
+function sameUrl(url: string, other: string | null): boolean {
+  return other !== null && url.replace(/\/+$/, '') === other.replace(/\/+$/, '');
+}
+
 /** Validates one saved provider: a name, the vendor, where it is, and the model for each job. */
 export const providerConfigSchema = providerFields
   .extend({
     id: providerIdSchema,
     name: z.string().trim().min(1, 'Name the provider.').max(60),
+    auth: providerAuthSchema.default({ type: 'api-key' }),
   })
   .refine((config) => config.provider !== 'openai-compatible' || config.baseUrl !== null, {
     path: ['baseUrl'],
     message: 'An OpenAI-compatible gateway needs its base URL.',
-  });
+  })
+  .superRefine(checkIdentityProvider);
 
 /** One saved provider. */
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
@@ -129,6 +190,7 @@ export const defaultModelGateway: ModelGateway = {
       provider: defaultModelSettings.provider,
       baseUrl: defaultModelSettings.baseUrl,
       models: defaultModelSettings.models,
+      auth: { type: 'api-key' },
     },
   ],
   defaultProviderId: 'anthropic',

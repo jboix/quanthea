@@ -41,6 +41,7 @@ const twoProviders: ModelGateway = {
       provider: 'mistral',
       baseUrl: null,
       models: { plan: '', build: 'mistral-large-latest', repair: '', metadata: '', answer: '' },
+      auth: { type: 'api-key' },
     },
   ],
   defaultProviderId: 'mistral-free',
@@ -69,6 +70,7 @@ describe('model settings', () => {
     expect(await service.resolve()).toEqual({
       settings: defaultModelSettings,
       apiKey: null,
+      auth: { type: 'api-key' },
       providerId: 'anthropic',
       providerName: 'Anthropic',
     });
@@ -121,5 +123,31 @@ describe('model settings', () => {
     });
     await service.save(twoProviders, { 'mistral-free': apiKey }, 'admin-1');
     expect((await service.save(vendor, {}, 'admin-1')).keys['mistral-free']).toBeNull();
+  });
+
+  test('drop a client secret when its identity provider changes', async () => {
+    const { service } = await modelSettings();
+    const auth = {
+      type: 'oauth-client-credentials' as const,
+      issuer: 'https://login.example/tenant',
+      tokenUrl: null,
+      clientId: 'quanthea',
+      scope: 'models',
+      audience: '',
+    };
+    const gateway = withMistral({
+      provider: 'openai-compatible',
+      baseUrl: 'https://gw.test/v1',
+      auth,
+    });
+    await service.save(gateway, { 'mistral-free': 'client-secret' }, 'admin-1');
+    expect(await service.resolve('mistral-free')).toMatchObject({ apiKey: 'client-secret', auth });
+    const rescoped = withMistral({ ...gateway.providers[1], auth: { ...auth, scope: 'other' } });
+    expect((await service.save(rescoped, {}, 'admin-1')).keys['mistral-free']).not.toBeNull();
+    const moved = withMistral({
+      ...gateway.providers[1],
+      auth: { ...auth, issuer: 'https://x.test' },
+    });
+    expect((await service.save(moved, {}, 'admin-1')).keys['mistral-free']).toBeNull();
   });
 });

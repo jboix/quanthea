@@ -32,4 +32,23 @@ describe('storedKeyApplies', () => {
     expect(storedKeyApplies({ ...saved, providerId: 'p2' }, saved)).toBe(false);
     expect(storedKeyApplies({ ...saved, providerId: undefined }, saved)).toBe(false);
   });
+
+  test('lets a client secret follow only the same identity provider and client', () => {
+    const auth = {
+      type: 'oauth-client-credentials',
+      issuer: 'https://login.example/tenant',
+      tokenUrl: null,
+      clientId: 'quanthea',
+      scope: '',
+      audience: '',
+    } as const;
+    const target = { ...saved, auth };
+    expect(storedKeyApplies({ ...target, auth: { ...auth, scope: 'models' } }, target)).toBe(true);
+    const elsewhere = { ...auth, issuer: 'https://attacker.example' };
+    expect(storedKeyApplies({ ...target, auth: elsewhere }, target)).toBe(false);
+    expect(storedKeyApplies({ ...target, auth: { ...auth, clientId: 'other' } }, target)).toBe(
+      false,
+    );
+    expect(storedKeyApplies(saved, target)).toBe(false);
+  });
 });

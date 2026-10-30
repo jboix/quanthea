@@ -250,6 +250,32 @@ describe('provisioning settings sections', () => {
     expect(() => services.managed.refuseChange('settings', 'model')).toThrow('manages this');
   });
 
+  test('saves a provider reached through an identity provider, with its client secret', async () => {
+    const yaml = [
+      'model:',
+      '  defaultProviderId: azure',
+      '  providers:',
+      '    - id: azure',
+      '      name: Azure OpenAI',
+      '      provider: openai-compatible',
+      '      baseUrl: https://contoso.openai.azure.com/openai/v1',
+      '      models: { build: gpt-5, plan: "", repair: "", metadata: "" }',
+      '      auth:',
+      '        type: oauth-client-credentials',
+      '        issuer: https://login.microsoftonline.com/tenant/v2.0',
+      '        clientId: quanthea',
+      '        scope: https://cognitiveservices.azure.com/.default',
+      `      clientSecret: "${reference('ENTRA_SECRET')}"`,
+      '',
+    ].join('\n');
+    await apply(yaml, { ENTRA_SECRET: 'entra-secret-from-env-8a1b' });
+    const resolved = await services.modelSettings.resolve('azure');
+    expect(resolved).toMatchObject({
+      apiKey: 'entra-secret-from-env-8a1b',
+      auth: { type: 'oauth-client-credentials', clientId: 'quanthea', audience: '' },
+    });
+  });
+
   test('refuses a model key in clear, and an invalid section', async () => {
     const clear = apply(model('sk-in-clear-0000'));
     await expect(clear).rejects.toThrow('model.providers.0.apiKey holds a secret in clear');

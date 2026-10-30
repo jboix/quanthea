@@ -7,6 +7,12 @@ import type { ModelSettings } from '@quanthea/shared';
 import { type LanguageModel, wrapLanguageModel } from 'ai';
 import { gatewayFetch } from '../settings/gateway-fetch.ts';
 import type { ResolvedModelSettings } from '../settings/model-settings.ts';
+import {
+  bearerFetch,
+  clientCredentialsOf,
+  modelTokens,
+  type TokenSource,
+} from '../settings/model-token.ts';
 import { quotaMiddleware } from './quota.ts';
 
 /** A job of the model: planning, building, repairing queries, writing titles and tags, or answering. */
@@ -45,6 +51,34 @@ interface Connection {
   readonly apiKey: string | null;
   /** The base URL, if not the provider's own. */
   readonly baseURL: string | undefined;
+  /** Sends the requests: the gateway fetch, or one that adds the provider's token. */
+  readonly fetch: typeof gatewayFetch;
+}
+
+/**
+ * The key the SDKs are given for a provider reached through an identity provider. The bearer
+ * fetch replaces it with the token, so it is never sent.
+ */
+const tokenPlaceholder = 'identity-provider-token';
+
+/**
+ * The connection of a provider: its key and the gateway fetch, or, through an identity provider,
+ * a fetch that sends its token.
+ *
+ * @param resolved - The settings and the opened key or client secret.
+ * @param tokens - The token source.
+ * @returns The connection.
+ * @throws {ModelUnavailableError} When a provider reached through an identity provider has no
+ *   client secret saved.
+ */
+function connectionOf(resolved: ResolvedModelSettings, tokens: TokenSource): Connection {
+  const baseURL = resolved.settings.baseUrl ?? undefined;
+  if (resolved.auth?.type !== 'oauth-client-credentials')
+    return { apiKey: resolved.apiKey, baseURL, fetch: gatewayFetch };
+  const credentials = clientCredentialsOf(resolved.auth, resolved.apiKey);
+  if (credentials === null)
+    throw new ModelUnavailableError('Save the client secret in Settings → Model first.');
+  return { apiKey: tokenPlaceholder, baseURL, fetch: bearerFetch(tokens, credentials) };
 }
 
 /**
@@ -59,7 +93,7 @@ function keyed(connection: Connection) {
     throw new ModelUnavailableError('Save an API key in Settings → Model first.');
   return {
     apiKey: connection.apiKey,
-    fetch: gatewayFetch,
+    fetch: connection.fetch,
     ...(connection.baseURL ? { baseURL: connection.baseURL } : {}),
   };
 }
@@ -74,13 +108,8 @@ const builders: Readonly<
   anthropic: (connection, id) => createAnthropic(keyed(connection))(id),
   openai: (connection, id) => createOpenAI(keyed(connection))(id),
   mistral: (connection, id) => createMistral(keyed(connection))(id),
-  'openai-compatible': ({ apiKey, baseURL }, id) => {
-    const options = {
-      name: 'gateway',
-      baseURL: baseURL ?? '',
-      includeUsage: true,
-      fetch: gatewayFetch,
-    };
+  'openai-compatible': ({ apiKey, baseURL, fetch }, id) => {
+    const options = { name: 'gateway', baseURL: baseURL ?? '', includeUsage: true, fetch };
     return createOpenAICompatible(apiKey ? { ...options, apiKey } : options)(id);
   },
 };
@@ -115,16 +144,23 @@ export function reasoningOption(settings: ModelSettings) {
 /**
  * Builds the model of a job. The key is passed explicitly: the providers' environment fallbacks
  * are never used, so what runs is what the settings say. Every request goes through the gateway
- * fetch, with its outbound checks. A spent daily quota is not retried.
+ * fetch, with its outbound checks; a provider reached through an identity provider sends its
+ * token in place of a key. A spent daily quota is not retried.
  *
- * @param resolved - The settings and the opened key.
+ * @param resolved - The settings and the opened key or client secret.
  * @param job - The job.
+ * @param tokens - The token source; the server's own by default.
  * @returns The model.
- * @throws {ModelUnavailableError} When Anthropic, OpenAI or Mistral has no key saved.
+ * @throws {ModelUnavailableError} When Anthropic, OpenAI or Mistral has no key saved, or a
+ *   provider reached through an identity provider has no client secret.
  */
-export function languageModel(resolved: ResolvedModelSettings, job: ModelJob): LanguageModel {
-  const { settings, apiKey } = resolved;
-  const connection = { apiKey, baseURL: settings.baseUrl ?? undefined };
+export function languageModel(
+  resolved: ResolvedModelSettings,
+  job: ModelJob,
+  tokens: TokenSource = modelTokens,
+): LanguageModel {
+  const { settings } = resolved;
+  const connection = connectionOf(resolved, tokens);
   const model = builders[settings.provider](connection, modelIdFor(settings, job));
   return wrapLanguageModel({ model, middleware: quotaMiddleware });
 }

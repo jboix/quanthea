@@ -82,6 +82,7 @@ function newProvider(gateway: ModelGateway): ProviderConfig {
     provider: 'mistral',
     baseUrl: profile.baseUrl,
     models: { ...profile.defaults },
+    auth: { type: 'api-key' },
   };
 }
 

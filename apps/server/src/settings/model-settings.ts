@@ -6,6 +6,7 @@ import {
   type ModelGateway,
   type ModelSettings,
   type ModelSettingsView,
+  type ProviderAuth,
   providerFor,
   settingsFor,
 } from '@quanthea/shared';
@@ -29,8 +30,13 @@ function ownerOf(providerId: string): string {
 export interface ResolvedModelSettings {
   /** The provider's settings, with the shared limits and behaviour. */
   readonly settings: ModelSettings;
-  /** The provider's API key, or `null` when none is stored. */
+  /**
+   * The provider's stored secret: its API key, or the client secret of its identity provider.
+   * `null` when none is stored.
+   */
   readonly apiKey: string | null;
+  /** How the provider is reached; absent means with the API key. */
+  readonly auth?: ProviderAuth;
   /** The provider's id. */
   readonly providerId: string;
   /** The provider's name. */
@@ -58,8 +64,9 @@ export interface ModelSettingsService {
    */
   view(): Promise<ModelSettingsView>;
   /**
-   * Saves the gateway and any new keys. The keys of removed providers go with them, and so does
-   * the key of a provider whose vendor or base URL changes without a new key.
+   * Saves the gateway and any new keys or client secrets. The keys of removed providers go with
+   * them, and so does the key of a provider whose vendor, base URL or identity provider changes
+   * without a new one.
    *
    * @param gateway - The gateway.
    * @param apiKeys - New keys by provider id.
@@ -150,6 +157,7 @@ function keptKey(
     providerId: provider.id,
     provider: provider.provider,
     baseUrl: provider.baseUrl,
+    auth: provider.auth,
   };
   if (!storedKeyApplies(target, { ...previous, providerId: previous.id })) return undefined;
   return dependencies.store.read('model-keys').sealed[provider.id];
@@ -212,7 +220,8 @@ export function createModelSettings(dependencies: ModelSettingsDependencies): Mo
       const config = providerFor(gateway, providerId);
       const apiKey = await keyOf(dependencies, config.id);
       const settings = settingsFor(gateway, config.id);
-      return { settings, apiKey, providerId: config.id, providerName: config.name };
+      const { id, name, auth } = config;
+      return { settings, apiKey, auth, providerId: id, providerName: name };
     },
     async save(gateway, apiKeys, actor) {
       const keys = await savedKeys(dependencies, gateway, apiKeys);

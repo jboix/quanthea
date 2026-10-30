@@ -37,6 +37,7 @@ const setups: Readonly<Record<EvalProvider, ProviderSetup>> = {
       name: 'Gemini',
       provider: 'openai-compatible',
       baseUrl: gemini?.baseUrl ?? 'https://generativelanguage.googleapis.com/v1beta/openai',
+      auth: { type: 'api-key' },
     },
     keyVariable: 'GEMINI_API_KEY',
     models: {
@@ -50,6 +51,7 @@ const setups: Readonly<Record<EvalProvider, ProviderSetup>> = {
       name: 'Anthropic',
       provider: 'anthropic',
       baseUrl: providerProfiles.anthropic.baseUrl,
+      auth: { type: 'api-key' },
     },
     keyVariable: 'ANTHROPIC_API_KEY',
     models: {
