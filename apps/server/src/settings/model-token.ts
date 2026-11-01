@@ -171,7 +171,8 @@ async function requestToken(
   const { scope, audience } = credentials;
   const parameters = { ...(scope ? { scope } : {}), ...(audience ? { audience } : {}) };
   const response = await client.clientCredentialsGrant(config, parameters);
-  const lifetime = response.expiresIn() ?? defaultLifetimeSeconds;
+  // The lifetime as sent, on this source's clock: `expiresIn()` counts down on the system clock.
+  const lifetime = response.expires_in ?? defaultLifetimeSeconds;
   const issuerHost = new URL(config.serverMetadata().token_endpoint ?? '').host;
   return { accessToken: response.access_token, expiresAt: now() + lifetime * 1000, issuerHost };
 }
