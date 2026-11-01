@@ -31,13 +31,14 @@ function categoriesOf(kind: PrepareKind, prepared: Prepared): unknown[] {
 
 /**
  * The palette of a chart whose items take the dashboard's colours: each item's colour in order.
- * A slice keeps its palette place, a ranked bar the series colour, and "Other" is neutral.
+ * A slice keeps its palette place, a ranked bar the series colour, and "Other" is neutral, with
+ * or without the dashboard's colours.
  *
  * @param kind - How the chart was prepared.
  * @param prepared - The prepared data.
  * @param colors - The dashboard's colours, if any.
  * @param theme - The theme.
- * @returns The colours; none when no item has a colour of its own.
+ * @returns The colours; none when no item has a colour of its own and none is "Other".
  */
 export function itemPalette(
   kind: PrepareKind,
@@ -45,10 +46,10 @@ export function itemPalette(
   colors: readonly ValueColor[] | undefined,
   theme: ChartTheme,
 ): string[] | undefined {
-  if (!colors || colors.length === 0) return undefined;
-  const colorOf = colorLookup(colors, theme);
+  const colorOf = colors && colors.length > 0 ? colorLookup(colors, theme) : () => undefined;
   const categories = categoriesOf(kind, prepared);
-  if (!categories.some((category) => colorOf(category) !== undefined)) return undefined;
+  const coloured = categories.some((category) => colorOf(category) !== undefined);
+  if (!coloured && !categories.includes(otherName)) return undefined;
   const { palette } = theme;
   return categories.map((category, index) => {
     const own = colorOf(category);

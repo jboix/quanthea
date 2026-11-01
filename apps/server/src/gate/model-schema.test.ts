@@ -55,11 +55,11 @@ describe('modelSchema', () => {
     ]);
   });
 
-  test('level 2: also row estimates, and distinct counts of fields with few values', () => {
+  test('level 2: also row estimates, and distinct counts of fields, few or many', () => {
     const [customers] = modelSchema(subjectAt(2), snapshot);
     expect(customers?.rows).toBe(2000);
     expect(customers?.fields).toEqual([
-      { name: 'id', type: 'bigint' },
+      { name: 'id', type: 'bigint', distinctValues: 2000 },
       { name: 'country', type: 'text', description: 'ISO code.', distinctValues: 5 },
     ]);
   });

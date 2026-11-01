@@ -26,11 +26,23 @@ const queryFailureSchema = z.object({
   message: z.string(),
 });
 
+/**
+ * Validates where each column of a table that operations made comes from: the refIds of the
+ * queries its values come from, and whether its name is a value of the data.
+ */
+const columnOriginSchema = z.object({
+  column: z.string(),
+  from: z.array(z.string()).min(1),
+  nameFromData: z.boolean().optional(),
+});
+
 /** Validates the outcome of one query. */
 const queryOutcomeSchema = z.object({
   refId: z.string(),
   frames: z.array(frameSchema),
   error: queryFailureSchema.nullable(),
+  /** When the panel's operations made the table: where each of its columns comes from. */
+  origins: z.array(columnOriginSchema).optional(),
 });
 
 /** The outcome of one query of a panel: its frames, or why it failed. */

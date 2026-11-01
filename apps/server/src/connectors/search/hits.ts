@@ -1,6 +1,7 @@
 /**
  * The documents a search returns, as one table: a column per field of `_source`, nested objects
- * flattened to dotted paths, typed from the index mapping.
+ * flattened to dotted paths, typed from the index mapping. Fields the request lists in `_source`
+ * come first, in its order.
  */
 import type { Field, Frame } from '@quanthea/shared';
 import { createFrameBuilder, type ExecutionContext } from '../_shared/index.ts';
@@ -38,21 +39,37 @@ export function flatten(
 }
 
 /**
- * The columns of a set of documents: every path, in the order they first appear.
+ * The columns of a set of documents: the paths asked for, in that order, then every other path in
+ * the order it first appears.
  *
  * @param documents - The flattened documents.
  * @param types - The mapping types, by path.
+ * @param asked - The paths the request lists, in order.
  * @returns The fields.
  */
 function columnsOf(
   documents: readonly Map<string, unknown>[],
   types: ReadonlyMap<string, string>,
+  asked: readonly string[],
 ): Field[] {
-  const paths = new Set<string>();
-  for (const document of documents) for (const path of document.keys()) paths.add(path);
+  const present = new Set<string>();
+  for (const document of documents) for (const path of document.keys()) present.add(path);
+  const paths = new Set(asked.filter((path) => present.has(path)));
+  for (const path of present) paths.add(path);
   return [...paths]
     .slice(0, maxColumns)
     .map((path) => ({ name: path, type: fieldTypeOf(types.get(path)) }));
+}
+
+/**
+ * The plain paths a request's `_source` lists, in order: none for a pattern or an object form.
+ *
+ * @param source - The request's `_source`.
+ * @returns The paths.
+ */
+export function askedPaths(source: unknown): string[] {
+  if (!Array.isArray(source)) return [];
+  return source.filter((path): path is string => typeof path === 'string' && !path.includes('*'));
 }
 
 /**
@@ -62,6 +79,7 @@ function columnsOf(
  * @param types - The mapping types, by path.
  * @param context - The execution context.
  * @param durationMs - How long the search took.
+ * @param asked - The paths the request lists in `_source`, which come first in that order.
  * @returns The frame.
  */
 export function hitsFrame(
@@ -69,9 +87,10 @@ export function hitsFrame(
   types: ReadonlyMap<string, string>,
   context: ExecutionContext,
   durationMs: number,
+  asked: readonly string[] = [],
 ): Frame {
   const documents = hits.map((hit) => flatten(hit._source ?? {}));
-  const fields = columnsOf(documents, types);
+  const fields = columnsOf(documents, types, asked);
   const builder = createFrameBuilder({ refId: context.refId, fields, maxRows: context.maxRows });
   for (const document of documents) {
     const row = fields.map((field) => frameValue(field.type, document.get(field.name)));

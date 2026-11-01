@@ -217,5 +217,96 @@ for (const server of servers) {
       expect(instants.every((time) => time <= timeRange.to.getTime())).toBe(true);
       expect(column('user_ip').every((address) => /^198\.18\./.test(String(address)))).toBe(true);
     });
+
+    test('tables the player events by two fields, with filtered counts, a ratio and a sort', async () => {
+      const table = await onEvents({
+        kind: 'search-table',
+        by: ['session.player.platform', 'session.media.bu'],
+        columns: [
+          { name: 'starts', filters: [{ field: 'event_name', value: 'START' }] },
+          { name: 'errors', filters: [{ field: 'event_name', value: 'ERROR' }] },
+          { name: 'error_rate', fn: 'ratio', part: 'errors', whole: 'starts' },
+          { name: 'slow', fn: 'percentile', field: 'session.qoe_timings.total', percent: 95 },
+        ],
+        sort: 'error_rate',
+        limit: 50,
+      });
+      expect(table.fields.map((field) => field.name)).toEqual([
+        'session.player.platform',
+        'session.media.bu',
+        'starts',
+        'errors',
+        'error_rate',
+        'slow p95',
+      ]);
+      const [platforms, , starts, errors, rates] = table.values as [
+        string[],
+        string[],
+        number[],
+        number[],
+        number[],
+      ];
+      expect(new Set(platforms)).toEqual(new Set(['Android', 'Apple', 'Web']));
+      expect(rates).toEqual([...rates].sort((a, b) => b - a));
+      rates.forEach((rate, row) => {
+        const whole = starts[row] ?? 0;
+        expect(rate).toBeCloseTo(whole > 0 ? (errors[row] ?? 0) / whole : 0, 6);
+      });
+    });
+
+    test('counts the player events outside the values kept in an "Other" row', async () => {
+      const breakdown = await onEvents({
+        kind: 'search-breakdown',
+        by: 'session.media.bu',
+        limit: 2,
+        other: true,
+      });
+      const [units, counts] = breakdown.values as [string[], number[]];
+      expect(units).toHaveLength(3);
+      expect(units[2]).toBe('Other');
+      const all = await onEvents({ kind: 'search-stat' });
+      const total = (all.values[0] as number[])[0] ?? 0;
+      expect(counts.reduce((sum, count) => sum + count, 0)).toBe(total);
+    });
+
+    test('splits the player events by named groups of business units', async () => {
+      const units = await onEvents({ kind: 'search-breakdown', by: 'session.media.bu', limit: 10 });
+      const [names] = units.values as [string[]];
+      const [first, ...rest] = names;
+      const regions = await onEvents({
+        kind: 'search-table',
+        groups: [
+          { name: 'First', filters: [{ field: 'session.media.bu', value: first ?? '' }] },
+          { name: 'Rest', filters: [{ field: 'session.media.bu', op: 'in', values: rest }] },
+        ],
+        columns: [{ name: 'events' }],
+        sort: 'events',
+        ascending: true,
+      });
+      const [groups, counts] = regions.values as [string[], number[]];
+      expect(new Set(groups)).toEqual(new Set(['First', 'Rest']));
+      expect(counts).toEqual([...counts].sort((a, b) => a - b));
+      const all = await onEvents({ kind: 'search-stat' });
+      expect(counts.reduce((sum, count) => sum + count, 0)).toBe(
+        (all.values[0] as number[])[0] ?? 0,
+      );
+    });
+
+    test('lists 500 player events, the oldest first, with the columns in the order asked', async () => {
+      const rows = await onEvents({
+        kind: 'search-rows',
+        fields: ['event_name', '@timestamp', 'session_id'],
+        limit: 500,
+        oldest: true,
+      });
+      expect(rows.fields.map((field) => field.name)).toEqual([
+        'event_name',
+        '@timestamp',
+        'session_id',
+      ]);
+      const instants = rows.values[1] as number[];
+      expect(instants).toHaveLength(500);
+      expect([...instants].sort((a, b) => a - b)).toEqual(instants);
+    });
   });
 }

@@ -110,6 +110,23 @@ describe('the search builders', () => {
     expect(whole.output).toMatchObject({ shape: 'single', columns: ['value'] });
   });
 
+  test('a breakdown counts the documents outside its values in an "Other" row, when asked', () => {
+    const { queries } = built({ kind: 'search-breakdown', by: 'browser', other: true });
+    expect(bodyOf(queries[0]).aggs).toMatchObject({ browser: { meta: { other: ['value'] } } });
+    const measured = { kind: 'search-breakdown', by: 'browser', other: true };
+    const refused = '"other" counts documents: it takes a count measure and no "series".';
+    expect(() => built({ ...measured, measure: { fn: 'sum', field: 'ms' } })).toThrow(refused);
+    expect(() => built({ ...measured, series: 'level' })).toThrow(refused);
+  });
+
+  test('latest documents come newest first, or oldest first, up to 500', () => {
+    const rows = (extra: Record<string, unknown>) =>
+      bodyOf(built({ kind: 'search-rows', fields: ['message'], ...extra }).queries[0]);
+    expect(rows({ limit: 500 })).toMatchObject({ size: 500, sort: [{ '@timestamp': 'desc' }] });
+    expect(rows({ oldest: true })).toMatchObject({ sort: [{ '@timestamp': 'asc' }] });
+    expect(() => rows({ limit: 501 })).toThrow();
+  });
+
   test('pass the search binder, ratio script included', () => {
     const variables = { platform: { value: 'Web' }, interval: { value: '5m', duration: true } };
     for (const data of [

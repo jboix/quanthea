@@ -190,6 +190,17 @@ const examples: Readonly<Record<keyof typeof builderSchemas, Record<string, unkn
     time: 'created_at',
     fields: ['created_at', 'status', 'total', 'customer.country'],
   },
+  'search-table': {
+    connector: 'opensearch',
+    index: 'logs-*',
+    by: ['browser', 'browser_version'],
+    columns: [
+      { name: 'requests' },
+      { name: 'errors', filters: [{ field: 'level', value: 'error' }] },
+      { name: 'error_rate', fn: 'ratio', part: 'errors', whole: 'requests' },
+    ],
+    sort: 'errors',
+  },
   'search-rows': {
     connector: 'opensearch',
     index: 'logs-*',

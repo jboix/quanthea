@@ -12,6 +12,7 @@ import {
   type EditRequest,
 } from '../dashboards/panels/index.ts';
 import { QueryError } from '../dashboards/queries/index.ts';
+import { derivedFrom } from '../gate/panel-results.ts';
 import { atMarkerSets, markerIssues, panelProblems } from './panel-problems.ts';
 import type { RunContext } from './run-context.ts';
 import type { WriteRun } from './write-version.ts';
@@ -107,7 +108,12 @@ export async function buildPanels(
     result.spec,
     result.charts as ChartChoices,
     tests,
-    (name, frames) => context.modelView.visibleFrames(name, frames),
+    (panel, outcome) =>
+      context.modelView.visibleFrames(
+        panel.queries[0]?.connector ?? '',
+        outcome.frames,
+        derivedFrom(panel, outcome),
+      ),
   );
   const before = current ? idsOf(current) : new Set<string>();
   const added = new Set([...idsOf(completion.spec)].filter((id) => !before.has(id)));

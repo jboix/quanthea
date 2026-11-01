@@ -87,6 +87,12 @@ export const choices: readonly Choice[] = [
     otherwise: 'grouped, largest first, with a limit',
   },
   {
+    want: 'several numbers by fields',
+    shape: 'long',
+    builders: { search: 'search-table' },
+    otherwise: 'a column each',
+  },
+  {
     want: 'one number',
     shape: 'single',
     builders: {

@@ -102,9 +102,32 @@ type Panel = {
   description?: string
   grid: { x: number; y: number; w: number; h: number }   // 12-column grid, h in rows of 40px
   queries: QueryTemplate[]                  // 1..4
+  operations?: Operation[]                  // 1..8, run in order on the server
   view: StatView | ChartView | TableView
   definition?: { id: string; version: number }  // the definition its queries were copied from
 }
+
+// Table operations start from the table of the first query. The table they end with takes that
+// query's place, so the view reads it by the same refId. A join or an append reads another query
+// of the panel, on any connector. A step that cannot run fails that query with a message naming
+// the step, and so does a query a join or an append reads that failed.
+type Operation =
+  // A number column from two others. ratio a / b and complement 1 - a / b are 0 where b is 0;
+  // difference a - b, sum a + b, product a × b. A missing value on either side gives none.
+  | { op: 'calculate'; name: string; fn: 'ratio' | 'complement' | 'difference' | 'sum' | 'product';
+      of: [string, string] }
+  // Another query's table joined on key columns both have, its columns renamed first. outer
+  // (the default) keeps every key of either side; inner the keys both have. At most 50,000 rows.
+  | { op: 'join'; with: string; on: string[]; how?: 'inner' | 'outer'; rename?: Record<string, string> }
+  // Another query's rows under the table's, columns matched by name after the rename.
+  | { op: 'append'; with: string; rename?: Record<string, string> }
+  // A row per value of rows, a column per value of columns in natural order (2.10 after 2.9), at
+  // most 50, each cell the sum of value, 0 where there is none. Its columns are named by data.
+  | { op: 'pivot'; rows: string; columns: string; value: string }
+  // A text column from 2 to 4 columns with a separator (" " by default); a missing value is left out.
+  | { op: 'concat'; name: string; columns: string[]; separator?: string }
+  // The rows by a column: numbers and times by value, text in natural order, missing values last.
+  | { op: 'sort'; by: string; descending?: boolean }
 
 type StatView = {
   kind: 'stat'
@@ -127,6 +150,10 @@ type TableView = {
     toneAs?: 'text' | 'background'          // default: text
     width?: 'narrow' | 'medium' | 'wide'    // a share of the table; medium when left out
   }[]
+  rest?: { format?: Formatter; align?: 'left' | 'right'; mappings?: Mapping[]
+           toneAs?: 'text' | 'background'; width?: 'narrow' | 'medium' | 'wide' }
+                                            // every column not listed, after the listed ones,
+                                            // such as a pivot's; left out, only the listed show
   sort?: { field: string; dir: 'asc' | 'desc' }   // the first order; a viewer sorts by a click
   limit?: number                            // ≤ 500
   pageSize?: number                         // 5 to 100 rows a page, default 20
@@ -296,6 +323,7 @@ The Zod schema catches shape errors. `dashboards/validate` (`validateSpec`) also
   message that names both. A version stored before this check still pins, restores and copies:
   with a default, its variable binds without the source;
 - `refId`s are unique within a panel, and every `ref` in a view points at one of them;
+- a join or an append reads another query of its panel, never the first;
 - panel, annotation and variable names are unique, and chart `markers` name an annotation;
 - a variable's default is among its options, and a text variable's pattern compiles and matches
   its default;

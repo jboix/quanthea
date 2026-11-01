@@ -151,21 +151,39 @@ function cellWriters(
 }
 
 /**
- * Builds the rows of a table panel.
+ * The view with every column of the result it does not list added after its own, styled by its
+ * `rest`, such as the columns a pivot names by data. A view without `rest` stays as it is.
  *
  * @param view - The table view.
+ * @param frames - The frames of its ref.
+ * @returns The view whose columns are all the table shows.
+ */
+function withRest(view: TableView, frames: readonly Frame[]): TableView {
+  if (!view.rest) return view;
+  const listed = new Set(view.columns.map((column) => column.field));
+  const rest = datasetOfFrames(frames)
+    .dimensions.filter((column) => !listed.has(column.name))
+    .map((column) => ({ ...view.rest, field: column.name }));
+  return { ...view, columns: [...view.columns, ...rest] };
+}
+
+/**
+ * Builds the rows of a table panel.
+ *
+ * @param asked - The table view, its `rest` style for the columns it does not list.
  * @param queries - The outcomes of the panel's queries.
  * @param timeZone - The zone for date formatters.
  * @param colors - The dashboard's colour per value, if any.
  * @returns The columns, and the rows with each cell's raw value, text and tone.
  */
 export function tableRows(
-  view: TableView,
+  asked: TableView,
   queries: readonly QueryOutcome[],
   timeZone?: string,
   colors: readonly ValueColor[] = [],
 ): TableRows {
-  const frames = queries.find((query) => query.refId === view.ref)?.frames ?? [];
+  const frames = queries.find((query) => query.refId === asked.ref)?.frames ?? [];
+  const view = withRest(asked, frames);
   const rows = sortedRows(view, rawRows(view, frames));
   const limit = Math.min(view.limit ?? maxRows, maxRows);
   const writers = cellWriters(view, timeZone, colors);

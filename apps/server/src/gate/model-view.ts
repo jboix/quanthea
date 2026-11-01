@@ -3,7 +3,7 @@
  * here, shaped by each connector's access level and hidden fields. The gate declares what it needs
  * from the connectors service; the bootstrap hands it over, so the gate never imports it.
  */
-import type { AccessLevel, Frame, SourceAccess } from '@quanthea/shared';
+import type { AccessLevel, Operation, SourceAccess } from '@quanthea/shared';
 import { type SchemaSnapshot, searchScriptGuide } from '../connectors/_shared/index.ts';
 import type { QueryExecutor, QueryRequest, QuerySource } from '../query/executor.ts';
 import {
@@ -15,15 +15,12 @@ import {
 } from './alert-view.ts';
 import { buildCatalog, createValueCache, type ValueCache } from './catalog.ts';
 import { type ModelEntity, modelSchema } from './model-schema.ts';
+import { type PanelRead, readOperationsForModel } from './operations-read.ts';
+import { type ResultMethods, resultMethods, unreachable } from './panel-results.ts';
 import { type ModelSample, sampleForModel } from './sample.ts';
 import { type AccessSettings, sourceAccessOf } from './source-access.ts';
 import type { GateSubject } from './subject.ts';
-import {
-  type ModelTestResult,
-  modelPanelResult,
-  testQueryForModel,
-  visibleFrames,
-} from './test-run.ts';
+import { type ModelTestResult, testQueryForModel } from './test-run.ts';
 
 /** What the gate needs from the connectors service. */
 export interface ConnectorAccess {
@@ -78,7 +75,7 @@ export type ModelDescription =
   | { readonly ok: false; readonly error: string };
 
 /** The connectors as the model sees them. */
-export interface ModelView {
+export interface ModelView extends ResultMethods {
   /**
    * Lists the connectors.
    *
@@ -150,27 +147,18 @@ export interface ModelView {
    */
   testQuery(name: string, request: QueryRequest, timeZone?: string): Promise<ModelTestResult>;
   /**
-   * Shapes a saved panel's result for the model.
+   * Reads a panel whose operations make its table: runs every query, then the operations.
    *
-   * @param name - The connector the query ran on.
-   * @param outcome - Its frames, or its error message (already free of data).
+   * @param reads - The panel's queries, the first one first, each with its connector.
+   * @param operations - The panel's operations.
    * @param timeZone - The reader's time zone, as {@link ModelView.testQuery} takes it.
-   * @returns What the access level lets through.
+   * @returns The table, each connector's part at its own access level.
    */
-  panelResult(
-    name: string,
-    outcome: { frames: readonly Frame[]; error: string | null },
+  readOperations(
+    reads: readonly PanelRead[],
+    operations: readonly Operation[],
     timeZone?: string,
-  ): ModelTestResult;
-  /**
-   * A result without the connector's hidden fields, for what is derived from it and shown to the
-   * model, such as the roles a chart infers from its columns.
-   *
-   * @param name - The connector the query ran on.
-   * @param frames - The frames.
-   * @returns The frames without hidden fields; none when the connector is unknown.
-   */
-  visibleFrames(name: string, frames: readonly Frame[]): Frame[];
+  ): Promise<ModelTestResult>;
   /**
    * Shapes an alert's check for the model: the series it would watch now.
    *
@@ -216,16 +204,6 @@ const levelMeanings: Readonly<Record<AccessLevel, string>> = {
   3: 'level 3, aggregates: test runs also return min, max, mean, spikes and top values, and when the extremes and spikes happened',
   4: 'level 4, full access: test runs return rows',
 };
-
-/**
- * A safe message for a failure to reach a connector.
- *
- * @param name - The connector name.
- * @returns The message.
- */
-function unreachable(name: string): string {
-  return `Cannot use connector "${name}": it does not exist or cannot be reached.`;
-}
 
 /**
  * The connectors in the model's words.
@@ -302,30 +280,6 @@ function schemaOnly(subject: GateSubject | undefined): GateSubject | undefined {
 }
 
 /**
- * The model view's shaping of saved panels' results, by connector.
- *
- * @param subjects - The connectors by name, as the gate sees them.
- * @returns The methods.
- */
-function resultMethods(
-  subjects: () => ReadonlyMap<string, GateSubject>,
-): Pick<ModelView, 'panelResult' | 'visibleFrames'> {
-  return {
-    panelResult(name, outcome, timeZone) {
-      const subject = subjects().get(name);
-      if (!subject) return { ok: false, error: unreachable(name) };
-      return outcome.error === null
-        ? modelPanelResult(subject, outcome.frames, timeZone)
-        : { ok: false, error: outcome.error };
-    },
-    visibleFrames(name, frames) {
-      const subject = subjects().get(name);
-      return subject ? visibleFrames(subject, frames) : [];
-    },
-  };
-}
-
-/**
  * The model view's shaping of an alert's check and replay, by connector.
  *
  * @param subjects - The connectors by name, as the gate sees them.
@@ -397,6 +351,8 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
       if (!opened) return { ok: false, error: unreachable(name) };
       return testQueryForModel(opened.subject, executor, opened.source, request, timeZone);
     },
+    readOperations: (reads, operations, timeZone) =>
+      readOperationsForModel((name) => access.open(name), executor, reads, operations, timeZone),
     ...alertMethods(subjects),
     ...resultMethods(subjects),
     ...accessMethods(access),

@@ -10,6 +10,8 @@ import {
   answerCitationSchema,
   type DashboardSpec,
   type FollowUp,
+  type Operation,
+  type Panel,
 } from '@quanthea/shared';
 import { tool } from 'ai';
 import { z } from 'zod';
@@ -46,7 +48,7 @@ export interface AnswerToolContext {
   /** The connectors as the model sees them: the gate. */
   readonly modelView: Pick<
     ModelView,
-    'describe' | 'describeSchemaOnly' | 'testQuery' | 'panelResult'
+    'describe' | 'describeSchemaOnly' | 'testQuery' | 'readOperations' | 'panelResult'
   >;
   /** The dashboard's spec. */
   readonly spec: DashboardSpec;
@@ -81,6 +83,8 @@ type ReadTarget =
       readonly template: Template;
       readonly refId: string;
       readonly panelId?: string;
+      /** For a panel whose operations make its table: every query, and the operations. */
+      readonly derived?: { readonly queries: Panel['queries']; readonly operations: Operation[] };
     }
   | { readonly error: string };
 
@@ -136,7 +140,11 @@ function panelTarget(context: AnswerToolContext, panelId: string, refId?: string
   if (!query) return { error: `Panel "${panelId}" has no query "${refId}".` };
   if (!context.readable.includes(query.connector))
     return { error: `You cannot read "${query.connector}": its access level shows no numbers.` };
-  return { connector: query.connector, template: query, refId: query.refId, panelId };
+  const target = { connector: query.connector, template: query, refId: query.refId, panelId };
+  // The first query of a panel with operations reads as the panel shows it: their table.
+  const first = query === panel.queries[0];
+  if (!first || !panel.operations) return target;
+  return { ...target, derived: { queries: panel.queries, operations: panel.operations } };
 }
 
 /**
@@ -199,7 +207,11 @@ function boundValues(bindings: Bindings): Record<string, string | string[]> {
  */
 function readInput(readable: readonly string[]) {
   return z.object({
-    panelId: z.string().max(100).optional().describe("A panel's id: runs that panel's query."),
+    panelId: z
+      .string()
+      .max(100)
+      .optional()
+      .describe("A panel's id: runs that panel's query, or its queries and operations."),
     refId: z.string().max(20).optional().describe("Which of the panel's queries; the first."),
     connector: namesEnum(readable).optional().describe('The connector of a query you write.'),
     query: testQuerySchema.optional().describe("A query you write, in the connector's language."),
@@ -210,6 +222,42 @@ function readInput(readable: readonly string[]) {
         'A window, ISO 8601 with offsets, inside or outside the range asked about; that range when left out.',
       ),
   });
+}
+
+/**
+ * Runs a read through the gate: one query, or every query of a panel and its operations.
+ *
+ * @param context - The answer's tools' context.
+ * @param target - What to run.
+ * @param timeRange - Over which window.
+ * @param timeRange.from - Its start.
+ * @param timeRange.to - Its end.
+ * @returns What the gate lets through.
+ */
+function runRead(
+  context: AnswerToolContext,
+  target: Exclude<ReadTarget, { error: string }>,
+  timeRange: { readonly from: Date; readonly to: Date },
+) {
+  const requestOf = (refId: string, template: Template) => ({
+    refId,
+    template,
+    variables: context.bindings,
+    timeRange,
+    signal: context.signal,
+  });
+  const { derived } = target;
+  if (!derived)
+    return context.modelView.testQuery(
+      target.connector,
+      requestOf(target.refId, target.template),
+      context.timeZone,
+    );
+  const reads = derived.queries.map((query) => ({
+    connector: query.connector,
+    request: requestOf(query.refId, query),
+  }));
+  return context.modelView.readOperations(reads, derived.operations, context.timeZone);
 }
 
 /**
@@ -226,18 +274,13 @@ async function recordRead(
   window: { readonly from: number; readonly to: number },
 ) {
   const timeRange = { from: new Date(window.from), to: new Date(window.to) };
-  const { refId, template, connector } = target;
-  const request = { refId, template, variables: context.bindings, timeRange };
-  const result = await context.modelView.testQuery(
-    connector,
-    { ...request, signal: context.signal },
-    context.timeZone,
-  );
+  const { template, connector, derived } = target;
+  const result = await runRead(context, target, timeRange);
   const evidence: AnswerEvidence = {
     id: `e${context.state.evidence.length + 1}`,
     connector,
     ...(target.panelId === undefined ? {} : { panelId: target.panelId }),
-    query: { ...template },
+    query: derived ? { ...derived } : { ...template },
     variables: boundValues(context.bindings),
     time: { from: timeRange.from.toISOString(), to: timeRange.to.toISOString() },
     result,

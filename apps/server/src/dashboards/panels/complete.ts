@@ -13,7 +13,9 @@ import {
   type Frame,
   fillView,
   type Panel,
+  type QueryOutcome,
   type RoleColumns,
+  type View,
 } from '@quanthea/shared';
 import type { PanelTest } from '../dashboards.ts';
 import type { ChartChoices } from './edit.ts';
@@ -47,20 +49,21 @@ export interface Completion {
  * The part of a result a chart is completed from, such as the result without the columns the
  * model may not see.
  *
- * @param connector - The connector the query ran on.
- * @param frames - The result's frames.
+ * @param panel - The panel the query belongs to.
+ * @param outcome - The query's outcome: its frames, and where the columns of a table that the
+ *   panel's operations made come from.
  * @returns The frames to complete the chart from.
  */
-type ResultFilter = (connector: string, frames: readonly Frame[]) => readonly Frame[];
+type ResultFilter = (panel: Panel, outcome: QueryOutcome) => readonly Frame[];
 
 /**
  * The whole result.
  *
- * @param _connector - The connector, unused.
- * @param frames - The result's frames.
- * @returns The frames.
+ * @param _panel - The panel, unused.
+ * @param outcome - The query's outcome.
+ * @returns Its frames.
  */
-const wholeResult: ResultFilter = (_connector, frames) => frames;
+const wholeResult: ResultFilter = (_panel, outcome) => outcome.frames;
 
 /** Column names that hold numbers in the tables query builders return. */
 const numberColumns: ReadonlySet<string> = new Set(['value', 'Value']);
@@ -111,16 +114,6 @@ function tableFor(
 }
 
 /**
- * The connector of a panel's first query, the one its chart is completed from.
- *
- * @param panel - The panel.
- * @returns The connector name, empty when the panel has no query.
- */
-function connectorOf(panel: Panel): string {
-  return panel.queries[0]?.connector ?? '';
-}
-
-/**
  * One panel's chart, completed from its first query's result.
  *
  * @param panel - The panel.
@@ -139,15 +132,76 @@ function completed(
   const recipe = chart ? chartRecipe(chart.choice.recipe) : undefined;
   const outcome = tests.find((test) => test.panelId === panel.id)?.run.queries[0];
   if (!chart || !recipe || !outcome || outcome.error) return panel;
-  const frames = filter(connectorOf(panel), outcome.frames);
-  const table = tableFor(frames, { recipe, columns: chart.columns });
+  const named = namedByData(outcome);
+  const table = tableFor(filter(panel, outcome), { recipe, columns: chart.columns });
   if (!table) return emptyTable(panel, chart.choice.roles);
-  const refs = panel.queries.map((query) => query.refId);
-  const filled = fillView(recipe, chart.choice, refs, table);
+  const filled = fillView(recipe, chart.choice, drawnRefs(panel), withoutColumns(table, named));
   if ('problems' in filled) return filled.problems;
+  return { ...panel, view: finished(panel, filled.view, named) };
+}
+
+/**
+ * The refIds a panel's view reads: the first query's alone when operations made its table.
+ *
+ * @param panel - The panel.
+ * @returns The refIds.
+ */
+function drawnRefs(panel: Panel): string[] {
+  const read = panel.operations ? panel.queries.slice(0, 1) : panel.queries;
+  return read.map((query) => query.refId);
+}
+
+/**
+ * A completed view with what the panel keeps: a chart's markers, and a table's `rest` style when
+ * the result names columns by data.
+ *
+ * @param panel - The panel as built.
+ * @param view - The completed view.
+ * @param named - The columns named by data.
+ * @returns The view.
+ */
+function finished(panel: Panel, view: View, named: ReadonlySet<string>): View {
   const markers = panel.view.kind === 'chart' ? panel.view.markers : undefined;
-  const view = filled.view.kind === 'chart' && markers ? { ...filled.view, markers } : filled.view;
-  return { ...panel, view };
+  const marked = view.kind === 'chart' && markers ? { ...view, markers } : view;
+  return named.size > 0 ? withRest(marked) : marked;
+}
+
+/**
+ * The columns of a result named by data, such as a pivot's.
+ *
+ * @param outcome - The first query's outcome.
+ * @returns Their names.
+ */
+function namedByData(outcome: QueryOutcome): Set<string> {
+  const named = (outcome.origins ?? []).filter((origin) => origin.nameFromData);
+  return new Set(named.map((origin) => origin.column));
+}
+
+/**
+ * A table without some columns.
+ *
+ * @param table - The table.
+ * @param names - The columns to leave out.
+ * @returns The table.
+ */
+function withoutColumns(table: Dataset, names: ReadonlySet<string>): Dataset {
+  if (names.size === 0) return table;
+  const kept = table.dimensions.flatMap((column, index) => (names.has(column.name) ? [] : [index]));
+  return {
+    dimensions: kept.map((index) => table.dimensions[index] as Dimension),
+    source: table.source.map((row) => kept.map((index) => row[index] ?? null)),
+  };
+}
+
+/**
+ * A table view that shows the columns it cannot list: those a result names by data, which change
+ * from run to run. Another view stays as it is.
+ *
+ * @param view - The view.
+ * @returns The view, a table with a `rest` style.
+ */
+function withRest(view: View): View {
+  return view.kind === 'table' && !view.rest ? { ...view, rest: {} } : view;
 }
 
 /**

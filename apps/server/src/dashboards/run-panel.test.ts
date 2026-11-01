@@ -158,3 +158,51 @@ describe('the options of a query-backed variable', () => {
     expect(loads).toBe(2);
   });
 });
+
+describe('table operations in a run', () => {
+  test("run on the first query's result, which the view then reads", async () => {
+    const counts: Frame = {
+      refId: 'A',
+      fields: [
+        { name: 'errors', type: 'number' },
+        { name: 'sessions', type: 'number' },
+      ],
+      values: [[5], [200]],
+      meta: { rowCount: 1, truncated: false, durationMs: 1 },
+    };
+    const executor: QueryExecutor = {
+      run: async (_source, request) => ({
+        frames: [{ ...counts, refId: request.refId }],
+        bound: bindTemplate(request.template, request.variables, request.timeRange),
+        cached: false,
+      }),
+    };
+    const rated = dashboardSpecSchema.parse({
+      ...spec,
+      variables: [],
+      annotations: [],
+      panels: [
+        {
+          id: 'rate',
+          title: 'Error rate',
+          grid: { x: 0, y: 0, w: 4, h: 4 },
+          queries: [{ refId: 'A', connector: 'shop', language: 'sql', sql: 'SELECT 1' }],
+          operations: [{ op: 'calculate', name: 'rate', fn: 'ratio', of: ['errors', 'sessions'] }],
+          view: { kind: 'stat', ref: 'A', field: 'rate', reduce: 'last', format: 'percent' },
+        },
+      ],
+    });
+    const dependencies: RunnerDependencies = {
+      openSource: async (name) => ({ connectorId: name, guardrails }) as unknown as QuerySource,
+      executor,
+      now: () => Date.parse('2026-10-01T12:00:00Z'),
+    };
+    const run = await runPanel(dependencies, rated, 'rate', { variables: {} });
+    expect(run.queries[0]?.frames[0]?.fields.map((field) => field.name)).toEqual([
+      'errors',
+      'sessions',
+      'rate',
+    ]);
+    expect(run.queries[0]?.frames[0]?.values[2]).toEqual([0.025]);
+  });
+});

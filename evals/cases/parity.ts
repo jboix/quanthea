@@ -7,6 +7,7 @@
 import {
   type DashboardCheck,
   dashboardHas,
+  describedAs,
   maxRepairs,
   panelCount,
   queries,
@@ -192,6 +193,7 @@ const measures: readonly CaseOn<'dashboard'>[] = [
         topic(/START/, 'result'),
         showsNumber(startEvents, counted),
         showsNumber(distinctSessions, estimated),
+        describedAs(/start|distinct/i),
       ],
     },
   ),
@@ -254,7 +256,7 @@ const tables: readonly CaseOn<'dashboard'>[] = [
     'f12',
     'Sessions started in the last 24 hours in two regions, as a bar each: "Coast" is the business units north and west, "Inland" is south and east.',
     {
-      builder: 'search-breakdown',
+      builder: 'search-table',
       aggregations: ['filters'],
       view: { kind: 'chart', recipe: 'comparison.bar' },
     },
@@ -296,9 +298,11 @@ const tables: readonly CaseOn<'dashboard'>[] = [
   ),
   ask(
     'f20',
-    'How current are the player versions? For each player platform, the share of the sessions started on each major version, as bars, the majors in version order.',
+    'The sessions started in the last 24 hours on each player version, as bars, the versions in version order so that 2.10 comes after 2.9.',
     {
-      operations: ['part', 'regroup', 'share', 'sort'],
+      builder: 'search-breakdown',
+      aggregations: ['terms:session.player.version'],
+      operations: ['sort'],
       view: { kind: 'chart', recipe: 'comparison.bar' },
     },
   ),

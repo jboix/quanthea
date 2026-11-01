@@ -16,6 +16,19 @@ latency percentiles and top N for PromQL; series over time, breakdowns, single n
 for SQL; the same for search, LogQL and MongoDB. Each writes a query for its source's dialect, with
 names checked and quoted and variables bound.
 
+For search there is also a table builder. It groups by one to three fields and gives up to
+eight named columns: a count, a metric or a percentile, each with its own filters, or the ratio of
+two of them. For example: by browser and version, the starts, the errors, and the errors per start.
+It sorts by any column and keeps up to 500 rows. When it sorts by a ratio, the rows kept are the
+500 with the most documents, sorted by the ratio.
+
+A search table can split by named groups instead of a field: each group has a name
+and its own filters, such as "Coast" for two business units and "Inland" for two others.
+
+A search breakdown or table can end with an "Other" row: the documents outside the values kept.
+It is a count, so a breakdown of a sum or a distinct count has none. A donut draws it last, in a
+neutral colour.
+
 A filter compares a field with a value (`=`, `!=`), or matches it against a regular expression
 (`=~`, `!~`). The search builders, for Elasticsearch and OpenSearch, take more:
 
@@ -32,6 +45,11 @@ yours to type. A variable is the whole pattern or the whole bound, never a part 
 
 A variable that holds several values goes with `=`, `!=` or `in`. In a pattern or a bound it is
 refused when the dashboard is saved, with a message that says so.
+
+Sessions and events are counted two ways. A count of the event that starts a session gives the
+sessions started in the range. A distinct count of the session id gives every session seen,
+including those started before it. The agent uses the one you ask for, and the panel's
+description says which.
 
 Each builder shows its fields, an example, the query it becomes, and what it returns. **Try it**
 runs the example on a connector and time range you choose, and draws it. Nothing is saved, and no

@@ -172,6 +172,20 @@ describe('validateSpec', () => {
     ]);
   });
 
+  test('reports a join or an append that reads no other query of the panel', () => {
+    expect(
+      issuesAfter((spec) => {
+        set(spec, 'panels.0.operations', [
+          { op: 'append', with: 'A' },
+          { op: 'join', with: 'Z', on: ['time'] },
+        ]);
+      }),
+    ).toEqual([
+      'panels[0].operations[0].with: "A" is not another query of this panel: it has none.',
+      'panels[0].operations[1].with: "Z" is not another query of this panel: it has none.',
+    ]);
+  });
+
   test('reports defaults outside the options and broken patterns', () => {
     expect(
       issuesAfter((spec) => {

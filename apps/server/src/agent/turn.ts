@@ -33,6 +33,7 @@ import { guideTools, searchFiltersTopic, settingsTopic } from './guide-tools.ts'
 import { guidesInUse, languagesInUse } from './in-use-facts.ts';
 import { modeInstructions, type Plans, questionsOf, type TurnHints } from './mode-instructions.ts';
 import { type ModelJob, type ModelOf, modelIdFor, reasoningOption } from './model.ts';
+import { operationsTopic } from './operations-guide.ts';
 import { definitionTools, phaseOf, phaseTools, type ToolName } from './phases.ts';
 import { instructionParts } from './prompt.ts';
 import { publicError } from './public-error.ts';
@@ -130,7 +131,8 @@ export async function turnInstructions(
 
 /**
  * The guides a dashboard run may read: the query guides of the connector kinds, the settings, the
- * search filters when a search connector is in use, and the definitions when there are any.
+ * table operations, the search filters when a search connector is in use, and the definitions
+ * when there are any.
  *
  * @param context - The run.
  * @returns The guides.
@@ -138,7 +140,7 @@ export async function turnInstructions(
 function dashboardTopics(context: RunContext) {
   const search = languagesInUse(context).includes('search') ? [searchFiltersTopic] : [];
   const defined = context.definitions.length > 0 ? [definitionsTopic(context.definitions)] : [];
-  return [...context.modelView.guides(), settingsTopic, ...search, ...defined];
+  return [...context.modelView.guides(), settingsTopic, operationsTopic, ...search, ...defined];
 }
 
 /**

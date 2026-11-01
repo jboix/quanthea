@@ -75,10 +75,13 @@ export const builderHints: Readonly<Record<string, string>> = {
   'search-ratio':
     'the share of documents matching "match" among those matching "of" (all when empty), "complement" for one minus it; over "time": columns time, series (with "by"), value; over "range": the "by" field and value, or value alone; "counts" adds matching and total',
   'search-breakdown':
-    'a count or metric by the values of a field, largest first; columns the "by" field, series (with "series"), value',
+    'a count or metric by the values of a field, largest first; columns the "by" field, series (with "series"), value; "other" adds a row Other to a count',
   'search-stat': 'one count or metric; column value',
   'search-histogram': 'documents per bin of a numeric field; columns bin, value',
-  'search-rows': 'the latest documents; the fields asked for, dotted',
+  'search-rows':
+    'the latest documents ("oldest" for the first), up to 500; the fields asked for, in order',
+  'search-table':
+    'named columns by 1-3 "by" fields or named "groups" (a name and filters each): a count, metric or "percentile" with its own filters, or a "ratio" of "part" over "whole"; columns the "by" fields (or group), then each; "other" adds a row Other',
   'logql-series':
     'lines counted, a rate, or a number from a field ("unwrap", with a parser) over time; columns time, the "by" labels, series, value',
   'logql-ratio':

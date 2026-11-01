@@ -695,6 +695,7 @@
                         "search-stat",
                         "search-histogram",
                         "search-rows",
+                        "search-table",
                         "logql-series",
                         "logql-ratio",
                         "logql-breakdown",

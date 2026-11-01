@@ -148,6 +148,18 @@ function valueList(values: readonly string[]): string {
 }
 
 /**
+ * About how many values a field holds, when it holds too many to list: an identifier to count
+ * distinct or filter on, not a category to split by.
+ *
+ * @param field - The field as the model sees it.
+ * @returns Such as ` (~120000 values)`, or nothing.
+ */
+function distinctText(field: ModelEntity['fields'][number]): string {
+  const count = field.distinctValues;
+  return count !== undefined && count > listedValues ? ` (~${Math.round(count)} values)` : '';
+}
+
+/**
  * One table-like entity: its name, kind, size and columns with their types and values.
  *
  * @param entity - The entity.
@@ -159,7 +171,7 @@ function tableLine(entity: ModelEntity, subject: GateSubject, values: SampledVal
   const size = entity.rows === undefined ? '' : `, ~${entity.rows} rows`;
   const columns = entity.fields.map((field) => {
     const listed = values.get(valueKey(entity, field.name));
-    const listedText = listed ? ` ${valueList(listed)}` : '';
+    const listedText = listed ? ` ${valueList(listed)}` : distinctText(field);
     return `${nameText(field.name)} ${field.type}${listedText}`;
   });
   const about = aboutText(entity, subject);

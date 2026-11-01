@@ -8,7 +8,7 @@ import { fieldTypeOf, mappingDateFormats, mappingFields } from './columns.ts';
 import { elasticsearchConnector } from './elasticsearch-connector.ts';
 import { toConnectorError } from './errors.ts';
 import { searchGuide } from './guide.ts';
-import { flatten, hitsFrame } from './hits.ts';
+import { askedPaths, flatten, hitsFrame } from './hits.ts';
 import { opensearchConnector } from './opensearch-connector.ts';
 
 for (const kind of [elasticsearchConnector, opensearchConnector]) {
@@ -181,6 +181,75 @@ describe('search aggregations', () => {
     expect(whole.fields).toEqual([{ name: 'rate', type: 'number' }]);
   });
 
+  test('give each field of a multi_terms its own column, named after the field', () => {
+    const frame = aggregationsFrame(
+      {
+        pairs: {
+          multi_terms: { terms: [{ field: 'platform' }, { field: 'player.version' }] },
+          aggs: { p: { percentiles: {} } },
+        },
+      },
+      {
+        pairs: {
+          buckets: [
+            { key: ['ios', '2.10'], key_as_string: 'ios|2.10', doc_count: 3, p: { values: {} } },
+            { key: ['web', 9], key_as_string: 'web|9', doc_count: 1, p: { values: {} } },
+          ],
+        },
+      },
+      context,
+      5,
+    );
+    expect(frame.fields.slice(0, 2)).toEqual([
+      { name: 'platform', type: 'string' },
+      { name: 'player.version', type: 'string' },
+    ]);
+    expect(frame.values.slice(0, 2)).toEqual([
+      ['ios', 'web'],
+      ['2.10', '9'],
+    ]);
+    const scripted = aggregationsFrame(
+      { pairs: { multi_terms: { terms: [{ field: 'a' }, { script: 'x' }] } } },
+      { pairs: { buckets: [{ key: ['x', 'y'], key_as_string: 'x|y', doc_count: 2 }] } },
+      context,
+      5,
+    );
+    expect(scripted.values).toEqual([['x|y'], [2]]);
+  });
+
+  test('add an "Other" row with the documents outside the buckets when the grouping asks', () => {
+    const answer = {
+      browser: {
+        sum_other_doc_count: 40,
+        buckets: [{ key: 'chrome', doc_count: 9, value: { value: 9 } }],
+      },
+    };
+    const asked = aggregationsFrame(
+      { browser: { terms: {}, meta: { other: ['value'] }, aggs: { value: { value_count: {} } } } },
+      answer,
+      context,
+      5,
+    );
+    expect(asked.values).toEqual([
+      ['chrome', 'Other'],
+      [9, 40],
+    ]);
+    const unasked = aggregationsFrame(
+      { browser: { terms: {}, aggs: { value: { value_count: {} } } } },
+      answer,
+      context,
+      5,
+    );
+    expect(unasked.values).toEqual([['chrome'], [9]]);
+    const none = aggregationsFrame(
+      { browser: { terms: {}, meta: { other: ['value'] }, aggs: { value: { value_count: {} } } } },
+      { browser: { sum_other_doc_count: 0, buckets: [] } },
+      context,
+      5,
+    );
+    expect(none.meta.rowCount).toBe(0);
+  });
+
   test('refuse bucket aggregations side by side, and stop at the row limit', () => {
     expect(() => aggregationsFrame({ a: { terms: {} }, b: { terms: {} } }, {}, context, 5)).toThrow(
       ConnectorError,
@@ -218,6 +287,15 @@ describe('search documents', () => {
       { name: 'tags', type: 'string' },
     ]);
     expect(frame.values).toEqual([[Date.UTC(2026, 8, 27, 12, 2)], [502], ['["a"]']]);
+  });
+
+  test('put the fields the request lists first, in its order', () => {
+    const hits = [{ _source: { at: 1, http: { status: 502 }, user: 'u' } }];
+    const asked = askedPaths(['user', 'http.status', 'missing', 'x*']);
+    expect(asked).toEqual(['user', 'http.status', 'missing']);
+    const frame = hitsFrame(hits, new Map(), context, 5, asked);
+    expect(frame.fields.map((field) => field.name)).toEqual(['user', 'http.status', 'at']);
+    expect(askedPaths({ includes: ['a'] })).toEqual([]);
   });
 });
 
@@ -314,6 +392,13 @@ describe('search mappings and catalog', () => {
       { name: 'session.started', nativeType: 'date_nanos (strict_date_time)', type: 'time' },
       { name: 'level', nativeType: 'keyword', type: 'string' },
     ]);
+  });
+
+  test('the guide tells a count of start events from a distinct count of sessions', () => {
+    const guide = searchGuide('OpenSearch');
+    expect(guide).toContain('counts the sessions started in the range');
+    expect(guide).toContain('a cardinality of the session id counts every session seen');
+    expect(guide).toContain("say in the panel's description which one it counts");
   });
 
   test('the guide says a range bound is ISO text whatever the format of the field', () => {

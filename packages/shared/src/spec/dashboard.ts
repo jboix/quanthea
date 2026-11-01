@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { definitionMarkSchema } from '../definitions.ts';
 import { slugSchema } from './names.ts';
+import { operationsSchema } from './operations.ts';
 import { panelQuerySchema } from './queries.ts';
 import { timeRangeSchema } from './time.ts';
 import { tones } from './tones.ts';
@@ -34,6 +35,8 @@ export const panelSchema = z.strictObject({
   description: z.string().max(1000).optional(),
   grid: panelGridSchema,
   queries: z.array(panelQuerySchema).min(1).max(4),
+  /** Steps the server runs on the tables of the queries; their result takes the first query's place. */
+  operations: operationsSchema.optional(),
   view: viewSchema,
   /** The definition its data was copied from, and the version copied. */
   definition: definitionMarkSchema.optional(),

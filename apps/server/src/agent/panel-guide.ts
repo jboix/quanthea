@@ -17,6 +17,7 @@ import {
   shapeKinds,
 } from '@quanthea/shared';
 import { type AvailableQueries, choiceLines } from '../dashboards/queries/index.ts';
+import { operationsLine } from './operations-guide.ts';
 import {
   builderHints,
   builderNotes,
@@ -106,6 +107,7 @@ function dataLines(facts: PanelGuideFacts): string[] {
     ...builderSection(available.builtIn),
     ...(available.saved.length === 0 ? [] : [savedGuide, ...available.saved.map(savedLine)]),
     none ? `${raw} This thread uses no query builders: every panel's data is a raw query.` : raw,
+    operationsLine,
     ...(chosen.length === 0 ? [] : [choiceGuide, ...chosen]),
     ...(facts.guides.length === 0 ? [] : [guidesLine(facts.guides.map((guide) => guide.kind))]),
   ];

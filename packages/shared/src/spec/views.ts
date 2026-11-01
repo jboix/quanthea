@@ -56,6 +56,12 @@ const tableViewSchema = z.strictObject({
   kind: z.literal('table'),
   ref: refIdSchema,
   columns: z.array(columnSchema).min(1).max(50),
+  /**
+   * How every column of the result the table does not list is shown, after the listed ones: the
+   * columns a pivot names by data, which a version cannot list. Left out, the table shows the
+   * listed columns only.
+   */
+  rest: columnSchema.omit({ field: true, label: true }).optional(),
   /** The first order of the rows; a viewer may sort by another column with a click. */
   sort: z.strictObject({ field: fieldNameSchema, dir: z.enum(['asc', 'desc']) }).optional(),
   limit: z.int().min(1).max(500).optional(),

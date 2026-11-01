@@ -2,6 +2,9 @@
  * The aggregations of a search, as one long table: a column per bucket aggregation, level by level
  * (a date histogram gives the time, terms give a series), and a column per metric of the deepest
  * level, or `count` when it has none. `date_histogram > terms > avg` gives `(time, series, avg)`.
+ * A `multi_terms` gives a column per field it groups by, named after the field. A grouping whose
+ * `meta.other` lists columns adds a row "Other" after its buckets, holding the documents outside
+ * them in those columns.
  * A filter with no bucket aggregation under it is a metric: its count, or its metrics. An
  * aggregation whose name starts with `_` is a helper, such as the parts of a ratio: no column, and
  * for a bucket aggregation no key column.
@@ -17,6 +20,10 @@ interface AggregationSpec {
   readonly type: string;
   /** Its sub-aggregations. */
   readonly children: readonly AggregationSpec[];
+  /** The fields a `multi_terms` groups by, in order: one column each. */
+  readonly fields?: readonly string[];
+  /** The columns an "Other" row gives the count of the documents outside the buckets. */
+  readonly other?: readonly string[];
 }
 
 /** A table being filled: its columns and their types, and its rows by column. */
@@ -79,8 +86,43 @@ export function aggregationSpecs(aggs: unknown): AggregationSpec[] {
   if (typeof aggs !== 'object' || aggs === null) return [];
   return Object.entries(aggs as Record<string, Record<string, unknown>>).map(([name, body]) => {
     const type = Object.keys(body).find((key) => !['aggs', 'aggregations', 'meta'].includes(key));
-    return { name, type: type ?? '', children: aggregationSpecs(body.aggs ?? body.aggregations) };
+    const children = aggregationSpecs(body.aggs ?? body.aggregations);
+    const fields = type === 'multi_terms' ? multiTermsFields(body.multi_terms) : undefined;
+    const other = otherColumns(body.meta);
+    return {
+      name,
+      type: type ?? '',
+      children,
+      ...(fields ? { fields } : {}),
+      ...(other ? { other } : {}),
+    };
   });
+}
+
+/**
+ * The columns an aggregation's `meta.other` names.
+ *
+ * @param meta - The aggregation's `meta`.
+ * @returns The column names, or `undefined` when it asks for no "Other" row.
+ */
+function otherColumns(meta: unknown): string[] | undefined {
+  const other = (meta as { other?: unknown } | undefined)?.other;
+  if (!Array.isArray(other) || !other.every((column) => typeof column === 'string'))
+    return undefined;
+  return other as string[];
+}
+
+/**
+ * The fields a `multi_terms` groups by.
+ *
+ * @param body - The body of the `multi_terms` aggregation.
+ * @returns The fields in order, or `undefined` when one is not a plain field.
+ */
+function multiTermsFields(body: unknown): string[] | undefined {
+  const terms = (body as { terms?: unknown } | undefined)?.terms;
+  if (!Array.isArray(terms)) return undefined;
+  const fields = terms.map((term: { field?: unknown }) => term?.field);
+  return fields.every((field) => typeof field === 'string') ? (fields as string[]) : undefined;
 }
 
 /**
@@ -141,7 +183,8 @@ function setKey(
 }
 
 /**
- * The columns a bucket's key fills: each part of a composite key, or the aggregation's own column.
+ * The columns a bucket's key fills: each part of a composite key, each field of a `multi_terms`,
+ * or the aggregation's own column.
  *
  * @param spec - The bucket aggregation.
  * @param bucket - The bucket.
@@ -150,7 +193,10 @@ function setKey(
 function keyParts(spec: AggregationSpec, bucket: AnswerNode): (readonly [string, unknown])[] {
   const key = bucket.key;
   if (typeof key === 'object' && key !== null && !Array.isArray(key)) return Object.entries(key);
-  return [[spec.name, Array.isArray(key) ? (bucket.key_as_string ?? key.join('|')) : key]];
+  if (!Array.isArray(key)) return [[spec.name, key]];
+  const { fields } = spec;
+  if (fields?.length === key.length) return fields.map((field, index) => [field, key[index]]);
+  return [[spec.name, bucket.key_as_string ?? key.join('|')]];
 }
 
 /**
@@ -286,6 +332,30 @@ function walkBuckets(
       table.rows.push(row);
     }
   }
+  addOtherRow(table, spec, node, prefix);
+}
+
+/**
+ * Adds the "Other" row a grouping asks for, when documents fell outside its buckets: its key
+ * columns read "Other", and the columns it names hold their count.
+ *
+ * @param table - The table.
+ * @param spec - The bucket aggregation.
+ * @param node - Its result.
+ * @param prefix - The keys of the enclosing buckets.
+ */
+function addOtherRow(
+  table: Table,
+  spec: AggregationSpec,
+  node: AnswerNode,
+  prefix: ReadonlyMap<string, unknown>,
+): void {
+  const rest = Number(node.sum_other_doc_count ?? 0);
+  if (!spec.other || !(rest > 0) || table.rows.length > table.limit) return;
+  const row = new Map(prefix);
+  for (const column of spec.fields ?? [spec.name]) setCell(table, row, column, 'Other', 'string');
+  for (const column of spec.other) setCell(table, row, column, rest, 'number');
+  table.rows.push(row);
 }
 
 /**

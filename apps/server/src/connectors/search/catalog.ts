@@ -6,6 +6,7 @@
 import type { SchemaEntity } from '../_shared/index.ts';
 import type { SearchApi } from './api.ts';
 import { fieldTypeOf, mappingDateFormats, mappingFields } from './columns.ts';
+import { withDistinctEstimates } from './distinct.ts';
 
 /** The mappings answer: each index and its mapping. */
 type MappingsAnswer = Readonly<
@@ -167,5 +168,5 @@ export async function describeIndices(api: SearchApi, signal: AbortSignal) {
       signal,
     }),
   ]);
-  return { entities: toEntities(mappings, counts) };
+  return { entities: await withDistinctEstimates(api, toEntities(mappings, counts), signal) };
 }

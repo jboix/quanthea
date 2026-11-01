@@ -1,7 +1,7 @@
 /**
  * Checks that the names in a spec fit together: unique panel, annotation and variable names,
- * views bound to their panel's refIds, markers bound to annotations, and variable defaults among
- * their options.
+ * views bound to their panel's refIds, joins and appends bound to its other queries, markers bound
+ * to annotations, and variable defaults among their options.
  */
 import {
   allValue,
@@ -63,6 +63,7 @@ function checkPanel(panel: Panel, path: string, annotations: ReadonlySet<string>
     if (!refIds.includes(ref))
       issues.push({ path: `${path}.view.${refPath}`, message: `Unknown refId "${ref}".` });
   }
+  issues.push(...operationRefs(panel, path));
   const markers = panel.view.kind === 'chart' ? (panel.view.markers ?? []) : [];
   markers.forEach((marker, index) => {
     if (!annotations.has(marker.annotation))
@@ -72,6 +73,27 @@ function checkPanel(panel: Panel, path: string, annotations: ReadonlySet<string>
       });
   });
   return issues;
+}
+
+/**
+ * Checks that each join or append of a panel reads another of its queries.
+ *
+ * @param panel - The panel.
+ * @param path - Its path, such as `panels[2]`.
+ * @returns The issues.
+ */
+function operationRefs(panel: Panel, path: string): SpecIssue[] {
+  const others = panel.queries.slice(1).map((query) => query.refId);
+  return (panel.operations ?? []).flatMap((step, index) =>
+    'with' in step && !others.includes(step.with)
+      ? [
+          {
+            path: `${path}.operations[${index}].with`,
+            message: `"${step.with}" is not another query of this panel: ${others.join(', ') || 'it has none'}.`,
+          },
+        ]
+      : [],
+  );
 }
 
 /**

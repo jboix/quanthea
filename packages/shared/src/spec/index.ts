@@ -41,6 +41,12 @@ export {
 } from './layout.ts';
 export { refIdSchema, slugSchema, variableNameSchema } from './names.ts';
 export {
+  calculateFunctions,
+  type Operation,
+  operationSchema,
+  operationsSchema,
+} from './operations.ts';
+export {
   durationSchema,
   type PanelQuery,
   panelQuerySchema,

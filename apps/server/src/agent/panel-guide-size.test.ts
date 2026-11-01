@@ -8,12 +8,14 @@ import { panelGuideFor } from './panel-guide.ts';
  * carries the guide, so what a chart needs only sometimes belongs in its recipe, which
  * chart_recipe gives on demand. The ceiling sits a little above the measure: a change that
  * passes it is a decision, not a detail. On 14 October 2026 the variables moved to the settings
- * guide, the search filters to their own, and what to do with layout advice to the advice.
+ * guide, the search filters to their own, and what to do with layout advice to the advice. The
+ * search table builder added its line and its choice on 1 November 2026, and the table
+ * operations their one line, the rest being read with read_guide.
  */
-const pairCeiling = 10_800;
+const pairCeiling = 10_900;
 
 /** The ceiling of the guide in a run on metrics, SQL and search together. */
-const threeCeiling = 12_200;
+const threeCeiling = 12_600;
 
 /**
  * The panel guide of a run about some query languages, with every builder of those languages.

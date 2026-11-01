@@ -9,6 +9,7 @@
 import { type DashboardSpec, diffSpecs, type PanelDiff, type Repair } from '@quanthea/shared';
 import type { PanelTest } from '../dashboards/dashboards.ts';
 import { compactGrid, type LayoutReport } from '../dashboards/panels/index.ts';
+import { derivedFrom } from '../gate/panel-results.ts';
 import type { ModelTestResult } from '../gate/test-run.ts';
 import { canWrite } from '../threads/state.ts';
 import type { RunContext } from './run-context.ts';
@@ -73,9 +74,10 @@ export function reportsOf(context: RunContext, spec: DashboardSpec, run: WriteRu
       const connector =
         panel?.queries.find((query) => query.refId === outcome.refId)?.connector ?? '';
       const error = outcome.error?.message ?? null;
+      const derived = panel && derivedFrom(panel, outcome);
       return {
         refId: outcome.refId,
-        ...context.modelView.panelResult(connector, { frames: outcome.frames, error }),
+        ...context.modelView.panelResult(connector, { frames: outcome.frames, error, derived }),
       };
     });
     const problems = run.panelProblems.get(test.panelId);

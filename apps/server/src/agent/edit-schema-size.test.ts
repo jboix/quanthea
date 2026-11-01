@@ -10,12 +10,17 @@ import { providerSchema } from './tool-schema.ts';
  * each ceiling sits a few hundred characters above its measure: a change that passes one is a
  * decision, not a detail. Raise a ceiling only with a number the maintainer has checked against
  * the providers. Variables, colours and markers moved to edit_settings on 14 October 2026, which
- * took 3,600 to 4,300 characters off every call.
+ * took 3,600 to 4,300 characters off every call. The search table builder, with its "Other" row
+ * and named groups, added about 1,700 to every run with search on 1 November 2026: the
+ * three-language ceiling stays under the 19,000 Gemini took. A panel's table operations and its
+ * further data requests added about 130 on 1 November 2026: the tool takes each step and each
+ * request as a plain object and the server checks its form, so further steps add guide text, not
+ * schema.
  */
 const ceilings: Record<BuilderLanguage, number> = {
   promql: 5_900,
   sql: 6_700,
-  search: 7_900,
+  search: 9_600,
   logql: 7_900,
   mongodb: 7_600,
 };
@@ -27,13 +32,13 @@ const pairCeiling = 9_300;
  * The ceiling of the usual pair when the run may build from definitions: the data kind
  * `definition` adds about 400 characters, only when there are definitions.
  */
-const pairWithDefinitionsCeiling = 9_600;
+const pairWithDefinitionsCeiling = 9_700;
 
 /**
  * The ceiling of a run on three query languages: a few hundred above the largest measure, well
  * under the 19,000 Gemini is known to accept.
  */
-const threeCeiling = 16_800;
+const threeCeiling = 18_500;
 
 /**
  * The ceiling of edit_settings, whatever the languages: a step offers it only once the agent read

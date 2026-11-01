@@ -100,6 +100,21 @@ describe('connectorCatalog', () => {
     );
   });
 
+  test('says about how many values a field holds when they are too many to list', () => {
+    const entities: ModelEntity[] = [
+      {
+        name: 'sessions',
+        kind: 'table',
+        fields: [
+          { name: 'session_id', type: 'keyword', distinctValues: 120_000.4 },
+          { name: 'level', type: 'keyword', distinctValues: 4 },
+        ],
+      },
+    ];
+    const line = connectorCatalog(source, entities, new Map()).split('\n')[1];
+    expect(line).toBe('- sessions (table): session_id keyword (~120000 values), level keyword');
+  });
+
   test('cuts long lists and says how to reach the rest', () => {
     const entities: ModelEntity[] = Array.from({ length: 85 }, (_, index) => ({
       name: `metric_${index}`,

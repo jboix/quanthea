@@ -58,9 +58,10 @@ function chartSchemaWith(recipes: readonly [string, ...string[]]) {
 }
 
 /**
- * A panel: what data, and how it is drawn.
+ * A panel: what data, and how it is drawn. `more` holds up to three further requests, refIds B, C
+ * and D after the first's A, which operations read.
  *
- * @param data - The data schema.
+ * @param data - The schema of the first data request.
  * @param chart - The chart schema.
  * @returns The schema.
  */
@@ -74,6 +75,10 @@ function panelSchemaWith<Data extends z.ZodType, Chart extends z.ZodType>(
     width: widthSchema.optional(),
     replaces: z.string().max(63).optional(),
     data,
+    // Further requests and operations are checked in code (expand.ts), their forms given by the
+    // operations guide, so the tool's schema stays the same size as steps are added.
+    more: z.array(z.record(z.string(), z.unknown())).max(3).optional(),
+    operations: z.array(z.record(z.string(), z.unknown())).max(8).optional(),
     chart,
   });
 }

@@ -1,7 +1,7 @@
 /**
  * Checks every query in a spec: its connector exists and speaks its language, its variables are
- * declared and in the right places, it is a read statement, and the default time range fits the
- * connector's guardrails.
+ * declared and in the right places, it is a read statement, the default time range fits the
+ * connector's guardrails, and a search makes no more buckets over it than a search server allows.
  */
 import type {
   DashboardSpec,
@@ -25,6 +25,7 @@ import { QueryError } from '../query/query-error.ts';
 import { checkScope } from '../query/scope/check.ts';
 import type { Variables } from '../query/variables.ts';
 import type { SpecIssue } from './issues.ts';
+import { bucketProblem } from './search-buckets.ts';
 
 /** What the validator needs to know of a connector. */
 export interface ConnectorFacts {
@@ -154,7 +155,9 @@ export function checkBinding(
     const showSystem = scope?.visibility.showSystem;
     const bound = bindTemplate(query, variables, range, { dialect, showSystem, bucketScripts });
     if (scope) checkScope(scope, bound, dialect);
-    return [];
+    const rangeMs = timeRange.to - timeRange.from;
+    const tooMany = bound.language === 'search' ? bucketProblem(bound.body, rangeMs) : undefined;
+    return tooMany ? [{ path: `${path}.body`, message: tooMany }] : [];
   } catch (error) {
     if (!(error instanceof QueryError)) throw error;
     return [{ path: `${path}.${queryTextKey(query)}`, message: error.safeMessage }];

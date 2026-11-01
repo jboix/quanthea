@@ -23,6 +23,8 @@ export interface BuiltPanel extends BuiltShape {
   readonly grid?: PanelGrid;
   /** The definition its data was copied from, by id, when it was. */
   readonly definition?: string;
+  /** Its description, when it has one. */
+  readonly description?: string;
 }
 
 /** What happened when the agent answered a question. */
@@ -301,6 +303,20 @@ export function dashboardHas(path: string): DashboardCheck {
   const faults = (outcome: Outcome) =>
     holdsField(outcome.dashboard, path) ? [] : [`the dashboard has no ${path}`];
   return { id: `dashboard-has:${path}`, kind: 'feature', faults };
+}
+
+/**
+ * Every panel's description says what it counts: words matching the pattern.
+ *
+ * @param pattern - The words.
+ * @returns The check.
+ */
+export function describedAs(pattern: RegExp): DashboardCheck {
+  const faults = (outcome: Outcome) =>
+    outcome.panels
+      .filter((panel) => !pattern.test(panel.description ?? ''))
+      .map((panel) => `the description of ${panel.id} does not say ${pattern.source}`);
+  return { id: `described-as:${pattern.source}`, kind: 'feature', faults };
 }
 
 /**

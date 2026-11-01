@@ -59,6 +59,7 @@ export function panelsOf(
     queries: panel.queries,
     view: panel.view,
     ...(panel.definition ? { definition: panel.definition.id } : {}),
+    ...(panel.description ? { description: panel.description } : {}),
     ...operationsField(panel),
     ...askedFields(panel, asked),
   }));

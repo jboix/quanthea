@@ -2,9 +2,9 @@
  * The parts of a search body the search builders share: the time range, the measure as a metric
  * aggregation, and the ratio aggregations. The filters are written in `search-filters.ts`.
  */
-import { searchRatioScripts } from '../../query/search-binder.ts';
+import { refusedAnywhere, searchRatioScripts } from '../../query/search-binder.ts';
 import { boolQuery, type SearchFilter } from './search-filters.ts';
-import type { SearchMeasure } from './search-request.ts';
+import type { SearchGroup, SearchMeasure } from './search-request.ts';
 import { QueryError, variableOf } from './text.ts';
 
 /** A JSON object of a search body. */
@@ -72,6 +72,16 @@ export interface RatioParts {
 }
 
 /**
+ * The kit's ratio script: the share, or one minus it. Both are zero when the whole is zero.
+ *
+ * @param complement - Whether it is one minus the share.
+ * @returns The script.
+ */
+export function ratioScriptOf(complement: boolean): string {
+  return complement ? searchRatioScripts.complement : searchRatioScripts.ratio;
+}
+
+/**
  * The aggregations of a ratio under a bucket: the part and the whole as filters, and the share as
  * a `bucket_script` with the kit's ratio script. The counts are helpers unless asked for.
  *
@@ -82,7 +92,7 @@ export function ratioAggs(parts: RatioParts): Json {
   const part = parts.counts ? 'matching' : '_matching';
   const whole = parts.counts ? 'total' : '_total';
   const wholeFilter = parts.of.length > 0 || parts.counts;
-  const script = parts.complement ? searchRatioScripts.complement : searchRatioScripts.ratio;
+  const script = ratioScriptOf(parts.complement);
   return {
     [part]: { filter: boolQuery(parts.match) },
     ...(wholeFilter ? { [whole]: { filter: boolQuery(parts.of) } } : {}),
@@ -93,4 +103,41 @@ export function ratioAggs(parts: RatioParts): Json {
       },
     },
   };
+}
+
+/** The column named groups fill with their names. */
+export const groupColumn = 'group';
+
+/**
+ * The fields or named groups a builder splits by: one of the two, not both. `other` counts the
+ * documents a grouping by values left out, so it goes with a field.
+ *
+ * @param by - The field or fields, if any.
+ * @param groups - The named groups, if any.
+ * @param other - Whether an "Other" row is asked for.
+ * @throws {QueryError} When both or neither are given, or `other` comes with groups.
+ */
+export function checkSplit(by: unknown, groups: unknown, other: boolean): void {
+  if ((by === undefined) === (groups === undefined))
+    throw new QueryError('Split by "by" or by named "groups": one of the two.');
+  if (groups !== undefined && other)
+    throw new QueryError('"other" goes with "by": named groups hold only what they name.');
+}
+
+/**
+ * The `filters` aggregation of named groups: one bucket per group, keyed by its name.
+ *
+ * @param groups - The groups.
+ * @returns The aggregation, without its sub-aggregations.
+ * @throws {QueryError} For two groups of one name, or a name the search check refuses.
+ */
+export function namedGroupsOf(groups: readonly SearchGroup[]): Json {
+  const names = new Set<string>();
+  for (const { name } of groups) {
+    if (names.has(name)) throw new QueryError(`Two groups are named "${name}".`);
+    if (refusedAnywhere(name)) throw new QueryError(`"${name}" cannot name a group.`);
+    names.add(name);
+  }
+  const filters = Object.fromEntries(groups.map((group) => [group.name, boolQuery(group.filters)]));
+  return { filters: { filters } };
 }

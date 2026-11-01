@@ -192,4 +192,35 @@ describe('tableRows', () => {
     const own = tableRows(mapped, outcome, undefined, colors);
     expect(own.rows.map((row) => row.cells[0]?.tone)).toEqual([undefined, undefined, 'bad']);
   });
+
+  test('shows the columns a view does not list with its rest style, after its own', () => {
+    const pivoted: Frame = {
+      refId: 'A',
+      fields: [
+        { name: 'type', type: 'string' },
+        { name: '2.9', type: 'number' },
+        { name: '2.10', type: 'number' },
+      ],
+      values: [['network'], [0.01], [0.06]],
+      meta: { rowCount: 1, truncated: false, durationMs: 1 },
+    };
+    const mappings = [{ match: { from: 0.05 }, tone: 'bad' as const }];
+    const matrix: TableView = {
+      kind: 'table',
+      ref: 'A',
+      columns: [{ field: 'type' }],
+      rest: { align: 'right', mappings, toneAs: 'background' },
+    };
+    const { columns, rows } = tableRows(matrix, [{ refId: 'A', frames: [pivoted], error: null }]);
+    expect(columns).toEqual([
+      { label: 'type', align: 'left' },
+      { label: '2.9', align: 'right', toneAs: 'background' },
+      { label: '2.10', align: 'right', toneAs: 'background' },
+    ]);
+    expect(rows[0]?.cells.map((cell) => cell.tone)).toEqual([undefined, undefined, 'bad']);
+    const listed = tableRows({ ...matrix, rest: undefined }, [
+      { refId: 'A', frames: [pivoted], error: null },
+    ]);
+    expect(listed.columns).toHaveLength(1);
+  });
 });

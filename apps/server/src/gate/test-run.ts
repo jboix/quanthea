@@ -55,6 +55,8 @@ export type ModelTestResult =
       /** For a panel's query: the columns of the table its chart draws, which roles name. */
       readonly columns?: readonly string[];
       readonly frames?: readonly ModelFrame[];
+      /** For a table operations made from several connectors: each connector's part. */
+      readonly parts?: readonly ({ readonly connector: string } & ModelTestResult)[];
     }
   | { readonly ok: false; readonly error: string };
 

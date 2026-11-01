@@ -2,7 +2,6 @@
  * The schema the model receives: the snapshot minus the objects its connector does not show and
  * the hidden fields, with metadata by access level.
  */
-import { lowCardinalityLimit } from '@quanthea/shared';
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
 import { showsObject } from '../query/scope/object-scope.ts';
 import { type GateSubject, isWithheldField } from './subject.ts';
@@ -15,7 +14,7 @@ export interface ModelField {
   readonly type: string;
   /** The admin's or the source's description. */
   readonly description?: string;
-  /** From level 2: how many distinct values, when there are few enough to sample. */
+  /** From level 2: about how many distinct values the field holds, when estimated. */
   readonly distinctValues?: number;
 }
 
@@ -60,8 +59,7 @@ function descriptionOf(
 function modelField(subject: GateSubject, entity: string, field: SchemaField): ModelField {
   const description = descriptionOf(subject, `${entity}.${field.name}`, field.description);
   const distinct = field.distinctEstimate;
-  const showDistinct =
-    subject.accessLevel >= 2 && distinct !== undefined && distinct <= lowCardinalityLimit;
+  const showDistinct = subject.accessLevel >= 2 && distinct !== undefined;
   return {
     name: field.name,
     type: field.nativeType,

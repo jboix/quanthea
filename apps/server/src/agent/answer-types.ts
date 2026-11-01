@@ -23,7 +23,12 @@ export interface AnswerDependencies {
   /** The connectors as the model sees them. */
   readonly modelView: Pick<
     ModelView,
-    'connectors' | 'describe' | 'describeSchemaOnly' | 'testQuery' | 'panelResult'
+    | 'connectors'
+    | 'describe'
+    | 'describeSchemaOnly'
+    | 'testQuery'
+    | 'readOperations'
+    | 'panelResult'
   >;
   /** The dashboards, to bind the viewer's variables as panels bind them. */
   readonly dashboards: Pick<Dashboards, 'bindVariables'>;

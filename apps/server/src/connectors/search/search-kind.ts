@@ -21,7 +21,7 @@ import { aggregationsFrame } from './aggregations.ts';
 import { createSearchApi, type SearchApi, type ServerInfo } from './api.ts';
 import { describeIndices, mergedTypes } from './catalog.ts';
 import { searchGuide } from './guide.ts';
-import { hitsFrame } from './hits.ts';
+import { askedPaths, hitsFrame } from './hits.ts';
 import { resolveIndices } from './resolve.ts';
 
 /** The settings every search kind has. */
@@ -192,7 +192,8 @@ async function execute(
   if (aggs !== undefined)
     return [aggregationsFrame(aggs, answer.aggregations ?? {}, context, durationMs())];
   const fieldTypes = await types.typesOf(query.index, signal);
-  return [hitsFrame(answer.hits?.hits ?? [], fieldTypes, context, durationMs())];
+  const asked = askedPaths(query.body._source);
+  return [hitsFrame(answer.hits?.hits ?? [], fieldTypes, context, durationMs(), asked)];
 }
 
 /**

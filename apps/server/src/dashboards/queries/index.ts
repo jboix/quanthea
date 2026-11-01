@@ -11,6 +11,7 @@ export {
   bodyRequestSchemaFor,
   dataSchema,
   dataSchemaFor,
+  moreDataSchema,
   rawDataSchema,
 } from './request.ts';
 export { markersQuery } from './sql.ts';

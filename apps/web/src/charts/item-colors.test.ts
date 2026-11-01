@@ -54,6 +54,28 @@ describe('the colour of a value on items', () => {
     expect(option.color).toEqual(palette);
   });
 
+  test('keeps a source\'s own "Other" last and neutral, summed with the tail, without colours', () => {
+    const withRest: Dataset = { ...platforms, source: [...platforms.source, ['Other', 500]] };
+    const items = prepareChart('items', {
+      option: { series: [{ type: 'pie' }] },
+      datasets: [withRest],
+      roles: {},
+      limit: 3,
+      format: {},
+    });
+    expect(items.datasets[0]?.source).toEqual([
+      ['Web', 90],
+      ['iOS', 40],
+      ['Other', 537],
+    ]);
+    const { tones, palette: base } = defaultTheme;
+    expect(itemPalette('items', items, undefined, defaultTheme)).toEqual([
+      base[0] ?? '',
+      base[1] ?? '',
+      tones.neutral,
+    ]);
+  });
+
   test('changes nothing when no category has a colour', () => {
     const none = [{ value: 'Linux', tone: 'bad' as const }];
     expect(itemPalette('items', prepared('items'), none, defaultTheme)).toBeUndefined();

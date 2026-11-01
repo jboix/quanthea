@@ -6,6 +6,7 @@ import {
   built,
   copiesDefinition,
   type DashboardCheck,
+  describedAs,
   everyPanelRuns,
   hasMarkers,
   markersFrom,
@@ -359,6 +360,18 @@ describe('a definition copied into a panel', () => {
     expect(copiesDefinition('failure-rate').faults(copied, noTruth)).toEqual([]);
     expect(copiesDefinition('failure-rate').faults(outcome, noTruth)).toEqual([
       'no panel was built from the definition failure-rate',
+    ]);
+  });
+});
+
+describe('what a panel says it counts', () => {
+  test('names each panel whose description lacks the words', () => {
+    const first = outcome.panels[0] as BuiltPanel;
+    const described = { ...outcome, panels: [{ ...first, description: 'Counts START events.' }] };
+    expect(describedAs(/start|distinct/i).faults(described, noTruth)).toEqual([]);
+    const undescribed = { ...outcome, panels: [first] };
+    expect(describedAs(/start|distinct/i).faults(undescribed, noTruth)).toEqual([
+      `the description of ${first.id} does not say start|distinct`,
     ]);
   });
 });

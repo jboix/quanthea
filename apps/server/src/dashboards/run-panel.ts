@@ -16,6 +16,7 @@ import {
   type TimeRangeExpression,
   type VariableOption,
   type VariableValues,
+  withOperations,
 } from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
 import type { QueryExecutor, QuerySource } from '../query/executor.ts';
@@ -256,7 +257,8 @@ function runMarkers(
  * Runs one panel and the annotations its chart marks. The queries of a chart over time bind an
  * interval that gives no more points than the panel's width can show, unless the caller chose
  * the interval. A chosen interval cuts charts only: a stat or a table reduces what its queries
- * return, so they run as they are written, as the annotations do.
+ * return, so they run as they are written, as the annotations do. The panel's table operations
+ * then run on the results.
  *
  * @param dependencies - The connectors, the executor and the clock.
  * @param spec - The spec, each panel at the width it is drawn.
@@ -288,7 +290,8 @@ export async function runPanel(
     Promise.all(panel.queries.map((query) => run(query, chartPoints))),
     runMarkers(spec, panel, (query) => run(query)),
   ]);
-  return { time, queries, markers, durationMs: Math.round(performance.now() - started) };
+  const durationMs = Math.round(performance.now() - started);
+  return { time, queries: withOperations(panel, queries), markers, durationMs };
 }
 
 /**

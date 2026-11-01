@@ -571,7 +571,13 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
    markers run their annotation queries the same way, with the same variables, and come back, per
    set with its label and colour, as `{time, text}` points. A change of variable runs the panel
    again, its markers with it.
-6. The browser receives `{ time, queries: [{ refId, frames, error }], markers, durationMs }`, and
+6. A panel with table operations runs them on the table of its first query
+   (`withOperations` and the steps in `@quanthea/shared`). The table they end with
+   replaces that query's frames, so the view reads it by the same refId. A join or an append reads
+   another query's table, on any connector. A step that cannot run fails that query with a message
+   that names the step; a first query that failed keeps its error, and a query a join or an append
+   reads that failed makes the first fail with a message that names it.
+7. The browser receives `{ time, queries: [{ refId, frames, error }], markers, durationMs }`, and
    `charts/` builds the ECharts option.
 
 Panels run in parallel. Each query has its own outcome with a safe error message, so one failing
@@ -1575,7 +1581,9 @@ metric (label names), at most 80 per connector, with a note to call `describe` f
 From level 2, fields with at most 20 distinct values also list their values, sampled through the
 same gate function as `sample_values`. A Prometheus label is sampled once per connector, since its
 values are counted across metrics. At most 30 fields are sampled per connector, and sampled values
-are kept for ten minutes. Level 1 shows no values and no row counts, and hidden fields and the
+are kept for ten minutes. A field with more than 20 distinct values shows its estimate instead,
+such as `session_id keyword (~120000 values)`: an identifier to count or filter on, not a category
+to split by. Level 1 shows no values and no row counts, and hidden fields and the
 objects a connector does not show never appear. The catalog replaces exploring call by call, which cost a model request per step.
 
 A connector with more than 40 tables or metrics is trimmed to what the thread is about
@@ -1624,7 +1632,34 @@ directly onto an ECharts `dataset`.
     `match`, the rows matching `of` or every row) as `1e0 * part / nullif(whole, 0)`: a double in
     MySQL, MariaDB, ClickHouse and Trino, exact in PostgreSQL, and no division by zero.
     Search, for Elasticsearch and OpenSearch (`dashboards/queries/search.ts`): `search-series`,
-    `search-ratio`, `search-breakdown`, `search-stat`, `search-histogram`, `search-rows`. Filters
+    `search-ratio`, `search-breakdown`, `search-stat`, `search-histogram`, `search-rows`, and
+    `search-table` (`dashboards/queries/search-table.ts`). `search-rows` lists up to 500
+    documents, newest first or with `oldest` the oldest first, its fields in the order asked. `search-table` groups by one to three
+    fields (`terms` on one, named after it; `multi_terms` on several, a column per field) and
+    gives up to eight named columns: a count, a metric or one percentile (`<name> p<percent>`),
+    each under its own filters (a filtered count is the filter's own count, a filtered metric
+    sits under a filter named `<name>_filter`), or a ratio of two of those columns (`part` over
+    `whole`, the group's documents when `whole` is left out) through the kit's ratio script.
+    It sorts by any column, either way, and keeps up to 500 groups. A count or a metric orders the
+    grouping itself, so the right groups are kept; a ratio cannot order a grouping, so the groups
+    are kept by document count and a `bucket_sort` orders them. Column names are letters, digits
+    and `_`, unique, and never a key the search check refuses anywhere (`refusedAnywhere` in
+    `query/search-binder.ts`). With `other`, `search-breakdown` (a count, no `series`) and
+    `search-table` (in its counts with no filters of their own) end with a row "Other" holding
+    the documents outside the groups kept: the grouping carries `meta.other` with the columns to
+    fill, and the search connector adds the row from `sum_other_doc_count`. A sum or a distinct
+    count has no such number, so `other` is refused there. A donut keeps a source's "Other" last,
+    sums it with its own tail past the limit, and draws it neutral. In place of `by`,
+    `search-table` takes named `groups`, 2 to 20, each a name and up to five filters: a `filters` aggregation keyed by the names, whose rows fill a `group` column.
+    Group names are unique and never a key the search check refuses. A table by groups sorts
+    with a `bucket_sort`, and named groups hold only what they name, so `other` is refused with
+    them. When a spec is validated, every search is bound over the dashboard's default range and
+    its buckets are counted (`dashboards/search-buckets.ts`): the time buckets of each date
+    histogram times the groups of the groupings under it (a `terms` or `multi_terms` size, the
+    keys of a `filters`). Past 65,536, the default limit of Elasticsearch and OpenSearch, the
+    query is an issue at its body, with the count and the round interval that fits, or "ask for
+    fewer groups" when there is no time to widen. An interval left to `__interval` already fits
+    the range, so only an explicit width or many groups meet it. Filters
     on document fields become a bool query: `term` for a literal, `terms` with a list node
     (`{"$var": "name", "as": "list"}`) for a variable, so one value or several both work, and
     `regexp` for a pattern. A variable in a pattern is a node that takes one value
@@ -1691,6 +1726,20 @@ directly onto an ECharts `dataset`.
 - **Shapes.** `long` (x, series, value), `wide` (x, a column per series), `single`, `values` (raw
   numbers to bin), `matrix`, `hierarchical`, `graph`, `geo`, `ohlc` and `rows`. A Prometheus
   range result is long: the time, a column per label, `series` and `value`.
+- **Operations** (`operations` on a panel request) are steps the server runs on the data's table,
+  stored on the panel as the agent wrote them. A panel request also takes up to three further
+  data requests in `more`, each raw or saved, on any connector, as refIds B, C and D. Builders
+  stay in `data`, so the schema holds their forms once. Only a join or an append reads a further
+  request: one that no step reads is refused, and with operations the view reads the first query
+  alone. The tool's schema takes each step as a plain
+  object, and `dashboards/panels/expand.ts` checks it against the spec's schema, with a message
+  that says what does not fit. This keeps the schema the same size however many steps there are.
+  The panel guide gives them one line, and `read_guide("operations")` gives each step's form
+  (`agent/operations-guide.ts`). A calculated column joins the columns the data declares, so a
+  chart whose result is empty still completes. A pivot names its columns by data, so a version
+  cannot list them: a table completed over one lists the other columns and gets a `rest` style,
+  which the browser applies to every column the view does not list. Chart roles never name a
+  column named by data, and the gate leaves those columns out of what roles are completed from.
 - **Charts** (`@quanthea/shared/chart-recipes/`) are presentation only: a recipe names the shape it
   draws and the role of each column (`x`, `series`, `y`, `category`, `value`…), carries an ECharts
   option template with `@role`, `@format` and theme tokens, variants as small option patches, its
@@ -2277,6 +2326,9 @@ The model's tools are decided per connector of the dashboard:
 - `read_data` runs over the range asked about, or a window the model names, with the viewer's
   variables bound by the panel binders (`Dashboards.bindVariables`), never pasted into a query. It
   returns what the gate allows: level 3 summaries, level 4 also rows. Nothing writes.
+- A read of a panel with table operations runs all its queries, then its operations, and gives the
+  table they end with, cut by connector as any derived table (`gate/operations-read.ts`). Its
+  evidence records the queries and the operations.
 - The instants in a read's result reach the model on the question's clock
   (ISO with the local offset, `2026-10-03T14:02+02:00`, `agent/local-times.ts`), so "around 14:00" compares with
   local times. The stored evidence keeps UTC.
@@ -2798,18 +2850,22 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   `allow_partial_search_results=false`, and OpenSearch also gets `cancel_after_time_interval`; a
   search that ran out of time is a timeout error, and aborting the request cancels the search on
   the server. A search with aggregations gives one long table: a column per bucket aggregation,
-  nested level by level (a date histogram is a time column), then a column per metric of the
+  nested level by level (a date histogram is a time column, a `multi_terms` a column per field it
+  groups by, named after the field), then a column per metric of the
   deepest level (a percentile or a statistic each its own), or `count` when there is none.
   A single-bucket aggregation (`filter` and the like) with no bucket aggregation under it is a
   metric: its document count, or its own metrics. An aggregation named with a leading `_` is a
   helper and gives no column (a bucket aggregation no key column), such as the parts of a ratio. Bucket aggregations side by side are
   refused. A search without aggregations gives its documents,
-  flattened to dotted columns typed from the mapping. `describe` groups daily and rollover indices
+  flattened to dotted columns typed from the mapping, the fields its `_source` lists first in
+  that order. `describe` groups daily and rollover indices
   (`logs-2026.09.29`, `logs-000042`) into the pattern that queries them (`logs-*`), with their
   merged fields and document counts. A date field whose mapping names a format carries it in its
   type, such as `date (epoch_millis)`, so the model knows how the field is written. A pattern
   carries a format only when every index that has the field names the same one: where they
-  differ, or one names none, the type is plain `date`. `sampleValues` runs a terms aggregation on a field the
+  differ, or one names none, the type is plain `date`. One `_msearch` then estimates the distinct values of up to 50 keyword
+  fields per index, with `cardinality` over at most 100,000 documents per shard; a refused
+  request leaves the estimates out. `sampleValues` runs a terms aggregation on a field the
   mapping has, through `.keyword` for a text field. Error types map to connector errors; a
   reason that is not about the query can quote values, so the safe message leaves it out. The connection test asks the
   server what the signed-in user may do (`search/access.ts`), with a GET that only reads.
@@ -3295,12 +3351,12 @@ the bound query, so a variable's value is already in it.
 Everything the model receives from a connector passes through `gate/`. Its functions return
 model-ready results and never throw.
 
-| Access level          | `modelSchema` (describe)                                           | `testQueryForModel` (test-run)                                                                                                                                                        |
-| --------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 schema only         | entities, fields, types, descriptions                              | `{ ok }`, or the safe error message                                                                                                                                                   |
-| 2 schema and metadata | also row estimates, and distinct counts of fields with ≤ 50 values | also the shape: fields, types, row counts, label names (not values)                                                                                                                   |
-| 3 aggregates          | same                                                               | also labels with values and per-field summaries: min, max, mean, spikes (> mean + 3σ), top 5 values, and with a time column, when: the time of the min and max, and the spike windows |
-| 4 full access         | same                                                               | also the rows, at most 500, and the source's own error text                                                                                                                           |
+| Access level          | `modelSchema` (describe)                          | `testQueryForModel` (test-run)                                                                                                                                                        |
+| --------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 schema only         | entities, fields, types, descriptions             | `{ ok }`, or the safe error message                                                                                                                                                   |
+| 2 schema and metadata | also row estimates, and distinct counts of fields | also the shape: fields, types, row counts, label names (not values)                                                                                                                   |
+| 3 aggregates          | same                                              | also labels with values and per-field summaries: min, max, mean, spikes (> mean + 3σ), top 5 values, and with a time column, when: the time of the min and max, and the spike windows |
+| 4 full access         | same                                              | also the rows, at most 500, and the source's own error text                                                                                                                           |
 
 - A level 3 summary says when, never what each row was (`gate/summaries.ts`). With a time column,
   a number's summary gives the time its min and max were first reached (`minAt`, `maxAt`), and its
@@ -3366,6 +3422,13 @@ model-ready results and never throw.
   means, `describe` (cut to a scope, at most 60 entities), `sample`, `testQuery` and the shaping of
   saved panels' results. The gate declares what it needs from the connectors service
   (`ConnectorAccess`) and the bootstrap hands it over, so the gate never imports `connections/`.
+- A table a panel's operations made carries the origin of each column: the queries its values
+  come from, and whether its name is a value of the data. The gate (`gate/derived.ts`) cuts it
+  into one part per connector and shapes each part at that connector's own level, with its hidden
+  fields removed. A column computed from several connectors goes to the part of the strictest. A
+  column whose name comes from data is renamed `column 1`, `column 2` below level 3, since its name
+  is a value. A table from one connector reads as any result of it. The write report, chart roles,
+  Ask's reads and Ask on a frozen run all read a derived table this way (`gate/panel-results.ts`).
 - `sampleForModel` lists distinct values from level 2 only, never for a hidden field, and never
   when the field has more than the asked number of values (at most 50).
 - `gate/leak.test.ts` feeds random marker values through levels 1 and 2 (rows, unusual numbers,

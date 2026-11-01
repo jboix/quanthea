@@ -106,6 +106,27 @@ export function groups(input: PrepareInput): Prepared {
   return { datasets, option: input.option, roles: input.roles, groups: names };
 }
 
+/** The name of the item that sums the categories past the limit, and of a source's own rest. */
+const otherName = 'Other';
+
+/**
+ * Items largest first, and "Other" last: the categories past the limit summed with a row "Other"
+ * the source gave, such as a search's documents outside the values it kept.
+ *
+ * @param rows - The category and value of each row, largest first.
+ * @param limit - The most items.
+ * @returns The items.
+ */
+function withOther(rows: readonly Cell[][], limit: number): Cell[][] {
+  const named = rows.filter((row) => row[0] !== otherName);
+  const given = rows.filter((row) => row[0] === otherName);
+  const room = given.length > 0 ? limit - 1 : limit;
+  const kept = named.length > room ? named.slice(0, Math.max(limit - 1, 0)) : named;
+  const rest = [...named.slice(kept.length), ...given];
+  if (rest.length === 0) return kept;
+  return [...kept, [otherName, rest.reduce((sum, row) => sum + Number(row[1] ?? 0), 0)]];
+}
+
 /**
  * Categories as items, largest first; past the limit, the rest are summed as "Other".
  *
@@ -123,10 +144,7 @@ export function items(input: PrepareInput): Prepared {
     row[at] ?? null,
     row[valueAt] ?? null,
   ]);
-  const limit = input.limit ?? rows.length;
-  const kept = rows.length > limit ? rows.slice(0, limit - 1) : rows;
-  const rest = rows.slice(kept.length).reduce((sum, row) => sum + Number(row[1] ?? 0), 0);
-  const source = rows.length > limit ? [...kept, ['Other', rest]] : kept;
+  const source = withOther(rows, input.limit ?? rows.length);
   const dimensions = [dataset.dimensions[at], dataset.dimensions[valueAt]].filter(
     (column) => column !== undefined,
   );

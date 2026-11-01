@@ -32,7 +32,7 @@ export const parityFamilies: readonly ParityFamily[] = [
   { id: 'f17', what: 'web and mobile applications in one table' },
   { id: 'f18', what: 'a matrix table with cells coloured by steps' },
   { id: 'f19', what: 'two columns joined into one text' },
-  { id: 'f20', what: 'the share of each major version as bars, in version order' },
+  { id: 'f20', what: 'sessions by player version as bars, in version order' },
   { id: 'f21', what: 'a histogram of a timing that stops at a percentile' },
   { id: 'f22', what: 'a list read by a query filters another panel' },
   { id: 'f23', what: 'titles from an HTTP API beside counts' },

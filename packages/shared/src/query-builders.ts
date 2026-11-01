@@ -125,6 +125,13 @@ export const queryBuilders: readonly QueryBuilder[] = [
     description: 'The latest documents of an index, newest first, such as the last errors.',
   },
   {
+    id: 'search-table',
+    name: 'Search table',
+    language: 'search',
+    description:
+      'Several named columns by the values of one to three fields, such as starts, errors and the error rate by browser and version.',
+  },
+  {
     id: 'logql-series',
     name: 'Logs over time',
     language: 'logql',

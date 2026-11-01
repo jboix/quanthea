@@ -23,5 +23,6 @@ export function searchGuide(product: string): string {
 - ratio, with one of the two fixed scripts, on every connector: under a bucket, {"_part": {"filter": …}, "_whole": {"filter": …}, "rate": {"bucket_script": {"buckets_path": {"part": "_part>_count", "whole": "_whole>_count"}, "script": "${searchRatioScripts.ratio}"}}}; "whole": "_count" for every document of the bucket; "${searchRatioScripts.complement}" for one minus it, such as a success rate. Copy the script exactly.
 - matrix: nest a terms or histogram under another.
 - rows: no aggs; "size" up to 100, "sort": [{"@timestamp": "desc"}], "_source": ["@timestamp", "level", "message"]. Nested fields become dotted columns.
+- Events or sessions: a count of the event that starts a session (such as event_name START) counts the sessions started in the range; a cardinality of the session id counts every session seen, including those started before. They differ: use the one asked, and say in the panel's description which one it counts.
 - Aggregate on keyword fields (or text.keyword), not text fields.`;
 }

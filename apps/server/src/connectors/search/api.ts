@@ -33,6 +33,8 @@ export interface ApiRequest {
   readonly query?: Readonly<Record<string, string>>;
   /** The JSON body. */
   readonly body?: unknown;
+  /** A body of JSON lines, sent as it is, for `_msearch`. */
+  readonly lines?: string;
   /** Aborts the request. */
   readonly signal: AbortSignal;
 }
@@ -88,6 +90,9 @@ async function send<T>(client: HttpClient, request: ApiRequest): Promise<T> {
     path: request.path,
     ...(request.query ? { query: request.query } : {}),
     ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
+    ...(request.lines === undefined
+      ? {}
+      : { body: request.lines, headers: { 'Content-Type': 'application/x-ndjson' } }),
     signal: request.signal,
   });
   const answer = (await response.json().catch(() => undefined)) as

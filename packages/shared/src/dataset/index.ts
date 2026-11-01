@@ -11,6 +11,8 @@ export {
   shapeKinds,
 } from './contract.ts';
 export { datasetOfFrames } from './from-frames.ts';
+export { type ColumnOrigin, OperationError, runOperations } from './operations.ts';
+export { withOperations } from './operations-outcome.ts';
 export {
   columnIndex,
   columnValues,

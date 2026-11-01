@@ -261,6 +261,12 @@ export function dataSchemaFor(available: AvailableQueries) {
 }
 
 /**
+ * Validates a panel's further data request, after its first: a raw query or a saved one. Builders
+ * stay in the first request, so the tool's schema holds their forms once.
+ */
+export const moreDataSchema = z.union([rawDataSchema, savedSchema]);
+
+/**
  * The fields of a builder request that say how a panel presents the data, not what it means: a
  * definition's body leaves them to the panel.
  */

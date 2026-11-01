@@ -296,6 +296,12 @@ for (const server of servers) {
         'session.player.platform': 'string',
         'data.stall.count': 'number',
       });
+      const distinct = new Map(
+        (events?.fields ?? []).map((field) => [field.name, field.distinctEstimate]),
+      );
+      expect(distinct.get('event_name')).toBeLessThan(50);
+      expect(distinct.get('session_id') ?? 0).toBeGreaterThan(50);
+      expect(distinct.get('data.stall.count')).toBeUndefined();
     });
 
     test('samples keyword fields, text fields through their keyword, and nothing unknown', async () => {

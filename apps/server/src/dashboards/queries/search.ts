@@ -9,12 +9,13 @@ import type { DataOf } from './request.ts';
 import { inRange, intervalOf, metricOf, ratioAggs, valueColumns } from './search-body.ts';
 import { boolQuery, type SearchFilter } from './search-filters.ts';
 import type { SearchMeasure } from './search-request.ts';
+import { QueryError } from './text.ts';
 
 /** A JSON object of a search body. */
 type Json = Record<string, unknown>;
 
 /** What every search request has. */
-interface SearchRequest {
+export interface SearchRequest {
   /** The connector. */
   readonly connector: string;
   /** The index or pattern. */
@@ -32,7 +33,7 @@ interface SearchRequest {
  * @param body - The body.
  * @returns The query.
  */
-function searchQuery(request: SearchRequest, body: Json): PanelQuery {
+export function searchQuery(request: SearchRequest, body: Json): PanelQuery {
   return {
     refId: 'A',
     connector: request.connector,
@@ -49,7 +50,7 @@ function searchQuery(request: SearchRequest, body: Json): PanelQuery {
  * @param aggs - The aggregations.
  * @returns The body.
  */
-function aggsBody(request: SearchRequest, aggs: Json): Json {
+export function aggsBody(request: SearchRequest, aggs: Json): Json {
   return { size: 0, query: boolQuery(request.filters, [inRange(request.time)]), aggs };
 }
 
@@ -157,18 +158,21 @@ export function searchRatioData(request: DataOf<'search-ratio'>): BuiltData {
 
 /**
  * A measure by the values of a field, largest first: columns the `by` field, `series` when split
- * again, and the measure's.
+ * again, and the measure's. With `other`, a last row "Other" counts the documents outside them.
  *
  * @param request - The request.
  * @returns The query and its output.
  */
 export function searchBreakdownData(request: DataOf<'search-breakdown'>): BuiltData {
+  if (request.other && (request.measure.fn !== 'count' || request.series))
+    throw new QueryError('"other" counts documents: it takes a count measure and no "series".');
   const metric = { value: metricOf(request.measure, request.time) };
   const inner = request.series
     ? { series: { terms: terms(request.series, request.limit, request.measure), aggs: metric } }
     : metric;
+  const grouping = { terms: terms(request.by, request.limit, request.measure), aggs: inner };
   const aggs = {
-    [request.by]: { terms: terms(request.by, request.limit, request.measure), aggs: inner },
+    [request.by]: request.other ? { ...grouping, meta: { other: ['value'] } } : grouping,
   };
   const columns = [
     request.by,
@@ -213,7 +217,7 @@ export function searchHistogramData(request: DataOf<'search-histogram'>): BuiltD
 }
 
 /**
- * The latest documents, newest first: the fields asked for.
+ * The latest documents, newest first, or the oldest first: the fields asked for, in that order.
  *
  * @param request - The request.
  * @returns The query and its output.
@@ -222,7 +226,7 @@ export function searchRowsData(request: DataOf<'search-rows'>): BuiltData {
   const body = {
     size: request.limit,
     query: boolQuery(request.filters, [inRange(request.time)]),
-    sort: [{ [request.time]: 'desc' }],
+    sort: [{ [request.time]: request.oldest ? 'asc' : 'desc' }],
     _source: request.fields,
   };
   return {

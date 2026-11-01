@@ -64,6 +64,7 @@ function shapingMethods(view: ModelView, note: Note) {
   return {
     panelResult: ((name, outcome, timeZone) => {
       note(name);
+      for (const each of new Set(Object.values(outcome.derived?.connectors ?? {}))) note(each);
       return view.panelResult(name, outcome, timeZone);
     }) satisfies ModelView['panelResult'],
     alertCheck: ((names, series) => {

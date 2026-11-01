@@ -28,6 +28,7 @@ import {
   searchSeriesData,
   searchStatData,
 } from './search.ts';
+import { searchTableData } from './search-table.ts';
 import { breakdownData, rowsData, seriesData, statData } from './sql.ts';
 import { sqlRatioData } from './sql-ratio.ts';
 import { type SqlWriter, sqlWriterFor } from './sql-writers.ts';
@@ -67,6 +68,7 @@ const builders: {
   'search-stat': searchStatData,
   'search-histogram': searchHistogramData,
   'search-rows': searchRowsData,
+  'search-table': searchTableData,
   'logql-series': logqlSeriesData,
   'logql-ratio': logqlRatioData,
   'logql-breakdown': logqlBreakdownData,

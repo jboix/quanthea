@@ -149,6 +149,17 @@ function termsLookup(value: unknown): boolean {
 }
 
 /**
+ * Whether a key is refused wherever it stands, such as `wrapper`: a builder never names an
+ * aggregation so.
+ *
+ * @param key - The key.
+ * @returns `true` for a key the check refuses in any place.
+ */
+export function refusedAnywhere(key: string): boolean {
+  return hiddenReadKeys.has(key.toLowerCase());
+}
+
+/**
  * Whether a key hides a query or reads documents the index check does not see.
  *
  * @param key - The key.
@@ -158,7 +169,7 @@ function termsLookup(value: unknown): boolean {
  */
 function readsHidden(key: string, value: unknown, parent: string | undefined): boolean {
   const lower = key.toLowerCase();
-  if (hiddenReadKeys.has(lower)) return true;
+  if (refusedAnywhere(lower)) return true;
   if (lower === '_index') return documentListKeys.has(parent?.toLowerCase() ?? '');
   return lower === 'terms' && termsLookup(value);
 }

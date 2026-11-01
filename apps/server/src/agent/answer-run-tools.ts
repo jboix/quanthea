@@ -15,6 +15,7 @@ import {
 } from '@quanthea/shared';
 import { tool } from 'ai';
 import { z } from 'zod';
+import { derivedFrom } from '../gate/panel-results.ts';
 import type { AnswerToolContext } from './answer-tools.ts';
 import type { FrozenRun } from './frozen-run.ts';
 import { withLocalTimes } from './local-times.ts';
@@ -58,7 +59,11 @@ function recordFrozen(
   const result = outcome
     ? context.modelView.panelResult(
         query.connector,
-        { frames: outcome.frames, error: outcome.error?.message ?? null },
+        {
+          frames: outcome.frames,
+          error: outcome.error?.message ?? null,
+          derived: derivedFrom(panel, outcome),
+        },
         context.timeZone,
       )
     : { ok: false as const, error: 'The run holds no result for this query.' };
