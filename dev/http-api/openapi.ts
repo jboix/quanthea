@@ -28,6 +28,18 @@ export const openApi = {
           author: { type: 'string' },
         },
       },
+      Media: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'The media id the player events carry.' },
+          bu: { type: 'string', enum: ['north', 'south', 'east', 'west'] },
+          type: { type: 'string', enum: ['video', 'audio'] },
+          title: { type: 'string' },
+          published_at: { type: 'string', format: 'date-time' },
+          duration_s: { type: 'integer', description: 'The length, in seconds.' },
+          thumbnail: { type: 'string', format: 'uri', description: 'A 160 by 90 image.' },
+        },
+      },
     },
   },
   security: [{ bearer: [] }],
@@ -86,6 +98,41 @@ export const openApi = {
                   type: 'object',
                   properties: {
                     data: { type: 'array', items: { $ref: '#/components/schemas/Deploy' } },
+                    total: { type: 'integer' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/v1/media': {
+      get: {
+        summary: 'The media of every business unit, with their title and thumbnail.',
+        parameters: [
+          {
+            name: 'id',
+            in: 'query',
+            description: 'A media id; repeat to ask for several.',
+            schema: { type: 'string' },
+          },
+          {
+            name: 'bu',
+            in: 'query',
+            description: 'A business unit; repeat to ask for several.',
+            schema: { type: 'string', enum: ['north', 'south', 'east', 'west'] },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'The media.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/Media' } },
                     total: { type: 'integer' },
                   },
                 },

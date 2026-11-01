@@ -28,8 +28,9 @@
 #   orders around the incident, the deploys and a view of the failed orders, seeded by mongodb-seed
 #   through mongosh. quanthea_admin (password quanthea-dev) can write; dash_ro (password dash-ro-dev,
 #   authentication database shop) only reads.
-# - http-api (profile "http"): a JSON API over the incident (dev/http-api), on localhost:8085, with
-#   its OpenAPI description at /openapi.json; /api routes need Authorization: Bearer dev-token.
+# - http-api (profile "http"): a JSON API over the incident and the media the player events play
+#   (dev/http-api), on localhost:8085, with its OpenAPI description at /openapi.json; /api routes
+#   need Authorization: Bearer dev-token.
 # - loki (profile "loki"): on localhost:3101 (dev/loki), with the same logs, seeded by loki-seed.
 #
 # Every port listens on 127.0.0.1 only: the passwords above are in the repository.

@@ -1,10 +1,12 @@
 /**
- * The dev HTTP API: a small JSON API over the incident, for the HTTP connector's integration
- * tests, on port 8080. Every `/api` route needs `Authorization: Bearer dev-token`; the OpenAPI
- * description at `/openapi.json` does not. Usage: `bun serve.ts`.
+ * The dev HTTP API: a small JSON API over the incident and the media the player events play, for
+ * the HTTP connector's integration tests, on port 8080. Every `/api` route needs
+ * `Authorization: Bearer dev-token`; the OpenAPI description at `/openapi.json` and the
+ * thumbnails do not. Usage: `bun serve.ts`.
  */
 import { services } from '../metrics/incident.ts';
 import { deploys, errorPoints, serviceRows } from './data.ts';
+import { mediaRows, thumbnail } from './media.ts';
 import { openApi } from './openapi.ts';
 
 /** The token every `/api` route asks for. */
@@ -82,10 +84,42 @@ async function searchRoute(request: Request): Promise<Response> {
   return Response.json({ results });
 }
 
+/**
+ * The media, filtered by id and business unit.
+ *
+ * @param url - The request URL.
+ * @returns The response.
+ */
+function mediaRoute(url: URL): Response {
+  const params = url.searchParams;
+  const data = mediaRows(url.origin, params.getAll('id'), params.getAll('bu'));
+  return Response.json({ data, total: data.length });
+}
+
+/**
+ * A media's thumbnail.
+ *
+ * @param path - The request path.
+ * @returns The SVG, or a 404.
+ */
+function thumbnailRoute(path: string): Response {
+  const image = thumbnail(Number(/^\/thumbnails\/(\d+)\.svg$/.exec(path)?.[1]));
+  if (!image) return Response.json({ error: 'not found' }, { status: 404 });
+  return new Response(image, { headers: { 'content-type': 'image/svg+xml' } });
+}
+
 /** The status of the service behind the API, as one nested object. */
 const status = {
   version: '1.4.2',
   checks: { database: { ok: true, latency_ms: 3 }, queue: { ok: true, depth: 12 } },
+};
+
+/** The GET routes with a fixed path. */
+const getRoutes: Record<string, (url: URL) => Response> = {
+  '/api/v1/services': () => Response.json(serviceRows()),
+  '/api/v1/deploys': deploysRoute,
+  '/api/v1/media': mediaRoute,
+  '/api/v1/status': () => Response.json(status),
 };
 
 /**
@@ -102,10 +136,7 @@ function apiRoute(request: Request, url: URL): Response | Promise<Response> {
   const errors = /^\/api\/v1\/services\/([^/]+)\/errors$/.exec(path);
   if (errors) return errorsRoute(url, decodeURIComponent(errors[1] ?? ''));
   if (path === '/api/v1/errors/search' && request.method === 'POST') return searchRoute(request);
-  if (path === '/api/v1/services') return Response.json(serviceRows());
-  if (path === '/api/v1/deploys') return deploysRoute(url);
-  if (path === '/api/v1/status') return Response.json(status);
-  return Response.json({ error: 'not found' }, { status: 404 });
+  return getRoutes[path]?.(url) ?? Response.json({ error: 'not found' }, { status: 404 });
 }
 
 Bun.serve({
@@ -115,6 +146,7 @@ Bun.serve({
     if (url.pathname === '/health') return new Response('ok');
     if (url.pathname === '/openapi.json') return Response.json(openApi);
     if (url.pathname.startsWith('/api/')) return apiRoute(request, url);
+    if (url.pathname.startsWith('/thumbnails/')) return thumbnailRoute(url.pathname);
     return Response.json({ error: 'not found' }, { status: 404 });
   },
 });

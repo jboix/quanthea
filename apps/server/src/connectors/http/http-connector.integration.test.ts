@@ -106,7 +106,7 @@ describe.skipIf(!live)('http connector against the dev API', () => {
     const health = await connection.test(AbortSignal.timeout(10_000));
     expect(health).toMatchObject({
       ok: true,
-      message: 'The OpenAPI description lists 5 operations the connector allows.',
+      message: 'The OpenAPI description lists 6 operations the connector allows.',
     });
   });
 
@@ -125,6 +125,17 @@ describe.skipIf(!live)('http connector against the dev API', () => {
     const status = snapshot.entities.find((entity) => entity.name === 'GET /api/v1/status');
     expect(status?.fields.map((field) => field.name)).toContain('checks.database.ok');
     expect(snapshot.entities.map((entity) => entity.name)).toContain('POST /api/v1/errors/search');
+  });
+
+  test('lists the media the player events play, by id, with a thumbnail on its own host', async () => {
+    const [frame] = await connection.execute(
+      get('/api/v1/media', [['bu', 'north']], { rows: '/data' }),
+      context(),
+    );
+    const ids = frame?.values[0] ?? [];
+    expect(ids).toEqual(['urn:north:video:1000', 'urn:north:video:1001', 'urn:north:audio:1002']);
+    const thumbnails = frame?.values[frame.fields.findIndex((field) => field.name === 'thumbnail')];
+    expect(String(thumbnails?.[0])).toStartWith(`${devHttpApi.config.url}/thumbnails/`);
   });
 
   test('turns nested rows into typed columns, and repeats a parameter for several values', async () => {
