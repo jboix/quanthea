@@ -7,6 +7,8 @@ import {
   chartInputOf,
   chartPeriodOf,
 } from '../../charts/input.ts';
+import type { PanelLinks } from './links.ts';
+import { LogView } from './log-view.tsx';
 import { shownMarkers } from './marker-sets.ts';
 import styles from './panels.module.css';
 import { StatView } from './stat-view.tsx';
@@ -42,6 +44,8 @@ interface PanelViewProps extends ViewProps {
   readonly period?: ChartPeriod | undefined;
   /** The dashboard's colour per value. Left out, as in the gallery, series keep the palette. */
   readonly colors?: readonly ValueColor[] | undefined;
+  /** What the links of a table or a stat are built from; left out, they show text. */
+  readonly links?: PanelLinks | undefined;
 }
 
 /**
@@ -49,7 +53,7 @@ interface PanelViewProps extends ViewProps {
  *
  * @param props - The panel, its outcomes and markers, the sets of markers hidden, the windows an
  *   open answer cites, the linked alerts' marks, the time range it ran over, the dashboard's
- *   colours and the time zone.
+ *   colours, the time zone and the links.
  * @returns The view.
  */
 export function PanelView({
@@ -62,6 +66,7 @@ export function PanelView({
   period,
   colors,
   timeZone,
+  links,
 }: PanelViewProps) {
   const { view } = panel;
   const from = period?.from;
@@ -73,9 +78,13 @@ export function PanelView({
     const drawn = chartInputOf(view, queries, shown, highlights, alertMarks);
     return { ...drawn, period: chartPeriodOf(panel, time), colors };
   }, [panel, view, queries, markers, hiddenMarkers, highlights, alertMarks, from, to, colors]);
-  if (view.kind === 'stat') return <StatView view={view} queries={queries} timeZone={timeZone} />;
+  if (view.kind === 'stat')
+    return <StatView view={view} queries={queries} timeZone={timeZone} links={links} />;
+  if (view.kind === 'log') return <LogView view={view} queries={queries} timeZone={timeZone} />;
   if (view.kind === 'table')
-    return <TableView view={view} queries={queries} timeZone={timeZone} colors={colors} />;
+    return (
+      <TableView view={view} queries={queries} timeZone={timeZone} colors={colors} links={links} />
+    );
   if (!input) return null;
   return (
     <Suspense fallback={<p className={styles.note}>Loading the chart…</p>}>

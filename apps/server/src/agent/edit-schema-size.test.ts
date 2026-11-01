@@ -15,14 +15,14 @@ import { providerSchema } from './tool-schema.ts';
  * three-language ceiling stays under the 19,000 Gemini took. A panel's table operations and its
  * further data requests added about 130 on 1 November 2026: the tool takes each step and each
  * request as a plain object and the server checks its form, so further steps add guide text, not
- * schema.
+ * schema. The log recipe's id added 13 to every run on 2 November 2026.
  */
 const ceilings: Record<BuilderLanguage, number> = {
-  promql: 5_900,
+  promql: 6_000,
   sql: 6_700,
   search: 9_600,
   logql: 7_900,
-  mongodb: 7_600,
+  mongodb: 7_700,
 };
 
 /** The ceiling of a run on a metrics source and a SQL source, the usual pair. */

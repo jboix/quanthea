@@ -11,6 +11,7 @@ import { useFetcher } from 'react-router';
 import { ProgressLine } from '../../ui/progress-line.tsx';
 import type { PanelMark } from './ask-marks.ts';
 import type { Loaded } from './data.ts';
+import type { PanelLinks } from './links.ts';
 import { PanelAlertPill, type PanelAlertView } from './panel-alert-view.tsx';
 import { alertMarksOf } from './panel-alerts.ts';
 import type { ExplainPlace } from './panel-explain.tsx';
@@ -84,6 +85,8 @@ interface PanelCardProps {
   readonly alerts?: PanelAlertView | undefined;
   /** A short note about how the library shows it, such as `hidden on v3`. */
   readonly layoutNote?: string | undefined;
+  /** What the links of a table or a stat are built from; left out, they show text. */
+  readonly links?: PanelLinks | undefined;
 }
 
 /**
@@ -159,6 +162,7 @@ function QueryErrors({
  *   and the run.
  * @param props.run - The latest run, if any.
  * @param props.loading - Whether a run is loading.
+ * @param props.links - What the links of a table or a stat are built from.
  * @returns The body.
  */
 function PanelBody({
@@ -169,7 +173,8 @@ function PanelBody({
   alerts,
   run,
   loading,
-}: Pick<PanelCardProps, 'panel' | 'spec' | 'hiddenMarkers' | 'answerMark' | 'alerts'> &
+  links,
+}: Pick<PanelCardProps, 'panel' | 'spec' | 'hiddenMarkers' | 'answerMark' | 'alerts' | 'links'> &
   ReturnType<typeof usePanelRun>) {
   const alertMarks = useAlertMarks(alerts, hiddenMarkers);
   if (!run) return <p className={styles.loading}>Loading…</p>;
@@ -195,6 +200,7 @@ function PanelBody({
             period={run.value.time}
             colors={spec.colors}
             timeZone={spec.timezone}
+            links={links}
           />
         </div>
       )}

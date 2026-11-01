@@ -2,13 +2,15 @@
  * The working part of a dashboard: the variables with the Refresh button, and the panel grid. The pinned
  * view and the thread's draft pane both show it.
  */
-import type { DashboardAlerts, DashboardSpec, PanelRun } from '@quanthea/shared';
+import type { DashboardAlerts, DashboardSpec, ExternalHosts, PanelRun } from '@quanthea/shared';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { RangeSelectContext, type RangeSelected } from '../../charts/range-select.tsx';
 import { dashboardAlertsPath, useDashboardAlerts } from './alerts-data.ts';
 import type { PanelMark } from './ask-marks.ts';
 import type { Loaded } from './data.ts';
+import { ImageHostsContext } from './image-hosts.ts';
+import { type Linkable, type PanelLinks, panelLinksOf } from './links.ts';
 import { LoadProgress } from './load-progress.tsx';
 import { hiddenMarkersOf, runSearchOf } from './marker-sets.ts';
 import type { PanelAlertView } from './panel-alert-view.tsx';
@@ -54,6 +56,13 @@ export interface DashboardCanvasProps {
   readonly version: number;
   /** Its spec. */
   readonly spec: DashboardSpec;
+  /**
+   * Where its links may go: the dashboards pinned now and the hosts allowed. Left out, as in a
+   * thread's draft, its tables and stats show their links as text.
+   */
+  readonly linkable?: Linkable | undefined;
+  /** The hosts an admin allowed, for the images its tables show; left out, they show text. */
+  readonly hosts?: ExternalHosts | undefined;
   /** Whether to show the Refresh button, with how the last run went, after the variables. */
   readonly refreshable?: boolean;
   /** The panel the inspector shows, if any. */
@@ -110,24 +119,44 @@ function usePanelAlertViews(
   }, [spec, shown, pinnedVersion]);
 }
 
+/** Props of {@link PanelGrid}: the canvas props and what the canvas works out for its panels. */
+interface PanelGridProps extends DashboardCanvasProps {
+  /** What to run. */
+  readonly target: RunTarget;
+  /** Called with each finished run. */
+  readonly onRun: (panelId: string, run: Loaded<PanelRun>) => void;
+  /** The sets of markers the viewer hid. */
+  readonly hiddenMarkers: ReadonlySet<string>;
+  /** The alerts shown on the panels. */
+  readonly alerts: AlertsShown | undefined;
+  /** What the links of tables and stats are built from. */
+  readonly links: PanelLinks | undefined;
+}
+
+/**
+ * Where a panel's Explain asks, when the canvas offers it.
+ *
+ * @param props - The canvas props: the dashboard, the version, the spec and whether to explain.
+ * @returns The place, or `undefined` when the canvas offers no Explain.
+ */
+function explainPlace(
+  props: Pick<DashboardCanvasProps, 'dashboardId' | 'version' | 'spec' | 'explainable'>,
+) {
+  if (!props.explainable) return undefined;
+  const timeZone = props.spec.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return { dashboardId: props.dashboardId, version: props.version, timeZone };
+}
+
 /**
  * The panels of one version, on the grid.
  *
- * @param props - The canvas props, what to run, the callback each finished run reports to, and the
- *   sets of markers the viewer hid.
+ * @param props - The canvas props, what to run, the callback each finished run reports to, the
+ *   sets of markers the viewer hid, the alerts and the links.
  * @returns The grid.
  */
-function PanelGrid(
-  props: DashboardCanvasProps & {
-    readonly target: RunTarget;
-    readonly onRun: (panelId: string, run: Loaded<PanelRun>) => void;
-    readonly hiddenMarkers: ReadonlySet<string>;
-    readonly alerts: AlertsShown | undefined;
-  },
-) {
-  const { dashboardId, version, spec } = props;
-  const timeZone = spec.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const explain = props.explainable ? { dashboardId, version, timeZone } : undefined;
+function PanelGrid(props: PanelGridProps) {
+  const { version, spec } = props;
+  const explain = explainPlace(props);
   const views = usePanelAlertViews(spec, props.alerts, props.explainable ? version : undefined);
   const grid = (
     <div className={panelStyles.grid}>
@@ -147,6 +176,7 @@ function PanelGrid(
           explain={explain}
           alerts={views.get(panel.id)}
           layoutNote={props.layoutNotes?.[panel.id]}
+          links={props.links}
         />
       ))}
     </div>
@@ -223,13 +253,35 @@ export function DashboardCanvas(props: DashboardCanvasProps) {
   const shown = { search, hiddenMarkers, target, onSearch: setSearch, actions };
   const alertSets = linkedAlertsOf(alerts?.data);
   const selectTime = useTimeSelect(search, setSearch);
+  const links = useLinks(props, search);
   return (
     <>
       <VariablesBar spec={spec} choices={choices} {...shown} alertSets={alertSets} />
       <RangeSelectContext value={selectTime}>
-        <PanelGrid {...props} {...shown} onRun={report} alerts={alerts} />
+        <ImageHostsContext value={props.hosts}>
+          <PanelGrid {...props} {...shown} onRun={report} alerts={alerts} links={links} />
+        </ImageHostsContext>
       </RangeSelectContext>
     </>
+  );
+}
+
+/**
+ * What the panels' links are built from, kept while the choices stay the same.
+ *
+ * @param props - The canvas props: the spec and the dashboards pinned now.
+ * @param search - The search parameters.
+ * @returns What the links are built from, or `undefined` when the canvas draws none.
+ */
+function useLinks(
+  props: Pick<DashboardCanvasProps, 'spec' | 'linkable'>,
+  search: URLSearchParams,
+): PanelLinks | undefined {
+  const { spec, linkable } = props;
+  const text = search.toString();
+  return useMemo(
+    () => (linkable ? panelLinksOf(spec, text, linkable) : undefined),
+    [spec, text, linkable],
   );
 }
 

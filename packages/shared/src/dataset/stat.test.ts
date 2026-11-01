@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { Frame } from '@quanthea/plugin-kit/contract';
-import { mappedResult, reduceResult, reduceValues, resultColumn } from './stat.ts';
+import { mappedResult, reduceResult, reduceValues, resultColumn, statTiles } from './stat.ts';
 
 const frame: Frame = {
   refId: 'A',
@@ -106,5 +106,31 @@ describe('the value a stat maps', () => {
     const texts = outcomes('string', ['a', 'b']);
     expect(mappedResult(texts, 'A', 'count', 'state')).toBe(0);
     expect(mappedResult(texts, 'A', 'max', 'state')).toBeUndefined();
+  });
+});
+
+describe('the tiles of a stat over a breakdown', () => {
+  const browsers: Frame = {
+    refId: 'A',
+    fields: [
+      { name: 'browser', type: 'string' },
+      { name: 'plays', type: 'number' },
+    ],
+    values: [
+      ['Firefox', 'Safari'],
+      [12, null],
+    ],
+    meta: { rowCount: 2, truncated: false, durationMs: 1 },
+  };
+
+  test('gives a tile per row, labelled, with its value and its row', () => {
+    expect(statTiles([browsers], 'browser')).toEqual([
+      { key: '0', label: 'Firefox', value: 12, row: { browser: 'Firefox', plays: 12 } },
+      { key: '1', label: 'Safari', value: null, row: { browser: 'Safari', plays: null } },
+    ]);
+  });
+
+  test('gives none when the result has no column of labels', () => {
+    expect(statTiles([browsers], 'device')).toEqual([]);
   });
 });

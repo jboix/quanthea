@@ -19,6 +19,7 @@ import { NotFoundRoute } from '../routes/not-found.tsx';
 import { reportRoutes } from '../routes/reports.tsx';
 import { authSettingsRoute } from '../routes/settings-auth.tsx';
 import { chartSettingsRoute } from '../routes/settings-charts.tsx';
+import { hostsSettingsRoute } from '../routes/settings-hosts.tsx';
 import { SettingsLayout } from '../routes/settings-layout.tsx';
 import { modelSettingsRoute } from '../routes/settings-model.tsx';
 import { notificationsSettingsRoute } from '../routes/settings-notifications.tsx';
@@ -62,6 +63,7 @@ function settingsRoute({ loadSession, api }: RouteDependencies): RouteObject {
       modelSettingsRoute(loadSession, api),
       chartSettingsRoute(loadSession, api),
       querySettingsRoute(loadSession, api),
+      hostsSettingsRoute(loadSession, api),
       usageSettingsRoute(loadSession, api),
       notificationsSettingsRoute(loadSession, api),
       usersSettingsRoute(loadSession, api),

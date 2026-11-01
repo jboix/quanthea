@@ -364,3 +364,20 @@ export const budgetChanges: Dataset = table(
 
 /** A fake share of disk in use. */
 export const diskUse: Dataset = table([['used', 'number']], [[0.72]]);
+
+/** Fake log lines of a checkout service, a minute apart, newest first. */
+export const serviceLogs: Dataset = table(
+  [
+    ['time', 'time'],
+    ['level', 'string'],
+    ['service', 'string'],
+    ['message', 'string'],
+  ],
+  [
+    [start + 4 * 60_000, 'error', 'checkout', 'Payment provider timed out after 10 s'],
+    [start + 3 * 60_000, 'warn', 'checkout', 'Retrying payment, attempt 2'],
+    [start + 2 * 60_000, 'info', 'cart', 'Cart 8812 updated'],
+    [start + 60_000, 'info', 'checkout', 'Order 5521 confirmed'],
+    [start, 'debug', 'cart', 'Cache hit for cart 8812'],
+  ],
+);

@@ -101,6 +101,43 @@ function statView(option: JsonObject, roles: RoleColumns, ref: string): Filled {
 }
 
 /**
+ * The view of a recipe quanthea draws itself: a table, a stat or a log.
+ *
+ * @param render - How the recipe draws.
+ * @param option - The filled option.
+ * @param roles - The columns of each role.
+ * @param named - Whether the chart named a table's columns.
+ * @param ref - The query the view reads.
+ * @returns The view, or `undefined` for an ECharts recipe.
+ */
+function ownView(
+  render: ChartRecipe['render'],
+  option: JsonObject,
+  roles: RoleColumns,
+  named: boolean,
+  ref: string,
+): Filled | undefined {
+  if (render === 'table') return tableView(option, roles, named, ref);
+  if (render === 'stat') return statView(option, roles, ref);
+  if (render === 'log') return logView(option, roles, ref);
+  return undefined;
+}
+
+/**
+ * The view of a log recipe: its time and message from the roles, the rest from the option.
+ *
+ * @param option - The filled option.
+ * @param roles - The columns of each role.
+ * @param ref - The query the view reads.
+ * @returns The view.
+ */
+function logView(option: JsonObject, roles: RoleColumns, ref: string): Filled {
+  const message = [roles.message ?? []].flat();
+  const view = { kind: 'log', ref, time: roles.time, message, ...option };
+  return { view: view as View };
+}
+
+/**
  * The chart view of an ECharts recipe.
  *
  * @param recipe - The recipe.
@@ -214,9 +251,8 @@ export function fillView(
   const problems = dataset ? roleProblems(recipe.data.roles, dataset, roles) : [];
   if (problems.length > 0) return { problems };
   const ref = refs[0] ?? 'A';
-  if (recipe.render === 'table')
-    return tableView(filled.option, roles, asked.columns !== undefined, ref);
-  if (recipe.render === 'stat') return statView(filled.option, roles, ref);
+  const own = ownView(recipe.render, filled.option, roles, asked.columns !== undefined, ref);
+  if (own) return own;
   const { option, fields } = liftedFields(filled.option);
   return { view: { ...chartView(recipe, choice, option, roles, refs), ...fields } };
 }

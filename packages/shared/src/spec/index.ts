@@ -39,6 +39,17 @@ export {
   packLayout,
   specLayout,
 } from './layout.ts';
+export {
+  type DashboardLink,
+  isDashboardLink,
+  type Link,
+  type LinkContext,
+  type LinkValue,
+  linkAddress,
+  linkedDashboards,
+  linkSchema,
+  urlLinkValue,
+} from './links.ts';
 export { refIdSchema, slugSchema, variableNameSchema } from './names.ts';
 export {
   calculateFunctions,
@@ -65,7 +76,14 @@ export {
   timeRangeSchema,
 } from './time.ts';
 export { filledTitle } from './title.ts';
-export { isStep, type Mapping, mapValue, type Tone, type ToneAs } from './tones.ts';
+export { isStep, levelTone, type Mapping, mapValue, type Tone, type ToneAs } from './tones.ts';
+export {
+  httpsHostOf,
+  type UrlLink,
+  urlLinkAddress,
+  urlLinkHost,
+  urlPlaceholder,
+} from './url-links.ts';
 export {
   labelOfValue,
   optionLabel,
@@ -94,9 +112,13 @@ export {
 export {
   type ChartView,
   type DatasetTransform,
+  type LogView,
+  maxLogLines,
+  maxStatTiles,
   type Reduce,
   type StatView,
   type TableView,
   type View,
+  viewLinks,
   viewSchema,
 } from './views.ts';

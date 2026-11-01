@@ -15,6 +15,7 @@ import { isTimeChart } from './time-chart.ts';
  */
 export function shapeOfPanel(panel: Pick<Panel, 'view'>): PanelShape {
   const { view } = panel;
+  if (view.kind === 'log') return 'table';
   if (view.kind !== 'chart') return view.kind;
   if (chartRecipe(view.recipe?.id ?? '')?.family === 'kpi') return 'stat';
   return isTimeChart(view) && view.prepare !== 'facets' ? 'time' : 'chart';

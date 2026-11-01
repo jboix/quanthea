@@ -454,6 +454,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/settings/usage`                                              | Usage: tokens, cost and views; by feature, model, person    | admin    |
 | `/settings/notifications`                                      | Notifications: channels, tests, what a webhook receives     | admin    |
 | `/settings/queries`                                            | Queries: builders on or off, your own with placeholders     | admin    |
+| `/settings/hosts`                                              | Links and images: where links go, hosts for images          | admin    |
 | `/settings/charts`                                             | Charts: every chart recipe drawn from its sample            | admin    |
 | `/settings/server`                                             | Server: system settings and keys, read-only, with sources   | admin    |
 | `/settings`                                                    | redirect → `/settings/model`                                | admin    |
@@ -3982,6 +3983,8 @@ indicative; the contract files are the source of truth.
 | `POST /definitions`, `POST /definitions/:definitionId/delete`                                     | save or delete a definition, test-run bodies | editor   |
 | `GET /settings/queries/guide`, `POST /settings/queries/preview`                                   | how builders work, a test run of a query     | admin    |
 | `GET/PUT /settings/charts`                                                                        | chart recipes on or off                      | admin    |
+| `GET/PUT /settings/external-hosts`                                                                | where links go, the hosts images load from   | admin    |
+| `GET /external-hosts`                                                                             | the same, for drawing links and images       | viewer   |
 | `GET/POST /settings/notification-channels`, `PATCH/DELETE /settings/notification-channels/:id`    | notification channels, targets masked        | admin    |
 | `POST /settings/notification-channels/:id/test`, `GET …/:id/sends`                                | send a test, a channel's recent sends        | admin    |
 | `GET /notification-channels`                                                                      | channels by id, name and kind, to pick from  | editor   |
@@ -4518,6 +4521,19 @@ one, and enables them again. Without any admin, it creates the default one.
   `pageSize` rows, 20 when left out. All of it runs in the browser over the rows already fetched,
   per viewer, in a snapshot and a report's run too, and starts again when the columns change. A
   refresh keeps it, and a page past the end of fewer rows shows the last page.
+- **Stat tiles** (`stat-view.tsx`). A stat with `each` shows a tile for each row of its result,
+  at most 24, labelled by that column, with the row's value unreduced. Each tile takes the stat's
+  format, mappings and link, and a link may read the tile's row. The agent sets it as
+  `options.each` on the stat recipe.
+- **Logs** (`log-view.tsx`, `log-lines.ts`). A log view shows a line for each row of its result,
+  at most 500: the time in the dashboard's zone, the level, and the message columns one after the
+  other. A level of error or worse takes the bad tone and a warning the warning tone
+  (`levelTone`). A line is a `<details>` element that opens to every column of its row. The
+  `table.log` recipe writes it: its roles give the time and the message, and `options.level` the
+  level, since an optional role would be filled with any text column.
+- **Records** (`table-view.tsx`). A table with `record: true` shows its first row as a list of
+  labels and values, one column a line, each cell with its format, tone, link or image. It has no
+  sorting, filter or pager. The table recipe's `record` variant writes it.
 - **Column widths** (`table-widths.tsx`). A column takes `width`: `narrow`, `medium` or `wide`,
   shares of 1, 2 and 4 of the table, and a column with none takes a medium share. When one column
   sets a width the table has a `colgroup` and a fixed layout, and a long cell ends in an ellipsis
@@ -4634,9 +4650,36 @@ one, and enables them again. Without any admin, it creates the default one.
   `secret: "••••1234"`). See "Keys" below.
 - Audit log entries for pin, bin, restore, purge, snapshots taken and revoked, connector changes
   and settings changes.
+- An admin lists the external hosts dashboards may reach (`settings/external-hosts.ts`, Settings →
+  Links and images, `GET/PUT /api/settings/external-hosts`). Links go to any host until the admin
+  keeps them to the hosts listed. Images load only from listed hosts marked for images, and the
+  list starts empty: an image loads when a dashboard opens, so it tells its host who looked. A
+  host is a plain name (lowercase letters, digits, dots and dashes, with a letter), never a
+  scheme, a path, a port or an IP address, and the list holds at most 50. Each save records the
+  hosts before and after. The browser reads the list from `GET /api/external-hosts`, open to every
+  role, since it draws links and images by it.
+- A table column or a stat may link to a pinned dashboard (`spec/links.ts`). The link is an
+  address in the app, built in the browser with each value encoded, never a URL the model wrote.
+  Writing a spec checks each target is pinned and has the variables the link sets
+  (`dashboards/check-links.ts`); a stored version is not checked again. A version's response
+  carries `linkTargets`, the targets pinned now, and the browser draws a link only to those.
+  The agent writes a link in a table column's options or a stat's options. A refusal names the
+  pinned dashboards, or the variables the target has.
+- A link may instead open an https address outside quanthea (`spec/url-links.ts`), with one
+  `{value}` at most in its path or query. The schema refuses another scheme, a user, a port, an
+  IP address, and `{value}` in the host. The browser fills `{value}` in encoded, draws no link for
+  an empty value, `.` or `..` (they would move up the path), and draws one only to a host
+  `GET /api/external-hosts` allows. It opens in a new tab with `rel="noopener noreferrer"`.
+- A table column with `display: 'image'` shows each value that is an https address on a named
+  host as an image, when that host is marked for images. The dashboard and the thread loaders read
+  the hosts with the page; a snapshot does not, so it shows the address. The image loads lazily
+  with no referrer. The CSP's `img-src` names the hosts marked for images on every response
+  (`http/security-headers.ts`), from a list the external hosts service keeps in memory until the
+  next save.
 - Response headers: CSP `default-src 'self'; connect-src 'self'; img-src 'self' data:;
   style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'self'` (ECharts
-  sets inline styles), `frame-ancestors 'none'`, `X-Frame-Options: DENY`,
+  sets inline styles; `img-src` also names each host marked for images, as `https://host`),
+  `frame-ancestors 'none'`, `X-Frame-Options: DENY`,
   `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, a `Permissions-Policy` that
   turns off the camera, microphone, geolocation, payment and USB, and same-origin opener and
   resource policies. HSTS for a year when `QUANTHEA_PUBLIC_URL` is HTTPS.

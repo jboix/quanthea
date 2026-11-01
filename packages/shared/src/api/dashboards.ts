@@ -54,6 +54,8 @@ export const dashboardVersionSchema = versionSummarySchema.extend({
   dashboardId: z.string(),
   spec: dashboardSpecSchema,
   layout: shownLayoutSchema.nullable(),
+  /** The dashboards its links open that are pinned now: a link to any other shows as text. */
+  linkTargets: z.array(z.string()).default([]),
 });
 
 /** One version of a dashboard, with its spec. */

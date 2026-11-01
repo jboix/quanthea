@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { type Mapping, mappingsSchema, mapValue } from './tones.ts';
+import { levelTone, type Mapping, mappingsSchema, mapValue } from './tones.ts';
 
 /** The tone a value takes under some mappings, or the text when the mapping has no tone. */
 const toneOf = (mappings: readonly Mapping[], value: unknown) => {
@@ -172,5 +172,19 @@ describe('the mappings a spec may hold', () => {
     const mapping = { match: { value: 1 }, tone: 'good' };
     expect(mappingsSchema.safeParse(Array(20).fill(mapping)).success).toBe(true);
     expect(mappingsSchema.safeParse(Array(21).fill(mapping)).success).toBe(false);
+  });
+});
+
+describe('the tone of a log level', () => {
+  test('is bad for an error or worse, warning for a warning, none otherwise, in any case', () => {
+    expect(['ERROR', 'fatal', 'crit'].map(levelTone)).toEqual(['bad', 'bad', 'bad']);
+    expect(['warn', 'Warning'].map(levelTone)).toEqual(['warning', 'warning']);
+    expect(['info', 'debug', 'constructor', 3, undefined].map(levelTone)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
   });
 });

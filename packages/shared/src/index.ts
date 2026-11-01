@@ -82,6 +82,7 @@ export {
   apiErrorCodes,
 } from './api/errors.ts';
 export * from './api/explanations.ts';
+export * from './api/external-hosts.ts';
 export { healthEndpoint } from './api/health.ts';
 export {
   enableIdentityProviderEndpoint,

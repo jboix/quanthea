@@ -3,6 +3,7 @@
  * come back with paths, so the model can repair them and the UI can point at them. Overlapping
  * panels are repaired rather than refused.
  */
+
 import {
   type DashboardSpec,
   dashboardSpecSchema,
@@ -11,6 +12,7 @@ import {
   resolveTimeRange,
 } from '@quanthea/shared';
 import { checkColors } from './check-colors.ts';
+import { checkLinks, type LinkTarget } from './check-links.ts';
 import { checkOption } from './check-option.ts';
 import { type ConnectorLookup, checkQueries } from './check-queries.ts';
 import { checkReferences } from './check-references.ts';
@@ -31,6 +33,11 @@ export interface ValidationContext {
    * only one value fits, and a free colour in a chart's option.
    */
   readonly writing?: boolean | undefined;
+  /**
+   * The pinned dashboards a link may open, when the spec is written: links are checked against
+   * them. Without them, only the form of the links is checked.
+   */
+  readonly linkTargets?: (() => readonly LinkTarget[]) | undefined;
 }
 
 /** The outcome of validation: a clean spec, or the issues. */
@@ -102,6 +109,7 @@ export function validateSpec(input: unknown, context: ValidationContext): Valida
     ...checkTimezone(spec.timezone),
     ...checkDirection(timeRange),
     ...checkReferences(spec),
+    ...checkLinks(spec, context.writing ? context.linkTargets?.() : undefined),
     ...checkOptions(spec),
     ...checkQueries(spec, context.lookup, timeRange, context.writing === true),
     ...(context.writing ? checkSourceOrder(spec, context.lookup, timeRange) : []),

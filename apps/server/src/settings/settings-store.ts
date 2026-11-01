@@ -2,7 +2,9 @@
 import {
   alertSettingsSchema,
   chartSettingsSchema,
+  defaultExternalHosts,
   defaultModelGateway,
+  externalHostsSchema,
   modelGatewaySchema,
   querySettingsSchema,
   reportSettingsSchema,
@@ -33,6 +35,8 @@ const sectionSchemas = {
   alerts: alertSettingsSchema,
   /** How many times a failed report run tries again, after how long; how long runs are kept. */
   reports: reportSettingsSchema,
+  /** Where dashboards may link and load images from. */
+  'external-hosts': externalHostsSchema,
 };
 
 /** A settings section name. */
@@ -52,6 +56,7 @@ const sectionDefaults: { readonly [Name in SectionName]: SectionValue<Name> } = 
   'sign-in-credentials': { sealed: {} },
   alerts: { maxActivePerConnector: 50, notifyOnError: true, quietHours: null },
   reports: { maxRetries: 2, retryDelay: '15m', keepRunsDays: null },
+  'external-hosts': defaultExternalHosts,
 };
 
 /** Reads and writes settings sections. */

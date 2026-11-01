@@ -184,6 +184,14 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
   page". Sorting, filters and the page are yours alone and change nothing in the dashboard.
   Columns can be narrow, medium or wide: "make the URL column wide". A long value is cut, and
   shows whole when you hover it.
+- **A number for each.** A stat can show a tile for each row of a breakdown, side by side, each
+  with its name and its number: "plays per business unit, as numbers". It shows 24 tiles at most.
+  Colours and links work on each tile, and a link can carry the tile's row.
+- **Logs.** A log panel shows a line for each row: its time, its level and its message. Errors
+  show in red and warnings in amber. Click a line to read every field of its row. Ask for it:
+  "the last 200 errors of the checkout service as a log".
+- **Records.** A table can show one row as labelled values, one field a line, text included:
+  "show this session's device, browser and IP as a record". It shows the first row only.
 - **Coloured cells.** A table column can show a value as a text, in a colour, or both: `0` as
   "idle", a load time green under 2 seconds, amber up to 4 and red above. Ask for it in the
   thread: "colour the median by steps: green under 2 s, amber from 2 to 4, red above", or "show
@@ -218,6 +226,27 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
 - **Versions** lists every version, newest first: when it was made, whether it is pinned, and what
   changed. Editors pin any of them from there, an earlier one included, which rolls the library
   back. Versions are never rewritten.
+
+## Links and images
+
+Admins choose where dashboards may reach, in **Settings → Links and images**. Links go to any host
+until an admin keeps them to the hosts listed. Images load only from the hosts an admin marks for
+images, and none is marked at first: an image loads when a dashboard opens, so it tells its host
+who looked. A host is a name such as `media.example.com`, without `https://` or a path.
+
+A table column or a stat can open another pinned dashboard. Ask for it: "each service opens the
+service dashboard for that service". The target's variables take the row's values, the values
+chosen here, or fixed ones, and it opens on the same time range. A link shows as text while its
+target is not pinned, and in a thread's draft.
+
+A column or a stat can also open a page outside quanthea, such as a ticket or a media item, with
+the value in its address. The address starts with `https://`. The page opens in a new tab, and
+learns nothing of the dashboard that opened it. The link shows as text when its host is not
+allowed.
+
+A column of image addresses, such as thumbnails, can show the images. Ask for it: "show the
+thumbnails as images". An image shows when its address starts with `https://` and its host is
+marked for images; otherwise the address shows as text. A snapshot shows the address.
 
 ## Arrange a pinned dashboard
 

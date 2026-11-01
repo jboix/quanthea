@@ -35,7 +35,7 @@ export interface PanelChart {
  */
 function shapeOf(recipe: ChartRecipe, view: View): PanelShape {
   if (recipe.render === 'stat' || recipe.family === 'kpi') return 'stat';
-  if (recipe.render === 'table') return 'table';
+  if (recipe.render === 'table' || recipe.render === 'log') return 'table';
   return isTimeChart(view) && recipe.prepare !== 'facets' ? 'time' : 'chart';
 }
 

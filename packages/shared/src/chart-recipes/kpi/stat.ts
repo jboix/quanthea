@@ -7,7 +7,10 @@ export const stat: ChartRecipe = {
   id: 'kpi.stat',
   title: 'Number',
   family: 'kpi',
-  whenToUse: ['One number people check at a glance: error rate now, orders today.'],
+  whenToUse: [
+    'One number people check at a glance: error rate now, orders today.',
+    'A number for each value of a breakdown: options.each names the column of labels, a tile per row, at most 24.',
+  ],
   whenNotToUse: ['When the trend matters as much: use kpi.big-number.'],
   data: {
     shape: 'single',
@@ -30,6 +33,7 @@ export const stat: ChartRecipe = {
     'Say in the title what the number covers: "now", "today", "over the range".',
     'options.mappings: [{ "match", "text"?, "tone"? }], the first match wins. match is { "value": 0 }, { "null": true } or a range of numbers { "from"?, "to"? }, from included, to excluded.',
     'Thresholds colour the number: [{ "match": { "to": 2 }, "tone": "good" }, { "match": { "from": 2 }, "tone": "bad" }]. options.toneAs: "background" tints behind the number instead.',
+    'options.link: { "dashboard": id, "variables"?: { "env": { "variable": "env" } } } opens a pinned dashboard. { "url": "https://…/{value}", "value": { "variable": "env" } } opens a page.',
     'A text replaces the number: { "match": { "null": true }, "text": "0" } shows 0 when the query returns no value. Keep it short.',
   ],
   sample: { roles: { value: 'signups' }, datasets: [dailyCounts] },

@@ -62,17 +62,8 @@ import {
   type ReportServices,
 } from './report-services.ts';
 import { type AlertSettingsService, createAlertSettings } from './settings/alert-settings.ts';
-import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
-import {
-  createModelSettings,
-  type ModelSettingsService,
-  resealModelKeys,
-} from './settings/model-settings.ts';
-import { createQuerySettings, type QuerySettingsService } from './settings/query-settings.ts';
-import {
-  createRetentionSettings,
-  type RetentionSettingsService,
-} from './settings/retention-settings.ts';
+import { resealModelKeys } from './settings/model-settings.ts';
+import { createSettingsServices, type SettingsServices } from './settings-services.ts';
 import { createThreadBin, type ThreadBin } from './threads/bin.ts';
 import { createThreads, type Threads } from './threads/threads.ts';
 import { createUsage, type Usage } from './usage/usage.ts';
@@ -86,7 +77,7 @@ export interface ServiceDependencies extends AccountDependencies {
 }
 
 /** The services the HTTP layer calls. */
-export interface Services extends Accounts, ReportServices {
+export interface Services extends Accounts, ReportServices, SettingsServices {
   /** What the configuration file manages. */
   readonly managed: Managed;
   /** The configured connectors. */
@@ -103,8 +94,6 @@ export interface Services extends Accounts, ReportServices {
   readonly explanations: Explanations;
   /** The bins of conversations about dashboards and about reports' runs. */
   readonly conversationBin: ConversationBins;
-  /** The model gateway settings. */
-  readonly modelSettings: ModelSettingsService;
   /** The connectors as the model sees them, through the gate. */
   readonly modelView: ModelView;
   /** The threads. */
@@ -125,14 +114,8 @@ export interface Services extends Accounts, ReportServices {
   readonly answers: Answers;
   /** The usage ledger. */
   readonly usage: Usage;
-  /** The query settings. */
-  readonly querySettings: QuerySettingsService;
   /** The definitions of business terms. */
   readonly definitions: Definitions;
-  /** The chart settings. */
-  readonly chartSettings: ChartSettingsService;
-  /** How long deleted threads stay in the bin. */
-  readonly retention: RetentionSettingsService;
   /** The notification channels, and sending to them. */
   readonly notifications: Notifications;
   /** Alerts: their versions, state, mutes and replays. */
@@ -394,33 +377,6 @@ function provisioningParts(dependencies: ServiceDependencies): Pick<Services, 'm
 }
 
 /**
- * The settings sections' services.
- *
- * @param dependencies - The settings store and the secret box.
- * @param audit - The audit log.
- * @param usage - The usage ledger, for the model settings' monthly view.
- * @returns The services.
- */
-function settingsServices(
-  dependencies: ServiceDependencies,
-  audit: ReturnType<typeof createAuditRepository>,
-  usage: Usage,
-): Pick<Services, 'modelSettings' | 'querySettings' | 'chartSettings' | 'retention'> {
-  const store = dependencies.settings;
-  return {
-    modelSettings: createModelSettings({
-      store,
-      secretBox: dependencies.secretBox,
-      audit,
-      usage: () => usage.month(),
-    }),
-    querySettings: createQuerySettings({ store, audit }),
-    chartSettings: createChartSettings({ store, audit }),
-    retention: createRetentionSettings({ store, audit }),
-  };
-}
-
-/**
  * What the agent is told of the notification side: the channels an alert or a report may notify,
  * and the quiet hours of the alerts that set none.
  *
@@ -445,7 +401,7 @@ export function createServices(dependencies: ServiceDependencies): Services {
   const data = dataServices(dependencies, audit);
   const repository = createThreadRepository(dependencies.database);
   const usage = createUsage({ repository: createUsageRepository(dependencies.database) });
-  const settings = settingsServices(dependencies, audit, usage);
+  const settings = createSettingsServices(dependencies, audit, usage);
   const threads = createThreads({ repository, audit });
   const accounts = createAccounts(dependencies, audit);
   const bin = createThreadBin({

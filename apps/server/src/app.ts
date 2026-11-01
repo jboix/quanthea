@@ -45,6 +45,7 @@ import {
 } from './http/routes/dashboard-routes.ts';
 import { mountDefinitionEndpoints } from './http/routes/definition-routes.ts';
 import { mountExplanationEndpoints } from './http/routes/explanation-routes.ts';
+import { mountExternalHostEndpoints } from './http/routes/external-host-routes.ts';
 import { mountLayoutEndpoints } from './http/routes/layout-routes.ts';
 import { mountNotificationEndpoints } from './http/routes/notification-routes.ts';
 import { mountProviderFlowRoutes } from './http/routes/provider-routes.ts';
@@ -69,6 +70,7 @@ import type { Managed } from './provisioning/managed.ts';
 import type { ReportServices } from './report-services.ts';
 import type { AlertSettingsService } from './settings/alert-settings.ts';
 import type { ChartSettingsService } from './settings/chart-settings.ts';
+import type { ExternalHostsService } from './settings/external-hosts.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
 import type { QuerySettingsService } from './settings/query-settings.ts';
 import type { RetentionSettingsService } from './settings/retention-settings.ts';
@@ -144,6 +146,8 @@ export interface AppDependencies extends ReportServices {
   readonly definitions: Definitions;
   /** The chart settings. */
   readonly chartSettings: ChartSettingsService;
+  /** Where dashboards may link and load images from. */
+  readonly externalHosts: ExternalHostsService;
   /** How long deleted threads stay in the bin. */
   readonly retention: RetentionSettingsService;
   /** The system settings, as read at startup, for Settings → Server. */
@@ -189,6 +193,7 @@ function mountSettingsRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): 
   mountQueryEndpoints(app, dependencies);
   mountDefinitionEndpoints(app, dependencies);
   mountChartEndpoints(app, dependencies.chartSettings, managed);
+  mountExternalHostEndpoints(app, dependencies.externalHosts);
   mountNotificationEndpoints(app, dependencies);
 }
 
@@ -251,7 +256,7 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
 export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
   app.use(requestId());
-  app.use(securityHeaders(dependencies.publicUrl));
+  app.use(securityHeaders(dependencies.publicUrl, () => dependencies.externalHosts.imageHosts()));
   app.use(noStoreApi());
   app.use(logRequests(dependencies.logger));
   app.use(refuseCrossSite(dependencies.publicUrl));

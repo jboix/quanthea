@@ -72,8 +72,8 @@ export const chartRecipeSchema = z.strictObject({
       })
       .optional(),
   }),
-  /** How the panel draws: an ECharts chart, or quanthea's own stat and table views. */
-  render: z.enum(['echarts', 'stat', 'table']),
+  /** How the panel draws: an ECharts chart, or quanthea's own stat, table and log views. */
+  render: z.enum(['echarts', 'stat', 'table', 'log']),
   prepare: z.enum(prepareKinds),
   option: jsonObjectSchema,
   variants: z.record(z.string().regex(/^[a-z][a-z0-9-]*$/), variantSchema),

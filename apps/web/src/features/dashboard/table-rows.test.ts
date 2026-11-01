@@ -26,6 +26,25 @@ const view: TableView = {
 };
 
 describe('tableRows', () => {
+  test('an image column marks the cells whose value is an https address, with its host', () => {
+    const thumbs: Frame = {
+      ...instant,
+      fields: [{ name: 'thumb', type: 'string' }],
+      values: [['https://media.example.com/1.svg', 'http://media.example.com/2.svg', 'x']],
+    };
+    const images: TableView = {
+      kind: 'table',
+      ref: 'A',
+      columns: [{ field: 'thumb', display: 'image' }],
+    };
+    const rows = tableRows(images, [{ refId: 'A', frames: [thumbs], error: null }]).rows;
+    expect(rows.map((row) => row.cells[0]?.imageHost)).toEqual([
+      'media.example.com',
+      undefined,
+      undefined,
+    ]);
+  });
+
   test('formats, sorts and labels the columns', () => {
     expect(tableRows(view, [{ refId: 'A', frames: [instant], error: null }])).toEqual({
       columns: [

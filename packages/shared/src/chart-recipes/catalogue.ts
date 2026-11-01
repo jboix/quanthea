@@ -29,6 +29,7 @@ import { heatmap } from './relationship/heatmap.ts';
 import { parallel } from './relationship/parallel.ts';
 import { radar } from './relationship/radar.ts';
 import { scatter } from './relationship/scatter.ts';
+import { log } from './table/log.ts';
 import { rows } from './table/rows.ts';
 import { candlestick } from './trend/candlestick.ts';
 import { dualAxis } from './trend/dual-axis.ts';
@@ -69,6 +70,7 @@ export const chartRecipes: readonly ChartRecipe[] = [
   bigNumber,
   gauge,
   rows,
+  log,
   smallMultiples,
 ];
 

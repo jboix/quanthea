@@ -61,6 +61,7 @@ export const routeAccess = {
   '/settings/users': 'admin',
   '/settings/charts': 'admin',
   '/settings/queries': 'admin',
+  '/settings/hosts': 'admin',
   '/settings/usage': 'admin',
   '/settings/server': 'admin',
   '/settings/notifications': 'admin',

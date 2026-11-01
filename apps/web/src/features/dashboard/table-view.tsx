@@ -1,10 +1,14 @@
-import type {
-  QueryOutcome,
-  TableView as TableViewSpec,
-  ToneAs,
-  ValueColor,
+import {
+  imageHostAllowed,
+  type QueryOutcome,
+  type TableView as TableViewSpec,
+  type ToneAs,
+  type ValueColor,
 } from '@quanthea/shared';
-import { useMemo, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
+import { ImageHostsContext } from './image-hosts.ts';
+import { LinkTo } from './link-to.tsx';
+import type { PanelLinks } from './links.ts';
 import styles from './panels.module.css';
 import tableStyles from './table.module.css';
 import { TableFilters, TableHead, TablePager } from './table-head.tsx';
@@ -30,15 +34,17 @@ interface TableViewProps {
   readonly timeZone: string | undefined;
   /** The dashboard's colour per value, for the cells of a column without mappings. */
   readonly colors?: readonly ValueColor[] | undefined;
+  /** What the cells' links are built from; without it, a linked column shows text. */
+  readonly links?: PanelLinks | undefined;
 }
 
 /**
- * What a cell shows: its text, in its tone when it has one.
+ * What a cell shows: its text, in its tone when it has one, as a link when it leads somewhere.
  *
  * @param props - The cell and how its column draws a tone.
  * @param props.cell - The cell.
  * @param props.toneAs - Whether the tone colours the text or tints behind it.
- * @returns The text, wrapped when it has a tone.
+ * @returns The text, wrapped when it has a tone or a link.
  */
 function CellText({
   cell,
@@ -47,6 +53,52 @@ function CellText({
   readonly cell: TableCell;
   readonly toneAs: ToneAs | undefined;
 }) {
+  if (!cell.href) return <CellValue cell={cell} toneAs={toneAs} />;
+  return (
+    <LinkTo to={cell.href} className={tableStyles.link}>
+      <CellValue cell={cell} toneAs={toneAs} />
+    </LinkTo>
+  );
+}
+
+/**
+ * A cell's image. It loads lazily and tells its host nothing of the page that shows it.
+ *
+ * @param props - The cell.
+ * @param props.cell - The cell, its value an https address.
+ * @returns The image.
+ */
+function CellImage({ cell }: { readonly cell: TableCell }) {
+  return (
+    <img
+      className={tableStyles.image}
+      src={String(cell.value)}
+      alt=""
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  );
+}
+
+/**
+ * A cell's text, in its tone when it has one, or its image when its column shows images from an
+ * allowed host.
+ *
+ * @param props - The cell and how its column draws a tone.
+ * @param props.cell - The cell.
+ * @param props.toneAs - Whether the tone colours the text or tints behind it.
+ * @returns The text, wrapped when it has a tone.
+ */
+function CellValue({
+  cell,
+  toneAs,
+}: {
+  readonly cell: TableCell;
+  readonly toneAs: ToneAs | undefined;
+}) {
+  const hosts = useContext(ImageHostsContext);
+  if (cell.imageHost && hosts && imageHostAllowed(hosts, cell.imageHost))
+    return <CellImage cell={cell} />;
   if (!cell.tone) return cell.text;
   return (
     <span
@@ -148,18 +200,47 @@ function WorkedTable({
 }
 
 /**
- * A table. A viewer sorts it by a click on a header, filters it per column and reads it a page at
- * a time; that state starts again when the columns change.
+ * The first row of a table as labelled values, one column a line, each cell as the table would
+ * show it.
  *
- * @param props - The view, the outcomes, the time zone and the dashboard's colours.
+ * @param props - The table.
+ * @param props.table - The table built from the results.
+ * @returns The labelled values.
+ */
+function RecordList({ table }: { readonly table: TableRows }) {
+  const cells = table.rows[0]?.cells ?? [];
+  return (
+    <dl className={tableStyles.record}>
+      {table.columns.map((column, index) => {
+        const cell = cells[index] ?? { value: null, text: '' };
+        return (
+          <div key={column.label} className={tableStyles.recordLine}>
+            <dt>{column.label}</dt>
+            <dd>
+              <CellText cell={cell} toneAs={column.toneAs} />
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
+  );
+}
+
+/**
+ * A table. A viewer sorts it by a click on a header, filters it per column and reads it a page at
+ * a time; that state starts again when the columns change. A record shows its first row as
+ * labelled values instead.
+ *
+ * @param props - The view, the outcomes, the time zone, the dashboard's colours and the links.
  * @returns The table.
  */
-export function TableView({ view, queries, timeZone, colors }: TableViewProps) {
+export function TableView({ view, queries, timeZone, colors, links }: TableViewProps) {
   const table = useMemo(
-    () => tableRows(view, queries, timeZone, colors),
-    [view, queries, timeZone, colors],
+    () => tableRows(view, queries, timeZone, colors, links),
+    [view, queries, timeZone, colors, links],
   );
   const columnsKey = table.columns.map((column) => column.label).join('\u0000');
+  if (view.record) return <RecordList table={table} />;
   return (
     <div className={styles.tableScroll}>
       <WorkedTable key={columnsKey} table={table} pageSize={view.pageSize ?? defaultPageSize} />

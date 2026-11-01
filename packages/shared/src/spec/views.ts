@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { prepareKinds } from '../chart-recipes/prepare.ts';
 import { formatterSchema } from '../formatters/schema.ts';
+import { type Link, linkSchema } from './links.ts';
 import { refIdSchema, slugSchema } from './names.ts';
 import { mappingsSchema, toneAsSchema } from './tones.ts';
 
@@ -13,6 +14,9 @@ const reduceSchema = z.enum(['last', 'first', 'max', 'min', 'mean', 'sum', 'coun
 
 /** How a stat reduces a column to one number. */
 export type Reduce = z.infer<typeof reduceSchema>;
+
+/** The most tiles a stat over a breakdown shows. */
+export const maxStatTiles = 24;
 
 /** Validates a stat: one big number, with an optional comparison. */
 const statViewSchema = z.strictObject({
@@ -32,6 +36,13 @@ const statViewSchema = z.strictObject({
   compare: z
     .strictObject({ ref: refIdSchema, reduce: reduceSchema, label: z.string().min(1).max(60) })
     .optional(),
+  /** A pinned dashboard or a page the stat opens. */
+  link: linkSchema.optional(),
+  /**
+   * A column of names: the stat shows a tile for each row, at most {@link maxStatTiles}, labelled
+   * by it, with that row's value.
+   */
+  each: fieldNameSchema.optional(),
 });
 
 /** Validates a table column. */
@@ -49,6 +60,10 @@ const columnSchema = z.strictObject({
   toneAs: toneAsSchema.optional(),
   /** How wide the column is beside the others; it shares what is left when left out. */
   width: z.enum(['narrow', 'medium', 'wide']).optional(),
+  /** A pinned dashboard or a page each cell opens. */
+  link: linkSchema.optional(),
+  /** Shows each cell's https address as an image, from a host an admin marked for images. */
+  display: z.literal('image').optional(),
 });
 
 /** Validates a table. */
@@ -67,6 +82,8 @@ const tableViewSchema = z.strictObject({
   limit: z.int().min(1).max(500).optional(),
   /** How many rows a page shows: 20 when left out. */
   pageSize: z.int().min(5).max(100).optional(),
+  /** Shows the first row as labelled values, one column a line: the fields of one document. */
+  record: z.literal(true).optional(),
 });
 
 /** Validates a transform applied to a dataset before the chart gets it. */
@@ -133,10 +150,28 @@ const chartViewSchema = z.strictObject({
     .optional(),
 });
 
+/** The most log lines a log view shows. */
+export const maxLogLines = 500;
+
+/**
+ * Validates a log: a line for each row, with its time, its message from one column or several,
+ * and a tone by its level. A line opens to show every column of its row.
+ */
+const logViewSchema = z.strictObject({
+  kind: z.literal('log'),
+  ref: refIdSchema,
+  time: fieldNameSchema,
+  message: z.array(fieldNameSchema).min(1).max(5),
+  /** The column of levels, such as `error` or `warn`, which give each line its tone. */
+  level: fieldNameSchema.optional(),
+  limit: z.int().min(1).max(maxLogLines).optional(),
+});
+
 /** Validates a panel view. */
 export const viewSchema = z.discriminatedUnion('kind', [
   statViewSchema,
   tableViewSchema,
+  logViewSchema,
   chartViewSchema,
 ]);
 
@@ -149,5 +184,20 @@ export type StatView = z.infer<typeof statViewSchema>;
 /** A table view. */
 export type TableView = z.infer<typeof tableViewSchema>;
 
+/** A log view. */
+export type LogView = z.infer<typeof logViewSchema>;
+
 /** A chart view. */
 export type ChartView = z.infer<typeof chartViewSchema>;
+
+/**
+ * The links of a view: a stat's, or those of a table's columns. Charts have none.
+ *
+ * @param view - The view.
+ * @returns The links, in order.
+ */
+export function viewLinks(view: View): Link[] {
+  if (view.kind === 'stat') return view.link ? [view.link] : [];
+  if (view.kind !== 'table') return [];
+  return view.columns.flatMap((column) => (column.link ? [column.link] : []));
+}

@@ -6,10 +6,12 @@ import {
   type DashboardPage,
   type DashboardVersion,
   dashboardLayoutEndpoints,
+  type ExternalHosts,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
   type PanelRun,
   pinDashboardEndpoint,
+  readExternalHostsEndpoint,
   runPanelEndpoint,
   threadFromDashboardEndpoint,
   unpinDashboardEndpoint,
@@ -31,6 +33,8 @@ export interface DashboardData {
   readonly dashboard: DashboardPage;
   /** The version shown, with its spec. */
   readonly version: DashboardVersion;
+  /** Where its links may go and its images load from. */
+  readonly hosts: ExternalHosts;
 }
 
 /** The URL parameter prefix of a variable. */
@@ -80,8 +84,11 @@ export function loadDashboard(api: ApiClient) {
       const number = versionToShow(dashboard, params.version);
       if (number === undefined) throw data(null, { status: 404, statusText: 'Not Found' });
       const input = { params: { dashboardId, version: String(number) } };
-      const version = await api.call(getDashboardVersionEndpoint, input, options);
-      return { dashboard, version };
+      const [version, hosts] = await Promise.all([
+        api.call(getDashboardVersionEndpoint, input, options),
+        api.call(readExternalHostsEndpoint, {}, options),
+      ]);
+      return { dashboard, version, hosts };
     } catch (error) {
       return rethrow(error);
     }

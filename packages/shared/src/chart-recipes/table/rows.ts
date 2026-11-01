@@ -20,13 +20,20 @@ export const rows: ChartRecipe = {
   render: 'table',
   prepare: 'none',
   option: {},
-  variants: {},
+  variants: {
+    record: {
+      title: 'Record',
+      whenToUse:
+        'The fields of one row as labelled values, text included: a session, a device, an order. The query returns that row; only the first shows.',
+      patch: { record: true },
+    },
+  },
   pitfalls: [
-    'At most 500 rows: sort and limit in the query. Viewers sort by a click, filter and page: options.pageSize sets the rows of a page, 5 to 100, 20 when left out.',
-    'options.columns changes columns by "field": [{ "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"?, "width"? }], only those to change, in any order. width: narrow, medium, wide.',
+    'At most 500 rows: sort and limit in the query. Viewers sort, filter and page; options.pageSize: 5 to 100 rows, default 20. "display": "image" shows https addresses as images.',
+    'options.columns changes columns by "field": [{ "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"?, "width"?, "link"?, "display"? }], only those to change. width: narrow, medium, wide.',
+    'link: { "dashboard": id, "variables"?: { "host": { "column": "host" } } } opens a pinned dashboard, each variable a { "column" }, { "variable" } or text. { "url": "https://…/{value}" } opens a page.',
     'mappings: [{ "match", "text"?, "tone"? }], the first match wins. match is { "value": "error" }, { "null": true } or a range of numbers { "from"?, "to"? }, from included, to excluded.',
-    'Thresholds are ranges: [{ "match": { "to": 2 }, "tone": "good" }, { "match": { "from": 2, "to": 4 }, "tone": "warning" }, { "match": { "from": 4 }, "tone": "bad" }].',
-    'A match reads the value as the query returns it, before the format. "toneAs": "background" tints the cell; left out, the tone colours the text.',
+    'Thresholds: [{ "match": { "to": 2 }, "tone": "good" }, { "match": { "from": 2 }, "tone": "bad" }]. A match reads the value before the format. "toneAs": "background" tints the cell.',
   ],
   sample: { roles: { columns: ['region', 'sales', 'target'] }, datasets: [regionSales] },
   queryHints: ['The rows and columns to list, sorted.'],

@@ -15,7 +15,7 @@ import styles from './panels.module.css';
 function drawnAs(panel: Panel): string {
   const { view } = panel;
   if (view.kind === 'stat') return 'number';
-  if (view.kind === 'table') return 'table';
+  if (view.kind === 'table' || view.kind === 'log') return view.kind;
   if (!view.recipe) return 'chart';
   return [view.recipe.id, ...view.recipe.variants].join(' · ');
 }

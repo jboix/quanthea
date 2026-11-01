@@ -15,6 +15,7 @@ import type { DashboardRepository, VersionRow } from '../db/dashboard-repository
 import type { LayoutRepository } from '../db/layout-repository.ts';
 import type { ThreadSpecRow } from '../db/thread-specs.ts';
 import { AppError } from '../lib/errors.ts';
+import type { LinkTarget } from './check-links.ts';
 import type { ConnectorLookup } from './check-queries.ts';
 import type { SpecIssue } from './issues.ts';
 import type { RunChoices, RunnerDependencies } from './run-panel.ts';
@@ -68,6 +69,39 @@ export function refuseSpec(message: string, issues: readonly SpecIssue[]): never
 }
 
 /**
+ * The pinned dashboards a link may open, with their variables, for the checks of a spec written.
+ *
+ * @param context - The service context.
+ * @returns A function that lists them when called.
+ */
+export function linkTargetsOf(context: ServiceContext): () => LinkTarget[] {
+  return () =>
+    context.repository.listPinned().map((row) => {
+      const spec = dashboardSpecSchema.safeParse(row.spec);
+      const variables = spec.success ? spec.data.variables.map((variable) => variable.name) : [];
+      return { id: row.dashboardId, title: row.title, variables };
+    });
+}
+
+/**
+ * Validates a spec being written, against the current connectors and the pinned dashboards its
+ * links may open.
+ *
+ * @param context - The service context.
+ * @param input - The spec, as JSON.
+ * @returns The parsed spec, or every issue found.
+ */
+export function checkWritten(context: ServiceContext, input: unknown) {
+  const { lookup } = context;
+  return validateSpec(input, {
+    lookup,
+    now: context.now(),
+    writing: true,
+    linkTargets: linkTargetsOf(context),
+  });
+}
+
+/**
  * Validates a spec against the current connectors.
  *
  * @param context - The service context.
@@ -82,7 +116,12 @@ export function validOrRefuse(
   input: unknown,
   writing = false,
 ): DashboardSpec {
-  const result = validateSpec(input, { lookup: context.lookup, now: context.now(), writing });
+  const result = validateSpec(input, {
+    lookup: context.lookup,
+    now: context.now(),
+    writing,
+    linkTargets: linkTargetsOf(context),
+  });
   if (!result.ok) refuseSpec('The spec is invalid.', result.issues);
   return result.spec;
 }

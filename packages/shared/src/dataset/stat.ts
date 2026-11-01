@@ -52,6 +52,40 @@ export function resultColumn(frames: readonly Frame[], field?: string): unknown[
   return index < 0 ? [] : dataset.source.map((row) => row[index] ?? null);
 }
 
+/** One tile of a stat over a breakdown. */
+export interface StatTile {
+  /** The place of its row in the result, which names it among tiles of the same label. */
+  readonly key: string;
+  /** Its label: the row's value in the stat's `each` column, as text. */
+  readonly label: string;
+  /** The row's value in the stat's column. */
+  readonly value: unknown;
+  /** The row's values, by column. */
+  readonly row: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * The tiles of a stat over a breakdown: one for each row of its result, in order.
+ *
+ * @param frames - The frames of the stat's result.
+ * @param each - The column of labels.
+ * @param field - The column of values, if the view names one; else the first number column.
+ * @returns The tiles; none when the result has no column of labels.
+ */
+export function statTiles(frames: readonly Frame[], each: string, field?: string): StatTile[] {
+  const dataset = datasetOfFrames(frames);
+  const names = dataset.dimensions.map((column) => column.name);
+  const labelIndex = names.indexOf(each);
+  const valueIndex = statColumnIndex(dataset, field);
+  if (labelIndex < 0) return [];
+  return dataset.source.map((source, place) => ({
+    key: String(place),
+    label: String(source[labelIndex] ?? ''),
+    value: valueIndex < 0 ? null : (source[valueIndex] ?? null),
+    row: Object.fromEntries(names.map((name, index) => [name, source[index] ?? null])),
+  }));
+}
+
 /**
  * Reduces values to one number.
  *

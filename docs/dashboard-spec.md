@@ -110,7 +110,7 @@ type Panel = {
   grid: { x: number; y: number; w: number; h: number }   // 12-column grid, h in rows of 40px
   queries: QueryTemplate[]                  // 1..4
   operations?: Operation[]                  // 1..8, run in order on the server
-  view: StatView | ChartView | TableView
+  view: StatView | ChartView | TableView | LogView
   definition?: { id: string; version: number }  // the definition its queries were copied from
 }
 
@@ -146,6 +146,9 @@ type StatView = {
   compare?: { ref: string; reduce: StatView['reduce']; label: string }   // "baseline 0.3%"
   mappings?: Mapping[]                      // ≤ 20, the first match wins
   toneAs?: 'text' | 'background'            // default: text
+  link?: Link                               // the tile opens a pinned dashboard or a page
+  each?: string                             // a column of names: a tile per row, at most 24,
+                                            // each with its row's value, not reduced
 }
 
 type TableView = {
@@ -156,6 +159,9 @@ type TableView = {
     mappings?: Mapping[]                    // ≤ 20, the first match wins
     toneAs?: 'text' | 'background'          // default: text
     width?: 'narrow' | 'medium' | 'wide'    // a share of the table; medium when left out
+    link?: Link                             // each cell opens a pinned dashboard
+    display?: 'image'                       // each https address shows as an image, from a
+                                            // host an admin marked for images; text otherwise
   }[]
   rest?: { format?: Formatter; align?: 'left' | 'right'; mappings?: Mapping[]
            toneAs?: 'text' | 'background'; width?: 'narrow' | 'medium' | 'wide' }
@@ -164,6 +170,37 @@ type TableView = {
   sort?: { field: string; dir: 'asc' | 'desc' }   // the first order; a viewer sorts by a click
   limit?: number                            // ≤ 500
   pageSize?: number                         // 5 to 100 rows a page, default 20
+  record?: true                             // the first row as labelled values, one a line
+}
+
+// A line for each row, in the result's order. A line opens to show every column of its row.
+type LogView = {
+  kind: 'log'
+  ref: string
+  time: string                              // the column of times, in the dashboard's zone
+  message: string[]                         // 1 to 5 columns, shown one after the other
+  level?: string                            // error and worse show as bad, warn as a warning
+  limit?: number                            // ≤ 500 lines
+}
+
+// A link to a pinned dashboard, or to a page outside quanthea.
+type Link = DashboardLink | UrlLink
+
+// Each of the target's variables takes a fixed text, a column of the row (a table only) or a
+// variable chosen here. The link is a plain address in the app.
+type DashboardLink = {
+  dashboard: string                         // the target's id
+  variables?: Record<string, string | { column: string } | { variable: string }>
+  keepTime?: boolean                        // default: true, the target opens on this range
+}
+
+// An https address on a named host, with no user, password or port, at most 500 characters.
+// {value} appears once at most, in the path or the query, and takes the value encoded. A value of
+// "", "." or ".." draws no link. It opens in a new tab, with no referrer, when an admin allows
+// its host; otherwise the value shows as text.
+type UrlLink = {
+  url: string                               // such as 'https://docs.example.com/items/{value}'
+  value?: { column: string } | { variable: string }   // default: the cell; a stat needs one
 }
 
 // A value becomes a text, a tone, or both. A threshold is a list of range mappings.
@@ -340,6 +377,10 @@ The Zod schema catches shape errors. `dashboards/validate` (`validateSpec`) also
 - `refId`s are unique within a panel, and every `ref` in a view points at one of them;
 - a join or an append reads another query of its panel, never the first;
 - panel, annotation and variable names are unique, and chart `markers` name an annotation;
+- a link reads a column the table shows, a stat's link reads no column, and a link's chosen
+  variable is declared. When the spec is written, a link's target is a pinned dashboard that has
+  every variable the link sets, and the message names the pinned ones. A version stored before
+  its target was unpinned still pins. A stat's link to an address takes `{value}` from a variable;
 - a variable's default is among its options, and a text variable's pattern compiles and matches
   its default;
 - a text variable's default is at most 100 characters, and its pattern cannot backtrack for long.

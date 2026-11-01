@@ -7,11 +7,13 @@ import {
   type DashboardDetail,
   type DashboardVersion,
   type DefinitionVersion,
+  type ExternalHosts,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
   getThreadEndpoint,
   listDefinitionsEndpoint,
   pinDashboardEndpoint,
+  readExternalHostsEndpoint,
   rejectPlanEndpoint,
   restoreVersionEndpoint,
   startFromPinnedEndpoint,
@@ -56,6 +58,8 @@ export interface ThreadData {
   readonly hiddenOnPinned: HiddenOnPinned | null;
   /** The definitions there are, for the marks of a plan's panels; none outside dashboards. */
   readonly definitions: readonly DefinitionVersion[];
+  /** The hosts an admin allowed, for the images a draft's tables show. */
+  readonly hosts?: ExternalHosts | undefined;
 }
 
 /** The panels hidden by hand on the version the library shows. */
@@ -276,9 +280,12 @@ async function threadOr404(api: ApiClient, threadId: string, request: Request) {
  */
 export function loadThread(api: ApiClient) {
   return async ({ params, request }: LoaderFunctionArgs): Promise<ThreadData> => {
-    const loaded = await threadOr404(api, params.threadId ?? '', request);
+    const [loaded, hosts] = await Promise.all([
+      threadOr404(api, params.threadId ?? '', request),
+      api.call(readExternalHostsEndpoint, {}, { signal: request.signal }),
+    ]);
     if (loaded.thread.kind === 'definition') throw redirect(definitionThreadPath(loaded.thread.id));
-    return loaded;
+    return { ...loaded, hosts };
   };
 }
 

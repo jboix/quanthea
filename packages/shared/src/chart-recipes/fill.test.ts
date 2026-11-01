@@ -40,6 +40,11 @@ describe('the columns of a table', () => {
     });
   });
 
+  test('show the first row as labelled values in the record variant', () => {
+    const filled = tableOf({ variants: ['record'] }, hosts);
+    expect(filled).toMatchObject({ view: { kind: 'table', record: true } });
+  });
+
   test('keep every column when an option changes one, in the order of the roles', () => {
     const overrides = {
       columns: [
@@ -62,6 +67,17 @@ describe('the columns of a table', () => {
     });
   });
 
+  test('keep a link an option gives a column', () => {
+    const link = {
+      dashboard: 'host-detail',
+      variables: { host: { column: 'host' } },
+      keepTime: true,
+    };
+    const overrides = { columns: [{ field: 'host', link }] };
+    const columns = [{ field: 'host', link }, { field: 'errors' }, { field: 'share' }];
+    expect(tableOf({ overrides }, hosts)).toEqual({ view: { kind: 'table', ref: 'A', columns } });
+  });
+
   test('refuse an option for a field that is not a column, naming it', () => {
     const overrides = { columns: [{ field: 'host', label: 'Host' }, { field: 'region' }] };
     expect(tableOf({ overrides }, hosts)).toEqual({
@@ -78,7 +94,7 @@ describe('the columns of a table', () => {
 
   test('refuse options that are not a list of columns', () => {
     const problems = [
-      'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"?, "width"? }, one for each column to change.',
+      'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"?, "width"?, "link"?, "display"? }, one for each column to change.',
     ];
     expect(tableOf({ overrides: { columns: { host: { label: 'Host' } } } }, hosts)).toEqual({
       problems,
@@ -113,7 +129,7 @@ describe('the columns of a table', () => {
     const overrides = { columns: [{ field: 'host', color: 'red' }] };
     expect(tableOf({ overrides }, hosts)).toEqual({
       problems: [
-        'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"?, "width"? }, one for each column to change.',
+        'options.columns is a list of { "field", "label"?, "format"?, "align"?, "mappings"?, "toneAs"?, "width"?, "link"?, "display"? }, one for each column to change.',
       ],
     });
   });
@@ -191,5 +207,33 @@ describe('the mappings of a chart', () => {
 
   test('reach the view of any chart, where validation refuses them on all but a gauge', () => {
     expect(chartOf('kpi.big-number', { mappings })).toMatchObject({ view: { mappings } });
+  });
+});
+
+describe('a stat over a breakdown', () => {
+  test('names its tiles by the column options.each gives', () => {
+    const recipe = chartRecipe('kpi.stat');
+    if (!recipe) throw new Error('No stat recipe.');
+    const choice = { recipe: recipe.id, roles: { value: 'errors' }, overrides: { each: 'host' } };
+    const tiles = fillView(recipe, choice, ['A'], hosts);
+    expect(tiles).toMatchObject({ view: { kind: 'stat', field: 'errors', each: 'host' } });
+  });
+});
+
+describe('a log', () => {
+  test('takes its time and message from the roles, and its level from the options', () => {
+    const recipe = chartRecipe('table.log');
+    if (!recipe) throw new Error('No log recipe.');
+    const roles = { time: 'time', message: ['service', 'message'] };
+    const choice = { recipe: recipe.id, roles, overrides: { level: 'level' } };
+    expect(fillView(recipe, choice, ['A'])).toEqual({
+      view: {
+        kind: 'log',
+        ref: 'A',
+        time: 'time',
+        message: ['service', 'message'],
+        level: 'level',
+      },
+    });
   });
 });

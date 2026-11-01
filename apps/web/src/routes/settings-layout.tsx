@@ -9,6 +9,7 @@ const sections = [
   { to: '/settings/model', label: 'Model' },
   { to: '/settings/charts', label: 'Charts' },
   { to: '/settings/queries', label: 'Queries' },
+  { to: '/settings/hosts', label: 'Links and images' },
   { to: '/settings/usage', label: 'Usage' },
   { to: '/settings/notifications', label: 'Notifications' },
   { to: '/settings/users', label: 'Users' },

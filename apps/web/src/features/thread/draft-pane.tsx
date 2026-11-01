@@ -294,6 +294,7 @@ function PaneBody(props: DraftPaneProps) {
           markedPanelIds={props.markedPanelIds}
           planMarks={preview?.marks}
           layoutNotes={hiddenNotesOf(data)}
+          hosts={data.hosts}
         />
         {preview && preview.added.length > 0 && <NewPanels panels={preview.added} />}
       </>

@@ -1,0 +1,26 @@
+.list {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.error {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-danger);
+}

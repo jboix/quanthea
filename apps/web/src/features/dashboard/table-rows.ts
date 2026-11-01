@@ -8,6 +8,7 @@ import {
   createFormatter,
   datasetOfFrames,
   type Frame,
+  httpsHostOf,
   mapValue,
   type QueryOutcome,
   statColumnIndex,
@@ -16,6 +17,7 @@ import {
   type ToneAs,
   type ValueColor,
 } from '@quanthea/shared';
+import { type Href, hrefOf, type PanelLinks } from './links.ts';
 
 /** How wide a column is beside the others. */
 export type ColumnWidth = NonNullable<TableView['columns'][number]['width']>;
@@ -28,6 +30,10 @@ export interface TableCell {
   readonly text: string;
   /** The tone of the value's mapping, when it has one. */
   readonly tone?: Tone;
+  /** Where the cell leads, when its column links to a dashboard pinned now or an allowed host. */
+  readonly href?: Href;
+  /** The host of the image the cell shows, when its column shows images and its value is one. */
+  readonly imageHost?: string;
 }
 
 /** One column of a table. */
@@ -168,19 +174,49 @@ function withRest(view: TableView, frames: readonly Frame[]): TableView {
 }
 
 /**
+ * The cells of one row, each with where it leads when its column links to a pinned dashboard
+ * or an allowed host.
+ *
+ * @param view - The table view, its columns all the table shows.
+ * @param row - The row.
+ * @param writers - How each column writes its cells.
+ * @param links - What the panel's links are built from, if it draws links.
+ * @returns The cells.
+ */
+function cellsOf(
+  view: TableView,
+  row: SourceRow,
+  writers: readonly CellWriter[],
+  links: PanelLinks | undefined,
+): TableCell[] {
+  const values = Object.fromEntries(
+    view.columns.map((column, at) => [column.field, row.values[at]]),
+  );
+  return row.values.map((value, index) => {
+    const cell = writers[index]?.(value) ?? { value, text: '' };
+    const column = view.columns[index];
+    const href = hrefOf(column?.link, links, { row: values, column: column?.field ?? '' });
+    const imageHost = column?.display === 'image' ? httpsHostOf(value) : undefined;
+    return { ...cell, ...(href ? { href } : {}), ...(imageHost ? { imageHost } : {}) };
+  });
+}
+
+/**
  * Builds the rows of a table panel.
  *
  * @param asked - The table view, its `rest` style for the columns it does not list.
  * @param queries - The outcomes of the panel's queries.
  * @param timeZone - The zone for date formatters.
  * @param colors - The dashboard's colour per value, if any.
- * @returns The columns, and the rows with each cell's raw value, text and tone.
+ * @param links - What the panel's links are built from; without it, links draw as text.
+ * @returns The columns, and the rows with each cell's raw value, text, tone and address.
  */
 export function tableRows(
   asked: TableView,
   queries: readonly QueryOutcome[],
   timeZone?: string,
   colors: readonly ValueColor[] = [],
+  links?: PanelLinks,
 ): TableRows {
   const frames = queries.find((query) => query.refId === asked.ref)?.frames ?? [];
   const view = withRest(asked, frames);
@@ -196,7 +232,7 @@ export function tableRows(
     })),
     rows: rows.slice(0, limit).map((row) => ({
       key: String(row.position),
-      cells: row.values.map((value, index) => writers[index]?.(value) ?? { value, text: '' }),
+      cells: cellsOf(view, row, writers, links),
     })),
     truncated: rows.length > limit,
   };

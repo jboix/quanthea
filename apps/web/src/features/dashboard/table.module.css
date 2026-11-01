@@ -66,3 +66,44 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-control);
+  text-underline-offset: 2px;
+}
+
+.link:hover {
+  text-decoration-color: currentColor;
+}
+
+/* An image cell: as tall as a few lines of text, its whole picture shown. */
+.image {
+  display: block;
+  max-width: 100%;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* A record: a label and a value a line, the labels in one column. */
+.record {
+  display: grid;
+  grid-template-columns: minmax(8ch, max-content) 1fr;
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.recordLine {
+  display: contents;
+}
+
+.recordLine dt {
+  color: var(--color-ink-secondary);
+}
+
+.recordLine dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

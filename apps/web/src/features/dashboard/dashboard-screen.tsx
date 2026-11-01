@@ -85,7 +85,7 @@ function useScrollToPanel(): void {
  *   if offered.
  */
 function useArrangedView(data: DashboardData) {
-  const { dashboard, version } = data;
+  const { dashboard, version, hosts } = data;
   const [search] = useSearchParams();
   const arranged = useMemo(() => {
     const { panels, variables } = version.spec;
@@ -96,7 +96,11 @@ function useArrangedView(data: DashboardData) {
   const history = `/d/${dashboard.id}/v/${version.version}/layouts`;
   const { layout, ...edit } = useArrangement(arranged, allowed, { history });
   const spec = useMemo(() => applyLayout(version.spec, layout).spec, [version.spec, layout]);
-  return { ...edit, shown: { dashboardId: dashboard.id, version: version.version, spec } };
+  const linkable = useMemo(() => ({ targets: version.linkTargets, hosts }), [version, hosts]);
+  return {
+    ...edit,
+    shown: { dashboardId: dashboard.id, version: version.version, spec, linkable, hosts },
+  };
 }
 
 /**

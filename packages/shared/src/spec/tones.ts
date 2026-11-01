@@ -27,6 +27,33 @@ export const tones = [
 /** A tone: the name of a theme colour. */
 export type Tone = (typeof tones)[number];
 
+/** The tones of the usual log levels, by their name in lowercase. */
+const levelTones: Readonly<Record<string, Tone>> = {
+  emerg: 'bad',
+  emergency: 'bad',
+  alert: 'bad',
+  fatal: 'bad',
+  crit: 'bad',
+  critical: 'bad',
+  err: 'bad',
+  error: 'bad',
+  warn: 'warning',
+  warning: 'warning',
+};
+
+/**
+ * The tone of a log level: bad for an error or worse, warning for a warning.
+ *
+ * @param level - The level, in any case, such as `ERROR` or `warn`.
+ * @returns The tone, or `undefined` for info, debug and any other level.
+ */
+export function levelTone(level: unknown): Tone | undefined {
+  if (typeof level !== 'string') return undefined;
+  return Object.hasOwn(levelTones, level.toLowerCase())
+    ? levelTones[level.toLowerCase()]
+    : undefined;
+}
+
 /** What a match must be, said once for every way of getting it wrong. */
 const matchProblem =
   'A match is one of { "value": a text, a number or a boolean }, { "null": true }, or a range of numbers { "from"?, "to"? } with at least one bound and "from" below "to".';

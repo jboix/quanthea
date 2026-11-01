@@ -9,17 +9,23 @@ const strictTransport = 'max-age=31536000; includeSubDomains';
 
 /**
  * Creates the security headers middleware (architecture, security checklist). `style-src` allows
- * inline styles because ECharts sets them.
+ * inline styles because ECharts sets them. `img-src` names the hosts an admin marked for images,
+ * read on each request.
  *
  * @param publicUrl - quanthea's origin, when configured; HSTS is sent when it is HTTPS.
+ * @param imageHosts - The hosts images may load from; none when left out.
  * @returns The middleware.
  */
-export function securityHeaders(publicUrl?: string): MiddlewareHandler {
+export function securityHeaders(
+  publicUrl?: string,
+  imageHosts: () => readonly string[] = () => [],
+): MiddlewareHandler {
+  const listed = () => imageHosts().map((host) => `https://${host}`);
   return secureHeaders({
     contentSecurityPolicy: {
       defaultSrc: ["'self'"],
       connectSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:'],
+      imgSrc: ["'self'", 'data:', () => listed().join(' ')],
       styleSrc: ["'self'", "'unsafe-inline'"],
       objectSrc: ["'none'"],
       baseUri: ["'none'"],

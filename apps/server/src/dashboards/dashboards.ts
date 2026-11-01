@@ -8,15 +8,18 @@ import {
   type DashboardVersion,
   dashboardSpecSchema,
   type LibrarySearch,
+  linkedDashboards,
   type ObjectUsage,
   type PanelRun,
   type Role,
   type VariableOption,
+  viewLinks,
 } from '@quanthea/shared';
 import { AppError } from '../lib/errors.ts';
 import { createResultCache } from '../query/result-cache.ts';
 import type { Variables } from '../query/variables.ts';
 import {
+  checkWritten,
   type DashboardsDependencies,
   get,
   placedSpecOf,
@@ -33,7 +36,7 @@ import { countObjectUsage, type VisibilityChange } from './object-usage.ts';
 import { copyPinned, copyVersion, findPinned, type PinnedMatch } from './pinned.ts';
 import { newRows } from './rows.ts';
 import { bindChoices, listVariableOptions, type RunChoices, runPanel } from './run-panel.ts';
-import { type ValidationResult, validateSpec } from './validate.ts';
+import type { ValidationResult } from './validate.ts';
 import { addVersion, failuresOf, type PanelTest, restoreVersion, testRunSpec } from './versions.ts';
 
 export type { DashboardsDependencies, RunTarget } from './context.ts';
@@ -364,7 +367,20 @@ function readVersion(
 ): DashboardVersion {
   const row = visibleVersion(context, id, version, role);
   const layout = shownLayoutOf(context, id, version);
-  return { ...row, spec: dashboardSpecSchema.parse(row.spec), layout };
+  const spec = dashboardSpecSchema.parse(row.spec);
+  return { ...row, spec, layout, linkTargets: pinnedLinkTargets(context, spec) };
+}
+
+/**
+ * The dashboards a spec's links open that are pinned now.
+ *
+ * @param context - The service context.
+ * @param spec - The spec.
+ * @returns Their ids, each once.
+ */
+function pinnedLinkTargets(context: ServiceContext, spec: DashboardSpec): string[] {
+  const linked = linkedDashboards(spec.panels.flatMap((panel) => viewLinks(panel.view)));
+  return linked.filter((id) => context.repository.get(id)?.pinnedVersionId != null);
 }
 
 /**
@@ -388,8 +404,7 @@ export function createDashboards(dependencies: DashboardsDependencies): Dashboar
     variableOptions: (target, name, role, signal) =>
       listVariableOptions(context, specOf(context, target, role), name, target, signal),
     bindVariables: (spec, choices, signal) => bindChoices(context, spec, choices, signal),
-    check: (spec) =>
-      validateSpec(spec, { lookup: context.lookup, now: context.now(), writing: true }),
+    check: (spec) => checkWritten(context, spec),
     testRun: (spec) => testRunSpec(context, spec),
     addVersion: (id, spec, changeSummary, actor) =>
       addVersion(context, id, spec, changeSummary, actor),
