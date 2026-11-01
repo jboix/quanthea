@@ -62,6 +62,13 @@ type Variable =
       options: string[]                     // durations: '1m', '5m', '1h', or 'auto'
       default: string                       // one of the options
     }
+  | {
+      kind: 'computed'                      // hidden, its value read by the server from a query
+      name: string
+      source: QueryTemplate                 // on any connector, with the variables before it
+      field?: string                        // the column read; the first one when left out
+      multi?: boolean                       // every distinct value, not the first row's
+    }
 
 // The built-in time variable (always present, not listed in `variables`):
 //   default range lives in `time`, values exposed as $__from, $__to, $__range, $__interval
@@ -284,8 +291,16 @@ they differ from the sketch above, the schemas win:
   checked and bound; the menu and the chip show the label. Without both columns, the options are
   the distinct values of the first text column, as before. A snapshot, a report run and Ask show
   the value.
-- A value a viewer picks for a query-backed variable is one of its options or its default; any
-  other is refused when the panel runs.
+- A value a viewer picks for a query-backed variable is one of its options or its default. A
+  value no longer offered, such as one the variables before it no longer list, binds the default
+  instead, or the first option when there is no default.
+- A computed variable has no chip, and no choice or URL sets it. The server runs its source when
+  a panel runs, with the time range and the variables declared before it, and binds the column
+  `field` (the first column when left out) like any other value. Without `multi` it binds the
+  first row's value and fails when the query finds no row. With `multi` it binds every distinct
+  value as a list, at most 1,000, and an empty list when there is none. A value over 200
+  characters fails the variable. A computed variable's source may be on another connector than
+  the panels that use it, so one source's result can filter another's.
 - A mapping matches the raw value of the result, before the format. A `value` is compared as it
   reads, so `200` matches `"200"` and `true` matches `"true"`, and a number also equals a text
   that writes it another way, such as `"200.00"`. A range reads numbers, and texts that write a
@@ -317,7 +332,7 @@ The Zod schema catches shape errors. `dashboards/validate` (`validateSpec`) also
 - every query binds with the declared variables, exactly as it will at run time: an unknown or
   misplaced variable, a multi-value variable where one value fits (`env="$services"`), or a SQL
   template that is not one read statement are all reported when the spec is saved;
-- a query-backed variable's `source` uses only the variables declared before it. Variables are
+- a query-backed or computed variable's `source` uses only the variables declared before it. Variables are
   resolved in the order declared, so a source that uses its own variable or a later one runs
   without that value and its options never load. It is refused when the spec is written, with a
   message that names both. A version stored before this check still pins, restores and copies:

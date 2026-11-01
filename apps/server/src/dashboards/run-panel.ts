@@ -25,6 +25,7 @@ import type { ResultCache } from '../query/result-cache.ts';
 import type { Variables } from '../query/variables.ts';
 import { withAutoIntervals } from './auto-interval.ts';
 import { chartPointsOf } from './chart-points.ts';
+import { type ComputedVariable, computedValues } from './computed.ts';
 import { optionsOfFrames } from './variable-option-frames.ts';
 import { type QueryVariable, resolveVariables } from './variables.ts';
 
@@ -173,9 +174,42 @@ interface RunRange {
   readonly timeRange: EngineRange;
 }
 
+/** The loads of variable sources running now, by key, so parallel panels share one. */
+const loading = new Map<string, Promise<VariableOption[]>>();
+
+/** A variable whose values come from a query. */
+type SourcedVariable = QueryVariable | ComputedVariable;
+
 /**
- * Builds the loader of query-backed variable options for one run, with their labels. Options are cached by the
- * variable, its source, the variables before it and the time range as expressions.
+ * Runs a variable's source and reads its options, or a computed variable's values.
+ *
+ * @param dependencies - The connectors and the executor.
+ * @param variable - The variable.
+ * @param resolved - The variables resolved before it.
+ * @param range - The time range.
+ * @param signal - Aborted when the caller gives up.
+ * @returns The options or values. A failing source is a `source_failed` error.
+ */
+async function loadSource(
+  dependencies: RunnerDependencies,
+  variable: SourcedVariable,
+  resolved: Variables,
+  range: RunRange,
+  signal?: AbortSignal,
+): Promise<VariableOption[]> {
+  const query = { ...variable.source, refId: 'options' } as PanelQuery;
+  const { timeRange } = range;
+  const outcome = await runQuery(dependencies, query, resolved, { timeRange }, signal);
+  if (outcome.error)
+    throw new AppError('source_failed', `$${variable.name}: ${outcome.error.message}`);
+  if (variable.kind === 'computed') return computedValues(variable, outcome.frames);
+  return optionsOfFrames(outcome.frames);
+}
+
+/**
+ * Builds the loader of query-backed variable options, with their labels, and of computed values,
+ * for one run. They are cached by the whole declaration, the variables before it and the time
+ * range as expressions, and panels that ask at once share one load.
  *
  * @param dependencies - The connectors, the executor and the options cache.
  * @param range - The time range.
@@ -183,18 +217,19 @@ interface RunRange {
  * @returns The loader. A failing source is a `source_failed` error.
  */
 function optionsLoader(dependencies: RunnerDependencies, range: RunRange, signal?: AbortSignal) {
-  return async (variable: QueryVariable, resolved: Variables): Promise<VariableOption[]> => {
-    const key = JSON.stringify([variable.name, variable.source, resolved, range.expression]);
-    const cached = dependencies.optionsCache?.get(key);
+  return async (variable: SourcedVariable, resolved: Variables): Promise<VariableOption[]> => {
+    const key = JSON.stringify([variable, resolved, range.expression]);
+    const cached = dependencies.optionsCache?.get(key) ?? loading.get(key);
     if (cached) return cached;
-    const query = { ...variable.source, refId: 'options' } as PanelQuery;
-    const { timeRange } = range;
-    const outcome = await runQuery(dependencies, query, resolved, { timeRange }, signal);
-    if (outcome.error)
-      throw new AppError('source_failed', `$${variable.name}: ${outcome.error.message}`);
-    const options = optionsOfFrames(outcome.frames);
-    dependencies.optionsCache?.set(key, options);
-    return options;
+    const load = loadSource(dependencies, variable, resolved, range, signal);
+    loading.set(key, load);
+    try {
+      const options = await load;
+      dependencies.optionsCache?.set(key, options);
+      return options;
+    } finally {
+      loading.delete(key);
+    }
   };
 }
 
@@ -217,7 +252,7 @@ function prepare(
   const time = timeOf(expression, dependencies.now());
   const timeRange = { from: new Date(time.from), to: new Date(time.to) };
   const loadLabelled = optionsLoader(dependencies, { expression, timeRange }, signal);
-  const loadOptions = async (variable: QueryVariable, resolved: Variables) =>
+  const loadOptions = async (variable: SourcedVariable, resolved: Variables) =>
     optionValues(await loadLabelled(variable, resolved));
   return { time, timeRange, loadOptions, loadLabelled };
 }

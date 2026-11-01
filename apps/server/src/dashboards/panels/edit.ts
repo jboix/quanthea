@@ -3,7 +3,8 @@
  * placed below, the rows the edit arranges by name (arrange.ts), and sets of markers on time charts
  * (markers.ts). The result is a spec to check, test-run and save like any other.
  */
-import type { DashboardSpec, Panel } from '@quanthea/shared';
+import { type DashboardSpec, type Panel, type Variable, variableSchema } from '@quanthea/shared';
+import { z } from 'zod';
 import { type BuildContext, QueryError } from '../queries/index.ts';
 import { arrangedPanels } from './arrange.ts';
 import type { PanelDraft } from './draft.ts';
@@ -39,6 +40,24 @@ function startingSpec(current: DashboardSpec | undefined, request: EditRequest):
 }
 
 /**
+ * The edit's variables, each checked against the variable forms: a computed variable's source
+ * comes as a loose object.
+ *
+ * @param variables - The variables as the edit gives them.
+ * @returns The variables.
+ * @throws {QueryError} Naming the variable whose source does not fit a query form.
+ */
+function variablesOf(variables: NonNullable<EditRequest['variables']>): Variable[] {
+  return variables.map((variable) => {
+    const parsed = variableSchema.safeParse(variable);
+    if (parsed.success) return parsed.data;
+    throw new QueryError(
+      `$${variable.name} does not fit its form: ${z.prettifyError(parsed.error)}`,
+    );
+  });
+}
+
+/**
  * The dashboard's own settings, as the edit changes them.
  *
  * @param spec - The spec.
@@ -51,7 +70,7 @@ function withSettings(spec: DashboardSpec, request: EditRequest): DashboardSpec 
     ...(request.title === undefined ? {} : { title: request.title }),
     ...(request.description === undefined ? {} : { description: request.description }),
     ...(request.time === undefined ? {} : { time: request.time }),
-    ...(request.variables === undefined ? {} : { variables: request.variables }),
+    ...(request.variables === undefined ? {} : { variables: variablesOf(request.variables) }),
     ...(request.colors === undefined ? {} : { colors: request.colors }),
   };
 }

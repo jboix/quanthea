@@ -7,6 +7,7 @@ import {
   allValue,
   calendarParts,
   type DashboardSpec,
+  isChosen,
   labelOfValue,
   resolveTimeRange,
   type TimeRangeExpression,
@@ -112,7 +113,7 @@ function valueWords(value: string | readonly string[], variable?: Variable): str
  * @returns Such as `['$env prod', '$service All']`.
  */
 export function variableWords(spec: DashboardSpec, variables: VariableValues): string[] {
-  return spec.variables.flatMap((variable) => {
+  return spec.variables.filter(isChosen).flatMap((variable) => {
     const value = variables[variable.name] ?? variable.default;
     return value === undefined ? [] : [`$${variable.name} ${valueWords(value, variable)}`];
   });

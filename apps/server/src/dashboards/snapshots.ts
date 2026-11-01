@@ -5,6 +5,7 @@
  */
 import {
   type DashboardSpec,
+  isChosen,
   type PanelRun,
   type Role,
   resolveTimeRange,
@@ -163,7 +164,7 @@ function notFound(): AppError {
  * @returns The values.
  */
 export function shownVariables(spec: DashboardSpec, picked: VariableValues): VariableValues {
-  const entries = spec.variables.flatMap((variable) => {
+  const entries = spec.variables.filter(isChosen).flatMap((variable) => {
     const value = picked[variable.name] ?? variable.default;
     return value === undefined ? [] : [[variable.name, value] as const];
   });

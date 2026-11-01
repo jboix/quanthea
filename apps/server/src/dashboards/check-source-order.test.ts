@@ -81,3 +81,26 @@ describe('the order of the variables a source uses', () => {
     expect(validateSpec(stored, { lookup, now }).ok).toBe(true);
   });
 });
+
+describe('a computed variable', () => {
+  /**
+   * The spec with `pod` computed instead of chosen.
+   *
+   * @param place - Whether `pod` comes before `env` or after it.
+   * @param connector - The connector of its source.
+   * @returns The spec, as JSON.
+   */
+  function computedSpec(place: 'first' | 'last', connector = 'shop') {
+    const spec = specWith('sql', place);
+    const source = { ...sources.sql, connector };
+    const pod = { kind: 'computed', name: 'pod', source };
+    const variables = spec.variables.map((variable) => (variable.name === 'pod' ? pod : variable));
+    return { ...spec, variables };
+  }
+
+  test('has its source checked as a query-backed one: the order and the connector', () => {
+    expect(issuesOf(computedSpec('last'), true)).toEqual([]);
+    expect(issuesOf(computedSpec('first'), true)).toHaveLength(1);
+    expect(issuesOf(computedSpec('last', 'nowhere'), true).join()).toContain('variables[1].source');
+  });
+});

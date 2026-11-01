@@ -48,11 +48,13 @@ describe('a query-backed variable', () => {
     expect(resolved.key).toEqual({ value: 'stats:api' });
   });
 
-  test('refuses a value that is not one of its options', async () => {
-    const pick = (key: string | string[]) =>
-      resolveVariables(specWith({ multi: true }), { key }, loader());
-    await expect(pick('session:abc')).rejects.toThrow('$key has no option "session:abc".');
-    await expect(pick(['stats:web', 'session:abc'])).rejects.toThrow('has no option');
+  test('binds its default, or its first option, for a value it no longer offers', async () => {
+    const pick = async (key: string | string[], fields: object = {}) =>
+      (await resolveVariables(specWith({ multi: true, ...fields }), { key }, loader())).key;
+    expect(await pick('session:abc')).toEqual({ value: ['stats:web'] });
+    expect(await pick(['stats:web', 'session:abc'], { default: 'stats:api' })).toEqual({
+      value: ['stats:api'],
+    });
   });
 
   test('takes its default without loading the options, and when the viewer picks it', async () => {

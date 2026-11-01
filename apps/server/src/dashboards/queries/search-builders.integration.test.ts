@@ -11,6 +11,7 @@ import { elasticsearchConnector } from '../../connectors/search/elasticsearch-co
 import { opensearchConnector } from '../../connectors/search/opensearch-connector.ts';
 import { bindTemplate } from '../../query/bind.ts';
 import type { Variables } from '../../query/variables.ts';
+import { computedValues } from '../computed.ts';
 import { buildData } from './build.ts';
 import { dataSchema } from './request.ts';
 
@@ -144,6 +145,32 @@ for (const server of servers) {
       const times = rows.values[rows.fields.findIndex((field) => field.name === '@timestamp')];
       expect(times).toHaveLength(5);
       expect([...(times as number[])].sort((a, b) => b - a)).toEqual(times as number[]);
+    });
+
+    test('cuts a histogram at a percentile a computed variable reads first', async () => {
+      const template = {
+        connector: 'logs',
+        language: 'search',
+        index: 'logs-*',
+        body: {
+          size: 0,
+          query: { bool: { must_not: [{ term: { route: 'deploy' } }] } },
+          aggs: { p95: { percentiles: { field: 'duration_ms', percents: [95] } } },
+        },
+      } as const;
+      const signal = AbortSignal.timeout(20_000);
+      const execution = { refId: 'options', signal, timeoutMs: 20_000, maxRows: 10, timeRange };
+      const frames = await connection.execute(bindTemplate(template, {}, timeRange), execution);
+      const computed = { kind: 'computed', name: 'p95', source: template } as const;
+      const [p95] = computedValues(computed, frames);
+      const cut = { field: 'duration_ms', op: '<=', value: '$p95' };
+      const variables = { p95: { value: p95 ?? '' } };
+      const bins = await run(
+        { kind: 'search-histogram', field: 'duration_ms', width: 50, filters: [requests, cut] },
+        variables,
+      );
+      expect(Number(p95)).toBeGreaterThan(0);
+      expect(Math.max(...(bins.values[0] as number[]))).toBeLessThanOrEqual(Number(p95));
     });
 
     /**

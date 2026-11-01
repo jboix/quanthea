@@ -3,7 +3,7 @@
  * options of its chip, and the option a pick stands for. The chip is the dashboard's own, so the
  * choice is written as the variable a dashboard would declare.
  */
-import { type ChartInterval, chartIntervals, type Variable } from '@quanthea/shared';
+import { type ChartInterval, type ChosenVariable, chartIntervals } from '@quanthea/shared';
 
 /**
  * The variable the chip shows.
@@ -11,7 +11,7 @@ import { type ChartInterval, chartIntervals, type Variable } from '@quanthea/sha
  * @param options - The choice nobody made, such as `auto` or `as stored`, then the others.
  * @returns A variable with those options, the first one its default.
  */
-export function intervalVariable(options: readonly string[]): Variable {
+export function intervalVariable(options: readonly string[]): ChosenVariable {
   return {
     kind: 'custom',
     name: 'interval',

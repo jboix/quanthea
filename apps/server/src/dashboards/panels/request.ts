@@ -6,10 +6,11 @@
 import {
   chartRecipes,
   chartUnits,
+  chosenVariableSchema,
   markerColors,
   timeRangeSchema,
   valueColorSchema,
-  variableSchema,
+  variableNameSchema,
 } from '@quanthea/shared';
 import { z } from 'zod';
 import {
@@ -132,6 +133,24 @@ const queryMarkersSchema = z.strictObject({
 const markersSchema = z.union([queryMarkersSchema, tableMarkersSchema]);
 
 /**
+ * A computed variable as the agent writes it. Its source is a loose object, checked against the
+ * query forms when the edit is applied, so the tool's schema does not repeat every query language.
+ */
+const computedRequestSchema = z.strictObject({
+  kind: z.literal('computed'),
+  name: variableNameSchema,
+  source: z.record(z.string(), z.unknown()),
+  field: z.string().min(1).max(200).optional(),
+  multi: z.boolean().optional(),
+});
+
+/** A variable as the agent writes it. */
+const variableRequestSchema = z.discriminatedUnion('kind', [
+  ...chosenVariableSchema.options,
+  computedRequestSchema,
+]);
+
+/**
  * The edit's fields around its panels.
  *
  * @param panels - The schema of one panel.
@@ -142,7 +161,7 @@ function editSchemaWith<Panel extends z.ZodType>(panels: Panel) {
     title: z.string().min(1).max(200).optional(),
     description: z.string().max(1000).optional(),
     time: timeRangeSchema.optional(),
-    variables: z.array(variableSchema).max(20).optional(),
+    variables: z.array(variableRequestSchema).max(20).optional(),
     colors: z.array(valueColorSchema).max(50).optional(),
     panels: z.array(panels).max(20).default([]),
     remove: z.array(z.string()).max(20).default([]),

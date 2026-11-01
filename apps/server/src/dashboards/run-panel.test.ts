@@ -148,7 +148,8 @@ describe('the options of a query-backed variable', () => {
     };
     const run = (service: string) =>
       runPanel(dependencies, spec, 'errors', { variables: { service } });
-    await expect(run('payments')).rejects.toThrow('$service has no option "payments".');
+    // A value no longer offered runs with the default.
+    expect((await run('payments')).queries[0]?.error).toBeNull();
     now += 1000;
     await run('cart');
     await run('checkout');

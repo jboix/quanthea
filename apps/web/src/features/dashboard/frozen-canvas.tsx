@@ -4,7 +4,7 @@
  * way, a run under the frames of its layout while it is arranged. Nothing runs; only the markers
  * can be shown or hidden, in the page.
  */
-import type { DashboardSpec, PanelRun, VariableValues } from '@quanthea/shared';
+import { type DashboardSpec, isChosen, type PanelRun, type VariableValues } from '@quanthea/shared';
 import { type ReactNode, useState } from 'react';
 import { WithOverlay } from './canvas.tsx';
 import type { Loaded } from './data.ts';
@@ -69,7 +69,7 @@ function FrozenBar(props: FrozenCanvasProps & ReturnType<typeof useHiddenMarkers
         <span className={styles.chipName}>time</span>
         {timeLabel(range, spec.timezone)}
       </span>
-      {spec.variables.map((variable) => (
+      {spec.variables.filter(isChosen).map((variable) => (
         <span key={variable.name} className={frozenChip}>
           <VariableName variable={variable} />
           {shown(variables[variable.name] ?? 'default', variable)}

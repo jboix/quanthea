@@ -8,6 +8,7 @@ import {
   createFormatter,
   type DashboardAlerts,
   type DashboardSpec,
+  isChosen,
   type PanelAlert,
 } from '@quanthea/shared';
 import type { AlertMarks } from '../../charts/input.ts';
@@ -52,7 +53,7 @@ export function alertSetId(alertId: string): string {
  * @returns The values by variable name; a variable on All is left out.
  */
 export function selectionOf(spec: DashboardSpec, choices: ViewChoices): Selection {
-  const entries = spec.variables.flatMap((variable) => {
+  const entries = spec.variables.filter(isChosen).flatMap((variable) => {
     if (variable.kind === 'interval') return [];
     const value = choices.variables[variable.name] ?? variable.default;
     const values = value === undefined ? [] : [value].flat();

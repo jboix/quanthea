@@ -4,7 +4,7 @@
  * since it also names its panel, and is filled only where it is shown.
  */
 import { labelOfValue } from './variable-options.ts';
-import { allValue, type Variable, type VariableValues } from './variables.ts';
+import { allValue, type Variable, type VariableValues, variableDefault } from './variables.ts';
 
 /** `$name` or `${name}`, as a query writes a variable. */
 const reference = /\$\{([a-z][a-z0-9_]*)\}|\$([a-z][a-z0-9_]*)/g;
@@ -46,7 +46,7 @@ export function filledTitle(
   return title.replace(reference, (written, braced?: string, bare?: string) => {
     const name = braced ?? bare ?? '';
     const variable = variables.find((each) => each.name === name);
-    const value = values[name] ?? variable?.default;
+    const value = values[name] ?? (variable && variableDefault(variable));
     return variable === undefined || value === undefined ? written : valueText(variable, value);
   });
 }

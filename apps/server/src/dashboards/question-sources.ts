@@ -2,7 +2,7 @@
  * The sources a dashboard version reads, by name and access level only, so the Ask tab can say
  * when an answer can only explain.
  */
-import type { DashboardSource, DashboardSpec } from '@quanthea/shared';
+import { type DashboardSource, type DashboardSpec, variableSource } from '@quanthea/shared';
 
 /**
  * The connectors a spec names: in its panels, its markers and its query-backed variables.
@@ -15,9 +15,7 @@ function connectorNamesOf(spec: DashboardSpec): string[] {
     ...new Set([
       ...spec.panels.flatMap((panel) => panel.queries.map((query) => query.connector)),
       ...spec.annotations.map((annotation) => annotation.query.connector),
-      ...spec.variables.flatMap((variable) =>
-        variable.kind === 'query' ? [variable.source.connector] : [],
-      ),
+      ...spec.variables.flatMap((variable) => [variableSource(variable)?.connector ?? []].flat()),
     ]),
   ];
 }

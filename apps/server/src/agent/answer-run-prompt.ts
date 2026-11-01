@@ -97,7 +97,9 @@ export function runInstructions(facts: RunFacts, readable: (level: number) => bo
     '',
     `The run covers ${run.label}: ${windowLine(facts.range, timeZone)}.`,
     ...compared,
-    ...[variablesLine(facts.spec, facts.variables)].filter((line) => line !== undefined),
+    ...[variablesLine(facts.spec, facts.variables, facts.connectors)].filter(
+      (line) => line !== undefined,
+    ),
     'Connectors:',
     ...runConnectorLines(facts.connectors),
     'Report:',

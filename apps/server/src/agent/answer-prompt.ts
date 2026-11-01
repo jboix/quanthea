@@ -3,7 +3,14 @@
  * facts are the dashboard as written (never data), the connectors with what the model may read of
  * each, and, for a question, the range asked about and the variables chosen.
  */
-import { allValue, type DashboardSpec, type Panel, type VariableValues } from '@quanthea/shared';
+import {
+  allValue,
+  type DashboardSpec,
+  type Panel,
+  type VariableValues,
+  variableDefault,
+  variableSource,
+} from '@quanthea/shared';
 
 /** How a question about the data is answered. */
 const askRules = `You answer questions about one dashboard for the person looking at it: a calm, precise colleague who reads the data before saying anything about it.
@@ -136,19 +143,48 @@ function connectorLines(
   });
 }
 
+/** The lowest access level that shows the values of a connector's data. */
+const valuesLevel = 3;
+
 /**
- * The viewer's variable choices, in words; "All" for every option.
+ * Whether a variable's value may be shown: always for one the spec lists, and for one read from a
+ * connector only when that connector's level shows values.
+ *
+ * @param variable - The variable.
+ * @param connectors - The dashboard's connectors.
+ * @returns Whether the model may read the value.
+ */
+function valueShown(
+  variable: DashboardSpec['variables'][number],
+  connectors: readonly AnswerConnector[],
+): boolean {
+  const read = variableSource(variable);
+  if (!read) return true;
+  const source = connectors.find((connector) => connector.name === read.connector);
+  return source !== undefined && source.accessLevel >= valuesLevel;
+}
+
+/**
+ * The viewer's variable choices, in words; "All" for every option. A value read from a connector
+ * whose level hides values is left out, as any value of that connector.
  *
  * @param spec - The spec, for the declarations and defaults.
  * @param chosen - The choices.
+ * @param connectors - The dashboard's connectors, with their levels.
  * @returns The line, or `undefined` without variables.
  */
-export function variablesLine(spec: DashboardSpec, chosen: VariableValues): string | undefined {
+export function variablesLine(
+  spec: DashboardSpec,
+  chosen: VariableValues,
+  connectors: readonly AnswerConnector[],
+): string | undefined {
   if (spec.variables.length === 0) return undefined;
   const values = spec.variables.map((variable) => {
-    const value = [chosen[variable.name] ?? variable.default ?? ''].flat();
-    const words = value.includes(allValue) ? 'All' : value.join(', ');
-    return `$${variable.name} = ${words}`;
+    const value = [chosen[variable.name] ?? variableDefault(variable) ?? ''].flat();
+    if (variable.kind === 'computed') return `$${variable.name} = (computed by the server)`;
+    if (value.includes(allValue)) return `$${variable.name} = All`;
+    if (!valueShown(variable, connectors)) return `$${variable.name} = (hidden at its level)`;
+    return `$${variable.name} = ${value.join(', ')}`;
   });
   return `Variables chosen: ${values.join('; ')}.`;
 }
@@ -170,7 +206,9 @@ export function askInstructions(facts: AskFacts, readable: (level: number) => bo
     ...(anyReadable ? [] : [cannotRead]),
     '',
     `The range asked about: ${local} in ${timeZone}, that is ${iso}.`,
-    ...[variablesLine(facts.spec, facts.variables)].filter((line) => line !== undefined),
+    ...[variablesLine(facts.spec, facts.variables, facts.connectors)].filter(
+      (line) => line !== undefined,
+    ),
     'Connectors:',
     ...connectorLines(facts.connectors, readable),
     'Dashboard:',

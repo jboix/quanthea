@@ -553,7 +553,9 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
    is never run: its default binds as it is, since it matched when saved, and any other value is
    refused. A query-backed value the viewer picks, other than "All", must be one of the variable's
    options or its default: binding stops injection, but a value such as a Valkey key or an HTTP path
-   segment names data, and the options bound what a pinned dashboard shows. The options are cached
+   segment names data, and the options bound what a pinned dashboard shows. Any other value binds
+   the default instead (or the first option without one), since a choice goes stale when a
+   variable before it changes; the chip drops it from the URL once its options load without it. The options are cached
    for 60 s by variable, source, the variables before it and the time range as written (`now-6h`),
    so the panels of one dashboard share one load. "All" (`$__all`) and a missing default run the
    variable's source query for the options too. Variables are resolved in the order declared, so
@@ -566,6 +568,12 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
    edit was about, and the agent repairs the order in the same turn by sending the variables
    again. The same holds for a report: its saves and previews check the order, an activation and
    a test send of a stored version do not.
+   A computed variable is resolved at its place in the same order: the server runs its source,
+   on any connector, and binds the column it names (`dashboards/computed.ts`), one value or a
+   list of at most 1,000. A choice for it is ignored, and the browser drops it from the URL. It
+   shares the options cache, keyed by the whole declaration, and panels that ask at the same time
+   share one run of the source. A source that fails, a single value with no row, or a value over
+   200 characters fails the panels that use it with a `source_failed` message.
 5. Each query goes to `query/`, which binds it, applies the connector's guardrails, runs it with a
    timeout and caches the frames for 15 s by connector, bound query and time range. The chart's
    markers run their annotation queries the same way, with the same variables, and come back, per
@@ -1981,7 +1989,10 @@ markers) are read the same way, `read_guide("settings")`, and written with their
 (`settingsStep` in `agent/turn.ts`, through the AI SDK's `activeTools`), so the many edits that
 change panels only carry neither the guide nor the forms of the settings: that took 3,600 to 4,300
 characters off every `edit_dashboard` call. Variables come before the panels that use them, and
-markers after the time charts that show them. The instructions stay about the same size however
+markers after the time charts that show them. The settings guide offers a computed variable when
+one query's result filters another. `edit_settings` takes its source as a plain object and the
+edit checks it against the query forms (`variablesOf` in `dashboards/panels/edit.ts`), so the
+tool does not repeat every query language for it. The instructions stay about the same size however
 many kinds are in use. A test (`agent/panel-guide-size.test.ts`) holds the panel guide
 under a ceiling for a run on metrics and SQL, and for both with search: what a chart needs only
 sometimes goes into its recipe.
@@ -2310,7 +2321,10 @@ has two modes:
 
 - **`ask`**: a question about the data. The request carries the spec, the range the person looks at
   resolved to absolute times, the dashboard's time zone, the variables they chose, the question,
-  and the earlier questions and answers it follows up on.
+  and the earlier questions and answers it follows up on. The model reads a query-backed
+  variable's value only when the connector it is read from is at level 3 or 4, as any value of
+  that connector; the line names it as hidden otherwise. A query that uses the variable is shaped
+  at its own connector's level.
 - **`explain`**: what one panel measures, where its data comes from and how to read it. The
   request carries the spec and the panel. It reads no data at any level, sees no range and no
   variable values, and its text must quote no data, so it can be cached and shown to every role.

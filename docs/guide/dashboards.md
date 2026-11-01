@@ -124,11 +124,15 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
 - **Time range and variables.** The row above the panels holds the time range and the
   dashboard's variables, such as an environment or a service. They live in the address, so a link
   shares exactly what you see. Changing them runs the panels again and never calls a model. A
-  variable can offer "All", which shows every value at once: ask for "a platform variable with
+  variable can follow another, such as the devices of the platform chosen: when you change the
+  platform, a device it no longer lists goes back to the default. A variable can offer "All",
+  which shows every value at once: ask for "a platform variable with
   All", and for All as the default if you want it. A choice can read differently from the value
   it filters on: "a filter labelled Only SwissTXT that matches true". A panel title can show the
   value chosen: "call it Most conflicting $browser versions" reads "Most conflicting Firefox
-  versions" while Firefox is chosen.
+  versions" while Firefox is chosen. A filter can also come from the data itself, with no chip:
+  "count plays only for the episodes the API lists for this show" makes a hidden variable the
+  server reads from one source and applies to the panels of another.
 - **Zoom on a stretch.** Drag across a time chart with the mouse to make that stretch the time
   range. Back returns to the range before. An interval variable with "auto" picks finer buckets
   for the shorter range: ask for "a rate window I can pick, auto by default".

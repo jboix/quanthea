@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { type DashboardSpec, dashboardSpecSchema } from '@quanthea/shared';
-import { choicesFromSearch, timeLabel, withTime, withVariable } from './view-state.ts';
+import { choicesFromSearch, isStale, timeLabel, withTime, withVariable } from './view-state.ts';
 
 const spec: DashboardSpec = dashboardSpecSchema.parse({
   specVersion: 1,
@@ -9,14 +9,19 @@ const spec: DashboardSpec = dashboardSpecSchema.parse({
   variables: [
     { kind: 'custom', name: 'env', options: ['prod', 'staging'], default: 'prod' },
     { kind: 'custom', name: 'services', options: ['a', 'b'], default: ['a'], multi: true },
+    {
+      kind: 'computed',
+      name: 'live',
+      source: { connector: 'db', language: 'sql', sql: 'SELECT id FROM live' },
+    },
   ],
   panels: [],
 });
 
 describe('view state', () => {
-  test('reads the time range and the declared variables from the URL', () => {
+  test('reads the time range and the declared variables from the URL, never a computed one', () => {
     const search = new URLSearchParams(
-      'from=now-1h&to=now&var-env=staging&var-services=a&var-services=b&var-other=x',
+      'from=now-1h&to=now&var-env=staging&var-services=a&var-services=b&var-other=x&var-live=1',
     );
     expect(choicesFromSearch(search, spec)).toEqual({
       time: { from: 'now-1h', to: 'now' },
@@ -55,5 +60,11 @@ describe('view state', () => {
       '26 Sep, 22:00 – 27 Sep, 02:00',
     );
     expect(timeLabel({ from: 'now-2d', to: 'now-1d' })).toBe('now-2d – now-1d');
+  });
+
+  test('calls a choice stale when its options and default no longer offer it', () => {
+    expect(isStale(['ios'], ['ios', 'android'])).toBe(false);
+    expect(isStale(['$__all'], ['web'])).toBe(false);
+    expect(isStale(['ios', 'tvos'], ['ios', 'android'])).toBe(true);
   });
 });

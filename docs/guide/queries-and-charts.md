@@ -38,6 +38,11 @@ A filter compares a field with a value (`=`, `!=`), or matches it against a regu
 - A wildcard: `like`, with `*` for any text and `?` for one character.
 - Alternatives: filters that carry the same name in `any`, of which one must hold.
 
+A bound can be a computed variable, read by the server before the panel runs. To cut a histogram
+of load times at the 95th percentile, ask for "a histogram of load times up to the p95": the
+dashboard gets a hidden variable that reads the percentile, and the histogram keeps the values
+at or below it.
+
 A wildcard pattern starts with text, such as `urn:srf:*`, and holds four wildcards at most. A
 pattern that starts with a wildcard reads every value of the field, so the builders refuse it.
 To search by the end or the middle of a value, ask for a text variable: the pattern is then

@@ -104,6 +104,7 @@ function operationRefs(panel: Panel, path: string): SpecIssue[] {
  * @returns The issues.
  */
 function checkVariable(variable: Variable, path: string): SpecIssue[] {
+  if (variable.kind === 'computed') return [];
   if (variable.kind === 'text') return checkText(variable, path);
   const defaults = variable.default === undefined ? [] : [variable.default].flat();
   if (!isMultiValue(variable) && defaults.length > 1)

@@ -76,12 +76,19 @@ export {
 export {
   allValue,
   autoInterval,
+  type ChosenVariable,
+  chosenVariableSchema,
+  isChosen,
   isMultiValue,
+  maxComputedValueLength,
+  maxComputedValues,
   maxTextValueLength,
   offersAll,
   type Variable,
   type VariableValues,
+  variableDefault,
   variableSchema,
+  variableSource,
   variableValuesSchema,
 } from './variables.ts';
 export {

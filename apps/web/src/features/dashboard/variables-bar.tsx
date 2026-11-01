@@ -1,4 +1,9 @@
-import type { DashboardSpec, PanelAlert, TimeRangeExpression } from '@quanthea/shared';
+import {
+  type DashboardSpec,
+  isChosen,
+  type PanelAlert,
+  type TimeRangeExpression,
+} from '@quanthea/shared';
 import type { ReactNode } from 'react';
 import { withMarkersShown } from './marker-sets.ts';
 import { MarkerToggles } from './marker-toggles.tsx';
@@ -41,7 +46,7 @@ export function VariablesBar(props: VariablesBarProps) {
   return (
     <div className={styles.bar}>
       <TimePicker spec={spec} picked={choices.time} onPick={setTime} />
-      {spec.variables.map((variable) => {
+      {spec.variables.filter(isChosen).map((variable) => {
         const value = choices.variables[variable.name] ?? variable.default ?? [];
         const onChange = (next: string | readonly string[]) =>
           onSearch(withVariable(search, variable.name, next));

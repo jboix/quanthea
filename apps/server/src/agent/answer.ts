@@ -6,7 +6,7 @@
  * checks; it gets one repair try. The model's steps are in `answer-steps.ts`; every one is recorded
  * in the usage ledger against who asked.
  */
-import type { DashboardSpec } from '@quanthea/shared';
+import { type DashboardSpec, variableSource } from '@quanthea/shared';
 import {
   consumeStream,
   createUIMessageStream,
@@ -43,9 +43,7 @@ function connectorNamesOf(spec: DashboardSpec): Set<string> {
   return new Set([
     ...spec.panels.flatMap((panel) => panel.queries.map((query) => query.connector)),
     ...spec.annotations.map((annotation) => annotation.query.connector),
-    ...spec.variables.flatMap((variable) =>
-      variable.kind === 'query' ? [variable.source.connector] : [],
-    ),
+    ...spec.variables.flatMap((variable) => [variableSource(variable)?.connector ?? []].flat()),
   ]);
 }
 

@@ -1,23 +1,25 @@
 import {
   allValue,
+  type ChosenVariable,
   isMultiValue,
   labelOfValue,
   maxTextValueLength,
   offersAll,
   optionValues,
-  type Variable,
   type VariableOption,
+  variableDefault,
 } from '@quanthea/shared';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useFetcher } from 'react-router';
 import { useDetailsDismiss } from '../../ui/use-details-dismiss.ts';
 import type { Loaded } from './data.ts';
 import styles from './variables-bar.module.css';
+import { isStale } from './view-state.ts';
 
 /** Props of the variable chips. */
 interface ChipProps {
   /** The variable. */
-  readonly variable: Variable;
+  readonly variable: ChosenVariable;
   /** Its current value. */
   readonly value: string | readonly string[];
   /** Called with a new value; an empty list goes back to the default. */
@@ -36,7 +38,7 @@ interface ChipProps {
  */
 export function shown(
   value: string | readonly string[],
-  variable?: Variable,
+  variable?: ChosenVariable,
   loaded?: readonly VariableOption[],
 ): string {
   const values = [value].flat();
@@ -56,7 +58,7 @@ export function shown(
  * @param props.variable - The variable.
  * @returns The chip's name.
  */
-export function VariableName({ variable }: { readonly variable: Variable }) {
+export function VariableName({ variable }: { readonly variable: ChosenVariable }) {
   const code = `$${variable.name}`;
   return (
     <span className={styles.chipName} title={variable.label ? code : undefined}>
@@ -72,7 +74,7 @@ export function VariableName({ variable }: { readonly variable: Variable }) {
  * @param optionsUrl - Where query-backed options load from.
  * @returns The options, a message when they failed, and a function to load them.
  */
-function useOptions(variable: Variable, optionsUrl: string) {
+function useOptions(variable: ChosenVariable, optionsUrl: string) {
   const fetcher = useFetcher<Loaded<VariableOption[]>>();
   const loaded = fetcher.data?.ok ? fetcher.data.value : [];
   const listed = optionValues('options' in variable ? variable.options : loaded);
@@ -81,13 +83,14 @@ function useOptions(variable: Variable, optionsUrl: string) {
     if (variable.kind === 'query' && fetcher.state === 'idle') void fetcher.load(optionsUrl);
   };
   const message = fetcher.data && !fetcher.data.ok ? fetcher.data.message : undefined;
-  return { options: withAll, loaded, loading: fetcher.state !== 'idle', message, load };
+  const ready = fetcher.data?.ok === true;
+  return { options: withAll, loaded, ready, loading: fetcher.state !== 'idle', message, load };
 }
 
 /** Props of {@link OptionMenu}. */
 interface OptionMenuProps {
   /** The variable. */
-  readonly variable: Variable;
+  readonly variable: ChosenVariable;
   /** The chosen values. */
   readonly values: readonly string[];
   /** The options, loading state and failure. */
@@ -124,6 +127,28 @@ function OptionMenu({ variable, values, state, onChoose }: OptionMenuProps) {
 }
 
 /**
+ * Drops a choice its loaded options no longer offer, so the URL says what the panels show: the
+ * server binds the default for it.
+ *
+ * @param variable - The variable.
+ * @param values - The chosen values.
+ * @param state - Its options.
+ * @param onChange - Changes the choice; an empty list removes it.
+ */
+function useDropStale(
+  variable: ChosenVariable,
+  values: readonly string[],
+  state: ReturnType<typeof useOptions>,
+  onChange: ChipProps['onChange'],
+): void {
+  const offered = [...optionValues(state.loaded), ...[variableDefault(variable) ?? []].flat()];
+  const stale = state.ready && isStale(values, offered);
+  useEffect(() => {
+    if (stale) onChange([]);
+  }, [stale, onChange]);
+}
+
+/**
  * A chip for a variable with options: one choice, or several with checkboxes.
  *
  * @param props - The variable, its value, the change callback and where options load from.
@@ -134,6 +159,7 @@ export function OptionChip({ variable, value, onChange, optionsUrl }: ChipProps)
   const state = useOptions(variable, optionsUrl);
   const multi = isMultiValue(variable);
   const values = [value].flat();
+  useDropStale(variable, values, state, onChange);
   const choose = (option: string) => {
     if (!multi || option === allValue) {
       close();

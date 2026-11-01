@@ -8,7 +8,7 @@
  * when the variable has a default, so reading, pinning, restoring and copying it do not run this.
  */
 import type { DashboardSpec, ResolvedTimeRange } from '@quanthea/shared';
-import { queryTextKey } from '@quanthea/shared';
+import { queryTextKey, variableSource } from '@quanthea/shared';
 import type { Variables } from '../query/variables.ts';
 import {
   type ConnectorFacts,
@@ -66,15 +66,16 @@ function checkOneSource(
   timeRange: ResolvedTimeRange,
 ): SpecIssue[] {
   const variable = spec.variables[index];
-  if (variable?.kind !== 'query') return [];
-  const located = { query: variable.source, path: `variables[${index}].source` };
+  const source = variable && variableSource(variable);
+  if (!variable || !source) return [];
+  const located = { query: source, path: `variables[${index}].source` };
   const connector = boundOn(located, lookup);
   if (!connector) return [];
   const binds = (variables: Variables) =>
     checkBinding(located, connector, variables, timeRange).length === 0;
   const all = sampleVariables(spec);
   if (!binds(all)) return [];
-  const path = `${located.path}.${queryTextKey(variable.source)}`;
+  const path = `${located.path}.${queryTextKey(source)}`;
   return spec.variables.slice(index).flatMap(({ name }) => {
     const { [name]: _without, ...others } = all;
     return binds(others) ? [] : [{ path, message: orderMessage(variable.name, name) }];

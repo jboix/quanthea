@@ -4,8 +4,10 @@
  * dashboard never changes.
  */
 import {
+  allValue,
   createFormatter,
   type DashboardSpec,
+  isChosen,
   isMultiValue,
   type TimeRangeExpression,
   timeRangeSchema,
@@ -49,11 +51,11 @@ const variablePrefix = 'var-';
  *
  * @param search - The URL's search parameters.
  * @param spec - The spec, for the declared variables.
- * @returns The choices. Invalid times and undeclared variables are ignored.
+ * @returns The choices. Invalid times, undeclared variables and computed ones are ignored.
  */
 export function choicesFromSearch(search: URLSearchParams, spec: DashboardSpec): ViewChoices {
   const time = timeRangeSchema.safeParse({ from: search.get('from'), to: search.get('to') });
-  const entries = spec.variables.flatMap((variable) => {
+  const entries = spec.variables.filter(isChosen).flatMap((variable) => {
     const values = search.getAll(`${variablePrefix}${variable.name}`);
     if (values.length === 0) return [];
     const multi = isMultiValue(variable);
@@ -100,6 +102,19 @@ export function withVariable(
   next.delete(`${variablePrefix}${name}`);
   for (const each of [value].flat()) next.append(`${variablePrefix}${name}`, each);
   return next;
+}
+
+/**
+ * Whether a choice is no longer offered: a value that is neither an option nor the default, such
+ * as one the variables before it no longer list. The server binds the default instead, so the
+ * chip drops the choice from the URL.
+ *
+ * @param chosen - The chosen values.
+ * @param offered - The options and the default; "All" is always offered.
+ * @returns `true` when a chosen value is not offered.
+ */
+export function isStale(chosen: readonly string[], offered: readonly string[]): boolean {
+  return chosen.some((value) => value !== allValue && !offered.includes(value));
 }
 
 /**

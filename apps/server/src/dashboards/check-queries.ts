@@ -17,6 +17,7 @@ import {
   offersAll,
   optionValues,
   queryTextKey,
+  variableSource,
 } from '@quanthea/shared';
 import { bindTemplate } from '../query/bind.ts';
 import type { QuerySource } from '../query/executor.ts';
@@ -77,11 +78,10 @@ export function queriesOf(spec: DashboardSpec): LocatedQuery[] {
     query: annotation.query,
     path: `annotations[${index}].query`,
   }));
-  const variables = spec.variables.flatMap((variable, index) =>
-    variable.kind === 'query'
-      ? [{ query: variable.source, path: `variables[${index}].source` }]
-      : [],
-  );
+  const variables = spec.variables.flatMap((variable, index) => {
+    const source = variableSource(variable);
+    return source ? [{ query: source, path: `variables[${index}].source` }] : [];
+  });
   return [...panels, ...annotations, ...variables];
 }
 

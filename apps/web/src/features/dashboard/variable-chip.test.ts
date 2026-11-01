@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
-import type { Variable } from '@quanthea/shared';
+import type { ChosenVariable } from '@quanthea/shared';
 import { shown } from './variable-chip.tsx';
 
-const platform: Variable = {
+const platform: ChosenVariable = {
   kind: 'custom',
   name: 'platform',
   options: ['web', { value: 'true', label: 'Only SwissTXT' }],
@@ -18,11 +18,11 @@ test('a chip shows the label of a value, All for All, and a short list for sever
 });
 
 test('a query-backed chip shows the labels its source gave', () => {
-  const service: Variable = {
+  const service: ChosenVariable = {
     kind: 'query',
     name: 'service',
     source: { connector: 'pg', language: 'sql', sql: 'SELECT 1' },
-  } as Variable;
+  } as ChosenVariable;
   const loaded = [{ value: 'co-1', label: 'Checkout' }, 'api'];
   expect(shown(['co-1', 'api'], service, loaded)).toBe('Checkout, api');
   expect(shown('co-1', service)).toBe('co-1');
