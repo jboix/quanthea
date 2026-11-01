@@ -4096,6 +4096,8 @@ one, and enables them again. Without any admin, it creates the default one.
   grants. When the browser sends `Origin`, it must be `QUANTHEA_PUBLIC_URL` (or, without it, the
   request's own origin); when it sends `Sec-Fetch-Site`, it must be `same-origin` or `none`. The web
   client sends the header on every request.
+- **Request bodies** (`http/request-limit.ts`): 8 MB at most, on every route. Bun refuses a
+  larger body with a 413 before the app reads it, with or without a `Content-Length`.
 - Every `/api` answer carries `Cache-Control: no-store`.
 
 ## 11. Rendering

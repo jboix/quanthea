@@ -62,7 +62,12 @@ covers it.
 - Caddy and Traefik stream server-sent events as they come.
 - nginx honours `X-Accel-Buffering: no`, but its read timeout is 60 seconds by default: raise it.
 
-### 5. One way in
+### 5. Request bodies up to 8 MB
+
+quanthea reads request bodies of 8 MB at most. Let the proxy pass that much: nginx's
+`client_max_body_size` is 1 MB by default, too small for a large dashboard pasted into a thread.
+
+### 6. One way in
 
 Let only the proxy reach quanthea. With Docker, publish the port on the loopback address
 (`127.0.0.1:3000:3000`), or publish none and let the proxy reach quanthea on a Docker network.

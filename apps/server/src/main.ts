@@ -12,6 +12,7 @@ import { connectorKinds } from './connectors/registry.ts';
 import { openDatabase } from './db/database.ts';
 import { runMigrations } from './db/migrate.ts';
 import { createSettingsRepository } from './db/settings-repository.ts';
+import { maxRequestBytes } from './http/request-limit.ts';
 import { startAlertEvaluator } from './jobs/alert-evaluator.ts';
 import { startPurgeJob } from './jobs/purge.ts';
 import { startReportScheduler } from './jobs/report-scheduler.ts';
@@ -100,6 +101,7 @@ const server = Bun.serve({
   port: config.port,
   fetch: app.fetch,
   idleTimeout: 255,
+  maxRequestBodySize: maxRequestBytes,
 });
 logger.info('listening', { url: server.url.href, dataDir: config.dataDir, webDir: config.webDir });
 
