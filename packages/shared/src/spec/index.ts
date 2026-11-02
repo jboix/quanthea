@@ -11,7 +11,10 @@ export {
   gridColumns,
   type MarkerColor,
   markerColors,
+  maxSections,
   type Panel,
+  type Section,
+  sectionSchema,
   type ValueColor,
   valueColorSchema,
 } from './dashboard.ts';
@@ -68,6 +71,13 @@ export {
   queryTextKey,
 } from './queries.ts';
 export * from './report.ts';
+export {
+  copyLimit,
+  maxSectionCopies,
+  type SectionGroup,
+  sectionGroups,
+  sectionProblems,
+} from './sections.ts';
 export {
   type ResolvedTimeRange,
   resolveTime,

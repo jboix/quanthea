@@ -44,8 +44,9 @@ const threeCeiling = 18_500;
  * The ceiling of edit_settings, whatever the languages: a step offers it only once the agent read
  * the settings guide. A computed variable raised it to about 4,770 on 1 November 2026: its source
  * is a plain object the server checks, so the tool does not repeat every query form for it.
+ * Sections raised it to about 4,910 on 2 November 2026, each a plain object the server checks.
  */
-const settingsCeiling = 4_900;
+const settingsCeiling = 5_000;
 
 /** Every run on three of the query languages that have builders. */
 const triples = builderLanguages.flatMap((first, at) =>

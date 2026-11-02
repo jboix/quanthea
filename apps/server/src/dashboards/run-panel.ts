@@ -257,6 +257,36 @@ function prepare(
   return { time, timeRange, loadOptions, loadLabelled };
 }
 
+/** What the panels of one run share: its time range and its variables, resolved once. */
+export type PreparedRun = Pick<ReturnType<typeof prepare>, 'time' | 'timeRange'> & {
+  /** The variables, bound. */
+  readonly resolved: Variables;
+};
+
+/**
+ * Resolves a run's time range and variables once, for every panel run on the same choices.
+ *
+ * @param dependencies - The connectors, the executor and the clock.
+ * @param spec - The spec.
+ * @param choices - The variables and the time range.
+ * @param signal - Aborted when the caller gives up.
+ * @returns The time range and the bound variables.
+ * @throws {AppError} `bad_request` for invalid choices.
+ */
+export async function prepareRun(
+  dependencies: RunnerDependencies,
+  spec: DashboardSpec,
+  choices: RunChoices,
+  signal?: AbortSignal,
+): Promise<PreparedRun> {
+  const { time, timeRange, loadOptions } = prepare(dependencies, spec, choices, signal);
+  return {
+    time,
+    timeRange,
+    resolved: await resolveVariables(spec, choices.variables, loadOptions),
+  };
+}
+
 /**
  * The markers of the annotations a panel's chart marks.
  *
@@ -300,6 +330,8 @@ function runMarkers(
  * @param panelId - The panel.
  * @param choices - The viewer's variables and time range.
  * @param signal - Aborted when the caller gives up.
+ * @param prepared - The time range and the variables resolved for these choices, when the caller
+ *   runs several panels on them; resolved here when left out.
  * @returns The frames or failure of each query, and the markers.
  * @throws {AppError} `not_found` for an unknown panel, `bad_request` for invalid choices.
  */
@@ -309,15 +341,16 @@ export async function runPanel(
   panelId: string,
   choices: RunChoices,
   signal?: AbortSignal,
+  prepared?: PreparedRun,
 ): Promise<PanelRun> {
   const started = performance.now();
   const panel = spec.panels.find((candidate) => candidate.id === panelId);
   if (!panel) throw new AppError('not_found', `No panel "${panelId}" in this version.`);
-  const { time, timeRange, loadOptions } = prepare(dependencies, spec, choices, signal);
+  const { time, timeRange, resolved } =
+    prepared ?? (await prepareRun(dependencies, spec, choices, signal));
   const interval = panel.view.kind === 'chart' ? choices.interval : undefined;
   const engine = { timeRange, interval };
   const chartPoints = interval === undefined ? chartPointsOf(panel) : undefined;
-  const resolved = await resolveVariables(spec, choices.variables, loadOptions);
   const variables = withAutoIntervals(spec, resolved, timeRange, chartPoints, interval);
   const run = (query: PanelQuery, points?: number) =>
     runQuery(dependencies, query, variables, { ...engine, chartPoints: points }, signal);

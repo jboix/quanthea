@@ -8,6 +8,7 @@ import {
   chartUnits,
   chosenVariableSchema,
   markerColors,
+  maxSections,
   timeRangeSchema,
   valueColorSchema,
   variableNameSchema,
@@ -163,6 +164,7 @@ function editSchemaWith<Panel extends z.ZodType>(panels: Panel) {
     time: timeRangeSchema.optional(),
     variables: z.array(variableRequestSchema).max(20).optional(),
     colors: z.array(valueColorSchema).max(50).optional(),
+    sections: z.array(z.looseObject({})).max(maxSections).optional(),
     panels: z.array(panels).max(20).default([]),
     remove: z.array(z.string()).max(20).default([]),
     arrange: arrangeSchema,
@@ -193,6 +195,7 @@ export function editRequestSchemaFor(
 const settingsFields = {
   variables: true,
   colors: true,
+  sections: true,
   markers: true,
   removeMarkers: true,
 } as const;

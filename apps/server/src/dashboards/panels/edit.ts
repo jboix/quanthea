@@ -13,6 +13,7 @@ import { compactGrid, panelId, placeBelow } from './layout.ts';
 import { placeMarkers } from './marker-placement.ts';
 import { editedAnnotations } from './markers.ts';
 import type { EditRequest } from './request.ts';
+import { withSections } from './sections.ts';
 
 /** The time range of a new dashboard. */
 const defaultTime = { from: 'now-6h', to: 'now' };
@@ -201,5 +202,5 @@ export function applyEdit(
   const compacted = request.remove.length > 0 ? compactGrid(edited) : edited;
   const placed = arrangedPanels(compacted, request.arrange ?? []);
   const panels = placeMarkers(spec.panels, placed, annotations, request);
-  return { spec: { ...spec, annotations, panels }, charts };
+  return { spec: withSections({ ...spec, annotations, panels }, request.sections), charts };
 }

@@ -149,6 +149,31 @@ describe('taking a snapshot', () => {
   });
 });
 
+describe('a snapshot of a repeated section', () => {
+  test('freezes each panel of the section once for every value chosen', async () => {
+    const spec = eventsSpec();
+    const [env, ...rest] = spec.variables;
+    const repeated = {
+      ...spec,
+      variables: [{ ...env, multi: true, default: ['prod'] }, ...rest],
+      sections: [{ id: 'by-env', title: 'By environment', repeat: 'env' }],
+      panels: spec.panels.map((panel, index) =>
+        index === 0 ? { ...panel, section: 'by-env' } : panel,
+      ),
+    };
+    const { id } = services.dashboards.create(repeated, 'imported', 'editor-1');
+    await services.dashboards.pin(id, 1, 'editor-1');
+    const service = snapshots();
+    const choices = { variables: { env: ['prod', 'staging'] } };
+    const taken = await service.take(request(id, choices), 'editor', 'editor-1');
+    expect(Object.keys(service.open(taken.id).panels)).toEqual([
+      'errors-over-time',
+      'errors-peak#prod',
+      'errors-peak#staging',
+    ]);
+  });
+});
+
 describe('opening a snapshot', () => {
   test('gives back the frozen runs and runs no query', async () => {
     const id = await pinnedEvents();

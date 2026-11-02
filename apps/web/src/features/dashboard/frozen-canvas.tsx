@@ -4,13 +4,21 @@
  * way, a run under the frames of its layout while it is arranged. Nothing runs; only the markers
  * can be shown or hidden, in the page.
  */
-import { type DashboardSpec, isChosen, type PanelRun, type VariableValues } from '@quanthea/shared';
+import {
+  type DashboardSpec,
+  isChosen,
+  type Panel,
+  type PanelRun,
+  type VariableValues,
+} from '@quanthea/shared';
 import { type ReactNode, useState } from 'react';
 import { WithOverlay } from './canvas.tsx';
 import type { Loaded } from './data.ts';
 import { MarkerToggles } from './marker-toggles.tsx';
 import { PanelFrame } from './panel-card.tsx';
 import panelStyles from './panels.module.css';
+import type { SectionCopy } from './section-copies.tsx';
+import { SectionedGrid, useFolding } from './sections.tsx';
 import { shown, VariableName } from './variable-chip.tsx';
 import styles from './variables-bar.module.css';
 import { timeLabel } from './view-state.ts';
@@ -98,24 +106,33 @@ function frozenRun(run: PanelRun | undefined): Loaded<PanelRun> {
  */
 export function FrozenCanvas(props: FrozenCanvasProps) {
   const markers = useHiddenMarkers(props.hiddenMarkers);
+  const folding = useFolding(props.spec);
+  const card = (panel: Panel, copy?: SectionCopy) => (
+    <PanelFrame
+      key={panel.id}
+      panel={panel}
+      spec={props.spec}
+      run={frozenRun(props.panels[copy ? `${panel.id}#${copy.value}` : panel.id])}
+      loading={false}
+      hiddenMarkers={markers.hidden}
+      values={copy ? { ...props.variables, [copy.variable]: copy.value } : props.variables}
+    />
+  );
   return (
     <>
       <FrozenBar {...props} {...markers} />
-      <WithOverlay overlay={props.overlay}>
-        <div className={panelStyles.grid}>
-          {props.spec.panels.map((panel) => (
-            <PanelFrame
-              key={panel.id}
-              panel={panel}
-              spec={props.spec}
-              run={frozenRun(props.panels[panel.id])}
-              loading={false}
-              hiddenMarkers={markers.hidden}
-              values={props.variables}
-            />
-          ))}
-        </div>
-      </WithOverlay>
+      {props.overlay ? (
+        <WithOverlay overlay={props.overlay}>
+          <div className={panelStyles.grid}>{props.spec.panels.map((panel) => card(panel))}</div>
+        </WithOverlay>
+      ) : (
+        <SectionedGrid
+          spec={props.spec}
+          folding={folding}
+          card={card}
+          frozen={Object.keys(props.panels)}
+        />
+      )}
     </>
   );
 }

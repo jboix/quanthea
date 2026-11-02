@@ -2,22 +2,29 @@
  * The working part of a dashboard: the variables with the Refresh button, and the panel grid. The pinned
  * view and the thread's draft pane both show it.
  */
-import type { DashboardAlerts, DashboardSpec, ExternalHosts, PanelRun } from '@quanthea/shared';
+import type {
+  DashboardAlerts,
+  DashboardSpec,
+  ExternalHosts,
+  Panel,
+  PanelRun,
+} from '@quanthea/shared';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { RangeSelectContext, type RangeSelected } from '../../charts/range-select.tsx';
 import { dashboardAlertsPath, useDashboardAlerts } from './alerts-data.ts';
 import type { PanelMark } from './ask-marks.ts';
+import { CanvasActions } from './canvas-actions.tsx';
 import type { Loaded } from './data.ts';
 import { ImageHostsContext } from './image-hosts.ts';
 import { type Linkable, type PanelLinks, panelLinksOf } from './links.ts';
-import { LoadProgress } from './load-progress.tsx';
 import { hiddenMarkersOf, runSearchOf } from './marker-sets.ts';
 import type { PanelAlertView } from './panel-alert-view.tsx';
 import { linkedAlertsOf, panelAlertsOf, type Selection, selectionOf } from './panel-alerts.ts';
 import { PanelCard, type PanelPlanMark, type RunTarget } from './panel-card.tsx';
 import panelStyles from './panels.module.css';
-import { RunStatus } from './run-status.tsx';
+import { copyTarget, type SectionCopy } from './section-copies.tsx';
+import { type Folding, SectionedGrid, useFolding } from './sections.tsx';
 import { VariablesBar } from './variables-bar.tsx';
 import { choicesFromSearch, type ViewChoices, withTime } from './view-state.ts';
 
@@ -131,6 +138,8 @@ interface PanelGridProps extends DashboardCanvasProps {
   readonly alerts: AlertsShown | undefined;
   /** What the links of tables and stats are built from. */
   readonly links: PanelLinks | undefined;
+  /** Which sections the viewer folded. */
+  readonly folding: Folding;
 }
 
 /**
@@ -158,30 +167,49 @@ function PanelGrid(props: PanelGridProps) {
   const { version, spec } = props;
   const explain = explainPlace(props);
   const views = usePanelAlertViews(spec, props.alerts, props.explainable ? version : undefined);
-  const grid = (
-    <div className={panelStyles.grid}>
-      {spec.panels.map((panel) => (
-        <PanelCard
-          key={panel.id}
-          panel={panel}
-          spec={props.spec}
-          target={props.target}
-          onRun={props.onRun}
-          selected={panel.id === props.selectedPanelId}
-          marked={props.markedPanelIds?.includes(panel.id) ?? false}
-          onSelect={props.onSelectPanel}
-          planMark={props.planMarks?.[panel.id]}
-          answerMark={props.answerMarks?.[panel.id]}
-          hiddenMarkers={props.hiddenMarkers}
-          explain={explain}
-          alerts={views.get(panel.id)}
-          layoutNote={props.layoutNotes?.[panel.id]}
-          links={props.links}
-        />
-      ))}
-    </div>
+  const card = cardDrawer(props, explain, views);
+  if (!props.overlay)
+    return <SectionedGrid spec={spec} folding={props.folding} card={card} target={props.target} />;
+  // Arranging moves panels on the one grid, so the sections open into it meanwhile.
+  return (
+    <WithOverlay overlay={props.overlay}>
+      <div className={panelStyles.grid}>{spec.panels.map((panel) => card(panel))}</div>
+    </WithOverlay>
   );
-  return <WithOverlay overlay={props.overlay}>{grid}</WithOverlay>;
+}
+
+/**
+ * How the grid draws one panel.
+ *
+ * @param props - The grid's props.
+ * @param explain - Where a panel's Explain asks, if the canvas offers it.
+ * @param views - Each panel's alerts, by id.
+ * @returns A function that draws a panel's card.
+ */
+function cardDrawer(
+  props: PanelGridProps,
+  explain: ReturnType<typeof explainPlace>,
+  views: ReadonlyMap<string, PanelAlertView>,
+) {
+  return (panel: Panel, copy?: SectionCopy) => (
+    <PanelCard
+      key={panel.id}
+      panel={panel}
+      spec={props.spec}
+      target={copy ? copyTarget(props.target, copy) : props.target}
+      onRun={props.onRun}
+      selected={panel.id === props.selectedPanelId}
+      marked={props.markedPanelIds?.includes(panel.id) ?? false}
+      onSelect={props.onSelectPanel}
+      planMark={props.planMarks?.[panel.id]}
+      answerMark={props.answerMarks?.[panel.id]}
+      hiddenMarkers={props.hiddenMarkers}
+      explain={explain}
+      alerts={views.get(panel.id)}
+      layoutNote={props.layoutNotes?.[panel.id]}
+      links={props.links}
+    />
+  );
 }
 
 /**
@@ -244,11 +272,13 @@ export function DashboardCanvas(props: DashboardCanvasProps) {
   const { runs, report } = useRuns(`${dashboardId}@${version}?${target.search}#${refresh}`);
   const alerts = useAlertsShown(props, choices);
   const onRefresh = () => setRefresh((count) => count + 1);
+  const folding = useFolding(spec);
   const actions = (
-    <>
-      <LoadProgress done={Object.keys(runs).length} total={spec.panels.length} />
-      {props.refreshable && <RunStatus spec={spec} runs={runs} onRefresh={onRefresh} />}
-    </>
+    <CanvasActions
+      spec={folding.shown}
+      runs={runs}
+      {...{ onRefresh, refreshable: props.refreshable }}
+    />
   );
   const shown = { search, hiddenMarkers, target, onSearch: setSearch, actions };
   const alertSets = linkedAlertsOf(alerts?.data);
@@ -259,7 +289,7 @@ export function DashboardCanvas(props: DashboardCanvasProps) {
       <VariablesBar spec={spec} choices={choices} {...shown} alertSets={alertSets} />
       <RangeSelectContext value={selectTime}>
         <ImageHostsContext value={props.hosts}>
-          <PanelGrid {...props} {...shown} onRun={report} alerts={alerts} links={links} />
+          <PanelGrid {...props} {...shown} {...{ alerts, links, folding }} onRun={report} />
         </ImageHostsContext>
       </RangeSelectContext>
     </>

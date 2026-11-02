@@ -6,7 +6,6 @@
 import {
   type DashboardSpec,
   isChosen,
-  type PanelRun,
   type Role,
   resolveTimeRange,
   type Snapshot,
@@ -29,7 +28,7 @@ import {
   type ServiceContext,
   shownSpecOf,
 } from './context.ts';
-import { runPanel } from './run-panel.ts';
+import { freezeRuns } from './freeze.ts';
 import {
   findSnapshots,
   type ListedSnapshot,
@@ -172,7 +171,8 @@ export function shownVariables(spec: DashboardSpec, picked: VariableValues): Var
 }
 
 /**
- * Runs every panel over one absolute range, so they all show the same moment.
+ * Runs every panel over one absolute range, so they all show the same moment, and each copy of a
+ * repeated section.
  *
  * @param context - The service context.
  * @param spec - The spec.
@@ -189,13 +189,7 @@ async function runAll(
   const range = resolveTimeRange(request.time ?? spec.time, context.now());
   const time = { from: new Date(range.from).toISOString(), to: new Date(range.to).toISOString() };
   const choices = { variables: request.variables, time };
-  const runs = await Promise.all(
-    spec.panels.map(
-      async (panel) =>
-        [panel.id, await runPanel(context, spec, panel.id, choices, signal)] as const,
-    ),
-  );
-  return { range, panels: Object.fromEntries(runs) as Record<string, PanelRun> };
+  return { range, panels: await freezeRuns(context, spec, choices, signal) };
 }
 
 /**

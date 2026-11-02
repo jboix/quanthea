@@ -1,0 +1,62 @@
+/* The sections of a dashboard, one under the other. */
+.section + .section {
+  margin-top: 24px;
+}
+
+.title {
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-divider);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* The title folds and unfolds its section; it reads as the heading it is. */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* A chevron that points down when the section is open and right when it is folded. */
+.chevron {
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--color-ink-secondary);
+  border-bottom: 2px solid var(--color-ink-secondary);
+  transform: rotate(45deg);
+  transition: transform 120ms ease;
+}
+
+.toggle[aria-expanded="false"] .chevron {
+  transform: rotate(-45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+/* One copy of a repeated section, under its value. */
+.copy + .copy {
+  margin-top: 16px;
+}
+
+.copyTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-secondary);
+}

@@ -26,6 +26,17 @@ type DashboardSpec = {
   panels: Panel[]
   annotations?: Annotation[]               // dashboard-wide sets of markers, e.g. deploys, ≤ 10
   colors?: { value: string; tone: Tone }[]  // a value's colour on every chart, ≤ 50, default []
+  sections?: Section[]                     // ≤ 20, drawn in order below the panels of none
+}
+
+// A title over the panels that name it. A viewer folds and unfolds it; a folded section draws
+// none of its panels, so they run no query. Panels keep one grid whatever their section.
+type Section = {
+  id: string                                // a slug, unique
+  title: string
+  folded?: boolean                          // starts folded
+  repeat?: string                           // a variable that holds several values: the
+                                            // section is drawn once for each value chosen
 }
 
 // ---------------------------------------------------------------- variables
@@ -112,6 +123,7 @@ type Panel = {
   operations?: Operation[]                  // 1..8, run in order on the server
   view: StatView | ChartView | TableView | LogView
   definition?: { id: string; version: number }  // the definition its queries were copied from
+  section?: string                          // the id of its section; above them all when left out
 }
 
 // Table operations start from the table of the first query. The table they end with takes that
@@ -377,6 +389,10 @@ The Zod schema catches shape errors. `dashboards/validate` (`validateSpec`) also
 - `refId`s are unique within a panel, and every `ref` in a view points at one of them;
 - a join or an append reads another query of its panel, never the first;
 - panel, annotation and variable names are unique, and chart `markers` name an annotation;
+- section ids are unique, and a panel's `section` names one;
+- a section's `repeat` names a declared variable with `multi` or `includeAll`, and the section
+  can draw two copies: at most 12 copies are drawn, and at most what keeps 60 panels drawn in
+  all, the other panels counted once;
 - a link reads a column the table shows, a stat's link reads no column, and a link's chosen
   variable is declared. When the spec is written, a link's target is a pinned dashboard that has
   every variable the link sets, and the message names the pinned ones. A version stored before

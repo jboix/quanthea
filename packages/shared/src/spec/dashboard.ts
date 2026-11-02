@@ -4,7 +4,7 @@
  */
 import { z } from 'zod';
 import { definitionMarkSchema } from '../definitions.ts';
-import { slugSchema } from './names.ts';
+import { slugSchema, variableNameSchema } from './names.ts';
 import { operationsSchema } from './operations.ts';
 import { panelQuerySchema } from './queries.ts';
 import { timeRangeSchema } from './time.ts';
@@ -40,6 +40,8 @@ export const panelSchema = z.strictObject({
   view: viewSchema,
   /** The definition its data was copied from, and the version copied. */
   definition: definitionMarkSchema.optional(),
+  /** The section it sits in; above every section when left out. */
+  section: slugSchema.optional(),
 });
 
 /** A panel. */
@@ -88,6 +90,25 @@ export const valueColorSchema = z.strictObject({
 /** A colour for a value, for the whole dashboard. */
 export type ValueColor = z.infer<typeof valueColorSchema>;
 
+/** The most sections a dashboard has. */
+export const maxSections = 20;
+
+/**
+ * Validates a section: a title over the panels that name it, which a viewer folds and unfolds.
+ * A folded section draws none of its panels, so they run no query.
+ */
+export const sectionSchema = z.strictObject({
+  id: slugSchema,
+  title: z.string().min(1).max(100),
+  /** Whether it starts folded. */
+  folded: z.boolean().optional(),
+  /** A variable that holds several values: the section is drawn once for each value chosen. */
+  repeat: variableNameSchema.optional(),
+});
+
+/** A section of a dashboard. */
+export type Section = z.infer<typeof sectionSchema>;
+
 /** Validates a dashboard spec, version 1. */
 export const dashboardSpecSchema = z.strictObject({
   specVersion: z.literal(1),
@@ -99,6 +120,8 @@ export const dashboardSpecSchema = z.strictObject({
   panels: z.array(panelSchema).max(60),
   annotations: z.array(annotationSchema).max(10).default([]),
   colors: z.array(valueColorSchema).max(50).default([]),
+  /** The sections, in the order they are drawn, below the panels that name none. */
+  sections: z.array(sectionSchema).max(maxSections).optional(),
 });
 
 /** A dashboard spec, as parsed: `variables`, `annotations` and `colors` are always present. */

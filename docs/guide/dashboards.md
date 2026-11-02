@@ -248,6 +248,18 @@ A column of image addresses, such as thumbnails, can show the images. Ask for it
 thumbnails as images". An image shows when its address starts with `https://` and its host is
 marked for images; otherwise the address shows as text. A snapshot shows the address.
 
+## Sections
+
+A dashboard can group its panels under titles, such as one section per platform. Ask for it:
+"put the iOS panels in a section of their own, folded". Click a section's title to fold or unfold
+it. A folded section's panels don't run until you open it. What you fold stays yours, until you
+leave the page. While you arrange a dashboard, its sections open into one grid.
+
+A section can repeat for each value of a variable that holds several: "a section per platform".
+Each copy shows the section's panels for one value, under that value's name. Choose the values in
+the variable's menu, or All for every option. A dashboard draws 12 copies at most, and 60 panels
+at most in all. A snapshot keeps every copy it was taken with.
+
 ## Arrange a pinned dashboard
 
 The thread's owner and admins can arrange the version the library shows, on a screen wide enough

@@ -31,6 +31,8 @@ export interface RunTarget {
   readonly search: string;
   /** Counts the viewer's refreshes; each one runs the panels again. */
   readonly refresh: number;
+  /** The value of the copy of a repeated section the panel is drawn in, if it is. */
+  readonly copy?: string | undefined;
 }
 
 /** Props of {@link PanelCard}. */
@@ -94,12 +96,14 @@ interface PanelCardProps {
  *
  * @param panel - The panel.
  * @param target - What to run.
- * @param onRun - Receives each finished run.
+ * @param onRun - Receives each finished run, by the panel's id, with `#` and the copy's value in a
+ *   copy of a repeated section.
  * @returns The latest run, and whether one is loading.
  */
 function usePanelRun(panel: Panel, target: RunTarget, onRun: PanelCardProps['onRun']) {
   const base = `/d/${target.dashboardId}/v/${target.version}/panels/${panel.id}`;
-  const fetcher = useFetcher<Loaded<PanelRun>>({ key: `panel-${base}` });
+  const copy = target.copy === undefined ? '' : `#${target.copy}`;
+  const fetcher = useFetcher<Loaded<PanelRun>>({ key: `panel-${base}${copy}` });
   const { load, data, state } = fetcher;
   const search = new URLSearchParams(target.search);
   if (target.refresh > 0) search.set('refresh', String(target.refresh));
@@ -108,8 +112,8 @@ function usePanelRun(panel: Panel, target: RunTarget, onRun: PanelCardProps['onR
     void load(url);
   }, [load, url]);
   useEffect(() => {
-    if (state === 'idle' && data) onRun(panel.id, data);
-  }, [state, data, onRun, panel.id]);
+    if (state === 'idle' && data) onRun(`${panel.id}${copy}`, data);
+  }, [state, data, onRun, panel.id, copy]);
   return { run: data, loading: state !== 'idle' || data === undefined };
 }
 

@@ -10,6 +10,7 @@ import {
   packGrid,
   type ResolvedTimeRange,
   resolveTimeRange,
+  sectionProblems,
 } from '@quanthea/shared';
 import { checkColors } from './check-colors.ts';
 import { checkLinks, type LinkTarget } from './check-links.ts';
@@ -110,6 +111,7 @@ export function validateSpec(input: unknown, context: ValidationContext): Valida
     ...checkDirection(timeRange),
     ...checkReferences(spec),
     ...checkLinks(spec, context.writing ? context.linkTargets?.() : undefined),
+    ...sectionProblems(spec),
     ...checkOptions(spec),
     ...checkQueries(spec, context.lookup, timeRange, context.writing === true),
     ...(context.writing ? checkSourceOrder(spec, context.lookup, timeRange) : []),

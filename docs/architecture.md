@@ -4521,6 +4521,26 @@ one, and enables them again. Without any admin, it creates the default one.
   `pageSize` rows, 20 when left out. All of it runs in the browser over the rows already fetched,
   per viewer, in a snapshot and a report's run too, and starts again when the columns change. A
   refresh keeps it, and a page past the end of fewer rows shows the last page.
+- **Sections** (`sections.tsx`, `spec/sections.ts`). A spec's `sections` each have an id, a
+  title and `folded`; a panel names its own in `section`. The canvas draws the panels of no
+  section first, then each section's title and, unfolded, its panels on a grid of their own,
+  moved up so the first starts on the first row. A folded section mounts none of its panels, so
+  they fetch nothing, and the progress and Refresh count only the panels drawn. The viewer's
+  folding lives in the page's state. Arranging draws the one grid, as panels keep one grid
+  whatever their section. A snapshot draws the same sections. The agent writes `sections` with
+  `edit_settings`, each a plain object with the panels it holds by id or title, which the server
+  checks (`panels/sections.ts`).
+- **Repeated sections** (`section-copies.tsx`). A section with `repeat` draws a copy for each
+  value chosen of that variable, or each option for All, loading a query-backed variable's
+  options when needed. Copies are at most 12 and keep the panels drawn within 60 (`copyLimit`).
+  A copy's panels run with the page's choices and the variable set to the copy's value; their
+  fetchers and runs carry `#` and the value, so copies keep apart. A copy exists only when drawn:
+  the spec holds the section once.
+- **Frozen runs** (`dashboards/freeze.ts`). A snapshot runs each panel once, and each panel of a
+  repeated section once for every value its variable is bound to, stored as `id#value`. The
+  variables are resolved once for each set of choices (`prepareRun`), not once per panel, and the
+  panels run four at a time. The snapshot's canvas reads the copies from those keys. A report has
+  no sections, so its runs stay one per panel.
 - **Stat tiles** (`stat-view.tsx`). A stat with `each` shows a tile for each row of its result,
   at most 24, labelled by that column, with the row's value unreduced. Each tile takes the stat's
   format, mappings and link, and a link may read the tile's row. The agent sets it as
