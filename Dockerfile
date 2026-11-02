@@ -14,7 +14,7 @@
 # which updates both. A repointed tag changes nothing until a reviewed bump.
 
 # ---- build: install every workspace and build the SPA ----
-FROM --platform=$BUILDPLATFORM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288 AS build
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.4-slim@sha256:1846adf22496bd711036aae8be147e57bdebbaea2e5264e3e0b5af1db187d9a4 AS build
 WORKDIR /repo
 COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
@@ -37,7 +37,7 @@ COPY apps/web apps/web
 RUN bun run --filter @quanthea/web build
 
 # ---- deps: the server's production dependencies, and the data, keys and config directories ----
-FROM --platform=$BUILDPLATFORM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288 AS deps
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.4-slim@sha256:1846adf22496bd711036aae8be147e57bdebbaea2e5264e3e0b5af1db187d9a4 AS deps
 WORKDIR /repo
 COPY package.json bun.lock ./
 COPY apps/server/package.json apps/server/package.json
@@ -57,7 +57,7 @@ RUN mkdir -p /volume/data /volume/keys /volume/etc/quanthea /volume/plugins \
     && chmod 700 /volume/data /volume/keys
 
 # ---- runner: server and shared sources, their dependencies, and the SPA ----
-FROM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288 AS runner
+FROM oven/bun:1.4.4-slim@sha256:1846adf22496bd711036aae8be147e57bdebbaea2e5264e3e0b5af1db187d9a4 AS runner
 LABEL org.opencontainers.image.title="quanthea" \
       org.opencontainers.image.description="Describe a dashboard in a chat, an agent builds it against your data sources, pin the good ones." \
       org.opencontainers.image.licenses="MIT"
