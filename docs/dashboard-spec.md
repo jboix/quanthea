@@ -168,6 +168,8 @@ type TableView = {
   ref: string
   columns: {
     field: string; label?: string; format?: Formatter; align?: 'left' | 'right'
+                                            // no format: a time field shows a date and time,
+                                            // any other field its value as it is
     mappings?: Mapping[]                    // ≤ 20, the first match wins
     toneAs?: 'text' | 'background'          // default: text
     width?: 'narrow' | 'medium' | 'wide'    // a share of the table; medium when left out
@@ -319,12 +321,14 @@ they differ from the sketch above, the schemas win:
   `$__all`, and may be its default. It binds every option, so such a variable is checked as one of several values when a dashboard is
   written, even without `multi`: where only one value fits, the write is refused. A stored
   version is not checked for it, so it still pins and restores.
-- A panel title may name a variable as `$name` or `${name}`. It is stored as written, since a
-  title also names its panel when an edit rebuilds it, and filled where it is shown: on the live
-  dashboard, in a snapshot, in a report's run and in the layout editor, with the chosen value's
-  label, "All", or a short list (`Firefox, Safari, Chrome +2`). A name no variable has stays as
-  written. Texts the server writes with a title, such as a notification, a report's headline or
-  a library result, show it as stored.
+- A panel or section title may name a variable as `$name` or `${name}`. It is stored as written,
+  since a title also names its panel when an edit rebuilds it, and filled where it is shown: on
+  the live dashboard, in a snapshot, in a report's run and in the layout editor, with the chosen
+  value's label, "All", or a short list (`Firefox, Safari, Chrome +2`). A computed variable shows
+  the value the server reads for the page's choices (`Overview · busiest: DE`), loaded only for
+  the titles that name one, and `…` until it is read, or where nothing runs, such as a snapshot.
+  A name no variable has stays as written. Texts the server writes with a title, such as a
+  notification, a report's headline or a library result, show it as stored.
 - `auto` in an interval variable is bound as a duration the server picks for each run: the usual
   interval of the time range (`1m` up to two hours, `10m` over a day, `1h` over a week), coarser
   when the chart is too narrow for that many points, or the interval a report's run cuts its
@@ -450,6 +454,9 @@ panel before the spec is checked and saved:
 
 A row always fills the twelve columns, and a panel placed this way takes the height of its kind:
 3 rows for a number, 8 for a chart over time, 7 for another chart or a table.
+
+A table a write adds then takes the height of the rows its test run returned, from 4 to 10 rows.
+Its row takes that height when no other panel in it is taller, and the rows below move with it.
 
 After a write the agent reads the layout back as a map, the grid row by row, with advice on what
 reads badly:

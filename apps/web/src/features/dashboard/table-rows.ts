@@ -7,6 +7,7 @@ import {
   compareFrameValues,
   createFormatter,
   datasetOfFrames,
+  type Formatter,
   type Frame,
   httpsHostOf,
   mapValue,
@@ -129,23 +130,41 @@ function toneLookup(colors: readonly ValueColor[]): (value: unknown) => Tone | u
 }
 
 /**
+ * The format of a column that names none: a date and time for a field of times, which the results
+ * hold as epoch milliseconds, else the value as it is.
+ *
+ * @param frames - The frames of the table's ref.
+ * @returns The default format of each field, by name.
+ */
+function defaultFormats(frames: readonly Frame[]): (field: string) => Formatter {
+  const times = new Set(
+    frames.flatMap((frame) => frame.fields.filter((field) => field.type === 'time')),
+  );
+  const names = new Set([...times].map((field) => field.name));
+  return (field) => (names.has(field) ? { $fmt: 'datetime' } : '{value}');
+}
+
+/**
  * How each column writes its cells: the text and tone of the first mapping that matches the raw
  * value, and the column's format for a value no mapping gives a text. A column without mappings
  * gives a value the dashboard colours the tone of its colour.
  *
  * @param view - The table view.
+ * @param frames - The frames of its ref, for the default format of a column that names none.
  * @param timeZone - The zone for date formatters.
  * @param colors - The dashboard's colours.
  * @returns One writer per column, in order.
  */
 function cellWriters(
   view: TableView,
+  frames: readonly Frame[],
   timeZone: string | undefined,
   colors: readonly ValueColor[],
 ): CellWriter[] {
   const dashboardTone = toneLookup(colors);
+  const defaultFormat = defaultFormats(frames);
   return view.columns.map((column) => {
-    const format = createFormatter(column.format ?? '{value}', { timeZone });
+    const format = createFormatter(column.format ?? defaultFormat(column.field), { timeZone });
     const own = column.mappings !== undefined && column.mappings.length > 0;
     return (value) => {
       const mapped = mapValue(column.mappings, value);
@@ -222,7 +241,7 @@ export function tableRows(
   const view = withRest(asked, frames);
   const rows = sortedRows(view, rawRows(view, frames));
   const limit = Math.min(view.limit ?? maxRows, maxRows);
-  const writers = cellWriters(view, timeZone, colors);
+  const writers = cellWriters(view, frames, timeZone, colors);
   return {
     columns: view.columns.map((column) => ({
       label: column.label ?? column.field,

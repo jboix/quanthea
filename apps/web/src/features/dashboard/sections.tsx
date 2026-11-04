@@ -1,9 +1,16 @@
-import { type DashboardSpec, type Panel, type Section, sectionGroups } from '@quanthea/shared';
+import {
+  type DashboardSpec,
+  filledTitle,
+  type Panel,
+  type Section,
+  sectionGroups,
+} from '@quanthea/shared';
 import { useCallback, useMemo, useState } from 'react';
 import type { RunTarget } from './panel-card.tsx';
 import panelStyles from './panels.module.css';
 import { type CardDrawer, FrozenCopies, SectionCopies } from './section-copies.tsx';
 import styles from './sections.module.css';
+import { useTitleValues } from './title-values.ts';
 
 /** Which sections a viewer folded, and how to fold or unfold one. */
 export interface Folding {
@@ -51,29 +58,33 @@ function rebased(panels: readonly Panel[]): Panel[] {
   return panels.map((panel) => ({ ...panel, grid: { ...panel.grid, y: panel.grid.y - top } }));
 }
 
+/** Props of {@link SectionTitle}. */
+interface SectionTitleProps {
+  /** The section. */
+  readonly section: Section;
+  /** The spec, for the variables the title names. */
+  readonly spec: DashboardSpec;
+  /** The page's run target, for the choices and the computed values; none in a snapshot. */
+  readonly target: RunTarget | undefined;
+  /** Whether it is folded. */
+  readonly folded: boolean;
+  /** Folds or unfolds it. */
+  readonly onToggle: () => void;
+}
+
 /**
- * A section's title, which folds and unfolds it.
+ * A section's title, with the values of the variables it names, which folds and unfolds it.
  *
- * @param props - The section, whether it is folded, and the toggle.
- * @param props.section - The section.
- * @param props.folded - Whether it is folded.
- * @param props.onToggle - Folds or unfolds it.
+ * @param props - The section, the spec, the run target, whether it is folded, and the toggle.
  * @returns The title.
  */
-function SectionTitle({
-  section,
-  folded,
-  onToggle,
-}: {
-  readonly section: Section;
-  readonly folded: boolean;
-  readonly onToggle: () => void;
-}) {
+function SectionTitle({ section, spec, target, folded, onToggle }: SectionTitleProps) {
+  const values = useTitleValues(section.title, spec, target);
   return (
     <h2 className={styles.title}>
       <button type="button" className={styles.toggle} aria-expanded={!folded} onClick={onToggle}>
         <span className={styles.chevron} aria-hidden="true" />
-        {section.title}
+        {filledTitle(section.title, spec.variables, values)}
       </button>
     </h2>
   );
@@ -118,6 +129,8 @@ export function SectionedGrid({
         {section && (
           <SectionTitle
             section={section}
+            spec={spec}
+            target={target}
             folded={folded}
             onToggle={() => folding.toggle(section.id)}
           />

@@ -576,6 +576,19 @@ describe('an agent run', () => {
     expect(services.threads.get(threadId).state).toBe('building');
   });
 
+  test('names a first write that gives no title after the approved plan', async () => {
+    services.threads.proposePlan(threadId, plan, true);
+    const { title: _title, ...untitled } = buildEdit;
+    const model = scriptedStreamModel(
+      { tool: 'edit_dashboard', input: untitled },
+      { text: 'Built.' },
+    );
+    await chat(createAgent({ ...services, buildModel: () => model }), userMessage('u1', 'Go'));
+    const { dashboardId } = services.threads.get(threadId);
+    if (!dashboardId) throw new Error('The first write made a dashboard.');
+    expect(services.dashboards.getVersion(dashboardId, 1, 'editor').spec.title).toBe(plan.title);
+  });
+
   test('does not build on a connector that does not answer, and says so with no model', async () => {
     services.threads.proposePlan(threadId, plan, true);
     const model = scriptedStreamModel({ tool: 'edit_dashboard', input: buildEdit });

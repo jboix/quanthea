@@ -36,5 +36,8 @@ export const rows: ChartRecipe = {
     'Thresholds: [{ "match": { "to": 2 }, "tone": "good" }, { "match": { "from": 2 }, "tone": "bad" }]. A match reads the value before the format. "toneAs": "background" tints the cell.',
   ],
   sample: { roles: { columns: ['region', 'sales', 'target'] }, datasets: [regionSales] },
-  queryHints: ['The rows and columns to list, sorted.'],
+  queryHints: [
+    'The rows and columns to list, sorted.',
+    'One unit per column, never amounts and counts in one. A money column says so in its format: { "$fmt": "currency", "code": "CHF" }.',
+  ],
 };

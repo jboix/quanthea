@@ -242,4 +242,25 @@ describe('tableRows', () => {
     ]);
     expect(listed.columns).toHaveLength(1);
   });
+  test('a time column with no format shows a date and time, not epoch milliseconds', () => {
+    const latest: Frame = {
+      refId: 'A',
+      fields: [
+        { name: 'id', type: 'number' },
+        { name: 'created_at', type: 'time' },
+      ],
+      values: [[208612], [Date.UTC(2026, 10, 4, 11, 29)]],
+      meta: { rowCount: 1, truncated: false, durationMs: 1 },
+    };
+    const record: TableView = {
+      kind: 'table',
+      ref: 'A',
+      columns: [{ field: 'id' }, { field: 'created_at' }],
+    };
+    const table = tableRows(record, [{ refId: 'A', frames: [latest], error: null }], 'UTC');
+    const [id, created] = table.rows[0]?.cells ?? [];
+    expect(id?.text).toBe('208612');
+    expect(created?.text).not.toBe(String(Date.UTC(2026, 10, 4, 11, 29)));
+    expect(created?.text).toContain('11:29');
+  });
 });

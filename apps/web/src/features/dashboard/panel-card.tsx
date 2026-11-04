@@ -19,7 +19,7 @@ import { PanelInfo } from './panel-info.tsx';
 import { PanelView } from './panel-views.tsx';
 import styles from './panels.module.css';
 import { cutAtRowLimit, rowLimitNote } from './row-limit.ts';
-import { choicesFromSearch } from './view-state.ts';
+import { useTitleValues } from './title-values.ts';
 
 /** Where the panels of a version load from, and with which choices. */
 export interface RunTarget {
@@ -355,12 +355,7 @@ function gridPlace(panel: Panel): CSSProperties {
  */
 export function PanelCard({ target, onRun, ...props }: PanelCardProps) {
   const { run, loading } = usePanelRun(props.panel, target, onRun);
-  const { search } = target;
-  const { spec } = props;
-  const values = useMemo(
-    () => choicesFromSearch(new URLSearchParams(search), spec).variables,
-    [search, spec],
-  );
+  const values = useTitleValues(props.panel.title, props.spec, target);
   return <PanelFrame values={values} {...props} run={run} loading={loading} />;
 }
 

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { filledTitle } from './title.ts';
+import { computedInTitle, filledTitle } from './title.ts';
 import type { Variable } from './variables.ts';
 
 const browser: Variable = {
@@ -31,4 +31,24 @@ test('shows a label, All, and a short list', () => {
 
 test('leaves a name no variable has as written', () => {
   expect(filledTitle('Cost in $ by $team', [browser])).toBe('Cost in $ by $team');
+});
+
+const busiest: Variable = {
+  kind: 'computed',
+  name: 'busiest',
+  source: { connector: 'orders', language: 'sql', sql: 'SELECT country FROM busiest' },
+};
+
+test('names the computed variables a title names, once each', () => {
+  expect(
+    computedInTitle('Busiest: $busiest, again $busiest, in $browser', [browser, busiest]),
+  ).toEqual(['busiest']);
+  expect(computedInTitle('Orders', [busiest])).toEqual([]);
+});
+
+test('fills a computed variable with the value the server read, and an ellipsis before', () => {
+  expect(filledTitle('Overview · busiest: $busiest', [busiest], { busiest: 'DE' })).toBe(
+    'Overview · busiest: DE',
+  );
+  expect(filledTitle('Overview · busiest: $busiest', [busiest])).toBe('Overview · busiest: …');
 });

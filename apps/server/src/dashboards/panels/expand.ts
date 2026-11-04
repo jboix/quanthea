@@ -15,6 +15,7 @@ import {
 import { z } from 'zod';
 import { type BuildContext, buildData, moreDataSchema, QueryError } from '../queries/index.ts';
 import type { PanelDraft, PanelShape } from './draft.ts';
+import { moreHints, operationHints } from './operation-hints.ts';
 import type { PanelRequest } from './request.ts';
 import { isTimeChart } from './time-chart.ts';
 
@@ -72,7 +73,12 @@ const furtherRefIds = ['B', 'C', 'D'];
  */
 function furtherQuery(input: unknown, refId: string, context: BuildContext): PanelQuery {
   const data = moreDataSchema.safeParse(input);
-  if (!data.success) throw new QueryError(`raw or saved data, ${z.prettifyError(data.error)}`);
+  if (!data.success) {
+    const hint = moreHints(data.error.issues);
+    throw new QueryError(
+      `raw or saved data, ${z.prettifyError(data.error)}${hint ? ` ${hint}` : ''}`,
+    );
+  }
   const [query] = buildData(data.data, context).queries;
   if (!query) throw new QueryError('it builds no query.');
   return { ...query, refId };
@@ -130,7 +136,9 @@ function operationsOf(request: PanelRequest): Operation[] | undefined {
   if (!request.operations || request.operations.length === 0) return undefined;
   const parsed = operationsSchema.safeParse(request.operations);
   if (parsed.success) return parsed.data;
-  throw new QueryError(`The operations do not fit their forms: ${z.prettifyError(parsed.error)}`);
+  const hint = operationHints(parsed.error.issues);
+  const issues = z.prettifyError(parsed.error);
+  throw new QueryError(`The operations do not fit their forms: ${issues}${hint ? ` ${hint}` : ''}`);
 }
 
 /**

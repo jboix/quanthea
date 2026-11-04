@@ -1,6 +1,7 @@
 /** Panels as the agent asks for them: data and a chart, expanded, placed and completed. */
 export { completeCharts } from './complete.ts';
 export { applyEdit, type ChartChoices } from './edit.ts';
+export { fitTableHeights } from './fit-heights.ts';
 export { compactGrid } from './layout.ts';
 export { type LayoutReport, layoutReport } from './layout-check.ts';
 export {

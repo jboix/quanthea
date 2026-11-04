@@ -386,7 +386,8 @@ export async function bindChoices(
 }
 
 /**
- * Lists the options of a query-backed variable, bound with the choices for the variables before it.
+ * Lists the options of a query-backed variable, or the values of a computed one, bound with the
+ * choices for the variables before it. A title that names a computed variable shows them.
  *
  * @param dependencies - The connectors, the executor and the clock.
  * @param spec - The spec.
@@ -394,8 +395,8 @@ export async function bindChoices(
  * @param choices - The viewer's variables and time range.
  * @param signal - Aborted when the caller gives up.
  * @returns The options, each with its label when the source returns one.
- * @throws {AppError} `not_found` when the spec has no such query-backed variable, `source_failed`
- *   when its source fails.
+ * @throws {AppError} `not_found` when the spec has no such query-backed or computed variable,
+ *   `source_failed` when its source fails.
  */
 export async function listVariableOptions(
   dependencies: RunnerDependencies,
@@ -405,8 +406,8 @@ export async function listVariableOptions(
   signal?: AbortSignal,
 ): Promise<VariableOption[]> {
   const variable = spec.variables.find((candidate) => candidate.name === name);
-  if (variable?.kind !== 'query')
-    throw new AppError('not_found', `No query-backed variable $${name}.`);
+  if (variable?.kind !== 'query' && variable?.kind !== 'computed')
+    throw new AppError('not_found', `No query-backed or computed variable $${name}.`);
   const { timeRange, loadOptions, loadLabelled } = prepare(dependencies, spec, choices, signal);
   const resolved = await resolveVariables(spec, choices.variables, loadOptions, name);
   return loadLabelled(variable, withAutoIntervals(spec, resolved, timeRange));

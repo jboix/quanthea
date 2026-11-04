@@ -22,6 +22,7 @@ export { dayLabel, instantLabel } from './ask-words.ts';
 export { DashboardCanvas } from './canvas.tsx';
 export {
   changeDashboard,
+  loadComputedValues,
   loadDashboard,
   loadDashboardLayoutHistory,
   loadPanelRun,

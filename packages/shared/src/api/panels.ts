@@ -80,7 +80,7 @@ export const runPanelEndpoint = defineEndpoint({
   output: panelRunSchema,
 });
 
-/** Lists the options of a query-backed variable. */
+/** Lists the options of a query-backed variable, or the values of a computed one. */
 export const variableOptionsEndpoint = defineEndpoint({
   method: 'POST',
   path: '/variables/options',

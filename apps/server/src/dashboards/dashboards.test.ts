@@ -204,6 +204,21 @@ describe('running panels', () => {
     ).toBe('not_found');
   });
 
+  test('lists the values of a computed variable, for a title that names it', async () => {
+    const events = eventsSpec();
+    const source = events.variables.find((each) => each.kind === 'query')?.source;
+    const busiest = { kind: 'computed', name: 'busiest', source, field: 'service' };
+    const spec = { ...events, variables: [...events.variables, busiest] };
+    const { id } = services.dashboards.create(spec, 'imported', 'editor-1');
+    await services.dashboards.pin(id, 1, 'editor-1');
+    const values = await services.dashboards.variableOptions(
+      { dashboardId: id, version: 1, variables: {} },
+      'busiest',
+      'viewer',
+    );
+    expect(values).toEqual(['checkout-svc']);
+  });
+
   test('reports a failing query in its outcome without failing the panel', async () => {
     const spec = eventsSpec();
     spec.panels[0]?.queries.push({

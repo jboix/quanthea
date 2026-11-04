@@ -85,7 +85,7 @@ export {
   type TimeRangeExpression,
   timeRangeSchema,
 } from './time.ts';
-export { filledTitle } from './title.ts';
+export { computedInTitle, filledTitle } from './title.ts';
 export { isStep, levelTone, type Mapping, mapValue, type Tone, type ToneAs } from './tones.ts';
 export {
   httpsHostOf,

@@ -435,6 +435,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/d/:dashboardId/v/:version/panels/:panelId`                   | resource route: one panel's run, for fetchers               | viewer   |
 | `/d/:dashboardId/v/:version/panels/:panelId/explanation`       | resource route: a panel's latest explanation                | viewer   |
 | `/d/:dashboardId/v/:version/options/:name`                     | resource route: a variable's options, for fetchers          | viewer   |
+| `/d/:dashboardId/v/:version/computed`                          | resource route: the computed variables a title names        | viewer   |
 | `/d/:dashboardId/snapshots`                                    | resource route: a dashboard's live snapshots, for fetchers  | editor   |
 | `/d/:dashboardId/conversations`                                | resource route: a dashboard's conversations, or a search    | viewer   |
 | `/d/:dashboardId/conversations/:conversationId`                | resource route: one conversation's questions and answers    | viewer   |
@@ -535,6 +536,8 @@ idle ──propose_plan──▶ plan_pending ──approve──▶ building �
 `edit_dashboard` refuses to write unless the thread is `building`, or `ready` with the change
 scoped to existing panels (the small-edit path). If the AI SDK's tool-approval feature fits this
 flow cleanly, use it for the UX, but the state check in `threads/` stays the source of truth.
+The first write of a dashboard that gives no title takes the approved plan's
+(`agent/panel-build.ts`), so it never fails for the lack of one.
 
 ### 5.2 Render a panel (no model)
 
@@ -591,7 +594,8 @@ flow cleanly, use it for the UX, but the state check in `threads/` stays the sou
 
 Panels run in parallel. Each query has its own outcome with a safe error message, so one failing
 query never fails the rest of the panel, and one failing panel never blanks the dashboard.
-`POST /api/variables/options` lists a query-backed variable's options the same way.
+`POST /api/variables/options` lists a query-backed variable's options the same way, and a
+computed variable's values, which a panel or section title that names it shows.
 
 ### 5.3 Pin and unpin
 
@@ -1857,7 +1861,10 @@ directly onto an ECharts `dataset`.
   (each on a row of its own), `two` and `three` (that many across). Every row fills the twelve
   columns, a panel placed takes the height of its kind and a row its tallest. Panels no row names
   follow below as they were. The server turns the rows into grid numbers, so a stored spec holds
-  plain grid numbers only. A row that cannot be placed refuses the edit before anything runs, with
+  plain grid numbers only. After the test run, each table the edit adds takes the height of its
+  rows, from 4 to 10 (`dashboards/panels/fit-heights.ts`): its row takes that height unless
+  another panel in it is taller, and the rows below move by the difference. A grid whose panels
+  reach into the next row, as a person may arrange it, stays as it is. A row that cannot be placed refuses the edit before anything runs, with
   the repair: an unknown arrangement or panel, a panel placed twice, a `chart-table` without two
   panels. In the tool's schema a row is a list of strings, and the arrangement is checked in code,
   which keeps the schema small.

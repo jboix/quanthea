@@ -9,6 +9,7 @@ import {
   type ExternalHosts,
   getDashboardEndpoint,
   getDashboardVersionEndpoint,
+  optionValues,
   type PanelRun,
   pinDashboardEndpoint,
   readExternalHostsEndpoint,
@@ -241,6 +242,33 @@ export function loadVariableOptions(api: ApiClient) {
       api.call(variableOptionsEndpoint, { body }, { signal: request.signal }),
     );
     return result.ok ? { ok: true, value: result.value.options } : result;
+  };
+}
+
+/**
+ * The loader of the computed variables a title names, given as `computed` search parameters: the
+ * values the server reads for the page's choices, by name. One that fails is left out, so its
+ * title keeps the ellipsis.
+ *
+ * @param api - The API client.
+ * @returns The loader.
+ */
+export function loadComputedValues(api: ApiClient) {
+  return async ({ params, request }: LoaderFunctionArgs): Promise<Record<string, string[]>> => {
+    const url = new URL(request.url);
+    const base = {
+      dashboardId: params.dashboardId ?? '',
+      version: Number(params.version),
+      ...choicesOf(url),
+    };
+    const names = url.searchParams.getAll('computed');
+    const read = names.map(async (name) => {
+      const result = await loaded(
+        api.call(variableOptionsEndpoint, { body: { ...base, name } }, { signal: request.signal }),
+      );
+      return result.ok ? [[name, optionValues(result.value.options)] as const] : [];
+    });
+    return Object.fromEntries((await Promise.all(read)).flat());
   };
 }
 

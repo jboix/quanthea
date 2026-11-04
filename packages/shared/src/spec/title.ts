@@ -29,12 +29,28 @@ function valueText(variable: Variable, value: string | readonly string[]): strin
 }
 
 /**
- * A title with the values of the variables it names: the chosen value, else the default. A name
- * no variable has, and a variable with no value, stay as written.
+ * The names of the computed variables a title names, whose values only the server reads.
  *
  * @param title - The title, as stored.
  * @param variables - The spec's variables.
- * @param values - The values chosen, by name.
+ * @returns The names, each once.
+ */
+export function computedInTitle(title: string, variables: readonly Variable[]): string[] {
+  const computed = new Set(
+    variables.filter((each) => each.kind === 'computed').map((variable) => variable.name),
+  );
+  const named = [...title.matchAll(reference)].map((match) => match[1] ?? match[2] ?? '');
+  return [...new Set(named.filter((name) => computed.has(name)))];
+}
+
+/**
+ * A title with the values of the variables it names: the chosen value, else the default. A
+ * computed variable shows the value the server read, and `…` until there is one. A name no
+ * variable has, and any other variable with no value, stay as written.
+ *
+ * @param title - The title, as stored.
+ * @param variables - The spec's variables.
+ * @param values - The values chosen, and those of computed variables, by name.
  * @returns The title as shown.
  */
 export function filledTitle(
@@ -43,10 +59,30 @@ export function filledTitle(
   values: VariableValues = {},
 ): string {
   if (!title.includes('$')) return title;
-  return title.replace(reference, (written, braced?: string, bare?: string) => {
-    const name = braced ?? bare ?? '';
-    const variable = variables.find((each) => each.name === name);
-    const value = values[name] ?? (variable && variableDefault(variable));
-    return variable === undefined || value === undefined ? written : valueText(variable, value);
-  });
+  return title.replace(reference, (written, braced?: string, bare?: string) =>
+    referenceText(
+      written,
+      variables.find((each) => each.name === (braced ?? bare)),
+      values,
+    ),
+  );
+}
+
+/**
+ * What one reference in a title shows.
+ *
+ * @param written - The reference as the title writes it.
+ * @param variable - The variable it names, if the spec has one.
+ * @param values - The values chosen, and those of computed variables, by name.
+ * @returns The value's text, `…` for a computed variable not read yet, else the reference.
+ */
+function referenceText(
+  written: string,
+  variable: Variable | undefined,
+  values: VariableValues,
+): string {
+  if (variable === undefined) return written;
+  const value = values[variable.name] ?? variableDefault(variable);
+  if (value !== undefined) return valueText(variable, value);
+  return variable.kind === 'computed' ? '…' : written;
 }

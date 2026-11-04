@@ -50,6 +50,23 @@ describe('operations in an edit', () => {
     expect(() => applyEdit(undefined, withOperations([{ op: 'melt' }]))).toThrow('op');
   });
 
+  test('a common mistake in a step is refused with how to fix it', () => {
+    const join = { op: 'join', with: 1, on: ['status'], how: 'left' };
+    expect(() => applyEdit(undefined, withOperations([join]))).toThrow(
+      '"with" names a request in "more" by its refId',
+    );
+    expect(() => applyEdit(undefined, withOperations([join]))).toThrow('"how" is "outer"');
+    const pivot = { op: 'pivot', rows: 'status', columns: 'region', values: 'failed' };
+    expect(() => applyEdit(undefined, withOperations([pivot]))).toThrow('not "values"');
+  });
+
+  test('a further request that names an id is told its refId comes from its place', () => {
+    const [panel] = withOperations([{ op: 'append', with: 'B' }]).panels;
+    const raw = { id: 'B', kind: 'raw', connector: 'shop', language: 'sql', query: 'SELECT 1' };
+    const named = { ...withOperations([]), panels: [{ ...panel, more: [raw] }] };
+    expect(() => applyEdit(undefined, named as never)).toThrow('A request in "more" has no "id"');
+  });
+
   test('no operations, or an empty list, leaves none on the panel', () => {
     expect(specOf(undefined, withOperations([])).panels[0]?.operations).toBeUndefined();
   });

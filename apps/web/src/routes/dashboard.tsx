@@ -6,6 +6,7 @@ import type { SessionLoader } from '../app/session.ts';
 import {
   binConversation,
   changeDashboard,
+  loadComputedValues,
   loadConversation,
   loadConversations,
   loadDashboard,
@@ -112,6 +113,7 @@ export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): Rou
   const panels = '/d/:dashboardId/v/:version/panels/:panelId';
   const explanation = '/d/:dashboardId/v/:version/panels/:panelId/explanation';
   const options = '/d/:dashboardId/v/:version/options/:name';
+  const computed = '/d/:dashboardId/v/:version/computed';
   const snapshots = '/d/:dashboardId/snapshots';
   const layouts = '/d/:dashboardId/v/:version/layouts';
   const alerts = '/d/:dashboardId/alerts';
@@ -132,6 +134,12 @@ export function dashboardRoutes(loadSession: SessionLoader, api: ApiClient): Rou
     {
       path: options,
       loader: guarded(loadSession, options, loadVariableOptions(api)),
+      shouldRevalidate: () => false,
+    },
+    // The computed variables a title names, loaded again when the page's choices change.
+    {
+      path: computed,
+      loader: guarded(loadSession, computed, loadComputedValues(api)),
       shouldRevalidate: () => false,
     },
     // Loads again after a snapshot is taken or revoked, so the list stays current.
