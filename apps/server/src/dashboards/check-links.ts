@@ -27,6 +27,40 @@ export interface LinkTarget {
 /** The most pinned dashboards a refusal names. */
 const maxNamed = 20;
 
+/** What a link holds, for one the schema refuses. */
+const linkShape =
+  'A link is { "dashboard": id, "variables"?, "keepTime"? } to open a pinned dashboard, or { "url": "https://…/{value}", "value"? } to open a page';
+
+/**
+ * The pinned dashboards a refusal names, by id and title.
+ *
+ * @param targets - The pinned dashboards.
+ * @returns The phrase, such as `the pinned ones are 01H… (Checkout)`.
+ */
+function pinnedList(targets: readonly LinkTarget[]): string {
+  const named = targets.slice(0, maxNamed).map((each) => `${each.id} (${each.title})`);
+  return named.length === 0 ? 'none is pinned' : `the pinned ones are ${named.join(', ')}`;
+}
+
+/**
+ * The schema's issues, with each refused link told what a link holds and, when the spec is
+ * written, which dashboards it may open. The schema alone says only "Invalid input" for a link
+ * of the wrong form, such as a path written as text.
+ *
+ * @param issues - The schema's issues.
+ * @param targets - The pinned dashboards, when the spec is written.
+ * @returns The issues.
+ */
+export function withLinkShape(
+  issues: readonly SpecIssue[],
+  targets?: readonly LinkTarget[] | undefined,
+): SpecIssue[] {
+  const pinned = targets ? `; ${pinnedList(targets)}` : '';
+  return issues.map((issue) =>
+    issue.path.endsWith('.link') ? { ...issue, message: `${linkShape}${pinned}.` } : issue,
+  );
+}
+
 /** A link with where it sits and what it may read. */
 interface PlacedLink {
   /** The link. */
@@ -138,11 +172,8 @@ function checkTarget(
 ): SpecIssue[] {
   const path = `${placed.path}.dashboard`;
   const target = targets.find((each) => each.id === link.dashboard);
-  if (!target) {
-    const named = targets.slice(0, maxNamed).map((each) => `${each.id} (${each.title})`);
-    const list = named.length === 0 ? 'none is pinned' : `the pinned ones are ${named.join(', ')}`;
-    return [{ path, message: `No pinned dashboard ${link.dashboard}: ${list}.` }];
-  }
+  if (!target)
+    return [{ path, message: `No pinned dashboard ${link.dashboard}: ${pinnedList(targets)}.` }];
   const missing = Object.keys(link.variables).filter((name) => !target.variables.includes(name));
   if (missing.length === 0) return [];
   const has =

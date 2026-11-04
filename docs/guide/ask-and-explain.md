@@ -38,7 +38,7 @@ the question fails cleanly; you never get an unchecked answer.
 When the model stops without answering, quanthea asks it once more to answer from what it has
 already read. If no answer comes, the message says why: the model's output was cut at its limit,
 it wrote a call that could not be read, its provider withheld the response, it stopped with
-nothing, or the limits of one answer were reached. When the tool calls or the token budget of one
+nothing, or the limits of one answer were reached. When the tool calls or the tokens of one
 answer were used up first, the message says so. The provider's own reason for the ending is not in
 the message: it is in the server's log, for an admin.
 
@@ -126,5 +126,5 @@ trace a number to where it comes from.
 ## What it costs
 
 Questions and explanations run on the **answer** model an admin picks in Settings → Model, and
-their tokens count in Settings → Usage under their own features. A thread's limits apply: the
-tool calls per turn and the token budget. See [Models and usage](models-and-usage.md).
+their tokens count in Settings → Usage under their own features. The limits per turn apply when
+they are set: the tool calls and the tokens. See [Models and usage](models-and-usage.md).

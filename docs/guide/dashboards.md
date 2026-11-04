@@ -41,7 +41,8 @@ Before the plan, the agent may ask one question with a few answers to click. Whe
 can be right together, such as which sources to use, you tick them and press **Send**. You can
 always type your own answer instead.
 
-- **Approve & build** starts the build.
+- **Approve & build** starts the build. First quanthea checks that each source the plan uses
+  answers. When one does not, a warning names it, and its **Try again** builds once it is back.
 - **Edit plan**, or a reply in the box, changes it. The agent proposes a new one.
 - A plan for an existing dashboard lists its changes: CHANGED, NEW, REMOVED, and how many panels
   stay the same. While the plan waits, the draft previews it: changed panels outlined in orange,

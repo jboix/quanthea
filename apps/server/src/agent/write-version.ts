@@ -12,6 +12,7 @@ import { compactGrid, type LayoutReport } from '../dashboards/panels/index.ts';
 import { derivedFrom } from '../gate/panel-results.ts';
 import type { ModelTestResult } from '../gate/test-run.ts';
 import { canWrite } from '../threads/state.ts';
+import { currentSpec } from './draft-spec.ts';
 import type { RunContext } from './run-context.ts';
 
 /** What the model learns from a write. */
@@ -24,7 +25,10 @@ export type WriteResult =
       readonly leftOut?: { readonly panelIds: readonly string[]; readonly next: string };
       /** The saved version's layout as a map, and advice on what reads badly. */
       readonly layout?: LayoutReport;
-      /** Panels that name a defined term without using its definition, and what to do. */
+      /**
+       * Panels that name a defined term without using its definition, or send a raw search a
+       * builder writes, and what to do.
+       */
       readonly notes?: readonly string[];
     }
   | {
@@ -150,7 +154,22 @@ export function nextAttempt(context: RunContext, fix: string): string {
  * @returns The failure the model sees.
  */
 function failed(context: RunContext, error: string): { ok: false; error: string } {
-  return { ok: false, error: `${error} ${nextAttempt(context, 'Fix it and write again')}` };
+  const next = nextAttempt(context, 'Fix it and write again');
+  return { ok: false, error: `${error} ${unsavedDraft(context)} ${next}` };
+}
+
+/**
+ * What the draft holds after a write that saved nothing. The write's test reports name the
+ * panels it sent, which the draft does not have unless it had them before.
+ *
+ * @param context - The run.
+ * @returns The sentence the model reads.
+ */
+function unsavedDraft(context: RunContext): string {
+  const ids = (currentSpec(context)?.panels ?? []).map((panel) => panel.id);
+  if (ids.length === 0)
+    return 'Nothing was saved, and the draft has no panels yet: send every panel as new, without "replaces".';
+  return `Nothing was saved: the draft still has only the panels ${ids.join(', ')}. Any other panel is new: send it without "replaces".`;
 }
 
 /**

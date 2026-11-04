@@ -1,9 +1,4 @@
-import {
-  defaultModelSettings,
-  type ModelSettingsView,
-  type ProviderAuth,
-  type ProviderConfig,
-} from '@quanthea/shared';
+import type { ModelSettingsView, ProviderAuth, ProviderConfig } from '@quanthea/shared';
 import { useEffect } from 'react';
 import { Link, type SubmitTarget, useFetcher, useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
@@ -114,38 +109,83 @@ function BehaviourCard({ form }: SectionProps) {
   );
 }
 
-/** The limits, in the order the card lists them. */
-const limitFields = [
+/** The limits that pause a turn, which the person may continue: empty for none. */
+const pauseFields = [
   {
-    key: 'threadTokens',
-    label: 'Stop a thread after (tokens)',
-    hint: `Default ${defaultModelSettings.limits.threadTokens.toLocaleString('en')}.`,
+    key: 'toolCallsPerTurn',
+    label: 'Ask to continue after (tool calls)',
+    hint: 'Per turn. Empty never asks.',
   },
-  { key: 'toolCallsPerTurn', label: 'Max tool calls per turn', hint: undefined },
-  { key: 'repairAttempts', label: 'Repair attempts per answer', hint: undefined },
+  {
+    key: 'tokensPerTurn',
+    label: 'Ask to continue after (tokens)',
+    hint: 'Per turn. Empty never asks.',
+  },
 ] as const;
 
 /**
- * The limits of a run.
+ * A limit as the form shows it: empty for none.
+ *
+ * @param value - The limit.
+ * @returns The text.
+ */
+function limitText(value: number | null): string {
+  return value === null ? '' : String(value);
+}
+
+/**
+ * A limit typed in: empty for none.
+ *
+ * @param text - The text typed.
+ * @returns The limit.
+ */
+function typedLimit(text: string): number | null {
+  return text.trim() === '' ? null : Number(text);
+}
+
+/**
+ * Repair attempts typed in: empty is no number, so saving asks for one instead of saving 0.
+ *
+ * @param text - The text typed.
+ * @returns The attempts.
+ */
+function typedAttempts(text: string): number {
+  return text.trim() === '' ? Number.NaN : Number(text);
+}
+
+/**
+ * The limits of a run: when a turn pauses to ask whether to go on, and how often the agent
+ * repairs a failed write.
  *
  * @param props - The form and the issues.
  * @returns The card.
  */
 function LimitsCard({ form, issues }: SectionProps) {
+  const { limits } = form.settings;
   return (
     <Card title="Limits">
-      {limitFields.map(({ key, label, hint }) => (
+      {pauseFields.map(({ key, label, hint }) => (
         <Input
           key={key}
           label={label}
           hint={hint}
           mono
           inputMode="numeric"
-          value={String(form.settings.limits[key])}
-          onChange={(event) => form.set(`limits.${key}`, Number(event.target.value))}
+          placeholder="No limit"
+          value={limitText(limits[key])}
+          onChange={(event) => form.set(`limits.${key}`, typedLimit(event.target.value))}
           error={issues[`limits.${key}`]}
         />
       ))}
+      <Input
+        label="Repair attempts per answer"
+        hint="Failed writes the agent fixes. With 0 it explains the first one."
+        mono
+        inputMode="numeric"
+        value={Number.isNaN(limits.repairAttempts) ? '' : String(limits.repairAttempts)}
+        onChange={(event) => form.set('limits.repairAttempts', typedAttempts(event.target.value))}
+        error={issues['limits.repairAttempts']}
+      />
     </Card>
   );
 }

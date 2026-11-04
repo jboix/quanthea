@@ -1800,12 +1800,19 @@ directly onto an ECharts `dataset`.
   that sounds defined but is not) and a line per definition: id, name, synonyms, meaning, and
   where it is checked. Past 2,500 characters the lines give way to the names and a pointer to
   `read_guide("definitions")`, which always has every line. A plan's panel may name its
-  `definition`. A write that worked gets `notes` for each panel it wrote whose title names a
+  `definition` by id. A run without definitions offers a plan schema with no such field, so a
+  model never fills it with words, and `propose_plan` refuses an id no definition has, naming
+  the ids there are (`agent/plan-definitions.ts`). A write that worked gets `notes` for each panel it wrote whose title names a
   defined term or synonym but whose data was not copied from it: the panel is kept.
+- **A raw search a builder writes.** A write that worked also gets a note for each panel whose
+  raw search body is one a search builder writes: plain filters and at most one aggregation of
+  rows, a stat, a histogram, a breakdown, a table or a series
+  (`agent/raw-search-notes.ts`). The note names the builder to use next time, because the
+  builder checks the fields and the buckets. The panel is kept.
 - **Where a panel's meaning came from, in the interface.** On a first plan's card, each panel that
   names a definition carries a pill (`features/thread/plan-definitions.ts`): "Error rate ·
   checked v3" when the definition has checked filters in the panel's language, "from the
-  meaning" otherwise, and "not defined" for an unknown id. The thread's loader reads the
+  meaning" otherwise, and "not defined" for an id that is gone, such as on an older plan. The thread's loader reads the
   definitions with the thread. A panel's info bubble names the definition and version it copied
   (`features/dashboard/panel-definition.tsx`), reading `/definitions` when the bubble opens; when
   the definition changed since, it says the panel keeps its copy and how to take the new one.
@@ -2038,13 +2045,29 @@ the test; turning the switch off sends the provider's default.
   conversation; an assistant message may only name one the thread already has, to continue it
   after an approval, and the stored copy is used, so a client cannot forge the agent's side.
 - One run per thread at a time. A run stops when a plan waits for approval, when the agent asked
-  the person a question, when it has made the maximum number of tool calls (setting, default 25),
-  or after failed writes reach the repair attempts (setting, default 3, counted per answer). Then
-  one more step runs with no tool, so the model explains to the person what still fails: in one or
+  the person a question, when it pauses at a limit (below), or after failed writes reach the
+  repair attempts (setting, default 3, counted per answer; with 0, after the first failed write,
+  and never before one). Then one more step runs with no tool, and its instructions say so, so the
+  model does not write a call out as text. The model explains to the person what still fails: in one or
   two plain sentences, naming the panel and never showing query code, with one question about
   what to change (`outOfAttempts` in `agent/write-version.ts`, for dashboards and alerts); the run
   ends after it, and the thread stays in `building`, so a reply or Try again starts a new run with
   fresh attempts.
+- A dashboard run in `building` first checks that each connector it builds on answers, with the
+  connector's health test (`agent/unreachable.ts`, `reach` in `gate/reach.ts`). The model plans
+  from the schema the catalog cached, which reads the same when a connector is down, so without
+  the check the build would fail panel by panel. When one does not answer, the run makes no
+  model call: its answer is a `data-unreachable` part with their names, which the thread shows as
+  a warning card with Try again (`features/thread/unreachable-card.tsx`). The approved plan has
+  folded by then, so the card carries the action. The part has one id on every try, so a try that
+  finds them down again replaces the card instead of adding one. The model never reads the part. The health
+  report stays in the gate, since its message is for the admin.
+- The tool calls and the tokens of a run are soft limits (`toolCallsPerTurn` and `tokensPerTurn`,
+  settings, none by default; `agent/turn-limits.ts`). Each step counts its calls and tokens. Past
+  one, a step that would go on ends the run instead, and the answer ends with a `data-limit` part
+  (the limit, the setting and what the run spent). The thread shows it as a card with Continue,
+  which continues the answer in a new run with fresh counts. A run that ends on its own, waits
+  for a plan or asks the person never pauses.
 - While an approved plan is not built yet (the thread is `building`) and no write has failed in
   the run, every step must call a tool, so a model cannot say it is building and end the run with
   nothing built.
@@ -2089,6 +2112,8 @@ the test; turning the switch off sends the provider's default.
   built v2 · fixed after 1 failed try". Opening it shows each call and each try's card, as
   before: amber "Not saved · the agent fixes it, try 1 of 3" with each failing panel by title and
   why, and a green "Fixed after 1 failed try".
+- What the agent writes between its steps, such as what it fixes next, shows smaller and in grey
+  (`TextBlock` with `narration`). Only the text after its last step reads as its answer.
 - Only a try that stops the answer stays in view: red "I could not build this after 3 tries", with
   each failing panel and Try again, which continues the answer with fresh attempts. A failed
   write's own log line stays only for a refusal, which has no card. The draft pane says "build
@@ -2107,8 +2132,7 @@ the test; turning the switch off sends the provider's default.
   thread shows each answer's tokens and cost under it, and the thread's total in its header,
   priced from the list prices in `@quanthea/shared` (`modelPrices`, dated). A model without a price
   is named instead.
-- Each run adds its tokens to the thread, step by step, so a failed run still counts. A thread over its token budget (setting, default 1,000,000)
-  refuses new runs with a message that says so.
+- Each run adds its tokens to the thread, step by step, so a failed run still counts.
 - A provider's stream can end in the middle of a step, after the model called a tool and before
   the tool returned. The AI SDK refuses a conversation with such a call, so the thread could never
   run again. `agent/unanswered-calls.ts` closes each call with no result as a failed call ("The
@@ -2365,8 +2389,8 @@ The model's tools are decided per connector of the dashboard:
   spec has; a window has both ends, runs forwards and lies within the range asked about; an
   explanation has none. A failing answer goes back to the model with its issues for one repair;
   a second failure ends with a clean failure, never an unchecked answer.
-- Every step must call a tool. Past the tool call limit (the thread's `toolCallsPerTurn`) or the
-  token budget (the thread's `threadTokens`), the step may only call `give_answer`.
+- Every step must call a tool. Past the tool call limit (`toolCallsPerTurn`) or the token limit
+  (`tokensPerTurn`), when one is set, the step may only call `give_answer`.
 - A step that calls no tool, with no answer given, does not end the run
   (`agent/answer-steps.ts`). One more pass follows, from the question and the calls and results
   already made, without what that step wrote: its steps may only call `give_answer`, and it has

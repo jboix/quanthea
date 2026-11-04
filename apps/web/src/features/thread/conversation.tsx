@@ -18,8 +18,8 @@ import {
 import { PersonMessage } from './person-message.tsx';
 import { PlanCard } from './plan-card.tsx';
 import type { DraftPanel } from './plan-changes.ts';
-import { RepairCard } from './repair-card.tsx';
 import { ReportPlanCard } from './report-cards.tsx';
+import { stopCard } from './stop-cards.tsx';
 import { TextBlock } from './text-block.tsx';
 import { UsageLine } from './usage-line.tsx';
 import { WorkLog } from './work-log.tsx';
@@ -51,7 +51,7 @@ export interface ConversationContext {
   readonly onStartFrom: (dashboardId: string) => void;
   /** Asks the agent for a new dashboard after the matches. */
   readonly onBuildNew: () => void;
-  /** Starts a new run with fresh repair attempts after a build stopped. */
+  /** Starts a new run with fresh repair attempts and counts after a build stopped or paused. */
   readonly onTryAgain: () => void;
   /** Whether the thread has a draft, which settles the matches card. */
   readonly hasDraft: boolean;
@@ -65,6 +65,10 @@ interface PartContext extends ConversationContext {
   readonly answerable: boolean;
   /** Whether the agent is still writing this message. */
   readonly live: boolean;
+  /** Whether the part is the message's last, so nothing continued it. */
+  readonly last?: boolean;
+  /** Whether the part is text the agent wrote on its way, with more work after it. */
+  readonly narration?: boolean;
 }
 
 /**
@@ -219,7 +223,8 @@ function proposalView(part: ThreadPart, key: string): ReactNode | undefined {
 }
 
 /**
- * Renders a card of the agent's own: matches, a plan, a diff, a repair try.
+ * Renders a card of the agent's own: matches, a plan, a diff, a repair try, a pause, connectors
+ * that do not answer.
  *
  * @param part - The data part.
  * @param key - Its key.
@@ -230,18 +235,8 @@ function dataView(part: ThreadPart, key: string, context: PartContext): ReactNod
   const plan = planView(part, key, context);
   if (plan !== undefined) return plan;
   if (part.type === 'data-diff') return diffCard(part.data, key, context);
-  if (part.type === 'data-repair') {
-    const { answerable, busy, onTryAgain } = context;
-    return (
-      <RepairCard
-        key={key}
-        repair={part.data}
-        answerable={answerable}
-        busy={busy}
-        onTryAgain={onTryAgain}
-      />
-    );
-  }
+  const stop = stopCard(part, key, context);
+  if (stop !== undefined) return stop;
   return proposalView(part, key) ?? matchesView(part, key, context);
 }
 
@@ -276,10 +271,30 @@ function matchesView(part: ThreadPart, key: string, context: PartContext): React
  */
 function partView(part: ThreadPart, key: string, context: PartContext): ReactNode {
   if (part.type === 'text') {
-    return readableText(part.text) === '' ? null : <TextBlock key={key} text={part.text} />;
+    if (readableText(part.text) === '') return null;
+    return <TextBlock key={key} text={part.text} narration={context.narration === true} />;
   }
   if (part.type.startsWith('data-')) return dataView(part, key, context);
   return isToolPart(part) ? toolView(part, key, context) : null;
+}
+
+/**
+ * The context of one part of a message: whether it is the last part, and whether it is text
+ * the agent wrote on its way, with more work after it.
+ *
+ * @param message - The message.
+ * @param index - The part's position.
+ * @param lastWork - The position of the message's last work part, -1 for none.
+ * @param context - The message's context.
+ * @returns The part's context.
+ */
+function placed(
+  message: ThreadMessage,
+  index: number,
+  lastWork: number,
+  context: PartContext,
+): PartContext {
+  return { ...context, last: index === message.parts.length - 1, narration: index < lastWork };
 }
 
 /**
@@ -298,12 +313,17 @@ function assistantParts(message: ThreadMessage, context: PartContext): ReactNode
       nodes.push(<WorkLog key={`work-${nodes.length}`} parts={work} live={live} />);
     work = [];
   };
+  const lastWork = message.parts.findLastIndex(isWorkPart);
   message.parts.forEach((part, index) => {
     if (isWorkPart(part)) {
       work.push(part);
       return;
     }
-    const node = partView(part, `${message.id}-${index}`, context);
+    const node = partView(
+      part,
+      `${message.id}-${index}`,
+      placed(message, index, lastWork, context),
+    );
     if (node === null) return;
     flush(false);
     nodes.push(node);

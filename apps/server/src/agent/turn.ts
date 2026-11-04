@@ -15,8 +15,8 @@ import {
 } from 'ai';
 import { alertActiveTools, alertTurnTools } from './alert-turn.ts';
 import { askPersonTool } from './ask-tool.ts';
-import { buildTools, currentSpec } from './build-tools.ts';
-import { cachedInstructions, withCachedTail } from './cache.ts';
+import { buildTools } from './build-tools.ts';
+import { cachedInstructions, instructionsWith, withCachedTail } from './cache.ts';
 import { chartTools } from './chart-tools.ts';
 import {
   compactHistory,
@@ -29,6 +29,7 @@ import { dataTools } from './data-tools.ts';
 import { definitionsTopic } from './definition-facts.ts';
 import { proposeDefinitionsTool } from './definition-tools.ts';
 import { definitionTurnTools } from './definition-turn.ts';
+import { currentSpec } from './draft-spec.ts';
 import { guideTools, searchFiltersTopic, settingsTopic } from './guide-tools.ts';
 import { guidesInUse, languagesInUse } from './in-use-facts.ts';
 import { modeInstructions, type Plans, questionsOf, type TurnHints } from './mode-instructions.ts';
@@ -40,6 +41,7 @@ import { publicError } from './public-error.ts';
 import { reportActiveTools, reportTurnTools } from './report-turn.ts';
 import type { RunContext, ThreadMessage } from './run-context.ts';
 import { shownLayoutOf } from './shown-layout.ts';
+import { countLimits, withLimitPart } from './turn-limits.ts';
 import { tokensOf, withStep } from './usage.ts';
 
 /**
@@ -164,18 +166,15 @@ function turnTools(context: RunContext, now: () => number) {
 }
 
 /**
- * When the turn stops: at the tool call limit, when a plan waits, when the agent asked the person,
- * or after the step that explains what failed once the repair attempts are spent.
+ * When the turn stops: paused at a limit, when a plan waits, when the agent asked the person, or
+ * after the step that explains what failed once the repair attempts are spent.
  *
  * @param context - The run.
  * @returns The stop conditions.
  */
 function stopConditions(context: RunContext): StopCondition<ToolSet>[] {
-  const { limits } = context.settings;
-  const toolCalls: StopCondition<ToolSet> = ({ steps }) =>
-    steps.reduce((sum, step) => sum + step.toolCalls.length, 0) >= limits.toolCallsPerTurn;
   return [
-    toolCalls,
+    () => context.counters.paused !== undefined,
     () => context.counters.planPending,
     () => context.counters.asked,
     () => context.counters.explaining,
@@ -209,15 +208,17 @@ function kindTools(context: RunContext, now: () => number): { tools: ToolSet; ac
 }
 
 /**
- * Records a step's tokens: on the thread, for its budget; by model, for the answer's usage; and
- * in the ledger.
+ * Records a step's tokens and tool calls: for the turn's limits; on the thread; by model, for the
+ * answer's usage; and in the ledger.
  * Counted per step, so a run that fails halfway still records what it spent.
  *
  * @param context - The run.
  * @returns The step callback.
  */
 function countStep(context: RunContext) {
-  return ({ usage }: { usage: LanguageModelUsage }) => {
+  return (step: { usage: LanguageModelUsage; toolCalls: readonly unknown[] }) => {
+    const { usage } = step;
+    countLimits(context, step);
     const { modelId: model, job } = context.counters;
     context.threads.addTokens(context.threadId, usage.totalTokens ?? 0);
     context.counters.usage = withStep(context.counters.usage, model, usage);
@@ -272,17 +273,25 @@ function settingsStep(context: RunContext, active: readonly ToolName[]) {
   return { activeTools: active.filter((name) => name !== 'edit_settings') };
 }
 
+/** What a step without tools tells the model, so it never writes a call out as text instead. */
+const noToolsNote =
+  'This step offers no tool. Answer the person in plain words, and never write a tool call as text.';
+
 /**
- * What the next step may do: once the repair attempts are spent, no tool, so the model explains
- * what failed to the person and the turn ends after it.
+ * What the next step may do: once a write failed and the repair attempts are spent, no tool, so
+ * the model explains what failed to the person and the turn ends after it. With no attempts,
+ * that is after the first failed write: a turn with nothing failed always has its tools.
  *
  * @param context - The run.
- * @returns The step's tool settings, if it is the explaining step.
+ * @param instructions - The turn's instructions.
+ * @returns The step's tool settings and instructions, if it is the explaining step.
  */
-function explainingStep(context: RunContext) {
-  if (context.counters.failedWrites < context.settings.limits.repairAttempts) return {};
+function explainingStep(context: RunContext, instructions: Instructions) {
+  const { failedWrites } = context.counters;
+  if (failedWrites === 0 || failedWrites < context.settings.limits.repairAttempts) return {};
   context.counters.explaining = true;
-  return { activeTools: [], toolChoice: 'none' as const };
+  const told = instructionsWith(instructions, noToolsNote);
+  return { activeTools: [], toolChoice: 'none' as const, instructions: told };
 }
 
 /**
@@ -291,21 +300,23 @@ function explainingStep(context: RunContext) {
  * @param context - The run.
  * @param modelOf - Gives the model of a job.
  * @param job - The turn's job.
- * @param active - The tools the thread's phase offers.
+ * @param turn - The tools the thread's phase offers, and the turn's instructions.
+ * @param turn.active - The tools the thread's phase offers.
+ * @param turn.instructions - The turn's instructions.
  * @returns The step callback.
  */
 function stepSettings(
   context: RunContext,
   modelOf: ModelOf,
   job: ModelJob,
-  active: readonly ToolName[],
+  { active, instructions }: { active: readonly ToolName[]; instructions: Instructions },
 ) {
   const { provider } = context.settings;
   return ({ messages }: { messages: ModelMessage[] }) => ({
     ...stepModel(context, modelOf, job),
     ...buildingStep(context),
     ...settingsStep(context, active),
-    ...explainingStep(context),
+    ...explainingStep(context, instructions),
     messages: withCachedTail(
       endingOnPersonTurn(compactSteps(withoutReasoning(messages, provider))),
       provider,
@@ -342,7 +353,7 @@ export async function streamTurn(
       tools,
       convertDataPart: handEditText,
     }),
-    prepareStep: stepSettings(context, modelOf, job, active),
+    prepareStep: stepSettings(context, modelOf, job, { active, instructions }),
     tools,
     ...settingsStep(context, active),
     ...reasoningOption(context.settings),
@@ -352,9 +363,23 @@ export async function streamTurn(
     maxRetries: 2,
     onStepEnd: countStep(context),
   });
+  mergeTurn(context, result.stream);
+}
+
+/**
+ * Merges a turn's model stream into the writer, as UI chunks: the answer's usage in its
+ * metadata, and the limit it paused at, if any, before its end.
+ *
+ * @param context - The run.
+ * @param stream - The model stream of the turn.
+ */
+function mergeTurn(context: RunContext, stream: ReturnType<typeof streamText>['stream']): void {
   const messageMetadata = ({ part }: { part: { type: string } }) =>
     part.type === 'finish' ? { usage: context.counters.usage } : undefined;
-  context.writer.merge(
-    toUIMessageStream({ stream: result.stream, onError: publicError, messageMetadata }),
-  );
+  const chunks = toUIMessageStream<ToolSet, ThreadMessage>({
+    stream,
+    onError: publicError,
+    messageMetadata,
+  });
+  context.writer.merge(withLimitPart(context, chunks));
 }

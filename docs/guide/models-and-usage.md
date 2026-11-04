@@ -72,14 +72,19 @@ you can also type a model id.
 
 ## Limits
 
-| Setting                      | Default   | What it does                                                     |
-| ---------------------------- | --------- | ---------------------------------------------------------------- |
-| Stop a thread after (tokens) | 1,000,000 | A thread past this budget refuses new runs, and says so.         |
-| Max tool calls per turn      | 25        | A run stops after this many tool calls and explains where it is. |
-| Repair attempts per answer   | 3         | Failed writes the agent may repair before it stops and says why. |
+| Setting                            | Default  | What it does                                                                                              |
+| ---------------------------------- | -------- | --------------------------------------------------------------------------------------------------------- |
+| Ask to continue after (tool calls) | No limit | A turn pauses after this many tool calls and asks whether to go on.                                       |
+| Ask to continue after (tokens)     | No limit | A turn pauses after spending this many tokens and asks the same.                                          |
+| Repair attempts per answer         | 3        | Failed writes the agent may repair before it stops and says why. With 0, it says why after the first one. |
+
+A paused turn ends with a card that says what it spent, with **Continue**. Continue picks up
+where it stopped, with fresh counts. The limits are for builds left running unattended: leave
+them empty and a turn runs until it is done.
 
 A stopped build keeps its thread; a reply or **Try again** starts a new run with fresh attempts.
-Questions about a dashboard follow the same tool call and token limits.
+A question about a dashboard has no Continue: past a limit, the model answers from what it has
+read.
 
 When a provider answers that its quota is spent for the day, quanthea does not retry: it tells the
 person to try later or to pick another model. A per-minute limit is retried twice.

@@ -320,15 +320,31 @@
         "limits": {
           "type": "object",
           "properties": {
-            "threadTokens": {
-              "type": "integer",
-              "minimum": 10000,
-              "maximum": 10000000
+            "tokensPerTurn": {
+              "default": null,
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 10000,
+                  "maximum": 100000000
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "toolCallsPerTurn": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
+              "default": null,
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1000
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "repairAttempts": {
               "type": "integer",
@@ -336,7 +352,7 @@
               "maximum": 10
             }
           },
-          "required": ["threadTokens", "toolCallsPerTurn", "repairAttempts"]
+          "required": ["repairAttempts"]
         },
         "behaviour": {
           "type": "object",

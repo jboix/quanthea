@@ -257,8 +257,8 @@ model:
         scope: https://cognitiveservices.azure.com/.default
       clientSecret: ${ENTRA_CLIENT_SECRET}
   limits:
-    threadTokens: 1000000
-    toolCallsPerTurn: 25
+    toolCallsPerTurn: null
+    tokensPerTurn: null
     repairAttempts: 3
   behaviour:
     planApproval: true
@@ -276,7 +276,8 @@ model:
   expects. The secret goes in `clientSecret`. `baseUrl` must be the gateway: a vendor's own API
   takes keys only.
 - Each job's model may be empty: it then uses the build model.
-- `limits` and `behaviour` take their defaults when left out.
+- `limits` and `behaviour` take their defaults when left out. `toolCallsPerTurn` and
+  `tokensPerTurn` are `null` for no limit: past one, a turn pauses and asks whether to go on.
 
 ## retention
 

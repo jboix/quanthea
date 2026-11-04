@@ -31,12 +31,31 @@ const modelSettingsFields = z.object({
     answer: modelIdSchema.default(''),
   }),
   limits: z.object({
-    /** A thread stops after spending this many tokens. */
-    threadTokens: z.int().min(10_000, 'At least 10,000 tokens.').max(10_000_000),
-    /** A turn stops after this many tool calls. */
-    toolCallsPerTurn: z.int().min(1, 'At least 1.').max(100, 'At most 100.'),
-    /** How many times the agent may repair a failing panel. */
-    repairAttempts: z.int().min(0).max(10, 'At most 10.'),
+    /**
+     * A turn pauses after spending this many tokens, and the person may continue it; `null` never
+     * pauses. A question about a dashboard is answered once past it.
+     */
+    tokensPerTurn: z
+      .int()
+      .min(10_000, 'At least 10,000 tokens.')
+      .max(100_000_000, 'At most 100,000,000 tokens.')
+      .nullable()
+      .default(null),
+    /**
+     * A turn pauses after this many tool calls, and the person may continue it; `null` never
+     * pauses. A question about a dashboard is answered once past it.
+     */
+    toolCallsPerTurn: z
+      .int()
+      .min(1, 'At least 1.')
+      .max(1000, 'At most 1,000.')
+      .nullable()
+      .default(null),
+    /** How many times the agent may repair a failed write; with 0 it explains the first one. */
+    repairAttempts: z
+      .int('Enter a whole number from 0 to 10.')
+      .min(0, 'At least 0.')
+      .max(10, 'At most 10.'),
   }),
   behaviour: z.object({
     /** Ask for plan approval before building; small edits skip the plan. */
@@ -95,7 +114,7 @@ export const defaultModelSettings: ModelSettings = {
     metadata: 'claude-haiku-4-5',
     answer: 'claude-haiku-4-5',
   },
-  limits: { threadTokens: 1_000_000, toolCallsPerTurn: 25, repairAttempts: 3 },
+  limits: { tokensPerTurn: null, toolCallsPerTurn: null, repairAttempts: 3 },
   behaviour: { planApproval: true, testRun: true, shortReasoning: true, planQueries: false },
 };
 

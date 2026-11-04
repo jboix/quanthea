@@ -159,6 +159,13 @@ describe('applyEdit', () => {
     );
   });
 
+  test('says the draft has no panels when an edit names one in an empty draft', () => {
+    const empty = specOf(undefined, edit({ title: 'Orders', summary: 'shell' }));
+    expect(() => applyEdit(empty, edit({ remove: ['latest-order'], summary: 'x' }))).toThrow(
+      'No panel "latest-order". The draft has no panels yet.',
+    );
+  });
+
   test('needs a title for a new dashboard, and a chart recipe that exists', () => {
     expect(() => applyEdit(undefined, edit({ summary: 'x' }))).toThrow(
       'Give the new dashboard a title.',

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { dashboardSpecSchema } from '@quanthea/shared';
-import { checkLinks } from './check-links.ts';
+import { checkLinks, withLinkShape } from './check-links.ts';
 
 const grid = { x: 0, y: 0, w: 6, h: 4 };
 const query = { refId: 'A', connector: 'shop', language: 'sql', sql: 'SELECT 1' };
@@ -71,6 +71,18 @@ describe('the links of a spec', () => {
       'Browser detail has no variable $device; it has $browser, $env.',
     );
   });
+  test('tell a link of the wrong form what a link holds and what is pinned', () => {
+    const issues = [
+      { path: 'panels[3].view.columns[2].link', message: 'Invalid input' },
+      { path: 'panels[7].view', message: 'Unrecognized key: "mappings"' },
+    ];
+    const [link, other] = withLinkShape(issues, [detail]);
+    expect(link?.message).toStartWith('A link is { "dashboard": id');
+    expect(link?.message).toEndWith('; the pinned ones are browser-detail (Browser detail).');
+    expect(other).toEqual(issues[1]);
+    expect(withLinkShape(issues)[0]?.message).not.toContain('pinned ones');
+  });
+
   test('read a link to an address from the cell by default, and a stat from a variable', () => {
     const page = { url: 'https://docs.example.com/b/{value}' };
     expect(checkLinks(specWith(page, { url: 'https://docs.example.com/' }), [])).toEqual([]);

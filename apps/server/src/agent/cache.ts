@@ -51,3 +51,16 @@ export function withCachedTail(
     return Object.keys(others).length === 0 ? rest : { ...rest, providerOptions: others };
   }) as ModelMessage[];
 }
+
+/**
+ * The instructions with a note after them, so what comes before keeps its cache point.
+ *
+ * @param instructions - The instructions.
+ * @param note - The note, for this step only.
+ * @returns The instructions, with the note last.
+ */
+export function instructionsWith(instructions: Instructions, note: string): Instructions {
+  if (typeof instructions === 'string') return `${instructions}\n\n${note}`;
+  const messages = Array.isArray(instructions) ? instructions : [instructions];
+  return [...messages, { role: 'system', content: note }];
+}

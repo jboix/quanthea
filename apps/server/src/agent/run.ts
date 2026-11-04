@@ -37,6 +37,7 @@ import { withoutRawInput } from './raw-input.ts';
 import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts';
 import { streamTurn, turnInstructions } from './turn.ts';
 import { withAnsweredCalls } from './unanswered-calls.ts';
+import { unreachableConnectors, writeUnreachable } from './unreachable.ts';
 import { startingUsage } from './usage.ts';
 
 /** What the agent needs. */
@@ -72,8 +73,8 @@ export interface Agent {
    *
    * @param request - The thread, the message, the person and the signal.
    * @returns The UI message stream response.
-   * @throws {AppError} `bad_request` when no model is set up, the budget is spent, a run is going
-   *   on, or the message is not one the thread can take.
+   * @throws {AppError} `bad_request` when no model is set up, a run is going on, or the message is
+   *   not one the thread can take.
    */
   chat(request: ChatRequest): Promise<Response>;
 }
@@ -165,22 +166,15 @@ async function modelsFor(dependencies: AgentDependencies, threadId: string) {
 }
 
 /**
- * Takes the person's message: checks the budget, moves the thread, and names it.
+ * Takes the person's message: moves the thread, and names it.
  *
  * @param dependencies - The agent's dependencies.
  * @param request - The chat request.
- * @param budget - The thread's token budget.
  * @returns The conversation to run on, the hints of the new message, and the thread's plans.
  */
-function accept(dependencies: AgentDependencies, request: ChatRequest, budget: number) {
+function accept(dependencies: AgentDependencies, request: ChatRequest) {
   const { threads } = dependencies;
   const thread = threads.get(request.threadId);
-  if (thread.tokensUsed >= budget) {
-    throw new AppError(
-      'bad_request',
-      `This thread has used its budget of ${budget.toLocaleString('en')} tokens. Start a new thread, or raise the limit in Settings → Model.`,
-    );
-  }
   const parsed = incomingSchema.safeParse(request.message);
   if (!parsed.success) throw new AppError('bad_request', 'The message is not a chat message.');
   const message = parsed.data;
@@ -256,7 +250,7 @@ async function prepare(
   request: ChatRequest,
 ): Promise<PreparedTurn> {
   const { modelOf, settings, providerName } = await modelsFor(dependencies, request.threadId);
-  const { history, hints, plans } = accept(dependencies, request, settings.limits.threadTokens);
+  const { history, hints, plans } = accept(dependencies, request);
   const validated = await validateUIMessages<ThreadMessage>({
     messages: withAnsweredCalls(withoutRawInput(history)),
     dataSchemas: threadDataSchemas,
@@ -313,6 +307,9 @@ function freshCounters(
     modelId: modelIdFor(turn.settings, 'build'),
     job: 'build',
     usage: startingUsage(turn.messages, continuing),
+    toolCalls: 0,
+    tokens: 0,
+    paused: undefined,
   };
 }
 
@@ -374,6 +371,8 @@ function respond(
     generateId: newMessageId,
     execute: async ({ writer }) => {
       const context = runContext(dependencies, request, turn, writer);
+      const unreachable = await unreachableConnectors(context);
+      if (unreachable.length > 0) return writeUnreachable(context, unreachable);
       const { messages, plans, hints } = turn;
       const instructions = await turnInstructions(context, messages, plans, hints, now());
       await streamTurn(context, turn.modelOf, turn.messages, instructions, now);

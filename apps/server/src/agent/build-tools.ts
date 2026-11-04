@@ -2,7 +2,7 @@
  * The tools that build: propose a plan, and edit the dashboard with panels of data and charts. The
  * thread's state machine decides whether each may run, whatever the model tries.
  */
-import { type DashboardSpec, dashboardSpecSchema, type Plan, planSchema } from '@quanthea/shared';
+import type { DashboardSpec, Plan } from '@quanthea/shared';
 import { tool } from 'ai';
 import {
   type EditRequest,
@@ -11,9 +11,12 @@ import {
   settingsRequestSchema,
 } from '../dashboards/panels/index.ts';
 import { ignoredDefinitionNotes } from './definition-facts.ts';
+import { currentSpec } from './draft-spec.ts';
 import { languagesInUse } from './in-use-facts.ts';
 import { buildPanels } from './panel-build.ts';
+import { planSchemaFor, unknownDefinitionsError } from './plan-definitions.ts';
 import { layoutRepair } from './prompt-text.ts';
+import { rawSearchNotes } from './raw-search-notes.ts';
 import type { RunContext } from './run-context.ts';
 import { arrangedAsShown } from './shown-layout.ts';
 import { providerSchema } from './tool-schema.ts';
@@ -36,6 +39,20 @@ function unknownPanels(plan: Plan, draft: DashboardSpec | undefined): string[] {
 }
 
 /**
+ * Why a plan cannot be proposed: it names panels the draft lacks or definitions there are none of.
+ *
+ * @param context - The run.
+ * @param plan - The plan.
+ * @returns The error, or `undefined` for a plan that may be proposed.
+ */
+function planError(context: RunContext, plan: Plan): string | undefined {
+  const unknown = unknownPanels(plan, currentSpec(context));
+  if (unknown.length > 0)
+    return `The draft has no panel ${unknown.join(', ')}. Use the ids of the current draft's panels in replaces and removes.`;
+  return unknownDefinitionsError(plan, context.definitions);
+}
+
+/**
  * The tool that proposes a plan.
  *
  * @param context - The run.
@@ -45,13 +62,10 @@ function proposePlanTool(context: RunContext) {
   return tool({
     description:
       'Propose what you will build, before building it: a title, the variables and time range in words, and each panel with its kind, title, language and connector. For an existing draft, mark the panels you change with replaces and change, and list the ones you drop in removes. The person approves it; then you build. Call it once, as your last action.',
-    inputSchema: providerSchema(planSchema),
+    inputSchema: providerSchema(planSchemaFor(context.definitions)),
     execute: (plan) => {
-      const unknown = unknownPanels(plan, currentSpec(context));
-      if (unknown.length > 0)
-        return {
-          error: `The draft has no panel ${unknown.join(', ')}. Use the ids of the current draft's panels in replaces and removes.`,
-        };
+      const error = planError(context, plan);
+      if (error) return { error };
       const autoApprove = !context.settings.behaviour.planApproval;
       const proposed = context.threads.proposePlan(context.threadId, plan, autoApprove);
       context.writer.write({
@@ -101,6 +115,19 @@ function withDefinitionNotes(context: RunContext, result: WriteResult): WriteRes
 }
 
 /**
+ * Adds a note to a write that worked for each raw search of the edit that a builder writes.
+ *
+ * @param request - The edit.
+ * @param result - What the write returned.
+ * @returns The result, with the notes when there are any.
+ */
+function withRawSearchNotes(request: EditRequest, result: WriteResult): WriteResult {
+  const notes = result.ok ? rawSearchNotes(request) : [];
+  if (!result.ok || notes.length === 0) return result;
+  return { ...result, notes: [...(result.notes ?? []), ...notes] };
+}
+
+/**
  * How many of an edit's new panels the saved draft has: the ones left out do not count.
  *
  * @param context - The run.
@@ -130,7 +157,10 @@ async function editDashboard(context: RunContext, request: EditRequest): Promise
   if (result.ok) context.counters.panelsAdded += savedOf(context, added);
   // An arrangement someone made by hand is theirs: no advice unless the edit arranges.
   const advise = start === draft || request.arrange !== undefined;
-  return withDefinitionNotes(context, withLayout(context, result, advise));
+  return withRawSearchNotes(
+    request,
+    withDefinitionNotes(context, withLayout(context, result, advise)),
+  );
 }
 
 /**
@@ -166,24 +196,6 @@ function editSettingsTool(context: RunContext) {
     inputSchema: providerSchema(settingsRequestSchema, languagesInUse(context)),
     execute: (request) => editDashboard(context, { panels: [], remove: [], ...request }),
   });
-}
-
-/**
- * The thread's latest dashboard version, if it has one.
- *
- * @param context - The run.
- * @returns The spec.
- */
-export function currentSpec(
-  context: Pick<RunContext, 'threads' | 'threadId' | 'dashboards'>,
-): DashboardSpec | undefined {
-  const { dashboardId } = context.threads.row(context.threadId);
-  if (dashboardId === null) return undefined;
-  const latest = context.dashboards.get(dashboardId, 'editor').versions.at(-1)?.version;
-  if (latest === undefined) return undefined;
-  return dashboardSpecSchema.parse(
-    context.dashboards.getVersion(dashboardId, latest, 'editor').spec,
-  );
 }
 
 /**

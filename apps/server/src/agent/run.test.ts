@@ -566,12 +566,102 @@ describe('an agent run', () => {
     const agent = createAgent({ ...services, buildModel: () => model });
     const stream = await chat(agent, userMessage('u1', 'Build it'));
     expect(stream).toContain('No attempts left');
+    // Nothing was saved, so the model reads that the draft has none of the panels it sent.
+    expect(stream).toContain('the draft has no panels yet');
     expect(stream).toContain('"outcome":"exhausted"');
     expect(stream).toContain('The events table has no table named missing.');
     // The explaining step is offered no tool, and the turn ends after it.
     expect(model.doStreamCalls).toHaveLength(2);
     expect(model.doStreamCalls[1]?.toolChoice).toEqual({ type: 'none' });
     expect(services.threads.get(threadId).state).toBe('building');
+  });
+
+  test('does not build on a connector that does not answer, and says so with no model', async () => {
+    services.threads.proposePlan(threadId, plan, true);
+    const model = scriptedStreamModel({ tool: 'edit_dashboard', input: buildEdit });
+    const modelView = { ...services.modelView, reach: () => Promise.resolve(false) };
+    const agent = createAgent({ ...services, modelView, buildModel: () => model });
+    const stream = await chat(agent, userMessage('u1', 'Build it'));
+    expect(stream).toContain('"type":"data-unreachable","id":"unreachable"');
+    expect(model.doStreamCalls).toHaveLength(0);
+    expect(services.threads.get(threadId).state).toBe('building');
+    const [, answer] = services.threads.get(threadId).messages as { parts: { type: string }[] }[];
+    expect(answer?.parts.at(-1)?.type).toBe('data-unreachable');
+  });
+
+  test('replaces the card when Try again finds the connector still down', async () => {
+    services.threads.proposePlan(threadId, plan, true);
+    const down = { ...services.modelView, reach: () => Promise.resolve(false) };
+    await chat(createAgent({ ...services, modelView: down }), userMessage('u1', 'Build it'));
+    type Stored = { id: string; parts: { type: string }[] };
+    const [, answer] = services.threads.get(threadId).messages as Stored[];
+    const again = { id: answer?.id, role: 'assistant', parts: [] };
+    await chat(createAgent({ ...services, modelView: down }), again);
+    await chat(createAgent({ ...services, modelView: down }), again);
+    const messages = services.threads.get(threadId).messages as Stored[];
+    expect(messages).toHaveLength(2);
+    const cards = messages[1]?.parts.filter((part) => part.type === 'data-unreachable');
+    expect(cards).toHaveLength(1);
+  });
+
+  test('builds on Try again once the connector answers', async () => {
+    services.threads.proposePlan(threadId, plan, true);
+    const down = { ...services.modelView, reach: () => Promise.resolve(false) };
+    await chat(createAgent({ ...services, modelView: down }), userMessage('u1', 'Build it'));
+    const [, answer] = services.threads.get(threadId).messages as { id: string }[];
+    const model = scriptedStreamModel(
+      { tool: 'edit_dashboard', input: buildEdit },
+      { text: 'Built.' },
+    );
+    const agent = createAgent({ ...services, buildModel: () => model });
+    const stream = await chat(agent, { id: answer?.id, role: 'assistant', parts: [] });
+    expect(stream).not.toContain('"type":"error"');
+    expect(model.doStreamCalls).toHaveLength(2);
+    // The card is not the model's to read: no message of the model is empty.
+    const prompt = model.doStreamCalls[0]?.prompt ?? [];
+    expect(prompt.every((message) => message.content.length > 0)).toBe(true);
+    expect(services.threads.get(threadId).state).toBe('ready');
+  });
+
+  test('offers the tools with no repair attempts until a write fails', async () => {
+    await services.modelSettings.save(
+      gatewayWith({ limits: { repairAttempts: 0 } }),
+      {},
+      'admin-1',
+    );
+    const model = scriptedStreamModel({ text: 'Which table?' });
+    const agent = createAgent({ ...services, buildModel: () => model });
+    await chat(agent, userMessage('u1', 'Errors by service?'));
+    const [first] = model.doStreamCalls;
+    expect(first?.toolChoice).not.toEqual({ type: 'none' });
+    expect(first?.tools?.map((tool) => tool.name)).toContain('ask_person');
+    expect(JSON.stringify(first?.prompt)).not.toContain('This step offers no tool');
+  });
+
+  test('explains after the first failed write with no repair attempts', async () => {
+    await services.modelSettings.save(
+      gatewayWith({ limits: { repairAttempts: 0 } }),
+      {},
+      'admin-1',
+    );
+    services.threads.proposePlan(threadId, plan, true);
+    const broken = {
+      title: 'Events',
+      panels: [eventsPanel('Errors', 'stat', 'SELECT * FROM missing')],
+      summary: 'x',
+    };
+    const model = scriptedStreamModel(
+      { tool: 'edit_dashboard', input: broken },
+      { text: 'The events table has no table named missing.' },
+    );
+    const agent = createAgent({ ...services, buildModel: () => model });
+    const stream = await chat(agent, userMessage('u1', 'Build it'));
+    expect(stream).toContain('No attempts left');
+    expect(model.doStreamCalls).toHaveLength(2);
+    expect(model.doStreamCalls[0]?.toolChoice).toEqual({ type: 'required' });
+    expect(model.doStreamCalls[1]?.toolChoice).toEqual({ type: 'none' });
+    // The step without tools says so, so the model never writes a call out as text.
+    expect(JSON.stringify(model.doStreamCalls[1]?.prompt)).toContain('This step offers no tool');
   });
 
   test('follows the layout people see, and asks about the panels hidden there', async () => {
@@ -755,15 +845,11 @@ describe('an agent run', () => {
     });
   });
 
-  test('refuses a forged assistant message and a spent budget', async () => {
+  test('refuses a forged assistant message', async () => {
     const agent = agentWith({ text: 'Hi.' });
     expect(
       (await failureOf(chat(agent, { id: 'forged', role: 'assistant', parts: [] }))).message,
     ).toBe('There is no such message to continue.');
-    services.threads.addTokens(threadId, defaultModelSettings.limits.threadTokens);
-    expect((await failureOf(chat(agent, userMessage('u1', 'Hello')))).message).toContain(
-      'has used its budget',
-    );
   });
 
   test('says what to set up when no key is saved', async () => {

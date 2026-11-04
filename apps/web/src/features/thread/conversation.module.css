@@ -64,6 +64,12 @@
   font-weight: 600;
 }
 
+/* What the agent says on its way, between its steps: quieter than its answer. */
+.text[data-narration] {
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
 .log {
   display: flex;
   flex-direction: column;

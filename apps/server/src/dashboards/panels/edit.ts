@@ -87,8 +87,12 @@ function checkIds(panels: readonly Panel[], ids: readonly string[]): void {
   const known = new Set(panels.map((panel) => panel.id));
   const unknown = ids.find((id) => !known.has(id));
   if (unknown !== undefined) {
+    const panels =
+      known.size === 0
+        ? 'The draft has no panels yet.'
+        : `The panels are: ${[...known].join(', ')}.`;
     throw new QueryError(
-      `No panel "${unknown}". The panels are: ${[...known].join(', ')}. A panel the draft does not have, such as one left out, is new: send it without "replaces".`,
+      `No panel "${unknown}". ${panels} A panel the draft does not have, such as one left out, is new: send it without "replaces".`,
     );
   }
 }

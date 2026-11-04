@@ -13,7 +13,7 @@ import {
   sectionProblems,
 } from '@quanthea/shared';
 import { checkColors } from './check-colors.ts';
-import { checkLinks, type LinkTarget } from './check-links.ts';
+import { checkLinks, type LinkTarget, withLinkShape } from './check-links.ts';
 import { checkOption } from './check-option.ts';
 import { type ConnectorLookup, checkQueries } from './check-queries.ts';
 import { checkReferences } from './check-references.ts';
@@ -102,7 +102,8 @@ export function validateSpec(input: unknown, context: ValidationContext): Valida
       path: pathOf(issue.path),
       message: issue.message,
     }));
-    return { ok: false, issues };
+    const targets = context.writing ? context.linkTargets?.() : undefined;
+    return { ok: false, issues: withLinkShape(issues, targets) };
   }
   const spec = parsed.data;
   const timeRange = resolveTimeRange(spec.time, context.now);

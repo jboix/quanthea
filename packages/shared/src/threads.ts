@@ -176,6 +176,19 @@ export const panelDiffSchema = z.object({
   ),
 });
 
+/** Validates the limit a turn paused at. */
+const limitSchema = z.object({
+  /** `calls`: the tool calls of one turn; `tokens`: the tokens of one turn. */
+  kind: z.enum(['calls', 'tokens']),
+  /** The limit, from the model settings. */
+  limit: z.int().min(1),
+  /** What the turn spent when it paused. */
+  used: z.int().min(0),
+});
+
+/** The limit a turn paused at. */
+export type TurnLimit = z.infer<typeof limitSchema>;
+
 /**
  * Validates a write that failed its checks, or the write that worked after failures: which try it
  * was out of how many, the panels that failed and why, and the spec's other problems.
@@ -306,6 +319,10 @@ export const threadDataSchemas = {
   version: z.object({ dashboardId: z.string(), version: z.int(), summary: z.string() }),
   /** A failed write, or the repaired one, for the build log. */
   repair: repairSchema,
+  /** The turn paused at a limit of the model settings; the person may continue it. */
+  limit: limitSchema,
+  /** The connectors a build reads that did not answer, so it did not start; found with no model. */
+  unreachable: z.object({ connectors: z.array(connectorNameSchema).min(1).max(30) }),
   /** What changed from one version to the next, for the diff card. */
   diff: z.object({
     dashboardId: z.string(),

@@ -6,7 +6,7 @@
  * model on what it builds.
  */
 import type { ModelConnector } from '../gate/model-view.ts';
-import { currentSpec } from './build-tools.ts';
+import { currentSpec } from './draft-spec.ts';
 import { phaseOf } from './phases.ts';
 import { currentReport } from './report-edit.ts';
 import type { RunContext } from './run-context.ts';

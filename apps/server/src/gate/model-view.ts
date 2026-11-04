@@ -17,6 +17,7 @@ import { buildCatalog, createValueCache, type ValueCache } from './catalog.ts';
 import { type ModelEntity, modelSchema } from './model-schema.ts';
 import { type PanelRead, readOperationsForModel } from './operations-read.ts';
 import { type ResultMethods, resultMethods, unreachable } from './panel-results.ts';
+import { type ReachMethods, reachMethods } from './reach.ts';
 import { type ModelSample, sampleForModel } from './sample.ts';
 import { type AccessSettings, sourceAccessOf } from './source-access.ts';
 import type { GateSubject } from './subject.ts';
@@ -75,7 +76,7 @@ export type ModelDescription =
   | { readonly ok: false; readonly error: string };
 
 /** The connectors as the model sees them. */
-export interface ModelView extends ResultMethods {
+export interface ModelView extends ResultMethods, ReachMethods {
   /**
    * Lists the connectors.
    *
@@ -356,6 +357,7 @@ export function createModelView(access: ConnectorAccess, executor: QueryExecutor
     ...alertMethods(subjects),
     ...resultMethods(subjects),
     ...accessMethods(access),
+    ...reachMethods(access),
   };
 }
 

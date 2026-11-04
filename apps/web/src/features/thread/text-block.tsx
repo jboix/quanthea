@@ -20,21 +20,29 @@ function inline(line: string): ReactNode[] {
   });
 }
 
+/** Props of {@link TextBlock}. */
+interface TextBlockProps {
+  /** The model's text, as it wrote it. */
+  readonly text: string;
+  /** Whether it is what the agent said on its way, with more work after it: shown quieter. */
+  readonly narration?: boolean;
+}
+
 /**
- * The model's text, as paragraphs.
+ * The model's text, as paragraphs. Text the agent wrote on its way, such as what it fixes next,
+ * shows quieter than its answer.
  *
- * @param props - The text.
- * @param props.text - The model's text, as it wrote it.
+ * @param props - The text and whether it is said on the way.
  * @returns The paragraphs, or nothing when only reasoning was written.
  */
-export function TextBlock({ text }: { readonly text: string }) {
+export function TextBlock({ text, narration = false }: TextBlockProps) {
   const readable = readableText(text);
   if (readable === '') return null;
   const paragraphs = readable
     .split(/\n{2,}/)
     .map((text, position) => ({ key: String(position), text }));
   return (
-    <div className={styles.text}>
+    <div className={styles.text} data-narration={narration || undefined}>
       {paragraphs.map((paragraph) => (
         <p key={paragraph.key}>{inline(paragraph.text)}</p>
       ))}

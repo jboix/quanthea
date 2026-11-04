@@ -134,7 +134,7 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
         },
       ],
       defaultProviderId: 'anthropic',
-      limits: { threadTokens: 1_000_000, toolCallsPerTurn: 25, repairAttempts: 3 },
+      limits: { tokensPerTurn: null, toolCallsPerTurn: null, repairAttempts: 3 },
       behaviour: { planApproval: true, testRun: true, shortReasoning: true, planQueries: false },
     },
     keys: { anthropic: null },

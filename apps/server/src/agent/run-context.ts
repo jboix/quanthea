@@ -4,6 +4,7 @@ import type {
   DefinitionVersion,
   ModelSettings,
   ThreadData,
+  TurnLimit,
   TurnUsage,
 } from '@quanthea/shared';
 import type { UIMessage, UIMessageStreamWriter } from 'ai';
@@ -112,5 +113,11 @@ export interface RunContext extends AgentServices {
     job: string;
     /** The tokens spent so far, by model, the continued answer's included. */
     usage: TurnUsage;
+    /** The tool calls of this turn, for its limit. */
+    toolCalls: number;
+    /** The tokens of this turn, for its limit. */
+    tokens: number;
+    /** The limit the turn paused at, which ends it; the person may continue it. */
+    paused: TurnLimit | undefined;
   };
 }

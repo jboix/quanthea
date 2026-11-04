@@ -66,7 +66,8 @@ export interface PassEnd {
  */
 function stopConditions(prepared: PreparedAnswer, forced: boolean): StopCondition<ToolSet>[] {
   const { state } = prepared.tools;
-  const limit = prepared.resolved.settings.limits.toolCallsPerTurn + answerTries;
+  const calls = prepared.resolved.settings.limits.toolCallsPerTurn;
+  const limit = calls === null ? Number.POSITIVE_INFINITY : calls + answerTries;
   return [
     () => state.given !== undefined,
     () => state.failedAnswers >= answerTries,
@@ -88,8 +89,9 @@ function limitReached(
 ): StepLimit | undefined {
   const { limits } = prepared.resolved.settings;
   const calls = steps.reduce((sum, step) => sum + step.toolCalls.length, 0);
-  if (calls >= limits.toolCallsPerTurn) return 'calls';
-  return prepared.tokens >= limits.threadTokens ? 'tokens' : undefined;
+  if (limits.toolCallsPerTurn !== null && calls >= limits.toolCallsPerTurn) return 'calls';
+  const tokens = limits.tokensPerTurn;
+  return tokens !== null && prepared.tokens >= tokens ? 'tokens' : undefined;
 }
 
 /**
