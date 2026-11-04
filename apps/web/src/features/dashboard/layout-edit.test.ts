@@ -4,11 +4,12 @@ import {
   cellsOf,
   hidePanel,
   layoutChanged,
-  movePanel,
+  placePanel,
   resizePanel,
   settle,
   setWidth,
   showPanel,
+  stepPanel,
 } from './layout-edit.ts';
 
 /** Two panels side by side, a wide one under them, and a hidden one. */
@@ -32,25 +33,52 @@ function places(result: DashboardLayout) {
 }
 
 describe('arranging a dashboard by hand', () => {
-  test('a moved panel stays where it is put, and the others make room', () => {
-    const moved = places(movePanel(layout, 'c', { x: 0, y: 0 }));
+  test('a panel dragged up goes before those it passes the middle of', () => {
+    const moved = places(placePanel(layout, 'c', { x: 0, y: 1 }, false));
     expect(moved.c).toEqual({ x: 0, y: 0, w: 12, h: 4 });
     expect(moved.a).toEqual({ x: 0, y: 4, w: 6, h: 3 });
     expect(moved.b).toEqual({ x: 6, y: 4, w: 6, h: 3 });
+    expect(places(placePanel(layout, 'c', { x: 0, y: 2 }, false)).c).toEqual(
+      layout.panels[2]?.grid,
+    );
   });
 
-  test('panels rise into a gap, and a hidden one keeps its place', () => {
-    const moved = places(movePanel(layout, 'a', { x: 0, y: 20 }));
-    expect(moved.a).toEqual({ x: 0, y: 20, w: 6, h: 3 });
-    expect(moved.c).toEqual({ x: 0, y: 3, w: 12, h: 4 });
-    expect(moved.gone).toEqual({ x: 0, y: 0, w: 12, h: 2 });
-    // Let go, the moved panel rises too.
-    const settled = places(settle(movePanel(layout, 'a', { x: 0, y: 20 })));
-    expect(settled.a).toEqual({ x: 0, y: 7, w: 6, h: 3 });
+  test('a panel dragged down changes places once its foot passes the middle of the next', () => {
+    expect(places(placePanel(layout, 'a', { x: 0, y: 2 }, true)).a).toEqual({
+      x: 0,
+      y: 0,
+      w: 6,
+      h: 3,
+    });
+    const passed = places(placePanel(layout, 'a', { x: 0, y: 3 }, true));
+    expect(passed.c).toEqual({ x: 0, y: 3, w: 12, h: 4 });
+    expect(passed.a).toEqual({ x: 0, y: 7, w: 6, h: 3 });
+    expect(passed.gone).toEqual({ x: 0, y: 0, w: 12, h: 2 });
+  });
+
+  test('a dragged panel rises as far as it goes, never past the foot of the others', () => {
+    expect(places(placePanel(layout, 'a', { x: 0, y: 20 }, true)).a).toEqual({
+      x: 0,
+      y: 7,
+      w: 6,
+      h: 3,
+    });
+  });
+
+  test('the arrow keys move a panel to the next place it can take', () => {
+    expect(places(stepPanel(layout, 'a', { x: 0, y: 1 })).a).toEqual({ x: 0, y: 7, w: 6, h: 3 });
+    expect(places(stepPanel(layout, 'c', { x: 0, y: -1 })).c).toEqual({ x: 0, y: 0, w: 12, h: 4 });
+    expect(stepPanel(layout, 'c', { x: 0, y: 1 })).toEqual(layout);
+    expect(places(stepPanel(layout, 'a', { x: 1, y: 0 })).a).toEqual({ x: 1, y: 0, w: 6, h: 3 });
   });
 
   test('a panel stays on the grid and keeps a usable size', () => {
-    expect(places(movePanel(layout, 'a', { x: 9, y: -2 })).a).toEqual({ x: 6, y: 0, w: 6, h: 3 });
+    expect(places(placePanel(layout, 'a', { x: 9, y: -2 }, false)).a).toEqual({
+      x: 6,
+      y: 0,
+      w: 6,
+      h: 3,
+    });
     expect(places(resizePanel(layout, 'b', { w: 9, h: 0 })).b).toEqual({ x: 6, y: 0, w: 6, h: 2 });
     expect(places(resizePanel(layout, 'a', { w: 1, h: 99 })).a).toEqual({
       x: 0,
@@ -68,7 +96,7 @@ describe('arranging a dashboard by hand', () => {
 
   test('tells whether anything changed', () => {
     expect(layoutChanged(layout, settle(layout))).toBe(false);
-    expect(layoutChanged(layout, movePanel(layout, 'c', { x: 0, y: 0 }))).toBe(true);
+    expect(layoutChanged(layout, placePanel(layout, 'c', { x: 0, y: 0 }, false))).toBe(true);
   });
 });
 

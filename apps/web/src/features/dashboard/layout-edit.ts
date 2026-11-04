@@ -42,25 +42,30 @@ function overlaps(first: PanelGrid, second: PanelGrid): boolean {
 
 /**
  * Settles the shown panels: one held panel stays where it is, and every other one, in reading
- * order, moves down out of the way of those placed before it, then rises until it meets one. A
- * panel never jumps over another. Hidden panels keep their place, to come back to.
+ * order or the order given, moves down out of the way of those placed before it, then rises until
+ * it meets one. A panel never jumps over another. Hidden panels keep their place, to come back to.
  *
  * @param layout - The layout.
  * @param heldId - The panel being moved or resized, which keeps its place; none to settle all.
+ * @param order - The shown panels in the order they are placed, with the places they start from;
+ *   reading order when not given.
  * @returns The settled layout.
  */
-export function settle(layout: DashboardLayout, heldId?: string): DashboardLayout {
+export function settle(
+  layout: DashboardLayout,
+  heldId?: string,
+  order?: readonly LayoutPanel[],
+): DashboardLayout {
   const held = layout.panels.find((panel) => panel.id === heldId && !panel.hidden);
   const placed: PanelGrid[] = held ? [held.grid] : [];
-  const others = layout.panels
-    .filter((panel) => !panel.hidden && panel !== held)
-    .sort((a, b) => a.grid.y - b.grid.y || a.grid.x - b.grid.x);
+  const others =
+    order ??
+    layout.panels
+      .filter((panel) => !panel.hidden && panel !== held)
+      .sort((a, b) => a.grid.y - b.grid.y || a.grid.x - b.grid.x);
   const settled = new Map<string, PanelGrid>();
   for (const panel of others) {
-    const grid = { ...panel.grid };
-    const free = (y: number) => !placed.some((other) => overlaps({ ...grid, y }, other));
-    while (!free(grid.y)) grid.y += 1;
-    while (grid.y > 0 && free(grid.y - 1)) grid.y -= 1;
+    const grid = risen(panel.grid, placed);
     placed.push(grid);
     settled.set(panel.id, grid);
   }
@@ -70,6 +75,94 @@ export function settle(layout: DashboardLayout, heldId?: string): DashboardLayou
       return grid ? { ...panel, grid } : panel;
     }),
   };
+}
+
+/**
+ * Where a panel goes among those placed before it: down out of their way, then up until it meets
+ * one, so it never jumps over another.
+ *
+ * @param start - Where it is.
+ * @param placed - The places taken.
+ * @returns Its place.
+ */
+function risen(start: PanelGrid, placed: readonly PanelGrid[]): PanelGrid {
+  const grid = { ...start };
+  const free = (y: number) => !placed.some((other) => overlaps({ ...grid, y }, other));
+  while (!free(grid.y)) grid.y += 1;
+  while (grid.y > 0 && free(grid.y - 1)) grid.y -= 1;
+  return grid;
+}
+
+/**
+ * Whether a dragged panel goes before another in reading order: once it is past the other's
+ * middle, moving down by its foot and moving up by its top.
+ *
+ * @param grid - Where the dragged panel is.
+ * @param other - The other panel's place.
+ * @param down - Whether the drag goes down.
+ * @returns Whether it goes first.
+ */
+function goesBefore(grid: PanelGrid, other: PanelGrid, down: boolean): boolean {
+  const middle = other.y + other.h / 2;
+  return down ? grid.y + grid.h <= middle : grid.y < middle;
+}
+
+/**
+ * Places a dragged panel among the others: it takes its turn in reading order where it was
+ * dragged, and every panel, it included, then rises as far as it goes. A panel dragged past the
+ * middle of another changes places with it.
+ *
+ * @param layout - The layout.
+ * @param id - The panel.
+ * @param to - The column and row it was dragged to.
+ * @param down - Whether it was dragged down, rather than up or across.
+ * @returns The layout.
+ */
+export function placePanel(
+  layout: DashboardLayout,
+  id: string,
+  to: { readonly x: number; readonly y: number },
+  down: boolean,
+): DashboardLayout {
+  const moving = layout.panels.find((panel) => panel.id === id && !panel.hidden);
+  if (!moving) return layout;
+  const { w } = moving.grid;
+  const x = Math.min(gridColumns - w, Math.max(0, to.x));
+  const grid = { ...moving.grid, x, y: Math.max(0, to.y) };
+  const others = layout.panels
+    .filter((panel) => !panel.hidden && panel !== moving)
+    .sort((a, b) => a.grid.y - b.grid.y || a.grid.x - b.grid.x);
+  const at = others.findIndex((panel) => goesBefore(grid, panel.grid, down));
+  const order = [...others];
+  order.splice(at === -1 ? order.length : at, 0, { ...moving, grid });
+  return settle(layout, undefined, order);
+}
+
+/**
+ * Moves a panel one step with the keyboard: across by a column, or up or down to the next place it
+ * can take, changing places with the panel it passes.
+ *
+ * @param layout - The layout.
+ * @param id - The panel.
+ * @param step - The column or the row to go by, each -1, 0 or 1.
+ * @param step.x - Across.
+ * @param step.y - Up or down.
+ * @returns The layout, the same one when the panel can go no further.
+ */
+export function stepPanel(
+  layout: DashboardLayout,
+  id: string,
+  step: { readonly x: number; readonly y: number },
+): DashboardLayout {
+  const grid = layout.panels.find((panel) => panel.id === id)?.grid;
+  if (!grid) return layout;
+  for (let rows = 1; rows <= maxRows; rows += 1) {
+    const to = { x: grid.x + step.x, y: grid.y + step.y * rows };
+    const next = placePanel(layout, id, to, step.y > 0);
+    const after = next.panels.find((panel) => panel.id === id)?.grid;
+    if (step.y === 0 || after?.y !== grid.y) return next;
+  }
+  return layout;
 }
 
 /**
@@ -90,22 +183,6 @@ function reshape(layout: DashboardLayout, id: string, change: Partial<PanelGrid>
     return { ...panel, grid: { x, y: Math.max(0, merged.y), w, h } };
   });
   return settle({ panels }, id);
-}
-
-/**
- * Moves a panel to a cell.
- *
- * @param layout - The layout.
- * @param id - The panel.
- * @param to - The column and row of its top left corner.
- * @returns The layout.
- */
-export function movePanel(
-  layout: DashboardLayout,
-  id: string,
-  to: { readonly x: number; readonly y: number },
-): DashboardLayout {
-  return reshape(layout, id, to);
 }
 
 /**

@@ -671,9 +671,13 @@ On the pinned view, those who may arrange it get **Edit layout** on a screen wid
 pixels, where the grid has its twelve columns (`features/dashboard/layout-editor.tsx`). A layer
 of frames lies over the live panels on the same grid (`layout-overlay.tsx`): dragging a frame
 moves its panel, dragging its corner resizes it, and with the keyboard the arrow keys move the
-focused panel and Shift with an arrow resizes it, each change announced. The other panels move
-out of the way and rise into the gaps, never jumping over one another (`layout-edit.ts`). Save
-layout sends the layout with the revision it started from; Cancel drops it. Leaving the page
+focused panel and Shift with an arrow resizes it, each change announced. A moved panel floats
+under the pointer while its frame marks where it lands (`layout-drag.tsx`). It takes its turn in
+reading order where it is dragged, and every panel then rises as far as it goes, never jumping
+over another (`layout-edit.ts`). Dragged past the middle of another panel, it changes places
+with it, so a panel goes down past another rather than pushing it ahead. Up and Down move the
+focused panel to the next place it can take; a resized panel pushes the others out of its way.
+Save layout sends the layout with the revision it started from; Cancel drops it. Leaving the page
 with changes unsaved asks first, in the app and when the tab closes; changing the variables
 does not.
 

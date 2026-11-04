@@ -272,7 +272,8 @@ version is made, and the thread's drafts stay as they are.
 
 - **Edit layout**, in the header, lays a frame over each panel. The panels stay live under them.
 - **Move** a panel by dragging its frame, and **resize** it by dragging the frame's corner. It
-  snaps to the grid; the other panels move out of the way and rise into the gaps.
+  floats under the pointer while its frame shows where it lands, on the grid. Drag it past the
+  middle of another panel to change places with it; the others rise into the gaps.
 - **Full width**, **Half width** and **Hide** are in each frame's **⋯** menu. A hidden panel stays
   in the dashboard but is not shown, takes no space and is left out of snapshots and questions.
   **Hidden** in the bar lists them, and **Show** puts one back where it was.

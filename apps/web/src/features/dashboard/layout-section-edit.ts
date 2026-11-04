@@ -10,7 +10,7 @@ import {
   type LayoutSection,
   type PanelGrid,
 } from '@quanthea/shared';
-import { settle } from './layout-edit.ts';
+import { placePanel, settle } from './layout-edit.ts';
 
 /** What a version gives an editor to start its sections from. */
 export interface SectionedPanels {
@@ -139,7 +139,8 @@ function bottomOf(part: DashboardLayout): number {
 
 /**
  * Moves a panel into a section, at a cell or under its panels at the left edge, or out of every
- * section; the panels there make room, and those it leaves rise into its space.
+ * section; it takes its turn where it lands, every panel there rising as far as it goes, and those
+ * it leaves rise into its space.
  *
  * @param layout - The layout.
  * @param id - The panel.
@@ -160,7 +161,7 @@ export function moveToSection(
     : { ...entry.grid, x: 0, y: bottomOf(sectionLayout(layout, section)) };
   const moved = withPart(layout, { panels: [{ ...inSectionEntry(entry, section), grid }] });
   const left = withPart(moved, settle(sectionLayout(moved, entry.section)));
-  return withPart(left, settle(sectionLayout(left, section), id));
+  return withPart(left, placePanel(sectionLayout(left, section), id, grid, false));
 }
 
 /**
