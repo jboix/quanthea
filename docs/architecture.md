@@ -2138,11 +2138,14 @@ the test; turning the switch off sends the provider's default.
   before: amber "Not saved · the agent fixes it, try 1 of 3" with each failing panel by title and
   why, and a green "Fixed after 1 failed try".
 - An answer that builds an approved plan shows its work as one card instead
-  (`features/thread/build-card.tsx`, `build-progress.ts`). The plan is the last dashboard plan
-  shown before the answer, while it stays approved. While the build runs, the card says how many
-  of the plan's panels a saved write holds, for how long, and has Stop and a progress line. It
-  lists a step for reading the data, then one per planned panel, matched by title to the panels
-  each write sends: ready once a write that holds it saved, running while one writes it, and an
+  (`features/thread/build-card.tsx`, `build-progress.ts`). The plan is the dashboard plan shown
+  in the answer or before it, once approved, until an answer saves a write: the answer that
+  proposes a plan builds it when the person approves it there, an answer after a build that saved
+  nothing carries it, and a later change to the dashboard builds no plan. While the build runs, the
+  card says how many of the plan's panels a saved write holds, for how long, and has Stop and a
+  progress line. It lists a step for reading the data, then one per planned panel, matched by
+  title to the panels each write sends, and a planned panel no saved title names takes the next
+  saved panel the plan does not name, as the agent may retitle one: ready once a write that holds it saved, running while one writes it, and an
   amber "Fixing its query · second try" while its last write failed. Once the build ends, the
   card says the version built, the panels, the time worked and the cost, and the failed tries it
   fixed on the way; the steps fold under "Steps and details" with each call and test run. The

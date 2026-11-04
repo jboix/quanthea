@@ -1,7 +1,8 @@
-/* The bar stays under the screen's sticky header, on the ground, while the panels scroll. */
+/* The bar stays under the screen's sticky header, on the ground, while the panels scroll. A
+   scrolling body with padding at its top sets it as --sticky-inset, so the bar meets its edge. */
 .bar {
   position: sticky;
-  top: var(--sticky-top, 0px);
+  top: calc(var(--sticky-top, 0px) - var(--sticky-inset, 0px));
   z-index: 3;
   display: flex;
   flex-wrap: wrap;

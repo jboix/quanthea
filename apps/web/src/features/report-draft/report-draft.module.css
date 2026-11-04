@@ -26,6 +26,7 @@
   gap: var(--space-gap);
   min-height: 0;
   padding: var(--space-body-block) var(--space-body-inline) 32px;
+  --sticky-inset: var(--space-body-block);
   overflow: hidden auto;
 }
 

@@ -95,6 +95,19 @@ describe('the progress of a build', () => {
     expect(states).toEqual(['done', 'missing', 'missing']);
   });
 
+  test('counts a planned panel written under a title of its own', () => {
+    const parts = [
+      write(['Paid orders', 'Orders by channel', 'Deploys'], { ok: true, version: 1 }),
+    ];
+    const progress = buildProgress(parts, plan, false);
+    expect(progress.ready).toBe(3);
+    expect(progress.steps.map((step) => step.title)).toEqual([
+      'Paid orders',
+      'Orders per channel',
+      'Deploys',
+    ]);
+  });
+
   test('tells work that writes a dashboard from work that only reads', () => {
     expect(buildsPanels([write(['Paid orders'])])).toBe(true);
     expect(buildsPanels([tool('describe', 'output-available')])).toBe(false);
@@ -102,15 +115,29 @@ describe('the progress of a build', () => {
 });
 
 describe('the plan an answer builds', () => {
-  test('is the last plan shown before it, while that plan stays approved', () => {
-    const planPart = { type: 'data-plan', data: { planId: 'p1', body: plan } } as ThreadPart;
+  const planPart = { type: 'data-plan', data: { planId: 'p1', body: plan } } as ThreadPart;
+  const view = (status: string) =>
+    [{ id: 'p1', status, body: plan, decidedBy: null, createdAt: 0, decidedAt: null }] as never;
+  const saved = write(['Paid orders'], { ok: true, version: 1 });
+
+  test('is the plan shown in it, built there once approved, and no later answer', () => {
+    const messages = [
+      { id: 'a', role: 'assistant', parts: [planPart, saved] },
+      { id: 'b', role: 'user', parts: [] },
+      { id: 'c', role: 'assistant', parts: [write(['Paid orders'], { ok: true, version: 2 })] },
+    ] as ThreadMessage[];
+    expect(plansBuilt(messages, view('approved'))).toEqual([plan, undefined, undefined]);
+    expect(plansBuilt(messages, view('rejected'))).toEqual([undefined, undefined, undefined]);
+  });
+
+  test('carries to the next answers until one saves a write, as after a stopped build', () => {
+    const failed = write(['Paid orders'], { ok: false });
     const messages = [
       { id: 'a', role: 'assistant', parts: [planPart] },
-      { id: 'b', role: 'assistant', parts: [] },
+      { id: 'b', role: 'assistant', parts: [failed] },
+      { id: 'c', role: 'assistant', parts: [saved] },
+      { id: 'd', role: 'assistant', parts: [saved] },
     ] as ThreadMessage[];
-    const view = (status: string) =>
-      [{ id: 'p1', status, body: plan, decidedBy: null, createdAt: 0, decidedAt: null }] as never;
-    expect(plansBuilt(messages, view('approved'))).toEqual([undefined, plan]);
-    expect(plansBuilt(messages, view('rejected'))).toEqual([undefined, undefined]);
+    expect(plansBuilt(messages, view('approved'))).toEqual([plan, plan, plan, undefined]);
   });
 });

@@ -131,6 +131,27 @@ function marksOf(parts: readonly ThreadPart[]): PanelMarks {
   return marks;
 }
 
+/**
+ * The marks with each planned panel no saved title names given the next saved title the plan
+ * does not name, in order: the agent may write a planned panel under a title of its own.
+ *
+ * @param marks - What the work says of the panels.
+ * @param planned - The titles the plan names.
+ * @returns The marks, a renamed panel saved under its planned title.
+ */
+function withRenames(marks: PanelMarks, planned: readonly string[]): PanelMarks {
+  const keys = planned.map(keyOf);
+  const others = [...marks.saved].filter((title) => !keys.includes(title));
+  const saved = new Set(marks.saved);
+  for (const key of keys) {
+    if (saved.has(key) || others.length === 0) continue;
+    others.shift();
+    saved.add(key);
+    marks.failing.delete(key);
+  }
+  return { ...marks, saved };
+}
+
 /** The words of the try a retry is on. */
 const tryWords = ['first', 'second', 'third', 'fourth', 'fifth'];
 
@@ -183,8 +204,9 @@ export function buildProgress(
   plan: Plan,
   live: boolean,
 ): BuildProgress {
-  const marks = marksOf(parts);
-  const panels = plan.panels.map((panel) => panelStep(panel.title, marks, live));
+  const titles = plan.panels.map((panel) => panel.title);
+  const marks = withRenames(marksOf(parts), titles);
+  const panels = titles.map((title) => panelStep(title, marks, live));
   const repairs = parts.flatMap((part) => (part.type === 'data-repair' ? [part.data] : []));
   const versions = parts.flatMap((part) => {
     if (!isToolPart(part) || !buildTools.has(toolName(part))) return [];
@@ -212,8 +234,25 @@ export function buildsPanels(parts: readonly ThreadPart[]): boolean {
 }
 
 /**
- * The approved plan each message builds: the last dashboard plan shown before it, while that
- * plan stays approved.
+ * Whether some work saved a write of a dashboard.
+ *
+ * @param parts - The work.
+ * @returns Whether a write of panels or settings saved.
+ */
+function savedWrite(parts: readonly ThreadPart[]): boolean {
+  return parts.some(
+    (part) =>
+      isToolPart(part) &&
+      buildTools.has(toolName(part)) &&
+      (part.output as WriteOutput | undefined)?.ok === true,
+  );
+}
+
+/**
+ * The approved plan each message builds: the dashboard plan shown in it or before it, once
+ * approved, until a message saves a write of it. The answer that proposes a plan builds it when
+ * the person approves it there; a later answer that changes the dashboard builds no plan, so its
+ * work is not read against every planned panel.
  *
  * @param messages - The messages, in order.
  * @param plans - The thread's plans, for their statuses.
@@ -223,12 +262,33 @@ export function plansBuilt(
   messages: readonly ThreadMessage[],
   plans: readonly PlanView[],
 ): (Plan | undefined)[] {
-  let shown: string | undefined;
+  let unbuilt: string | undefined;
   return messages.map((message) => {
-    const view = plans.find((plan) => plan.id === shown);
-    const building =
-      view?.status === 'approved' && isDashboardPlan(view.body) ? view.body : undefined;
-    for (const part of message.parts) if (part.type === 'data-plan') shown = part.data.planId;
+    unbuilt = shownPlan(message.parts) ?? unbuilt;
+    const building = approvedDashboardPlan(plans, unbuilt);
+    if (building && buildsPanels(message.parts) && savedWrite(message.parts)) unbuilt = undefined;
     return building;
   });
+}
+
+/**
+ * The last plan some work shows.
+ *
+ * @param parts - The work.
+ * @returns The plan's id, or none.
+ */
+function shownPlan(parts: readonly ThreadPart[]): string | undefined {
+  return parts.findLast((part) => part.type === 'data-plan')?.data.planId;
+}
+
+/**
+ * A plan's body, when it is an approved dashboard plan.
+ *
+ * @param plans - The thread's plans.
+ * @param id - The plan, if any.
+ * @returns The body, or `undefined`.
+ */
+function approvedDashboardPlan(plans: readonly PlanView[], id: string | undefined) {
+  const view = plans.find((plan) => plan.id === id);
+  return view?.status === 'approved' && isDashboardPlan(view.body) ? view.body : undefined;
 }
