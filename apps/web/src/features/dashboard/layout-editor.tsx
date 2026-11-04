@@ -172,6 +172,10 @@ export function useArrangement(arranged: ArrangedVersion, allowed: boolean, path
     () => new Map(panels.map((panel) => [panel.id, filledTitle(panel.title, variables, values)])),
     [panels, variables, values],
   );
+  const fill = useCallback(
+    (title: string) => filledTitle(title, variables, values),
+    [variables, values],
+  );
   const editing = editor.draft !== null;
   return {
     editor,
@@ -183,7 +187,7 @@ export function useArrangement(arranged: ArrangedVersion, allowed: boolean, path
     ),
     arranging:
       editor.draft && arranged.sections
-        ? { layout: editor.draft, titles, onChange: editor.change }
+        ? { layout: editor.draft, titles, onChange: editor.change, fill }
         : undefined,
     onArrange: allowed && wide ? editor.start : undefined,
   };

@@ -106,7 +106,7 @@ The owner of its thread and admins arrange the panels under the headline numbers
 the active version that succeeded, on a screen wide enough for the grid's twelve columns.
 
 - **Move** a panel by dragging its frame, and **resize** it by dragging the frame's corner.
-  **Full width**, **Half width** and **Hide** sit at the foot of each frame.
+  **Full width**, **Half width** and **Hide** are in each frame's **⋯** menu.
 - A hidden panel stays in the report and is still computed by every run. It is not shown and is
   left out of questions about a run. **Hidden** in the bar lists them, and **Show** puts one back.
 - **Save layout** shows the arrangement to everyone, on every run of that version, the earlier

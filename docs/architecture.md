@@ -678,14 +678,19 @@ with changes unsaved asks first, in the app and when the tab closes; changing th
 does not.
 
 A dashboard is arranged section by section (`arranged-sections.tsx`, `layout-section-edit.ts`):
-the panels of no section first, then each section open, with its title to rename, Move up, Move
-down and Remove, and its panels on a grid of their own with their frames. A change in one section
-never moves another's panels. Each frame's Section choice moves its panel to the foot of another
-section, or out of every one. Add a section adds an empty one at the end; Remove leaves its panels
-in no section, arranged as they were. A layout with a section left untitled is not saved. The
-dashboard draws no section that holds no panel.
+the panels of no section first, then each section open, with its fold, its title to rename, Move
+up, Move down and Remove, and its panels on a grid of their own with their frames. A change in one
+section never moves another's panels. A frame dragged onto another section drops there, at the
+cell under its top left corner, or at the foot of a section folded or empty; dropped on the panels
+of no section, it leaves every section. The frame's Move to does the same from its menu. Folding a
+section while arranging hides its grid, not its place as a drop target, and is not saved. Add a
+section adds an empty one at the end; Remove leaves its panels in no section, arranged as they
+were. A layout with a section left untitled is not saved. The dashboard draws no section that
+holds no panel.
 
-Each frame offers Full width, Half width and Hide, and H hides the focused one. A hidden panel
+Each frame's ⋯ menu (`layout-frame-menu.tsx`) offers Full width, Half width and Hide, and Move to
+on a dashboard with sections, which names each section with its variables filled; H hides the
+focused frame. A hidden panel
 takes no space; the edit bar's **Hidden** lists them, and Show puts one back at the place it had,
 the others making room. The bar's **History** lists the version's revisions
 (`/d/:dashboardId/v/:version/layouts`, editors), and Restore saves a copy of an earlier one as the

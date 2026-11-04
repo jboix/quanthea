@@ -273,13 +273,16 @@ version is made, and the thread's drafts stay as they are.
 - **Edit layout**, in the header, lays a frame over each panel. The panels stay live under them.
 - **Move** a panel by dragging its frame, and **resize** it by dragging the frame's corner. It
   snaps to the grid; the other panels move out of the way and rise into the gaps.
-- **Full width**, **Half width** and **Hide** sit at the foot of each frame. A hidden panel stays
+- **Full width**, **Half width** and **Hide** are in each frame's **⋯** menu. A hidden panel stays
   in the dashboard but is not shown, takes no space and is left out of snapshots and questions.
   **Hidden** in the bar lists them, and **Show** puts one back where it was.
 - **Sections** show open, each with its title to rename, **Move up**, **Move down** and
-  **Remove**. A frame's **Section** choice moves its panel into another section, or out of every
-  one. **+ Add a section** adds an empty one at the end. Removing a section keeps its panels, out
-  of any section.
+  **Remove**. The chevron folds one while you arrange the others.
+- **Drag** a panel onto another section to move it there, folded or empty sections included.
+  Drop it on **Not in a section** to take it out of every one. **Move to**, in the frame's **⋯**
+  menu, does the same.
+- **+ Add a section** adds an empty one at the end. Removing a section keeps its panels, out of
+  any section.
 - With the keyboard, Tab to a frame. The arrow keys move it, Shift and an arrow resize it, and H
   hides it.
 - **Save layout** shows the arrangement to everyone. **Cancel** drops it. Leaving the page with

@@ -56,12 +56,28 @@ test('moves a panel into a section, under its panels, and out of every section',
     ['crashes', 'apps', 0],
     ['installs', 'apps', 0],
   ]);
-  expect(groupsOf(inside)).toEqual(['apps']);
+  expect(groupsOf(inside)).toEqual([undefined, 'apps']);
   const outside = moveToSection(inside, 'installs', undefined);
   expect(places(outside)).toEqual([
     ['errors', 'apps', 3],
     ['crashes', 'apps', 0],
     ['installs', undefined, 0],
+  ]);
+});
+
+test('drops a panel on a section at a cell, kept on the grid, the panels below making room', () => {
+  const start = withSections(version, plain);
+  const dropped = moveToSection(start, 'errors', 'apps', { x: 4, y: 0 });
+  expect(dropped.panels.find((entry) => entry.id === 'errors')?.grid).toEqual({
+    x: 0,
+    y: 0,
+    w: 12,
+    h: 3,
+  });
+  expect(places(dropped)).toEqual([
+    ['errors', 'apps', 0],
+    ['crashes', 'apps', 3],
+    ['installs', 'apps', 3],
   ]);
 });
 

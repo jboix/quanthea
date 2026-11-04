@@ -3,7 +3,13 @@
  * remove sections, and move a panel into a section or out of every one. Each section is arranged
  * on a grid of its own, so a change in one never moves the panels of another.
  */
-import type { DashboardLayout, LayoutPanel, LayoutSection, PanelGrid } from '@quanthea/shared';
+import {
+  type DashboardLayout,
+  gridColumns,
+  type LayoutPanel,
+  type LayoutSection,
+  type PanelGrid,
+} from '@quanthea/shared';
 import { settle } from './layout-edit.ts';
 
 /** What a version gives an editor to start its sections from. */
@@ -70,16 +76,14 @@ function specSections(
 }
 
 /**
- * The groups drawn while arranging, in order: the panels of no section when there are any, then
- * each section, empty ones included.
+ * The groups drawn while arranging, in order: the panels of no section, where a panel is dropped
+ * to take it out of its section, then each section, empty ones included.
  *
  * @param layout - The layout.
  * @returns The section ids, `undefined` for the panels of none.
  */
 export function groupsOf(layout: DashboardLayout): (string | undefined)[] {
-  const sections = (layout.sections ?? []).map((section) => section.id);
-  const loose = layout.panels.some((entry) => !entry.hidden && entry.section === undefined);
-  return loose || sections.length === 0 ? [undefined, ...sections] : sections;
+  return [undefined, ...(layout.sections ?? []).map((section) => section.id)];
 }
 
 /**
@@ -134,25 +138,29 @@ function bottomOf(part: DashboardLayout): number {
 }
 
 /**
- * Moves a panel into a section, under its panels at the left edge, or out of every section; the
- * panels it leaves rise into its space.
+ * Moves a panel into a section, at a cell or under its panels at the left edge, or out of every
+ * section; the panels there make room, and those it leaves rise into its space.
  *
  * @param layout - The layout.
  * @param id - The panel.
  * @param section - The section, or `undefined` for none.
+ * @param at - The cell of its top left corner, where it was dropped; under the panels when left out.
  * @returns The layout.
  */
 export function moveToSection(
   layout: DashboardLayout,
   id: string,
   section: string | undefined,
+  at?: { readonly x: number; readonly y: number },
 ): DashboardLayout {
   const entry = layout.panels.find((each) => each.id === id);
   if (!entry || entry.section === section) return layout;
-  const grid: PanelGrid = { ...entry.grid, x: 0, y: bottomOf(sectionLayout(layout, section)) };
+  const grid: PanelGrid = at
+    ? { ...entry.grid, x: Math.min(at.x, gridColumns - entry.grid.w), y: at.y }
+    : { ...entry.grid, x: 0, y: bottomOf(sectionLayout(layout, section)) };
   const moved = withPart(layout, { panels: [{ ...inSectionEntry(entry, section), grid }] });
   const left = withPart(moved, settle(sectionLayout(moved, entry.section)));
-  return withPart(left, settle(sectionLayout(left, section)));
+  return withPart(left, settle(sectionLayout(left, section), id));
 }
 
 /**

@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { type DropTarget, dropCell, dropTargetAt } from './layout-drop.ts';
 import {
   cellsOf,
   type GridMetrics,
@@ -21,6 +22,7 @@ import {
   settle,
   setWidth,
 } from './layout-edit.ts';
+import { FrameMenu, type QuickAction, type SectionMoves } from './layout-frame-menu.tsx';
 import styles from './layout-overlay.module.css';
 
 /** The grid's row height and gap, in pixels, as `panels.module.css` sets them. */
@@ -38,16 +40,6 @@ export interface LayoutOverlayProps {
   readonly sections?: SectionMoves | undefined;
 }
 
-/** The sections a panel can move to, and the move. */
-export interface SectionMoves {
-  /** The section arranged, or `undefined` for the panels of none. */
-  readonly current: string | undefined;
-  /** Every section, in order, with its title. */
-  readonly choices: readonly { readonly id: string; readonly title: string }[];
-  /** Moves a panel to a section, or out of every one with `undefined`. */
-  readonly onMove: (panelId: string, section: string | undefined) => void;
-}
-
 /** A drag under way. */
 interface Drag {
   /** The panel dragged. */
@@ -62,6 +54,8 @@ interface Drag {
   readonly base: DashboardLayout;
   /** The panel's place when the drag began. */
   readonly grid: PanelGrid;
+  /** Where the pointer went down in the frame, from its top left corner. */
+  readonly offset: { readonly x: number; readonly y: number };
 }
 
 /**
@@ -97,41 +91,109 @@ function dragged(drag: Drag, event: PointerEvent, element: HTMLElement | null): 
 }
 
 /**
- * Dragging frames with a pointer: the overlay captures the pointer, so a drag goes on outside the
- * frame it started on.
+ * The other section a move is over, while sections are arranged.
  *
- * @param props - The layout and the change callback.
+ * @param drag - The drag.
+ * @param event - The pointer event.
+ * @param sections - The sections, if arranged.
+ * @returns The section under the pointer, or `undefined` over the drag's own.
+ */
+function crossTarget(drag: Drag, event: PointerEvent, sections: SectionMoves | undefined) {
+  if (!sections || drag.mode !== 'move') return undefined;
+  return dropTargetAt(event.clientX, event.clientY, sections.current);
+}
+
+/**
+ * Drops a panel on another section, at the cell under its top left corner, or at the section's
+ * foot while it shows no grid.
+ *
+ * @param drag - The drag.
+ * @param target - The section dropped on.
+ * @param event - The pointer event.
+ * @param sections - The sections.
+ */
+function dropOn(drag: Drag, target: DropTarget, event: PointerEvent, sections: SectionMoves) {
+  const corner = { x: event.clientX - drag.offset.x, y: event.clientY - drag.offset.y };
+  sections.onHover(null);
+  sections.onDrop(drag.id, target.section, target.grid ? dropCell(target.grid, corner) : undefined);
+}
+
+/**
+ * Ends a drag: on another section, the panel drops there; otherwise the layout settles.
+ *
+ * @param drag - The drag.
+ * @param target - The other section under the pointer, if any.
+ * @param event - The pointer event.
+ * @param props - The change callback and the sections.
+ * @param layout - The layout as the drag left it.
+ */
+function finish(
+  drag: Drag,
+  target: DropTarget | undefined,
+  event: PointerEvent,
+  props: LayoutOverlayProps,
+  layout: DashboardLayout,
+) {
+  if (target && props.sections) dropOn(drag, target, event, props.sections);
+  else props.onChange(settle(layout));
+}
+
+/**
+ * Starts a drag from a pointer press on a frame, which it claims: no other handler sees it.
+ *
+ * @param event - The press.
+ * @param panel - The panel.
+ * @param mode - Whether it moves or resizes.
+ * @param base - The layout when the drag began.
+ * @returns The drag.
+ */
+function dragFrom(
+  event: PointerEvent,
+  panel: LayoutPanel,
+  mode: Drag['mode'],
+  base: DashboardLayout,
+) {
+  event.preventDefault();
+  event.stopPropagation();
+  const frame = (event.currentTarget as Element).closest('[data-frame]')?.getBoundingClientRect();
+  const offset = { x: event.clientX - (frame?.left ?? 0), y: event.clientY - (frame?.top ?? 0) };
+  return { id: panel.id, mode, x: event.clientX, y: event.clientY, base, grid: panel.grid, offset };
+}
+
+/**
+ * Dragging frames with a pointer: the overlay captures the pointer, so a drag goes on outside the
+ * frame it started on. Over another section, the panel stays where it was and drops there.
+ *
+ * @param props - The layout, the change callback and the sections.
  * @param overlay - The overlay element.
  * @returns The handlers, and the panel being dragged.
  */
 function usePointerDrag(props: LayoutOverlayProps, overlay: RefObject<HTMLDivElement | null>) {
   const drag = useRef<Drag | null>(null);
+  const over = useRef<DropTarget | undefined>(undefined);
   const latest = useRef(props.layout);
   latest.current = props.layout;
   const [active, setActive] = useState<string | null>(null);
   const start = (event: PointerEvent, panel: LayoutPanel, mode: Drag['mode']) => {
     if (event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
     overlay.current?.setPointerCapture(event.pointerId);
-    drag.current = {
-      id: panel.id,
-      mode,
-      x: event.clientX,
-      y: event.clientY,
-      base: latest.current,
-      grid: panel.grid,
-    };
+    drag.current = dragFrom(event, panel, mode, latest.current);
     setActive(panel.id);
   };
   const move = (event: PointerEvent) => {
-    if (drag.current) props.onChange(dragged(drag.current, event, overlay.current));
+    const current = drag.current;
+    if (!current) return;
+    over.current = crossTarget(current, event, props.sections);
+    props.sections?.onHover(over.current ? over.current.section : null);
+    props.onChange(over.current ? current.base : dragged(current, event, overlay.current));
   };
-  const end = () => {
-    if (!drag.current) return;
+  const end = (event: PointerEvent) => {
+    const current = drag.current;
+    if (!current) return;
     drag.current = null;
     setActive(null);
-    props.onChange(settle(latest.current));
+    finish(current, over.current, event, props, latest.current);
+    over.current = undefined;
   };
   return { start, move, end, active };
 }
@@ -277,9 +339,6 @@ export function LayoutOverlay(props: LayoutOverlayProps) {
   );
 }
 
-/** What a frame's quick actions do. */
-type QuickAction = 'full' | 'half' | 'hide';
-
 /**
  * A layout after a frame's quick action.
  *
@@ -310,49 +369,10 @@ interface LayoutFrameProps {
   readonly sections?: SectionMoves | undefined;
 }
 
-/** The value of the choice of no section. */
-const noSection = '';
-
-/**
- * The choice of the section a panel sits in, among the frame's quick actions.
- *
- * @param props - The panel, its title and the sections.
- * @param props.panel - The panel.
- * @param props.title - Its title.
- * @param props.sections - The sections, and the move.
- * @returns The choice.
- */
-function SectionChoice({
-  panel,
-  title,
-  sections,
-}: {
-  readonly panel: LayoutPanel;
-  readonly title: string;
-  readonly sections: SectionMoves;
-}) {
-  return (
-    <select
-      aria-label={`${title}: section`}
-      value={sections.current ?? noSection}
-      onChange={(event) =>
-        sections.onMove(panel.id, event.target.value === noSection ? undefined : event.target.value)
-      }
-    >
-      <option value={noSection}>No section</option>
-      {sections.choices.map((choice) => (
-        <option key={choice.id} value={choice.id}>
-          {choice.title.trim() === '' ? 'Untitled section' : choice.title}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 /**
  * One panel's frame: its handle, dragged to move the panel and focused to use the keyboard; its
- * corner, dragged to resize it; and its quick actions, the choice of its section among them while
- * sections are arranged.
+ * corner, dragged to resize it; and its ⋯ menu of quick actions, the section to move it to among
+ * them while sections are arranged.
  *
  * @param props - The panel, its title, whether it is dragged, and the handlers.
  * @returns The frame.
@@ -361,7 +381,7 @@ function LayoutFrame(props: LayoutFrameProps) {
   const { panel, title, active, onStart, onKey, onAction, sections } = props;
   const { w, h } = panel.grid;
   return (
-    <div className={styles.frame} data-active={active} style={placeStyle(panel.grid)}>
+    <div className={styles.frame} data-frame data-active={active} style={placeStyle(panel.grid)}>
       <button
         type="button"
         aria-roledescription="movable panel"
@@ -378,18 +398,7 @@ function LayoutFrame(props: LayoutFrameProps) {
           onPointerDown={(event) => onStart(event, panel, 'resize')}
         />
       </button>
-      <fieldset className={styles.actions} aria-label={`${title}: quick actions`}>
-        <button type="button" onClick={() => onAction(panel, 'full')}>
-          Full width
-        </button>
-        <button type="button" onClick={() => onAction(panel, 'half')}>
-          Half width
-        </button>
-        <button type="button" onClick={() => onAction(panel, 'hide')}>
-          Hide
-        </button>
-        {sections && <SectionChoice panel={panel} title={title} sections={sections} />}
-      </fieldset>
+      <FrameMenu panel={panel} title={title} onAction={onAction} sections={sections} />
     </div>
   );
 }
