@@ -136,6 +136,27 @@ describe('modelSchema and the objects a connector shows', () => {
     expect(shownWith({ showSystem: true })).toHaveLength(4);
   });
 
+  test('leaves out an alias onto a hidden index, and hides on an alias what its index hides', () => {
+    const alias = {
+      name: 'core_user_events',
+      kind: 'index' as const,
+      over: ['core_events'],
+      fields: [
+        { name: 'user_id', nativeType: 'keyword' },
+        { name: 'email', nativeType: 'keyword' },
+      ],
+    };
+    const visibility = { showSystem: false, mode: 'except' as const, names: [] as string[] };
+    const withAlias = { entities: [alias] };
+    const shown = scopeOf(visibility, 'search');
+    const subject = { ...subjectAt(2), scope: shown, hiddenFields: ['core_events.email'] };
+    expect(modelSchema(subject, withAlias)[0]?.fields.map((field) => field.name)).toEqual([
+      'user_id',
+    ]);
+    const hiding = scopeOf({ ...visibility, names: ['core_events'] }, 'search');
+    expect(modelSchema({ ...subject, scope: hiding }, withAlias)).toEqual([]);
+  });
+
   test('leaves out a table a hidden name covers in any schema, as a query on it is refused', () => {
     const table = (name: string) => ({ name, kind: 'table' as const, fields: [] });
     const tables = { entities: [table('orders'), table('hr.salaries'), table('hr.people')] };

@@ -48,6 +48,21 @@ function showsTarget(scope: ObjectScope, target: Resolved): boolean {
 }
 
 /**
+ * Whether the connector shows an entity of its schema: its own name, and every object it reads
+ * from, such as the indices behind an alias.
+ *
+ * @param scope - The connector's scope.
+ * @param entity - The entity's name, and what it reads from.
+ * @returns `true` when the model may list it.
+ */
+export function showsEntity(
+  scope: ObjectScope,
+  entity: { readonly name: string; readonly over?: readonly string[] | undefined },
+): boolean {
+  return showsTarget(scope, { name: entity.name, members: [...(entity.over ?? [])] });
+}
+
+/**
  * The error for a pattern that reaches too much, or nothing, of what the connector shows.
  *
  * @param hidden - How many of the names it reaches are hidden.

@@ -1,7 +1,8 @@
 /**
  * Reads the shape of Elasticsearch and OpenSearch: the open indices from their mappings and
  * document counts, never their documents. Daily and rollover indices (`logs-2026.09.29`,
- * `logs-000042`) become one entity named by the pattern that queries them all (`logs-*`).
+ * `logs-000042`) become one entity named by the pattern that queries them all (`logs-*`). Each
+ * alias is an entity too, with the fields of the indices behind it, which it names.
  */
 import type { SchemaEntity } from '../_shared/index.ts';
 import type { SearchApi } from './api.ts';
@@ -11,6 +12,11 @@ import { withDistinctEstimates } from './distinct.ts';
 /** The mappings answer: each index and its mapping. */
 type MappingsAnswer = Readonly<
   Record<string, { readonly mappings?: { readonly properties?: unknown } }>
+>;
+
+/** The aliases answer: each index, and the aliases that name it. */
+export type AliasesAnswer = Readonly<
+  Record<string, { readonly aliases?: Readonly<Record<string, { readonly filter?: unknown }>> }>
 >;
 
 /** One row of `_cat/indices`. */
@@ -109,22 +115,104 @@ function nativeTypeOf(type: string, format: string | null | undefined): string {
  * @param counts - The document counts.
  * @returns One entity per pattern or undated index.
  */
-export function toEntities(mappings: MappingsAnswer, counts: readonly IndexRow[]): SchemaEntity[] {
+export function toEntities(
+  mappings: MappingsAnswer,
+  counts: readonly IndexRow[],
+  aliases: AliasesAnswer = {},
+): SchemaEntity[] {
   const documents = new Map(counts.map((row) => [row.index, Number(row['docs.count'] ?? 0)]));
   const groups = new Map<string, Group>();
-  for (const [index, mapping] of Object.entries(mappings)) {
+  for (const index of Object.keys(mappings)) {
     const name = patternOf(index);
     const group: Group = groups.get(name) ?? emptyGroup();
-    group.indices.push(index);
-    group.documents += documents.get(index) ?? 0;
-    mappingFields(mapping.mappings?.properties, group.types);
-    addDateFormats(mapping.mappings?.properties, group.formats);
+    addIndex(group, index, mappings, documents);
     groups.set(name, group);
   }
-  return [...groups]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(0, maxEntities)
-    .map(([name, group]) => toEntity(name, group));
+  const indexEntities = [...groups].map(([name, group]) => toEntity(name, group));
+  const aliasEntities = [...aliasMembers(aliases)].map(([name, alias]) => {
+    const group = emptyGroup();
+    for (const index of alias.indices) addIndex(group, index, mappings, documents);
+    return aliasEntity(name, group, alias.filtered);
+  });
+  return [...indexEntities, ...aliasEntities]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, maxEntities);
+}
+
+/**
+ * Adds one open index to a group: its name, its documents, its fields and their date formats.
+ *
+ * @param group - The group.
+ * @param index - The index.
+ * @param mappings - The mappings answer.
+ * @param documents - The document counts, by index.
+ */
+function addIndex(
+  group: Group,
+  index: string,
+  mappings: MappingsAnswer,
+  documents: ReadonlyMap<string, number>,
+): void {
+  const properties = mappings[index]?.mappings?.properties;
+  if (properties === undefined && !(index in mappings)) return;
+  group.indices.push(index);
+  group.documents += documents.get(index) ?? 0;
+  mappingFields(properties, group.types);
+  addDateFormats(properties, group.formats);
+}
+
+/** An alias, as gathered from the indices it names. */
+interface AliasMembers {
+  /** The indices behind it. */
+  readonly indices: string[];
+  /** Whether it keeps only some of their documents. */
+  filtered: boolean;
+}
+
+/**
+ * The aliases, each with the indices behind it and whether it filters them. System aliases, which
+ * start with a dot, are left out.
+ *
+ * @param answer - The aliases answer.
+ * @returns The aliases, by name.
+ */
+function aliasMembers(answer: AliasesAnswer): Map<string, AliasMembers> {
+  const aliases = new Map<string, AliasMembers>();
+  for (const [index, entry] of Object.entries(answer)) {
+    for (const [name, alias] of Object.entries(entry.aliases ?? {})) {
+      if (name.startsWith('.')) continue;
+      const members = aliases.get(name) ?? { indices: [], filtered: false };
+      members.indices.push(index);
+      members.filtered ||= alias.filter !== undefined;
+      aliases.set(name, members);
+    }
+  }
+  return aliases;
+}
+
+/**
+ * The entity of an alias: the fields of the indices behind it, which it names, and their documents
+ * unless it filters them, when how many it keeps is not known.
+ *
+ * @param name - The alias.
+ * @param group - The open indices behind it.
+ * @param filtered - Whether it keeps only some of their documents.
+ * @returns The entity.
+ */
+function aliasEntity(name: string, group: Group, filtered: boolean): SchemaEntity {
+  const sorted = [...group.indices].sort();
+  const behind = sorted.length === 1 ? sorted[0] : `${sorted.length} indices`;
+  const description = filtered
+    ? `Alias of ${behind}, with a filter: it holds some of their documents.`
+    : `Alias of ${behind}.`;
+  const { rowEstimate, ...entity } = toEntity(name, group);
+  const over = [...new Set([...sorted, ...sorted.map(patternOf)])];
+  return {
+    ...entity,
+    description,
+    ...(filtered || rowEstimate === undefined ? {} : { rowEstimate }),
+    over,
+  };
 }
 
 /**
@@ -160,13 +248,16 @@ function toEntity(name: string, group: Group): SchemaEntity {
  */
 export async function describeIndices(api: SearchApi, signal: AbortSignal) {
   const open = { expand_wildcards: 'open' };
-  const [mappings, counts] = await Promise.all([
+  const [mappings, counts, aliases] = await Promise.all([
     api.request<MappingsAnswer>({ path: '/_mapping', query: open, signal }),
     api.request<IndexRow[]>({
       path: '/_cat/indices',
       query: { ...open, format: 'json', h: 'index,docs.count' },
       signal,
     }),
+    // Aliases add to the indices; credentials that may not list them still read the indices.
+    api.request<AliasesAnswer>({ path: '/_alias', query: open, signal }).catch(() => ({})),
   ]);
-  return { entities: await withDistinctEstimates(api, toEntities(mappings, counts), signal) };
+  const entities = toEntities(mappings, counts, aliases);
+  return { entities: await withDistinctEstimates(api, entities, signal) };
 }

@@ -7,13 +7,10 @@ import {
 } from '@quanthea/shared';
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
 import type { ConnectorRow } from '../db/connector-repository.ts';
-import { type GateSubject, isHiddenField, isWithheldField } from '../gate/subject.ts';
-import {
-  isSystemObject,
-  namingOf,
-  type ObjectScope,
-  showsObject,
-} from '../query/scope/object-scope.ts';
+import { withheldIn } from '../gate/model-schema.ts';
+import { type GateSubject, isHiddenField } from '../gate/subject.ts';
+import { isSystemObject, namingOf, type ObjectScope } from '../query/scope/object-scope.ts';
+import { showsEntity } from '../query/scope/search-scope.ts';
 import { maskSecret } from '../secrets/mask.ts';
 
 /**
@@ -92,16 +89,16 @@ export function toSubject(row: ConnectorRow, scope: ObjectScope): GateSubject {
  * What the model sees of a field, following the gate.
  *
  * @param subject - The connector.
- * @param entity - The entity name.
+ * @param entity - The entity.
  * @param field - The field.
  * @returns `nothing` when hidden, `values` when it can be sampled, `name` otherwise.
  */
 function modelSees(
   subject: GateSubject,
-  entity: string,
+  entity: SchemaEntity,
   field: SchemaField,
 ): 'values' | 'name' | 'nothing' {
-  if (isWithheldField(subject, entity, field.name)) return 'nothing';
+  if (withheldIn(subject, entity, field.name)) return 'nothing';
   const few = field.distinctEstimate !== undefined && field.distinctEstimate <= lowCardinalityLimit;
   return subject.accessLevel >= 2 && few ? 'values' : 'name';
 }
@@ -122,7 +119,7 @@ function entityView(subject: GateSubject, entity: SchemaEntity): SchemaView['ent
     ...(adminDescription === undefined ? {} : { adminDescription }),
     ...(entity.rowEstimate === undefined ? {} : { rows: entity.rowEstimate }),
     system: isSystemObject(subject.scope.family, entity.name),
-    shown: showsObject(subject.scope, entity.name),
+    shown: showsEntity(subject.scope, entity),
     fields: entity.fields.map((field) => {
       const fieldAdminDescription = subject.descriptions[`${entity.name}.${field.name}`];
       return {
@@ -132,7 +129,7 @@ function entityView(subject: GateSubject, entity: SchemaEntity): SchemaView['ent
         ...(fieldAdminDescription === undefined ? {} : { adminDescription: fieldAdminDescription }),
         hidden: isHiddenField(subject, entity.name, field.name),
         ...(field.distinctEstimate === undefined ? {} : { distinctValues: field.distinctEstimate }),
-        modelSees: modelSees(subject, entity.name, field),
+        modelSees: modelSees(subject, entity, field),
       };
     }),
   };

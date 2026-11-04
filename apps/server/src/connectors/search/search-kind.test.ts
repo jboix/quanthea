@@ -351,6 +351,44 @@ describe('search mappings and catalog', () => {
     ]);
   });
 
+  test('list each alias with the fields of the indices behind it, and name them', () => {
+    const mapping = { mappings: { properties: { level: { type: 'keyword' } } } };
+    const entities = toEntities(
+      { core_events: mapping, 'logs-2026.09.29': mapping, 'logs-2026.09.30': mapping },
+      [
+        { index: 'core_events', 'docs.count': '40' },
+        { index: 'logs-2026.09.29', 'docs.count': '10' },
+      ],
+      {
+        core_events: { aliases: { core_user_events: { filter: { term: { robot: false } } } } },
+        'logs-2026.09.29': { aliases: { 'all-logs': {}, '.kibana_alias': {} } },
+        'logs-2026.09.30': { aliases: { 'all-logs': {} } },
+      },
+    );
+    const fields = [{ name: 'level', nativeType: 'keyword', type: 'string' as const }];
+    expect(entities.map((entity) => entity.name)).toEqual([
+      'all-logs',
+      'core_events',
+      'core_user_events',
+      'logs-*',
+    ]);
+    expect(entities[0]).toEqual({
+      name: 'all-logs',
+      kind: 'index',
+      description: 'Alias of 2 indices.',
+      rowEstimate: 10,
+      over: ['logs-2026.09.29', 'logs-2026.09.30', 'logs-*'],
+      fields,
+    });
+    expect(entities[2]).toEqual({
+      name: 'core_user_events',
+      kind: 'index',
+      description: 'Alias of core_events, with a filter: it holds some of their documents.',
+      over: ['core_events'],
+      fields,
+    });
+  });
+
   test('a pattern names a date format only when every index with the field names the same', () => {
     const indexOf = (properties: Record<string, unknown>) => ({ mappings: { properties } });
     const millis = { type: 'date', format: 'epoch_millis' };

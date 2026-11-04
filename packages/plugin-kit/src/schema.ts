@@ -48,6 +48,11 @@ export interface SchemaEntity {
   readonly description?: string;
   /** An estimate of the number of rows or series, when the source knows it cheaply. */
   readonly rowEstimate?: number;
+  /**
+   * The objects it reads from, when it is a name over others, such as the indices behind an alias.
+   * The connector hides it when it hides one of them.
+   */
+  readonly over?: readonly string[];
   /** The fields. */
   readonly fields: readonly SchemaField[];
 }

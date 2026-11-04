@@ -2940,7 +2940,12 @@ type Frame = { refId: string; name?: string; fields: Field[]; values: unknown[][
   merged fields and document counts. A date field whose mapping names a format carries it in its
   type, such as `date (epoch_millis)`, so the model knows how the field is written. A pattern
   carries a format only when every index that has the field names the same one: where they
-  differ, or one names none, the type is plain `date`. One `_msearch` then estimates the distinct values of up to 50 keyword
+  differ, or one names none, the type is plain `date`. Each alias (`/_alias`) is an entity of its
+  own, with the merged fields of the open indices behind it and a description that names them
+  and says whether it filters; a filtered alias gives no document count. The entity lists those
+  indices and their patterns in `over`, and the gate leaves the alias out when the connector hides
+  one of them, and withholds on it a field hidden on one of them. System aliases, with a leading
+  dot, are left out, and a refused `/_alias` lists no alias. One `_msearch` then estimates the distinct values of up to 50 keyword
   fields per index, with `cardinality` over at most 100,000 documents per shard; a refused
   request leaves the estimates out. `sampleValues` runs a terms aggregation on a field the
   mapping has, through `.keyword` for a text field. Error types map to connector errors; a

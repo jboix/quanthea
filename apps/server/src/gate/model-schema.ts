@@ -3,7 +3,7 @@
  * the hidden fields, with metadata by access level.
  */
 import type { SchemaEntity, SchemaField, SchemaSnapshot } from '../connectors/_shared/index.ts';
-import { showsObject } from '../query/scope/object-scope.ts';
+import { showsEntity } from '../query/scope/search-scope.ts';
 import { type GateSubject, isWithheldField } from './subject.ts';
 
 /** A field as the model sees it. */
@@ -69,6 +69,21 @@ function modelField(subject: GateSubject, entity: string, field: SchemaField): M
 }
 
 /**
+ * Whether a field of an entity is withheld: on the entity, or on an object it reads from, so an
+ * alias never shows a field hidden on an index behind it.
+ *
+ * @param subject - The connector.
+ * @param entity - The entity.
+ * @param field - The field's name.
+ * @returns Whether the model may not see it.
+ */
+export function withheldIn(subject: GateSubject, entity: SchemaEntity, field: string): boolean {
+  return [entity.name, ...(entity.over ?? [])].some((name) =>
+    isWithheldField(subject, name, field),
+  );
+}
+
+/**
  * Turns one entity into what the model sees.
  *
  * @param subject - The connector.
@@ -84,14 +99,14 @@ function modelEntity(subject: GateSubject, entity: SchemaEntity): ModelEntity {
     ...(description === undefined ? {} : { description }),
     ...(showRows ? { rows: entity.rowEstimate } : {}),
     fields: entity.fields
-      .filter((field) => !isWithheldField(subject, entity.name, field.name))
+      .filter((field) => !withheldIn(subject, entity, field.name))
       .map((field) => modelField(subject, entity.name, field)),
   };
 }
 
 /**
- * The schema the model receives. The objects the connector does not show are left out, and hidden
- * fields are removed, at every level. Level 1 gets names,
+ * The schema the model receives. The objects the connector does not show are left out, with an
+ * alias onto one, and hidden fields are removed, at every level. Level 1 gets names,
  * types and descriptions; from level 2 it also gets row estimates and the number of distinct values
  * of fields with few of them.
  *
@@ -101,6 +116,6 @@ function modelEntity(subject: GateSubject, entity: SchemaEntity): ModelEntity {
  */
 export function modelSchema(subject: GateSubject, snapshot: SchemaSnapshot): ModelEntity[] {
   return snapshot.entities
-    .filter((entity) => showsObject(subject.scope, entity.name))
+    .filter((entity) => showsEntity(subject.scope, entity))
     .map((entity) => modelEntity(subject, entity));
 }
