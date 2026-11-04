@@ -9,11 +9,12 @@ import {
   type VariableOption,
   variableDefault,
 } from '@quanthea/shared';
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useFetcher } from 'react-router';
+import { Tabs, tabPanelProps } from '../../ui/tabs.tsx';
 import type { Loaded } from './data.ts';
 import type { RunTarget } from './panel-card.tsx';
-import panelStyles from './panels.module.css';
+import { SpacedGrid } from './panel-grid.tsx';
 import styles from './sections.module.css';
 import { choicesFromSearch } from './view-state.ts';
 
@@ -82,34 +83,44 @@ interface CopiesProps {
   readonly card: CardDrawer;
 }
 
+/** Props of the list of copies: the section's, with the values and their options. */
+type CopyListProps = Omit<CopiesProps, 'spec'> & {
+  /** The values, one copy each. */
+  readonly values: readonly string[];
+  /** The variable's options, for the values' labels. */
+  readonly options: readonly VariableOption[];
+};
+
 /**
- * The copies of a repeated section: its panels once for each value, each copy under the value's
- * label, every panel bound to that value.
+ * The copies of a repeated section: a tab for each value, and the chosen value's copy alone, its
+ * panels bound to that value, so the other copies run nothing until chosen.
  *
  * @param props - The section, its panels, the drawer, the values and their options.
- * @param props.values - The values, one copy each.
- * @param props.options - The variable's options, for the values' labels.
- * @returns The copies.
+ * @returns The tabs and the chosen copy.
  */
-function CopyList({
-  section,
-  panels,
-  card,
-  values,
-  options,
-}: Omit<CopiesProps, 'spec'> & {
-  readonly values: readonly string[];
-  readonly options: readonly VariableOption[];
-}) {
+function CopyList({ section, panels, card, values, options }: CopyListProps) {
+  const [chosen, choose] = useState(0);
   const variable = section.repeat ?? '';
-  return values.map((value) => (
-    <div key={value} className={styles.copy}>
-      <h3 className={styles.copyTitle}>{labelOfValue(options, value)}</h3>
-      <div className={panelStyles.grid}>
-        {panels.map((panel) => card(panel, { variable, value }))}
-      </div>
+  const index = chosen < values.length ? chosen : 0;
+  const value = values[index];
+  const name = `section-${section.id}`;
+  const tabs = values.map((each, at) => ({ id: String(at), label: labelOfValue(options, each) }));
+  return (
+    <div className={styles.copy}>
+      <Tabs
+        label={section.title}
+        tabs={tabs}
+        selected={String(index)}
+        onSelect={(id) => choose(Number(id))}
+        panels={name}
+      />
+      {value !== undefined && (
+        <div {...tabPanelProps(name, String(index))} className={styles.tabPanel}>
+          <SpacedGrid panels={panels} card={(panel) => card(panel, { variable, value })} />
+        </div>
+      )}
     </div>
-  ));
+  );
 }
 
 /**

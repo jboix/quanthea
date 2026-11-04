@@ -15,7 +15,6 @@ finds "Checkout latency".
 - Each card draws one panel live: the best match, else the first chart. No model is involved.
 - Under each card, the panels that match are listed. Opening one scrolls the dashboard to it.
 - The chips under the box filter by tag and by source. A dashboard must have every chip you pick.
-- Not finding it? Editors get a link that starts a new thread with the search as its question.
 
 Tags and the description come from the model when a dashboard is pinned. A dashboard can be
 found by a word in one of its queries too, such as a table or a metric name.

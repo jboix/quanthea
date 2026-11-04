@@ -2,6 +2,7 @@ import type { Principal } from '@quanthea/shared';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useFetcher } from 'react-router';
 import { type ColorScheme, useColorScheme } from '../../ui/color-scheme.ts';
+import { type Density, useDensity } from '../../ui/density.ts';
 import { Dialog } from '../../ui/dialog.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import styles from './account.module.css';
@@ -44,30 +45,72 @@ const schemes: readonly { scheme: ColorScheme; label: string }[] = [
   { scheme: 'system', label: 'System' },
 ];
 
+/** The densities the menu offers, in order. */
+const densities: readonly { value: Density; label: string }[] = [
+  { value: 'airy', label: 'Airy' },
+  { value: 'compact', label: 'Compact' },
+];
+
 /**
- * The appearance: light, dark, or the system's, kept in this browser.
+ * One row of choices, each a pressed or unpressed button.
  *
- * @returns The choice, as three buttons.
+ * @param props - The legend, the choices, the current one and the setter.
+ * @param props.legend - What is chosen.
+ * @param props.options - The choices, in order.
+ * @param props.current - The current choice.
+ * @param props.onChoose - Called with the choice picked.
+ * @returns The row.
  */
-function AppearanceChoice() {
-  const [current, choose] = useColorScheme();
+function ChoiceRow<Value extends string>({
+  legend,
+  options,
+  current,
+  onChoose,
+}: {
+  readonly legend: string;
+  readonly options: readonly { value: Value; label: string }[];
+  readonly current: Value;
+  readonly onChoose: (value: Value) => void;
+}) {
   return (
     <fieldset className={styles.appearance}>
-      <legend className={styles.legend}>Appearance</legend>
+      <legend className={styles.legend}>{legend}</legend>
       <div className={styles.schemes}>
-        {schemes.map(({ scheme, label }) => (
+        {options.map(({ value, label }) => (
           <button
-            key={scheme}
+            key={value}
             type="button"
             className={styles.scheme}
-            aria-pressed={current === scheme}
-            onClick={() => choose(scheme)}
+            aria-pressed={current === value}
+            onClick={() => onChoose(value)}
           >
             {label}
           </button>
         ))}
       </div>
     </fieldset>
+  );
+}
+
+/**
+ * The appearance: light, dark, or the system's, and airy or compact, kept in this browser.
+ *
+ * @returns The choices.
+ */
+function AppearanceChoice() {
+  const [scheme, chooseScheme] = useColorScheme();
+  const [density, chooseDensity] = useDensity();
+  const schemeOptions = schemes.map(({ scheme: value, label }) => ({ value, label }));
+  return (
+    <>
+      <ChoiceRow
+        legend="Appearance"
+        options={schemeOptions}
+        current={scheme}
+        onChoose={chooseScheme}
+      />
+      <ChoiceRow legend="Density" options={densities} current={density} onChoose={chooseDensity} />
+    </>
   );
 }
 

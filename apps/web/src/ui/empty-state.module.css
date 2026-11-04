@@ -1,0 +1,75 @@
+/* A quiet note in the middle of where the content would be, never a box in a corner. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 64px var(--space-body-inline);
+  text-align: center;
+}
+
+.empty[data-fill="true"] {
+  min-height: 100%;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+  color: var(--color-ink-secondary);
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.text {
+  max-width: 360px;
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-ink-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* A whole page: a larger mark and title, a little above the middle. */
+.empty[data-page="true"] {
+  padding-bottom: 12vh;
+}
+
+.empty[data-page="true"] .mark {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-panel);
+}
+
+.empty[data-page="true"] .mark svg {
+  width: 28px;
+  height: 28px;
+}
+
+.empty[data-page="true"] .title {
+  font-size: 24px;
+}
+
+.empty[data-page="true"] .text {
+  max-width: 440px;
+  font-size: 14.5px;
+}

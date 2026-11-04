@@ -171,7 +171,7 @@ describe('the layout the agent reads and asks for', () => {
     expect(refused).toEqual({
       ok: false,
       error:
-        'No arrangement "row-of-stats". A row of "arrange" starts with one of: stats, chart-table, full, two, three.',
+        'No arrangement "row-of-stats". A row of "arrange" starts with one of: stats, chart-table, full, two, three, stack.',
     });
     expect(saved).toMatchObject({ ok: true, version: 1 });
   });

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { type SubmitTarget, useFetcher } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import { Dialog } from '../../ui/dialog.tsx';
+import { BinIcon, HistoryIcon } from '../../ui/icons.tsx';
 import { Input } from '../../ui/input.tsx';
 import { RadioCards } from '../../ui/radio-cards.tsx';
 import styles from './bin.module.css';
@@ -16,14 +17,15 @@ type Keep = 'days' | 'forever';
 const keepOptions = [
   {
     value: 'days',
-    title: 'For a number of days',
-    tag: 'default',
-    description: 'The hourly purge deletes them after that. 0 deletes them at the next run.',
+    title: 'For some days',
+    description: 'Then purged.',
+    icon: <HistoryIcon />,
   },
   {
     value: 'forever',
-    title: 'Until someone deletes them',
-    description: 'Admins delete them from the bin, one by one or all at once.',
+    title: 'Until deleted',
+    description: 'Admins empty the bin.',
+    icon: <BinIcon />,
   },
 ] as const;
 
@@ -64,22 +66,28 @@ interface RetentionDialogProps {
 function KeepFields({ form }: { readonly form: ReturnType<typeof useRetentionForm> }) {
   return (
     <>
-      <RadioCards<Keep>
-        label="Keep deleted threads"
-        value={form.keep}
-        onChange={form.setKeep}
-        options={keepOptions}
-      />
-      {form.keep === 'days' && (
-        <Input
-          label="Days in the bin"
-          type="number"
-          min={0}
-          max={3650}
-          value={form.days}
-          onChange={(event) => form.setDays(event.target.value)}
-          error={form.valid ? undefined : 'A whole number from 0 to 3650.'}
+      <div className={styles.keep}>
+        <span className={styles.keepLabel}>Keep deleted threads</span>
+        <RadioCards<Keep>
+          label="Keep deleted threads"
+          value={form.keep}
+          onChange={form.setKeep}
+          options={keepOptions}
         />
+      </div>
+      {form.keep === 'days' && (
+        <div className={styles.days}>
+          <Input
+            label="Days in the bin"
+            type="number"
+            min={0}
+            max={3650}
+            value={form.days}
+            onChange={(event) => form.setDays(event.target.value)}
+            error={form.valid ? undefined : 'A whole number from 0 to 3650.'}
+            hint="0 purges them at the next hourly run."
+          />
+        </div>
       )}
     </>
   );
@@ -101,18 +109,25 @@ function RetentionForm({ binDays, managedBy, onClose }: Omit<RetentionDialogProp
   const save = () =>
     void fetcher.submit(intent as SubmitTarget, { method: 'post', encType: 'application/json' });
   return (
-    <fieldset className={styles.retention} disabled={managedBy !== undefined}>
-      {managedBy && <p className={styles.note}>{managedBy} sets this. Change it there.</p>}
-      <KeepFields form={form} />
-      {fetcher.data?.ok === false && <p className={styles.failure}>{fetcher.data.message}</p>}
-      <Button
-        variant="primary"
-        disabled={!form.valid || !form.changed || fetcher.state !== 'idle'}
-        onClick={save}
-      >
-        Save
-      </Button>
-    </fieldset>
+    <>
+      <fieldset className={styles.retention} disabled={managedBy !== undefined}>
+        {managedBy && <p className={styles.note}>{managedBy} sets this. Change it there.</p>}
+        <KeepFields form={form} />
+        {fetcher.data?.ok === false && <p className={styles.failure}>{fetcher.data.message}</p>}
+      </fieldset>
+      <div className={styles.dialogActions}>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          variant="primary"
+          disabled={
+            managedBy !== undefined || !form.valid || !form.changed || fetcher.state !== 'idle'
+          }
+          onClick={save}
+        >
+          Save
+        </Button>
+      </div>
+    </>
   );
 }
 

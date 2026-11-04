@@ -1,4 +1,4 @@
-/** Settings → Authentication: the loader, and the action that changes the sign-in providers. */
+/** Settings → Sign-in: the loader, and the action that changes the sign-in providers. */
 import {
   type EndpointInput,
   enableIdentityProviderEndpoint,

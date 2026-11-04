@@ -36,10 +36,12 @@ export {
   dashboardLayoutSchema,
   type LaidOutSpec,
   type LayoutPanel,
+  type LayoutSection,
   layoutProblems,
   type PanelGrid,
   packGrid,
   packLayout,
+  packSections,
   specLayout,
 } from './layout.ts';
 export {

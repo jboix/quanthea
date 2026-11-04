@@ -16,6 +16,13 @@
   --title-header-name: 8rem;
 }
 
+/* A screen's header stays at the top while the screen scrolls, over what scrolls under it. */
+.header[data-sticky="true"] {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
 .header[data-align="start"] {
   align-items: flex-start;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { Repair } from '@quanthea/shared';
 import type { ThreadMessage } from './messages.ts';
-import { buildStopped, lastRepair, repairTitle } from './repairs.ts';
+import { buildStopped, lastRepair, repairTitle, stillFailing } from './repairs.ts';
 
 /**
  * A try of the repair loop.
@@ -42,5 +42,18 @@ describe('the repair loop in the thread', () => {
     const asked = { id: 'u2', role: 'user', parts: [] } as unknown as ThreadMessage;
     expect(buildStopped([answer(repair('exhausted', 3)), asked])).toBe(false);
     expect(lastRepair([answer()])).toBeUndefined();
+  });
+});
+
+describe('what still fails', () => {
+  test('names the failing panels, a few at most, or the dashboard', () => {
+    const failing = (...titles: string[]) => ({
+      ...repair('exhausted', 3),
+      panels: titles.map((title) => ({ id: title, title, problems: [] })),
+    });
+    expect(stillFailing(failing('Orders'))).toBe('Orders still fails.');
+    expect(stillFailing(failing('Orders', 'Deploys'))).toBe('Orders and Deploys still fail.');
+    expect(stillFailing(failing('A', 'B', 'C', 'D'))).toBe('A, B and 2 more still fail.');
+    expect(stillFailing(failing())).toBe('The dashboard as a whole still has a problem.');
   });
 });

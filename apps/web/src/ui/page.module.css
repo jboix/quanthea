@@ -1,8 +1,8 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 36px 48px;
+  gap: var(--space-section);
+  padding: var(--space-page-block) var(--space-page-inline);
   min-width: 0;
 }
 

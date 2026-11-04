@@ -151,7 +151,7 @@ function BodyRow({
  * @param props - The table built from the results, and the rows a page shows.
  * @param props.table - The table.
  * @param props.pageSize - How many rows a page shows.
- * @returns The table and its pager.
+ * @returns The table, scrolling on its own, and its pager under it.
  */
 function WorkedTable({
   table,
@@ -166,30 +166,32 @@ function WorkedTable({
   const fixed = table.columns.some((column) => column.width);
   return (
     <>
-      <table className={styles.table} data-fixed={fixed || undefined}>
-        <ColumnWidths columns={table.columns} />
-        <thead>
-          <TableHead
-            columns={table.columns}
-            sort={state.sort}
-            onSort={(column) =>
-              setState((now) => ({ ...now, sort: nextSort(now.sort, column), offset: 0 }))
-            }
-          />
-          {filtering && (
-            <TableFilters
+      <div className={tableStyles.tableScroll}>
+        <table className={tableStyles.table} data-fixed={fixed || undefined}>
+          <ColumnWidths columns={table.columns} />
+          <thead>
+            <TableHead
               columns={table.columns}
-              filters={state.filters}
-              onFilter={(column, text) => setState((now) => withFilter(now, column, text))}
+              sort={state.sort}
+              onSort={(column) =>
+                setState((now) => ({ ...now, sort: nextSort(now.sort, column), offset: 0 }))
+              }
             />
-          )}
-        </thead>
-        <tbody>
-          {page.rows.map((row) => (
-            <BodyRow key={row.key} row={row} columns={table.columns} fixed={fixed} />
-          ))}
-        </tbody>
-      </table>
+            {filtering && (
+              <TableFilters
+                columns={table.columns}
+                filters={state.filters}
+                onFilter={(column, text) => setState((now) => withFilter(now, column, text))}
+              />
+            )}
+          </thead>
+          <tbody>
+            {page.rows.map((row) => (
+              <BodyRow key={row.key} row={row} columns={table.columns} fixed={fixed} />
+            ))}
+          </tbody>
+        </table>
+      </div>
       <TablePager
         page={page}
         size={pageSize}
@@ -227,9 +229,42 @@ function RecordList({ table }: { readonly table: TableRows }) {
 }
 
 /**
+ * The first row of a table as one headline value, its first column, and the other cells on one
+ * line below, each named by its column for a pointer and a screen reader.
+ *
+ * @param props - The table.
+ * @param props.table - The table built from the results.
+ * @returns The compact record.
+ */
+function CompactRecord({ table }: { readonly table: TableRows }) {
+  const cells = table.rows[0]?.cells ?? [];
+  const [headline, ...details] = table.columns.map((column, index) => ({
+    column,
+    cell: cells[index] ?? { value: null, text: '' },
+  }));
+  return (
+    <div className={tableStyles.compact}>
+      {headline && (
+        <div className={tableStyles.compactValue}>
+          <CellText cell={headline.cell} toneAs={headline.column.toneAs} />
+        </div>
+      )}
+      <p className={tableStyles.compactDetails}>
+        {details.map(({ column, cell }) => (
+          <span key={column.label} title={column.label}>
+            <span className={tableStyles.visuallyHidden}>{column.label}: </span>
+            <CellText cell={cell} toneAs={column.toneAs} />
+          </span>
+        ))}
+      </p>
+    </div>
+  );
+}
+
+/**
  * A table. A viewer sorts it by a click on a header, filters it per column and reads it a page at
  * a time; that state starts again when the columns change. A record shows its first row as
- * labelled values instead.
+ * labelled values instead, and a compact one as a headline value over a line of the others.
  *
  * @param props - The view, the outcomes, the time zone, the dashboard's colours and the links.
  * @returns The table.
@@ -240,9 +275,10 @@ export function TableView({ view, queries, timeZone, colors, links }: TableViewP
     [view, queries, timeZone, colors, links],
   );
   const columnsKey = table.columns.map((column) => column.label).join('\u0000');
+  if (view.record && view.compact) return <CompactRecord table={table} />;
   if (view.record) return <RecordList table={table} />;
   return (
-    <div className={styles.tableScroll}>
+    <div className={tableStyles.tableFrame}>
       <WorkedTable key={columnsKey} table={table} pageSize={view.pageSize ?? defaultPageSize} />
       {table.truncated && (
         <p className={styles.note}>Showing the first {table.rows.length} rows.</p>

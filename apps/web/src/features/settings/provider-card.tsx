@@ -21,7 +21,7 @@ const providerOptions = [
   {
     value: 'openai-compatible' as const,
     title: 'OpenAI-compatible',
-    description: 'Azure OpenAI, LiteLLM, Ollama, OpenRouter, vLLM…',
+    description: 'Azure, LiteLLM, Ollama, vLLM…',
   },
 ];
 
@@ -34,13 +34,12 @@ const connectionOptions: readonly {
   {
     value: 'api-key',
     title: 'API key',
-    description: 'A key from the provider or the gateway. Stored on this server.',
+    description: 'Stored on this server.',
   },
   {
     value: 'oauth-client-credentials',
     title: 'Identity provider',
-    description:
-      'quanthea signs in as an app with a client ID and secret, and gets a short-lived token. Entra ID, Okta, Keycloak.',
+    description: 'Entra ID, Okta, Keycloak.',
   },
 ];
 

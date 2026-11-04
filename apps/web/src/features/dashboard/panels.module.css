@@ -14,15 +14,15 @@
   gap: 8px;
   min-width: 0;
   min-height: 0;
-  padding: 16px 20px;
+  padding: var(--space-panel-block) var(--space-panel-inline);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
 }
 
 .panel[data-selected="true"] {
-  border: 2px solid var(--color-accent);
-  padding: 15px 19px;
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
 }
 
 .heading {
@@ -129,45 +129,6 @@
 
 .error {
   color: var(--color-danger);
-}
-
-.tableScroll {
-  height: 100%;
-  overflow: auto;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13.5px;
-}
-
-.table th {
-  position: sticky;
-  top: 0;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
-  font-weight: 500;
-  color: var(--color-ink-secondary);
-  text-align: left;
-}
-
-.table td {
-  padding: 7px 0;
-  border-bottom: 1px solid var(--color-divider);
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-.table [data-align="right"] {
-  text-align: right;
-  font-family: var(--font-sans);
-}
-
-.table th + th,
-.table td + td {
-  padding-left: 16px;
 }
 
 @keyframes pulse {
@@ -311,13 +272,13 @@
 }
 
 .panel[data-plan="changed"] {
-  border: 2px solid var(--color-series-2);
-  padding: 15px 19px;
+  outline: 2px solid var(--color-series-2);
+  outline-offset: -1px;
 }
 
 .panel[data-plan="removed"] {
-  border: 2px dashed var(--color-danger);
-  padding: 15px 19px;
+  outline: 2px dashed var(--color-danger);
+  outline-offset: -1px;
 }
 
 .panel[data-plan="same"] {

@@ -9,8 +9,10 @@ interface RadioCardOption<Value extends string | number> {
   readonly title: string;
   /** A short tag after the title, such as `default`. */
   readonly tag?: string;
-  /** One or two sentences under the title. */
+  /** A few words under the title: what it means, not how it works. */
   readonly description: ReactNode;
+  /** An icon before the title. */
+  readonly icon?: ReactNode;
 }
 
 /** Props of {@link RadioCards}. */
@@ -30,8 +32,8 @@ interface RadioCardsProps<Value extends string | number> {
 }
 
 /**
- * A group of large native radio buttons, each with a title and a description, as on the connector
- * and model settings screens.
+ * A group of native radio buttons drawn as small cards, each with a title, a few words under it and
+ * an optional icon, the chosen one in the accent colour.
  *
  * @param props - Label, options, value and change callback.
  * @returns The radio group.
@@ -61,11 +63,18 @@ export function RadioCards<Value extends string | number>({
             checked={option.value === value}
             onChange={() => onChange(option.value)}
           />
-          <span className={styles.title}>
-            {option.title}
-            {option.tag !== undefined && <span className={styles.tag}>{option.tag}</span>}
+          {option.icon !== undefined && (
+            <span className={styles.icon} aria-hidden="true">
+              {option.icon}
+            </span>
+          )}
+          <span className={styles.text}>
+            <span className={styles.title}>
+              {option.title}
+              {option.tag !== undefined && <span className={styles.tag}>{option.tag}</span>}
+            </span>
+            <span className={styles.description}>{option.description}</span>
           </span>
-          <span className={styles.description}>{option.description}</span>
         </label>
       ))}
     </fieldset>

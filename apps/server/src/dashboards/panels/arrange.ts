@@ -8,9 +8,10 @@ import { gridColumns, type Panel } from '@quanthea/shared';
 import { QueryError } from '../queries/index.ts';
 import { compactGrid, heights } from './layout.ts';
 import { shapeOfPanel } from './layout-map.ts';
+import { placeStack } from './stack.ts';
 
 /** The arrangements, and how many panels each puts on one row. */
-const perRow = { stats: 6, 'chart-table': 2, full: 1, two: 2, three: 3 } as const;
+const perRow = { stats: 6, 'chart-table': 2, full: 1, two: 2, three: 3, stack: 5 } as const;
 
 /** An arrangement's name. */
 type Arrangement = keyof typeof perRow;
@@ -156,7 +157,8 @@ function placeRows(name: Arrangement, panels: readonly Panel[], top: number) {
 
 /**
  * Arranges panels as the rows ask: the rows from the top, then the panels no row names, as they
- * were. Every panel placed takes the height of its kind, and a row takes its tallest.
+ * were. Every panel placed takes the height of its kind, and a row takes its tallest; a `stack`
+ * row shares its height among its numbers.
  *
  * @param panels - The panels after the edit.
  * @param rows - The rows of `arrange`, each an arrangement then panel ids or titles.
@@ -172,7 +174,8 @@ export function arrangedPanels(
   let y = 0;
   const arranged = rows.flatMap((row) => {
     const read = readRow(panels, row, taken);
-    const { placed, bottom } = placeRows(read.name, read.panels, y);
+    const { placed, bottom } =
+      read.name === 'stack' ? placeStack(read.panels, y) : placeRows(read.name, read.panels, y);
     y = bottom;
     return placed;
   });

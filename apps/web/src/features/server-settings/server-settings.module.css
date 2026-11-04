@@ -43,7 +43,8 @@
 .source {
   font-size: 13px;
   color: var(--color-ink-secondary);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .keys {

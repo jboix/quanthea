@@ -57,7 +57,13 @@ function CardFacts({ entry }: { readonly entry: LibraryEntry }) {
         </p>
       )}
       {entry.tags.length > 0 && (
-        <p className={styles.tags}>{entry.tags.map((tag) => `#${tag}`).join(' ')}</p>
+        <p className={styles.tags} title={entry.tags.map((tag) => `#${tag}`).join(' ')}>
+          {entry.tags
+            .slice(0, 3)
+            .map((tag) => `#${tag}`)
+            .join(' ')}
+          {entry.tags.length > 3 && ` +${entry.tags.length - 3}`}
+        </p>
       )}
     </>
   );

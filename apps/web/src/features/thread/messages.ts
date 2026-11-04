@@ -15,8 +15,11 @@ export interface UserMetadata {
   readonly timeZone?: string;
 }
 
-/** A thread message; an answer's metadata holds what it cost. */
-export type ThreadMessage = UIMessage<UserMetadata & { readonly usage?: TurnUsage }, ThreadData>;
+/** A thread message; an answer's metadata holds what it cost and how long it worked. */
+export type ThreadMessage = UIMessage<
+  UserMetadata & { readonly usage?: TurnUsage; readonly workedMs?: number },
+  ThreadData
+>;
 
 /** One part of a thread message. */
 export type ThreadPart = ThreadMessage['parts'][number];

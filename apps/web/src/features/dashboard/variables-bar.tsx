@@ -1,4 +1,5 @@
 import {
+  type ChosenVariable,
   type DashboardSpec,
   isChosen,
   type PanelAlert,
@@ -7,6 +8,8 @@ import {
 import type { ReactNode } from 'react';
 import { withMarkersShown } from './marker-sets.ts';
 import { MarkerToggles } from './marker-toggles.tsx';
+import { OptionToggleChips } from './option-toggle-chips.tsx';
+import { toggleOptions } from './option-toggles.ts';
 import type { RunTarget } from './panel-card.tsx';
 import { TimePicker } from './time-picker.tsx';
 import { OptionChip, TextChip } from './variable-chip.tsx';
@@ -34,6 +37,40 @@ interface VariablesBarProps {
 }
 
 /**
+ * How a viewer chooses one variable: a field for text, a toggle per option for a few short
+ * options of a variable that holds several, else a chip with a menu.
+ *
+ * @param props - The variable, its value, the change callback and where its options load from.
+ * @param props.variable - The variable.
+ * @param props.value - The value chosen.
+ * @param props.onChange - Called with the new value.
+ * @param props.optionsUrl - Where query-backed options load from.
+ * @returns The control.
+ */
+function VariableControl({
+  variable,
+  value,
+  onChange,
+  optionsUrl,
+}: {
+  readonly variable: ChosenVariable;
+  readonly value: string | readonly string[];
+  readonly onChange: (next: string | readonly string[]) => void;
+  readonly optionsUrl: string;
+}) {
+  if (variable.kind === 'text')
+    return <TextChip variable={variable} value={value} onChange={onChange} />;
+  const toggles = toggleOptions(variable);
+  if (toggles)
+    return (
+      <OptionToggleChips variable={variable} options={toggles} value={value} onChange={onChange} />
+    );
+  return (
+    <OptionChip variable={variable} value={value} onChange={onChange} optionsUrl={optionsUrl} />
+  );
+}
+
+/**
  * The time range and the variables, as chips, a toggle per set of markers and per linked alert's
  * firing periods, and any controls at the end. Changing them changes the URL and what the panels show, never the saved dashboard.
  *
@@ -46,23 +83,15 @@ export function VariablesBar(props: VariablesBarProps) {
   return (
     <div className={styles.bar}>
       <TimePicker spec={spec} picked={choices.time} onPick={setTime} />
-      {spec.variables.filter(isChosen).map((variable) => {
-        const value = choices.variables[variable.name] ?? variable.default ?? [];
-        const onChange = (next: string | readonly string[]) =>
-          onSearch(withVariable(search, variable.name, next));
-        const optionsUrl = `/d/${target.dashboardId}/v/${target.version}/options/${variable.name}?${target.search}`;
-        return variable.kind === 'text' ? (
-          <TextChip key={variable.name} variable={variable} value={value} onChange={onChange} />
-        ) : (
-          <OptionChip
-            key={variable.name}
-            variable={variable}
-            value={value}
-            onChange={onChange}
-            optionsUrl={optionsUrl}
-          />
-        );
-      })}
+      {spec.variables.filter(isChosen).map((variable) => (
+        <VariableControl
+          key={variable.name}
+          variable={variable}
+          value={choices.variables[variable.name] ?? variable.default ?? []}
+          onChange={(next) => onSearch(withVariable(search, variable.name, next))}
+          optionsUrl={`/d/${target.dashboardId}/v/${target.version}/options/${variable.name}?${target.search}`}
+        />
+      ))}
       <MarkerToggles
         spec={spec}
         alerts={props.alertSets ?? []}

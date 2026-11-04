@@ -12,12 +12,14 @@ import { createAppRouter } from './app/router.tsx';
 import { createSessionLoader } from './app/session.ts';
 import { createApiClient } from './lib/api-client.ts';
 import { applyScheme, followSystemScheme, storedScheme } from './ui/color-scheme.ts';
+import { applyDensity, storedDensity } from './ui/density.ts';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('index.html has no #root element.');
 
 applyScheme(storedScheme());
 followSystemScheme();
+applyDensity(storedDensity());
 
 const api = createApiClient();
 const router = createAppRouter({ loadSession: createSessionLoader(api), api });

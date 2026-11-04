@@ -7,7 +7,7 @@ import {
 } from '@quanthea/shared';
 import { useCallback, useMemo, useState } from 'react';
 import type { RunTarget } from './panel-card.tsx';
-import panelStyles from './panels.module.css';
+import { SpacedGrid } from './panel-grid.tsx';
 import { type CardDrawer, FrozenCopies, SectionCopies } from './section-copies.tsx';
 import styles from './sections.module.css';
 import { useTitleValues } from './title-values.ts';
@@ -68,6 +68,8 @@ interface SectionTitleProps {
   readonly target: RunTarget | undefined;
   /** Whether it is folded. */
   readonly folded: boolean;
+  /** How many panels it holds, said while it is folded. */
+  readonly count: number;
   /** Folds or unfolds it. */
   readonly onToggle: () => void;
 }
@@ -75,16 +77,20 @@ interface SectionTitleProps {
 /**
  * A section's title, with the values of the variables it names, which folds and unfolds it.
  *
- * @param props - The section, the spec, the run target, whether it is folded, and the toggle.
+ * @param props - The section, the spec, the run target, whether it is folded, its panel count,
+ *   and the toggle.
  * @returns The title.
  */
-function SectionTitle({ section, spec, target, folded, onToggle }: SectionTitleProps) {
+function SectionTitle({ section, spec, target, folded, count, onToggle }: SectionTitleProps) {
   const values = useTitleValues(section.title, spec, target);
   return (
     <h2 className={styles.title}>
       <button type="button" className={styles.toggle} aria-expanded={!folded} onClick={onToggle}>
         <span className={styles.chevron} aria-hidden="true" />
-        {filledTitle(section.title, spec.variables, values)}
+        <span className={styles.name}>{filledTitle(section.title, spec.variables, values)}</span>
+        {folded && (
+          <span className={styles.count}>{count === 1 ? '1 panel' : `${count} panels`}</span>
+        )}
       </button>
     </h2>
   );
@@ -92,7 +98,8 @@ function SectionTitle({ section, spec, target, folded, onToggle }: SectionTitleP
 
 /**
  * The panels in their sections: the panels of no section on the grid, then each section's title
- * and, unfolded, its panels on a grid of their own. Without sections, it is the one grid.
+ * and, unfolded, its panels on a grid of their own. A section with no panel is not drawn. Without
+ * sections, it is the one grid.
  *
  * A repeated section draws a copy for each value chosen when the page runs its panels, and for
  * each value a snapshot froze.
@@ -119,19 +126,20 @@ export function SectionedGrid({
   readonly frozen?: readonly string[] | undefined;
 }) {
   const groups = useMemo(
-    () => sectionGroups(spec).map((group) => ({ ...group, panels: rebased(group.panels) })),
+    () =>
+      sectionGroups(spec)
+        .filter((group) => group.panels.length > 0)
+        .map((group) => ({ ...group, panels: rebased(group.panels) })),
     [spec],
   );
-  return groups.map(({ section, panels }) => {
+  const drawn = groups.map(({ section, panels }) => {
     const folded = section !== undefined && folding.folded.has(section.id);
     return (
-      <section key={section?.id ?? ''} className={styles.section}>
+      <section key={section?.id ?? ''} className={styles.section} data-folded={folded}>
         {section && (
           <SectionTitle
-            section={section}
-            spec={spec}
-            target={target}
-            folded={folded}
+            {...{ section, spec, target, folded }}
+            count={panels.length}
             onToggle={() => folding.toggle(section.id)}
           />
         )}
@@ -139,6 +147,7 @@ export function SectionedGrid({
       </section>
     );
   });
+  return <div className={styles.sections}>{drawn}</div>;
 }
 
 /**
@@ -172,5 +181,5 @@ function SectionBody({
     return <SectionCopies {...{ spec, section, panels, target, card }} />;
   if (section?.repeat !== undefined && frozen)
     return <FrozenCopies {...{ spec, section, panels, frozen, card }} />;
-  return <div className={panelStyles.grid}>{panels.map((panel) => card(panel))}</div>;
+  return <SpacedGrid panels={panels} card={card} />;
 }

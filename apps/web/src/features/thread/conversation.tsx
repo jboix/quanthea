@@ -1,12 +1,14 @@
-import type { AccessLevel, DefinitionVersion, PlanView, ThreadData } from '@quanthea/shared';
+import type { AccessLevel, DefinitionVersion, Plan, PlanView, ThreadData } from '@quanthea/shared';
 import type { ReactNode } from 'react';
 import { AlertPlanCard } from './alert-cards.tsx';
 import { AskCard } from './ask-card.tsx';
+import { WorkView } from './build-card.tsx';
+import { buildsPanels, plansBuilt } from './build-progress.ts';
 import styles from './conversation.module.css';
 import { DefinitionProposalsCard } from './definition-proposals.tsx';
 import { DiffCard } from './diff-card.tsx';
 import { LinkProposalCard } from './link-card.tsx';
-import { MatchesCard } from './matches-card.tsx';
+import { matchesView } from './matches-card.tsx';
 import {
   isToolPart,
   readableText,
@@ -22,7 +24,6 @@ import { ReportPlanCard } from './report-cards.tsx';
 import { stopCard } from './stop-cards.tsx';
 import { TextBlock } from './text-block.tsx';
 import { UsageLine } from './usage-line.tsx';
-import { WorkLog } from './work-log.tsx';
 import { isWorkPart } from './work-summary.ts';
 
 /** What the conversation needs besides the messages: plan statuses and the thread's actions. */
@@ -53,6 +54,8 @@ export interface ConversationContext {
   readonly onBuildNew: () => void;
   /** Starts a new run with fresh repair attempts and counts after a build stopped or paused. */
   readonly onTryAgain: () => void;
+  /** Stops the run under way. */
+  readonly onStop?: (() => void) | undefined;
   /** Whether the thread has a draft, which settles the matches card. */
   readonly hasDraft: boolean;
   /** The latest draft's panels, which a waiting plan reads as changes to. */
@@ -69,6 +72,8 @@ interface PartContext extends ConversationContext {
   readonly last?: boolean;
   /** Whether the part is text the agent wrote on its way, with more work after it. */
   readonly narration?: boolean;
+  /** The approved plan the message builds, if it builds one. */
+  readonly building?: Plan | undefined;
 }
 
 /**
@@ -241,27 +246,6 @@ function dataView(part: ThreadPart, key: string, context: PartContext): ReactNod
 }
 
 /**
- * Renders the pinned dashboards that may already answer the first question.
- *
- * @param part - The data part.
- * @param key - Its key.
- * @param context - The conversation context.
- * @returns The card, or nothing for another part.
- */
-function matchesView(part: ThreadPart, key: string, context: PartContext): ReactNode {
-  if (part.type !== 'data-matches') return null;
-  return (
-    <MatchesCard
-      key={key}
-      data={part.data}
-      answerable={context.answerable && !context.hasDraft}
-      onStartFrom={context.onStartFrom}
-      onBuildNew={context.onBuildNew}
-    />
-  );
-}
-
-/**
  * Renders one non-explore part.
  *
  * @param part - The part.
@@ -298,6 +282,28 @@ function placed(
 }
 
 /**
+ * The agent's work in a message, as a build card or one folded line.
+ *
+ * @param message - The message, for its metadata.
+ * @param parts - The work parts.
+ * @param key - The element key.
+ * @param live - Whether the agent is still at it.
+ * @param context - The part context, for the plan it builds and Stop.
+ * @returns The element.
+ */
+function workView(
+  message: ThreadMessage,
+  parts: ThreadPart[],
+  key: string,
+  live: boolean,
+  context: PartContext,
+): ReactNode {
+  const { building, onStop } = context;
+  const { metadata } = message;
+  return <WorkView key={key} {...{ parts, live, building, metadata, onStop }} />;
+}
+
+/**
  * Renders an assistant message: the agent's work folded into one line until something else shows
  * (its words, a plan, a question, a diff), then that, in order.
  *
@@ -309,8 +315,7 @@ function assistantParts(message: ThreadMessage, context: PartContext): ReactNode
   const nodes: ReactNode[] = [];
   let work: ThreadPart[] = [];
   const flush = (live: boolean) => {
-    if (work.length > 0)
-      nodes.push(<WorkLog key={`work-${nodes.length}`} parts={work} live={live} />);
+    if (work.length > 0) nodes.push(workView(message, work, `work-${nodes.length}`, live, context));
     work = [];
   };
   const lastWork = message.parts.findLastIndex(isWorkPart);
@@ -339,30 +344,37 @@ interface ConversationProps extends ConversationContext {
 }
 
 /**
- * The thread's messages, the person's on the right, the agent's with its logs and cards.
+ * The thread's messages, the person's on the right, the agent's with its logs and cards. A build
+ * card says what its answer cost, so that answer has no usage line.
  *
  * @param props - The messages and the conversation context.
  * @returns The conversation.
  */
 export function Conversation({ messages, ...context }: ConversationProps) {
+  const builds = plansBuilt(messages, context.plans);
   return (
     <ol className={styles.messages}>
-      {messages.map((message, index) => (
-        <li key={message.id} className={styles.message} data-role={message.role}>
-          {message.role === 'user' ? (
-            <PersonMessage message={message} actions={context} />
-          ) : (
-            [
-              ...assistantParts(message, {
-                ...context,
-                answerable: index === messages.length - 1 && !context.busy,
-                live: index === messages.length - 1 && context.busy,
-              }),
-              <UsageLine key="usage" usage={message.metadata?.usage} />,
-            ]
-          )}
-        </li>
-      ))}
+      {messages.map((message, index) => {
+        const building = builds[index];
+        const costed = building !== undefined && buildsPanels(message.parts);
+        return (
+          <li key={message.id} className={styles.message} data-role={message.role}>
+            {message.role === 'user' ? (
+              <PersonMessage message={message} actions={context} />
+            ) : (
+              [
+                ...assistantParts(message, {
+                  ...context,
+                  answerable: index === messages.length - 1 && !context.busy,
+                  live: index === messages.length - 1 && context.busy,
+                  building,
+                }),
+                costed ? null : <UsageLine key="usage" usage={message.metadata?.usage} />,
+              ]
+            )}
+          </li>
+        );
+      })}
     </ol>
   );
 }

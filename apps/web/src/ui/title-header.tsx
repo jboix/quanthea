@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useRef } from 'react';
+import { useStickyTop } from './sticky-top.ts';
 import styles from './title-header.module.css';
 
 /** How large the title is: a page, a screen, a pane, a section, a card, or a compact bar. */
@@ -38,6 +39,11 @@ interface TitleHeaderProps {
   readonly as?: 'header' | 'div';
   /** The caller's class, for the padding, border and background around the header. */
   readonly className?: string | undefined;
+  /**
+   * Keeps the header at the top of its screen while the screen scrolls, and its height on its
+   * parent as `--sticky-top`, for a bar that stays under it.
+   */
+  readonly sticky?: boolean;
 }
 
 /**
@@ -84,13 +90,17 @@ function hasContent(slot: ReactNode): boolean {
 export function TitleHeader(props: TitleHeaderProps) {
   const { eyebrow, below, actions, size = 'pane', align = 'center', className } = props;
   const Element = props.as ?? 'header';
+  const element = useRef<HTMLDivElement>(null);
+  useStickyTop(element, props.sticky === true);
   return (
     <Element
+      ref={element}
       className={className === undefined ? styles.header : `${styles.header} ${className}`}
       data-size={size}
       data-align={align}
       data-mono={props.mono === true}
       data-wrap={props.wrap === true}
+      data-sticky={props.sticky || undefined}
     >
       <div className={styles.text}>
         {hasContent(eyebrow) && <div className={styles.eyebrow}>{eyebrow}</div>}

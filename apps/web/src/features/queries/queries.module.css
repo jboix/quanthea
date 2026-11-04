@@ -3,7 +3,6 @@
   grid-template-columns: 240px minmax(0, 1fr);
   gap: 24px;
   align-items: start;
-  max-width: 1180px;
 }
 
 .side {

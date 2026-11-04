@@ -17,8 +17,16 @@
 }
 
 .sidebarHeader {
-  padding: 16px 20px;
+  box-sizing: border-box;
+  height: var(--pane-header-height);
+  padding: 14px 20px;
   border-bottom: 1px solid var(--color-border);
+}
+
+/* The pane is narrow: the title gives way before Add moves under it. */
+.sidebar > .sidebarHeader {
+  flex-wrap: nowrap;
+  --title-header-text: 6rem;
 }
 
 .list {
@@ -117,8 +125,4 @@
   flex-grow: 1;
   min-width: 0;
   overflow-y: auto;
-}
-
-.empty {
-  padding: 36px 40px;
 }

@@ -1,8 +1,15 @@
+/* The bar stays under the screen's sticky header, on the ground, while the panels scroll. */
 .bar {
+  position: sticky;
+  top: var(--sticky-top, 0px);
+  z-index: 3;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+  margin-block: -10px;
+  padding-block: 10px;
+  background: var(--color-ground);
 }
 
 .chip {

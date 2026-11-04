@@ -450,7 +450,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/connectors/:connectorId/affected-threads`                    | resource route: the threads an access change restricts      | admin    |
 | `/connectors/:connectorId/object-usage`                        | resource route: the dashboards reading an object to hide    | admin    |
 | `/settings/model`                                              | Model: the providers, their keys and limits                 | admin    |
-| `/settings/auth`                                               | Authentication: sign-in providers, passwords                | admin    |
+| `/settings/auth`                                               | Sign-in: sign-in providers, passwords                       | admin    |
 | `/settings/users`                                              | Users: invite, roles, disable, reset links, sign out        | admin    |
 | `/settings/usage`                                              | Usage: tokens, cost and views; by feature, model, person    | admin    |
 | `/settings/notifications`                                      | Notifications: channels, tests, what a webhook receives     | admin    |
@@ -463,6 +463,10 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/login`                                                       | sign in                                                     | —        |
 | `/setup`                                                       | the default admin chooses their own email and password      | —        |
 | `/set-password`                                                | choose a password from an invite or reset link              | —        |
+
+The settings screens share one frame: a menu on the left, its sections in five groups (Agent,
+Dashboards, Alerts and reports, People, System), and the chosen section beside it, at most 1,120
+pixels wide.
 
 The roles rank viewer, analyst, editor, admin (`roles` in `@quanthea/shared`), and `hasRole` is
 the one check of a minimum role, on the server and in the browser. An analyst reads everything a
@@ -633,8 +637,11 @@ The dashboard's Versions menu lists the versions: the one pinned, the ones pinne
 with their summary. Editors pin any other version or unpin from there. The thread's draft pane
 says which version the library shows, and pins the version it shows.
 
-**Layouts.** How a version is shown is apart from the version: each panel's place, its size and
-whether it is hidden (`DashboardLayout` in `@quanthea/shared`). A layout belongs to one version
+**Layouts.** How a version is shown is apart from the version: each panel's place, its size,
+whether it is hidden and, on a dashboard, its sections (`DashboardLayout` in `@quanthea/shared`).
+A layout's `sections`, when set, replace the spec's order and titles, and each panel's `section`
+says which holds it; a section the spec repeats keeps its repeat and its folding
+(`spec/layout-sections.ts`). A layout without `sections` shows the spec's. A layout belongs to one version
 (`dashboard_layouts`) and never changes it, so arranging a dashboard makes no version and leaves
 the thread's drafts alone. Saving adds a revision; a trigger keeps revisions from being rewritten,
 and restoring an earlier one adds a revision that copies it. A version is shown with its latest
@@ -644,8 +651,9 @@ pinned for the first time starts from its spec.
 
 Only the version shown takes a new layout, and only from its thread's owner or an admin, as for
 pinning (`http/routes/layout-routes.ts`). The layout must name every panel of the version once
-and show one at least; the server packs the shown panels so none overlaps another, and a hidden
-panel takes no space. A save names the revision it started from, and is refused (409) when
+and show one at least, and its sections must hold only its panels, on a dashboard, with a
+repeated section's copies within the limit. The server packs each section's shown panels so none
+overlaps another, and a hidden panel takes no space. A save names the revision it started from, and is refused (409) when
 another was saved since. Hidden panels stay in the spec, so the thread and the model still know
 them, but snapshots, questions and explanations read the version through its layout and leave
 them out (`shownSpecOf` in `dashboards/context.ts`).
@@ -668,6 +676,14 @@ out of the way and rise into the gaps, never jumping over one another (`layout-e
 layout sends the layout with the revision it started from; Cancel drops it. Leaving the page
 with changes unsaved asks first, in the app and when the tab closes; changing the variables
 does not.
+
+A dashboard is arranged section by section (`arranged-sections.tsx`, `layout-section-edit.ts`):
+the panels of no section first, then each section open, with its title to rename, Move up, Move
+down and Remove, and its panels on a grid of their own with their frames. A change in one section
+never moves another's panels. Each frame's Section choice moves its panel to the foot of another
+section, or out of every one. Add a section adds an empty one at the end; Remove leaves its panels
+in no section, arranged as they were. A layout with a section left untitled is not saved. The
+dashboard draws no section that holds no panel.
 
 Each frame offers Full width, Half width and Hide, and H hides the focused one. A hidden panel
 takes no space; the edit bar's **Hidden** lists them, and Show puts one back at the place it had,
@@ -1820,8 +1836,8 @@ directly onto an ECharts `dataset`.
   definitions with the thread. A panel's info bubble names the definition and version it copied
   (`features/dashboard/panel-definition.tsx`), reading `/definitions` when the bubble opens; when
   the definition changed since, it says the panel keeps its copy and how to take the new one.
-- **The definitions screen** (`features/definitions/`) lists the definitions with a search, and
-  shows one: its meaning, the other words for it, and each checked body in words, such as "The
+- **The definitions screen** (`features/definitions/`) has the assistant on the left, as a thread
+  has its conversation, and beside it lists the definitions with a search, and shows one: its meaning, the other words for it, and each checked body in words, such as "The
   share of orders where status is "failed", out of every row of orders.", with the builder request
   behind it folded away. Editors write one by hand in a form (`body-form.tsx`,
   `body-form-model.ts`): what it is (a share, a number or a set of rows), the data's language and
@@ -1858,8 +1874,10 @@ directly onto an ECharts `dataset`.
   (`dashboards/panels/arrange.ts`): a list of rows from the top, each an arrangement followed by
   panel ids or titles. The set is closed: `stats` (the numbers share a row, at most six on one),
   `chart-table` (two panels side by side, seven columns and five, the table the narrower), `full`
-  (each on a row of its own), `two` and `three` (that many across). Every row fills the twelve
-  columns, a panel placed takes the height of its kind and a row its tallest. Panels no row names
+  (each on a row of its own), `two` and `three` (that many across), and `stack` (two or three
+  numbers stacked in three columns, then one or two panels beside them as tall as the stack,
+  `panels/stack.ts`). Every row fills the twelve columns, a panel placed takes the height of its
+  kind and a row its tallest; a stack's numbers share its height. Panels no row names
   follow below as they were. The server turns the rows into grid numbers, so a stored spec holds
   plain grid numbers only. After the test run, each table the edit adds takes the height of its
   rows, from 4 to 10 (`dashboards/panels/fit-heights.ts`): its row takes that height unless
@@ -1881,7 +1899,7 @@ directly onto an ECharts `dataset`.
   a number wider than half the grid when there are other numbers to share a row with, a table with
   fewer grid columns than it has columns (so `chart-table` suits a table of up to five columns
   and `two` one of up to six, and the repair named is `full` beyond that), a chart with a legend under five rows tall,
-  and numbers below a chart or a table. The check never refuses: it is advice with a version
+  and numbers below a chart or a table, which numbers stacked beside one are not. The check never refuses: it is advice with a version
   already saved, so a spec that was valid stays saveable, a person's arrangement is never an
   error, and stored versions are not touched. The advice comes with `layout.repair`, which asks
   the agent to repair it once, with an edit that sends only `arrange`: the instruction rides with
@@ -2119,10 +2137,22 @@ the test; turning the switch off sends the provider's default.
   built v2 · fixed after 1 failed try". Opening it shows each call and each try's card, as
   before: amber "Not saved · the agent fixes it, try 1 of 3" with each failing panel by title and
   why, and a green "Fixed after 1 failed try".
+- An answer that builds an approved plan shows its work as one card instead
+  (`features/thread/build-card.tsx`, `build-progress.ts`). The plan is the last dashboard plan
+  shown before the answer, while it stays approved. While the build runs, the card says how many
+  of the plan's panels a saved write holds, for how long, and has Stop and a progress line. It
+  lists a step for reading the data, then one per planned panel, matched by title to the panels
+  each write sends: ready once a write that holds it saved, running while one writes it, and an
+  amber "Fixing its query · second try" while its last write failed. Once the build ends, the
+  card says the version built, the panels, the time worked and the cost, and the failed tries it
+  fixed on the way; the steps fold under "Steps and details" with each call and test run. The
+  answer then has no usage line of its own.
 - What the agent writes between its steps, such as what it fixes next, shows smaller and in grey
   (`TextBlock` with `narration`). Only the text after its last step reads as its answer.
-- Only a try that stops the answer stays in view: red "I could not build this after 3 tries", with
-  each failing panel and Try again, which continues the answer with fresh attempts. A failed
+- Only a try that stops the answer stays in view, in amber: "I could not build this after 3
+  tries", what still fails in one sentence ("Orders per channel still fails."), and Try again,
+  which continues the answer with fresh attempts. Each failing panel's problems fold under "What
+  failed". A failed
   write's own log line stays only for a refusal, which has no card. The draft pane says "build
   stopped · try again" while a building thread's latest answer stopped.
 - Each job has its model; an empty one means the build model. Planning turns (the conversation,
@@ -2135,7 +2165,8 @@ the test; turning the switch off sends the provider's default.
   is not retried: a middleware on every model (`agent/quota.ts`) turns it into an error that tells
   the person to try later or pick another model.
 - Each answer's metadata holds its usage by model: fresh input, cache reads, cache writes and
-  output (`agent/usage.ts`). A run that continues an answer after an approval adds to it. The
+  output (`agent/usage.ts`), and `workedMs`, how long its runs worked. A run that continues an
+  answer after an approval adds to both. The
   thread shows each answer's tokens and cost under it, and the thread's total in its header,
   priced from the list prices in `@quanthea/shared` (`modelPrices`, dated). A model without a price
   is named instead.
@@ -4163,7 +4194,7 @@ one, and enables them again. Without any admin, it creates the default one.
 - The bin keeps to owners: editors list and restore their own binned threads; admins list,
   restore and delete everyone's. Analysts and above list and restore the conversations they
   started or binned; admins list, restore and delete everyone's.
-- **Sign-in providers** (Settings → Authentication, `auth/providers/`): GitHub, Google, GitLab
+- **Sign-in providers** (Settings → Sign-in, `auth/providers/`): GitHub, Google, GitLab
   (gitlab.com or a self-managed one) and Microsoft Entra ID (one tenant, never `common`). quanthea
   is only their client: an admin registers it with the provider, pastes the client id and secret,
   and registers the redirect URI quanthea shows (`QUANTHEA_PUBLIC_URL` +
@@ -4549,16 +4580,18 @@ one, and enables them again. Without any admin, it creates the default one.
   `sort` is the first order. A click on a header sorts by that column's raw values, up, then down,
   then back to the view's order. A table with more rows than a page has a text filter under each
   header, which keeps the rows whose cell text holds it in any case, and a pager. A page holds
-  `pageSize` rows, 20 when left out. All of it runs in the browser over the rows already fetched,
+  `pageSize` rows, 20 when left out. The rows scroll inside the panel, under their sticky
+  headers, and the pager stays at the panel's foot with the rows shown, the total and the page
+  number. All of it runs in the browser over the rows already fetched,
   per viewer, in a snapshot and a report's run too, and starts again when the columns change. A
   refresh keeps it, and a page past the end of fewer rows shows the last page.
 - **Sections** (`sections.tsx`, `spec/sections.ts`). A spec's `sections` each have an id, a
   title and `folded`; a panel names its own in `section`. The canvas draws the panels of no
   section first, then each section's title and, unfolded, its panels on a grid of their own,
-  moved up so the first starts on the first row. A folded section mounts none of its panels, so
+  moved up so the first starts on the first row. A folded section is its title alone, with how
+  many panels it holds, and folded sections stack close. A folded section mounts none of its panels, so
   they fetch nothing, and the progress and Refresh count only the panels drawn. The viewer's
-  folding lives in the page's state. Arranging draws the one grid, as panels keep one grid
-  whatever their section. A snapshot draws the same sections. The agent writes `sections` with
+  folding lives in the page's state. Arranging draws every section open, each on its own grid. A snapshot draws the same sections. The agent writes `sections` with
   `edit_settings`, each a plain object with the panels it holds by id or title, which the server
   checks (`panels/sections.ts`).
 - **Repeated sections** (`section-copies.tsx`). A section with `repeat` draws a copy for each
@@ -4566,7 +4599,26 @@ one, and enables them again. Without any admin, it creates the default one.
   options when needed. Copies are at most 12 and keep the panels drawn within 60 (`copyLimit`).
   A copy's panels run with the page's choices and the variable set to the copy's value; their
   fetchers and runs carry `#` and the value, so copies keep apart. A copy exists only when drawn:
-  the spec holds the section once.
+  the spec holds the section once. The copies show as tabs, a tab for each value, and only the
+  chosen copy is drawn, so the others run nothing until chosen; the choice lives in the page's
+  state, and a snapshot's tabs read its frozen copies.
+- **Sticky header** (`ui/sticky-top.ts`, `TitleHeader`'s `sticky`). The header of a dashboard, a
+  snapshot, a report's run and an alert stays at the top while the screen scrolls, so its menus
+  stay at hand. It sets its height on its parent as `--sticky-top`, and the variables bar stays
+  right under it. A draft pane's header sits outside its scrolling body already.
+- **Density** (`ui/density.ts`, `panel-grid.tsx`, `panel-joins.ts`). Each viewer picks airy or
+  compact in the account menu, beside the colour scheme. The choice is kept in the browser and set
+  as `data-density` on the document. It changes the screens of dashboards, snapshots, reports and
+  alerts, their drafts included, and only their panels: the `--space-panel-*` tokens of
+  `@quanthea/tokens` read it. Titles, headers and margins stay where they are, and other screens
+  keep their spacing. Every grid of panels, a section's
+  and each copy's included, is drawn tight when compact. A tight grid has no gap and rows of 56
+  pixels, a row and a gap of an airy one, so a panel is as tall either way. From the cells the
+  panels cover, each panel learns which edges meet another, which it overlaps by its 1 pixel
+  border so the two share one hairline, and which corners are on the outside of the block, which
+  keep the panel radius. A wrapper with `display: contents` sets those as variables of the card,
+  so cards stay the same. Arranging draws the airy grid, whatever the density. Below 900 pixels a
+  tight grid is drawn airy. The spec and the agent know nothing of it.
 - **Frozen runs** (`dashboards/freeze.ts`). A snapshot runs each panel once, and each panel of a
   repeated section once for every value its variable is bound to, stored as `id#value`. The
   variables are resolved once for each set of choices (`prepareRun`), not once per panel, and the
@@ -4584,7 +4636,16 @@ one, and enables them again. Without any admin, it creates the default one.
   level, since an optional role would be filled with any text column.
 - **Records** (`table-view.tsx`). A table with `record: true` shows its first row as a list of
   labels and values, one column a line, each cell with its format, tone, link or image. It has no
-  sorting, filter or pager. The table recipe's `record` variant writes it.
+  sorting, filter or pager. The table recipe's `record` variant writes it. With `compact: true`
+  (the `compact-record` variant) it shows the first column as a headline, as large as a number's
+  value, and the other cells on one line below, each named by its column for a pointer and a
+  screen reader. The server gives such a panel a number's shape, so it takes a number's size and
+  sits in a `stats` row.
+- **Option toggles** (`option-toggle-chips.tsx`, `option-toggles.ts`). In the variables bar, a
+  custom variable that holds several values and has two to eight options, each label at most 16
+  characters, shows a toggle for each option instead of a chip with a menu. A click adds the
+  option or takes it out, and the last one chosen stays chosen. "All" reads as every option
+  pressed.
 - **Column widths** (`table-widths.tsx`). A column takes `width`: `narrow`, `medium` or `wide`,
   shares of 1, 2 and 4 of the table, and a column with none takes a medium share. When one column
   sets a width the table has a `colgroup` and a fixed layout, and a long cell ends in an ellipsis
@@ -4702,11 +4763,14 @@ one, and enables them again. Without any admin, it creates the default one.
 - Audit log entries for pin, bin, restore, purge, snapshots taken and revoked, connector changes
   and settings changes.
 - An admin lists the external hosts dashboards may reach (`settings/external-hosts.ts`, Settings →
-  Links and images, `GET/PUT /api/settings/external-hosts`). Links go to any host until the admin
-  keeps them to the hosts listed. Images load only from listed hosts marked for images, and the
-  list starts empty: an image loads when a dashboard opens, so it tells its host who looked. A
+  Links and images, `GET/PUT /api/settings/external-hosts`). Links and images each have their own
+  setting: any host, or only the hosts in their own list. Links go to any host and images load
+  from none until an admin chooses: an image loads when a dashboard opens, so it tells its host
+  who looked. Images from any host put `https:` in `img-src`; else `img-src` names the hosts. A
   host is a plain name (lowercase letters, digits, dots and dashes, with a letter), never a
-  scheme, a path, a port or an IP address, and the list holds at most 50. Each save records the
+  scheme, a path, a port or an IP address, and each list holds at most 50. Settings saved as one
+  list with a flag for images read as a list each: every host for links, the flagged ones for
+  images. Each save records the
   hosts before and after. The browser reads the list from `GET /api/external-hosts`, open to every
   role, since it draws links and images by it.
 - A table column or a stat may link to a pinned dashboard (`spec/links.ts`). The link is an

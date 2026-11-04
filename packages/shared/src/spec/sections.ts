@@ -78,7 +78,7 @@ function repeatProblem(
 
 /**
  * What is wrong with a spec's sections: an id used twice, a panel naming a section the spec does
- * not have, or a repeat over a variable that cannot give two copies.
+ * not have, a repeat over a variable that cannot give two copies.
  *
  * @param spec - The spec.
  * @returns Each problem with its path.

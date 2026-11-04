@@ -72,13 +72,14 @@ function Definitions(props: {
   readonly onSelect: (selection: Selection | undefined) => void;
 }) {
   const { data, selection, onSelect } = props;
-  const current =
-    selection && selection.kind !== 'new' ? selection.id : data.definitions[0]?.definition.id;
+  const drafting = selection?.kind === 'new';
+  const current = drafting ? undefined : (selection?.id ?? data.definitions[0]?.definition.id);
   return (
     <div className={styles.layout}>
       <DefinitionList
         definitions={data.definitions}
         current={current}
+        drafting={drafting}
         onPick={(id) => onSelect({ kind: 'view', id })}
       />
       <Detail {...props} />
@@ -112,7 +113,7 @@ function ScreenHead(props: {
             <ThreadsIcon />
             Assistant
           </Button>
-          <Button onClick={props.onNew}>Write one by hand</Button>
+          <Button onClick={props.onNew}>New definition</Button>
         </div>
       )}
     </header>
@@ -120,8 +121,8 @@ function ScreenHead(props: {
 }
 
 /**
- * The definitions screen: what the team means by its business terms, beside an assistant that
- * proposes definitions. Everyone reads them; editors and admins write them, by hand or with the
+ * The definitions screen: an assistant that proposes definitions on the left, as a thread's
+ * conversation is, and what the team means by its business terms beside it. Everyone reads them; editors and admins write them, by hand or with the
  * assistant, except those the configuration file manages.
  *
  * @returns The screen.
@@ -136,6 +137,11 @@ export function DefinitionsScreen() {
   const context: AssistantOutletContext = { onClose: () => setAssistant(false) };
   return (
     <div className={styles.screen} data-assistant={canEdit ? String(assistant) : 'none'}>
+      {canEdit && (
+        <aside className={styles.assistant} aria-label="Definitions assistant">
+          <Outlet context={context} />
+        </aside>
+      )}
       <div className={styles.main}>
         <ScreenHead
           canEdit={canEdit}
@@ -153,11 +159,6 @@ export function DefinitionsScreen() {
           />
         )}
       </div>
-      {canEdit && (
-        <aside className={styles.assistant} aria-label="Definitions assistant">
-          <Outlet context={context} />
-        </aside>
-      )}
     </div>
   );
 }

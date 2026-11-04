@@ -11,6 +11,8 @@ interface DefinitionListProps {
   readonly current: string | undefined;
   /** Shows a definition. */
   readonly onPick: (id: string) => void;
+  /** Whether a new definition is being written by hand: it shows first, chosen. */
+  readonly drafting?: boolean;
 }
 
 /**
@@ -49,10 +51,15 @@ export function CheckedMarks({ version }: { readonly version: DefinitionVersion 
 /**
  * The list of definitions, with a search over names, synonyms and meanings.
  *
- * @param props - The definitions, the one shown, and the pick callback.
+ * @param props - The definitions, the one shown, the pick callback, and whether one is new.
  * @returns The list.
  */
-export function DefinitionList({ definitions, current, onPick }: DefinitionListProps) {
+export function DefinitionList({
+  definitions,
+  current,
+  onPick,
+  drafting = false,
+}: DefinitionListProps) {
   const [query, setQuery] = useState('');
   const needle = query.trim().toLowerCase();
   const shown = definitions
@@ -71,6 +78,14 @@ export function DefinitionList({ definitions, current, onPick }: DefinitionListP
         />
       </label>
       <ul className={styles.list}>
+        {drafting && (
+          <li>
+            <div className={styles.row} aria-current="true" data-draft="true">
+              <span className={styles.rowName}>New definition</span>
+              <span className={styles.rowMeaning}>Being written by hand.</span>
+            </div>
+          </li>
+        )}
         {shown.map((version) => (
           <li key={version.definition.id}>
             <button

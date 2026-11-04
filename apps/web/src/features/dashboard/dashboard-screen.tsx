@@ -39,6 +39,7 @@ function DashboardHeader(props: DashboardData & AskAction & LayoutEditParts) {
   return (
     <TitleHeader
       className={styles.header}
+      sticky
       level={1}
       size="screen"
       align="end"
@@ -90,7 +91,15 @@ function useArrangedView(data: DashboardData) {
   const arranged = useMemo(() => {
     const { panels, variables } = version.spec;
     const values = choicesFromSearch(search, version.spec).variables;
-    return { version: version.version, panels, layout: version.layout, variables, values };
+    const sections = (version.spec.sections ?? []).map(({ id, title }) => ({ id, title }));
+    return {
+      version: version.version,
+      panels,
+      layout: version.layout,
+      variables,
+      values,
+      sections,
+    };
   }, [version, search]);
   const allowed = dashboard.canChange && dashboard.pinnedVersion === version.version;
   const history = `/d/${dashboard.id}/v/${version.version}/layouts`;
@@ -148,7 +157,7 @@ export function DashboardScreen() {
             {...view.shown}
             answerMarks={ask.marks}
             explainable={askable}
-            overlay={view.overlay}
+            arranging={view.arranging}
           />
         </div>
       </div>

@@ -79,6 +79,7 @@ function AlertHeader({ alert, now }: { readonly alert: AlertDetail; readonly now
   return (
     <TitleHeader
       className={styles.header}
+      sticky
       level={1}
       size="screen"
       align="end"

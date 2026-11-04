@@ -74,7 +74,10 @@ test('a link to an address fills in the cell or a variable, encoded, outside the
 
 test('a link to an address on a host not allowed, or with a dot segment, gives none', () => {
   const page = linkSchema.parse({ url: 'https://docs.example.com/browsers/{value}' });
-  const listed = { linksToAnyHost: false, hosts: [{ host: 'media.example.com', images: false }] };
+  const listed = {
+    links: { anyHost: false, hosts: ['media.example.com'] },
+    images: { anyHost: false, hosts: [] },
+  };
   expect(hrefOf(page, linksOf('', [], listed), cell('Safari'))).toBeUndefined();
   expect(hrefOf(page, linksOf('', []), cell('..'))).toBeUndefined();
   expect(hrefOf(page, linksOf('', []), cell(''))).toBeUndefined();

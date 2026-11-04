@@ -19,7 +19,7 @@ import type { Threads } from '../threads/threads.ts';
 import type { Usage } from '../usage/usage.ts';
 
 /** A thread message as the agent streams and stores it; an answer's metadata holds its usage. */
-export type ThreadMessage = UIMessage<{ usage?: TurnUsage }, ThreadData>;
+export type ThreadMessage = UIMessage<{ usage?: TurnUsage; workedMs?: number }, ThreadData>;
 
 /** The services the agent uses. It reaches data only through the model view, which is the gate. */
 export interface AgentServices {
@@ -113,6 +113,10 @@ export interface RunContext extends AgentServices {
     job: string;
     /** The tokens spent so far, by model, the continued answer's included. */
     usage: TurnUsage;
+    /** The milliseconds the continued answer worked before this run, 0 for a new answer. */
+    workedBefore: number;
+    /** When this run started, in epoch milliseconds. */
+    startedAt: number;
     /** The tool calls of this turn, for its limit. */
     toolCalls: number;
     /** The tokens of this turn, for its limit. */

@@ -15,7 +15,7 @@
 }
 
 .drawer::backdrop {
-  background: rgb(23 24 28 / 28%);
+  background: var(--color-backdrop);
   animation: fade-in 0.18s ease-out;
 }
 

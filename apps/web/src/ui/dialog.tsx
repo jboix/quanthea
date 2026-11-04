@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useRef } from 'react';
+import { useBackdropClose } from './backdrop-close.ts';
 import styles from './dialog.module.css';
 import { TitleHeader } from './title-header.tsx';
 
@@ -8,7 +9,7 @@ interface DialogProps {
   readonly title: string;
   /** Whether it is open. */
   readonly open: boolean;
-  /** Closes it: the close button, Escape, or the caller once done. */
+  /** Closes it: the close button, Escape, a click outside, or the caller once done. */
   readonly onClose: () => void;
   /** The content. */
   readonly children: ReactNode;
@@ -16,7 +17,7 @@ interface DialogProps {
 
 /**
  * A modal dialog over the page, on the browser's own `<dialog>`: it keeps focus inside and closes
- * with Escape.
+ * with Escape or a click outside.
  *
  * @param props - The title, whether it is open, the close handler and the content.
  * @returns The dialog.
@@ -29,19 +30,22 @@ export function Dialog({ title, open, onClose, children }: DialogProps) {
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
   }, [open]);
+  useBackdropClose(ref, onClose);
   return (
     <dialog ref={ref} className={styles.dialog} aria-label={title} onClose={onClose}>
-      <TitleHeader
-        className={styles.header}
-        size="card"
-        title={title}
-        actions={
-          <button type="button" className={styles.close} aria-label="Close" onClick={onClose}>
-            ×
-          </button>
-        }
-      />
-      {open && children}
+      <div className={styles.body}>
+        <TitleHeader
+          className={styles.header}
+          size="card"
+          title={title}
+          actions={
+            <button type="button" className={styles.close} aria-label="Close" onClick={onClose}>
+              ×
+            </button>
+          }
+        />
+        {open && children}
+      </div>
     </dialog>
   );
 }

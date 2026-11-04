@@ -20,14 +20,14 @@
 }
 
 .primary {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--color-accent-fill);
+  color: var(--color-on-accent-fill);
   font-weight: 600;
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--color-accent-hover);
-  color: var(--color-on-accent);
+  background: var(--color-accent-fill-hover);
+  color: var(--color-on-accent-fill);
 }
 
 .secondary {

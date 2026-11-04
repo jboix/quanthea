@@ -2,8 +2,8 @@ import type { ConnectorKindInfo, ConnectorSummary } from '@quanthea/shared';
 import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router';
 import { buttonClassName } from '../../ui/button.tsx';
-import { SearchIcon } from '../../ui/icons.tsx';
-import { Placeholder } from '../../ui/placeholder.tsx';
+import { EmptyState } from '../../ui/empty-state.tsx';
+import { ConnectorsIcon, SearchIcon } from '../../ui/icons.tsx';
 import { StatusDot } from '../../ui/status-dot.tsx';
 import { TitleHeader } from '../../ui/title-header.tsx';
 import { accessLevelName } from './access-levels.ts';
@@ -130,6 +130,7 @@ export function ConnectorsLayout() {
         <TitleHeader
           className={styles.sidebarHeader}
           level={1}
+          align="start"
           title="Connectors"
           actions={
             <Link to="/connectors/new" className={buttonClassName('primary')}>
@@ -168,13 +169,23 @@ export function ConnectorsLayout() {
  */
 export function ConnectorsIndex() {
   const { connectors } = useConnectorsData();
-  const title =
-    connectors.length === 0
-      ? 'Add a connector to give the model something to query.'
-      : 'Pick a connector to see what the model can see of it.';
+  const none = connectors.length === 0;
   return (
-    <div className={styles.empty}>
-      <Placeholder title={title}>Only admins see this screen.</Placeholder>
-    </div>
+    <EmptyState
+      fill
+      icon={<ConnectorsIcon />}
+      title={none ? 'No connectors yet' : 'Pick a connector'}
+      action={
+        none && (
+          <Link to="/connectors/new" className={buttonClassName('primary')}>
+            Add a connector
+          </Link>
+        )
+      }
+    >
+      {none
+        ? 'Connect a database or an API, and the agent can build dashboards on it.'
+        : 'Its access level, what it shows, and the schema the model gets open here.'}
+    </EmptyState>
   );
 }

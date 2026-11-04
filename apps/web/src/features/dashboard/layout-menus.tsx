@@ -9,6 +9,7 @@ import { Button } from '../../ui/button.tsx';
 import { Popover } from '../../ui/popover.tsx';
 import { showPanel } from './layout-edit.ts';
 import styles from './layout-editor.module.css';
+import { inPanelSection } from './layout-section-edit.ts';
 import type { Loaded } from './loaded.ts';
 import { dateTimeWords } from './snapshot-words.ts';
 
@@ -23,7 +24,7 @@ interface HiddenMenuProps {
 }
 
 /**
- * The panels the layout hides, each with Show, which puts it back at its place.
+ * The panels the layout hides, each with Show, which puts it back at its place, in its section.
  *
  * @param props - The layout, the titles and the change callback.
  * @returns The menu, or nothing while no panel is hidden.
@@ -37,7 +38,12 @@ export function HiddenMenu({ layout, titles, onChange }: HiddenMenuProps) {
         {hidden.map((panel) => (
           <li key={panel.id} className={styles.row}>
             <span>{titles.get(panel.id) ?? panel.id}</span>
-            <Button size="small" onClick={() => onChange(showPanel(layout, panel.id))}>
+            <Button
+              size="small"
+              onClick={() =>
+                onChange(inPanelSection(layout, panel.id, (part) => showPanel(part, panel.id)))
+              }
+            >
               Show
             </Button>
           </li>

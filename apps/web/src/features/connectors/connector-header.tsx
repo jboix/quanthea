@@ -57,7 +57,7 @@ function TitlePills({
       )}
       {connector.managedBy && (
         <span title={connector.managedBy}>
-          <Pill tone="accent">managed by {connector.managedBy.split('/').at(-1)}</Pill>
+          <Pill>managed by {connector.managedBy.split('/').at(-1)}</Pill>
         </span>
       )}
     </>
@@ -87,7 +87,7 @@ function HeaderActions({ connector, health }: PartProps) {
 }
 
 /**
- * The lines under the name: the target, the file that manages the connector, and why a test failed.
+ * The lines under the name: the target, and why a test failed.
  *
  * @param props - The connector and the failure.
  * @param props.connector - The connector.
@@ -104,11 +104,6 @@ function HeaderNotes({
   return (
     <>
       {connector.target !== null && <p className={styles.target}>{connector.target}</p>}
-      {connector.managedBy && (
-        <p className={styles.target}>
-          The configuration file manages this connector. Change it there.
-        </p>
-      )}
       {failure !== undefined && (
         <p role="alert" className={styles.failure}>
           {failure}

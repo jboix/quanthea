@@ -1,0 +1,36 @@
+/*
+ * A tight grid joins its panels into one block: no gap, one hairline where two meet, and only the
+ * block's outer corners rounded. A row is the height of a row and a gap on an airy grid, so a
+ * panel is as tall either way. Each join sets the variables of its card and draws nothing.
+ */
+.tight {
+  grid-auto-rows: 56px;
+  gap: 0;
+}
+
+.join {
+  display: contents;
+}
+
+.tight > .join > * {
+  margin: var(--join-top, 0) 0 0 var(--join-left, 0);
+  border-radius: var(--corners, var(--radius-panel));
+}
+
+/* The selected panel draws its whole border above the hairlines it shares. */
+.tight > .join > [data-selected="true"] {
+  z-index: 1;
+}
+
+/* On one column the joins of the wide grid do not hold: a tight grid is drawn airy. */
+@media (max-width: 900px) {
+  .tight {
+    grid-auto-rows: 40px;
+    gap: 16px;
+  }
+
+  .tight > .join > * {
+    margin: 0;
+    border-radius: var(--radius-panel);
+  }
+}

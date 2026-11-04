@@ -17,20 +17,47 @@ test('the external hosts start open to links and closed to images, and audit eve
     store: createSettingsStore(repository),
     audit: { append: (entry) => entries.push(entry) },
   });
-  expect(service.get()).toEqual({ linksToAnyHost: true, hosts: [] });
+  const closed = { links: { anyHost: true, hosts: [] }, images: { anyHost: false, hosts: [] } };
+  expect(service.get()).toEqual(closed);
   expect(service.imageHosts()).toEqual([]);
-  const hosts = [
-    { host: 'media.example.com', images: true },
-    { host: 'docs.example.com', images: false },
-  ];
-  const saved = service.save({ linksToAnyHost: false, hosts }, 'admin-1');
-  expect(service.imageHosts()).toEqual(['media.example.com']);
-  expect(saved.hosts).toEqual(hosts);
-  expect(entries).toEqual([
+  const saved = service.save(
     {
-      actor: 'admin-1',
-      action: 'settings.external-hosts',
-      detail: { before: { linksToAnyHost: true, hosts: [] }, after: saved },
+      links: { anyHost: false, hosts: ['docs.example.com'] },
+      images: { anyHost: false, hosts: ['media.example.com'] },
     },
+    'admin-1',
+  );
+  expect(service.imageHosts()).toEqual(['media.example.com']);
+  expect(saved.links.hosts).toEqual(['docs.example.com']);
+  service.save({ ...saved, images: { anyHost: true, hosts: [] } }, 'admin-1');
+  expect(service.imageHosts()).toBe('any');
+  expect(entries[0]).toEqual({
+    actor: 'admin-1',
+    action: 'settings.external-hosts',
+    detail: { before: closed, after: saved },
+  });
+});
+
+test('settings saved as one list read as a list each', () => {
+  const rows = new Map([
+    [
+      'external-hosts',
+      JSON.stringify({
+        linksToAnyHost: false,
+        hosts: [
+          { host: 'media.example.com', images: true },
+          { host: 'docs.example.com', images: false },
+        ],
+      }),
+    ],
   ]);
+  const repository: SettingsRepository = { read: (key) => rows.get(key), write: () => {} };
+  const service = createExternalHosts({
+    store: createSettingsStore(repository),
+    audit: { append: () => {} },
+  });
+  expect(service.get()).toEqual({
+    links: { anyHost: false, hosts: ['media.example.com', 'docs.example.com'] },
+    images: { anyHost: false, hosts: ['media.example.com'] },
+  });
 });

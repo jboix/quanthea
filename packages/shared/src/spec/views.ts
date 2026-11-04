@@ -84,6 +84,11 @@ const tableViewSchema = z.strictObject({
   pageSize: z.int().min(5).max(100).optional(),
   /** Shows the first row as labelled values, one column a line: the fields of one document. */
   record: z.literal(true).optional(),
+  /**
+   * With `record`, shows the first row as one headline value, the first column, and the others on
+   * one line below it, as compact as a number.
+   */
+  compact: z.literal(true).optional(),
 });
 
 /** Validates a transform applied to a dataset before the chart gets it. */

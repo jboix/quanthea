@@ -1,3 +1,53 @@
+/* A table fills its panel: the rows scroll, and the pager and the note stay at its foot. */
+.tableFrame {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+.tableScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.tableFrame > nav {
+  flex-shrink: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-weight: 500;
+  color: var(--color-ink-secondary);
+  text-align: left;
+}
+
+.table td {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-divider);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.table [data-align="right"] {
+  text-align: right;
+  font-family: var(--font-sans);
+}
+
 /*
  * A table cell with a tone. The cell sets `--tone` to a design token, so the colour follows the
  * scheme. Mixing the tone with the ink keeps the text readable on the surface in both schemes.
@@ -106,4 +156,48 @@
 .recordLine dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* A compact record: the first value as large as a number's, the others on a line below. */
+.compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.compactValue {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.compactDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.compactDetails > span + span::before {
+  content: "·";
+  margin-right: 6px;
+}
+
+/* The space between columns, after every other rule on cells. */
+.table th + th,
+.table td + td {
+  padding-left: 16px;
 }

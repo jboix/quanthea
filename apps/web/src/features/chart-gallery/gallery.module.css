@@ -78,7 +78,7 @@
   flex-direction: column;
   gap: 10px;
   min-width: 0;
-  padding: 14px 16px;
+  padding: var(--space-card-block) var(--space-card-inline);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
@@ -99,6 +99,11 @@
   font-size: 13px;
   line-height: 1.45;
   color: var(--color-ink-label);
+}
+
+/* The last line, the switch, sits at the card's bottom, so the switches of a row line up. */
+.card > :last-child {
+  margin-top: auto;
 }
 
 .details {

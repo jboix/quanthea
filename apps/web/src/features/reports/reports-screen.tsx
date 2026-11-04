@@ -7,7 +7,8 @@ import { hasRole, type ReportListItem } from '@quanthea/shared';
 import { useCallback, useState } from 'react';
 import { Link, useLoaderData } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
-import { SearchIcon } from '../../ui/icons.tsx';
+import { EmptyState } from '../../ui/empty-state.tsx';
+import { ReportIcon, SearchIcon } from '../../ui/icons.tsx';
 import { Page } from '../../ui/page.tsx';
 import type { ReportsData } from './data.ts';
 import { ReportRow } from './report-row.tsx';
@@ -90,13 +91,19 @@ function HeaderActions() {
  */
 function EmptyNote({ any }: { readonly any: boolean }) {
   const editor = hasRole(useRole(), 'editor');
-  if (any) return <p className={styles.empty}>No report matches. Try fewer words.</p>;
+  if (any) {
+    return (
+      <EmptyState icon={<SearchIcon />} title="No report matches">
+        Try fewer words.
+      </EmptyState>
+    );
+  }
   return (
-    <p className={styles.empty}>
+    <EmptyState icon={<ReportIcon />} title="No reports yet">
       {editor
-        ? 'No report yet. Start one with New report: say what to send and when, and the agent writes it.'
-        : 'No report is active yet. Editors write reports with the agent.'}
-    </p>
+        ? 'Start one with New report: say what to send and when, and the agent writes it.'
+        : 'Editors write reports with the agent. Active ones show up here.'}
+    </EmptyState>
   );
 }
 

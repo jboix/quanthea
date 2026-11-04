@@ -113,6 +113,7 @@ export function TablePager({ page, size, onMove }: TablePagerProps) {
       shown={page.rows.length}
       total={total}
       words={pageWords}
+      size={size}
       onNewer={offset > 0 ? () => onMove(offset - size) : undefined}
       onOlder={offset + size < total ? () => onMove(offset + size) : undefined}
     />

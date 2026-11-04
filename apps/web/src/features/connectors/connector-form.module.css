@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 6px;
   max-width: 640px;
-  padding: 28px 32px 48px;
+  padding: var(--space-section) var(--space-body-inline) 48px;
 }
 
 /* The title names the connector, which may be one long word: it wraps inside the screen. */

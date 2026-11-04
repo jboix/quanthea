@@ -279,6 +279,7 @@ describe('an agent run', () => {
         'claude-haiku-4-5': { input: 10, cachedInput: 0, cacheWrite: 0, output: 5 },
         'claude-sonnet-5': { input: 20, cachedInput: 0, cacheWrite: 0, output: 10 },
       },
+      workedMs: expect.any(Number),
     });
   });
 

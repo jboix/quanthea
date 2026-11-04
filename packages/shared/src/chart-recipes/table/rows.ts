@@ -27,6 +27,12 @@ export const rows: ChartRecipe = {
         'The fields of one row as labelled values, text included: a session, a device, an order. The query returns that row; only the first shows.',
       patch: { record: true },
     },
+    'compact-record': {
+      title: 'Compact record',
+      whenToUse:
+        'One row as a number: its first column as the headline, such as an amount, the others on a line below. The latest order, the last deploy. It sits among the numbers.',
+      patch: { record: true, compact: true },
+    },
   },
   pitfalls: [
     'At most 500 rows: sort and limit in the query. Viewers sort, filter and page; options.pageSize: 5 to 100 rows, default 20. "display": "image" shows https addresses as images.',

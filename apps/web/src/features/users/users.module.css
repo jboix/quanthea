@@ -1,6 +1,7 @@
+/* Name, email and role share the row; Invite keeps its own width at the end. */
 .invite {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
   align-items: end;
   gap: 12px;
 }
@@ -91,4 +92,10 @@
   display: inline-flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+@media (max-width: 720px) {
+  .invite {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

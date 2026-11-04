@@ -1,6 +1,6 @@
 /**
- * The external hosts: where dashboards may link and load images from. Links go to any host until
- * an admin narrows them; images load only from hosts an admin lists for them.
+ * The external hosts: where dashboards may link to and load images from, each any host or only
+ * the hosts an admin lists.
  */
 import type { ExternalHosts } from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
@@ -11,7 +11,7 @@ export interface ExternalHostsService {
   /**
    * The settings.
    *
-   * @returns Whether links go to any host, and the hosts listed.
+   * @returns Where links may go, and where images may load from.
    */
   get(): ExternalHosts;
   /**
@@ -23,12 +23,12 @@ export interface ExternalHostsService {
    */
   save(settings: ExternalHosts, actor: string): ExternalHosts;
   /**
-   * The hosts images may load from, kept in memory until the next save: every page's
-   * Content-Security-Policy names them.
+   * Where images may load from, kept in memory until the next save: every page's
+   * Content-Security-Policy names it.
    *
-   * @returns The host names.
+   * @returns `'any'` for any host, else the host names.
    */
-  imageHosts(): readonly string[];
+  imageHosts(): readonly string[] | 'any';
 }
 
 /** What the external hosts need. */
@@ -47,7 +47,7 @@ export interface ExternalHostsDependencies {
  */
 export function createExternalHosts(dependencies: ExternalHostsDependencies): ExternalHostsService {
   const { store, audit } = dependencies;
-  let images: readonly string[] | undefined;
+  let images: readonly string[] | 'any' | undefined;
   return {
     get: () => store.read('external-hosts'),
     save(settings, actor) {
@@ -59,10 +59,10 @@ export function createExternalHosts(dependencies: ExternalHostsDependencies): Ex
       return after;
     },
     imageHosts() {
-      images ??= store
-        .read('external-hosts')
-        .hosts.filter((each) => each.images)
-        .map((each) => each.host);
+      if (images === undefined) {
+        const reach = store.read('external-hosts').images;
+        images = reach.anyHost ? 'any' : reach.hosts;
+      }
       return images;
     },
   };

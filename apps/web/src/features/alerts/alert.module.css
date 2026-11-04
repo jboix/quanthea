@@ -5,7 +5,7 @@
 }
 
 .header {
-  padding: 14px 28px;
+  padding: 14px var(--space-body-inline);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-muted);
 }
@@ -38,9 +38,9 @@
 .main {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-gap);
   min-width: 0;
-  padding: 20px 28px 40px;
+  padding: var(--space-body-block) var(--space-body-inline) 40px;
 }
 
 .refusal {
@@ -61,7 +61,7 @@
   flex-direction: column;
   gap: 10px;
   min-width: 0;
-  padding: 14px 16px;
+  padding: var(--space-panel-block) var(--space-panel-inline);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
@@ -327,7 +327,7 @@
 
 @media (max-width: 720px) {
   .header {
-    padding: 14px 16px;
+    padding: var(--space-panel-block) var(--space-panel-inline);
   }
 
   .main {

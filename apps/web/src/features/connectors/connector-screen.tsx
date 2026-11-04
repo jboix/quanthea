@@ -29,6 +29,11 @@ export function ConnectorScreen() {
       <WriteWarning access={writeAccessOf(report)} />
       <div className={styles.columns}>
         <fieldset className={styles.settings} disabled={connector.managedBy !== undefined}>
+          {connector.managedBy && (
+            <p className={styles.managed} title={connector.managedBy}>
+              {connector.managedBy.split('/').at(-1)} manages this connector. Change it there.
+            </p>
+          )}
           <AccessSection connector={connector} schema={schema} />
           <ObjectsSection
             key={connector.id}

@@ -11,3 +11,9 @@
   margin-right: auto;
   font-variant-numeric: tabular-nums;
 }
+
+.page {
+  margin-right: 4px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-label);
+}

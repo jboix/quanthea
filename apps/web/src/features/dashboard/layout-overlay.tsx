@@ -34,6 +34,18 @@ export interface LayoutOverlayProps {
   readonly titles: ReadonlyMap<string, string>;
   /** Called with each change. */
   readonly onChange: (layout: DashboardLayout) => void;
+  /** Where a panel can move to, while a dashboard's sections are arranged. */
+  readonly sections?: SectionMoves | undefined;
+}
+
+/** The sections a panel can move to, and the move. */
+export interface SectionMoves {
+  /** The section arranged, or `undefined` for the panels of none. */
+  readonly current: string | undefined;
+  /** Every section, in order, with its title. */
+  readonly choices: readonly { readonly id: string; readonly title: string }[];
+  /** Moves a panel to a section, or out of every one with `undefined`. */
+  readonly onMove: (panelId: string, section: string | undefined) => void;
 }
 
 /** A drag under way. */
@@ -235,6 +247,10 @@ export function LayoutOverlay(props: LayoutOverlayProps) {
   const overlay = useRef<HTMLDivElement>(null);
   const pointer = usePointerDrag(props, overlay);
   const { onKey, onAction, said } = useFrameControls(props);
+  // Reading order, so Tab goes through the frames as the eye does.
+  const shown = props.layout.panels
+    .filter((panel) => !panel.hidden)
+    .sort((a, b) => a.grid.y - b.grid.y || a.grid.x - b.grid.x);
   return (
     <div
       ref={overlay}
@@ -244,21 +260,16 @@ export function LayoutOverlay(props: LayoutOverlayProps) {
       onPointerCancel={pointer.end}
     >
       <ColumnGuides />
-      {props.layout.panels
-        .filter((panel) => !panel.hidden)
-        // Reading order, so Tab goes through the frames as the eye does.
-        .sort((a, b) => a.grid.y - b.grid.y || a.grid.x - b.grid.x)
-        .map((panel) => (
-          <LayoutFrame
-            key={panel.id}
-            panel={panel}
-            title={props.titles.get(panel.id) ?? panel.id}
-            active={pointer.active === panel.id}
-            onStart={pointer.start}
-            onKey={onKey}
-            onAction={onAction}
-          />
-        ))}
+      {shown.map((panel) => (
+        <LayoutFrame
+          key={panel.id}
+          panel={panel}
+          title={props.titles.get(panel.id) ?? panel.id}
+          active={pointer.active === panel.id}
+          onStart={pointer.start}
+          {...{ onKey, onAction, sections: props.sections }}
+        />
+      ))}
       <p className={styles.said} aria-live="polite">
         {said}
       </p>
@@ -295,16 +306,59 @@ interface LayoutFrameProps {
   readonly onKey: (event: KeyboardEvent, panel: LayoutPanel) => void;
   /** Runs a quick action. */
   readonly onAction: (panel: LayoutPanel, action: QuickAction) => void;
+  /** Where the panel can move to, when sections are arranged. */
+  readonly sections?: SectionMoves | undefined;
+}
+
+/** The value of the choice of no section. */
+const noSection = '';
+
+/**
+ * The choice of the section a panel sits in, among the frame's quick actions.
+ *
+ * @param props - The panel, its title and the sections.
+ * @param props.panel - The panel.
+ * @param props.title - Its title.
+ * @param props.sections - The sections, and the move.
+ * @returns The choice.
+ */
+function SectionChoice({
+  panel,
+  title,
+  sections,
+}: {
+  readonly panel: LayoutPanel;
+  readonly title: string;
+  readonly sections: SectionMoves;
+}) {
+  return (
+    <select
+      aria-label={`${title}: section`}
+      value={sections.current ?? noSection}
+      onChange={(event) =>
+        sections.onMove(panel.id, event.target.value === noSection ? undefined : event.target.value)
+      }
+    >
+      <option value={noSection}>No section</option>
+      {sections.choices.map((choice) => (
+        <option key={choice.id} value={choice.id}>
+          {choice.title.trim() === '' ? 'Untitled section' : choice.title}
+        </option>
+      ))}
+    </select>
+  );
 }
 
 /**
  * One panel's frame: its handle, dragged to move the panel and focused to use the keyboard; its
- * corner, dragged to resize it; and its quick actions.
+ * corner, dragged to resize it; and its quick actions, the choice of its section among them while
+ * sections are arranged.
  *
  * @param props - The panel, its title, whether it is dragged, and the handlers.
  * @returns The frame.
  */
-function LayoutFrame({ panel, title, active, onStart, onKey, onAction }: LayoutFrameProps) {
+function LayoutFrame(props: LayoutFrameProps) {
+  const { panel, title, active, onStart, onKey, onAction, sections } = props;
   const { w, h } = panel.grid;
   return (
     <div className={styles.frame} data-active={active} style={placeStyle(panel.grid)}>
@@ -334,6 +388,7 @@ function LayoutFrame({ panel, title, active, onStart, onKey, onAction }: LayoutF
         <button type="button" onClick={() => onAction(panel, 'hide')}>
           Hide
         </button>
+        {sections && <SectionChoice panel={panel} title={title} sections={sections} />}
       </fieldset>
     </div>
   );

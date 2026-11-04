@@ -18,25 +18,25 @@ export const accessLevels: readonly AccessLevelCopy[] = [
   {
     value: 1,
     title: 'Schema only',
-    description: 'Tables, columns, types. Nothing else.',
+    description: 'Tables, columns, types.',
     short: 'schema only',
   },
   {
     value: 2,
     title: 'Schema + metadata',
-    description: 'Distinct values of small columns, row counts, test-run shapes.',
+    description: 'Plus row counts and small value lists.',
     short: 'metadata',
   },
   {
     value: 3,
     title: 'Aggregates',
-    description: 'Min, max, spikes, top N. Lets it write up what happened.',
+    description: 'Plus min, max, spikes, top N.',
     short: 'aggregates',
   },
   {
     value: 4,
     title: 'Full access',
-    description: 'Result rows, capped at the row limit below.',
+    description: 'Result rows, up to the limit.',
     short: 'full access',
   },
 ];

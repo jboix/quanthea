@@ -7,6 +7,7 @@ import {
   type DashboardLayout,
   filledTitle,
   type LayoutRevision,
+  type LayoutSection,
   type PanelGrid,
   type ShownLayout,
   type Variable,
@@ -22,18 +23,22 @@ import { layoutChanged, startingLayout } from './layout-edit.ts';
 import styles from './layout-editor.module.css';
 import { HiddenMenu, HistoryMenu } from './layout-menus.tsx';
 import { LayoutOverlay } from './layout-overlay.tsx';
+import { hasBlankSection, withSections } from './layout-section-edit.ts';
 import type { Loaded } from './loaded.ts';
 
 /** A version as it is arranged: the panels a layout names, and the layout it is shown with. */
 export interface ArrangedVersion {
   /** The version. */
   readonly version: number;
-  /** The panels on its grid, each with its title and the place its spec gives it. */
+  /** The panels on its grid, each with its title, the place and the section its spec gives it. */
   readonly panels: readonly {
     readonly id: string;
     readonly title: string;
     readonly grid: PanelGrid;
+    readonly section?: string | undefined;
   }[];
+  /** The spec's sections, in order, on a dashboard; left out for a report, which has none. */
+  readonly sections?: readonly LayoutSection[] | undefined;
   /** The layout it is shown with, if one was saved. */
   readonly layout: ShownLayout | null;
   /** Its variables, which fill the titles; none when it has none. */
@@ -56,6 +61,8 @@ export interface LayoutEditor {
   readonly draft: DashboardLayout | null;
   /** Whether the edit changed anything. */
   readonly dirty: boolean;
+  /** Whether the edit cannot be saved as it is: a section has no title. */
+  readonly blank: boolean;
   /** Starts arranging. */
   readonly start: () => void;
   /** Changes the layout being edited. */
@@ -122,7 +129,7 @@ function useLayoutEditor(arranged: ArrangedVersion, paths: LayoutPaths): LayoutE
   useEffect(() => {
     if (outcome?.ok) setDraft(null);
   }, [outcome, setDraft]);
-  const base = startingLayout(arranged, arranged.layout?.layout);
+  const base = withSections(arranged, startingLayout(arranged, arranged.layout?.layout));
   const send = (change: LayoutChange) =>
     void fetcher.submit(intentOf(arranged, change) as unknown as SubmitTarget, {
       method: 'post',
@@ -132,6 +139,7 @@ function useLayoutEditor(arranged: ArrangedVersion, paths: LayoutPaths): LayoutE
   return {
     draft,
     dirty: draft !== null && layoutChanged(base, draft),
+    blank: draft !== null && hasBlankSection(draft),
     start: () => setDraft(base),
     change: setDraft,
     save: () => draft && send({ layout: draft }),
@@ -153,8 +161,8 @@ const wideScreen = '(min-width: 901px)';
  * @param arranged - The version shown.
  * @param allowed - Whether the person may arrange this version.
  * @param paths - Where the edit is sent, and where its history loads from.
- * @returns The layout shown, the edit, its bar, notes and frames while it lasts, and Edit
- *   layout's callback if offered.
+ * @returns The layout shown, the edit, its bar, notes and frames while it lasts (the sections to
+ *   arrange, on a dashboard), and Edit layout's callback if offered.
  */
 export function useArrangement(arranged: ArrangedVersion, allowed: boolean, paths: LayoutPaths) {
   const editor = useLayoutEditor(arranged, paths);
@@ -170,9 +178,13 @@ export function useArrangement(arranged: ArrangedVersion, allowed: boolean, path
     layout: editor.draft ?? arranged.layout?.layout,
     bar: editing && <LayoutBar editor={editor} titles={titles} historyPath={paths.history} />,
     notes: editing && <LayoutNotes editor={editor} />,
-    overlay: editor.draft && (
+    overlay: editor.draft && !arranged.sections && (
       <LayoutOverlay layout={editor.draft} titles={titles} onChange={editor.change} />
     ),
+    arranging:
+      editor.draft && arranged.sections
+        ? { layout: editor.draft, titles, onChange: editor.change }
+        : undefined,
     onArrange: allowed && wide ? editor.start : undefined,
   };
 }
@@ -201,6 +213,11 @@ function LayoutNotes({ editor }: { readonly editor: LayoutEditor }) {
       <p className={styles.hint}>
         Drag a panel to move it, its corner to resize it. Only how it is shown changes.
       </p>
+      {editor.blank && (
+        <p className={styles.refusal} role="alert">
+          Name every section to save the layout.
+        </p>
+      )}
       {editor.refusal && (
         <p className={styles.refusal} role="alert">
           {editor.refusal}
@@ -227,7 +244,11 @@ function LayoutBar({ editor, titles, historyPath }: LayoutBarProps) {
       <Button onClick={editor.cancel} disabled={editor.saving}>
         Cancel
       </Button>
-      <Button variant="primary" onClick={editor.save} disabled={!editor.dirty || editor.saving}>
+      <Button
+        variant="primary"
+        onClick={editor.save}
+        disabled={!editor.dirty || editor.blank || editor.saving}
+      >
         {editor.saving ? 'Saving…' : 'Save layout'}
       </Button>
     </div>

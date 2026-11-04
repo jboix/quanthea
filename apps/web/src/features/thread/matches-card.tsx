@@ -1,7 +1,9 @@
 import type { ThreadData } from '@quanthea/shared';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Button } from '../../ui/button.tsx';
 import styles from './cards.module.css';
+import type { ThreadPart } from './messages.ts';
 
 /** Props of {@link MatchesCard}. */
 interface MatchesCardProps {
@@ -54,5 +56,38 @@ export function MatchesCard({ data, answerable, onStartFrom, onBuildNew }: Match
         </footer>
       )}
     </section>
+  );
+}
+
+/** What the matches card needs of the conversation. */
+interface MatchesContext {
+  /** Whether the question waits for an answer. */
+  readonly answerable: boolean;
+  /** Whether the thread has a draft, which settles the card. */
+  readonly hasDraft: boolean;
+  /** Starts the draft from a copy of a pinned dashboard. */
+  readonly onStartFrom: (dashboardId: string) => void;
+  /** Asks the agent for a new dashboard after the matches. */
+  readonly onBuildNew: () => void;
+}
+
+/**
+ * Renders the pinned dashboards that may already answer the first question.
+ *
+ * @param part - The data part.
+ * @param key - Its key.
+ * @param context - The conversation context.
+ * @returns The card, or nothing for another part.
+ */
+export function matchesView(part: ThreadPart, key: string, context: MatchesContext): ReactNode {
+  if (part.type !== 'data-matches') return null;
+  return (
+    <MatchesCard
+      key={key}
+      data={part.data}
+      answerable={context.answerable && !context.hasDraft}
+      onStartFrom={context.onStartFrom}
+      onBuildNew={context.onBuildNew}
+    />
   );
 }

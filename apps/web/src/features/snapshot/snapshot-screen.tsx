@@ -40,6 +40,7 @@ export function SnapshotScreen() {
     <div className={styles.screen}>
       <TitleHeader
         className={styles.header}
+        sticky
         level={1}
         size="screen"
         title={snapshot.spec.title}

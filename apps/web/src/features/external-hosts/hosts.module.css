@@ -1,26 +1,62 @@
 .list {
   display: grid;
   gap: 8px;
-  margin: 16px 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
 }
 
+.hosts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.hosts > .list {
+  align-self: stretch;
+}
+
+/* Where the next host goes: a dashed row the width of the list, in the accent colour. */
+.add {
+  align-self: stretch;
+  height: 38px;
+  border: 1px dashed var(--color-accent);
+  border-radius: var(--radius-control);
+  background: var(--color-accent-soft);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.add:hover:not(:disabled) {
+  border-style: solid;
+}
+
+.add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Save, at the end of the page, a refusal before it. */
 .actions {
   display: flex;
-  gap: 8px;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .error {
-  margin-top: 8px;
+  margin: 0;
   font-size: 13px;
   color: var(--color-danger);
 }

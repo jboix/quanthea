@@ -20,6 +20,21 @@ describe('applyEdit', () => {
     ]);
   });
 
+  test('sizes a compact record as a number', () => {
+    const data = { kind: 'raw', connector: 'shop', language: 'sql', query: 'SELECT 1 AS total' };
+    const chart = { recipe: 'table.rows', variants: ['compact-record'] };
+    const spec = specOf(
+      undefined,
+      edit({
+        title: 'Orders',
+        summary: 'Latest',
+        panels: [{ title: 'Latest order', data, chart }],
+      }),
+    );
+    expect(spec.panels[0]?.grid).toEqual({ x: 0, y: 0, w: 3, h: 3 });
+    expect(spec.panels[0]?.view).toMatchObject({ kind: 'table', record: true, compact: true });
+  });
+
   test('fills each chart recipe into the view, with its variants and the unit of the data', () => {
     const [errorRate, , latency, orders] = specOf(undefined, firstBuild).panels;
     expect(errorRate?.view).toMatchObject({

@@ -1,32 +1,19 @@
 /**
- * A layout: where each panel of one version of a dashboard or a report sits, how big it is, and
- * whether it is hidden. A layout is presentation: it changes how a version is shown, never its
- * spec.
+ * A layout: where each panel of one version of a dashboard or a report sits, how big it is,
+ * whether it is hidden and, on a dashboard, its section. A layout is presentation: it changes how
+ * a version is shown, never its spec.
  */
-import { z } from 'zod';
-import { type DashboardSpec, type Panel, panelGridSchema } from './dashboard.ts';
-import { slugSchema } from './names.ts';
+import type { DashboardSpec, Panel } from './dashboard.ts';
+import type { DashboardLayout, PanelGrid } from './layout-schema.ts';
+import { layoutSectionProblems, withLayoutSections } from './layout-sections.ts';
 
-/** A panel's place on the grid. */
-export type PanelGrid = Panel['grid'];
-
-/** Validates one panel's entry in a layout. */
-const layoutPanelSchema = z.strictObject({
-  id: slugSchema,
-  grid: panelGridSchema,
-  hidden: z.boolean(),
-});
-
-/** Validates a layout: one entry per panel of the version. */
-export const dashboardLayoutSchema = z.strictObject({
-  panels: z.array(layoutPanelSchema).max(60),
-});
-
-/** A layout. */
-export type DashboardLayout = z.infer<typeof dashboardLayoutSchema>;
-
-/** One panel's entry in a layout. */
-export type LayoutPanel = DashboardLayout['panels'][number];
+export {
+  type DashboardLayout,
+  dashboardLayoutSchema,
+  type LayoutPanel,
+  type LayoutSection,
+  type PanelGrid,
+} from './layout-schema.ts';
 
 /**
  * Whether two places share a cell.
@@ -65,6 +52,26 @@ export function packGrid<Item extends { readonly grid: PanelGrid }>(
   return result;
 }
 
+/**
+ * Packs each section's items on a grid of their own, as each section draws them: items in two
+ * sections may share rows.
+ *
+ * @param items - The items, each with its place and its section, if any.
+ * @returns The items in their original order, with repaired places.
+ */
+export function packSections<
+  Item extends { readonly grid: PanelGrid; readonly section?: string | undefined },
+>(items: readonly Item[]): Item[] {
+  const placed = new Map<Item, Item>();
+  for (const key of new Set(items.map((item) => item.section))) {
+    const group = items.filter((item) => item.section === key);
+    packGrid(group).forEach((packed, index) => {
+      placed.set(group[index] as Item, packed);
+    });
+  }
+  return items.map((item) => placed.get(item) ?? item);
+}
+
 /** What a layout arranges: panels, each with its place. A dashboard spec is one. */
 export interface Arranged {
   /** The panels. */
@@ -91,9 +98,9 @@ export function specLayout(spec: Arranged): DashboardLayout {
  * @returns The layout with its shown panels packed.
  */
 export function packLayout(layout: DashboardLayout): DashboardLayout {
-  const shown = packGrid(layout.panels.filter((panel) => !panel.hidden));
+  const shown = packSections(layout.panels.filter((panel) => !panel.hidden));
   const placed = new Map(shown.map((panel) => [panel.id, panel]));
-  return { panels: layout.panels.map((panel) => placed.get(panel.id) ?? panel) };
+  return { ...layout, panels: layout.panels.map((panel) => placed.get(panel.id) ?? panel) };
 }
 
 /** A spec as a layout shows it. */
@@ -126,11 +133,12 @@ export function arrangePanels(panels: readonly Panel[], layout: DashboardLayout)
   const shown = panels
     .filter((panel) => entries.get(panel.id)?.hidden !== true)
     .map((panel) => ({ ...panel, grid: entries.get(panel.id)?.grid ?? panel.grid }));
-  return { panels: packGrid(shown), hidden: hidden.map((panel) => panel.id) };
+  return { panels: packSections(shown), hidden: hidden.map((panel) => panel.id) };
 }
 
 /**
- * Shows a spec through a layout: shown panels at the layout's places, hidden ones left out.
+ * Shows a spec through a layout: shown panels at the layout's places and in its sections, hidden
+ * ones left out.
  *
  * @param spec - The spec.
  * @param layout - The layout, or `undefined` for the spec's own.
@@ -138,19 +146,20 @@ export function arrangePanels(panels: readonly Panel[], layout: DashboardLayout)
  */
 export function applyLayout(spec: DashboardSpec, layout: DashboardLayout | undefined): LaidOutSpec {
   if (!layout) return { spec, hidden: [] };
-  const { panels, hidden } = arrangePanels(spec.panels, layout);
-  return { spec: { ...spec, panels }, hidden };
+  const sectioned = withLayoutSections(spec, layout);
+  const { panels, hidden } = arrangePanels(sectioned.panels, layout);
+  return { spec: { ...sectioned, panels }, hidden };
 }
 
 /**
  * Why a layout does not fit a spec, if it does not: it names every panel of the spec once, and
- * no other, and shows at least one.
+ * no other, shows at least one, and sets sections only on a dashboard, holding its panels.
  *
  * @param spec - The spec of the version the layout is for, or the panels it arranges.
  * @param layout - The layout.
  * @returns The problems, empty when it fits.
  */
-export function layoutProblems(spec: Arranged, layout: DashboardLayout): string[] {
+export function layoutProblems(spec: Arranged | DashboardSpec, layout: DashboardLayout): string[] {
   const ids = layout.panels.map((panel) => panel.id);
   const known = new Set(spec.panels.map((panel) => panel.id));
   const problems: string[] = [];
@@ -162,5 +171,6 @@ export function layoutProblems(spec: Arranged, layout: DashboardLayout): string[
   const missing = [...known].filter((id) => !ids.includes(id));
   if (missing.length > 0) problems.push(`Panels left out: ${missing.join(', ')}.`);
   if (layout.panels.every((panel) => panel.hidden)) problems.push('Show at least one panel.');
-  return problems;
+  const dashboard = 'specVersion' in spec ? spec : undefined;
+  return [...problems, ...layoutSectionProblems(dashboard, layout)];
 }

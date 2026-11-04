@@ -12,7 +12,6 @@ import {
   type VariableValues,
 } from '@quanthea/shared';
 import { type ReactNode, useState } from 'react';
-import { WithOverlay } from './canvas.tsx';
 import type { Loaded } from './data.ts';
 import { MarkerToggles } from './marker-toggles.tsx';
 import { PanelFrame } from './panel-card.tsx';
@@ -22,6 +21,7 @@ import { SectionedGrid, useFolding } from './sections.tsx';
 import { shown, VariableName } from './variable-chip.tsx';
 import styles from './variables-bar.module.css';
 import { timeLabel } from './view-state.ts';
+import { WithOverlay } from './with-overlay.tsx';
 
 /** Props of {@link FrozenCanvas}. */
 export interface FrozenCanvasProps {

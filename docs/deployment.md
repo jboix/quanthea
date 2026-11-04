@@ -147,7 +147,7 @@ works only from that address, and sign-in providers send people back to it; prov
 - Declare the first admin in `users`: `admin`, with a `password` reference, signs in with no
   email; an admin keyed by email signs in with a `password` reference, or through a provider
   with that verified email. Then quanthea creates no `admin` user of its own.
-- Register quanthea at each provider with the redirect URI Settings → Authentication shows.
+- Register quanthea at each provider with the redirect URI Settings → Sign-in shows.
 
 ## Locked out
 

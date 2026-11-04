@@ -1,4 +1,5 @@
-import { type ReactNode, type RefObject, useEffect, useId, useRef } from 'react';
+import { type ReactNode, useEffect, useId, useRef } from 'react';
+import { useBackdropClose } from './backdrop-close.ts';
 import styles from './drawer.module.css';
 import { TitleHeader } from './title-header.tsx';
 
@@ -12,25 +13,6 @@ interface DrawerProps {
   readonly title: string;
   /** The content, below the heading. */
   readonly children: ReactNode;
-}
-
-/**
- * Closes a modal dialog on a click on its backdrop. Escape, its keyboard counterpart, is native.
- *
- * @param dialog - The dialog.
- * @param onClose - Called on such a click.
- */
-function useBackdropClose(dialog: RefObject<HTMLDialogElement | null>, onClose: () => void): void {
-  useEffect(() => {
-    const element = dialog.current;
-    if (!element) return;
-    // A click on the backdrop lands on the dialog itself; the content sits in the panel.
-    const onClick = (event: MouseEvent) => {
-      if (event.target === element) onClose();
-    };
-    element.addEventListener('click', onClick);
-    return () => element.removeEventListener('click', onClick);
-  }, [dialog, onClose]);
 }
 
 /**

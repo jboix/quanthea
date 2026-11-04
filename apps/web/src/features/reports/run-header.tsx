@@ -153,6 +153,7 @@ export function RunHeader(props: RunHeaderProps) {
   return (
     <TitleHeader
       className={styles.header}
+      sticky
       level={1}
       size="screen"
       align="end"

@@ -36,19 +36,34 @@ describe('the external hosts', () => {
     expect(imageHostAllowed(settings, 'any.example.com')).toBe(false);
   });
 
-  test('keep links to the hosts listed once narrowed, and images to those marked', () => {
+  test('keep links and images each to their own hosts, or let either go anywhere', () => {
+    const settings = externalHostsSchema.parse({
+      links: { anyHost: false, hosts: ['play.example.com'] },
+      images: { anyHost: false, hosts: ['media.example.com'] },
+    });
+    expect(linkHostAllowed(settings, 'play.example.com')).toBe(true);
+    expect(linkHostAllowed(settings, 'media.example.com')).toBe(false);
+    expect(imageHostAllowed(settings, 'media.example.com')).toBe(true);
+    expect(imageHostAllowed(settings, 'play.example.com')).toBe(false);
+    const open = { ...settings, images: { anyHost: true, hosts: [] } };
+    expect(imageHostAllowed(open, 'any.example.com')).toBe(true);
+  });
+
+  test('read settings saved as one list: every host for links, those marked for images', () => {
     const settings = externalHostsSchema.parse({
       linksToAnyHost: false,
       hosts: [{ host: 'media.example.com', images: true }, { host: 'play.example.com' }],
     });
-    expect(linkHostAllowed(settings, 'play.example.com')).toBe(true);
-    expect(linkHostAllowed(settings, 'other.example.com')).toBe(false);
-    expect(imageHostAllowed(settings, 'media.example.com')).toBe(true);
-    expect(imageHostAllowed(settings, 'play.example.com')).toBe(false);
+    expect(settings).toEqual({
+      links: { anyHost: false, hosts: ['media.example.com', 'play.example.com'] },
+      images: { anyHost: false, hosts: ['media.example.com'] },
+    });
   });
 
-  test('hold at most 50 hosts', () => {
-    const hosts = Array.from({ length: 51 }, (_, index) => ({ host: `h${index}.example.com` }));
-    expect(externalHostsSchema.safeParse({ hosts }).success).toBe(false);
+  test('hold at most 50 hosts in each list', () => {
+    const hosts = Array.from({ length: 51 }, (_, index) => `h${index}.example.com`);
+    const images = { anyHost: false, hosts: [] };
+    const links = { anyHost: false, hosts };
+    expect(externalHostsSchema.safeParse({ links, images }).success).toBe(false);
   });
 });

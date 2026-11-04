@@ -109,16 +109,17 @@ function gapAdvice(panels: readonly Panel[]): string[] {
 }
 
 /**
- * The numbers of a dashboard that sit below a chart or a table.
+ * The numbers of a dashboard that sit below a chart or a table: one ends above them. Numbers
+ * stacked beside a chart are not below it.
  *
  * @param panels - The panels on the grid.
  * @returns The advice, none when the numbers come first.
  */
 function numbersFirstAdvice(panels: readonly Panel[]): string[] {
   const others = panels.filter((panel) => shapeOfPanel(panel) !== 'stat');
-  const firstOther = Math.min(...others.map((panel) => panel.grid.y));
+  const firstEnd = Math.min(...others.map((panel) => panel.grid.y + panel.grid.h));
   const below = panels.filter(
-    (panel) => shapeOfPanel(panel) === 'stat' && panel.grid.y > firstOther,
+    (panel) => shapeOfPanel(panel) === 'stat' && panel.grid.y >= firstEnd,
   );
   if (below.length === 0) return [];
   const names = below.map((panel) => `"${panel.id}"`).join(', ');

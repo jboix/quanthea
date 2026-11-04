@@ -1,4 +1,4 @@
-/** The route of Settings → Authentication. */
+/** The route of Settings → Sign-in. */
 import type { RouteObject } from 'react-router';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';

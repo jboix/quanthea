@@ -9,10 +9,11 @@ import type {
   Panel,
   PanelRun,
 } from '@quanthea/shared';
-import { type ReactNode, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { RangeSelectContext, type RangeSelected } from '../../charts/range-select.tsx';
 import { dashboardAlertsPath, useDashboardAlerts } from './alerts-data.ts';
+import { ArrangedSections, type SectionArranging } from './arranged-sections.tsx';
 import type { PanelMark } from './ask-marks.ts';
 import { CanvasActions } from './canvas-actions.tsx';
 import type { Loaded } from './data.ts';
@@ -22,7 +23,6 @@ import { hiddenMarkersOf, runSearchOf } from './marker-sets.ts';
 import type { PanelAlertView } from './panel-alert-view.tsx';
 import { linkedAlertsOf, panelAlertsOf, type Selection, selectionOf } from './panel-alerts.ts';
 import { PanelCard, type PanelPlanMark, type RunTarget } from './panel-card.tsx';
-import panelStyles from './panels.module.css';
 import { copyTarget, type SectionCopy } from './section-copies.tsx';
 import { type Folding, SectionedGrid, useFolding } from './sections.tsx';
 import { VariablesBar } from './variables-bar.tsx';
@@ -86,8 +86,8 @@ export interface DashboardCanvasProps {
   readonly explainable?: boolean;
   /** Whether the panels show their alerts: on the dashboard screen only. */
   readonly withAlerts?: boolean;
-  /** A layer over the panels, such as the layout editor's frames. */
-  readonly overlay?: ReactNode;
+  /** The layout being arranged, which draws the sections open with their frames. */
+  readonly arranging?: SectionArranging | undefined;
   /** A short note on some panels, by id, such as `hidden on v3` in the thread's draft pane. */
   readonly layoutNotes?: Readonly<Record<string, string>> | undefined;
 }
@@ -168,14 +168,8 @@ function PanelGrid(props: PanelGridProps) {
   const explain = explainPlace(props);
   const views = usePanelAlertViews(spec, props.alerts, props.explainable ? version : undefined);
   const card = cardDrawer(props, explain, views);
-  if (!props.overlay)
-    return <SectionedGrid spec={spec} folding={props.folding} card={card} target={props.target} />;
-  // Arranging moves panels on the one grid, so the sections open into it meanwhile.
-  return (
-    <WithOverlay overlay={props.overlay}>
-      <div className={panelStyles.grid}>{spec.panels.map((panel) => card(panel))}</div>
-    </WithOverlay>
-  );
+  if (props.arranging) return <ArrangedSections {...props.arranging} spec={spec} card={card} />;
+  return <SectionedGrid spec={spec} folding={props.folding} card={card} target={props.target} />;
 }
 
 /**
@@ -209,30 +203,6 @@ function cardDrawer(
       layoutNote={props.layoutNotes?.[panel.id]}
       links={props.links}
     />
-  );
-}
-
-/**
- * The panel grid with a layer over it, when there is one.
- *
- * @param props - The grid and the layer.
- * @param props.overlay - The layer, if any.
- * @param props.children - The grid.
- * @returns The grid, under the layer.
- */
-export function WithOverlay({
-  overlay,
-  children,
-}: {
-  readonly overlay: ReactNode;
-  readonly children: ReactNode;
-}) {
-  if (!overlay) return children;
-  return (
-    <div className={panelStyles.editing}>
-      {children}
-      {overlay}
-    </div>
   );
 }
 

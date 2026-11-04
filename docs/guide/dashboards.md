@@ -230,10 +230,9 @@ Only the thread's owner and admins pin and unpin a dashboard built in a thread.
 
 ## Links and images
 
-Admins choose where dashboards may reach, in **Settings → Links and images**. Links go to any host
-until an admin keeps them to the hosts listed. Images load only from the hosts an admin marks for
-images, and none is marked at first: an image loads when a dashboard opens, so it tells its host
-who looked. A host is a name such as `media.example.com`, without `https://` or a path.
+Admins choose where dashboards may reach, in **Settings → Links and images**. Links and images
+each go to any host or only to the hosts in their own list. At first links go anywhere and images
+load from nowhere, because an image loads when a dashboard opens and so tells its host who looked. A host is a name such as `media.example.com`, without `https://` or a path.
 
 A table column or a stat can open another pinned dashboard. Ask for it: "each service opens the
 service dashboard for that service". The target's variables take the row's values, the values
@@ -254,7 +253,8 @@ marked for images; otherwise the address shows as text. A snapshot shows the add
 A dashboard can group its panels under titles, such as one section per platform. Ask for it:
 "put the iOS panels in a section of their own, folded". Click a section's title to fold or unfold
 it. A folded section's panels don't run until you open it. What you fold stays yours, until you
-leave the page. While you arrange a dashboard, its sections open into one grid.
+leave the page. While you arrange a dashboard, every section opens, and you can rename, reorder,
+add and remove sections, and move panels between them.
 
 A section can repeat for each value of a variable that holds several: "a section per platform".
 Each copy shows the section's panels for one value, under that value's name. Choose the values in
@@ -276,6 +276,10 @@ version is made, and the thread's drafts stay as they are.
 - **Full width**, **Half width** and **Hide** sit at the foot of each frame. A hidden panel stays
   in the dashboard but is not shown, takes no space and is left out of snapshots and questions.
   **Hidden** in the bar lists them, and **Show** puts one back where it was.
+- **Sections** show open, each with its title to rename, **Move up**, **Move down** and
+  **Remove**. A frame's **Section** choice moves its panel into another section, or out of every
+  one. **+ Add a section** adds an empty one at the end. Removing a section keeps its panels, out
+  of any section.
 - With the keyboard, Tab to a frame. The arrow keys move it, Shift and an arrow resize it, and H
   hides it.
 - **Save layout** shows the arrangement to everyone. **Cancel** drops it. Leaving the page with

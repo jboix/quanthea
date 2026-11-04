@@ -6,7 +6,8 @@ import { hasRole } from '@quanthea/shared';
 import { useCallback, useState } from 'react';
 import { Link, useLoaderData, useSearchParams } from 'react-router';
 import { Button, buttonClassName } from '../../ui/button.tsx';
-import { SearchIcon } from '../../ui/icons.tsx';
+import { EmptyState } from '../../ui/empty-state.tsx';
+import { BellIcon, SearchIcon } from '../../ui/icons.tsx';
 import { Page } from '../../ui/page.tsx';
 import { AlertRow } from './alert-row.tsx';
 import { AlertSettingsDialog } from './alert-settings-dialog.tsx';
@@ -111,13 +112,19 @@ function Section({ section, now }: { readonly section: AlertSection; readonly no
  */
 function EmptyNote({ any }: { readonly any: boolean }) {
   const editor = hasRole(useRole(), 'editor');
-  if (any) return <p className={styles.empty}>No alert matches. Try fewer words or show all.</p>;
+  if (any) {
+    return (
+      <EmptyState icon={<SearchIcon />} title="No alert matches">
+        Try fewer words, or show all.
+      </EmptyState>
+    );
+  }
   return (
-    <p className={styles.empty}>
+    <EmptyState icon={<BellIcon />} title="No alerts yet">
       {editor
-        ? 'No alert yet. Start one with New alert: describe what to watch, and the agent writes it.'
-        : 'No alert is active yet. Editors write alerts with the agent.'}
-    </p>
+        ? 'Start one with New alert: describe what to watch, and the agent writes it.'
+        : 'Editors write alerts with the agent. Active ones show up here.'}
+    </EmptyState>
   );
 }
 

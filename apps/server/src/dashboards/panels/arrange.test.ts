@@ -110,6 +110,26 @@ describe('named arrangements', () => {
     ]);
   });
 
+  test('stack two numbers beside a chart and a table, all as tall as the stack', () => {
+    const spec = arranged([['stack', 'error-rate', 'failed-orders', 'latency', 'top-codes']]);
+    const stacked = spec.panels.filter((panel) => panel.id !== 'orders-by-status');
+    expect(stacked.map((panel) => [panel.id, panel.grid])).toEqual([
+      ['error-rate', { x: 0, y: 0, w: 3, h: 4 }],
+      ['failed-orders', { x: 0, y: 4, w: 3, h: 4 }],
+      ['latency', { x: 3, y: 0, w: 5, h: 8 }],
+      ['top-codes', { x: 8, y: 0, w: 4, h: 8 }],
+    ]);
+    expect(issuesOf(spec)).toEqual([]);
+    expect(layoutReport(spec.panels).advice).toBeUndefined();
+  });
+
+  test('refuse a stack that does not start with two or three numbers', () => {
+    expect(() => arranged([['stack', 'latency', 'error-rate', 'failed-orders']])).toThrow(
+      '"stack" takes two or three numbers, then one or two panels beside them',
+    );
+    expect(() => arranged([['stack', 'error-rate', 'latency']])).toThrow('"stack" takes');
+  });
+
   test('three across fills the last row, and five numbers share one', () => {
     const three = arranged([['three', ...built.panels.map((panel) => panel.id)]]);
     expect(three.panels.map((panel) => panel.grid.w)).toEqual([4, 4, 4, 6, 6]);
@@ -141,7 +161,7 @@ describe('named arrangements', () => {
       }
     };
     expect(refusalOf([['grid', 'latency']])).toBe(
-      'No arrangement "grid". A row of "arrange" starts with one of: stats, chart-table, full, two, three.',
+      'No arrangement "grid". A row of "arrange" starts with one of: stats, chart-table, full, two, three, stack.',
     );
     expect(refusalOf([['full', 'nope']])).toBe(
       '"arrange" names no panel "nope". The panels are: error-rate, failed-orders, latency, orders-by-status, top-codes.',

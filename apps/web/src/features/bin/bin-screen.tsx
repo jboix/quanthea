@@ -2,6 +2,8 @@ import { type BinnedThread, dayMonthTime } from '@quanthea/shared';
 import { Fragment, useCallback, useState } from 'react';
 import { useLoaderData } from 'react-router';
 import { Button } from '../../ui/button.tsx';
+import { EmptyState } from '../../ui/empty-state.tsx';
+import { BinIcon } from '../../ui/icons.tsx';
 import { Page } from '../../ui/page.tsx';
 import styles from './bin.module.css';
 import { ConfirmButton, purgeNote, useBinIntent, useIsAdmin } from './bin-parts.tsx';
@@ -157,7 +159,13 @@ export function BinScreen() {
       subtitle={<BinSubtitle binDays={data.binDays} />}
       actions={admin && <AdminActions data={data} />}
     >
-      {empty ? <p className={styles.empty}>The bin is empty.</p> : <BinList data={data} />}
+      {empty ? (
+        <EmptyState icon={<BinIcon />} title="The bin is empty">
+          Deleted threads and conversations wait here before they go for good.
+        </EmptyState>
+      ) : (
+        <BinList data={data} />
+      )}
     </Page>
   );
 }

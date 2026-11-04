@@ -172,6 +172,7 @@ function ThreadConversation({ state }: { readonly state: ScreenState }) {
       onStartFrom={(dashboardId) => void actions.startFrom(dashboardId)}
       onBuildNew={actions.buildNew}
       onTryAgain={actions.tryAgain}
+      onStop={() => void chat.stop()}
       hasDraft={dashboard !== null}
       draftPanels={latest ? draftPanelsOf(version.spec) : undefined}
     />

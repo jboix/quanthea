@@ -2,6 +2,8 @@ import type { SnapshotFilter, SnapshotSummary } from '@quanthea/shared';
 import { useState } from 'react';
 import { Link, type SubmitTarget, useFetcher, useSearchParams } from 'react-router';
 import { Button } from '../../ui/button.tsx';
+import { EmptyState } from '../../ui/empty-state.tsx';
+import { CameraIcon, SearchIcon } from '../../ui/icons.tsx';
 import { useCanEdit } from '../dashboard/index.ts';
 import styles from './library.module.css';
 import { SearchBox } from './search-box.tsx';
@@ -146,11 +148,14 @@ function ShowMore({ data }: { readonly data: SnapshotsData }) {
  */
 function EmptyNote({ narrowed }: { readonly narrowed: boolean }) {
   return (
-    <p className={styles.empty}>
+    <EmptyState
+      icon={narrowed ? <SearchIcon /> : <CameraIcon />}
+      title={narrowed ? 'No snapshot matches' : 'No snapshots yet'}
+    >
       {narrowed
-        ? 'No snapshot matches. Try fewer words or another filter.'
-        : 'No live snapshots. Editors take one from a dashboard’s Share menu.'}
-    </p>
+        ? 'Try fewer words, or another filter.'
+        : 'Editors take one from a dashboard’s Share menu: the dashboard, frozen with its data.'}
+    </EmptyState>
   );
 }
 

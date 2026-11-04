@@ -1,30 +1,64 @@
+.frame {
+  display: flex;
+  min-height: 100%;
+}
+
+/* The section menu: a column of groups, the chosen section filled, so nothing moves on a change. */
 .nav {
   display: flex;
-  gap: 4px;
-  padding: 0 48px;
-  border-bottom: 1px solid var(--color-border);
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 20px;
+  width: 220px;
+  padding: var(--space-page-block) 12px;
+  border-right: 1px solid var(--color-border);
   background: var(--color-surface);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.groupLabel {
+  margin: 0 0 4px;
+  padding: 0 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-secondary);
 }
 
 .link {
   display: flex;
   align-items: center;
-  height: 44px;
+  height: 32px;
   padding: 0 12px;
-  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-control);
   font-size: 13.5px;
   color: var(--color-ink-secondary);
   text-decoration: none;
 }
 
 .link:hover {
+  background: var(--color-surface-muted);
   color: var(--color-ink);
 }
 
 .link[aria-current="page"] {
-  border-bottom-color: var(--color-accent);
-  font-weight: 600;
+  background: var(--color-accent-soft);
   color: var(--color-ink);
+}
+
+/* The section: as wide as a form reads well, the banner above it when a file manages it. */
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 1120px;
 }
 
 .section {
@@ -32,4 +66,33 @@
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+/* On a narrow screen the menu goes above the section, its links in one row that scrolls. */
+@media (max-width: 900px) {
+  .frame {
+    flex-direction: column;
+  }
+
+  .nav {
+    flex-direction: row;
+    gap: 4px;
+    width: auto;
+    padding: 8px 16px;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .group {
+    flex-direction: row;
+  }
+
+  .groupLabel {
+    display: none;
+  }
+
+  .link {
+    white-space: nowrap;
+  }
 }

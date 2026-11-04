@@ -1,6 +1,7 @@
 /**
  * A run's token usage by model: counted step by step, and carried over when a run continues an
- * answer, so the answer's metadata holds everything it cost.
+ * answer, so the answer's metadata holds everything it cost. Its working time is carried the same
+ * way.
  */
 import { addUsage, type TokenUsage, type TurnUsage, turnUsageSchema } from '@quanthea/shared';
 import type { LanguageModelUsage } from 'ai';
@@ -35,6 +36,20 @@ export function startingUsage(messages: readonly ThreadMessage[], continuing: bo
   const last = messages.at(-1);
   if (!continuing || last?.role !== 'assistant') return {};
   return turnUsageSchema.safeParse(last.metadata?.usage).data ?? {};
+}
+
+/**
+ * The working time a run starts from: the continued answer's, when the run continues one.
+ *
+ * @param messages - The conversation the run starts from.
+ * @param continuing - Whether the run continues the last answer.
+ * @returns The milliseconds worked so far.
+ */
+export function startingWorked(messages: readonly ThreadMessage[], continuing: boolean): number {
+  const last = messages.at(-1);
+  if (!continuing || last?.role !== 'assistant') return 0;
+  const worked = last.metadata?.workedMs;
+  return typeof worked === 'number' && Number.isFinite(worked) && worked > 0 ? worked : 0;
 }
 
 /**

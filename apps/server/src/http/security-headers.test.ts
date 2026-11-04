@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { securityHeaders } from './security-headers.ts';
 
 test('the Content-Security-Policy lets images load from the hosts listed when asked', async () => {
-  let hosts: string[] = [];
+  let hosts: string[] | 'any' = [];
   const app = new Hono();
   app.use(securityHeaders(undefined, () => hosts));
   app.get('/', (context) => context.text('ok'));
@@ -15,4 +15,7 @@ test('the Content-Security-Policy lets images load from the hosts listed when as
   expect(after).toContain(
     "img-src 'self' data: https://media.example.com https://cdn.example.org;",
   );
+  hosts = 'any';
+  const any = (await app.request('/')).headers.get('content-security-policy') ?? '';
+  expect(any).toContain("img-src 'self' data: https:;");
 });

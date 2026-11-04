@@ -13,7 +13,7 @@ import { workSummary } from './work-summary.ts';
  * @param parts - The work parts, in order.
  * @returns The logs and cards.
  */
-function workNodes(parts: readonly ThreadPart[]): ReactNode[] {
+export function workNodes(parts: readonly ThreadPart[]): ReactNode[] {
   const nodes: ReactNode[] = [];
   let explored: ToolPart[] = [];
   const flush = () => {

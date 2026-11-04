@@ -49,7 +49,7 @@ not defined. The same card shows in the conversation.
 
 ## Write one by hand
 
-Choose **Write one by hand**, give the term a name and say what it means. Its id comes from the
+Choose **New definition**, give the term a name and say what it means. Its id comes from the
 name. To add checked filters, choose **Add checked filters**:
 
 - **What it is**: a share (failed orders out of all orders), a number (revenue), or a set of rows

@@ -4,9 +4,21 @@
   min-height: 100%;
 }
 
+/* As tall as the list's header beside it, so the two rules meet; a failed test makes it taller. */
 .header {
-  padding: 14px 28px;
+  box-sizing: border-box;
+  min-height: var(--pane-header-height);
+  padding: 14px var(--space-body-inline);
   border-bottom: 1px solid var(--color-border);
+}
+
+.managed {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  font-size: 13px;
+  color: var(--color-ink-secondary);
 }
 
 .target {
@@ -28,7 +40,7 @@
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 28px;
-  padding: 24px 28px;
+  padding: var(--space-section) var(--space-body-inline);
 }
 
 .settings {
@@ -70,7 +82,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px 16px;
+  padding: var(--space-card-block) var(--space-card-inline);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   background: var(--color-surface);

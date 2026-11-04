@@ -118,3 +118,20 @@ test('a column with no width takes a medium share beside one that sets one', () 
     ]),
   ).toEqual([14.3, 28.6, 57.1]);
 });
+
+test('a compact record shows its first value as a headline and the others on a line', () => {
+  const view: TableViewSpec = {
+    kind: 'table',
+    ref: 'A',
+    columns: [{ field: 'median' }, { field: 'browser' }],
+    record: true,
+    compact: true,
+  };
+  const queries = [{ refId: 'A', frames: [frame], error: null }];
+  const html = renderToStaticMarkup(<TableView view={view} queries={queries} timeZone="UTC" />);
+  expect(html).toStartWith('<div><div>1.2</div><p>');
+  expect(html).toContain('title="browser"');
+  expect(html).toContain('browser: </span>Firefox');
+  expect(html).not.toContain('Safari');
+  expect(html).not.toContain('<dl');
+});

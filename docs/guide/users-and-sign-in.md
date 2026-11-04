@@ -1,7 +1,7 @@
 # Users and sign-in
 
 People always sign in to quanthea: there is no open access. Admins invite people and give each a
-role in **Settings → Users**, and choose how they sign in in **Settings → Authentication**.
+role in **Settings → Users**, and choose how they sign in in **Settings → Sign-in**.
 
 ## Roles
 
@@ -46,15 +46,15 @@ A session ends after 24 hours without a request, or 7 days after it began.
 
 ## Sign-in providers
 
-![Settings → Authentication: password sign-in, and the sign-in providers](../screenshots/settings-auth-light.webp#gh-light-mode-only)
-![Settings → Authentication: password sign-in, and the sign-in providers](../screenshots/settings-auth-dark.webp#gh-dark-mode-only)
+![Settings → Sign-in: password sign-in, and the sign-in providers](../screenshots/settings-auth-light.webp#gh-light-mode-only)
+![Settings → Sign-in: password sign-in, and the sign-in providers](../screenshots/settings-auth-dark.webp#gh-dark-mode-only)
 
 quanthea signs people in through **GitHub**, **Google**, **GitLab** (gitlab.com or your own) and
 **Microsoft Entra ID** (one tenant). It needs its public URL set; see
 [Environment variables](../environment.md).
 
 1. Register quanthea as an OAuth app at the provider, with the redirect URI the form shows.
-2. In **Settings → Authentication**, add the provider: paste the client id and secret, and name
+2. In **Settings → Sign-in**, add the provider: paste the client id and secret, and name
    the button.
 3. Choose **Who may join**.
 4. **Test sign-in**. A provider stays off until a test sign-in with it succeeds.

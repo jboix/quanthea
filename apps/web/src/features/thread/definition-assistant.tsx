@@ -13,6 +13,7 @@ import {
   useSearchParams,
 } from 'react-router';
 import { Button } from '../../ui/button.tsx';
+import { ThreadsIcon } from '../../ui/icons.tsx';
 import type { AssistantOutletContext } from '../definitions/index.ts';
 import { definitionThreadPath } from './data.ts';
 import styles from './definition-assistant.module.css';
@@ -32,7 +33,7 @@ const examples = [
 ];
 
 /**
- * The assistant's header: its name, what is open, a new conversation, and close where it covers
+ * The assistant's header: its mark and name, what is open, a new conversation, and close where it covers
  * the definitions.
  *
  * @param props - The conversation's title, if one is open.
@@ -43,8 +44,11 @@ function AssistantHead({ title }: { readonly title?: string | undefined }) {
   const outlet = useOutletContext<AssistantOutletContext | undefined>();
   return (
     <header className={styles.head}>
+      <span className={styles.headMark} aria-hidden="true">
+        <ThreadsIcon />
+      </span>
       <div className={styles.headText}>
-        <h2>Assistant</h2>
+        <h2>Definitions assistant</h2>
         <p title={title}>{title ?? 'Proposes definitions from your words and your data.'}</p>
       </div>
       {title !== undefined && (

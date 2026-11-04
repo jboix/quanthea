@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { Link, useLoaderData, useSearchParams } from 'react-router';
 import { buttonClassName } from '../../ui/button.tsx';
+import { EmptyState } from '../../ui/empty-state.tsx';
+import { LibraryIcon, SearchIcon } from '../../ui/icons.tsx';
 import { Page } from '../../ui/page.tsx';
 import { Tabs, tabPanelProps } from '../../ui/tabs.tsx';
 import { useCanEdit } from '../dashboard/index.ts';
@@ -23,8 +26,48 @@ const subtitles: Readonly<Record<LibraryData['view'], string>> = {
     'Dashboards frozen with their data, at links anyone signed in can open. Opening one runs no query.',
 };
 
+/** How many chips show before the rest fold under "+N more": about one row. */
+const foldedChips = 8;
+
+/** One filter chip: a connector or a tag, on or off. */
+interface FilterChip {
+  /** The search parameter it sets. */
+  readonly key: 'connector' | 'tag';
+  /** Its value. */
+  readonly value: string;
+  /** Whether it is on. */
+  readonly on: boolean;
+}
+
 /**
- * The filter chips: every connector and tag in the library, each one on or off.
+ * The chips to show: those on first, then the rest in order, all of them or one row's worth.
+ *
+ * @param data - The loader data.
+ * @param open - Whether every chip shows.
+ * @returns The chips shown, and how many are folded away.
+ */
+function shownChips(data: DashboardsData, open: boolean) {
+  const chips: FilterChip[] = [
+    ...data.search.connectors.map((value) => ({
+      key: 'connector' as const,
+      value,
+      on: data.connectors.includes(value),
+    })),
+    ...data.search.tags.map((value) => ({
+      key: 'tag' as const,
+      value,
+      on: data.tags.includes(value),
+    })),
+  ];
+  const ordered = [...chips.filter((chip) => chip.on), ...chips.filter((chip) => !chip.on)];
+  const limit = Math.max(foldedChips, chips.filter((chip) => chip.on).length);
+  const shown = open ? ordered : ordered.slice(0, limit);
+  return { all: chips.length, shown, folded: ordered.length - shown.length };
+}
+
+/**
+ * The filter chips: the connectors and tags in the library, each one on or off, on one row with
+ * the rest folded under "+N more".
  *
  * @param props - The library data.
  * @param props.data - The loader data.
@@ -32,11 +75,9 @@ const subtitles: Readonly<Record<LibraryData['view'], string>> = {
  */
 function FilterChips({ data }: { readonly data: DashboardsData }) {
   const [params, setParams] = useSearchParams();
-  const chips = [
-    ...data.search.connectors.map((value) => ({ key: 'connector', value, on: data.connectors })),
-    ...data.search.tags.map((value) => ({ key: 'tag', value, on: data.tags })),
-  ];
-  if (chips.length < 2) return null;
+  const [open, setOpen] = useState(false);
+  const { all, shown, folded } = shownChips(data, open);
+  if (all < 2) return null;
   const toggle = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     if (next.has(key, value)) next.delete(key, value);
@@ -46,39 +87,23 @@ function FilterChips({ data }: { readonly data: DashboardsData }) {
   return (
     <fieldset className={styles.chips}>
       <legend className={styles.visuallyHidden}>Filter</legend>
-      {chips.map(({ key, value, on }) => (
+      {shown.map(({ key, value, on }) => (
         <button
           key={`${key}-${value}`}
           type="button"
-          className={key === 'connector' ? `${styles.chip} ${styles.mono}` : styles.chip}
-          aria-pressed={on.includes(value)}
+          className={styles.chip}
+          aria-pressed={on}
           onClick={() => toggle(key, value)}
         >
           {key === 'tag' ? `#${value}` : value}
         </button>
       ))}
+      {(folded > 0 || open) && (
+        <button type="button" className={styles.more} onClick={() => setOpen(!open)}>
+          {open ? 'Fewer' : `+${folded} more`}
+        </button>
+      )}
     </fieldset>
-  );
-}
-
-/**
- * The card after the results: ask in a new thread when the library has no answer.
- *
- * @param props - The search words.
- * @param props.q - The search.
- * @returns The card, for editors only.
- */
-function AskCard({ q }: { readonly q: string }) {
-  if (!useCanEdit()) return null;
-  const to = q === '' ? '/threads/new' : `/threads/new?${new URLSearchParams({ question: q })}`;
-  return (
-    <aside className={styles.ask}>
-      <h2 className={styles.askTitle}>Not finding it?</h2>
-      <p className={styles.meta}>Ask in a new thread. It can start from one of these instead.</p>
-      <Link to={to} className={buttonClassName('secondary')}>
-        {q === '' ? 'Ask a question' : `Ask about “${q}”`}
-      </Link>
-    </aside>
   );
 }
 
@@ -91,11 +116,14 @@ function AskCard({ q }: { readonly q: string }) {
  */
 function EmptyNote({ narrowed }: { readonly narrowed: boolean }) {
   return (
-    <p className={styles.empty}>
+    <EmptyState
+      icon={narrowed ? <SearchIcon /> : <LibraryIcon />}
+      title={narrowed ? 'No dashboard matches' : 'Nothing pinned yet'}
+    >
       {narrowed
-        ? 'No pinned dashboard matches. Try fewer words or turn a filter off.'
-        : 'Nothing is pinned yet. Pin a dashboard from its thread and it shows up here.'}
-    </p>
+        ? 'Try fewer words, or turn a filter off.'
+        : 'Pin a dashboard from its thread and it shows up here, for everyone.'}
+    </EmptyState>
   );
 }
 
@@ -124,7 +152,6 @@ function DashboardsTab({ data }: { readonly data: DashboardsData }) {
         {results.map((entry) => (
           <LibraryCard key={entry.dashboardId} entry={entry} />
         ))}
-        {narrowed && <AskCard q={data.q} />}
       </div>
     </>
   );

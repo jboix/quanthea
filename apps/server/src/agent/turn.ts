@@ -367,15 +367,18 @@ export async function streamTurn(
 }
 
 /**
- * Merges a turn's model stream into the writer, as UI chunks: the answer's usage in its
- * metadata, and the limit it paused at, if any, before its end.
+ * Merges a turn's model stream into the writer, as UI chunks: the answer's usage and working time
+ * in its metadata, and the limit it paused at, if any, before its end.
  *
  * @param context - The run.
  * @param stream - The model stream of the turn.
  */
 function mergeTurn(context: RunContext, stream: ReturnType<typeof streamText>['stream']): void {
+  const { counters } = context;
   const messageMetadata = ({ part }: { part: { type: string } }) =>
-    part.type === 'finish' ? { usage: context.counters.usage } : undefined;
+    part.type === 'finish'
+      ? { usage: counters.usage, workedMs: counters.workedBefore + Date.now() - counters.startedAt }
+      : undefined;
   const chunks = toUIMessageStream<ToolSet, ThreadMessage>({
     stream,
     onError: publicError,

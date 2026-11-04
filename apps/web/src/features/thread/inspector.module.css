@@ -62,7 +62,7 @@
 
 .code {
   margin: 0;
-  padding: 14px 16px;
+  padding: var(--space-card-block) var(--space-card-inline);
   border-radius: var(--radius-control);
   background: var(--color-surface-muted);
   font-family: var(--font-mono);

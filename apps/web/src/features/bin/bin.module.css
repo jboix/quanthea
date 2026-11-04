@@ -86,8 +86,27 @@
   border: 0;
 }
 
-.retention > button {
-  align-self: flex-start;
+.keep {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.keepLabel {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.days {
+  max-width: 220px;
+}
+
+/* Cancel and Save, at the end of the dialog. */
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .note {

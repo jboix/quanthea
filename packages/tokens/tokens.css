@@ -22,6 +22,10 @@
   --color-accent-soft: #f3f6fd;
   --color-accent-border: #d6e0f7;
   --color-on-accent: #ffffff;
+  /* A filled control, such as a primary button: as strong in either scheme. */
+  --color-accent-fill: #2a55c9;
+  --color-accent-fill-hover: #1d3f99;
+  --color-on-accent-fill: #ffffff;
   --color-series-2: #d0691c;
   --color-series-3: #2f8f83;
   --color-series-4: #8a55c4;
@@ -52,6 +56,8 @@
   --color-rail-icon: #a9abb2;
   --color-rail-active: #2c2e35;
   --color-switch-off: #c9c7bf;
+  --color-backdrop: rgb(23 24 28 / 35%);
+  --shadow-overlay: 0 20px 48px rgb(23 24 28 / 18%);
 
   --radius-panel: 12px;
   --radius-card: 10px;
@@ -59,6 +65,22 @@
   --radius-pill: 999px;
 
   --rail-width: 56px;
+  --pane-header-height: 80px;
+
+  /* Spacing: a page's margins, the gap between its blocks, a card's padding. */
+  --space-page-block: 36px;
+  --space-page-inline: 48px;
+  --space-section: 24px;
+  --space-card-block: 16px;
+  --space-card-inline: 20px;
+  --space-gap: 16px;
+
+  /* The screens of dashboards, reports and alerts: their margins, and their panels' padding,
+     airy by default. */
+  --space-body-block: 20px;
+  --space-body-inline: 28px;
+  --space-panel-block: 16px;
+  --space-panel-inline: 20px;
 
   color-scheme: light;
 }
@@ -83,6 +105,9 @@
   --color-accent-soft: #1c2338;
   --color-accent-border: #2f3d63;
   --color-on-accent: #0f1320;
+  --color-accent-fill: #3a62d4;
+  --color-accent-fill-hover: #4b72e2;
+  --color-on-accent-fill: #ffffff;
   --color-series-2: #e8873e;
   --color-series-3: #4db3a5;
   --color-series-4: #ab82e3;
@@ -106,6 +131,15 @@
   --color-rail-icon: #8e9199;
   --color-rail-active: #25272d;
   --color-switch-off: #4a4c53;
+  --color-backdrop: rgb(0 0 0 / 60%);
+  --shadow-overlay: 0 20px 48px rgb(0 0 0 / 55%);
 
   color-scheme: dark;
+}
+
+/* The compact density, chosen in the account menu: the panels of dashboards, reports and alerts
+   closer together. Titles and margins stay where they are. */
+:root[data-density="compact"] {
+  --space-panel-block: 10px;
+  --space-panel-inline: 14px;
 }

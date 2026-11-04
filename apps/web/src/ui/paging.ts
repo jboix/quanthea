@@ -16,6 +16,19 @@ export function pageRange(offset: number, shown: number, total: number): string 
 }
 
 /**
+ * Says which page of a list a page is, of how many.
+ *
+ * @param offset - How many entries come before the page's first.
+ * @param size - How many entries a page shows.
+ * @param total - How many entries the list holds in all.
+ * @returns Such as `Page 2 of 6`.
+ */
+export function pageNumber(offset: number, size: number, total: number): string {
+  const pages = Math.max(1, Math.ceil(total / size));
+  return `Page ${Math.floor(offset / size) + 1} of ${pages}`;
+}
+
+/**
  * Whether a list needs the controls of a pager: it holds more than its page shows.
  *
  * @param shown - How many entries the page shows.

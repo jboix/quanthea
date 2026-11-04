@@ -54,13 +54,6 @@ const topItems: readonly RailItem[] = [
     icon: <LibraryIcon />,
   },
   {
-    label: 'Definitions',
-    to: '/definitions',
-    section: '/definitions',
-    minimum: 'viewer',
-    icon: <BookIcon />,
-  },
-  {
     label: 'Alerts',
     to: '/alerts',
     section: '/alerts',
@@ -80,6 +73,13 @@ const topItems: readonly RailItem[] = [
     section: '/connectors',
     minimum: 'admin',
     icon: <ConnectorsIcon />,
+  },
+  {
+    label: 'Definitions',
+    to: '/definitions',
+    section: '/definitions',
+    minimum: 'viewer',
+    icon: <BookIcon />,
   },
 ];
 

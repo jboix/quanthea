@@ -36,7 +36,8 @@ type Section = {
   title: string
   folded?: boolean                          // starts folded
   repeat?: string                           // a variable that holds several values: the
-                                            // section is drawn once for each value chosen
+                                            // section is drawn once for each value chosen,
+                                            // one copy at a time under a tab per value
 }
 
 // ---------------------------------------------------------------- variables
@@ -185,6 +186,8 @@ type TableView = {
   limit?: number                            // ≤ 500
   pageSize?: number                         // 5 to 100 rows a page, default 20
   record?: true                             // the first row as labelled values, one a line
+  compact?: true                            // with record: the first value as a headline, the
+                                            // others on one line, sized and placed as a number
 }
 
 // A line for each row, in the result's order. A line opens to show every column of its row.
@@ -440,6 +443,9 @@ the version once and shows one at least. It is kept apart from the spec, with it
 so arranging a dashboard never makes a version. A hidden panel stays in the spec and the agent
 still sees it, but the pinned view, snapshots and questions leave it out.
 
+The spec says nothing of spacing. Each viewer picks a density for the whole app, airy or compact,
+and a compact grid joins its panels into one block (see the architecture doc).
+
 The agent does not write `grid` numbers. New panels go below the others, and an edit can place
 panels by name with a closed set of arrangements, which the server turns into the `grid` of each
 panel before the spec is checked and saved:
@@ -451,9 +457,12 @@ panel before the spec is checked and saved:
 | `full`        | Each panel on a row of its own.                                          |
 | `two`         | Two panels across.                                                       |
 | `three`       | Three panels across.                                                     |
+| `stack`       | Two or three numbers stacked in three columns, one or two panels beside. |
 
 A row always fills the twelve columns, and a panel placed this way takes the height of its kind:
 3 rows for a number, 8 for a chart over time, 7 for another chart or a table.
+In a `stack` row the panels beside the numbers take the height of the tallest of their kinds, and
+the numbers share it evenly, each at least 3 rows. A table beside them is the narrower of two.
 
 A table a write adds then takes the height of the rows its test run returned, from 4 to 10 rows.
 Its row takes that height when no other panel in it is taller, and the rows below move with it.

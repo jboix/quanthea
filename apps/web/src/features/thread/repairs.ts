@@ -37,6 +37,22 @@ export function repairTitle(repair: Repair): string {
 }
 
 /**
+ * What still fails once a build stopped, in a sentence: the failing panels by title, or the
+ * dashboard as a whole.
+ *
+ * @param repair - The try that stopped the build.
+ * @returns Such as `Orders per channel and Deploys still fail.`
+ */
+export function stillFailing(repair: Repair): string {
+  const titles = repair.panels.map((panel) => panel.title);
+  if (titles.length === 0) return 'The dashboard as a whole still has a problem.';
+  const shown = titles.length > 3 ? [...titles.slice(0, 2), `${titles.length - 2} more`] : titles;
+  const list =
+    shown.length === 1 ? shown[0] : `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}`;
+  return `${list} still ${titles.length === 1 ? 'fails' : 'fail'}.`;
+}
+
+/**
  * The last repair of the latest answer, if it has one.
  *
  * @param messages - The conversation.

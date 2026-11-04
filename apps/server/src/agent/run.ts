@@ -38,7 +38,7 @@ import type { AgentServices, RunContext, ThreadMessage } from './run-context.ts'
 import { streamTurn, turnInstructions } from './turn.ts';
 import { withAnsweredCalls } from './unanswered-calls.ts';
 import { unreachableConnectors, writeUnreachable } from './unreachable.ts';
-import { startingUsage } from './usage.ts';
+import { startingUsage, startingWorked } from './usage.ts';
 
 /** What the agent needs. */
 export interface AgentDependencies extends AgentServices {
@@ -307,6 +307,8 @@ function freshCounters(
     modelId: modelIdFor(turn.settings, 'build'),
     job: 'build',
     usage: startingUsage(turn.messages, continuing),
+    workedBefore: startingWorked(turn.messages, continuing),
+    startedAt: Date.now(),
     toolCalls: 0,
     tokens: 0,
     paused: undefined,

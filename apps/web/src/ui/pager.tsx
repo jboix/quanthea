@@ -1,6 +1,6 @@
 import { Button } from './button.tsx';
 import styles from './pager.module.css';
-import { hasPages, pageRange } from './paging.ts';
+import { hasPages, pageNumber, pageRange } from './paging.ts';
 
 /** Props of {@link Pager}. */
 interface PagerProps {
@@ -20,6 +20,8 @@ interface PagerProps {
   readonly busy?: boolean;
   /** What the controls say, for a list that is not in order of time, such as Previous and Next. */
   readonly words?: { readonly newer: string; readonly older: string };
+  /** How many entries a page shows, to say which page this is; left out, it is not said. */
+  readonly size?: number;
 }
 
 /** What the controls of a list say, the latest first. */
@@ -27,8 +29,8 @@ const byTime = { newer: 'Newer', older: 'Older' } as const;
 
 /**
  * The foot of a list shown a page at a time, the latest first: which entries the page shows, how
- * many there are in all, and Newer and Older when the list holds more than one page. Another list
- * names its controls with `words`.
+ * many there are in all, and Newer and Older when the list holds more than one page, with the page
+ * number when the page size is given. Another list names its controls with `words`.
  *
  * @param props - The place of the page and what its controls do.
  * @returns The pager; nothing for an empty list.
@@ -42,6 +44,9 @@ export function Pager(props: PagerProps) {
       <span className={styles.range} aria-live="polite">
         {pageRange(offset, shown, total)}
       </span>
+      {paged && props.size !== undefined && (
+        <span className={styles.page}>{pageNumber(offset, props.size, total)}</span>
+      )}
       {paged && (
         <>
           <Button size="small" disabled={busy || !onNewer} onClick={onNewer}>
