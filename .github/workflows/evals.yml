@@ -72,7 +72,7 @@ jobs:
       - name: Install dependencies
         env:
           CI: true
-          HUSKY: "0"
+          HUSKY: '0'
         run: bun install --frozen-lockfile
 
       - name: Start the dev data sources

@@ -1,5 +1,6 @@
 /** The route of the chart gallery. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { chartSettingsAction, loadChartSettings } from '../features/chart-gallery/index.ts';
@@ -18,9 +19,8 @@ export function chartSettingsRoute(loadSession: SessionLoader, api: ApiClient): 
     path,
     loader: guarded(loadSession, path, loadChartSettings(api)),
     action: guarded(loadSession, path, chartSettingsAction(api)),
-    lazy: {
-      Component: async () =>
-        (await import('../features/chart-gallery/screens.ts')).ChartGalleryScreen,
-    },
+    lazy: lazyScreen(
+      async () => (await import('../features/chart-gallery/screens.ts')).ChartGalleryScreen,
+    ),
   };
 }

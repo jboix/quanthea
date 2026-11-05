@@ -1,5 +1,6 @@
 /** The route of the model settings screen. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { loadModelSettings, modelSettingsAction } from '../features/settings/index.ts';
@@ -18,8 +19,8 @@ export function modelSettingsRoute(loadSession: SessionLoader, api: ApiClient): 
     path,
     loader: guarded(loadSession, path, loadModelSettings(api)),
     action: guarded(loadSession, path, modelSettingsAction(api)),
-    lazy: {
-      Component: async () => (await import('../features/settings/screens.ts')).ModelSettingsScreen,
-    },
+    lazy: lazyScreen(
+      async () => (await import('../features/settings/screens.ts')).ModelSettingsScreen,
+    ),
   };
 }

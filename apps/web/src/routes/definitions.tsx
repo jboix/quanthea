@@ -3,6 +3,7 @@
 import { hasRole } from '@quanthea/shared';
 import type { RouteObject } from 'react-router';
 import { ErrorPage } from '../app/error-page.tsx';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded, requireRole } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { definitionsAction, loadDefinitions } from '../features/definitions/index.ts';
@@ -33,9 +34,9 @@ export function definitionsRoute(loadSession: SessionLoader, api: ApiClient): Ro
       await editor(args);
       return act(args);
     },
-    lazy: {
-      Component: async () => (await import('../features/definitions/screens.ts')).DefinitionsScreen,
-    },
+    lazy: lazyScreen(
+      async () => (await import('../features/definitions/screens.ts')).DefinitionsScreen,
+    ),
     children: assistantRoutes(loadSession, api),
   };
 }
@@ -64,19 +65,17 @@ function assistantRoutes(loadSession: SessionLoader, api: ApiClient): RouteObjec
         await editor(args);
         return start(args);
       },
-      lazy: {
-        Component: async () =>
-          (await import('../features/thread/screens.ts')).DefinitionAssistantStart,
-      },
+      lazy: lazyScreen(
+        async () => (await import('../features/thread/screens.ts')).DefinitionAssistantStart,
+      ),
     },
     {
       path: 'chat/:threadId',
       loader: guarded(loadSession, chat, loadDefinitionThread(api)),
       action: guarded(loadSession, chat, changeThread(api)),
-      lazy: {
-        Component: async () =>
-          (await import('../features/thread/screens.ts')).DefinitionAssistantChat,
-      },
+      lazy: lazyScreen(
+        async () => (await import('../features/thread/screens.ts')).DefinitionAssistantChat,
+      ),
       ErrorBoundary: ErrorPage,
     },
   ];

@@ -1,5 +1,6 @@
 /** The route of the bin screen. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { changeBin, loadBin } from '../features/bin/index.ts';
@@ -20,6 +21,6 @@ export function binRoute(loadSession: SessionLoader, api: ApiClient): RouteObjec
     path,
     loader: guarded(loadSession, path, loadBin(api, roleOf)),
     action: guarded(loadSession, path, changeBin(api)),
-    lazy: { Component: async () => (await import('../features/bin/screens.ts')).BinScreen },
+    lazy: lazyScreen(async () => (await import('../features/bin/screens.ts')).BinScreen),
   };
 }

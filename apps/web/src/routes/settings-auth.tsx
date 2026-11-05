@@ -1,5 +1,6 @@
 /** The route of Settings → Sign-in. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { changeAuthSettings, loadAuthSettings } from '../features/auth-settings/index.ts';
@@ -18,9 +19,8 @@ export function authSettingsRoute(loadSession: SessionLoader, api: ApiClient): R
     path,
     loader: guarded(loadSession, path, loadAuthSettings(api)),
     action: guarded(loadSession, path, changeAuthSettings(api)),
-    lazy: {
-      Component: async () =>
-        (await import('../features/auth-settings/screens.ts')).AuthSettingsScreen,
-    },
+    lazy: lazyScreen(
+      async () => (await import('../features/auth-settings/screens.ts')).AuthSettingsScreen,
+    ),
   };
 }

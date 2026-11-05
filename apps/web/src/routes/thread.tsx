@@ -1,6 +1,7 @@
 /** The routes of threads: the new-thread screen and a thread with its draft. */
 import type { RouteObject } from 'react-router';
 import { ErrorPage } from '../app/error-page.tsx';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { alertPreviewsAction } from '../features/alert-draft/index.ts';
@@ -32,9 +33,7 @@ export function threadRoutes(loadSession: SessionLoader, api: ApiClient): RouteO
       path: start,
       loader: guarded(loadSession, start, loadRecentThreads(api)),
       action: guarded(loadSession, start, newThreadAction(api)),
-      lazy: {
-        Component: async () => (await import('../features/thread/screens.ts')).NewThreadScreen,
-      },
+      lazy: lazyScreen(async () => (await import('../features/thread/screens.ts')).NewThreadScreen),
       ErrorBoundary: ErrorPage,
     },
     {
@@ -46,7 +45,7 @@ export function threadRoutes(loadSession: SessionLoader, api: ApiClient): RouteO
         formAction?.endsWith('/alert-previews') || formAction?.endsWith('/panel-test')
           ? false
           : defaultShouldRevalidate,
-      lazy: { Component: async () => (await import('../features/thread/screens.ts')).ThreadScreen },
+      lazy: lazyScreen(async () => (await import('../features/thread/screens.ts')).ThreadScreen),
       ErrorBoundary: ErrorPage,
     },
     ...draftRoutes(loadSession, api),

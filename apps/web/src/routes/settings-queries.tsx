@@ -1,5 +1,6 @@
 /** The route of the queries screen. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { loadQuerySettings, querySettingsAction } from '../features/queries/index.ts';
@@ -18,6 +19,6 @@ export function querySettingsRoute(loadSession: SessionLoader, api: ApiClient): 
     path,
     loader: guarded(loadSession, path, loadQuerySettings(api)),
     action: guarded(loadSession, path, querySettingsAction(api)),
-    lazy: { Component: async () => (await import('../features/queries/screens.ts')).QueriesScreen },
+    lazy: lazyScreen(async () => (await import('../features/queries/screens.ts')).QueriesScreen),
   };
 }

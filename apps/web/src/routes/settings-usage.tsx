@@ -1,5 +1,6 @@
 /** The route of the usage screen. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { loadUsage } from '../features/usage/index.ts';
@@ -17,6 +18,6 @@ export function usageSettingsRoute(loadSession: SessionLoader, api: ApiClient): 
   return {
     path,
     loader: guarded(loadSession, path, loadUsage(api)),
-    lazy: { Component: async () => (await import('../features/usage/screens.ts')).UsageScreen },
+    lazy: lazyScreen(async () => (await import('../features/usage/screens.ts')).UsageScreen),
   };
 }

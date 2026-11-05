@@ -31,6 +31,7 @@ import { snapshotRoute } from '../routes/snapshot.tsx';
 import { threadRoutes } from '../routes/thread.tsx';
 import { ErrorPage } from './error-page.tsx';
 import { AppLayout, LoadingScreen } from './layout.tsx';
+import { lazyScreen } from './lazy-screen.ts';
 import { homePathFor, requireRole } from './route-access.ts';
 import type { SessionLoader } from './session.ts';
 
@@ -99,7 +100,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
     settingsRoute({ loadSession, api }),
     {
       path: '/ui',
-      lazy: { Component: async () => (await import('../routes/ui-kit.tsx')).UiKitRoute },
+      lazy: lazyScreen(async () => (await import('../routes/ui-kit.tsx')).UiKitRoute),
     },
     { path: '*', Component: NotFoundRoute },
   ];
@@ -113,8 +114,10 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
  */
 function developmentRoutes(): RouteObject[] {
   if (!import.meta.env.DEV) return [];
-  const Component = async () => (await import('../charts/speed/speed-page.tsx')).ChartSpeedPage;
-  return [{ path: '/dev/chart-speed', lazy: { Component } }];
+  const page = lazyScreen(
+    async () => (await import('../charts/speed/speed-page.tsx')).ChartSpeedPage,
+  );
+  return [{ path: '/dev/chart-speed', lazy: page }];
 }
 
 /**

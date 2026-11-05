@@ -1,6 +1,7 @@
 /** The routes of a dashboard: its screen, and the resource routes its panels and variables load. */
 import type { RouteObject, ShouldRevalidateFunctionArgs } from 'react-router';
 import { ErrorPage } from '../app/error-page.tsx';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { type GuardedPath, guarded, requireRole } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import {
@@ -53,9 +54,9 @@ function screenRoute(loadSession: SessionLoader, path: GuardedPath, api: ApiClie
       return change(args);
     },
     shouldRevalidate: samePathKeepsSpec,
-    lazy: {
-      Component: async () => (await import('../features/dashboard/screens.ts')).DashboardScreen,
-    },
+    lazy: lazyScreen(
+      async () => (await import('../features/dashboard/screens.ts')).DashboardScreen,
+    ),
     ErrorBoundary: ErrorPage,
   };
 }

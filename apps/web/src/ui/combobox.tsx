@@ -99,10 +99,13 @@ function keyActions(state: {
   readonly choose: (item: ComboboxItem | undefined) => void;
 }): Readonly<Record<string, (() => void) | undefined>> {
   const { open, items, current, setActive, show, close, choose } = state;
+  const down = () => setActive(Math.min(current + 1, items.length - 1));
+  const up = () => setActive(Math.max(current - 1, 0));
+  const enter = () => choose(items[current]);
   return {
-    ArrowDown: open ? () => setActive(Math.min(current + 1, items.length - 1)) : show,
-    ArrowUp: () => setActive(Math.max(current - 1, 0)),
-    Enter: open ? () => choose(items[current]) : show,
+    ArrowDown: open ? down : show,
+    ArrowUp: up,
+    Enter: open ? enter : show,
     Escape: open ? close : undefined,
   };
 }

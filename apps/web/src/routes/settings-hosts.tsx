@@ -1,5 +1,6 @@
 /** The route of the external hosts settings. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { externalHostsAction, loadExternalHosts } from '../features/external-hosts/index.ts';
@@ -18,9 +19,8 @@ export function hostsSettingsRoute(loadSession: SessionLoader, api: ApiClient): 
     path,
     loader: guarded(loadSession, path, loadExternalHosts(api)),
     action: guarded(loadSession, path, externalHostsAction(api)),
-    lazy: {
-      Component: async () =>
-        (await import('../features/external-hosts/screens.ts')).ExternalHostsScreen,
-    },
+    lazy: lazyScreen(
+      async () => (await import('../features/external-hosts/screens.ts')).ExternalHostsScreen,
+    ),
   };
 }
