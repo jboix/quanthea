@@ -98,6 +98,11 @@
   z-index: 1;
 }
 
+/* The frame whose menu is open lies above the others, their ⋯ buttons included. */
+.frame:has(.menu [aria-expanded="true"]) {
+  z-index: 2;
+}
+
 .menu > span > button {
   width: 26px;
   height: 26px;

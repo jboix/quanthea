@@ -7,6 +7,8 @@
 }
 
 .section {
+  position: relative;
+  z-index: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -14,6 +16,11 @@
   border-radius: var(--radius-panel);
   outline: 2px dashed transparent;
   outline-offset: 6px;
+}
+
+/* A section with a frame's menu open lies above the sections after it, under the sticky bars. */
+.section:has([aria-haspopup][aria-expanded="true"]) {
+  z-index: 1;
 }
 
 /* A dragged panel is over the section: it drops here. */
