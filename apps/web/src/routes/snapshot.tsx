@@ -1,6 +1,7 @@
 /** The route of a snapshot's page. */
 import type { RouteObject } from 'react-router';
 import { ErrorPage } from '../app/error-page.tsx';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { loadSnapshot } from '../features/snapshot/index.ts';
@@ -19,9 +20,7 @@ export function snapshotRoute(loadSession: SessionLoader, api: ApiClient): Route
     path,
     loader: guarded(loadSession, path, loadSnapshot(api)),
     shouldRevalidate: ({ currentUrl, nextUrl }) => currentUrl.pathname !== nextUrl.pathname,
-    lazy: {
-      Component: async () => (await import('../features/snapshot/screens.ts')).SnapshotScreen,
-    },
+    lazy: lazyScreen(async () => (await import('../features/snapshot/screens.ts')).SnapshotScreen),
     ErrorBoundary: ErrorPage,
   };
 }

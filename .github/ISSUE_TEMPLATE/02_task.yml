@@ -1,6 +1,6 @@
 name: 📎 Task
 description: A specific, actionable task. Typically opened by existing contributors.
-title: "📎 <TITLE>"
+title: '📎 <TITLE>'
 body:
   - type: textarea
     id: description

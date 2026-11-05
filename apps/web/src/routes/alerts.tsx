@@ -1,5 +1,6 @@
 /** The routes of the alerts: the list, an alert's page, and their resource routes. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import {
@@ -62,7 +63,7 @@ export function alertRoutes(loadSession: SessionLoader, api: ApiClient): RouteOb
       id: alertsRouteId,
       path: '/alerts',
       loader: guarded(loadSession, '/alerts', loadAlerts(api)),
-      lazy: { Component: async () => (await screens()).AlertsScreen },
+      lazy: lazyScreen(async () => (await screens()).AlertsScreen),
     },
     // Counts the firing alerts for the rail; loads again after every action.
     { path: firingPath, loader: guarded(loadSession, firingPath, loadFiring(api)) },
@@ -77,7 +78,7 @@ export function alertRoutes(loadSession: SessionLoader, api: ApiClient): RouteOb
       path: '/alerts/:alertId',
       loader: guarded(loadSession, '/alerts/:alertId', loadAlert(api)),
       action: guarded(loadSession, '/alerts/:alertId', changeAlert(api)),
-      lazy: { Component: async () => (await screens()).AlertScreen },
+      lazy: lazyScreen(async () => (await screens()).AlertScreen),
     },
     // The chart's replay loads when the page opens or the window changes, not after a change.
     {

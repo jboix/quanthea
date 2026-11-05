@@ -1,5 +1,6 @@
 /** The route of Settings → Server. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { loadServerSettings } from '../features/server-settings/index.ts';
@@ -17,9 +18,8 @@ export function serverSettingsRoute(loadSession: SessionLoader, api: ApiClient):
   return {
     path,
     loader: guarded(loadSession, path, loadServerSettings(api)),
-    lazy: {
-      Component: async () =>
-        (await import('../features/server-settings/screens.ts')).ServerSettingsScreen,
-    },
+    lazy: lazyScreen(
+      async () => (await import('../features/server-settings/screens.ts')).ServerSettingsScreen,
+    ),
   };
 }

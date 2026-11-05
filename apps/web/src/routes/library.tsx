@@ -1,5 +1,6 @@
 /** The route of the library screen: its Dashboards and Snapshots tabs. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded, requireRole } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { loadLibrary, revokeSnapshot } from '../features/library/index.ts';
@@ -23,6 +24,6 @@ export function libraryRoute(loadSession: SessionLoader, api: ApiClient): RouteO
       await editor(args);
       return revoke(args);
     },
-    lazy: { Component: async () => (await import('../features/library/screens.ts')).LibraryScreen },
+    lazy: lazyScreen(async () => (await import('../features/library/screens.ts')).LibraryScreen),
   };
 }

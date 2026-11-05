@@ -6,25 +6,25 @@ updates:
   # --- GitHub Actions ---
   # The workflows pin each action to a commit SHA with its version in a comment.
   # Dependabot bumps both together.
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     cooldown:
       default-days: 7
     groups:
       action-updates:
         patterns:
-          - "*"
+          - '*'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
 
   # --- Bun ---
-  - package-ecosystem: "bun"
-    directory: "/"
+  - package-ecosystem: 'bun'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     cooldown:
       default-days: 7
     groups:
@@ -32,47 +32,47 @@ updates:
       # `ai` and `@ai-sdk/*` must resolve to one copy of the provider packages,
       # so they move together in their own PR.
       ai-sdk:
-        patterns: [ "ai", "@ai-sdk/*" ]
+        patterns: ['ai', '@ai-sdk/*']
       react:
-        patterns: [ "react", "react-dom", "react-router", "@types/react", "@types/react-dom" ]
+        patterns: ['react', 'react-dom', 'react-router', '@types/react', '@types/react-dom']
       bun-dependencies:
-        patterns: [ "*" ]
-        update-types: [ "minor", "patch" ]
+        patterns: ['*']
+        update-types: ['minor', 'patch']
     ignore:
       # TypeScript 7 (the native compiler) has no stable JS API yet, which
       # dependency-cruiser needs to parse TypeScript. Staying on 6.x until
       # dependency-cruiser supports 7.
-      - dependency-name: "typescript"
-        update-types: [ "version-update:semver-major" ]
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
       # @types/bun tracks the Bun version in .tool-versions. Bump it when the
       # runtime moves, not whenever a new Bun minor ships.
-      - dependency-name: "@types/bun"
-        update-types: [ "version-update:semver-minor", "version-update:semver-major" ]
+      - dependency-name: '@types/bun'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
 
   # --- Docker Compose (the local data sources) ---
-  - package-ecosystem: "docker-compose"
-    directory: "/dev"
+  - package-ecosystem: 'docker-compose'
+    directory: '/dev'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     cooldown:
       default-days: 7
     groups:
       dev-images:
-        patterns: [ "*" ]
+        patterns: ['*']
     ignore:
       # The generator runs the Bun version in .tool-versions. Move both together.
-      - dependency-name: "oven/bun"
-        update-types: [ "version-update:semver-minor", "version-update:semver-major" ]
+      - dependency-name: 'oven/bun'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
 
   # --- Docker ---
   # The Dockerfile pins each image by digest with its tag; Dependabot bumps both.
-  - package-ecosystem: "docker"
-    directory: "/"
+  - package-ecosystem: 'docker'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     cooldown:
       default-days: 7
     ignore:
       # The image runs the Bun version in .tool-versions. Move both together.
-      - dependency-name: "oven/bun"
-        update-types: [ "version-update:semver-minor", "version-update:semver-major" ]
+      - dependency-name: 'oven/bun'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']

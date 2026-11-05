@@ -1,5 +1,6 @@
 /** The routes of the reports: the list, a run's page with its layout, and their resource routes. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded, requireRole } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import {
@@ -90,13 +91,13 @@ export function reportRoutes(loadSession: SessionLoader, api: ApiClient): RouteO
     return change(args);
   };
   // Each route gets its own lazy object: React Router fills one in once it resolves.
-  const runScreen = () => ({ Component: async () => (await screens()).RunScreen });
+  const runScreen = () => lazyScreen(async () => (await screens()).RunScreen);
   return [
     {
       id: reportsRouteId,
       path: '/reports',
       loader: guarded(loadSession, '/reports', loadReports(api)),
-      lazy: { Component: async () => (await screens()).ReportsScreen },
+      lazy: lazyScreen(async () => (await screens()).ReportsScreen),
     },
     // Counts the reports with an unopened run, for the rail; again after every action.
     { path: unseenPath, loader: guarded(loadSession, unseenPath, loadUnseen(api)) },

@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         env:
           CI: true
-          HUSKY: "0"
+          HUSKY: '0'
         run: bun install --frozen-lockfile
 
       # Every step is a package script, the same ones `bun run verify` chains,
@@ -173,7 +173,7 @@ jobs:
       - name: Install dependencies
         env:
           CI: true
-          HUSKY: "0"
+          HUSKY: '0'
         run: bun install --frozen-lockfile
 
       - name: Start the local data sources
@@ -226,7 +226,7 @@ jobs:
       - name: Install dependencies
         env:
           CI: true
-          HUSKY: "0"
+          HUSKY: '0'
         run: bun install --frozen-lockfile
 
       - name: Lint commit messages (Conventional Commits)

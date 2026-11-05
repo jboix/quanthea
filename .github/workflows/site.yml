@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         env:
           CI: true
-          HUSKY: "0"
+          HUSKY: '0'
         run: bun install --frozen-lockfile
 
       # Pages says where the site lives: the custom domain set in Settings → Pages, else

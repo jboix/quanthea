@@ -148,7 +148,8 @@ services:
       - mysql-data:/var/lib/mysql
     healthcheck:
       # TCP only: during the init scripts the server listens on its socket alone.
-      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-u', 'quanthea_admin', '-pquanthea-dev']
+      test:
+        ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-u', 'quanthea_admin', '-pquanthea-dev']
       interval: 2s
       timeout: 3s
       retries: 90
@@ -222,7 +223,11 @@ services:
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     healthcheck:
-      test: ['CMD-SHELL', 'curl -fs "http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=2s"']
+      test:
+        [
+          'CMD-SHELL',
+          'curl -fs "http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=2s"',
+        ]
       interval: 3s
       timeout: 5s
       retries: 60
@@ -240,7 +245,11 @@ services:
     volumes:
       - opensearch-data:/usr/share/opensearch/data
     healthcheck:
-      test: ['CMD-SHELL', 'curl -fs "http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=2s"']
+      test:
+        [
+          'CMD-SHELL',
+          'curl -fs "http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=2s"',
+        ]
       interval: 3s
       timeout: 5s
       retries: 60
@@ -252,7 +261,8 @@ services:
     working_dir: /dev-sources
     volumes:
       - ./:/dev-sources:ro
-    command: ['bun', 'log-seed/seed-search.ts', 'http://elasticsearch:9200', 'http://opensearch:9200']
+    command:
+      ['bun', 'log-seed/seed-search.ts', 'http://elasticsearch:9200', 'http://opensearch:9200']
 
   influxdb:
     profiles: [influxdb]
@@ -270,7 +280,15 @@ services:
       - ./influxdb/admin-token.json:/etc/influxdb3/admin-token.json:ro
       - influxdb-data:/var/lib/influxdb3
     healthcheck:
-      test: ['CMD', 'curl', '-fs', '-H', 'Authorization: Bearer apiv3_quanthea-dev-token', 'http://127.0.0.1:8181/health']
+      test:
+        [
+          'CMD',
+          'curl',
+          '-fs',
+          '-H',
+          'Authorization: Bearer apiv3_quanthea-dev-token',
+          'http://127.0.0.1:8181/health',
+        ]
       interval: 2s
       timeout: 3s
       retries: 60
@@ -355,7 +373,13 @@ services:
     ports:
       - '127.0.0.1:8085:8080'
     healthcheck:
-      test: ['CMD', 'bun', '-e', "const r = await fetch('http://127.0.0.1:8080/health'); process.exit(r.ok ? 0 : 1)"]
+      test:
+        [
+          'CMD',
+          'bun',
+          '-e',
+          "const r = await fetch('http://127.0.0.1:8080/health'); process.exit(r.ok ? 0 : 1)",
+        ]
       interval: 2s
       timeout: 5s
       retries: 30

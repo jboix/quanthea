@@ -42,7 +42,10 @@ export function addCopyButtons(blocks: Iterable<HTMLPreElement>): void {
     button.className = 'copy-button';
     button.textContent = 'Copy';
     button.addEventListener('click', () => {
-      copyWithConfirmation(button, block.querySelector('code')?.innerText ?? block.innerText);
+      copyWithConfirmation(
+        button,
+        block.querySelector('code')?.textContent ?? block.textContent ?? '',
+      );
     });
     wrapper.append(button);
   }

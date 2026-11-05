@@ -90,11 +90,15 @@ export function suggestionState(
     hold(closedSuggestions);
     props.onCommit(name);
   };
+  const down = () => hold({ open: true, active: movedHighlight(current, 1, items.length) });
+  const up = () => hold({ ...held, active: movedHighlight(current, -1, items.length) });
+  const enter = () => commit(items[current] ?? typed);
+  const close = () => hold(closedSuggestions);
   const keys: Readonly<Record<string, (() => void) | undefined>> = {
-    ArrowDown: () => hold({ open: true, active: movedHighlight(current, 1, items.length) }),
-    ArrowUp: () => hold({ ...held, active: movedHighlight(current, -1, items.length) }),
-    Enter: () => commit(items[current] ?? typed),
-    Escape: shown ? () => hold(closedSuggestions) : props.onCancel,
+    ArrowDown: down,
+    ArrowUp: up,
+    Enter: enter,
+    Escape: shown ? close : props.onCancel,
   };
   return { shown, items, more, unknown, current, commit, ...handlers(props, keys, hold) };
 }

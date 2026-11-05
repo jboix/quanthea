@@ -1,5 +1,6 @@
 /** The route of Settings → Users. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { changeUsers, loadUsers } from '../features/users/index.ts';
@@ -18,6 +19,6 @@ export function usersSettingsRoute(loadSession: SessionLoader, api: ApiClient): 
     path,
     loader: guarded(loadSession, path, loadUsers(api)),
     action: guarded(loadSession, path, changeUsers(api)),
-    lazy: { Component: async () => (await import('../features/users/screens.ts')).UsersScreen },
+    lazy: lazyScreen(async () => (await import('../features/users/screens.ts')).UsersScreen),
   };
 }

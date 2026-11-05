@@ -90,7 +90,7 @@ jobs:
       - name: Install dependencies
         env:
           CI: true
-          HUSKY: "0"
+          HUSKY: '0'
         run: bun install --frozen-lockfile --ignore-scripts
 
       # Both dist folders are built here, before the token exists: the kit's
@@ -159,7 +159,7 @@ jobs:
       - name: Install dependencies
         env:
           CI: true
-          HUSKY: "0"
+          HUSKY: '0'
         run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Mint the release bot token

@@ -1,5 +1,6 @@
 /** The route of Settings → Notifications. */
 import type { RouteObject } from 'react-router';
+import { lazyScreen } from '../app/lazy-screen.ts';
 import { guarded } from '../app/route-access.ts';
 import type { SessionLoader } from '../app/session.ts';
 import { changeNotifications, loadNotifications } from '../features/notifications/index.ts';
@@ -21,9 +22,8 @@ export function notificationsSettingsRoute(
     path,
     loader: guarded(loadSession, path, loadNotifications(api)),
     action: guarded(loadSession, path, changeNotifications(api)),
-    lazy: {
-      Component: async () =>
-        (await import('../features/notifications/screens.ts')).NotificationsScreen,
-    },
+    lazy: lazyScreen(
+      async () => (await import('../features/notifications/screens.ts')).NotificationsScreen,
+    ),
   };
 }
