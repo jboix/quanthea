@@ -9,13 +9,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.88",
-    "@ai-sdk/mistral": "^4.0.72",
-    "@ai-sdk/openai": "^4.0.102",
-    "@ai-sdk/openai-compatible": "^3.0.78",
+    "@ai-sdk/anthropic": "^4.0.91",
+    "@ai-sdk/mistral": "^4.0.74",
+    "@ai-sdk/openai": "^4.0.104",
+    "@ai-sdk/openai-compatible": "^3.0.80",
     "@quanthea/plugin-kit": "workspace:*",
     "@quanthea/shared": "workspace:*",
-    "ai": "^7.0.153",
+    "ai": "^7.0.156",
     "hono": "^4.13.14",
     "mongodb": "^7.7.0",
     "mysql2": "^3.24.6",
