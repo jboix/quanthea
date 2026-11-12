@@ -68,7 +68,7 @@ jobs:
       # The eval dashboard and its runs, from the evalmark branch. Before the first eval run the
       # branch does not exist: the action warns and the site deploys without /evals/.
       - name: Add the eval dashboard at /evals/
-        uses: jboix/evalmark@9f151c4a87255f8237cdb3449b38f340b9c52a3d # v1.0.2
+        uses: jboix/evalmark@b02be667645dc2ed9823b7a571025e3b21889fc3 # v1.1.0
         with:
           mode: export
           path: apps/site/dist/evals
