@@ -27,7 +27,9 @@ export function ConnectorScreen() {
     <div className={styles.screen}>
       <ConnectorHeader connector={connector} />
       <WriteWarning access={writeAccessOf(report)} />
-      <div className={styles.columns}>
+      {/* One key for the whole body, so no draft carries over to another connector. Siblings
+          must never share a key: React then leaves a dead copy of one at each render. */}
+      <div key={connector.id} className={styles.columns}>
         <fieldset className={styles.settings} disabled={connector.managedBy !== undefined}>
           {connector.managedBy && (
             <p className={styles.managed} title={connector.managedBy}>
@@ -35,15 +37,10 @@ export function ConnectorScreen() {
             </p>
           )}
           <AccessSection connector={connector} schema={schema} />
-          <ObjectsSection
-            key={connector.id}
-            connector={connector}
-            schema={schema}
-            language={language}
-          />
-          <GuardrailsSection key={connector.id} connector={connector} language={language} />
+          <ObjectsSection connector={connector} schema={schema} language={language} />
+          <GuardrailsSection connector={connector} language={language} />
         </fieldset>
-        <SchemaPanel key={connector.id} connector={connector} schema={schema} />
+        <SchemaPanel connector={connector} schema={schema} />
       </div>
     </div>
   );
