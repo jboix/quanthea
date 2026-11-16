@@ -70,7 +70,7 @@ services:
     command: ['sh', '-c', '[ -f /seed/history.om ] || bun history.ts /seed/history.om']
 
   prometheus-backfill:
-    image: prom/prometheus:v3.15.1
+    image: prom/prometheus:v3.16.0
     depends_on:
       metrics-history:
         condition: service_completed_successfully
@@ -89,7 +89,7 @@ services:
     command: ['bun', 'serve.ts']
 
   prometheus:
-    image: prom/prometheus:v3.15.1
+    image: prom/prometheus:v3.16.0
     depends_on:
       prometheus-backfill:
         condition: service_completed_successfully
@@ -135,7 +135,7 @@ services:
 
   mysql:
     profiles: [mysql]
-    image: mysql:26.7.0
+    image: mysql:26.10.0
     environment:
       MYSQL_DATABASE: orders
       MYSQL_USER: quanthea_admin
