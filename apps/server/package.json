@@ -17,9 +17,9 @@
     "@quanthea/shared": "workspace:*",
     "ai": "^7.0.165",
     "hono": "^4.13.18",
-    "mongodb": "^7.8.0",
+    "mongodb": "^7.9.0",
     "mysql2": "^3.24.6",
-    "openid-client": "^6.8.9",
+    "openid-client": "^6.9.0",
     "postgres": "^3.4.7",
     "ulid": "^3.0.2",
     "zod": "^4.6.6"
