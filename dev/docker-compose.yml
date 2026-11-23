@@ -112,7 +112,7 @@ services:
 
   timescaledb:
     profiles: [timescale]
-    image: timescale/timescaledb:2.31.0-pg18
+    image: timescale/timescaledb:2.32.0-pg18
     environment:
       POSTGRES_DB: orders
       POSTGRES_USER: quanthea_admin
@@ -175,7 +175,7 @@ services:
 
   clickhouse:
     profiles: [clickhouse]
-    image: clickhouse/clickhouse-server:26.10.3.7-alpine
+    image: clickhouse/clickhouse-server:26.10.4.207-alpine
     environment:
       CLICKHOUSE_DB: orders
       CLICKHOUSE_USER: quanthea_admin
@@ -386,7 +386,7 @@ services:
 
   loki:
     profiles: [loki]
-    image: grafana/loki:3.7.9
+    image: grafana/loki:3.7.10
     command: ['-config.file=/etc/loki/config.yaml']
     ports:
       - '127.0.0.1:3101:3100'
