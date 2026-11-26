@@ -59,6 +59,7 @@ export const docNav: readonly DocNavGroup[] = [
   {
     label: 'Extend',
     items: [
+      { slug: 'mcp', label: 'MCP server' },
       { slug: 'connectors', label: 'Connectors & plugins' },
       { slug: pluginsSlug, label: 'Plugins' },
     ],

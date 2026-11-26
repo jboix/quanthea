@@ -1,12 +1,14 @@
 /**
  * The purge job: once at startup and then every hour, it deletes for good the threads and the
  * conversations that have waited in the bin longer than the retention setting allows, the snapshots whose time is up, the
- * sessions that have ended, the old sends of the notification channels' log, the alerts'
+ * sessions that have ended, the API tokens that have expired, their tool calls older than 90 days, the old sends of the notification channels' log, the alerts'
  * changes of state older than 90 days, and the report runs past the report settings' retention.
  */
 
 import type { Alerts } from '../alerts/alerts.ts';
+import type { ApiTokens } from '../auth/api-tokens.ts';
 import type { Sessions } from '../auth/sessions.ts';
+import type { TokenActivity } from '../auth/token-activity.ts';
 import type { ConversationBin } from '../dashboards/conversation-bin.ts';
 import type { Snapshots } from '../dashboards/snapshots.ts';
 import type { Logger } from '../lib/logger.ts';
@@ -29,6 +31,10 @@ export interface PurgeJobDependencies {
   readonly alerts?: Pick<Alerts, 'purgeEvents'> | undefined;
   /** The sessions, whose ended rows the job deletes. */
   readonly sessions?: Pick<Sessions, 'purgeEnded'> | undefined;
+  /** The API tokens, whose expired rows the job deletes. */
+  readonly apiTokens?: Pick<ApiTokens, 'purgeExpired'> | undefined;
+  /** The record of what tokens did, whose old calls the job deletes. */
+  readonly tokenActivity?: Pick<TokenActivity, 'purgeOld'> | undefined;
   /** The notification channels, whose log keeps only recent sends. */
   readonly notifications?: Pick<Notifications, 'purgeSends'> | undefined;
   /** The reports, whose runs past the retention setting the job deletes. */
@@ -104,6 +110,8 @@ export function startPurgeJob(dependencies: PurgeJobDependencies): () => void {
       purgeExpired(dependencies);
       purgeSnapshots(dependencies);
       dependencies.sessions?.purgeEnded();
+      dependencies.apiTokens?.purgeExpired();
+      dependencies.tokenActivity?.purgeOld();
       dependencies.notifications?.purgeSends();
       dependencies.alerts?.purgeEvents();
       purgeReportRuns(dependencies);

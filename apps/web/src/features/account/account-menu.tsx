@@ -5,13 +5,14 @@ import { type ColorScheme, useColorScheme } from '../../ui/color-scheme.ts';
 import { type Density, useDensity } from '../../ui/density.ts';
 import { Dialog } from '../../ui/dialog.tsx';
 import { Popover } from '../../ui/popover.tsx';
+import { ApiTokensForm } from '../api-tokens/index.ts';
 import styles from './account.module.css';
 import { ChangePasswordForm, ProvidersForm } from './account-forms.tsx';
 import type { AccountIdentities } from './data.ts';
 import { useAccountForm } from './use-account-form.ts';
 
 /** A dialog the menu opens. */
-type AccountDialog = 'password' | 'providers' | null;
+type AccountDialog = 'password' | 'providers' | 'tokens' | null;
 
 /**
  * One entry of the menu.
@@ -128,7 +129,7 @@ function useIdentities(): AccountIdentities | undefined {
 }
 
 /**
- * The entries: change the password, the providers, and signing out.
+ * The entries: change the password, the providers, the API tokens, and signing out.
  *
  * @param props - One's providers and the dialog opener.
  * @param props.identities - One's providers, once loaded.
@@ -150,6 +151,7 @@ function MenuItems({
         <MenuItem onClick={() => open('password')}>Change password</MenuItem>
       )}
       {hasProviders && <MenuItem onClick={() => open('providers')}>Sign-in providers</MenuItem>}
+      <MenuItem onClick={() => open('tokens')}>MCP tokens</MenuItem>
       <MenuItem
         disabled={signOut.busy}
         onClick={() => signOut.submit({ intent: 'sign-out-everywhere' })}
@@ -174,8 +176,8 @@ interface AccountMenuProps {
 }
 
 /**
- * The account menu behind the user icon: who is signed in, the appearance, changing the password
- * and the providers in dialogs, and signing out.
+ * The account menu behind the user icon: who is signed in, the appearance, changing the password,
+ * the providers and the API tokens in dialogs, and signing out.
  *
  * @param props - Who is signed in, and the button.
  * @returns The menu and its dialogs.
@@ -207,6 +209,9 @@ export function AccountMenu({ principal, trigger, triggerClassName }: AccountMen
       </Dialog>
       <Dialog title="Sign-in providers" open={dialog === 'providers'} onClose={close}>
         {identities && <ProvidersForm identities={identities} />}
+      </Dialog>
+      <Dialog title="MCP tokens" open={dialog === 'tokens'} onClose={close}>
+        {dialog === 'tokens' && <ApiTokensForm principal={principal} />}
       </Dialog>
     </>
   );

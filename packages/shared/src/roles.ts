@@ -35,3 +35,14 @@ export type Principal = z.infer<typeof principalSchema>;
 export function hasRole(actual: Role, minimum: Role): boolean {
   return roles.indexOf(actual) >= roles.indexOf(minimum);
 }
+
+/**
+ * The weaker of two roles.
+ *
+ * @param first - A role.
+ * @param second - Another role.
+ * @returns Whichever grants less.
+ */
+export function weakerRole(first: Role, second: Role): Role {
+  return hasRole(first, second) ? second : first;
+}

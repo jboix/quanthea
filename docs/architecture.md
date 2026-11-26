@@ -75,9 +75,11 @@ The two paths that matter:
 │   │       ├── provisioning/        apply the config file's connectors and settings
 │   │       ├── lib/                 leaf utilities: errors, logger, ids, clock
 │   │       ├── http/                route modules + middleware (auth, errors, request id)
-│   │       ├── auth/                passwords, sign-in providers, sessions, users, Principal
+│   │       ├── auth/                passwords, sign-in providers, sessions, MCP tokens, users,
+│   │       │                        Principal
 │   │       ├── agent/               AI SDK: provider factory, prompts, tools, run loop
 │   │       ├── gate/                what the model may see: access levels, hidden columns, summaries
+│   │       ├── mcp/                 the MCP server: the wire format, the read-only tools
 │   │       ├── query/               executor: variable binding, guardrails, timeouts, result cache,
 │   │       │                        errors made safe to show (QueryError.safeMessage)
 │   │       ├── connections/         configured connectors: CRUD, sealed secrets, open instances, schema cache
@@ -169,6 +171,7 @@ from `scripts/arch-server-rules.cjs`. The table summarizes them.
 | `query/`             | bind variables, enforce guardrails and scope, run, cache    | `connectors`, `lib`, shared                                                                                                 | everything else                                                                                |
 | `gate/`              | turn query results and schemas into what the model may see  | `query`, `connectors/_shared`, `settings`, `lib`                                                                            | everything else                                                                                |
 | `agent/`             | AI SDK loop, prompts, tool definitions                      | `gate`, `dashboards`, `threads`, `settings`, `lib`; types only from `alerts`, `reports`, `usage` and the Dashboards service | everything else, **`connectors`, `query`, `db`** above all                                     |
+| `mcp/`               | the MCP wire format and its read-only tools                 | `gate`, `lib`, shared; types only from `dashboards`, `alerts` and `reports`                                                 | everything else, **`connectors`, `query`, `db`** above all                                     |
 | `dashboards/`        | validate, store, pin and run specs                          | `db`, `query`, `lib`, shared; connectors through injected functions                                                         | everything else                                                                                |
 | `alerts/`            | validate, store, evaluate and replay alert specs            | `db`, `query`, `dashboards`, `lib`, shared; the rest injected                                                               | everything else                                                                                |
 | `reports/`           | validate, store and run report specs on a schedule          | `db`, `query`, `dashboards`, `lib`, shared; the rest injected                                                               | everything else                                                                                |
@@ -195,6 +198,12 @@ make it safe alone. The run context hands the agent the Dashboards, Alerts and R
 whose test runs and replays return raw frames. Each tool passes those results through `gate/`
 (`modelTestResult`, `modelAlertCheck`, `modelAlertReplay`) before the model sees them, and the
 gate's leak tests check that every one of those paths drops hidden fields.
+
+`mcp/` is held to the same rules as `agent/`, for the same reason: what calls it is a model. It
+imports the gate and `lib/`, and takes the Dashboards, Alerts and Reports services as types
+only. Its tools read data through the gate's own methods (`testQuery`, `readOperations`,
+`panelResult`, `alertCheck`, `describe`), so no tool holds a raw frame (section 10, "The MCP
+endpoint").
 
 ## 4. Web modules
 
@@ -430,6 +439,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/reports/:reportId/runs/:runId/redraw`                        | resource route: a run's charts at another interval          | viewer   |
 | `/reports/:reportId/v/:version/layouts`                        | resource route: the history of a version's layout           | editor   |
 | `/account`                                                     | resource route: the account menu's providers and actions    | viewer   |
+| `/account/tokens`                                              | resource route: one's MCP tokens, make and revoke           | viewer   |
 | `/d/:dashboardId`                                              | the pinned version; for editors, the latest if unpinned     | viewer   |
 | `/d/:dashboardId/v/:version`                                   | a specific version                                          | viewer   |
 | `/d/:dashboardId/v/:version/panels/:panelId`                   | resource route: one panel's run, for fetchers               | viewer   |
@@ -456,6 +466,7 @@ gate's leak tests check that every one of those paths drops hidden fields.
 | `/settings/notifications`                                      | Notifications: channels, tests, what a webhook receives     | admin    |
 | `/settings/queries`                                            | Queries: builders on or off, your own with placeholders     | admin    |
 | `/settings/hosts`                                              | Links and images: where links go, hosts for images          | admin    |
+| `/settings/api`                                                | MCP access: the MCP endpoint, its tokens' lifetime          | admin    |
 | `/settings/charts`                                             | Charts: every chart recipe drawn from its sample            | admin    |
 | `/settings/server`                                             | Server: system settings and keys, read-only, with sources   | admin    |
 | `/settings`                                                    | redirect → `/settings/model`                                | admin    |
@@ -3621,6 +3632,21 @@ CREATE TABLE sessions (
   public_id TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
 
+CREATE TABLE api_tokens (            -- a person's tokens for the MCP endpoint
+  token_hash BLOB PRIMARY KEY,       -- keyed hash of the token, which is shown once
+  public_id TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('viewer','analyst','editor','admin')),  -- no stronger than the owner's when made
+  created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, last_used_at INTEGER);
+
+CREATE TABLE mcp_calls (             -- what tokens did: one row per tool call, kept 90 days
+  id TEXT PRIMARY KEY, at INTEGER NOT NULL,
+  token_id TEXT NOT NULL, token_name TEXT NOT NULL,  -- no foreign key: a row outlives its token
+  user_id TEXT NOT NULL, role TEXT NOT NULL,          -- the owner, and the role the call acted with
+  tool TEXT NOT NULL, arguments TEXT NOT NULL,        -- as the caller sent them, cut at 2,000 characters
+  outcome TEXT NOT NULL CHECK (outcome IN ('ok','refused','failed')),
+  duration_ms INTEGER NOT NULL, address TEXT NOT NULL);
+
 CREATE TABLE password_links (
   token_hash BLOB PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   purpose TEXT NOT NULL CHECK (purpose IN ('invite','reset')), expires_at INTEGER NOT NULL,
@@ -4015,6 +4041,12 @@ indicative; the contract files are the source of truth.
 | `GET /settings/identity-providers`, `PUT/DELETE /settings/identity-providers/:id`                 | sign-in providers                            | admin    |
 | `POST /settings/identity-providers/:id/enabled`, `PUT /settings/password-sign-in`                 | turn a provider or passwords on or off       | admin    |
 | `GET/POST /users`, `PATCH /users/:id`, `POST /users/:id/reset-link`, `DELETE /users/:id/sessions` | users                                        | admin    |
+| `GET/POST /tokens`, `DELETE /tokens/:id`                                                          | one's own MCP tokens                         | viewer   |
+| `DELETE /users/:id/tokens`                                                                        | revoke every token of a user                 | admin    |
+| `DELETE /settings/api-access/tokens`                                                              | revoke every token of everyone               | admin    |
+| `GET /settings/api-access/activity`                                                               | the latest 200 MCP tool calls                | admin    |
+| `GET/PUT /settings/api-access`                                                                    | the MCP endpoint, on or off, and its tokens  | admin    |
+| `POST /mcp` (an MCP token only; JSON-RPC)                                                         | the MCP endpoint, read-only tools            | viewer   |
 | `GET /threads` (each marked `pinned`), `POST /threads`, `GET /threads/:id`, `DELETE /threads/:id` | threads; delete moves to the bin             | editor   |
 | `POST /threads/drafts/bin`                                                                        | the caller's drafts to the bin, a count      | editor   |
 | `POST /threads` with `kind: 'alert'` and a `seed` (a dashboard, version and panel)                | an alert thread, from a panel                | editor   |
@@ -4109,20 +4141,25 @@ input with the contract's schemas, runs the handler, and parses the result with 
 so fields the contract does not declare never leave the server. A few routes are raw Hono routes
 instead, because they set cookies, redirect or stream: sign-in, sign-out, sign out everywhere,
 set-password, change-password and setup (`http/routes/auth-routes.ts`), a provider's start and
-callback (`provider-routes.ts`), and the chat stream (`chat-route.ts`). Each declares its access
-with `accessMiddleware` and parses its own input; the chat route takes the message as `unknown`
-and hands it to the AI SDK's message validation. A test lists every `/api` route and fails when
-one declares no access, whichever way it was mounted. Another fails when a route other than these
-nine is raw: `mountEndpoint` marks the handlers it mounts, so the route table tells them apart.
+callback (`provider-routes.ts`), the chat stream (`chat-route.ts`), and the MCP endpoint
+(`mcp-route.ts`: its `POST`, and the `GET` and `DELETE` that answer 405), whose body and errors
+follow the MCP wire format. Each declares its access with `accessMiddleware` and parses its own
+input; the chat route takes the message as `unknown` and hands it to the AI SDK's message
+validation. A test lists every `/api` route and fails when one declares no access, whichever way
+it was mounted. Another fails when a route other than these twelve is raw: `mountEndpoint` marks
+the handlers it mounts, so the route table tells them apart.
 
 Every response carries an `X-Request-Id` header. `GET /api/me` answers 401 when the request has no
-session.
+session. A request that carries an MCP token is answered 403 on every route but `POST /api/mcp`.
 
 ## 10. Authentication
 
 ```
 request → requestId → security headers → CSRF check → signed session cookie → session → user
           → route guard requireRole('editor') → handler
+
+request with Authorization: Bearer qth_… → refused unless it is POST /api/mcp → no cookie read
+          → token → its owner → route guard → MCP tool → gate
 ```
 
 People always sign in; there is no open access. The public URL is needed for sign-in providers
@@ -4154,6 +4191,42 @@ one, and enables them again. Without any admin, it creates the default one.
   id, so a copy of the database gives no usable session. A session ends after 24 hours without a
   request or 7 days after it began; its last request is written at most once a minute. A cookie
   that appears twice is refused. The purge job deletes ended sessions every hour.
+- **MCP tokens** (`auth/api-tokens.ts`, table `api_tokens`): a person makes a token in the
+  account menu, to connect an assistant to the MCP endpoint. A token is `qth_` and a random
+  value, shown once; the database stores a keyed hash of it, under the session key. It acts as
+  its owner, with the role chosen when it was made, which is no stronger than the owner's then.
+  At each request its role is the weaker of that one and the owner's role now, so lowering a
+  person's role lowers their tokens. A token must expire: the person chooses how long it lasts,
+  up to a limit an admin sets (365 days by default). A person holds at most 20. Its last use is
+  written at most once a minute. Disabling a user revokes their tokens, an admin can revoke every
+  token of a user, and the purge job deletes expired ones every hour. Making and revoking are in
+  the audit log, by token id and name.
+- **What a token reaches** (`http/token-reach.ts`): `POST /api/mcp`, and nothing else. Every
+  other path answers 403 to a request that carries a token, before the route is looked up. The
+  rest of the API answers a person's browser with data as they see it, outside the connectors'
+  access levels. A token may be held by a model, so it reads only where every result comes out
+  of the gate. It follows that a leaked token cannot make another token, change a user, change a
+  setting or outlive its own expiry.
+- **A request with a token** (`auth/bearer.ts`, `http/authenticate.ts`,
+  `auth/token-sign-in.ts`) is judged by the token alone: its cookie is never read. An unknown,
+  expired or revoked token is a 401, with or without a valid cookie beside it, and is logged
+  with the address it came from.
+- **Wrong tokens** count against the IP address (`auth/throttle.ts`, the rule sign-in uses for
+  addresses): past 20 failures the address waits 1 minute, doubling up to 15 minutes, and every
+  token from it answers 429 meanwhile, a right one too. A right token never counts.
+- **What tokens did** (`auth/token-activity.ts`, table `mcp_calls`): every tool call on the MCP
+  endpoint is written down with the token's id and name, its owner, the role it acted with, the
+  tool, the arguments as sent (cut at 2,000 characters), how it ended, how long it took and the
+  address. A refused call and an unknown tool are written too. A result is never kept. The same
+  line goes to the server log, without the arguments. An admin reads the latest 200 in Settings
+  → MCP access; the purge job deletes calls older than 90 days.
+- **Revoking.** A person revokes their own tokens. An admin revokes every token of a user, or
+  every token of everyone (Settings → MCP access, "Revoke every token"), for a leak whose token
+  is not known. Each is in the audit log.
+- **Settings → MCP access** (`settings/api-access-settings.ts`, admin): whether the MCP endpoint
+  answers, the longest lifetime of a new token, and whether the endpoint offers the tools that
+  run a written query. With the endpoint off, it answers 403 and no token is made; the tokens
+  stay and work again once it is on.
 - **Passwords** (`auth/passwords.ts`): a password goes through an HMAC under the pepper, then
   argon2id (64 MiB, 3 passes). Without the pepper, which never reaches the database, no guess can
   be checked against a stolen hash. A hash made with other costs or the previous pepper is made
@@ -4254,10 +4327,67 @@ one, and enables them again. Without any admin, it creates the default one.
   `X-Requested-With: quanthea`, which a cross-site form cannot send without a preflight quanthea never
   grants. When the browser sends `Origin`, it must be `QUANTHEA_PUBLIC_URL` (or, without it, the
   request's own origin); when it sends `Sec-Fetch-Site`, it must be `same-origin` or `none`. The web
-  client sends the header on every request.
+  client sends the header on every request. The MCP endpoint is exempt: it takes a token and no
+  cookie.
 - **Request bodies** (`http/request-limit.ts`): 8 MB at most, on every route. Bun refuses a
   larger body with a 413 before the app reads it, with or without a `Content-Length`.
 - Every `/api` answer carries `Cache-Control: no-store`.
+
+### The MCP endpoint
+
+`POST /api/mcp` lets an assistant outside quanthea read what quanthea holds. It is the Model
+Context Protocol over HTTP: one JSON-RPC message per request, one JSON object back
+(`mcp/protocol.ts`, `mcp/server.ts`, `http/routes/mcp-route.ts`). There is one path. The method
+(`tools/list`, `tools/call`) is in the body.
+
+- **Who calls.** A request needs an MCP token. A session cookie is refused with a 403, so a page
+  in a browser cannot drive the endpoint, and a request whose `Origin` is not quanthea's is
+  refused too. The call acts as the token's owner with the token's role. An admin turns the
+  endpoint off in Settings → MCP access. Each tool call is written down with its token.
+- **No state.** The server keeps no session. It serves the revision `2026-07-28`, where every
+  request names its revision in `params._meta` and repeats it, the method and the tool's name in
+  headers (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`); a header that disagrees with the
+  body is a 400. It also answers clients of the revisions `2025-03-26` to `2025-11-25`, which
+  open with `initialize`: it answers that and issues no session id. It opens no stream, so `GET`
+  and `DELETE` answer 405, and a notification gets a 202.
+- **Every tool reads.** No tool writes, pins, activates, mutes or sends. Building and changing
+  dashboards stays in quanthea's own threads.
+- **What is pinned or active.** The tools read pinned dashboards as shown (the pinned version,
+  through its layout, without hidden panels), active alerts and active reports, whatever the
+  token's role. Drafts, threads, users, settings and connector configuration have no tool.
+- **Data passes the gate.** What calls the endpoint is a model, so every result that holds data
+  comes out of `gate/`, shaped by the access level of the connector it was read from: level 1
+  whether the query ran, level 2 the shape, level 3 summaries, level 4 at most 500 rows, hidden
+  fields never. No setting bypasses this. A result names the query, the time range, the
+  variables and the access level it was made with, and a link that opens it in quanthea.
+- **Variables.** A result records each variable as the caller chose it, or the default the
+  dashboard writes. It never records the bound values: "all" binds to values read from a
+  connector, and those are data. A written default of a variable read from a connector shows
+  from level 3, as in an answer about a dashboard.
+
+| Tool                   | Returns                                                                     | Min role |
+| ---------------------- | --------------------------------------------------------------------------- | -------- |
+| `search_dashboards`    | pinned dashboards matching words, tags or connectors                        | viewer   |
+| `get_dashboard`        | a dashboard's description, time range, variables and panel list             | viewer   |
+| `get_panel`            | one panel as written: queries, operations, view                             | viewer   |
+| `run_panel`            | a panel's queries run now, through the gate (`testQuery`, `readOperations`) | viewer   |
+| `get_variable_options` | a variable's written list, or its query's result through the gate           | viewer   |
+| `list_alerts`          | the active alerts as written, with no state                                 | viewer   |
+| `get_alert`            | an alert's spec without its channels, and its state through `alertCheck`    | viewer   |
+| `list_reports`         | the active reports, their schedule and latest run, with no headline numbers | viewer   |
+| `get_report_run`       | a run's panels, and one panel's frozen results through `panelResult`        | viewer   |
+| `list_definitions`     | the definitions as the model may read them (`forModel`)                     | viewer   |
+| `describe_connector`   | the connectors, or one's schema as its level shows it (`describe`)          | editor   |
+| `run_query`            | a query the caller wrote, through the gate, in the connector's scope        | editor   |
+
+The last two are off until an admin turns them on (Settings → MCP access, "Allow written
+queries"). A tool the caller may not use is not listed, and calling it answers "Unknown tool".
+A refusal the caller can correct (a dashboard that is not pinned, arguments that do not match)
+is a tool result marked `isError`, in words that quote no data.
+
+The rest of the API is closed to tokens. `POST /api/panels/run` answers a browser with the
+panel's frames, as the person sees them, with no access level applied. A token there would let
+a model read around the gate, so the endpoint above is the only way in for one.
 
 ## 11. Rendering
 
@@ -4774,7 +4904,14 @@ one, and enables them again. Without any admin, it creates the default one.
   endpoints that run a spec they wrote are within their trust level: `POST /api/alerts/replay`,
   `POST /api/reports/preview`, `POST /api/panels/run` on a draft version, and, for admins,
   `POST /api/settings/queries/preview`. The result goes to that person, not to the model, so no
-  access level applies.
+  access level applies. The MCP tool `run_query` runs a query its caller wrote: it is off until
+  an admin allows it, for editors only, and its result passes the gate at the connector's level.
+- An MCP token is stored as a keyed hash, expires, carries a role no stronger than its owner's,
+  and is refused on every route but the MCP endpoint, so it reads no data outside the gate.
+- The MCP endpoint takes an MCP token only, never a cookie. Its tools only read, and `mcp/`
+  can't import around the gate (dependency-cruiser).
+- Every MCP tool call is recorded with its token, owner, arguments and address, never its
+  result. Wrong tokens make their address wait. An admin can revoke every token at once.
 - Secrets are encrypted at rest and never returned by the API (connector GETs show
   `secret: "••••1234"`). See "Keys" below.
 - Audit log entries for pin, bin, restore, purge, snapshots taken and revoked, connector changes

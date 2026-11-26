@@ -52,6 +52,8 @@ const cannedAnswers: Readonly<Record<string, unknown>> = {
   'GET /auth/identities': { linked: [], available: [], hasPassword: true },
   'GET /settings/server': { configFiles: [], settings: [], keys: [] },
   'GET /settings/managed': { sections: {} },
+  'GET /settings/api-access': { mcp: true, maxLifetimeDays: 365, mcpQueryTools: false },
+  'GET /settings/api-access/activity': { calls: [] },
   'GET /dashboards': { results: [], tags: [], connectors: [] },
   'GET /dashboards/:dashboardId': { pinnedVersion: 1, versions: [] },
   'GET /dashboards/:dashboardId/versions/:version': { version: 1, spec: { panels: [] } },

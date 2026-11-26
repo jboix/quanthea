@@ -43,6 +43,39 @@ module.exports = [
     },
   },
   {
+    name: 'mcp-only-through-gate',
+    severity: 'error',
+    comment:
+      'Privacy invariant: an MCP client is a model, so it only sees what gate/ lets through. ' +
+      'mcp/ may not import connectors, the query executor or the database directly.',
+    from: { path: '^apps/server/src/mcp/' },
+    to: { path: '^apps/server/src/(connectors|query|db)/' },
+  },
+  {
+    name: 'mcp-allow-list',
+    severity: 'error',
+    comment:
+      'mcp/ reaches the gate and the domain services it is handed, nothing else: no agent, ' +
+      'connections, secrets, settings, http or auth. Its tests may use src/test/.',
+    from: { path: '^apps/server/src/mcp/', pathNot: ['[.]test[.]ts$'] },
+    to: {
+      path: '^apps/server/src/',
+      pathNot: '^apps/server/src/(mcp|gate|dashboards|alerts|reports|lib)/',
+    },
+  },
+  {
+    name: 'mcp-takes-domain-types',
+    severity: 'error',
+    comment:
+      'mcp/ uses the dashboards, alerts and reports through the services it is handed, so it ' +
+      'imports their types only.',
+    from: { path: '^apps/server/src/mcp/', pathNot: ['[.]test[.]ts$'] },
+    to: {
+      path: '^apps/server/src/(dashboards|alerts|reports)/',
+      dependencyTypesNot: ['type-only'],
+    },
+  },
+  {
     name: 'threads-stay-in-their-lane',
     severity: 'error',
     comment: 'threads/ keeps threads, messages and plans: it imports the database and lib/.',

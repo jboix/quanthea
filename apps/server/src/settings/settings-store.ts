@@ -1,6 +1,7 @@
 /** The typed settings store: one Zod-validated JSON document per section. */
 import {
   alertSettingsSchema,
+  apiAccessSettingsSchema,
   chartSettingsSchema,
   defaultExternalHosts,
   defaultModelGateway,
@@ -37,6 +38,8 @@ const sectionSchemas = {
   reports: reportSettingsSchema,
   /** Where dashboards may link and load images from. */
   'external-hosts': externalHostsSchema,
+  /** Whether API tokens and the MCP endpoint work, and how long a new token may last. */
+  'api-access': apiAccessSettingsSchema,
 };
 
 /** A settings section name. */
@@ -57,6 +60,7 @@ const sectionDefaults: { readonly [Name in SectionName]: SectionValue<Name> } = 
   alerts: { maxActivePerConnector: 50, notifyOnError: true, quietHours: null },
   reports: { maxRetries: 2, retryDelay: '15m', keepRunsDays: null },
   'external-hosts': defaultExternalHosts,
+  'api-access': { mcp: true, maxLifetimeDays: 365, mcpQueryTools: false },
 };
 
 /** Reads and writes settings sections. */

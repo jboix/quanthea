@@ -1,0 +1,161 @@
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(100%, 460px);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-divider);
+}
+
+/* The role and the lifetime, side by side. */
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+}
+
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.tokens {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tokens li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.token {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* A token just made: shown once, so it stands out until the dialog closes. */
+.created {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-ok-border);
+  border-radius: var(--radius-card);
+  background: var(--color-ok-soft);
+  font-size: 13px;
+  color: var(--color-ok-ink);
+}
+
+.createdRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.createdText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Save, at the end of the settings page, a refusal before it. */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* The longest lifetime: a short number field. */
+.lifetime {
+  max-width: 220px;
+}
+
+/* Revoke every token: what it does, then the button. */
+.revokeEvery {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(100%, 420px);
+}
+
+/* The activity table scrolls sideways on a narrow page. */
+.scroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--color-ink-secondary);
+}
+
+.table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-divider);
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* The arguments: one line, cut, whole in the tooltip. */
+.arguments {
+  max-width: 320px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.notOk {
+  color: var(--color-danger);
+}

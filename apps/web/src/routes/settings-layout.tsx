@@ -29,6 +29,7 @@ const groups = [
     sections: [
       { to: '/settings/users', label: 'Users' },
       { to: '/settings/auth', label: 'Sign-in' },
+      { to: '/settings/api', label: 'MCP access' },
     ],
   },
   {

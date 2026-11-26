@@ -1,7 +1,8 @@
 /**
- * The account services: users, sessions, passwords and sign-in providers, wired over one database
- * and the keys.
+ * The account services: users, sessions, API tokens, passwords and sign-in providers, wired over
+ * one database and the keys.
  */
+import { type ApiTokens, createApiTokens } from './auth/api-tokens.ts';
 import type { DefaultAdminDependencies } from './auth/default-admin.ts';
 import { createPasswordAccounts, type PasswordAccounts } from './auth/password-accounts.ts';
 import type { HashCosts } from './auth/passwords.ts';
@@ -14,11 +15,14 @@ import { createProviderFlows, type ProviderFlows } from './auth/providers/provid
 import { createSignInSettings, type SignInSettings } from './auth/providers/sign-in-settings.ts';
 import { createSessions, type Sessions } from './auth/sessions.ts';
 import { accountRule, addressRule, createThrottle } from './auth/throttle.ts';
+import { createTokenActivity, type TokenActivity } from './auth/token-activity.ts';
 import type { UserAdminDependencies } from './auth/user-admin.ts';
 import { createUsers, type Users } from './auth/users.ts';
+import { createApiTokenRepository } from './db/api-token-repository.ts';
 import type { createAuditRepository } from './db/audit-repository.ts';
 import type { openDatabase } from './db/database.ts';
 import { createIdentityRepository, type IdentityRepository } from './db/identity-repository.ts';
+import { createMcpCallRepository } from './db/mcp-call-repository.ts';
 import { createPasswordLinkRepository } from './db/password-link-repository.ts';
 import { createProvisionedRepository } from './db/provisioned-repository.ts';
 import { createSessionRepository } from './db/session-repository.ts';
@@ -61,6 +65,10 @@ export interface Accounts {
   readonly userRows: UserRepository;
   /** Sessions, when the session key is set. */
   readonly sessions: Sessions | undefined;
+  /** API tokens, when the session key is set. */
+  readonly apiTokens: ApiTokens | undefined;
+  /** The record of what API tokens did on the MCP endpoint. */
+  readonly tokenActivity: TokenActivity;
   /** Password accounts, when the session key and the pepper are set. */
   readonly passwords: PasswordAccounts | undefined;
   /** What changing a user needs. */
@@ -109,6 +117,41 @@ function passwordAccounts(
     addresses: createThrottle(addressRule, now),
     accounts: createThrottle(accountRule, now),
     ...(dependencies.passwordCosts ? { costs: dependencies.passwordCosts } : {}),
+    ...(now ? { now } : {}),
+  });
+}
+
+/**
+ * The record of what API tokens did on the MCP endpoint.
+ *
+ * @param database - The database.
+ * @param users - Names the owners of the calls.
+ * @param clock - The clock, when one is given.
+ * @returns The record.
+ */
+function tokenActivityOf(
+  database: AccountDependencies['database'],
+  users: Users,
+  clock: { readonly now?: () => number },
+): TokenActivity {
+  return createTokenActivity({ repository: createMcpCallRepository(database), users, ...clock });
+}
+
+/**
+ * API tokens, when the session key is set: it keys the hash a token is stored as.
+ *
+ * @param dependencies - The account dependencies.
+ * @param audit - The audit log.
+ * @returns The API tokens, or `undefined`.
+ */
+function apiTokensOf(dependencies: AccountDependencies, audit: Audit): ApiTokens | undefined {
+  const { sessionHashes, settings, now } = dependencies;
+  if (!sessionHashes) return undefined;
+  return createApiTokens({
+    repository: createApiTokenRepository(dependencies.database),
+    tokenHash: sessionHashes.tokenHash,
+    settings: () => settings.read('api-access'),
+    audit,
     ...(now ? { now } : {}),
   });
 }
@@ -237,11 +280,14 @@ export function createAccounts(dependencies: AccountDependencies, audit: Audit):
     audit,
   });
   const parts = { users, userRows, sessions, signInSettings, identityRows, audit };
+  const apiTokens = apiTokensOf(dependencies, audit);
   return {
     ...parts,
+    apiTokens,
+    tokenActivity: tokenActivityOf(database, users, clock),
     linkedIdentities,
     passwords: passwordAccounts(dependencies, userRows, sessions, audit),
-    userAdmin: { repository: userRows, sessions, audit, ...clock },
+    userAdmin: { repository: userRows, sessions, apiTokens, audit, ...clock },
     adminSetup: adminSetupOf(dependencies, parts),
     flows: providerFlows(dependencies, parts),
   };

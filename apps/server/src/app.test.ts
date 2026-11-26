@@ -110,7 +110,7 @@ describe('route access', () => {
     const settingsRoutes = listApiRouteAccess(buildApp()).filter((route) =>
       /^\/api\/settings/.test(route.path),
     );
-    expect(settingsRoutes.length).toBe(32);
+    expect(settingsRoutes.length).toBe(36);
     expect(settingsRoutes.every((route) => route.access === 'admin')).toBe(true);
   });
 
@@ -287,14 +287,17 @@ describe('route access', () => {
       .filter((route) => !route.contract)
       .map((route) => `${route.method} ${route.path}`);
     expect(rawRoutes.sort()).toEqual([
+      'DELETE /api/mcp',
       'GET /api/auth/providers/:providerId/callback',
       'GET /api/auth/providers/:providerId/start',
+      'GET /api/mcp',
       'POST /api/auth/change-password',
       'POST /api/auth/set-password',
       'POST /api/auth/setup',
       'POST /api/auth/sign-in',
       'POST /api/auth/sign-out',
       'POST /api/auth/sign-out-everywhere',
+      'POST /api/mcp',
       'POST /api/threads/:threadId/chat',
     ]);
   });

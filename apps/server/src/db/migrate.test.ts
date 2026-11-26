@@ -65,6 +65,7 @@ describe('runMigrations', () => {
       '0004-quiet-hours-and-connector-visibility.sql',
       '0005-definitions.sql',
       '0006-definition-threads.sql',
+      '0007-api-tokens.sql',
     ]);
     expect(runMigrations(database)).toEqual([]);
     expect(tableNames()).toEqual([
@@ -75,6 +76,7 @@ describe('runMigrations', () => {
       'alert_series',
       'alert_versions',
       'alerts',
+      'api_tokens',
       'audit_log',
       'connectors',
       'conversation_bin',
@@ -90,6 +92,7 @@ describe('runMigrations', () => {
       'library_fts_data',
       'library_fts_docsize',
       'library_fts_idx',
+      'mcp_calls',
       'messages',
       'migrations',
       'notification_channels',

@@ -7,7 +7,7 @@ import {
   redirect,
 } from 'react-router';
 import type { ApiClient } from '../lib/api-client.ts';
-import { accountRoute } from '../routes/account.tsx';
+import { accountRoute, accountTokensRoute } from '../routes/account.tsx';
 import { alertRoutes } from '../routes/alerts.tsx';
 import { binRoute } from '../routes/bin.tsx';
 import { connectorRoutes } from '../routes/connectors.tsx';
@@ -17,6 +17,7 @@ import { libraryRoute } from '../routes/library.tsx';
 import { loginRoute, setPasswordRoute, setupRoute } from '../routes/login.tsx';
 import { NotFoundRoute } from '../routes/not-found.tsx';
 import { reportRoutes } from '../routes/reports.tsx';
+import { apiSettingsRoute } from '../routes/settings-api.tsx';
 import { authSettingsRoute } from '../routes/settings-auth.tsx';
 import { chartSettingsRoute } from '../routes/settings-charts.tsx';
 import { hostsSettingsRoute } from '../routes/settings-hosts.tsx';
@@ -69,6 +70,7 @@ function settingsRoute({ loadSession, api }: RouteDependencies): RouteObject {
       notificationsSettingsRoute(loadSession, api),
       usersSettingsRoute(loadSession, api),
       authSettingsRoute(loadSession, api),
+      apiSettingsRoute(loadSession, api),
       serverSettingsRoute(loadSession, api),
     ],
   };
@@ -93,6 +95,7 @@ function screenRoutes({ loadSession, api }: RouteDependencies): RouteObject[] {
     ...alertRoutes(loadSession, api),
     ...reportRoutes(loadSession, api),
     accountRoute(loadSession, api),
+    accountTokensRoute(loadSession, api),
     ...dashboardRoutes(loadSession, api),
     snapshotRoute(loadSession, api),
     binRoute(loadSession, api),

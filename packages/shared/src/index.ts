@@ -191,6 +191,7 @@ export {
   threadFromDashboardEndpoint,
   threadSummarySchema,
 } from './api/threads.ts';
+export * from './api/tokens.ts';
 export * from './api/usage.ts';
 export {
   endUserSessionsEndpoint,
@@ -325,6 +326,7 @@ export {
   type Role,
   roleSchema,
   roles,
+  weakerRole,
 } from './roles.ts';
 export { safeNext } from './safe-next.ts';
 export * from './spec/index.ts';

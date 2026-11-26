@@ -6,6 +6,7 @@ import type { Answers } from './agent/answer-types.ts';
 import type { Agent } from './agent/run.ts';
 import type { Alerts } from './alerts/alerts.ts';
 import type { PanelLinks } from './alerts/links.ts';
+import type { ApiTokens } from './auth/api-tokens.ts';
 import type { Authenticator } from './auth/authenticator.ts';
 import type { DefaultAdminDependencies } from './auth/default-admin.ts';
 import type { PasswordAccounts } from './auth/password-accounts.ts';
@@ -13,6 +14,9 @@ import type { LinkedIdentities } from './auth/providers/linked-identities.ts';
 import type { ProviderFlows } from './auth/providers/provider-flow.ts';
 import type { SignInSettings } from './auth/providers/sign-in-settings.ts';
 import type { Sessions } from './auth/sessions.ts';
+import { addressRule, createThrottle } from './auth/throttle.ts';
+import type { TokenActivity } from './auth/token-activity.ts';
+import { createTokenSignIn } from './auth/token-sign-in.ts';
 import type { UserAdminDependencies } from './auth/user-admin.ts';
 import type { Users } from './auth/users.ts';
 import type { Connections } from './connections/connections.ts';
@@ -25,7 +29,7 @@ import type { Questions } from './dashboards/questions.ts';
 import type { Snapshots } from './dashboards/snapshots.ts';
 import type { ModelView } from './gate/model-view.ts';
 import type { AppEnv } from './http/app-env.ts';
-import { authenticate } from './http/authenticate.ts';
+import { authenticate, type TokenAuthentication } from './http/authenticate.ts';
 import { refuseCrossSite } from './http/csrf.ts';
 import { handleErrors, handleNotFound } from './http/error-handling.ts';
 import { logRequests } from './http/request-log.ts';
@@ -47,6 +51,7 @@ import { mountDefinitionEndpoints } from './http/routes/definition-routes.ts';
 import { mountExplanationEndpoints } from './http/routes/explanation-routes.ts';
 import { mountExternalHostEndpoints } from './http/routes/external-host-routes.ts';
 import { mountLayoutEndpoints } from './http/routes/layout-routes.ts';
+import { mountMcpRoute } from './http/routes/mcp-route.ts';
 import { mountNotificationEndpoints } from './http/routes/notification-routes.ts';
 import { mountProviderFlowRoutes } from './http/routes/provider-routes.ts';
 import { mountQueryEndpoints } from './http/routes/query-routes.ts';
@@ -60,15 +65,19 @@ import { mountSignInSettingsEndpoints } from './http/routes/sign-in-settings-rou
 import { mountSnapshotEndpoints } from './http/routes/snapshot-routes.ts';
 import { mountSystemRoutes } from './http/routes/system-routes.ts';
 import { mountThreadEndpoints } from './http/routes/thread-routes.ts';
+import { mountTokenEndpoints } from './http/routes/token-routes.ts';
 import { mountUsageEndpoints } from './http/routes/usage-routes.ts';
 import { mountUserEndpoints } from './http/routes/user-routes.ts';
 import { noStoreApi, securityHeaders } from './http/security-headers.ts';
 import { mountSpa } from './http/spa.ts';
+import { refuseTokensOutsideMcp } from './http/token-reach.ts';
 import type { Logger } from './lib/logger.ts';
+import { createMcpServer } from './mcp/server.ts';
 import type { Notifications } from './notifications/notifications.ts';
 import type { Managed } from './provisioning/managed.ts';
 import type { ReportServices } from './report-services.ts';
 import type { AlertSettingsService } from './settings/alert-settings.ts';
+import type { ApiAccessSettingsService } from './settings/api-access-settings.ts';
 import type { ChartSettingsService } from './settings/chart-settings.ts';
 import type { ExternalHostsService } from './settings/external-hosts.ts';
 import type { ModelSettingsService } from './settings/model-settings.ts';
@@ -88,6 +97,12 @@ export interface AppDependencies extends ReportServices {
   readonly publicUrl: string | undefined;
   /** Sessions, when the session key is set. */
   readonly sessions: Sessions | undefined;
+  /** API tokens, when the session key is set. */
+  readonly apiTokens: ApiTokens | undefined;
+  /** The record of what API tokens did on the MCP endpoint. */
+  readonly tokenActivity: TokenActivity;
+  /** Whether the MCP endpoint answers, its tools, and how long a new token may last. */
+  readonly apiAccess: ApiAccessSettingsService;
   /** Password accounts, when the session key and the pepper are set. */
   readonly passwords: PasswordAccounts | undefined;
   /** The users. */
@@ -163,7 +178,7 @@ export interface AppDependencies extends ReportServices {
 }
 
 /**
- * Mounts the routes of accounts: signing in, setting up, users and sign-in providers.
+ * Mounts the routes of accounts: signing in, setting up, users, API tokens and sign-in providers.
  *
  * @param app - The app.
  * @param dependencies - The services the routes use.
@@ -174,6 +189,7 @@ function mountAccountRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): v
     passwordSignIn: () => dependencies.signInSettings.passwordSignIn(),
   });
   mountUserEndpoints(app, dependencies);
+  mountTokenEndpoints(app, dependencies);
   mountSignInSettingsEndpoints(app, dependencies);
   mountProviderFlowRoutes(app, dependencies.flows);
 }
@@ -245,6 +261,44 @@ function mountApiRoutes(app: Hono<AppEnv>, dependencies: AppDependencies): void 
   mountReportDraftEndpoints(app, dependencies);
   mountRunQuestionEndpoints(app, dependencies);
   mountChatRoute(app, dependencies.agent, dependencies.threads);
+  mountMcp(app, dependencies);
+}
+
+/**
+ * Mounts the MCP endpoint. Its tools read through the same services as the routes above, and its
+ * two switches are read from the API access settings at each request.
+ *
+ * @param app - The app.
+ * @param dependencies - The services the tools read.
+ */
+function mountMcp(app: Hono<AppEnv>, dependencies: AppDependencies): void {
+  const { apiAccess, publicUrl, version, logger, trustedProxyHops } = dependencies;
+  const mcp = createMcpServer({
+    services: dependencies,
+    queryTools: () => apiAccess.get().mcpQueryTools,
+    version,
+    logger,
+  });
+  const mcpEnabled = () => apiAccess.get().mcp;
+  const activity = dependencies.tokenActivity;
+  mountMcpRoute(app, { mcp, mcpEnabled, publicUrl, activity, trustedProxyHops, logger });
+}
+
+/**
+ * What signs a request in with an API token: the tokens, and the wait of an address whose tokens
+ * keep signing nobody in.
+ *
+ * @param dependencies - The API tokens, the users, the proxies in front and the logger.
+ * @returns The sign-in and its throttle.
+ */
+function tokensOf(dependencies: AppDependencies): TokenAuthentication {
+  const { apiTokens, users, trustedProxyHops, logger } = dependencies;
+  return {
+    signIn: createTokenSignIn({ apiTokens, users }),
+    failures: createThrottle(addressRule),
+    trustedProxyHops,
+    logger,
+  };
 }
 
 /**
@@ -259,8 +313,9 @@ export function createApp(dependencies: AppDependencies): Hono<AppEnv> {
   app.use(securityHeaders(dependencies.publicUrl, () => dependencies.externalHosts.imageHosts()));
   app.use(noStoreApi());
   app.use(logRequests(dependencies.logger));
+  app.use(refuseTokensOutsideMcp());
   app.use(refuseCrossSite(dependencies.publicUrl));
-  app.use(`${apiPrefix}/*`, authenticate(dependencies.authenticator));
+  app.use(`${apiPrefix}/*`, authenticate(dependencies.authenticator, tokensOf(dependencies)));
 
   mountApiRoutes(app, dependencies);
   mountSpa(app, dependencies.webDir);

@@ -30,6 +30,7 @@ export const publishedDocs = [
   'guide/notifications.md',
   'guide/bin-and-retention.md',
   'guide/queries-and-charts.md',
+  'guide/mcp.md',
   'connectors.md',
 ] as const;
 

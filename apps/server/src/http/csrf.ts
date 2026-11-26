@@ -2,9 +2,11 @@
  * Cross-site request forgery: a request that changes something must come from quanthea's own
  * pages. Such a request carries `X-Requested-With: quanthea`, which a cross-site form or image
  * cannot send without a CORS preflight quanthea never grants; when the browser names the request's
- * origin, it must be quanthea's. The session cookie is also SameSite=Lax.
+ * origin, it must be quanthea's. The session cookie is also SameSite=Lax. The MCP endpoint is
+ * exempt: it takes an API token only, and refuses a session cookie and another site's origin
+ * itself.
  */
-import { apiPrefix } from '@quanthea/shared';
+import { apiPrefix, mcpPath } from '@quanthea/shared';
 import type { MiddlewareHandler } from 'hono';
 import { createMiddleware } from 'hono/factory';
 import { AppError } from '../lib/errors.ts';
@@ -40,7 +42,10 @@ export function crossSiteRefusal(request: Request, allowedOrigin: string): strin
 export function refuseCrossSite(publicUrl: string | undefined): MiddlewareHandler<AppEnv> {
   return createMiddleware<AppEnv>(async (context, next) => {
     const { raw } = context.req;
-    if (!safeMethods.has(raw.method) && context.req.path.startsWith(`${apiPrefix}/`)) {
+    const { path } = context.req;
+    const guarded = !safeMethods.has(raw.method) && path.startsWith(`${apiPrefix}/`);
+    // The MCP endpoint refuses cookies itself, so a client without a token gets its 401 there.
+    if (guarded && path !== `${apiPrefix}${mcpPath}`) {
       const refusal = crossSiteRefusal(raw, publicUrl ?? new URL(raw.url).origin);
       if (refusal) throw new AppError('forbidden', refusal);
     }

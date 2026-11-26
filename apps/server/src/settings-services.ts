@@ -1,9 +1,13 @@
 /**
  * Builds the services of the settings sections an admin edits: the model gateway, the query
- * builders, the chart recipes, the external hosts and the bin's retention.
+ * builders, the chart recipes, the external hosts, the bin's retention and API access.
  */
 import type { AuditRepository } from './db/audit-repository.ts';
 import type { SecretBox } from './secrets/secret-box.ts';
+import {
+  type ApiAccessSettingsService,
+  createApiAccessSettings,
+} from './settings/api-access-settings.ts';
 import { type ChartSettingsService, createChartSettings } from './settings/chart-settings.ts';
 import { createExternalHosts, type ExternalHostsService } from './settings/external-hosts.ts';
 import { createModelSettings, type ModelSettingsService } from './settings/model-settings.ts';
@@ -27,6 +31,8 @@ export interface SettingsServices {
   readonly externalHosts: ExternalHostsService;
   /** How long deleted threads stay in the bin. */
   readonly retention: RetentionSettingsService;
+  /** Whether the MCP endpoint answers, its tools, and how long a new token may last. */
+  readonly apiAccess: ApiAccessSettingsService;
 }
 
 /** What the settings sections need. */
@@ -62,5 +68,6 @@ export function createSettingsServices(
     chartSettings: createChartSettings({ store, audit }),
     externalHosts: createExternalHosts({ store, audit }),
     retention: createRetentionSettings({ store, audit }),
+    apiAccess: createApiAccessSettings({ store, audit }),
   };
 }

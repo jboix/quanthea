@@ -1,11 +1,13 @@
 /**
  * What admins change about a user: the role, and whether they may sign in. quanthea always keeps
- * at least one admin who can sign in, and a disabled user's sessions end at once.
+ * at least one admin who can sign in. A disabled user's sessions end at once, and their API tokens
+ * are revoked.
  */
 import type { Role } from '@quanthea/shared';
 import type { AuditRepository } from '../db/audit-repository.ts';
 import type { UserChange, UserRepository, UserRow } from '../db/user-repository.ts';
 import { AppError } from '../lib/errors.ts';
+import type { ApiTokens } from './api-tokens.ts';
 import type { Sessions } from './sessions.ts';
 
 /** What changing a user needs. */
@@ -14,6 +16,8 @@ export interface UserAdminDependencies {
   readonly repository: UserRepository;
   /** Ends a disabled user's sessions, when there are sessions. */
   readonly sessions: Pick<Sessions, 'endAllOf'> | undefined;
+  /** Revokes a disabled user's API tokens, when there are tokens. */
+  readonly apiTokens?: Pick<ApiTokens, 'revokeAllOf'> | undefined;
   /** Records who did what. */
   readonly audit: AuditRepository;
   /** The clock; `Date.now` by default. */
@@ -77,6 +81,9 @@ export function changeUser(
   if (leavesNoAdmin(repository, row, change))
     throw new AppError('bad_request', 'quanthea needs at least one admin who can sign in.');
   repository.update(id, storedChange(change, (dependencies.now ?? Date.now)()));
-  if (change.disabled) dependencies.sessions?.endAllOf(id);
+  if (change.disabled) {
+    dependencies.sessions?.endAllOf(id);
+    dependencies.apiTokens?.revokeAllOf(id, actor);
+  }
   audit.append({ actor, action: 'user.change', target: id, detail: change });
 }

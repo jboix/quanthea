@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { hasRole, type Role, roles } from './roles.ts';
+import { hasRole, type Role, roles, weakerRole } from './roles.ts';
 
 describe('hasRole', () => {
   const expected: Record<Role, Record<Role, boolean>> = {
@@ -19,5 +19,13 @@ describe('hasRole', () => {
 
   test('ranks the roles viewer, analyst, editor, admin', () => {
     expect(roles).toEqual(['viewer', 'analyst', 'editor', 'admin']);
+  });
+});
+
+describe('weakerRole', () => {
+  test('gives whichever grants less, in either order', () => {
+    expect(weakerRole('admin', 'viewer')).toBe('viewer');
+    expect(weakerRole('analyst', 'editor')).toBe('analyst');
+    expect(weakerRole('editor', 'editor')).toBe('editor');
   });
 });
