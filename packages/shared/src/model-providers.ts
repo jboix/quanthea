@@ -45,7 +45,7 @@ export const providerProfiles: Readonly<Record<ModelProvider, ProviderProfile>> 
   anthropic: {
     baseUrl: 'https://api.anthropic.com/v1',
     models: [
-      { id: 'claude-fable-5-1', name: 'Fable 5.1' },
+      { id: 'claude-fable-5-2', name: 'Fable 5.2' },
       { id: 'claude-opus-5-5', name: 'Opus 5.5' },
       { id: 'claude-sonnet-5', name: 'Sonnet 5' },
       { id: 'claude-haiku-4-5', name: 'Haiku 4.5' },
